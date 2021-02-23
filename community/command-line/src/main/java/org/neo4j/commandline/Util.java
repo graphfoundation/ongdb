@@ -106,7 +106,7 @@ public class Util
         }
         catch ( StoreLockException e )
         {
-            throw new CommandFailed( "the database is in use -- stop Neo4j and try again", e );
+            throw new CommandFailed( "the database is in use -- stop ONgDB and try again", e );
         }
         catch ( IOException e )
         {

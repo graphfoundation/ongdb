@@ -76,7 +76,7 @@ import static org.mockito.Mockito.when;
 
 public class UserServiceTest
 {
-    protected static final User ONGDB_USER = new User.Builder( "neo4j", Credential.forPassword( "neo4j" ) )
+    protected static final User ONGDB_USER = new User.Builder( "ongdb", Credential.forPassword( "ongdb" ) )
             .withRequiredPasswordChange( true ).build();
 
     protected final PasswordPolicy passwordPolicy = new BasicPasswordPolicy();
@@ -101,7 +101,7 @@ public class UserServiceTest
         request = mock( HttpServletRequest.class );
         userRepository.create( ONGDB_USER );
         setupAuthManagerAndSubject();
-        neo4jPrinciple = new DelegatingPrincipal( "neo4j", neo4jContext );
+        neo4jPrinciple = new DelegatingPrincipal( "ongdb", neo4jContext );
     }
 
     @After
@@ -120,14 +120,14 @@ public class UserServiceTest
         UserService userService = new UserService( userManagerSupplier, new JsonFormat(), outputFormat );
 
         // When
-        Response response = userService.getUser( "neo4j", request );
+        Response response = userService.getUser( "ongdb", request );
 
         // Then
         assertThat( response.getStatus(), equalTo( 200 ) );
         String json = new String( (byte[]) response.getEntity() );
         assertNotNull( json );
-        assertThat( json, containsString( "\"username\" : \"neo4j\"" ) );
-        assertThat( json, containsString( "\"password_change\" : \"http://www.example.com/user/neo4j/password\"" ) );
+        assertThat( json, containsString( "\"username\" : \"ongdb\"" ) );
+        assertThat( json, containsString( "\"password_change\" : \"http://www.example.com/user/ongdb/password\"" ) );
         assertThat( json, containsString( "\"password_change_required\" : true" ) );
     }
 
@@ -141,7 +141,7 @@ public class UserServiceTest
         UserService userService = new UserService( userManagerSupplier, new JsonFormat(), outputFormat );
 
         // When
-        Response response = userService.getUser( "neo4j", request );
+        Response response = userService.getUser( "ongdb", request );
 
         // Then
         assertThat( response.getStatus(), equalTo( 404 ) );
@@ -169,13 +169,13 @@ public class UserServiceTest
         // Given
         when( request.getUserPrincipal() ).thenReturn( neo4jPrinciple );
 
-        userManagerSupplier.getUserManager().deleteUser( "neo4j" );
+        userManagerSupplier.getUserManager().deleteUser( "ongdb" );
 
         OutputFormat outputFormat = new EntityOutputFormat( new JsonFormat(), new URI( "http://www.example.com" ), null );
         UserService userService = new UserService( userManagerSupplier, new JsonFormat(), outputFormat );
 
         // When
-        Response response = userService.getUser( "neo4j", request );
+        Response response = userService.getUser( "ongdb", request );
 
         // Then
         assertThat( response.getStatus(), equalTo( 404 ) );
@@ -191,11 +191,11 @@ public class UserServiceTest
         UserService userService = new UserService( userManagerSupplier, new JsonFormat(), outputFormat );
 
         // When
-        Response response = userService.setPassword( "neo4j", request, "{ \"password\" : \"test\" }" );
+        Response response = userService.setPassword( "ongdb", request, "{ \"password\" : \"test\" }" );
 
         // Then
         assertThat( response.getStatus(), equalTo( 200 ) );
-        userManagerSupplier.getUserManager().getUser( "neo4j" ).credentials().matchesPassword( "test" );
+        userManagerSupplier.getUserManager().getUser( "ongdb" ).credentials().matchesPassword( "test" );
     }
 
     @Test
@@ -208,7 +208,7 @@ public class UserServiceTest
         UserService userService = new UserService( mock( BasicAuthManager.class ), new JsonFormat(), outputFormat );
 
         // When
-        Response response = userService.setPassword( "neo4j", request, "{ \"password\" : \"test\" }" );
+        Response response = userService.setPassword( "ongdb", request, "{ \"password\" : \"test\" }" );
 
         // Then
         assertThat( response.getStatus(), equalTo( 404 ) );
@@ -245,7 +245,7 @@ public class UserServiceTest
         userRepository.delete( ONGDB_USER );
 
         // When
-        Response response = userService.setPassword( "neo4j", request, "{ \"password\" : \"test\" }" );
+        Response response = userService.setPassword( "ongdb", request, "{ \"password\" : \"test\" }" );
 
         // Then
         assertThat( response.getStatus(), equalTo( 422 ) );
@@ -261,7 +261,7 @@ public class UserServiceTest
         UserService userService = new UserService( mock( BasicAuthManager.class ), new JsonFormat(), outputFormat );
 
         // When
-        Response response = userService.setPassword( "neo4j", request, "xxx" );
+        Response response = userService.setPassword( "ongdb", request, "xxx" );
 
         // Then
         assertThat( response.getStatus(), equalTo( 400 ) );
@@ -280,7 +280,7 @@ public class UserServiceTest
         UserService userService = new UserService( mock( BasicAuthManager.class ), new JsonFormat(), outputFormat );
 
         // When
-        Response response = userService.setPassword( "neo4j", request, "{ \"unknown\" : \"unknown\" }" );
+        Response response = userService.setPassword( "ongdb", request, "{ \"unknown\" : \"unknown\" }" );
 
         // Then
         assertThat( response.getStatus(), equalTo( 422 ) );
@@ -300,7 +300,7 @@ public class UserServiceTest
         UserService userService = new UserService( mock( BasicAuthManager.class ), new JsonFormat(), outputFormat );
 
         // When
-        Response response = userService.setPassword( "neo4j", request, "{ \"password\" : 1 }" );
+        Response response = userService.setPassword( "ongdb", request, "{ \"password\" : 1 }" );
 
         // Then
         assertThat( response.getStatus(), equalTo( 422 ) );
@@ -320,7 +320,7 @@ public class UserServiceTest
         UserService userService = new UserService( userManagerSupplier, new JsonFormat(), outputFormat );
 
         // When
-        Response response = userService.setPassword( "neo4j", request, "{ \"password\" : \"\" }" );
+        Response response = userService.setPassword( "ongdb", request, "{ \"password\" : \"\" }" );
 
         // Then
         assertThat( response.getStatus(), equalTo( 422 ) );
@@ -340,7 +340,7 @@ public class UserServiceTest
         UserService userService = new UserService( userManagerSupplier, new JsonFormat(), outputFormat );
 
         // When
-        Response response = userService.setPassword( "neo4j", request, "{ \"password\" : \"neo4j\" }" );
+        Response response = userService.setPassword( "ongdb", request, "{ \"password\" : \"ongdb\" }" );
 
         // Then
         assertThat( response.getStatus(), equalTo( 422 ) );

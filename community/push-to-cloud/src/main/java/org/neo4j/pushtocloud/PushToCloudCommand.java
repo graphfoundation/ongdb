@@ -80,7 +80,7 @@ public class PushToCloudCommand implements AdminCommand
                     "Bolt URI of target database" ) )
             .withArgument( new OptionalNamedArg( ARG_VERBOSE, "true/false", null,
                     "Enable verbose output." ) )
-            .withArgument( new OptionalNamedArg( ARG_USERNAME, "neo4j", null,
+            .withArgument( new OptionalNamedArg( ARG_USERNAME, "ongdb", null,
                     "Optional: Username of the target database to push this database to. Prompt will ask for username if not provided. " +
                             "Alternatively ONGDB_USERNAME environment variable can be used." ) )
             .withArgument( new OptionalNamedArg( ARG_PASSWORD, "mYs3cr3tPa$$w0rd", null,
@@ -135,7 +135,7 @@ public class PushToCloudCommand implements AdminCommand
             // default username to neo4j if user pressed 'enter' during the prompt
             if ( username == null || "".equals( username ) )
             {
-                username = "neo4j";
+                username = "ongdb";
             }
 
             char[] password;

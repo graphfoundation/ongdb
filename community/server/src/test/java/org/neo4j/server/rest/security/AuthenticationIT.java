@@ -312,7 +312,7 @@ public class AuthenticationIT extends CommunityServerTestBase
         startServer( true );
         // Set the password
         HTTP.Response post = HTTP.withHeaders( HttpHeaders.AUTHORIZATION, basicAuthHeader( "ongdb", "ongdb" ) ).POST(
-                server.baseUri().resolve( "/user/neo4j/password" ).toString(),
+                server.baseUri().resolve( "/user/ongdb/password" ).toString(),
                 RawPayload.quotedJson( "{'password':'secret'}" )
         );
         assertEquals( 200, post.status() );

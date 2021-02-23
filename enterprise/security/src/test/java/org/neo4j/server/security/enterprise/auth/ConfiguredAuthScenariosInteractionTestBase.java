@@ -126,7 +126,7 @@ public abstract class ConfiguredAuthScenariosInteractionTestBase<S> extends Proc
             "editorSubject", listOf( EDITOR ),
             "pwdSubject", listOf(),
             "noneSubject", listOf(),
-            "neo4j", listOf( ADMIN )
+            "ongdb", listOf( ADMIN )
     );
 
     private boolean containsNotification( Result result, String description )

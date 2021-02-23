@@ -233,7 +233,7 @@ public class InternalFlatFileRealm extends AuthorizingRealm implements RealmLife
         {
             if ( userRepository.numberOfUsers() == 0 )
             {
-                User neo4j = newUser( INITIAL_USER_NAME, "neo4j", true );
+                User neo4j = newUser( INITIAL_USER_NAME, "ongdb", true );
                 if ( initialUserRepository.numberOfUsers() > 0 )
                 {
                     User initUser = initialUserRepository.getUserByName( INITIAL_USER_NAME );

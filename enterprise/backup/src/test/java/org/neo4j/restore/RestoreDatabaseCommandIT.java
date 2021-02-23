@@ -105,7 +105,7 @@ public class RestoreDatabaseCommandIT
         }
         catch ( Exception e )
         {
-            assertThat( e.getMessage(), equalTo( "the database is in use -- stop Neo4j and try again" ) );
+            assertThat( e.getMessage(), equalTo( "the database is in use -- stop ONgDB and try again" ) );
         }
     }
 

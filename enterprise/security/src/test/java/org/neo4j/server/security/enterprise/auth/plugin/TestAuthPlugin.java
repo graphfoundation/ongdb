@@ -56,9 +56,9 @@ public class TestAuthPlugin extends AuthPlugin.Adapter
         String principal = authToken.principal();
         char[] credentials = authToken.credentials();
 
-        if ( principal.equals( "neo4j" ) && Arrays.equals( credentials, "neo4j".toCharArray() ) )
+        if ( principal.equals( "ongdb" ) && Arrays.equals( credentials, "ongdb".toCharArray() ) )
         {
-            return AuthInfo.of( "neo4j", Collections.singleton( PredefinedRoles.READER ) );
+            return AuthInfo.of( "ongdb", Collections.singleton( PredefinedRoles.READER ) );
         }
         return null;
     }

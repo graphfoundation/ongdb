@@ -59,7 +59,7 @@ public class TestCustomParametersAuthenticationPlugin extends AuthenticationPlug
 
         if ( myCredentials.containsAll( Arrays.asList( 1L, 2L, 3L, 4L ) ) )
         {
-            return (AuthenticationInfo) () -> "neo4j";
+            return (AuthenticationInfo) () -> "ongdb";
         }
         return null;
     }

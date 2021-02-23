@@ -713,7 +713,7 @@ public abstract class AuthProceduresInteractionTestBase<S> extends ProcedureInte
                 "editorSubject", listOf( EDITOR ),
                 "pwdSubject", listOf(),
                 "noneSubject", listOf(),
-                "neo4j", listOf( ADMIN )
+                "ongdb", listOf( ADMIN )
         );
         userManager.addRoleToUser( READER, "writeSubject" );
         assertSuccess( adminSubject, "CALL dbms.security.listUsers()",
@@ -731,7 +731,7 @@ public abstract class AuthProceduresInteractionTestBase<S> extends ProcedureInte
                 "writeSubject", listOf( IS_SUSPENDED ),
                 "pwdSubject", listOf( PWD_CHANGE, IS_SUSPENDED ),
                 "noneSubject", listOf(),
-                "neo4j", listOf( PWD_CHANGE.toLowerCase() )
+                "ongdb", listOf( PWD_CHANGE.toLowerCase() )
         );
         userManager.suspendUser( "writeSubject" );
         userManager.suspendUser( "pwdSubject" );
@@ -778,7 +778,7 @@ public abstract class AuthProceduresInteractionTestBase<S> extends ProcedureInte
     public void shouldReturnRolesWithUsers()
     {
         Map<String,Object> expected = map(
-                ADMIN, listOf( "adminSubject", "neo4j" ),
+                ADMIN, listOf( "adminSubject", "ongdb" ),
                 READER, listOf( "readSubject" ),
                 ARCHITECT, listOf( "schemaSubject" ),
                 PUBLISHER, listOf( "writeSubject" ),
@@ -853,7 +853,7 @@ public abstract class AuthProceduresInteractionTestBase<S> extends ProcedureInte
     public void shouldListUsersForRole()
     {
         assertSuccess( adminSubject, "CALL dbms.security.listUsersForRole('admin') YIELD value as users RETURN users",
-                r -> assertKeyIs( r, "users", "adminSubject", "neo4j" ) );
+                r -> assertKeyIs( r, "users", "adminSubject", "ongdb" ) );
     }
 
     @Test

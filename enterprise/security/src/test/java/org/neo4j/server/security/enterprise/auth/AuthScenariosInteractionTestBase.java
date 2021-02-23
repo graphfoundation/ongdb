@@ -100,14 +100,14 @@ public abstract class AuthScenariosInteractionTestBase<S> extends ProcedureInter
     @Test
     public void shouldLogSecurityEvents() throws Exception
     {
-        S mats = neo.login( "mats", "neo4j" );
+        S mats = neo.login( "mats", "ongdb" );
         // for REST, login doesn't happen until the subject does something
         neo.executeQuery( mats, "UNWIND [] AS i RETURN 1", Collections.emptyMap(), r -> {} );
         assertEmpty( adminSubject, "CALL dbms.security.createUser('mats', 'ongdb', false)" );
         assertEmpty( adminSubject, "CALL dbms.security.createRole('role1')" );
         assertEmpty( adminSubject, "CALL dbms.security.deleteRole('role1')" );
         assertEmpty( adminSubject, "CALL dbms.security.addRoleToUser('reader', 'mats')" );
-        mats = neo.login( "mats", "neo4j" );
+        mats = neo.login( "mats", "ongdb" );
         assertEmpty( mats, "MATCH (n) WHERE id(n) < 0 RETURN 1" );
         assertFail( mats, "CALL dbms.security.changeUserPassword('ongdb', 'hackerPassword')", PERMISSION_DENIED );
         assertFail( mats, "CALL dbms.security.changeUserPassword('mats', '')", "A password cannot be empty." );
@@ -128,7 +128,7 @@ public abstract class AuthScenariosInteractionTestBase<S> extends ProcedureInter
         log.assertHasLine( "adminSubject", "deleted role `role1`" );
         log.assertHasLine( "mats", "logged in" );
         log.assertHasLine( "adminSubject", "added role `reader` to user `mats`" );
-        log.assertHasLine( "mats", "tried to change password for user `neo4j`: " + PERMISSION_DENIED);
+        log.assertHasLine( "mats", "tried to change password for user `ongdb`: " + PERMISSION_DENIED);
         log.assertHasLine( "mats", "tried to change password: A password cannot be empty.");
         log.assertHasLine( "mats", "changed password");
         log.assertHasLine( "adminSubject", "removed role `reader` from user `mats`");
@@ -451,7 +451,7 @@ public abstract class AuthScenariosInteractionTestBase<S> extends ProcedureInter
     public void customRoleWithProcedureAccess() throws Exception
     {
         assertEmpty( adminSubject, "CALL dbms.security.createUser('mats', 'ongdb', false)" );
-        S mats = neo.login( "mats", "neo4j" );
+        S mats = neo.login( "mats", "ongdb" );
         testFailTestProcs( mats );
         assertEmpty( adminSubject, "CALL dbms.security.createRole('role1')" );
         testFailTestProcs( mats );

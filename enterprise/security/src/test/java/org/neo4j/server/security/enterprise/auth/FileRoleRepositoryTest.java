@@ -154,7 +154,7 @@ public class FileRoleRepositoryTest
         // Given
 
         // When
-        roleRepository.assertValidRoleName( "neo4j" );
+        roleRepository.assertValidRoleName( "ongdb" );
         roleRepository.assertValidRoleName( "johnosbourne" );
         roleRepository.assertValidRoleName( "john_osbourne" );
 
@@ -294,14 +294,14 @@ public class FileRoleRepositoryTest
     {
         // Given
         fs.mkdirs( roleFile.getParentFile() );
-        FileRepositorySerializer.writeToFile( fs, roleFile, UTF8.encode( "admin:neo4j\nreader:\n" ) );
+        FileRepositorySerializer.writeToFile( fs, roleFile, UTF8.encode( "admin:ongdb\nreader:\n" ) );
 
         // When
         roleRepository = new FileRoleRepository( fs, roleFile, logProvider );
         roleRepository.start();
 
         RoleRecord role = roleRepository.getRoleByName( "admin" );
-        assertTrue( "neo4j should be assigned to 'admin'", role.users().contains( "neo4j" ) );
+        assertTrue( "ongdb should be assigned to 'admin'", role.users().contains( "ongdb" ) );
         assertTrue( "only one admin should exist", role.users().size() == 1 );
 
         role = roleRepository.getRoleByName( "reader" );

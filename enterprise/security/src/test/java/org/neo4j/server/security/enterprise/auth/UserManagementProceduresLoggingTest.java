@@ -130,14 +130,14 @@ public class UserManagementProceduresLoggingTest
         catchInvalidArguments( () -> authProcedures.createUser( "", "pw", true ) );
         catchInvalidArguments( () -> authProcedures.createUser( "andres", "", true ) );
         catchInvalidArguments( () -> authProcedures.createUser( "mats", null, true ) );
-        catchInvalidArguments( () -> authProcedures.createUser( "neo4j", "nonEmpty", true ) );
+        catchInvalidArguments( () -> authProcedures.createUser( "ongdb", "nonEmpty", true ) );
 
         log.assertExactly(
                 error( "[admin]: tried to create user `%s`: %s", null, "The provided username is empty." ),
                 error( "[admin]: tried to create user `%s`: %s", "", "The provided username is empty." ),
                 error( "[admin]: tried to create user `%s`: %s", "andres", "A password cannot be empty." ),
                 error( "[admin]: tried to create user `%s`: %s", "mats", "A password cannot be empty." ),
-                error( "[admin]: tried to create user `%s`: %s", "neo4j", "The specified user 'ongdb' already exists." )
+                error( "[admin]: tried to create user `%s`: %s", "ongdb", "The specified user 'ongdb' already exists." )
         );
     }
 
@@ -181,7 +181,7 @@ public class UserManagementProceduresLoggingTest
     @Test
     public void shouldLogAddingRoleToUser() throws Throwable
     {
-        authProcedures.createUser( "mats", "neo4j", false );
+        authProcedures.createUser( "mats", "ongdb", false );
         authProcedures.addRoleToUser( ARCHITECT, "mats" );
 
         log.assertExactly(
@@ -192,7 +192,7 @@ public class UserManagementProceduresLoggingTest
     @Test
     public void shouldLogFailureToAddRoleToUser() throws Throwable
     {
-        authProcedures.createUser( "mats", "neo4j", false );
+        authProcedures.createUser( "mats", "ongdb", false );
         catchInvalidArguments( () -> authProcedures.addRoleToUser( "null", "mats" ) );
 
         log.assertExactly(
@@ -213,7 +213,7 @@ public class UserManagementProceduresLoggingTest
     public void shouldLogRemovalOfRoleFromUser() throws Throwable
     {
         // Given
-        authProcedures.createUser( "mats", "neo4j", false );
+        authProcedures.createUser( "mats", "ongdb", false );
         authProcedures.addRoleToUser( READER, "mats" );
         log.clear();
 
@@ -228,7 +228,7 @@ public class UserManagementProceduresLoggingTest
     public void shouldLogFailureToRemoveRoleFromUser() throws Throwable
     {
         // Given
-        authProcedures.createUser( "mats", "neo4j", false );
+        authProcedures.createUser( "mats", "ongdb", false );
         authProcedures.addRoleToUser( READER, "mats" );
         log.clear();
 
@@ -256,7 +256,7 @@ public class UserManagementProceduresLoggingTest
     public void shouldLogUserPasswordChanges() throws IOException, InvalidArgumentsException
     {
         // Given
-        authProcedures.createUser( "mats", "neo4j", true );
+        authProcedures.createUser( "mats", "ongdb", true );
         log.clear();
 
         // When
@@ -283,11 +283,11 @@ public class UserManagementProceduresLoggingTest
     public void shouldLogFailureToChangeUserPassword() throws Throwable
     {
         // Given
-        authProcedures.createUser( "andres", "neo4j", true );
+        authProcedures.createUser( "andres", "ongdb", true );
         log.clear();
 
         // When
-        catchInvalidArguments( () -> authProcedures.changeUserPassword( "andres", "neo4j", false ) );
+        catchInvalidArguments( () -> authProcedures.changeUserPassword( "andres", "ongdb", false ) );
         catchInvalidArguments( () -> authProcedures.changeUserPassword( "andres", "", false ) );
         catchInvalidArguments( () -> authProcedures.changeUserPassword( "notAndres", "good password", false ) );
 
@@ -306,17 +306,17 @@ public class UserManagementProceduresLoggingTest
     public void shouldLogFailureToChangeOwnPassword() throws Throwable
     {
         // Given
-        authProcedures.createUser( "mats", "neo4j", true );
+        authProcedures.createUser( "mats", "ongdb", true );
         setSubject( matsContext );
         log.clear();
 
         // When
-        catchInvalidArguments( () -> authProcedures.changeUserPassword( "mats", "neo4j", false ) );
+        catchInvalidArguments( () -> authProcedures.changeUserPassword( "mats", "ongdb", false ) );
         catchInvalidArguments( () -> authProcedures.changeUserPassword( "mats", "", false ) );
 
         catchInvalidArguments( () -> authProcedures.changePassword( null, false ) );
         catchInvalidArguments( () -> authProcedures.changePassword( "", false ) );
-        catchInvalidArguments( () -> authProcedures.changePassword( "neo4j", false ) );
+        catchInvalidArguments( () -> authProcedures.changePassword( "ongdb", false ) );
 
         // Then
         log.assertExactly(
@@ -332,7 +332,7 @@ public class UserManagementProceduresLoggingTest
     public void shouldLogUnauthorizedChangePassword() throws Throwable
     {
         // Given
-        authProcedures.createUser( "andres", "neo4j", true );
+        authProcedures.createUser( "andres", "ongdb", true );
         log.clear();
         setSubject( matsContext );
 
@@ -349,7 +349,7 @@ public class UserManagementProceduresLoggingTest
     public void shouldLogSuspendUser() throws Throwable
     {
         // Given
-        authProcedures.createUser( "mats", "neo4j", false );
+        authProcedures.createUser( "mats", "ongdb", false );
         log.clear();
 
         // When
@@ -367,7 +367,7 @@ public class UserManagementProceduresLoggingTest
     public void shouldLogFailureToSuspendUser() throws Throwable
     {
         // Given
-        authProcedures.createUser( "mats", "neo4j", false );
+        authProcedures.createUser( "mats", "ongdb", false );
         log.clear();
 
         // When
@@ -400,7 +400,7 @@ public class UserManagementProceduresLoggingTest
     public void shouldLogActivateUser() throws Throwable
     {
         // Given
-        authProcedures.createUser( "mats", "neo4j", false );
+        authProcedures.createUser( "mats", "ongdb", false );
         authProcedures.suspendUser( "mats" );
         log.clear();
 
@@ -539,7 +539,7 @@ public class UserManagementProceduresLoggingTest
     public void shouldLogIfUnexpectedErrorTerminatingTransactions() throws Exception
     {
         // Given
-        authProcedures.createUser( "johan", "neo4j", false );
+        authProcedures.createUser( "johan", "ongdb", false );
         authProcedures.failTerminateTransaction();
         log.clear();
 

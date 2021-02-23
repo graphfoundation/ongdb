@@ -159,13 +159,13 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
     {
         // Given
         users.create( newUser( "jake", "abc123" , false ) );
-        users.create( newUser( "neo4j", "neo4j" , false ) );
+        users.create( newUser( "ongdb", "ongdb" , false ) );
 
         // When
         manager.start();
 
         // Then
-        assertThat( manager.getUserManager().getRoleNamesForUser( "neo4j" ), contains( PredefinedRoles.ADMIN ) );
+        assertThat( manager.getUserManager().getRoleNamesForUser( "ongdb" ), contains( PredefinedRoles.ADMIN ) );
         assertThat( manager.getUserManager().getRoleNamesForUser( "jake" ).size(), equalTo( 0 ) );
     }
 
@@ -280,7 +280,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
         manager.start();
 
         assertException(
-                () -> manager.login( map( AuthToken.SCHEME_KEY, "supercool", AuthToken.PRINCIPAL, "neo4j" ) ),
+                () -> manager.login( map( AuthToken.SCHEME_KEY, "supercool", AuthToken.PRINCIPAL, "ongdb" ) ),
                 InvalidAuthTokenException.class,
                 "Unsupported authentication token: { scheme='supercool', principal='ongdb' }" );
 
@@ -295,7 +295,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
                 "Unsupported authentication token, missing key `scheme`: { key='value' }" );
 
         assertException(
-                () -> manager.login( map( AuthToken.SCHEME_KEY, "basic", AuthToken.PRINCIPAL, "neo4j" ) ),
+                () -> manager.login( map( AuthToken.SCHEME_KEY, "basic", AuthToken.PRINCIPAL, "ongdb" ) ),
                 InvalidAuthTokenException.class,
                 "Unsupported authentication token, missing key `credentials`: { scheme='basic', principal='ongdb' }" );
 
@@ -357,7 +357,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
     {
         // Given
         final User user = newUser( "jake", "abc123" , true );
-        final User user2 = newUser( "neo4j", "321cba" , true );
+        final User user2 = newUser( "ongdb", "321cba" , true );
         users.create( user );
         users.create( user2 );
         manager.start();
@@ -367,7 +367,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
 
         // Then
         assertNull( users.getUserByName( "jake" ) );
-        assertNotNull( users.getUserByName( "neo4j" ) );
+        assertNotNull( users.getUserByName( "ongdb" ) );
     }
 
     @Test
@@ -573,15 +573,15 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
     {
         // Given
         manager.start();
-        setMockAuthenticationStrategyResult( "neo4j", "neo4j", AuthenticationResult.SUCCESS );
+        setMockAuthenticationStrategyResult( "ongdb", "ongdb", AuthenticationResult.SUCCESS );
 
         // When
-        SecurityContext securityContext = manager.login( authToken( "neo4j", "neo4j" ) ).authorize( token );
-        userManager.setUserPassword( "neo4j", "1234", false );
+        SecurityContext securityContext = manager.login( authToken( "ongdb", "ongdb" ) ).authorize( token );
+        userManager.setUserPassword( "ongdb", "1234", false );
         securityContext.subject().logout();
 
-        setMockAuthenticationStrategyResult( "neo4j", "1234", AuthenticationResult.SUCCESS );
-        securityContext = manager.login( authToken( "neo4j", "1234" ) ).authorize( token );
+        setMockAuthenticationStrategyResult( "ongdb", "1234", AuthenticationResult.SUCCESS );
+        securityContext = manager.login( authToken( "ongdb", "1234" ) ).authorize( token );
 
         // Then
         assertTrue( securityContext.mode().allowsReads() );

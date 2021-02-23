@@ -81,14 +81,14 @@ public class UsersIT extends ExclusiveServerTestBase
         // Document
         RESTRequestGenerator.ResponseEntity response = gen.get()
                 .expectedStatus( 200 )
-                .withHeader( HttpHeaders.AUTHORIZATION, challengeResponse( "neo4j", "secret" ) )
-                .get( userURL( "neo4j" ) );
+                .withHeader( HttpHeaders.AUTHORIZATION, challengeResponse( "ongdb", "secret" ) )
+                .get( userURL( "ongdb" ) );
 
         // Then
         JsonNode data = JsonHelper.jsonNode( response.entity() );
-        assertThat( data.get( "username" ).asText(), equalTo( "neo4j" ) );
+        assertThat( data.get( "username" ).asText(), equalTo( "ongdb" ) );
         assertThat( data.get( "password_change_required" ).asBoolean(), equalTo( false ) );
-        assertThat( data.get( "password_change" ).asText(), equalTo( passwordURL( "neo4j" ) ) );
+        assertThat( data.get( "password_change" ).asText(), equalTo( passwordURL( "ongdb" ) ) );
     }
 
     @Test
@@ -104,14 +104,14 @@ public class UsersIT extends ExclusiveServerTestBase
         // Document
         RESTRequestGenerator.ResponseEntity response = gen.get()
                 .expectedStatus( 200 )
-                .withHeader( HttpHeaders.AUTHORIZATION, challengeResponse( "neo4j", "neo4j" ) )
-                .get( userURL( "neo4j" ) );
+                .withHeader( HttpHeaders.AUTHORIZATION, challengeResponse( "ongdb", "ongdb" ) )
+                .get( userURL( "ongdb" ) );
 
         // Then
         JsonNode data = JsonHelper.jsonNode( response.entity() );
-        assertThat( data.get( "username" ).asText(), equalTo( "neo4j" ) );
+        assertThat( data.get( "username" ).asText(), equalTo( "ongdb" ) );
         assertThat( data.get( "password_change_required" ).asBoolean(), equalTo( true ) );
-        assertThat( data.get( "password_change" ).asText(), equalTo( passwordURL( "neo4j" ) ) );
+        assertThat( data.get( "password_change" ).asText(), equalTo( passwordURL( "ongdb" ) ) );
     }
 
     @Test
@@ -128,17 +128,17 @@ public class UsersIT extends ExclusiveServerTestBase
         // Document
         RESTRequestGenerator.ResponseEntity response = gen.get()
                 .expectedStatus( 200 )
-                .withHeader( HttpHeaders.AUTHORIZATION, challengeResponse( "neo4j", "neo4j" ) )
+                .withHeader( HttpHeaders.AUTHORIZATION, challengeResponse( "ongdb", "ongdb" ) )
                 .payload( quotedJson( "{'password':'secret'}" ) )
-                .post( server.baseUri().resolve( "/user/neo4j/password" ).toString() );
+                .post( server.baseUri().resolve( "/user/ongdb/password" ).toString() );
 
         // Then the new password should work
         assertEquals( 200, HTTP.withHeaders( HttpHeaders.AUTHORIZATION,
-                challengeResponse( "neo4j", "secret" ) ).GET( dataURL() ).status() );
+                challengeResponse( "ongdb", "secret" ) ).GET( dataURL() ).status() );
 
         // Then the old password should not be invalid
         assertEquals( 401, HTTP.withHeaders( HttpHeaders.AUTHORIZATION,
-                challengeResponse( "neo4j", "neo4j" ) ).POST( dataURL() ).status() );
+                challengeResponse( "ongdb", "ongdb" ) ).POST( dataURL() ).status() );
     }
 
     @Test
@@ -148,8 +148,8 @@ public class UsersIT extends ExclusiveServerTestBase
         startServer( true );
 
         // When
-        HTTP.Response res = HTTP.withHeaders( HttpHeaders.AUTHORIZATION, challengeResponse( "neo4j", "neo4j" ) ).POST(
-                server.baseUri().resolve( "/user/neo4j/password" ).toString(),
+        HTTP.Response res = HTTP.withHeaders( HttpHeaders.AUTHORIZATION, challengeResponse( "ongdb", "ongdb" ) ).POST(
+                server.baseUri().resolve( "/user/ongdb/password" ).toString(),
                 HTTP.RawPayload.quotedJson( "{'password':'ongdb'}" ) );
 
         // Then
@@ -177,8 +177,8 @@ public class UsersIT extends ExclusiveServerTestBase
     {
         startServer( true );
         // Set the password
-        HTTP.Response post = HTTP.withHeaders( HttpHeaders.AUTHORIZATION, challengeResponse( "neo4j", "neo4j" ) ).POST(
-                server.baseUri().resolve( "/user/neo4j/password" ).toString(),
+        HTTP.Response post = HTTP.withHeaders( HttpHeaders.AUTHORIZATION, challengeResponse( "ongdb", "ongdb" ) ).POST(
+                server.baseUri().resolve( "/user/ongdb/password" ).toString(),
                 HTTP.RawPayload.quotedJson( "{'password':'secret'}" )
         );
         assertEquals( 200, post.status() );

@@ -60,9 +60,9 @@ public class TestCacheableAdminAuthPlugin extends AuthPlugin.CachingEnabledAdapt
         String principal = authToken.principal();
         char[] credentials = authToken.credentials();
 
-        if ( principal.equals( "neo4j" ) && Arrays.equals( credentials, "neo4j".toCharArray() ) )
+        if ( principal.equals( "ongdb" ) && Arrays.equals( credentials, "ongdb".toCharArray() ) )
         {
-            return CacheableAuthInfo.of( "neo4j", "neo4j".getBytes(),
+            return CacheableAuthInfo.of( "ongdb", "ongdb".getBytes(),
                     Collections.singleton( PredefinedRoles.ADMIN ) );
         }
         return null;

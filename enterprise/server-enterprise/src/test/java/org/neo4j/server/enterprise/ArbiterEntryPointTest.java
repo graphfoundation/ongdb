@@ -71,7 +71,7 @@ public class ArbiterEntryPointTest
         ArbiterEntryPoint.main( new String[]{ "--version" } );
 
         // then
-        verify( fakeSystemOut ).println( "neo4j " + ongdbVersion() );
+        verify( fakeSystemOut ).println( "ongdb " + ongdbVersion() );
         verifyNoMoreInteractions( fakeSystemOut );
     }
 }

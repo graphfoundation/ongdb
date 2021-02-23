@@ -52,7 +52,7 @@ public class TestAuthorizationPlugin extends AuthorizationPlugin.Adapter
     @Override
     public AuthorizationInfo authorize( Collection<PrincipalAndProvider> principals )
     {
-        if ( principals.stream().anyMatch( p -> "neo4j".equals( p.principal() ) ) )
+        if ( principals.stream().anyMatch( p -> "ongdb".equals( p.principal() ) ) )
         {
             return (AuthorizationInfo) () -> Collections.singleton( PredefinedRoles.READER );
         }

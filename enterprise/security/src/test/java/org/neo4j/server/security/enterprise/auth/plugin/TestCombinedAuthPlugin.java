@@ -60,11 +60,11 @@ public class TestCombinedAuthPlugin extends AuthenticationPlugin.Adapter impleme
         String principal = authToken.principal();
         char[] credentials = authToken.credentials();
 
-        if ( principal.equals( "neo4j" ) && Arrays.equals( credentials, "neo4j".toCharArray() ) )
+        if ( principal.equals( "ongdb" ) && Arrays.equals( credentials, "ongdb".toCharArray() ) )
         {
-            return AuthenticationInfo.of( "neo4j" );
+            return AuthenticationInfo.of( "ongdb" );
         }
-        else if ( principal.equals( "authorization_expired_user" ) && Arrays.equals( credentials, "neo4j".toCharArray() ) )
+        else if ( principal.equals( "authorization_expired_user" ) && Arrays.equals( credentials, "ongdb".toCharArray() ) )
         {
             return (AuthenticationInfo) () -> "authorization_expired_user";
         }
@@ -74,7 +74,7 @@ public class TestCombinedAuthPlugin extends AuthenticationPlugin.Adapter impleme
     @Override
     public AuthorizationInfo authorize( Collection<PrincipalAndProvider> principals )
     {
-        if ( principals.stream().anyMatch( p -> "neo4j".equals( p.principal() ) ) )
+        if ( principals.stream().anyMatch( p -> "ongdb".equals( p.principal() ) ) )
         {
             return (AuthorizationInfo) () -> Collections.singleton( PredefinedRoles.READER );
         }

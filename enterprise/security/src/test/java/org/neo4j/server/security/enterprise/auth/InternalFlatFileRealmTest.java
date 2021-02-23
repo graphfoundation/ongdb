@@ -180,7 +180,7 @@ public class InternalFlatFileRealmTest
     public void shouldAssignAdminRoleToSpecifiedUser() throws Throwable
     {
         // Given
-        InternalFlatFileRealm realm = internalTestRealmWithUsers( Arrays.asList( "neo4j", "morpheus", "trinity" ),
+        InternalFlatFileRealm realm = internalTestRealmWithUsers( Arrays.asList( "ongdb", "morpheus", "trinity" ),
                 Collections.singletonList( "morpheus" ) );
 
         // When
@@ -212,7 +212,7 @@ public class InternalFlatFileRealmTest
     public void shouldNotAssignAdminToNonExistentUser() throws Throwable
     {
         // Given
-        InternalFlatFileRealm realm = internalTestRealmWithUsers( Collections.singletonList( "neo4j" ),
+        InternalFlatFileRealm realm = internalTestRealmWithUsers( Collections.singletonList( "ongdb" ),
                 Collections.singletonList( "morpheus" ) );
 
         // Expect

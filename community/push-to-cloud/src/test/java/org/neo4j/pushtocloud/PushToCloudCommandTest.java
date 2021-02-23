@@ -213,7 +213,7 @@ public class PushToCloudCommandTest
                 .build();
 
         // when
-        String databaseName = "neo4j";
+        String databaseName = "ongdb";
         Path dumpFile = directory.file( "some-dump-file" ).toPath();
         command.execute( array(
                 arg( ARG_DATABASE, databaseName ),
@@ -237,7 +237,7 @@ public class PushToCloudCommandTest
                 .build();
 
         // when
-        String databaseName = "neo4j";
+        String databaseName = "ongdb";
         Path dumpFile = directory.file( "some-dump-file" ).toPath();
         Files.write( dumpFile, "some data".getBytes() );
         try
@@ -266,7 +266,7 @@ public class PushToCloudCommandTest
         {
             command.execute( array(
                     arg( ARG_DUMP, directory.file( "some-dump-file" ).toPath().toString() ),
-                    arg( ARG_DATABASE, "neo4j" ),
+                    arg( ARG_DATABASE, "ongdb" ),
                     arg( ARG_BOLT_URI, SOME_EXAMPLE_BOLT_URI ) ) );
             fail( "Should have failed" );
         }
@@ -281,7 +281,7 @@ public class PushToCloudCommandTest
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "neo4j";
+        String username = "ongdb";
         char[] password = {'a', 'b', 'c'};
         OutsideWorld outsideWorld = new ControlledOutsideWorld( new DefaultFileSystemAbstraction() )
                 .withPromptResponse( username );
@@ -310,7 +310,7 @@ public class PushToCloudCommandTest
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "neo4j";
+        String username = "ongdb";
         char[] password = {'a', 'b', 'c'};
         OutsideWorld outsideWorld = new ControlledOutsideWorld( new DefaultFileSystemAbstraction() )
                 .withPasswordResponse( password );
@@ -328,7 +328,7 @@ public class PushToCloudCommandTest
 
         assertTrue( dump.toFile().exists() );
 
-        environmentVariables.set("ONGDB_USERNAME", "neo4j");
+        environmentVariables.set("ONGDB_USERNAME", "ongdb");
         environmentVariables.set("ONGDB_PASSWORD", null);
         command.execute( array(
                 arg( ARG_DUMP, dump.toString() ),
@@ -343,7 +343,7 @@ public class PushToCloudCommandTest
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "neo4j";
+        String username = "ongdb";
         char[] password = {'a', 'b', 'c'};
         OutsideWorld outsideWorld = new ControlledOutsideWorld( new DefaultFileSystemAbstraction() )
                 .withPromptResponse( username )

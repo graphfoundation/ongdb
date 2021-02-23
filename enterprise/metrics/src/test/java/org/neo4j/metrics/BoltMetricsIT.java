@@ -105,7 +105,7 @@ public class BoltMetricsIT
                 .connect( new HostnamePort( "localhost", port ) )
                 .send( util.acceptedVersions( 1, 0, 0, 0 ) )
                 .send( util.chunk( InitMessage.init( "TestClient",
-                        map("scheme", "basic", "principal", "neo4j", "credentials", "neo4j") ) ) );
+                        map("scheme", "basic", "principal", "ongdb", "credentials", "ongdb") ) ) );
 
         // Then
         assertEventually( "session shows up as started",

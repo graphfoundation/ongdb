@@ -56,7 +56,7 @@ public class ArbiterEntryPoint
         ServerCommandLineArgs args = ServerCommandLineArgs.parse( argv );
         if ( args.version() )
         {
-            System.out.println( "neo4j " + ongdbVersion() );
+            System.out.println( "ongdb " + ongdbVersion() );
         }
         else
         {

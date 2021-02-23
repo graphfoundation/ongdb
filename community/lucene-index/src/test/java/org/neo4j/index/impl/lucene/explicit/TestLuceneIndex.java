@@ -626,7 +626,7 @@ public class TestLuceneIndex extends AbstractLuceneIndexTest
         Index<Node> index = nodeIndex( LuceneIndexImplementation.EXACT_CONFIG );
         String key = "name";
         String value1 = "ongdb";
-        String value2 = "nescafe";
+        String value2 = "onedb";
         Node node1 = graphDb.createNode();
         Node node2 = graphDb.createNode();
         index.add( node1, key, value1 );
@@ -634,13 +634,13 @@ public class TestLuceneIndex extends AbstractLuceneIndexTest
 
         for ( int i = 0; i < 2; i++ )
         {
-            assertThat( index.query( key, "neo*" ), Contains.contains( node1 ) );
-            assertThat( index.query( key, "n?o4j" ), Contains.contains( node1 ) );
-            assertThat( index.query( key, "ne*" ), Contains.contains( node1, node2 ) );
-            assertThat( index.query( key + ":neo4j" ), Contains.contains( node1 ) );
-            assertThat( index.query( key + ":neo*" ), Contains.contains( node1 ) );
-            assertThat( index.query( key + ":n?o4j" ), Contains.contains( node1 ) );
-            assertThat( index.query( key + ":ne*" ), Contains.contains( node1, node2 ) );
+            assertThat( index.query( key, "ong*" ), Contains.contains( node1 ) );
+            assertThat( index.query( key, "o?gdb" ), Contains.contains( node1 ) );
+            assertThat( index.query( key, "on*" ), Contains.contains( node1, node2 ) );
+            assertThat( index.query( key + ":ongdb" ), Contains.contains( node1 ) );
+            assertThat( index.query( key + ":ong*" ), Contains.contains( node1 ) );
+            assertThat( index.query( key + ":o?gdb" ), Contains.contains( node1 ) );
+            assertThat( index.query( key + ":on*" ), Contains.contains( node1, node2 ) );
 
             restartTx();
         }

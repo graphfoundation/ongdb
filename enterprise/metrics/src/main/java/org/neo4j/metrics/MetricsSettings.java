@@ -65,7 +65,7 @@ public class MetricsSettings implements LoadableConfig
     // Common settings
     @Description( "A common prefix for the reported metrics field names. By default, this is either be 'ongdb', " +
                   "or a computed value based on the cluster and instance names, when running in an HA configuration." )
-    public static final Setting<String> metricsPrefix = setting( "metrics.prefix", STRING, "neo4j" );
+    public static final Setting<String> metricsPrefix = setting( "metrics.prefix", STRING, "ongdb" );
 
     // The below settings define what metrics to gather
     // By default everything is on

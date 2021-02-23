@@ -86,7 +86,7 @@ public abstract class ServerBootstrapper implements Bootstrapper
 
         if ( args.version() )
         {
-            System.out.println( "neo4j " + ongdbVersion() );
+            System.out.println( "ongdb " + ongdbVersion() );
             return 0;
         }
 
@@ -140,12 +140,12 @@ public abstract class ServerBootstrapper implements Bootstrapper
         {
             String locationMsg = (server == null) ? "" :
                     " Another process may be using database location " + server.getDatabase().getLocation();
-            log.error( format( "Failed to start Neo4j on %s.", serverAddress ) + locationMsg, tfe );
+            log.error( format( "Failed to start ONgDB on %s.", serverAddress ) + locationMsg, tfe );
             return GRAPH_DATABASE_STARTUP_ERROR_CODE;
         }
         catch ( Exception e )
         {
-            log.error( format( "Failed to start Neo4j on %s.", serverAddress ), e );
+            log.error( format( "Failed to start ONgDB on %s.", serverAddress ), e );
             return WEB_SERVER_STARTUP_ERROR_CODE;
         }
     }
@@ -167,7 +167,7 @@ public abstract class ServerBootstrapper implements Bootstrapper
         }
         catch ( Exception e )
         {
-            log.error( "Failed to cleanly shutdown Neo Server on port [%s], database [%s]. Reason [%s] ",
+            log.error( "Failed to cleanly shutdown ONgDB Server on port [%s], database [%s]. Reason [%s] ",
                     serverAddress, location, e.getMessage(), e );
             return 1;
         }

@@ -153,7 +153,7 @@ public abstract class ProcedureInteractionTestBase<S>
     S noneSubject;
 
     String[] initialUsers = {"adminSubject", "readSubject", "schemaSubject",
-            "writeSubject", "editorSubject", "pwdSubject", "noneSubject", "neo4j"};
+            "writeSubject", "editorSubject", "pwdSubject", "noneSubject", "ongdb"};
     String[] initialRoles = {ADMIN, ARCHITECT, PUBLISHER, EDITOR, READER, EMPTY_ROLE};
 
     @Rule

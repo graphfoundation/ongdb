@@ -58,13 +58,13 @@ public class TestCustomCacheableAuthenticationPlugin extends AuthenticationPlugi
         String principal = authToken.principal();
         char[] credentials = authToken.credentials();
 
-        if ( principal.equals( "neo4j" ) && Arrays.equals( credentials, "neo4j".toCharArray() ) )
+        if ( principal.equals( "ongdb" ) && Arrays.equals( credentials, "ongdb".toCharArray() ) )
         {
-            return CustomCacheableAuthenticationInfo.of( "neo4j",
+            return CustomCacheableAuthenticationInfo.of( "ongdb",
                     token ->
                     {
                         char[] tokenCredentials = token.credentials();
-                        return Arrays.equals( tokenCredentials, "neo4j".toCharArray() );
+                        return Arrays.equals( tokenCredentials, "ongdb".toCharArray() );
                     } );
         }
         return null;
