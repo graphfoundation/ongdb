@@ -156,12 +156,12 @@ public abstract class EnterpriseAuthenticationTestBase extends AbstractLdapTestU
 
     protected void testCreateReaderUser() throws Exception
     {
-        testCreateReaderUser( "neo" );
+        testCreateReaderUser( "ong" );
     }
 
     protected void testAuthWithReaderUser() throws Exception
     {
-        testAuthWithReaderUser( "neo", "abc123", null );
+        testAuthWithReaderUser( "ong", "abc123", null );
     }
 
     protected void testAuthWithPublisherUser() throws Exception

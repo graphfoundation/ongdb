@@ -319,9 +319,9 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
                         settings -> settings.put( SecuritySettings.ldap_authorization_group_to_role_mapping, null ) ) );
 
         // Then
-        // User 'neo' has reader role by default, but since we are not passing a group-to-role mapping
+        // User 'ong' has reader role by default, but since we are not passing a group-to-role mapping
         // he should get no permissions
-        testAuthWithNoPermissionUser( "neo", "abc123" );
+        testAuthWithNoPermissionUser( "ong", "abc123" );
     }
 
     @Test
@@ -416,9 +416,9 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         } );
 
         // Then
-        // User 'neo' has reader role by default, but since we are not passing a group-to-role mapping
+        // User 'ong' has reader role by default, but since we are not passing a group-to-role mapping
         // he should get no permissions
-        testAuthWithNoPermissionUser( "neo", "abc123" );
+        testAuthWithNoPermissionUser( "ong", "abc123" );
     }
 
     @Test
@@ -436,10 +436,10 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         } );
 
         // Then
-        // First login as the admin user 'ongdb' and create the internal user 'neo' with role 'reader'
+        // First login as the admin user 'ongdb' and create the internal user 'ong' with role 'reader'
         testCreateReaderUser();
 
-        // Then login user 'neo' with LDAP and test that internal authorization gives correct permission
+        // Then login user 'ong' with LDAP and test that internal authorization gives correct permission
         reconnect();
 
         testAuthWithReaderUser();
@@ -460,7 +460,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         } );
 
         // When
-        String ldapReaderUser = "neo";
+        String ldapReaderUser = "ong";
         String nativePassword = "nativePassword";
 
         // this is ugly, but cannot be resolved until embedded gets security
@@ -472,7 +472,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
                 .newUser( ldapReaderUser, nativePassword, false );
 
         // Then
-        // login user 'neo' with native auth provider and test that LDAP authorization gives correct permission
+        // login user 'ong' with native auth provider and test that LDAP authorization gives correct permission
         testAuthWithReaderUser( ldapReaderUser, nativePassword, null );
     }
 
@@ -488,7 +488,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         {
             try
             {
-                assertAuth( "neo", "abc123" );
+                assertAuth( "ong", "abc123" );
                 assertBeginTransactionSucceeds();
                 assertReadSucceeds();
 
@@ -584,7 +584,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         graphDatabaseAPI.getDependencyResolver().resolveDependency( Procedures.class )
                 .registerProcedure( ProcedureInteractionTestBase.ClassWithProcedures.class );
 
-        assertAuth( "neo", "abc123" );
+        assertAuth( "ong", "abc123" );
         assertAllowedReadProcedure();
     }
 
@@ -595,7 +595,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         restartNeo4jServerWithOverriddenSettings( ldapOnlyAuthSettings.andThen(
                 settings -> settings.put( SecuritySettings.ldap_server, "ldap://127.0.0.1" ) ) );
 
-        assertConnectionRefused( authToken( "neo", "abc123", null ),
+        assertConnectionRefused( authToken( "ong", "abc123", null ),
                 LDAP_CONNECTION_REFUSED_CLIENT_MESSAGE );
 
         assertThat( client, eventuallyDisconnects() );
@@ -610,7 +610,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
             restartNeo4jServerWithOverriddenSettings( ldapOnlyAuthSettings
                     .andThen( settings -> settings.put( SecuritySettings.ldap_read_timeout, "1s" ) ) );
 
-            assertAuth( "neo", "abc123" );
+            assertAuth( "ong", "abc123" );
             assertLdapAuthorizationTimeout();
         }
     }
@@ -628,7 +628,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
                 settings.put( SecuritySettings.ldap_authorization_connection_pooling, "false" );
             } ) );
 
-            assertAuth( "neo", "abc123" );
+            assertAuth( "ong", "abc123" );
             assertLdapAuthorizationTimeout();
         }
     }
@@ -642,7 +642,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
             restartNeo4jServerWithOverriddenSettings( ldapOnlyAuthSettings
                     .andThen( settings -> settings.put( SecuritySettings.ldap_read_timeout, "1s" ) ) );
 
-            assertAuth( "neo", "abc123" );
+            assertAuth( "ong", "abc123" );
             assertLdapAuthorizationFailed();
         }
     }
@@ -659,7 +659,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
                 settings.put( SecuritySettings.ldap_read_timeout, "1s" );
             } ) );
 
-            assertConnectionTimeout( authToken( "neo", "abc123", null ),
+            assertConnectionTimeout( authToken( "ong", "abc123", null ),
                     LDAP_READ_TIMEOUT_CLIENT_MESSAGE );
         }
     }
@@ -772,9 +772,9 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
     {
         restartNeo4jServerWithOverriddenSettings( activeDirectoryOnEc2NotUsingSystemAccountSettings );
 
-        assertAuth( "neo", "abc123ABC123" );
+        assertAuth( "ong", "abc123ABC123" );
         assertReadSucceeds();
-        assertWriteFails( "neo", "" );
+        assertWriteFails( "ong", "" );
     }
 
     //@Test
@@ -782,9 +782,9 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
     {
         restartNeo4jServerWithOverriddenSettings( activeDirectoryOnEc2UsingSystemAccountSettings );
 
-        assertAuth( "neo", "abc123ABC123" );
+        assertAuth( "ong", "abc123ABC123" );
         assertReadSucceeds();
-        assertWriteFails( "neo", "" );
+        assertWriteFails( "ong", "" );
     }
 
     //@Test
@@ -835,9 +835,9 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         restartNeo4jServerWithOverriddenSettings( activeDirectoryOnEc2UsingSystemAccountSettings
                 .andThen( settings -> settings.put( SecuritySettings.ldap_server, "ldaps://henrik.neohq.net:636" ) ) );
 
-        assertAuth( "neo", "abc123ABC123" );
+        assertAuth( "ong", "abc123ABC123" );
         assertReadSucceeds();
-        assertWriteFails( "neo", "" );
+        assertWriteFails( "ong", "" );
     }
 
     //@Test
@@ -846,9 +846,9 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         restartNeo4jServerWithOverriddenSettings( activeDirectoryOnEc2NotUsingSystemAccountSettings
                 .andThen( settings -> settings.put( SecuritySettings.ldap_server, "ldaps://henrik.neohq.net:636" ) ) );
 
-        assertAuth( "neo", "abc123ABC123" );
+        assertAuth( "ong", "abc123ABC123" );
         assertReadSucceeds();
-        assertWriteFails( "neo", "" );
+        assertWriteFails( "ong", "" );
     }
 
     //@Test
@@ -857,9 +857,9 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         restartNeo4jServerWithOverriddenSettings( activeDirectoryOnEc2UsingSystemAccountSettings
                 .andThen( settings -> settings.put( SecuritySettings.ldap_use_starttls, "true" ) ) );
 
-        assertAuth( "neo", "abc123ABC123" );
+        assertAuth( "ong", "abc123ABC123" );
         assertReadSucceeds();
-        assertWriteFails( "neo", "" );
+        assertWriteFails( "ong", "" );
     }
 
     //@Test
@@ -868,9 +868,9 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         restartNeo4jServerWithOverriddenSettings( activeDirectoryOnEc2NotUsingSystemAccountSettings
                 .andThen( settings -> settings.put( SecuritySettings.ldap_use_starttls, "true" ) ) );
 
-        assertAuth( "neo", "abc123ABC123" );
+        assertAuth( "ong", "abc123ABC123" );
         assertReadSucceeds();
-        assertWriteFails( "neo", "" );
+        assertWriteFails( "ong", "" );
     }
 
     //-------------------------------------------------------------------------
@@ -990,7 +990,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
     public void shouldLogInvalidCredentialErrorFromLdapRealm() throws Throwable
     {
         // When
-        assertAuthFail( "neo", "wrong-password" );
+        assertAuthFail( "ong", "wrong-password" );
 
         // Then
         assertSecurityLogContains( LDAP_ERROR_MESSAGE_INVALID_CREDENTIALS );
@@ -1062,7 +1062,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
                     settings.put( SecuritySettings.ldap_connection_timeout, "1s" );
                 } ) );
 
-        assertConnectionTimeout( authToken( "neo", "abc123", null ),
+        assertConnectionTimeout( authToken( "ong", "abc123", null ),
                 LDAP_CONNECTION_TIMEOUT_CLIENT_MESSAGE );
 
         assertSecurityLogContains( "ERROR" );
@@ -1086,7 +1086,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
             settings.put( SecuritySettings.ldap_connection_timeout, "1s" );
         } );
 
-        assertAuthFail( "neo", "abc123" );
+        assertAuthFail( "ong", "abc123" );
 
         assertSecurityLogContains( "ERROR" );
         assertSecurityLogContains( "LDAP connection timed out" );
@@ -1100,7 +1100,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         restartNeo4jServerWithOverriddenSettings( ldapOnlyAuthSettings.andThen(
                 settings -> settings.put( SecuritySettings.ldap_server, "ldap://" + REFUSED_IP ) ) );
 
-        assertConnectionRefused( authToken( "neo", "abc123", null ),
+        assertConnectionRefused( authToken( "ong", "abc123", null ),
                 LDAP_CONNECTION_REFUSED_CLIENT_MESSAGE );
 
         assertSecurityLogContains( "ERROR" );
@@ -1123,7 +1123,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
             settings.put( SecuritySettings.ldap_server, "ldap://" + REFUSED_IP );
         } );
 
-        assertAuthFail( "neo", "abc123" );
+        assertAuthFail( "ong", "abc123" );
 
         assertSecurityLogContains( "ERROR" );
         assertSecurityLogContains( "LDAP connection refused" );
@@ -1477,15 +1477,15 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         settings.put( SecuritySettings.auth_provider, SecuritySettings.LDAP_REALM_NAME );
         //settings.put( SecuritySettings.ldap_server, "ec2-176-34-79-113.eu-west-1.compute.amazonaws.com:389" );
         settings.put( SecuritySettings.ldap_server, "henrik.neohq.net:389" );
-        settings.put( SecuritySettings.ldap_authentication_user_dn_template, "cn={0},cn=Users,dc=neo4j,dc=com" );
-        settings.put( SecuritySettings.ldap_authorization_user_search_base, "cn=Users,dc=neo4j,dc=com" );
+        settings.put( SecuritySettings.ldap_authentication_user_dn_template, "cn={0},cn=Users,dc=ongdb,dc=com" );
+        settings.put( SecuritySettings.ldap_authorization_user_search_base, "cn=Users,dc=ongdb,dc=com" );
         settings.put( SecuritySettings.ldap_authorization_user_search_filter, "(&(objectClass=*)(CN={0}))" );
         settings.put( SecuritySettings.ldap_authorization_group_membership_attribute_names, "memberOf" );
         settings.put( SecuritySettings.ldap_authorization_group_to_role_mapping,
-                "'CN=Neo4j Read Only,CN=Users,DC=neo4j,DC=com'=reader;" +
-                "CN=Neo4j Read-Write,CN=Users,DC=neo4j,DC=com=publisher;" +
-                "CN=Neo4j Schema Manager,CN=Users,DC=neo4j,DC=com=architect;" +
-                "CN=Neo4j Administrator,CN=Users,DC=neo4j,DC=com=admin"
+                "'CN=Neo4j Read Only,CN=Users,DC=ongdb,DC=com'=reader;" +
+                "CN=Neo4j Read-Write,CN=Users,DC=ongdb,DC=com=publisher;" +
+                "CN=Neo4j Schema Manager,CN=Users,DC=ongdb,DC=com=architect;" +
+                "CN=Neo4j Administrator,CN=Users,DC=ongdb,DC=com=admin"
         );
     };
 

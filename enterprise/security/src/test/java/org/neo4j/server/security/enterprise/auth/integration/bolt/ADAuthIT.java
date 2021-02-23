@@ -138,15 +138,15 @@ public class ADAuthIT extends EnterpriseAuthenticationTestBase
     @Test
     public void shouldLoginWithSamAccountName() throws Throwable
     {
-        // dn: cn=n.neo4j,ou=local,ou=users,dc=example,dc=com
+        // dn: cn=n.ongdb,ou=local,ou=users,dc=example,dc=com
         assertAuth( "ongdb", "abc123" );
         reconnect();
         assertAuth( "ongdb", "abc123" );
         reconnect();
-        // dn: cn=n.neo,ou=remote,ou=users,dc=example,dc=com
-        assertAuth( "neo", "abc123" );
+        // dn: cn=n.ong,ou=remote,ou=users,dc=example,dc=com
+        assertAuth( "ong", "abc123" );
         reconnect();
-        assertAuth( "neo", "abc123" );
+        assertAuth( "ong", "abc123" );
     }
 
     @Test
@@ -158,7 +158,7 @@ public class ADAuthIT extends EnterpriseAuthenticationTestBase
     @Test
     public void shouldFailLoginSamAccountNameWithDN() throws Throwable
     {
-        assertAuthFail( "n.neo4j", "abc123" );
+        assertAuthFail( "n.ongdb", "abc123" );
     }
 
     @Test

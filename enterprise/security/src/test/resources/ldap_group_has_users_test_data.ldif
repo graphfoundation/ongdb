@@ -1,5 +1,5 @@
 # LDIF Export for dc=example,dc=com
-# Server: Neo4j Test LDAP Server (10.0.2.15)
+# Server: ONgDB Test LDAP Server (10.0.2.15)
 # Search Scope: sub
 # Search Filter: (objectClass=*)
 # Total Entries: 14
@@ -35,7 +35,7 @@ ou: groups
 dn: cn=admin,ou=groups,dc=example,dc=com
 cn: admin
 gidnumber: 503
-memberUid: neo4j
+memberUid: ongdb
 objectclass: posixGroup
 objectclass: top
 
@@ -67,7 +67,7 @@ objectclass: top
 dn: cn=reader,ou=groups,dc=example,dc=com
 cn: reader
 gidnumber: 500
-memberUid: neo
+memberUid: ong
 objectclass: posixGroup
 objectclass: top
 
@@ -77,29 +77,29 @@ objectclass: organizationalUnit
 objectclass: top
 ou: users
 
-# Entry 10: cn=neo4j,ou=users,dc=example,dc=com
-dn: cn=neo4j,ou=users,dc=example,dc=com
-cn:  neo4j
+# Entry 10: cn=ongdb,ou=users,dc=example,dc=com
+dn: cn=ongdb,ou=users,dc=example,dc=com
+cn:  ongdb
 gidnumber: 503
-homedirectory: /home/users/neo4j
+homedirectory: /home/users/ongdb
 objectclass: inetOrgPerson
 objectclass: posixAccount
 objectclass: top
-sn: neo4j
-uid: neo4j
+sn: ongdb
+uid: ongdb
 uidnumber: 1003
 userpassword: {MD5}6ZoYxCjLONXyYIU2eJIuAw==
 
-# Entry 11: cn=neo,ou=users,dc=example,dc=com
-dn: cn=neo,ou=users,dc=example,dc=com
-cn:  neo
+# Entry 11: cn=ong,ou=users,dc=example,dc=com
+dn: cn=ong,ou=users,dc=example,dc=com
+cn:  ong
 gidnumber: 500
-homedirectory: /home/users/neo
+homedirectory: /home/users/ong
 objectclass: inetOrgPerson
 objectclass: posixAccount
 objectclass: top
-sn: neo
-uid: neo
+sn: ong
+uid: ong
 uidnumber: 1000
 userpassword: {MD5}6ZoYxCjLONXyYIU2eJIuAw==
 
