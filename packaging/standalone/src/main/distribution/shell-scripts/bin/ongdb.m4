@@ -1,4 +1,22 @@
 #!/usr/bin/env bash
+# Copyright (c) 2018-2020 "Graph Foundation,"
+# Graph Foundation, Inc. [https://graphfoundation.org]
+#
+# This file is part of ONgDB.
+#
+# ONgDB is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 # Copyright (c) 2002-2018 "Neo Technology,"
 # Network Engine for Objects in Lund AB [http://neotechnology.com]
 #
@@ -44,7 +62,7 @@ setup_arbiter_options() {
   else
     SHUTDOWN_TIMEOUT="${ONGDB_SHUTDOWN_TIMEOUT:-120}"
     MIN_ALLOWED_OPEN_FILES=40000
-    MAIN_CLASS="#{neo4j.mainClass}"
+    MAIN_CLASS="#{ongdb.mainClass}"
 
     print_start_message() {
       # Global default
@@ -98,7 +116,7 @@ check_limits() {
     ALLOWED_OPEN_FILES="$(ulimit -n)"
 
     if [ "${ALLOWED_OPEN_FILES}" -lt "${MIN_ALLOWED_OPEN_FILES}" ]; then
-      echo "WARNING: Max ${ALLOWED_OPEN_FILES} open files allowed, minimum of ${MIN_ALLOWED_OPEN_FILES} recommended. See the Neo4j manual."
+      echo "WARNING: Max ${ALLOWED_OPEN_FILES} open files allowed, minimum of ${MIN_ALLOWED_OPEN_FILES} recommended. See the ONgDB manual."
     fi
   fi
 }
@@ -221,7 +239,7 @@ do_stop() {
   check_status
 
   if [[ ! "${ONGDB_PID:-}" ]] ; then
-    echo "Neo4j not running"
+    echo "ONgDB not running"
     [ -e "${ONGDB_PIDFILE}" ] && rm "${ONGDB_PIDFILE}"
     return 0
   else
@@ -240,7 +258,7 @@ do_stop() {
 
       if [[ "${SECONDS}" -ge "${end}" ]]; then
         echo " failed to stop"
-        echo "Neo4j (pid ${ONGDB_PID}) took more than ${SHUTDOWN_TIMEOUT} seconds to stop."
+        echo "ONgDB (pid ${ONGDB_PID}) took more than ${SHUTDOWN_TIMEOUT} seconds to stop."
         echo "Please see ${CONSOLE_LOG} for details."
         return 1
       fi
@@ -254,10 +272,10 @@ do_stop() {
 do_status() {
   check_status
   if [[ ! "${ONGDB_PID:-}" ]] ; then
-    echo "Neo4j is not running"
+    echo "ONgDB is not running"
     exit 3
   else
-    echo "Neo4j is running at pid ${ONGDB_PID}"
+    echo "ONgDB is running at pid ${ONGDB_PID}"
   fi
 }
 

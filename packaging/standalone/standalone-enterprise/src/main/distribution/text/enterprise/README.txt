@@ -45,7 +45,7 @@ Learn more
 
 * #{ongdb-home.url.title}: #{ongdb-home.url}
 * #{getting-started.url.title}: #{getting-started.url}
-* #{neo4j-manual.title}: #{neo4j-manual.url}
+* #{ongdb-manual.title}: #{ongdb-manual.url}
 
 License(s)
 ----------

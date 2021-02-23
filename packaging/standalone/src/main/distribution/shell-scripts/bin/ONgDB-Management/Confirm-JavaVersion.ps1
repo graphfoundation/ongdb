@@ -1,3 +1,21 @@
+# Copyright (c) 2018-2020 "Graph Foundation,"
+# Graph Foundation, Inc. [https://graphfoundation.org]
+#
+# This file is part of ONgDB.
+#
+# ONgDB is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 # Copyright (c) 2002-2018 "Neo Technology,"
 # Network Engine for Objects in Lund AB [http://neotechnology.com]
 #
@@ -19,10 +37,10 @@
 
 <#
 .SYNOPSIS
-Confirms whether the specificed java executable is suitable for Neo4j
+Confirms whether the specificed java executable is suitable for ONgDB
 
 .DESCRIPTION
-Confirms whether the specificed java executable is suitable for Neo4j
+Confirms whether the specificed java executable is suitable for ONgDB
 
 .PARAMETER Path
 Full path to the Java executable, java.exe
@@ -71,7 +89,7 @@ Function Confirm-JavaVersion
     }
     
     $javaHelpText = "* Please use Oracle(R) Java(TM) 8, OpenJDK(TM) or IBM J9 to run ONgDB Server.`n" +
-                    "* Please see https://neo4j.com/docs/ for ONgDB installation instructions."
+                    "* Please see https://graphfoundation.org/docs/ for ONgDB installation instructions."
 
     # Read the contents of the redirected output
     $content = (Get-Content -Path $stdError) -join "`n`r"
@@ -95,7 +113,7 @@ Function Confirm-JavaVersion
     # Anything less than Java 1.8 will block execution
     # Note - This text comparsion will fail for '1.10.xxx' due to how string based comparisons of numbers works.
     if ($javaVersion -lt '1.8') {
-      Write-Warning "ERROR! Neo4j cannot be started using java version $($javaVersion)"      
+      Write-Warning "ERROR! ONgDB cannot be started using java version $($javaVersion)"
       Write-Warning $javaHelpText
       return $false
     }

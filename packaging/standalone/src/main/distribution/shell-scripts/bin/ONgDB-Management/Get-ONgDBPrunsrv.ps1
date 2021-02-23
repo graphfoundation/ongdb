@@ -1,3 +1,21 @@
+# Copyright (c) 2018-2020 "Graph Foundation,"
+# Graph Foundation, Inc. [https://graphfoundation.org]
+#
+# This file is part of ONgDB.
+#
+# ONgDB is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 # Copyright (c) 2002-2018 "Neo Technology,"
 # Network Engine for Objects in Lund AB [http://neotechnology.com]
 #
@@ -19,25 +37,25 @@
 
 <#
 .SYNOPSIS
-Retrieves information about PRunSrv on the local machine to start Neo4j programs
+Retrieves information about PRunSrv on the local machine to start ONgDB programs
 
 .DESCRIPTION
-Retrieves information about PRunSrv (Apache Commons Daemon) on the local machine to start Neo4j services and utilites, tailored to the type of Neo4j edition
+Retrieves information about PRunSrv (Apache Commons Daemon) on the local machine to start ONgDB services and utilites, tailored to the type of ONgDB edition
 
 .PARAMETER ONgDBServer
-An object representing a valid Neo4j Server object
+An object representing a valid ONgDB Server object
 
 .PARAMETER ForServerInstall
-Retrieve the PrunSrv command line to install a Neo4j Server
+Retrieve the PrunSrv command line to install a ONgDB Server
 
 .PARAMETER ForServerUninstall
-Retrieve the PrunSrv command line to uninstall a Neo4j Server
+Retrieve the PrunSrv command line to uninstall a ONgDB Server
 
 .PARAMETER ForServerUpdate
-Retrieve the PrunSrv command line to update a Neo4j Server
+Retrieve the PrunSrv command line to update a ONgDB Server
 
 .PARAMETER ForConsole
-Retrieve the PrunSrv command line to start a Neo4j Server in the console.
+Retrieve the PrunSrv command line to start a ONgDB Server in the console.
 
 .OUTPUTS
 System.Collections.Hashtable
@@ -133,13 +151,13 @@ Function Get-ONgDBPrunsrv
           "`"--StopMode=jvm`"",
           "`"--StopMethod=stop`"",
           "`"--StopPath=$($ONgDBServer.Home)`"",
-          "`"--Description=Neo4j Graph Database - $($ONgDBServer.Home)`"",
-          "`"--DisplayName=Neo4j Graph Database - $Name`"",
+          "`"--Description=ONgDB Graph Database - $($ONgDBServer.Home)`"",
+          "`"--DisplayName=ONgDB Graph Database - $Name`"",
           "`"--Jvm=$($JvmDLL)`"",
           "`"--LogPath=$($ONgDBServer.LogDir)`"",
-          "`"--StdOutput=$(Join-Path -Path $ONgDBServer.LogDir -ChildPath 'neo4j.log')`"",
+          "`"--StdOutput=$(Join-Path -Path $ONgDBServer.LogDir -ChildPath 'ongdb.log')`"",
           "`"--StdError=$(Join-Path -Path $ONgDBServer.LogDir -ChildPath 'service-error.log')`"",
-          "`"--LogPrefix=neo4j-service`"",
+          "`"--LogPrefix=ongdb-service`"",
           "`"--Classpath=lib/*;plugins/*`"",
           "`"--JvmOptions=$($JvmOptions -join ';')`"",
           "`"--Startup=auto`""

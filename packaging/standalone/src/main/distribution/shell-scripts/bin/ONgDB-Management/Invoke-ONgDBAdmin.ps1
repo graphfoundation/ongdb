@@ -1,3 +1,21 @@
+# Copyright (c) 2018-2020 "Graph Foundation,"
+# Graph Foundation, Inc. [https://graphfoundation.org]
+#
+# This file is part of ONgDB.
+#
+# ONgDB is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 # Copyright (c) 2002-2018 "Neo Technology,"
 # Network Engine for Objects in Lund AB [http://neotechnology.com]
 #
@@ -19,10 +37,10 @@
 
 <#
 .SYNOPSIS
-Invokes a command which manages a Neo4j Server
+Invokes a command which manages a ONgDB Server
 
 .DESCRIPTION
-Invokes a command which manages a Neo4j Server.
+Invokes a command which manages a ONgDB Server.
 
 Invoke this function with a blank or missing command to list available commands
 
@@ -40,7 +58,7 @@ System.Int32
 non-zero = an error occured
 
 .NOTES
-Only supported on version 3.x Neo4j Community and Enterprise Edition databases
+Only supported on version 1.x ONgDB Community and Enterprise Edition databases
 
 #>
 Function Invoke-ONgDBAdmin

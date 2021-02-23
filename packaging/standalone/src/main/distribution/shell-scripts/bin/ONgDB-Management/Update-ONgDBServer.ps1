@@ -1,3 +1,21 @@
+# Copyright (c) 2018-2020 "Graph Foundation,"
+# Graph Foundation, Inc. [https://graphfoundation.org]
+#
+# This file is part of ONgDB.
+#
+# ONgDB is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 # Copyright (c) 2002-2018 "Neo Technology,"
 # Network Engine for Objects in Lund AB [http://neotechnology.com]
 #
@@ -19,18 +37,18 @@
 
 <#
 .SYNOPSIS
-Update an installed Neo4j Server Windows Service
+Update an installed ONgDB Server Windows Service
 
 .DESCRIPTION
-Update an installed Neo4j Server Windows Service
+Update an installed ONgDB Server Windows Service
 
 .PARAMETER ONgDBServer
-An object representing a valid Neo4j Server
+An object representing a valid ONgDB Server
 
 .EXAMPLE
 Update-ONgDBServer $ServerObject
 
-Update the Neo4j Windows Service for the ONgDB installation at $ServerObject
+Update the ONgDB Windows Service for the ONgDB installation at $ServerObject
 
 .OUTPUTS
 System.Int32
@@ -63,7 +81,7 @@ Function Update-ONgDBServer
       $prunsrv = Get-ONgDBPrunsrv -ONgDBServer $ONgDBServer -ForServerUpdate
       if ($prunsrv -eq $null) { throw "Could not determine the command line for PRUNSRV" }
 
-      Write-Verbose "Update installed Neo4j service with command line $($prunsrv.cmd) $($prunsrv.args)"
+      Write-Verbose "Update installed ONgDB service with command line $($prunsrv.cmd) $($prunsrv.args)"
       $stdError = New-ONgDBTempFile -Prefix 'stderr'
       Write-Verbose $prunsrv
       $result = (Start-Process -FilePath $prunsrv.cmd -ArgumentList $prunsrv.args -Wait -NoNewWindow -PassThru -WorkingDirectory $ONgDBServer.Home -RedirectStandardError $stdError)
@@ -71,9 +89,9 @@ Function Update-ONgDBServer
 
       # Process the output
       if ($result.ExitCode -eq 0) {
-        Write-Host "Neo4j service updated"
+        Write-Host "ONgDB service updated"
       } else {
-        Write-Host "Neo4j service did not update"
+        Write-Host "ONgDB service did not update"
         # Write out STDERR if it did not update
         Get-Content -Path $stdError -ErrorAction 'SilentlyContinue' | ForEach-Object -Process {
           Write-Host $_

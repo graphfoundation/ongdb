@@ -1,3 +1,21 @@
+# Copyright (c) 2018-2020 "Graph Foundation,"
+# Graph Foundation, Inc. [https://graphfoundation.org]
+#
+# This file is part of ONgDB.
+#
+# ONgDB is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 # Copyright (c) 2002-2018 "Neo Technology,"
 # Network Engine for Objects in Lund AB [http://neotechnology.com]
 #
@@ -19,10 +37,10 @@
 
 <#
 .SYNOPSIS
-Invokes a command which manipulates a Neo4j Server e.g Start, Stop, Install and Uninstall
+Invokes a command which manipulates a ONgDB Server e.g Start, Stop, Install and Uninstall
 
 .DESCRIPTION
-Invokes a command which manipulates a Neo4j Server e.g Start, Stop, Install and Uninstall.  
+Invokes a command which manipulates a ONgDB Server e.g Start, Stop, Install and Uninstall.
 
 Invoke this function with a blank or missing command to list available commands
 
@@ -37,7 +55,7 @@ Outputs the available commands
 .EXAMPLE
 Invoke-ONgDB status -Verbose
 
-Gets the status of the Neo4j Windows Service and outputs verbose information to the console.
+Gets the status of the ONgDB Windows Service and outputs verbose information to the console.
 
 .OUTPUTS
 System.Int32
@@ -45,7 +63,7 @@ System.Int32
 non-zero = an error occured
 
 .NOTES
-Only supported on version 3.x Neo4j Community and Enterprise Edition databases
+Only supported on version 1.x ONgDB Community and Enterprise Edition databases
 
 #>
 Function Invoke-ONgDB
@@ -66,18 +84,18 @@ Function Invoke-ONgDB
     {
       $HelpText = "Usage: ongdb { console | start | stop | restart | status | install-service | uninstall-service | update-service } < -Verbose >"
 
-      # Determine the Neo4j Home Directory.  Uses the ONGDB_HOME enironment variable or a parent directory of this script
+      # Determine the ONgDB Home Directory.  Uses the ONGDB_HOME enironment variable or a parent directory of this script
       $ONgDBHome = Get-ONgDBEnv 'ONGDB_HOME'
       if ( ($ONgDBHome -eq $null) -or (-not (Test-Path -Path $ONgDBHome)) ) {
         $ONgDBHome = Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent
       }
-      if ($ONgDBHome -eq $null) { throw "Could not determine the Neo4j home Directory.  Set the ONGDB_HOME environment variable and retry" }
-      Write-Verbose "Neo4j Root is '$ONgDBHome'"
+      if ($ONgDBHome -eq $null) { throw "Could not determine the ONgDB home Directory.  Set the ONGDB_HOME environment variable and retry" }
+      Write-Verbose "ONgDB Root is '$ONgDBHome'"
 
       $thisServer = Get-ONgDBServer -ONgDBHome $ONgDBHome -ErrorAction Stop
-      if ($thisServer -eq $null) { throw "Unable to determine the Neo4j Server installation information" }
-      Write-Verbose "Neo4j Server Type is '$($thisServer.ServerType)'"
-      Write-Verbose "Neo4j Version is '$($thisServer.ServerVersion)'"
+      if ($thisServer -eq $null) { throw "Unable to determine the ONgDB Server installation information" }
+      Write-Verbose "ONgDB Server Type is '$($thisServer.ServerType)'"
+      Write-Verbose "ONgDB Version is '$($thisServer.ServerVersion)'"
       Write-Verbose "ONgDB Database Mode is '$($thisServer.DatabaseMode)'"
 
       # Check if we have administrative rights; If the current user's token contains the Administrators Group SID (S-1-5-32-544)

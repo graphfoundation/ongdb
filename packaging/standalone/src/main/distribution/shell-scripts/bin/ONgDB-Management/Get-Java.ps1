@@ -1,3 +1,21 @@
+# Copyright (c) 2018-2020 "Graph Foundation,"
+# Graph Foundation, Inc. [https://graphfoundation.org]
+#
+# This file is part of ONgDB.
+#
+# ONgDB is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 # Copyright (c) 2002-2018 "Neo Technology,"
 # Network Engine for Objects in Lund AB [http://neotechnology.com]
 #
@@ -19,19 +37,19 @@
 
 <#
 .SYNOPSIS
-Retrieves information about Java on the local machine to start Neo4j programs
+Retrieves information about Java on the local machine to start ONgDB programs
 
 .DESCRIPTION
-Retrieves information about Java on the local machine to start Neo4j services and utilites, tailored to the type of Neo4j edition
+Retrieves information about Java on the local machine to start ONgDB services and utilites, tailored to the type of ONgDB edition
 
 .PARAMETER ONgDBServer
-An object representing a valid Neo4j Server object
+An object representing a valid ONgDB Server object
 
 .PARAMETER ForServer
-Retrieve the Java command line to start a Neo4j Server
+Retrieve the Java command line to start a ONgDB Server
 
 .PARAMETER ForUtility
-Retrieve the Java command line to start a Neo4j utility such as Neo4j Shell.
+Retrieve the Java command line to start a ONgDB utility such as ONgDB Shell.
 
 .PARAMETER StartingClass
 The name of the starting class when invoking Java
@@ -39,7 +57,7 @@ The name of the starting class when invoking Java
 .EXAMPLE
 Get-Java -ONgDBServer $serverObject -ForServer
 
-Retrieves the Java comamnd line to start the Neo4j server for the instance in $serverObject.
+Retrieves the Java comamnd line to start the ONgDB server for the instance in $serverObject.
 
 .OUTPUTS
 System.Collections.Hashtable

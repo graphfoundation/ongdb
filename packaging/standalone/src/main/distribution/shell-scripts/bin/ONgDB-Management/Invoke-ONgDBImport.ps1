@@ -37,60 +37,52 @@
 
 <#
 .SYNOPSIS
-Retrieves the name of the Windows Service from the configuration information
+Invokes ONgDB Import utility
 
 .DESCRIPTION
-Retrieves the name of the Windows Service from the configuration information
+Invokes ONgDB Import utility
 
-.PARAMETER ONgDBServer
-An object representing a valid ONgDB Server object
-
-.EXAMPLE
-Get-ONgDBWindowsServiceName -ONgDBServer $ServerObject
-
-Retrieves the name of the Windows Service for the ONgDB Database at $ServerObject
+.PARAMETER CommandArgs
+Command line arguments to pass to import
 
 .OUTPUTS
-System.String
-The name of the Windows Service or $null if it could not be determined
+System.Int32
+0 = Success
+non-zero = an error occured
 
 .NOTES
-This function is private to the powershell module
+Only supported on version 1.x ONgDB Community and Enterprise Edition databases
 
 #>
-Function Get-ONgDBWindowsServiceName
+Function Invoke-ONgDBImport
 {
   [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low')]
   param (
-    [Parameter(Mandatory=$true,ValueFromPipeline=$true)]
-    [PSCustomObject]$ONgDBServer
+    [parameter(Mandatory=$false,ValueFromRemainingArguments=$true)]
+    [object[]]$CommandArgs = @()
   )
   
   Begin
   {
   }
   
-  Process {
-    $ServiceName = ''
-    # Try ongdb.conf first, but then fallback to ongdb-wrapper.conf for backwards compatibility reasons
-    $setting = (Get-ONgDBSetting -ConfigurationFile 'ongdb.conf' -Name 'dbms.windows_service_name' -ONgDBServer $ONgDBServer)
-    if ($setting -ne $null) {
-      $ServiceName = $setting.Value
-    } else {
-      $setting = (Get-ONgDBSetting -ConfigurationFile 'ongdb-wrapper.conf' -Name 'dbms.windows_service_name' -ONgDBServer $ONgDBServer)
-      if ($setting -ne $null) { $ServiceName = $setting.Value }
+  Process
+  {
+    # The powershell command line interpeter converts comma delimited strings into a System.Object[] array
+    # Search the CommandArgs array and convert anything that's System.Object[] back to a string type
+    for($index = 0; $index -lt $CommandArgs.Length; $index++) {
+      if ($CommandArgs[$index].GetType().ToString() -eq 'System.Object[]') {
+        [string]$CommandArgs[$index] = $CommandArgs[$index] -join ',' 
+      }
     }
 
-    if ($ServiceName -eq '')
-    {
-      Throw 'Could not find the Windows Service Name for ONgDB (dbms.windows_service_name in ongdb.conf)'
-      return $null
+    try {
+      Return [int](Invoke-ONgDBUtility -Command 'Import' -CommandArgs $CommandArgs -ErrorAction 'Stop')
     }
-    else 
-    {
-      Write-Verbose "ONgDB Windows Service Name is $ServiceName"
-      Write-Output $ServiceName.Trim()
-    }  
+    catch {
+      Write-Error $_
+      Return 1
+    }
   }
   
   End

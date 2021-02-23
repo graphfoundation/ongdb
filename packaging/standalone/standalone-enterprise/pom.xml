@@ -25,7 +25,7 @@
   </scm>
 
   <properties>
-    <neo4j.mainClass>org.neo4j.server.enterprise.EnterpriseEntryPoint</neo4j.mainClass>
+    <ongdb.mainClass>org.neo4j.server.enterprise.EnterpriseEntryPoint</ongdb.mainClass>
   </properties>
 
   <licenses>

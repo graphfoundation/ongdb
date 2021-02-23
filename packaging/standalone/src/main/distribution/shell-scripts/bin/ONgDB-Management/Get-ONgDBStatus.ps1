@@ -1,3 +1,21 @@
+# Copyright (c) 2018-2020 "Graph Foundation,"
+# Graph Foundation, Inc. [https://graphfoundation.org]
+#
+# This file is part of ONgDB.
+#
+# ONgDB is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 # Copyright (c) 2002-2018 "Neo Technology,"
 # Network Engine for Objects in Lund AB [http://neotechnology.com]
 #
@@ -19,18 +37,18 @@
 
 <#
 .SYNOPSIS
-Retrieves the status for the Neo4j Windows Service
+Retrieves the status for the ONgDB Windows Service
 
 .DESCRIPTION
-Retrieves the status for the Neo4j Windows Service
+Retrieves the status for the ONgDB Windows Service
 
 .PARAMETER ONgDBServer
-An object representing a valid Neo4j Server object
+An object representing a valid ONgDB Server object
 
 .EXAMPLE
 Get-ONgDBStatus -ONgDBServer $ServerObject
 
-Retrieves the status of the Windows Service for the Neo4j database at $ServerObject
+Retrieves the status of the Windows Service for the ONgDB database at $ServerObject
 
 .OUTPUTS
 System.Int32
@@ -60,16 +78,16 @@ Function Get-ONgDBStatus
       $neoService = Get-Service -Name $ServiceName -ErrorAction Stop
     }
     catch {
-      Write-Host "The Neo4j Windows Service '$ServiceName' is not installed"
+      Write-Host "The ONgDB Windows Service '$ServiceName' is not installed"
       return 3
     }
     
     if ($neoService.Status -eq 'Running') {
-      Write-Host "Neo4j is running"
+      Write-Host "ONgDB is running"
       return 0
     }
     else {
-      Write-Host "Neo4j is not running.  Current status is $($neoService.Status)"
+      Write-Host "ONgDB is not running.  Current status is $($neoService.Status)"
       return 3
     }
   }

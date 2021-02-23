@@ -1,3 +1,21 @@
+# Copyright (c) 2018-2020 "Graph Foundation,"
+# Graph Foundation, Inc. [https://graphfoundation.org]
+#
+# This file is part of ONgDB.
+#
+# ONgDB is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 # Copyright (c) 2002-2018 "Neo Technology,"
 # Network Engine for Objects in Lund AB [http://neotechnology.com]
 #
@@ -19,18 +37,18 @@
 
 <#
 .SYNOPSIS
-Install a Neo4j Server Windows Service
+Install a ONgDB Server Windows Service
 
 .DESCRIPTION
-Install a Neo4j Server Windows Service
+Install a ONgDB Server Windows Service
 
 .PARAMETER ONgDBServer
-An object representing a valid Neo4j Server object
+An object representing a valid ONgDB Server object
 
 .EXAMPLE
 Install-ONgDBServer -ONgDBServer $ServerObject
 
-Install the Neo4j Windows Windows Service for the ONgDB installation at $ServerObject
+Install the ONgDB Windows Windows Service for the ONgDB installation at $ServerObject
 
 .OUTPUTS
 System.Int32
@@ -63,16 +81,16 @@ Function Install-ONgDBServer
       $prunsrv = Get-ONgDBPrunsrv -ONgDBServer $ONgDBServer -ForServerInstall
       if ($prunsrv -eq $null) { throw "Could not determine the command line for PRUNSRV" }
 
-      Write-Verbose "Installing Neo4j as a service with command line $($prunsrv.cmd) $($prunsrv.args)"
+      Write-Verbose "Installing ONgDB as a service with command line $($prunsrv.cmd) $($prunsrv.args)"
       $stdError = New-ONgDBTempFile -Prefix 'stderr'
       $result = (Start-Process -FilePath $prunsrv.cmd -ArgumentList $prunsrv.args -Wait -NoNewWindow -PassThru -WorkingDirectory $ONgDBServer.Home -RedirectStandardError $stdError)
       Write-Verbose "Returned exit code $($result.ExitCode)"
 
       # Process the output
       if ($result.ExitCode -eq 0) {
-        Write-Host "Neo4j service installed"
+        Write-Host "ONgDB service installed"
       } else {
-        Write-Host "Neo4j service did not install"
+        Write-Host "ONgDB service did not install"
         # Write out STDERR if it did not install
         Get-Content -Path $stdError -ErrorAction 'SilentlyContinue' | ForEach-Object -Process {
           Write-Host $_
