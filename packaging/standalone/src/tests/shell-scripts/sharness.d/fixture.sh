@@ -24,7 +24,7 @@ set_config() {
 
 set_main_class() {
   class=$1
-  sed -i.bak -e "s/#{neo4j\.mainClass}/${class}/" ongdb-home/bin/ongdb
+  sed -i.bak -e "s/#{ongdb\.mainClass}/${class}/" ongdb-home/bin/ongdb
 }
 
 ongdb_home() {
