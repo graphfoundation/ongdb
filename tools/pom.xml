@@ -17,7 +17,9 @@
   <name>ONgDB - Low Level Tools</name>
   <packaging>jar</packaging>
   <description>A package for low level tools.</description>
+
   <properties>
+    <license-text.header>headers/AGPL-3-header.txt</license-text.header>
     <moduleName>org.neo4j.tools</moduleName>
   </properties>
 

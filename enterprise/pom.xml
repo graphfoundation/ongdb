@@ -17,6 +17,10 @@
   <description>Project that builds the ONgDB Enterprise distribution.</description>
   <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
+  <properties>
+    <license-text.header>headers/AGPL-3-header.txt</license-text.header>
+  </properties>
+
   <scm>
     <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
     <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>

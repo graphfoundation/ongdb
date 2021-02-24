@@ -1,3 +1,20 @@
+ONgDB
+Copyright © 2018-2020 Graph Foundation, Inc.
+(referred to in this notice as "Graph Foundation")
+[https://graphfoundation.org]
+
+This product includes software ("Software") developed by Graph Foundation.
+
+The copyright in the bundled ONgDB graph database (including the
+Software) is owned by Graph Foundation. The Software developed and owned
+by Graph Foundation is licensed under the GNU GENERAL PUBLIC LICENSE Version 3
+(http://www.fsf.org/licensing/licenses/gpl-3.0.html) ("GPL")
+to all third parties and that license, as required by the GPL, is
+included in the LICENSE.txt file.
+
+Full license texts are found in LICENSES.txt.
+
+
 Neo4j
 Copyright © 2002-2018 Neo4j Sweden AB (referred to in this notice as "Neo4j")
 [http://neo4j.com]
