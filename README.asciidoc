@@ -1,5 +1,7 @@
 = ONgDB: Graphs for the People! =
 
+image::https://bamboo.graphfoundation.org/plugins/servlet/wittified/build-status/ONGDB-ONGDB[Build Status]
+
 == What is ONgDB?  ==
 
 https://graphfoundation.org[ONgDB] _/ Owen-Gee-Dee-Bee /_ which stands for Open Native Graph Database, is an open source, high performance, native graph store with everything you would expect from an enterprise-ready database, including high availability clustering, ACID transactions, and an intuitive, pattern-centric graph query language.
