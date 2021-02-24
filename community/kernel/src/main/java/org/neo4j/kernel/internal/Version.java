@@ -60,6 +60,16 @@ public class Version extends Service
         return getKernel().getReleaseVersion();
     }
 
+    public static String getCompatibilityVersion()
+    {
+        return "3.4.0";
+    }
+
+    public static String getProtocolCompatibilityVersion()
+    {
+        return "Neo4j/" + getCompatibilityVersion();
+    }
+
     private final String artifactId;
     private final String title;
     private final String vendor;

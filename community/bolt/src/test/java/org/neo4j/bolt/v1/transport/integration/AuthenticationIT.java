@@ -115,7 +115,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
     }
 
     private HostnamePort address;
-    private final String version = "Neo4j/" + Version.getONgDBVersion();
+    private final String version = Version.getProtocolCompatibilityVersion();
 
     @Before
     public void setup()

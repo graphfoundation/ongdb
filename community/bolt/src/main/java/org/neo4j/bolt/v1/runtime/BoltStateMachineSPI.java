@@ -73,7 +73,7 @@ class BoltStateMachineSPI implements BoltStateMachine.SPI
         this.connectionTracker = connectionTracker;
         this.authentication = authentication;
         this.transactionSpi = transactionStateMachineSPI;
-        this.version = "Neo4j/" + Version.getONgDBVersion();
+        this.version = Version.getProtocolCompatibilityVersion();
     }
 
     @Override
