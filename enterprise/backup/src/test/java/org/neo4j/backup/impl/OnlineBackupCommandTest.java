@@ -172,7 +172,7 @@ public class OnlineBackupCommandTest
                             "also be a good idea. See 'ongdb-admin help' for details.%n" +
                             "%n" +
                             "For more information see:%n" +
-                            "https://neo4j.com/docs/operations-manual/current/backup/%n" +
+                            "https://graphfoundation.org/docs/operations-manual/current/backup/%n" +
                             "%n" +
                             "options:%n" +
                             "  --backup-dir=<backup-path>               Directory to place backup in.%n" +

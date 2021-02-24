@@ -801,7 +801,7 @@ public class ImportTool
         versionParts[0] = versionParts[0].substring(0, 3);
         String docsVersion = String.join("-", versionParts);
 
-        return " https://neo4j.com/docs/operations-manual/" + docsVersion + "/" +
+        return " https://graphfoundation.org/docs/operations-manual/" + docsVersion + "/" +
                page.getReference( anchor );
     }
 

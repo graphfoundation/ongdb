@@ -84,7 +84,7 @@ public interface ExecutionPlanDescription
      * Signifies that the query was profiled, and that statistics from the profiling can
      * {@link #getProfilerStatistics() be retrieved}.
      *
-     * The <a href="https://neo4j.com/docs/developer-manual/current/cypher/execution-plans/">{@code PROFILE}</a> directive in Geequel
+     * The <a href="https://graphfoundation.org/docs/developer-manual/current/cypher/execution-plans/">{@code PROFILE}</a> directive in Geequel
      * ensures the presence of profiler statistics in the plan description.
      *
      * @return true, if {@link ProfilerStatistics} are available for this execution step

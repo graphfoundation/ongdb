@@ -73,7 +73,7 @@ public class BackupHelpOutput
         lines.add( "also be a good idea. See 'ongdb-admin help' for details." );
         lines.add( "" );
         lines.add( "For more information see:" );
-        lines.add( "https://neo4j.com/docs/operations-manual/current/backup/" );
+        lines.add( "https://graphfoundation.org/docs/operations-manual/current/backup/" );
         lines.add( "" );
         lines.add( "options:" );
         lines.add( "  --backup-dir=<backup-path>               Directory to place backup in." );
