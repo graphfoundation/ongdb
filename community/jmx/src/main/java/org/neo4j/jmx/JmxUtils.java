@@ -57,7 +57,7 @@ public class JmxUtils
     {
         if ( !(db instanceof GraphDatabaseAPI) )
         {
-            throw new IllegalArgumentException( "Can only resolve object names for embedded Neo4j database " +
+            throw new IllegalArgumentException( "Can only resolve object names for embedded ONgDB database " +
                     "instances, eg. instances created by GraphDatabaseFactory or HighlyAvailableGraphDatabaseFactory." );
         }
         ObjectName neoQuery = ((GraphDatabaseAPI)db).getDependencyResolver().resolveDependency( JmxKernelExtension.class )

@@ -48,7 +48,7 @@ import org.neo4j.kernel.impl.factory.GraphDatabaseFacadeFactory;
 import static java.util.Arrays.asList;
 
 /**
- * Factory for Neo4j database instances with Enterprise Edition and High-Availability features.
+ * Factory for ONgDB database instances with Enterprise Edition and High-Availability features.
  *
  * @see org.neo4j.graphdb.factory.GraphDatabaseFactory
  */

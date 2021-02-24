@@ -104,7 +104,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
     }
 
     /**
-     * Do the actual transfer of the source (a Neo4j database dump) to the target.
+     * Do the actual transfer of the source (a ONgDB database dump) to the target.
      */
     @Override
     public void copy( boolean verbose, String consoleURL, String boltUri, Path source, boolean deleteSourceAfterImport, String bearerToken )

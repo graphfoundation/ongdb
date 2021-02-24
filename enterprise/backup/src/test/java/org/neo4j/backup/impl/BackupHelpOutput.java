@@ -61,7 +61,7 @@ public class BackupHelpOutput
         lines.add( "environment variables:" );
         lines.add( "    ONGDB_CONF    Path to directory which contains ongdb.conf." );
         lines.add( "    ONGDB_DEBUG   Set to anything to enable debug output." );
-        lines.add( "    ONGDB_HOME    Neo4j home directory." );
+        lines.add( "    ONGDB_HOME    ONgDB home directory." );
         lines.add( "    HEAP_SIZE     Set JVM maximum heap size during command execution." );
         lines.add( "                  Takes a number and a unit, for example 512m." );
         lines.add( "" );

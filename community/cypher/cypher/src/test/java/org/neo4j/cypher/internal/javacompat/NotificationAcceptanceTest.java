@@ -1029,7 +1029,7 @@ public class NotificationAcceptanceTest
     private Matcher<Notification> eagerOperatorWarning = notification( "Neo.ClientNotification.Statement.EagerOperatorWarning", containsString(
             "Using LOAD CSV with a large data set in a query where the execution plan contains the " +
                     "Eager operator could potentially consume a lot of memory and is likely to not perform well. " +
-                    "See the Neo4j Manual entry on the Eager operator for more information and hints on " + "how problems could be avoided." ),
+                    "See the ONgDB Manual entry on the Eager operator for more information and hints on " + "how problems could be avoided." ),
             any( InputPosition.class ), SeverityLevel.WARNING );
 
     private Matcher<Notification> unknownPropertyKeyWarning =

@@ -160,7 +160,7 @@ public class OnlineBackupCommandTest
                             "environment variables:%n" +
                             "    ONGDB_CONF    Path to directory which contains ongdb.conf.%n" +
                             "    ONGDB_DEBUG   Set to anything to enable debug output.%n" +
-                            "    ONGDB_HOME    Neo4j home directory.%n" +
+                            "    ONGDB_HOME    ONgDB home directory.%n" +
                             "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
                             "                  Takes a number and a unit, for example 512m.%n" +
                             "%n" +

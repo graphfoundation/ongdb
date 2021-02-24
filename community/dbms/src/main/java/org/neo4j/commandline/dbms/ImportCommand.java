@@ -134,7 +134,7 @@ public class ImportCommand implements AdminCommand
                     "  STRING: arbitrary strings for identifying nodes,\n" +
                     "  INTEGER: arbitrary integer values for identifying nodes,\n" +
                     "  ACTUAL: (advanced) actual node ids.\n" +
-                    "For more information on id handling, please see the Neo4j Manual: " +
+                    "For more information on id handling, please see the ONgDB Manual: " +
                     "https://graphfoundation.org/docs/operations-manual/current/tools/import/" ) )
             .withArgument( new OptionalNamedArg( "input-encoding", "character-set", "UTF-8",
                     "Character set that input data is encoded in." ) )

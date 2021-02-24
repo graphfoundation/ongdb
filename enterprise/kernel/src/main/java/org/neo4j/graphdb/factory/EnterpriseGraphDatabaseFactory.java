@@ -46,7 +46,7 @@ import org.neo4j.kernel.impl.factory.GraphDatabaseFacadeFactory;
 import static org.neo4j.kernel.configuration.Settings.FALSE;
 
 /**
- * Factory for Neo4j database instances with Enterprise Edition features.
+ * Factory for ONgDB database instances with Enterprise Edition features.
  *
  * @see org.neo4j.graphdb.factory.GraphDatabaseFactory
  */

@@ -904,10 +904,10 @@ public class ImportTool
     private static void printUsage( PrintStream out )
     {
         out.println( "Neo4j Import Tool" );
-        for ( String line : Args.splitLongLine( "neo4j-import is used to create a new Neo4j database "
+        for ( String line : Args.splitLongLine( "neo4j-import is used to create a new ONgDB database "
                                                 + "from data in CSV files. "
                                                 +
-                                                "See the chapter \"Import Tool\" in the Neo4j Manual for details on the CSV file format "
+                                                "See the chapter \"Import Tool\" in the ONgDB Manual for details on the CSV file format "
                                                 + "- a special kind of header is required.", 80 ) )
         {
             out.println( "\t" + line );

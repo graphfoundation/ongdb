@@ -55,7 +55,7 @@ public interface TestServerBuilder
     /**
      * Start a new server. By default, the server will listen to a random free port, and you can determine where to
      * connect using the {@link ServerControls#httpURI()} method. You could also specify explicit ports using the
-     * {@link #withConfig(org.neo4j.graphdb.config.Setting, String)} method. Please refer to the Neo4j Manual for
+     * {@link #withConfig(org.neo4j.graphdb.config.Setting, String)} method. Please refer to the ONgDB Manual for
      * details on available configuration options.
      *
      * When the returned controls are {@link ServerControls#close() closed}, the temporary directory the server used
@@ -65,7 +65,7 @@ public interface TestServerBuilder
 
     /**
      * Configure the ONgDB instance. Configuration here can be both configuration aimed at the server as well as the
-     * database tuning options. Please refer to the Neo4j Manual for details on available configuration options.
+     * database tuning options. Please refer to the ONgDB Manual for details on available configuration options.
      *
      * @param key the config key
      * @param value the config value
@@ -79,7 +79,7 @@ public interface TestServerBuilder
     TestServerBuilder withConfig( String key, String value );
 
     /**
-     * Shortcut for configuring the server to use an unmanaged extension. Please refer to the Neo4j Manual on how to
+     * Shortcut for configuring the server to use an unmanaged extension. Please refer to the ONgDB Manual on how to
      * write unmanaged extensions.
      *
      * @param mountPath the http path, relative to the server base URI, that this extension should be mounted at.

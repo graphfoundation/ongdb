@@ -91,7 +91,7 @@ import static org.neo4j.kernel.configuration.HttpConnector.Encryption.TLS;
 import static org.neo4j.kernel.configuration.Settings.TRUE;
 
 /**
- * This class holds the overall configuration of a Neo4j database instance. Use the accessors to convert the internal
+ * This class holds the overall configuration of a ONgDB database instance. Use the accessors to convert the internal
  * key-value settings to other types.
  * <p>
  * Users can assume that old settings have been migrated to their new counterparts, and that defaults have been

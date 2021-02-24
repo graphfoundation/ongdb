@@ -44,7 +44,7 @@ import java.util.Optional;
 public interface AuthProviderOperations
 {
     /**
-     * Returns the path to the Neo4j home directory.
+     * Returns the path to the ONgDB home directory.
      *
      * @return the path to the Neo4j home directory
      */

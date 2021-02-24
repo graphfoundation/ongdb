@@ -53,13 +53,13 @@ import org.neo4j.graphdb.traversal.Evaluation;
 
 /**
  * A set of classes that we trust unknown entities to work with. These will be accessible to users that have remote access
- * to a Neo4j database.
+ * to a ONgDB database.
  *
  * Please make sure that, when you add a class to this whitelist, it does not allow any sort of side effects that could
  * be dangerous, such as accessing the file system or starting remote connections or threads, unless we clearly know
  * the effect of it.
  *
- * Assume that people using these classes will be using a Neo4j database that runs in a co-located environment, and that
+ * Assume that people using these classes will be using a ONgDB database that runs in a co-located environment, and that
  * the world will burn if someone is able to access a database they are not supposed to have access to.
  *
  * This White List should not be end-user configurable. If we let end-users set up their own whitelists, then each database
