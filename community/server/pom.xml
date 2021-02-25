@@ -23,7 +23,7 @@
         <licensing.prepend.text>licensing/notice-gpl-prefix.txt</licensing.prepend.text>
 
         <ongdb.version>${project.version}</ongdb.version>
-        <ongdb-browser.version>1.0.0-beta01</ongdb-browser.version>
+        <ongdb-browser.version>1.0.0-rc01</ongdb-browser.version>
 
         <ongdb-server.mainClass>org.neo4j.server.CommunityEntryPoint</ongdb-server.mainClass>
 
