@@ -44,7 +44,7 @@ import java.util.List;
 import org.neo4j.gis.spatial.index.Envelope;
 
 /**
- * This class is also used by Neo4j Spatial
+ * This class is also used by ONgDB Spatial
  */
 
 public abstract class SpaceFillingCurve
@@ -152,7 +152,7 @@ public abstract class SpaceFillingCurve
 
     /**
      * Given a coordinate in multiple dimensions, calculate its derived key for maxLevel
-     * Needs to be public due to dependency from Neo4j Spatial
+     * Needs to be public due to dependency from ONgDB Spatial
      */
     public Long derivedValueFor( double[] coord )
     {

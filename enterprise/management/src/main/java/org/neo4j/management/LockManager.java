@@ -41,19 +41,19 @@ import org.neo4j.jmx.ManagementInterface;
 import org.neo4j.kernel.info.LockInfo;
 
 @ManagementInterface( name = LockManager.NAME )
-@Description( "Information about the Neo4j lock status" )
+@Description( "Information about the ONgDB lock status" )
 public interface LockManager
 {
     String NAME = "Locking";
 
     @Description( "The number of lock sequences that would have lead to a deadlock situation that "
-                  + "Neo4j has detected and averted (by throwing DeadlockDetectedException)." )
+                  + "ONgDB has detected and averted (by throwing DeadlockDetectedException)." )
     long getNumberOfAvertedDeadlocks();
 
-    @Description( "Information about all locks held by Neo4j" )
+    @Description( "Information about all locks held by ONgDB" )
     List<LockInfo> getLocks();
 
-    @Description( "Information about contended locks (locks where at least one thread is waiting) held by Neo4j. "
+    @Description( "Information about contended locks (locks where at least one thread is waiting) held by ONgDB. "
                   + "The parameter is used to get locks where threads have waited for at least the specified number "
                   + "of milliseconds, a value of 0 retrieves all contended locks." )
     List<LockInfo> getContendedLocks( long minWaitTime );

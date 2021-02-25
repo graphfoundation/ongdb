@@ -146,7 +146,7 @@ Function Invoke-ONgDBUtility
     # Add unbounded command line arguments
     $ShellArgs += $CommandArgs
 
-    Write-Verbose "Starting neo4j utility using command line $($JavaCMD.java) $ShellArgs"
+    Write-Verbose "Starting ongdb utility using command line $($JavaCMD.java) $ShellArgs"
     $result = (Start-Process -FilePath $JavaCMD.java -ArgumentList $ShellArgs -Wait -NoNewWindow -PassThru)
     return $result.ExitCode
   }

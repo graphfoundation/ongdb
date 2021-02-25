@@ -41,7 +41,7 @@ import org.neo4j.cypher.internal.v3_4.expressions.{Expression, LogicalVariable, 
 sealed trait ReturnItemsDef extends ASTNode with SemanticCheckable with SemanticAnalysisTooling {
   /**
     * Users must specify return items for the projection, either all variables (*), no variables (-), or explicit expressions.
-    * Neo4j does not support the no variables case on the surface, but it may appear as the result of expanding the star (*) when no variables are in scope.
+    * ONgDB does not support the no variables case on the surface, but it may appear as the result of expanding the star (*) when no variables are in scope.
     * This field is true if the dash (-) was used by a user.
     */
   def includeExisting: Boolean

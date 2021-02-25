@@ -205,7 +205,7 @@ public class JmxDump
             {
                 // Heap dump has to target an actual file, we cannot stream directly to the archive
                 progress.info( "dumping..." );
-                Path tempFile = Files.createTempFile("neo4j-heapdump", ".hprof");
+                Path tempFile = Files.createTempFile("ongdb-heapdump", ".hprof");
                 Files.deleteIfExists( tempFile );
                 heapDump( tempFile.toAbsolutePath().toString() );
 

@@ -104,7 +104,7 @@ public class ClusterMemberInfo implements Serializable
     @SuppressWarnings( "boxing" )
     public String toString()
     {
-        return String.format( "Neo4jHaInstance[id=%s,available=%s,haRole=%s,HA URI=%s]", instanceId, available, haRole,
+        return String.format( "ONgDBHaInstance[id=%s,available=%s,haRole=%s,HA URI=%s]", instanceId, available, haRole,
                 Arrays.toString(uris) );
     }
 

@@ -43,7 +43,7 @@ Function global:New-MockONgDBInstall(
   $WindowsService = $global:mockServiceName,
   $NeoConfSettings = @()
   ) {
-  # Creates a skeleton directory and file structure of a Neo4j Installation
+  # Creates a skeleton directory and file structure of a ONgDB Installation
   New-Item $RootDir -ItemType Directory | Out-Null
   New-Item "$RootDir\lib" -ItemType Directory | Out-Null
   New-Item "$RootDir\bin" -ItemType Directory | Out-Null

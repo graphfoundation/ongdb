@@ -146,6 +146,6 @@ public class ManagementSupport
                 return management.name();
             }
         }
-        throw new IllegalArgumentException( iface + " is not a Neo4j Management Been interface" );
+        throw new IllegalArgumentException( iface + " is not a ONgDB Management Been interface" );
     }
 }

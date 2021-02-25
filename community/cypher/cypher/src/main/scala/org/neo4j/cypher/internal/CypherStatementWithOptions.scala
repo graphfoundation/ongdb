@@ -62,7 +62,7 @@ object CypherStatementWithOptions {
             val newVersion = mergeOption(version, CypherVersion(v), "Can't specify multiple conflicting Cypher versions")
             recurse(tail, newVersion, planner, runtime, updateStrategy, executionMode, debugOptions)
           case p: PlannerPreParserOption if p.name == GreedyPlannerOption.name =>
-            throw new InvalidArgumentException("The greedy planner has been removed in Neo4j 3.1. Please use the cost planner instead.")
+            throw new InvalidArgumentException("The greedy planner has been removed in ONgDB 1.0. Please use the cost planner instead.")
           case p: PlannerPreParserOption =>
             val newPlanner = mergeOption(planner, CypherPlanner(p.name), "Can't specify multiple conflicting Cypher planners")
             recurse(tail, version, newPlanner, runtime, updateStrategy, executionMode, debugOptions)

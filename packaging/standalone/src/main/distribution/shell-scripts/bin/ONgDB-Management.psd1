@@ -47,7 +47,7 @@ Author = 'Network Engine for Objects'
 
 CompanyName = 'Network Engine for Objects'
 
-Copyright = 'https://neo4j.com/licensing/'
+Copyright = 'https://graphfoundation.org/licensing/'
 
 Description = 'Powershell module to manage a ONgDB instance on Windows'
 

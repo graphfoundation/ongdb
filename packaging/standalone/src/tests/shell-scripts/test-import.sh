@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-test_description="Test running neo4j-import"
+test_description="Test running ongdb-import"
 
 . ./lib/sharness.sh
 fake_install

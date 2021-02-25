@@ -74,7 +74,7 @@ public class Neo4jAdminUsageTest
                         "    import\n" +
                         "        Import from a collection of CSV files or a pre-3.0 database.\n" +
                         "    memrec\n" +
-                        "        Print Neo4j heap and pagecache memory settings recommendations.\n" +
+                        "        Print ONgDB heap and pagecache memory settings recommendations.\n" +
                         "    report\n" +
                         "        Produces a zip/tar of the most common information needed for remote assessments.\n" +
                         "    store-info\n" +
@@ -98,7 +98,7 @@ public class Neo4jAdminUsageTest
                         "\n" +
                         "Online backup\n" +
                         "    backup\n" +
-                        "        Perform an online backup from a running Neo4j enterprise server.\n" +
+                        "        Perform an online backup from a running ONgDB Enterprise server.\n" +
                         "    restore\n" +
                         "        Restore a backed up database.\n" +
                         "\n" +

@@ -206,7 +206,7 @@ public abstract class ServerBootstrapper implements Bootstrapper
     private void installSignalHandlers()
     {
         installSignalHandler( SIGTERM ); // SIGTERM is invoked when system service is stopped
-        installSignalHandler( SIGINT ); // SIGINT is invoked when user hits ctrl-c  when running `neo4j console`
+        installSignalHandler( SIGINT ); // SIGINT is invoked when user hits ctrl-c  when running `ongdb console`
     }
 
     private void installSignalHandler( String sig )

@@ -46,10 +46,7 @@ public class ServerUtil
     /**
      * Figure out the host string of a given socket address, similar to the Java 7 InetSocketAddress.getHostString().
      *
-     * Calls to this should be replace once Neo4j is Java 7 only.
-     *
-     * @param socketAddress
-     * @return
+     * Calls to this should be replace once ONgDB is Java 7 only.
      */
     public static String getHostString( InetSocketAddress socketAddress )
     {

@@ -14,9 +14,9 @@
 
     <name>ONgDB - Graph Database Kernel</name>
     <description>
-        Neo4j kernel is a lightweight, embedded Java database designed to
+        ONgDB kernel is a lightweight, embedded Java database designed to
         store data structured as graphs rather than tables. For more
-        information, see http://neo4j.org.
+        information, see https://graphfoundation.org.
     </description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
@@ -86,7 +86,7 @@
                         </configuration>
                     </execution>
                     <execution>
-                        <id>compile-neo4j-kernel</id>
+                        <id>compile-ongdb-kernel</id>
                         <phase>compile</phase>
                         <goals>
                             <goal>compile</goal>

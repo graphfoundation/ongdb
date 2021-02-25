@@ -147,7 +147,7 @@ public interface LabelScanStore extends Lifecycle
     LabelScanWriter newWriter();
 
     /**
-     * Forces all changes to disk. Called at certain points from within Neo4j for example when
+     * Forces all changes to disk. Called at certain points from within ONgDB for example when
      * rotating the logical log. After completion of this call there cannot be any essential state that
      * hasn't been forced to disk.
      *

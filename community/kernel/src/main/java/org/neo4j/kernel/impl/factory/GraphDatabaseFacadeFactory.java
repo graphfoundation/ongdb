@@ -134,7 +134,7 @@ public class GraphDatabaseFacadeFactory
     /**
      * Instantiate a graph database given configuration and dependencies.
      *
-     * @param storeDir the directory where the Neo4j data store is located
+     * @param storeDir the directory where the ONgDB data store is located
      * @param config configuration
      * @param dependencies the dependencies required to construct the {@link GraphDatabaseFacade}
      * @return the newly constructed {@link GraphDatabaseFacade}
@@ -148,7 +148,7 @@ public class GraphDatabaseFacadeFactory
      * Instantiate a graph database given configuration, dependencies, and a custom implementation of {@link org
      * .neo4j.kernel.impl.factory.GraphDatabaseFacade}.
      *
-     * @param storeDir the directory where the Neo4j data store is located
+     * @param storeDir the directory where the ONgDB data store is located
      * @param params configuration parameters
      * @param dependencies the dependencies required to construct the {@link GraphDatabaseFacade}
      * @param graphDatabaseFacade the already created facade which needs initialisation
@@ -164,7 +164,7 @@ public class GraphDatabaseFacadeFactory
      * Instantiate a graph database given configuration, dependencies, and a custom implementation of {@link org
      * .neo4j.kernel.impl.factory.GraphDatabaseFacade}.
      *
-     * @param storeDir the directory where the Neo4j data store is located
+     * @param storeDir the directory where the ONgDB data store is located
      * @param config configuration
      * @param dependencies the dependencies required to construct the {@link GraphDatabaseFacade}
      * @param graphDatabaseFacade the already created facade which needs initialisation

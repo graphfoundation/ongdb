@@ -111,7 +111,7 @@ public class Trav extends TransactionProvidingApp
     public String getDescription()
     {
         return "Traverses the graph from your current position (pwd). " +
-            "It's a reflection of the neo4j traverser API with some options for filtering " +
+            "It's a reflection of the ONgDB traverser API with some options for filtering " +
             "which nodes will be returned.";
     }
 

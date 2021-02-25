@@ -84,7 +84,7 @@ public class DuplicationAwareBaseProcessor<T extends Annotation> extends Abstrac
     private MessagePrinter messagePrinter;
 
     /**
-     * Base initialization of Neo4j extension processor (where extension can be {@link Procedure}, {@link UserFunction},
+     * Base initialization of ONgDB extension processor (where extension can be {@link Procedure}, {@link UserFunction},
      * {@link UserAggregationFunction}).
      *
      * @param supportedAnnotationType main annotation type supported by the processor. The main annotation may depend on

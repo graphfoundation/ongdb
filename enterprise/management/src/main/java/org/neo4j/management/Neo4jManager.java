@@ -177,7 +177,7 @@ public final class Neo4jManager extends KernelProxy implements Kernel
     {
         if ( kernels.size() == 0 )
         {
-            throw new NoSuchElementException( "No matching Neo4j Graph Database running on server" );
+            throw new NoSuchElementException( "No matching ONgDB Graph Database running on server" );
         }
         else if ( kernels.size() == 1 )
         {
@@ -186,7 +186,7 @@ public final class Neo4jManager extends KernelProxy implements Kernel
         else
         {
             throw new NoSuchElementException(
-                    "Too many matching Neo4j Graph Databases running on server" );
+                    "Too many matching ONgDB Graph Databases running on server" );
         }
     }
 

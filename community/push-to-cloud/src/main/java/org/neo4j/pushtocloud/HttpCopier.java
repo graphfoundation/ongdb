@@ -767,7 +767,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
         return sizeInBytes / (double) (1024 * 1024 * 1024);
     }
 
-    // Simple structs for mapping JSON to objects, used by the jackson parser which Neo4j happens to depend on anyway
+    // Simple structs for mapping JSON to objects, used by the jackson parser which ONgDB happens to depend on anyway
     @JsonIgnoreProperties( ignoreUnknown = true )
     private static class SignedURIBody
     {

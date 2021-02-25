@@ -164,7 +164,7 @@ public class OnlineBackupCommandTest
                             "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
                             "                  Takes a number and a unit, for example 512m.%n" +
                             "%n" +
-                            "Perform an online backup from a running Neo4j enterprise server. Neo4j's backup%n" +
+                            "Perform an online backup from a running ONgDB Enterprise server. ONgDB's backup%n" +
                             "service must have been configured on the server beforehand.%n" +
                             "%n" +
                             "All consistency checks except 'cc-graph' can be quite expensive so it may be%n" +
@@ -179,7 +179,7 @@ public class OnlineBackupCommandTest
                             "  --name=<graph.db-backup>                 Name of backup. If a backup with this%n" +
                             "                                           name already exists an incremental%n" +
                             "                                           backup will be attempted.%n" +
-                            "  --from=<address>                         Host and port of Neo4j.%n" +
+                            "  --from=<address>                         Host and port of ONgDB.%n" +
                             "                                           [default:localhost:6362]%n" +
                             "  --protocol=<any|catchup|common>          Preferred backup protocol%n" +
                             "                                           [default:any]%n" +

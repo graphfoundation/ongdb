@@ -56,7 +56,7 @@ import org.neo4j.upgrade.lucene.LuceneExplicitIndexUpgrader;
 import org.neo4j.upgrade.lucene.LuceneExplicitIndexUpgrader.Monitor;
 
 /**
- * Migrates explicit lucene indexes between different neo4j versions.
+ * Migrates explicit lucene indexes between different ONgDB versions.
  * Participates in store upgrade as one of the migration participants.
  */
 public class ExplicitIndexMigrator extends AbstractStoreMigrationParticipant

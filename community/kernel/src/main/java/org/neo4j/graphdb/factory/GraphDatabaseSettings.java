@@ -150,7 +150,7 @@ public class GraphDatabaseSettings implements LoadableConfig
             BOOLEAN, FALSE );
 
     @Description( "A strict configuration validation will prevent the database from starting up if unknown " +
-            "configuration options are specified in the neo4j settings namespace (such as dbms., ha., cypher., etc). " +
+            "configuration options are specified in the ONgDB settings namespace (such as dbms., ha., cypher., etc). " +
             "This is currently false by default but will be true by default in 4.0." )
     public static final Setting<Boolean> strict_config_validation =
             setting( "dbms.config.strict_validation", BOOLEAN, FALSE );
@@ -201,7 +201,7 @@ public class GraphDatabaseSettings implements LoadableConfig
                   "plan to perform an exhaustive depth-first search if the fast algorithm finds no paths. However, " +
                   "the exhaustive search may be orders of magnitude slower than the fast algorithm. If it is critical " +
                   "that queries terminate as soon as possible, it is recommended that this option be set to `true`, " +
-                  "which means that Neo4j will never consider using the exhaustive search for shortestPath queries. " +
+                  "which means that ONgDB will never consider using the exhaustive search for shortestPath queries. " +
                   "However, please note that if no paths are found, an error will be thrown at run time, which will " +
                   "need to be handled by the application." )
     public static final Setting<Boolean> forbid_exhaustive_shortestpath = setting(
@@ -325,7 +325,7 @@ public class GraphDatabaseSettings implements LoadableConfig
             setting( "unsupported.cypher.plan_with_minimum_cardinality_estimates", BOOLEAN, TRUE );
 
     @Description( "Determines if Cypher will allow using file URLs when loading data using `LOAD CSV`. Setting this "
-                  + "value to `false` will cause Neo4j to fail `LOAD CSV` clauses that load data from the file system." )
+                  + "value to `false` will cause ONgDB to fail `LOAD CSV` clauses that load data from the file system." )
     public static final Setting<Boolean> allow_file_urls = setting( "dbms.security.allow_csv_import_from_file_urls", BOOLEAN, TRUE );
 
     @Description( "Sets the root directory for file URLs used with the Cypher `LOAD CSV` clause. This must be set to a single "
@@ -605,12 +605,12 @@ public class GraphDatabaseSettings implements LoadableConfig
                     optionsIgnoreCase( SchemaIndex.NATIVE20.providerName(), SchemaIndex.NATIVE10.providerName(), SchemaIndex.LUCENE10.providerName() ),
                     null );
 
-    @Description( "Location where Neo4j keeps the logical transaction logs." )
+    @Description( "Location where ONgDB keeps the logical transaction logs." )
     public static final Setting<File> logical_logs_location =
             pathSetting( "dbms.directories.tx_log", "", database_path );
 
     // Store settings
-    @Description( "Make Neo4j keep the logical transaction logs for being able to backup the database. " +
+    @Description( "Make ONgDB keep the logical transaction logs for being able to backup the database. " +
             "Can be used for specifying the threshold to prune logical logs after. For example \"10 days\" will " +
             "prune logical logs that only contains transactions older than 10 days from the current time, " +
             "or \"100k txs\" will keep the 100k latest transactions and prune any older transactions." )
@@ -630,8 +630,8 @@ public class GraphDatabaseSettings implements LoadableConfig
     public static final Setting<Long> logical_log_rotation_threshold =
             buildSetting( "dbms.tx_log.rotation.size", BYTES, "250M" ).constraint( min( ByteUnit.mebiBytes( 1 ) ) ).build();
 
-    @Description( "If `true`, Neo4j will abort recovery if any errors are encountered in the logical log. Setting " +
-            "this to `false` will allow Neo4j to restore as much as possible from the corrupted log files and ignore " +
+    @Description( "If `true`, ONgDB will abort recovery if any errors are encountered in the logical log. Setting " +
+            "this to `false` will allow ONgDB to restore as much as possible from the corrupted log files and ignore " +
             "the rest, but, the integrity of the database might be compromised." )
     @Internal
     public static final Setting<Boolean> fail_on_corrupted_log_files = setting("unsupported.dbms.tx_log.fail_on_corrupted_log_files", BOOLEAN, TRUE );
@@ -663,7 +663,7 @@ public class GraphDatabaseSettings implements LoadableConfig
 
     @SuppressWarnings( "unchecked" )
     @Description( "The amount of memory to use for mapping the store files, in bytes (or kilobytes with the 'k' " +
-                  "suffix, megabytes with 'm' and gigabytes with 'g'). If Neo4j is running on a dedicated server, " +
+                  "suffix, megabytes with 'm' and gigabytes with 'g'). If ONgDB is running on a dedicated server, " +
                   "then it is generally recommended to leave about 2-4 gigabytes for the operating system, give the " +
                   "JVM enough heap to hold all your transaction state and query context, and then leave the rest for " +
                   "the page cache. If no page cache memory is configured, then a heuristic setting is computed based " +

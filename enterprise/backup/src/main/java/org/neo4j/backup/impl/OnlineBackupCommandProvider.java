@@ -69,7 +69,7 @@ public class OnlineBackupCommandProvider extends AdminCommand.Provider
     @Nonnull
     public String description()
     {
-        return format( "Perform an online backup from a running Neo4j enterprise server. Neo4j's backup service must " +
+        return format( "Perform an online backup from a running ONgDB Enterprise server. ONgDB's backup service must " +
                 "have been configured on the server beforehand.%n" +
                 "%n" +
                 "All consistency checks except 'cc-graph' can be quite expensive so it may be useful to turn them off" +
@@ -83,7 +83,7 @@ public class OnlineBackupCommandProvider extends AdminCommand.Provider
     @Nonnull
     public String summary()
     {
-        return "Perform an online backup from a running Neo4j enterprise server.";
+        return "Perform an online backup from a running ONgDB Enterprise server.";
     }
 
     @Override

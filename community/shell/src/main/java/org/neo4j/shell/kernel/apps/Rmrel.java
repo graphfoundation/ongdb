@@ -53,8 +53,8 @@ import org.neo4j.shell.Session;
 import org.neo4j.shell.ShellException;
 
 /**
- * Mimics the POSIX application "rmdir", but neo4j has relationships instead of
- * directories (if you look at Neo4j in a certain perspective).
+ * Mimics the POSIX application "rmdir", but ONgDB has relationships instead of
+ * directories (if you look at ONgDB in a certain perspective).
  */
 @Service.Implementation( App.class )
 public class Rmrel extends TransactionProvidingApp

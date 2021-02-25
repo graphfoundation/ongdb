@@ -20,7 +20,7 @@
 
     <packaging>jar</packaging>
     <name>ONgDB - SLF4J Binding</name>
-    <description>SLF4J binding for Neo4j Logging.</description>
+    <description>SLF4J binding for ONgDB Logging.</description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
     <scm>

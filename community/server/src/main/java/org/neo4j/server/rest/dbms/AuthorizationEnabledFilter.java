@@ -230,9 +230,9 @@ public class AuthorizationEnabledFilter extends AuthorizationFilter
     }
 
     /**
-     * In order to avoid browsers popping up an auth box when using the Neo4j Browser, it sends us a special header.
+     * In order to avoid browsers popping up an auth box when using the ONgDB Browser, it sends us a special header.
      * When we get that special header, we send a crippled authentication challenge back that the browser does not
-     * understand, which lets the Neo4j Browser handle auth on its own.
+     * understand, which lets the ONgDB Browser handle auth on its own.
      *
      * Otherwise, we send a regular basic auth challenge. This method adds the appropriate header depending on the
      * inbound request.

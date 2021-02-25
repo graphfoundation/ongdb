@@ -48,7 +48,7 @@ import org.neo4j.kernel.impl.factory.GraphDatabaseFacadeFactory;
 import org.neo4j.logging.Log;
 
 /**
- * Wraps a neo4j database in lifecycle management. This is intermediate, and will go away once we have an internal
+ * Wraps a ONgDB database in lifecycle management. This is intermediate, and will go away once we have an internal
  * database that exposes lifecycle cleanly.
  */
 public class LifecycleManagingDatabase implements Database

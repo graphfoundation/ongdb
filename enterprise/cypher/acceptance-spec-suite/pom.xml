@@ -147,7 +147,7 @@
             <version>${project.version}</version>
         </dependency>
 
-        <!-- neo4j testing -->
+        <!-- ongdb testing -->
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
@@ -202,7 +202,7 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- neo4j-cypher -->
+        <!-- ongdb-cypher -->
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>

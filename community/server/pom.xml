@@ -13,7 +13,7 @@
     <artifactId>ongdb-server</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <name>ONgDB - Server</name>
-    <description>Standalone Neo4j server application.</description>
+    <description>Standalone ONgDB server application.</description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
     <packaging>jar</packaging>
@@ -22,10 +22,10 @@
         <license-text.header>headers/GPL-3-header.txt</license-text.header>
         <licensing.prepend.text>licensing/notice-gpl-prefix.txt</licensing.prepend.text>
 
-        <neo4j.version>${project.version}</neo4j.version>
-        <neo4j-browser.version>1.0.0-beta01</neo4j-browser.version>
+        <ongdb.version>${project.version}</ongdb.version>
+        <ongdb-browser.version>1.0.0-beta01</ongdb-browser.version>
 
-        <neo4j-server.mainClass>org.neo4j.server.CommunityEntryPoint</neo4j-server.mainClass>
+        <ongdb-server.mainClass>org.neo4j.server.CommunityEntryPoint</ongdb-server.mainClass>
 
         <test.runner.jvm.settings.additional>
             -Dorg.neo4j.kernel.impl.api.KernelStatement.trackStatements=false
@@ -76,7 +76,7 @@
                             <archive>
                                 <manifest>
                                     <!-- TODO: Does the server jar need to be executable? -->
-                                    <mainClass>${neo4j-server.mainClass}</mainClass>
+                                    <mainClass>${ongdb-server.mainClass}</mainClass>
                                 </manifest>
                             </archive>
                         </configuration>
@@ -141,7 +141,7 @@
         <dependency>
             <groupId>org.graphfoundation.ongdb.client</groupId>
             <artifactId>ongdb-browser</artifactId>
-            <version>${neo4j-browser.version}</version>
+            <version>${ongdb-browser.version}</version>
         </dependency>
 
         <dependency>

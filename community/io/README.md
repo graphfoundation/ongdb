@@ -1,4 +1,4 @@
-This is the Neo4j IO abstraction layer.
+This is the ONgDB IO abstraction layer.
 
 It currently contains disk IO mechanisms and file paging.
 

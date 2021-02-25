@@ -1,14 +1,14 @@
-Neo4j #{neo4j.version}
+ONgDB #{ongdb.version}
 =======================================
 
-Welcome to Neo4j release #{neo4j.version}, a high-performance graph database.
-This is the community distribution of Neo4j, including everything you need to
+Welcome to ONgDB release #{ongdb.version}, a high-performance graph database.
+This is the community distribution of ONgDB, including everything you need to
 start building applications that can model, persist and explore graph-like data.
 
 In the box
 ----------
 
-Neo4j runs as a server application, exposing a Web-based management
+ONgDB runs as a server application, exposing a Web-based management
 interface and RESTful endpoints for data access.
 
 Here in the installation directory, you'll find:
@@ -26,12 +26,12 @@ Make it go
 
 For full instructions, see https://graphfoundation.org/docs/operations-manual/current/installation/
 
-To get started with Neo4j, let's start the server and take a
+To get started with ONgDB, let's start the server and take a
 look at the web interface ...
 
 1. Open a console and navigate to the install directory.
 2. Start the server:
-   * Windows, use: bin\neo4j console
+   * Windows, use: bin\ongdb console
    * Linux/Mac, use: ./bin/ongdb console
 3. In a browser, open http://localhost:#{default.http.port}/
 4. From any REST client or browser, open http://localhost:#{default.http.port}/db/data
@@ -42,7 +42,7 @@ look at the web interface ...
 Learn more
 ----------
 
-* Neo4j Home: https://neo4j.com/
+* ONgDB Home: https://graphfoundation.org/
 * Getting Started: https://graphfoundation.org/docs/developer-manual/current/introduction/
 * ONgDB Documentation: https://graphfoundation.org/docs/
 

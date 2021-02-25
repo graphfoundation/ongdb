@@ -67,7 +67,7 @@ public final class ManagementData extends DependencyResolver.Adapter
         if ( name == null )
         {
             throw new IllegalArgumentException( provider.beanInterface
-                                                + " is not a Neo4j Management Bean interface" );
+                                                + " is not a ONgDB Management Bean interface" );
         }
         return name;
     }

@@ -41,7 +41,7 @@ import org.neo4j.server.security.enterprise.auth.plugin.api.AuthToken;
  * A cacheable object that can be returned as the result of successful authentication by an
  * {@link AuthenticationPlugin}.
  *
- * <p>This object can be cached by the Neo4j authentication cache.
+ * <p>This object can be cached by the ONgDB authentication cache.
  *
  * <p>This is an alternative to {@link CacheableAuthenticationInfo} to use if you want to manage your own way of
  * hashing and matching credentials. On authentication, when a cached authentication info from a previous successful

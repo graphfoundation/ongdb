@@ -212,7 +212,7 @@ public class RollingUpgradeIT
     {
         debug( "Downloading " + oldVersion + " package" );
         File oldVersionPackage = downloadAndUnpack(
-                "http://neo4j.com/customer/download/neo4j-enterprise-" + oldVersion + "-windows.zip",
+                "https://cdn.graphfoundation.org/ongdb/dist/ongdb-enterprise-" + oldVersion + "-windows.zip",
                 testDirectory.directory( "download" ), oldVersion + "-enterprise" );
         String classpath = assembleClassPathFromPackage( oldVersionPackage );
         debug( "Starting " + oldVersion + " cluster in separate jvms" );

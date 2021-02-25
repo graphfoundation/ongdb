@@ -1482,10 +1482,10 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         settings.put( SecuritySettings.ldap_authorization_user_search_filter, "(&(objectClass=*)(CN={0}))" );
         settings.put( SecuritySettings.ldap_authorization_group_membership_attribute_names, "memberOf" );
         settings.put( SecuritySettings.ldap_authorization_group_to_role_mapping,
-                "'CN=Neo4j Read Only,CN=Users,DC=ongdb,DC=com'=reader;" +
-                "CN=Neo4j Read-Write,CN=Users,DC=ongdb,DC=com=publisher;" +
-                "CN=Neo4j Schema Manager,CN=Users,DC=ongdb,DC=com=architect;" +
-                "CN=Neo4j Administrator,CN=Users,DC=ongdb,DC=com=admin"
+                "'CN=ONgDB Read Only,CN=Users,DC=ongdb,DC=com'=reader;" +
+                "CN=ONgDB Read-Write,CN=Users,DC=ongdb,DC=com=publisher;" +
+                "CN=ONgDB Schema Manager,CN=Users,DC=ongdb,DC=com=architect;" +
+                "CN=ONgDB Administrator,CN=Users,DC=ongdb,DC=com=admin"
         );
     };
 

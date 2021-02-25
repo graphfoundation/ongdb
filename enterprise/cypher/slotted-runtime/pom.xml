@@ -127,7 +127,7 @@
         </dependency>
 
 
-        <!-- neo4j testing -->
+        <!-- ongdb testing -->
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
@@ -203,7 +203,7 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- neo4j-cypher re-include excluded (with correct version) -->
+        <!-- ongdb-cypher re-include excluded (with correct version) -->
 
         <dependency>
             <groupId>org.parboiled</groupId>

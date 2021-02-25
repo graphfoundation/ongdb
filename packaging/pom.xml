@@ -16,7 +16,7 @@
 
     <name>ONgDB Packaging Build</name>
     <packaging>pom</packaging>
-    <description>Project that builds Neo4j Packages.</description>
+    <description>Project that builds ONgDB Packages.</description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
     <properties>

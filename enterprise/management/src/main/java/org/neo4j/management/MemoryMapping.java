@@ -38,7 +38,7 @@ import org.neo4j.jmx.Description;
 import org.neo4j.jmx.ManagementInterface;
 
 @ManagementInterface( name = MemoryMapping.NAME )
-@Description( "The status of Neo4j memory mapping" )
+@Description( "The status of ONgDB memory mapping" )
 public interface MemoryMapping
 {
     String NAME = "Memory Mapping";

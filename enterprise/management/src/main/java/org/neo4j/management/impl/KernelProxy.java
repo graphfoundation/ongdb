@@ -220,7 +220,7 @@ public abstract class KernelProxy
                 return management.name();
             }
         }
-        throw new IllegalArgumentException( beanInterface + " is not a Neo4j Management Been interface" );
+        throw new IllegalArgumentException( beanInterface + " is not a ONgDB Management Been interface" );
     }
 
     private static ObjectName createObjectName( String domain, Hashtable<String, String> properties, String beanName,

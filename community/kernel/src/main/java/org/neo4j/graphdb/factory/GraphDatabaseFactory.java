@@ -58,7 +58,7 @@ import org.neo4j.logging.LogProvider;
  * Use {@link #newEmbeddedDatabase(File)} or
  * {@link #newEmbeddedDatabaseBuilder(File)} to create a database instance.
  * <p>
- * <strong>Note:</strong> If you are using the Enterprise Edition of Neo4j in embedded mode, you have to create your
+ * <strong>Note:</strong> If you are using the Enterprise Edition of ONgDB in embedded mode, you have to create your
  * database with the <a href="EnterpriseGraphDatabaseFactory.html">{@code EnterpriseGraphDatabaseFactory}</a>
  * to enable the Enterprise Edition features, or the
  * <a href="HighlyAvailableGraphDatabaseFactory.html">{@code HighlyAvailableGraphDatabaseFactory}</a> for the

@@ -11,7 +11,7 @@
     <version>1.0.0-SNAPSHOT</version>
 
     <name>ONgDB - Clustering Infrastructure</name>
-    <description>Library implementing Paxos and Heartbeat components required for High Availability Neo4j</description>
+    <description>Library implementing Paxos and Heartbeat components required for High Availability ONgDB</description>
     <packaging>jar</packaging>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 

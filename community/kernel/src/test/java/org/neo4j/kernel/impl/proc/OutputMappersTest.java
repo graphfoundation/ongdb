@@ -158,7 +158,7 @@ public class OutputMappersTest
         // Expect
         exception.expect( ProcedureException.class );
         exception.expectMessage(
-                "Field `wat` in record `UnmappableRecord` cannot be converted to a Neo4j type:" +
+                "Field `wat` in record `UnmappableRecord` cannot be converted to a ONgDB type:" +
                         " Don't know how to map `org.neo4j.kernel.impl.proc.OutputMappersTest$UnmappableRecord`" );
 
         // When
@@ -183,7 +183,7 @@ public class OutputMappersTest
         // Expect
         exception.expect( ProcedureException.class );
         exception.expectMessage( "Field `wat` in record `RecordWithNonStringKeyMap` cannot be converted " +
-                "to a Neo4j type: Maps are required to have `String` keys - but this map " +
+                "to a ONgDB type: Maps are required to have `String` keys - but this map " +
                 "has `org.neo4j.kernel.impl.proc.OutputMappersTest$RecordWithNonStringKeyMap` keys." );
 
         // When

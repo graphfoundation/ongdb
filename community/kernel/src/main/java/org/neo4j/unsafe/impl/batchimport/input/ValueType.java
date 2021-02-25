@@ -70,7 +70,7 @@ import static java.time.temporal.ChronoUnit.NANOS;
 import static java.time.temporal.ChronoUnit.SECONDS;
 
 /**
- * Utility for reading and writing property values from/into a channel. Supports neo4j property types,
+ * Utility for reading and writing property values from/into a channel. Supports ONgDB property types,
  * including arrays.
  */
 public abstract class ValueType

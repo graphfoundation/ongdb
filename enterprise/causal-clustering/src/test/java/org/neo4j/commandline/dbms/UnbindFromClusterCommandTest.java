@@ -141,7 +141,7 @@ public class UnbindFromClusterCommandTest
         catch ( CommandFailed e )
         {
             // then
-            assertThat( e.getMessage(), containsString( "Database is currently locked. Please shutdown Neo4j." ) );
+            assertThat( e.getMessage(), containsString( "Database is currently locked. Please shutdown ONgDB." ) );
         }
         finally
         {

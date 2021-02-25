@@ -40,7 +40,7 @@ import org.neo4j.jmx.Description;
 import org.neo4j.jmx.ManagementInterface;
 
 @ManagementInterface( name = Diagnostics.NAME )
-@Description( "Diagnostics provided by Neo4j" )
+@Description( "Diagnostics provided by ONgDB" )
 public interface Diagnostics
 {
     String NAME = "Diagnostics";

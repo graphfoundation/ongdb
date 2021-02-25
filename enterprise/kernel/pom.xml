@@ -72,14 +72,14 @@
     </build>
 
     <dependencies>
-        <!-- Neo4j dependencies -->
+        <!-- ONgDB dependencies -->
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>ongdb-kernel</artifactId>
             <version>${project.version}</version>
         </dependency>
 
-        <!-- Neo4j test dependencies -->
+        <!-- ONgDB test dependencies -->
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>ongdb-consistency-check</artifactId>

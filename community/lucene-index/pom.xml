@@ -12,7 +12,7 @@
 
     <name>ONgDB - Lucene Index</name>
     <description>
-        Integration layer between Neo4j and Lucene, providing one possible implementation of the Index API.
+        Integration layer between ONgDB and Lucene, providing one possible implementation of the Index API.
     </description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 

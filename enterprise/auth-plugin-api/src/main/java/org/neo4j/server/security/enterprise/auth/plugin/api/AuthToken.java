@@ -74,7 +74,7 @@ public interface AuthToken
      * Returns an optional custom parameter map if provided by the client.
      *
      * <p>This can be used as a vehicle to send arbitrary auth data from a client application
-     * to a server-side auth plugin. Neo4j will act as a pure transport and will not touch the contents of this map.
+     * to a server-side auth plugin. ONgDB will act as a pure transport and will not touch the contents of this map.
      *
      * @return a custom parameter map (or an empty map if no parameters where provided by the client)
      */

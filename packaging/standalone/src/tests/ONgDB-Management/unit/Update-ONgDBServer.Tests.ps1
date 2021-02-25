@@ -56,14 +56,14 @@ InModuleScope ONgDB-Management {
     Mock Get-ItemProperty { $null } -ParameterFilter {
       $Path -like 'Registry::*\JavaSoft\Java Runtime Environment*'
     }
-    # Mock Neo4j environment
+    # Mock ONgDB environment
     Mock Get-ONgDBEnv { $global:mockONgDBHome } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
     Mock Start-Process { throw "Should not call Start-Process mock" }
 
-    Context "Invalid or missing specified neo4j installation" {
+    Context "Invalid or missing specified ONgDB installation" {
       $serverObject = global:New-InvalidNeo4jInstall
 
-      It "throws if invalid or missing neo4j directory" {
+      It "throws if invalid or missing ONgDB directory" {
         { Update-ONgDBServer -ONgDBServer $serverObject -ErrorAction Stop } | Should Throw
       }
     }

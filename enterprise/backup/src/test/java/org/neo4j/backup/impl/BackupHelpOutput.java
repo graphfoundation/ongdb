@@ -65,7 +65,7 @@ public class BackupHelpOutput
         lines.add( "    HEAP_SIZE     Set JVM maximum heap size during command execution." );
         lines.add( "                  Takes a number and a unit, for example 512m." );
         lines.add( "" );
-        lines.add( "Perform an online backup from a running Neo4j enterprise server. Neo4j's backup" );
+        lines.add( "Perform an online backup from a running ONgDB Enterprise server. ONgDB's backup" );
         lines.add( "service must have been configured on the server beforehand." );
         lines.add( "" );
         lines.add( "All consistency checks except 'cc-graph' can be quite expensive so it may be" );
@@ -80,7 +80,7 @@ public class BackupHelpOutput
         lines.add( "  --name=<graph.db-backup>                 Name of backup. If a backup with this" );
         lines.add( "                                           name already exists an incremental" );
         lines.add( "                                           backup will be attempted." );
-        lines.add( "  --from=<address>                         Host and port of Neo4j." );
+        lines.add( "  --from=<address>                         Host and port of ONgDB." );
         lines.add( "                                           [default:localhost:6362]" );
         lines.add( "  --protocol=<any|catchup|common>          Preferred backup protocol" );
         lines.add( "                                           [default:any]" );

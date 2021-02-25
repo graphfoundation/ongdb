@@ -1,5 +1,5 @@
 .PHONY: help
-script_names=neo4j ongdb-admin neo4j-backup neo4j-import neo4j-shell
+script_names=ongdb ongdb-admin ongdb-backup ongdb-import ongdb-shell
 scripts=$(patsubst %,src/main/distribution/shell-scripts/bin/%,${script_names})
 help: ## Print this help text
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

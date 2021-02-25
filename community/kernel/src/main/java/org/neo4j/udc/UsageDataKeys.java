@@ -55,13 +55,13 @@ import static org.neo4j.udc.UsageDataKey.key;
  */
 public class UsageDataKeys
 {
-    /** Edition of Neo4j running, eg 'community' or 'enterprise' */
+    /** Edition of ONgDB running, eg 'community' or 'enterprise' */
     public static final UsageDataKey<Edition> edition = key( "neo4j.edition", Edition.unknown );
 
-    /** Version of Neo4j running, eg. 1.2.3-RC1 */
-    public static final UsageDataKey<String> version = key( "neo4j.version", "N/A" );
+    /** Version of ONgDB running, eg. 1.2.3-RC1 */
+    public static final UsageDataKey<String> version = key( "ongdb.version", "N/A" );
 
-    /** Revision of Neo4j running, a link back to source control revision ids. */
+    /** Revision of ONgDB running, a link back to source control revision ids. */
     public static final UsageDataKey<String> revision = key( "neo4j.revision", "N/A" );
 
     /** Operational mode of the database */

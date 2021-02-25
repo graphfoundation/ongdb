@@ -56,7 +56,7 @@ import static org.neo4j.kernel.api.exceptions.Status.Classification.TransientErr
  * Each {@link Status} also has an associated {@link Classification} which defines meta-data about the code, such
  * as if the error was caused by a user or the database (and later on if the code denotes an error or merely a warning).
  *
- * This class is not part of the public Neo4j API, and backwards compatibility for using it as a Java class is not
+ * This class is not part of the public ONgDB API, and backwards compatibility for using it as a Java class is not
  * guaranteed. Instead, the automatically generated documentation derived from this class and available in the Neo4j
  * manual should be considered a user-level API.
  */
@@ -484,14 +484,14 @@ public interface Status
                 "An unknown error occurred." ),
         OutOfMemoryError( TransientError,
                 "There is not enough memory to perform the current task. Please try increasing " +
-                "'dbms.memory.heap.max_size' in the neo4j configuration (normally in 'conf/ongdb.conf' or, if you " +
+                "'dbms.memory.heap.max_size' in the ONgDB configuration (normally in 'conf/ongdb.conf' or, if you " +
                 "you are using Neo4j Desktop, found through the user interface) or if you are running an embedded " +
                 "installation increase the heap by using '-Xmx' command line flag, and then restart the database." ),
         StackOverFlowError( TransientError,
                 "There is not enough stack size to perform the current task. This is generally considered to be a " +
-                "database error, so please contact Neo4j support. You could try increasing the stack size: " +
+                "database error, so please contact ONgDB support. You could try increasing the stack size: " +
                 "for example to set the stack size to 2M, add `dbms.jvm.additional=-Xss2M' to " +
-                "in the neo4j configuration (normally in 'conf/ongdb.conf' or, if you are using " +
+                "in the ONgDB configuration (normally in 'conf/ongdb.conf' or, if you are using " +
                 "Neo4j Desktop, found through the user interface) or if you are running an embedded installation " +
                 "just add -Xss2M as command line flag." ),
 

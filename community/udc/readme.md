@@ -1,4 +1,4 @@
-Neo4j UDC
+ONgDB UDC
 =========
 
 The Usage Data Collector (UDC) is a kernel extension which collects

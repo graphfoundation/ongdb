@@ -61,7 +61,7 @@ import static org.neo4j.kernel.AvailabilityGuard.availabilityRequirement;
  * that wants to know what is going on should register {@link HighAvailabilityMemberListener} implementations
  * which will receive callbacks on state changes.
  * <p>
- * HA in Neo4j is built on top of the clustering functionality. So, this state machine essentially reacts to cluster
+ * HA in ONgDB is built on top of the clustering functionality. So, this state machine essentially reacts to cluster
  * events,
  * and implements the rules for how HA roles should change, for example, the cluster coordinator should become the HA
  * master.

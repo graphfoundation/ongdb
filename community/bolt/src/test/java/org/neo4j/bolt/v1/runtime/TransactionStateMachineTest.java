@@ -82,7 +82,7 @@ public class TransactionStateMachineTest
 {
     private static final String PERIODIC_COMMIT_QUERY =
             "USING PERIODIC COMMIT 1 " +
-            "LOAD CSV FROM ''https://neo4j.com/test.csv'' AS line " +
+            "LOAD CSV FROM ''https://cdn.graphfoundation.org/data/csv/test.csv'' AS line " +
             "CREATE (:Node {id: line[0], name: line[1]})";
 
     private TransactionStateMachineSPI stateMachineSPI;

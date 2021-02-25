@@ -68,8 +68,8 @@ public interface RecordFormats
     String storeVersion();
 
     /**
-     * @return the neo4j version where this format was introduced. It is almost certainly NOT the only version of
-     * neo4j where this format is used.
+     * @return the ONgDB version where this format was introduced. It is almost certainly NOT the only version of
+     * ONgDB where this format is used.
      */
     String introductionVersion();
 

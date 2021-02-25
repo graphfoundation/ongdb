@@ -48,7 +48,7 @@ import org.neo4j.helpers.ListenSocketAddress;
 import org.neo4j.logging.LogProvider;
 
 /**
- * Implements a transport for the Neo4j Messaging Protocol that uses good old regular sockets.
+ * Implements a transport for the ONgDB Messaging Protocol that uses good old regular sockets.
  */
 public class SocketTransport implements NettyServer.ProtocolInitializer
 {

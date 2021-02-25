@@ -43,7 +43,7 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.TransactionFailureException;
 
 /**
- * An event handler interface for Neo4j Transaction events. Once it has been
+ * An event handler interface for ONgDB Transaction events. Once it has been
  * registered at a {@link GraphDatabaseService} instance it will receive events
  * about what has happened in each transaction which is about to be committed
  * and has any data that is accessible via {@link TransactionData}.

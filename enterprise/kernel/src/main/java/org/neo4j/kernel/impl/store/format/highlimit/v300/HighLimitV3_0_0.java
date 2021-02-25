@@ -61,7 +61,7 @@ import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
  * The reason the same store version was kept when introducing fixed references was to avoid migration
  * because the change was backwards compatible. Although this turned out to be a mistake because the
  * format isn't forwards compatible and the way we prevent downgrading a db is by using store version,
- * therefore we cannot prevent opening a db with fixed reference format on a neo4j patch version before
+ * therefore we cannot prevent opening a db with fixed reference format on a ONgDB patch version before
  * fixed references were introduced (3.0.4).
  *
  * @see BaseHighLimitRecordFormatV3_0_0

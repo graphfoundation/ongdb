@@ -166,7 +166,7 @@ public class LoadCommand implements AdminCommand
         catch ( AccessDeniedException e )
         {
             throw new CommandFailed(
-                    "you do not have permission to load a database -- is Neo4j running as a " + "different user?", e );
+                    "you do not have permission to load a database -- is ONgDB running as a " + "different user?", e );
         }
         catch ( IOException e )
         {
@@ -174,7 +174,7 @@ public class LoadCommand implements AdminCommand
         }
         catch ( IncorrectFormat incorrectFormat )
         {
-            throw new CommandFailed( "Not a valid Neo4j archive: " + archive, incorrectFormat );
+            throw new CommandFailed( "Not a valid ONgDB archive: " + archive, incorrectFormat );
         }
     }
 

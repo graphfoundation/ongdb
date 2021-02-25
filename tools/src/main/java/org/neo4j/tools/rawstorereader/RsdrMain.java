@@ -90,7 +90,7 @@ public class RsdrMain
     {
         try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction() )
         {
-            console.printf( "Neo4j Raw Store Diagnostics Reader%n" );
+            console.printf( "ONgDB Raw Store Diagnostics Reader%n" );
 
             if ( args.length != 1 || !fileSystem.isDirectory( new File( args[0] ) ) )
             {

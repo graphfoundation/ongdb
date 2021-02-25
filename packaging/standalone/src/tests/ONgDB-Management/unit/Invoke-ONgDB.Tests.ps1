@@ -19,7 +19,7 @@ InModuleScope ONgDB-Management {
     Mock Get-ItemProperty { $null } -ParameterFilter {
       $Path -like 'Registry::*\JavaSoft\Java Runtime Environment*'
     }
-    # Mock Neo4j environment
+    # Mock ONgDB environment
     $mockONgDBHome = global:New-MockONgDBInstall
     Mock Get-ONgDBEnv { $global:mockONgDBHome } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
     Mock Start-Process { throw "Should not call Start-Process mock" }

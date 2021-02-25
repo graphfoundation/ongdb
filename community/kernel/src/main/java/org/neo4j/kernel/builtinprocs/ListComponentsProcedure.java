@@ -59,7 +59,7 @@ import static org.neo4j.internal.kernel.api.procs.ProcedureSignature.procedureSi
  * get a list of which components are loaded and what versions of them.
  *
  * This way, it works as a general mechanism into which capabilities
- * a given Neo4j system has, and which version of those components
+ * a given ONgDB system has, and which version of those components
  * are in use.
  *
  * This would include things like Kernel, Storage Engine, Query Engines,

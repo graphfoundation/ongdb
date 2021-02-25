@@ -185,7 +185,7 @@ public class JmxQueryProcedureTest
         // then we verify that we respond with the expected number of beans without error
         //      .. we don't assert more than this, this is more of a smoke test to ensure
         //      that independent of platform, we never throw exceptions even when converting every
-        //      single MBean into Neo4j types, and we always get the correct number of MBeans out.
+        //      single MBean into ONgDB types, and we always get the correct number of MBeans out.
         assertThat( asList( result ).size(), equalTo( jmxServer.getMBeanCount() ));
     }
 

@@ -269,7 +269,7 @@ public class Config implements DiagnosticsProvider, Configuration
         }
 
         /**
-         * Specifies the neo4j home directory to be set for this particular config. This will modify {@link
+         * Specifies the ONgDB home directory to be set for this particular config. This will modify {@link
          * GraphDatabaseSettings#ongdb_home} to the same value as provided. If this is not called, the home directory
          * will be set to a system specific default home directory.
          *

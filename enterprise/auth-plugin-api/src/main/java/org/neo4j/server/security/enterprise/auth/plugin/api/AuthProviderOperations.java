@@ -46,7 +46,7 @@ public interface AuthProviderOperations
     /**
      * Returns the path to the ONgDB home directory.
      *
-     * @return the path to the Neo4j home directory
+     * @return the path to the ONgDB home directory
      */
     Path neo4jHome();
 
@@ -63,29 +63,29 @@ public interface AuthProviderOperations
     Optional<Path> neo4jConfigFile();
 
     /**
-     * Returns the Neo4j version.
+     * Returns the ONgDB version.
      *
-     * @return the Neo4j version
+     * @return the ONgDB version
      */
     String neo4jVersion();
 
     /**
-     * Returns the clock that is used by the Neo4j security module within which this auth provider plugin is running.
+     * Returns the clock that is used by the ONgDB security module within which this auth provider plugin is running.
      *
-     * @return the clock that is used by the Neo4j security module
+     * @return the clock that is used by the ONgDB security module
      */
     Clock clock();
 
     /**
-     * Returns the security log that is used by the Neo4j security module within which this auth provider plugin is
+     * Returns the security log that is used by the ONgDB security module within which this auth provider plugin is
      * running.
      *
-     * @return the security log that is used by the Neo4j security module
+     * @return the security log that is used by the ONgDB security module
      */
     Log log();
 
     /**
-     * An interface to the security log that is used by the Neo4j security module.
+     * An interface to the security log that is used by the ONgDB security module.
      */
     interface Log
     {

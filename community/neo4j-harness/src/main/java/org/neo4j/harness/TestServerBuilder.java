@@ -48,7 +48,7 @@ import org.neo4j.procedure.UserAggregationFunction;
 import org.neo4j.procedure.UserFunction;
 
 /**
- * Utility for constructing and starting Neo4j for test purposes.
+ * Utility for constructing and starting ONgDB for test purposes.
  */
 public interface TestServerBuilder
 {

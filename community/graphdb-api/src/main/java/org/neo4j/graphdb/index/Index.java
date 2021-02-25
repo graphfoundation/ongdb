@@ -53,7 +53,7 @@ import org.neo4j.graphdb.Relationship;
  * capabilities from the backend which is backing this particular index.
  *
  * Write operations participates in transactions so committing and rolling back
- * works the same way as usual in Neo4j.
+ * works the same way as usual in ONgDB.
  *
  * @author Mattias Persson
  *

@@ -49,7 +49,7 @@ case class AnyProjection(variable: Variable) extends CodeGenExpression {
 
   override def codeGenType(implicit context: CodeGenContext): CypherCodeGenType = variable.codeGenType match {
     case x: CypherCodeGenType => x
-    case _ => throw new InternalException("Tried to create a Cypher value from a non-cypher-value variable")
+    case _ => throw new InternalException("Tried to create a Geequel value from a non-geequel-value variable")
   }
 
 }

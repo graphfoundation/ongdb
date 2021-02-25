@@ -57,7 +57,7 @@ public class AuthProviderTimeoutException extends RuntimeException implements St
         super( msg, cause );
     }
 
-    /** The Neo4j status code associated with this exception type. */
+    /** The ONgDB status code associated with this exception type. */
     @Override
     public Status status()
     {

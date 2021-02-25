@@ -92,7 +92,7 @@ public class DiagnosticsReportCommand implements AdminCommand
             .withArgument( destinationArgument )
             .withArgument( new OptionalVerboseArgument() )
             .withArgument( new OptionalForceArgument() )
-            .withArgument( new OptionalNamedArg( PID_KEY, "1234", "", "Specify process id of running neo4j instance" ) )
+            .withArgument( new OptionalNamedArg( PID_KEY, "1234", "", "Specify process id of running ONgDB instance" ) )
             .withPositionalArgument( new ClassifierFiltersArgument() );
 
     private final Path homeDir;

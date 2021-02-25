@@ -48,14 +48,14 @@ import org.neo4j.graphdb.schema.IndexCreator;
 /**
  * The batch inserter drops support for transactions and concurrency in favor
  * of insertion speed. When done using the batch inserter {@link #shutdown()}
- * must be invoked and complete successfully for the Neo4j store to be in
+ * must be invoked and complete successfully for the ONgDB store to be in
  * consistent state.
  * <p>
  * Only one thread at a time may work against the batch inserter, multiple
  * threads performing concurrent access have to employ synchronization.
  * <p>
  * Transactions are not supported so if the JVM/machine crashes or you fail to
- * invoke {@link #shutdown()} before JVM exits the Neo4j store can be considered
+ * invoke {@link #shutdown()} before JVM exits the ONgDB store can be considered
  * being in non consistent state and the insertion has to be re-done from
  * scratch.
  */
@@ -317,9 +317,9 @@ public interface BatchInserter
     void shutdown();
 
     /**
-     * Returns the path to this Neo4j store.
+     * Returns the path to this ONgDB store.
      *
-     * @return the path to this Neo4j store.
+     * @return the path to this ONgDB store.
      */
     String getStoreDir();
 

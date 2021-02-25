@@ -211,8 +211,8 @@ public class DiagnosticsReportCommandTest
 
             assertThat( baos.toString(), is(String.format(
                     "Finding running instance of neo4j%n" +
-                            "No running instance of neo4j was found. Online reports will be omitted.%n" +
-                            "If neo4j is running but not detected, you can supply the process id of the running instance with --pid%n" +
+                            "No running instance of ONgDB was found. Online reports will be omitted.%n" +
+                            "If ONgDB is running but not detected, you can supply the process id of the running instance with --pid%n" +
                             "All available classifiers:%n" +
                             "  config     include configuration file%n" +
                             "  logs       include log files%n" +

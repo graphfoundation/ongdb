@@ -21,7 +21,7 @@
 
     <packaging>jar</packaging>
     <name>ONgDB - Bolt Protocol Version 1</name>
-    <description>The core of Neo4j Bolt Protocol, this contains the state machine for Bolt sessions.</description>
+    <description>The core of ONgDB Bolt Protocol, this contains the state machine for Bolt sessions.</description>
 
     <licenses>
         <license>

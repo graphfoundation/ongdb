@@ -88,7 +88,7 @@ public class UdcKernelExtensionFactory extends KernelExtensionFactory<UdcKernelE
                 dependencies.idGeneratorFactory(),
                 dependencies.startupStats(),
                 dependencies.usageData(),
-                new Timer( "Neo4j UDC Timer", isAlwaysDaemon() ) );
+                new Timer( "ONgDB UDC Timer", isAlwaysDaemon() ) );
     }
 
     private boolean isAlwaysDaemon()

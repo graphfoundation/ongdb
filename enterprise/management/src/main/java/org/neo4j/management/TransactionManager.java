@@ -38,7 +38,7 @@ import org.neo4j.jmx.Description;
 import org.neo4j.jmx.ManagementInterface;
 
 @ManagementInterface( name = TransactionManager.NAME )
-@Description( "Information about the Neo4j transaction manager" )
+@Description( "Information about the ONgDB transaction manager" )
 public interface TransactionManager
 {
     String NAME = "Transactions";

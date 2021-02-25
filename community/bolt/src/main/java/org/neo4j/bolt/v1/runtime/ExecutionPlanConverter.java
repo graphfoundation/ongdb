@@ -54,7 +54,7 @@ import static org.neo4j.values.storable.Values.doubleValue;
 import static org.neo4j.values.storable.Values.longValue;
 import static org.neo4j.values.storable.Values.stringValue;
 
-/** Takes execution plans and converts them to the subset of types used in the Neo4j type system */
+/** Takes execution plans and converts them to the subset of types used in the ONgDB type system */
 class ExecutionPlanConverter
 {
     private ExecutionPlanConverter()

@@ -49,11 +49,11 @@ import static java.lang.String.format;
  * by using {@link #byVersion(byte)} and from there get a hold of
  * {@link LogEntryParser} using {@link #entryParser(byte)}.
  *
- * Here follows an explanation how log entry versioning in Neo4j works:
+ * Here follows an explanation how log entry versioning in ONgDB works:
  *
- * In Neo4j transactions are written to a log. Each transaction consists of one or more log entries. Log entries
+ * In ONgDB transactions are written to a log. Each transaction consists of one or more log entries. Log entries
  * can be of one or more types, such as denoting start of a transaction, commands and committing the transaction.
- * Neo4j supports writing the latest/current log entry and reading log entries for all currently supported versions
+ * ONgDB supports writing the latest/current log entry and reading log entries for all currently supported versions
  * of Neo4j. The way versioning is done has changed over the years.
  *   First there was a format header of the entire log and it was assumed that all log entries within that log
  * was of the same format. This version actually specified command version, i.e. just versions of one of the
@@ -63,7 +63,7 @@ import static java.lang.String.format;
  * This allowed for more flexible reading and simpler code. Versions started with negative number to be able to
  * distinguish the new format from the non-versioned format. So observing the log entry type, which was the first
  * byte in each log entry being negative being negative was a signal for the new format and that the type actually
- * was the next byte. This to support rolling upgrades where two Neo4j versions in a cluster could be active
+ * was the next byte. This to support rolling upgrades where two ONgDB versions in a cluster could be active
  * simultaneously, yet talking in terms of log entries of different versions.
  *
  * At this point in time there was the log entry version which signaled how an entry was to be read, but there
@@ -83,7 +83,7 @@ import static java.lang.String.format;
  * Also {@link LogEntryWriter} (if log entry layout has changed) with required changes</li>
  * <li>Change {@link #CURRENT} to point to the newly created version</li>
  * </ol>
- * Everything apart from that should just work and Neo4j should automatically support the new version as well.
+ * Everything apart from that should just work and ONgDB should automatically support the new version as well.
  */
 public enum LogEntryVersion
 {

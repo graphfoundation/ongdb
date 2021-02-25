@@ -80,7 +80,7 @@ public class BoltIT extends ExclusiveServerTestBase
     @Test
     public void shouldLaunchBolt() throws Throwable
     {
-        // When I run Neo4j with Bolt enabled
+        // When I run ONgDB with Bolt enabled
         server = serverOnRandomPorts().withProperty( new BoltConnector( "bolt" ).type.name(), "BOLT" )
                 .withProperty( new BoltConnector( "bolt" ).enabled.name(), "true" )
                 .withProperty( new BoltConnector( "bolt" ).encryption_level.name(), "REQUIRED" )

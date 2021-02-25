@@ -195,7 +195,7 @@ public class SecuritySettings implements LoadableConfig
                   "an existing cache entry (instead of via an LDAP server) as long as it is alive " +
                   "(see `dbms.security.auth_cache_ttl`).\n" +
                   "An important consequence of setting this to `true` is that " +
-                  "Neo4j then needs to cache a hashed version of the credentials in order to perform credentials " +
+                  "ONgDB then needs to cache a hashed version of the credentials in order to perform credentials " +
                   "matching. This hashing is done using a cryptographic hash function together with a random salt. " +
                   "Preferably a conscious decision should be made if this method is considered acceptable by " +
                   "the security standards of the organization in which this ONgDB instance is deployed." )
@@ -228,7 +228,7 @@ public class SecuritySettings implements LoadableConfig
                   "`dbms.security.ldap.authorization.system_username` and " +
                   "`dbms.security.ldap.authorization.system_password` with this option. " +
                   "Note that this account only needs read access to the relevant parts of the LDAP directory " +
-                  "and does not need to have access rights to Neo4j, or any other systems." )
+                  "and does not need to have access rights to ONgDB, or any other systems." )
     public static final Setting<Boolean> ldap_authorization_use_system_account =
             setting( "dbms.security.ldap.authorization.use_system_account", BOOLEAN, FALSE );
 
@@ -263,7 +263,7 @@ public class SecuritySettings implements LoadableConfig
     public static final Setting<List<String>> ldap_authorization_group_membership_attribute_names =
             setting( "dbms.security.ldap.authorization.group_membership_attributes", STRING_LIST, "memberOf" );
 
-    @Description( "An authorization mapping from LDAP group names to Neo4j role names. " +
+    @Description( "An authorization mapping from LDAP group names to ONgDB role names. " +
                   "The map should be formatted as a semicolon separated list of key-value pairs, where the " +
                   "key is the LDAP group name and the value is a comma separated list of corresponding role names. " +
                   "For example: group1=role1;group2=role2;group3=role3,role4,role5\n" +
@@ -273,10 +273,10 @@ public class SecuritySettings implements LoadableConfig
                   "\n" +
                   "----\n" +
                   "+dbms.security.ldap.authorization.group_to_role_mapping+=\\\n" +
-                  "         \"cn=Neo4j Read Only,cn=users,dc=example,dc=com\"      = reader;    \\\n" +
-                  "         \"cn=Neo4j Read-Write,cn=users,dc=example,dc=com\"     = publisher; \\\n" +
-                  "         \"cn=Neo4j Schema Manager,cn=users,dc=example,dc=com\" = architect; \\\n" +
-                  "         \"cn=Neo4j Administrator,cn=users,dc=example,dc=com\"  = admin\n" +
+                  "         \"cn=ONgDB Read Only,cn=users,dc=example,dc=com\"      = reader;    \\\n" +
+                  "         \"cn=ONgDB Read-Write,cn=users,dc=example,dc=com\"     = publisher; \\\n" +
+                  "         \"cn=ONgDB Schema Manager,cn=users,dc=example,dc=com\" = architect; \\\n" +
+                  "         \"cn=ONgDB Administrator,cn=users,dc=example,dc=com\"  = admin\n" +
                   "----" )
     public static final Setting<String> ldap_authorization_group_to_role_mapping =
             setting( "dbms.security.ldap.authorization.group_to_role_mapping", STRING, NO_DEFAULT );
@@ -342,7 +342,7 @@ public class SecuritySettings implements LoadableConfig
     @Description( "The default role that can execute all procedures and user-defined functions that are not covered " +
                   "by the `" + PROC_ALLOWED_SETTING_ROLES + "` setting. If the `" + PROC_ALLOWED_SETTING_DEFAULT_NAME +
                   "` setting is the empty string (default), procedures will be executed according to the same security " +
-                  "rules as normal Cypher statements." )
+                  "rules as normal Geequel statements." )
     public static final Setting<String> default_allowed = setting( PROC_ALLOWED_SETTING_DEFAULT_NAME, STRING, "" );
 
     @Description( "This provides a finer level of control over which roles can execute procedures than the " +

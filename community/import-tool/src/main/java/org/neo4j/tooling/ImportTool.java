@@ -254,7 +254,7 @@ public class ImportTool
         ADDITIONAL_CONFIG( "additional-config", null,
                 "<path/to/" + Config.DEFAULT_CONFIG_FILE_NAME + ">",
                 "(advanced) File specifying database-specific configuration. For more information consult "
-                        + "manual about available configuration options for a neo4j configuration file. "
+                        + "manual about available configuration options for a ONgDB configuration file. "
                         + "Only configuration affecting store at time of creation will be read. "
                         + "Examples of supported config are:\n"
                         + GraphDatabaseSettings.dense_node_threshold.name() + "\n"
@@ -406,7 +406,7 @@ public class ImportTool
      */
     public static void main( String[] incomingArguments, boolean defaultSettingsSuitableForTests ) throws IOException
     {
-        System.err.println( format( "WARNING: neo4j-import is deprecated and support for it will be removed in a future%n" +
+        System.err.println( format( "WARNING: ongdb-import is deprecated and support for it will be removed in a future%n" +
                 "version of ONgDB; please use ongdb-admin import instead." ) );
 
         PrintStream out = System.out;
@@ -903,8 +903,8 @@ public class ImportTool
 
     private static void printUsage( PrintStream out )
     {
-        out.println( "Neo4j Import Tool" );
-        for ( String line : Args.splitLongLine( "neo4j-import is used to create a new ONgDB database "
+        out.println( "ONgDB Import Tool" );
+        for ( String line : Args.splitLongLine( "ongdb-import is used to create a new ONgDB database "
                                                 + "from data in CSV files. "
                                                 +
                                                 "See the chapter \"Import Tool\" in the ONgDB Manual for details on the CSV file format "
@@ -920,7 +920,7 @@ public class ImportTool
 
         out.println( "Example:");
         out.print( Strings.joinAsLines(
-                TAB + "bin/neo4j-import --into retail.db --id-type string --nodes:Customer customers.csv ",
+                TAB + "bin/ongdb-import --into retail.db --id-type string --nodes:Customer customers.csv ",
                 TAB + "--nodes products.csv --nodes orders_header.csv,orders1.csv,orders2.csv ",
                 TAB + "--relationships:CONTAINS order_details.csv ",
                 TAB + "--relationships:ORDERED customer_orders_header.csv,orders1.csv,orders2.csv" ) );

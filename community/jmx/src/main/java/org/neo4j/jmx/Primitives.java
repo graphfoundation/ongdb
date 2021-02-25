@@ -39,7 +39,7 @@
 package org.neo4j.jmx;
 
 @ManagementInterface( name = Primitives.NAME )
-@Description( "Estimates of the numbers of different kinds of Neo4j primitives" )
+@Description( "Estimates of the numbers of different kinds of ONgDB primitives" )
 public interface Primitives
 {
     String NAME = "Primitive count";

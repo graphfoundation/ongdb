@@ -196,7 +196,7 @@ public class GraphDatabaseShellServer extends AbstractAppServer
                 {
                     // This thread is already bound to this transaction. This can happen if a shell command
                     // in turn calls out to other shell commands. In those cases the sub-commands should just
-                    // participate in the existing transaction. Neo4j already has support for nested
+                    // participate in the existing transaction. ONgDB already has support for nested
                     // transactions, but in the shell server, we are managing the transaction context bridge
                     // in this laborious and manual way, so it is easier for us to just avoid re-binding the
                     // existing transaction. We return 'true' here to indicate that our transaction context
@@ -250,7 +250,7 @@ public class GraphDatabaseShellServer extends AbstractAppServer
     @Override
     protected String getDefaultPrompt()
     {
-        String name = "neo4j-sh";
+        String name = "ongdb-sh";
         if ( this.graphDb instanceof ReadOnlyGraphDatabaseProxy )
         {
             name += "[readonly]";
@@ -262,8 +262,8 @@ public class GraphDatabaseShellServer extends AbstractAppServer
     @Override
     protected String getWelcomeMessage()
     {
-        return "Welcome to the Neo4j Shell! Enter 'help' for a list of commands. " +
-                "Please note that neo4j-shell is deprecated and to be replaced by geequel-shell.";
+        return "Welcome to the ONgDB Shell! Enter 'help' for a list of commands. " +
+                "Please note that ongdb-shell is deprecated and to be replaced by geequel-shell.";
     }
 
     /**

@@ -77,7 +77,7 @@ class OnlineBackupContextBuilder
             "Name of backup. If a backup with this name already exists an incremental backup will be attempted.";
 
     static final String ARG_NAME_BACKUP_SOURCE = "from";
-    static final String ARG_DESC_BACKUP_SOURCE = "Host and port of Neo4j.";
+    static final String ARG_DESC_BACKUP_SOURCE = "Host and port of ONgDB.";
     static final String ARG_DFLT_BACKUP_SOURCE = "localhost:6362";
 
     static final String ARG_NAME_PROTO_OVERRIDE = "protocol";

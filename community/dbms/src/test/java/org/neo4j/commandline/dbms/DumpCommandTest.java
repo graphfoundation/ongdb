@@ -274,7 +274,7 @@ public class DumpCommandTest
             }
             catch ( CommandFailed e )
             {
-                assertThat( e.getMessage(), equalTo( "you do not have permission to dump the database -- is Neo4j " +
+                assertThat( e.getMessage(), equalTo( "you do not have permission to dump the database -- is ONgDB " +
                         "running as a different user?" ) );
             }
         }
@@ -406,7 +406,7 @@ public class DumpCommandTest
                             "Dump a database into a single-file archive. The archive can be used by the load%n" +
                             "command. <destination-path> can be a file or directory (in which case a file%n" +
                             "called <database>.dump will be created). It is not possible to dump a database%n" +
-                            "that is mounted in a running Neo4j server.%n" +
+                            "that is mounted in a running ONgDB server.%n" +
                             "%n" +
                             "options:%n" +
                             "  --database=<name>         Name of database. [default:graph.db]%n" +

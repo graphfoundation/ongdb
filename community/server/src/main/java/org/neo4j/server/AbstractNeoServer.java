@@ -348,7 +348,7 @@ public abstract class AbstractNeoServer implements NeoServer
         }
         catch ( Exception e )
         {
-            log.error( "Failed to start Neo4j on %s: %s", getAddress(), e.getMessage() );
+            log.error( "Failed to start ONgDB on %s: %s", getAddress(), e.getMessage() );
             throw e;
         }
     }

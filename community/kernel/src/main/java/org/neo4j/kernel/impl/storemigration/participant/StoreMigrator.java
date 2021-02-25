@@ -133,7 +133,7 @@ import static org.neo4j.unsafe.impl.batchimport.input.Inputs.knownEstimates;
 import static org.neo4j.unsafe.impl.batchimport.staging.ExecutionSupervisors.withDynamicProcessorAssignment;
 
 /**
- * Migrates a neo4j kernel database from one version to the next.
+ * Migrates a ONgDB kernel database from one version to the next.
  * <p>
  * Since only one store migration is supported at any given version (migration from the previous store version)
  * the migration code is specific for the current upgrade and changes with each store format version.
@@ -197,7 +197,7 @@ public class StoreMigrator extends AbstractStoreMigrationParticipant
             //     this because vE.H.0b is a superset of vE.H.0 and sometimes (for 3.0.5) vE.H.0
             //     actually means vE.H.0b (in later version).
             //
-            // In later versions of neo4j there are better mechanics in place so that a non-migration like this
+            // In later versions of ONgDB there are better mechanics in place so that a non-migration like this
             // can be performed w/o special casing. To not require backporting that functionality
             // this condition is here and should be removed in 3.1.
             versionToMigrateFrom = "vE.H.0b";

@@ -87,7 +87,7 @@ public class AuthenticationIT extends CommunityServerTestBase
     @Test
     @Documented( "Authenticate to access the server\n" +
                  "\n" +
-                 "Authenticate by sending a username and a password to Neo4j using HTTP Basic Auth.\n" +
+                 "Authenticate by sending a username and a password to ONgDB using HTTP Basic Auth.\n" +
                  "Requests should include an +Authorization+ header, with a value of +Basic <payload>+,\n" +
                  "where \"payload\" is a base64 encoded string of \"username:password\"." )
     public void successful_authentication() throws JsonParseException, IOException

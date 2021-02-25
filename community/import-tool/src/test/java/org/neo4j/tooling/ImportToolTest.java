@@ -1712,7 +1712,7 @@ public class ImportToolTest
         // GIVEN
         int arrayBlockSize = 10;
         int stringBlockSize = 12;
-        File dbConfig = file( "neo4j.properties" );
+        File dbConfig = file( "ongdb.properties" );
         store( stringMap(
                 GraphDatabaseSettings.array_block_size.name(), String.valueOf( arrayBlockSize ),
                 GraphDatabaseSettings.string_block_size.name(), String.valueOf( stringBlockSize ) ), dbConfig );
@@ -1738,7 +1738,7 @@ public class ImportToolTest
         // GIVEN
         int arrayBlockSize = 10;
         int stringBlockSize = 12;
-        File dbConfig = file( "neo4j.properties" );
+        File dbConfig = file( "ongdb.properties" );
         store( stringMap(
                 GraphDatabaseSettings.array_block_size.name(), String.valueOf( arrayBlockSize ),
                 GraphDatabaseSettings.string_block_size.name(), String.valueOf( stringBlockSize ) ), dbConfig );
@@ -1764,7 +1764,7 @@ public class ImportToolTest
         // GIVEN
         int arrayBlockSize = 10;
         int stringBlockSize = 12;
-        File dbConfig = file( "neo4j.properties" );
+        File dbConfig = file( "ongdb.properties" );
         File additionalConfig = file( "additional.properties" );
         store( stringMap(
                 GraphDatabaseSettings.string_block_size.name(), String.valueOf( stringBlockSize ) ), dbConfig );

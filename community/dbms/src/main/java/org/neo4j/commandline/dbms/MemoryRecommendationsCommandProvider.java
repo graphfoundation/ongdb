@@ -66,7 +66,7 @@ public class MemoryRecommendationsCommandProvider extends AdminCommand.Provider
     @Override
     public String summary()
     {
-        return "Print Neo4j heap and pagecache memory settings recommendations.";
+        return "Print ONgDB heap and pagecache memory settings recommendations.";
     }
 
     @Nonnull
@@ -81,11 +81,11 @@ public class MemoryRecommendationsCommandProvider extends AdminCommand.Provider
     public String description()
     {
         return format(
-                "Print heuristic memory setting recommendations for the Neo4j JVM heap and pagecache. The " +
+                "Print heuristic memory setting recommendations for the ONgDB JVM heap and pagecache. The " +
                 "heuristic is based on the total memory of the system the command is running on, or on the amount of " +
                 "memory specified with the --memory argument. The heuristic assumes that the system is dedicated to " +
-                "running Neo4j. If this is not the case, then use the --memory argument to specify how much memory " +
-                "can be expected to be dedicated to Neo4j.%n" +
+                "running ONgDB. If this is not the case, then use the --memory argument to specify how much memory " +
+                "can be expected to be dedicated to ONgDB.%n" +
                 "%n" +
                 "The output is formatted such that it can be copy-posted into the ongdb.conf file." );
     }

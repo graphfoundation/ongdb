@@ -37,7 +37,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- * Implementation for embedding a Neo4j graph database in an application.
+ * Implementation for embedding a ONgDB graph database in an application.
  * Classes are provided for both read/write mode and read only mode.
  */
 package org.neo4j.kernel;

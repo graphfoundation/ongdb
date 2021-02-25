@@ -39,10 +39,10 @@ import org.neo4j.server.security.enterprise.auth.plugin.api.AuthToken;
 import org.neo4j.server.security.enterprise.auth.plugin.api.AuthenticationException;
 
 /**
- * An authentication provider plugin for the Neo4j enterprise security module.
+ * An authentication provider plugin for the ONgDB enterprise security module.
  *
  * <p>If the configuration setting {@code dbms.security.plugin.authentication_enabled} is set to {@code true},
- * all objects that implements this interface that exists in the class path at Neo4j startup, will be
+ * all objects that implements this interface that exists in the class path at ONgDB startup, will be
  * loaded as services.
  *
  * @see AuthPlugin

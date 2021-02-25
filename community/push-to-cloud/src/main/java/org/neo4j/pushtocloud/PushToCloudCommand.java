@@ -72,7 +72,7 @@ public class PushToCloudCommand implements AdminCommand
             // Provide a (potentially running?) database
             .withDatabase()
             // ... or an existing backup/dump of a database
-            .withArgument( new OptionalNamedArg( ARG_DUMP, "/path/to/my-neo4j-database-dump-file", null,
+            .withArgument( new OptionalNamedArg( ARG_DUMP, "/path/to/my-ongdb-database-dump-file", null,
                     "Path to an existing database dump for upload. This arugment cannot be used together with --database." ) )
             .withArgument( new OptionalNamedArg( ARG_DUMP_TO, "/path/to/dump-file-to-be-created", null,
                     "Target path for dump file. Used in combination with the --database argument." ) )
@@ -132,7 +132,7 @@ public class PushToCloudCommand implements AdminCommand
                     username = outsideWorld.promptLine( "Neo4j Aura database username (default: neo4j): " );
                 }
             }
-            // default username to neo4j if user pressed 'enter' during the prompt
+            // default username to ongdb if user pressed 'enter' during the prompt
             if ( username == null || "".equals( username ) )
             {
                 username = "ongdb";

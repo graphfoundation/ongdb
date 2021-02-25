@@ -39,10 +39,10 @@ import java.util.Collection;
 import org.neo4j.server.security.enterprise.auth.plugin.api.AuthorizationExpiredException;
 
 /**
- * An authorization provider plugin for the Neo4j enterprise security module.
+ * An authorization provider plugin for the ONgDB enterprise security module.
  *
  * <p>If the configuration setting {@code dbms.security.plugin.authorization_enabled} is set to {@code true},
- * all objects that implements this interface that exists in the class path at Neo4j startup, will be
+ * all objects that implements this interface that exists in the class path at ONgDB startup, will be
  * loaded as services.
  *
  * <p>NOTE: If the same object also implements {@link AuthenticationPlugin}, it will not be loaded twice.

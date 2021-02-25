@@ -1,7 +1,7 @@
-#{product.fullname} #{neo4j.version}
+#{product.fullname} #{ongdb.version}
 =======================================
 
-Welcome to #{product.fullname} release #{neo4j.version}, a high-performance graph database.
+Welcome to #{product.fullname} release #{ongdb.version}, a high-performance graph database.
 This is the enterprise distribution of #{product.fullname}, including everything you need to
 start building applications that can model, persist and explore graph-like data.
 

@@ -119,7 +119,7 @@ public class TransactionTestIT extends AbstractRestFunctionalTestBase
                  "\n" +
                  "Given that you have an open transaction, you can make a number of requests, each of which executes additional\n" +
                  "statements, and keeps the transaction open by resetting the transaction timeout. Specifying the `REST` format will\n" +
-                 "give back full Neo4j Rest API representations of the Neo4j Nodes, Relationships and Paths, if returned." )
+                 "give back full ONgDB Rest API representations of the ONgDB Nodes, Relationships and Paths, if returned." )
     public void execute_statements_in_an_open_transaction_using_REST() throws JsonParseException
     {
         // Given

@@ -47,7 +47,7 @@ import org.neo4j.kernel.api.proc.CallableUserAggregationFunction;
 import org.neo4j.kernel.api.proc.CallableUserFunction;
 
 /**
- * The main API through which access to the Neo4j kernel is made, both read
+ * The main API through which access to the ONgDB kernel is made, both read
  * and write operations are supported as well as creating transactions.
  *
  * Changes to the graph (i.e. write operations) are performed via a

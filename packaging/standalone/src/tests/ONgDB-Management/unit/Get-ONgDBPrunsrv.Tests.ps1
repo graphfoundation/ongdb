@@ -19,19 +19,19 @@ InModuleScope ONgDB-Management {
       $Path -like 'Registry::*\JavaSoft\Java Runtime Environment*'
     }
     Mock Confirm-JavaVersion { $true }
-    # Mock Neo4j environment
+    # Mock ONgDB environment
     Mock Get-ONgDBEnv { $global:mockONgDBHome } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
     Mock Set-ONgDBEnv { }
 
-    Context "Invalid or missing specified neo4j installation" {
+    Context "Invalid or missing specified ONgDB installation" {
       $serverObject = global:New-InvalidNeo4jInstall
 
-      It "return throw if invalid or missing neo4j directory" {
+      It "return throw if invalid or missing ONgDB directory" {
         { Get-ONgDBPrunsrv -ONgDBServer $serverObject -ForServerInstall  -ErrorAction Stop }  | Should Throw
       }
     }
 
-    Context "Invalid or missing servicename in specified neo4j installation" {
+    Context "Invalid or missing servicename in specified ONgDB installation" {
       $serverObject = global:New-MockONgDBInstall -WindowsService ''
 
       It "return throw if invalid or missing service name" {

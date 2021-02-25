@@ -112,7 +112,7 @@ public class OutputMappers
     };
 
     /**
-     * Extracts field value from an instance and converts it to a Neo4j typed value.
+     * Extracts field value from an instance and converts it to a ONgDB typed value.
      */
     private static class FieldMapper
     {
@@ -225,7 +225,7 @@ public class OutputMappers
             catch ( ProcedureException e )
             {
                 throw new ProcedureException( e.status(), e,
-                        "Field `%s` in record `%s` cannot be converted to a Neo4j type: %s", field.getName(),
+                        "Field `%s` in record `%s` cannot be converted to a ONgDB type: %s", field.getName(),
                         userClass.getSimpleName(), e.getMessage() );
             }
             catch ( IllegalAccessException e )

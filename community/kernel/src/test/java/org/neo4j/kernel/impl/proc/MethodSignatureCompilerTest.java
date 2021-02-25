@@ -127,9 +127,9 @@ public class MethodSignatureCompilerTest
         // Expect
         exception.expect( ProcedureException.class );
         exception.expectMessage( String.format("Argument `name` at position 0 in `echoWithInvalidType` with%n" +
-                                 "type `UnmappableRecord` cannot be converted to a Neo4j type: Don't know how to map " +
+                                 "type `UnmappableRecord` cannot be converted to a ONgDB type: Don't know how to map " +
                                  "`org.neo4j.kernel.impl.proc.MethodSignatureCompilerTest$UnmappableRecord` to " +
-                                 "the Neo4j Type System.%n" +
+                                 "the ONgDB Type System.%n" +
                                  "Please refer to to the documentation for full details.%n" +
                                  "For your reference, known types are:" ));
 

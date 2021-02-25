@@ -20,7 +20,7 @@
 
     <packaging>jar</packaging>
     <name>ONgDB - Common</name>
-    <description>Non-domain infrastructure code that is common to many Neo4j components.</description>
+    <description>Non-domain infrastructure code that is common to many ONgDB components.</description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
     <scm>

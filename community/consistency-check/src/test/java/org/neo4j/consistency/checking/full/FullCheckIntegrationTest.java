@@ -800,7 +800,7 @@ public class FullCheckIntegrationTest
             {
                 final int offset = i;
                 applier.apply( new GraphStoreFixture.Transaction()
-                { // Neo4j can create no more than one label per transaction...
+                { // ONgDB can create no more than one label per transaction...
                     @Override
                     protected void transactionData( GraphStoreFixture.TransactionDataBuilder tx,
                             GraphStoreFixture.IdGenerator next )

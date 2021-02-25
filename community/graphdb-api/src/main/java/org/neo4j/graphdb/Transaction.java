@@ -47,7 +47,7 @@ package org.neo4j.graphdb;
  * {@link NotInTransactionException}.
  * <p>
  * Transactions are bound to the thread in which they were created.
- * Here's the idiomatic use of programmatic transactions in Neo4j starting from java 7:
+ * Here's the idiomatic use of programmatic transactions in ONgDB starting from java 7:
  *
  * <pre>
  * <code>

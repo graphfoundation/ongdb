@@ -38,7 +38,7 @@ import org.neo4j.jmx.Description;
 import org.neo4j.jmx.ManagementInterface;
 
 @ManagementInterface( name = PageCache.NAME )
-@Description( "Information about the Neo4j page cache. " +
+@Description( "Information about the ONgDB page cache. " +
               "All numbers are counts and sums since the ONgDB instance was started" )
 public interface PageCache
 {

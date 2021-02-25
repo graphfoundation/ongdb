@@ -65,7 +65,7 @@ public abstract class KernelException extends Exception implements Status.HasSta
         this.statusCode = statusCode;
     }
 
-    /** The Neo4j status code associated with this exception type. */
+    /** The ONgDB status code associated with this exception type. */
     @Override
     public Status status()
     {

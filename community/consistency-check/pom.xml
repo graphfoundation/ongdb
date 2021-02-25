@@ -11,7 +11,7 @@
     <version>1.0.0-SNAPSHOT</version>
 
     <name>ONgDB - Consistency Checker</name>
-    <description>Tool for checking consistency of a Neo4j data store.</description>
+    <description>Tool for checking consistency of a ONgDB data store.</description>
     <packaging>jar</packaging>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 

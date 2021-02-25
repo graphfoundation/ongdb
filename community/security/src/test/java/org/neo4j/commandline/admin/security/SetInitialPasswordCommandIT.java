@@ -182,7 +182,7 @@ public class SetInitialPasswordCommandIT
         // Then
         assertNoAuthIniFile();
         verify( out, times( 1 ) )
-                .stdErrLine( "command failed: the provided initial password was not set because existing Neo4j users were " +
+                .stdErrLine( "command failed: the provided initial password was not set because existing ONgDB users were " +
                         "detected at `" + authFile.getAbsolutePath() + "`. Please remove the existing `auth` file if you " +
                         "want to reset your database to only have a default user with the provided password." );
         verify( out ).exit( 1 );
@@ -206,7 +206,7 @@ public class SetInitialPasswordCommandIT
         // Then
         assertNoAuthIniFile();
         verify( out, times( 1 ) )
-                .stdErrLine( "command failed: the provided initial password was not set because existing Neo4j users were " +
+                .stdErrLine( "command failed: the provided initial password was not set because existing ONgDB users were " +
                         "detected at `" + authFile.getAbsolutePath() + "`. Please remove the existing `auth` and `roles` files if you " +
                         "want to reset your database to only have a default user with the provided password." );
         verify( out ).exit( 1 );

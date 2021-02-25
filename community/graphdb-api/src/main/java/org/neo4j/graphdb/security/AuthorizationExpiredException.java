@@ -41,7 +41,7 @@ package org.neo4j.graphdb.security;
 import org.neo4j.kernel.api.exceptions.Status;
 
 /**
- * Thrown when required authorization info has expired in the Neo4j auth cache
+ * Thrown when required authorization info has expired in the ONgDB auth cache
  */
 public class AuthorizationExpiredException extends RuntimeException implements Status.HasStatus
 {
@@ -57,7 +57,7 @@ public class AuthorizationExpiredException extends RuntimeException implements S
         super( msg, cause );
     }
 
-    /** The Neo4j status code associated with this exception type. */
+    /** The ONgDB status code associated with this exception type. */
     @Override
     public Status status()
     {

@@ -145,7 +145,7 @@ public class SetInitialPasswordCommand implements AdminCommand
             files = "`auth` file";
         }
 
-        return  "the provided initial password was not set because existing Neo4j users were detected at `" +
+        return  "the provided initial password was not set because existing ONgDB users were detected at `" +
                authFile.getAbsolutePath() + "`. Please remove the existing " + files + " if you want to reset your database " +
                 "to only have a default user with the provided password.";
     }

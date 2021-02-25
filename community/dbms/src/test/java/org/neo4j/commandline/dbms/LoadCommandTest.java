@@ -295,7 +295,7 @@ public class LoadCommandTest
         catch ( CommandFailed e )
         {
             assertThat( e.getMessage(), equalTo(
-                    "you do not have permission to load a database -- is Neo4j running " + "as a different user?" ) );
+                    "you do not have permission to load a database -- is ONgDB running " + "as a different user?" ) );
         }
     }
 
@@ -327,7 +327,7 @@ public class LoadCommandTest
         catch ( CommandFailed e )
         {
             assertThat( e.getMessage(), containsString( archive.toString() ) );
-            assertThat( e.getMessage(), containsString( "valid Neo4j archive" ) );
+            assertThat( e.getMessage(), containsString( "valid ONgDB archive" ) );
         }
     }
 
@@ -354,7 +354,7 @@ public class LoadCommandTest
                             "Load a database from an archive. <archive-path> must be an archive created with%n" +
                             "the dump command. <database> is the name of the database to create. Existing%n" +
                             "databases can be replaced by specifying --force. It is not possible to replace a%n" +
-                            "database that is mounted in a running Neo4j server.%n" +
+                            "database that is mounted in a running ONgDB server.%n" +
                             "%n" +
                             "options:%n" +
                             "  --from=<archive-path>   Path to archive created with the dump command.%n" +

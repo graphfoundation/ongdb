@@ -8,7 +8,7 @@ Import-Module "$src\ONgDB-Management.psm1"
 InModuleScope ONgDB-Management {
   Describe "Get-ONgDBSetting" {
 
-    Context "Invalid or missing specified neo4j installation" {
+    Context "Invalid or missing specified ONgDB installation" {
       $serverObject = global:New-InvalidNeo4jInstall
 
       $result = Get-ONgDBSetting -ONgDBServer $serverObject
@@ -22,7 +22,7 @@ InModuleScope ONgDB-Management {
       $serverObject = global:New-MockONgDBInstall
 
       "setting=value" | Out-File -FilePath "$($serverObject.Home)\conf\ongdb.conf"
-      # Remove the neo4j-wrapper
+      # Remove the ongdb-wrapper
       $wrapperFile = "$($serverObject.Home)\conf\ongdb-wrapper.conf"
       if (Test-Path -Path $wrapperFile) { Remove-Item -Path $wrapperFile | Out-Null }
 

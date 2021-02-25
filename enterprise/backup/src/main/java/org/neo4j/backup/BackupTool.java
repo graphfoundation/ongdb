@@ -97,7 +97,7 @@ public class BackupTool
 
     public static void main( String[] args )
     {
-        System.err.println("WARNING: neo4j-backup is deprecated and support for it will be removed in a future\n" +
+        System.err.println("WARNING: ongdb-backup is deprecated and support for it will be removed in a future\n" +
                 "version of ONgDB; please use ongdb-admin backup instead.\n");
         BackupTool tool = new BackupTool( new BackupProtocolService(), System.out );
         try

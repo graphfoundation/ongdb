@@ -191,7 +191,7 @@ public class Man extends AbstractApp
             out.println( header + " " + availableCommandsAsString( server ) );
         }
         out.println( "Use " + getShortUsageString() + " for info about each command." );
-        out.println( "Please note that neo4j-shell is deprecated and to be replaced by geequel-shell." );
+        out.println( "Please note that ongdb-shell is deprecated and to be replaced by geequel-shell." );
     }
 
     /**

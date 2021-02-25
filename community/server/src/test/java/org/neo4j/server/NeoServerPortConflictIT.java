@@ -81,7 +81,7 @@ public class NeoServerPortConflictIT extends ExclusiveServerTestBase
 
             logProvider.assertAtLeastOnce(
                     AssertableLogProvider.inLog( containsString( "CommunityNeoServer" ) ).error(
-                            "Failed to start Neo4j on %s: %s",
+                            "Failed to start ONgDB on %s: %s",
                             contestedAddress,
                             format( "Address %s is already in use, cannot bind to it.", contestedAddress )
                     )
@@ -117,7 +117,7 @@ public class NeoServerPortConflictIT extends ExclusiveServerTestBase
 
             logProvider.assertAtLeastOnce(
                     AssertableLogProvider.inLog( containsString( "CommunityNeoServer" ) ).error(
-                            "Failed to start Neo4j on %s: %s",
+                            "Failed to start ONgDB on %s: %s",
                             unContestedAddress,
                             format( "At least one of the addresses %s or %s is already in use, cannot bind to it.",
                                     unContestedAddress, httpsAddress )

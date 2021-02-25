@@ -39,7 +39,7 @@
 package org.neo4j.bolt.v1.packstream;
 
 /**
- * These are the primitive types that PackStream can represent. They map to the non-graph primitives of the Neo4j
+ * These are the primitive types that PackStream can represent. They map to the non-graph primitives of the ONgDB
  * type system. Graph primitives and rich composite types are represented as {@link #STRUCT}.
  */
 public enum PackType

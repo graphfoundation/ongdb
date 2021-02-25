@@ -1,4 +1,4 @@
-# Neo4j Tooling - Procedure|User Function Compiler
+# ONgDB Tooling - Procedure|User Function Compiler
 
 This is a annotation processor that will verify your stored procedures
 at compile time.

@@ -78,7 +78,7 @@ public class StartClient
     private AtomicBoolean hasBeenShutdown = new AtomicBoolean();
 
     /**
-     * Prints the version and edition of neo4j and exits.
+     * Prints the version and edition of ONgDB and exits.
      */
     public static final String ARG_VERSION = "version";
 
@@ -278,7 +278,7 @@ public class StartClient
         }
         catch ( Exception e )
         {
-            throw new ShellException( "Neo4j not found on the classpath" );
+            throw new ShellException( "ONgDB not found on the classpath" );
         }
     }
 
@@ -287,9 +287,9 @@ public class StartClient
         String path = args.get( ARG_PATH, null );
         if ( path == null )
         {
-            err.println( "ERROR: To start a local Neo4j service and a " +
+            err.println( "ERROR: To start a local ONgDB service and a " +
                          "shell client on top of that you need to supply a path to a " +
-                         "Neo4j store or just a new path where a new store will " +
+                         "ONgDB store or just a new path where a new store will " +
                          "be created if it doesn't exist. -" + ARG_PATH +
                          " /my/path/here" );
             return;
@@ -315,7 +315,7 @@ public class StartClient
 
         if ( !isCommandLine( args ) )
         {
-            out.println( "NOTE: Local Neo4j graph database service at '" + path + "'" );
+            out.println( "NOTE: Local ONgDB graph database service at '" + path + "'" );
         }
         ShellClient client = ShellLobby.newClient( server, getSessionVariablesFromArgs( args ),
                 new SystemOutput( out ), signalHandler );
@@ -373,7 +373,7 @@ public class StartClient
                     getSessionVariablesFromArgs( args ), signalHandler );
             if ( !isCommandLine( args ) )
             {
-                out.println( "NOTE: Remote Neo4j graph database service '" + name + "' at port " + port );
+                out.println( "NOTE: Remote ONgDB graph database service '" + name + "' at port " + port );
             }
             grabPromptOrJustExecuteCommand( client, args );
         }
@@ -528,7 +528,7 @@ public class StartClient
                 "from stdin. After executing it the shell exits\n" +
                 padArg( ARG_READONLY, longestArgLength ) + "Connect in readonly mode (only for connecting " +
                 "with -" + ARG_PATH + ")\n" +
-                padArg( ARG_PATH, longestArgLength ) + "Points to a neo4j db path so that a local server can " +
+                padArg( ARG_PATH, longestArgLength ) + "Points to an ONgDB database path so that a local server can " +
                 "be started there\n" +
                 padArg( ARG_CONFIG, longestArgLength ) + "Points to a config file when starting a local " +
                 "server\n\n" +

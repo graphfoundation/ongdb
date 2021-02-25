@@ -37,9 +37,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- * <h1>The Neo4j PageCache API</h1>
+ * <h1>The ONgDB PageCache API</h1>
  * <p>
- * This package contains the API for the page caching mechanism used in Neo4j. How to acquire a concrete implementation
+ * This package contains the API for the page caching mechanism used in ONgDB. How to acquire a concrete implementation
  * of the API depends on the implementation in question. The Kernel implements its own mechanism to seek out and
  * instantiate implementations of this API, based on the database configuration.
  * <h2>Page Caching Concepts</h2>

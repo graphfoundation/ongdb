@@ -97,7 +97,7 @@ public class StoreInfoCommand implements AdminCommand
                     .map( next -> String.format( fmt, "Store format superseded in:", next.introductionVersion() ) )
                     .ifPresent( out );
 
-            //out.accept( String.format( fmt, "Current version:", Version.getNeo4jVersion() ) );
+            //out.accept( String.format( fmt, "Current version:", Version.getONgDBVersion() ) );
         }
         catch ( IOException e )
         {

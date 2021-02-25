@@ -72,7 +72,7 @@
                             <packageName>org.neo4j.shell</packageName>
                         </manifest>
                         <manifestEntries>
-                            <Class-Path>neo4j-kernel-${project.version}.jar neo4j-index-${project.version}.jar lucene-core-${lucene.version}.jar
+                            <Class-Path>ongdb-kernel-${project.version}.jar ongdb-index-${project.version}.jar lucene-core-${lucene.version}.jar
                                 jline-${jline.main.version}.jar
                                 ${jline.artifactId}-${jline.version}.jar
                             </Class-Path>

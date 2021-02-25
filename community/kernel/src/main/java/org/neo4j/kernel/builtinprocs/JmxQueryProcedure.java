@@ -94,7 +94,7 @@ public class JmxQueryProcedure extends CallableProcedure.BasicProcedure
             // Find all beans that match the query name pattern
             Iterator<ObjectName> names = jmxServer.queryNames( new ObjectName( query ), null ).iterator();
 
-            // Then convert them to a Neo4j type system representation
+            // Then convert them to a ONgDB type system representation
             return RawIterator.from( () ->
             {
                 if ( !names.hasNext() )

@@ -114,7 +114,7 @@ public class UnbindFromClusterCommand implements AdminCommand
         }
         catch ( StoreLockException e )
         {
-            throw new CommandFailed( "Database is currently locked. Please shutdown Neo4j.", e );
+            throw new CommandFailed( "Database is currently locked. Please shutdown ONgDB.", e );
         }
         catch ( IllegalArgumentException e )
         {

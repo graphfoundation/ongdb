@@ -50,7 +50,7 @@ import static org.neo4j.server.web.XForwardUtil.X_FORWARD_PROTO_HEADER_KEY;
  * Changes the value of the base and request URIs to match the provided
  * X-Forwarded-Host and X-Forwarded-Proto header values.
  * <p>
- * In doing so, it means Neo4j server can use those URIs as if they were the
+ * In doing so, it means ONgDB server can use those URIs as if they were the
  * actual request URIs.
  */
 public class XForwardFilter implements ContainerRequestFilter

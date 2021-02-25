@@ -92,7 +92,7 @@ public class Dbinfo extends NonTransactionProvidingApp
         MBeanServer mbeans = getPlatformMBeanServer();
         StringBuilder result = new StringBuilder(
                 "Get runtime information about the Graph Database.\n"
-                        + "This uses the Neo4j management beans to get"
+                        + "This uses the ONgDB management beans to get"
                         + " information about the Graph Database.\n\n" );
         availableBeans( mbeans, kernel, result );
         result.append( "\n" );

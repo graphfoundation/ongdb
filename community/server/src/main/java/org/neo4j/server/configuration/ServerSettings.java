@@ -86,11 +86,11 @@ public class ServerSettings implements LoadableConfig
     public static final Setting<Integer> maximum_response_header_size =
             setting( "unsupported.dbms.max_http_response_header_size", INTEGER, "20480" );
 
-    @Description( "Comma-seperated list of custom security rules for Neo4j to use." )
+    @Description( "Comma-seperated list of custom security rules for ONgDB to use." )
     public static final Setting<List<String>> security_rules =
             setting( "dbms.security.http_authorization_classes", STRING_LIST, EMPTY );
 
-    @Description( "Number of Neo4j worker threads, your OS might enforce a lower limit than the maximum value " +
+    @Description( "Number of ONgDB worker threads, your OS might enforce a lower limit than the maximum value " +
             "specified here." )
     @DocumentedDefaultValue( "Number of available processors (max 500)." )
     public static final Setting<Integer> webserver_max_threads = buildSetting( "dbms.threads.worker_count", INTEGER,
@@ -193,7 +193,7 @@ public class ServerSettings implements LoadableConfig
 
     @SuppressWarnings( "unused" ) // used only in the startup scripts
     @Description( "Path of the run directory. This directory holds Neo4j's runtime state, such as a pidfile when it " +
-            "is running in the background. The pidfile is created when starting neo4j and removed when stopping it." +
+            "is running in the background. The pidfile is created when starting ONgDB and removed when stopping it." +
             " It may be placed on an in-memory filesystem such as tmpfs." )
     public static final Setting<File> run_directory = pathSetting( "dbms.directories.run", "run" );
 
@@ -212,12 +212,12 @@ public class ServerSettings implements LoadableConfig
     public static final Setting<String> http_strict_transport_security = setting( "dbms.security.http_strict_transport_security", STRING, NO_DEFAULT );
 
     @SuppressWarnings( "unused" ) // accessed from the browser
-    @Description( "Commands to be run when Neo4j Browser successfully connects to this server. Separate multiple " +
+    @Description( "Commands to be run when ONgDB Browser successfully connects to this server. Separate multiple " +
                   "commands with semi-colon." )
     public static final Setting<String> browser_postConnectCmd = setting( "browser.post_connect_cmd", STRING, "" );
 
     @SuppressWarnings( "unused" ) // accessed from the browser
-    @Description( "Whitelist of hosts for the Neo4j Browser to be allowed to fetch content from." )
+    @Description( "Whitelist of hosts for the ONgDB Browser to be allowed to fetch content from." )
     public static final Setting<String> browser_remoteContentHostnameWhitelist =
             setting( "browser.remote_content_hostname_whitelist", STRING, "guides.neo4j.com,localhost");
 

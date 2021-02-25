@@ -94,7 +94,7 @@ import static org.neo4j.internal.kernel.api.InternalIndexState.POPULATING;
 import static org.neo4j.kernel.impl.api.index.IndexPopulationFailure.failure;
 
 /**
- * Manages the indexes that were introduced in 2.0. These indexes depend on the normal neo4j logical log for
+ * Manages the indexes that were introduced in 2.0. These indexes depend on the normal ONgDB logical log for
  * transactionality. Each index has an {@link org.neo4j.kernel.impl.store.record.IndexRule}, which it uses to filter
  * changes that come into the database. Changes that apply to the the rule are indexed. This way, "normal" changes to
  * the database can be replayed to perform recovery after a crash.

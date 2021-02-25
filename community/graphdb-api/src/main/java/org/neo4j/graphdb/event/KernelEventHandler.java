@@ -47,16 +47,16 @@ import org.neo4j.graphdb.GraphDatabaseService;
 public interface KernelEventHandler
 {
     /**
-     * This method is invoked during the shutdown process of a Neo4j Graph
+     * This method is invoked during the shutdown process of a ONgDB Graph
      * Database. It is invoked while the {@link GraphDatabaseService} is still
      * in an operating state, after the processing of this event has terminated
-     * the Neo4j Graph Database will terminate. This event can be used to shut
+     * the ONgDB Graph Database will terminate. This event can be used to shut
      * down other services that depend on the {@link GraphDatabaseService}.
      */
     void beforeShutdown();
 
     /**
-     * This is invoked when the Neo4j Graph Database enters a state from which
+     * This is invoked when the ONgDB Graph Database enters a state from which
      * it cannot continue.
      *
      * @param error an object describing the state that the

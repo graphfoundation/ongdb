@@ -226,7 +226,7 @@ public class InternalFlatFileRealm extends AuthorizingRealm implements RealmLife
         }
     }
 
-    /* Adds neo4j user if no users exist */
+    /* Adds ongdb user if no users exist */
     private Set<String> ensureDefaultUsers() throws Throwable
     {
         if ( authenticationEnabled || authorizationEnabled )

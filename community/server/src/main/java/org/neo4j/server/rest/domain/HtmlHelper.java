@@ -77,7 +77,7 @@ public class HtmlHelper
                         + STYLE_LOCATION + "rest.css' rel='stylesheet' type='text/css'>\n"
                         + "</head>\n<body onload='javascript:neo4jHtmlBrowse.start();' id='" + title.toLowerCase()
                         + "'>\n" + "<div id='content'>" + "<div id='header'>"
-                        + "<h1><a title='Neo4j REST interface' href='/'><span>Neo4j REST interface</span></a></h1>"
+                        + "<h1><a title='ONgDB REST interface' href='/'><span>ONgDB REST interface</span></a></h1>"
                         + "</div>" + "\n<div id='page-body'>\n" );
         return builder;
     }

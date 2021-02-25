@@ -267,8 +267,8 @@ class ErrorMessagesTest extends ExecutionEngineFunSuite {
 
   test("trying to store mixed type array") {
     expectError("CREATE (a) SET a.value = [datetime(), time()] RETURN a.value",
-      "Neo4j only supports a subset of Cypher types for storage as singleton or array properties. " +
-        "Please refer to section cypher/syntax/values of the manual for more details."
+      "ONgDB only supports a subset of Geequel types for storage as singleton or array properties. " +
+        "Please refer to section geequel/syntax/values of the manual for more details."
     )
   }
 

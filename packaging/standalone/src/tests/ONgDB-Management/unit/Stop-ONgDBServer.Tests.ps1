@@ -19,7 +19,7 @@ InModuleScope ONgDB-Management {
     Mock Get-ItemProperty { $null } -ParameterFilter {
       $Path -like 'Registry::*\JavaSoft\Java Runtime Environment*'
     }
-    # Mock Neo4j environment
+    # Mock ONgDB environment
     Mock Get-ONgDBEnv { $global:mockONgDBHome } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
 
     Context "Missing service name in configuration files" {

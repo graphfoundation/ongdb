@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-test_description="Test running neo4j-backup"
+test_description="Test running ongdb-backup"
 
 . ./lib/sharness.sh
 fake_install

@@ -12,7 +12,7 @@ InModuleScope ONgDB-Management {
       # Commands from the command line come through as System.Object[]
       # These commands can be simulated through crafting an appropriate array
       
-      # neo4j-import --into c:\graphdb --nodes "file1,file2" -relationships "file3,file4"
+      # ongdb-import --into c:\graphdb --nodes "file1,file2" -relationships "file3,file4"
       $testCommand = @('--into','C:\graph\db','--nodes', @('file1','file2'),'--relationships', @('file3','file4'))
 
       Mock Invoke-ONgDBUtility { return 2 }
@@ -40,7 +40,7 @@ InModuleScope ONgDB-Management {
       # Commands from the command line come through as System.Object[]
       # These commands can be simulated through crafting an appropriate array
 
-      # neo4j-import --into c:\graphdb --nodes singlefile
+      # ongdb-import --into c:\graphdb --nodes singlefile
       $testCommand = @('--into','C:\graph\db','--nodes', 'singlefile')
 
       Mock Invoke-ONgDBUtility { return 2 }

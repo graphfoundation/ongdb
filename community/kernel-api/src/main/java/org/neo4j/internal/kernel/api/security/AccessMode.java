@@ -61,7 +61,7 @@ public interface AccessMode
                                 "ensure you are not using the default credentials in production. If you are not " +
                                 "using default credentials, you are getting this message because an administrator " +
                                 "requires a password change.%n" +
-                                "Changing your password is easy to do via the Neo4j Browser.%n" +
+                                "Changing your password is easy to do via the ONgDB Browser.%n" +
                                 "If you are connecting via a shell or programmatically via a driver, " +
                                 "just issue a `CALL dbms.changePassword('new password')` statement in the current " +
                                 "session, and then restart your driver with the new password configured." ),

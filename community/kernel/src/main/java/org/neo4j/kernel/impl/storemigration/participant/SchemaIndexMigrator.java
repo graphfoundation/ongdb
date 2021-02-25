@@ -49,7 +49,7 @@ import org.neo4j.kernel.impl.store.format.RecordFormats;
 import org.neo4j.kernel.impl.util.monitoring.ProgressReporter;
 
 /**
- * Migrates schema and label indexes between different neo4j versions.
+ * Migrates schema and label indexes between different ONgDB versions.
  * Participates in store upgrade as one of the migration participants.
  * <p>
  * Since index format can be completely incompatible between version should be executed before {@link StoreMigrator}

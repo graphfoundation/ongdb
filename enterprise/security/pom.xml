@@ -12,7 +12,7 @@
     <version>1.0.0-SNAPSHOT</version>
 
     <name>ONgDB - Enterprise Graph Database Security Features</name>
-    <description>Enterprise security features for Neo4j</description>
+    <description>Enterprise security features for ONgDB</description>
     <packaging>jar</packaging>
 
     <properties>
@@ -67,7 +67,7 @@
     </build>
 
     <dependencies>
-        <!-- Neo4j dependencies -->
+        <!-- ONgDB dependencies -->
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>ongdb-kernel</artifactId>

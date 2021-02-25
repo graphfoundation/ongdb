@@ -21,7 +21,7 @@ set -o errexit -o nounset -o pipefail
 
 declare -r PROGRAM="$(basename "$0")"
 
-# Sets up the standard environment for running Neo4j shell scripts.
+# Sets up the standard environment for running ONgDB shell scripts.
 #
 # Provides these environment variables:
 #   ONGDB_HOME
@@ -76,7 +76,7 @@ check_java() {
 
   JAVA_VERSION=$("${version_command[@]}" 2>&1 | awk -F '"' '/version/ {print $2}')
   if [[ "${JAVA_VERSION}" < "1.8" ]]; then
-    echo "ERROR! Neo4j cannot be started using java version ${JAVA_VERSION}. "
+    echo "ERROR! ONgDB cannot be started using java version ${JAVA_VERSION}. "
     _show_java_help
     exit 1
   fi

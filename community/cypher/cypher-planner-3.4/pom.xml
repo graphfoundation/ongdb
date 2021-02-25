@@ -123,7 +123,7 @@
             <version>${project.version}</version>
         </dependency>
 
-        <!-- neo4j testing -->
+        <!-- ongdb testing -->
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>

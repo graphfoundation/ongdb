@@ -609,7 +609,7 @@ public class AppsIT extends AbstractShellIT
         client.shutdown();
         final String outString = out.asString();
         assertEquals( "Shows welcome message: " + outString, false,
-                outString.contains( "Welcome to the Neo4j Shell! Enter 'help' for a list of commands" ) );
+                outString.contains( "Welcome to the ONgDB Shell! Enter 'help' for a list of commands" ) );
     }
 
     @Test
@@ -621,7 +621,7 @@ public class AppsIT extends AbstractShellIT
         client.shutdown();
         final String outString = out.asString();
         assertEquals( "Shows welcome message: " + outString, true,
-                outString.contains( "Welcome to the Neo4j Shell! Enter 'help' for a list of commands" ) );
+                outString.contains( "Welcome to the ONgDB Shell! Enter 'help' for a list of commands" ) );
     }
 
     @Test

@@ -72,7 +72,7 @@ import static java.lang.String.format;
  */
 public class DefaultFileSystemAbstraction implements FileSystemAbstraction
 {
-    static final String UNABLE_TO_CREATE_DIRECTORY_FORMAT = "Unable to create directory path [%s] for Neo4j store.";
+    static final String UNABLE_TO_CREATE_DIRECTORY_FORMAT = "Unable to create directory path [%s] for ONgDB store.";
 
     @Override
     public FileWatcher fileWatcher() throws IOException

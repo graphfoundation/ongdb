@@ -494,7 +494,7 @@ class LuceneBatchInserterIndex implements BatchInserterIndex
         if ( !dir.exists() && !dir.mkdirs() )
         {
             throw new RuntimeException( "Unable to create directory path["
-                    + dir.getAbsolutePath() + "] for Neo4j store." );
+                    + dir.getAbsolutePath() + "] for ONgDB store." );
         }
         return dir;
     }

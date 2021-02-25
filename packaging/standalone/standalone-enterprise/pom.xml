@@ -152,10 +152,10 @@
                                 <licensingRequirementFile>licensing/licensing-requirements-base.xml</licensingRequirementFile>
                                 <licensingRequirementFile>licensing/licensing-requirements-browser.xml</licensingRequirementFile>
                             </licensingRequirementFiles>
-                            <thirdPartyLicensingFilename>${project.artifactId}-${neo4j.version}-NOTICE-win.txt</thirdPartyLicensingFilename>
+                            <thirdPartyLicensingFilename>${project.artifactId}-${ongdb.version}-NOTICE-win.txt</thirdPartyLicensingFilename>
                             <checkExistingNoticeFile>${project.build.directory}/../src/main/distribution/text/enterprise/NOTICE.txt</checkExistingNoticeFile>
                             <listPrependText>licensing/list-prefix.txt</listPrependText>
-                            <listReport>${project.artifactId}-${neo4j.version}-LICENSES-win.txt</listReport>
+                            <listReport>${project.artifactId}-${ongdb.version}-LICENSES-win.txt</listReport>
                             <checkExistingLicensesFile>${project.build.directory}/../src/main/distribution/text/enterprise/LICENSES.txt
                             </checkExistingLicensesFile>
                         </configuration>

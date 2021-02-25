@@ -159,7 +159,7 @@ public class Version extends Service
     }
 
     /**
-     * A very nice to have main-method for quickly checking the version of a neo4j kernel,
+     * A very nice to have main-method for quickly checking the version of a ONgDB kernel,
      * for example given a kernel jar file.
      */
     public static void main( String[] args )

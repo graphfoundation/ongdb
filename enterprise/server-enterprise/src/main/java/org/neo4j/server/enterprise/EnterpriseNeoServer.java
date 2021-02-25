@@ -49,7 +49,7 @@ import org.neo4j.server.database.LifecycleManagingDatabase;
 import org.neo4j.server.database.LifecycleManagingDatabase.GraphFactory;
 
 /**
- * Normally our naming convention would call this OpenEnterpriseNeoServer - but in this case, Neo4j already has a class with this name, so we are just calling
+ * Normally our naming convention would call this OpenEnterpriseNeoServer - but in this case, ONgDB already has a class with this name, so we are just calling
  * it EnterpriseNeoServer.
  **/
 public class EnterpriseNeoServer extends OpenEnterpriseNeoServer

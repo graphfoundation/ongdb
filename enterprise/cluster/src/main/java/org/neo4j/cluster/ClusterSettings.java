@@ -158,17 +158,17 @@ public class ClusterSettings implements LoadableConfig
     @Description( "Default value for all Paxos timeouts. This setting controls the default value for the ha.phase1_timeout, " +
             "ha.phase2_timeout and ha.election_timeout settings. If it is not given a value it " +
             "defaults to ha.default_timeout and will implicitly change if ha.default_timeout changes. This is an " +
-            "advanced parameter which should only be changed if specifically advised by Neo4j Professional Services." )
+            "advanced parameter which should only be changed if specifically advised." )
     public static final Setting<Duration> paxos_timeout = buildSetting( "ha.paxos_timeout", DURATION ).inherits( default_timeout ).build();
 
     @Description( "Timeout for Paxos phase 1. If it is not given a value it defaults to ha.paxos_timeout and will " +
             "implicitly change if ha.paxos_timeout changes. This is an advanced parameter which should only be " +
-            "changed if specifically advised by Neo4j Professional Services. " )
+            "changed if specifically advised. " )
     public static final Setting<Duration> phase1_timeout = buildSetting( "ha.phase1_timeout", DURATION ).inherits( paxos_timeout ).build();
 
     @Description( "Timeout for Paxos phase 2. If it is not given a value it defaults to ha.paxos_timeout and will " +
             "implicitly change if ha.paxos_timeout changes. This is an advanced parameter which should only be " +
-            "changed if specifically advised by Neo4j Professional Services. " )
+            "changed if specifically advised. " )
     public static final Setting<Duration> phase2_timeout = buildSetting( "ha.phase2_timeout", DURATION ).inherits( paxos_timeout ).build();
 
     @Description( "Timeout for learning values. Defaults to ha.default_timeout." )

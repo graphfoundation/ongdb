@@ -49,7 +49,7 @@ import java.util.List;
 import org.neo4j.helpers.Service;
 
 /**
- * API for creating extensions for the Neo4j server.
+ * API for creating extensions for the ONgDB server.
  * <p>
  * Extensions are created by creating a subclass of this class. The subclass
  * should have a public no-argument constructor (or no constructor at all).
@@ -63,7 +63,7 @@ import org.neo4j.helpers.Service;
  * file is placed on the class path of the server, it will be loaded
  * automatically when the server starts.
  * <p>
- * The easiest way to implement Neo4j server extensions is by defining public
+ * The easiest way to implement ONgDB server extensions is by defining public
  * methods on the extension class annotated with
  * <code>@{@link PluginTarget}</code>. The parameter for the
  * {@link PluginTarget} annotation should be the class representing the

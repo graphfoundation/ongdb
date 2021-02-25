@@ -154,7 +154,7 @@ public class ReflectiveProcedureWithArgumentsTest
         // Expect
         exception.expect( ProcedureException.class );
         exception.expectMessage( String.format("Argument `a` at position 0 in `defaultValues` with%n" +
-                "type `long` cannot be converted to a Neo4j type: Default value `forty-two` could not be parsed as a " +
+                "type `long` cannot be converted to a ONgDB type: Default value `forty-two` could not be parsed as a " +
                 "Long" ));
 
         // When

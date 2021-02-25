@@ -39,7 +39,7 @@
 package org.neo4j.graphdb.event;
 
 /**
- * An object that describes a state from which a Neo4j Graph Database cannot
+ * An object that describes a state from which a ONgDB Graph Database cannot
  * continue.
  *
  */
