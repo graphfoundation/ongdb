@@ -491,7 +491,7 @@ public class Jetty9WebServer implements WebServer
             }
             else
             {
-                log.warn( "No static content available for Neo Server at %s, management console may not be available.",
+                log.warn( "No static content available for ONgDB Server at %s, management console may not be available.",
                         jettyAddress );
             }
         }

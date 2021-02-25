@@ -106,7 +106,7 @@ public class VersionAndEditionService implements AdvertisableService
         else
         {
 //            return "unknown";
-            throw new IllegalStateException( "The Neo Server running is of unknown type. Valid types are Community " +
+            throw new IllegalStateException( "The ONgDB Server running is of unknown type. Valid types are Community " +
                     "and Enterprise." );
         }
     }
