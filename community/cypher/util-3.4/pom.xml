@@ -1,88 +1,89 @@
 <?xml version="1.0"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-  <parent>
-    <groupId>org.graphfoundation.ongdb</groupId>
-    <artifactId>cypher-parent</artifactId>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <parent>
+        <groupId>org.graphfoundation.ongdb</groupId>
+        <artifactId>cypher-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../</relativePath>
+    </parent>
+
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>ongdb-geequel-util-3.4</artifactId>
+    <packaging>jar</packaging>
     <version>1.0.0-SNAPSHOT</version>
-    <relativePath>../</relativePath>
-  </parent>
+    <name>ONgDB - Geequel Util 3.4</name>
 
-  <modelVersion>4.0.0</modelVersion>
-  <artifactId>ongdb-geequel-util-3.4</artifactId>
-  <packaging>jar</packaging>
-  <version>1.0.0-SNAPSHOT</version>
-  <name>ONgDB - Geequel Util 3.4</name>
+    <description>Cypher utilities</description>
+    <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
-  <description>Cypher utilities</description>
-  <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
+    <scm>
+        <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
+        <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+        <url>https://github.com/graphfoundation/ongdb</url>
+    </scm>
 
-  <scm>
-    <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
-    <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
-    <url>https://github.com/graphfoundation/ongdb</url>
-  </scm>
+    <properties>
+        <licensing.prepend.text>licensing/notice-asl-prefix.txt</licensing.prepend.text>
+        <license-text.header>headers/ASL-2-header.txt</license-text.header>
+        <moduleName>org.neo4j.cypher.internal.util.v3_4</moduleName>
+    </properties>
 
-  <properties>
-    <licensing.prepend.text>licensing/notice-asl-prefix.txt</licensing.prepend.text>
-    <license-text.header>headers/ASL-2-header.txt</license-text.header>
-    <moduleName>org.neo4j.cypher.internal.util.v3_4</moduleName>
-  </properties>
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0</url>
+        </license>
+    </licenses>
 
-  <licenses>
-    <license>
-      <name>Apache License, Version 2.0</name>
-      <url>http://www.apache.org/licenses/LICENSE-2.0</url>
-    </license>
-  </licenses>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.scalastyle</groupId>
+                <artifactId>scalastyle-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
 
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.scalastyle</groupId>
-        <artifactId>scalastyle-maven-plugin</artifactId>
-      </plugin>
-    </plugins>
-  </build>
+    <dependencies>
 
-  <dependencies>
+        <!-- shared versions are defined in the parent pom -->
 
-    <!-- shared versions are defined in the parent pom -->
+        <!-- scala -->
 
-    <!-- scala -->
+        <dependency>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-library</artifactId>
+        </dependency>
 
-    <dependency>
-      <groupId>org.scala-lang</groupId>
-      <artifactId>scala-library</artifactId>
-    </dependency>
+        <dependency>
+            <artifactId>scala-reflect</artifactId>
+            <groupId>org.scala-lang</groupId>
+        </dependency>
 
-    <dependency>
-      <artifactId>scala-reflect</artifactId>
-      <groupId>org.scala-lang</groupId>
-    </dependency>
+        <!-- scala test dependencies -->
 
-    <!-- scala test dependencies -->
+        <dependency>
+            <groupId>org.scalatest</groupId>
+            <artifactId>scalatest_2.11</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.scalacheck</groupId>
+            <artifactId>scalacheck_2.11</artifactId>
+        </dependency>
 
-    <dependency>
-      <groupId>org.scalatest</groupId>
-      <artifactId>scalatest_2.11</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.scalacheck</groupId>
-      <artifactId>scalacheck_2.11</artifactId>
-    </dependency>
+        <!-- other -->
 
-    <!-- other -->
+        <dependency>
+            <groupId>org.parboiled</groupId>
+            <artifactId>parboiled-scala_2.11</artifactId>
+        </dependency>
 
-    <dependency>
-      <groupId>org.parboiled</groupId>
-      <artifactId>parboiled-scala_2.11</artifactId>
-    </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
 
-    <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-lang3</artifactId>
-    </dependency>
-
-  </dependencies>
+    </dependencies>
 
 </project>

@@ -2,180 +2,180 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
+    <modelVersion>4.0.0</modelVersion>
 
-  <parent>
-    <groupId>org.graphfoundation.ongdb</groupId>
-    <artifactId>parent</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
-    <relativePath>../..</relativePath>
-  </parent>
+    <parent>
+        <groupId>org.graphfoundation.ongdb</groupId>
+        <artifactId>parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../..</relativePath>
+    </parent>
 
-  <properties>
-    <license-text.header>headers/GPL-3-header.txt</license-text.header>
-    <licensing.prepend.text>licensing/notice-gpl-prefix.txt</licensing.prepend.text>
-    <moduleName>org.neo4j.bolt</moduleName>
-  </properties>
+    <properties>
+        <license-text.header>headers/GPL-3-header.txt</license-text.header>
+        <licensing.prepend.text>licensing/notice-gpl-prefix.txt</licensing.prepend.text>
+        <moduleName>org.neo4j.bolt</moduleName>
+    </properties>
 
-  <artifactId>ongdb-bolt</artifactId>
+    <artifactId>ongdb-bolt</artifactId>
 
-  <packaging>jar</packaging>
-  <name>ONgDB - Bolt Protocol Version 1</name>
-  <description>The core of Neo4j Bolt Protocol, this contains the state machine for Bolt sessions.</description>
+    <packaging>jar</packaging>
+    <name>ONgDB - Bolt Protocol Version 1</name>
+    <description>The core of Neo4j Bolt Protocol, this contains the state machine for Bolt sessions.</description>
 
-  <licenses>
-    <license>
-      <name>GNU General Public License, Version 3</name>
-      <url>http://www.gnu.org/licenses/gpl-3.0-standalone.html</url>
-      <comments>The software ("Software") developed and owned by Graph Foundation, Inc.
-        (referred to in this notice as "Graph Foundation") is licensed under the
-        GNU GENERAL PUBLIC LICENSE Version 3 to all third parties and that license is included below.
-      </comments>
-    </license>
-    <license>
-      <name>GNU General Public License, Version 3</name>
-      <url>http://www.gnu.org/licenses/gpl-3.0-standalone.html</url>
-      <comments>The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
-        licensed under the GNU GENERAL PUBLIC LICENSE Version 3 to all third
-        parties and that license is included below.
+    <licenses>
+        <license>
+            <name>GNU General Public License, Version 3</name>
+            <url>http://www.gnu.org/licenses/gpl-3.0-standalone.html</url>
+            <comments>The software ("Software") developed and owned by Graph Foundation, Inc.
+                (referred to in this notice as "Graph Foundation") is licensed under the
+                GNU GENERAL PUBLIC LICENSE Version 3 to all third parties and that license is included below.
+            </comments>
+        </license>
+        <license>
+            <name>GNU General Public License, Version 3</name>
+            <url>http://www.gnu.org/licenses/gpl-3.0-standalone.html</url>
+            <comments>The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
+                licensed under the GNU GENERAL PUBLIC LICENSE Version 3 to all third
+                parties and that license is included below.
 
-        However, if you have executed an End User Software License and Services
-        Agreement or an OEM Software License and Support Services Agreement, or
-        another commercial license agreement with Neo4j or one of its
-        affiliates (each, a "Commercial Agreement"), the terms of the license in
-        such Commercial Agreement will supersede the GNU GENERAL PUBLIC LICENSE
-        Version 3 and you may use the Software solely pursuant to the terms of
-        the relevant Commercial Agreement.
-      </comments>
-    </license>
-  </licenses>
+                However, if you have executed an End User Software License and Services
+                Agreement or an OEM Software License and Support Services Agreement, or
+                another commercial license agreement with Neo4j or one of its
+                affiliates (each, a "Commercial Agreement"), the terms of the license in
+                such Commercial Agreement will supersede the GNU GENERAL PUBLIC LICENSE
+                Version 3 and you may use the Software solely pursuant to the terms of
+                the relevant Commercial Agreement.
+            </comments>
+        </license>
+    </licenses>
 
-  <dependencies>
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb</artifactId>
-      <version>${project.version}</version>
-    </dependency>
+    <dependencies>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-values</artifactId>
-      <version>${project.version}</version>
-    </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-values</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-kernel</artifactId>
-      <version>${project.version}</version>
-    </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-kernel</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-ssl</artifactId>
-      <version>${project.version}</version>
-    </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-ssl</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
-    <dependency>
-      <groupId>io.netty</groupId>
-      <artifactId>netty-all</artifactId>
-    </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
+        </dependency>
 
-    <dependency>
-      <groupId>org.codehaus.jackson</groupId>
-      <artifactId>jackson-mapper-asl</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>commons-codec</groupId>
-      <artifactId>commons-codec</artifactId>
-    </dependency>
+        <dependency>
+            <groupId>org.codehaus.jackson</groupId>
+            <artifactId>jackson-mapper-asl</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>commons-codec</groupId>
+            <artifactId>commons-codec</artifactId>
+        </dependency>
 
-    <dependency>
-      <groupId>com.google.code.findbugs</groupId>
-      <artifactId>annotations</artifactId>
-    </dependency>
+        <dependency>
+            <groupId>com.google.code.findbugs</groupId>
+            <artifactId>annotations</artifactId>
+        </dependency>
 
-    <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-lang3</artifactId>
-    </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
 
-    <!--Test dependencies-->
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>org.hamcrest</groupId>
-        <artifactId>hamcrest-core</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>org.hamcrest</groupId>
-        <artifactId>hamcrest-library</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-core</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-server</artifactId>
-      <scope>test</scope>
-    </dependency>
+        <!--Test dependencies-->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest-library</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-server</artifactId>
+            <scope>test</scope>
+        </dependency>
 
 
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-kernel</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-security</artifactId>
-      <version>${project.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-security</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-io</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-logging</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-common</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-kernel</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-security</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-security</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-io</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-logging</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-common</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
 
-    <!-- This dependency is needed for Netty to be able to generate
-    self signed certificate on a JDK without sun.security.* package -->
-    <dependency>
-      <groupId>org.bouncycastle</groupId>
-      <artifactId>bcpkix-jdk15on</artifactId>
-    </dependency>
+        <!-- This dependency is needed for Netty to be able to generate
+        self signed certificate on a JDK without sun.security.* package -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk15on</artifactId>
+        </dependency>
 
-    <dependency>
-      <groupId>org.eclipse.jetty.websocket</groupId>
-      <artifactId>websocket-client</artifactId>
-      <scope>test</scope>
-    </dependency>
-  </dependencies>
+        <dependency>
+            <groupId>org.eclipse.jetty.websocket</groupId>
+            <artifactId>websocket-client</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 </project>

@@ -2,179 +2,179 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
-  <modelVersion>4.0.0</modelVersion>
+    <modelVersion>4.0.0</modelVersion>
 
-  <parent>
-    <groupId>org.graphfoundation.ongdb</groupId>
-    <artifactId>parent</artifactId>
+    <parent>
+        <groupId>org.graphfoundation.ongdb</groupId>
+        <artifactId>parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>..</relativePath>
+    </parent>
+
+    <artifactId>ongdb-tools</artifactId>
     <version>1.0.0-SNAPSHOT</version>
-    <relativePath>..</relativePath>
-  </parent>
 
-  <artifactId>ongdb-tools</artifactId>
-  <version>1.0.0-SNAPSHOT</version>
+    <name>ONgDB - Low Level Tools</name>
+    <packaging>jar</packaging>
+    <description>A package for low level tools.</description>
 
-  <name>ONgDB - Low Level Tools</name>
-  <packaging>jar</packaging>
-  <description>A package for low level tools.</description>
+    <properties>
+        <license-text.header>headers/AGPL-3-header.txt</license-text.header>
+        <moduleName>org.neo4j.tools</moduleName>
+    </properties>
 
-  <properties>
-    <license-text.header>headers/AGPL-3-header.txt</license-text.header>
-    <moduleName>org.neo4j.tools</moduleName>
-  </properties>
+    <scm>
+        <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
+        <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+        <url>https://github.com/graphfoundation/ongdb</url>
+    </scm>
 
-  <scm>
-    <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
-    <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
-    <url>https://github.com/graphfoundation/ongdb</url>
-  </scm>
+    <licenses>
+        <license>
+            <name>GNU Affero General Public License, Version 3</name>
+            <url>http://www.gnu.org/licenses/agpl-3.0-standalone.html</url>
+            <comments>The software ("Software") developed and owned by Graph Foundation, Inc.
+                (referred to in this notice as "Graph Foundation") is
+                licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3 to all
+                third parties and that license is included below.
+            </comments>
+        </license>
+        <license>
+            <name>GNU Affero General Public License, Version 3</name>
+            <url>http://www.gnu.org/licenses/agpl-3.0-standalone.html</url>
+            <comments>The software ("Software") developed and owned by Network Engine for
+                Objects in Lund AB (referred to in this notice as "Neo Technology") is
+                licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3 to all
+                third parties and that license is included below.
 
-  <licenses>
-    <license>
-      <name>GNU Affero General Public License, Version 3</name>
-      <url>http://www.gnu.org/licenses/agpl-3.0-standalone.html</url>
-      <comments>The software ("Software") developed and owned by Graph Foundation, Inc.
-        (referred to in this notice as "Graph Foundation") is
-        licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3 to all
-        third parties and that license is included below.
-      </comments>
-    </license>
-    <license>
-      <name>GNU Affero General Public License, Version 3</name>
-      <url>http://www.gnu.org/licenses/agpl-3.0-standalone.html</url>
-      <comments>The software ("Software") developed and owned by Network Engine for
-        Objects in Lund AB (referred to in this notice as "Neo Technology") is
-        licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3 to all
-        third parties and that license is included below.
+                However, if you have executed an End User Software License and Services
+                Agreement or an OEM Software License and Support Services Agreement, or
+                another commercial license agreement with Neo Technology or one of its
+                affiliates (each, a "Commercial Agreement"), the terms of the license in
+                such Commercial Agreement will supersede the GNU AFFERO GENERAL PUBLIC
+                LICENSE Version 3 and you may use the Software solely pursuant to the
+                terms of the relevant Commercial Agreement.
+            </comments>
+        </license>
+    </licenses>
 
-        However, if you have executed an End User Software License and Services
-        Agreement or an OEM Software License and Support Services Agreement, or
-        another commercial license agreement with Neo Technology or one of its
-        affiliates (each, a "Commercial Agreement"), the terms of the license in
-        such Commercial Agreement will supersede the GNU AFFERO GENERAL PUBLIC
-        LICENSE Version 3 and you may use the Software solely pursuant to the
-        terms of the relevant Commercial Agreement.
-      </comments>
-    </license>
-  </licenses>
+    <dependencies>
+        <!-- Community dependencies -->
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-kernel</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-lucene-index</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-common</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-io</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-com</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-consistency-check</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
-  <dependencies>
-    <!-- Community dependencies -->
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-kernel</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-lucene-index</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-common</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-    </dependency>
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-io</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-    </dependency>
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-com</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-consistency-check</artifactId>
-      <version>${project.version}</version>
-    </dependency>
+        <!-- External dependencies -->
+        <dependency>
+            <groupId>io.airlift</groupId>
+            <artifactId>airline</artifactId>
+            <version>0.7</version>
+        </dependency>
 
-    <!-- External dependencies -->
-    <dependency>
-      <groupId>io.airlift</groupId>
-      <artifactId>airline</artifactId>
-      <version>0.7</version>
-    </dependency>
+        <!-- Test dependencies -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <exclusions>
+                <exclusion>
+                    <artifactId>hamcrest-core</artifactId>
+                    <groupId>org.hamcrest</groupId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>commons-codec</groupId>
+            <artifactId>commons-codec</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest-all</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-kernel</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+            <type>test-jar</type>
+        </dependency>
+    </dependencies>
 
-    <!-- Test dependencies -->
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <exclusions>
-        <exclusion>
-          <artifactId>hamcrest-core</artifactId>
-          <groupId>org.hamcrest</groupId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-        <groupId>commons-codec</groupId>
-        <artifactId>commons-codec</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.hamcrest</groupId>
-      <artifactId>hamcrest-all</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-core</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-kernel</artifactId>
-      <version>${project.version}</version>
-      <scope>test</scope>
-      <type>test-jar</type>
-    </dependency>
-  </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>2.3</version>
+                <executions>
 
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
-        <version>2.3</version>
-        <executions>
+                    <execution>
+                        <id>boltalyzer-jar</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <finalName>boltalyzer</finalName>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>org.neo4j.tools.boltalyzer.Boltalyzer</mainClass>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                        </configuration>
+                    </execution>
 
-          <execution>
-            <id>boltalyzer-jar</id>
-            <phase>package</phase>
-            <goals>
-              <goal>shade</goal>
-            </goals>
-            <configuration>
-              <finalName>boltalyzer</finalName>
-              <transformers>
-                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                  <mainClass>org.neo4j.tools.boltalyzer.Boltalyzer</mainClass>
-                </transformer>
-                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-              </transformers>
-            </configuration>
-          </execution>
-
-          <execution>
-            <id>txlog-jar</id>
-            <phase>package</phase>
-            <goals>
-              <goal>shade</goal>
-            </goals>
-            <configuration>
-              <finalName>checktxlogs</finalName>
-              <transformers>
-                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                  <mainClass>org.neo4j.tools.txlog.CheckTxLogs</mainClass>
-                </transformer>
-                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-              </transformers>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-    </plugins>
-  </build>
+                    <execution>
+                        <id>txlog-jar</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <finalName>checktxlogs</finalName>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>org.neo4j.tools.txlog.CheckTxLogs</mainClass>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>
