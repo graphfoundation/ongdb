@@ -70,8 +70,8 @@ public class PageCacheWarmupCcIT extends PageCacheWarmupTestSupport
             .withSharedCoreParam( GraphDatabaseSettings.pagecache_warmup_profiling_interval, "100ms" )
             .withSharedCoreParam( CausalClusteringSettings.multi_dc_license, Settings.TRUE )
             .withSharedCoreParam( CausalClusteringSettings.upstream_selection_strategy, LeaderOnlyStrategy.IDENTITY )
-            // Restored to default value to decrease the risk of leader changes:
-            .withSharedCoreParam( CausalClusteringSettings.leader_election_timeout, "7s" )
+            // ONGDB-229 - Ensure there is a dedicated leader and that no election occurs
+            .withInstanceCoreParam( CausalClusteringSettings.refuse_to_be_leader, id -> id == 0 ? "false" : "true" )
             .withSharedReadReplicaParam( UdcSettings.udc_enabled, Settings.FALSE )
             .withSharedReadReplicaParam( GraphDatabaseSettings.pagecache_warmup_profiling_interval, "100ms" )
             .withSharedReadReplicaParam( CausalClusteringSettings.multi_dc_license, Settings.TRUE )
