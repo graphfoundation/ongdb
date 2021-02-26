@@ -11,6 +11,23 @@
     <description>Build resources for community build.</description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
+    <distributionManagement>
+        <snapshotRepository>
+            <id>graphfoundation-snapshots</id>
+            <name>Graph Foundation Snapshot Repository</name>
+            <url>${maven.repository.snapshots}</url>
+        </snapshotRepository>
+        <repository>
+            <id>graphfoundation-releases</id>
+            <name>Graph Foundation Release Repository</name>
+            <url>${maven.repository.releases}</url>
+        </repository>
+    </distributionManagement>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
     <scm>
         <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
         <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>

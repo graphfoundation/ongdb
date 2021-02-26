@@ -25,8 +25,28 @@
 
     <licenses>
         <license>
-            <name>GNU Affero General Public License, Version 3</name>
-            <url>http://www.gnu.org/licenses/agpl-3.0-standalone.html</url>
+            <name>GNU General Public License, Version 3</name>
+            <url>http://www.gnu.org/licenses/gpl-3.0-standalone.html</url>
+            <comments>The software ("Software") developed and owned by Graph Foundation, Inc.
+                (referred to in this notice as "Graph Foundation") is licensed under the
+                GNU GENERAL PUBLIC LICENSE Version 3 to all third parties and that license is included below.
+            </comments>
+        </license>
+        <license>
+            <name>GNU General Public License, Version 3</name>
+            <url>http://www.gnu.org/licenses/gpl-3.0-standalone.html</url>
+            <comments>The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
+                licensed under the GNU GENERAL PUBLIC LICENSE Version 3 to all third
+                parties and that license is included below.
+
+                However, if you have executed an End User Software License and Services
+                Agreement or an OEM Software License and Support Services Agreement, or
+                another commercial license agreement with Neo4j or one of its
+                affiliates (each, a "Commercial Agreement"), the terms of the license in
+                such Commercial Agreement will supersede the GNU GENERAL PUBLIC LICENSE
+                Version 3 and you may use the Software solely pursuant to the terms of
+                the relevant Commercial Agreement.
+            </comments>
         </license>
     </licenses>
 
@@ -49,14 +69,19 @@
 
     <issueManagement>
         <system>GitHub</system>
-        <url>https://github.com/neo4j/neo4j/issues</url>
+        <url>https://github.com/graphfoundation/ongdb/issues</url>
     </issueManagement>
 
     <distributionManagement>
+        <snapshotRepository>
+            <id>graphfoundation-snapshots</id>
+            <name>Graph Foundation Snapshot Repository</name>
+            <url>${maven.repository.snapshots}</url>
+        </snapshotRepository>
         <repository>
-            <id>sonatype-nexus-staging</id>
-            <name>Nexus Release Repository</name>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+            <id>graphfoundation-releases</id>
+            <name>Graph Foundation Release Repository</name>
+            <url>${maven.repository.releases}</url>
         </repository>
     </distributionManagement>
 
@@ -64,6 +89,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
+        <maven.repository.snapshots>https://oss.sonatype.org/content/repositories/snapshots</maven.repository.snapshots>
+        <maven.repository.releases>https://oss.sonatype.org/service/local/staging/deploy/maven2</maven.repository.releases>
         <licensing.prepend.text>licensing/notice-agpl-prefix.txt</licensing.prepend.text>
         <lucene.version>5.5.5</lucene.version>
         <bouncycastle.version>1.59</bouncycastle.version>
@@ -153,8 +180,6 @@
                 </includes>
             </testResource>
         </testResources>
-
-        <!-- Plugin definitions -->
         <pluginManagement>
             <plugins>
 
@@ -173,9 +198,9 @@
                         </execution>
                     </executions>
                     <configuration>
-                        <header>Neo4j</header>
-                        <doctitle>Neo4j ${project.version} API</doctitle>
-                        <windowtitle>Neo4j ${project.version} API</windowtitle>
+                        <header>ONgDB</header>
+                        <doctitle>ONgDB ${project.version} API</doctitle>
+                        <windowtitle>ONgDB ${project.version} API</windowtitle>
                         <show>public</show>
 
                         <detectLinks>false</detectLinks>
@@ -187,8 +212,7 @@
                         <groups>
                             <group>
                                 <title>Graph database</title>
-                                <packages>org.neo4j.graphdb:org.neo4j.graphdb.*
-                                </packages>
+                                <packages>org.neo4j.graphdb:org.neo4j.graphdb.*</packages>
                             </group>
                             <group>
                                 <title>Query language</title>
