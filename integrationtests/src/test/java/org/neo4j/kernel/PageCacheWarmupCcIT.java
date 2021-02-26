@@ -50,6 +50,7 @@ import org.neo4j.causalclustering.discovery.ReadReplica;
 import org.neo4j.causalclustering.upstream.strategies.LeaderOnlyStrategy;
 import org.neo4j.concurrent.BinaryLatch;
 import org.neo4j.ext.udc.UdcSettings;
+import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.impl.pagecache.PageCacheWarmerMonitor;
@@ -93,7 +94,11 @@ public class PageCacheWarmupCcIT extends PageCacheWarmupTestSupport
         cluster.coreTx( ( db, tx ) ->
         {
             // Verify that we really do have a somewhat stable leader.
-            db.createNode();
+            for ( int i = 0; i < 1000; i++ )
+            {
+                db.createNode( Label.label( "Warmup" ) );
+            }
+
             tx.success();
         } );
         cluster.coreTx( ( db, tx ) ->
@@ -106,6 +111,11 @@ public class PageCacheWarmupCcIT extends PageCacheWarmupTestSupport
         AtomicLong pagesInMemory = new AtomicLong();
         cluster.coreTx( ( db, tx ) ->
         {
+            // Make sure the profile has settled
+            for ( int i = 0; i < 3; i++ )
+            {
+                waitForCacheProfile( db );
+            }
             // Now we can wait for the profile on the leader.
             pagesInMemory.set( waitForCacheProfile( db ) );
             // Make sure that this is still the same leader that we profiled:
