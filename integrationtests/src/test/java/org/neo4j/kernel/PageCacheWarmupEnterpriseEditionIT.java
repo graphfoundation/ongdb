@@ -71,12 +71,12 @@ import static org.neo4j.test.assertion.Assert.assertEventually;
 public class PageCacheWarmupEnterpriseEditionIT extends PageCacheWarmupTestSupport
 {
     @Rule
-    public SuppressOutput suppressOutput = SuppressOutput.suppressAll();
+    public final SuppressOutput suppressOutput = SuppressOutput.suppressAll();
     @Rule
-    public EnterpriseDatabaseRule db = new EnterpriseDatabaseRule().startLazily();
-    private TestDirectory dir = db.getTestDirectory();
+    public final EnterpriseDatabaseRule db = new EnterpriseDatabaseRule().startLazily();
+    private final TestDirectory dir = db.getTestDirectory();
 
-    private void verifyEventuallyWarmsUp( long pagesInMemory, File metricsDirectory ) throws Exception
+    private static void verifyEventuallyWarmsUp( long pagesInMemory, File metricsDirectory ) throws Exception
     {
         assertEventually( "Metrics report should include page cache page faults",
                 () -> readLongValue( metricsCsv( metricsDirectory, PC_PAGE_FAULTS ) ),
@@ -130,11 +130,11 @@ public class PageCacheWarmupEnterpriseEditionIT extends PageCacheWarmupTestSuppo
             fs.copyRecursively( backupDir, storeDir );
         };
         db.restartDatabase( useBackupDir,
-                OnlineBackupSettings.online_backup_enabled.name(), Settings.FALSE,
-                MetricsSettings.neoPageCacheEnabled.name(), Settings.TRUE,
-                MetricsSettings.csvEnabled.name(), Settings.TRUE,
-                MetricsSettings.csvInterval.name(), "100ms",
-                MetricsSettings.csvPath.name(), metricsDirectory.getAbsolutePath() );
+                            OnlineBackupSettings.online_backup_enabled.name(), Settings.FALSE,
+                            MetricsSettings.neoPageCacheEnabled.name(), Settings.TRUE,
+                            MetricsSettings.csvEnabled.name(), Settings.TRUE,
+                            MetricsSettings.csvInterval.name(), "100ms",
+                            MetricsSettings.csvPath.name(), metricsDirectory.getAbsolutePath() );
 
         verifyEventuallyWarmsUp( pagesInMemory, metricsDirectory );
     }

@@ -53,8 +53,10 @@ import org.neo4j.causalclustering.core.consensus.roles.Role;
 import org.neo4j.causalclustering.discovery.Cluster;
 import org.neo4j.causalclustering.discovery.CoreClusterMember;
 import org.neo4j.causalclustering.discovery.ReadReplica;
+import org.neo4j.driver.internal.BoltServerAddress;
 import org.neo4j.driver.internal.logging.JULogging;
 import org.neo4j.driver.v1.AccessMode;
+import org.neo4j.driver.v1.AuthToken;
 import org.neo4j.driver.v1.AuthTokens;
 import org.neo4j.driver.v1.Config;
 import org.neo4j.driver.v1.Driver;
@@ -75,6 +77,7 @@ import org.neo4j.test.causalclustering.ClusterRule;
 import org.neo4j.test.rule.SuppressOutput;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.startsWith;
@@ -91,6 +94,7 @@ import static org.neo4j.test.assertion.Assert.assertEventually;
 public class BoltCausalClusteringIT
 {
     private static final long DEFAULT_TIMEOUT_MS = 15_000;
+    private static final AuthToken basicAuthToken = AuthTokens.basic( "ongdb", "ongdb" );
     @Rule
     public final ClusterRule clusterRule = new ClusterRule().withNumberOfCoreMembers( 3 );
     @Rule
@@ -104,16 +108,18 @@ public class BoltCausalClusteringIT
         // given
         cluster = clusterRule.withNumberOfReadReplicas( 0 ).startCluster();
         cluster.coreTx( ( db, tx ) ->
-        {
-            Iterators.count( db.execute( "CREATE CONSTRAINT ON (p:Person) ASSERT p.name is UNIQUE" ) );
-            tx.success();
-        } );
+                        {
+                            Iterators.count( db.execute( "CREATE CONSTRAINT ON (p:Person) ASSERT p.name IS UNIQUE" ) );
+                            tx.success();
+                        } );
 
         // when
         int count = executeWriteAndReadThroughBolt( cluster.awaitLeader() );
 
         // then
         assertEquals( 1, count );
+
+        cluster.shutdown();
     }
 
     @Test
@@ -122,21 +128,23 @@ public class BoltCausalClusteringIT
         // given
         cluster = clusterRule.withNumberOfReadReplicas( 0 ).startCluster();
         cluster.coreTx( ( db, tx ) ->
-        {
-            Iterators.count( db.execute( "CREATE CONSTRAINT ON (p:Person) ASSERT p.name is UNIQUE" ) );
-            tx.success();
-        } );
+                        {
+                            Iterators.count( db.execute( "CREATE CONSTRAINT ON (p:Person) ASSERT p.name IS UNIQUE" ) );
+                            tx.success();
+                        } );
 
         // when
         int count = executeWriteAndReadThroughBolt( cluster.getMemberWithRole( Role.FOLLOWER ) );
 
         // then
         assertEquals( 1, count );
+
+        cluster.shutdown();
     }
 
     private int executeWriteAndReadThroughBolt( CoreClusterMember core ) throws TimeoutException
     {
-        try ( Driver driver = GraphDatabase.driver( core.routingURI(), AuthTokens.basic( "ongdb", "ongdb" ) ) )
+        try ( Driver driver = GraphDatabase.driver( core.routingURI(), basicAuthToken ) )
         {
 
             return inExpirableSession( driver, d -> d.session( AccessMode.WRITE ), session ->
@@ -159,7 +167,7 @@ public class BoltCausalClusteringIT
         {
             switchLeader( cluster.awaitLeader() );
             CoreClusterMember leader = cluster.awaitLeader();
-            Driver driver = GraphDatabase.driver( leader.routingURI(), AuthTokens.basic( "ongdb", "ongdb" ) );
+            Driver driver = GraphDatabase.driver( leader.routingURI(), basicAuthToken );
 
             try ( Session session = driver.session( AccessMode.READ ) )
             {
@@ -177,6 +185,8 @@ public class BoltCausalClusteringIT
                 driver.close();
             }
         }, is( true ), 30, SECONDS );
+
+        cluster.shutdown();
     }
 
     @Test
@@ -186,8 +196,9 @@ public class BoltCausalClusteringIT
         cluster = clusterRule.withNumberOfReadReplicas( 0 ).startCluster();
 
         CoreClusterMember leader = cluster.awaitLeader();
+        BoltServerAddress leaderBoltAddress = new BoltServerAddress( leader.boltAdvertisedAddress() ).resolve();
 
-        Driver driver = GraphDatabase.driver( leader.routingURI(), AuthTokens.basic( "ongdb", "ongdb" ) );
+        Driver driver = GraphDatabase.driver( leader.routingURI(), basicAuthToken );
         try ( Session session = driver.session() )
         {
             session.run( "CREATE (n:Person {name: 'Jim'})" ).consume();
@@ -202,13 +213,14 @@ public class BoltCausalClusteringIT
         catch ( SessionExpiredException sep )
         {
             // then
-            assertEquals( String.format( "Server at %s no longer accepts writes", leader.boltAdvertisedAddress() ),
-                    sep.getMessage() );
+            assertEquals( String.format( "Server at %s no longer accepts writes", leaderBoltAddress ), sep.getMessage() );
         }
         finally
         {
             driver.close();
         }
+
+        cluster.shutdown();
     }
 
     @Test
@@ -219,16 +231,18 @@ public class BoltCausalClusteringIT
 
         CoreClusterMember leader = cluster.awaitLeader();
 
-        Driver driver = GraphDatabase.driver( leader.routingURI(), AuthTokens.basic( "ongdb", "ongdb" ) );
+        Driver driver = GraphDatabase.driver( leader.routingURI(), basicAuthToken );
         try ( Session session = driver.session() )
         {
             StatementResult overview = session.run( "CALL dbms.cluster.overview" );
-            assertThat(overview.list(), hasSize( 3 ));
+            assertThat( overview.list(), hasSize( 3 ) );
         }
         finally
         {
             driver.close();
         }
+
+        cluster.shutdown();
     }
 
     /**
@@ -329,7 +343,7 @@ public class BoltCausalClusteringIT
         Config config = Config.build().withLogging( new JULogging( Level.OFF ) ).toConfig();
         Set<String> seenAddresses = new HashSet<>();
         try ( Driver driver = GraphDatabase
-                .driver( leader.routingURI(), AuthTokens.basic( "ongdb", "ongdb" ), config ) )
+                .driver( leader.routingURI(), basicAuthToken, config ) )
         {
             boolean success = false;
 
@@ -346,7 +360,7 @@ public class BoltCausalClusteringIT
                 {
                     StatementResult result = session.run( "CREATE (p:Person)" );
                     ServerInfo server = result.summary().server();
-                    seenAddresses.add( server.address());
+                    seenAddresses.add( server.address() );
                     success = seenAddresses.size() >= 2;
                 }
                 catch ( Exception e )
@@ -371,6 +385,8 @@ public class BoltCausalClusteringIT
             assertTrue( leaderSwitcher.hadLeaderSwitch() );
             assertThat( seenAddresses.size(), greaterThanOrEqualTo( 2 ) );
         }
+
+        cluster.shutdown();
     }
 
     @Test
@@ -382,14 +398,16 @@ public class BoltCausalClusteringIT
         ReadReplica readReplica = cluster.getReadReplicaById( 0 );
         try
         {
-            GraphDatabase.driver( readReplica.routingURI(), AuthTokens.basic( "ongdb", "ongdb" ) );
+            GraphDatabase.driver( readReplica.routingURI(), basicAuthToken );
             fail( "Should have thrown an exception using a read replica address for routing" );
         }
         catch ( ServiceUnavailableException ex )
         {
             // then
-            assertThat(ex.getMessage(), startsWith( "Failed to run"));
+            assertThat( ex.getMessage(), equalTo( "Could not perform discovery. No routing servers available." ) );
         }
+
+        cluster.shutdown();
     }
 
     /*
@@ -405,8 +423,9 @@ public class BoltCausalClusteringIT
         // given
         cluster = clusterRule.withNumberOfReadReplicas( 1 ).startCluster();
         CoreClusterMember leader = cluster.awaitLeader();
+        BoltServerAddress leaderBoltAddress = new BoltServerAddress( leader.boltAdvertisedAddress() ).resolve();
 
-        try ( Driver driver = GraphDatabase.driver( leader.routingURI(), AuthTokens.basic( "ongdb", "ongdb" ) ) )
+        try ( Driver driver = GraphDatabase.driver( leader.routingURI(), basicAuthToken ) )
         {
             inExpirableSession( driver, Driver::session, session ->
             {
@@ -426,9 +445,7 @@ public class BoltCausalClusteringIT
                 catch ( SessionExpiredException sep )
                 {
                     // then
-                    assertEquals(
-                            String.format( "Server at %s no longer accepts writes", leader.boltAdvertisedAddress() ),
-                            sep.getMessage() );
+                    assertEquals( String.format( "Server at %s no longer accepts writes", leaderBoltAddress ), sep.getMessage() );
                 }
                 catch ( InterruptedException e )
                 {
@@ -445,6 +462,8 @@ public class BoltCausalClusteringIT
                 assertEquals( 2, record.get( "count" ).asInt() );
                 return null;
             } );
+
+            cluster.shutdown();
         }
     }
 
@@ -456,7 +475,7 @@ public class BoltCausalClusteringIT
         cluster = clusterRule.withNumberOfReadReplicas( 1 ).startCluster();
         CoreClusterMember leader = cluster.awaitLeader();
 
-        try ( Driver driver = GraphDatabase.driver( leader.directURI(), AuthTokens.basic( "ongdb", "ongdb" ) ) )
+        try ( Driver driver = GraphDatabase.driver( leader.directURI(), basicAuthToken ) )
         {
             String bookmark = inExpirableSession( driver, Driver::session, session ->
             {
@@ -478,6 +497,8 @@ public class BoltCausalClusteringIT
                 tx.success();
             }
         }
+
+        cluster.shutdown();
     }
 
     @Test
@@ -487,7 +508,7 @@ public class BoltCausalClusteringIT
         cluster = clusterRule.withNumberOfReadReplicas( 1 ).startCluster();
         CoreClusterMember leader = cluster.awaitLeader();
 
-        try ( Driver driver = GraphDatabase.driver( leader.directURI(), AuthTokens.basic( "ongdb", "ongdb" ) ) )
+        try ( Driver driver = GraphDatabase.driver( leader.directURI(), basicAuthToken ) )
         {
             inExpirableSession( driver, d -> d.session( AccessMode.WRITE ), session ->
             {
@@ -526,6 +547,8 @@ public class BoltCausalClusteringIT
                 assertEquals( 2, record.get( "count" ).asInt() );
             }
         }
+
+        cluster.shutdown();
     }
 
     @Test
@@ -539,7 +562,7 @@ public class BoltCausalClusteringIT
 
         readReplica.txPollingClient().stop();
 
-        Driver driver = GraphDatabase.driver( leader.directURI(), AuthTokens.basic( "ongdb", "ongdb" ) );
+        Driver driver = GraphDatabase.driver( leader.directURI(), basicAuthToken );
 
         String bookmark = inExpirableSession( driver, d -> d.session( AccessMode.WRITE ), session ->
         {
@@ -558,7 +581,7 @@ public class BoltCausalClusteringIT
         assertNotNull( bookmark );
         readReplica.txPollingClient().start();
 
-        driver = GraphDatabase.driver( readReplica.directURI(), AuthTokens.basic( "ongdb", "ongdb" ) );
+        driver = GraphDatabase.driver( readReplica.directURI(), basicAuthToken );
 
         try ( Session session = driver.session( AccessMode.READ, bookmark ) )
         {
@@ -569,6 +592,8 @@ public class BoltCausalClusteringIT
                 assertEquals( 4, record.get( "count" ).asInt() );
             }
         }
+
+        cluster.shutdown();
     }
 
     @Test
@@ -576,11 +601,11 @@ public class BoltCausalClusteringIT
     {
         // given
         cluster = clusterRule.withNumberOfReadReplicas( 1 )
-                .withSharedCoreParams( stringMap( CausalClusteringSettings.cluster_routing_ttl.name(), "1s" ) )
-                .startCluster();
+                             .withSharedCoreParams( stringMap( CausalClusteringSettings.cluster_routing_ttl.name(), "1s" ) )
+                             .startCluster();
 
         CoreClusterMember leader = cluster.awaitLeader();
-        Driver driver = GraphDatabase.driver( leader.routingURI(), AuthTokens.basic( "ongdb", "ongdb" ) );
+        Driver driver = GraphDatabase.driver( leader.routingURI(), basicAuthToken );
 
         String bookmark = inExpirableSession( driver, d -> d.session( AccessMode.WRITE ), session ->
         {
@@ -626,7 +651,6 @@ public class BoltCausalClusteringIT
 
                         return null;
                     } );
-
                 }
                 catch ( Throwable throwable )
                 {
@@ -636,6 +660,8 @@ public class BoltCausalClusteringIT
 
             return readReplicas.size() == 0; // have sent something to all replicas
         }, is( true ), 30, SECONDS );
+
+        cluster.shutdown();
     }
 
     @Test
@@ -646,7 +672,7 @@ public class BoltCausalClusteringIT
 
         CoreClusterMember leader = cluster.awaitLeader();
 
-        try ( Driver driver = GraphDatabase.driver( leader.routingURI(), AuthTokens.basic( "ongdb", "ongdb" ) ) )
+        try ( Driver driver = GraphDatabase.driver( leader.routingURI(), basicAuthToken ) )
         {
             // when
             try ( Session session = driver.session() )
@@ -687,6 +713,8 @@ public class BoltCausalClusteringIT
                 }
             }
         }
+
+        cluster.shutdown();
     }
 
     @Test
@@ -694,27 +722,27 @@ public class BoltCausalClusteringIT
     {
         // given
         Map<String,String> params = stringMap( GraphDatabaseSettings.keep_logical_logs.name(), "keep_none",
-                GraphDatabaseSettings.logical_log_rotation_threshold.name(), "1M",
-                GraphDatabaseSettings.check_point_interval_time.name(), "100ms",
-                CausalClusteringSettings.cluster_allow_reads_on_followers.name(), "false");
+                                               GraphDatabaseSettings.logical_log_rotation_threshold.name(), "1M",
+                                               GraphDatabaseSettings.check_point_interval_time.name(), "100ms",
+                                               CausalClusteringSettings.cluster_allow_reads_on_followers.name(), "false" );
 
         Cluster cluster = clusterRule.withSharedCoreParams( params ).withNumberOfReadReplicas( 1 ).startCluster();
 
-        Driver driver = GraphDatabase.driver( cluster.awaitLeader().routingURI(), AuthTokens.basic( "ongdb", "ongdb" ) );
+        Driver driver = GraphDatabase.driver( cluster.awaitLeader().routingURI(), basicAuthToken );
 
         try ( Session session = driver.session() )
         {
             session.writeTransaction( tx ->
-            {
-                tx.run( "MERGE (n:Person {name: 'Jim'})" );
-                return null;
-            } );
+                                      {
+                                          tx.run( "MERGE (n:Person {name: 'Jim'})" );
+                                          return null;
+                                      } );
         }
 
         ReadReplica replica = cluster.findAnyReadReplica();
 
         CatchupPollingProcess pollingClient = replica.database().getDependencyResolver()
-                .resolveDependency( CatchupPollingProcess.class );
+                                                     .resolveDependency( CatchupPollingProcess.class );
 
         pollingClient.stop();
 
@@ -726,12 +754,12 @@ public class BoltCausalClusteringIT
             try ( Session writeSession = driver.session() )
             {
                 writeSession.writeTransaction( tx ->
-                {
+                                               {
 
-                    tx.run( "UNWIND range(1, {nodesToCreate}) AS i CREATE (n:Person {name: 'Jim'})",
-                            Values.parameters( "nodesToCreate", nodesToCreate ) );
-                    return null;
-                } );
+                                                   tx.run( "UNWIND range(1, {nodesToCreate}) AS i CREATE (n:Person {name: 'Jim'})",
+                                                           Values.parameters( "nodesToCreate", nodesToCreate ) );
+                                                   return null;
+                                               } );
 
                 lastBookmark = writeSession.lastBookmark();
             }
@@ -749,17 +777,19 @@ public class BoltCausalClusteringIT
             try ( Session session = driver.session( lastBookmark ) )
             {
                 happyCount += session.readTransaction( tx ->
-                {
-                    tx.run( "MATCH (n:Person) RETURN COUNT(*) AS count" );
-                    return 1;
-                } );
+                                                       {
+                                                           tx.run( "MATCH (n:Person) RETURN COUNT(*) AS count" );
+                                                           return 1;
+                                                       } );
             }
         }
 
         assertEquals( numberOfRequests, happyCount );
+
+        cluster.shutdown();
     }
 
-    private void executeReadQuery( Session session )
+    private static void executeReadQuery( Session session )
     {
         try ( Transaction tx = session.beginTransaction() )
         {
@@ -768,7 +798,7 @@ public class BoltCausalClusteringIT
         }
     }
 
-    private <T> T inExpirableSession( Driver driver, Function<Driver,Session> acquirer, Function<Session,T> op )
+    private static <T> T inExpirableSession( Driver driver, Function<Driver,Session> acquirer, Function<Session,T> op )
             throws TimeoutException
     {
         long endTime = System.currentTimeMillis() + DEFAULT_TIMEOUT_MS;

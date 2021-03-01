@@ -43,7 +43,6 @@ import org.neo4j.graphdb.security.URLAccessRule;
 import org.neo4j.helpers.collection.Iterables;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.extension.KernelExtensionFactory;
-import org.neo4j.kernel.extension.KernelExtensions;
 import org.neo4j.kernel.impl.enterprise.EnterpriseEditionModule;
 import org.neo4j.kernel.impl.factory.DatabaseInfo;
 import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
@@ -157,8 +156,6 @@ public class GraphDatabaseFactoryWithCustomBoltKernelExtension extends GraphData
      * as it's type parameter. That is why we can't use given custom extension as is, it can extend a real
      * {@link BoltKernelExtension}. So this wrapper delegates to the given extension and has same superclass as the
      * real {@link BoltKernelExtension}.
-     *
-     * @see KernelExtensions#getKernelExtensionDependencies(KernelExtensionFactory)
      */
     private static class CustomBoltKernelExtension extends KernelExtensionFactory<BoltKernelExtension.Dependencies>
     {

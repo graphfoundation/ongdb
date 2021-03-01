@@ -53,20 +53,20 @@ import javax.net.ssl.SSLEngine;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-class SecureServer
+public class SecureServer
 {
-    static final byte[] RESPONSE = {5, 6, 7, 8};
+    public static final byte[] RESPONSE = {5, 6, 7, 8};
 
     private SslContext sslContext;
     private Channel channel;
     private NioEventLoopGroup eventLoopGroup;
 
-    SecureServer( SslContext sslContext )
+    public SecureServer( SslContext sslContext )
     {
         this.sslContext = sslContext;
     }
 
-    void start()
+    public void start()
     {
         eventLoopGroup = new NioEventLoopGroup();
         ServerBootstrap bootstrap = new ServerBootstrap()
@@ -85,7 +85,6 @@ class SecureServer
                         sslEngine.setNeedClientAuth( true );
                         SslHandler sslHandler = new SslHandler( sslEngine );
                         pipeline.addLast( sslHandler );
-                        //sslHandler.handshakeFuture().addListener( f -> f.cause().printStackTrace() ); // for debugging
 
                         pipeline.addLast( new Responder() );
                     }
@@ -94,14 +93,14 @@ class SecureServer
         channel = bootstrap.bind().syncUninterruptibly().channel();
     }
 
-    void stop()
+    public void stop()
     {
         channel.close().awaitUninterruptibly();
         channel = null;
         eventLoopGroup.shutdownGracefully( 0, 0, SECONDS );
     }
 
-    int port()
+    public int port()
     {
         return ((InetSocketAddress) channel.localAddress()).getPort();
     }
@@ -117,7 +116,6 @@ class SecureServer
         @Override
         public void exceptionCaught( ChannelHandlerContext ctx, Throwable cause ) throws Exception
         {
-            //cause.printStackTrace(); // for debugging
         }
     }
 }

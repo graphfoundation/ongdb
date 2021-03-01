@@ -104,7 +104,7 @@ public class HalfCreatedConstraintIT
         }
     }
 
-    private void addIndex( GraphDatabaseService database )
+    private static void addIndex( GraphDatabaseService database )
     {
         try ( Transaction transaction = database.beginTx() )
         {
@@ -118,7 +118,7 @@ public class HalfCreatedConstraintIT
         }
     }
 
-    private void createNodes( Label marker, String property, GraphDatabaseService database )
+    private static void createNodes( Label marker, String property, GraphDatabaseService database )
     {
         try ( Transaction transaction = database.beginTx() )
         {

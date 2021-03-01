@@ -130,15 +130,14 @@ public class SecureClient
         }
 
         @Override
-        protected void channelRead0( ChannelHandlerContext ctx, ByteBuf msg ) throws Exception
+        protected void channelRead0( ChannelHandlerContext ctx, ByteBuf msg )
         {
             collectedData.writeBytes( msg );
         }
 
         @Override
-        public void exceptionCaught( ChannelHandlerContext ctx, Throwable cause ) throws Exception
+        public void exceptionCaught( ChannelHandlerContext ctx, Throwable cause )
         {
-            //cause.printStackTrace(); // for debugging
         }
     }
 
@@ -156,7 +155,7 @@ public class SecureClient
         }
 
         @Override
-        protected void initChannel( SocketChannel channel ) throws Exception
+        protected void initChannel( SocketChannel channel )
         {
             ChannelPipeline pipeline = channel.pipeline();
 

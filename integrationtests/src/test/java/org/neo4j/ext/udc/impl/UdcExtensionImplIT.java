@@ -49,7 +49,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -107,7 +106,7 @@ public class UdcExtensionImplIT extends LocalServerTestBase
     private static final Condition<Integer> IS_GREATER_THAN_ZERO = value -> value > 0;
 
     @Rule
-    public TestDirectory path = TestDirectory.testDirectory();
+    public final TestDirectory path = TestDirectory.testDirectory();
 
     private PingerHandler handler;
     private Map<String,String> config;
@@ -129,7 +128,7 @@ public class UdcExtensionImplIT extends LocalServerTestBase
         String serverAddress = serviceHostName + ":" + servicePort;
 
         config = new HashMap<>();
-        config.put( UdcSettings.first_delay.name(), "1000" );
+        config.put( UdcSettings.first_delay.name(), "100" );
         config.put( UdcSettings.udc_host.name(), serverAddress );
         config.put( UdcSettings.udc_enabled.name(), Settings.TRUE );
         config.put( OnlineBackupSettings.online_backup_enabled.name(), Settings.FALSE );
@@ -334,8 +333,8 @@ public class UdcExtensionImplIT extends LocalServerTestBase
         // Then
         assertGotSuccessWithRetry( IS_GREATER_THAN_ZERO );
         String userAgents = handler.getQueryMap().get( USER_AGENTS );
-        assertEquals( true, userAgents.contains( "test/1.0" ) );
-        assertEquals( true, userAgents.contains( "foo/bar" ) );
+        assertTrue( userAgents.contains( "test/1.0" ) );
+        assertTrue( userAgents.contains( "foo/bar" ) );
     }
 
     @Test
@@ -484,34 +483,29 @@ public class UdcExtensionImplIT extends LocalServerTestBase
         boolean isTrue( T value );
     }
 
-    private void assertGotSuccessWithRetry( Condition<Integer> condition ) throws Exception
+    private static void assertGotSuccessWithRetry( Condition<Integer> condition ) throws Exception
     {
         assertGotPingWithRetry( UdcTimerTask.successCounts, condition );
     }
 
-    private void assertGotFailureWithRetry( Condition<Integer> condition ) throws Exception
+    private static void assertGotFailureWithRetry( Condition<Integer> condition ) throws Exception
     {
         assertGotPingWithRetry( UdcTimerTask.failureCounts, condition );
     }
 
-    private void assertGotPingWithRetry( Map<String,Integer> counts, Condition<Integer> condition ) throws Exception
+    private static void assertGotPingWithRetry( Map<String,Integer> counts, Condition<Integer> condition ) throws Exception
     {
         for ( int i = 0; i < 100; i++ )
         {
-            Thread.sleep( 200 );
             Collection<Integer> countValues = counts.values();
             Integer count = countValues.iterator().next();
             if ( condition.isTrue( count ) )
             {
                 return;
             }
+            Thread.sleep( 200 );
         }
         fail();
-    }
-
-    private GraphDatabaseService createDatabase()
-    {
-        return createDatabase( null, null );
     }
 
     private GraphDatabaseService createDatabase( Map<String,String> config )

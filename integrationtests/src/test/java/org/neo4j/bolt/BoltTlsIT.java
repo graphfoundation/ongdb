@@ -128,7 +128,7 @@ public class BoltTlsIT
         };
     }
 
-    @Parameter()
+    @Parameter
     public TestSetup setup;
 
     private void createAndStartDb()
