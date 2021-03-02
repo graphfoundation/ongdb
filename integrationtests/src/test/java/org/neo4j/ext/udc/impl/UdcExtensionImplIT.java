@@ -131,6 +131,7 @@ public class UdcExtensionImplIT extends LocalServerTestBase
         config = new HashMap<>();
         config.put( UdcSettings.first_delay.name(), "1000" );
         config.put( UdcSettings.udc_host.name(), serverAddress );
+        config.put( UdcSettings.udc_enabled.name(), Settings.TRUE );
         config.put( OnlineBackupSettings.online_backup_enabled.name(), Settings.FALSE );
 
         blockUntilServerAvailable( new URL( "http", serviceHostName, servicePort, "/" ) );
@@ -149,7 +150,9 @@ public class UdcExtensionImplIT extends LocalServerTestBase
     public void shouldLoadWhenNormalGraphdbIsCreated() throws Exception
     {
         // When
-        Map<String, String> config = Collections.singletonMap( OnlineBackupSettings.online_backup_enabled.name(), Settings.FALSE );
+        Map<String, String> config = new HashMap<>();
+        config.put( UdcSettings.udc_enabled.name(), Settings.TRUE );
+        config.put( OnlineBackupSettings.online_backup_enabled.name(), Settings.FALSE );
         graphdb = createDatabase(config);
 
         // Then, when the UDC extension successfully loads, it initializes the attempts count to 0
@@ -162,7 +165,9 @@ public class UdcExtensionImplIT extends LocalServerTestBase
     @Test
     public void shouldLoadForEachCreatedGraphdb() throws IOException
     {
-        Map<String, String> config = Collections.singletonMap( OnlineBackupSettings.online_backup_enabled.name(), Settings.FALSE );
+        Map<String, String> config = new HashMap<>();
+        config.put( UdcSettings.udc_enabled.name(), Settings.TRUE );
+        config.put( OnlineBackupSettings.online_backup_enabled.name(), Settings.FALSE );
         GraphDatabaseService graphdb1 = createDatabase( path.directory( "first-db" ), config );
         GraphDatabaseService graphdb2 = createDatabase( path.directory( "second-db" ), config );
         Set<String> successCountValues = UdcTimerTask.successCounts.keySet();
@@ -180,6 +185,7 @@ public class UdcExtensionImplIT extends LocalServerTestBase
                 newEmbeddedDatabaseBuilder( path.directory( "should-record-failures" ) ).
                 setConfig( UdcSettings.first_delay, "100" ).
                 setConfig( UdcSettings.udc_host, "127.0.0.1:1" ).
+                setConfig( UdcSettings.udc_enabled, Settings.TRUE ).
                 setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE ).
                 newGraphDatabase();
 

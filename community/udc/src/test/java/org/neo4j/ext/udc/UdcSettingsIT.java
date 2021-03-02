@@ -48,7 +48,7 @@ import static org.junit.Assert.assertEquals;
 
 public class UdcSettingsIT
 {
-    public static final String TEST_HOST_AND_PORT = "test.ucd.neo4j.org:8080";
+    public static final String TEST_HOST_AND_PORT = "test.udc.graphfoundation.org:8080";
 
     @Test
     public void testUdcHostSettingIsUnchanged()
