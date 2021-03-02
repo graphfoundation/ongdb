@@ -48,7 +48,7 @@ import static com.codahale.metrics.MetricRegistry.name;
 @Documented( ".Server Metrics" )
 public class ServerMetrics extends LifecycleAdapter
 {
-    private static final String NAME_PREFIX = "neo4j.server";
+    private static final String NAME_PREFIX = "ongdb.server";
 
     @Documented( "The total number of idle threads in the jetty pool" )
     public static final String THREAD_JETTY_IDLE = name( NAME_PREFIX, "threads.jetty.idle" );
