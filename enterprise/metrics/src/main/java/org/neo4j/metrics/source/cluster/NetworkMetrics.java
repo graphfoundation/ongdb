@@ -50,7 +50,7 @@ import static com.codahale.metrics.MetricRegistry.name;
 @Documented( ".Network Metrics" )
 public class NetworkMetrics extends LifecycleAdapter
 {
-    private static final String NAME_PREFIX = "neo4j.network";
+    private static final String NAME_PREFIX = "ongdb.network";
 
     @Documented( "The amount of bytes transmitted on the network containing the transaction data from a slave " +
                  "to the master in order to be committed" )

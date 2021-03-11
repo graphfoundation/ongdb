@@ -54,7 +54,7 @@ import static org.neo4j.kernel.ha.cluster.modeswitch.HighAvailabilityModeSwitche
 @Documented( ".Cluster Metrics" )
 public class ClusterMetrics extends LifecycleAdapter
 {
-    private static final String NAME_PREFIX = "neo4j.cluster";
+    private static final String NAME_PREFIX = "ongdb.cluster";
 
     @Documented( "The total number of update pulls executed by this instance" )
     public static final String SLAVE_PULL_UPDATES = name( NAME_PREFIX, "slave_pull_updates" );

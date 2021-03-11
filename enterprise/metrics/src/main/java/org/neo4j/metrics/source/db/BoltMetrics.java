@@ -49,7 +49,7 @@ import static com.codahale.metrics.MetricRegistry.name;
 @Documented( ".Bolt Metrics" )
 public class BoltMetrics extends LifecycleAdapter
 {
-    private static final String NAME_PREFIX = "neo4j.bolt";
+    private static final String NAME_PREFIX = "ongdb.bolt";
 
     @Documented( "The total number of Bolt sessions started since this instance started. This includes both " +
                  "succeeded and failed sessions (deprecated, use connections_opened instead)." )
