@@ -9,7 +9,7 @@ InModuleScope ONgDB-Management {
   Describe "Get-ONgDBSetting" {
 
     Context "Invalid or missing specified ONgDB installation" {
-      $serverObject = global:New-InvalidNeo4jInstall
+      $serverObject = global:New-InvalidONgDBInstall
 
       $result = Get-ONgDBSetting -ONgDBServer $serverObject
 

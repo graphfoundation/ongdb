@@ -24,7 +24,7 @@ InModuleScope ONgDB-Management {
     Mock Start-Process { throw "Should not call Start-Process mock" }
 
     Context "Invalid or missing specified ONgDB installation" {
-      $serverObject = global:New-InvalidNeo4jInstall
+      $serverObject = global:New-InvalidONgDBInstall
 
       It "throws error for an invalid server object - Server" {
         { Start-ONgDBServer -Server -ONgDBServer $serverObject -ErrorAction Stop } | Should Throw

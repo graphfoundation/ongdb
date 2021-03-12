@@ -17,7 +17,7 @@ InModuleScope ONgDB-Management {
       }
     }
 
-    Context "Invalid Neo4j Server detection" {
+    Context "Invalid ONgDB Server detection" {
       $mockServer = global:New-MockONgDBInstall -IncludeFiles:$false
 
       It "throws an error if the home is not complete" {
@@ -73,31 +73,31 @@ InModuleScope ONgDB-Management {
       $mockServer = global:New-MockONgDBInstall -RootDir 'TestDrive:\ongdb' -ServerType 'Community' -ServerVersion '99.99'
 
       # Get the absolute path
-      $Neo4jDir = (Get-Item $mockServer.Home).FullName.TrimEnd('\')
+      $ONgDBDir = (Get-Item $mockServer.Home).FullName.TrimEnd('\')
 
       It "detects correct home path using double dot" {
         $ongdbServer = Get-ONgDBServer -ONgDBHome "$($mockServer.Home)\lib\.." -ErrorAction Stop
-        $ongdbServer.Home | Should Be $Neo4jDir
+        $ongdbServer.Home | Should Be $ONgDBDir
       }
 
       It "detects correct home path using single dot" {
         $ongdbServer = Get-ONgDBServer -ONgDBHome "$($mockServer.Home)\." -ErrorAction Stop
-        $ongdbServer.Home | Should Be $Neo4jDir
+        $ongdbServer.Home | Should Be $ONgDBDir
       }
 
       It "detects correct home path ignoring trailing slash" {
         $ongdbServer = Get-ONgDBServer -ONgDBHome "$($mockServer.Home)\" -ErrorAction Stop
-        $ongdbServer.Home | Should Be $Neo4jDir
+        $ongdbServer.Home | Should Be $ONgDBDir
       }
     }
 
     Context "No explicit location for config directory is provided" {
       global:New-MockONgDBInstall -RootDir 'TestDrive:\ongdb'
-      $Neo4jDir = (Get-Item 'TestDrive:\ongdb').FullName.TrimEnd('\')
+      $ONgDBDir = (Get-Item 'TestDrive:\ongdb').FullName.TrimEnd('\')
 
-      It "Defaults config path to $Neo4jDir\conf" {
+      It "Defaults config path to $ONgDBDir\conf" {
          $ongdbServer = Get-ONgDBServer -ONgDBHome 'TestDrive:\ongdb\' -ErrorAction Stop
-         $ongdbServer.ConfDir | Should Be (Join-Path -Path $Neo4jDir -ChildPath 'conf')
+         $ongdbServer.ConfDir | Should Be (Join-Path -Path $ONgDBDir -ChildPath 'conf')
       }
     }
 

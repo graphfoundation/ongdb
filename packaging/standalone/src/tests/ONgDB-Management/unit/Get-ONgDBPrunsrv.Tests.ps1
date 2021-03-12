@@ -24,7 +24,7 @@ InModuleScope ONgDB-Management {
     Mock Set-ONgDBEnv { }
 
     Context "Invalid or missing specified ONgDB installation" {
-      $serverObject = global:New-InvalidNeo4jInstall
+      $serverObject = global:New-InvalidONgDBInstall
 
       It "return throw if invalid or missing ONgDB directory" {
         { Get-ONgDBPrunsrv -ONgDBServer $serverObject -ForServerInstall  -ErrorAction Stop }  | Should Throw

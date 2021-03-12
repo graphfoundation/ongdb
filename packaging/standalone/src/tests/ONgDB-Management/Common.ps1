@@ -22,7 +22,7 @@ Function global:New-MockJavaHome() {
   return $javaHome
 }
 
-Function global:New-InvalidNeo4jInstall($ServerType = 'Enterprise', $ServerVersion = '99.99', $DatabaseMode = '') {
+Function global:New-InvalidONgDBInstall($ServerType = 'Enterprise', $ServerVersion = '99.99', $DatabaseMode = '') {
   $serverObject = (New-Object -TypeName PSCustomObject -Property @{
     'Home' =  'TestDrive:\some-dir-that-doesnt-exist';
     'ConfDir' = 'TestDrive:\some-dir-that-doesnt-exist\conf';
