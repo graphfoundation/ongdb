@@ -21,7 +21,7 @@ test_expect_success "should report that it's running" "
   ongdb-home/bin/ongdb status
 "
 
-test_expect_success "should redirect output to neo4j.log" "
+test_expect_success "should redirect output to ongdb.log" "
   test_expect_file_matching 'stdout from java' ongdb-home/logs/ongdb.log &&
   test_expect_file_matching 'stderr from java' ongdb-home/logs/ongdb.log
 "

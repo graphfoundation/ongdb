@@ -1,7 +1,43 @@
+# Copyright (c) 2018-2020 "Graph Foundation,"
+# Graph Foundation, Inc. [https://graphfoundation.org]
+#
+# This file is part of ONgDB.
+#
+# ONgDB is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Copyright (c) 2002-2018 "Neo Technology,"
+# Network Engine for Objects in Lund AB [http://neotechnology.com]
+#
+# This file is part of Neo4j.
+#
+# Neo4j is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path).Replace(".Tests.", ".")
+$sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path).Replace(".Tests.",".")
 $common = Join-Path (Split-Path -Parent $here) 'Common.ps1'
-. $common
+.$common
 
 Import-Module "$src\ONgDB-Management.psm1"
 
@@ -18,7 +54,7 @@ InModuleScope ONgDB-Management {
     Mock Get-ItemProperty { $null } -ParameterFilter {
       $Path -like 'Registry::*\JavaSoft\Java Runtime Environment*'
     }
-    Mock Confirm-JavaVersion { $true }
+    Mock Get-JavaVersion { @{ 'isValid' = $true; 'isJava8' = $true } }
 
     # Java Detection Tests
     Context "Valid Java install in JAVA_HOME environment variable" {
@@ -34,7 +70,7 @@ InModuleScope ONgDB-Management {
     }
 
     Context "Legacy Java install in JAVA_HOME environment variable" {
-      Mock Confirm-JavaVersion -Verifiable { $false }
+      Mock Get-JavaVersion -Verifiable { @{ 'isValid' = $false; 'isJava8' = $false } }
 
       It "should throw if java is not supported" {
         { Get-Java -ErrorAction Stop } | Should Throw
@@ -58,10 +94,10 @@ InModuleScope ONgDB-Management {
       Mock Test-Path -Verifiable { return $true } -ParameterFilter {
         ($Path -eq 'Registry::HKLM\SOFTWARE\Wow6432Node\JavaSoft\Java Runtime Environment')
       }
-      Mock Get-ItemProperty -Verifiable { return @{ 'CurrentVersion' = '9.9'} } -ParameterFilter {
+      Mock Get-ItemProperty -Verifiable { return @{ 'CurrentVersion' = '9.9' } } -ParameterFilter {
         ($Path -eq 'Registry::HKLM\SOFTWARE\Wow6432Node\JavaSoft\Java Runtime Environment')
       }
-      Mock Get-ItemProperty -Verifiable { return @{ 'JavaHome' = $javaHome} } -ParameterFilter {
+      Mock Get-ItemProperty -Verifiable { return @{ 'JavaHome' = $javaHome } } -ParameterFilter {
         ($Path -eq 'Registry::HKLM\SOFTWARE\Wow6432Node\JavaSoft\Java Runtime Environment\9.9')
       }
 
@@ -81,10 +117,10 @@ InModuleScope ONgDB-Management {
       Mock Test-Path -Verifiable { return $true } -ParameterFilter {
         ($Path -eq 'Registry::HKLM\SOFTWARE\JavaSoft\Java Runtime Environment')
       }
-      Mock Get-ItemProperty -Verifiable { return @{ 'CurrentVersion' = '9.9'} } -ParameterFilter {
+      Mock Get-ItemProperty -Verifiable { return @{ 'CurrentVersion' = '9.9' } } -ParameterFilter {
         ($Path -eq 'Registry::HKLM\SOFTWARE\JavaSoft\Java Runtime Environment')
       }
-      Mock Get-ItemProperty -Verifiable { return @{ 'JavaHome' = $javaHome} } -ParameterFilter {
+      Mock Get-ItemProperty -Verifiable { return @{ 'JavaHome' = $javaHome } } -ParameterFilter {
         ($Path -eq 'Registry::HKLM\SOFTWARE\JavaSoft\Java Runtime Environment\9.9')
       }
 
@@ -105,10 +141,10 @@ InModuleScope ONgDB-Management {
       Mock Test-Path -Verifiable { return $true } -ParameterFilter {
         ($Path -eq 'Registry::HKLM\SOFTWARE\JavaSoft\Java Runtime Environment')
       }
-      Mock Get-ItemProperty -Verifiable { return @{ 'CurrentVersion' = '9.9'} } -ParameterFilter {
+      Mock Get-ItemProperty -Verifiable { return @{ 'CurrentVersion' = '9.9' } } -ParameterFilter {
         ($Path -eq 'Registry::HKLM\SOFTWARE\JavaSoft\Java Runtime Environment')
       }
-      Mock Get-ItemProperty -Verifiable { return @{ 'JavaHome' = $javaHome} } -ParameterFilter {
+      Mock Get-ItemProperty -Verifiable { return @{ 'JavaHome' = $javaHome } } -ParameterFilter {
         ($Path -eq 'Registry::HKLM\SOFTWARE\JavaSoft\Java Runtime Environment\9.9')
       }
 
@@ -160,7 +196,7 @@ InModuleScope ONgDB-Management {
 
     Context "Server Invoke - Should set heap size" {
       $serverObject = global:New-MockONgDBInstall -ServerVersion '3.0' -ServerType 'Community' `
-        -NeoConfSettings 'dbms.memory.heap.initial_size=123k','dbms.memory.heap.max_size=234g'
+         -NeoConfSettings 'dbms.memory.heap.initial_size=123k','dbms.memory.heap.max_size=234g'
 
       $result = Get-Java -ForServer -ONgDBServer $serverObject
       $resultArgs = ($result.args -join ' ')
@@ -176,7 +212,7 @@ InModuleScope ONgDB-Management {
 
     Context "Server Invoke - Should default heap size unit to megabytes" {
       $serverObject = global:New-MockONgDBInstall -ServerVersion '3.0' -ServerType 'Community' `
-        -NeoConfSettings 'dbms.memory.heap.initial_size=123','dbms.memory.heap.max_size=234'
+         -NeoConfSettings 'dbms.memory.heap.initial_size=123','dbms.memory.heap.max_size=234'
 
       $result = Get-Java -ForServer -ONgDBServer $serverObject
       $resultArgs = ($result.args -join ' ')
@@ -192,13 +228,17 @@ InModuleScope ONgDB-Management {
 
     Context "Server Invoke - Enable Default GC Logs" {
       $serverObject = global:New-MockONgDBInstall -ServerVersion '3.0' -ServerType 'Community' `
-        -NeoConfSettings 'dbms.logs.gc.enabled=true'
+         -NeoConfSettings 'dbms.logs.gc.enabled=true'
 
       $result = Get-Java -ForServer -ONgDBServer $serverObject
       $resultArgs = ($result.args -join ' ')
 
       It "should set GCLogfile" {
         $resultArgs | Should Match ([regex]::Escape(' -Xloggc:'))
+      }
+
+      It "should set GCLogfile under logs" {
+        $resultArgs | Should Match ([regex]::Escape(" -Xloggc:`"$($serverObject.LogDir)"))
       }
 
       It "should set GCLogFileSize" {
@@ -232,7 +272,7 @@ InModuleScope ONgDB-Management {
 
     Context "Server Invoke - Enable Specific GC Logs" {
       $serverObject = global:New-MockONgDBInstall -ServerVersion '3.0' -ServerType 'Community' `
-        -NeoConfSettings 'dbms.logs.gc.enabled=true','dbms.logs.gc.options=key1=value1 key2=value2'
+         -NeoConfSettings 'dbms.logs.gc.enabled=true','dbms.logs.gc.options=key1=value1 key2=value2'
 
       $result = Get-Java -ForServer -ONgDBServer $serverObject
       $resultArgs = ($result.args -join ' ')
@@ -255,6 +295,59 @@ InModuleScope ONgDB-Management {
       }
     }
 
+    Context "Server Invoke - Enable Post Java 8 Default GC Logs" {
+      Mock Get-JavaVersion { @{ 'isValid' = $true; 'isJava8' = $false } }
+
+      $serverObject = global:New-MockONgDBInstall -ServerVersion '3.0' -ServerType 'Community' `
+         -NeoConfSettings 'dbms.logs.gc.enabled=true'
+
+      $result = Get-Java -ForServer -ONgDBServer $serverObject
+      $resultArgs = ($result.args -join ' ')
+
+      It "should set default options" {
+        $resultArgs | Should Match ([regex]::Escape('-Xlog:gc*,safepoint,age*=trace'))
+      }
+
+      It "should set gc log file size" {
+        $resultArgs | Should Match ([regex]::Escape('filesize='))
+      }
+
+      It "should set number of gc logs" {
+        $resultArgs | Should Match ([regex]::Escape('filecount='))
+      }
+
+      It "should set file location" {
+        $resultArgs | Should Match ([regex]::Escape('file='))
+      }
+    }
+
+    Context "Server Invoke - Enable Post Java 8 Specific GC Logs" {
+      Mock Get-JavaVersion { @{ 'isValid' = $true; 'isJava8' = $false } }
+
+      $serverObject = global:New-MockONgDBInstall -ServerVersion '3.0' -ServerType 'Community' `
+         -NeoConfSettings 'dbms.logs.gc.enabled=true','dbms.logs.gc.options=key1=value1 key2=value2'
+
+      $result = Get-Java -ForServer -ONgDBServer $serverObject
+      $resultArgs = ($result.args -join ' ')
+
+      It "should set gc file" {
+        $resultArgs | Should Match ([regex]::Escape('file='))
+      }
+
+      It "should set gc log file size" {
+        $resultArgs | Should Match ([regex]::Escape('filesize='))
+      }
+
+      It "should set number of gc log files" {
+        $resultArgs | Should Match ([regex]::Escape('filecount='))
+      }
+
+      It "should set specific options" {
+        $resultArgs | Should Match ([regex]::Escape(' key1=value1'))
+        $resultArgs | Should Match ([regex]::Escape(' key2=value2'))
+      }
+    }
+
     # Utility Invoke
     Context "Utility Invoke" {
       $serverObject = global:New-MockONgDBInstall -ServerVersion '99.99' -ServerType 'Community'
@@ -263,10 +356,10 @@ InModuleScope ONgDB-Management {
       $resultArgs = ($result.args -join ' ')
 
       It "should have jars from bin" {
-        $resultArgs | Should Match ([regex]::Escape('bin1.jar"'))
+        $resultArgs | Should Match ([regex]::Escape("$($serverObject.Home)/bin/*"))
       }
       It "should have jars from lib" {
-        $resultArgs | Should Match ([regex]::Escape('lib1.jar"'))
+        $resultArgs | Should Match ([regex]::Escape("$($serverObject.Home)/lib/*"))
       }
       It "should have correct Starting Class" {
         $resultArgs | Should Match ([regex]::Escape(' someclass'))
@@ -281,10 +374,10 @@ InModuleScope ONgDB-Management {
       $resultArgs = ($result.args -join ' ')
 
       It "should have jars from bin" {
-        $resultArgs | Should Match ([regex]::Escape('bin1.jar"'))
+        $resultArgs | Should Match ([regex]::Escape("$($serverObject.Home)/bin/*"))
       }
       It "should have jars from lib" {
-        $resultArgs | Should Match ([regex]::Escape('lib1.jar"'))
+        $resultArgs | Should Match ([regex]::Escape("$($serverObject.Home)/lib/*"))
       }
       It "should have correct Starting Class" {
         $resultArgs | Should Match ([regex]::Escape(' someclass'))
@@ -297,23 +390,34 @@ InModuleScope ONgDB-Management {
       }
     }
 
-	Context "Server Invoke - Should handle paths with spaces" {
+    Context "Utility Invoke - Should provide parallel collector option" {
+      $serverObject = global:New-MockONgDBInstall -ServerVersion '99.99' -ServerType 'Community'
+
+      $result = Get-Java -ForUtility -StartingClass 'someclass' -ONgDBServer $serverObject -ErrorAction Stop
+      $resultArgs = ($result.args -join ' ')
+
+      It "should have parallel collector java option" {
+        $resultArgs | Should Match ([regex]::Escape('-XX:+UseParallelGC'))
+      }
+    }
+
+    Context "Server Invoke - Should handle paths with spaces" {
       $serverObject = global:New-MockONgDBInstall -ServerVersion '3.0' -ServerType 'Community' `
-	    -RootDir 'TestDrive:\ONgDB Home' `
-        -NeoConfSettings 'dbms.logs.gc.enabled=true'
+         -RootDir 'TestDrive:\ONgDB Home' `
+         -NeoConfSettings 'dbms.logs.gc.enabled=true'
 
       $result = Get-Java -ForServer -ONgDBServer $serverObject
-	  $argList = $result.args
+      $argList = $result.args
 
-	  It "should have literal quotes around config path" {
-		$argList -contains "--config-dir=`"TestDrive:\ONgDB Home\conf`"" | Should Be True
-	  }
-	  It "should have literal quotes around home path" {
-		$argList -contains "--home-dir=`"TestDrive:\ONgDB Home`"" | Should Be True
-	  }
-	  It "should have literal quotes around gclog path" {
-		$argList -contains "-Xloggc:`"TestDrive:\ONgDB Home/gc.log`"" | Should Be True
-	  }
+      It "should have literal quotes around config path" {
+        $argList -contains "--config-dir=`"TestDrive:\ONgDB Home\conf`"" | Should Be True
+      }
+      It "should have literal quotes around home path" {
+        $argList -contains "--home-dir=`"TestDrive:\ONgDB Home`"" | Should Be True
+      }
+      It "should have literal quotes around gclog path" {
+        $argList -contains "-Xloggc:`"$($serverObject.LogDir)/gc.log`"" | Should Be True
+      }
     }
   }
 }

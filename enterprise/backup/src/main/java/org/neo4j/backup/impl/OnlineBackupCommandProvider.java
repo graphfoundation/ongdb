@@ -76,7 +76,7 @@ public class OnlineBackupCommandProvider extends AdminCommand.Provider
                 " for very large databases. Increasing the heap size can also be a good idea." +
                 " See 'ongdb-admin help' for details.%n" +
                 "%n" +
-                "For more information see: https://graphfoundation.org/docs/operations-manual/current/backup/" );
+                "For more information see: https://graphfoundation.org/ongdb/docs/operations-manual/current/backup/" );
     }
 
     @Override

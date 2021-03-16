@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Copyright (c) 2002-2018 "Neo Technology,"
-# Network Engine for Objects in Lund AB [http://neotechnology.com]
+# Copyright (c) 2002-2018 "Neo4j,"
+# Neo4j Sweden AB [http://neo4j.com]
 #
 # This file is part of Neo4j.
 #
@@ -58,42 +58,42 @@ The name of the Windows Service or $null if it could not be determined
 This function is private to the powershell module
 
 #>
-Function Get-ONgDBWindowsServiceName
+function Get-ONgDBWindowsServiceName
 {
-  [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low')]
-  param (
-    [Parameter(Mandatory=$true,ValueFromPipeline=$true)]
-    [PSCustomObject]$ONgDBServer
+  [CmdletBinding(SupportsShouldProcess = $false,ConfirmImpact = 'Low')]
+  param(
+    [Parameter(Mandatory = $true,ValueFromPipeline = $true)]
+    [pscustomobject]$ONgDBServer
   )
-  
-  Begin
+
+  begin
   {
   }
-  
-  Process {
+
+  process {
     $ServiceName = ''
     # Try ongdb.conf first, but then fallback to ongdb-wrapper.conf for backwards compatibility reasons
     $setting = (Get-ONgDBSetting -ConfigurationFile 'ongdb.conf' -Name 'dbms.windows_service_name' -ONgDBServer $ONgDBServer)
     if ($setting -ne $null) {
-      $ServiceName = $setting.Value
+      $ServiceName = $setting.value
     } else {
       $setting = (Get-ONgDBSetting -ConfigurationFile 'ongdb-wrapper.conf' -Name 'dbms.windows_service_name' -ONgDBServer $ONgDBServer)
-      if ($setting -ne $null) { $ServiceName = $setting.Value }
+      if ($setting -ne $null) { $ServiceName = $setting.value }
     }
 
     if ($ServiceName -eq '')
     {
-      Throw 'Could not find the Windows Service Name for ONgDB (dbms.windows_service_name in ongdb.conf)'
+      throw 'Could not find the Windows Service Name for ONgDB (dbms.windows_service_name in ongdb.conf)'
       return $null
     }
-    else 
+    else
     {
       Write-Verbose "ONgDB Windows Service Name is $ServiceName"
       Write-Output $ServiceName.Trim()
-    }  
+    }
   }
-  
-  End
+
+  end
   {
   }
 }

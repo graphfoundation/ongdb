@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Copyright (c) 2002-2018 "Neo Technology,"
-# Network Engine for Objects in Lund AB [http://neotechnology.com]
+# Copyright (c) 2002-2018 "Neo4j,"
+# Neo4j Sweden AB [http://neo4j.com]
 #
 # This file is part of Neo4j.
 #
@@ -61,39 +61,39 @@ non-zero = an error occured
 Only supported on version 1.x ONgDB Community and Enterprise Edition databases
 
 #>
-Function Invoke-ONgDBAdmin
+function Invoke-ONgDBAdmin
 {
-  [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low')]
-  param (
-    [parameter(Mandatory=$false,ValueFromRemainingArguments=$true)]
+  [CmdletBinding(SupportsShouldProcess = $false,ConfirmImpact = 'Low')]
+  param(
+    [Parameter(Mandatory = $false,ValueFromRemainingArguments = $true)]
     [Object[]]$CommandArgs = @()
   )
 
-  Begin
+  begin
   {
   }
 
-  Process
+  process
   {
-    # The powershell command line interpeter converts comma delimited strings into a System.Object[] array
+    # The powershell command line interpreter converts comma delimited strings into a System.Object[] array
     # Search the CommandArgs array and convert anything that's System.Object[] back to a string type
-    for($index = 0; $index -lt $CommandArgs.Length; $index++) {
-      if ($CommandArgs[$index].GetType().ToString() -eq 'System.Object[]') {
+    for ($index = 0; $index -lt $CommandArgs.Length; $index++) {
+      if ($CommandArgs[$index] -is [array]) {
         [string]$CommandArgs[$index] = $CommandArgs[$index] -join ','
       }
     }
 
     try
     {
-      Return [int](Invoke-ONgDBUtility -Command 'admintool' -CommandArgs $CommandArgs -ErrorAction 'Stop')
+      return [int](Invoke-ONgDBUtility -Command 'admintool' -CommandArgs $CommandArgs -ErrorAction 'Stop')
     }
     catch {
       Write-Error $_
-      Return 1
+      return 1
     }
   }
 
-  End
+  end
   {
   }
 }

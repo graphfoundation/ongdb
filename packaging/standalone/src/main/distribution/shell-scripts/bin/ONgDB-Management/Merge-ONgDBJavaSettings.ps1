@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Copyright (c) 2002-2018 "Neo Technology,"
-# Network Engine for Objects in Lund AB [http://neotechnology.com]
+# Copyright (c) 2002-2018 "Neo4j,"
+# Neo4j Sweden AB [http://neo4j.com]
 #
 # This file is part of Neo4j.
 #
@@ -55,17 +55,17 @@ System.String[]
 This function is private to the powershell module
 
 #>
-Function Merge-ONgDBJavaSettings
+function Merge-ONgDBJavaSettings
 {
-  [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low',DefaultParameterSetName='Default')]
-  param (
-    [Parameter(Mandatory=$true)]
+  [CmdletBinding(SupportsShouldProcess = $false,ConfirmImpact = 'Low',DefaultParameterSetName = 'Default')]
+  param(
+    [Parameter(Mandatory = $true)]
     [AllowEmptyCollection()]
-    [Array]$Source
+    [array]$Source
 
-    ,[Parameter(Mandatory=$true,ValueFromPipeline=$false,ParameterSetName='ServerInstallInvoke')]
+    ,[Parameter(Mandatory = $true,ValueFromPipeline = $false,ParameterSetName = 'ServerInstallInvoke')]
     [AllowEmptyCollection()]
-    [Array]$Additional
+    [array]$Additional
   )
 
   $SettingNameRegEx = '^(?:-D|-XX:[+-]?)([^=]+)(?:$|=.+$)'
@@ -89,7 +89,7 @@ Function Merge-ONgDBJavaSettings
 
       $oldValue = $null
       $SettingOutput.GetEnumerator() | ForEach-Object -Process {
-        if ($_.Value -eq $thisSettingName) { $oldValue = $_.Key}
+        if ($_.value -eq $thisSettingName) { $oldValue = $_.Key }
       }
 
       if ($oldValue -eq $null) {

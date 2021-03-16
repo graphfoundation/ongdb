@@ -5,6 +5,24 @@ test_description="Test Java arguments"
 . ./lib/sharness.sh
 fake_install
 
+test_expect_success "should set heap size constraints when checking version from wrapper conf" "
+  clear_config &&
+  set_config 'dbms.memory.heap.initial_size' '512m' ongdb-wrapper.conf &&
+  set_config 'dbms.memory.heap.max_size' '1024m' ongdb-wrapper.conf &&
+  ongdb-home/bin/ongdb version || true &&
+  test_expect_java_arg '-Xms512m' &&
+  test_expect_java_arg '-Xmx1024m'
+"
+
+test_expect_success "should set heap size constraints when checking version" "
+  clear_config &&
+  set_config 'dbms.memory.heap.initial_size' '512m' ongdb.conf &&
+  set_config 'dbms.memory.heap.max_size' '1024m' ongdb.conf &&
+  ongdb-home/bin/ongdb version || true &&
+  test_expect_java_arg '-Xms512m' &&
+  test_expect_java_arg '-Xmx1024m'
+"
+
 for run_command in run_console run_daemon; do
   clear_config
 
@@ -125,6 +143,47 @@ for run_command in run_console run_daemon; do
     test_expect_java_arg '-XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=8 -XX:GCLogFileSize=10m'
   "
 
+  test_expect_success "should set gc log location when gc log is enabled for post java 8" "
+    clear_config &&
+    set_config 'dbms.logs.gc.enabled' 'true' ongdb.conf &&
+    FAKE_JAVA_VERSION='10.0.2' ${run_command} &&
+    test_expect_java_arg 'file=$(ongdb_home)/logs/gc.log'
+  "
+
+  test_expect_success "should put gc log into configured logs directory for post java 8" "
+    mkdir -p '$(ongdb_home)/some-other-logs' &&
+    clear_config &&
+    set_config 'dbms.logs.gc.enabled' 'true' ongdb.conf &&
+    set_config 'dbms.directories.logs' 'some-other-logs' ongdb.conf &&
+    FAKE_JAVA_VERSION='9.0.4' ${run_command} &&
+    test_expect_java_arg 'file=$(ongdb_home)/some-other-logs/gc.log'
+  "
+
+  test_expect_success "should set gc logging options when gc log is enabled for post java 8" "
+    clear_config &&
+    set_config 'dbms.logs.gc.enabled' 'true' ongdb.conf &&
+    set_config 'dbms.logs.gc.options' '-Xlog:gc+class*=debug' ongdb.conf &&
+    FAKE_JAVA_VERSION='11' ${run_command} &&
+    test_expect_java_arg '-Xlog:gc+class*=debug'
+  "
+
+  test_expect_success "should set default gc logging options when none are provided for post java 8" "
+    clear_config &&
+    set_config 'dbms.logs.gc.enabled' 'true' ongdb.conf &&
+    FAKE_JAVA_VERSION='11' ${run_command} &&
+    test_expect_java_arg '-Xlog:gc*,safepoint,age*=trace'
+  "
+
+  test_expect_success "should set gc logging rotation options for post java 8" "
+    clear_config &&
+    set_config 'dbms.logs.gc.rotation.size' '10m' ongdb.conf &&
+    set_config 'dbms.logs.gc.rotation.keep_number' '8' ongdb.conf &&
+    set_config 'dbms.logs.gc.enabled' 'true' ongdb.conf
+
+    FAKE_JAVA_VERSION='10.0.4' ${run_command} &&
+    test_expect_java_arg 'file=$(ongdb_home)/logs/gc.log::filecount=8,filesize=10m'
+  "
+
   test_expect_success "should pass config dir location" "
     ${run_command} &&
     test_expect_java_arg '--config-dir=$(ongdb_home)/conf'
@@ -143,23 +202,5 @@ for run_command in run_console run_daemon; do
         ${run_command}
   "
 done
-
-test_expect_success "should set heap size constraints when checking version from wrapper conf" "
-  clear_config &&
-  set_config 'dbms.memory.heap.initial_size' '512m' ongdb-wrapper.conf &&
-  set_config 'dbms.memory.heap.max_size' '1024m' ongdb-wrapper.conf &&
-  ongdb-home/bin/ongdb status || true &&
-  test_expect_java_arg '-Xms512m' &&
-  test_expect_java_arg '-Xmx1024m'
-"
-
-test_expect_success "should set heap size constraints when checking version" "
-  clear_config &&
-  set_config 'dbms.memory.heap.initial_size' '512m' ongdb.conf &&
-  set_config 'dbms.memory.heap.max_size' '1024m' ongdb.conf &&
-  ongdb-home/bin/ongdb status || true &&
-  test_expect_java_arg '-Xms512m' &&
-  test_expect_java_arg '-Xmx1024m'
-"
 
 test_done

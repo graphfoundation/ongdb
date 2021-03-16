@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Copyright (c) 2002-2018 "Neo Technology,"
-# Network Engine for Objects in Lund AB [http://neotechnology.com]
+# Copyright (c) 2002-2018 "Neo4j,"
+# Neo4j Sweden AB [http://neo4j.com]
 #
 # This file is part of Neo4j.
 #
@@ -52,7 +52,7 @@ A list of arguments that will be added to the invocation
 .EXAMPLE
 Invoke-ExternalCommand -Command java.exe -Args @('-version')
 
-Start java.exe with arguments `-version` passed 
+Start java.exe with arguments `-version` passed
 
 .OUTPUTS
 System.Collections.Hashtable
@@ -110,7 +110,7 @@ function Invoke-ExternalCommand
     # cmd.exe is a bit picky about its translation of command line arguments
     # to the actual command to be executed and this is the only one that
     # found to be running both on Windows 7 and Windows 10
-    # /S is required not to transform contents of $ComSpecArgs and to be used 
+    # /S is required not to transform contents of $ComSpecArgs and to be used
     # as it is.
     $Output = & $env:ComSpec /S /C """ " $ComSpecArgs " """
     Write-Verbose "Command returned with exit code $LastExitCode"

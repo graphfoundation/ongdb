@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Copyright (c) 2002-2018 "Neo Technology,"
-# Network Engine for Objects in Lund AB [http://neotechnology.com]
+# Copyright (c) 2002-2018 "Neo4j,"
+# Neo4j Sweden AB [http://neo4j.com]
 #
 # This file is part of Neo4j.
 #
@@ -59,58 +59,48 @@ non-zero = an error occured
 This function is private to the powershell module
 
 #>
-Function Uninstall-ONgDBServer
+function Uninstall-ONgDBServer
 {
-  [cmdletBinding(SupportsShouldProcess=$true,ConfirmImpact='Medium')]
-  param (
-    [Parameter(Mandatory=$true,ValueFromPipeline=$true)]
-    [PSCustomObject]$ONgDBServer
+  [CmdletBinding(SupportsShouldProcess = $true,ConfirmImpact = 'Medium')]
+  param(
+    [Parameter(Mandatory = $true,ValueFromPipeline = $true)]
+    [pscustomobject]$ONgDBServer
   )
-  
-  Begin
+
+  begin
   {
   }
 
-  Process
+  process
   {
-    $Name = Get-ONgDBWindowsServiceName -ONgDBServer $ONgDBServer -ErrorAction Stop
-
-    $service = Get-Service -Name $Name -ComputerName '.' -ErrorAction 'SilentlyContinue'
-    if ($service -eq $null) 
+    $ServiceName = Get-ONgDBWindowsServiceName -ONgDBServer $ONgDBServer -ErrorAction Stop
+    $Found = Get-Service -Name $ServiceName -ComputerName '.' -ErrorAction 'SilentlyContinue'
+    if ($Found)
     {
-      Write-Verbose "Windows Service $Name does not exist"
+      $prunsrv = Get-ONgDBPrunsrv -ONgDBServer $ONgDBServer -ForServerUninstall
+      if ($prunsrv -eq $null) { throw "Could not determine the command line for PRUNSRV" }
+
+      Write-Verbose "Uninstalling ONgDB service"
+      $result = Invoke-ExternalCommand -Command $prunsrv.cmd -CommandArgs $prunsrv.args
+
+      # Process the output
+      if ($result.exitCode -eq 0) {
+        Write-Host "ONgDB service uninstalled"
+      } else {
+        Write-Host "ONgDB service did not uninstall"
+        # Write out STDERR if it did not uninstall
+        Write-Host $result.capturedOutput
+      }
+
+      Write-Output $result.exitCode
+    } else {
+      Write-Verbose "Windows Service $ServiceName does not exist"
       Write-Host "ONgDB uninstalled"
       return 0
     }
-
-    if ($service.State -ne 'Stopped') {
-      Write-Host "Stopping the ONgDB service"
-      Stop-Service -ServiceName $Name -ErrorAction 'Stop' | Out-Null
-    }
-
-    $prunsrv = Get-ONgDBPrunsrv -ONgDBServer $ONgDBServer -ForServerUninstall
-    if ($prunsrv -eq $null) { throw "Could not determine the command line for PRUNSRV" }
-
-    Write-Verbose "Uninstalling ONgDB as a service with command line $($prunsrv.cmd) $($prunsrv.args)"
-    $stdError = New-ONgDBTempFile -Prefix 'stderr'
-    $result = (Start-Process -FilePath $prunsrv.cmd -ArgumentList $prunsrv.args -Wait -NoNewWindow -PassThru -WorkingDirectory $ONgDBServer.Home -RedirectStandardError $stdError)
-    Write-Verbose "Returned exit code $($result.ExitCode)"
-
-    Write-Output $result.ExitCode
-
-    # Process the output
-    if ($result.ExitCode -eq 0) {
-      Write-Host "ONgDB service uninstalled"
-    } else {
-      Write-Host "ONgDB service did not uninstall"
-      # Write out STDERR if it did not uninstall
-      Get-Content -Path $stdError -ErrorAction 'SilentlyContinue' | ForEach-Object -Process {
-        Write-Host $_
-      }
-    }
   }
-  
-  End
+
+  end
   {
   }
 }

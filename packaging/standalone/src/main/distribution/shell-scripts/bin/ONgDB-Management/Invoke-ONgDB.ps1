@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Copyright (c) 2002-2018 "Neo Technology,"
-# Network Engine for Objects in Lund AB [http://neotechnology.com]
+# Copyright (c) 2002-2018 "Neo4j,"
+# Neo4j Sweden AB [http://neo4j.com]
 #
 # This file is part of Neo4j.
 #
@@ -66,27 +66,27 @@ non-zero = an error occured
 Only supported on version 1.x ONgDB Community and Enterprise Edition databases
 
 #>
-Function Invoke-ONgDB
+function Invoke-ONgDB
 {
-  [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low')]
-  param (
-    [Parameter(Mandatory=$false,ValueFromPipeline=$false,Position=0)]
+  [CmdletBinding(SupportsShouldProcess = $false,ConfirmImpact = 'Low')]
+  param(
+    [Parameter(Mandatory = $false,ValueFromPipeline = $false,Position = 0)]
     [string]$Command = ''
   )
 
-  Begin
+  begin
   {
   }
 
-  Process
+  process
   {
     try
     {
       $HelpText = "Usage: ongdb { console | start | stop | restart | status | install-service | uninstall-service | update-service } < -Verbose >"
 
-      # Determine the ONgDB Home Directory.  Uses the ONGDB_HOME enironment variable or a parent directory of this script
+      # Determine the ONgDB Home Directory.  Uses the ONGDB_HOME environment variable or a parent directory of this script
       $ONgDBHome = Get-ONgDBEnv 'ONGDB_HOME'
-      if ( ($ONgDBHome -eq $null) -or (-not (Test-Path -Path $ONgDBHome)) ) {
+      if (($ONgDBHome -eq $null) -or (-not (Test-Path -Path $ONgDBHome))) {
         $ONgDBHome = Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent
       }
       if ($ONgDBHome -eq $null) { throw "Could not determine the ONgDB home Directory.  Set the ONGDB_HOME environment variable and retry" }
@@ -98,68 +98,63 @@ Function Invoke-ONgDB
       Write-Verbose "ONgDB Version is '$($thisServer.ServerVersion)'"
       Write-Verbose "ONgDB Database Mode is '$($thisServer.DatabaseMode)'"
 
-      # Check if we have administrative rights; If the current user's token contains the Administrators Group SID (S-1-5-32-544)
-      if (-not [bool](([System.Security.Principal.WindowsIdentity]::GetCurrent()).groups -match "S-1-5-32-544")) {
-        Write-Warning "This command does not appear to be running with administrative rights.  Some commands may fail e.g. Start/Stop"
-      }
-
       switch ($Command.Trim().ToLower())
       {
         "help" {
           Write-Host $HelpText
-          Return 0
+          return 0
         }
         "console" {
           Write-Verbose "Console command specified"
-          Return [int](Start-ONgDBServer -Console -ONgDBServer $thisServer -ErrorAction Stop)
+          return [int](Start-ONgDBServer -Console -ONgDBServer $thisServer -ErrorAction Stop)
         }
         "start" {
           Write-Verbose "Start command specified"
-          Return [int](Start-ONgDBServer -Service -ONgDBServer $thisServer -ErrorAction Stop)
+          return [int](Start-ONgDBServer -Service -ONgDBServer $thisServer -ErrorAction Stop)
         }
         "stop" {
           Write-Verbose "Stop command specified"
-          Return [int](Stop-ONgDBServer -ONgDBServer $thisServer -ErrorAction Stop)
+          return [int](Stop-ONgDBServer -ONgDBServer $thisServer -ErrorAction Stop)
         }
         "restart" {
           Write-Verbose "Restart command specified"
 
           $result = (Stop-ONgDBServer -ONgDBServer $thisServer -ErrorAction Stop)
-          if ($result -ne 0) { Return $result}
-          Return (Start-ONgDBServer -Service -ONgDBServer $thisServer -ErrorAction Stop)
+          if ($result -ne 0) { return $result }
+          return (Start-ONgDBServer -Service -ONgDBServer $thisServer -ErrorAction Stop)
         }
         "status" {
           Write-Verbose "Status command specified"
-          Return [int](Get-ONgDBStatus -ONgDBServer $thisServer -ErrorAction Stop)
+          return [int](Get-ONgDBStatus -ONgDBServer $thisServer -ErrorAction Stop)
         }
         "install-service" {
           Write-Verbose "Install command specified"
-          Return [int](Install-ONgDBServer -ONgDBServer $thisServer -ErrorAction Stop)
+          return [int](Install-ONgDBServer -ONgDBServer $thisServer -ErrorAction Stop)
         }
         "uninstall-service" {
           Write-Verbose "Uninstall command specified"
-          Return [int](Uninstall-ONgDBServer -ONgDBServer $thisServer -ErrorAction Stop)
+          return [int](Uninstall-ONgDBServer -ONgDBServer $thisServer -ErrorAction Stop)
         }
         "update-service" {
           Write-Verbose "Update command specified"
-          Return [int](Update-ONgDBServer -ONgDBServer $thisServer -ErrorAction Stop)
+          return [int](Update-ONgDBServer -ONgDBServer $thisServer -ErrorAction Stop)
         }
         default {
-          if ($Command -ne '') { Write-StdErr "Unknown command $Command" }
-          Write-StdErr $HelpText
-          Return 1
+          if ($Command -ne '') { Write-Host "Unknown command $Command" }
+          Write-Host $HelpText
+          return 1
         }
       }
       # Should not get here!
-      Return 2
+      return 2
     }
     catch {
       Write-Error $_
-      Return 1
+      return 1
     }
   }
-  
-  End
+
+  end
   {
   }
 }

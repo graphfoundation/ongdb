@@ -9,4 +9,9 @@ test_expect_success "should run okay" "
   run_console
 "
 
+test_expect_success "should run okay when there is a setting in the config that starts with a number" "
+  set_config '1a' 'foo' ongdb.conf &&
+  run_console
+"
+
 test_done

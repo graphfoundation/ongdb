@@ -1,3 +1,39 @@
+# Copyright (c) 2018-2020 "Graph Foundation,"
+# Graph Foundation, Inc. [https://graphfoundation.org]
+#
+# This file is part of ONgDB.
+#
+# ONgDB is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Copyright (c) 2002-2018 "Neo Technology,"
+# Network Engine for Objects in Lund AB [http://neotechnology.com]
+#
+# This file is part of Neo4j.
+#
+# Neo4j is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 $DebugPreference = "SilentlyContinue"
 
 $here = Split-Path -Parent $MyInvocation.MyCommand.Definition
@@ -7,7 +43,7 @@ $src = Resolve-Path -Path "$($here)\..\..\main\distribution\shell-scripts\bin\ON
 $global:mockServiceName = 'ongdb'
 $global:mockONgDBHome = 'TestDrive:\ONgDB'
 
-Function global:New-MockJavaHome() {
+function global:New-MockJavaHome () {
   $javaHome = "TestDrive:\JavaHome"
 
   New-Item $javaHome -ItemType Directory | Out-Null
@@ -22,9 +58,9 @@ Function global:New-MockJavaHome() {
   return $javaHome
 }
 
-Function global:New-InvalidONgDBInstall($ServerType = 'Enterprise', $ServerVersion = '99.99', $DatabaseMode = '') {
+function global:New-InvalidONgDBInstall ($ServerType = 'Enterprise',$ServerVersion = '99.99',$DatabaseMode = '') {
   $serverObject = (New-Object -TypeName PSCustomObject -Property @{
-    'Home' =  'TestDrive:\some-dir-that-doesnt-exist';
+    'Home' = 'TestDrive:\some-dir-that-doesnt-exist';
     'ConfDir' = 'TestDrive:\some-dir-that-doesnt-exist\conf';
     'LogDir' = 'TestDrive:\some-dir-that-doesnt-exist\logs';
     'ServerVersion' = $ServerVersion;
@@ -34,15 +70,15 @@ Function global:New-InvalidONgDBInstall($ServerType = 'Enterprise', $ServerVersi
   return $serverObject
 }
 
-Function global:New-MockONgDBInstall(
-  $IncludeFiles = $true,
-  $RootDir = $global:mockONgDBHome,
-  $ServerType = 'Community',
-  $ServerVersion = '0.0',
-  $DatabaseMode = '',
-  $WindowsService = $global:mockServiceName,
-  $NeoConfSettings = @()
-  ) {
+function global:New-MockONgDBInstall (
+        $IncludeFiles = $true,
+        $RootDir = $global:mockONgDBHome,
+        $ServerType = 'Community',
+        $ServerVersion = '0.0',
+        $DatabaseMode = '',
+        $WindowsService = $global:mockServiceName,
+        $NeoConfSettings = @()
+) {
   # Creates a skeleton directory and file structure of a ONgDB Installation
   New-Item $RootDir -ItemType Directory | Out-Null
   New-Item "$RootDir\lib" -ItemType Directory | Out-Null
@@ -63,14 +99,14 @@ Function global:New-MockONgDBInstall(
     'TempFile' | Out-File -FilePath "$RootDir\bin\tools\prunsrv-i386.exe"
 
     # Create fake ongdb.conf
-    $neoConf = $NeoConfSettings -join "`n`r"
+    $ongdbConf = $NeoConfSettings -join "`n`r"
     if ($DatabaseMode -ne '') {
-      $neoConf += "`n`rdbms.mode=$DatabaseMode"
+      $ongdbConf += "`n`rdbms.mode=$DatabaseMode"
     }
     if ([string]$WindowsService -ne '') {
-      $neoConf += "`n`rdbms.windows_service_name=$WindowsService"
+      $ongdbConf += "`n`rdbms.windows_service_name=$WindowsService"
     }
-    $neoConf | Out-File -FilePath "$RootDir\conf\ongdb.conf"
+    $ongdbConf | Out-File -FilePath "$RootDir\conf\ongdb.conf"
   }
 
   $serverObject = (New-Object -TypeName PSCustomObject -Property @{

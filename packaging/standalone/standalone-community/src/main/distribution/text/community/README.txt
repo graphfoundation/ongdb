@@ -24,7 +24,7 @@ Here in the installation directory, you'll find:
 Make it go
 ----------
 
-For full instructions, see https://graphfoundation.org/docs/operations-manual/current/installation/
+For full instructions, see https://graphfoundation.org/ongdb/docs/operations-manual/current/installation/
 
 To get started with ONgDB, let's start the server and take a
 look at the web interface ...
@@ -43,8 +43,8 @@ Learn more
 ----------
 
 * ONgDB Home: https://graphfoundation.org/
-* Getting Started: https://graphfoundation.org/docs/developer-manual/current/introduction/
-* ONgDB Documentation: https://graphfoundation.org/docs/
+* Getting Started: https://graphfoundation.org/ongdb/docs/developer-manual/current/introduction/
+* ONgDB Documentation: https://graphfoundation.org/ongdb/docs/
 
 License(s)
 ----------

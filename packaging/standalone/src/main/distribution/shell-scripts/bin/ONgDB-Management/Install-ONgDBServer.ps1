@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Copyright (c) 2002-2018 "Neo Technology,"
-# Network Engine for Objects in Lund AB [http://neotechnology.com]
+# Copyright (c) 2002-2018 "Neo4j,"
+# Neo4j Sweden AB [http://neo4j.com]
 #
 # This file is part of Neo4j.
 #
@@ -59,55 +59,47 @@ non-zero = an error occured
 This function is private to the powershell module
 
 #>
-Function Install-ONgDBServer
+function Install-ONgDBServer
 {
-  [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Medium')]
-  param (
-    [Parameter(Mandatory=$true,ValueFromPipeline=$true)]
-    [PSCustomObject]$ONgDBServer
+  [CmdletBinding(SupportsShouldProcess = $false,ConfirmImpact = 'Medium')]
+  param(
+    [Parameter(Mandatory = $true,ValueFromPipeline = $true)]
+    [pscustomobject]$ONgDBServer
   )
-  
-  Begin
+
+  begin
   {
   }
 
-  Process
+  process
   {
-    $Name = Get-ONgDBWindowsServiceName -ONgDBServer $ONgDBServer -ErrorAction Stop
-
-    $result = Get-Service -Name $Name -ComputerName '.' -ErrorAction 'SilentlyContinue'
-    if ($result -eq $null)
+    $ServiceName = Get-ONgDBWindowsServiceName -ONgDBServer $ONgDBServer -ErrorAction Stop
+    $Found = Get-Service -Name $ServiceName -ComputerName '.' -ErrorAction 'SilentlyContinue'
+    if (-not $Found)
     {
       $prunsrv = Get-ONgDBPrunsrv -ONgDBServer $ONgDBServer -ForServerInstall
       if ($prunsrv -eq $null) { throw "Could not determine the command line for PRUNSRV" }
 
-      Write-Verbose "Installing ONgDB as a service with command line $($prunsrv.cmd) $($prunsrv.args)"
-      $stdError = New-ONgDBTempFile -Prefix 'stderr'
-      $result = (Start-Process -FilePath $prunsrv.cmd -ArgumentList $prunsrv.args -Wait -NoNewWindow -PassThru -WorkingDirectory $ONgDBServer.Home -RedirectStandardError $stdError)
-      Write-Verbose "Returned exit code $($result.ExitCode)"
+      Write-Verbose "Installing ONgDB as a service"
+      $result = Invoke-ExternalCommand -Command $prunsrv.cmd -CommandArgs $prunsrv.args
 
       # Process the output
-      if ($result.ExitCode -eq 0) {
+      if ($result.exitCode -eq 0) {
         Write-Host "ONgDB service installed"
       } else {
         Write-Host "ONgDB service did not install"
         # Write out STDERR if it did not install
-        Get-Content -Path $stdError -ErrorAction 'SilentlyContinue' | ForEach-Object -Process {
-          Write-Host $_
-        }
+        Write-Host $result.capturedOutput
       }
 
-      # Remove the temp file
-      If (Test-Path -Path $stdError) { Remove-Item -Path $stdError -Force | Out-Null }
-
-      Write-Output $result.ExitCode
+      Write-Output $result.exitCode
     } else {
       Write-Verbose "Service already installed"
       Write-Output 0
-    }    
+    }
   }
-  
-  End
+
+  end
   {
   }
 }

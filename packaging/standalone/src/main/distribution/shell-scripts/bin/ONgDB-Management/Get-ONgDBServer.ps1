@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Copyright (c) 2002-2018 "Neo Technology,"
-# Network Engine for Objects in Lund AB [http://neotechnology.com]
+# Copyright (c) 2002-2018 "Neo4j,"
+# Neo4j Sweden AB [http://neo4j.com]
 #
 # This file is part of Neo4j.
 #
@@ -71,24 +71,24 @@ Get-ONgDBHome
 This function is private to the powershell module
 
 #>
-Function Get-ONgDBServer
+function Get-ONgDBServer
 {
-  [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low')]
-  param (
-    [Parameter(Mandatory=$false,ValueFromPipeline=$true)]
-    [alias('Home')]
+  [CmdletBinding(SupportsShouldProcess = $false,ConfirmImpact = 'Low')]
+  param(
+    [Parameter(Mandatory = $false,ValueFromPipeline = $true)]
+    [Alias('Home')]
     [AllowEmptyString()]
     [string]$ONgDBHome = ''
   )
 
-  Begin
+  begin
   {
   }
 
-  Process
+  process
   {
     # Get and check the ONgDB Home directory
-    if ( ($ONgDBHome -eq '') -or ($ONgDBHome -eq $null) )
+    if (($ONgDBHome -eq '') -or ($ONgDBHome -eq $null))
     {
       Write-Error "Could not detect the ONgDB Home directory"
       return
@@ -130,7 +130,7 @@ Function Get-ONgDBServer
 
     # Scan the lib dir...
     Get-ChildItem (Join-Path -Path $ONgDBHome -ChildPath 'lib') | Where-Object { $_.Name -like 'ongdb-server-*.jar' } | ForEach-Object -Process `
-    {
+       {
       # if ongdb-server-enterprise-<version>.jar exists then this is the enterprise version
       if ($_.Name -like 'ongdb-server-enterprise-*.jar') { $serverProperties.ServerType = 'Enterprise' }
 
@@ -148,42 +148,56 @@ Function Get-ONgDBServer
 
     # Get additional settings...
     $setting = (Get-ONgDBSetting -ConfigurationFile 'ongdb.conf' -Name 'dbms.mode' -ONgDBServer $serverObject)
-    if ($setting -ne $null) { $serverObject.DatabaseMode = $setting.Value }
+    if ($setting -ne $null) { $serverObject.DatabaseMode = $setting.value }
 
     # Set process level environment variables
     #  These should mirror the same paths in ongdb-shared.sh
-    (@{'ONGDB_DATA'    = @{'config_var' = 'dbms.directories.data';    'default' = (Join-Path $ONgDBHome 'data')}
-       'ONGDB_LIB'     = @{'config_var' = 'dbms.directories.lib';     'default' = (Join-Path $ONgDBHome 'lib')}
-       'ONGDB_LOGS'    = @{'config_var' = 'dbms.directories.logs';    'default' = (Join-Path $ONgDBHome 'logs')}
-       'ONGDB_PLUGINS' = @{'config_var' = 'dbms.directories.plugins'; 'default' = (Join-Path $ONgDBHome 'plugins')}
-       'ONGDB_RUN'     = @{'config_var' = 'dbms.directories.run';     'default' = (Join-Path $ONgDBHome 'run')}
-    }).GetEnumerator() | % {
-      $setting = (Get-ONgDBSetting -ConfigurationFile 'ongdb.conf' -Name $_.Value.config_var -ONgDBServer $serverObject)
-      $value = $_.Value.default
-      if ($setting -ne $null) { $value = $setting.Value }
+    $dirSettings = @{ 'ONGDB_DATA' = @{ 'config_var' = 'dbms.directories.data'; 'default' = (Join-Path $ONgDBHome 'data') }
+    'ONGDB_LIB' = @{ 'config_var' = 'dbms.directories.lib'; 'default' = (Join-Path $ONgDBHome 'lib') }
+    'ONGDB_LOGS' = @{ 'config_var' = 'dbms.directories.logs'; 'default' = (Join-Path $ONgDBHome 'logs') }
+    'ONGDB_PLUGINS' = @{ 'config_var' = 'dbms.directories.plugins'; 'default' = (Join-Path $ONgDBHome 'plugins') }
+    'ONGDB_RUN' = @{ 'config_var' = 'dbms.directories.run'; 'default' = (Join-Path $ONgDBHome 'run') }
+    }
+    foreach ($name in $dirSettings.Keys)
+    {
+      $definition = $dirSettings[$name]
+      $configured = (Get-ONgDBSetting -ConfigurationFile 'ongdb.conf' -Name $definition['config_var'] -ONgDBServer $serverObject)
+      $value = $definition['default']
+      if ($configured -ne $null) { $value = $configured.value }
+
       if ($value -ne $null) {
-        if (![System.IO.Path]::IsPathRooted($value)) {
+        if (-not (Test-Path $value -IsValid)) {
+          throw "'$value' is not a valid path entry on this system."
+        }
+
+        $absolutePathRegex = '(^\\|^/|^[A-Za-z]:)'
+        if (-not ($value -match $absolutePathRegex)) {
           $value = (Join-Path -Path $ONgDBHome -ChildPath $value)
         }
       }
-      Set-ONgDBEnv $_.Name $value
+      Set-ONgDBEnv $name $value
     }
 
-    # Set log dir on server object
+    # Set log dir on server object and attempt to create it if it doesn't exist
     $serverObject.LogDir = (Get-ONgDBEnv 'ONGDB_LOGS')
+    if ($serverObject.LogDir -ne $null) {
+      if (-not (Test-Path -PathType Container -Path $serverObject.LogDir)) {
+        New-Item -ItemType Directory -Force -ErrorAction SilentlyContinue -Path $serverObject.LogDir | Out-Null
+      }
+    }
 
     #  ONGDB_CONF and ONGDB_HOME are used by the ONgDB Admin Tool
-    if ( (Get-ONgDBEnv 'ONGDB_CONF') -eq $null) { Set-ONgDBEnv "ONGDB_CONF" $ConfDir }
-    if ( (Get-ONgDBEnv 'ONGDB_HOME') -eq $null) { Set-ONgDBEnv "ONGDB_HOME" $ONgDBHome }
+    if ((Get-ONgDBEnv 'ONGDB_CONF') -eq $null) { Set-ONgDBEnv "ONGDB_CONF" $ConfDir }
+    if ((Get-ONgDBEnv 'ONGDB_HOME') -eq $null) { Set-ONgDBEnv "ONGDB_HOME" $ONgDBHome }
 
     # Any deprecation warnings
     $WrapperPath = Join-Path -Path $ConfDir -ChildPath 'ongdb-wrapper.conf'
-    If (Test-Path -Path $WrapperPath) { Write-Warning "$WrapperPath is deprecated and support for it will be removed in a future version of ONgDB; please move all your settings to ongdb.conf" }
+    if (Test-Path -Path $WrapperPath) { Write-Warning "$WrapperPath is deprecated and support for it will be removed in a future version of ONgDB; please move all your settings to ongdb.conf" }
 
     Write-Output $serverObject
   }
 
-  End
+  end
   {
   }
 }

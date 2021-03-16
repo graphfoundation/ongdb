@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Copyright (c) 2002-2018 "Neo Technology,"
-# Network Engine for Objects in Lund AB [http://neotechnology.com]
+# Copyright (c) 2002-2018 "Neo4j,"
+# Neo4j Sweden AB [http://neo4j.com]
 #
 # This file is part of Neo4j.
 #
@@ -34,11 +34,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path).Replace(".Tests.", ".")
+$sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path).Replace(".Tests.",".")
 $common = Join-Path (Split-Path -Parent $here) 'Common.ps1'
-. $common
+.$common
 
 Import-Module "$src\ONgDB-Management.psm1"
 
@@ -49,7 +48,7 @@ InModuleScope ONgDB-Management {
     # Mock Java environment
     $javaHome = global:New-MockJavaHome
     Mock Get-ONgDBEnv { $javaHome } -ParameterFilter { $Name -eq 'JAVA_HOME' }
-    Mock Set-ONgDBEnv { }
+    Mock Set-ONgDBEnv {}
     Mock Test-Path { $false } -ParameterFilter {
       $Path -like 'Registry::*\JavaSoft\Java Runtime Environment'
     }
@@ -58,12 +57,14 @@ InModuleScope ONgDB-Management {
     }
     # Mock ONgDB environment
     Mock Get-ONgDBEnv { $global:mockONgDBHome } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
+    Mock Get-JavaVersion { @{ 'isValid' = $true; 'isJava8' = $true } }
     Mock Start-Process { throw "Should not call Start-Process mock" }
+    Mock Invoke-ExternalCommand { throw "Should not call Invoke-ExternalCommand mock" }
 
-    Context "Invalid or missing specified ONgDB installation" {
+    Context "Invalid or missing specified ongdb installation" {
       $serverObject = global:New-InvalidONgDBInstall
 
-      It "throws if invalid or missing ONgDB directory" {
+      It "throws if invalid or missing ongdb directory" {
         { Update-ONgDBServer -ONgDBServer $serverObject -ErrorAction Stop } | Should Throw
       }
     }
@@ -81,7 +82,7 @@ InModuleScope ONgDB-Management {
 
     Context "Update service failure" {
       Mock Get-Service -Verifiable { return "Fake service" }
-      Mock Start-Process -Verifiable { throw "Error reconfiguring" }
+      Mock Invoke-ExternalCommand -Verifiable { throw "Error reconfiguring" }
       $serverObject = global:New-MockONgDBInstall
 
       It "throws when update encounters an error" {
@@ -92,7 +93,7 @@ InModuleScope ONgDB-Management {
 
     Context "Update service success" {
       Mock Get-Service -Verifiable { return "Fake service" }
-      Mock Start-Process -Verifiable { @{'ExitCode' = 0} }
+      Mock Invoke-ExternalCommand -Verifiable { @{ 'exitCode' = 0 } }
       $serverObject = global:New-MockONgDBInstall
       $result = Update-ONgDBServer -ONgDBServer $serverObject
 

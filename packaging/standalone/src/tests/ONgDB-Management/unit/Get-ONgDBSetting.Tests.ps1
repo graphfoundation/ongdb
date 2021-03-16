@@ -1,14 +1,50 @@
+# Copyright (c) 2018-2020 "Graph Foundation,"
+# Graph Foundation, Inc. [https://graphfoundation.org]
+#
+# This file is part of ONgDB.
+#
+# ONgDB is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Copyright (c) 2002-2018 "Neo Technology,"
+# Network Engine for Objects in Lund AB [http://neotechnology.com]
+#
+# This file is part of Neo4j.
+#
+# Neo4j is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path).Replace(".Tests.", ".")
+$sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path).Replace(".Tests.",".")
 $common = Join-Path (Split-Path -Parent $here) 'Common.ps1'
-. $common
+.$common
 
 Import-Module "$src\ONgDB-Management.psm1"
 
 InModuleScope ONgDB-Management {
   Describe "Get-ONgDBSetting" {
 
-    Context "Invalid or missing specified ONgDB installation" {
+    Context "Invalid or missing specified ongdb installation" {
       $serverObject = global:New-InvalidONgDBInstall
 
       $result = Get-ONgDBSetting -ONgDBServer $serverObject
@@ -30,7 +66,7 @@ InModuleScope ONgDB-Management {
 
       It "ignore the missing file" {
         $result.Name | Should Be "setting"
-        $result.Value | Should Be "value"
+        $result.value | Should Be "value"
       }
     }
 
@@ -48,15 +84,15 @@ InModuleScope ONgDB-Management {
 
       # Parse the results and make sure the expected results are there
       $unknownSetting = $false
-      $neo4jProperties = $false
+      $ongdbProperties = $false
       $ongdbServerProperties = $false
       $ongdbWrapper = $false
       $result | ForEach-Object -Process {
         $setting = $_
         switch ($setting.Name) {
-          'setting1' { $ongdbServerProperties = ($setting.ConfigurationFile -eq 'ongdb.conf') -and ($setting.IsDefault -eq $false) -and ($setting.Value -eq 'value1') }
-          'setting2' { $ongdbWrapper =          ($setting.ConfigurationFile -eq 'ongdb-wrapper.conf') -and ($setting.IsDefault -eq $false) -and ($setting.Value -eq 'value2') }
-          default { $unknownSetting = $true}
+          'setting1' { $ongdbServerProperties = ($setting.ConfigurationFile -eq 'ongdb.conf') -and ($setting.IsDefault -eq $false) -and ($setting.value -eq 'value1') }
+          'setting2' { $ongdbWrapper = ($setting.ConfigurationFile -eq 'ongdb-wrapper.conf') -and ($setting.IsDefault -eq $false) -and ($setting.value -eq 'value2') }
+          default { $unknownSetting = $true }
         }
       }
 
@@ -95,17 +131,17 @@ InModuleScope ONgDB-Management {
         ($singleSetting -ne $null) | Should Be $true
       }
       It "returns a string for single settings" {
-        $singleSetting.Value.GetType().ToString() | Should Be "System.String"
+        $singleSetting.value.GetType().ToString() | Should Be "System.String"
       }
 
       It "returns multiple settings" {
         ($multiSetting -ne $null) | Should Be $true
       }
       It "returns an object array for multiple settings" {
-        $multiSetting.Value.GetType().ToString() | Should Be "System.Object[]"
+        $multiSetting.value.GetType().ToString() | Should Be "System.Object[]"
       }
       It "returns an object array for multiple settings with the correct size" {
-        $multiSetting.Value.Count | Should Be 3
+        $multiSetting.value.Count | Should Be 3
       }
     }
   }

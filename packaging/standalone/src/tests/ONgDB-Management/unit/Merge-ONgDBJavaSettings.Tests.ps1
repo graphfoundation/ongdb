@@ -1,7 +1,43 @@
+# Copyright (c) 2018-2020 "Graph Foundation,"
+# Graph Foundation, Inc. [https://graphfoundation.org]
+#
+# This file is part of ONgDB.
+#
+# ONgDB is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Copyright (c) 2002-2018 "Neo Technology,"
+# Network Engine for Objects in Lund AB [http://neotechnology.com]
+#
+# This file is part of Neo4j.
+#
+# Neo4j is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path).Replace(".Tests.", ".")
+$sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path).Replace(".Tests.",".")
 $common = Join-Path (Split-Path -Parent $here) 'Common.ps1'
-. $common
+.$common
 
 Import-Module "$src\ONgDB-Management.psm1"
 
@@ -10,7 +46,7 @@ InModuleScope ONgDB-Management {
 
     Context "Empty Source and Additional inputs" {
       $result = [array](Merge-ONgDBJavaSettings -Source @() -Additional @())
-      
+
       It "returns empty array" {
         $result.Count | Should Be 0
       }
@@ -18,7 +54,7 @@ InModuleScope ONgDB-Management {
 
     Context "Empty Source input" {
       $result = [array](Merge-ONgDBJavaSettings -Source @() -Additional @('-Dkey1=value1'))
-      
+
       It "returns Additional input array" {
         $result[0] | Should Be '-Dkey1=value1'
       }
@@ -34,7 +70,7 @@ InModuleScope ONgDB-Management {
 
     Context "Ignores duplicates" {
       $result = [array](Merge-ONgDBJavaSettings -Source @('-Dkey1=value1','-Dkey2=value2') -Additional @('-Dkey1=value1'))
-      
+
       $sorted = $result | Sort-Object -Descending:$false
       It "should ignore duplicates" {
         $result.Count | Should Be 2
@@ -45,7 +81,7 @@ InModuleScope ONgDB-Management {
 
     Context "Adds new settings" {
       $result = [array](Merge-ONgDBJavaSettings -Source @('-Dkey1=value1','-Dkey2=value2') -Additional @('-Dkey3=value3'))
-      
+
       $sorted = $result | Sort-Object -Descending:$false
       It "should add new settings" {
         $result.Count | Should Be 3
@@ -58,9 +94,9 @@ InModuleScope ONgDB-Management {
 
     Context "Merges settings" {
       $result = [array](Merge-ONgDBJavaSettings `
-        -Source @('-Dkey9=value9','-Dkey1=value1','-XX:key2=value2') `
-        -Additional @('-Dkey1=valuez','-XX:key2=valuez'))
-      
+           -Source @('-Dkey9=value9','-Dkey1=value1','-XX:key2=value2') `
+           -Additional @('-Dkey1=valuez','-XX:key2=valuez'))
+
       $sorted = $result | Sort-Object -Descending:$false
       It "should merge conflicting settings" {
         $result.Count | Should Be 3
@@ -76,9 +112,9 @@ InModuleScope ONgDB-Management {
     Context "Appends non-standard JVM settings" {
       # Settings that are in non-standard format (i.e. not -D or -XX) are just appended
       $result = [array](Merge-ONgDBJavaSettings `
-        -Source @('badsetting=1') `
-        -Additional @('badsetting=2'))
-      
+           -Source @('badsetting=1') `
+           -Additional @('badsetting=2'))
+
       $sorted = $result | Sort-Object -Descending:$false
       It "should append non-standard settings" {
         $result.Count | Should Be 2

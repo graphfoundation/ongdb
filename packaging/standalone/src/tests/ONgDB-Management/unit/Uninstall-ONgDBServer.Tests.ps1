@@ -1,7 +1,43 @@
+# Copyright (c) 2018-2020 "Graph Foundation,"
+# Graph Foundation, Inc. [https://graphfoundation.org]
+#
+# This file is part of ONgDB.
+#
+# ONgDB is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Copyright (c) 2002-2018 "Neo Technology,"
+# Network Engine for Objects in Lund AB [http://neotechnology.com]
+#
+# This file is part of Neo4j.
+#
+# Neo4j is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path).Replace(".Tests.", ".")
+$sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path).Replace(".Tests.",".")
 $common = Join-Path (Split-Path -Parent $here) 'Common.ps1'
-. $common
+.$common
 
 Import-Module "$src\ONgDB-Management.psm1"
 
@@ -11,7 +47,7 @@ InModuleScope ONgDB-Management {
     #  Mock Java environment
     $javaHome = global:New-MockJavaHome
     Mock Get-ONgDBEnv { $javaHome } -ParameterFilter { $Name -eq 'JAVA_HOME' }
-    Mock Set-ONgDBEnv { }
+    Mock Set-ONgDBEnv {}
     Mock Test-Path { $false } -ParameterFilter {
       $Path -like 'Registry::*\JavaSoft\Java Runtime Environment'
     }
@@ -20,8 +56,10 @@ InModuleScope ONgDB-Management {
     }
     # Mock service and process handlers
     Mock Get-Service { @{ 'State' = 'Running' } } -ParameterFilter { $Name = $global:mockServiceName }
+    Mock Get-JavaVersion { @{ 'isValid' = $true; 'isJava8' = $true } }
     Mock Start-Process { throw "Should not call Start-Process mock" }
-    Mock Stop-Service { $true } -ParameterFilter { $Name -eq $global:mockServiceName}
+    Mock Invoke-ExternalCommand { throw "Should not call Invoke-ExternalCommand mock" }
+    Mock Stop-Service { $true } -ParameterFilter { $Name -eq $global:mockServiceName }
 
     Context "Missing service name in configuration files" {
       $serverObject = global:New-MockONgDBInstall -WindowsService $null
@@ -48,7 +86,7 @@ InModuleScope ONgDB-Management {
     }
 
     Context "Uninstall windows service successfully" {
-      Mock Start-Process { @{ 'ExitCode' = 0 } }
+      Mock Invoke-ExternalCommand { @{ 'exitCode' = 0 } }
 
       $serverObject = global:New-MockONgDBInstall
 
@@ -60,8 +98,8 @@ InModuleScope ONgDB-Management {
     }
 
     Context "During uninstall, does not stop service if already stopped" {
-      Mock Get-Service { @{ 'State' = 'Stopped' } }
-      Mock Start-Process { @{ 'ExitCode' = 0 } }
+      Mock Get-Service { @{ 'Status' = 'Stopped' } }
+      Mock Invoke-ExternalCommand { @{ 'exitCode' = 0 } }
 
       $serverObject = global:New-MockONgDBInstall
 

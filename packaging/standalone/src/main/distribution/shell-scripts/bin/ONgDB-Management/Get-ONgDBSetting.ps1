@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Copyright (c) 2002-2018 "Neo Technology,"
-# Network Engine for Objects in Lund AB [http://neotechnology.com]
+# Copyright (c) 2002-2018 "Neo4j,"
+# Neo4j Sweden AB [http://neo4j.com]
 #
 # This file is part of Neo4j.
 #
@@ -85,55 +85,55 @@ Get-ONgDBServer
 This function is private to the powershell module
 
 #>
-Function Get-ONgDBSetting
+function Get-ONgDBSetting
 {
-  [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low')]
-  param (
-    [Parameter(Mandatory=$true,ValueFromPipeline=$true)]
-    [PSCustomObject]$ONgDBServer
+  [CmdletBinding(SupportsShouldProcess = $false,ConfirmImpact = 'Low')]
+  param(
+    [Parameter(Mandatory = $true,ValueFromPipeline = $true)]
+    [pscustomobject]$ONgDBServer
 
-    ,[Parameter(Mandatory=$false)]
+  ,[Parameter(Mandatory = $false)]
     [string[]]$ConfigurationFile = $null
 
-    ,[Parameter(Mandatory=$false)]
+  ,[Parameter(Mandatory = $false)]
     [string]$Name = ''
   )
-  
-  Begin
+
+  begin
   {
   }
 
-  Process
+  process
   {
     # Get the ONgDB Server information
     if ($ONgDBServer -eq $null) { return }
 
-    # Set the default list of configuration files    
+    # Set the default list of configuration files
     if ($ConfigurationFile -eq $null)
     {
       $ConfigurationFile = ('ongdb.conf','ongdb-wrapper.conf')
     }
-   
+
     $ConfigurationFile | ForEach-Object -Process `
-    {
+       {
       $filename = $_
       $filePath = Join-Path -Path $ONgDBServer.ConfDir -ChildPath $filename
       if (Test-Path -Path $filePath)
       {
-        $keyPairsFromFile = Get-KeyValuePairsFromConfFile -filename $filePath        
+        $keyPairsFromFile = Get-KeyValuePairsFromConfFile -FileName $filePath
       }
       else
       {
         $keyPairsFromFile = $null
       }
-      
+
       if ($keyPairsFromFile -ne $null)
       {
         $keyPairsFromFile.GetEnumerator() | Where-Object { ($Name -eq '') -or ($_.Name -eq $Name) } | ForEach-Object -Process `
-        {
+           {
           $properties = @{
             'Name' = $_.Name;
-            'Value' = $_.Value;
+            'Value' = $_.value;
             'ConfigurationFile' = $filename;
             'IsDefault' = $false;
             'ONgDBHome' = $ONgDBServer.Home;
@@ -144,8 +144,8 @@ Function Get-ONgDBSetting
       }
     }
   }
-  
-  End
+
+  end
   {
   }
 }

@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Copyright (c) 2002-2018 "Neo Technology,"
-# Network Engine for Objects in Lund AB [http://neotechnology.com]
+# Copyright (c) 2002-2018 "Neo4j,"
+# Neo4j Sweden AB [http://neo4j.com]
 #
 # This file is part of Neo4j.
 #
@@ -54,30 +54,30 @@ non-zero = an error occured
 Only supported on version 1.x ONgDB Enterprise Edition databases
 
 #>
-Function Invoke-ONgDBBackup
+function Invoke-ONgDBBackup
 {
-  [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low')]
-  param (
-    [parameter(Mandatory=$false,ValueFromRemainingArguments=$true)]
+  [CmdletBinding(SupportsShouldProcess = $false,ConfirmImpact = 'Low')]
+  param(
+    [Parameter(Mandatory = $false,ValueFromRemainingArguments = $true)]
     [object[]]$CommandArgs = @()
   )
-  
-  Begin
+
+  begin
   {
   }
-  
-  Process
+
+  process
   {
     try {
-      Return [int](Invoke-ONgDBUtility -Command 'Backup' -CommandArgs $CommandArgs -ErrorAction 'Stop')
+      return [int](Invoke-ONgDBUtility -Command 'Backup' -CommandArgs $CommandArgs -ErrorAction 'Stop')
     }
     catch {
       Write-Error $_
-      Return 1
+      return 1
     }
   }
-  
-  End
+
+  end
   {
   }
 }

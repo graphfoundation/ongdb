@@ -60,7 +60,7 @@ public class DeadlockDetectedException extends TransientTransactionFailureExcept
                 "between these transactions. This exception was thrown instead of ending up in that deadlock.\n" +
                 "\n" +
                 "See the deadlock section in the ONgDB Java developer reference for how to avoid this: " +
-                "https://graphfoundation.org/docs/java-reference/current/#transactions-deadlocks\n" +
+                "https://graphfoundation.org/ongdb/docs/java-reference/current/#transactions-deadlocks\n" +
                 "\n" +
                 "Details: '" + message + "'.", cause );
     }

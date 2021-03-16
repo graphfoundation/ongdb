@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Copyright (c) 2002-2018 "Neo Technology,"
-# Network Engine for Objects in Lund AB [http://neotechnology.com]
+# Copyright (c) 2002-2018 "Neo4j,"
+# Neo4j Sweden AB [http://neo4j.com]
 #
 # This file is part of Neo4j.
 #
@@ -59,40 +59,40 @@ System.Int32
 This function is private to the powershell module
 
 #>
-Function Get-ONgDBStatus
+function Get-ONgDBStatus
 {
-  [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low')]
-  param (
-    [Parameter(Mandatory=$true,ValueFromPipeline=$true)]
-    [PSCustomObject]$ONgDBServer
+  [CmdletBinding(SupportsShouldProcess = $false,ConfirmImpact = 'Low')]
+  param(
+    [Parameter(Mandatory = $true,ValueFromPipeline = $true)]
+    [pscustomobject]$ONgDBServer
   )
-  
-  Begin
+
+  begin
   {
   }
-  
-  Process {
+
+  process {
     $ServiceName = Get-ONgDBWindowsServiceName -ONgDBServer $ONgDBServer -ErrorAction Stop
-    $neoService = $null
+    $ongdbService = $null
     try {
-      $neoService = Get-Service -Name $ServiceName -ErrorAction Stop
+      $ongdbService = Get-Service -Name $ServiceName -ErrorAction Stop
     }
     catch {
       Write-Host "The ONgDB Windows Service '$ServiceName' is not installed"
       return 3
     }
-    
-    if ($neoService.Status -eq 'Running') {
+
+    if ($ongdbService.Status -eq 'Running') {
       Write-Host "ONgDB is running"
       return 0
     }
     else {
-      Write-Host "ONgDB is not running.  Current status is $($neoService.Status)"
+      Write-Host "ONgDB is not running.  Current status is $($ongdbService.Status)"
       return 3
     }
   }
-  
-  End
+
+  end
   {
   }
 }

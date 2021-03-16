@@ -1,7 +1,43 @@
+# Copyright (c) 2018-2020 "Graph Foundation,"
+# Graph Foundation, Inc. [https://graphfoundation.org]
+#
+# This file is part of ONgDB.
+#
+# ONgDB is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Copyright (c) 2002-2018 "Neo Technology,"
+# Network Engine for Objects in Lund AB [http://neotechnology.com]
+#
+# This file is part of Neo4j.
+#
+# Neo4j is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path).Replace(".Tests.", ".")
+$sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path).Replace(".Tests.",".")
 $common = Join-Path (Split-Path -Parent $here) 'Common.ps1'
-. $common
+.$common
 
 Import-Module "$src\ONgDB-Management.psm1"
 
@@ -12,7 +48,7 @@ InModuleScope ONgDB-Management {
     #  Mock Java environment
     $javaHome = global:New-MockJavaHome
     Mock Get-ONgDBEnv { $javaHome } -ParameterFilter { $Name -eq 'JAVA_HOME' }
-    Mock Set-ONgDBEnv { }
+    Mock Set-ONgDBEnv {}
     Mock Test-Path { $false } -ParameterFilter {
       $Path -like 'Registry::*\JavaSoft\Java Runtime Environment'
     }
@@ -21,9 +57,11 @@ InModuleScope ONgDB-Management {
     }
     # Mock ONgDB environment
     Mock Get-ONgDBEnv { $global:mockONgDBHome } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
+    Mock Get-JavaVersion { @{ 'isValid' = $true; 'isJava8' = $true } }
     Mock Start-Process { throw "Should not call Start-Process mock" }
+    Mock Invoke-ExternalCommand { throw "Should not call Invoke-ExternalCommand mock" }
 
-    Context "Invalid or missing specified ONgDB installation" {
+    Context "Invalid or missing specified ongdb installation" {
       $serverObject = global:New-InvalidONgDBInstall
 
       It "throws error for an invalid server object - Server" {
@@ -37,7 +75,7 @@ InModuleScope ONgDB-Management {
 
     # Windows Service Tests
     Context "Missing service name in configuration files" {
-      Mock Start-Service { }
+      Mock Start-Service {}
 
       $serverObject = global:New-MockONgDBInstall -WindowsService ''
 
@@ -46,16 +84,17 @@ InModuleScope ONgDB-Management {
       }
     }
 
-    Context "Start service succesfully but not running" {
-      Mock Start-Service { throw "Wrong Service name" }
-      Mock Start-Service -Verifiable { @{ Status = 'Start Pending'} } -ParameterFilter { $Name -eq $global:mockServiceName }
+    Context "Start service failed" {
+      Mock Get-Service { return 'service' }
+      Mock Invoke-ExternalCommand { throw "Should not invoke" }
+      Mock Invoke-ExternalCommand -Verifiable { @{ exitCode = 1; capturedOutput = 'failed to start' } } -ParameterFilter { $Command -like '*prunsrv*.exe' }
 
       $serverObject = global:New-MockONgDBInstall
 
       $result = Start-ONgDBServer -Service -ONgDBServer $serverObject
 
-      It "result is 2" {
-        $result | Should Be 2
+      It "result is 1" {
+        $result | Should Be 1
       }
 
       It "calls verified mocks" {
@@ -64,8 +103,9 @@ InModuleScope ONgDB-Management {
     }
 
     Context "Start service succesfully" {
-      Mock Start-Service { throw "Wrong Service name" }
-      Mock Start-Service -Verifiable { @{ Status = 'Running'} } -ParameterFilter { $Name -eq $global:mockServiceName }
+      Mock Get-Service { return 'service' }
+      Mock Invoke-ExternalCommand { throw "Should not invoke" }
+      Mock Invoke-ExternalCommand -Verifiable { @{ exitCode = 0 } } -ParameterFilter { $Command -like '*prunsrv*.exe' }
 
       $serverObject = global:New-MockONgDBInstall
 
@@ -82,11 +122,11 @@ InModuleScope ONgDB-Management {
 
     # Console Tests
     Context "Start as a process and missing Java" {
-      Mock Get-Java { }
-      Mock Start-Process { }
+      Mock Get-Java {}
+      Mock Start-Process {}
 
       $serverObject = (New-Object -TypeName PSCustomObject -Property @{
-        'Home' =  'TestDrive:\some-dir-that-doesnt-exist';
+        'Home' = 'TestDrive:\some-dir-that-doesnt-exist';
         'ServerVersion' = '3.0';
         'ServerType' = 'Enterprise';
         'DatabaseMode' = '';

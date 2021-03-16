@@ -87,7 +87,7 @@ function Get-JavaVersion
     }
 
     $javaHelpText = "* Please use Oracle(R) Java(TM) 8, OpenJDK(TM) or IBM J9 to run ONgDB Server.`n" +
-            "* Please see https://graphfoundation.org/ongdb/docs/ for ONgDB installation instructions."
+    "* Please see https://graphfoundation.org/ongdb/docs/ for ONgDB installation instructions."
 
     # Read the contents of the redirected output
     $content = $result.capturedOutput -join "`n`r"

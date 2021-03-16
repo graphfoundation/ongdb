@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Copyright (c) 2002-2018 "Neo Technology,"
-# Network Engine for Objects in Lund AB [http://neotechnology.com]
+# Copyright (c) 2002-2018 "Neo4j,"
+# Neo4j Sweden AB [http://neo4j.com]
 #
 # This file is part of Neo4j.
 #
@@ -37,6 +37,6 @@
 
 # Import this modules functions etc.
 Get-ChildItem -Path $PSScriptRoot\*.ps1 | ForEach-Object {
-Write-Verbose "Importing $($_.Name)..."
-. ($_.Fullname)
+  Write-Verbose "Importing $($_.Name)..."
+  .($_.FullName)
 }

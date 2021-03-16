@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Copyright (c) 2002-2018 "Neo Technology,"
-# Network Engine for Objects in Lund AB [http://neotechnology.com]
+# Copyright (c) 2002-2018 "Neo4j,"
+# Neo4j Sweden AB [http://neo4j.com]
 #
 # This file is part of Neo4j.
 #
@@ -59,29 +59,29 @@ non-zero = an error occured
 This function is private to the powershell module
 
 #>
-Function Start-ONgDBServer
+function Start-ONgDBServer
 {
-  [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low',DefaultParameterSetName='WindowsService')]
-  param (
-    [Parameter(Mandatory=$true,ValueFromPipeline=$false)]
-    [PSCustomObject]$ONgDBServer
+  [CmdletBinding(SupportsShouldProcess = $false,ConfirmImpact = 'Low',DefaultParameterSetName = 'WindowsService')]
+  param(
+    [Parameter(Mandatory = $true,ValueFromPipeline = $false)]
+    [pscustomobject]$ONgDBServer
 
-    ,[Parameter(Mandatory=$true,ParameterSetName='Console')]
+    ,[Parameter(Mandatory = $true,ParameterSetName = 'Console')]
     [switch]$Console
 
-    ,[Parameter(Mandatory=$true,ParameterSetName='WindowsService')]
-    [switch]$Service   
+    ,[Parameter(Mandatory = $true,ParameterSetName = 'WindowsService')]
+    [switch]$Service
   )
-  
-  Begin
+
+  begin
   {
   }
 
-  Process
+  process
   {
     # Running ONgDB as a console app
     if ($PsCmdlet.ParameterSetName -eq 'Console')
-    {      
+    {
       $JavaCMD = Get-Java -ONgDBServer $ONgDBServer -ForServer -ErrorAction Stop
       if ($JavaCMD -eq $null)
       {
@@ -90,32 +90,45 @@ Function Start-ONgDBServer
       }
 
       Write-Verbose "Starting ONgDB as a console with command line $($JavaCMD.java) $($JavaCMD.args)"
-      $result = (Start-Process -FilePath $JavaCMD.java -ArgumentList $JavaCMD.args -Wait -NoNewWindow -PassThru -WorkingDirectory $ONgDBServer.Home)
+      $result = (Start-Process -FilePath $JavaCMD.java -ArgumentList $JavaCMD.args -Wait -NoNewWindow -Passthru -WorkingDirectory $ONgDBServer.Home)
       Write-Verbose "Returned exit code $($result.ExitCode)"
 
-      Write-Output $result.ExitCode
+      Write-Output $result.exitCode
     }
-    
+
     # Running ONgDB as a windows service
     if ($PsCmdlet.ParameterSetName -eq 'WindowsService')
     {
       $ServiceName = Get-ONgDBWindowsServiceName -ONgDBServer $ONgDBServer -ErrorAction Stop
+      $Found = Get-Service -Name $ServiceName -ComputerName '.' -ErrorAction 'SilentlyContinue'
+      if ($Found)
+      {
+        $prunsrv = Get-ONgDBPrunsrv -ONgDBServer $ONgDBServer -ForServerStart
+        if ($prunsrv -eq $null) { throw "Could not determine the command line for PRUNSRV" }
 
-      Write-Verbose "Starting the service.  This can take some time..."
-      $result = Start-Service -Name $ServiceName -PassThru -ErrorAction Stop
-      
-      if ($result.Status -eq 'Running') {
-        Write-Host "ONgDB windows service started"
-        return 0
+        Write-Verbose "Starting ONgDB as a service"
+        $result = Invoke-ExternalCommand -Command $prunsrv.cmd -CommandArgs $prunsrv.args
+
+        # Process the output
+        if ($result.exitCode -eq 0) {
+          Write-Host "ONgDB service started"
+        } else {
+          Write-Host "ONgDB service did not start"
+          # Write out STDERR if it did not start
+          Write-Host $result.capturedOutput
+        }
+
+        Write-Output $result.exitCode
       }
-      else {
-        Write-Host "ONgDB windows was started but is not running"
-        return 2
+      else
+      {
+        Write-Host "Service start failed - service '$ServiceName' not found"
+        Write-Output 1
       }
     }
   }
-  
-  End
+
+  end
   {
   }
 }

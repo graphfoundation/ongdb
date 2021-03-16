@@ -18,6 +18,25 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+# Copyright (c) 2002-2018 "Neo4j,"
+# Neo4j Sweden AB [http://neo4j.com]
+#
+# This file is part of Neo4j.
+#
+# Neo4j is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
 set -o errexit -o nounset -o pipefail
 [[ "${TRACE:-}" ]] && set -o xtrace
 
@@ -157,7 +176,7 @@ _find_java_home() {
 
 _show_java_help() {
   echo "* Please use Oracle(R) Java(TM) 8, OpenJDK(TM) or IBM J9 to run ONgDB."
-  echo "* Please see https://graphfoundation.org/docs/ for ONgDB installation instructions."
+  echo "* Please see https://graphfoundation.org/ongdb/docs/ for ONgDB installation instructions."
 }
 
 _setup_calculated_paths() {
@@ -191,14 +210,14 @@ _read_config() {
   if [[ -f "${ONGDB_CONF}/ongdb-wrapper.conf" ]]; then
     cat >&2 <<EOF
 WARNING: ongdb-wrapper.conf is deprecated and support for it will be removed in a future
-         version of ONgDB; please move all your settings to ongdb.conf
+         version of ONgDb; please move all your settings to ongdb.conf
 EOF
   fi
 
   for file in "ongdb-wrapper.conf" "ongdb.conf"; do
     path="${ONGDB_CONF}/${file}"
     if [ -e "${path}" ]; then
-      while read line; do
+      while read line || [[ -n "$line" ]]; do
         parse_line "${line}"
       done <"${path}"
     fi

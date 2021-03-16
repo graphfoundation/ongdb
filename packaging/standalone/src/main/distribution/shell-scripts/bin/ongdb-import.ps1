@@ -34,39 +34,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Module manifest for module 'ONgDB-Management'
-#
-
-
-@{
-    ModuleVersion = '1.0.0'
-
-    GUID = '2a3e34b4-5564-488e-aaf6-f2cba3f7f05d'
-
-    Author = 'Graph Foundation'
-
-    CompanyName = 'Graph Foundation, Inc.'
-
-    Copyright = 'https://graphfoundation.org/ongdb/'
-
-    Description = 'Powershell module to manage a ONgDB instance on Windows'
-
-    PowerShellVersion = '2.0'
-
-    NestedModules = @('ONgDB-Management\ONgDB-Management.psm1')
-
-    FunctionsToExport = @(
-    'Invoke-ONgDB',
-    'Invoke-ONgDBAdmin',
-    'Invoke-ONgDBShell',
-    'Invoke-ONgDBBackup',
-    'Invoke-ONgDBImport',
-    'Get-Args'
-    )
-
-    CmdletsToExport = ''
-
-    VariablesToExport = ''
-
-    AliasesToExport = ''
-}
+Import-Module "$PSScriptRoot\ONgDB-Management.psd1"
+$Arguments = Get-Args $args
+Exit (Invoke-ONgDBImport -Verbose:$Arguments.Verbose -CommandArgs $Arguments.Args)
