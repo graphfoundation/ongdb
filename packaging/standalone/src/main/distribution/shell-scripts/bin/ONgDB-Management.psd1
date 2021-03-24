@@ -49,7 +49,7 @@
 
     Copyright = 'https://graphfoundation.org/ongdb/'
 
-    Description = 'Powershell module to manage a ONgDB instance on Windows'
+    Description = 'Powershell module to manage an ONgDB instance on Windows'
 
     PowerShellVersion = '2.0'
 

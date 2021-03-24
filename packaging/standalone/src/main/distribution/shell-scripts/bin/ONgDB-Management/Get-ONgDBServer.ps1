@@ -153,10 +153,10 @@ function Get-ONgDBServer
     # Set process level environment variables
     #  These should mirror the same paths in ongdb-shared.sh
     $dirSettings = @{ 'ONGDB_DATA' = @{ 'config_var' = 'dbms.directories.data'; 'default' = (Join-Path $ONgDBHome 'data') }
-    'ONGDB_LIB' = @{ 'config_var' = 'dbms.directories.lib'; 'default' = (Join-Path $ONgDBHome 'lib') }
-    'ONGDB_LOGS' = @{ 'config_var' = 'dbms.directories.logs'; 'default' = (Join-Path $ONgDBHome 'logs') }
-    'ONGDB_PLUGINS' = @{ 'config_var' = 'dbms.directories.plugins'; 'default' = (Join-Path $ONgDBHome 'plugins') }
-    'ONGDB_RUN' = @{ 'config_var' = 'dbms.directories.run'; 'default' = (Join-Path $ONgDBHome 'run') }
+      'ONGDB_LIB' = @{ 'config_var' = 'dbms.directories.lib'; 'default' = (Join-Path $ONgDBHome 'lib') }
+      'ONGDB_LOGS' = @{ 'config_var' = 'dbms.directories.logs'; 'default' = (Join-Path $ONgDBHome 'logs') }
+      'ONGDB_PLUGINS' = @{ 'config_var' = 'dbms.directories.plugins'; 'default' = (Join-Path $ONgDBHome 'plugins') }
+      'ONGDB_RUN' = @{ 'config_var' = 'dbms.directories.run'; 'default' = (Join-Path $ONgDBHome 'run') }
     }
     foreach ($name in $dirSettings.Keys)
     {

@@ -67,7 +67,7 @@ function Invoke-ONgDBUtility
     [Parameter(Mandatory = $false,ValueFromPipeline = $false,Position = 0)]
     [string]$Command = ''
 
-  ,[Parameter(Mandatory = $false,ValueFromRemainingArguments = $true)]
+    ,[Parameter(Mandatory = $false,ValueFromRemainingArguments = $true)]
     [object[]]$CommandArgs = @()
   )
 

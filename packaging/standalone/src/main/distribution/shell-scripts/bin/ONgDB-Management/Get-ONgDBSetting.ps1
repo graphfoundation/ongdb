@@ -92,10 +92,10 @@ function Get-ONgDBSetting
     [Parameter(Mandatory = $true,ValueFromPipeline = $true)]
     [pscustomobject]$ONgDBServer
 
-  ,[Parameter(Mandatory = $false)]
+    ,[Parameter(Mandatory = $false)]
     [string[]]$ConfigurationFile = $null
 
-  ,[Parameter(Mandatory = $false)]
+    ,[Parameter(Mandatory = $false)]
     [string]$Name = ''
   )
 

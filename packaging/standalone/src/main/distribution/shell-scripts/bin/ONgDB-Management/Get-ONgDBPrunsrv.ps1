@@ -158,23 +158,23 @@ function Get-ONgDBPrunsrv
         $JvmOptions = [array](Merge-ONgDBJavaSettings -Source $JvmOptions -Add $cmdSettings)
 
         $PrunArgs += @("`"--StartMode=jvm`"",
-        "`"--StartMethod=start`"",
-        "`"--StartPath=$($ONgDBServer.Home)`"",
-        "`"--StartParams=--config-dir=$($ONgDBServer.ConfDir)`"",
-        "`"++StartParams=--home-dir=$($ONgDBServer.Home)`"",
-        "`"--StopMode=jvm`"",
-        "`"--StopMethod=stop`"",
-        "`"--StopPath=$($ONgDBServer.Home)`"",
-        "`"--Description=ONgDB Graph Database - $($ONgDBServer.Home)`"",
-        "`"--DisplayName=ONgDB Graph Database - $Name`"",
-        "`"--Jvm=$($JvmDLL)`"",
-        "`"--LogPath=$($ONgDBServer.LogDir)`"",
-        "`"--StdOutput=$(Join-Path -Path $ONgDBServer.LogDir -ChildPath 'ongdb.log')`"",
-        "`"--StdError=$(Join-Path -Path $ONgDBServer.LogDir -ChildPath 'service-error.log')`"",
-        "`"--LogPrefix=ongdb-service`"",
-        "`"--Classpath=lib/*;plugins/*`"",
-        "`"--JvmOptions=$($JvmOptions -join ';')`"",
-        "`"--Startup=auto`""
+          "`"--StartMethod=start`"",
+          "`"--StartPath=$($ONgDBServer.Home)`"",
+          "`"--StartParams=--config-dir=$($ONgDBServer.ConfDir)`"",
+          "`"++StartParams=--home-dir=$($ONgDBServer.Home)`"",
+          "`"--StopMode=jvm`"",
+          "`"--StopMethod=stop`"",
+          "`"--StopPath=$($ONgDBServer.Home)`"",
+          "`"--Description=ONgDB Graph Database - $($ONgDBServer.Home)`"",
+          "`"--DisplayName=ONgDB Graph Database - $Name`"",
+          "`"--Jvm=$($JvmDLL)`"",
+          "`"--LogPath=$($ONgDBServer.LogDir)`"",
+          "`"--StdOutput=$(Join-Path -Path $ONgDBServer.LogDir -ChildPath 'ongdb.log')`"",
+          "`"--StdError=$(Join-Path -Path $ONgDBServer.LogDir -ChildPath 'service-error.log')`"",
+          "`"--LogPrefix=ongdb-service`"",
+          "`"--Classpath=lib/*;plugins/*`"",
+          "`"--JvmOptions=$($JvmOptions -join ';')`"",
+          "`"--Startup=auto`""
         )
 
         # Check if Java invocation includes Java memory sizing
@@ -198,7 +198,7 @@ function Get-ONgDBPrunsrv
         if ($ONgDBServer.ServerType -eq 'Community') { $serverMainClass = 'org.neo4j.server.CommunityEntryPoint' }
         if ($ONgDBServer.DatabaseMode.ToUpper() -eq 'ARBITER') { $serverMainClass = 'org.neo4j.server.enterprise.ArbiterEntryPoint' }
         $PrunArgs += @("`"--StopClass=$($serverMainClass)`"",
-        "`"--StartClass=$($serverMainClass)`"")
+          "`"--StartClass=$($serverMainClass)`"")
       }
       "ServerUninstallInvoke" { $PrunArgs += @("`"//DS//$($Name)`"") }
       "ServerStartInvoke" { $PrunArgs += @("`"//ES//$($Name)`"") }
