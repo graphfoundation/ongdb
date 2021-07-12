@@ -5,7 +5,7 @@
 
     <groupId>org.graphfoundation.ongdb</groupId>
     <artifactId>parent</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>2.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>ONgDB</name>
     <description>Open Native Graph Database</description>
