@@ -5,12 +5,12 @@
     <parent>
         <groupId>org.graphfoundation.ongdb.assembly</groupId>
         <artifactId>ongdb-standalone</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.0.1-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
 
     <artifactId>ongdb-community-standalone</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>ONgDB - Community Server Assembler</name>
