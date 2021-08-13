@@ -93,7 +93,7 @@
         <maven.repository.releases>https://oss.sonatype.org/service/local/staging/deploy/maven2</maven.repository.releases>
         <licensing.prepend.text>licensing/notice-agpl-prefix.txt</licensing.prepend.text>
         <lucene.version>5.5.5</lucene.version>
-        <bouncycastle.version>1.59</bouncycastle.version>
+        <bouncycastle.version>1.67</bouncycastle.version>
         <generate-config-docs-phase>prepare-package</generate-config-docs-phase>
         <java.exports/>
         <test.runner.jvm/>
