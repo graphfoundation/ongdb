@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns="http://maven.apache.org/POM/4.0.0"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <artifactId>ee-kernel-addon</artifactId>
+  <build>
+    <plugins>
+
+    </plugins>
+  </build>
+  <dependencies>
+    <dependency>
+      <artifactId>ee-common</artifactId>
+      <groupId>io.github.onograph.shared</groupId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <artifactId>annotations</artifactId>
+      <groupId>org.neo4j</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>neo4j</artifactId>
+      <groupId>org.neo4j</groupId>
+      <version>${project.version}</version>
+    </dependency>
+
+
+    <dependency>
+      <artifactId>hamcrest</artifactId>
+      <groupId>org.hamcrest</groupId>
+    </dependency>
+
+    <dependency>
+      <artifactId>it-test-support</artifactId>
+      <groupId>org.neo4j.community</groupId>
+      <scope>test</scope>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <artifactId>neo4j-kernel</artifactId>
+      <groupId>org.neo4j</groupId>
+      <scope>test</scope>
+      <type>test-jar</type>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <artifactId>kernel-it</artifactId>
+      <groupId>org.neo4j.community</groupId>
+      <scope>test</scope>
+      <type>test-jar</type>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <artifactId>io-test-utils</artifactId>
+      <groupId>org.neo4j</groupId>
+      <scope>test</scope>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <artifactId>test-utils</artifactId>
+      <groupId>org.neo4j</groupId>
+      <scope>test</scope>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <artifactId>log-test-utils</artifactId>
+      <groupId>org.neo4j</groupId>
+      <scope>test</scope>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <artifactId>kernel-api-test-utils</artifactId>
+      <groupId>org.neo4j</groupId>
+      <scope>test</scope>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <artifactId>neo4j-random-values</artifactId>
+      <groupId>org.neo4j</groupId>
+      <scope>test</scope>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <artifactId>junit-jupiter</artifactId>
+      <groupId>org.junit.jupiter</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>commons-codec</artifactId>
+      <groupId>commons-codec</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>assertj-core</artifactId>
+      <groupId>org.assertj</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>mockito-core</artifactId>
+      <groupId>org.mockito</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>layout-test-utils</artifactId>
+      <groupId>org.neo4j</groupId>
+      <scope>test</scope>
+      <version>${project.version}</version>
+    </dependency>
+
+
+  </dependencies>
+  <groupId>io.github.onograph</groupId>
+  <modelVersion>4.0.0</modelVersion>
+
+  <name>ee-kernel-addon</name>
+
+  <packaging>jar</packaging>
+
+  <parent>
+    <artifactId>ono-parent</artifactId>
+    <groupId>io.github.onograph</groupId>
+    <relativePath>../pom.xml</relativePath>
+    <version>4.3.1-SNAPSHOT</version>
+  </parent>
+
+  <properties>
+    <moduleName>io.github.onograph.kernel</moduleName>
+
+
+  </properties>
+
+
+  <version>4.3.1-SNAPSHOT</version>
+
+</project>
+

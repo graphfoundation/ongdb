@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns="http://maven.apache.org/POM/4.0.0"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <artifactId>ee-backup-module</artifactId>
+  <build>
+    <plugins>
+
+    </plugins>
+  </build>
+  <dependencies>
+    <dependency>
+      <artifactId>ee-common</artifactId>
+      <groupId>io.github.onograph.shared</groupId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <artifactId>annotations</artifactId>
+      <groupId>org.neo4j</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>annotations</artifactId>
+      <groupId>com.google.code.findbugs</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>ee-ha-raft-cluster</artifactId>
+      <groupId>io.github.onograph</groupId>
+      <version>${project.version}</version>
+
+    </dependency>
+
+    <dependency>
+      <artifactId>neo4j-command-line</artifactId>
+      <groupId>org.neo4j</groupId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <artifactId>neo4j-dbms</artifactId>
+      <groupId>org.neo4j</groupId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <artifactId>neo4j-consistency-check</artifactId>
+      <groupId>org.neo4j</groupId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <artifactId>neo4j-kernel</artifactId>
+      <groupId>org.neo4j</groupId>
+      <version>${project.version}</version>
+    </dependency>
+
+  </dependencies>
+  <modelVersion>4.0.0</modelVersion>
+
+
+  <packaging>jar</packaging>
+
+
+  <parent>
+    <artifactId>ono-parent</artifactId>
+    <groupId>io.github.onograph</groupId>
+    <relativePath>../pom.xml</relativePath>
+    <version>4.3.1-SNAPSHOT</version>
+  </parent>
+  <properties>
+    <moduleName>io.github.onograph.backup</moduleName>
+
+
+  </properties>
+
+
+  <version>4.3.1-SNAPSHOT</version>
+
+</project>
+

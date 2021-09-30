@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns="http://maven.apache.org/POM/4.0.0"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <artifactId>ee-main</artifactId>
+  <build>
+    <plugins>
+
+    </plugins>
+  </build>
+  <dependencies>
+    <dependency>
+      <artifactId>ee-common</artifactId>
+      <groupId>io.github.onograph.shared</groupId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <artifactId>ono-cypher</artifactId>
+      <groupId>io.github.onograph</groupId>
+      <version>${project.version}</version>
+
+    </dependency>
+
+
+    <dependency>
+      <artifactId>ee-kernel-addon</artifactId>
+      <groupId>io.github.onograph</groupId>
+      <version>${project.version}</version>
+
+    </dependency>
+
+    <dependency>
+      <artifactId>ee-databasems</artifactId>
+      <groupId>io.github.onograph</groupId>
+      <version>${project.version}</version>
+
+    </dependency>
+    <dependency>
+      <artifactId>ee-proc-addon</artifactId>
+      <groupId>io.github.onograph</groupId>
+      <version>${project.version}</version>
+
+    </dependency>
+
+    <dependency>
+      <artifactId>ee-security-addon</artifactId>
+      <groupId>io.github.onograph</groupId>
+      <version>${project.version}</version>
+
+    </dependency>
+
+
+    <dependency>
+      <artifactId>ee-server-addon</artifactId>
+      <groupId>io.github.onograph.app</groupId>
+      <version>${project.version}</version>
+
+    </dependency>
+
+
+    <dependency>
+      <artifactId>ee-storage-module</artifactId>
+      <groupId>io.github.onograph</groupId>
+      <version>${project.version}</version>
+
+    </dependency>
+
+    <dependency>
+      <artifactId>ee-ha-raft-cluster</artifactId>
+      <groupId>io.github.onograph</groupId>
+      <version>${project.version}</version>
+
+    </dependency>
+    <dependency>
+      <artifactId>ee-fabric-addon</artifactId>
+      <groupId>io.github.onograph</groupId>
+      <version>${project.version}</version>
+
+    </dependency>
+    <dependency>
+      <artifactId>commons-codec</artifactId>
+      <groupId>commons-codec</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>neo4j-java-driver</artifactId>
+      <groupId>org.neo4j.driver</groupId>
+      <optional>true</optional>
+      <scope>test</scope>
+    </dependency>
+
+
+  </dependencies>
+  <groupId>io.github.onograph</groupId>
+  <modelVersion>4.0.0</modelVersion>
+
+  <name>ee-main</name>
+
+  <packaging>jar</packaging>
+
+  <parent>
+    <artifactId>ono-parent</artifactId>
+    <groupId>io.github.onograph</groupId>
+    <relativePath>../pom.xml</relativePath>
+    <version>4.3.1-SNAPSHOT</version>
+  </parent>
+
+  <properties>
+    <moduleName>io.github.onograph.core</moduleName>
+
+
+  </properties>
+
+
+  <version>4.3.1-SNAPSHOT</version>
+
+</project>
+

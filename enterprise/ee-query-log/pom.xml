@@ -1,0 +1,96 @@
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns="http://maven.apache.org/POM/4.0.0"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <artifactId>ee-query-log</artifactId>
+  <dependencies>
+    <dependency>
+      <artifactId>ee-common</artifactId>
+      <groupId>io.github.onograph.shared</groupId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <artifactId>annotations</artifactId>
+      <groupId>org.neo4j</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>neo4j-kernel</artifactId>
+      <groupId>org.neo4j</groupId>
+      <version>${project.version}</version>
+    </dependency>
+
+
+    <dependency>
+      <artifactId>log-test-utils</artifactId>
+      <groupId>org.neo4j</groupId>
+      <scope>test</scope>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <artifactId>neo4j-cypher</artifactId>
+      <groupId>org.neo4j</groupId>
+      <scope>test</scope>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <artifactId>io-test-utils</artifactId>
+      <groupId>org.neo4j</groupId>
+      <scope>test</scope>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <artifactId>neo4j-security</artifactId>
+      <groupId>org.neo4j</groupId>
+      <scope>test</scope>
+      <type>test-jar</type>
+      <version>${project.version}</version>
+    </dependency>
+
+
+    <dependency>
+      <artifactId>neo4j-bolt</artifactId>
+      <groupId>org.neo4j</groupId>
+      <scope>test</scope>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <artifactId>junit-vintage-engine</artifactId>
+      <groupId>org.junit.vintage</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>junit-jupiter</artifactId>
+      <groupId>org.junit.jupiter</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>commons-codec</artifactId>
+      <groupId>commons-codec</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>mockito-core</artifactId>
+      <groupId>org.mockito</groupId>
+    </dependency>
+  </dependencies>
+  <description>Additional logging options including cypher query logging.</description>
+  <groupId>io.github.onograph</groupId>
+  <modelVersion>4.0.0</modelVersion>
+
+  <name>ee-query-log</name>
+  <packaging>jar</packaging>
+  <parent>
+    <artifactId>ono-parent</artifactId>
+    <groupId>io.github.onograph</groupId>
+    <relativePath>../pom.xml</relativePath>
+    <version>4.3.1-SNAPSHOT</version>
+  </parent>
+
+
+  <properties>
+    <moduleName>io.github.onograph.kernel.srv.log.query</moduleName>
+
+
+  </properties>
+
+  <version>4.3.1-SNAPSHOT</version>
+
+</project>
