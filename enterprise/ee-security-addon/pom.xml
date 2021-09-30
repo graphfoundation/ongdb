@@ -1,0 +1,98 @@
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns="http://maven.apache.org/POM/4.0.0"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <artifactId>ee-security-addon</artifactId>
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <configuration>
+          <forkCount>1</forkCount>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+  <dependencies>
+
+    <dependency>
+      <artifactId>ee-common</artifactId>
+      <groupId>io.github.onograph.shared</groupId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <artifactId>ee-ha-raft-cluster</artifactId>
+      <groupId>io.github.onograph</groupId>
+      <version>${project.version}</version>
+
+    </dependency>
+
+
+    <dependency>
+      <artifactId>ee-auth-addon</artifactId>
+      <groupId>io.github.onograph</groupId>
+      <version>${project.version}</version>
+
+    </dependency>
+
+
+    <dependency>
+      <artifactId>annotations</artifactId>
+      <groupId>org.neo4j</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>neo4j-kernel</artifactId>
+      <groupId>org.neo4j</groupId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <artifactId>neo4j-security</artifactId>
+      <groupId>org.neo4j</groupId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <artifactId>neo4j-dbms</artifactId>
+      <groupId>org.neo4j</groupId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <artifactId>caffeine</artifactId>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>slf4j-nop</artifactId>
+      <groupId>org.slf4j</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>commons-lang3</artifactId>
+      <groupId>org.apache.commons</groupId>
+    </dependency>
+
+
+  </dependencies>
+  <groupId>io.github.onograph</groupId>
+  <modelVersion>4.0.0</modelVersion>
+
+  <name>ee-security-addon</name>
+
+  <packaging>jar</packaging>
+
+  <parent>
+    <artifactId>ono-parent</artifactId>
+    <groupId>io.github.onograph</groupId>
+    <relativePath>../pom.xml</relativePath>
+    <version>4.3.1-SNAPSHOT</version>
+  </parent>
+
+
+  <properties>
+    <moduleName>io.github.onograph.server.security</moduleName>
+
+
+  </properties>
+
+  <version>4.3.1-SNAPSHOT</version>
+
+</project>

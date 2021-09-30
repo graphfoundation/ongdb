@@ -1,67 +1,92 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns="http://maven.apache.org/POM/4.0.0"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
                       http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
+  <artifactId>ono-cypher-parent</artifactId>
 
-    <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
-        <artifactId>cypher-parent</artifactId>
-        <version>2.0.0-SNAPSHOT</version>
-        <relativePath>../../community/cypher/</relativePath>
-    </parent>
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>scalastyle-maven-plugin</artifactId>
+        <configuration>
+          <configLocation>checkstyle/scalastyle_config.xml</configLocation>
+          <failOnViolation>false</failOnViolation>
+          <failOnWarning>false</failOnWarning>
+          <includeTestSourceDirectory>false</includeTestSourceDirectory>
+          <inputEncoding>UTF-8</inputEncoding>
+          <skip>true</skip>
+          <sourceDirectory>${project.basedir}/src/main/scala</sourceDirectory>
+          <testSourceDirectory>${project.basedir}/src/test/scala</testSourceDirectory>
+          <verbose>false</verbose>
+        </configuration>
+        <dependencies>
 
-    <artifactId>cypher-enterprise-parent</artifactId>
-    <version>2.0.0-SNAPSHOT</version>
-    <packaging>pom</packaging>
-    <name>ONgDB - Enterprise Geequel Build</name>
-    <description>Project that builds the ONgDB Geequel modules as part of the Enterprise distribution.</description>
-    <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
+          <dependency>
+            <artifactId>scalastyle-maven-plugin</artifactId>
+            <groupId>org.scalastyle</groupId>
+            <version>1.0.0</version>
+          </dependency>
+          <dependency>
+            <artifactId>build-resources</artifactId>
+            <groupId>org.neo4j.build</groupId>
+            <version>${project.version}</version>
+          </dependency>
+        </dependencies>
+        <executions>
+          <execution>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+        <groupId>org.neo4j</groupId>
+        <version>1.1.1</version>
+      </plugin>
+    </plugins>
+  </build>
+  <dependencies>
 
-    <properties>
-        <licensing.prepend.text>licensing/notice-agpl-prefix.txt</licensing.prepend.text>
-        <license-text.header>headers/AGPL-3-header.txt</license-text.header>
-        <opencypher.version>1.0.0-M12</opencypher.version>
-        <junit-plattform-runner.version>1.1.0</junit-plattform-runner.version>
-        <junit-jupiter.version>5.1.0</junit-jupiter.version>
-    </properties>
 
-    <scm>
-        <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
-        <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
-        <url>https://github.com/graphfoundation/ongdb</url>
-    </scm>
+    <dependency>
+      <artifactId>neo4j-cypher</artifactId>
+      <groupId>org.neo4j</groupId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
+  <groupId>io.github.onograph</groupId>
+  <modelVersion>4.0.0</modelVersion>
+  <name>ONOGRAPH - Cypher</name>
+  <packaging>pom</packaging>
 
-    <profiles>
-        <profile>
-            <id>include-cypher</id>
-            <activation>
-                <property>
-                    <name>!skipCypher</name>
-                </property>
-            </activation>
-            <modules>
-                <module>spec-suite-tools</module>
-                <module>acceptance-spec-suite</module>
-                <module>compatibility-spec-suite</module>
-                <module>physical-planning</module>
-                <module>slotted-runtime</module>
-                <module>morsel-runtime</module>
-                <module>cypher</module>
-            </modules>
-        </profile>
-    </profiles>
 
-    <build>
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>org.scalastyle</groupId>
-                    <artifactId>scalastyle-maven-plugin</artifactId>
-                    <configuration>
-                        <configLocation>${project.basedir}/../../../community/cypher/scalastyle_config.xml</configLocation>
-                    </configuration>
-                </plugin>
-            </plugins>
-        </pluginManagement>
-    </build>
+  <parent>
+    <artifactId>cypher-parent</artifactId>
+    <groupId>org.neo4j</groupId>
+    <version>4.3.1-SNAPSHOT</version>
+  </parent>
+
+
+  <profiles>
+    <profile>
+      <activation>
+        <property>
+          <name>!skipCypher</name>
+        </property>
+      </activation>
+      <id>include-cypher</id>
+      <modules>
+
+
+        <module>cypher</module>
+      </modules>
+    </profile>
+  </profiles>
+
+  <properties>
+
+
+    <checkstyle.skip>true</checkstyle.skip>
+  </properties>
+
+  <version>4.3.1-SNAPSHOT</version>
 </project>

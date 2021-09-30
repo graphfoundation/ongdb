@@ -1,93 +1,219 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-    <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
-        <artifactId>parent</artifactId>
-        <version>2.0.0-SNAPSHOT</version>
-        <relativePath>..</relativePath>
-    </parent>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns="http://maven.apache.org/POM/4.0.0"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <artifactId>ono-parent</artifactId>
 
-    <modelVersion>4.0.0</modelVersion>
-    <groupId>org.graphfoundation.ongdb.build</groupId>
-    <artifactId>enterprise-build</artifactId>
-    <version>2.0.0-SNAPSHOT</version>
+  <build>
 
-    <name>ONgDB - Enterprise Build</name>
-    <packaging>pom</packaging>
-    <description>Project that builds the ONgDB Enterprise distribution.</description>
-    <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
+    <pluginManagement>
+      <plugins>
 
-    <properties>
-        <license-text.header>headers/AGPL-3-header.txt</license-text.header>
-    </properties>
+        <plugin>
+          <artifactId>maven-jar-plugin</artifactId>
+          <executions>
 
-    <scm>
-        <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
-        <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
-        <url>https://github.com/graphfoundation/ongdb</url>
-    </scm>
+            <execution>
+              <configuration>
+                <archive>
+                  <manifest>
+                    <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                  </manifest>
+                  <manifestEntries>
+                    <Automatic-Module-Name>${moduleName}</Automatic-Module-Name>
+                    <Url>${project.organization.url}</Url>
+                  </manifestEntries>
+                </archive>
+              </configuration>
+              <id>default-jar</id>
+            </execution>
 
-    <modules>
-        <module>query-logging</module>
-        <module>com</module>
-        <module>cluster</module>
-        <module>backup</module>
-        <module>kernel</module>
-        <module>causal-clustering</module>
-        <module>metrics</module>
-        <module>neo4j-enterprise</module>
-        <module>server-enterprise</module>
-        <module>neo4j-harness-enterprise</module>
-        <module>management</module>
-        <module>security</module>
-        <module>auth-plugin-api</module>
-        <module>deferred-locks</module>
-        <module>ha</module>
-        <module>procedure-compiler-enterprise-tests</module>
-        <module>fulltext-addon</module>
-    </modules>
+            <execution>
+              <goals>
+                <goal>test-jar</goal>
+              </goals>
+              <id>create-test-jar</id>
+            </execution>
 
-    <profiles>
-        <profile>
-            <id>include-cypher</id>
-            <activation>
-                <property>
-                    <name>!skipCypher</name>
-                </property>
-            </activation>
-            <modules>
-                <module>cypher</module>
-            </modules>
-        </profile>
-    </profiles>
+            <execution>
+              <configuration>
+                <classesDirectory>${project.build.directory}/apidocs/</classesDirectory>
+                <classifier>javadoc</classifier>
+                <excludes>
+                  <exclude>javadoc.sh</exclude>
+                  <exclude>javadoc.bat</exclude>
+                  <exclude>options</exclude>
+                  <exclude>packages</exclude>
+                  <exclude>argfile</exclude>
+                  <exclude>files</exclude>
+                </excludes>
+                <includes>
+                  <include>**/**</include>
+                </includes>
+              </configuration>
+              <goals>
+                <goal>jar</goal>
+              </goals>
+              <id>create-javadoc-jar</id>
+              <phase>package</phase>
+            </execution>
+          </executions>
+          <groupId>org.apache.maven.plugins</groupId>
+          <version>3.2.0</version>
+        </plugin>
 
-    <licenses>
-        <license>
-            <name>GNU Affero General Public License, Version 3</name>
-            <url>http://www.gnu.org/licenses/agpl-3.0-standalone.html</url>
-            <comments>The software ("Software") developed and owned by Graph Foundation, Inc.
-                (referred to in this notice as "Graph Foundation") is
-                licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3 to all
-                third parties and that license is included below.
-            </comments>
-        </license>
-        <license>
-            <name>GNU Affero General Public License, Version 3</name>
-            <url>http://www.gnu.org/licenses/agpl-3.0-standalone.html</url>
-            <comments>The software ("Software") developed and owned by Network Engine for
-                Objects in Lund AB (referred to in this notice as "Neo Technology") is
-                licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3 to all
-                third parties and that license is included below.
+        <plugin>
+          <artifactId>maven-enforcer-plugin</artifactId>
+          <configuration>
+            <fail>true</fail>
+            <rules>
+              <dependencyConvergence/>
+              <evaluateBeanshell>
+                <condition>{String s = "${project.groupId}"; s.startsWith("io.github.onograph");}
+                </condition>
+                <message>Ensure maven module is part of group: "io.github.onograph"</message>
+              </evaluateBeanshell>
+              <requireFilesDontExist>
+                <files>
+                  <file>${project.build.sourceDirectory}/xxx</file>
+                  <file>${project.build.testSourceDirectory}/xxx</file>
+                </files>
+                <message>You are not allowed to have classes in "xxx" package</message>
+              </requireFilesDontExist>
+              <requireFilesDontExist>
+                <files>
+                  <file>xxx</file>
+                </files>
+              </requireFilesDontExist>
+              <requireMavenVersion>
+                <version>${required.maven.version}</version>
+              </requireMavenVersion>
+            </rules>
+          </configuration>
+          <groupId>org.apache.maven.plugins</groupId>
+          <version>3.0.0-M3</version>
+        </plugin>
 
-                However, if you have executed an End User Software License and Services
-                Agreement or an OEM Software License and Support Services Agreement, or
-                another commercial license agreement with Neo Technology or one of its
-                affiliates (each, a "Commercial Agreement"), the terms of the license in
-                such Commercial Agreement will supersede the GNU AFFERO GENERAL PUBLIC
-                LICENSE Version 3 and you may use the Software solely pursuant to the
-                terms of the relevant Commercial Agreement.
-            </comments>
-        </license>
-    </licenses>
+      </plugins>
+    </pluginManagement>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+      </resource>
+
+    </resources>
+  </build>
+  <dependencies>
+
+
+    <dependency>
+      <artifactId>annotations</artifactId>
+      <groupId>org.neo4j</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>neo4j</artifactId>
+      <groupId>org.neo4j</groupId>
+      <type>pom</type>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <artifactId>neo4j-bolt</artifactId>
+      <groupId>org.neo4j</groupId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <artifactId>neo4j</artifactId>
+      <groupId>org.neo4j</groupId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <artifactId>hamcrest</artifactId>
+      <groupId>org.hamcrest</groupId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+  <groupId>io.github.onograph</groupId>
+  <modelVersion>4.0.0</modelVersion>
+
+  <modules>
+    <module>ee-common</module>
+    <module>ee-backup-module</module>
+    <module>ee-auth-addon</module>
+    <module>ee-security-addon</module>
+    <module>ee-query-log</module>
+    <module>ee-server-addon</module>
+    <module>ee-main</module>
+    <module>ee-databasems</module>
+    <module>ee-kernel-addon</module>
+    <module>ee-proc-addon</module>
+    <module>ee-storage-module</module>
+    <module>ee-metrics-module</module>
+    <module>ee-ha-raft-cluster</module>
+    <module>ee-fabric-addon</module>
+
+
+  </modules>
+  <name>enterprise-parent</name>
+
+  <packaging>pom</packaging>
+
+  <parent>
+    <artifactId>parent</artifactId>
+    <groupId>org.neo4j</groupId>
+    <version>4.3.1-SNAPSHOT</version>
+  </parent>
+  <profiles>
+    <profile>
+      <activation>
+        <property>
+          <name>!skipCypher</name>
+        </property>
+      </activation>
+      <id>include-cypher</id>
+
+      <modules>
+        <module>cypher</module>
+      </modules>
+    </profile>
+  </profiles>
+
+
+  <properties>
+    <amazon-sdk.version>1.11.1022</amazon-sdk.version>
+    <asm.version>9.1</asm.version>
+
+    <awaitility.version>4.0.3</awaitility.version>
+    <bouncycastle.version>1.68</bouncycastle.version>
+
+    <caffeine.version>3.0.0</caffeine.version>
+    <checkstyle.skip>true</checkstyle.skip>
+    <findbugs.version>3.0.1u2</findbugs.version>
+    <guava.version>30.1-jre</guava.version>
+    <jackson.version>2.12.1</jackson.version>
+    <jamm.version>0.3.3</jamm.version>
+    <jersey.version>2.34</jersey.version>
+    <jetty.version>9.4.39.v20210325</jetty.version>
+    <junit.platform.version>1.6.2</junit.platform.version>
+    <junit.version>5.7.1</junit.version>
+    <log4j.version>2.14.0</log4j.version>
+    <lucene.version>8.8.0</lucene.version>
+    <maven.compiler.source>11</maven.compiler.source>
+    <maven.compiler.target>11</maven.compiler.target>
+    <metrics.version>4.1.17</metrics.version>
+    <mockito.version>3.7.7</mockito.version>
+    <neo4j-java-driver.version>4.2.6</neo4j-java-driver.version>
+    <opencypher.version>1.0.0-M16</opencypher.version>
+    <required.maven.version>3.5.4</required.maven.version>
+    <scala-maven-plugin.version>4.4.0</scala-maven-plugin.version>
+    <scala.binary.version>2.12</scala.binary.version>
+    <scala.plugin.recompileMode>all</scala.plugin.recompileMode>
+    <scala.target.vm>1.8</scala.target.vm>
+
+    <scala.version>2.12.13</scala.version>
+    <skip-scalastyle>true</skip-scalastyle>
+    <skip-scalastyle>true</skip-scalastyle>
+    <slf4j.version>1.7.30</slf4j.version>
+
+  </properties>
+  <version>4.3.1-SNAPSHOT</version>
 </project>
