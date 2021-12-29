@@ -1,3 +1,0 @@
-io.github.onograph.commandline.dbms.DefaultDumpCommandProvider
-io.github.onograph.commandline.dbms.ClusterLoadCommandCommandProvider
-io.github.onograph.commandline.dbms.ClusterDisconnectCommandCommandProvider

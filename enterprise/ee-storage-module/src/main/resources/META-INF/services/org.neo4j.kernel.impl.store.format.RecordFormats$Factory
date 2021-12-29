@@ -1,7 +1,0 @@
-io.github.onograph.kernel.srv.store.format.highlimit.FactoryHighLimitRecordFormatsImpl
-io.github.onograph.kernel.srv.store.format.highlimit.v300.FactoryHighLimitDefaultImpl
-io.github.onograph.kernel.srv.store.format.highlimit.v306.FactoryHighLimitDefaultImpl
-io.github.onograph.kernel.srv.store.format.highlimit.v310.FactoryHighLimitDefaultImpl
-io.github.onograph.kernel.srv.store.format.highlimit.v320.FactoryHighLimitDefaultImpl
-io.github.onograph.kernel.srv.store.format.highlimit.v340.FactoryHighLimitDefaultImpl
-io.github.onograph.kernel.srv.store.format.highlimit.v400.HighLimitFactoryDefaultImpl

@@ -1,7 +1,0 @@
-io.github.onograph.cluster.raft.palapp.strategies.DefaultNamedServiceClusterApproach
-io.github.onograph.cluster.raft.palapp.strategies.GroupingNamedServiceClusterApproach
-io.github.onograph.cluster.raft.palapp.strategies.CoreFocusedNamedServiceClusterApproach
-io.github.onograph.cluster.raft.palapp.strategies.LeaderNodeNamedServiceClusterApproach
-io.github.onograph.cluster.raft.palapp.strategies.FollowerApproach
-io.github.onograph.cluster.raft.palapp.strategies.ReadReplicaNodeNamedServiceClusterApproach
-io.github.onograph.cluster.raft.palapp.strategies.ConfiguredNamedServiceClusterApproach
