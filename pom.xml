@@ -113,7 +113,7 @@
         <maven.build.timestamp.format>yyMMddHHmmssSSS</maven.build.timestamp.format>
 
         <license-text.header>headers/AGPL-3-header.txt</license-text.header>
-        <currentYear>2020</currentYear>
+        <currentYear>2022</currentYear>
 
         <scala-maven-plugin.version>3.3.2</scala-maven-plugin.version>
         <scala.version>2.11.12</scala.version>

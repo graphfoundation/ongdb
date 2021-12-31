@@ -1,5 +1,5 @@
 ONgBD
-Copyright © 2018-2020 Graph Foundation, Inc.
+Copyright © 2018-2022 Graph Foundation, Inc.
 (referred to in this notice as "Graph Foundation")
 [https://graphfoundation.org]
 

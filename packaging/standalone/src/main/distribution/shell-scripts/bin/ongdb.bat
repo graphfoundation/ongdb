@@ -1,5 +1,5 @@
 @ECHO OFF
-rem Copyright (c) 2018-2020 "Graph Foundation,"
+rem Copyright (c) 2018-2022 "Graph Foundation,"
 rem Graph Foundation, Inc. [https://graphfoundation.org]
 rem
 rem This file is part of ONgDB.
