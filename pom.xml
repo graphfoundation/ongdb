@@ -87,15 +87,14 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
         <maven.repository.snapshots>https://oss.sonatype.org/content/repositories/snapshots</maven.repository.snapshots>
         <maven.repository.releases>https://oss.sonatype.org/service/local/staging/deploy/maven2</maven.repository.releases>
         <licensing.prepend.text>licensing/notice-agpl-prefix.txt</licensing.prepend.text>
         <lucene.version>5.5.5</lucene.version>
         <bouncycastle.version>1.59</bouncycastle.version>
         <generate-config-docs-phase>prepare-package</generate-config-docs-phase>
-        <java.exports/>
         <test.runner.jvm/>
         <test.runner.jvm.settings.additional/>
         <test.runner.jvm.settings>-Xmx2G -XX:+UseG1GC -XX:-OmitStackTraceInFastThrow -XX:+HeapDumpOnOutOfMemoryError
@@ -104,7 +103,7 @@
             -Dorg.neo4j.io.pagecache.impl.muninn.usePreciseCursorErrorStackTraces=true
             -Dorg.neo4j.kernel.impl.api.KernelStatement.trackStatements=true
             -Dorg.org.neo4j.kernel.impl.newapi.DefaultCursors.trackCursors=true
-            -XX:+UnlockExperimentalVMOptions -XX:+TrustFinalNonStaticFields ${java.exports} ${test.runner.jvm.settings.additional}
+            -XX:+UnlockExperimentalVMOptions -XX:+TrustFinalNonStaticFields ${test.runner.jvm.settings.additional}
         </test.runner.jvm.settings>
         <jetty.version>9.4.8.v20171121</jetty.version>
         <findbugs.version>3.0.1</findbugs.version>
@@ -187,7 +186,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
-                    <version>3.2.0</version>
+                    <version>3.3.1</version>
                     <executions>
                         <execution>
                             <id>generate-javadocs</id>
@@ -630,7 +629,9 @@
                     <configuration>
                         <showDeprecation>true</showDeprecation>
                         <showWarnings>true</showWarnings>
-                        <compilerArgument>${java.exports}</compilerArgument>
+                        <compilerArgs>
+                            <arg>-Xpkginfo:always</arg>
+                        </compilerArgs>
                     </configuration>
                 </plugin>
                 <plugin>
