@@ -72,6 +72,7 @@ public class SslNegotiationTest
     private static final String TLSv10 = "TLSv1";
     private static final String TLSv11 = "TLSv1.1";
     private static final String TLSv12 = "TLSv1.2";
+    private static final String TLSv13 = "TLSv1.3";
 
     @Rule
     public TestDirectory testDir = TestDirectory.testDirectory();
@@ -93,23 +94,27 @@ public class SslNegotiationTest
                 new TestSetup(
                         protocols( TLSv10 ).ciphers( OLD_CIPHER_A ),
                         protocols( TLSv10 ).ciphers( OLD_CIPHER_A ),
-                        true, TLSv10, OLD_CIPHER_A ),
+                        false, TLSv10, OLD_CIPHER_A ),
                 new TestSetup(
                         protocols( TLSv10 ).ciphers( NEW_CIPHER_A ),
                         protocols( TLSv10 ).ciphers( NEW_CIPHER_A ),
-                        true, TLSv10, NEW_CIPHER_A ),
+                        false, TLSv10, NEW_CIPHER_A ),
                 new TestSetup(
                         protocols( TLSv11 ).ciphers( OLD_CIPHER_A ),
                         protocols( TLSv11 ).ciphers( OLD_CIPHER_A ),
-                        true, TLSv11, OLD_CIPHER_A ),
+                        false, TLSv11, OLD_CIPHER_A ),
                 new TestSetup(
                         protocols( TLSv11 ).ciphers( NEW_CIPHER_A ),
                         protocols( TLSv11 ).ciphers( NEW_CIPHER_A ),
-                        true, TLSv11, NEW_CIPHER_A ),
+                        false, TLSv11, NEW_CIPHER_A ),
                 new TestSetup(
                         protocols( TLSv12 ).ciphers( NEW_CIPHER_A ),
                         protocols( TLSv12 ).ciphers( NEW_CIPHER_A ),
                         true, TLSv12, NEW_CIPHER_A ),
+                new TestSetup(
+                        protocols( TLSv13 ).ciphers( NEW_CIPHER_A ),
+                        protocols( TLSv13 ).ciphers( NEW_CIPHER_A ),
+                        false, TLSv13, NEW_CIPHER_A ),
 
                 // failing protocol matches
                 new TestSetup(
@@ -128,6 +133,10 @@ public class SslNegotiationTest
                         protocols( TLSv12 ).ciphers( NEW_CIPHER_A ),
                         protocols( TLSv11 ).ciphers( NEW_CIPHER_A ),
                         false ),
+                new TestSetup(
+                        protocols( TLSv12 ).ciphers( NEW_CIPHER_A ),
+                        protocols( TLSv13 ).ciphers( NEW_CIPHER_A ),
+                        false ),
 
                 // failing cipher matches
                 new TestSetup(
@@ -142,33 +151,45 @@ public class SslNegotiationTest
                         protocols( TLSv12 ).ciphers( NEW_CIPHER_A ),
                         protocols( TLSv12 ).ciphers( NEW_CIPHER_B ),
                         false ),
+                new TestSetup(
+                        protocols( TLSv13 ).ciphers( NEW_CIPHER_A ),
+                        protocols( TLSv13 ).ciphers( NEW_CIPHER_B ),
+                        false ),
 
                 // overlapping cipher success
                 new TestSetup(
                         protocols( TLSv10 ).ciphers( OLD_CIPHER_B, OLD_CIPHER_A ),
                         protocols( TLSv10 ).ciphers( OLD_CIPHER_C, OLD_CIPHER_A ),
-                        true, TLSv10, OLD_CIPHER_A ),
+                        false, TLSv10, OLD_CIPHER_A ),
                 new TestSetup(
                         protocols( TLSv11 ).ciphers( NEW_CIPHER_B, NEW_CIPHER_A ),
                         protocols( TLSv11 ).ciphers( NEW_CIPHER_C, NEW_CIPHER_A ),
-                        true, TLSv11, NEW_CIPHER_A ),
+                        false, TLSv11, NEW_CIPHER_A ),
                 new TestSetup(
                         protocols( TLSv12 ).ciphers( NEW_CIPHER_B, NEW_CIPHER_A ),
                         protocols( TLSv12 ).ciphers( NEW_CIPHER_C, NEW_CIPHER_A ),
                         true, TLSv12, NEW_CIPHER_A ),
+                new TestSetup(
+                        protocols( TLSv13 ).ciphers( NEW_CIPHER_B, NEW_CIPHER_A ),
+                        protocols( TLSv13 ).ciphers( NEW_CIPHER_C, NEW_CIPHER_A ),
+                        false, TLSv13, NEW_CIPHER_A ),
 
                 // overlapping protocol success
                 new TestSetup(
                         protocols( TLSv10, TLSv11 ).ciphers( OLD_CIPHER_A ),
                         protocols( TLSv11, TLSv12 ).ciphers( OLD_CIPHER_A ),
-                        true, TLSv11, OLD_CIPHER_A ),
+                        false, TLSv11, OLD_CIPHER_A ),
                 new TestSetup(
                         protocols( TLSv11, TLSv12 ).ciphers( OLD_CIPHER_A ),
                         protocols( TLSv10, TLSv11 ).ciphers( OLD_CIPHER_A ),
-                        true, TLSv11, OLD_CIPHER_A ),
+                        false, TLSv11, OLD_CIPHER_A ),
                 new TestSetup(
                         protocols( TLSv10, TLSv11, TLSv12 ).ciphers( NEW_CIPHER_B ),
                         protocols( TLSv10, TLSv11, TLSv12 ).ciphers( NEW_CIPHER_B ),
+                        true, TLSv12, NEW_CIPHER_B ),
+                new TestSetup(
+                        protocols( TLSv10, TLSv11, TLSv12, TLSv13 ).ciphers( NEW_CIPHER_B ),
+                        protocols( TLSv10, TLSv11, TLSv12, TLSv13 ).ciphers( NEW_CIPHER_B ),
                         true, TLSv12, NEW_CIPHER_B ),
         };
     }

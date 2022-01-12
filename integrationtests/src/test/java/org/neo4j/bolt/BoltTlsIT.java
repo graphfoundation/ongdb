@@ -119,8 +119,8 @@ public class BoltTlsIT
                 new TestSetup( "TLSv1", "TLSv1.1", false ),
                 new TestSetup( "TLSv1.1", "TLSv1.2", false ),
 
-                new TestSetup( "TLSv1", "TLSv1", true ),
-                new TestSetup( "TLSv1.1", "TLSv1.1", true ),
+                new TestSetup( "TLSv1", "TLSv1", false ),
+                new TestSetup( "TLSv1.1", "TLSv1.1", false ),
                 new TestSetup( "TLSv1.2", "TLSv1.2", true ),
 
                 new TestSetup( "SSLv3,TLSv1", "TLSv1.1,TLSv1.2", false ),
