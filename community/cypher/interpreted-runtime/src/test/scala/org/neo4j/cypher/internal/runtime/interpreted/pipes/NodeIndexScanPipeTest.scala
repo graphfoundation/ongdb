@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,45 +39,67 @@
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito._
-import org.neo4j.cypher.internal.planner.v3_4.spi.IndexDescriptor
-import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.runtime.interpreted.{ImplicitDummyPos, QueryStateHelper}
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.util.v3_4.{LabelId, PropertyKeyId}
-import org.neo4j.cypher.internal.v3_4.expressions.{LabelName, LabelToken, PropertyKeyName, PropertyKeyToken}
-import org.neo4j.values.virtual.NodeValue
+import org.mockito.Mockito.when
+import org.mockito.invocation.InvocationOnMock
+import org.neo4j.cypher.internal.expressions.LabelToken
+import org.neo4j.cypher.internal.expressions.NODE_TYPE
+import org.neo4j.cypher.internal.expressions.PropertyKeyToken
+import org.neo4j.cypher.internal.logical.plans.DoNotGetValue
+import org.neo4j.cypher.internal.logical.plans.IndexOrder
+import org.neo4j.cypher.internal.logical.plans.IndexOrderNone
+import org.neo4j.cypher.internal.logical.plans.IndexedProperty
+import org.neo4j.cypher.internal.runtime.ResourceManager
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
+import org.neo4j.cypher.internal.util.LabelId
+import org.neo4j.cypher.internal.util.PropertyKeyId
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.internal.kernel.api.IndexReadSession
+import org.neo4j.internal.kernel.api.helpers.StubNodeValueIndexCursor
 
-class NodeIndexScanPipeTest extends CypherFunSuite with ImplicitDummyPos {
+class NodeIndexScanPipeTest extends CypherFunSuite {
+  test("exhaust should close cursor") {
+    val monitor = QueryStateHelper.trackClosedMonitor
+    val resourceManager = new ResourceManager(monitor)
+    val state = QueryStateHelper.emptyWithResourceManager(resourceManager)
 
-  private val label = LabelToken(LabelName("LabelName")_, LabelId(11))
-  private val propertyKey = PropertyKeyToken(PropertyKeyName("PropertyName")_, PropertyKeyId(10))
-  private val descriptor = IndexDescriptor(label.nameId.id, propertyKey.nameId.id)
-  private val node = nodeValue(11)
+    val cursor = new StubNodeValueIndexCursor().withNode(0)
+    when(state.query.nodeIndexScan(any[IndexReadSession], any[Boolean], any[IndexOrder])).thenAnswer((_: InvocationOnMock) => {
+      //NOTE: this is what is done in TransactionBoundQueryContext
+      resourceManager.trace(cursor)
+      cursor
+    })
 
-  private def nodeValue(id: Long) = {
-    val node = mock[NodeValue]
-    when(node.id()).thenReturn(id)
-    node
+    val pipe = NodeIndexScanPipe(
+      "n",
+      LabelToken("Awesome", LabelId(0)),
+      Seq(IndexedProperty(PropertyKeyToken("prop", PropertyKeyId(0)), DoNotGetValue, NODE_TYPE)),
+      0,
+      IndexOrderNone)()
+    // exhaust
+    pipe.createResults(state).toList
+    monitor.closedResources.collect { case `cursor` => cursor } should have size(1)
   }
 
-  test("should return nodes found by index scan when both labelId and property key id are solved at compile time") {
-    // given
-    val queryState = QueryStateHelper.emptyWith(
-      query = scanFor(Iterator(node))
-    )
+  test("close should close cursor") {
+    val monitor = QueryStateHelper.trackClosedMonitor
+    val resourceManager = new ResourceManager(monitor)
+    val state = QueryStateHelper.emptyWithResourceManager(resourceManager)
 
-    // when
-    val pipe = NodeIndexScanPipe("n", label, propertyKey)()
-    val result = pipe.createResults(queryState)
+    val cursor = new StubNodeValueIndexCursor().withNode(0)
+    when(state.query.nodeIndexScan(any[IndexReadSession], any[Boolean], any[IndexOrder])).thenAnswer((_: InvocationOnMock) => {
+      //NOTE: this is what is done in TransactionBoundQueryContext
+      resourceManager.trace(cursor)
+      cursor
+    })
 
-    // then
-    result.map(_("n")).toList should equal(List(node))
-  }
-
-  private def scanFor(nodes: Iterator[NodeValue]): QueryContext = {
-    val query = mock[QueryContext]
-    when(query.indexScan(any())).thenReturn(nodes)
-    query
+    val pipe = NodeIndexScanPipe(
+      "n",
+      LabelToken("Awesome", LabelId(0)),
+      Seq(IndexedProperty(PropertyKeyToken("prop", PropertyKeyId(0)), DoNotGetValue, NODE_TYPE)),
+      0,
+      IndexOrderNone)()
+    val result = pipe.createResults(state)
+    result.close()
+    monitor.closedResources.collect { case `cursor` => cursor } should have size(1)
   }
 }

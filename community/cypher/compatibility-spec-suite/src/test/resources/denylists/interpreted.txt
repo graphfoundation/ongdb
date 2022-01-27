@@ -1,0 +1,42 @@
+// TCK needs to be updated, expects wrong error type or message
+Feature "List1 - Dynamic Element Access": Scenario "Fail at runtime when trying to index into a list with a list"
+Feature "List1 - Dynamic Element Access": Scenario "Fail at compile time when attempting to index with a non-integer into a list"
+
+//Semantics change not yet visible on 4.3 branch
+Feature "Boolean4 - NOT logical operations": Scenario "Fail when using NOT on a non-boolean literal": Example "8"
+Feature "Boolean4 - NOT logical operations": Scenario "Fail when using NOT on a non-boolean literal": Example "9"
+Feature "Boolean4 - NOT logical operations": Scenario "Fail when using NOT on a non-boolean literal": Example "10"
+Feature "Boolean4 - NOT logical operations": Scenario "Fail when using NOT on a non-boolean literal": Example "11"
+Feature "Boolean4 - NOT logical operations": Scenario "Fail when using NOT on a non-boolean literal": Example "12"
+Feature "Boolean4 - NOT logical operations": Scenario "Fail when using NOT on a non-boolean literal": Example "13"
+Feature "Boolean4 - NOT logical operations": Scenario "Fail when using NOT on a non-boolean literal": Example "14"
+Feature "Boolean4 - NOT logical operations": Scenario "Fail when using NOT on a non-boolean literal": Example "15"
+Feature "Boolean4 - NOT logical operations": Scenario "Fail when using NOT on a non-boolean literal": Example "16"
+Feature "Boolean4 - NOT logical operations": Scenario "Fail when using NOT on a non-boolean literal": Example "17"
+Feature "Boolean4 - NOT logical operations": Scenario "Fail when using NOT on a non-boolean literal": Example "18"
+Feature "Boolean4 - NOT logical operations": Scenario "Fail when using NOT on a non-boolean literal": Example "19"
+Feature "Boolean4 - NOT logical operations": Scenario "Fail when using NOT on a non-boolean literal": Example "20"
+Feature "Boolean4 - NOT logical operations": Scenario "Fail when using NOT on a non-boolean literal": Example "21"
+Feature "Boolean4 - NOT logical operations": Scenario "Fail when using NOT on a non-boolean literal": Example "22"
+Feature "Boolean4 - NOT logical operations": Scenario "Fail when using NOT on a non-boolean literal": Example "23"
+Feature "Boolean4 - NOT logical operations": Scenario "Fail when using NOT on a non-boolean literal": Example "24"
+
+//Semantics change not yet visible on 4.3 branch
+Feature "List11 - Create a list from a range": Scenario "Create an empty list if range direction and step direction are inconsistent"
+Feature "List11 - Create a list from a range": Scenario "Create list from `range()` with explicitly given step": Example "10"
+
+//Semantics change not yet visible on 4.3 branch
+Feature "Map4 - Field existence check": Scenario "`exists()` with literal maps": Example "2"
+Feature "Map4 - Field existence check": Scenario "`exists()` with literal maps": Example "3"
+Feature "Map4 - Field existence check": Scenario "`exists()` with literal maps": Example "4"
+Feature "Map4 - Field existence check": Scenario "`exists()` with literal maps": Example "5"
+Feature "Map4 - Field existence check": Scenario "`exists()` with literal maps": Example "6"
+
+//TCK needs to be updated, toInteger is valid for Boolean
+Feature "TypeConversion2 - To Integer": Scenario "`toInteger()` failing on invalid arguments": Example "0"
+//TCK needs to be updated, toBoolean is valid for Integer
+Feature "TypeConversion1 - To Boolean": Scenario "`toBoolean()` on invalid types": Example "2"
+
+// Failing with M16 TCK - require investigation
+// TODO: the below case does currently fallback to the parboiled parser, needs to be re-added/fixed when we remove the fallback for START
+// Feature "Literals7 - List": Scenario "Fail on a nested list with non-matching brackets"

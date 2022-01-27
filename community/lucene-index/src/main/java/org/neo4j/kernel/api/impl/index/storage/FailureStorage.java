@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,12 +38,11 @@
  */
 package org.neo4j.kernel.api.impl.index.storage;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
 
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.fs.OpenMode;
 import org.neo4j.io.fs.StoreChannel;
 import org.neo4j.kernel.api.impl.index.storage.layout.FolderLayout;
 import org.neo4j.string.UTF8;
@@ -87,8 +86,8 @@ public class FailureStorage
     public synchronized void reserveForIndex() throws IOException
     {
         fs.mkdirs( folderLayout.getIndexFolder() );
-        File failureFile = failureFile();
-        try ( StoreChannel channel = fs.create( failureFile ) )
+        Path failureFile = failureFile();
+        try ( StoreChannel channel = fs.write( failureFile ) )
         {
             channel.writeAll( ByteBuffer.wrap( new byte[MAX_FAILURE_SIZE] ) );
             channel.force( true );
@@ -99,7 +98,7 @@ public class FailureStorage
      * Delete failure file for the given index id
      *
      */
-    public synchronized void clearForIndex()
+    public synchronized void clearForIndex() throws IOException
     {
         fs.deleteFile( failureFile() );
     }
@@ -109,7 +108,7 @@ public class FailureStorage
      */
     public synchronized String loadIndexFailure()
     {
-        File failureFile = failureFile();
+        Path failureFile = failureFile();
         try
         {
             if ( !fs.fileExists( failureFile ) || !isFailed( failureFile ) )
@@ -132,8 +131,8 @@ public class FailureStorage
      */
     public synchronized void storeIndexFailure( String failure ) throws IOException
     {
-        File failureFile = failureFile();
-        try ( StoreChannel channel = fs.open( failureFile, OpenMode.READ_WRITE ) )
+        Path failureFile = failureFile();
+        try ( StoreChannel channel = fs.write( failureFile ) )
         {
             byte[] existingData = new byte[(int) channel.size()];
             channel.readAll( ByteBuffer.wrap( existingData ) );
@@ -143,19 +142,17 @@ public class FailureStorage
             channel.writeAll( ByteBuffer.wrap( data, 0, Math.min( data.length, MAX_FAILURE_SIZE ) ) );
 
             channel.force( true );
-            channel.close();
         }
     }
 
-    File failureFile()
+    Path failureFile()
     {
-        File folder = folderLayout.getIndexFolder();
-        return new File( folder, failureFileName );
+        return folderLayout.getIndexFolder().resolve( failureFileName );
     }
 
-    private String readFailure( File failureFile ) throws IOException
+    private String readFailure( Path failureFile ) throws IOException
     {
-        try ( StoreChannel channel = fs.open( failureFile, OpenMode.READ ) )
+        try ( StoreChannel channel = fs.read( failureFile ) )
         {
             byte[] data = new byte[(int) channel.size()];
             channel.readAll( ByteBuffer.wrap( data ) );
@@ -182,9 +179,9 @@ public class FailureStorage
         return data.length;
     }
 
-    private boolean isFailed( File failureFile ) throws IOException
+    private boolean isFailed( Path failureFile ) throws IOException
     {
-        try ( StoreChannel channel = fs.open( failureFile, OpenMode.READ ) )
+        try ( StoreChannel channel = fs.read( failureFile ) )
         {
             byte[] data = new byte[(int) channel.size()];
             channel.readAll( ByteBuffer.wrap( data ) );

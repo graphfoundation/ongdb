@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,52 +38,115 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Predicate
-import org.neo4j.cypher.internal.util.v3_4.InternalException
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection
+import org.neo4j.cypher.internal.expressions.SemanticDirection
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.ClosingLongIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.PrimitiveLongHelper
+import org.neo4j.cypher.internal.runtime.RelationshipIterator
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
+import org.neo4j.cypher.internal.util.attribution.Id
+import org.neo4j.exceptions.ParameterWrongTypeException
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
-import org.neo4j.values.virtual.NodeValue
+import org.neo4j.values.virtual.VirtualNodeValue
+import org.neo4j.values.virtual.VirtualValues
 
-case class OptionalExpandAllPipe(source: Pipe, fromName: String, relName: String, toName: String, dir: SemanticDirection,
-                                 types: LazyTypes, predicate: Predicate)
-                                (val id: Id = Id.INVALID_ID)
+abstract class OptionalExpandAllPipe(source: Pipe,
+                                     fromName: String,
+                                     relName: String,
+                                     toName: String,
+                                     dir: SemanticDirection,
+                                     types: RelationshipTypes)
   extends PipeWithSource(source) {
 
-  predicate.registerOwningPipe(this)
-
-  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
+  protected def internalCreateResults(input: ClosingIterator[CypherRow], state: QueryState): ClosingIterator[CypherRow] = {
     input.flatMap {
       row =>
         val fromNode = getFromNode(row)
         fromNode match {
-          case n: NodeValue =>
+          case n: VirtualNodeValue =>
             val relationships = state.query.getRelationshipsForIds(n.id(), dir, types.types(state.query))
-            val matchIterator = relationships.map { r =>
-                val other = r.otherNode(n)
-                executionContextFactory.copyWith(row, relName, r, toName, other)
-            }.filter(ctx => predicate.isTrue(ctx, state))
-
+            val matchIterator = findMatchIterator(row, state, relationships, n)
             if (matchIterator.isEmpty) {
-              Iterator(withNulls(row))
+              ClosingIterator.single(withNulls(row))
             } else {
               matchIterator
             }
 
-          case value if value == Values.NO_VALUE =>
-            Iterator(withNulls(row))
+          case value if value eq Values.NO_VALUE =>
+            ClosingIterator.single(withNulls(row))
 
           case value =>
-            throw new InternalException(s"Expected to find a node at '$fromName' but found $value instead")
+            throw new ParameterWrongTypeException(s"Expected to find a node at '$fromName' but found $value instead")
         }
     }
   }
 
-  private def withNulls(row: ExecutionContext) =
-    row.set(relName, Values.NO_VALUE, toName, Values.NO_VALUE)
+  def findMatchIterator(row: CypherRow,
+                        state: QueryState,
+                        relationships: ClosingLongIterator with RelationshipIterator,
+                        n: VirtualNodeValue): ClosingIterator[CypherRow]
 
-  def getFromNode(row: ExecutionContext): AnyValue =
-    row.getOrElse(fromName, throw new InternalException(s"Expected to find a node at '$fromName' but found nothing"))
+  private def withNulls(row: CypherRow) = {
+    row.set(relName, Values.NO_VALUE, toName, Values.NO_VALUE)
+    row
+  }
+
+  def getFromNode(row: CypherRow): AnyValue = row.getByName(fromName)
+}
+
+object OptionalExpandAllPipe {
+  def apply(source: Pipe,
+            fromName: String,
+            relName: String,
+            toName: String,
+            dir: SemanticDirection,
+            types: RelationshipTypes,
+            maybePredicate: Option[Expression])(id: Id = Id.INVALID_ID): OptionalExpandAllPipe = maybePredicate match {
+    case Some(predicate) => FilteringOptionalExpandAllPipe(source, fromName, relName, toName, dir, types, predicate)(id)
+    case None => NonFilteringOptionalExpandAllPipe(source, fromName, relName, toName, dir, types)(id)
+  }
+}
+
+case class NonFilteringOptionalExpandAllPipe(source: Pipe,
+                                             fromName: String,
+                                             relName: String,
+                                             toName: String,
+                                             dir: SemanticDirection,
+                                             types: RelationshipTypes)
+                                            (val id: Id = Id.INVALID_ID)
+  extends OptionalExpandAllPipe(source, fromName, relName, toName, dir, types) {
+
+  override def findMatchIterator(row: CypherRow,
+                                 ignore: QueryState,
+                                 relationships: ClosingLongIterator with RelationshipIterator,
+                                 n: VirtualNodeValue): ClosingIterator[CypherRow] = {
+    PrimitiveLongHelper.map(relationships, r => {
+      val other = relationships.otherNodeId(n.id())
+      rowFactory.copyWith(row, relName, VirtualValues.relationship(r, relationships.startNodeId(), relationships.endNodeId(), relationships.typeId()), toName, VirtualValues.node(other))
+    })
+  }
+}
+
+case class FilteringOptionalExpandAllPipe(source: Pipe,
+                                          fromName: String,
+                                          relName: String,
+                                          toName: String,
+                                          dir: SemanticDirection,
+                                          types: RelationshipTypes,
+                                          predicate: Expression)
+                                         (val id: Id = Id.INVALID_ID)
+  extends OptionalExpandAllPipe(source, fromName, relName, toName, dir, types) {
+
+  override def findMatchIterator(row: CypherRow,
+                                 state: QueryState,
+                                 relationships: ClosingLongIterator with RelationshipIterator,
+                                 n: VirtualNodeValue): ClosingIterator[CypherRow] = {
+
+    PrimitiveLongHelper.map(relationships, r => {
+      val other = relationships.otherNodeId(n.id())
+      rowFactory.copyWith(row, relName, VirtualValues.relationship(r, relationships.startNodeId(), relationships.endNodeId(), relationships.typeId()), toName, VirtualValues.node(other))
+    }).filter(ctx => predicate(ctx, state) eq Values.TRUE)
+  }
 }

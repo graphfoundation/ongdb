@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -47,7 +47,7 @@ import java.util.function.Predicate;
 
 import org.neo4j.function.ThrowingConsumer;
 
-public class FileVisitors
+public final class FileVisitors
 {
     private FileVisitors()
     {
@@ -55,7 +55,7 @@ public class FileVisitors
 
     public static FileVisitor<Path> onlyMatching( Predicate<Path> predicate, FileVisitor<Path> wrapped )
     {
-        return new FileVisitor<Path>()
+        return new FileVisitor<>()
         {
             @Override
             public FileVisitResult preVisitDirectory( Path dir, BasicFileAttributes attrs ) throws IOException
@@ -85,7 +85,7 @@ public class FileVisitors
 
     public static FileVisitor<Path> throwExceptions( FileVisitor<Path> wrapped )
     {
-        return new Decorator<Path>( wrapped )
+        return new Decorator<>( wrapped )
         {
             @Override
             public FileVisitResult visitFileFailed( Path file, IOException e ) throws IOException
@@ -112,7 +112,7 @@ public class FileVisitors
     public static FileVisitor<Path> onDirectory( ThrowingConsumer<Path, IOException> operation,
                                                  FileVisitor<Path> wrapped )
     {
-        return new Decorator<Path>( wrapped )
+        return new Decorator<>( wrapped )
         {
             @Override
             public FileVisitResult preVisitDirectory( Path dir, BasicFileAttributes attrs ) throws IOException
@@ -125,7 +125,7 @@ public class FileVisitors
 
     public static FileVisitor<Path> onFile( ThrowingConsumer<Path, IOException> operation, FileVisitor<Path> wrapped )
     {
-        return new Decorator<Path>( wrapped )
+        return new Decorator<>( wrapped )
         {
             @Override
             public FileVisitResult visitFile( Path file, BasicFileAttributes attrs ) throws IOException
@@ -138,7 +138,7 @@ public class FileVisitors
 
     public static FileVisitor<Path> justContinue()
     {
-        return new FileVisitor<Path>()
+        return new FileVisitor<>()
         {
             @Override
             public FileVisitResult preVisitDirectory( Path dir, BasicFileAttributes attrs )

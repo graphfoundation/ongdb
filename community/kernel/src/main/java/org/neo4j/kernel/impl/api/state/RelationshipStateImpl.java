@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,16 +38,24 @@
  */
 package org.neo4j.kernel.impl.api.state;
 
-import java.util.Iterator;
+import org.eclipse.collections.api.IntIterable;
+import org.eclipse.collections.impl.factory.primitive.IntSets;
 
-import org.neo4j.kernel.impl.api.RelationshipVisitor;
+import org.neo4j.kernel.impl.util.collection.CollectionsFactory;
+import org.neo4j.memory.HeapEstimator;
+import org.neo4j.memory.MemoryTracker;
+import org.neo4j.storageengine.api.RelationshipVisitor;
+import org.neo4j.storageengine.api.RelationshipVisitorWithProperties;
 import org.neo4j.storageengine.api.StorageProperty;
 import org.neo4j.storageengine.api.txstate.RelationshipState;
+import org.neo4j.values.storable.Value;
 
-import static java.util.Collections.emptyIterator;
+import static java.util.Collections.emptyList;
 
-class RelationshipStateImpl extends PropertyContainerStateImpl implements RelationshipState
+class RelationshipStateImpl extends EntityStateImpl implements RelationshipState
 {
+    private static final long SHALLOW_SIZE = HeapEstimator.shallowSizeOfInstance( RelationshipStateImpl.class );
+
     static final RelationshipState EMPTY = new RelationshipState()
     {
         @Override
@@ -63,38 +71,33 @@ class RelationshipStateImpl extends PropertyContainerStateImpl implements Relati
         }
 
         @Override
-        public Iterator<StorageProperty> addedProperties()
+        public <EX extends Exception> boolean accept( RelationshipVisitorWithProperties<EX> visitor ) throws EX
         {
-            return emptyIterator();
+            return false;
         }
 
         @Override
-        public Iterator<StorageProperty> changedProperties()
+        public Iterable<StorageProperty> addedProperties()
         {
-            return emptyIterator();
+            return emptyList();
         }
 
         @Override
-        public Iterator<Integer> removedProperties()
+        public Iterable<StorageProperty> changedProperties()
         {
-            return emptyIterator();
+            return emptyList();
         }
 
         @Override
-        public Iterator<StorageProperty> addedAndChangedProperties()
+        public IntIterable removedProperties()
         {
-            return emptyIterator();
+            return IntSets.immutable.empty();
         }
 
         @Override
-        public Iterator<StorageProperty> augmentProperties( Iterator<StorageProperty> iterator )
+        public Iterable<StorageProperty> addedAndChangedProperties()
         {
-            return iterator;
-        }
-
-        @Override
-        public void accept( Visitor visitor )
-        {
+            return emptyList();
         }
 
         @Override
@@ -104,44 +107,46 @@ class RelationshipStateImpl extends PropertyContainerStateImpl implements Relati
         }
 
         @Override
-        public StorageProperty getChangedProperty( int propertyKeyId )
-        {
-            return null;
-        }
-
-        @Override
-        public StorageProperty getAddedProperty( int propertyKeyId )
-        {
-            return null;
-        }
-
-        @Override
         public boolean isPropertyChangedOrRemoved( int propertyKey )
         {
             return false;
         }
 
         @Override
-        public boolean isPropertyRemoved( int propertyKeyId )
+        public Value propertyValue( int propertyKey )
         {
-            return false;
+            return null;
         }
     };
 
-    private long startNode = -1;
-    private long endNode = -1;
-    private int type = -1;
+    private final long startNode;
+    private final long endNode;
+    private final int type;
+    private boolean deleted;
 
-    RelationshipStateImpl( long id )
+    static RelationshipStateImpl createRelationshipStateImpl( long id, int type, long startNode, long endNode, CollectionsFactory collectionsFactory,
+            MemoryTracker memoryTracker )
     {
-        super( id );
+        memoryTracker.allocateHeap( SHALLOW_SIZE );
+        return new RelationshipStateImpl( id, type, startNode, endNode, collectionsFactory, memoryTracker );
     }
 
-    void setMetaData( long startNode, long endNode, int type )
+    private RelationshipStateImpl( long id, int type, long startNode, long endNode, CollectionsFactory collectionsFactory, MemoryTracker memoryTracker )
     {
+        super( id, collectionsFactory, memoryTracker );
+        this.type = type;
         this.startNode = startNode;
         this.endNode = endNode;
-        this.type = type;
+    }
+
+    void setDeleted()
+    {
+        this.deleted = true;
+    }
+
+    boolean isDeleted()
+    {
+        return this.deleted;
     }
 
     @Override
@@ -150,6 +155,17 @@ class RelationshipStateImpl extends PropertyContainerStateImpl implements Relati
         if ( type != -1 )
         {
             visitor.visit( getId(), type, startNode, endNode );
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public <EX extends Exception> boolean accept( RelationshipVisitorWithProperties<EX> visitor ) throws EX
+    {
+        if ( type != -1 )
+        {
+            visitor.visit( getId(), type, startNode, endNode, addedProperties() );
             return true;
         }
         return false;

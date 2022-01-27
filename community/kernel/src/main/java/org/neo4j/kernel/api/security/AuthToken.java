@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,13 +40,15 @@ package org.neo4j.kernel.api.security;
 
 import org.apache.commons.lang3.StringUtils;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 
 import org.neo4j.kernel.api.security.exception.InvalidAuthTokenException;
+import org.neo4j.string.UTF8;
 
 import static java.lang.String.format;
-import static org.neo4j.helpers.collection.MapUtil.map;
+import static org.neo4j.internal.helpers.collection.MapUtil.map;
 
 public interface AuthToken
 {
@@ -55,7 +57,6 @@ public interface AuthToken
     String CREDENTIALS = "credentials";
     String REALM_KEY = "realm";
     String PARAMETERS = "parameters";
-    String NEW_CREDENTIALS = "new_credentials";
     String BASIC_SCHEME = "basic";
     String NATIVE_REALM = "native";
 
@@ -74,6 +75,22 @@ public interface AuthToken
         return (String) value;
     }
 
+    static byte[] safeCastCredentials( String key, Map<String,Object> authToken ) throws InvalidAuthTokenException
+    {
+        Object value = authToken.get( key );
+        if ( value == null )
+        {
+            throw invalidToken( "missing key `" + key + "`" );
+        }
+        else if ( !(value instanceof byte[]) )
+        {
+            throw invalidToken( "the value associated with the key `" + key + "` must be a UTF-8 encoded string but was: "
+                    + value.getClass().getSimpleName() );
+        }
+        return (byte[]) value;
+    }
+
+    @SuppressWarnings( "unchecked" )
     static Map<String,Object> safeCastMap( String key, Map<String,Object> authToken )
             throws InvalidAuthTokenException
     {
@@ -94,6 +111,20 @@ public interface AuthToken
         }
     }
 
+    static boolean containsSensitiveInformation( String key )
+    {
+        return CREDENTIALS.equals( key );
+    }
+
+    static void clearCredentials( Map<String,Object> authToken )
+    {
+        Object credentials = authToken.get( CREDENTIALS );
+        if ( credentials instanceof byte[] )
+        {
+            Arrays.fill( (byte[]) credentials, (byte) 0 );
+        }
+    }
+
     static InvalidAuthTokenException invalidToken( String explanation )
     {
         if ( StringUtils.isNotEmpty( explanation ) && !explanation.matches( "^[,.:;].*" ) )
@@ -103,28 +134,54 @@ public interface AuthToken
         return new InvalidAuthTokenException( format( "Unsupported authentication token%s", explanation ) );
     }
 
-    static Map<String,Object> newBasicAuthToken( String username, String password )
+    static Map<String,Object> newBasicAuthToken( String username, byte[] password )
     {
         return map( AuthToken.SCHEME_KEY, BASIC_SCHEME, AuthToken.PRINCIPAL, username, AuthToken.CREDENTIALS,
                 password );
     }
 
-    static Map<String,Object> newBasicAuthToken( String username, String password, String realm )
+    static Map<String,Object> newBasicAuthToken( String username, byte[] password, String realm )
     {
         return map( AuthToken.SCHEME_KEY, BASIC_SCHEME, AuthToken.PRINCIPAL, username, AuthToken.CREDENTIALS, password,
                 AuthToken.REALM_KEY, realm );
     }
 
-    static Map<String,Object> newCustomAuthToken( String principle, String credentials, String realm, String scheme )
+    static Map<String,Object> newCustomAuthToken( String principle, byte[] credentials, String realm, String scheme )
     {
         return map( AuthToken.SCHEME_KEY, scheme, AuthToken.PRINCIPAL, principle, AuthToken.CREDENTIALS, credentials,
                 AuthToken.REALM_KEY, realm );
     }
 
-    static Map<String,Object> newCustomAuthToken( String principle, String credentials, String realm, String scheme,
+    static Map<String,Object> newCustomAuthToken( String principle, byte[] credentials, String realm, String scheme,
             Map<String,Object> parameters )
     {
         return map( AuthToken.SCHEME_KEY, scheme, AuthToken.PRINCIPAL, principle, AuthToken.CREDENTIALS, credentials,
                 AuthToken.REALM_KEY, realm, AuthToken.PARAMETERS, parameters );
     }
+
+    // For testing purposes only
+    static Map<String,Object> newBasicAuthToken( String username, String password )
+    {
+        return newBasicAuthToken( username, UTF8.encode( password ) );
+    }
+
+    // For testing purposes only
+    static Map<String,Object> newBasicAuthToken( String username, String password, String realm )
+    {
+        return newBasicAuthToken( username, UTF8.encode( password ), realm );
+    }
+
+    // For testing purposes only
+    static Map<String,Object> newCustomAuthToken( String principle, String credentials, String realm, String scheme )
+    {
+        return newCustomAuthToken( principle, UTF8.encode( credentials ), realm, scheme );
+    }
+
+    // For testing purposes only
+    static Map<String,Object> newCustomAuthToken( String principle, String credentials, String realm, String scheme,
+            Map<String,Object> parameters )
+    {
+        return newCustomAuthToken( principle, UTF8.encode( credentials ), realm, scheme, parameters );
+    }
+
 }

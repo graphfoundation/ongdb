@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,5 +40,10 @@ package org.neo4j.index.internal.gbptree;
 
 abstract class TestLayout<KEY,VALUE> extends Layout.Adapter<KEY,VALUE> implements KeyValueSeeder<KEY,VALUE>
 {
+    protected TestLayout( boolean fixedSize, long identifier, int majorVersion, int minorVersion )
+    {
+        super( fixedSize, identifier, majorVersion, minorVersion );
+    }
+
     abstract int compareValue( VALUE v1, VALUE v2 );
 }

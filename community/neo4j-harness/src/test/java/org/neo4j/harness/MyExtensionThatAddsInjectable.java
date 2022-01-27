@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,9 +38,10 @@
  */
 package org.neo4j.harness;
 
-import org.neo4j.kernel.extension.KernelExtensionFactory;
-import org.neo4j.kernel.impl.proc.Procedures;
-import org.neo4j.kernel.impl.spi.KernelContext;
+import org.neo4j.annotations.service.ServiceProvider;
+import org.neo4j.kernel.api.procedure.GlobalProcedures;
+import org.neo4j.kernel.extension.ExtensionFactory;
+import org.neo4j.kernel.extension.context.ExtensionContext;
 import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 
@@ -49,17 +50,19 @@ import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 // this is a vital mechanism to cover use cases Procedures need to cover,
 // and is in place as an approach that should either eventually be made
 // public, or the relevant use cases addressed in other ways.
+@ServiceProvider
 public class MyExtensionThatAddsInjectable
-        extends KernelExtensionFactory<MyExtensionThatAddsInjectable.Dependencies>
+        extends ExtensionFactory<MyExtensionThatAddsInjectable.Dependencies>
 {
+    static final String NAME = "my-ext";
+
     public MyExtensionThatAddsInjectable()
     {
-        super( "my-ext" );
+        super( NAME );
     }
 
     @Override
-    public Lifecycle newInstance( KernelContext context,
-            Dependencies dependencies )
+    public Lifecycle newInstance( ExtensionContext context, Dependencies dependencies )
     {
         dependencies.procedures().registerComponent( SomeService.class, ctx -> new SomeService(), true );
         return new LifecycleAdapter();
@@ -67,6 +70,6 @@ public class MyExtensionThatAddsInjectable
 
     public interface Dependencies
     {
-        Procedures procedures();
+        GlobalProcedures procedures();
     }
 }

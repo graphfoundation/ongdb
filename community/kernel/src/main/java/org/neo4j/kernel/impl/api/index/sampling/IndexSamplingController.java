@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,66 +38,104 @@
  */
 package org.neo4j.kernel.impl.api.index.sampling;
 
+import org.eclipse.collections.api.LongIterable;
+import org.eclipse.collections.api.iterator.LongIterator;
+import org.eclipse.collections.api.list.MutableList;
+import org.eclipse.collections.api.list.primitive.LongList;
+import org.eclipse.collections.api.list.primitive.MutableLongList;
+import org.eclipse.collections.impl.factory.Lists;
+import org.eclipse.collections.impl.factory.primitive.LongLists;
+
+import java.util.List;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.LongPredicate;
 
-import org.neo4j.collection.primitive.PrimitiveLongCollections;
-import org.neo4j.collection.primitive.PrimitiveLongIterator;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseInternalSettings;
 import org.neo4j.internal.kernel.api.InternalIndexState;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexType;
 import org.neo4j.kernel.impl.api.index.IndexMap;
 import org.neo4j.kernel.impl.api.index.IndexMapSnapshotProvider;
 import org.neo4j.kernel.impl.api.index.IndexProxy;
+import org.neo4j.kernel.impl.api.index.IndexSamplingConfig;
+import org.neo4j.kernel.impl.api.index.IndexSamplingMode;
+import org.neo4j.logging.Log;
+import org.neo4j.logging.LogProvider;
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobHandle;
+import org.neo4j.scheduler.JobMonitoringParams;
 import org.neo4j.scheduler.JobScheduler;
-import org.neo4j.scheduler.JobScheduler.JobHandle;
 
+import static java.lang.String.format;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.neo4j.kernel.impl.api.index.sampling.IndexSamplingMode.BACKGROUND_REBUILD_UPDATED;
-import static org.neo4j.scheduler.JobScheduler.Groups.indexSamplingController;
+import static org.neo4j.internal.schema.IndexType.LOOKUP;
+import static org.neo4j.kernel.impl.api.index.IndexSamplingMode.backgroundRebuildUpdated;
 
 public class IndexSamplingController
 {
     private final IndexSamplingJobFactory jobFactory;
-    private final IndexSamplingJobQueue<Long> jobQueue;
+    private final LongPredicate samplingUpdatePredicate;
     private final IndexSamplingJobTracker jobTracker;
     private final IndexMapSnapshotProvider indexMapSnapshotProvider;
     private final JobScheduler scheduler;
     private final RecoveryCondition indexRecoveryCondition;
     private final boolean backgroundSampling;
     private final Lock samplingLock = new ReentrantLock();
+    private final Log log;
+    private final boolean logRecoverIndexSamples;
+    private final boolean asyncRecoverIndexSamples;
+    private final boolean asyncRecoverIndexSamplesWait;
+    private final String databaseName;
 
     private JobHandle backgroundSamplingHandle;
 
     // use IndexSamplingControllerFactory.create do not instantiate directly
-    IndexSamplingController( IndexSamplingConfig config,
+    IndexSamplingController( IndexSamplingConfig samplingConfig,
                              IndexSamplingJobFactory jobFactory,
-                             IndexSamplingJobQueue<Long> jobQueue,
+                             LongPredicate samplingUpdatePredicate,
                              IndexSamplingJobTracker jobTracker,
                              IndexMapSnapshotProvider indexMapSnapshotProvider,
                              JobScheduler scheduler,
-                             RecoveryCondition indexRecoveryCondition )
+                             RecoveryCondition indexRecoveryCondition,
+                             LogProvider logProvider,
+                             Config config,
+                             String databaseName )
     {
-        this.backgroundSampling = config.backgroundSampling();
+        this.backgroundSampling = samplingConfig.backgroundSampling();
         this.jobFactory = jobFactory;
         this.indexMapSnapshotProvider = indexMapSnapshotProvider;
-        this.jobQueue = jobQueue;
+        this.samplingUpdatePredicate = samplingUpdatePredicate;
         this.jobTracker = jobTracker;
         this.scheduler = scheduler;
         this.indexRecoveryCondition = indexRecoveryCondition;
+        this.log = logProvider.getLog( getClass() );
+        this.logRecoverIndexSamples = config.get( GraphDatabaseInternalSettings.log_recover_index_samples );
+        this.asyncRecoverIndexSamples = config.get( GraphDatabaseInternalSettings.async_recover_index_samples );
+        this.asyncRecoverIndexSamplesWait = config.get( GraphDatabaseInternalSettings.async_recover_index_samples_wait );
+        this.databaseName = databaseName;
     }
 
     public void sampleIndexes( IndexSamplingMode mode )
     {
         IndexMap indexMap = indexMapSnapshotProvider.indexMapSnapshot();
-        jobQueue.addAll( !mode.sampleOnlyIfUpdated, PrimitiveLongCollections.toIterator( indexMap.indexIds() ) );
-        scheduleSampling( mode, indexMap );
+        LongIterable indexesToSample = indexesToSample( mode, indexMap );
+        scheduleSampling( indexesToSample, mode, indexMap );
     }
 
     public void sampleIndex( long indexId, IndexSamplingMode mode )
     {
         IndexMap indexMap = indexMapSnapshotProvider.indexMapSnapshot();
-        jobQueue.add( !mode.sampleOnlyIfUpdated, indexId );
-        scheduleSampling( mode, indexMap );
+        if ( shouldSampleIndex( mode, indexId ) )
+        {
+            scheduleSampling( LongLists.immutable.of( indexId ), mode, indexMap );
+        }
     }
 
     public void recoverIndexSamples()
@@ -106,14 +144,39 @@ public class IndexSamplingController
         try
         {
             IndexMap indexMap = indexMapSnapshotProvider.indexMapSnapshot();
-            PrimitiveLongIterator indexIds = indexMap.indexIds();
+            final LongIterator indexIds = indexMap.indexIds();
+            List<IndexSamplingJobHandle> asyncSamplingJobs = Lists.mutable.of();
             while ( indexIds.hasNext() )
             {
                 long indexId = indexIds.next();
-                if ( indexRecoveryCondition.test( indexId, indexMap.getIndexProxy( indexId ).getDescriptor() ) )
+                IndexDescriptor descriptor = indexMap.getIndexProxy( indexId ).getDescriptor();
+                if ( indexRecoveryCondition.test( descriptor ) && descriptor.getIndexType() != IndexType.LOOKUP )
                 {
-                    sampleIndexOnCurrentThread( indexMap, indexId );
+                    if ( logRecoverIndexSamples )
+                    {
+                        log.info( "Index requires sampling, id=%d, name=%s.", indexId, descriptor.getName() );
+                    }
+
+                    if ( asyncRecoverIndexSamples )
+                    {
+                        asyncSamplingJobs.add( sampleIndexOnTracker( indexMap, indexId ) );
+                    }
+                    else
+                    {
+                        sampleIndexOnCurrentThread( indexMap, indexId );
+                    }
                 }
+                else
+                {
+                    if ( logRecoverIndexSamples )
+                    {
+                        log.info( "Index does not require sampling, id=%d, name=%s.", indexId, descriptor.getName() );
+                    }
+                }
+            }
+            if ( asyncRecoverIndexSamplesWait )
+            {
+                waitForAsyncIndexSamples( asyncSamplingJobs );
             }
         }
         finally
@@ -122,74 +185,65 @@ public class IndexSamplingController
         }
     }
 
-    public interface RecoveryCondition
+    private static void waitForAsyncIndexSamples( List<IndexSamplingJobHandle> asyncSamplingJobs )
     {
-        boolean test( long indexId, SchemaIndexDescriptor descriptor );
-    }
-
-    private void scheduleSampling( IndexSamplingMode mode, IndexMap indexMap )
-    {
-        if ( mode.blockUntilAllScheduled )
-        {
-            // Wait until last sampling job has been started
-            scheduleAllSampling( indexMap );
-        }
-        else
-        {
-            // Try to schedule as many sampling jobs as possible
-            tryScheduleSampling( indexMap );
-        }
-    }
-
-    private void tryScheduleSampling( IndexMap indexMap )
-    {
-        if ( tryEmptyLock() )
+        for ( IndexSamplingJobHandle asyncSamplingJob : asyncSamplingJobs )
         {
             try
             {
-                while ( jobTracker.canExecuteMoreSamplingJobs() )
-                {
-                    Long indexId = jobQueue.poll();
-                    if ( indexId == null )
-                    {
-                        return;
-                    }
-
-                    sampleIndexOnTracker( indexMap, indexId );
-                }
+                asyncSamplingJob.waitTermination();
             }
-            finally
+            catch ( InterruptedException | ExecutionException | CancellationException e )
             {
-                samplingLock.unlock();
+                String indexName = asyncSamplingJob.descriptor.getName();
+                throw new RuntimeException(
+                        "Failed to asynchronously sample index during recovery, index '" + indexName + "'.", e );
             }
         }
     }
 
-    private boolean tryEmptyLock()
+    private void scheduleSampling( LongIterable indexesToSample, IndexSamplingMode mode, IndexMap indexMap )
     {
-        try
+        List<IndexSamplingJobHandle> allJobs = scheduleAllSampling( indexesToSample, indexMap );
+
+        long millisToWait = mode.millisToWaitForCompletion();
+        if ( millisToWait != IndexSamplingMode.NO_WAIT )
         {
-            return samplingLock.tryLock( 0, SECONDS );
-        }
-        catch ( InterruptedException ex )
-        {
-            // ignored
-            return false;
+            waitForAsyncIndexSamples( allJobs, millisToWait );
         }
     }
 
-    private void scheduleAllSampling( IndexMap indexMap )
+    private static void waitForAsyncIndexSamples( List<IndexSamplingJobHandle> allJobs, long millisToWait )
+    {
+        long start = System.nanoTime();
+        long deadline = start + MILLISECONDS.toNanos( millisToWait );
+
+        for ( IndexSamplingJobHandle job : allJobs )
+        {
+            try
+            {
+                job.waitTermination( deadline - System.nanoTime(), TimeUnit.NANOSECONDS );
+            }
+            catch ( TimeoutException e )
+            {
+                throw new RuntimeException( format( "Could not finish index sampling within the given time limit, %d milliseconds.", millisToWait ), e );
+            }
+            catch ( InterruptedException | ExecutionException e )
+            {
+                IndexDescriptor index = job.descriptor;
+                throw new RuntimeException( String.format( "Index sampling of index '%s' failed, cause: %s", index.getName(), e.getMessage() ), e );
+            }
+        }
+    }
+
+    private List<IndexSamplingJobHandle> scheduleAllSampling( LongIterable indexesToSample, IndexMap indexMap )
     {
         samplingLock.lock();
         try
         {
-            Iterable<Long> indexIds = jobQueue.pollAll();
-
-            for ( Long indexId : indexIds )
-            {
-                jobTracker.waitUntilCanExecuteMoreSamplingJobs();
-                sampleIndexOnTracker( indexMap, indexId );
-            }
+            MutableList<IndexSamplingJobHandle> allJobs = Lists.mutable.of();
+            indexesToSample.forEach( l -> allJobs.add( sampleIndexOnTracker( indexMap, l ) ) );
+            return allJobs;
         }
         finally
         {
@@ -197,13 +251,15 @@ public class IndexSamplingController
         }
     }
 
-    private void sampleIndexOnTracker( IndexMap indexMap, long indexId )
+    private IndexSamplingJobHandle sampleIndexOnTracker( IndexMap indexMap, long indexId )
     {
         IndexSamplingJob job = createSamplingJob( indexMap, indexId );
+        IndexDescriptor descriptor = indexMap.getIndexProxy( indexId ).getDescriptor();
         if ( job != null )
         {
-            jobTracker.scheduleSamplingJob( job );
+            return new IndexSamplingJobHandle( jobTracker.scheduleSamplingJob( job ), descriptor );
         }
+        return new IndexSamplingJobHandle( JobHandle.EMPTY, descriptor );
     }
 
     private void sampleIndexOnCurrentThread( IndexMap indexMap, long indexId )
@@ -218,7 +274,7 @@ public class IndexSamplingController
     private IndexSamplingJob createSamplingJob( IndexMap indexMap, long indexId )
     {
         IndexProxy proxy = indexMap.getIndexProxy( indexId );
-        if ( proxy == null || proxy.getState() != InternalIndexState.ONLINE )
+        if ( proxy == null || proxy.getState() != InternalIndexState.ONLINE || proxy.getDescriptor().getIndexType() == LOOKUP )
         {
             return null;
         }
@@ -229,8 +285,9 @@ public class IndexSamplingController
     {
         if ( backgroundSampling )
         {
-            Runnable samplingRunner = () -> sampleIndexes( BACKGROUND_REBUILD_UPDATED );
-            backgroundSamplingHandle = scheduler.scheduleRecurring( indexSamplingController, samplingRunner, 10, SECONDS );
+            Runnable samplingRunner = () -> sampleIndexes( backgroundRebuildUpdated() );
+            var monitoringParams = JobMonitoringParams.systemJob( databaseName, "Background rebuilding of updated indexes" );
+            backgroundSamplingHandle = scheduler.scheduleRecurring( Group.INDEX_SAMPLING, monitoringParams, samplingRunner, 10, SECONDS );
         }
     }
 
@@ -238,8 +295,50 @@ public class IndexSamplingController
     {
         if ( backgroundSamplingHandle != null )
         {
-            backgroundSamplingHandle.cancel( true );
+            backgroundSamplingHandle.cancel();
         }
         jobTracker.stopAndAwaitAllJobs();
+    }
+
+    private LongList indexesToSample( IndexSamplingMode mode, IndexMap indexMap )
+    {
+        MutableLongList indexesToSample = LongLists.mutable.of();
+        LongIterator allIndexes = indexMap.indexIds();
+        while ( allIndexes.hasNext() )
+        {
+            long indexId = allIndexes.next();
+            if ( shouldSampleIndex( mode, indexId ) )
+            {
+                indexesToSample.add( indexId );
+            }
+        }
+        return indexesToSample;
+    }
+
+    private boolean shouldSampleIndex( IndexSamplingMode mode, long indexId )
+    {
+        return !mode.sampleOnlyIfUpdated() || samplingUpdatePredicate.test( indexId );
+    }
+
+    private static class IndexSamplingJobHandle
+    {
+        private final JobHandle jobHandle;
+        private final IndexDescriptor descriptor;
+
+        IndexSamplingJobHandle( JobHandle jobHandle, IndexDescriptor descriptor )
+        {
+            this.jobHandle = jobHandle;
+            this.descriptor = descriptor;
+        }
+
+        public void waitTermination() throws ExecutionException, InterruptedException
+        {
+            this.jobHandle.waitTermination();
+        }
+
+        public void waitTermination( long timeout, TimeUnit unit ) throws InterruptedException, ExecutionException, TimeoutException
+        {
+            this.jobHandle.waitTermination( timeout, unit );
+        }
     }
 }

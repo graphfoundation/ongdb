@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,21 +38,30 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes.aggregation
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ReadableRow
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.kernel.impl.util.collection.DistinctSet
+import org.neo4j.memory.HeapEstimator.shallowSizeOfInstance
+import org.neo4j.memory.MemoryTracker
 import org.neo4j.values.AnyValue
 
-class DistinctFunction(value: Expression, inner: AggregationFunction) extends AggregationFunction {
-  private val seen = scala.collection.mutable.Set[AnyValue]()
+class DistinctFunction(value: Expression, inner: AggregationFunction, memoryTracker: MemoryTracker) extends AggregationFunction {
+  private var seen: DistinctSet[AnyValue] = _
 
-  override def apply(ctx: ExecutionContext, state: QueryState) {
+  override def apply(ctx: ReadableRow, state: QueryState): Unit = {
     val data = value(ctx, state)
-    if (!seen.contains(data)) {
-      seen += data
+    if (seen == null) {
+      seen = DistinctSet.createDistinctSet[AnyValue](memoryTracker)
+    }
+    if (seen.add(data)) {
       inner(ctx, state)
     }
   }
 
   override def result(state: QueryState): AnyValue = inner.result(state)
+}
+
+object DistinctFunction {
+  val SHALLOW_SIZE: Long = shallowSizeOfInstance(classOf[DistinctFunction])
 }

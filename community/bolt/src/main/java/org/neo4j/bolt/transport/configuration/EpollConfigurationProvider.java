@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,8 +41,11 @@ package org.neo4j.bolt.transport.configuration;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.epoll.EpollEventLoopGroup;
+import io.netty.channel.epoll.EpollServerDomainSocketChannel;
 import io.netty.channel.epoll.EpollServerSocketChannel;
+import io.netty.channel.unix.DomainSocketAddress;
 
+import java.net.SocketAddress;
 import java.util.concurrent.ThreadFactory;
 
 public class EpollConfigurationProvider implements ServerConfigurationProvider
@@ -54,14 +57,21 @@ public class EpollConfigurationProvider implements ServerConfigurationProvider
     }
 
     @Override
-    public EventLoopGroup createEventLoopGroup( int numberOfThreads, ThreadFactory threadFactory )
+    public EventLoopGroup createEventLoopGroup( ThreadFactory threadFactory )
     {
-        return new EpollEventLoopGroup( numberOfThreads, threadFactory );
+        return new EpollEventLoopGroup( 0, threadFactory );
     }
 
     @Override
-    public Class<? extends ServerChannel> getChannelClass()
+    public Class<? extends ServerChannel> getChannelClass( SocketAddress socketAddress )
     {
-        return EpollServerSocketChannel.class;
+        if ( socketAddress instanceof DomainSocketAddress )
+        {
+            return EpollServerDomainSocketChannel.class;
+        }
+        else
+        {
+            return EpollServerSocketChannel.class;
+        }
     }
 }

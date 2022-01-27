@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,33 +38,36 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.predicates
 
+import org.neo4j.collection.trackable.HeapTrackingCollections
+import org.neo4j.cypher.internal.macros.AssertMacros.checkOnlyWhenAssertionsAreEnabled
+import org.neo4j.memory.EmptyMemoryTracker
+import org.neo4j.memory.MemoryTracker
+import org.neo4j.values.AnyValue
+import org.neo4j.values.Equality
+import org.neo4j.values.SequenceValue
+import org.neo4j.values.storable.Values
+import org.neo4j.values.virtual.ListValue
+import org.neo4j.values.virtual.MapValue
+
 import java.util
 
-import org.neo4j.values.AnyValue
-import org.neo4j.values.storable.{ArrayValue, Values}
-import org.neo4j.values.virtual.{ListValue, VirtualValues}
-
-import scala.collection.mutable
-
 /**
-  * This is a class that handles IN checking. With a cache. It's a state machine, and
-  * each checking using the contains() method returns both the result of the IN check and the new state.
-  */
+ * This is a class that handles IN checking. With a cache. It's a state machine, and
+ * each checking using the contains() method returns both the result of the IN check and the new state.
+ */
 trait Checker {
   def contains(value: AnyValue): (Option[Boolean], Checker)
+  def close(): Unit
 }
 
-class BuildUp(list: ListValue) extends Checker {
+class BuildUp(list: ListValue, memoryTracker: MemoryTracker = EmptyMemoryTracker.INSTANCE) extends Checker {
   val iterator: util.Iterator[AnyValue] = list.iterator()
-  assert(iterator.hasNext)
-  private val cachedSet: mutable.Set[AnyValue] = new mutable.HashSet[AnyValue]
-
-  // If we don't return true, this is what we will return. If the collection contains any nulls, we'll return None,
-  // else we return Some(false).
+  checkOnlyWhenAssertionsAreEnabled(iterator.hasNext)
+  private val cachedSet = HeapTrackingCollections.newSet[AnyValue](memoryTracker)
   private var falseResult: Option[Boolean] = Some(false)
 
   override def contains(value: AnyValue): (Option[Boolean], Checker) = {
-    if (value == Values.NO_VALUE) (None, this)
+    if (value eq Values.NO_VALUE) (None, this)
     else {
       if (cachedSet.contains(value))
         (Some(true), this)
@@ -74,56 +77,85 @@ class BuildUp(list: ListValue) extends Checker {
   }
 
   private def checkAndBuildUpCache(value: AnyValue): (Option[Boolean], Checker) = {
-    var foundMatch: java.lang.Boolean = false
-    while (iterator.hasNext && !foundMatch) {
+    var foundMatch = Equality.FALSE
+    while (iterator.hasNext && foundMatch != Equality.TRUE) {
       val nextValue = iterator.next()
-
-      if (nextValue == Values.NO_VALUE) {
+      if (nextValue eq Values.NO_VALUE) {
+        foundMatch = Equality.UNDEFINED
         falseResult = None
       } else {
         cachedSet.add(nextValue)
-        foundMatch = (nextValue, value) match {
-          case (a: ArrayValue, b: ListValue) => VirtualValues.fromArray(a).ternaryEquals(b)
-          case (a: ListValue, b: ArrayValue) => VirtualValues.fromArray(b).ternaryEquals(a)
-          case (a, b) => a.ternaryEquals(b)
-        }
-        if (foundMatch == null) {
-          falseResult = None
-          foundMatch = false
+        val areEqual = nextValue.ternaryEquals(value)
+        if ((areEqual eq Equality.UNDEFINED) || (areEqual eq Equality.TRUE)) {
+          foundMatch = areEqual
         }
       }
     }
     if (cachedSet.isEmpty) {
       (None, NullListChecker)
     } else {
-      val nextState = if (iterator.hasNext) this else new SetChecker(cachedSet, falseResult)
-      val result = if (foundMatch) Some(true) else falseResult
+      val nextState = if (iterator.hasNext) this else new SetChecker(cachedSet, falseResult, Some(cachedSet))
 
-      (result, nextState)
+      foundMatch match {
+        case Equality.TRUE => (Some(true), nextState)
+        case Equality.FALSE if (value.isInstanceOf[SequenceValue] || value.isInstanceOf[MapValue]) && falseResult.isDefined =>
+          val undefinedEquality = cachedSet.stream().anyMatch(setValue => value.ternaryEquals(setValue) eq Equality.UNDEFINED)
+          if (undefinedEquality) {
+            (None, nextState)
+          } else {
+            (Some(false), nextState)
+          }
+        case Equality.FALSE => (falseResult, nextState)
+        case Equality.UNDEFINED => (None, nextState)
+      }
     }
+  }
+
+  override def close(): Unit = {
+    cachedSet.close()
   }
 }
 
 case object AlwaysFalseChecker extends Checker {
   override def contains(value: AnyValue): (Option[Boolean], Checker) = (Some(false), this)
+
+  override def close(): Unit = {}
 }
 
 case object NullListChecker extends Checker {
   override def contains(value: AnyValue): (Option[Boolean], Checker) = (None, this)
+  override def close(): Unit = {}
 }
 
-// This is the final form for this cache.
-class SetChecker(cachedSet: mutable.Set[AnyValue], falseResult: Option[Boolean]) extends Checker {
+/**
+ * This is the final form of this cache.
+ *
+ * @param cachedSet cached values
+ * @param falseResult return value if `cachedSet` does not match. Note, not valid for sequence values or map values.
+ * @param resource resource
+ */
+class SetChecker(cachedSet: java.util.Set[AnyValue], falseResult: Option[Boolean], resource: Option[AutoCloseable] = None) extends Checker {
 
-  assert(cachedSet.nonEmpty)
+  checkOnlyWhenAssertionsAreEnabled(!cachedSet.isEmpty)
 
   override def contains(value: AnyValue): (Option[Boolean], Checker) = {
-    if (value == Values.NO_VALUE)
+    if (value eq Values.NO_VALUE)
       (None, this)
-    else {
-      val exists = cachedSet.contains(value)
-      val result = if (exists) Some(true) else falseResult
-      (result, this)
+    else if (cachedSet.contains(value)) {
+      (Some(true), this)
+    } else if (falseResult.isEmpty) {
+      (falseResult, this)
+    } else if (value.isInstanceOf[SequenceValue] || value.isInstanceOf[MapValue]) {
+      val undefinedEquality = cachedSet.stream().anyMatch(setValue => value.ternaryEquals(setValue) eq Equality.UNDEFINED)
+      if (undefinedEquality) {
+        (None, this)
+      } else {
+        (Some(false), this)
+      }
+    } else {
+      (falseResult, this)
     }
   }
+
+  override def close(): Unit = resource.foreach(_.close())
 }

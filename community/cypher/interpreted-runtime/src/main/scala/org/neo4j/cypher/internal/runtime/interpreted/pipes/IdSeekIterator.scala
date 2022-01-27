@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,102 +38,142 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.Operations
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ClosingLongIterator
+import org.neo4j.cypher.internal.runtime.QueryContext
+import org.neo4j.cypher.internal.runtime.RelationshipIterator
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.NumericHelper
+import org.neo4j.internal.kernel.api.Read
+import org.neo4j.internal.kernel.api.RelationshipScanCursor
+import org.neo4j.kernel.api.StatementConstants
+import org.neo4j.storageengine.api.RelationshipVisitor
 import org.neo4j.values.AnyValue
-import org.neo4j.values.virtual.{RelationshipValue, NodeValue}
+import org.neo4j.values.storable.Values
 
-abstract class IdSeekIterator[T]
-  extends Iterator[ExecutionContext] with NumericHelper {
+import java.util.NoSuchElementException
 
-  private var cachedEntity: T = computeNextEntity()
-
-  protected def operations: Operations[T]
-  protected def entityIds: Iterator[AnyValue]
-
-  protected def hasNextEntity = cachedEntity != null
-
-  protected def nextEntity(): T = {
-    if (hasNextEntity) {
-      val result = cachedEntity
-      cachedEntity = computeNextEntity()
+class NodeIdSeekIterator(nodeIds: java.util.Iterator[AnyValue], query: QueryContext) extends ClosingLongIterator {
+  private var cachedNode: Long = computeNext()
+  override def close(): Unit = {}
+  override protected[this] def innerHasNext: Boolean = cachedNode != StatementConstants.NO_SUCH_NODE
+  override def next(): Long = {
+    if (innerHasNext) {
+      val result = cachedNode
+      cachedNode = computeNext()
       result
     } else {
-      Iterator.empty.next()
+      throw new NoSuchElementException
     }
   }
 
-  private def computeNextEntity(): T = {
-    while (entityIds.hasNext) {
-      val maybeEntity = for {
-        id <- asLongEntityId(entityIds.next())
-        entity <- operations.getByIdIfExists(id)
-      } yield entity
-
-      if(maybeEntity.isDefined) return maybeEntity.get
+  private def computeNext(): Long = {
+    while (nodeIds.hasNext) {
+      val value = nodeIds.next()
+      if (value != Values.NO_VALUE) {
+        val id = NumericHelper.asLongEntityIdPrimitive(value)
+        if (query.nodeReadOps.entityExists(id)) {
+          return id
+        }
+      }
     }
-    null.asInstanceOf[T]
+    StatementConstants.NO_SUCH_NODE
   }
+
 }
 
-final class NodeIdSeekIterator(ident: String,
-                               baseContext: ExecutionContext,
-                               executionContextFactory: ExecutionContextFactory,
-                               protected val operations: Operations[NodeValue],
-                               protected val entityIds: Iterator[AnyValue])
-  extends IdSeekIterator[NodeValue] {
-
-  def hasNext: Boolean = hasNextEntity
-
-  def next(): ExecutionContext =
-    executionContextFactory.copyWith(baseContext, ident, nextEntity())
+case class RelationshipState(id: Long, startNode: Long, endNode: Long, relType: Int) {
+  def flip: RelationshipState = copy(startNode = endNode, endNode = startNode)
 }
 
-final class DirectedRelationshipIdSeekIterator(ident: String,
-                                               fromNode: String,
-                                               toNode: String,
-                                               baseContext: ExecutionContext,
-                                               executionContextFactory: ExecutionContextFactory,
-                                               protected val operations: Operations[RelationshipValue],
-                                               protected val entityIds: Iterator[AnyValue])
-  extends IdSeekIterator[RelationshipValue] {
+class DirectedRelationshipIdSeekIterator(relIds: java.util.Iterator[AnyValue], read: Read, cursor: RelationshipScanCursor) extends ClosingLongIterator with RelationshipIterator {
+  protected var cachedRelationship: RelationshipState = _
+  protected var _next: Long = StatementConstants.NO_SUCH_RELATIONSHIP
+  private var startNode = StatementConstants.NO_SUCH_NODE
+  private var endNode = StatementConstants.NO_SUCH_NODE
+  private var typ = StatementConstants.NO_SUCH_RELATIONSHIP_TYPE
+  override def close(): Unit = {cursor.close()}
 
-  def hasNext: Boolean = hasNextEntity
-
-  def next(): ExecutionContext = {
-    val rel = nextEntity()
-    executionContextFactory.copyWith(baseContext, ident, rel, fromNode, rel.startNode(), toNode, rel.endNode()
-    )
+  override protected[this] def innerHasNext: Boolean = {
+    if (cachedRelationship == null) {
+      _next = computeNext()
+    }
+    _next != StatementConstants.NO_SUCH_RELATIONSHIP
   }
-}
 
-final class UndirectedRelationshipIdSeekIterator(ident: String,
-                                                 fromNode: String,
-                                                 toNode: String,
-                                                 baseContext: ExecutionContext,
-                                                 executionContextFactory: ExecutionContextFactory,
-                                                 protected val operations: Operations[RelationshipValue],
-                                                 protected val entityIds: Iterator[AnyValue])
-  extends IdSeekIterator[RelationshipValue] {
+  override def relationshipVisit[EXCEPTION <: Exception](relationshipId: Long, visitor: RelationshipVisitor[EXCEPTION]): Boolean = {
+    visitor.visit(relationshipId, typeId(), startNodeId(), endNodeId())
+    true
+  }
 
-  private var lastEntity: RelationshipValue = _
-  private var lastStart: NodeValue = _
-  private var lastEnd: NodeValue = _
-  private var emitSibling = false
+  override def startNodeId(): Long = startNode
 
-  def hasNext: Boolean = emitSibling || hasNextEntity
+  override def endNodeId(): Long = endNode
 
-  def next(): ExecutionContext = {
-    if (emitSibling) {
-      emitSibling = false
-      executionContextFactory.copyWith(baseContext, ident, lastEntity, fromNode, lastEnd, toNode, lastStart)
+  override def typeId(): Int = typ
+
+  override def next(): Long = {
+    if (innerHasNext) {
+      val result = _next
+      storeState()
+      _next = computeNext()
+      result
     } else {
-      emitSibling = true
-      lastEntity = nextEntity()
-      lastStart = lastEntity.startNode()
-      lastEnd = lastEntity.endNode()
-      executionContextFactory.copyWith(baseContext, ident, lastEntity, fromNode, lastStart, toNode, lastEnd)
+      throw new NoSuchElementException
+    }
+  }
+
+  protected def storeState(): Unit = {
+    startNode = cachedRelationship.startNode
+    endNode = cachedRelationship.endNode
+    typ = cachedRelationship.relType
+  }
+
+  protected def flipState(): Unit = {
+    val oldStart = startNode
+    startNode = endNode
+    endNode = oldStart
+  }
+
+  protected def computeNext(): Long = {
+    while (relIds.hasNext) {
+      val value = relIds.next()
+      if (value != Values.NO_VALUE) {
+        val id = NumericHelper.asLongEntityIdPrimitive(value)
+        if (id >= 0) {
+          read.singleRelationship(id, cursor)
+          if (cursor.next()) {
+            cachedRelationship = RelationshipState(cursor.relationshipReference(),
+              cursor.sourceNodeReference(),
+              cursor.targetNodeReference(),
+              cursor.`type`())
+            return cursor.relationshipReference()
+          }
+        }
+      }
+    }
+    StatementConstants.NO_SUCH_RELATIONSHIP
+  }
+}
+
+class UndirectedRelationshipIdSeekIterator(relIds: java.util.Iterator[AnyValue], read: Read, cursor: RelationshipScanCursor) extends DirectedRelationshipIdSeekIterator(relIds, read, cursor) {
+  private var emitSibling = false
+  private var lastRel = -1L
+
+  override protected[this] def innerHasNext: Boolean = emitSibling || super.innerHasNext
+  override def next(): Long = {
+    if (innerHasNext) {
+      if (emitSibling) {
+        emitSibling = false
+        flipState()
+        lastRel
+      } else {
+        emitSibling = true
+        lastRel = _next
+        storeState()
+        _next = computeNext()
+        lastRel
+      }
+    } else {
+      throw new NoSuchElementException
     }
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,9 +38,13 @@
  */
 package org.neo4j.index.internal.gbptree;
 
-import org.neo4j.io.pagecache.PageCursor;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 
-import static org.neo4j.index.internal.gbptree.GenerationSafePointerPair.read;
+import org.neo4j.io.pagecache.PageCursor;
+import org.neo4j.io.pagecache.context.CursorContext;
+
+import static java.lang.String.format;
 import static org.neo4j.index.internal.gbptree.Layout.FIXED_SIZE_KEY;
 import static org.neo4j.index.internal.gbptree.Layout.FIXED_SIZE_VALUE;
 import static org.neo4j.index.internal.gbptree.TreeNode.Type.INTERNAL;
@@ -90,6 +94,7 @@ class TreeNodeFixedSize<KEY,VALUE> extends TreeNode<KEY,VALUE>
     private final int leafMaxKeyCount;
     private final int keySize;
     private final int valueSize;
+    private final int maxKeyCount;
 
     TreeNodeFixedSize( int pageSize, Layout<KEY,VALUE> layout )
     {
@@ -99,17 +104,18 @@ class TreeNodeFixedSize<KEY,VALUE> extends TreeNode<KEY,VALUE>
         this.internalMaxKeyCount = Math.floorDiv( pageSize - (BASE_HEADER_LENGTH + SIZE_PAGE_REFERENCE),
                 keySize + SIZE_PAGE_REFERENCE);
         this.leafMaxKeyCount = Math.floorDiv( pageSize - BASE_HEADER_LENGTH, keySize + valueSize );
+        this.maxKeyCount = Math.max( internalMaxKeyCount, leafMaxKeyCount );
 
         if ( internalMaxKeyCount < 2 )
         {
-            throw new MetadataMismatchException(
+            throw new MetadataMismatchException( format(
                     "For layout %s a page size of %d would only fit %d internal keys, minimum is 2",
-                    layout, pageSize, internalMaxKeyCount );
+                    layout, pageSize, internalMaxKeyCount ) );
         }
         if ( leafMaxKeyCount < 2 )
         {
-            throw new MetadataMismatchException( "A page size of %d would only fit leaf keys, minimum is 2",
-                    pageSize, leafMaxKeyCount );
+            throw new MetadataMismatchException( format( "A page size of %d would only fit %d leaf keys (keySize:%d, valueSize:%d), minimum is 2",
+                    pageSize, leafMaxKeyCount, keySize, valueSize ) );
         }
     }
 
@@ -118,13 +124,19 @@ class TreeNodeFixedSize<KEY,VALUE> extends TreeNode<KEY,VALUE>
     {   // no-op
     }
 
+    @Override
+    long offloadIdAt( PageCursor cursor, int pos, Type type )
+    {
+        return NO_OFFLOAD_ID;
+    }
+
     private static int childSize()
     {
         return SIZE_PAGE_REFERENCE;
     }
 
     @Override
-    KEY keyAt( PageCursor cursor, KEY into, int pos, Type type )
+    KEY keyAt( PageCursor cursor, KEY into, int pos, Type type, CursorContext cursorContext )
     {
         cursor.setOffset( keyOffset( pos ) );
         layout.readKey( cursor, into, FIXED_SIZE_KEY );
@@ -132,43 +144,44 @@ class TreeNodeFixedSize<KEY,VALUE> extends TreeNode<KEY,VALUE>
     }
 
     @Override
-    void keyValueAt( PageCursor cursor, KEY intoKey, VALUE intoValue, int pos )
+    void keyValueAt( PageCursor cursor, KEY intoKey, VALUE intoValue, int pos, CursorContext cursorContext )
     {
-        keyAt( cursor, intoKey, pos, LEAF );
-        valueAt( cursor, intoValue, pos );
+        keyAt( cursor, intoKey, pos, LEAF, cursorContext );
+        valueAt( cursor, intoValue, pos, cursorContext );
     }
 
     @Override
     void insertKeyAndRightChildAt( PageCursor cursor, KEY key, long child, int pos, int keyCount, long stableGeneration,
-            long unstableGeneration )
+            long unstableGeneration, CursorContext cursorContext )
     {
         insertKeyAt( cursor, key, pos, keyCount );
         insertChildAt( cursor, child, pos + 1, keyCount, stableGeneration, unstableGeneration );
     }
 
     @Override
-    void insertKeyValueAt( PageCursor cursor, KEY key, VALUE value, int pos, int keyCount )
+    void insertKeyValueAt( PageCursor cursor, KEY key, VALUE value, int pos, int keyCount, long stableGeneration, long unstableGeneration,
+            CursorContext cursorContext )
     {
         insertKeyAt( cursor, key, pos, keyCount );
         insertValueAt( cursor, value, pos, keyCount );
     }
 
     @Override
-    void removeKeyValueAt( PageCursor cursor, int pos, int keyCount )
+    void removeKeyValueAt( PageCursor cursor, int pos, int keyCount, long stableGeneration, long unstableGeneration, CursorContext cursorContext )
     {
         removeKeyAt( cursor, pos, keyCount );
         removeValueAt( cursor, pos, keyCount );
     }
 
     @Override
-    void removeKeyAndLeftChildAt( PageCursor cursor, int keyPos, int keyCount )
+    void removeKeyAndLeftChildAt( PageCursor cursor, int keyPos, int keyCount, long stableGeneration, long unstableGeneration, CursorContext cursorContext )
     {
         removeKeyAt( cursor, keyPos, keyCount );
         removeChildAt( cursor, keyPos, keyCount );
     }
 
     @Override
-    void removeKeyAndRightChildAt( PageCursor cursor, int keyPos, int keyCount )
+    void removeKeyAndRightChildAt( PageCursor cursor, int keyPos, int keyCount, long stableGeneration, long unstableGeneration, CursorContext cursorContext )
     {
         removeKeyAt( cursor, keyPos, keyCount );
         removeChildAt( cursor, keyPos + 1, keyCount );
@@ -183,7 +196,7 @@ class TreeNodeFixedSize<KEY,VALUE> extends TreeNode<KEY,VALUE>
     }
 
     @Override
-    VALUE valueAt( PageCursor cursor, VALUE value, int pos )
+    VALUE valueAt( PageCursor cursor, VALUE value, int pos, CursorContext cursorContext )
     {
         cursor.setOffset( valueOffset( pos ) );
         layout.readValue( cursor, value, FIXED_SIZE_VALUE );
@@ -199,23 +212,23 @@ class TreeNodeFixedSize<KEY,VALUE> extends TreeNode<KEY,VALUE>
     }
 
     @Override
-    long childAt( PageCursor cursor, int pos, long stableGeneration, long unstableGeneration )
-    {
-        cursor.setOffset( childOffset( pos ) );
-        return read( cursor, stableGeneration, unstableGeneration, pos );
-    }
-
-    @Override
     void setChildAt( PageCursor cursor, long child, int pos, long stableGeneration, long unstableGeneration )
     {
-        cursor.setOffset( childOffset( pos ) );
-        writeChild( cursor, child, stableGeneration, unstableGeneration );
+        int childOffset = childOffset( pos );
+        cursor.setOffset( childOffset );
+        writeChild( cursor, child, stableGeneration, unstableGeneration, pos, childOffset );
     }
 
     @Override
     int keyValueSizeCap()
     {
         return NO_KEY_VALUE_SIZE_CAP;
+    }
+
+    @Override
+    int inlineKeyValueSizeCap()
+    {
+        return keyValueSizeCap();
     }
 
     @Override
@@ -226,7 +239,7 @@ class TreeNodeFixedSize<KEY,VALUE> extends TreeNode<KEY,VALUE>
     @Override
     boolean reasonableKeyCount( int keyCount )
     {
-        return keyCount >= 0 && keyCount <= Math.max( internalMaxKeyCount(), leafMaxKeyCount() );
+        return keyCount >= 0 && keyCount <= maxKeyCount;
     }
 
     @Override
@@ -241,7 +254,7 @@ class TreeNodeFixedSize<KEY,VALUE> extends TreeNode<KEY,VALUE>
         return BASE_HEADER_LENGTH + internalMaxKeyCount * keySize + pos * SIZE_PAGE_REFERENCE;
     }
 
-    private int internalMaxKeyCount()
+    int internalMaxKeyCount()
     {
         return internalMaxKeyCount;
     }
@@ -379,29 +392,29 @@ class TreeNodeFixedSize<KEY,VALUE> extends TreeNode<KEY,VALUE>
 
     @Override
     void doSplitLeaf( PageCursor leftCursor, int leftKeyCount, PageCursor rightCursor, int insertPos, KEY newKey,
-            VALUE newValue, KEY newSplitter )
+            VALUE newValue, KEY newSplitter, double ratioToKeepInLeftOnSplit, long stableGeneration, long unstableGeneration, CursorContext cursorContext )
     {
         int keyCountAfterInsert = leftKeyCount + 1;
-        int middlePos = middle( keyCountAfterInsert );
+        int splitPos = splitPos( keyCountAfterInsert, ratioToKeepInLeftOnSplit );
 
-        if ( middlePos == insertPos )
+        if ( splitPos == insertPos )
         {
             layout.copyKey( newKey, newSplitter );
         }
         else
         {
-            keyAt( leftCursor, newSplitter, insertPos < middlePos ? middlePos - 1 : middlePos, LEAF );
+            keyAt( leftCursor, newSplitter, insertPos < splitPos ? splitPos - 1 : splitPos, LEAF, cursorContext );
         }
-        int rightKeyCount = keyCountAfterInsert - middlePos;
+        int rightKeyCount = keyCountAfterInsert - splitPos;
 
-        if ( insertPos < middlePos )
+        if ( insertPos < splitPos )
         {
-            //                  v-------v       copy
+            //                v---------v       copy
             // before _,_,_,_,_,_,_,_,_,_
             // insert _,_,_,X,_,_,_,_,_,_,_
-            // middle           ^
-            copyKeysAndValues( leftCursor, middlePos - 1, rightCursor, 0, rightKeyCount );
-            insertKeyValueAt( leftCursor, newKey, newValue, insertPos, middlePos - 1 );
+            // split            ^
+            copyKeysAndValues( leftCursor, splitPos - 1, rightCursor, 0, rightKeyCount );
+            insertKeyValueAt( leftCursor, newKey, newValue, insertPos, splitPos - 1, stableGeneration, unstableGeneration, cursorContext );
         }
         else
         {
@@ -409,14 +422,14 @@ class TreeNodeFixedSize<KEY,VALUE> extends TreeNode<KEY,VALUE>
             //                        v-v       second copy
             // before _,_,_,_,_,_,_,_,_,_
             // insert _,_,_,_,_,_,_,_,X,_,_
-            // middle           ^
-            int countBeforePos = insertPos - middlePos;
+            // split            ^
+            int countBeforePos = insertPos - splitPos;
             if ( countBeforePos > 0 )
             {
                 // first copy
-                copyKeysAndValues( leftCursor, middlePos, rightCursor, 0, countBeforePos );
+                copyKeysAndValues( leftCursor, splitPos, rightCursor, 0, countBeforePos );
             }
-            insertKeyValueAt( rightCursor, newKey, newValue, countBeforePos, countBeforePos );
+            insertKeyValueAt( rightCursor, newKey, newValue, countBeforePos, countBeforePos, stableGeneration, unstableGeneration, cursorContext );
             int countAfterPos = leftKeyCount - insertPos;
             if ( countAfterPos > 0 )
             {
@@ -424,72 +437,105 @@ class TreeNodeFixedSize<KEY,VALUE> extends TreeNode<KEY,VALUE>
                 copyKeysAndValues( leftCursor, insertPos, rightCursor, countBeforePos + 1, countAfterPos );
             }
         }
-        TreeNode.setKeyCount( leftCursor, middlePos );
+        TreeNode.setKeyCount( leftCursor, splitPos );
         TreeNode.setKeyCount( rightCursor, rightKeyCount );
     }
 
-    private static int middle( int keyCountAfterInsert )
+    /**
+     * Given a range with keyCount number of fixed size keys,
+     * then splitPos point to the first key that should be moved to right node.
+     * Everything before splitPos will be kept in left node.
+     *
+     * Middle split
+     *       0,1,2,3,4
+     * split     ^
+     * left  0,1
+     * right 2,3,4
+     *
+     * Min split
+     *       0,1,2,3,4
+     * split   ^
+     * left  0
+     * right 1,2,3,4
+     *
+     * Max split
+     *       0,1,2,3,4
+     * split         ^
+     * left  0,1,2,3
+     * right 4
+     *
+     * Note that splitPos can not point past last position (keyCount - 1) or before pos 1.
+     * This is because we need to split the range somewhere.
+     *
+     * @param keyCount number of keys in range.
+     * @param ratioToKeepInLeftOnSplit How large ratio of key range to try and keep in left node.
+     * @return position of first key to move to right node.
+     */
+    private static int splitPos( int keyCount, double ratioToKeepInLeftOnSplit )
     {
-        return keyCountAfterInsert / 2;
+        // Key
+        int minSplitPos = 1;
+        int maxSplitPos = keyCount - 1;
+        return Math.max( minSplitPos, Math.min( maxSplitPos, (int) (ratioToKeepInLeftOnSplit * keyCount) ) );
     }
 
     @Override
-    void doSplitInternal( PageCursor leftCursor, int leftKeyCount, PageCursor rightCursor, int insertPos, KEY newKey,
-            long newRightChild, long stableGeneration, long unstableGeneration, KEY newSplitter )
+    void doSplitInternal( PageCursor leftCursor, int leftKeyCount, PageCursor rightCursor, int insertPos, KEY newKey, long newRightChild, long stableGeneration,
+            long unstableGeneration, KEY newSplitter, double ratioToKeepInLeftOnSplit, CursorContext cursorContext )
     {
         int keyCountAfterInsert = leftKeyCount + 1;
-        int middlePos = middle( keyCountAfterInsert );
+        int splitPos = splitPos( keyCountAfterInsert, ratioToKeepInLeftOnSplit );
 
-        if ( middlePos == insertPos )
+        if ( splitPos == insertPos )
         {
             layout.copyKey( newKey, newSplitter );
         }
         else
         {
-            keyAt( leftCursor, newSplitter, insertPos < middlePos ? middlePos - 1 : middlePos, INTERNAL );
+            keyAt( leftCursor, newSplitter, insertPos < splitPos ? splitPos - 1 : splitPos, INTERNAL, cursorContext );
         }
-        int rightKeyCount = keyCountAfterInsert - middlePos - 1; // -1 because don't keep prim key in internal
+        int rightKeyCount = keyCountAfterInsert - splitPos - 1; // -1 because don't keep prim key in internal
 
-        if ( insertPos < middlePos )
+        if ( insertPos < splitPos )
         {
             //                         v-------v       copy
             // before key    _,_,_,_,_,_,_,_,_,_
             // before child -,-,-,-,-,-,-,-,-,-,-
             // insert key    _,_,X,_,_,_,_,_,_,_,_
             // insert child -,-,-,x,-,-,-,-,-,-,-,-
-            // middle key              ^
+            // split key               ^
 
-            leftCursor.copyTo( keyOffset( middlePos ), rightCursor, keyOffset( 0 ), rightKeyCount * keySize() );
-            leftCursor.copyTo( childOffset( middlePos ), rightCursor, childOffset( 0 ), (rightKeyCount + 1) * childSize() );
-            insertKeyAt( leftCursor, newKey, insertPos, middlePos - 1 );
-            insertChildAt( leftCursor, newRightChild, insertPos + 1, middlePos - 1, stableGeneration, unstableGeneration );
+            leftCursor.copyTo( keyOffset( splitPos ), rightCursor, keyOffset( 0 ), rightKeyCount * keySize() );
+            leftCursor.copyTo( childOffset( splitPos ), rightCursor, childOffset( 0 ), (rightKeyCount + 1) * childSize() );
+            insertKeyAt( leftCursor, newKey, insertPos, splitPos - 1 );
+            insertChildAt( leftCursor, newRightChild, insertPos + 1, splitPos - 1, stableGeneration, unstableGeneration );
         }
         else
         {
-            // pos > middlePos
+            // pos > splitPos
             //                         v-v          first copy
             //                             v-v-v    second copy
             // before key    _,_,_,_,_,_,_,_,_,_
             // before child -,-,-,-,-,-,-,-,-,-,-
             // insert key    _,_,_,_,_,_,_,X,_,_,_
             // insert child -,-,-,-,-,-,-,-,x,-,-,-
-            // middle key              ^
+            // split key               ^
 
-            // pos == middlePos
+            // pos == splitPos
             //                                      first copy
             //                         v-v-v-v-v    second copy
             // before key    _,_,_,_,_,_,_,_,_,_
             // before child -,-,-,-,-,-,-,-,-,-,-
             // insert key    _,_,_,_,_,X,_,_,_,_,_
             // insert child -,-,-,-,-,-,x,-,-,-,-,-
-            // middle key              ^
+            // split key               ^
 
             // Keys
-            int countBeforePos = insertPos - (middlePos + 1);
+            int countBeforePos = insertPos - (splitPos + 1);
             // ... first copy
             if ( countBeforePos > 0 )
             {
-                leftCursor.copyTo( keyOffset( middlePos + 1 ), rightCursor, keyOffset( 0 ), countBeforePos * keySize() );
+                leftCursor.copyTo( keyOffset( splitPos + 1 ), rightCursor, keyOffset( 0 ), countBeforePos * keySize() );
             }
             // ... insert
             if ( countBeforePos >= 0 )
@@ -504,12 +550,12 @@ class TreeNodeFixedSize<KEY,VALUE> extends TreeNode<KEY,VALUE>
             }
 
             // Children
-            countBeforePos = insertPos - middlePos;
+            countBeforePos = insertPos - splitPos;
             // ... first copy
             if ( countBeforePos > 0 )
             {
                 // first copy
-                leftCursor.copyTo( childOffset( middlePos + 1 ), rightCursor, childOffset( 0 ), countBeforePos * childSize() );
+                leftCursor.copyTo( childOffset( splitPos + 1 ), rightCursor, childOffset( 0 ), countBeforePos * childSize() );
             }
             // ... insert
             insertChildAt( rightCursor, newRightChild, countBeforePos, countBeforePos, stableGeneration, unstableGeneration );
@@ -520,7 +566,7 @@ class TreeNodeFixedSize<KEY,VALUE> extends TreeNode<KEY,VALUE>
                         countAfterPos * childSize() );
             }
         }
-        TreeNode.setKeyCount( leftCursor, middlePos );
+        TreeNode.setKeyCount( leftCursor, splitPos );
         TreeNode.setKeyCount( rightCursor, rightKeyCount );
     }
 
@@ -553,10 +599,35 @@ class TreeNodeFixedSize<KEY,VALUE> extends TreeNode<KEY,VALUE>
         setKeyCount( rightCursor, rightKeyCount + leftKeyCount );
     }
 
+    @Override
+    void printNode( PageCursor cursor, boolean includeValue, boolean includeAllocSpace, long stableGeneration, long unstableGeneration,
+            CursorContext cursorContext )
+    {
+        PrintingGBPTreeVisitor<KEY,VALUE> visitor = new PrintingGBPTreeVisitor<>( PrintConfig.defaults() );
+        try
+        {
+            new GBPTreeStructure<>( this, layout, stableGeneration, unstableGeneration ).visitTreeNode( cursor, visitor, cursorContext );
+        }
+        catch ( IOException e )
+        {
+            throw new UncheckedIOException( e );
+        }
+    }
+
     private void copyKeysAndValues( PageCursor fromCursor, int fromPos, PageCursor toCursor, int toPos, int count )
     {
         fromCursor.copyTo( keyOffset( fromPos ), toCursor, keyOffset( toPos ), count * keySize() );
-        fromCursor.copyTo( valueOffset( fromPos ), toCursor, valueOffset( toPos ),count * valueSize() );
+        int valueLength = count * valueSize();
+        if ( valueLength > 0 )
+        {
+            fromCursor.copyTo( valueOffset( fromPos ), toCursor, valueOffset( toPos ), valueLength );
+        }
+    }
+
+    @Override
+    String checkMetaConsistency( PageCursor cursor, int keyCount, Type type, GBPTreeConsistencyCheckVisitor<KEY> visitor )
+    {
+        return "";
     }
 
     @Override

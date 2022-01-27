@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -353,7 +353,7 @@ class ByteCodeVerifier implements ByteCodeChecker, CodeGeneratorOption
 
         Verifier( ClassNode clazz, AssignmentChecker check )
         {
-            super( Opcodes.ASM6, Type.getObjectType( clazz.name ), superClass( clazz ), interfaces( clazz ),
+            super( ASM6, Type.getObjectType( clazz.name ), superClass( clazz ), interfaces( clazz ),
                     isInterfaceNode( clazz ) );
             this.check = check;
         }
@@ -368,7 +368,7 @@ class ByteCodeVerifier implements ByteCodeChecker, CodeGeneratorOption
         protected boolean isSubTypeOf( BasicValue value, BasicValue expected )
         {
             return super.isSubTypeOf( value, expected ) || check
-                    .invokableInterface( expected.getType(), value.getType() );
+                    .invocableInterface( expected.getType(), value.getType() );
         }
 
         private static Type superClass( ClassNode clazz )
@@ -402,7 +402,7 @@ class ByteCodeVerifier implements ByteCodeChecker, CodeGeneratorOption
             }
         }
 
-        boolean invokableInterface( Type target, Type value )
+        boolean invocableInterface( Type target, Type value )
         {
             // this method allows a bit too much through,
             // it really ought to only be used for the target type of INVOKEINTERFACE,

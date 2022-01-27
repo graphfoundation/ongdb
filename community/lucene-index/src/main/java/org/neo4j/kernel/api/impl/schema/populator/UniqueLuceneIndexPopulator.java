@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,44 +39,54 @@
 package org.neo4j.kernel.api.impl.schema.populator;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.schema.SchemaIndex;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
+import org.neo4j.kernel.api.index.IndexSample;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.index.PropertyAccessor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.kernel.impl.api.index.sampling.UniqueIndexSampler;
-import org.neo4j.storageengine.api.schema.IndexSample;
+import org.neo4j.kernel.api.index.UniqueIndexSampler;
+import org.neo4j.kernel.impl.index.schema.IndexUpdateIgnoreStrategy;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 
 /**
  * A {@link LuceneIndexPopulator} used for unique Lucene schema indexes.
  * Performs sampling using {@link UniqueIndexSampler}.
  * Verifies uniqueness of added and changed values using
- * {@link SchemaIndex#verifyUniqueness(PropertyAccessor, int[])} method.
+ * {@link SchemaIndex#verifyUniqueness(NodePropertyAccessor, int[])} method.
  */
-public class UniqueLuceneIndexPopulator extends LuceneIndexPopulator
+public class UniqueLuceneIndexPopulator extends LuceneIndexPopulator<SchemaIndex>
 {
     private final int[] propertyKeyIds;
     private final UniqueIndexSampler sampler;
 
-    public UniqueLuceneIndexPopulator( SchemaIndex index, SchemaIndexDescriptor descriptor )
+    public UniqueLuceneIndexPopulator( SchemaIndex index, IndexDescriptor descriptor, IndexUpdateIgnoreStrategy ignoreStrategy )
     {
-        super( index );
+        super( index, ignoreStrategy );
         this.propertyKeyIds = descriptor.schema().getPropertyIds();
         this.sampler = new UniqueIndexSampler();
     }
 
     @Override
-    public void verifyDeferredConstraints( PropertyAccessor accessor ) throws IndexEntryConflictException, IOException
+    public void verifyDeferredConstraints( NodePropertyAccessor accessor ) throws IndexEntryConflictException
     {
-        luceneIndex.verifyUniqueness( accessor, propertyKeyIds );
+        try
+        {
+            luceneIndex.verifyUniqueness( accessor, propertyKeyIds );
+        }
+        catch ( IOException e )
+        {
+            throw new UncheckedIOException( e );
+        }
     }
 
     @Override
-    public IndexUpdater newPopulatingUpdater( final PropertyAccessor accessor )
+    public IndexUpdater newPopulatingUpdater( final NodePropertyAccessor accessor, CursorContext cursorContext )
     {
-        return new UniqueLuceneIndexPopulatingUpdater( writer, propertyKeyIds, luceneIndex, accessor, sampler );
+        return new UniqueLuceneIndexPopulatingUpdater( writer, propertyKeyIds, luceneIndex, accessor, sampler, ignoreStrategy );
     }
 
     @Override
@@ -86,7 +96,7 @@ public class UniqueLuceneIndexPopulator extends LuceneIndexPopulator
     }
 
     @Override
-    public IndexSample sampleResult()
+    public IndexSample sample( CursorContext cursorContext )
     {
         return sampler.result();
     }

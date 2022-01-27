@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,34 +39,71 @@
 package org.neo4j.kernel.impl.transaction.log;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
+import org.neo4j.kernel.database.LogEntryWriterFactory;
 import org.neo4j.kernel.impl.transaction.TransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryWriter;
+import org.neo4j.util.VisibleForTesting;
 
 public class TransactionLogWriter
 {
-    private final LogEntryWriter writer;
+    private final FlushablePositionAwareChecksumChannel channel;
+    private final LogEntryWriterFactory logEntryWriterFactory;
 
-    public TransactionLogWriter( LogEntryWriter writer )
+    public TransactionLogWriter( FlushablePositionAwareChecksumChannel channel, LogEntryWriterFactory logEntryWriterFactory )
     {
-        this.writer = writer;
+        this.channel = channel;
+        this.logEntryWriterFactory = logEntryWriterFactory;
     }
 
-    public void append( TransactionRepresentation transaction, long transactionId ) throws IOException
+    /**
+     * Append a transaction to the transaction log file
+     * @return checksum of the transaction
+     */
+    public int append( TransactionRepresentation transaction, long transactionId, int previousChecksum ) throws IOException
     {
-        writer.writeStartEntry( transaction.getMasterId(), transaction.getAuthorId(),
-                transaction.getTimeStarted(), transaction.getLatestCommittedTxWhenStarted(),
-                transaction.additionalHeader() );
+        var writer = logEntryWriterFactory.createEntryWriter( channel, transaction.version() );
+        writer.writeStartEntry( transaction.getTimeStarted(), transaction.getLatestCommittedTxWhenStarted(), previousChecksum, transaction.additionalHeader() );
 
         // Write all the commands to the log channel
         writer.serialize( transaction );
 
         // Write commit record
-        writer.writeCommitEntry( transactionId, transaction.getTimeCommitted() );
+        return writer.writeCommitEntry( transactionId, transaction.getTimeCommitted() );
     }
 
-    public void checkPoint( LogPosition logPosition ) throws IOException
+    @VisibleForTesting
+    public void legacyCheckPoint( LogPosition logPosition ) throws IOException
     {
-        writer.writeCheckPointEntry( logPosition );
+        LogEntryWriter<FlushablePositionAwareChecksumChannel> writer = logEntryWriterFactory.createEntryWriter( channel );
+        writer.writeLegacyCheckPointEntry( logPosition );
+    }
+
+    public LogPosition getCurrentPosition() throws IOException
+    {
+        return channel.getCurrentPosition();
+    }
+
+    public LogPositionMarker getCurrentPosition( LogPositionMarker logPositionMarker ) throws IOException
+    {
+        return channel.getCurrentPosition( logPositionMarker );
+    }
+
+    @VisibleForTesting
+    public FlushablePositionAwareChecksumChannel getChannel()
+    {
+        return channel;
+    }
+
+    @VisibleForTesting
+    public LogEntryWriter<FlushablePositionAwareChecksumChannel> getWriter()
+    {
+        return logEntryWriterFactory.createEntryWriter( channel );
+    }
+
+    public void append( ByteBuffer byteBuffer ) throws IOException
+    {
+        channel.write( byteBuffer );
     }
 }

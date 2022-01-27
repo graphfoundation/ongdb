@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,8 +42,9 @@ import io.netty.channel.Channel;
 
 import java.time.Clock;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseInternalSettings;
+import org.neo4j.memory.MemoryTracker;
 
 /**
  * Serves as an entry point for throttling of transport related resources. Currently only
@@ -72,9 +73,9 @@ public class TransportThrottleGroup
         return writeThrottle;
     }
 
-    public void install( Channel channel )
+    public void install( Channel channel, MemoryTracker memoryTracker )
     {
-        writeThrottle.install( channel );
+        writeThrottle.install( channel, memoryTracker );
     }
 
     public void uninstall( Channel channel )
@@ -84,11 +85,11 @@ public class TransportThrottleGroup
 
     private static TransportThrottle createWriteThrottle( Config config, Clock clock )
     {
-        if ( config.get( GraphDatabaseSettings.bolt_outbound_buffer_throttle) )
+        if ( config.get( GraphDatabaseInternalSettings.bolt_outbound_buffer_throttle) )
         {
-            return new TransportWriteThrottle( config.get( GraphDatabaseSettings.bolt_outbound_buffer_throttle_low_water_mark ),
-                    config.get( GraphDatabaseSettings.bolt_outbound_buffer_throttle_high_water_mark ), clock,
-                    config.get( GraphDatabaseSettings.bolt_outbound_buffer_throttle_max_duration ) );
+            return new TransportWriteThrottle( config.get( GraphDatabaseInternalSettings.bolt_outbound_buffer_throttle_low_water_mark ),
+                    config.get( GraphDatabaseInternalSettings.bolt_outbound_buffer_throttle_high_water_mark ), clock,
+                    config.get( GraphDatabaseInternalSettings.bolt_outbound_buffer_throttle_max_duration ) );
         }
 
         return NoOpTransportThrottle.INSTANCE;
@@ -99,7 +100,7 @@ public class TransportThrottleGroup
         private static final TransportThrottle INSTANCE = new NoOpTransportThrottle();
 
         @Override
-        public void install( Channel channel )
+        public void install( Channel channel, MemoryTracker memoryTracker )
         {
 
         }

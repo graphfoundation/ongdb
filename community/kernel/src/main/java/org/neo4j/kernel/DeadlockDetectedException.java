@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -44,30 +44,10 @@ import org.neo4j.kernel.api.exceptions.Status;
 /**
  * Signals that a deadlock between two or more transactions has been detected.
  */
-public class DeadlockDetectedException extends TransientTransactionFailureException implements Status.HasStatus
+public class DeadlockDetectedException extends TransientTransactionFailureException
 {
     public DeadlockDetectedException( String message )
     {
-        super( message, null );
-    }
-
-    public DeadlockDetectedException( String message, Throwable cause )
-    {
-        super( "Don't panic.\n" +
-                "\n" +
-                "A deadlock scenario has been detected and avoided. This means that two or more transactions, which were " +
-                "holding locks, were wanting to await locks held by one another, which would have resulted in a deadlock " +
-                "between these transactions. This exception was thrown instead of ending up in that deadlock.\n" +
-                "\n" +
-                "See the deadlock section in the ONgDB Java developer reference for how to avoid this: " +
-                "https://graphfoundation.org/ongdb/docs/java-reference/current/#transactions-deadlocks\n" +
-                "\n" +
-                "Details: '" + message + "'.", cause );
-    }
-
-    @Override
-    public Status status()
-    {
-        return Status.Transaction.DeadlockDetected;
+        super( Status.Transaction.DeadlockDetected, message );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,6 +40,7 @@ package org.neo4j.index.internal.gbptree;
 
 import org.neo4j.io.pagecache.PageCursor;
 
+import static java.lang.String.format;
 import static org.neo4j.index.internal.gbptree.PageCursorUtil.get6BLong;
 import static org.neo4j.index.internal.gbptree.PageCursorUtil.getUnsignedInt;
 import static org.neo4j.index.internal.gbptree.PageCursorUtil.put6BLong;
@@ -67,7 +68,7 @@ import static org.neo4j.index.internal.gbptree.PageCursorUtil.put6BLong;
 class GenerationSafePointer
 {
     private static final int EMPTY_POINTER = 0;
-    private static final int EMPTY_GENERATION = 0;
+    static final int EMPTY_GENERATION = 0;
 
     static final long MIN_GENERATION = 1L;
     // unsigned int
@@ -154,7 +155,6 @@ class GenerationSafePointer
         return checksum == checksumOf( generation, pointer );
     }
 
-    // package visible for test purposes
     /**
      * Calculates a 2-byte checksum from GSP data.
      *
@@ -163,7 +163,7 @@ class GenerationSafePointer
      *
      * @return a {@code short} which is the checksum of the generation-pointer.
      */
-    public static short checksumOf( long generation, long pointer )
+    static short checksumOf( long generation, long pointer )
     {
         short result = 0;
         result ^= ((short) generation) & UNSIGNED_SHORT_MASK;
@@ -177,5 +177,11 @@ class GenerationSafePointer
     public static boolean isEmpty( long generation, long pointer )
     {
         return generation == EMPTY_GENERATION && pointer == EMPTY_POINTER;
+    }
+
+    static String toString( long generation, long pointer, short checksum, boolean correctChecksum )
+    {
+        return format( "GSP[generation=%d, pointer=%d, checksum=%s]",
+                generation, pointer, checksum + (correctChecksum ? "(OK)" : "(NOT OK)") );
     }
 }

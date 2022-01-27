@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,6 +38,7 @@
  */
 package org.neo4j.values.storable;
 
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -46,11 +47,15 @@ import org.neo4j.values.ValueMapper;
 import org.neo4j.values.virtual.ListValue;
 
 import static java.lang.String.format;
+import static org.neo4j.memory.HeapEstimator.shallowSizeOfInstance;
+import static org.neo4j.values.utils.ValueMath.HASH_CONSTANT;
 import static org.neo4j.values.virtual.VirtualValues.list;
 
 public final class CharValue extends TextValue
 {
-    final char value;
+    private static final long SHALLOW_SIZE = shallowSizeOfInstance( CharValue.class );
+
+    private final char value;
 
     CharValue( char value )
     {
@@ -58,9 +63,9 @@ public final class CharValue extends TextValue
     }
 
     @Override
-    public boolean eq( Object other )
+    public boolean equalTo( Object other )
     {
-        return other != null && other instanceof Value && equals( (Value) other );
+        return other instanceof Value && equals( (Value) other );
     }
 
     @Override
@@ -82,10 +87,10 @@ public final class CharValue extends TextValue
     }
 
     @Override
-    public int computeHash()
+    protected int computeHashToMemoize()
     {
         //The 31 is there to give it the same hash as the string equivalent
-        return 31 + value;
+        return HASH_CONSTANT + value;
     }
 
     @Override
@@ -131,11 +136,17 @@ public final class CharValue extends TextValue
     }
 
     @Override
+    public boolean isEmpty()
+    {
+        return false;
+    }
+
+    @Override
     public TextValue substring( int start, int length )
     {
         if ( length != 1 && start != 0 )
         {
-            return StringValue.EMTPY;
+            return StringValue.EMPTY;
         }
 
         return this;
@@ -146,7 +157,7 @@ public final class CharValue extends TextValue
     {
         if ( Character.isWhitespace( value ) )
         {
-            return StringValue.EMTPY;
+            return StringValue.EMPTY;
         }
         else
         {
@@ -187,7 +198,20 @@ public final class CharValue extends TextValue
         }
         else
         {
-            return list( Values.stringValue( stringValue() ) );
+            return list( this );
+        }
+    }
+
+    @Override
+    public ListValue split( List<String> separators )
+    {
+        if ( separators.stream().anyMatch( sep -> sep.equals( stringValue() ) ) )
+        {
+            return EMPTY_SPLIT;
+        }
+        else
+        {
+            return list( this );
         }
     }
 
@@ -212,6 +236,30 @@ public final class CharValue extends TextValue
         return this;
     }
 
+    @Override
+    public TextValue plus( TextValue other )
+    {
+        return Values.stringValue( value + other.stringValue() );
+    }
+
+    @Override
+    public boolean startsWith( TextValue other )
+    {
+        return other.length() == 1 && other.stringValue().charAt( 0 ) == value;
+    }
+
+    @Override
+    public boolean endsWith( TextValue other )
+    {
+        return startsWith( other );
+    }
+
+    @Override
+    public boolean contains( TextValue other )
+    {
+        return startsWith( other );
+    }
+
     public char value()
     {
         return value;
@@ -232,7 +280,7 @@ public final class CharValue extends TextValue
     @Override
     Matcher matcher( Pattern pattern )
     {
-        return pattern.matcher( "" + value ); // TODO: we should be able to do this without allocation
+        return pattern.matcher( String.valueOf( value ) );
     }
 
     @Override
@@ -245,5 +293,17 @@ public final class CharValue extends TextValue
     public String getTypeName()
     {
         return "Char";
+    }
+
+    @Override
+    public long estimatedHeapUsage()
+    {
+        return SHALLOW_SIZE;
+    }
+
+    @Override
+    public ValueRepresentation valueRepresentation()
+    {
+        return ValueRepresentation.UTF16_TEXT;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,18 +38,23 @@
  */
 package org.neo4j.cypher.internal.runtime
 
-import java.lang.{Iterable => JavaIterable}
-import java.util.{Iterator => JavaIterator}
+import java.lang
+import java.util
 
+import org.neo4j.graphdb.Entity
+import org.neo4j.graphdb.Node
+import org.neo4j.graphdb.Path
+import org.neo4j.graphdb.Relationship
 import org.neo4j.graphdb.traversal.Paths
-import org.neo4j.graphdb.{Node, Path, PropertyContainer, Relationship}
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.asJavaIterableConverter
+import scala.collection.JavaConverters.iterableAsScalaIterableConverter
+
 import scala.collection.mutable
 
-case class PathImpl(pathEntities: PropertyContainer*)
+case class PathImpl(pathEntities: Entity*)
   extends org.neo4j.graphdb.Path
-  with Traversable[PropertyContainer] {
+  with Traversable[Entity] {
 
   val sz = pathEntities.size
 
@@ -77,7 +82,7 @@ case class PathImpl(pathEntities: PropertyContainer*)
   require(isProperPath, s"Tried to construct a path that is not built like a path: $pathEntities")
 
   def isProperPath: Boolean = {
-    val atLeastOneNode = nodeList.length > 0
+    val atLeastOneNode = nodeList.nonEmpty
     val relsLengthEqualsToNodesLengthMinusOne = relList.length == nodeList.length - 1
     atLeastOneNode && relsLengthEqualsToNodesLengthMinusOne
   }
@@ -88,15 +93,15 @@ case class PathImpl(pathEntities: PropertyContainer*)
 
   def lastRelationship(): Relationship = if (relList.isEmpty) null else relList.last
 
-  def relationships(): JavaIterable[Relationship] = relList.asJava
+  def relationships(): lang.Iterable[Relationship] = relList.asJava
 
-  def nodes(): JavaIterable[Node] = nodeList.asJava
+  def nodes(): lang.Iterable[Node] = nodeList.asJava
 
   def length(): Int = relList.size
 
-  def iterator(): JavaIterator[PropertyContainer] = pathEntities.asJava.iterator()
+  def iterator(): util.Iterator[Entity] = pathEntities.asJava.iterator()
 
-  def foreach[U](f: (PropertyContainer) => U) {
+  def foreach[U](f: Entity => U) {
     pathEntities.foreach(f)
   }
 
@@ -112,7 +117,7 @@ case class PathImpl(pathEntities: PropertyContainer*)
     that.asScala.toList == pathEntities.toList
   }
 
-  def reverseNodes(): JavaIterable[Node] = nodeList.reverse.asJava
+  def reverseNodes(): lang.Iterable[Node] = nodeList.reverse.asJava
 
-  def reverseRelationships(): JavaIterable[Relationship] = relList.reverse.asJava
+  def reverseRelationships(): lang.Iterable[Relationship] = relList.reverse.asJava
 }

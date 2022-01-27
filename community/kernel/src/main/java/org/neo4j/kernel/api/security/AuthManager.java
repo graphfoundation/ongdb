@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,52 +40,58 @@ package org.neo4j.kernel.api.security;
 
 import java.util.Map;
 
+import org.neo4j.exceptions.InvalidArgumentException;
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
 import org.neo4j.internal.kernel.api.security.LoginContext;
+import org.neo4j.internal.kernel.api.security.SecurityContext;
 import org.neo4j.kernel.api.security.exception.InvalidAuthTokenException;
-import org.neo4j.kernel.lifecycle.Lifecycle;
+import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 
 /**
  * An AuthManager is used to do basic authentication and user management.
  */
-public interface AuthManager extends Lifecycle
+public abstract class AuthManager extends LifecycleAdapter
 {
+    public static final String INITIAL_USER_NAME = "neo4j";
+    public static final String INITIAL_PASSWORD = "neo4j";
+
     /**
      * Log in using the provided authentication token
+     *
+     * NOTE: The authToken will be cleared of any credentials
+     *
      * @param authToken The authentication token to login with. Typically contains principals and credentials.
+     * @param connectionInfo The connection information of the request.
      * @return An AuthSubject representing the newly logged-in user
      * @throws InvalidAuthTokenException if the authentication token is malformed
      */
-    LoginContext login( Map<String,Object> authToken ) throws InvalidAuthTokenException;
+    public abstract LoginContext login( Map<String,Object> authToken, ClientConnectionInfo connectionInfo ) throws InvalidAuthTokenException;
+
+    public abstract LoginContext impersonate( LoginContext originalAuth, String userToImpersonate );
+
+    public abstract void log( String message, SecurityContext securityContext );
 
     /**
      * Implementation that does no authentication.
      */
-    AuthManager NO_AUTH = new AuthManager()
+    public static final AuthManager NO_AUTH = new AuthManager()
     {
         @Override
-        public void init()
+        public LoginContext login( Map<String,Object> authToken, ClientConnectionInfo connectionInfo )
         {
+            AuthToken.clearCredentials( authToken );
+            return LoginContext.fullAccess( connectionInfo );
         }
 
         @Override
-        public void start()
+        public LoginContext impersonate( LoginContext originalAuth, String userToImpersonate )
         {
+            throw new InvalidArgumentException( "Impersonation is not supported with auth disabled." );
         }
 
         @Override
-        public void stop()
+        public void log( String message, SecurityContext securityContext )
         {
-        }
-
-        @Override
-        public void shutdown()
-        {
-        }
-
-        @Override
-        public LoginContext login( Map<String,Object> authToken )
-        {
-            return LoginContext.AUTH_DISABLED;
         }
     };
 }

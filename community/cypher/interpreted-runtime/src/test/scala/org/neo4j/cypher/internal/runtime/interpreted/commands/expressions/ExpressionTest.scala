@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,13 +38,19 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.commands.ReturnItem
-import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.{CoercedPredicate, Not, True}
+import org.neo4j.cypher.internal.runtime.ReadableRow
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
+import org.neo4j.cypher.internal.runtime.interpreted.commands.LiteralHelper.literal
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.CoercedPredicate
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Not
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.True
 import org.neo4j.cypher.internal.runtime.interpreted.commands.values.TokenType.PropertyKey
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.util.v3_4.symbols._
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.util.symbols.CTAny
+import org.neo4j.cypher.internal.util.symbols.CTMap
+import org.neo4j.cypher.internal.util.symbols.CypherType
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.values.AnyValue
 
 import scala.collection.Map
 
@@ -53,11 +59,11 @@ class ExpressionTest extends CypherFunSuite {
     val a = Collect(Property(Variable("r"), PropertyKey("age")))
 
     val b = a.rewrite {
-      case Property(n, p) => Literal(n + "." + p.name)
+      case Property(n, p) => literal(n + "." + p.name)
       case x              => x
     }
 
-    b should equal(Collect(Literal("r.age")))
+    b should equal(Collect(literal("r.age")))
   }
 
   test("merge_two_different_variables") {
@@ -92,29 +98,18 @@ class ExpressionTest extends CypherFunSuite {
     aggregates.toList should equal( List(Collect(Property(Variable("n"), PropertyKey("bar")))))
   }
 
-  test("should_find_inner_aggregations2") {
-    //GIVEN
-    val r = ReturnItem(Avg(Property(Variable("a"), PropertyKey("age"))), "avg(a.age)")
-
-    //WHEN
-    val aggregates = r.expression.filter(e => e.isInstanceOf[AggregationExpression])
-
-    //THEN
-    aggregates.toList should equal( List(Avg(Property(Variable("a"), PropertyKey("age")))))
-  }
-
   test("should_handle_rewriting_to_non_predicates") {
     // given
     val expression = Not(True())
 
     // when
     val result = expression.rewrite {
-      case True() => Literal(true)
+      case True() => literal(true)
       case e      => e
     }
 
     // then
-    result should equal(Not(CoercedPredicate(Literal(true))))
+    result should equal(Not(CoercedPredicate(literal(true))))
   }
 
   private def testMerge(a: Map[String, CypherType], b: Map[String, CypherType], expected: Map[String, CypherType]) {
@@ -140,23 +135,23 @@ class ExpressionTest extends CypherFunSuite {
     }).toMap
 
     if (result != expected) {
-      fail("""
+      fail(s"""
 Merged:
-    %s with
-    %s
+    $a with
+    $b
 
-     Got: %s
-Expected: %s""".format(a, b, result, expected))
+     Got: $result
+Expected: $expected""")
     }
   }
 }
 
 class TestExpression extends Expression {
-  def arguments = Nil
+  override def arguments: Seq[Expression] = Seq.empty
 
-  def rewrite(f: (Expression) => Expression): Expression = null
+  override def children: Seq[AstNode[_]] = Seq.empty
 
-  def symbolTableDependencies = Set()
+  override def rewrite(f: Expression => Expression): Expression = null
 
-  def apply(v1: ExecutionContext, state: QueryState) = null
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = null
 }

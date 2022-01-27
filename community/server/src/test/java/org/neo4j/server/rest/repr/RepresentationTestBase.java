@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,9 +40,9 @@ package org.neo4j.server.rest.repr;
 
 import java.net.URI;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class RepresentationTestBase
+final class RepresentationTestBase
 {
     static final URI BASE_URI = URI.create( "http://neo4j.org/" );
     static final String NODE_URI_PATTERN = "http://.*/node/[0-9]+";
@@ -55,7 +55,7 @@ class RepresentationTestBase
 
     static void assertUriMatches( String expectedRegex, String actualUri )
     {
-        assertTrue( "expected <" + expectedRegex + "> got <" + actualUri + ">", actualUri.matches( expectedRegex ) );
+        assertTrue( actualUri.matches( expectedRegex ), "expected <" + expectedRegex + "> got <" + actualUri + ">" );
     }
 
     static String uriPattern( String subPath )

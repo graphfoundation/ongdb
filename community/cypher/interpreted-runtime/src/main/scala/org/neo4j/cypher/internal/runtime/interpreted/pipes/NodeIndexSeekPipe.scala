@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,38 +38,53 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.expressions.CachedProperty
+import org.neo4j.cypher.internal.expressions.LabelToken
+import org.neo4j.cypher.internal.logical.plans.IndexOrder
+import org.neo4j.cypher.internal.logical.plans.IndexedProperty
+import org.neo4j.cypher.internal.logical.plans.QueryExpression
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.cypher.internal.v3_4.expressions.{LabelToken, PropertyKeyToken}
-import org.neo4j.cypher.internal.v3_4.logical.plans._
-import org.neo4j.internal.kernel.api.{CapableIndexReference, IndexReference}
+import org.neo4j.cypher.internal.util.attribution.Id
 
 case class NodeIndexSeekPipe(ident: String,
                              label: LabelToken,
-                             propertyKeys: Seq[PropertyKeyToken],
+                             properties: Array[IndexedProperty],
+                             queryIndexId: Int,
                              valueExpr: QueryExpression[Expression],
-                             indexMode: IndexSeekMode = IndexSeek)
-                            (val id: Id = Id.INVALID_ID) extends Pipe with NodeIndexSeeker {
+                             indexMode: IndexSeekMode = IndexSeek,
+                             indexOrder: IndexOrder)
+                            (val id: Id = Id.INVALID_ID) extends Pipe with EntityIndexSeeker with IndexPipeWithValues {
 
-  override val propertyIds: Array[Int] = propertyKeys.map(_.nameId.id).toArray
+  override val propertyIds: Array[Int] = properties.map(_.propertyKeyToken.nameId.id)
 
-  private var reference: IndexReference = CapableIndexReference.NO_INDEX
+  override val indexPropertyIndices: Array[Int] = properties.indices.filter(properties(_).shouldGetValue).toArray
+  override val indexCachedProperties: Array[CachedProperty] =
+    indexPropertyIndices.map(offset => properties(offset).asCachedProperty(ident))
+  private val needsValues: Boolean = indexPropertyIndices.nonEmpty
 
-  private def reference(context: QueryContext): IndexReference = {
-    if (reference == CapableIndexReference.NO_INDEX) {
-      reference = context.indexReference(label.nameId.id, propertyIds:_*)
-    }
-    reference
+  protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
+    val index = state.queryIndexes(queryIndexId)
+    val baseContext = state.newRowWithArgument(rowFactory)
+    new NodeIndexIterator(state, state.query, baseContext, indexSeek(state, index, needsValues, indexOrder, baseContext))
   }
 
-  valueExpr.expressions.foreach(_.registerOwningPipe(this))
+  def canEqual(other: Any): Boolean = other.isInstanceOf[NodeIndexSeekPipe]
 
-  protected def internalCreateResults(state: QueryState): Iterator[ExecutionContext] = {
-    val indexReference = reference(state.query)
-    val baseContext = state.createOrGetInitialContext(executionContextFactory)
-    val resultNodes = indexSeek(state, indexReference, baseContext)
-    resultNodes.map(node => executionContextFactory.copyWith(baseContext, ident, node))
+  override def equals(other: Any): Boolean = other match {
+    case that: NodeIndexSeekPipe =>
+      (that canEqual this) &&
+        ident == that.ident &&
+        label == that.label &&
+        (properties sameElements that.properties) &&
+        valueExpr == that.valueExpr &&
+        indexMode == that.indexMode
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    val state = Seq(ident, label, properties.toSeq, valueExpr, indexMode)
+    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }

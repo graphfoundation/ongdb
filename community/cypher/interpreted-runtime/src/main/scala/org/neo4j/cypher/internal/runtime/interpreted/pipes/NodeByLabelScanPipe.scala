@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,22 +38,26 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.logical.plans.IndexOrder
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.PrimitiveLongHelper
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.LazyLabel.UNKNOWN
+import org.neo4j.cypher.internal.util.attribution.Id
+import org.neo4j.values.virtual.VirtualValues
 
-case class NodeByLabelScanPipe(ident: String, label: LazyLabel)
-                              (val id: Id = Id.INVALID_ID) extends Pipe  {
+case class NodeByLabelScanPipe(ident: String, label: LazyLabel, indexOrder: IndexOrder)
+                              (val id: Id = Id.INVALID_ID) extends Pipe {
 
-  protected def internalCreateResults(state: QueryState): Iterator[ExecutionContext] = {
+  protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
 
-    label.getOptId(state.query) match {
-      case Some(labelId) =>
-        val nodes = state.query.getNodesByLabel(labelId.id)
-        val baseContext = state.createOrGetInitialContext(executionContextFactory)
-        nodes.map(n => executionContextFactory.copyWith(baseContext, ident, n))
-      case None =>
-        Iterator.empty
+    val id = label.getId(state.query)
+    if (id != UNKNOWN) {
+      val nodes = state.query.getNodesByLabel(state.nodeLabelTokenReadSession.get, id, indexOrder)
+      val baseContext = state.newRowWithArgument(rowFactory)
+      PrimitiveLongHelper.map(nodes, n => rowFactory.copyWith(baseContext, ident, VirtualValues.node(n)))
+    } else {
+      ClosingIterator.empty
     }
   }
-
 }

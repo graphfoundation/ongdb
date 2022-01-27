@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,7 +42,7 @@ import org.apache.commons.lang3.mutable.MutableLong;
 
 import static org.neo4j.index.internal.gbptree.SimpleLongLayout.longLayout;
 
-public class SeekCursorFixedSizeTest extends SeekCursorTestBase<MutableLong,MutableLong>
+class SeekCursorFixedSizeTest extends SeekCursorTestBase<MutableLong,MutableLong>
 {
     @Override
     TestLayout<MutableLong,MutableLong> getLayout()
@@ -51,7 +51,8 @@ public class SeekCursorFixedSizeTest extends SeekCursorTestBase<MutableLong,Muta
     }
 
     @Override
-    TreeNode<MutableLong,MutableLong> getTreeNode( int pageSize, TestLayout<MutableLong,MutableLong> layout )
+    TreeNode<MutableLong,MutableLong> getTreeNode( int pageSize, TestLayout<MutableLong,MutableLong> layout,
+            OffloadStore<MutableLong,MutableLong> offloadStore )
     {
         return new TreeNodeFixedSize<>( pageSize, layout );
     }

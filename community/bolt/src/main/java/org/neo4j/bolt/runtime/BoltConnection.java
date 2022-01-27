@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -43,9 +43,6 @@ import io.netty.channel.Channel;
 import java.net.SocketAddress;
 import java.util.concurrent.RejectedExecutionException;
 
-import org.neo4j.bolt.v1.packstream.PackOutput;
-import org.neo4j.bolt.v1.runtime.Job;
-
 public interface BoltConnection
 {
 
@@ -55,6 +52,13 @@ public interface BoltConnection
      * @return identifier
      */
     String id();
+
+    /**
+     * Returns whether this connection is idle or not.
+     *
+     * @return true if idle, false otherwise
+     */
+    boolean idle();
 
     /**
      * Returns the local (server) socket address that this client is bound to
@@ -76,11 +80,6 @@ public interface BoltConnection
      * @return netty channel
      */
     Channel channel();
-
-    /**
-     * Returns the packer that's used to generate response streams
-     */
-    PackOutput output();
 
     /**
      * Returns whether there's any pending Job waiting to be processed
@@ -127,4 +126,14 @@ public interface BoltConnection
      */
     void stop();
 
+    /**
+     * Perform a keep alive check
+     */
+    @Deprecated( forRemoval = true )
+    void keepAlive();
+
+    /**
+     * Init the keep alive timer.
+     */
+    void initKeepAliveTimer();
 }

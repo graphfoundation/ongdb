@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -45,24 +45,24 @@ import org.eclipse.jetty.server.HttpInput;
 import org.eclipse.jetty.server.HttpOutput;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
 import org.neo4j.server.configuration.ServerSettings;
 
 import static org.eclipse.jetty.http.HttpHeader.STRICT_TRANSPORT_SECURITY;
 import static org.eclipse.jetty.http.HttpScheme.HTTPS;
 import static org.eclipse.jetty.server.HttpConfiguration.Customizer;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class HttpsRequestCustomizerTest
+class HttpsRequestCustomizerTest
 {
     @Test
-    public void shouldSetRequestSchemeToHttps()
+    void shouldSetRequestSchemeToHttps()
     {
         Customizer customizer = newCustomizer();
         Request request = mock( Request.class );
@@ -73,7 +73,7 @@ public class HttpsRequestCustomizerTest
     }
 
     @Test
-    public void shouldAddHstsHeaderWhenConfigured()
+    void shouldAddHstsHeaderWhenConfigured()
     {
         String configuredValue = "max-age=3600; includeSubDomains";
         Customizer customizer = newCustomizer( configuredValue );
@@ -86,7 +86,7 @@ public class HttpsRequestCustomizerTest
     }
 
     @Test
-    public void shouldNotAddHstsHeaderWhenNotConfigured()
+    void shouldNotAddHstsHeaderWhenNotConfigured()
     {
         Customizer customizer = newCustomizer();
         Request request = newRequest();
@@ -114,7 +114,7 @@ public class HttpsRequestCustomizerTest
 
     private static Customizer newCustomizer()
     {
-        return newCustomizer( null );
+        return new HttpsRequestCustomizer( Config.defaults() );
     }
 
     private static Customizer newCustomizer( String hstsValue )

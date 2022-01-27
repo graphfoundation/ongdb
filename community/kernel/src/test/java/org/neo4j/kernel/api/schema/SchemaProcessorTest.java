@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,38 +38,46 @@
  */
 package org.neo4j.kernel.api.schema;
 
-import org.hamcrest.Matchers;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaProcessor;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.RelationTypeSchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptors;
+import org.neo4j.internal.schema.SchemaProcessor;
 
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class SchemaProcessorTest
+class SchemaProcessorTest
 {
     private static final int LABEL_ID = 0;
     private static final int REL_TYPE_ID = 0;
 
     @Test
-    public void shouldHandleCorrectDescriptorVersions()
+    void shouldHandleCorrectDescriptorVersions()
     {
         List<String> callHistory = new ArrayList<>();
         SchemaProcessor processor = new SchemaProcessor()
         {
             @Override
-            public void processSpecific( org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor schema )
+            public void processSpecific( LabelSchemaDescriptor schema )
             {
                 callHistory.add( "LabelSchemaDescriptor" );
             }
 
             @Override
-            public void processSpecific( org.neo4j.internal.kernel.api.schema.RelationTypeSchemaDescriptor schema )
+            public void processSpecific( RelationTypeSchemaDescriptor schema )
             {
                 callHistory.add( "RelationTypeSchemaDescriptor" );
+            }
+
+            @Override
+            public void processSpecific( SchemaDescriptor schemaDescriptor )
+            {
+                callHistory.add( "SchemaDescriptor" );
             }
         };
 
@@ -80,19 +88,17 @@ public class SchemaProcessorTest
         disguisedRelType().processWith( processor );
         disguisedRelType().processWith( processor );
 
-        assertThat( callHistory, Matchers.contains(
-                "LabelSchemaDescriptor", "LabelSchemaDescriptor",
-                "RelationTypeSchemaDescriptor", "LabelSchemaDescriptor",
-                "RelationTypeSchemaDescriptor", "RelationTypeSchemaDescriptor" ) );
+        assertThat( callHistory ).containsExactly( "LabelSchemaDescriptor", "LabelSchemaDescriptor", "RelationTypeSchemaDescriptor", "LabelSchemaDescriptor",
+                "RelationTypeSchemaDescriptor", "RelationTypeSchemaDescriptor" );
     }
 
-    private SchemaDescriptor disguisedLabel()
+    private static SchemaDescriptor disguisedLabel()
     {
-        return SchemaDescriptorFactory.forLabel( LABEL_ID, 1 );
+        return SchemaDescriptors.forLabel( LABEL_ID, 1 );
     }
 
-    private SchemaDescriptor disguisedRelType()
+    private static SchemaDescriptor disguisedRelType()
     {
-        return SchemaDescriptorFactory.forRelType( REL_TYPE_ID, 1 );
+        return SchemaDescriptors.forRelType( REL_TYPE_ID, 1 );
     }
 }

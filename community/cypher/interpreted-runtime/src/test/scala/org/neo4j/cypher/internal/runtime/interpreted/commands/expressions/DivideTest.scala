@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,23 +38,26 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
-import org.neo4j.cypher.internal.util.v3_4.ArithmeticException
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.values.storable.{NumberValue}
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
+import org.neo4j.cypher.internal.runtime.interpreted.commands.LiteralHelper.literal
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.exceptions.ArithmeticException
+import org.neo4j.values.storable.FloatingPointValue
+import org.neo4j.values.storable.NumberValue
 
 class DivideTest extends CypherFunSuite {
   test("should_throw_arithmetic_exception_for_divide_by_zero") {
-    val ctx = ExecutionContext.empty
+    val ctx = CypherRow.empty
     val state = QueryStateHelper.empty
 
-    intercept[ArithmeticException](Divide(Literal(1), Literal(0))(ctx, state))
-    intercept[ArithmeticException](Divide(Literal(1.4), Literal(0))(ctx, state))
+    intercept[ArithmeticException](Divide(literal(1), literal(0))(ctx, state))
+    intercept[ArithmeticException](Divide(literal(1.4), literal(0))(ctx, state))
     // Floating point division should not throw "/ by zero".
     // The JVM does not trap IEEE-754 exceptional conditions (see https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-2.html#jvms-2.8.1)
     // The behaviour is defined as:
-    Divide(Literal(1), Literal(0.0))(ctx, state).asInstanceOf[NumberValue].doubleValue() should equal(Double.PositiveInfinity)
-    Divide(Literal(-1), Literal(0.0))(ctx, state).asInstanceOf[NumberValue].doubleValue() should equal(Double.NegativeInfinity)
-    Divide(Literal(0), Literal(0.0))(ctx, state).asInstanceOf[NumberValue].isNaN shouldBe true
+    Divide(literal(1), literal(0.0))(ctx, state).asInstanceOf[NumberValue].doubleValue() should equal(Double.PositiveInfinity)
+    Divide(literal(-1), literal(0.0))(ctx, state).asInstanceOf[NumberValue].doubleValue() should equal(Double.NegativeInfinity)
+    Divide(literal(0), literal(0.0))(ctx, state).asInstanceOf[FloatingPointValue].isNaN shouldBe true
   }
 }

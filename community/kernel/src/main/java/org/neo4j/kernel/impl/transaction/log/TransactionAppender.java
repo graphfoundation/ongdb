@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,17 +39,20 @@
 package org.neo4j.kernel.impl.transaction.log;
 
 import java.io.IOException;
+import java.util.concurrent.ExecutionException;
 
+import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.kernel.impl.api.TransactionToApply;
 import org.neo4j.kernel.impl.transaction.tracing.LogAppendEvent;
-import org.neo4j.kernel.impl.transaction.tracing.LogCheckPointEvent;
-import org.neo4j.kernel.internal.DatabaseHealth;
+import org.neo4j.kernel.lifecycle.Lifecycle;
+import org.neo4j.monitoring.DatabaseHealth;
+import org.neo4j.storageengine.api.TransactionIdStore;
 
 /**
  * Writes batches of transactions, each containing groups of commands to a log that is guaranteed to be recoverable,
  * i.e. consistently readable, in the event of failure.
  */
-public interface TransactionAppender
+public interface TransactionAppender extends Lifecycle
 {
     /**
      * Appends a batch of transactions to a log, effectively committing the transactions.
@@ -58,30 +61,19 @@ public interface TransactionAppender
      * <p>
      * Any failure happening inside this method will cause a {@link DatabaseHealth#panic(Throwable) kernel panic}.
      * Callers must make sure that successfully appended
-     * transactions exiting this method are {@link Commitment#publishAsClosed()}}.
+     * transactions exiting this method are {@link Commitment#publishAsClosed(CursorContext)}.
      *
      * @param batch transactions to append to the log. These transaction instances provide both input arguments
-     * as well as a place to provide output data, namely {@link TransactionToApply#commitment()} and
+     * as well as a place to provide output data, namely {@link TransactionToApply#commitment(Commitment, long)} and
      * {@link TransactionToApply#transactionId()}.
      * @param logAppendEvent A trace event for the given log append operation.
      * @return last committed transaction in this batch. The appended (i.e. committed) transactions
-     * will have had their {@link TransactionToApply#commitment()} available and caller is expected to
-     * {@link Commitment#publishAsClosed() mark them as applied} after they have been applied to storage.
-     * Note that {@link Commitment commitments} must be {@link Commitment#publishAsCommitted() marked as committed}
+     * will have had their {@link TransactionToApply#commitment(Commitment, long)} available and caller is expected to
+     * {@link Commitment#publishAsClosed(CursorContext)} mark them as applied} after they have been applied to storage.
+     * Note that {@link Commitment commitments} must be {@link Commitment#publishAsCommitted(CursorContext)}  marked as committed}
      * by this method.
      * @throws IOException if there was a problem appending the transaction. See method javadoc body for
      * how to handle exceptions in general thrown from this method.
      */
-    long append( TransactionToApply batch, LogAppendEvent logAppendEvent ) throws IOException;
-
-    /**
-     * Appends a check point to a log which marks a starting point for recovery in the event of failure.
-     * After this method have returned the check point mark must have been flushed to disk.
-     *
-     * @param logPosition the log position contained in the written check point
-     * @param logCheckPointEvent a trace event for the given check point operation.
-     * @throws IOException if there was a problem appending the transaction. See method javadoc body for
-     * how to handle exceptions in general thrown from this method.
-     */
-    void checkPoint( LogPosition logPosition, LogCheckPointEvent logCheckPointEvent ) throws IOException;
+    long append( TransactionToApply batch, LogAppendEvent logAppendEvent ) throws IOException, ExecutionException, InterruptedException;
 }

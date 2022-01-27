@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,30 +38,31 @@
  */
 package org.neo4j.kernel.impl.context;
 
+import java.util.Objects;
 import java.util.function.LongSupplier;
 
-import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContext;
-import org.neo4j.io.pagecache.tracing.cursor.context.VersionContext;
-import org.neo4j.io.pagecache.tracing.cursor.context.VersionContextSupplier;
+import org.neo4j.io.pagecache.context.VersionContext;
+import org.neo4j.io.pagecache.context.VersionContextSupplier;
 
 /**
- * {@link VersionContextSupplier} that supplier thread bound version context that should be used in a context of
+ * {@link VersionContextSupplier} that supplier version context that should be used in a context of
  * transaction(Committing or reading).
  */
 public class TransactionVersionContextSupplier implements VersionContextSupplier
 {
-    protected ThreadLocal<VersionContext> cursorContext;
+    private LongSupplier lastClosedTransactionIdSupplier;
 
     @Override
-    public void init( LongSupplier lastClosedTransactionIdSupplier )
+    public void init( LongSupplier lastClosedTransactionIdSupplier, String databaseName )
     {
-        this.cursorContext = ThreadLocal.withInitial( () -> new TransactionVersionContext( lastClosedTransactionIdSupplier ) );
+        this.lastClosedTransactionIdSupplier = lastClosedTransactionIdSupplier;
     }
 
     @Override
-    public VersionContext getVersionContext()
+    public VersionContext createVersionContext()
     {
-        return cursorContext == null ? EmptyVersionContext.EMPTY : cursorContext.get();
+        Objects.requireNonNull( lastClosedTransactionIdSupplier );
+        return new TransactionVersionContext( lastClosedTransactionIdSupplier );
     }
 
 }

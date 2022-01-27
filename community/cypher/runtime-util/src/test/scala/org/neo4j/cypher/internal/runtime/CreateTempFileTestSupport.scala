@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,14 +38,20 @@
  */
 package org.neo4j.cypher.internal.runtime
 
-import java.io.{FileOutputStream, OutputStreamWriter, PrintWriter}
-import java.nio.file.{Files, Path}
-import java.util.zip.{GZIPOutputStream, ZipEntry, ZipOutputStream}
-
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.{CypherFunSuite, CypherTestSupport}
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.util.test_helpers.CypherTestSupport
 import org.neo4j.io.fs.FileUtils
 
+import java.io.FileOutputStream
+import java.io.OutputStreamWriter
+import java.io.PrintWriter
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.zip.GZIPOutputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import scala.io.Codec
+import scala.language.implicitConversions
 import scala.reflect.io.File
 
 trait CreateTempFileTestSupport extends CypherTestSupport {
@@ -56,7 +62,7 @@ trait CreateTempFileTestSupport extends CypherTestSupport {
   override protected def stopTest(): Unit = {
     try {
       paths.filter(Files.exists(_)).foreach { p =>
-        if (Files.isRegularFile(p)) p.toFile.delete() else FileUtils.deletePathRecursively(p)
+        if (Files.isRegularFile(p)) p.toFile.delete() else FileUtils.deleteDirectory(p)
       }
     } finally {
       super.stopTest()
@@ -71,19 +77,19 @@ trait CreateTempFileTestSupport extends CypherTestSupport {
   def createCSVTempFileURL(filename: String, dir: String)(f: PrintWriter => Unit)(implicit writer: File => PrintWriter): String =
     createTempFileURL(filename, ".csv")(f)
 
-  def createGzipCSVTempFileURL(f: PrintWriter => Unit)(implicit writer: File => PrintWriter): String =
+  def createGzipCSVTempFileURL(f: PrintWriter => Unit): String =
     createGzipCSVTempFileURL()(f)
 
-  def createGzipCSVTempFileURL(filename: String = "cypher", dir: String = null)(f: PrintWriter => Unit)(implicit writer: (File => PrintWriter)): String =
+  def createGzipCSVTempFileURL(filename: String = "cypher", dir: String = null)(f: PrintWriter => Unit): String =
     createTempFileURL(filename, ".csv.gz")(f)(gzipWriter)
 
-  def createZipCSVTempFileURL(f: PrintWriter => Unit)(implicit writer: File => PrintWriter): String =
+  def createZipCSVTempFileURL(f: PrintWriter => Unit): String =
     createZipCSVTempFileURL()(f)
 
-  def createZipCSVTempFileURL(filename: String = "cypher", dir: String = null)(f: PrintWriter => Unit)(implicit writer: (File => PrintWriter)): String =
+  def createZipCSVTempFileURL(filename: String = "cypher", dir: String = null)(f: PrintWriter => Unit): String =
     createTempFileURL(filename, ".csv.zip")(f)(zipWriter)
 
-  def createTempFile(name: String, ext: String, f: PrintWriter => Unit)(implicit writer: (File => PrintWriter)): String = synchronized {
+  def createTempFile(name: String, ext: String, f: PrintWriter => Unit)(implicit writer: File => PrintWriter): String = synchronized {
     withTempFileWriter(name, ext)(f).toAbsolute.path
   }
 

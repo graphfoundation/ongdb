@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,31 +38,18 @@
  */
 package org.neo4j.kernel.api.exceptions.schema;
 
-import org.neo4j.internal.kernel.api.TokenNameLookup;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.internal.kernel.api.exceptions.schema.SchemaKernelException;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaUtil;
 import org.neo4j.kernel.api.exceptions.Status;
-
-import static java.lang.String.format;
 
 public class DropIndexFailureException extends SchemaKernelException
 {
-    private final SchemaDescriptor descriptor;
-    private static final String message = "Unable to drop index on %s: %s";
-
-    public DropIndexFailureException( SchemaDescriptor descriptor, SchemaKernelException cause )
+    public DropIndexFailureException( String message )
     {
-        super( Status.Schema.IndexDropFailed, format( message, descriptor.userDescription( SchemaUtil.idTokenNameLookup ),
-                        cause.getMessage() ), cause );
-        this.descriptor = descriptor;
+        super( Status.Schema.IndexDropFailed, message );
     }
 
-    @Override
-    public String getUserMessage( TokenNameLookup tokenNameLookup )
+    public DropIndexFailureException( String message, Throwable cause )
     {
-        return format( message, descriptor.userDescription( tokenNameLookup ),
-                ((KernelException) getCause()).getUserMessage( tokenNameLookup ) );
+        super( Status.Schema.IndexDropFailed, message, cause );
     }
 }

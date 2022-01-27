@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,32 +38,28 @@
  */
 package org.neo4j.server.rest.dbms;
 
-import com.sun.jersey.api.core.HttpContext;
-import com.sun.jersey.api.core.HttpRequestContext;
-
 import java.security.Principal;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
 
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
+import org.neo4j.internal.kernel.api.security.AbstractSecurityLog;
+import org.neo4j.internal.kernel.api.security.AccessMode;
+import org.neo4j.internal.kernel.api.security.AuthSubject;
 import org.neo4j.internal.kernel.api.security.LoginContext;
-import org.neo4j.kernel.api.security.AnonymousContext;
+import org.neo4j.internal.kernel.api.security.SecurityContext;
+import org.neo4j.server.rest.web.HttpConnectionInfoFactory;
 
 public class AuthorizedRequestWrapper extends HttpServletRequestWrapper
 {
     public static LoginContext getLoginContextFromHttpServletRequest( HttpServletRequest request )
     {
         Principal principal = request.getUserPrincipal();
-        return getLoginContextFromUserPrincipal( principal );
+        ClientConnectionInfo connectionInfo = HttpConnectionInfoFactory.create( request );
+        return getLoginContextFromUserPrincipal( principal, connectionInfo );
     }
 
-    public static LoginContext getLoginContextFromHttpContext( HttpContext httpContext )
-    {
-        HttpRequestContext requestContext = httpContext.getRequest();
-        Principal principal = requestContext.getUserPrincipal();
-        return getLoginContextFromUserPrincipal( principal );
-    }
-
-    public static LoginContext getLoginContextFromUserPrincipal( Principal principal )
+    public static LoginContext getLoginContextFromUserPrincipal( Principal principal, ClientConnectionInfo connectionInfo )
     {
         if ( principal instanceof DelegatingPrincipal )
         {
@@ -71,7 +67,14 @@ public class AuthorizedRequestWrapper extends HttpServletRequestWrapper
         }
         // If whitelisted uris can start transactions we cannot throw exception here
         //throw new IllegalArgumentException( "Tried to get access mode on illegal user principal" );
-        return AnonymousContext.none();
+        return new LoginContext( AuthSubject.ANONYMOUS, connectionInfo )
+        {
+            @Override
+            public SecurityContext authorize( IdLookup idLookup, String dbName, AbstractSecurityLog securityLog )
+            {
+                return new SecurityContext( subject(), AccessMode.Static.ACCESS, connectionInfo(), dbName );
+            }
+        };
     }
 
     private final String authType;

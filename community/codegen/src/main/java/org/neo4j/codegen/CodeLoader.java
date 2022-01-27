@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,37 +41,58 @@ package org.neo4j.codegen;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.neo4j.internal.unsafe.UnsafeUtil;
+
+/**
+ * ClassLoader which loads new classes that have been compiled in-process.
+ */
 class CodeLoader extends ClassLoader
 {
-    private final Map<String/*class name*/,ByteCodes> bytecodes = new HashMap<>();
+    private final Map<String/*class name*/,ByteCodes> stagedClasses = new HashMap<>();
 
     CodeLoader( ClassLoader parent )
     {
         super( parent );
     }
 
-    public synchronized void addSources( Iterable<? extends ByteCodes> sources, ByteCodeVisitor visitor )
+    /**
+     * Stage compiled classes so that they are ready to load on first use.
+     *
+     * @param classes classes to load
+     * @param visitor visitor which inspects class bytecodes
+     */
+    synchronized void stageForLoading( Iterable<? extends ByteCodes> classes, ByteCodeVisitor visitor )
     {
-        for ( ByteCodes source : sources )
+        for ( ByteCodes clazz : classes )
         {
-            visitor.visitByteCode( source.name(), source.bytes().duplicate() );
-            bytecodes.put( source.name(), source );
+            visitor.visitByteCode( clazz.name(), clazz.bytes().duplicate() );
+            stagedClasses.put( clazz.name(), clazz );
         }
     }
 
     @Override
     protected synchronized Class<?> findClass( String name ) throws ClassNotFoundException
     {
-        ByteCodes codes = bytecodes.remove( name );
-        if ( codes == null )
+        ByteCodes clazz = stagedClasses.remove( name );
+        if ( clazz == null )
         {
             throw new ClassNotFoundException( name );
         }
         String packageName = name.substring( 0, name.lastIndexOf( '.' ) );
-        if ( getPackage( packageName ) == null )
+        if ( getDefinedPackage( packageName ) == null )
         {
             definePackage( packageName, "", "", "", "", "", "", null );
         }
-        return defineClass( name, codes.bytes(), null );
+        return defineClass( name, clazz.bytes(), null );
+    }
+
+    protected synchronized Class<?> defineAnonymousClass( String name ) throws Throwable
+    {
+        ByteCodes clazz = stagedClasses.remove( name );
+        if ( clazz == null )
+        {
+            throw new ClassNotFoundException( name );
+        }
+        return UnsafeUtil.defineAnonymousClass( CodeLoader.class, clazz.bytes() );
     }
 }

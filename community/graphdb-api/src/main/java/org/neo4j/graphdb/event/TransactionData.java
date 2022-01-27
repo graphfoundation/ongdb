@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,6 +40,7 @@ package org.neo4j.graphdb.event;
 
 import java.util.Map;
 
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 
@@ -49,13 +50,10 @@ import org.neo4j.graphdb.Relationship;
  * it was before the transaction started. This implies f.ex. that a node which
  * is created, modified and then deleted in the same transaction won't be seen
  * in the transaction data at all.
- *
- * @author Tobias Ivarsson
- * @author Mattias Persson
  */
+@PublicApi
 public interface TransactionData
 {
-
     /**
      * Get the nodes that were created during the transaction.
      *

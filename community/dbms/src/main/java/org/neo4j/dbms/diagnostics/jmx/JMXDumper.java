@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -48,24 +48,24 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Optional;
 
+import org.neo4j.configuration.BootloaderSettings;
+import org.neo4j.configuration.Config;
 import org.neo4j.io.fs.FileSystemAbstraction;
 
-import static org.neo4j.commandline.dbms.DiagnosticsReportCommand.PID_KEY;
-
 /**
- * Facilitates JMX Dump for current running ONgDB instance.
+ * Facilitates JMX Dump for current running Neo4j instance.
  */
 public class JMXDumper
 {
-    private final Path homeDir;
+    private final Config config;
     private final FileSystemAbstraction fs;
     private final PrintStream err;
     private final boolean verbose;
     private PrintStream out;
 
-    public JMXDumper( Path homeDir, FileSystemAbstraction fs, PrintStream out, PrintStream err, boolean verbose )
+    public JMXDumper( Config config, FileSystemAbstraction fs, PrintStream out, PrintStream err, boolean verbose )
     {
-        this.homeDir = homeDir;
+        this.config = config;
         this.fs = fs;
         this.err = err;
         this.verbose = verbose;
@@ -83,8 +83,8 @@ public class JMXDumper
         }
         else
         {
-            out.println( "No running instance of ONgDB was found. Online reports will be omitted." );
-            out.println( "If ONgDB is running but not detected, you can supply the process id of the running instance with --" + PID_KEY );
+            out.println( "No running instance of neo4j was found. Online reports will be omitted." );
+            out.println( "If neo4j is running but not detected, you can supply the process id of the running instance with --pid" );
             return Optional.empty();
         }
     }
@@ -136,8 +136,8 @@ public class JMXDumper
 
     private Optional<Long> getPid()
     {
-        Path pidFile = this.homeDir.resolve( "run/ongdb.pid" );
-        if ( this.fs.fileExists( pidFile.toFile() ) )
+        Path pidFile = config.get( BootloaderSettings.pid_file );
+        if ( this.fs.fileExists( pidFile ) )
         {
             // The file cannot be opened with write permissions on Windows
             try ( InputStream inputStream = Files.newInputStream( pidFile, StandardOpenOption.READ );
@@ -151,7 +151,7 @@ public class JMXDumper
 
                 catch ( NumberFormatException e )
                 {
-                    printError( pidFile.toString() + " does not contain a valid id. Found: " + pidFileContent );
+                    printError( pidFile + " does not contain a valid id. Found: " + pidFileContent );
                 }
             }
             catch ( IOException e )

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,6 +40,8 @@ package org.neo4j.kernel.recovery;
 
 import java.io.IOException;
 
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.kernel.impl.transaction.CommittedTransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.TransactionCursor;
@@ -47,16 +49,16 @@ import org.neo4j.storageengine.api.TransactionApplicationMode;
 
 public interface RecoveryService
 {
-    void startRecovery();
+    TransactionCursor getTransactions( long transactionId ) throws IOException;
 
     TransactionCursor getTransactions( LogPosition recoveryFromPosition ) throws IOException;
 
     TransactionCursor getTransactionsInReverseOrder( LogPosition recoveryFromPosition ) throws IOException;
 
-    RecoveryStartInformation getRecoveryStartInformation();
+    RecoveryStartInformation getRecoveryStartInformation() throws IOException;
 
-    RecoveryApplier getRecoveryApplier( TransactionApplicationMode mode ) throws Exception;
+    RecoveryApplier getRecoveryApplier( TransactionApplicationMode mode, PageCacheTracer cacheTracer, String tracerTag ) throws Exception;
 
-    void transactionsRecovered( CommittedTransactionRepresentation lastRecoveredTransaction,
-            LogPosition positionAfterLastRecoveredTransaction );
+    void transactionsRecovered( CommittedTransactionRepresentation lastRecoveredTransaction, LogPosition lastTransactionPosition,
+            LogPosition positionAfterLastRecoveredTransaction, LogPosition checkpointPosition, boolean missingLogs, CursorContext cursorContext );
 }

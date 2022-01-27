@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -126,7 +126,7 @@ public class ProcedureProcessorTest extends ExtensionTestBase
 
         UnsuccessfulCompilationClause compilation =
                 assert_().about( javaSource() ).that( sproc ).processedWith( processor() ).failsToCompile()
-                        .withErrorCount( 3 );
+                        .withErrorCount( 4 );
 
         compilation.withErrorContaining( "Unsupported parameter type " +
                 "<java.util.List<java.util.List<java.util.Map<java.lang.String,java.lang.Thread>>>>" +
@@ -139,6 +139,10 @@ public class ProcedureProcessorTest extends ExtensionTestBase
         compilation.withErrorContaining(
                 "Unsupported parameter type <java.util.Map> of procedure|function BadGenericInputSproc#doSomething3" )
                 .in( sproc ).onLine( 67 );
+
+        compilation.withErrorContaining(
+                "Unsupported parameter type <java.lang.String[]> of procedure|function BadGenericInputSproc#doSomething4" )
+                   .in( sproc ).onLine( 73 );
     }
 
     @Test
@@ -167,13 +171,13 @@ public class ProcedureProcessorTest extends ExtensionTestBase
 
         compilation.withErrorContaining(
                 "Record definition error: type of field BadRecordGenericFieldType#wrongType1 is not supported" )
-                .in( record ).onLine( 53 );
+                .in( record ).onLine( 51 );
         compilation.withErrorContaining(
                 "Record definition error: type of field BadRecordGenericFieldType#wrongType2 is not supported" )
-                .in( record ).onLine( 54 );
+                .in( record ).onLine( 52 );
         compilation.withErrorContaining(
                 "Record definition error: type of field BadRecordGenericFieldType#wrongType3 is not supported" )
-                .in( record ).onLine( 55 );
+                .in( record ).onLine( 53 );
     }
 
     @Test
@@ -210,19 +214,6 @@ public class ProcedureProcessorTest extends ExtensionTestBase
                 .that( asList( JavaFileObjectUtils.INSTANCE.procedureSource( "valid/Procedures.java" ),
                         JavaFileObjectUtils.INSTANCE.procedureSource( "valid/Records.java" ) ) )
                 .processedWith( processor() ).compilesWithoutError();
-
-    }
-
-    @Test
-    public void fails_with_conflicting_mode()
-    {
-        JavaFileObject procedure = JavaFileObjectUtils.INSTANCE.procedureSource(
-                "invalid/conflicting_mode/ConflictingMode.java" );
-
-        assert_().about( javaSource() ).that( procedure ).processedWith( processor() ).failsToCompile()
-                .withErrorCount( 1 )
-                .withErrorContaining( "@PerformsWrites usage error: cannot use mode other than Mode.DEFAULT" )
-                .in( procedure ).onLine( 49 );
 
     }
 

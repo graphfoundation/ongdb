@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,25 +41,32 @@ package org.neo4j.cypher.internal.javacompat;
 import java.net.URL;
 import java.util.concurrent.TimeUnit;
 
-import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.common.DependencyResolver;
+import org.neo4j.configuration.Config;
 import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.QueryExecutionException;
+import org.neo4j.graphdb.Transaction;
+import org.neo4j.graphdb.security.URLAccessRule;
 import org.neo4j.graphdb.security.URLAccessValidationError;
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
 import org.neo4j.internal.kernel.api.security.LoginContext;
 import org.neo4j.kernel.GraphDatabaseQueryService;
 import org.neo4j.kernel.api.KernelTransaction;
-import org.neo4j.kernel.api.dbms.DbmsOperations;
 import org.neo4j.kernel.impl.coreapi.InternalTransaction;
-import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
 
 public class GraphDatabaseCypherService implements GraphDatabaseQueryService
 {
-    private final GraphDatabaseFacade graph;
-    private final DbmsOperations dbmsOperations;
+    private final GraphDatabaseAPI graph;
+    private final URLAccessRule urlAccessRule;
+    private final Config config;
 
     public GraphDatabaseCypherService( GraphDatabaseService graph )
     {
-        this.graph = (GraphDatabaseFacade) graph;
-        this.dbmsOperations = getDependencyResolver().resolveDependency( DbmsOperations.class );
+        this.graph = (GraphDatabaseAPI) graph;
+        DependencyResolver dependencyResolver = getDependencyResolver();
+        this.urlAccessRule = dependencyResolver.resolveDependency( URLAccessRule.class );
+        this.config = dependencyResolver.resolveDependency( Config.class );
     }
 
     @Override
@@ -75,28 +82,31 @@ public class GraphDatabaseCypherService implements GraphDatabaseQueryService
     }
 
     @Override
-    public InternalTransaction beginTransaction( KernelTransaction.Type type, LoginContext loginContext,
+    public InternalTransaction beginTransaction( KernelTransaction.Type type, LoginContext loginContext, ClientConnectionInfo connectionInfo )
+    {
+        return graph.beginTransaction( type, loginContext, connectionInfo );
+    }
+
+    @Override
+    public InternalTransaction beginTransaction( KernelTransaction.Type type, LoginContext loginContext, ClientConnectionInfo connectionInfo,
             long timeout, TimeUnit unit )
     {
-        return graph.beginTransaction( type, loginContext, timeout, unit );
+        return graph.beginTransaction( type, loginContext, connectionInfo, timeout, unit );
     }
 
     @Override
     public URL validateURLAccess( URL url ) throws URLAccessValidationError
     {
-        return graph.validateURLAccess( url );
+        return urlAccessRule.validate( config, url );
     }
 
-    @Override
-    public DbmsOperations getDbmsOperations()
+    public Transaction beginTx()
     {
-        return dbmsOperations;
+        return graph.beginTx();
     }
 
-    // This provides backwards compatibility to the older API for places that cannot (yet) stop using it.
-    // TODO: Remove this when possible (remove RULE, remove older compilers)
-    public GraphDatabaseFacade getGraphDatabaseService()
+    public void executeTransactionally( String query ) throws QueryExecutionException
     {
-        return graph;
+        graph.executeTransactionally( query );
     }
 }

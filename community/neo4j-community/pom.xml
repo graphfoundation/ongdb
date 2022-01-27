@@ -10,12 +10,11 @@
     </parent>
 
     <artifactId>ongdb-community</artifactId>
-    <version>2.0.0-SNAPSHOT</version>
 
-    <name>ONgDB - Community</name>
+    <name>ONgDB - Community (Bill of Materials)</name>
     <packaging>pom</packaging>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
-    <description>A meta package containing the most used ONgDB Community libraries. Intended use: as a Maven dependency.</description>
+    <description>A project with bill-of-materials POM containing ONgDB Community dependencies.</description>
 
     <properties>
         <license-text.header>headers/GPL-3-header.txt</license-text.header>
@@ -31,12 +30,7 @@
     <dependencies>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-bolt</artifactId>
+            <artifactId>neo4j</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>
@@ -45,7 +39,8 @@
         <license>
             <name>GNU General Public License, Version 3</name>
             <url>http://www.gnu.org/licenses/gpl-3.0-standalone.html</url>
-            <comments>The software ("Software") developed and owned by Graph Foundation, Inc.
+            <comments>
+                The software ("Software") developed and owned by Graph Foundation, Inc.
                 (referred to in this notice as "Graph Foundation") is licensed under the
                 GNU GENERAL PUBLIC LICENSE Version 3 to all third parties and that license is included below.
             </comments>
@@ -53,7 +48,8 @@
         <license>
             <name>GNU General Public License, Version 3</name>
             <url>http://www.gnu.org/licenses/gpl-3.0-standalone.html</url>
-            <comments>The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
+            <comments>
+                The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
                 licensed under the GNU GENERAL PUBLIC LICENSE Version 3 to all third
                 parties and that license is included below.
 

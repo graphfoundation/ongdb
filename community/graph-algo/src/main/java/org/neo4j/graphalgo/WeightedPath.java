@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,13 +38,13 @@
  */
 package org.neo4j.graphalgo;
 
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.Path;
 
 /**
  * A {@link Path} that has an associated weight.
- *
- * @author Tobias Ivarsson
  */
+@PublicApi
 public interface WeightedPath extends Path
 {
     /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,14 +38,26 @@
  */
 package org.neo4j.server.modules;
 
-import java.util.ArrayList;
-import java.util.List;
+import com.fasterxml.jackson.jaxrs.json.JacksonJsonProvider;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.server.rest.dbms.UserService;
+import java.util.Collections;
+import java.util.List;
+import java.util.function.Supplier;
+
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.logging.LogProvider;
+import org.neo4j.server.configuration.ServerSettings;
+import org.neo4j.server.rest.discovery.DiscoverableURIs;
 import org.neo4j.server.rest.discovery.DiscoveryService;
+import org.neo4j.server.config.AuthConfigProvider;
+import org.neo4j.server.rest.web.AccessiblePathFilter;
+import org.neo4j.server.rest.web.CorsFilter;
 import org.neo4j.server.web.WebServer;
+
+import static java.util.Collections.singletonList;
+import static org.neo4j.server.configuration.ServerSettings.http_access_control_allow_origin;
+import static org.neo4j.server.web.Injectable.injectable;
 
 /**
  * Mounts the DBMS REST API.
@@ -56,35 +68,47 @@ public class DBMSModule implements ServerModule
 
     private final WebServer webServer;
     private final Config config;
+    private final Supplier<DiscoverableURIs> discoverableURIs;
+    private final LogProvider logProvider;
+    private final AuthConfigProvider authConfigProvider;
 
-    public DBMSModule( WebServer webServer, Config config )
+    public DBMSModule( WebServer webServer, Config config, Supplier<DiscoverableURIs> discoverableURIs,
+            LogProvider logProvider, AuthConfigProvider authConfigProvider )
     {
         this.webServer = webServer;
         this.config = config;
+        this.discoverableURIs = discoverableURIs;
+        this.logProvider = logProvider;
+        this.authConfigProvider = authConfigProvider;
     }
 
     @Override
     public void start()
     {
-        webServer.addJAXRSClasses( getClassNames(), ROOT_PATH, null );
-    }
+        webServer.addJAXRSClasses(
+                singletonList( DiscoveryService.class ), ROOT_PATH,
+                List.of( injectable( DiscoverableURIs.class, discoverableURIs.get() ),
+                    injectable( AuthConfigProvider.class, authConfigProvider ) ) );
 
-    private List<String> getClassNames()
-    {
-        List<String> toReturn = new ArrayList<>( 2 );
+        webServer.addJAXRSClasses( jaxRsClasses(), ROOT_PATH, null );
 
-        toReturn.add( DiscoveryService.class.getName() );
-        if ( config.get( GraphDatabaseSettings.auth_enabled ) )
-        {
-            toReturn.add( UserService.class.getName() );
-        }
-
-        return toReturn;
+        // add filters:
+        webServer.addFilter( new CorsFilter( logProvider, config.get( http_access_control_allow_origin ) ), "/*" );
+        webServer.addFilter( new AccessiblePathFilter( logProvider, config.get( ServerSettings.http_paths_blacklist ) ), "/*" );
     }
 
     @Override
     public void stop()
     {
-        webServer.removeJAXRSClasses( getClassNames(), ROOT_PATH );
+        webServer.removeJAXRSClasses( jaxRsClasses(), ROOT_PATH );
+    }
+
+    private List<Class<?>> jaxRsClasses()
+    {
+        if ( config.get( GraphDatabaseSettings.auth_enabled ) )
+        {
+            return singletonList( JacksonJsonProvider.class );
+        }
+        return Collections.emptyList();
     }
 }

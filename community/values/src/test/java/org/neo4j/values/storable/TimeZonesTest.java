@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,49 +39,46 @@
 package org.neo4j.values.storable;
 
 import org.apache.commons.codec.digest.DigestUtils;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.ZoneId;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
-public class TimeZonesTest
+class TimeZonesTest
 {
     @Test
-    public void weSupportAllJavaZoneIds()
+    void weSupportAllJavaZoneIds()
     {
         ZoneId.getAvailableZoneIds().forEach( s ->
         {
             short num = TimeZones.map( s );
-            assertThat( "Our time zone table does not have a mapping for " + s, num, greaterThanOrEqualTo( (short) 0 ) );
+            assertThat( num ).as( "Our time zone table does not have a mapping for " + s ).isGreaterThanOrEqualTo( (short) 0 );
 
             String nameFromTable = TimeZones.map( num );
             if ( !s.equals( nameFromTable ) )
             {
                 // The test is running on an older Java version and `s` has been removed since, thus it points to a different zone now.
                 // That zone should point to itself, however.
-                assertThat( "Our time zone table has inconsistent mapping for " + nameFromTable,
-                        TimeZones.map( TimeZones.map( nameFromTable ) ), equalTo( nameFromTable ) );
+                assertThat( TimeZones.map( TimeZones.map( nameFromTable ) ) ).as(
+                        "Our time zone table has inconsistent mapping for " + nameFromTable ).isEqualTo( nameFromTable );
             }
         } );
     }
 
     @Test
-    public void weSupportDeletedZoneIdEastSaskatchewan()
+    void weSupportDeletedZoneIdEastSaskatchewan()
     {
         try
         {
             short eastSaskatchewan = TimeZones.map( "Canada/East-Saskatchewan" );
-            assertThat( "Our time zone table does not remap Canada/East-Saskatchewan to Canada/Saskatchewan",
-                    TimeZones.map( eastSaskatchewan ), equalTo( "Canada/Saskatchewan" ) );
+            assertThat( TimeZones.map( eastSaskatchewan ) ).as(
+                    "Our time zone table does not remap Canada/East-Saskatchewan to Canada/Saskatchewan" ).isEqualTo( "Canada/Saskatchewan" );
         }
         catch ( IllegalArgumentException e )
         {
@@ -96,13 +93,13 @@ public class TimeZonesTest
      * If your changes were legit, please change the expected byte[] below.
      */
     @Test
-    public void tzidsOrderMustNotChange() throws URISyntaxException, IOException
+    void tzidsOrderMustNotChange() throws URISyntaxException, IOException
     {
-        Path path = Paths.get( TimeZones.class.getResource( "/TZIDS" ).toURI() );
-        byte[] timeZonesInfo = Files.readAllBytes( path );
+        Path path = Path.of( TimeZones.class.getResource( "/TZIDS" ).toURI() );
+        String timeZonesInfo = Files.readString( path ).replace( "\r\n", "\n" );
         byte[] timeZonesHash = DigestUtils.sha256( timeZonesInfo );
-        assertThat( timeZonesHash, equalTo(
-                new byte[]{49, -67, -18, -59, -6, -102, -16, -13, 35, 37, -37, 65, 80, 6, 77, -84, -12, -117, -54, -105, 36, 18, -119, -73, 92, 37, -64, 96,
-                        66, -52, 48, 51} ) );
+        assertThat( timeZonesHash ).isEqualTo(
+                new byte[]{105, -112, -62, -117, -37, -98, -57, -81, -127, 102, 73, 40, -73, -69, 63, -98, -75, 69, 87, 83, -85, -68, -101, -81, -117, -41, -42,
+                           53, -126, -114, -48, -118} );
     }
 }

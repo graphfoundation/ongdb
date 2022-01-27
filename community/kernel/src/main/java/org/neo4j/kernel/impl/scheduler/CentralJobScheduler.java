@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,36 +39,45 @@
 package org.neo4j.kernel.impl.scheduler;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
 
-import org.neo4j.helpers.Exceptions;
+import org.neo4j.internal.helpers.Exceptions;
+import org.neo4j.kernel.impl.scheduler.ThreadPool.ThreadPoolParameters;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
+import org.neo4j.resources.Profiler;
+import org.neo4j.scheduler.ActiveGroup;
+import org.neo4j.scheduler.CallableExecutor;
+import org.neo4j.scheduler.CallableExecutorService;
+import org.neo4j.scheduler.CancelListener;
+import org.neo4j.scheduler.FailedJobRun;
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobHandle;
+import org.neo4j.scheduler.JobMonitoringParams;
 import org.neo4j.scheduler.JobScheduler;
-import org.neo4j.time.Clocks;
+import org.neo4j.scheduler.MonitoredJobExecutor;
+import org.neo4j.scheduler.MonitoredJobInfo;
+import org.neo4j.scheduler.SchedulerThreadFactoryFactory;
+import org.neo4j.time.SystemNanoClock;
 
-public class CentralJobScheduler extends LifecycleAdapter implements JobScheduler
+public class CentralJobScheduler extends LifecycleAdapter implements JobScheduler, AutoCloseable
 {
     private static final AtomicInteger INSTANCE_COUNTER = new AtomicInteger();
-    private static final Group SCHEDULER_GROUP = new Group( "Scheduler" );
 
     private final TimeBasedTaskScheduler scheduler;
     private final Thread schedulerThread;
-
-    // Contains workStealingExecutors for each group that have asked for one.
-    // If threads need to be created, they need to be inside one of these pools.
-    // We also need to remember to shutdown all pools when we shutdown the database to shutdown queries in an orderly
-    // fashion.
-    private final ConcurrentHashMap<Group,ExecutorService> workStealingExecutors;
-
     private final TopLevelGroup topLevelGroup;
     private final ThreadPoolManager pools;
+    private final ConcurrentHashMap<Group,ThreadPoolParameters> extraParameters;
+    private final FailedJobRunsStore failedJobRunsStore;
 
     private volatile boolean started;
 
@@ -87,15 +96,17 @@ public class CentralJobScheduler extends LifecycleAdapter implements JobSchedule
         }
     }
 
-    public CentralJobScheduler()
+    protected CentralJobScheduler( SystemNanoClock clock )
     {
-        workStealingExecutors = new ConcurrentHashMap<>( 1 );
         topLevelGroup = new TopLevelGroup();
-        pools = new ThreadPoolManager( topLevelGroup );
-        ThreadFactory threadFactory = new GroupedDaemonThreadFactory( SCHEDULER_GROUP, topLevelGroup );
-        scheduler = new TimeBasedTaskScheduler( Clocks.nanoClock(), pools );
+        this.failedJobRunsStore = new FailedJobRunsStore( 100 );
+        var jobIdCounter = new AtomicLong();
+        pools = new ThreadPoolManager( topLevelGroup, clock, failedJobRunsStore, jobIdCounter::incrementAndGet );
+        scheduler = new TimeBasedTaskScheduler( clock, pools, failedJobRunsStore, jobIdCounter::incrementAndGet );
+        extraParameters = new ConcurrentHashMap<>();
 
         // The scheduler thread runs at slightly elevated priority for timeliness, and is started in init().
+        ThreadFactory threadFactory = new GroupedDaemonThreadFactory( Group.TASK_SCHEDULER, topLevelGroup );
         schedulerThread = threadFactory.newThread( scheduler );
         int priority = Thread.NORM_PRIORITY + 1;
         schedulerThread.setPriority( priority );
@@ -114,64 +125,156 @@ public class CentralJobScheduler extends LifecycleAdapter implements JobSchedule
     }
 
     @Override
+    public void setParallelism( Group group, int parallelism )
+    {
+        pools.assumeNotStarted( group );
+        extraParameters.computeIfAbsent( group, g -> new ThreadPoolParameters() ).desiredParallelism = parallelism;
+    }
+
+    @Override
+    public void setThreadFactory( Group group, SchedulerThreadFactoryFactory threadFactory )
+    {
+        pools.assumeNotStarted( group );
+        extraParameters.computeIfAbsent( group, g -> new ThreadPoolParameters() ).providedThreadFactory = threadFactory;
+    }
+
+    @Override
     public void init()
     {
-        schedulerThread.start();
-        started = true;
+        if ( !started )
+        {
+            schedulerThread.start();
+            started = true;
+        }
     }
 
     @Override
-    public Executor executor( Group group )
+    public CallableExecutor executor( Group group )
     {
-        return job -> schedule( group, job );
+        return new CallableExecutorService( getThreadPool( group ).getExecutorService() );
     }
 
     @Override
-    public ExecutorService workStealingExecutor( Group group, int parallelism )
+    public MonitoredJobExecutor monitoredJobExecutor( Group group )
     {
-        return workStealingExecutors.computeIfAbsent( group, g -> createNewWorkStealingExecutor( g, parallelism ) );
+        var threadPool = getThreadPool( group );
+        return threadPool::submit;
     }
 
     @Override
     public ThreadFactory threadFactory( Group group )
     {
-        return pools.getThreadPool( group ).getThreadFactory();
+        return getThreadPool( group ).getThreadFactory();
     }
 
-    private ExecutorService createNewWorkStealingExecutor( Group group, int parallelism )
+    private ThreadPool getThreadPool( Group group )
     {
-        ForkJoinPool.ForkJoinWorkerThreadFactory factory =
-                new GroupedDaemonThreadFactory( group, topLevelGroup );
-        return new ForkJoinPool( parallelism, factory, null, false );
+        return pools.getThreadPool( group, extraParameters.get( group ) );
     }
 
     @Override
-    public JobHandle schedule( Group group, Runnable job )
+    public <T> JobHandle<T> schedule( Group group, JobMonitoringParams jobMonitoringParams, Callable<T> job )
     {
         if ( !started )
         {
             throw new RejectedExecutionException( "Scheduler is not started" );
         }
-        return pools.submit( group, job );
+        return tryRegisterCancelListener( job, getThreadPool( group ).submit( jobMonitoringParams, job ) );
     }
 
     @Override
-    public JobHandle scheduleRecurring( Group group, final Runnable runnable, long period, TimeUnit timeUnit )
+    public JobHandle<?> schedule( Group group, Runnable job )
     {
-        return scheduleRecurring( group, runnable, 0, period, timeUnit );
+        return schedule( group, JobMonitoringParams.NOT_MONITORED, job );
     }
 
     @Override
-    public JobHandle scheduleRecurring( Group group, Runnable runnable, long initialDelay, long period, TimeUnit unit )
+    public JobHandle<?> schedule( Group group, JobMonitoringParams jobMonitoringParams, Runnable job )
     {
-        return scheduler.submit(
-                group, runnable, unit.toNanos( initialDelay ), unit.toNanos( period ) );
+        if ( !started )
+        {
+            throw new RejectedExecutionException( "Scheduler is not started" );
+        }
+        return tryRegisterCancelListener( job, getThreadPool( group ).submit( jobMonitoringParams, job ) );
     }
 
     @Override
-    public JobHandle schedule( Group group, final Runnable runnable, long initialDelay, TimeUnit unit )
+    public JobHandle<?> scheduleRecurring( Group group, Runnable runnable, long period, TimeUnit timeUnit )
     {
-        return scheduler.submit( group, runnable, unit.toNanos( initialDelay ), 0 );
+        return scheduleRecurring( group, JobMonitoringParams.NOT_MONITORED, runnable, period, timeUnit );
+    }
+
+    @Override
+    public JobHandle<?> scheduleRecurring( Group group, JobMonitoringParams monitoredJobParams, Runnable runnable, long period, TimeUnit timeUnit )
+    {
+        return scheduleRecurring( group, monitoredJobParams, runnable, 0, period, timeUnit );
+    }
+
+    @Override
+    public JobHandle<?> scheduleRecurring( Group group, Runnable runnable, long initialDelay, long period, TimeUnit unit )
+    {
+        return scheduleRecurring( group, JobMonitoringParams.NOT_MONITORED, runnable, initialDelay, period, unit );
+    }
+
+    @Override
+    public JobHandle<?> scheduleRecurring( Group group, JobMonitoringParams monitoredJobParams, Runnable runnable, long initialDelay, long period,
+            TimeUnit timeUnit )
+    {
+        return tryRegisterCancelListener( runnable,
+                scheduler.submit( group, monitoredJobParams, runnable, timeUnit.toNanos( initialDelay ), timeUnit.toNanos( period ) ) );
+    }
+
+    @Override
+    public Stream<ActiveGroup> activeGroups()
+    {
+        List<ActiveGroup> groups = new ArrayList<>();
+        pools.forEachStarted( ( group, pool ) ->
+        {
+            int activeThreadCount = pool.activeThreadCount();
+            if ( activeThreadCount > 0 )
+            {
+                groups.add( new ActiveGroup( group, activeThreadCount ) );
+            }
+        } );
+        return groups.stream();
+    }
+
+    @Override
+    public void profileGroup( Group group, Profiler profiler )
+    {
+        if ( !pools.isStarted( group ) )
+        {
+            return; // Don't bother profiling groups that hasn't been started.
+        }
+        getThreadPool( group ).activeThreads().forEach( profiler::profile );
+    }
+
+    @Override
+    public JobHandle<?> schedule( Group group, Runnable runnable, long initialDelay, TimeUnit unit )
+    {
+        return schedule( group, JobMonitoringParams.NOT_MONITORED, runnable, initialDelay, unit );
+    }
+
+    @Override
+    public JobHandle<?> schedule( Group group, JobMonitoringParams monitoredJobParams, Runnable runnable, long initialDelay, TimeUnit timeUnit )
+    {
+        return tryRegisterCancelListener( runnable, scheduler.submit( group, monitoredJobParams, runnable, timeUnit.toNanos( initialDelay ), 0 ) );
+    }
+
+    @Override
+    public List<MonitoredJobInfo> getMonitoredJobs()
+    {
+        List<MonitoredJobInfo> monitoredJobInfos = new ArrayList<>( scheduler.getMonitoredJobs() );
+
+        pools.forEachStarted( ( group, pool ) -> monitoredJobInfos.addAll( pool.getMonitoredJobs() ) );
+
+        return monitoredJobInfos;
+    }
+
+    @Override
+    public List<FailedJobRun> getFailedJobRuns()
+    {
+        return failedJobRunsStore.getFailedJobRuns();
     }
 
     @Override
@@ -186,17 +289,16 @@ public class CentralJobScheduler extends LifecycleAdapter implements JobSchedule
         // so we avoid having to wait the full maximum wait time on the executor service shut-downs.
         exception = Exceptions.chain( exception, pools.shutDownAll() );
 
-        // Finally, we shut the work-stealing executors down.
-        for ( ExecutorService workStealingExecutor : workStealingExecutors.values() )
-        {
-            exception = shutdownPool( workStealingExecutor, exception );
-        }
-        workStealingExecutors.clear();
-
         if ( exception != null )
         {
             throw new RuntimeException( "Unable to shut down job scheduler properly.", exception );
         }
+    }
+
+    @Override
+    public void close()
+    {
+        shutdown();
     }
 
     private InterruptedException shutDownScheduler()
@@ -213,20 +315,12 @@ public class CentralJobScheduler extends LifecycleAdapter implements JobSchedule
         return null;
     }
 
-    private InterruptedException shutdownPool( ExecutorService pool, InterruptedException exception )
+    private static <T> JobHandle<T> tryRegisterCancelListener( Object maybeCancelListener, JobHandle<T> handle )
     {
-        if ( pool != null )
+        if ( maybeCancelListener instanceof CancelListener )
         {
-            pool.shutdown();
-            try
-            {
-                pool.awaitTermination( 30, TimeUnit.SECONDS );
-            }
-            catch ( InterruptedException e )
-            {
-                return Exceptions.chain( exception, e );
-            }
+            handle.registerCancelListener( (CancelListener) maybeCancelListener );
         }
-        return exception;
+        return handle;
     }
 }

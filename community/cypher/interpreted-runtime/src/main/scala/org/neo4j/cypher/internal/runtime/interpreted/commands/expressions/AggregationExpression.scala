@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,17 +38,19 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.util.v3_4.SyntaxException
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ReadableRow
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.aggregation.AggregationFunction
-import org.neo4j.cypher.internal.util.v3_4.symbols.CypherType
+import org.neo4j.cypher.internal.util.symbols.CypherType
+import org.neo4j.exceptions.SyntaxException
+import org.neo4j.memory.MemoryTracker
+import org.neo4j.values.AnyValue
 
 abstract class AggregationExpression extends Expression {
-  def apply(ctx: ExecutionContext, state: QueryState) =
+  def apply(row: ReadableRow, state: QueryState): AnyValue =
     throw new UnsupportedOperationException("Aggregations should not be used like this.")
 
-  def createAggregationFunction: AggregationFunction
+  def createAggregationFunction(memoryTracker: MemoryTracker): AggregationFunction
 }
 
 abstract class AggregationWithInnerExpression(inner:Expression) extends AggregationExpression {
@@ -60,7 +62,6 @@ abstract class AggregationWithInnerExpression(inner:Expression) extends Aggregat
 
   def expectedInnerType: CypherType
 
-  def arguments = Seq(inner)
+  def arguments: Seq[Expression] = Seq(inner)
 
-  def symbolTableDependencies = inner.symbolTableDependencies
 }

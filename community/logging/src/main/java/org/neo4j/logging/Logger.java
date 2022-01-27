@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,30 +39,33 @@
 package org.neo4j.logging;
 
 import java.util.function.Consumer;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+
+import org.neo4j.annotations.api.PublicApi;
 
 /**
  * A log into which messages can be written
+ * @deprecated Use {@link Log} directly.
  */
+@PublicApi
+@Deprecated( forRemoval = true, since = "4.2" )
 public interface Logger
 {
     /**
      * @param message The message to be written
      */
-    void log( @Nonnull String message );
+    void log( String message );
 
     /**
      * @param message   The message to be written
      * @param throwable An exception that will also be written
      */
-    void log( @Nonnull String message, @Nonnull Throwable throwable );
+    void log( String message, Throwable throwable );
 
     /**
      * @param format    A string format for writing a message
      * @param arguments Arguments to substitute into the message according to the {@code format}
      */
-    void log( @Nonnull String format, @Nullable Object... arguments );
+    void log( String format, Object... arguments );
 
     /**
      * Used to temporarily write several messages in bulk. The implementation may choose to
@@ -70,5 +73,5 @@ public interface Logger
      *
      * @param consumer A callback operation that accepts an equivalent {@link Logger}
      */
-    void bulk( @Nonnull Consumer<Logger> consumer );
+    void bulk( Consumer<Logger> consumer );
 }

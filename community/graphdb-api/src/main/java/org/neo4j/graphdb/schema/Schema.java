@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,18 +40,19 @@ package org.neo4j.graphdb.schema;
 
 import java.util.concurrent.TimeUnit;
 
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.RelationshipType;
-import org.neo4j.graphdb.index.IndexPopulationProgress;
 
 /**
  * Interface for managing the schema of your graph database. This currently includes
- * the indexing support added in Neo4j 2.0. Please see the ONgDB manual for details.
+ * the indexing support added in Neo4j 2.0. Please see the Neo4j manual for details.
  *
  * Compatibility note: New methods may be added to this interface without notice,
  * backwards compatibility is only guaranteed for clients of this interface, not for
  * implementors.
  */
+@PublicApi
 public interface Schema
 {
     /**
@@ -67,27 +68,122 @@ public interface Schema
     }
 
     /**
+     * Begin specifying an index for all nodes with the given label.
+     *
      * Returns an {@link IndexCreator} where details about the index to create can be
-     * specified. When all details have been entered {@link IndexCreator#create() create}
-     * must be called for it to actually be created.
+     * specified. When all details have been entered, {@link IndexCreator#create() create}
+     * must be called for the index to actually be created.
      *
      * Creating an index enables indexing for nodes with the specified label. The index will
      * have the details supplied to the {@link IndexCreator returned index creator}.
      * All existing and all future nodes matching the index definition will be indexed,
-     * speeding up future operations.
+     * speeding up future read operations.
      *
-     * @param label {@link Label label} on nodes to be indexed
-     *
+     * @param label {@link Label label} on nodes to be indexed.
      * @return an {@link IndexCreator} capable of providing details for, as well as creating
      * an index for the given {@link Label label}.
      */
     IndexCreator indexFor( Label label );
 
     /**
+     * Begin specifying an index for all nodes with any of the given labels.
+     *
+     * Returns an {@link IndexCreator} where details about the index to create can be
+     * specified. When all details have been entered, {@link IndexCreator#create() create}
+     * must be called for the index to actually be created.
+     *
+     * Creating an index enables indexing for nodes with any of the specified labels.
+     * The index will have the details supplied to the {@link IndexCreator returned index creator}.
+     * All existing and all future nodes matching the index definition will be indexed,
+     * speeding up future read operations.
+     *
+     * This behaves similar to the {@link #indexFor(Label)} method, with the exception that
+     * multiple labels can be specified. Doing so will create a so-called
+     * {@linkplain IndexDefinition#isMultiTokenIndex() multi-token} index.
+     *
+     * Note that not all index types support multi-token indexes.
+     * See {@link IndexType} for more information.
+     *
+     * The list of labels may not contain any duplicates.
+     *
+     * @param labels The list of labels for which nodes should be indexed.
+     * @return an {@link IndexCreator} capable of providing details for, as well as creating
+     * an index for the given list of {@link Label labels}.
+     */
+    IndexCreator indexFor( Label... labels );
+
+    /**
+     * Begin specifying an index for all relationships with the given relationship type.
+     *
+     * Returns an {@link IndexCreator} where details about the index to create can be
+     * specified. When all details have been entered, {@link IndexCreator#create() create}
+     * must be called for the index to actually be created.
+     *
+     * Creating an index enables indexing for relationships with the specified relationship type.
+     * The index will have the details supplied to the {@link IndexCreator returned index creator}.
+     * All existing and all future relationships matching the index definition will be indexed,
+     * speeding up future read operations.
+     *
+     * @param type {@link RelationshipType relationship type} on relationships to be indexed.
+     * @return an {@link IndexCreator} capable of providing details for, as well as creating
+     * an index for the given {@link RelationshipType}.
+     */
+    IndexCreator indexFor( RelationshipType type );
+
+    /**
+     * Begin specifying an index for all relationships with any of the given relationship types.
+     *
+     * Returns an {@link IndexCreator} where details about the index to create can be
+     * specified. When all details have been entered, {@link IndexCreator#create() create}
+     * must be called for the index to actually be created.
+     *
+     * Creating an index enables indexing for relationships with any of the specified relationship types.
+     * The index will have the details supplied to the {@link IndexCreator returned index creator}.
+     * All existing and all future relationships matching the index definition will be indexes,
+     * speeding up future read operations.
+     *
+     * This behaves similar to the {@link #indexFor(RelationshipType)} method, with the exception that
+     * multiple relationship types can be specified. Doing so will create a so-called
+     * {@linkplain IndexDefinition#isMultiTokenIndex() multi-token} index.
+     *
+     * Note that not all index types support multi-token indexes.
+     * See {@link IndexType} for more information.
+     *
+     * @param types {@link RelationshipType relationship types} on relationships to be indexed.
+     * @return an {@link IndexCreator} capable of providing details for, as well as creating
+     * an index for the given {@link RelationshipType RelationshipTypes}.
+     */
+    IndexCreator indexFor( RelationshipType... types );
+
+    /**
+     * Begin specifying an index of type {@link IndexType#LOOKUP} for all labels or relationship types.
+     *
+     * Returns an {@link IndexCreator} where details about the index to create can be
+     * specified. When all details have been entered, {@link IndexCreator#create() create}
+     * must be called for the index to actually be created.
+     *
+     * Creating such index enables indexing for labeled nodes or relationships. The index will
+     * have the details supplied to the {@link IndexCreator returned index creator}.
+     * All existing and all future label nodes or relationships will be indexed,
+     * speeding up future read operations.
+     *
+     * @param tokens kind of tokens to be indexed.
+     * @return an {@link IndexCreator} capable of providing details for, as well as creating
+     * an index for the given {@link Label label}.
+     */
+    IndexCreator indexFor( AnyTokens tokens );
+
+    /**
      * @param label the {@link Label} to get {@link IndexDefinition indexes} for.
      * @return all {@link IndexDefinition indexes} attached to the given {@link Label label}.
      */
     Iterable<IndexDefinition> getIndexes( Label label );
+
+    /**
+     * @param relationshipType the {@link RelationshipType} to get {@link IndexDefinition indexes} for.
+     * @return all {@link IndexDefinition indexes} attached to the given {@link RelationshipType relationship type}.
+     */
+    Iterable<IndexDefinition> getIndexes( RelationshipType relationshipType );
 
     /**
      * @return all {@link IndexDefinition indexes} in this database.
@@ -129,18 +225,35 @@ public interface Schema
 
     /**
      * Returns a {@link ConstraintCreator} where details about the constraint can be
-     * specified. When all details have been entered {@link ConstraintCreator#create()}
+     * specified. When all details have been entered, {@link ConstraintCreator#create()}
      * must be called for it to actually be created.
      *
      * Creating a constraint will block on the {@linkplain ConstraintCreator#create() create method} until
-     * all existing data has been verified for compliance. If any existing data doesn't comply with the constraint an
-     * exception will be thrown, and the constraint will not be created.
+     * all existing data has been verified for compliance.
+     * If any existing data doesn't comply with the constraint an exception will be thrown,
+     * and the constraint will not be created.
      *
      * @param label the label this constraint is for.
      * @return a {@link ConstraintCreator} capable of providing details for, as well as creating
      * a constraint for the given {@linkplain Label label}.
      */
     ConstraintCreator constraintFor( Label label );
+
+    /**
+     * Returns a {@link ConstraintCreator} where details about the constraint can be specified.
+     * When all details have been entered, {@link ConstraintCreator#create()}
+     * must be called for it the actually be created.
+     *
+     * Creating a constraint will block on the {@linkplain ConstraintCreator#create() create method} until
+     * all existing data has been verified for compliance.
+     * If any existing data doesn't comply with the constraint an exception will be thrown,
+     * and the constraint will not be created.
+     *
+     * @param type the relationship type this constraint is for.
+     * @return a {@link ConstraintCreator} capable of providing details for, as well as creating
+     * a constraint for the given {@linkplain RelationshipType}.
+     */
+    ConstraintCreator constraintFor( RelationshipType type );
 
     /**
      * @param label the {@linkplain Label label} to get constraints for.
@@ -172,6 +285,17 @@ public interface Schema
     void awaitIndexOnline( IndexDefinition index, long duration, TimeUnit unit );
 
     /**
+     * Wait until an index with the given name comes online.
+     *
+     * @param indexName the name of the index that we want to wait for.
+     * @param duration duration to wait for the index to come online
+     * @param unit TimeUnit of duration
+     * @throws IllegalStateException if the index did not enter the ONLINE state
+     * within the given duration, or if the index entered the FAILED state.
+     */
+    void awaitIndexOnline( String indexName, long duration, TimeUnit unit );
+
+    /**
      * Wait until all indices comes online
      *
      * @param duration duration to wait for all indexes to come online
@@ -181,4 +305,20 @@ public interface Schema
      *             FAILED state
      */
     void awaitIndexesOnline( long duration, TimeUnit unit );
+
+    /**
+     * Get a {@link ConstraintDefinition} by the given name of the constraint.
+     * @param constraintName The name of the constraint.
+     * @return The constraint with that name.
+     * @throws IllegalArgumentException if there is no constraint with that name.
+     */
+    ConstraintDefinition getConstraintByName( String constraintName );
+
+    /**
+     * Get an {@link IndexDefinition} by the name of the index.
+     * @param indexName The name of the index.
+     * @return The index with that name.
+     * @throws IllegalArgumentException if there is no index with that name.
+     */
+    IndexDefinition getIndexByName( String indexName );
 }

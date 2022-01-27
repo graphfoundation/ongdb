@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -76,7 +76,7 @@ public class TimeZones
         return zoneId >= 0 && zoneId < TIME_ZONE_SHORT_TO_STRING.size();
     }
 
-    public static final String LATEST_SUPPORTED_IANA_VERSION;
+    private static final String LATEST_SUPPORTED_IANA_VERSION;
 
     /**
      * @throws IllegalArgumentException if tzid is not in the file
@@ -110,7 +110,7 @@ public class TimeZones
         {
             for ( String line; (line = reader.readLine()) != null; )
             {
-                if ( line.startsWith( "//" ) || line.trim().isEmpty() )
+                if ( line.startsWith( "//" ) || line.isBlank() )
                 {
                     continue;
                 }

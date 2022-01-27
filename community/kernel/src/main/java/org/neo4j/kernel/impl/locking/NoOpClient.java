@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,11 +40,22 @@ package org.neo4j.kernel.impl.locking;
 
 import java.util.stream.Stream;
 
-import org.neo4j.storageengine.api.lock.AcquireLockTimeoutException;
-import org.neo4j.storageengine.api.lock.ResourceType;
+import org.neo4j.configuration.Config;
+import org.neo4j.kernel.impl.api.LeaseClient;
+import org.neo4j.lock.AcquireLockTimeoutException;
+import org.neo4j.lock.ActiveLock;
+import org.neo4j.lock.LockTracer;
+import org.neo4j.lock.LockType;
+import org.neo4j.lock.ResourceType;
+import org.neo4j.memory.MemoryTracker;
 
 public class NoOpClient implements Locks.Client
 {
+    @Override
+    public void initialize( LeaseClient leaseClient, long transactionId, MemoryTracker memoryTracker, Config config )
+    {
+    }
+
     @Override
     public void acquireShared( LockTracer tracer, ResourceType resourceType, long... resourceIds ) throws AcquireLockTimeoutException
     {
@@ -68,18 +79,6 @@ public class NoOpClient implements Locks.Client
     }
 
     @Override
-    public boolean reEnterShared( ResourceType resourceType, long resourceId )
-    {
-        return false;
-    }
-
-    @Override
-    public boolean reEnterExclusive( ResourceType resourceType, long resourceId )
-    {
-        return false;
-    }
-
-    @Override
     public void releaseShared( ResourceType resourceType, long... resourceIds )
     {
     }
@@ -90,7 +89,7 @@ public class NoOpClient implements Locks.Client
     }
 
     @Override
-    public void prepare()
+    public void prepareForCommit()
     {
     }
 
@@ -105,7 +104,7 @@ public class NoOpClient implements Locks.Client
     }
 
     @Override
-    public int getLockSessionId()
+    public long getTransactionId()
     {
         return -1;
     }
@@ -114,6 +113,12 @@ public class NoOpClient implements Locks.Client
     public Stream<ActiveLock> activeLocks()
     {
         return Stream.empty();
+    }
+
+    @Override
+    public boolean holdsLock( long id, ResourceType resource, LockType lockType )
+    {
+        return false;
     }
 
     @Override

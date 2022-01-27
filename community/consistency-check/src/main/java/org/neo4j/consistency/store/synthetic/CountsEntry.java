@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,9 +38,7 @@
  */
 package org.neo4j.consistency.store.synthetic;
 
-import org.neo4j.consistency.checking.RecordCheck;
-import org.neo4j.consistency.report.ConsistencyReport;
-import org.neo4j.kernel.impl.store.counts.keys.CountsKey;
+import org.neo4j.internal.counts.CountsKey;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
 
 /**
@@ -80,6 +78,12 @@ public class CountsEntry extends AbstractBaseRecord
         throw new UnsupportedOperationException();
     }
 
+    @Override
+    public CountsEntry copy()
+    {
+        throw new UnsupportedOperationException( "Synthetic records cannot be copied." );
+    }
+
     public CountsKey getCountsKey()
     {
         return key;
@@ -88,9 +92,5 @@ public class CountsEntry extends AbstractBaseRecord
     public long getCount()
     {
         return count;
-    }
-
-    public abstract static class CheckAdapter implements RecordCheck<CountsEntry,ConsistencyReport.CountsConsistencyReport>
-    {
     }
 }

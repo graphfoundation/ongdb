@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,18 +40,16 @@ package org.neo4j.kernel.impl.index.schema;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.Collection;
 
-import org.neo4j.cursor.RawCursor;
-import org.neo4j.index.internal.gbptree.Hit;
+import org.neo4j.index.internal.gbptree.Seeker;
+import org.neo4j.kernel.api.index.IndexProgressor;
 import org.neo4j.values.storable.Value;
 
-public class NativeHitIndexProgressor<KEY extends NativeSchemaKey<KEY>, VALUE extends NativeSchemaValue> extends NativeIndexProgressor<KEY,VALUE>
+public class NativeHitIndexProgressor<KEY extends NativeIndexKey<KEY>> extends NativeIndexProgressor<KEY>
 {
-    NativeHitIndexProgressor( RawCursor<Hit<KEY,VALUE>,IOException> seeker, NodeValueClient client,
-            Collection<RawCursor<Hit<KEY,VALUE>,IOException>> toRemoveFromOnClose )
+    NativeHitIndexProgressor( Seeker<KEY,NullValue> seeker, IndexProgressor.EntityValueClient client )
     {
-        super( seeker, client, toRemoveFromOnClose );
+        super( seeker, client );
     }
 
     @Override
@@ -61,13 +59,14 @@ public class NativeHitIndexProgressor<KEY extends NativeSchemaKey<KEY>, VALUE ex
         {
             while ( seeker.next() )
             {
-                KEY key = seeker.get().key();
+                KEY key = seeker.key();
                 Value[] values = extractValues( key );
-                if ( acceptValue( values ) && client.acceptNode( key.getEntityId(), values ) )
+                if ( acceptValue( values ) && client.acceptEntity( key.getEntityId(), Float.NaN, values ) )
                 {
                     return true;
                 }
             }
+            close();
             return false;
         }
         catch ( IOException e )

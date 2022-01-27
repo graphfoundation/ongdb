@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,59 +38,25 @@
  */
 package org.neo4j.commandline.dbms;
 
-import java.nio.file.Path;
-import javax.annotation.Nonnull;
+import org.neo4j.annotations.service.ServiceProvider;
+import org.neo4j.cli.Command.CommandType;
+import org.neo4j.cli.CommandProvider;
+import org.neo4j.cli.ExecutionContext;
 
-import org.neo4j.commandline.admin.AdminCommand;
-import org.neo4j.commandline.admin.AdminCommandSection;
-import org.neo4j.commandline.admin.OutsideWorld;
-import org.neo4j.commandline.arguments.Arguments;
+import static org.neo4j.cli.Command.CommandType.DIAGNOSTICS_REPORT;
 
-import static org.neo4j.commandline.dbms.DiagnosticsReportCommand.DEFAULT_CLASSIFIERS;
-
-public class DiagnosticsReportCommandProvider extends AdminCommand.Provider
+@ServiceProvider
+public class DiagnosticsReportCommandProvider implements CommandProvider<DiagnosticsReportCommand>
 {
-    public DiagnosticsReportCommandProvider()
+    @Override
+    public DiagnosticsReportCommand createCommand( ExecutionContext ctx )
     {
-        super( "report" );
+        return new DiagnosticsReportCommand( ctx );
     }
 
-    @Nonnull
     @Override
-    public Arguments allArguments()
+    public CommandType commandType()
     {
-        return DiagnosticsReportCommand.allArguments();
-    }
-
-    @Nonnull
-    @Override
-    public String summary()
-    {
-        return "Produces a zip/tar of the most common information needed for remote assessments.";
-    }
-
-    @Nonnull
-    @Override
-    public AdminCommandSection commandSection()
-    {
-        return AdminCommandSection.general();
-    }
-
-    @Nonnull
-    @Override
-    public String description()
-    {
-        return "Will collect information about the system and package everything in an archive. If you specify 'all', " +
-                "everything will be included. You can also fine tune the selection by passing classifiers to the tool, " +
-                "e.g 'logs tx threads'. For a complete list of all available classifiers call the tool with " +
-                "the '--list' flag. If no classifiers are passed, the default list of `" +
-                String.join( " ", DEFAULT_CLASSIFIERS ) + "` will be used." ;
-    }
-
-    @Nonnull
-    @Override
-    public AdminCommand create( Path homeDir, Path configDir, OutsideWorld outsideWorld )
-    {
-        return new DiagnosticsReportCommand( homeDir, configDir, outsideWorld );
+        return DIAGNOSTICS_REPORT;
     }
 }

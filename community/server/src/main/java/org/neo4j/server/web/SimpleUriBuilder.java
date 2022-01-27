@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,36 +41,31 @@ package org.neo4j.server.web;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-import org.neo4j.helpers.AdvertisedSocketAddress;
+import org.neo4j.configuration.helpers.SocketAddress;
 
-public class SimpleUriBuilder
+public final class SimpleUriBuilder
 {
-
-    public URI buildURI( AdvertisedSocketAddress address, boolean isSsl )
+    private SimpleUriBuilder()
     {
-        StringBuilder sb = new StringBuilder();
-        sb.append( "http" );
+    }
 
+    public static URI buildURI( SocketAddress address, boolean isSsl )
+    {
+        var scheme = "http";
         if ( isSsl )
         {
-            sb.append( "s" );
-
+            scheme += "s";
         }
-        sb.append( "://" );
-
-        sb.append( address.getHostname() );
-
-        int port = address.getPort();
-        if ( port != 80 && port != 443 )
-        {
-            sb.append( ":" );
-            sb.append( port );
-        }
-        sb.append( "/" );
 
         try
         {
-            return new URI( sb.toString() );
+            int port = address.getPort();
+            if ( (!isSsl && port == 80) || (isSsl && port == 443) )
+            {
+                return new URI( scheme, address.getHostname(), "/", null );
+            }
+
+            return new URI( scheme, null, address.getHostname(), port, "/", null, null );
         }
         catch ( URISyntaxException e )
         {

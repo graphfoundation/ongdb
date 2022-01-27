@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,12 +39,13 @@
 package org.neo4j.gis.spatial.index.curves;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.neo4j.gis.spatial.index.Envelope;
 
 /**
- * This class is also used by ONgDB Spatial
+ * This class is also used by Neo4j Spatial
  */
 
 public abstract class SpaceFillingCurve
@@ -66,7 +67,7 @@ public abstract class SpaceFillingCurve
 
         final int length()
         {
-            return (int) Math.pow( 2, dimension );
+            return 1 << dimension;
         }
 
         int npointForIndex( int derivedIndex )
@@ -97,7 +98,7 @@ public abstract class SpaceFillingCurve
     private final int quadFactor;
     private final long initialNormMask;
 
-    private double[] scalingFactor;
+    private final double[] scalingFactor;
 
     SpaceFillingCurve( Envelope range, int maxLevel )
     {
@@ -112,15 +113,15 @@ public abstract class SpaceFillingCurve
         {
             throw new IllegalArgumentException( "Hilbert index does not yet support more than 3 dimensions" );
         }
-        this.width = (long) Math.pow( 2, maxLevel );
+        this.width = 1L << maxLevel;
         this.scalingFactor = new double[nbrDim];
         for ( int dim = 0; dim < nbrDim; dim++ )
         {
             scalingFactor[dim] = this.width / range.getWidth( dim );
         }
-        this.valueWidth = (long) Math.pow( 2, maxLevel * nbrDim );
-        this.initialNormMask = (long) (Math.pow( 2, nbrDim ) - 1) << (maxLevel - 1) * nbrDim;
-        this.quadFactor = (int) Math.pow( 2, nbrDim );
+        this.valueWidth = 1L << maxLevel * nbrDim;
+        this.initialNormMask = ((1L << nbrDim) - 1) << (maxLevel - 1) * nbrDim;
+        this.quadFactor = 1 << nbrDim;
     }
 
     public int getMaxLevel()
@@ -140,7 +141,7 @@ public abstract class SpaceFillingCurve
 
     public double getTileWidth( int dimension, int level )
     {
-        return range.getWidth( dimension ) / Math.pow( 2, level );
+        return range.getWidth( dimension ) / ( 1 << level );
     }
 
     public Envelope getRange()
@@ -152,7 +153,7 @@ public abstract class SpaceFillingCurve
 
     /**
      * Given a coordinate in multiple dimensions, calculate its derived key for maxLevel
-     * Needs to be public due to dependency from ONgDB Spatial
+     * Needs to be public due to dependency from Neo4j Spatial
      */
     public Long derivedValueFor( double[] coord )
     {
@@ -248,11 +249,10 @@ public abstract class SpaceFillingCurve
 
             int derivedIndex = (int) ((derivedValue & mask) >> bitIndex * nbrDim);
             int npoint = currentCurve.npointForIndex( derivedIndex );
-            int[] bitValues = bitValues( npoint );
 
             for ( int dim = 0; dim < nbrDim; dim++ )
             {
-                coordinate[dim] = coordinate[dim] << 1 | bitValues[dim];
+                coordinate[dim] = coordinate[dim] << 1 | (npoint >> nbrDim - dim - 1) & 1;
             }
 
             mask = mask >> nbrDim;
@@ -280,8 +280,8 @@ public abstract class SpaceFillingCurve
 
     public List<LongRange> getTilesIntersectingEnvelope( double[] fromOrNull, double[] toOrNull, SpaceFillingCurveConfiguration config )
     {
-        double[] from = fromOrNull == null ? range.getMin() : fromOrNull.clone();
-        double[] to = toOrNull == null ? range.getMax() : toOrNull.clone();
+        double[] from = fromOrNull == null ? range.getMin() : Arrays.copyOf( fromOrNull, fromOrNull.length );
+        double[] to = toOrNull == null ? range.getMax() : Arrays.copyOf( toOrNull, toOrNull.length );
 
         for ( int i = 0; i < from.length; i++ )
         {
@@ -309,93 +309,71 @@ public abstract class SpaceFillingCurve
     {
         SearchEnvelope search = new SearchEnvelope( this, referenceEnvelope );
         SearchEnvelope wholeExtent = new SearchEnvelope( 0, this.getWidth(), nbrDim );
-        ArrayList<LongRange> results = new ArrayList<>( config.initialRangesListCapacity() );
+        List<LongRange> results = new ArrayList<>( config.initialRangesListCapacity() );
 
         if ( monitor != null )
         {
             monitor.registerSearchArea( search.getArea() );
         }
 
-        addTilesIntersectingEnvelopeAt( config, monitor, 0, config.maxDepth( referenceEnvelope, this.range, nbrDim, maxLevel ), search,
+        addTilesIntersectingEnvelopeAt( config, monitor,
+                0, config.maxDepth( referenceEnvelope, this.range, nbrDim, maxLevel ), search,
                 wholeExtent, rootCurve(), 0, this.getValueWidth(), results );
         return results;
     }
 
     private void addTilesIntersectingEnvelopeAt( SpaceFillingCurveConfiguration config, SpaceFillingCurveMonitor monitor, int depth, int maxDepth,
-            SearchEnvelope search, SearchEnvelope currentExtent, CurveRule curve, long left, long right, ArrayList<LongRange> results )
+            SearchEnvelope search, SearchEnvelope currentExtent, CurveRule curve, long left, long right, List<LongRange> results )
     {
-        if ( right - left == 1 )
-        {
-            long[] coord = normalizedCoordinateFor( left, maxLevel );
-            if ( search.contains( coord ) )
-            {
-                LongRange current = (results.size() > 0) ? results.get( results.size() - 1 ) : null;
-                if ( current != null && current.max == left - 1 )
-                {
-                    current.expandToMax( left );
-                }
-                else
-                {
-                    current = new LongRange( left );
-                    results.add( current );
-                }
-                if ( monitor != null )
-                {
-                    monitor.addRangeAtDepth( depth );
-                    monitor.addToCoveredArea( currentExtent.getArea() );
-                }
-            }
-        }
-        else if ( search.intersects( currentExtent ) )
-        {
-            double overlap = search.fractionOf( currentExtent );
-            if ( config.stopAtThisDepth( overlap, depth, maxDepth ) )
-            {
-                // Note that LongRange upper bound is inclusive, hence the '-1' in several places
-                LongRange current = (results.size() > 0) ? results.get( results.size() - 1 ) : null;
-                if ( current != null && current.max == left - 1 )
-                {
-                    current.expandToMax( right - 1 );
-                }
-                else
-                {
-                    current = new LongRange( left, right - 1 );
-                    results.add( current );
-                }
-                if ( monitor != null )
-                {
-                    monitor.addRangeAtDepth( depth );
-                    monitor.addToCoveredArea( currentExtent.getArea() );
-                }
-            }
-            else
-            {
-                long width = (right - left) / quadFactor;
-                for ( int i = 0; i < quadFactor; i++ )
-                {
-                    int npoint = curve.npointForIndex( i );
+        assert search.intersects( currentExtent );
 
-                    SearchEnvelope quadrant = currentExtent.quadrant( bitValues( npoint ) );
-                    addTilesIntersectingEnvelopeAt( config, monitor, depth + 1, maxDepth, search, quadrant, curve.childAt( i ), left + i * width,
+        if ( depth > 0 && config.stopAtThisDepth( search.fractionOf( currentExtent ), depth, maxDepth ) )
+        {
+            computeTilesIntersectionEnvelopeAt( monitor, depth, currentExtent, left, right - 1, results );
+        }
+        else
+        {
+            long width = (right - left) / quadFactor;
+            for ( int i = 0; i < quadFactor; i++ )
+            {
+                SearchEnvelope quadrant = currentExtent.quadrant( curve.npointForIndex( i ) );
+                if ( width == 1L )
+                {
+                    long[] coord = normalizedCoordinateFor( left + i, maxLevel );
+                    if ( search.contains( coord ) )
+                    {
+                        computeTilesIntersectionEnvelopeAt( monitor, depth, quadrant, left + i, left + i, results );
+                    }
+                }
+                else if ( search.intersects( quadrant ) )
+                {
+                    addTilesIntersectingEnvelopeAt( config, monitor, depth + 1, maxDepth, search, quadrant,
+                            curve.childAt( i ), left + i * width,
                             left + (i + 1) * width, results );
                 }
             }
         }
     }
 
-    /**
-     * Bit index describing the in which quadrant an npoint corresponds to
-     */
-    private int[] bitValues( int npoint )
+    private static void computeTilesIntersectionEnvelopeAt( SpaceFillingCurveMonitor monitor, int depth,
+            SearchEnvelope currentExtent, long left, long newMax, List<LongRange> results )
     {
-        int[] bitValues = new int[nbrDim];
-
-        for ( int dim = 0; dim < nbrDim; dim++ )
+        // Note that LongRange upper bound is inclusive, hence the '-1' in several places
+        LongRange current = results.isEmpty() ? null : results.get( results.size() - 1 );
+        if ( current != null && current.max == left - 1 )
         {
-            int shift = nbrDim - dim - 1;
-            bitValues[dim] = (npoint & (1 << shift)) >> shift;
+            current.expandToMax( newMax );
         }
-        return bitValues;
+        else
+        {
+            current = new LongRange( left, newMax );
+            results.add( current );
+        }
+        if ( monitor != null )
+        {
+            monitor.addRangeAtDepth( depth );
+            monitor.addToCoveredArea( currentExtent.getArea() );
+        }
     }
 
     /**
@@ -415,7 +393,23 @@ public abstract class SpaceFillingCurve
             }
             else
             {
-                normalizedCoord[dim] = (long) ((value - range.getMin( dim )) * scalingFactor[dim]);
+                /*
+                 * We are converting a world coordinate in range [min,max) to a long-int coordinate in range [0,width).
+                 * The fact that the origins are not aligned means we can get numerical rounding errors of points near the world origin, but far from
+                 * the normalized origin, due to very high precision in doubles near 0.0, and much lower precision of doubles of values far from 0.0.
+                 * The symptom of this is points very close to tile edges end up in the adjacent tiles instead.
+                 * We fix this by first converting to normalized coordinates, and then using the new tile as a new origin,
+                 * and re-converting based on that origin.
+                 * This should lead to a number of 0, which means we're in the origin tile (no numerical rounding errors),
+                 * but when an error occurs, we could have a tile offset of +1 or -1, and we move to the adjacent tile instead.
+                 */
+                normalizedCoord[dim] = (long) ((value - range.getMin(dim)) * scalingFactor[dim]);
+                // Calculating with an origin at the min can lead to numerical rouding errors, which can be corrected by recalculating using a closer origin
+                double tileCenter = ((double) normalizedCoord[dim]) / scalingFactor[dim] + range.getMin(dim) + getTileWidth(dim, maxLevel) / 2.0;
+                // The 1E-16 is to create the behavior of the [min,max) bounds without an expensive if...else if...else check
+                long normalizedOffset = (long) ((value - tileCenter) * scalingFactor[dim] - 0.5 + 1E-16);
+                // normalizedOffset is almost always 0, but can be +1 or -1 if there were rounding errors we need to correct for
+                normalizedCoord[dim] += normalizedOffset;
             }
         }
         return normalizedCoord;
@@ -436,7 +430,7 @@ public abstract class SpaceFillingCurve
         return coord;
     }
 
-    private double clamp( double val, double min, double max )
+    private static double clamp( double val, double min, double max )
     {
         if ( val <= min )
         {
@@ -487,7 +481,7 @@ public abstract class SpaceFillingCurve
         @Override
         public boolean equals( Object other )
         {
-            return (other instanceof LongRange) && this.equals( (LongRange) other );
+            return other instanceof LongRange && this.equals( (LongRange) other );
         }
 
         public boolean equals( LongRange other )

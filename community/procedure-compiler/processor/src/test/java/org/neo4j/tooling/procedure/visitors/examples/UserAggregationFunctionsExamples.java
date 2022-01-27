@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -76,25 +76,25 @@ public class UserAggregationFunctionsExamples
     }
 
     @UserAggregationFunction( name = "com.acme.foobar" )
-    public StringAggregatorWithWrongUpdateParameterType updateWithWrongParameterType(  )
+    public StringAggregatorWithWrongUpdateParameterType updateWithWrongParameterType()
     {
         return new StringAggregatorWithWrongUpdateParameterType();
     }
 
     @UserAggregationFunction( name = "com.acme.foobar" )
-    public StringAggregatorWithMissingAnnotationOnParameterType missingParameterAnnotation(  )
+    public StringAggregatorWithMissingAnnotationOnParameterType missingParameterAnnotation()
     {
         return new StringAggregatorWithMissingAnnotationOnParameterType();
     }
 
     @UserAggregationFunction( name = "com.acme.foobar" )
-    public StringAggregatorWithWrongResultReturnType resultWithWrongReturnType(  )
+    public StringAggregatorWithWrongResultReturnType resultWithWrongReturnType()
     {
         return new StringAggregatorWithWrongResultReturnType();
     }
 
     @UserAggregationFunction( name = "com.acme.foobar" )
-    public StringAggregatorWithResultMethodWithParameters resultWithParams(  )
+    public StringAggregatorWithResultMethodWithParameters resultWithParams()
     {
         return new StringAggregatorWithResultMethodWithParameters();
     }
@@ -155,7 +155,7 @@ public class UserAggregationFunctionsExamples
         @UserAggregationResult
         public Thread result()
         {
-            return new Thread(  );
+            return new Thread();
         }
     }
 

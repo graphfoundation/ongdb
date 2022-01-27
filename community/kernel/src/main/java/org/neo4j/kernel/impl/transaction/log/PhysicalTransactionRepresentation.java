@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,44 +40,57 @@ package org.neo4j.kernel.impl.transaction.log;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
 
-import org.neo4j.helpers.collection.Visitor;
+import org.neo4j.internal.helpers.collection.Visitor;
+import org.neo4j.internal.kernel.api.security.AuthSubject;
+import org.neo4j.kernel.KernelVersion;
 import org.neo4j.kernel.impl.transaction.TransactionRepresentation;
 import org.neo4j.storageengine.api.StorageCommand;
 
+import static java.lang.String.format;
+
 public class PhysicalTransactionRepresentation implements TransactionRepresentation
 {
-    private final Collection<StorageCommand> commands;
+    private final List<StorageCommand> commands;
     private byte[] additionalHeader;
-    private int masterId;
-    private int authorId;
     private long timeStarted;
     private long latestCommittedTxWhenStarted;
     private long timeCommitted;
+    private AuthSubject subject;
 
     /**
-     * This is a bit of a smell, it's used only for committing slave transactions on the master. Effectively, this
-     * identifies the lock session used to guard this transaction. The master ensures that lock session is live before
-     * committing, to guard against locks timing out. We may want to refactor this design later on.
+     * This is a bit of a smell since it's only used for coordinating transactions in a cluster.
+     * We may want to refactor this design later on.
      */
-    private int lockSessionIdentifier;
+    private int leaseId;
 
-    public PhysicalTransactionRepresentation( Collection<StorageCommand> commands )
+    public PhysicalTransactionRepresentation( List<StorageCommand> commands )
     {
         this.commands = commands;
     }
 
-    public void setHeader( byte[] additionalHeader, int masterId, int authorId, long timeStarted,
-                           long latestCommittedTxWhenStarted, long timeCommitted, int lockSession )
+    public PhysicalTransactionRepresentation( List<StorageCommand> commands, byte[] additionalHeader, long timeStarted, long latestCommittedTxWhenStarted,
+            long timeCommitted, int leaseId, AuthSubject subject )
+    {
+        this( commands );
+        setHeader( additionalHeader, timeStarted, latestCommittedTxWhenStarted, timeCommitted, leaseId, subject );
+    }
+
+    public void setAdditionalHeader( byte[] additionalHeader )
     {
         this.additionalHeader = additionalHeader;
-        this.masterId = masterId;
-        this.authorId = authorId;
+    }
+
+    public void setHeader( byte[] additionalHeader, long timeStarted, long latestCommittedTxWhenStarted, long timeCommitted, int leaseId, AuthSubject subject )
+    {
+        this.additionalHeader = additionalHeader;
         this.timeStarted = timeStarted;
         this.latestCommittedTxWhenStarted = latestCommittedTxWhenStarted;
         this.timeCommitted = timeCommitted;
-        this.lockSessionIdentifier = lockSession;
+        this.leaseId = leaseId;
+        this.subject = subject;
     }
 
     @Override
@@ -100,18 +113,6 @@ public class PhysicalTransactionRepresentation implements TransactionRepresentat
     }
 
     @Override
-    public int getMasterId()
-    {
-        return masterId;
-    }
-
-    @Override
-    public int getAuthorId()
-    {
-        return authorId;
-    }
-
-    @Override
     public long getTimeStarted()
     {
         return timeStarted;
@@ -130,9 +131,21 @@ public class PhysicalTransactionRepresentation implements TransactionRepresentat
     }
 
     @Override
-    public int getLockSessionId()
+    public int getLeaseId()
     {
-        return lockSessionIdentifier;
+        return leaseId;
+    }
+
+    @Override
+    public AuthSubject getAuthSubject()
+    {
+        return subject;
+    }
+
+    @Override
+    public KernelVersion version()
+    {
+        return commands.isEmpty() ? null : commands.get( 0 ).version();
     }
 
     @Override
@@ -148,9 +161,7 @@ public class PhysicalTransactionRepresentation implements TransactionRepresentat
         }
 
         PhysicalTransactionRepresentation that = (PhysicalTransactionRepresentation) o;
-        return authorId == that.authorId
-               && latestCommittedTxWhenStarted == that.latestCommittedTxWhenStarted
-               && masterId == that.masterId
+        return latestCommittedTxWhenStarted == that.latestCommittedTxWhenStarted
                && timeStarted == that.timeStarted
                && Arrays.equals( additionalHeader, that.additionalHeader )
                && commands.equals( that.commands );
@@ -161,8 +172,6 @@ public class PhysicalTransactionRepresentation implements TransactionRepresentat
     {
         int result = commands.hashCode();
         result = 31 * result + (additionalHeader != null ? Arrays.hashCode( additionalHeader ) : 0);
-        result = 31 * result + masterId;
-        result = 31 * result + authorId;
         result = 31 * result + (int) (timeStarted ^ (timeStarted >>> 32));
         result = 31 * result + (int) (latestCommittedTxWhenStarted ^ (latestCommittedTxWhenStarted >>> 32));
         return result;
@@ -171,18 +180,35 @@ public class PhysicalTransactionRepresentation implements TransactionRepresentat
     @Override
     public String toString()
     {
-        StringBuilder builder = new StringBuilder( getClass().getSimpleName() ).append( '[' );
-        builder.append( "masterId:" ).append( masterId ).append( ',' );
-        builder.append( "authorId:" ).append( authorId ).append( ',' );
-        builder.append( "timeStarted:" ).append( timeStarted ).append( ',' );
-        builder.append( "latestCommittedTxWhenStarted:" ).append( latestCommittedTxWhenStarted ).append( ',' );
-        builder.append( "timeCommitted:" ).append( timeCommitted ).append( ',' );
-        builder.append( "lockSession:" ).append( lockSessionIdentifier ).append( ',' );
-        builder.append( "additionalHeader:" ).append( Arrays.toString( additionalHeader ) );
+        return toString( false );
+    }
+
+    public String toString( boolean includeCommands )
+    {
+        String basic = format( "%s[timeStarted:%d, latestCommittedTxWhenStarted:%d, timeCommitted:%d, lease:%d, additionalHeader:%s, commands.length:%d",
+                getClass().getSimpleName(), timeStarted, latestCommittedTxWhenStarted, timeCommitted, leaseId, Arrays.toString( additionalHeader ),
+                commands.size() );
+        if ( !includeCommands )
+        {
+            return basic;
+        }
+
+        StringBuilder builder = new StringBuilder( basic );
         for ( StorageCommand command : commands )
         {
-            builder.append( '\n' ).append( command );
+            builder.append( format( "%n%s", command.toString() ) );
         }
         return builder.toString();
+    }
+
+    @Override
+    public Iterator<StorageCommand> iterator()
+    {
+        return commands.iterator();
+    }
+
+    public int commandCount()
+    {
+        return commands.size();
     }
 }

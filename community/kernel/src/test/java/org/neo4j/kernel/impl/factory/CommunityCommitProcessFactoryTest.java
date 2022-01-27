@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,43 +38,45 @@
  */
 package org.neo4j.kernel.impl.factory;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.api.ReadOnlyTransactionCommitProcess;
-import org.neo4j.kernel.impl.api.TransactionCommitProcess;
-import org.neo4j.kernel.impl.api.TransactionRepresentationCommitProcess;
+import java.util.UUID;
+
+import org.neo4j.kernel.impl.api.DatabaseTransactionCommitProcess;
 import org.neo4j.kernel.impl.transaction.log.TransactionAppender;
+import org.neo4j.monitoring.DatabaseHealth;
 import org.neo4j.storageengine.api.StorageEngine;
 
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker.readOnly;
+import static org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker.writable;
+import static org.neo4j.kernel.database.DatabaseIdFactory.from;
 
-public class CommunityCommitProcessFactoryTest
+class CommunityCommitProcessFactoryTest
 {
     @Test
-    public void createReadOnlyCommitProcess()
+    void createRegularCommitProcessWhenWritable()
     {
-        CommunityCommitProcessFactory factory = new CommunityCommitProcessFactory();
+        var factory = new CommunityCommitProcessFactory();
 
-        Config config = Config.defaults( GraphDatabaseSettings.read_only, "true" );
+        var commitProcess =
+                factory.create( mock( TransactionAppender.class ), mock( StorageEngine.class ), from( DEFAULT_DATABASE_NAME, UUID.randomUUID() ), writable(),
+                mock( DatabaseHealth.class ) );
 
-        TransactionCommitProcess commitProcess = factory.create( mock( TransactionAppender.class ),
-                mock( StorageEngine.class ), config );
-
-        assertThat( commitProcess, instanceOf( ReadOnlyTransactionCommitProcess.class ) );
+        assertThat( commitProcess ).isInstanceOf( DatabaseTransactionCommitProcess.class );
     }
 
     @Test
-    public void createRegularCommitProcess()
+    void createRegularCommitProcessWhenDynamicallyReadOnly()
     {
-        CommunityCommitProcessFactory factory = new CommunityCommitProcessFactory();
+        var factory = new CommunityCommitProcessFactory();
 
-        TransactionCommitProcess commitProcess = factory.create( mock( TransactionAppender.class ),
-                mock( StorageEngine.class ), Config.defaults() );
+        var commitProcess =
+                factory.create( mock( TransactionAppender.class ), mock( StorageEngine.class ), from( DEFAULT_DATABASE_NAME, UUID.randomUUID() ), readOnly(),
+                        mock( DatabaseHealth.class ) );
 
-        assertThat( commitProcess, instanceOf( TransactionRepresentationCommitProcess.class ) );
+        assertThat( commitProcess ).isInstanceOf( DatabaseTransactionCommitProcess.class );
     }
 }

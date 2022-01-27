@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,11 +38,16 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
-import org.neo4j.storageengine.api.schema.IndexProgressor;
+import org.neo4j.kernel.api.index.IndexProgressor;
 
-abstract class IndexCursor<T extends IndexProgressor>
+abstract class IndexCursor<T extends IndexProgressor,CURSOR> extends TraceableCursor<CURSOR>
 {
     private T progressor;
+
+    protected IndexCursor( CursorPool<CURSOR> pool )
+    {
+        super( pool );
+    }
 
     final void initialize( T progressor )
     {
@@ -58,7 +63,7 @@ abstract class IndexCursor<T extends IndexProgressor>
         return progressor != null && progressor.next();
     }
 
-    void close()
+    void closeProgressor()
     {
         if ( progressor != null )
         {
@@ -67,7 +72,7 @@ abstract class IndexCursor<T extends IndexProgressor>
         progressor = null;
     }
 
-    boolean isClosed()
+    boolean isProgressorClosed()
     {
         return progressor == null;
     }

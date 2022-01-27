@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,29 +38,30 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.util.attribution.Id
 import org.neo4j.values.storable.Values
+import org.neo4j.values.storable.Values.NO_VALUE
 
-case class ConditionalApplyPipe(source: Pipe, inner: Pipe, items: Seq[String], negated: Boolean)
+case class ConditionalApplyPipe(source: Pipe, inner: Pipe, items: Seq[String], negated: Boolean, rhsOnlySymbols: Set[String])
                                (val id: Id = Id.INVALID_ID)
   extends PipeWithSource(source) {
 
-  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] =
+  protected def internalCreateResults(input: ClosingIterator[CypherRow], state: QueryState): ClosingIterator[CypherRow] =
     input.flatMap {
-      (outerContext) =>
+      outerContext =>
         if (condition(outerContext)) {
-          val original = outerContext.createClone()
           val innerState = state.withInitialContext(outerContext)
-          val innerResults = inner.createResults(innerState)
-          innerResults.map { context => original mergeWith context }
-        } else Iterator.single(outerContext)
+          inner.createResults(innerState)
+        } else {
+          rhsOnlySymbols.foreach(v => outerContext.set(v, Values.NO_VALUE))
+          Iterator.single(outerContext)
+        }
     }
 
-  private def condition(context: ExecutionContext) = {
-    val cond = items.exists { context.get(_).get != Values.NO_VALUE}
-      if (negated) !cond else cond
+  private def condition(context: CypherRow): Boolean = {
+    val hasNull = items.map(context.getByName).exists(_ eq NO_VALUE)
+    if (negated) hasNull else !hasNull
   }
-
-  private def name = if (negated) "AntiConditionalApply" else "ConditionalApply"
 }

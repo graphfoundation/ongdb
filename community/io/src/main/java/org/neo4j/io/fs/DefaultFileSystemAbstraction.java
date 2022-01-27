@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,41 +38,49 @@
  */
 package org.neo4j.io.fs;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.FilenameFilter;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.io.RandomAccessFile;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.nio.file.CopyOption;
+import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.OpenOption;
+import java.nio.file.Path;
 import java.nio.file.WatchService;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Function;
+import java.util.Set;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
-import org.neo4j.io.IOUtils;
 import org.neo4j.io.fs.watcher.DefaultFileSystemWatcher;
 import org.neo4j.io.fs.watcher.FileWatcher;
 
 import static java.lang.String.format;
+import static java.nio.file.StandardOpenOption.APPEND;
+import static java.nio.file.StandardOpenOption.CREATE;
+import static java.nio.file.StandardOpenOption.READ;
+import static java.nio.file.StandardOpenOption.WRITE;
 
 /**
  * Default file system abstraction that creates files using the underlying file system.
  */
 public class DefaultFileSystemAbstraction implements FileSystemAbstraction
 {
-    static final String UNABLE_TO_CREATE_DIRECTORY_FORMAT = "Unable to create directory path [%s] for ONgDB store.";
+    static final String UNABLE_TO_CREATE_DIRECTORY_FORMAT = "Unable to write directory path [%s] for Neo4j store.";
+    public static final Set<OpenOption> WRITE_OPTIONS = Set.of( READ, WRITE, CREATE );
+    private static final Set<OpenOption> READ_OPTIONS = Set.of( READ );
+    private static final OpenOption[] APPEND_OPTIONS = new OpenOption[]{CREATE, APPEND};
+    private static final OpenOption[] DEFAULT_OUTPUT_OPTIONS = new OpenOption[0];
 
     @Override
     public FileWatcher fileWatcher() throws IOException
@@ -82,172 +90,196 @@ public class DefaultFileSystemAbstraction implements FileSystemAbstraction
     }
 
     @Override
-    public StoreFileChannel open( File fileName, OpenMode openMode ) throws IOException
+    public StoreFileChannel open( Path fileName, Set<OpenOption> options ) throws IOException
     {
-        // Returning only the channel is ok, because the channel, when close()d will close its parent File.
-        FileChannel channel = new RandomAccessFile( fileName, openMode.mode() ).getChannel();
+        FileChannel channel = FileChannel.open( fileName, options );
         return getStoreFileChannel( channel );
     }
 
     @Override
-    public OutputStream openAsOutputStream( File fileName, boolean append ) throws IOException
+    public OutputStream openAsOutputStream( Path fileName, boolean append ) throws IOException
     {
-        return new FileOutputStream( fileName, append );
+        return new BufferedOutputStream( openFileOutputStream( fileName, append ) );
     }
 
     @Override
-    public InputStream openAsInputStream( File fileName ) throws IOException
+    public InputStream openAsInputStream( Path fileName ) throws IOException
     {
-        return new FileInputStream( fileName );
+        return new BufferedInputStream( openFileInputStream( fileName ) );
     }
 
     @Override
-    public Reader openAsReader( File fileName, Charset charset ) throws IOException
+    public Reader openAsReader( Path fileName, Charset charset ) throws IOException
     {
-        return new InputStreamReader( openAsInputStream( fileName ), charset );
+        return new BufferedReader( new InputStreamReader( openFileInputStream( fileName ), charset ) );
     }
 
     @Override
-    public Writer openAsWriter( File fileName, Charset charset, boolean append ) throws IOException
+    public Writer openAsWriter( Path fileName, Charset charset, boolean append ) throws IOException
     {
-        return new OutputStreamWriter( openAsOutputStream( fileName, append ), charset );
+        return new BufferedWriter( new OutputStreamWriter( openFileOutputStream( fileName, append ), charset ) );
     }
 
     @Override
-    public StoreFileChannel create( File fileName ) throws IOException
+    public StoreFileChannel write( Path fileName ) throws IOException
     {
-        return open( fileName, OpenMode.READ_WRITE );
+        return open( fileName, WRITE_OPTIONS );
     }
 
     @Override
-    public boolean mkdir( File fileName )
+    public StoreFileChannel read( Path fileName ) throws IOException
     {
-        return fileName.mkdir();
+        return open( fileName, READ_OPTIONS );
     }
 
     @Override
-    public void mkdirs( File path ) throws IOException
+    public void mkdir( Path fileName ) throws IOException
     {
-        if ( path.exists() )
+        Files.createDirectories( fileName );
+    }
+
+    @Override
+    public void mkdirs( Path file ) throws IOException
+    {
+        if ( Files.exists( file ) && Files.isDirectory( file ) )
         {
             return;
         }
 
-        path.mkdirs();
-
-        if ( path.exists() )
+        try
         {
-            return;
+            Files.createDirectories( file );
         }
-
-        throw new IOException( format( UNABLE_TO_CREATE_DIRECTORY_FORMAT, path ) );
+        catch ( IOException e )
+        {
+            throw new IOException( format( UNABLE_TO_CREATE_DIRECTORY_FORMAT, file ), e );
+        }
     }
 
     @Override
-    public boolean fileExists( File fileName )
+    public boolean fileExists( Path file )
     {
-        return fileName.exists();
+        return Files.exists( file );
     }
 
     @Override
-    public long getFileSize( File fileName )
+    public long getFileSize( Path file ) throws IOException
     {
-        return fileName.length();
+        return Files.size( file );
     }
 
     @Override
-    public boolean deleteFile( File fileName )
+    public long getBlockSize( Path file ) throws IOException
     {
-        return FileUtils.deleteFile( fileName );
+        return FileUtils.blockSize( file );
     }
 
     @Override
-    public void deleteRecursively( File directory ) throws IOException
+    public void deleteFile( Path fileName ) throws IOException
     {
-        FileUtils.deleteRecursively( directory );
+        FileUtils.deleteFile( fileName );
     }
 
     @Override
-    public void renameFile( File from, File to, CopyOption... copyOptions ) throws IOException
+    public void deleteRecursively( Path directory ) throws IOException
     {
-        Files.move( from.toPath(), to.toPath(), copyOptions );
+        FileUtils.deleteDirectory( directory );
     }
 
     @Override
-    public File[] listFiles( File directory )
+    public void renameFile( Path from, Path to, CopyOption... copyOptions ) throws IOException
     {
-        return directory.listFiles();
+        Files.move( from, to, copyOptions );
     }
 
     @Override
-    public File[] listFiles( File directory, FilenameFilter filter )
+    public Path[] listFiles( Path directory ) throws IOException
     {
-        return directory.listFiles( filter );
+        try ( Stream<Path> list = Files.list( directory ) )
+        {
+            return list.toArray( Path[]::new );
+        }
     }
 
     @Override
-    public boolean isDirectory( File file )
+    public Path[] listFiles( Path directory, DirectoryStream.Filter<Path> filter ) throws IOException
     {
-        return file.isDirectory();
+        try ( DirectoryStream<Path> paths = Files.newDirectoryStream( directory, filter ) )
+        {
+            return StreamSupport.stream( paths.spliterator(), false ).toArray( Path[]::new );
+        }
     }
 
     @Override
-    public void moveToDirectory( File file, File toDirectory ) throws IOException
+    public boolean isDirectory( Path file )
+    {
+        return Files.isDirectory( file );
+    }
+
+    @Override
+    public void moveToDirectory( Path file, Path toDirectory ) throws IOException
     {
         FileUtils.moveFileToDirectory( file, toDirectory );
     }
 
     @Override
-    public void copyToDirectory( File file, File toDirectory ) throws IOException
+    public void copyToDirectory( Path file, Path toDirectory ) throws IOException
     {
         FileUtils.copyFileToDirectory( file, toDirectory );
     }
 
     @Override
-    public void copyFile( File from, File to ) throws IOException
+    public void copyFile( Path from, Path to ) throws IOException
     {
         FileUtils.copyFile( from, to );
     }
 
     @Override
-    public void copyRecursively( File fromDirectory, File toDirectory ) throws IOException
+    public void copyFile( Path from, Path to, CopyOption... copyOptions ) throws IOException
     {
-        FileUtils.copyRecursively( fromDirectory, toDirectory );
-    }
-
-    private final Map<Class<? extends ThirdPartyFileSystem>, ThirdPartyFileSystem> thirdPartyFileSystems =
-            new HashMap<>();
-
-    @Override
-    public synchronized <K extends ThirdPartyFileSystem> K getOrCreateThirdPartyFileSystem(
-            Class<K> clazz, Function<Class<K>, K> creator )
-    {
-        ThirdPartyFileSystem fileSystem = thirdPartyFileSystems.computeIfAbsent( clazz, k -> creator.apply( clazz ) );
-        return clazz.cast( fileSystem );
+        FileUtils.copyFile( from, to, copyOptions );
     }
 
     @Override
-    public void truncate( File path, long size ) throws IOException
+    public void copyRecursively( Path fromDirectory, Path toDirectory ) throws IOException
+    {
+        FileUtils.copyDirectory( fromDirectory, toDirectory );
+    }
+
+    @Override
+    public void truncate( Path path, long size ) throws IOException
     {
         FileUtils.truncateFile( path, size );
     }
 
     @Override
-    public long lastModifiedTime( File file )
+    public long lastModifiedTime( Path file ) throws IOException
     {
-        return file.lastModified();
+        return Files.getLastModifiedTime( file ).toMillis();
     }
 
     @Override
-    public void deleteFileOrThrow( File file ) throws IOException
+    public void deleteFileOrThrow( Path file ) throws IOException
     {
-        Files.delete( file.toPath() );
+        Files.delete( file );
     }
 
     @Override
-    public Stream<FileHandle> streamFilesRecursive( File directory ) throws IOException
+    public Stream<FileHandle> streamFilesRecursive( Path directory ) throws IOException
     {
         return StreamFilesRecursive.streamFilesRecursive( directory, this );
+    }
+
+    @Override
+    public int getFileDescriptor( StoreChannel channel )
+    {
+        return channel.getFileDescriptor();
+    }
+
+    @Override
+    public void close() throws IOException
+    {
+        // nothing
     }
 
     protected StoreFileChannel getStoreFileChannel( FileChannel channel )
@@ -255,9 +287,13 @@ public class DefaultFileSystemAbstraction implements FileSystemAbstraction
         return new StoreFileChannel( channel );
     }
 
-    @Override
-    public void close() throws IOException
+    private static InputStream openFileInputStream( Path fileName ) throws IOException
     {
-        IOUtils.closeAll( thirdPartyFileSystems.values() );
+        return Files.newInputStream( fileName );
+    }
+
+    private static OutputStream openFileOutputStream( Path fileName, boolean append ) throws IOException
+    {
+        return Files.newOutputStream( fileName, append ? APPEND_OPTIONS : DEFAULT_OUTPUT_OPTIONS );
     }
 }

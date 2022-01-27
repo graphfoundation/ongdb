@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,32 +38,40 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted
 
-import org.mockito.ArgumentMatchers._
+import org.mockito.ArgumentMatchers
+import org.mockito.ArgumentMatchers.any
+import org.mockito.ArgumentMatchers.anyInt
+import org.mockito.ArgumentMatchers.anyLong
 import org.mockito.Mockito.when
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
-import org.neo4j.cypher.internal.planner.v3_4.spi.{IdempotentResult, IndexDescriptor}
-import org.neo4j.cypher.internal.runtime.{Operations, QueryContext, QueryStatistics}
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.graphdb.{Node, Relationship}
-import org.neo4j.internal.kernel.api.IndexReference
+import org.neo4j.common.EntityType
+import org.neo4j.cypher.internal.runtime.NodeOperations
+import org.neo4j.cypher.internal.runtime.QueryContext
+import org.neo4j.cypher.internal.runtime.QueryStatistics
+import org.neo4j.cypher.internal.runtime.RelationshipOperations
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.graphdb.Node
+import org.neo4j.graphdb.Relationship
+import org.neo4j.internal.schema.IndexConfig
+import org.neo4j.internal.schema.IndexPrototype
+import org.neo4j.internal.schema.SchemaDescriptors
 import org.neo4j.values.storable.Values
-import org.neo4j.values.virtual.{NodeValue, RelationshipValue}
 
 class UpdateCountingQueryContextTest extends CypherFunSuite {
 
-  val inner = mock[QueryContext]
-  val nodeA = mock[Node]
-  val nodeB = mock[Node]
-  val nodeAId = 666
-  val rel = mock[Relationship]
-  val relId = 42
+  private val inner = mock[QueryContext]
+  private val nodeA = mock[Node]
+  private val nodeB = mock[Node]
+  private val nodeAId = 666
+  private val rel = mock[Relationship]
+  private val relId = 42
 
-  val nodeOps = mock[Operations[NodeValue]]
-  val relOps = mock[Operations[RelationshipValue]]
+  private val nodeWriteOps = mock[NodeOperations]
+  private val relWriteOps = mock[RelationshipOperations]
 
-  when(inner.nodeOps).thenReturn(nodeOps)
-  when(inner.relationshipOps).thenReturn(relOps)
+  when(inner.nodeWriteOps).thenReturn(nodeWriteOps)
+  when(inner.relationshipWriteOps).thenReturn(relWriteOps)
 
   // We need to have the inner mock return the right counts for added/removed labels.
   when( inner.setLabelsOnNode(anyLong(), any()) ).thenAnswer( new Answer[Int]() {
@@ -78,18 +86,13 @@ class UpdateCountingQueryContextTest extends CypherFunSuite {
     }
   } )
 
-  when(inner.createUniqueConstraint(any())).thenReturn(true)
+  when(inner.addBtreeIndexRule(anyInt(), ArgumentMatchers.eq(EntityType.NODE), any(), any(), any(), any()))
+    .thenReturn(IndexPrototype.forSchema(SchemaDescriptors.forLabel(1, 2)).withName("index_1").materialise(1))
 
-  when(inner.createNodeKeyConstraint(any())).thenReturn(true)
+  when(inner.addBtreeIndexRule(anyInt(), ArgumentMatchers.eq(EntityType.RELATIONSHIP), any(), any(), any(), any()))
+    .thenReturn(IndexPrototype.forSchema(SchemaDescriptors.forRelType(1, 2)).withName("index_1").materialise(1))
 
-  when( inner.createNodePropertyExistenceConstraint(anyInt(), anyInt()) ).thenReturn(true)
-
-  when( inner.createRelationshipPropertyExistenceConstraint(anyInt(), anyInt()) ).thenReturn(true)
-
-  when(inner.addIndexRule(any()))
-    .thenReturn(IdempotentResult(mock[IndexReference]))
-
-  var context: UpdateCountingQueryContext = null
+  var context: UpdateCountingQueryContext = _
 
   override def beforeEach() {
     super.beforeEach()
@@ -97,91 +100,180 @@ class UpdateCountingQueryContextTest extends CypherFunSuite {
   }
 
   test("create_node") {
-    context.createNode()
+    context.createNodeId(Array(1, 2, 3))
 
-    context.getStatistics should equal(QueryStatistics(nodesCreated = 1))
+    context.getStatistics should equal(QueryStatistics(nodesCreated = 1, labelsAdded = 3))
   }
 
   test("delete_node") {
-    context.nodeOps.delete(nodeA.getId)
+    when(nodeWriteOps.delete(any())).thenReturn(true)
+    context.nodeWriteOps.delete(nodeA.getId)
 
     context.getStatistics should equal(QueryStatistics(nodesDeleted = 1))
   }
 
+  test("delete_node without delete") {
+    when(nodeWriteOps.delete(any())).thenReturn(false)
+    context.nodeWriteOps.delete(nodeA.getId)
+
+    context.getStatistics should equal(QueryStatistics())
+  }
+
   test("create_relationship") {
-    context.createRelationship(nodeA.getId, nodeB.getId, 13)
+    context.createRelationshipId(nodeA.getId, nodeB.getId, 13)
 
     context.getStatistics should equal(QueryStatistics(relationshipsCreated = 1))
   }
 
   test("delete_relationship") {
-    context.relationshipOps.delete(rel.getId)
+    when(relWriteOps.delete(any())).thenReturn(true)
+    context.relationshipWriteOps.delete(rel.getId)
 
     context.getStatistics should equal(QueryStatistics(relationshipsDeleted = 1))
   }
 
+  test("delete_relationship without delete") {
+    when(relWriteOps.delete(any())).thenReturn(false)
+    context.relationshipWriteOps.delete(rel.getId)
+
+    context.getStatistics should equal(QueryStatistics())
+  }
+
+
   test("set_property") {
-    context.nodeOps.setProperty(nodeAId, 1, Values.stringValue("value"))
+    context.nodeWriteOps.setProperty(nodeAId, 1, Values.stringValue("value"))
 
     context.getStatistics should equal(QueryStatistics(propertiesSet = 1))
   }
 
   test("remove_property") {
-    context.nodeOps.removeProperty(nodeAId, context.getPropertyKeyId("key"))
+    // given
+    val propertyKey = context.getPropertyKeyId("key")
+    when(nodeWriteOps.removeProperty(nodeAId, propertyKey)).thenReturn(true)
 
+    // when
+    context.nodeWriteOps.removeProperty(nodeAId, propertyKey)
+
+    // then
     context.getStatistics should equal(QueryStatistics(propertiesSet = 1))
   }
 
+  test("remove_property does nothing") {
+    // given
+    val propertyKey = context.getPropertyKeyId("key")
+    when(nodeWriteOps.removeProperty(nodeAId, propertyKey)).thenReturn(false)
+
+    // when
+    context.nodeWriteOps.removeProperty(nodeAId, propertyKey)
+
+    // then
+    context.getStatistics should equal(QueryStatistics())
+  }
+
   test("set_property_relationship") {
-    context.relationshipOps.setProperty(relId, 1, Values.stringValue("value"))
+    context.relationshipWriteOps.setProperty(relId, 1, Values.stringValue("value"))
 
     context.getStatistics should equal(QueryStatistics(propertiesSet = 1))
   }
 
   test("remove_property_relationship") {
-    context.relationshipOps.removeProperty(relId, context.getPropertyKeyId("key"))
+    // given
+    val propertyKey = context.getPropertyKeyId("key")
+    when(relWriteOps.removeProperty(relId, propertyKey)).thenReturn(true)
 
+    // when
+    context.relationshipWriteOps.removeProperty(relId, propertyKey)
+
+    // then
     context.getStatistics should equal(QueryStatistics(propertiesSet = 1))
   }
-//
-//  test("add_label") {
-//    context.setLabelsOnNode(0l, Seq(1, 2, 3).iterator)
-//
-//    context.getStatistics should equal(QueryStatistics(labelsAdded = 3))
-//  }
+
+  test("remove_property_relationship does nothing") {
+    // given
+    val propertyKey = context.getPropertyKeyId("key")
+    when(relWriteOps.removeProperty(relId, propertyKey)).thenReturn(false)
+
+    // when
+    context.relationshipWriteOps.removeProperty(relId, propertyKey)
+
+    // then
+    context.getStatistics should equal(QueryStatistics())
+  }
+
+  test("add_label") {
+    context.setLabelsOnNode(0L, Seq(1, 2, 3).iterator)
+
+    context.getStatistics should equal(QueryStatistics(labelsAdded = 3))
+  }
 
   test("remove_label") {
-    context.removeLabelsFromNode(0l, Seq(1, 2, 3).iterator)
+    context.removeLabelsFromNode(0L, Seq(1, 2, 3).iterator)
 
     context.getStatistics should equal(QueryStatistics(labelsRemoved = 3))
   }
 
-  test("add_index") {
-    context.addIndexRule(IndexDescriptor(0, 1))
+  test("add_index for node") {
+    context.addBtreeIndexRule(0, EntityType.NODE, Array(1), None, None, IndexConfig.empty)
+
+    context.getStatistics should equal(QueryStatistics(indexesAdded = 1))
+  }
+
+  test("add_index for node with name") {
+    context.addBtreeIndexRule(0, EntityType.NODE, Array(1), Some("name"), None, IndexConfig.empty)
+
+    context.getStatistics should equal(QueryStatistics(indexesAdded = 1))
+  }
+
+  test("add_index for relationship") {
+    context.addBtreeIndexRule(0, EntityType.RELATIONSHIP, Array(1), None, None, IndexConfig.empty)
+
+    context.getStatistics should equal(QueryStatistics(indexesAdded = 1))
+  }
+
+  test("add_index for relationship with name") {
+    context.addBtreeIndexRule(0, EntityType.RELATIONSHIP, Array(1), Some("name"), None, IndexConfig.empty)
 
     context.getStatistics should equal(QueryStatistics(indexesAdded = 1))
   }
 
   test("remove_index") {
-    context.dropIndexRule(IndexDescriptor(0, 1))
+    context.dropIndexRule(0, Array(1))
+
+    context.getStatistics should equal(QueryStatistics(indexesRemoved = 1))
+  }
+
+  test("remove_index with name") {
+    context.dropIndexRule("name")
 
     context.getStatistics should equal(QueryStatistics(indexesRemoved = 1))
   }
 
   test("create_unique_constraint") {
-    context.createUniqueConstraint(IndexDescriptor(0, 1))
+    context.createUniqueConstraint(0, Array(1), None, None, IndexConfig.empty)
+
+    context.getStatistics should equal(QueryStatistics(uniqueConstraintsAdded = 1))
+  }
+
+  test("create_unique_constraint with name") {
+    context.createUniqueConstraint(0, Array(1), Some("name"), None, IndexConfig.empty)
 
     context.getStatistics should equal(QueryStatistics(uniqueConstraintsAdded = 1))
   }
 
   test("constraint_dropped") {
-    context.dropUniqueConstraint(IndexDescriptor(0, 42))
+    context.dropUniqueConstraint(0, Array(1))
 
     context.getStatistics should equal(QueryStatistics(uniqueConstraintsRemoved = 1))
   }
 
   test("create node property existence constraint") {
-    context.createNodePropertyExistenceConstraint(0, 1)
+    context.createNodePropertyExistenceConstraint(0, 1, None)
+
+    context.getStatistics should equal(QueryStatistics(existenceConstraintsAdded = 1))
+  }
+
+  test("create node property existence constraint with name") {
+    context.createNodePropertyExistenceConstraint(0, 1, Some("name"))
 
     context.getStatistics should equal(QueryStatistics(existenceConstraintsAdded = 1))
   }
@@ -193,7 +285,13 @@ class UpdateCountingQueryContextTest extends CypherFunSuite {
   }
 
   test("create rel property existence constraint") {
-    context.createRelationshipPropertyExistenceConstraint(0, 42)
+    context.createRelationshipPropertyExistenceConstraint(0, 42, None)
+
+    context.getStatistics should equal(QueryStatistics(existenceConstraintsAdded = 1))
+  }
+
+  test("create rel property existence constraint with name") {
+    context.createRelationshipPropertyExistenceConstraint(0, 42, Some("name"))
 
     context.getStatistics should equal(QueryStatistics(existenceConstraintsAdded = 1))
   }
@@ -205,14 +303,26 @@ class UpdateCountingQueryContextTest extends CypherFunSuite {
   }
 
   test("create node key constraint") {
-    context.createNodeKeyConstraint(IndexDescriptor(0, 1))
+    context.createNodeKeyConstraint(0, Array(1), None, None, IndexConfig.empty)
+
+    context.getStatistics should equal(QueryStatistics(nodekeyConstraintsAdded = 1))
+  }
+
+  test("create node key constraint with name") {
+    context.createNodeKeyConstraint(0, Array(1), Some("name"), None, IndexConfig.empty)
 
     context.getStatistics should equal(QueryStatistics(nodekeyConstraintsAdded = 1))
   }
 
   test("drop node key constraint") {
-    context.dropNodeKeyConstraint(IndexDescriptor(0, 42))
+    context.dropNodeKeyConstraint(0, Array(1))
 
     context.getStatistics should equal(QueryStatistics(nodekeyConstraintsRemoved = 1))
+  }
+
+  test("drop named constraint") {
+    context.dropNamedConstraint("name")
+
+    context.getStatistics should equal(QueryStatistics(namedConstraintsRemoved = 1))
   }
 }

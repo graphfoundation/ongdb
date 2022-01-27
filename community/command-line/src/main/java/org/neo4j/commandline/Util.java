@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,112 +38,43 @@
  */
 package org.neo4j.commandline;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Properties;
-import javax.annotation.Nonnull;
 
-import org.neo4j.commandline.admin.CommandFailed;
-import org.neo4j.io.fs.DefaultFileSystemAbstraction;
-import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.StoreLockException;
-import org.neo4j.kernel.internal.locker.GlobalStoreLocker;
-import org.neo4j.kernel.internal.locker.StoreLocker;
+import org.neo4j.cli.CommandFailedException;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.logging.log4j.Log4jLogProvider;
+import org.neo4j.logging.log4j.LogConfig;
+import org.neo4j.logging.log4j.Neo4jLoggerContext;
 
 import static java.lang.String.format;
+import static org.neo4j.io.fs.FileUtils.getCanonicalFile;
 
-public class Util
+public final class Util
 {
     private Util()
     {
     }
 
-    public static Path canonicalPath( Path path ) throws IllegalArgumentException
+    public static boolean isSameOrChildFile( Path parent, Path candidate )
     {
-        return canonicalPath( path.toFile() );
-    }
-
-    public static Path canonicalPath( String path ) throws IllegalArgumentException
-    {
-        return canonicalPath( new File( path ) );
-    }
-
-    public static Path canonicalPath( File file ) throws IllegalArgumentException
-    {
-        try
-        {
-            return Paths.get( file.getCanonicalPath() );
-        }
-        catch ( IOException e )
-        {
-            throw new IllegalArgumentException( "Unable to parse path: " + file, e );
-        }
-    }
-
-    public static boolean isSameOrChildFile( File parent, File candidate )
-    {
-        Path canonicalCandidate = canonicalPath( candidate );
-        Path canonicalParentPath = canonicalPath( parent );
+        Path canonicalCandidate = getCanonicalFile( candidate );
+        Path canonicalParentPath = getCanonicalFile( parent );
         return canonicalCandidate.startsWith( canonicalParentPath );
     }
 
-    public static boolean isSameOrChildPath( Path parent, Path candidate )
+    public static void wrapIOException( IOException e ) throws CommandFailedException
     {
-        Path normalizedCandidate = candidate.normalize();
-        Path normalizedParent = parent.normalize();
-        return normalizedCandidate.startsWith( normalizedParent );
+        throw new CommandFailedException(
+                format( "Unable to load database: %s: %s", e.getClass().getSimpleName(), e.getMessage() ), e );
     }
 
-    public static void checkLock( Path databaseDirectory ) throws CommandFailed
+    public static Log4jLogProvider configuredLogProvider( Config config, OutputStream out )
     {
-        try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction();
-              StoreLocker storeLocker = new GlobalStoreLocker( fileSystem, databaseDirectory.toFile() ) )
-        {
-            storeLocker.checkLock();
-        }
-        catch ( StoreLockException e )
-        {
-            throw new CommandFailed( "the database is in use -- stop ONgDB and try again", e );
-        }
-        catch ( IOException e )
-        {
-            wrapIOException( e );
-        }
-    }
-
-    public static void wrapIOException( IOException e ) throws CommandFailed
-    {
-        throw new CommandFailed(
-                format( "unable to load database: %s: %s", e.getClass().getSimpleName(), e.getMessage() ), e );
-    }
-
-    /**
-     * @return the version of ONgDB as defined during the build
-     */
-    @Nonnull
-    public static String ongdbVersion()
-    {
-        Properties props = new Properties();
-        try
-        {
-            loadProperties( props );
-            return props.getProperty( "ongdbVersion" );
-        }
-        catch ( IOException e )
-        {
-            // This should never happen
-            throw new RuntimeException( e );
-        }
-    }
-
-    private static void loadProperties( Properties props ) throws IOException
-    {
-        try ( InputStream resource = Util.class.getResourceAsStream( "/org/neo4j/commandline/build.properties" ) )
-        {
-            props.load( resource );
-        }
+        Neo4jLoggerContext context = LogConfig.createBuilder( out, config.get( GraphDatabaseSettings.store_internal_log_level ) )
+                .withTimezone( config.get( GraphDatabaseSettings.db_timezone ) ).build();
+        return new Log4jLogProvider( context );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,35 +38,75 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes.aggregation
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import java.time.temporal.ChronoUnit
+
+import org.neo4j.cypher.internal.runtime.ReadableRow
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.values.storable._
+import org.neo4j.exceptions.InternalException
+import org.neo4j.memory.HeapEstimator.shallowSizeOfInstance
+import org.neo4j.values.AnyValue
+import org.neo4j.values.storable.DurationValue
+import org.neo4j.values.storable.Value
+import org.neo4j.values.storable.Values
 import org.neo4j.values.utils.ValueMath.overflowSafeAdd
 
 /**
  * AVG computation is calculated using cumulative moving average approach:
  * https://en.wikipedia.org/wiki/Moving_average#Cumulative_moving_average
+ *
+ * TODO consider combining it with https://en.wikipedia.org/wiki/Kahan_summation_algorithm
  */
 class AvgFunction(val value: Expression)
   extends AggregationFunction
-  with NumericExpressionOnly {
+  with NumericOrDurationAggregationExpression {
 
   def name = "AVG"
 
   private var count: Long = 0L
-  private var sum: NumberValue = Values.ZERO_INT
 
-  override def result(state: QueryState): Value =
-    if (count > 0) sum
-    else Values.NO_VALUE
+  private var monthsRunningAvg = 0d
+  private var daysRunningAvg = 0d
+  private var secondsRunningAvg = 0d
+  private var nanosRunningAvg = 0d
 
-  override def apply(data: ExecutionContext, state: QueryState) {
-    actOnNumber(value(data, state), (number) => {
-      count += 1
-      val diff = number.minus(sum)
-      val next = diff.dividedBy(count.toDouble)
-      sum = overflowSafeAdd(sum, next)
-    })
+  override def result(state: QueryState): Value = aggregatingType match {
+    case None =>
+      Values.NO_VALUE
+    case Some(AggregatingNumbers) =>
+      sumNumber
+    case Some(AggregatingDurations) =>
+      DurationValue.approximate(monthsRunningAvg, daysRunningAvg, secondsRunningAvg, nanosRunningAvg).normalize()
+    case _ => throw new InternalException(s"invalid aggregation type $aggregatingType")
   }
+
+  override def apply(data: ReadableRow, state: QueryState): Unit = {
+    val vl = value(data, state)
+    applyValueDirectly(vl)
+  }
+
+  def applyValueDirectly(vl: AnyValue): Unit = {
+    actOnNumberOrDuration(vl,
+      number => {
+        count += 1
+        val diff = number.minus(sumNumber)
+        val next = diff.dividedBy(count.toDouble)
+        sumNumber = overflowSafeAdd(sumNumber, next)
+      },
+      duration => {
+        count += 1
+        monthsRunningAvg += (duration.get(ChronoUnit.MONTHS).asInstanceOf[Double] - monthsRunningAvg) / count
+        daysRunningAvg += (duration.get(ChronoUnit.DAYS).asInstanceOf[Double] - daysRunningAvg) / count
+        secondsRunningAvg += (duration.get(ChronoUnit.SECONDS).asInstanceOf[Double] - secondsRunningAvg) / count
+        nanosRunningAvg += (duration.get(ChronoUnit.NANOS).asInstanceOf[Double] - nanosRunningAvg) / count
+      }
+    )
+
+  }
+
+  def aggregatedRowCount: Long = count
+}
+
+object AvgFunction {
+  val SHALLOW_SIZE: Long = shallowSizeOfInstance(classOf[AvgFunction])
 }

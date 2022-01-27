@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,36 +38,76 @@
  */
 package org.neo4j.kernel.impl.transaction.log.files;
 
+import java.time.Clock;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
+import org.neo4j.configuration.Config;
+import org.neo4j.internal.nativeimpl.NativeAccess;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.impl.transaction.log.LogVersionRepository;
+import org.neo4j.kernel.database.DatabaseTracers;
+import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
+import org.neo4j.logging.LogProvider;
+import org.neo4j.memory.MemoryTracker;
+import org.neo4j.monitoring.DatabaseHealth;
+import org.neo4j.monitoring.Monitors;
+import org.neo4j.storageengine.api.KernelVersionRepository;
+import org.neo4j.storageengine.api.LogVersionRepository;
+import org.neo4j.storageengine.api.StoreId;
 
-class TransactionLogFilesContext
+public class TransactionLogFilesContext
 {
     private final AtomicLong rotationThreshold;
+    private final AtomicBoolean tryPreallocateTransactionLogs;
     private final LogEntryReader logEntryReader;
     private final LongSupplier lastCommittedTransactionIdSupplier;
     private final LongSupplier committingTransactionIdSupplier;
+    private final Supplier<LogPosition> lastClosedPositionSupplier;
     private final Supplier<LogVersionRepository> logVersionRepositorySupplier;
-    private final LogFileCreationMonitor logFileCreationMonitor;
     private final FileSystemAbstraction fileSystem;
+    private final LogProvider logProvider;
+    private final DatabaseTracers databaseTracers;
+    private final NativeAccess nativeAccess;
+    private final MemoryTracker memoryTracker;
+    private final Monitors monitors;
+    private final boolean failOnCorruptedLogFiles;
+    private final Supplier<StoreId> storeId;
+    private final DatabaseHealth databaseHealth;
+    private final KernelVersionRepository kernelVersionRepository;
+    private final Clock clock;
+    private final String databaseName;
+    private final Config config;
 
-    TransactionLogFilesContext( AtomicLong rotationThreshold, LogEntryReader logEntryReader,
-            LongSupplier lastCommittedTransactionIdSupplier, LongSupplier committingTransactionIdSupplier,
-            LogFileCreationMonitor logFileCreationMonitor, Supplier<LogVersionRepository> logVersionRepositorySupplier,
-            FileSystemAbstraction fileSystem )
+    public TransactionLogFilesContext( AtomicLong rotationThreshold, AtomicBoolean tryPreallocateTransactionLogs, LogEntryReader logEntryReader,
+            LongSupplier lastCommittedTransactionIdSupplier, LongSupplier committingTransactionIdSupplier, Supplier<LogPosition> lastClosedPositionSupplier,
+            Supplier<LogVersionRepository> logVersionRepositorySupplier,FileSystemAbstraction fileSystem, LogProvider logProvider,
+            DatabaseTracers databaseTracers, Supplier<StoreId> storeId, NativeAccess nativeAccess,
+            MemoryTracker memoryTracker, Monitors monitors, boolean failOnCorruptedLogFiles, DatabaseHealth databaseHealth,
+            KernelVersionRepository kernelVersionRepository, Clock clock, String databaseName, Config config )
     {
         this.rotationThreshold = rotationThreshold;
+        this.tryPreallocateTransactionLogs = tryPreallocateTransactionLogs;
         this.logEntryReader = logEntryReader;
         this.lastCommittedTransactionIdSupplier = lastCommittedTransactionIdSupplier;
         this.committingTransactionIdSupplier = committingTransactionIdSupplier;
+        this.lastClosedPositionSupplier = lastClosedPositionSupplier;
         this.logVersionRepositorySupplier = logVersionRepositorySupplier;
-        this.logFileCreationMonitor = logFileCreationMonitor;
         this.fileSystem = fileSystem;
+        this.logProvider = logProvider;
+        this.databaseTracers = databaseTracers;
+        this.storeId = storeId;
+        this.nativeAccess = nativeAccess;
+        this.memoryTracker = memoryTracker;
+        this.monitors = monitors;
+        this.failOnCorruptedLogFiles = failOnCorruptedLogFiles;
+        this.databaseHealth = databaseHealth;
+        this.kernelVersionRepository = kernelVersionRepository;
+        this.clock = clock;
+        this.databaseName = databaseName;
+        this.config = config;
     }
 
     AtomicLong getRotationThreshold()
@@ -75,33 +115,98 @@ class TransactionLogFilesContext
         return rotationThreshold;
     }
 
-    LogEntryReader getLogEntryReader()
+    public LogEntryReader getLogEntryReader()
     {
         return logEntryReader;
     }
 
-    LogVersionRepository getLogVersionRepository()
+    public LogVersionRepository getLogVersionRepository()
     {
         return logVersionRepositorySupplier.get();
     }
 
-    long getLastCommittedTransactionId()
+    public long getLastCommittedTransactionId()
     {
         return lastCommittedTransactionIdSupplier.getAsLong();
     }
 
-    long committingTransactionId()
+    public long committingTransactionId()
     {
         return committingTransactionIdSupplier.getAsLong();
     }
 
-    LogFileCreationMonitor getLogFileCreationMonitor()
+    LogPosition getLastClosedTransactionPosition()
     {
-        return logFileCreationMonitor;
+        return lastClosedPositionSupplier.get();
     }
 
-    FileSystemAbstraction getFileSystem()
+    public FileSystemAbstraction getFileSystem()
     {
         return fileSystem;
+    }
+
+    public LogProvider getLogProvider()
+    {
+        return logProvider;
+    }
+
+    AtomicBoolean getTryPreallocateTransactionLogs()
+    {
+        return tryPreallocateTransactionLogs;
+    }
+
+    NativeAccess getNativeAccess()
+    {
+        return nativeAccess;
+    }
+
+    public DatabaseTracers getDatabaseTracers()
+    {
+        return databaseTracers;
+    }
+
+    public StoreId getStoreId()
+    {
+        return storeId.get();
+    }
+
+    public MemoryTracker getMemoryTracker()
+    {
+        return memoryTracker;
+    }
+
+    public Monitors getMonitors()
+    {
+        return monitors;
+    }
+
+    public boolean isFailOnCorruptedLogFiles()
+    {
+        return failOnCorruptedLogFiles;
+    }
+
+    public DatabaseHealth getDatabaseHealth()
+    {
+        return databaseHealth;
+    }
+
+    public KernelVersionRepository getKernelVersionProvider()
+    {
+        return kernelVersionRepository;
+    }
+
+    public Clock getClock()
+    {
+        return clock;
+    }
+
+    public String getDatabaseName()
+    {
+        return databaseName;
+    }
+
+    public Config getConfig()
+    {
+        return config;
     }
 }

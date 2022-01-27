@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,21 +38,22 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.util.attribution.Id
 import org.neo4j.values.storable.Values
 
 case class OptionalPipe(nullableVariables: Set[String], source: Pipe)
                        (val id: Id = Id.INVALID_ID)
   extends PipeWithSource(source) {
 
-  private def notFoundExecutionContext(initialContext: Option[ExecutionContext]): ExecutionContext = {
-    val context = initialContext.getOrElse(ExecutionContext.empty)
-    nullableVariables.foreach(v => context += v -> Values.NO_VALUE)
+  private def notFoundExecutionContext(initialContext: Option[CypherRow]): CypherRow = {
+    val context = initialContext.getOrElse(CypherRow.empty)
+    nullableVariables.foreach(v => context.set(v, Values.NO_VALUE))
     context
   }
 
-  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] =
-    if (input.isEmpty) Iterator(notFoundExecutionContext(state.initialContext))
+  protected def internalCreateResults(input: ClosingIterator[CypherRow], state: QueryState): ClosingIterator[CypherRow] =
+    if (input.isEmpty) ClosingIterator.single(notFoundExecutionContext(state.initialContext))
     else input
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,44 +38,47 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 
-import org.neo4j.cursor.RawCursor;
-import org.neo4j.index.internal.gbptree.Hit;
-import org.neo4j.internal.kernel.api.IndexQuery;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
-import org.neo4j.test.rule.RandomRule;
+import org.neo4j.index.internal.gbptree.Seeker;
+import org.neo4j.internal.kernel.api.PropertyIndexQuery;
+import org.neo4j.internal.kernel.api.security.AccessMode;
+import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
+import org.neo4j.test.RandomSupport;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
 import org.neo4j.values.storable.TextValue;
 import org.neo4j.values.storable.Value;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.neo4j.internal.kernel.api.IndexQueryConstraints.unorderedValues;
 
-public class FilteringNativeHitIndexProgressorTest
+@ExtendWith( RandomExtension.class )
+class FilteringNativeHitIndexProgressorTest
 {
-    @Rule
-    public final RandomRule random = new RandomRule();
+    @Inject
+    private RandomSupport random;
 
     @Test
-    public void shouldFilterResults()
+    void shouldFilterResults()
     {
         // given
         List<String> keys = new ArrayList<>();
         for ( int i = 0; i < 100; i++ )
         {
             // duplicates are fine
-            keys.add( random.string() );
+            keys.add( random.nextString() );
         }
 
-        RawCursor<Hit<StringSchemaKey,NativeSchemaValue>,IOException> cursor = new ResultCursor( keys.iterator() );
+        Seeker<BtreeKey,NullValue> cursor = new ResultCursor( keys.iterator() );
         NodeValueIterator valueClient = new NodeValueIterator()
         {
             @Override
@@ -84,28 +87,30 @@ public class FilteringNativeHitIndexProgressorTest
                 return true;
             }
         };
-        IndexQuery[] predicates = new IndexQuery[]{mock( IndexQuery.class )};
+        PropertyIndexQuery[] predicates = new PropertyIndexQuery[]{mock( PropertyIndexQuery.class )};
         Predicate<String> filter = string -> string.contains( "a" );
-        when( predicates[0].acceptsValue( any( Value.class ) ) ).then( invocation -> filter.test( ((TextValue)invocation.getArgument( 0 )).stringValue() ) );
-        FilteringNativeHitIndexProgressor<StringSchemaKey,NativeSchemaValue> progressor = new FilteringNativeHitIndexProgressor<>( cursor, valueClient,
-                new ArrayList<>(), predicates );
-        valueClient.initialize( SchemaIndexDescriptorFactory.forLabel( 0, 0 ), progressor, predicates );
-        List<Long> result = new ArrayList<>();
-
-        // when
-        while ( valueClient.hasNext() )
+        when( predicates[0].acceptsValue( any( Value.class ) ) ).then( invocation -> filter.test( ((TextValue) invocation.getArgument( 0 )).stringValue() ) );
+        try ( FilteringNativeHitIndexProgressor<BtreeKey> progressor = new FilteringNativeHitIndexProgressor<>( cursor, valueClient,
+                predicates ) )
         {
-            result.add( valueClient.next() );
-        }
+            valueClient.initialize( TestIndexDescriptorFactory.forLabel( 0, 0 ), progressor, AccessMode.Static.READ, false, unorderedValues(), predicates );
+            List<Long> result = new ArrayList<>();
 
-        // then
-        for ( int i = 0; i < keys.size(); i++ )
-        {
-            if ( filter.test( keys.get( i ) ) )
+            // when
+            while ( valueClient.hasNext() )
             {
-                assertTrue( result.remove( (long) i ) );
+                result.add( valueClient.next() );
             }
+
+            // then
+            for ( int i = 0; i < keys.size(); i++ )
+            {
+                if ( filter.test( keys.get( i ) ) )
+                {
+                    assertTrue( result.remove( (long) i ) );
+                }
+            }
+            assertTrue( result.isEmpty() );
         }
-        assertTrue( result.isEmpty() );
     }
 }

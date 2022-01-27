@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,10 +38,12 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.predicates
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ListSupport
+import org.neo4j.cypher.internal.runtime.ReadableRow
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.runtime.interpreted.ListSupport
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.internal.util.attribution.Id
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
 
@@ -53,17 +55,17 @@ This class is used for making the common <exp> IN <constant-expression> fast
 It uses a cache for the <constant-expression>, and turns it into a Set, for fast existence checking.
 The key for the cache is the expression and not the value, which saves in execution speed
  */
-case class ConstantCachedIn(value: Expression, list: Expression) extends Predicate with ListSupport {
+case class ConstantCachedIn(value: Expression, list: Expression, id: Id) extends Predicate with ListSupport {
 
   // These two are here to make the fields accessible without conflicting with the case classes
-  override def isMatch(ctx: ExecutionContext, state: QueryState): Option[Boolean] = {
+  override def isMatch(ctx: ReadableRow, state: QueryState): Option[Boolean] = {
     val inChecker = state.cachedIn.getOrElseUpdate(list, {
       val listValue = list(ctx, state)
-      val checker = if (listValue == Values.NO_VALUE)
+      val checker = if (listValue eq Values.NO_VALUE)
         NullListChecker
       else {
         val input = makeTraversable(listValue)
-        if (input.isEmpty) AlwaysFalseChecker else new BuildUp(input)
+        if (input.isEmpty) AlwaysFalseChecker else new BuildUp(input, state.memoryTrackerForOperatorProvider.memoryTrackerForOperator(id.x))
       }
       new InCheckContainer(checker)
     })
@@ -73,11 +75,11 @@ case class ConstantCachedIn(value: Expression, list: Expression) extends Predica
 
   override def containsIsNull = false
 
-  override def arguments = Seq(list)
+  override def children: Seq[AstNode[_]] = Seq(value, list)
 
-  override def symbolTableDependencies = list.symbolTableDependencies ++ value.symbolTableDependencies
+  override def arguments: Seq[Expression] = Seq(list)
 
-  override def rewrite(f: (Expression) => Expression) = f(ConstantCachedIn(value.rewrite(f), list.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(ConstantCachedIn(value.rewrite(f), list.rewrite(f), id))
 }
 
 /*
@@ -85,13 +87,13 @@ This class is used for making the common <exp> IN <rhs-expression> fast
 
 It uses a cache for the <rhs-expression> value, and turns it into a Set, for fast existence checking
  */
-case class DynamicCachedIn(value: Expression, list: Expression) extends Predicate with ListSupport {
+case class DynamicCachedIn(value: Expression, list: Expression, id: Id) extends Predicate with ListSupport {
 
   // These two are here to make the fields accessible without conflicting with the case classes
-  override def isMatch(ctx: ExecutionContext, state: QueryState): Option[Boolean] = {
+  override def isMatch(ctx: ReadableRow, state: QueryState): Option[Boolean] = {
     val listValue: AnyValue = list(ctx, state)
 
-    if(listValue == Values.NO_VALUE)
+    if(listValue eq Values.NO_VALUE)
       return None
 
     val traversable = makeTraversable(listValue)
@@ -100,7 +102,7 @@ case class DynamicCachedIn(value: Expression, list: Expression) extends Predicat
       return Some(false)
 
     val inChecker = state.cachedIn.getOrElseUpdate(traversable, {
-      val checker = new BuildUp(traversable)
+      val checker = new BuildUp(traversable, state.memoryTrackerForOperatorProvider.memoryTrackerForOperator(id.x))
       new InCheckContainer(checker)
     })
 
@@ -109,17 +111,18 @@ case class DynamicCachedIn(value: Expression, list: Expression) extends Predicat
 
   override def containsIsNull = false
 
-  override def arguments = Seq(list)
+  override def arguments: Seq[Expression] = Seq(list)
 
-  override def symbolTableDependencies = list.symbolTableDependencies ++ value.symbolTableDependencies
+  override def children: Seq[AstNode[_]] = Seq(value, list)
 
-  override def rewrite(f: (Expression) => Expression) = f(DynamicCachedIn(value.rewrite(f), list.rewrite(f)))
+
+  override def rewrite(f: Expression => Expression): Expression = f(DynamicCachedIn(value.rewrite(f), list.rewrite(f), id))
 }
 
 object CachedIn {
   def unapply(arg: Expression): Option[(Expression, Expression)] = arg match {
-    case DynamicCachedIn(value, list) => Some((value, list))
-    case ConstantCachedIn(value, list) => Some((value, list))
+    case DynamicCachedIn(value, list, _) => Some((value, list))
+    case ConstantCachedIn(value, list, _) => Some((value, list))
     case _ => None
   }
 }
@@ -135,8 +138,20 @@ class InCheckContainer(var checker: Checker) {
   }
 }
 
-class SingleThreadedLRUCache[K, V](maxSize: Int) {
-  val cache: ArrayBuffer[(K, V)] = new ArrayBuffer[(K, V)](maxSize)
+class ConcurrentLRUCache[K, V](maxSizePerThread: Int) extends InLRUCache[K, V] {
+  private val threadLocalCache = ThreadLocal.withInitial[ArrayBuffer[(K, V)]](() => new ArrayBuffer[(K, V)](maxSizePerThread))
+  override val maxSize: Int = maxSizePerThread
+
+  override def cache: ArrayBuffer[(K, V)] = threadLocalCache.get()
+}
+
+class SingleThreadedLRUCache[K, V](override val maxSize: Int) extends InLRUCache[K, V] {
+  override val cache: ArrayBuffer[(K, V)] = new ArrayBuffer[(K, V)](maxSize)
+}
+
+abstract class InLRUCache[K, V] {
+  def maxSize: Int
+  def cache: ArrayBuffer[(K, V)]
 
   def getOrElseUpdate(key: K, f: => V): V = {
     val idx = cache.indexWhere(_._1 == key)

@@ -1,0 +1,42 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                      http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <groupId>org.graphfoundation.ongdb</groupId>
+        <artifactId>cypher-parent</artifactId>
+        <version>2.0.0-SNAPSHOT</version>
+    </parent>
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>ongdb-front-end-parent</artifactId>
+    <packaging>pom</packaging>
+    <name>openCypher Front End Parent</name>
+    <description>Project that builds the openCypher front end modules</description>
+    <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
+
+    <properties>
+        <licensing.prepend.text>licensing/notice-asl-prefix.txt</licensing.prepend.text>
+        <license-text.header>headers/ASL-2-header.txt</license-text.header>
+    </properties>
+
+    <scm>
+        <connection>scm:git:git://github.com/openCypher/front-end.git</connection>
+        <developerConnection>scm:git:git://github.com/openCypher/front-end.git</developerConnection>
+        <url>https://github.com/openCypher/front-end</url>
+    </scm>
+
+    <modules>
+        <module>ast</module>
+        <module>rewriting</module>
+        <module>parser</module>
+        <module>frontend</module>
+        <module>util</module>
+        <module>test-util</module>
+        <module>expressions</module>
+        <module>cypher-macros</module>
+        <module>ast-factory</module>
+        <module>javacc-parser</module>
+        <module>neo4j-ast-factory</module>
+    </modules>
+</project>

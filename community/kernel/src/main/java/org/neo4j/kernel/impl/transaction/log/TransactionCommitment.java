@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,20 +38,21 @@
  */
 package org.neo4j.kernel.impl.transaction.log;
 
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.storageengine.api.TransactionIdStore;
+
 class TransactionCommitment implements Commitment
 {
-    private final boolean hasExplicitIndexChanges;
     private final long transactionId;
-    private final long transactionChecksum;
+    private final int transactionChecksum;
     private final long transactionCommitTimestamp;
     private final LogPosition logPosition;
     private final TransactionIdStore transactionIdStore;
     private boolean markedAsCommitted;
 
-    TransactionCommitment( boolean hasExplicitIndexChanges, long transactionId, long transactionChecksum,
-            long transactionCommitTimestamp, LogPosition logPosition, TransactionIdStore transactionIdStore )
+    TransactionCommitment( long transactionId, int transactionChecksum, long transactionCommitTimestamp, LogPosition logPosition,
+            TransactionIdStore transactionIdStore )
     {
-        this.hasExplicitIndexChanges = hasExplicitIndexChanges;
         this.transactionId = transactionId;
         this.transactionChecksum = transactionChecksum;
         this.transactionCommitTimestamp = transactionCommitTimestamp;
@@ -65,16 +66,16 @@ class TransactionCommitment implements Commitment
     }
 
     @Override
-    public void publishAsCommitted()
+    public void publishAsCommitted( CursorContext cursorContext )
     {
         markedAsCommitted = true;
-        transactionIdStore.transactionCommitted( transactionId, transactionChecksum, transactionCommitTimestamp );
+        transactionIdStore.transactionCommitted( transactionId, transactionChecksum, transactionCommitTimestamp, cursorContext );
     }
 
     @Override
-    public void publishAsClosed()
+    public void publishAsClosed( CursorContext cursorContext )
     {
-        transactionIdStore.transactionClosed( transactionId, logPosition.getLogVersion(), logPosition.getByteOffset() );
+        transactionIdStore.transactionClosed( transactionId, logPosition.getLogVersion(), logPosition.getByteOffset(), cursorContext );
     }
 
     @Override
@@ -83,9 +84,8 @@ class TransactionCommitment implements Commitment
         return markedAsCommitted;
     }
 
-    @Override
-    public boolean hasExplicitIndexChanges()
+    public int getTransactionChecksum()
     {
-        return hasExplicitIndexChanges;
+        return transactionChecksum;
     }
 }

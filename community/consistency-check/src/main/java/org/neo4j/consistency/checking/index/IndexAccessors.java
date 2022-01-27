@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,111 +38,251 @@
  */
 package org.neo4j.consistency.checking.index;
 
+import org.eclipse.collections.api.list.MutableList;
+import org.eclipse.collections.api.map.primitive.MutableLongObjectMap;
+import org.eclipse.collections.impl.map.mutable.primitive.LongObjectHashMap;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 
+import org.neo4j.common.EntityType;
+import org.neo4j.common.TokenNameLookup;
 import org.neo4j.internal.kernel.api.InternalIndexState;
+import org.neo4j.internal.recordstorage.SchemaRuleAccess;
+import org.neo4j.internal.recordstorage.StoreTokens;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.io.IOUtils;
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.kernel.api.index.IndexAccessor;
 import org.neo4j.kernel.api.index.IndexProvider;
+import org.neo4j.kernel.api.index.ValueIndexReader;
 import org.neo4j.kernel.impl.api.index.IndexProviderMap;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.kernel.impl.store.RecordStore;
-import org.neo4j.kernel.impl.store.SchemaStorage;
-import org.neo4j.kernel.impl.store.record.DynamicRecord;
-import org.neo4j.kernel.impl.store.record.IndexRule;
+import org.neo4j.kernel.impl.api.index.IndexSamplingConfig;
+import org.neo4j.kernel.impl.index.schema.TokenIndexAccessor;
+import org.neo4j.kernel.impl.store.NeoStores;
+import org.neo4j.storageengine.api.KernelVersionRepository;
+import org.neo4j.kernel.impl.store.cursor.CachedStoreCursors;
+import org.neo4j.token.TokenHolders;
 
 public class IndexAccessors implements Closeable
 {
-    private final Map<Long,IndexAccessor> accessors = new HashMap<>();
-    private final List<IndexRule> onlineIndexRules = new ArrayList<>();
-    private final List<IndexRule> notOnlineIndexRules = new ArrayList<>();
+    private static final String CONSISTENCY_INDEX_ACCESSOR_BUILDER_TAG = "consistencyIndexAccessorBuilder";
+    private final MutableLongObjectMap<IndexAccessor> propertyIndexAccessors = new LongObjectHashMap<>();
+    private final List<IndexDescriptor> onlineIndexRules = new ArrayList<>();
+    private final List<IndexDescriptor> notOnlineIndexRules = new ArrayList<>();
+    private final List<IndexDescriptor> inconsistentRules = new ArrayList<>();
+    private TokenIndexAccessor nodeLabelIndex;
+    private TokenIndexAccessor relationshipTypeIndex;
 
-    public IndexAccessors( IndexProviderMap providers,
-                           RecordStore<DynamicRecord> schemaStore,
-                           IndexSamplingConfig samplingConfig ) throws IOException
+    public IndexAccessors(
+            IndexProviderMap providers,
+            NeoStores neoStores,
+            IndexSamplingConfig samplingConfig, PageCacheTracer pageCacheTracer, TokenNameLookup tokenNameLookup,
+            KernelVersionRepository versionProvider )
+            throws IOException
     {
-        Iterator<IndexRule> rules = new SchemaStorage( schemaStore ).indexesGetAll();
-        for (; ; )
+        this( providers, neoStores, samplingConfig, null /*we'll use a default below, if this is null*/, pageCacheTracer, tokenNameLookup,
+                versionProvider );
+    }
+
+    public IndexAccessors(
+            IndexProviderMap providers,
+            NeoStores neoStores,
+            IndexSamplingConfig samplingConfig,
+            IndexAccessorLookup accessorLookup,
+            PageCacheTracer pageCacheTracer,
+            TokenNameLookup tokenNameLookup,
+            KernelVersionRepository versionProvider )
+            throws IOException
+    {
+        try ( var cursorContext = new CursorContext( pageCacheTracer.createPageCursorTracer( CONSISTENCY_INDEX_ACCESSOR_BUILDER_TAG ) );
+              var storeCursors = new CachedStoreCursors( neoStores, cursorContext ) )
         {
-            try
+            TokenHolders tokenHolders = StoreTokens.readOnlyTokenHolders( neoStores, storeCursors );
+            Iterator<IndexDescriptor> indexes = SchemaRuleAccess.getSchemaRuleAccess( neoStores.getSchemaStore(), tokenHolders, versionProvider )
+                    .indexesGetAll( storeCursors );
+            // Default to instantiate new accessors
+            accessorLookup = accessorLookup != null ? accessorLookup
+                                                    : index -> provider( providers, index ).getOnlineAccessor( index, samplingConfig, tokenNameLookup );
+            while ( true )
             {
-                if ( rules.hasNext() )
+                try
                 {
-                    // we intentionally only check indexes that are online since
-                    // - populating indexes will be rebuilt on next startup
-                    // - failed indexes have to be dropped by the user anyways
-                    IndexRule indexRule = rules.next();
-                    if ( indexRule.isIndexWithoutOwningConstraint() )
+                    if ( indexes.hasNext() )
                     {
-                        notOnlineIndexRules.add( indexRule );
-                    }
-                    else
-                    {
-                        if ( InternalIndexState.ONLINE ==
-                                provider( providers, indexRule ).getInitialState( indexRule.getId(), indexRule.getIndexDescriptor() ) )
+                        // we intentionally only check indexes that are online since
+                        // - populating indexes will be rebuilt on next startup
+                        // - failed indexes have to be dropped by the user anyways
+                        IndexDescriptor indexDescriptor = indexes.next();
+                        IndexProvider indexProvider = provider( providers, indexDescriptor );
+                        indexDescriptor = indexProvider.completeConfiguration( indexDescriptor );
+                        if ( indexDescriptor.isUnique() && indexDescriptor.getOwningConstraintId().isEmpty() )
                         {
-                            onlineIndexRules.add( indexRule );
+                            notOnlineIndexRules.add( indexDescriptor );
                         }
                         else
                         {
-                            notOnlineIndexRules.add( indexRule );
+                            if ( InternalIndexState.ONLINE == indexProvider.getInitialState( indexDescriptor, cursorContext ) )
+                            {
+                                long indexId = indexDescriptor.getId();
+                                try
+                                {
+                                    final IndexAccessor accessor = accessorLookup.apply( indexDescriptor );
+                                    if ( indexDescriptor.isTokenIndex() )
+                                    {
+                                        if ( indexDescriptor.schema().entityType() == EntityType.NODE )
+                                        {
+                                            nodeLabelIndex = (TokenIndexAccessor) accessor;
+                                        }
+                                        else
+                                        {
+                                            relationshipTypeIndex = (TokenIndexAccessor) accessor;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        propertyIndexAccessors.put( indexId, accessor );
+                                        onlineIndexRules.add( indexDescriptor );
+                                    }
+                                }
+                                catch ( RuntimeException e )
+                                {
+                                    inconsistentRules.add( indexDescriptor );
+                                }
+                            }
+                            else
+                            {
+                                notOnlineIndexRules.add( indexDescriptor );
+                            }
                         }
                     }
+                    else
+                    {
+                        break;
+                    }
                 }
-                else
+                catch ( Exception e )
                 {
-                    break;
+                    // ignore; inconsistencies of the schema store are specifically handled elsewhere.
                 }
             }
-            catch ( Exception e )
-            {
-                // ignore; inconsistencies of the schema store are specifically handled elsewhere.
-            }
-        }
-
-        for ( IndexRule indexRule : onlineIndexRules )
-        {
-            long indexId = indexRule.getId();
-            accessors.put( indexId, provider( providers, indexRule )
-                    .getOnlineAccessor( indexId, indexRule.getIndexDescriptor(), samplingConfig ) );
         }
     }
 
-    private IndexProvider provider( IndexProviderMap providers, IndexRule indexRule )
+    private static IndexProvider provider( IndexProviderMap providers, IndexDescriptor indexRule )
     {
-        return providers.lookup( indexRule.getProviderDescriptor() );
+        return providers.lookup( indexRule.getIndexProvider() );
     }
 
-    public Collection<IndexRule> notOnlineRules()
+    public Collection<IndexDescriptor> notOnlineRules()
     {
         return notOnlineIndexRules;
     }
 
-    public IndexAccessor accessorFor( IndexRule indexRule )
+    public Collection<IndexDescriptor> inconsistentRules()
     {
-        return accessors.get( indexRule.getId() );
+        return inconsistentRules;
     }
 
-    public Iterable<IndexRule> onlineRules()
+    public IndexAccessor accessorFor( IndexDescriptor indexRule )
+    {
+        return propertyIndexAccessors.get( indexRule.getId() );
+    }
+
+    public List<IndexDescriptor> onlineRules()
     {
         return onlineIndexRules;
     }
 
-    @Override
-    public void close() throws IOException
+    public List<IndexDescriptor> onlineRules( EntityType entityType )
     {
-        for ( IndexAccessor accessor : accessors.values() )
+        return onlineIndexRules.stream()
+                .filter( index -> index.schema().entityType() == entityType )
+                .collect( Collectors.toList() );
+    }
+
+    /**
+     * @return {@link TokenIndexAccessor} for node label index or null
+     */
+    public TokenIndexAccessor nodeLabelIndex()
+    {
+        return nodeLabelIndex;
+    }
+
+    /**
+     * @return {@link TokenIndexAccessor} for relationship type index or null
+     */
+    public TokenIndexAccessor relationshipTypeIndex()
+    {
+        return relationshipTypeIndex;
+    }
+
+    public IndexReaders readers()
+    {
+        return new IndexReaders();
+    }
+
+    public void remove( IndexDescriptor descriptor )
+    {
+        IndexAccessor remove = propertyIndexAccessors.remove( descriptor.getId() );
+        if ( remove != null )
         {
-            accessor.close();
+            remove.close();
         }
-        accessors.clear();
-        onlineIndexRules.clear();
-        notOnlineIndexRules.clear();
+        onlineIndexRules.remove( descriptor );
+        notOnlineIndexRules.remove( descriptor );
+    }
+
+    @Override
+    public void close()
+    {
+        try
+        {
+            MutableList<IndexAccessor> closeables = propertyIndexAccessors.toList();
+            closeables.add( nodeLabelIndex );
+            closeables.add( relationshipTypeIndex );
+            IOUtils.closeAllUnchecked( closeables );
+        }
+        finally
+        {
+            propertyIndexAccessors.clear();
+            onlineIndexRules.clear();
+            notOnlineIndexRules.clear();
+        }
+    }
+
+    public class IndexReaders implements AutoCloseable
+    {
+        private final MutableLongObjectMap<ValueIndexReader> readers = new LongObjectHashMap<>();
+
+        public ValueIndexReader reader( IndexDescriptor index )
+        {
+            long indexId = index.getId();
+            var reader = readers.get( indexId );
+            if ( reader == null )
+            {
+                reader = propertyIndexAccessors.get( indexId ).newValueReader();
+                readers.put( indexId, reader );
+            }
+            return reader;
+        }
+
+        @Override
+        public void close()
+        {
+            IOUtils.closeAllUnchecked( readers.values() );
+            readers.clear();
+        }
+    }
+
+    public interface IndexAccessorLookup
+    {
+        IndexAccessor apply( IndexDescriptor indexDescriptor ) throws IOException;
     }
 }

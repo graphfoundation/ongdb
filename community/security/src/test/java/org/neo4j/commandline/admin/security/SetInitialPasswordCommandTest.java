@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,136 +38,115 @@
  */
 package org.neo4j.commandline.admin.security;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.RuleChain;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import picocli.CommandLine;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.PrintStream;
+import java.nio.file.Path;
 
-import org.neo4j.commandline.admin.CommandLocator;
-import org.neo4j.commandline.admin.IncorrectUsage;
-import org.neo4j.commandline.admin.OutsideWorld;
-import org.neo4j.commandline.admin.Usage;
+import org.neo4j.cli.ExecutionContext;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.api.security.UserManager;
+import org.neo4j.kernel.api.security.AuthManager;
 import org.neo4j.kernel.impl.security.User;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.server.security.auth.CommunitySecurityModule;
 import org.neo4j.server.security.auth.FileUserRepository;
-import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
+import org.neo4j.string.UTF8;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.EphemeralTestDirectoryExtension;
+import org.neo4j.test.utils.TestDirectory;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.neo4j.test.assertion.Assert.assertException;
 
-public class SetInitialPasswordCommandTest
+@EphemeralTestDirectoryExtension
+class SetInitialPasswordCommandTest
 {
-    private SetInitialPasswordCommand setPasswordCommand;
-    private File authInitFile;
-    private File authFile;
+    @Inject
     private FileSystemAbstraction fileSystem;
+    @Inject
+    private TestDirectory testDir;
 
-    private final EphemeralFileSystemRule fileSystemRule = new EphemeralFileSystemRule();
-    private final TestDirectory testDir = TestDirectory.testDirectory( fileSystemRule.get() );
+    private SetInitialPasswordCommand command;
+    private Path authInitFile;
 
-    @Rule
-    public final RuleChain ruleChain = RuleChain.outerRule( fileSystemRule ).around( testDir );
-
-    @Before
-    public void setup()
+    @BeforeEach
+    void setup()
     {
-        fileSystem = fileSystemRule.get();
-        OutsideWorld mock = mock( OutsideWorld.class );
-        when( mock.fileSystem() ).thenReturn( fileSystem );
-        setPasswordCommand = new SetInitialPasswordCommand( testDir.directory( "home" ).toPath(),
-                testDir.directory( "conf" ).toPath(), mock );
-        authInitFile = CommunitySecurityModule.getInitialUserRepositoryFile( setPasswordCommand.loadNeo4jConfig() );
-        CommunitySecurityModule.getUserRepositoryFile( setPasswordCommand.loadNeo4jConfig() );
+        command = new SetInitialPasswordCommand( new ExecutionContext( testDir.directory( "home" ),
+                                                                       testDir.directory( "conf" ), mock( PrintStream.class ), mock( PrintStream.class ),
+                                                                       fileSystem ) );
+
+        authInitFile = CommunitySecurityModule.getInitialUserRepositoryFile( command.loadNeo4jConfig() );
+        CommunitySecurityModule.getUserRepositoryFile( command.loadNeo4jConfig() );
     }
 
     @Test
-    public void shouldFailSetPasswordWithNoArguments()
+    void printUsageHelp()
     {
-        assertException( () -> setPasswordCommand.execute( new String[0] ), IncorrectUsage.class,
-                "not enough arguments" );
+        final var baos = new ByteArrayOutputStream();
+        try ( var out = new PrintStream( baos ) )
+        {
+            CommandLine.usage( command, new PrintStream( out ), CommandLine.Help.Ansi.OFF );
+        }
+        assertThat( baos.toString().trim() ).isEqualTo( String.format(
+                "USAGE%n" + "%n" +
+                        "set-initial-password [--expand-commands] [--require-password-change]%n" +
+                        "                     [--verbose] <password>%n" +
+                        "%n" + "DESCRIPTION%n" + "%n" +
+                        "Sets the initial password of the initial admin user ('neo4j'). And removes the%n" +
+                        "requirement to change password on first login.%n" +
+                        "%n" + "PARAMETERS%n" + "%n" +
+                        "      <password>%n" + "%n" + "OPTIONS%n" + "%n" +
+                        "      --verbose           Enable verbose output.%n" +
+                        "      --expand-commands   Allow command expansion in config value evaluation.%n" +
+                        "      --require-password-change%n" +
+                        "                          Require the user to change their password on first%n" +
+                        "                            login." ) );
     }
 
     @Test
-    public void shouldFailSetPasswordWithTooManyArguments()
-    {
-        String[] arguments = {"", "123", "321"};
-        assertException( () -> setPasswordCommand.execute( arguments ), IncorrectUsage.class, "unrecognized arguments: '123 321'" );
-    }
-
-    @Test
-    public void shouldSetInitialPassword() throws Throwable
+    void shouldSetInitialPassword() throws Throwable
     {
         // Given
         assertFalse( fileSystem.fileExists( authInitFile ) );
 
         // When
-        String[] arguments = {"123"};
-        setPasswordCommand.execute( arguments );
+        CommandLine.populateCommand( command, "123" );
+        command.execute();
 
         // Then
         assertAuthIniFile( "123" );
     }
 
     @Test
-    public void shouldOverwriteInitialPasswordFileIfExists() throws Throwable
+    void shouldOverwriteInitialPasswordFileIfExists() throws Throwable
     {
         // Given
-        fileSystem.mkdirs( authInitFile.getParentFile() );
-        fileSystem.create( authInitFile );
+        fileSystem.mkdirs( authInitFile.getParent() );
+        fileSystem.write( authInitFile );
 
         // When
-        String[] arguments = {"123"};
-        setPasswordCommand.execute( arguments );
+        CommandLine.populateCommand( command, "123" );
+        command.execute();
 
         // Then
         assertAuthIniFile( "123" );
     }
 
     @Test
-    public void shouldWorkAlsoWithSamePassword() throws Throwable
+    void shouldWorkAlsoWithSamePassword() throws Throwable
     {
-        String[] arguments = {"ongdb"};
-        setPasswordCommand.execute( arguments );
+        CommandLine.populateCommand( command, "neo4j" );
+        command.execute();
 
         // Then
-        assertAuthIniFile( "ongdb" );
-    }
-
-    @Test
-    public void shouldPrintNiceHelp() throws Throwable
-    {
-        try ( ByteArrayOutputStream baos = new ByteArrayOutputStream() )
-        {
-            PrintStream ps = new PrintStream( baos );
-
-            Usage usage = new Usage( "ongdb-admin", mock( CommandLocator.class ) );
-            usage.printUsageForCommand( new SetInitialPasswordCommandProvider(), ps::println );
-
-            assertEquals( String.format( "usage: ongdb-admin set-initial-password <password>%n" +
-                            "%n" +
-                            "environment variables:%n" +
-                            "    ONGDB_CONF    Path to directory which contains ongdb.conf.%n" +
-                            "    ONGDB_DEBUG   Set to anything to enable debug output.%n" +
-                            "    ONGDB_HOME    ONgDB home directory.%n" +
-                            "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
-                            "                  Takes a number and a unit, for example 512m.%n" +
-                            "%n" +
-                            "Sets the initial password of the initial admin user ('ongdb').%n" ),
-                    baos.toString() );
-        }
+        assertAuthIniFile( "neo4j" );
     }
 
     private void assertAuthIniFile( String password ) throws Throwable
@@ -176,9 +155,9 @@ public class SetInitialPasswordCommandTest
         FileUserRepository userRepository = new FileUserRepository( fileSystem, authInitFile,
                 NullLogProvider.getInstance() );
         userRepository.start();
-        User neo4j = userRepository.getUserByName( UserManager.INITIAL_USER_NAME );
+        User neo4j = userRepository.getUserByName( AuthManager.INITIAL_USER_NAME );
         assertNotNull( neo4j );
-        assertTrue( neo4j.credentials().matchesPassword( password ) );
+        assertTrue( neo4j.credentials().matchesPassword( UTF8.encode( password ) ) );
         assertFalse( neo4j.hasFlag( User.PASSWORD_CHANGE_REQUIRED ) );
     }
 }

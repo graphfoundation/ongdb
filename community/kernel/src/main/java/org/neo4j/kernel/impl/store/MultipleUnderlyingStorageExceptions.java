@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,37 +41,37 @@ package org.neo4j.kernel.impl.store;
 import java.util.Collections;
 import java.util.Set;
 
-import org.neo4j.helpers.collection.Pair;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
+import org.neo4j.exceptions.UnderlyingStorageException;
+import org.neo4j.internal.helpers.collection.Pair;
+import org.neo4j.internal.schema.IndexDescriptor;
 
 import static java.lang.String.format;
 
 public class MultipleUnderlyingStorageExceptions extends UnderlyingStorageException
 {
-    public final Set<Pair<SchemaDescriptor, UnderlyingStorageException>> exceptions;
+    public final Set<Pair<IndexDescriptor, UnderlyingStorageException>> exceptions;
 
-    public MultipleUnderlyingStorageExceptions( Set<Pair<SchemaDescriptor, UnderlyingStorageException>> exceptions )
+    public MultipleUnderlyingStorageExceptions( Set<Pair<IndexDescriptor, UnderlyingStorageException>> exceptions )
     {
         super( buildMessage( exceptions ) );
         this.exceptions = Collections.unmodifiableSet( exceptions );
 
-        for ( Pair<SchemaDescriptor, UnderlyingStorageException> exception : exceptions )
+        for ( Pair<IndexDescriptor, UnderlyingStorageException> exception : exceptions )
         {
             this.addSuppressed( exception.other() );
         }
     }
 
-    private static String buildMessage( Set<Pair<SchemaDescriptor, UnderlyingStorageException>> exceptions )
+    private static String buildMessage( Set<Pair<IndexDescriptor, UnderlyingStorageException>> exceptions )
     {
         StringBuilder builder = new StringBuilder( );
         builder.append("Errors when closing (flushing) index updaters:");
 
-        for ( Pair<SchemaDescriptor, UnderlyingStorageException> pair : exceptions )
+        for ( Pair<IndexDescriptor, UnderlyingStorageException> pair : exceptions )
         {
-            builder.append( format( " (%s) %s", pair.first().toString(), pair.other().getMessage() ) );
+            builder.append( format( " (%s) %s", pair.first(), pair.other().getMessage() ) );
         }
 
         return builder.toString();
     }
-
 }

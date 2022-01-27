@@ -43,7 +43,21 @@ Third-party licenses
 --------------------
 
 Apache Software License, Version 2.0
+  Apache Commons BeanUtils
+  Apache Commons Collections
+  Apache Commons Logging
   Auto Common Libraries
   AutoService
+  AutoService Processor
+  AutoValue Annotations
+  error-prone annotations
+  FindBugs-jsr305
+  Guava InternalFutureFailureAccess and InternalFutures
+  Guava ListenableFuture only
   Guava: Google Core Libraries for Java
+  J2ObjC Annotations
+  Truth Core
+
+MIT License
+  Checker Qual
 

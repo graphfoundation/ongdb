@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -43,6 +43,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.BooleanSupplier;
 
 import org.neo4j.function.ThrowingAction;
 import org.neo4j.graphdb.Resource;
@@ -211,6 +212,30 @@ public class StoreCopyCheckPointMutex
     {
         Lock writeLock = lock.writeLock();
         return writeLock.tryLock() ? writeLock::unlock : null;
+    }
+
+    public Resource tryCheckPoint( BooleanSupplier timeoutPredicate )
+    {
+        Lock writeLock = lock.writeLock();
+        long waitTimeMillis = 0; // Don't do any waiting on the first iteration. We want to consult the predicate first.
+
+        try
+        {
+            while ( !writeLock.tryLock( waitTimeMillis, MILLISECONDS ) )
+            {
+                if ( timeoutPredicate.getAsBoolean() )
+                {
+                    return null;
+                }
+                waitTimeMillis = 100;
+            }
+        }
+        catch ( InterruptedException e )
+        {
+            Thread.currentThread().interrupt();
+            return null;
+        }
+        return writeLock::unlock;
     }
 
     public Resource checkPoint()

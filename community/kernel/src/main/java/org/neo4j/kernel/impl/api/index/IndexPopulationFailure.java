@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,18 +38,17 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.neo4j.helpers.Exceptions;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
+import org.neo4j.internal.helpers.Exceptions;
+import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.kernel.api.exceptions.index.IndexPopulationFailedKernelException;
 
-public abstract class IndexPopulationFailure
+public interface IndexPopulationFailure
 {
-    public abstract String asString();
+    String asString();
 
-    public abstract IndexPopulationFailedKernelException asIndexPopulationFailure(
-            SchemaDescriptor descriptor, String indexUserDescriptor );
+    IndexPopulationFailedKernelException asIndexPopulationFailure( SchemaDescriptor descriptor, String indexUserDescriptor );
 
-    public static IndexPopulationFailure failure( final Throwable failure )
+    static IndexPopulationFailure failure( final Throwable failure )
     {
         return new IndexPopulationFailure()
         {
@@ -63,12 +62,12 @@ public abstract class IndexPopulationFailure
             public IndexPopulationFailedKernelException asIndexPopulationFailure(
                     SchemaDescriptor descriptor, String indexUserDescription )
             {
-                return new IndexPopulationFailedKernelException( descriptor, indexUserDescription, failure );
+                return new IndexPopulationFailedKernelException( indexUserDescription, failure );
             }
         };
     }
 
-    public static IndexPopulationFailure failure( final String failure )
+    static IndexPopulationFailure failure( final String failure )
     {
         return new IndexPopulationFailure()
         {
@@ -82,8 +81,14 @@ public abstract class IndexPopulationFailure
             public IndexPopulationFailedKernelException asIndexPopulationFailure(
                     SchemaDescriptor descriptor, String indexUserDescription )
             {
-                return new IndexPopulationFailedKernelException( descriptor, indexUserDescription, failure );
+                return new IndexPopulationFailedKernelException( indexUserDescription, failure );
             }
         };
+    }
+
+    static String appendCauseOfFailure( String message, String causeOfFailure )
+    {
+        return String.format( "%s: Cause of failure:%n" +
+                "==================%n%s%n==================", message, causeOfFailure );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,19 +38,23 @@
  */
 package org.neo4j.kernel.impl.transaction;
 
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.neo4j.kernel.impl.store.NeoStores;
-import org.neo4j.kernel.impl.store.TransactionId;
-import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
-import org.neo4j.kernel.impl.util.ArrayQueueOutOfOrderSequence;
-import org.neo4j.kernel.impl.util.OutOfOrderSequence;
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.kernel.impl.transaction.log.LogPosition;
+import org.neo4j.storageengine.api.ClosedTransactionMetadata;
+import org.neo4j.storageengine.api.TransactionId;
+import org.neo4j.storageengine.api.TransactionIdStore;
+import org.neo4j.util.concurrent.ArrayQueueOutOfOrderSequence;
+import org.neo4j.util.concurrent.OutOfOrderSequence;
+
+import static org.neo4j.io.pagecache.context.CursorContext.NULL;
+import static org.neo4j.storageengine.api.LogVersionRepository.BASE_TX_LOG_BYTE_OFFSET;
+import static org.neo4j.storageengine.api.LogVersionRepository.BASE_TX_LOG_VERSION;
 
 /**
- * Duplicates the {@link TransactionIdStore} parts of {@link NeoStores}, which is somewhat bad to have to keep
- * in sync.
+ * Simple implementation of a {@link TransactionIdStore}.
  */
 public class SimpleTransactionIdStore implements TransactionIdStore
 {
@@ -59,21 +63,21 @@ public class SimpleTransactionIdStore implements TransactionIdStore
     private final AtomicReference<TransactionId> committedTransactionId =
             new AtomicReference<>( new TransactionId( BASE_TX_ID, BASE_TX_CHECKSUM, BASE_TX_COMMIT_TIMESTAMP ) );
     private final long previouslyCommittedTxId;
-    private final long initialTransactionChecksum;
+    private final int initialTransactionChecksum;
     private final long previouslyCommittedTxCommitTimestamp;
 
     public SimpleTransactionIdStore()
     {
-        this( BASE_TX_ID, 0, BASE_TX_COMMIT_TIMESTAMP, BASE_TX_LOG_VERSION, BASE_TX_LOG_BYTE_OFFSET );
+        this( BASE_TX_ID, BASE_TX_CHECKSUM, BASE_TX_COMMIT_TIMESTAMP, BASE_TX_LOG_VERSION, BASE_TX_LOG_BYTE_OFFSET );
     }
 
-    public SimpleTransactionIdStore( long previouslyCommittedTxId, long checksum,
+    public SimpleTransactionIdStore( long previouslyCommittedTxId, int checksum,
             long previouslyCommittedTxCommitTimestamp, long previouslyCommittedTxLogVersion,
             long previouslyCommittedTxLogByteOffset )
     {
         assert previouslyCommittedTxId >= BASE_TX_ID : "cannot start from a tx id less than BASE_TX_ID";
         setLastCommittedAndClosedTransactionId( previouslyCommittedTxId, checksum, previouslyCommittedTxCommitTimestamp,
-                previouslyCommittedTxLogByteOffset, previouslyCommittedTxLogVersion );
+                previouslyCommittedTxLogByteOffset, previouslyCommittedTxLogVersion, NULL );
         this.previouslyCommittedTxId = previouslyCommittedTxId;
         this.initialTransactionChecksum = checksum;
         this.previouslyCommittedTxCommitTimestamp = previouslyCommittedTxCommitTimestamp;
@@ -92,7 +96,7 @@ public class SimpleTransactionIdStore implements TransactionIdStore
     }
 
     @Override
-    public synchronized void transactionCommitted( long transactionId, long checksum, long commitTimestamp )
+    public synchronized void transactionCommitted( long transactionId, int checksum, long commitTimestamp, CursorContext cursorContext )
     {
         TransactionId current = committedTransactionId.get();
         if ( current == null || transactionId > current.transactionId() )
@@ -116,8 +120,7 @@ public class SimpleTransactionIdStore implements TransactionIdStore
     @Override
     public TransactionId getUpgradeTransaction()
     {
-        return new TransactionId( previouslyCommittedTxId, initialTransactionChecksum,
-                previouslyCommittedTxCommitTimestamp );
+        return new TransactionId( previouslyCommittedTxId, initialTransactionChecksum, previouslyCommittedTxCommitTimestamp );
     }
 
     @Override
@@ -127,20 +130,15 @@ public class SimpleTransactionIdStore implements TransactionIdStore
     }
 
     @Override
-    public void awaitClosedTransactionId( long txId, long timeoutMillis )
+    public ClosedTransactionMetadata getLastClosedTransaction()
     {
-        throw new UnsupportedOperationException( "Not implemented" );
+        long[] data = closedTransactionId.get();
+        return new ClosedTransactionMetadata( data[0], new LogPosition( data[1], data[2] ) );
     }
 
     @Override
-    public long[] getLastClosedTransaction()
-    {
-        return closedTransactionId.get();
-    }
-
-    @Override
-    public void setLastCommittedAndClosedTransactionId( long transactionId, long checksum, long commitTimestamp,
-            long byteOffset, long logVersion )
+    public void setLastCommittedAndClosedTransactionId( long transactionId, int checksum, long commitTimestamp,
+            long byteOffset, long logVersion, CursorContext cursorContext )
     {
         committingTransactionId.set( transactionId );
         committedTransactionId.set( new TransactionId( transactionId, checksum, commitTimestamp ) );
@@ -148,19 +146,19 @@ public class SimpleTransactionIdStore implements TransactionIdStore
     }
 
     @Override
-    public void transactionClosed( long transactionId, long logVersion, long byteOffset )
+    public void transactionClosed( long transactionId, long logVersion, long byteOffset, CursorContext cursorContext )
     {
         closedTransactionId.offer( transactionId, new long[]{logVersion, byteOffset} );
     }
 
     @Override
-    public boolean closedTransactionIdIsOnParWithOpenedTransactionId()
+    public void resetLastClosedTransaction( long transactionId, long byteOffset, long logVersion, boolean missingLogs, CursorContext cursorContext )
     {
-        return closedTransactionId.getHighestGapFreeNumber() == committedTransactionId.get().transactionId();
+        closedTransactionId.set( transactionId, new long[]{logVersion, byteOffset} );
     }
 
     @Override
-    public void flush()
+    public void flush( CursorContext cursorContext )
     {
     }
 }

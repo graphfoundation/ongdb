@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,7 +41,6 @@ package org.neo4j.kernel.impl.traversal;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.PathExpander;
-import org.neo4j.graphdb.Resource;
 import org.neo4j.graphdb.traversal.BranchOrderingPolicy;
 import org.neo4j.graphdb.traversal.BranchSelector;
 import org.neo4j.graphdb.traversal.BranchState;
@@ -58,15 +57,13 @@ class MonoDirectionalTraverserIterator extends AbstractTraverserIterator
     private final PathEvaluator evaluator;
     private final UniquenessFilter uniqueness;
 
-    MonoDirectionalTraverserIterator( Resource resource, UniquenessFilter uniqueness, PathExpander expander,
+    MonoDirectionalTraverserIterator( UniquenessFilter uniqueness, PathExpander expander,
                                       BranchOrderingPolicy order, PathEvaluator evaluator, Iterable<Node> startNodes,
                                       InitialBranchState initialState, UniquenessFactory uniquenessFactory )
     {
-        super( resource );
         this.uniqueness = uniqueness;
         this.evaluator = evaluator;
-        this.selector = order.create( new AsOneStartBranch( this, startNodes, initialState, uniquenessFactory ),
-                expander );
+        this.selector = order.create( new AsOneStartBranch( this, startNodes, initialState, uniquenessFactory ), expander );
     }
 
     @Override
@@ -84,7 +81,6 @@ class MonoDirectionalTraverserIterator extends AbstractTraverserIterator
             result = selector.next( this );
             if ( result == null )
             {
-                close();
                 return null;
             }
             if ( result.includes() )

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,23 +38,71 @@
  */
 package org.neo4j.kernel.impl.transaction.tracing;
 
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.kernel.impl.transaction.stats.TransactionLogCounters;
+
 /**
  * The TransactionTracer is the root of the tracer hierarchy that gets notified about the life of transactions. The
  * events encapsulate the entire life of each transaction, but most of the events are concerned with what goes on
  * during commit. Implementers should take great care to make their implementations as fast as possible. Note that
  * tracers are not allowed to throw exceptions.
  */
-public interface TransactionTracer
+public interface TransactionTracer extends TransactionLogCounters
 {
     /**
      * A TransactionTracer implementation that does nothing, other than return the NULL variants of the companion
      * interfaces.
      */
-    TransactionTracer NULL = () -> TransactionEvent.NULL;
+    TransactionTracer NULL = new TransactionTracer()
+    {
+
+        @Override
+        public TransactionEvent beginTransaction( CursorContext cursorContext )
+        {
+            return TransactionEvent.NULL;
+        }
+
+        @Override
+        public long appendedBytes()
+        {
+            return 0;
+        }
+
+        @Override
+        public long numberOfLogRotations()
+        {
+            return 0;
+        }
+
+        @Override
+        public long logRotationAccumulatedTotalTimeMillis()
+        {
+            return 0;
+        }
+
+        @Override
+        public long lastLogRotationTimeMillis()
+        {
+            return 0;
+        }
+
+        @Override
+        public long numberOfFlushes()
+        {
+            return 0;
+        }
+
+        @Override
+        public long lastTransactionLogAppendBatch()
+        {
+            return 0;
+        }
+    };
 
     /**
      * A transaction starts.
      * @return An event that represents the transaction.
+     * @param cursorContext page cursor context that used by transaction
      */
-    TransactionEvent beginTransaction();
+    TransactionEvent beginTransaction( CursorContext cursorContext );
 }

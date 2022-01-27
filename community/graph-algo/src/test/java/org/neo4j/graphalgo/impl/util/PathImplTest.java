@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,8 +38,7 @@
  */
 package org.neo4j.graphalgo.impl.util;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -50,26 +49,25 @@ import java.util.List;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.Relationship;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.kernel.impl.core.NodeProxy;
-import org.neo4j.kernel.impl.core.EmbeddedProxySPI;
-import org.neo4j.kernel.impl.core.RelationshipProxy;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.kernel.impl.core.NodeEntity;
+import org.neo4j.kernel.impl.core.RelationshipEntity;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Answers.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class PathImplTest
+class PathImplTest
 {
-    private final EmbeddedProxySPI spi = mock( EmbeddedProxySPI.class );
+    private final InternalTransaction transaction = mock( InternalTransaction.class, RETURNS_DEEP_STUBS );
 
     @Test
-    public void singularNodeWorksForwardsAndBackwards()
+    void singularNodeWorksForwardsAndBackwards()
     {
         Node node = createNode( 1337L );
         Path path = PathImpl.singular( node );
@@ -91,9 +89,8 @@ public class PathImplTest
     }
 
     @Test
-    public void pathsWithTheSameContentsShouldBeEqual()
+    void pathsWithTheSameContentsShouldBeEqual()
     {
-
         Node node = createNode( 1337L );
         Relationship relationship = createRelationship( 1337L, 7331L );
 
@@ -107,7 +104,7 @@ public class PathImplTest
     }
 
     @Test
-    public void pathsWithDifferentLengthAreNotEqual()
+    void pathsWithDifferentLengthAreNotEqual()
     {
         Node node = createNode( 1337L );
         Relationship relationship = createRelationship( 1337L, 7331L );
@@ -117,66 +114,66 @@ public class PathImplTest
         Path secondPath = new PathImpl.Builder( node ).push( relationship ).push( createRelationship( 1337L, 7331L ) ).build();
 
         // When Then
-        assertThat( firstPath, not( equalTo( secondPath ) ) );
-        assertThat( secondPath, not( equalTo( firstPath ) ) );
+        assertThat( firstPath ).isNotEqualTo( secondPath );
+        assertThat( secondPath ).isNotEqualTo( firstPath );
     }
 
     @Test
-    public void testPathReverseNodes()
+    void testPathReverseNodes()
     {
-        when( spi.newNodeProxy( Mockito.anyLong() ) ).thenAnswer( new NodeProxyAnswer() );
+        when( transaction.newNodeEntity( Mockito.anyLong() ) ).thenAnswer( new NodeAnswer() );
 
-        Path path = new PathImpl.Builder( createNodeProxy( 1 ) )
-                                .push( createRelationshipProxy( 1, 2 ) )
-                                .push( createRelationshipProxy( 2, 3 ) )
-                                .build( new PathImpl.Builder( createNodeProxy( 3 ) ) );
+        Path path = new PathImpl.Builder( createNodeEntity( 1 ) )
+                                .push( createRelationshipEntity( 1, 2 ) )
+                                .push( createRelationshipEntity( 2, 3 ) )
+                                .build( new PathImpl.Builder( createNodeEntity( 3 ) ) );
 
         Iterable<Node> nodes = path.reverseNodes();
         List<Node> nodeList = Iterables.asList( nodes );
 
-        Assert.assertEquals( 3, nodeList.size() );
-        Assert.assertEquals( 3, nodeList.get( 0 ).getId() );
-        Assert.assertEquals( 2, nodeList.get( 1 ).getId() );
-        Assert.assertEquals( 1, nodeList.get( 2 ).getId() );
+        assertEquals( 3, nodeList.size() );
+        assertEquals( 3, nodeList.get( 0 ).getId() );
+        assertEquals( 2, nodeList.get( 1 ).getId() );
+        assertEquals( 1, nodeList.get( 2 ).getId() );
     }
 
     @Test
-    public void testPathNodes()
+    void testPathNodes()
     {
-        when( spi.newNodeProxy( Mockito.anyLong() ) ).thenAnswer( new NodeProxyAnswer() );
+        when( transaction.newNodeEntity( Mockito.anyLong() ) ).thenAnswer( new NodeAnswer() );
 
-        Path path = new PathImpl.Builder( createNodeProxy( 1 ) )
-                .push( createRelationshipProxy( 1, 2 ) )
-                .push( createRelationshipProxy( 2, 3 ) )
-                .build( new PathImpl.Builder( createNodeProxy( 3 ) ) );
+        Path path = new PathImpl.Builder( createNodeEntity( 1 ) )
+                .push( createRelationshipEntity( 1, 2 ) )
+                .push( createRelationshipEntity( 2, 3 ) )
+                .build( new PathImpl.Builder( createNodeEntity( 3 ) ) );
 
         Iterable<Node> nodes = path.nodes();
         List<Node> nodeList = Iterables.asList( nodes );
 
-        Assert.assertEquals( 3, nodeList.size() );
-        Assert.assertEquals( 1, nodeList.get( 0 ).getId() );
-        Assert.assertEquals( 2, nodeList.get( 1 ).getId() );
-        Assert.assertEquals( 3, nodeList.get( 2 ).getId() );
+        assertEquals( 3, nodeList.size() );
+        assertEquals( 1, nodeList.get( 0 ).getId() );
+        assertEquals( 2, nodeList.get( 1 ).getId() );
+        assertEquals( 3, nodeList.get( 2 ).getId() );
     }
 
-    private RelationshipProxy createRelationshipProxy( int startNodeId, int endNodeId )
+    private RelationshipEntity createRelationshipEntity( int startNodeId, int endNodeId )
     {
-        return new RelationshipProxy( spi, 1L, startNodeId, 1, endNodeId );
+        return new RelationshipEntity( transaction, 1L, startNodeId, 1, endNodeId );
     }
 
-    private NodeProxy createNodeProxy( int nodeId )
+    private NodeEntity createNodeEntity( int nodeId )
     {
-        return new NodeProxy( spi, nodeId );
+        return new NodeEntity( transaction, nodeId );
     }
 
-    private Node createNode( long nodeId )
+    private static Node createNode( long nodeId )
     {
         Node node = mock( Node.class );
         when( node.getId() ).thenReturn( nodeId );
         return node;
     }
 
-    private Relationship createRelationship( long startNodeId, long endNodeId )
+    private static Relationship createRelationship( long startNodeId, long endNodeId )
     {
         Relationship relationship = mock( Relationship.class );
         Node startNode = createNode( startNodeId );
@@ -186,12 +183,12 @@ public class PathImplTest
         return relationship;
     }
 
-    private class NodeProxyAnswer implements Answer<NodeProxy>
+    private class NodeAnswer implements Answer<NodeEntity>
     {
         @Override
-        public NodeProxy answer( InvocationOnMock invocation )
+        public NodeEntity answer( InvocationOnMock invocation )
         {
-            return createNodeProxy( ((Number) invocation.getArgument( 0 )).intValue() );
+            return createNodeEntity( ((Number) invocation.getArgument( 0 )).intValue() );
         }
     }
 }

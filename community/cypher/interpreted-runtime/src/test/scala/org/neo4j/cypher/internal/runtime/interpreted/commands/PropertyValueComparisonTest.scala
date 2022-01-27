@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,12 +38,13 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.ImplicitValueConversion._
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Property, Variable}
-import org.neo4j.cypher.internal.runtime.interpreted.commands.values.TokenType.PropertyKey
+import org.neo4j.cypher.internal.runtime.CypherRow
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.runtime.ImplicitValueConversion.toMapValue
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Property
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Variable
+import org.neo4j.cypher.internal.runtime.interpreted.commands.values.TokenType.PropertyKey
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 import org.neo4j.values.storable.Values.NO_VALUE
 
 class PropertyValueComparisonTest extends CypherFunSuite {
@@ -52,7 +53,7 @@ class PropertyValueComparisonTest extends CypherFunSuite {
 
   test("nullNodeShouldGiveNullProperty") {
     val p = Property(Variable("variable"), PropertyKey("property"))
-    val ctx = ExecutionContext.from("variable" -> NO_VALUE)
+    val ctx = CypherRow.from("variable" -> NO_VALUE)
     val state = QueryStateHelper.empty
 
     p(ctx, state) should equal(expectedNull)
@@ -60,7 +61,7 @@ class PropertyValueComparisonTest extends CypherFunSuite {
 
   test("nonExistentPropertyShouldEvaluateToNull") {
     val p = Property(Variable("variable"), PropertyKey("nonExistent"))
-    val ctx = ExecutionContext.from("variable" -> Map("property" -> 42))
+    val ctx = CypherRow.from("variable" -> Map("property" -> 42))
     val state = QueryStateHelper.empty
 
     p(ctx, state) should equal(expectedNull)

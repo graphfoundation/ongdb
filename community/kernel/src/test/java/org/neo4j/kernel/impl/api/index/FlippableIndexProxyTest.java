@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,36 +38,31 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.neo4j.kernel.api.exceptions.index.IndexProxyAlreadyClosedKernelException;
 import org.neo4j.test.OtherThreadExecutor;
-import org.neo4j.test.rule.CleanupRule;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.neo4j.io.pagecache.context.CursorContext.NULL;
 import static org.neo4j.kernel.impl.api.index.SchemaIndexTestHelper.awaitLatch;
 import static org.neo4j.kernel.impl.api.index.SchemaIndexTestHelper.mockIndexProxy;
 
-public class FlippableIndexProxyTest
+class FlippableIndexProxyTest
 {
-    @Rule
-    public final CleanupRule cleanup = new CleanupRule();
-    @Rule
-    public ExpectedException expectedException = ExpectedException.none();
-
     @Test
-    public void shouldBeAbleToSwitchDelegate() throws Exception
+    void shouldBeAbleToSwitchDelegate() throws Exception
     {
         // GIVEN
         IndexProxy actual = mockIndexProxy();
@@ -84,7 +79,7 @@ public class FlippableIndexProxyTest
     }
 
     @Test
-    public void shouldNotBeAbleToFlipAfterClosed() throws Exception
+    void shouldNotBeAbleToFlipAfterClosed() throws Exception
     {
         //GIVEN
         IndexProxy actual = mockIndexProxy();
@@ -93,18 +88,16 @@ public class FlippableIndexProxyTest
         FlippableIndexProxy delegate = new FlippableIndexProxy( actual );
 
         //WHEN
-        delegate.close();
+        delegate.close( NULL );
 
         delegate.setFlipTarget( indexContextFactory );
 
         //THEN
-        expectedException.expect( IndexProxyAlreadyClosedKernelException.class );
-
-        delegate.flip( noOp(), null );
+        assertThrows( IndexProxyAlreadyClosedKernelException.class, () -> delegate.flip( noOp(), null ) );
     }
 
     @Test
-    public void shouldNotBeAbleToFlipAfterDrop() throws Exception
+    void shouldNotBeAbleToFlipAfterDrop()
     {
         //GIVEN
         IndexProxy actual = mockIndexProxy();
@@ -118,12 +111,11 @@ public class FlippableIndexProxyTest
         delegate.drop();
 
         //THEN
-        expectedException.expect( IndexProxyAlreadyClosedKernelException.class );
-        delegate.flip( noOp(), singleFailedDelegate( failed ) );
+        assertThrows( IndexProxyAlreadyClosedKernelException.class, () -> delegate.flip( noOp(), singleFailedDelegate( failed ) ) );
     }
 
     @Test
-    public void shouldBlockAccessDuringFlipAndThenDelegateToCorrectContext() throws Exception
+    void shouldBlockAccessDuringFlipAndThenDelegateToCorrectContext() throws Exception
     {
         // GIVEN
         final IndexProxy contextBeforeFlip = mockIndexProxy();
@@ -135,73 +127,74 @@ public class FlippableIndexProxyTest
         final CountDownLatch triggerFinishFlip = new CountDownLatch( 1 );
         final CountDownLatch triggerExternalAccess = new CountDownLatch( 1 );
 
-        OtherThreadExecutor<Void> flippingThread = cleanup.add( new OtherThreadExecutor<>( "Flipping thread", null ) );
-        OtherThreadExecutor<Void> dropIndexThread = cleanup.add( new OtherThreadExecutor<>( "Drop index thread", null ) );
-
-        // WHEN one thread starts flipping to another context
-        Future<Void> flipContextFuture = flippingThread.executeDontWait( startFlipAndWaitForLatchBeforeFinishing(
+        try ( OtherThreadExecutor flippingThread = new OtherThreadExecutor( "Flipping thread" );
+              OtherThreadExecutor dropIndexThread = new OtherThreadExecutor( "Drop index thread" ) )
+        {
+            // WHEN one thread starts flipping to another context
+            Future<Void> flipContextFuture = flippingThread.executeDontWait( startFlipAndWaitForLatchBeforeFinishing(
                 flippable,
                 triggerFinishFlip, triggerExternalAccess ) );
 
-        // And I wait until the flipping thread is in the middle of "the flip"
-        assertTrue( triggerExternalAccess.await( 10, SECONDS ) );
+            // And I wait until the flipping thread is in the middle of "the flip"
+            assertTrue( triggerExternalAccess.await( 10, SECONDS ) );
 
-        // And another thread comes along and drops the index
-        Future<Void> dropIndexFuture = dropIndexThread.executeDontWait( dropTheIndex( flippable ) );
-        dropIndexThread.waitUntilWaiting();
+            // And another thread comes along and drops the index
+            Future<Void> dropIndexFuture = dropIndexThread.executeDontWait( dropTheIndex( flippable ) );
+            dropIndexThread.waitUntilWaiting();
 
-        // And the flipping thread finishes the flip
-        triggerFinishFlip.countDown();
+            // And the flipping thread finishes the flip
+            triggerFinishFlip.countDown();
 
-        // And both threads get to finish up and return
-        dropIndexFuture.get( 10, SECONDS );
-        flipContextFuture.get( 10, SECONDS );
+            // And both threads get to finish up and return
+            dropIndexFuture.get( 10, SECONDS );
+            flipContextFuture.get( 10, SECONDS );
 
-        // THEN the thread wanting to drop the index should not have interacted with the original context
-        // eg. it should have waited for the flip to finish
-        verifyNoMoreInteractions( contextBeforeFlip );
+            // THEN the thread wanting to drop the index should not have interacted with the original context
+            // eg. it should have waited for the flip to finish
+            verifyNoMoreInteractions( contextBeforeFlip );
 
-        // But it should have gotten to drop the new index context, after the flip happened.
-        verify( contextAfterFlip ).drop();
+            // But it should have gotten to drop the new index context, after the flip happened.
+            verify( contextAfterFlip ).drop();
+        }
     }
 
     @Test
-    public void shouldAbortStoreScanWaitOnDrop() throws Exception
+    void shouldAbortStoreScanWaitOnDrop() throws Exception
     {
         // given the proxy structure
         FakePopulatingIndexProxy delegate = new FakePopulatingIndexProxy();
         FlippableIndexProxy flipper = new FlippableIndexProxy( delegate );
-        OtherThreadExecutor<Void> waiter = cleanup.add( new OtherThreadExecutor<>( "Waiter", null ) );
-
-        // and a thread stuck in the awaitStoreScanCompletion loop
-        Future<Object> waiting = waiter.executeDontWait( state -> flipper.awaitStoreScanCompleted() );
-        while ( !delegate.awaitCalled )
+        try ( OtherThreadExecutor waiter = new OtherThreadExecutor( "Waiter" ) )
         {
-            Thread.sleep( 10 );
+            // and a thread stuck in the awaitStoreScanCompletion loop
+            Future<Object> waiting = waiter.executeDontWait( () -> flipper.awaitStoreScanCompleted( 0, MILLISECONDS ) );
+            while ( !delegate.awaitCalled )
+            {
+                Thread.sleep( 10 );
+            }
+
+            // when
+            flipper.drop();
+
+            // then the waiting should quickly be over
+            waiting.get( 10, SECONDS );
         }
-
-        // when
-        flipper.drop();
-
-        // then the waiting should quickly be over
-        waiting.get( 10, SECONDS );
     }
 
-    private OtherThreadExecutor.WorkerCommand<Void, Void> dropTheIndex( final FlippableIndexProxy flippable )
-            throws IOException
+    private static Callable<Void> dropTheIndex( final FlippableIndexProxy flippable )
     {
-        return state ->
+        return () ->
         {
             flippable.drop();
             return null;
         };
     }
 
-    private OtherThreadExecutor.WorkerCommand<Void, Void> startFlipAndWaitForLatchBeforeFinishing(
-            final FlippableIndexProxy flippable, final CountDownLatch triggerFinishFlip,
-            final CountDownLatch triggerExternalAccess )
+    private static Callable<Void> startFlipAndWaitForLatchBeforeFinishing(
+        final FlippableIndexProxy flippable, final CountDownLatch triggerFinishFlip,
+        final CountDownLatch triggerExternalAccess )
     {
-        return state ->
+        return () ->
         {
             flippable.flip( () ->
             {
@@ -213,17 +206,17 @@ public class FlippableIndexProxyTest
         };
     }
 
-    private Callable<Boolean> noOp()
+    private static Callable<Boolean> noOp()
     {
         return () -> Boolean.TRUE;
     }
 
-    public static IndexProxyFactory singleProxy( final IndexProxy proxy )
+    private static IndexProxyFactory singleProxy( final IndexProxy proxy )
     {
         return () -> proxy;
     }
 
-    private FailedIndexProxyFactory singleFailedDelegate( final IndexProxy failed )
+    private static FailedIndexProxyFactory singleFailedDelegate( final IndexProxy failed )
     {
         return failure -> failed;
     }
@@ -233,7 +226,7 @@ public class FlippableIndexProxyTest
         private volatile boolean awaitCalled;
 
         @Override
-        public boolean awaitStoreScanCompleted()
+        public boolean awaitStoreScanCompleted( long time, TimeUnit unit )
         {
             awaitCalled = true;
             return true;

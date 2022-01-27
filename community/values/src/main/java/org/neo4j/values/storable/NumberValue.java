@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,7 +42,7 @@ import org.neo4j.values.AnyValue;
 
 public abstract class NumberValue extends ScalarValue
 {
-    public static double safeCastFloatingPoint( String name, AnyValue value, double defaultValue )
+    static double safeCastFloatingPoint( String name, AnyValue value, double defaultValue )
     {
         if ( value == null )
         {
@@ -64,12 +64,12 @@ public abstract class NumberValue extends ScalarValue
 
     public abstract long longValue();
 
-    abstract int compareTo( IntegralValue other );
+    public abstract int compareTo( IntegralValue other );
 
-    abstract int compareTo( FloatingPointValue other );
+    public abstract int compareTo( FloatingPointValue other );
 
     @Override
-    int unsafeCompareTo( Value otherValue )
+    protected int unsafeCompareTo( Value otherValue )
     {
         if ( otherValue instanceof IntegralValue )
         {
@@ -110,12 +110,6 @@ public abstract class NumberValue extends ScalarValue
     public final boolean equals( String x )
     {
         return false;
-    }
-
-    @Override
-    public ValueGroup valueGroup()
-    {
-        return ValueGroup.NUMBER;
     }
 
     public abstract NumberValue minus( long b );

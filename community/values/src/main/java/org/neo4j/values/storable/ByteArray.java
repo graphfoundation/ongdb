@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -44,10 +44,16 @@ import org.neo4j.values.AnyValue;
 import org.neo4j.values.ValueMapper;
 
 import static java.lang.String.format;
+import static org.neo4j.memory.HeapEstimator.shallowSizeOfInstance;
+import static org.neo4j.memory.HeapEstimator.sizeOf;
 
-public class ByteArray extends IntegralArray
+public final class ByteArray extends IntegralArray
 {
+    private static final long SHALLOW_SIZE = shallowSizeOfInstance( ByteArray.class );
+
     private final byte[] value;
+
+    private boolean invalid;
 
     ByteArray( byte[] value )
     {
@@ -55,106 +61,131 @@ public class ByteArray extends IntegralArray
         this.value = value;
     }
 
+    private void checkValid()
+    {
+        if ( invalid )
+        {
+            throw new RuntimeException( "Invalidated" );
+        }
+    }
+
     @Override
     public int length()
     {
+        checkValid();
         return value.length;
     }
 
     @Override
     public long longValue( int index )
     {
+        checkValid();
         return value[index];
     }
 
     @Override
-    public int computeHash()
+    protected int computeHashToMemoize()
     {
+        checkValid();
         return NumberValues.hash( value );
     }
 
     @Override
     public <T> T map( ValueMapper<T> mapper )
     {
+        checkValid();
         return mapper.mapByteArray( this );
     }
 
     @Override
     public boolean equals( Value other )
     {
+        checkValid();
         return other.equals( value );
     }
 
     @Override
     public boolean equals( byte[] x )
     {
+        checkValid();
         return Arrays.equals( value, x );
     }
 
     @Override
     public boolean equals( short[] x )
     {
+        checkValid();
         return PrimitiveArrayValues.equals( value, x );
     }
 
     @Override
     public boolean equals( int[] x )
     {
+        checkValid();
         return PrimitiveArrayValues.equals( value, x );
     }
 
     @Override
     public boolean equals( long[] x )
     {
+        checkValid();
         return PrimitiveArrayValues.equals( value, x );
     }
 
     @Override
     public boolean equals( float[] x )
     {
+        checkValid();
         return PrimitiveArrayValues.equals( value, x );
     }
 
     @Override
     public boolean equals( double[] x )
     {
+        checkValid();
         return PrimitiveArrayValues.equals( value, x );
     }
 
     @Override
     public <E extends Exception> void writeTo( ValueWriter<E> writer ) throws E
     {
+        checkValid();
         writer.writeByteArray( value );
     }
 
     @Override
     public byte[] asObjectCopy()
     {
-        return value.clone();
+        checkValid();
+        return Arrays.copyOf( value, value.length );
     }
 
     @Override
     @Deprecated
     public byte[] asObject()
     {
+        checkValid();
         return value;
     }
 
     @Override
     public String prettyPrint()
     {
+        checkValid();
         return Arrays.toString( value );
     }
 
     @Override
     public AnyValue value( int offset )
     {
+        checkValid();
         return Values.byteValue( value[offset] );
     }
 
     @Override
     public String toString()
     {
+        checkValid();
         return format( "%s%s", getTypeName(), Arrays.toString( value ) );
     }
 
@@ -162,5 +193,48 @@ public class ByteArray extends IntegralArray
     public String getTypeName()
     {
         return "ByteArray";
+    }
+
+    @Override
+    public long estimatedHeapUsage()
+    {
+        return SHALLOW_SIZE + sizeOf( value );
+    }
+
+    @Override
+    public boolean hasCompatibleType( AnyValue value )
+    {
+        return value instanceof ByteValue;
+    }
+
+    @Override
+    public ArrayValue copyWithAppended( AnyValue added )
+    {
+        assert hasCompatibleType( added ) : "Incompatible types";
+        byte[] newArray = Arrays.copyOf( value, value.length + 1 );
+        newArray[value.length] = ((ByteValue) added).value();
+        return new ByteArray( newArray );
+    }
+
+    @Override
+    public ArrayValue copyWithPrepended( AnyValue prepended )
+    {
+        assert hasCompatibleType( prepended ) : "Incompatible types";
+        byte[] newArray = new byte[value.length + 1];
+        System.arraycopy( value, 0, newArray, 1, value.length );
+        newArray[0] = ((ByteValue) prepended).value();
+        return new ByteArray( newArray );
+    }
+
+    @Override
+    public ValueRepresentation valueRepresentation()
+    {
+        return ValueRepresentation.INT8_ARRAY;
+    }
+
+    public void zero()
+    {
+        invalid = true;
+        Arrays.fill( value, (byte) 0 );
     }
 }

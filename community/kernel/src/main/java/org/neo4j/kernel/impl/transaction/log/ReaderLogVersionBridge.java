@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,11 +38,11 @@
  */
 package org.neo4j.kernel.impl.transaction.log;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.NoSuchFileException;
 
 import org.neo4j.kernel.impl.transaction.log.entry.IncompleteLogHeaderException;
-import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
+import org.neo4j.kernel.impl.transaction.log.files.LogFile;
 
 /**
  * {@link LogVersionBridge} naturally transitioning from one {@link LogVersionedStoreChannel} to the next,
@@ -50,22 +50,22 @@ import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
  */
 public class ReaderLogVersionBridge implements LogVersionBridge
 {
-    private final LogFiles logFiles;
+    private final LogFile logFile;
 
-    public ReaderLogVersionBridge( LogFiles logFiles )
+    public ReaderLogVersionBridge( LogFile logFile )
     {
-        this.logFiles = logFiles;
+        this.logFile = logFile;
     }
 
     @Override
-    public LogVersionedStoreChannel next( LogVersionedStoreChannel channel ) throws IOException
+    public LogVersionedStoreChannel next( LogVersionedStoreChannel channel, boolean raw ) throws IOException
     {
         PhysicalLogVersionedStoreChannel nextChannel;
         try
         {
-            nextChannel = logFiles.openForVersion( channel.getVersion() + 1 );
+            nextChannel = logFile.openForVersion( channel.getVersion() + 1, raw );
         }
-        catch ( FileNotFoundException | IncompleteLogHeaderException e )
+        catch ( NoSuchFileException | IncompleteLogHeaderException e )
         {
             // See PhysicalLogFile#rotate() for description as to why these exceptions are OK
             return channel;

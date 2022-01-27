@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,10 +38,10 @@
  */
 package org.neo4j.kernel.api.impl.schema.sampler;
 
-import org.neo4j.helpers.TaskControl;
-import org.neo4j.helpers.TaskCoordinator;
-import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
-import org.neo4j.storageengine.api.schema.IndexSampler;
+import org.neo4j.internal.helpers.CancellationRequest;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
+import org.neo4j.kernel.api.impl.schema.TaskCoordinator;
+import org.neo4j.kernel.api.index.IndexSampler;
 
 /**
  * Abstract implementation of a Lucene index sampler, that can react on sampling being canceled via
@@ -49,11 +49,11 @@ import org.neo4j.storageengine.api.schema.IndexSampler;
  */
 abstract class LuceneIndexSampler implements IndexSampler
 {
-    private final TaskControl executionTicket;
+    private final TaskCoordinator taskCoordinator;
 
-    LuceneIndexSampler( TaskControl taskControl )
+    LuceneIndexSampler( TaskCoordinator taskCoordinator )
     {
-        this.executionTicket = taskControl;
+        this.taskCoordinator = taskCoordinator;
     }
 
     /**
@@ -61,17 +61,17 @@ abstract class LuceneIndexSampler implements IndexSampler
      *
      * @throws IndexNotFoundKernelException if cancellation was requested.
      */
-    void checkCancellation() throws IndexNotFoundKernelException
+    static void checkCancellation( CancellationRequest ongoingTask ) throws IndexNotFoundKernelException
     {
-        if ( executionTicket.cancellationRequested() )
+        if ( ongoingTask.cancellationRequested() )
         {
             throw new IndexNotFoundKernelException( "Index dropped while sampling." );
         }
     }
 
-    @Override
-    public void close()
+    TaskCoordinator.Task newTask() throws IndexNotFoundKernelException
     {
-        executionTicket.close();
+        checkCancellation( taskCoordinator );
+        return taskCoordinator.newTask();
     }
 }

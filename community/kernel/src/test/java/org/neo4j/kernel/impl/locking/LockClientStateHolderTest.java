@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,19 +38,17 @@
  */
 package org.neo4j.kernel.impl.locking;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class LockClientStateHolderTest
+class LockClientStateHolderTest
 {
 
     @Test
-    public void shouldAllowIncrementDecrementClientsWhileNotClosed()
+    void shouldAllowIncrementDecrementClientsWhileNotClosed()
     {
         // given
         LockClientStateHolder lockClientStateHolder = new LockClientStateHolder();
@@ -68,7 +66,7 @@ public class LockClientStateHolderTest
     }
 
     @Test
-    public void shouldNotAllowNewClientsWhenClosed()
+    void shouldNotAllowNewClientsWhenClosed()
     {
         // given
         LockClientStateHolder lockClientStateHolder = new LockClientStateHolder();
@@ -78,19 +76,11 @@ public class LockClientStateHolderTest
 
         // then
         assertFalse( lockClientStateHolder.hasActiveClients() );
-        try
-        {
-            lockClientStateHolder.incrementActiveClients( new NoOpClient() );
-            fail( "Exception expected" );
-        }
-        catch ( Exception e )
-        {
-            assertThat( e, instanceOf( LockClientStoppedException.class ) );
-        }
+        assertThrows( LockClientStoppedException.class, () -> lockClientStateHolder.incrementActiveClients( new NoOpClient() ) );
     }
 
     @Test
-    public void shouldBeAbleToDecrementActiveItemAndDetectWhenFree()
+    void shouldBeAbleToDecrementActiveItemAndDetectWhenFree()
     {
         // given
         LockClientStateHolder lockClientStateHolder = new LockClientStateHolder();
@@ -116,7 +106,7 @@ public class LockClientStateHolderTest
     }
 
     @Test
-    public void shouldBeAbleToResetAndReuseClientState()
+    void shouldBeAbleToResetAndReuseClientState()
     {
         // given
         LockClientStateHolder lockClientStateHolder = new LockClientStateHolder();
@@ -148,5 +138,4 @@ public class LockClientStateHolderTest
         assertTrue( lockClientStateHolder.hasActiveClients() );
         assertFalse( lockClientStateHolder.isStopped() );
     }
-
 }

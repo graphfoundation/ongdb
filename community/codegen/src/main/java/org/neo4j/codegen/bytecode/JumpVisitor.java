@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -88,6 +88,27 @@ class JumpVisitor implements ExpressionVisitor
     }
 
     @Override
+    public void arrayLoad( Expression array, Expression index )
+    {
+        eval.arrayLoad( array, index );
+        methodVisitor.visitJumpInsn( IFEQ, this.target );
+    }
+
+    @Override
+    public void arraySet( Expression array, Expression index, Expression value )
+    {
+        eval.arraySet( array, index, value );
+        methodVisitor.visitJumpInsn( IFEQ, this.target );
+    }
+
+    @Override
+    public void arrayLength( Expression array )
+    {
+        eval.arrayLength( array );
+        methodVisitor.visitJumpInsn( IFEQ, this.target );
+    }
+
+    @Override
     public void getField( Expression target, FieldReference field )
     {
         eval.getField( target, field );
@@ -111,8 +132,19 @@ class JumpVisitor implements ExpressionVisitor
     @Override
     public void not( Expression expression )
     {
-        expression.accept( eval );
-        methodVisitor.visitJumpInsn( IFNE, this.target );
+        if ( expression instanceof Expression.Or )
+        {
+            notOr( (Expression.Or) expression );
+        }
+        else if ( expression instanceof Expression.And )
+        {
+            notAnd( (Expression.And) expression );
+        }
+        else
+        {
+            expression.accept( eval );
+            methodVisitor.visitJumpInsn( IFNE, this.target );
+        }
     }
 
     @Override
@@ -153,8 +185,20 @@ class JumpVisitor implements ExpressionVisitor
     @Override
     public void or( Expression... expressions )
     {
-        eval.or( expressions );
-        methodVisitor.visitJumpInsn( IFEQ, this.target );
+        Label label = new Label();
+        for ( int i = 0; i < expressions.length; i++ )
+        {
+            expressions[i].accept( eval );
+            if ( i < expressions.length - 1 )
+            {
+                methodVisitor.visitJumpInsn( IFNE, label );
+            }
+            else
+            {
+                methodVisitor.visitJumpInsn( IFEQ, this.target );
+            }
+        }
+        methodVisitor.visitLabel( label );
     }
 
     @Override
@@ -238,7 +282,20 @@ class JumpVisitor implements ExpressionVisitor
     }
 
     @Override
-    public void newArray( TypeReference type, Expression... constants )
+    public void instanceOf( TypeReference type, Expression expression )
+    {
+        eval.instanceOf( type, expression );
+        methodVisitor.visitJumpInsn( IFEQ, this.target );
+    }
+
+    @Override
+    public void newInitializedArray( TypeReference type, Expression... constants )
+    {
+        throw new IllegalArgumentException( "'new' (array) is not a boolean expression" );
+    }
+
+    @Override
+    public void newArray( TypeReference type, int size )
     {
         throw new IllegalArgumentException( "'new' (array) is not a boolean expression" );
     }
@@ -259,5 +316,33 @@ class JumpVisitor implements ExpressionVisitor
     public void box( Expression expression )
     {
         throw new IllegalArgumentException( "box is not a boolean expression" );
+    }
+
+    private void notOr( Expression.Or or )
+    {
+        for ( Expression expression : or.expressions() )
+        {
+            expression.accept( eval );
+            methodVisitor.visitJumpInsn( IFNE, this.target );
+        }
+    }
+
+    private void notAnd( Expression.And and )
+    {
+        Label label = new Label();
+        Expression[] expressions = and.expressions();
+        for ( int i = 0; i < expressions.length; i++ )
+        {
+            expressions[i].accept( eval );
+            if ( i < expressions.length - 1 )
+            {
+                methodVisitor.visitJumpInsn( IFEQ, label );
+            }
+            else
+            {
+                methodVisitor.visitJumpInsn( IFNE, this.target );
+            }
+        }
+        methodVisitor.visitLabel( label );
     }
 }

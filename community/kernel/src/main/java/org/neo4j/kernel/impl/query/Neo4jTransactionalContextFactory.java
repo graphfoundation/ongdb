@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,97 +40,69 @@ package org.neo4j.kernel.impl.query;
 
 import java.util.function.Supplier;
 
-import org.neo4j.graphdb.DependencyResolver;
-import org.neo4j.internal.kernel.api.Kernel;
 import org.neo4j.kernel.GraphDatabaseQueryService;
-import org.neo4j.kernel.api.Statement;
 import org.neo4j.kernel.api.query.ExecutingQuery;
-import org.neo4j.kernel.guard.Guard;
-import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
+import org.neo4j.kernel.impl.api.KernelStatement;
 import org.neo4j.kernel.impl.coreapi.InternalTransaction;
-import org.neo4j.kernel.impl.coreapi.PropertyContainerLocker;
-import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
-import org.neo4j.kernel.impl.query.clientconnection.ClientConnectionInfo;
+import org.neo4j.kernel.impl.factory.KernelTransactionFactory;
 import org.neo4j.values.virtual.MapValue;
 
 import static org.neo4j.function.Suppliers.lazySingleton;
 
 public class Neo4jTransactionalContextFactory implements TransactionalContextFactory
 {
-    private final Supplier<Statement> statementSupplier;
     private final Neo4jTransactionalContext.Creator contextCreator;
 
-    public static TransactionalContextFactory create(
-        GraphDatabaseFacade.SPI spi,
-        Guard guard,
-        ThreadToStatementContextBridge txBridge,
-        PropertyContainerLocker locker )
+    public static TransactionalContextFactory create( Supplier<GraphDatabaseQueryService> queryServiceSupplier,
+            KernelTransactionFactory transactionFactory )
     {
-        Supplier<GraphDatabaseQueryService> queryService = lazySingleton( spi::queryService );
-        Supplier<Kernel> kernel = lazySingleton( spi::kernel );
+        Supplier<GraphDatabaseQueryService> queryService = lazySingleton( queryServiceSupplier );
         Neo4jTransactionalContext.Creator contextCreator =
-                ( tx, initialStatement, executingQuery ) -> new Neo4jTransactionalContext( queryService.get(),
-
-                        guard,
-                    txBridge,
-                    locker,
-                    tx,
-                    initialStatement,
-                    executingQuery,
-                    kernel.get()
-                );
-
-        return new Neo4jTransactionalContextFactory( txBridge, contextCreator );
+                ( tx, initialStatement, executingQuery ) -> new Neo4jTransactionalContext(
+                        queryService.get(),
+                        tx,
+                        initialStatement,
+                        executingQuery,
+                        transactionFactory );
+        return new Neo4jTransactionalContextFactory( contextCreator );
     }
 
     @Deprecated
-    public static TransactionalContextFactory create(
-        GraphDatabaseQueryService queryService,
-        PropertyContainerLocker locker )
+    public static TransactionalContextFactory create( GraphDatabaseQueryService queryService )
     {
-        DependencyResolver resolver = queryService.getDependencyResolver();
-        ThreadToStatementContextBridge txBridge = resolver.resolveDependency( ThreadToStatementContextBridge.class );
-        Kernel kernel = resolver.resolveDependency( Kernel.class );
-        Guard guard = resolver.resolveDependency( Guard.class );
+        var resolver = queryService.getDependencyResolver();
+        var transactionFactory = resolver.resolveDependency( KernelTransactionFactory.class );
         Neo4jTransactionalContext.Creator contextCreator =
                 ( tx, initialStatement, executingQuery ) ->
                         new Neo4jTransactionalContext(
                                 queryService,
-                                guard,
-                                txBridge,
-                                locker,
                                 tx,
                                 initialStatement,
                                 executingQuery,
-                                kernel
+                                transactionFactory
                         );
-
-        return new Neo4jTransactionalContextFactory( txBridge, contextCreator );
+        return new Neo4jTransactionalContextFactory( contextCreator );
     }
 
     // Please use the factory methods above to actually construct an instance
-    private Neo4jTransactionalContextFactory(
-        Supplier<Statement> statementSupplier,
-        Neo4jTransactionalContext.Creator contextCreator )
+    private Neo4jTransactionalContextFactory( Neo4jTransactionalContext.Creator contextCreator )
     {
-        this.statementSupplier = statementSupplier;
         this.contextCreator = contextCreator;
     }
 
     @Override
-    public final Neo4jTransactionalContext newContext(
-        ClientConnectionInfo clientConnection,
-        InternalTransaction tx,
-        String queryText,
-        MapValue queryParameters
-    )
+    public final Neo4jTransactionalContext newContext( InternalTransaction tx, String queryText, MapValue queryParameters )
     {
-        Statement initialStatement = statementSupplier.get();
-        ClientConnectionInfo connectionWithUserName = clientConnection.withUsername(
-                tx.securityContext().subject().username() );
-        ExecutingQuery executingQuery = initialStatement.queryRegistration().startQueryExecution(
-                connectionWithUserName, queryText, queryParameters
-        );
+        KernelStatement initialStatement = (KernelStatement) tx.kernelTransaction().acquireStatement();
+        var executingQuery = initialStatement.queryRegistry().startAndBindExecutingQuery( queryText, queryParameters );
+        return contextCreator.create( tx, initialStatement, executingQuery );
+    }
+
+    @Override
+    public TransactionalContext newContextForQuery( InternalTransaction tx, ExecutingQuery executingQuery )
+    {
+        KernelStatement initialStatement = (KernelStatement) tx.kernelTransaction().acquireStatement();
+        initialStatement.queryRegistry().bindExecutingQuery( executingQuery );
         return contextCreator.create( tx, initialStatement, executingQuery );
     }
 }

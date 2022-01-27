@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,15 +41,17 @@ package org.neo4j.kernel.api.impl.schema;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 
+import java.util.function.Supplier;
+
+import org.neo4j.configuration.Config;
+import org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker;
 import org.neo4j.function.Factory;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.kernel.api.impl.index.IndexWriterConfigs;
 import org.neo4j.kernel.api.impl.index.builder.AbstractLuceneIndexBuilder;
-import org.neo4j.kernel.api.impl.index.partition.ReadOnlyIndexPartitionFactory;
 import org.neo4j.kernel.api.impl.index.partition.WritableIndexPartitionFactory;
 import org.neo4j.kernel.api.impl.index.storage.PartitionedIndexStorage;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
+import org.neo4j.kernel.impl.api.index.IndexSamplingConfig;
 
 /**
  * Helper builder class to simplify construction and instantiation of lucene schema indexes.
@@ -61,15 +63,16 @@ import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
  */
 public class LuceneSchemaIndexBuilder extends AbstractLuceneIndexBuilder<LuceneSchemaIndexBuilder>
 {
-    private final SchemaIndexDescriptor descriptor;
+    private final IndexDescriptor descriptor;
     private IndexSamplingConfig samplingConfig;
-    private Factory<IndexWriterConfig> writerConfigFactory = IndexWriterConfigs::standard;
+    private Supplier<IndexWriterConfig> writerConfigFactory;
 
-    private LuceneSchemaIndexBuilder( SchemaIndexDescriptor descriptor, Config config )
+    private LuceneSchemaIndexBuilder( IndexDescriptor descriptor, DatabaseReadOnlyChecker readOnlyChecker, Config config )
     {
-        super( config );
+        super( readOnlyChecker );
         this.descriptor = descriptor;
         this.samplingConfig = new IndexSamplingConfig( config );
+        this.writerConfigFactory = () -> IndexWriterConfigs.standard( config );
     }
 
     /**
@@ -78,9 +81,9 @@ public class LuceneSchemaIndexBuilder extends AbstractLuceneIndexBuilder<LuceneS
      * @return new LuceneSchemaIndexBuilder
      * @param descriptor The descriptor for this index
      */
-    public static LuceneSchemaIndexBuilder create( SchemaIndexDescriptor descriptor, Config config )
+    public static LuceneSchemaIndexBuilder create( IndexDescriptor descriptor, DatabaseReadOnlyChecker readOnlyChecker, Config config )
     {
-        return new LuceneSchemaIndexBuilder( descriptor, config );
+        return new LuceneSchemaIndexBuilder( descriptor, readOnlyChecker, config );
     }
 
     /**
@@ -101,7 +104,7 @@ public class LuceneSchemaIndexBuilder extends AbstractLuceneIndexBuilder<LuceneS
      * @param writerConfigFactory the supplier of writer configs
      * @return index builder
      */
-    public LuceneSchemaIndexBuilder withWriterConfig( Factory<IndexWriterConfig> writerConfigFactory )
+    public LuceneSchemaIndexBuilder withWriterConfig( Supplier<IndexWriterConfig> writerConfigFactory )
     {
         this.writerConfigFactory = writerConfigFactory;
         return this;
@@ -114,17 +117,8 @@ public class LuceneSchemaIndexBuilder extends AbstractLuceneIndexBuilder<LuceneS
      */
     public SchemaIndex build()
     {
-        if ( isReadOnly() )
-        {
-            return new ReadOnlyDatabaseSchemaIndex( storageBuilder.build(), descriptor, samplingConfig,
-                    new ReadOnlyIndexPartitionFactory() );
-        }
-        else
-        {
-            PartitionedIndexStorage storage = storageBuilder.build();
-            return new WritableDatabaseSchemaIndex( storage, descriptor, samplingConfig,
-                    new WritableIndexPartitionFactory( writerConfigFactory ) );
-        }
+        PartitionedIndexStorage storage = storageBuilder.build();
+        return new WritableDatabaseSchemaIndex( storage, descriptor, samplingConfig, new WritableIndexPartitionFactory( writerConfigFactory ),
+                readOnlyChecker );
     }
-
 }

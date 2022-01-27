@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,6 +38,7 @@
  */
 package org.neo4j.graphalgo;
 
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.traversal.TraversalMetadata;
@@ -45,10 +46,9 @@ import org.neo4j.graphdb.traversal.TraversalMetadata;
 /**
  * Interface of algorithms that finds paths in between two nodes.
  *
- * @author Tobias Ivarsson
- *
  * @param <P> the path type that the algorithm produces
  */
+@PublicApi
 public interface PathFinder<P extends Path>
 {
     /**

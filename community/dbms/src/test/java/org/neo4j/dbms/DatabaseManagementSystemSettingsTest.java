@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,23 +38,22 @@
  */
 package org.neo4j.dbms;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.io.File;
+import java.nio.file.Path;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseInternalSettings;
+import org.neo4j.configuration.GraphDatabaseSettings;
 
-import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class DatabaseManagementSystemSettingsTest
+class DatabaseManagementSystemSettingsTest
 {
     @Test
-    public void shouldPutDatabaseDirectoriesIntoDataDatabases()
+    void shouldPutDatabasesDirectoriesIntoData()
     {
-        Config config = Config.defaults( GraphDatabaseSettings.data_directory, "the-data-directory" );
-        assertThat( config.get( GraphDatabaseSettings.database_path ),
-                equalTo( new File( "the-data-directory/databases/graph.db" ) ) );
+        Config config = Config.defaults( GraphDatabaseSettings.data_directory, Path.of( "the-data-directory" ) );
+        assertThat( config.get( GraphDatabaseInternalSettings.databases_root_path ) ).isEqualTo( Path.of( "the-data-directory/databases/" ).toAbsolutePath() );
     }
 }

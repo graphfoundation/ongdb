@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -48,8 +48,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.ScatteringByteChannel;
 import java.nio.channels.SeekableByteChannel;
 
-public interface StoreChannel
-        extends Flushable, SeekableByteChannel, GatheringByteChannel, ScatteringByteChannel, InterruptibleChannel
+public interface StoreChannel extends Flushable, SeekableByteChannel, GatheringByteChannel, ScatteringByteChannel, InterruptibleChannel
 {
     /**
      * Attempts to acquire an exclusive lock on this channel's file.
@@ -94,4 +93,31 @@ public interface StoreChannel
 
     @Override
     StoreChannel truncate( long size ) throws IOException;
+
+    /**
+     * Get the OS file descriptor for this channel.
+     * @return the file descriptor.
+     */
+    int getFileDescriptor();
+
+    /**
+     * Returns {@code true} if {@link #getPositionLock} returns a valid position lock object.
+     * @return {@code true} if this channel has a valid position lock.
+     */
+    boolean hasPositionLock();
+
+    /**
+     * Return the position lock object for this channel, if any.
+     * This method only returns something meaningful if {@link #hasPositionLock()} returns {@code true}.
+     * The position lock object works by synchronizing on the object.
+     * The file position is guaranteed to not be concurrently modified by other threads in the critical section.
+     * @return The position lock object, if any.
+     */
+    Object getPositionLock();
+
+    /**
+     * Make this channel uninterruptible, if possible.
+     * An uninterruptible channel will not automatically close itself if a calling thread is interrupted before or during an IO operation.
+     */
+    void tryMakeUninterruptible();
 }

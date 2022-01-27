@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -43,9 +43,11 @@ import java.util.Arrays;
 import org.neo4j.values.storable.BufferValueWriter;
 import org.neo4j.values.storable.TextArray;
 import org.neo4j.values.storable.TextValue;
-import org.neo4j.values.virtual.RelationshipValue;
 import org.neo4j.values.virtual.MapValue;
 import org.neo4j.values.virtual.NodeValue;
+import org.neo4j.values.virtual.RelationshipValue;
+import org.neo4j.values.virtual.VirtualNodeValue;
+import org.neo4j.values.virtual.VirtualRelationshipValue;
 
 import static java.lang.String.format;
 
@@ -63,6 +65,7 @@ public class BufferAnyValueWriter extends BufferValueWriter implements AnyValueW
         WriteRelationshipReference,
         EndEdge,
         WritePath,
+        WritePathReference,
         BeginMap,
         WriteKeyId,
         EndMap,
@@ -93,12 +96,6 @@ public class BufferAnyValueWriter extends BufferValueWriter implements AnyValueW
             return 31 * kind.hashCode() + key.hashCode();
         }
 
-        Special( SpecialKind kind, String key )
-        {
-            this.kind = kind;
-            this.key = key;
-        }
-
         Special( SpecialKind kind, int key )
         {
             this.kind = kind;
@@ -113,13 +110,19 @@ public class BufferAnyValueWriter extends BufferValueWriter implements AnyValueW
     }
 
     @Override
+    public EntityMode entityMode()
+    {
+        return EntityMode.FULL;
+    }
+
+    @Override
     public void writeNodeReference( long nodeId )
     {
         buffer.add( Specials.writeNodeReference( nodeId ) );
     }
 
     @Override
-    public void writeNode( long nodeId, TextArray labels, MapValue properties ) throws RuntimeException
+    public void writeNode( long nodeId, TextArray labels, MapValue properties, boolean ignored ) throws RuntimeException
     {
         buffer.add( Specials.writeNode( nodeId, labels, properties ) );
     }
@@ -131,7 +134,7 @@ public class BufferAnyValueWriter extends BufferValueWriter implements AnyValueW
     }
 
     @Override
-    public void writeRelationship( long relId, long startNodeId, long endNodeId, TextValue type, MapValue properties )
+    public void writeRelationship( long relId, long startNodeId, long endNodeId, TextValue type, MapValue properties, boolean ignored )
             throws RuntimeException
     {
         buffer.add( Specials.writeRelationship( relId, startNodeId, endNodeId, type, properties ) );
@@ -167,7 +170,12 @@ public class BufferAnyValueWriter extends BufferValueWriter implements AnyValueW
         buffer.add( Specials.writePath( nodes, relationships ) );
     }
 
-    @SuppressWarnings( "WeakerAccess" )
+    @Override
+    public void writePathReference( long[] nodes, long[] relationships ) throws RuntimeException
+    {
+        buffer.add( Specials.writePathReference( nodes, relationships ) );
+    }
+
     public static class Specials
     {
 
@@ -184,9 +192,14 @@ public class BufferAnyValueWriter extends BufferValueWriter implements AnyValueW
                     Arrays.hashCode( new Object[]{edgeId, startNodeId, endNodeId, type, properties} ) );
         }
 
-        public static Special writePath( NodeValue[] nodes, RelationshipValue[] edges )
+        public static Special writePath( VirtualNodeValue[] nodes, VirtualRelationshipValue[] edges )
         {
             return new Special( SpecialKind.WritePath, Arrays.hashCode( nodes ) + 31 * Arrays.hashCode( edges ) );
+        }
+
+        public static Special writePathReference( long[] nodes, long[] edges )
+        {
+            return new Special( SpecialKind.WritePathReference, Arrays.hashCode( nodes ) + 31 * Arrays.hashCode( edges ) );
         }
 
         public static Special writeNodeReference( long nodeId )

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,14 +38,14 @@
  */
 package org.neo4j.values.storable;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 import static java.util.Collections.singletonList;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.neo4j.values.storable.DateValue.date;
 import static org.neo4j.values.storable.LocalDateTimeValue.localDateTime;
 import static org.neo4j.values.storable.LocalDateTimeValue.parse;
@@ -53,10 +53,10 @@ import static org.neo4j.values.storable.LocalTimeValue.localTime;
 import static org.neo4j.values.utils.AnyValueTestUtil.assertEqual;
 import static org.neo4j.values.utils.AnyValueTestUtil.assertNotEqual;
 
-public class LocalDateTimeValueTest
+class LocalDateTimeValueTest
 {
     @Test
-    public void shouldParseDate()
+    void shouldParseDate()
     {
         assertEquals(
                 localDateTime( date( 2017, 12, 17 ), localTime( 17, 14, 35, 123456789 ) ),
@@ -64,7 +64,7 @@ public class LocalDateTimeValueTest
     }
 
     @Test
-    public void shouldWriteDateTime()
+    void shouldWriteDateTime()
     {
         // given
         for ( LocalDateTimeValue value : new LocalDateTimeValue[] {
@@ -95,13 +95,13 @@ public class LocalDateTimeValueTest
     }
 
     @Test
-    public void shouldEqualItself()
+    void shouldEqualItself()
     {
         assertEqual( localDateTime( 2018, 1, 31, 10, 52, 5, 6 ), localDateTime( 2018, 1, 31, 10, 52, 5, 6 ) );
     }
 
     @Test
-    public void shouldNotEqualOther()
+    void shouldNotEqualOther()
     {
         assertNotEqual( localDateTime( 2018, 1, 31, 10, 52, 5, 6 ), localDateTime( 2018, 1, 31, 10, 52, 5, 7 ) );
     }

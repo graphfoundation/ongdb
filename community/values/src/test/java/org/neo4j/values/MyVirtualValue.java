@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,8 +42,12 @@ import java.util.Comparator;
 
 import org.neo4j.values.virtual.VirtualValueGroup;
 
+import static org.neo4j.memory.HeapEstimator.shallowSizeOfInstance;
+
 public class MyVirtualValue extends VirtualValue
 {
+    private static final long SHALLOW_SIZE = shallowSizeOfInstance( MyVirtualValue.class );
+
     private final int hashCode;
 
     MyVirtualValue( int hashCode )
@@ -64,13 +68,19 @@ public class MyVirtualValue extends VirtualValue
     }
 
     @Override
-    public int compareTo( VirtualValue other, Comparator<AnyValue> comparator )
+    public int unsafeCompareTo( VirtualValue other, Comparator<AnyValue> comparator )
     {
         return 0;
     }
 
     @Override
-    public int computeHash()
+    public Comparison unsafeTernaryCompareTo( VirtualValue other, TernaryComparator<AnyValue> comparator )
+    {
+        return Comparison.EQUAL;
+    }
+
+    @Override
+    protected final int computeHashToMemoize()
     {
         return hashCode;
     }
@@ -90,5 +100,11 @@ public class MyVirtualValue extends VirtualValue
     @Override
     public void writeTo( AnyValueWriter writer )
     {
+    }
+
+    @Override
+    public long estimatedHeapUsage()
+    {
+        return SHALLOW_SIZE;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -54,8 +54,8 @@ import static java.lang.String.format;
 import static java.lang.System.currentTimeMillis;
 import static java.lang.System.lineSeparator;
 import static java.lang.System.nanoTime;
-import static org.neo4j.helpers.Exceptions.stringify;
-import static org.neo4j.helpers.Format.duration;
+import static org.neo4j.internal.helpers.Exceptions.stringify;
+import static org.neo4j.internal.helpers.Format.duration;
 
 public class DebugUtil
 {
@@ -79,6 +79,14 @@ public class DebugUtil
             String message = "[" + threadName + groupPart + "] " + String.format( fmt, args );
             TraceLog traceLog = new TraceLog( message );
             printLimitedStackTrace( System.err, traceLog, skip, limit );
+        }
+    }
+
+    private static class TraceLog extends Exception
+    {
+        TraceLog( String message )
+        {
+            super( message );
         }
     }
 
@@ -125,12 +133,14 @@ public class DebugUtil
         PrintWriter writer = new PrintWriter( stringWriter );
         try
         {
-            BufferedReader reader = new BufferedReader( new StringReader( string ) );
-            String line = null;
-            for ( int count = 0; ( line = reader.readLine() ) != null && count < maxNumberOfLines;
-                    count++ )
+            try ( BufferedReader reader = new BufferedReader( new StringReader( string ) ) )
             {
-                writer.println( line );
+                String line;
+                for ( int count = 0; (line = reader.readLine()) != null && count < maxNumberOfLines;
+                      count++ )
+                {
+                    writer.println( line );
+                }
             }
             writer.close();
             return stringWriter.getBuffer().toString();
@@ -315,7 +325,7 @@ public class DebugUtil
                     .append( message != null ? message : "" );
             for ( StackTraceElement element : elements )
             {
-                builder.append( format( "%n" ) ).append( "    at " ).append( element.toString() );
+                builder.append( format( "%n" ) ).append( "    at " ).append( element );
             }
             return builder.toString();
         }

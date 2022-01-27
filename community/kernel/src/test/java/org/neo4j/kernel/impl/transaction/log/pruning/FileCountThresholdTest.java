@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,24 +38,24 @@
  */
 package org.neo4j.kernel.impl.transaction.log.pruning;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.io.File;
+import java.nio.file.Path;
 
 import org.neo4j.kernel.impl.transaction.log.LogFileInformation;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
-public class FileCountThresholdTest
+class FileCountThresholdTest
 {
-    private final File file = mock( File.class );
+    private final Path file = mock( Path.class );
     private final long version = 1L;
     private final LogFileInformation source = mock( LogFileInformation.class );
 
     @Test
-    public void shouldReturnFalseWhenTheMaxNonEmptyLogCountIsNotReached()
+    void shouldReturnFalseWhenTheMaxNonEmptyLogCountIsNotReached()
     {
         // given
         final int maxNonEmptyLogCount = 2;
@@ -70,7 +70,7 @@ public class FileCountThresholdTest
     }
 
     @Test
-    public void shouldReturnTrueWhenTheMaxNonEmptyLogCountIsReached()
+    void shouldReturnTrueWhenTheMaxNonEmptyLogCountIsReached()
     {
         // given
         final int maxNonEmptyLogCount = 2;
@@ -86,7 +86,7 @@ public class FileCountThresholdTest
     }
 
     @Test
-    public void shouldResetTheCounterWhenInitIsCalled()
+    void shouldResetTheCounterWhenInitIsCalled()
     {
         // given
         final int maxNonEmptyLogCount = 2;

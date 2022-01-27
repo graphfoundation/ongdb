@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -60,9 +60,9 @@ public class Envelope
      */
     public Envelope( double[] min, double[] max )
     {
-        this.min = min.clone();
-        this.max = max.clone();
-        if ( !isValid() )
+        this.min = Arrays.copyOf( min, min.length );
+        this.max = Arrays.copyOf( max, max.length );
+        if ( !isValid( min, max ) )
         {
             throw new IllegalArgumentException( "Invalid envelope created " + toString() );
         }
@@ -338,7 +338,7 @@ public class Envelope
         return ans;
     }
 
-    private boolean isValid()
+    private static boolean isValid( double[] min, double[] max )
     {
         boolean valid = min != null && max != null && min.length == max.length;
         for ( int i = 0; valid && i < min.length; i++ )
@@ -367,17 +367,17 @@ public class Envelope
             {
                 if ( sb.length() > 0 )
                 {
-                    sb.append( "," );
+                    sb.append( ',' );
                 }
                 else
                 {
-                    sb.append( "(" );
+                    sb.append( '(' );
                 }
                 sb.append( val );
             }
             if ( sb.length() > 0 )
             {
-                sb.append( ")" );
+                sb.append( ')' );
             }
         }
         return sb.toString();

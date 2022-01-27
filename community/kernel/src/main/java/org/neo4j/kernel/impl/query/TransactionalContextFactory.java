@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,15 +38,13 @@
  */
 package org.neo4j.kernel.impl.query;
 
+import org.neo4j.kernel.api.query.ExecutingQuery;
 import org.neo4j.kernel.impl.coreapi.InternalTransaction;
-import org.neo4j.kernel.impl.query.clientconnection.ClientConnectionInfo;
 import org.neo4j.values.virtual.MapValue;
 
 public interface TransactionalContextFactory
 {
-    TransactionalContext newContext( ClientConnectionInfo descriptor,
-                  InternalTransaction tx,
-                  String queryText,
-                  MapValue queryParameters
-    );
+    TransactionalContext newContext( InternalTransaction tx, String queryText, MapValue queryParameters );
+
+    TransactionalContext newContextForQuery( InternalTransaction tx, ExecutingQuery executingQuery );
 }

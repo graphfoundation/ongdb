@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,65 +38,63 @@
  */
 package org.neo4j.kernel.impl.transaction;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import org.neo4j.kernel.impl.store.record.NodeRecord;
-import org.neo4j.kernel.impl.transaction.command.Command;
+import org.neo4j.kernel.impl.api.TestCommand;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.PhysicalTransactionCursor;
 import org.neo4j.kernel.impl.transaction.log.PhysicalTransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.log.ReadableLogChannel;
-import org.neo4j.kernel.impl.transaction.log.entry.CheckPoint;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntry;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryCommand;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryCommit;
+import org.neo4j.kernel.impl.transaction.log.entry.LogEntryInlinedCheckPoint;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryStart;
 
 import static java.util.Collections.singletonList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.RETURNS_MOCKS;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.neo4j.storageengine.api.TransactionIdStore.BASE_TX_CHECKSUM;
 
-public class PhysicalTransactionCursorTest
+class PhysicalTransactionCursorTest
 {
     private final ReadableLogChannel channel = mock( ReadableLogChannel.class, RETURNS_MOCKS );
-    private final LogEntryReader<ReadableLogChannel> entryReader = mock( LogEntryReader.class );
+    private final LogEntryReader entryReader = mock( LogEntryReader.class );
 
     private static final LogEntry NULL_ENTRY = null;
-    private static final CheckPoint A_CHECK_POINT_ENTRY = new CheckPoint( LogPosition.UNSPECIFIED );
-    private static final LogEntryStart A_START_ENTRY = new LogEntryStart( 0, 0, 0L, 0L, null, LogPosition.UNSPECIFIED );
-    private static final LogEntryCommit A_COMMIT_ENTRY = new LogEntryCommit( 42, 0 );
-    private static final LogEntryCommand A_COMMAND_ENTRY = new LogEntryCommand(
-            new Command.NodeCommand( new NodeRecord( 42 ), new NodeRecord( 42 ) ) );
-    private PhysicalTransactionCursor<ReadableLogChannel> cursor;
+    private static final LogEntryInlinedCheckPoint A_CHECK_POINT_ENTRY = new LogEntryInlinedCheckPoint( LogPosition.UNSPECIFIED );
+    private static final LogEntryStart A_START_ENTRY = new LogEntryStart( 0L, 0L, 0, null, LogPosition.UNSPECIFIED );
+    private static final LogEntryCommit A_COMMIT_ENTRY = new LogEntryCommit( 42, 0, BASE_TX_CHECKSUM );
+    private static final LogEntryCommand A_COMMAND_ENTRY = new LogEntryCommand( new TestCommand() );
+    private PhysicalTransactionCursor cursor;
 
-    @Before
-    public void setup() throws IOException
+    @BeforeEach
+    void setup() throws IOException
     {
-        cursor = new PhysicalTransactionCursor<>( channel, entryReader );
+        cursor = new PhysicalTransactionCursor( channel, entryReader );
     }
 
     @Test
-    public void shouldCloseTheUnderlyingChannel() throws IOException
+    void shouldCloseTheUnderlyingChannel() throws IOException
     {
         // when
         cursor.close();
 
         // then
-        verify( channel, times( 1 ) ).close();
+        verify( channel ).close();
     }
 
     @Test
-    public void shouldReturnFalseWhenThereAreNoEntries() throws IOException
+    void shouldReturnFalseWhenThereAreNoEntries() throws IOException
     {
         // given
         when( entryReader.readLogEntry( channel ) ).thenReturn( NULL_ENTRY );
@@ -110,7 +108,7 @@ public class PhysicalTransactionCursorTest
     }
 
     @Test
-    public void shouldReturnFalseWhenThereIsAStartEntryButNoCommitEntries() throws IOException
+    void shouldReturnFalseWhenThereIsAStartEntryButNoCommitEntries() throws IOException
     {
         // given
         when( entryReader.readLogEntry( channel ) ).thenReturn( A_START_ENTRY, NULL_ENTRY );
@@ -124,7 +122,7 @@ public class PhysicalTransactionCursorTest
     }
 
     @Test
-    public void shouldCallTheVisitorWithTheFoundTransaction() throws IOException
+    void shouldCallTheVisitorWithTheFoundTransaction() throws IOException
     {
         // given
         when( entryReader.readLogEntry( channel ) ).thenReturn( A_START_ENTRY, A_COMMAND_ENTRY, A_COMMIT_ENTRY );
@@ -142,7 +140,7 @@ public class PhysicalTransactionCursorTest
     }
 
     @Test
-    public void shouldSkipCheckPoints() throws IOException
+    void shouldSkipCheckPoints() throws IOException
     {
         // given
         when( entryReader.readLogEntry( channel ) ).thenReturn(

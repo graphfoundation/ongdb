@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,22 +38,22 @@
  */
 package org.neo4j.kernel.impl.transaction.log;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.kernel.impl.transaction.CommittedTransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.log.reverse.EagerlyReversedTransactionCursor;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
-import static org.neo4j.helpers.collection.Iterators.array;
+import static org.neo4j.internal.helpers.collection.Iterators.array;
 import static org.neo4j.kernel.impl.transaction.log.GivenTransactionCursor.exhaust;
 import static org.neo4j.kernel.impl.transaction.log.GivenTransactionCursor.given;
 
-public class EagerlyReversedTransactionCursorTest
+class EagerlyReversedTransactionCursorTest
 {
     @Test
-    public void shouldReverseTransactionsFromSource() throws Exception
+    void shouldReverseTransactionsFromSource() throws Exception
     {
         // GIVEN
         CommittedTransactionRepresentation tx1 = mock( CommittedTransactionRepresentation.class );
@@ -70,7 +70,7 @@ public class EagerlyReversedTransactionCursorTest
     }
 
     @Test
-    public void shouldHandleEmptySource() throws Exception
+    void shouldHandleEmptySource() throws Exception
     {
         // GIVEN
         TransactionCursor source = given();

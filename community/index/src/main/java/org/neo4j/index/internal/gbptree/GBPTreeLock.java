@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,23 +38,39 @@
  */
 package org.neo4j.index.internal.gbptree;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
-import org.neo4j.unsafe.impl.internal.dragons.UnsafeUtil;
+import org.neo4j.util.VisibleForTesting;
 
 class GBPTreeLock
 {
-    private static final long stateOffset = UnsafeUtil.getFieldOffset( GBPTreeLock.class, "state" );
     private static final long writerLockBit = 0x00000000_00000001L;
     private static final long cleanerLockBit = 0x00000000_00000002L;
-    private volatile long state;
+    @SuppressWarnings( "unused" ) // accessed via VarHandle
+    private long state;
+    private static final VarHandle STATE;
+
+    static
+    {
+        try
+        {
+            MethodHandles.Lookup l = MethodHandles.lookup();
+            STATE = l.findVarHandle( GBPTreeLock.class, "state", long.class );
+        }
+        catch ( ReflectiveOperationException e )
+        {
+            throw new ExceptionInInitializerError( e );
+        }
+    }
 
     // Used for testing
     GBPTreeLock copy()
     {
         GBPTreeLock copy = new GBPTreeLock();
-        copy.state = state;
+        STATE.setVolatile( copy, (long) STATE.getVolatile( this ) );
         return copy;
     }
 
@@ -94,15 +110,15 @@ class GBPTreeLock
         long newState;
         do
         {
-            currentState = state;
+            currentState = (long) STATE.getVolatile( this );
             while ( !canLock( currentState, targetLockBit ) )
             {
                 // sleep
                 sleep();
-                currentState = state;
+                currentState = (long) STATE.getVolatile( this );
             }
             newState = currentState | targetLockBit;
-        } while ( !UnsafeUtil.compareAndSwapLong( this, stateOffset, currentState, newState ) );
+        } while ( !STATE.weakCompareAndSet( this, currentState, newState ) );
     }
 
     private void doUnlock( long targetLockBit )
@@ -111,28 +127,37 @@ class GBPTreeLock
         long newState;
         do
         {
-            currentState = state;
+            currentState = (long) STATE.getVolatile( this );
             if ( !canUnlock( currentState, targetLockBit) )
             {
                 throw new IllegalStateException( "Can not unlock lock that is already locked" );
             }
             newState = currentState & ~targetLockBit;
         }
-        while ( !UnsafeUtil.compareAndSwapLong( this, stateOffset, currentState, newState ) );
+        while ( !STATE.weakCompareAndSet( this, currentState, newState ) );
     }
 
-    private boolean canLock( long state, long targetLockBit )
+    private static boolean canLock( long state, long targetLockBit )
     {
         return (state & targetLockBit) == 0;
     }
 
-    private boolean canUnlock( long state, long targetLockBit )
+    private static boolean canUnlock( long state, long targetLockBit )
     {
         return (state & targetLockBit) == targetLockBit;
     }
 
-    private void sleep()
+    private static void sleep()
     {
         LockSupport.parkNanos( TimeUnit.MILLISECONDS.toNanos( 10 ) );
+    }
+
+    /**
+     * Force reset the lock state, to avoid threads getting stuck in tests.
+     */
+    @VisibleForTesting
+    void forceUnlock()
+    {
+        STATE.setVolatile( this, 0 );
     }
 }

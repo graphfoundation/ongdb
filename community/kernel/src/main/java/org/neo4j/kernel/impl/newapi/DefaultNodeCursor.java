@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,253 +38,401 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
-import java.util.Iterator;
-import java.util.Set;
+import org.eclipse.collections.api.iterator.IntIterator;
+import org.eclipse.collections.api.iterator.LongIterator;
+import org.eclipse.collections.api.set.primitive.MutableIntSet;
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+import org.eclipse.collections.impl.factory.primitive.IntSets;
+import org.eclipse.collections.impl.iterator.ImmutableEmptyLongIterator;
+import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
 
-import org.neo4j.collection.primitive.Primitive;
-import org.neo4j.collection.primitive.PrimitiveIntSet;
-import org.neo4j.internal.kernel.api.LabelSet;
+import org.neo4j.collection.PrimitiveLongCollections;
 import org.neo4j.internal.kernel.api.NodeCursor;
 import org.neo4j.internal.kernel.api.PropertyCursor;
-import org.neo4j.internal.kernel.api.RelationshipGroupCursor;
 import org.neo4j.internal.kernel.api.RelationshipTraversalCursor;
-import org.neo4j.io.pagecache.PageCursor;
+import org.neo4j.internal.kernel.api.TokenSet;
+import org.neo4j.internal.kernel.api.security.AccessMode;
+import org.neo4j.io.IOUtils;
 import org.neo4j.kernel.api.txstate.TransactionState;
-import org.neo4j.kernel.impl.store.NodeLabelsField;
-import org.neo4j.kernel.impl.store.RecordCursor;
-import org.neo4j.kernel.impl.store.record.DynamicRecord;
-import org.neo4j.kernel.impl.store.record.NodeRecord;
-import org.neo4j.storageengine.api.StorageProperty;
+import org.neo4j.storageengine.api.AllNodeScan;
+import org.neo4j.storageengine.api.Degrees;
+import org.neo4j.storageengine.api.PropertySelection;
+import org.neo4j.storageengine.api.Reference;
+import org.neo4j.storageengine.api.RelationshipDirection;
+import org.neo4j.storageengine.api.RelationshipSelection;
+import org.neo4j.storageengine.api.StorageNodeCursor;
+import org.neo4j.storageengine.api.StorageRelationshipTraversalCursor;
+import org.neo4j.storageengine.api.txstate.LongDiffSets;
 import org.neo4j.storageengine.api.txstate.NodeState;
+import org.neo4j.storageengine.util.EagerDegrees;
+import org.neo4j.storageengine.util.SingleDegree;
 
-import static java.util.Collections.emptySet;
+import static org.neo4j.kernel.impl.newapi.Read.NO_ID;
+import static org.neo4j.storageengine.api.LongReference.NULL_REFERENCE;
 
-class DefaultNodeCursor extends NodeRecord implements NodeCursor
+class DefaultNodeCursor extends TraceableCursor<DefaultNodeCursor> implements NodeCursor
 {
-    private Read read;
-    private RecordCursor<DynamicRecord> labelCursor;
-    private PageCursor pageCursor;
-    private long next;
-    private long highMark;
-    private HasChanges hasChanges = HasChanges.MAYBE;
-    private Set<Long> addedNodes;
-    private PropertyCursor propertyCursor;
+    Read read;
+    boolean checkHasChanges;
+    boolean hasChanges;
+    private LongIterator addedNodes;
+    StorageNodeCursor storeCursor;
+    private final StorageNodeCursor securityStoreNodeCursor;
+    private final StorageRelationshipTraversalCursor securityStoreRelationshipCursor;
+    private long currentAddedInTx;
+    private long single;
+    private boolean isSingle;
+    private AccessMode accessMode;
 
-    private final DefaultCursors pool;
-
-    DefaultNodeCursor( DefaultCursors pool )
+    DefaultNodeCursor( CursorPool<DefaultNodeCursor> pool, StorageNodeCursor storeCursor, StorageNodeCursor securityStoreNodeCursor,
+            StorageRelationshipTraversalCursor securityStoreRelationshipCursor )
     {
-        super( NO_ID );
-        this.pool = pool;
+        super( pool );
+        this.storeCursor = storeCursor;
+        this.securityStoreNodeCursor = securityStoreNodeCursor;
+        this.securityStoreRelationshipCursor = securityStoreRelationshipCursor;
     }
 
     void scan( Read read )
     {
-        if ( getId() != NO_ID )
-        {
-            reset();
-        }
-        if ( pageCursor == null )
-        {
-            pageCursor = read.nodePage( 0 );
-        }
-        this.next = 0;
-        this.highMark = read.nodeHighMark();
+        storeCursor.scan();
         this.read = read;
-        this.hasChanges = HasChanges.MAYBE;
-        this.addedNodes = emptySet();
+        this.isSingle = false;
+        this.currentAddedInTx = NO_ID;
+        this.checkHasChanges = true;
+        this.addedNodes = ImmutableEmptyLongIterator.INSTANCE;
+        this.accessMode = read.ktx.securityContext().mode();
+        if ( tracer != null )
+        {
+            tracer.onAllNodesScan();
+        }
+    }
+
+    boolean scanBatch( Read read, AllNodeScan scan, int sizeHint, LongIterator addedNodes, boolean hasChanges, AccessMode accessMode )
+    {
+        this.read = read;
+        this.isSingle = false;
+        this.currentAddedInTx = NO_ID;
+        this.checkHasChanges = false;
+        this.hasChanges = hasChanges;
+        this.addedNodes = addedNodes;
+        this.accessMode = accessMode;
+        boolean scanBatch = storeCursor.scanBatch( scan, sizeHint );
+        return addedNodes.hasNext() || scanBatch;
     }
 
     void single( long reference, Read read )
     {
-        if ( getId() != NO_ID )
-        {
-            reset();
-        }
-        if ( pageCursor == null )
-        {
-            pageCursor = read.nodePage( reference );
-        }
-        this.next = reference >= 0 ? reference : NO_ID;
-        //This marks the cursor as a "single cursor"
-        this.highMark = NO_ID;
+        storeCursor.single( reference );
         this.read = read;
-        this.hasChanges = HasChanges.MAYBE;
-        this.addedNodes = emptySet();
+        this.single = reference;
+        this.isSingle = true;
+        this.currentAddedInTx = NO_ID;
+        this.checkHasChanges = true;
+        this.accessMode = read.ktx.securityContext().mode();
+        this.addedNodes = ImmutableEmptyLongIterator.INSTANCE;
+    }
+
+    protected boolean currentNodeIsAddedInTx()
+    {
+        return currentAddedInTx != NO_ID;
     }
 
     @Override
     public long nodeReference()
     {
-        return getId();
+        if ( currentAddedInTx != NO_ID )
+        {
+            // Special case where the most recent next() call selected a node that exists only in tx-state.
+            // Internal methods getting data about this node will also check tx-state and get the data from there.
+            return currentAddedInTx;
+        }
+        return storeCursor.entityReference();
     }
 
     @Override
-    public LabelSet labels()
+    public TokenSet labels()
     {
-        if ( hasChanges() )
+        if ( currentAddedInTx != NO_ID )
         {
+            //Node added in tx-state, no reason to go down to store and check
             TransactionState txState = read.txState();
-            if ( txState.nodeIsAddedInThisTx( getId() ) )
+            return Labels.from( txState.nodeStateLabelDiffSets( currentAddedInTx ).getAdded() );
+        }
+        else if ( hasChanges() )
+        {
+            //Get labels from store and put in intSet, unfortunately we get longs back
+            TransactionState txState = read.txState();
+            long[] longs = storeCursor.labels();
+            final MutableLongSet labels = new LongHashSet();
+            for ( long labelToken : longs )
             {
-                //Node just added, no reason to go down to store and check
-                return Labels.from( txState.nodeStateLabelDiffSets( getId() ).getAdded() );
+                labels.add( labelToken );
             }
-            else
-            {
-                //Get labels from store and put in intSet, unfortunately we get longs back
-                long[] longs = NodeLabelsField.get( this, labelCursor() );
-                PrimitiveIntSet labels = Primitive.intSet();
-                for ( long labelToken : longs )
-                {
-                    labels.add( (int) labelToken );
-                }
 
-                //Augment what was found in store with what we have in tx state
-                return Labels.from( txState.augmentLabels( labels, txState.getNodeState( getId() ) ) );
-            }
+            //Augment what was found in store with what we have in tx state
+            return Labels.from( txState.augmentLabels( labels, txState.getNodeState( storeCursor.entityReference() ) ) );
         }
         else
         {
             //Nothing in tx state, just read the data.
-            return Labels.from( NodeLabelsField.get( this, labelCursor()) );
+            return Labels.from( storeCursor.labels() );
         }
     }
 
+    /**
+     * The normal labels() method takes into account TxState for both created nodes and set/remove labels.
+     * Some code paths need to consider created, but not changed labels.
+     */
     @Override
-    public boolean hasProperties()
+    public TokenSet labelsIgnoringTxStateSetRemove()
     {
-        if ( read.hasTxStateWithChanges() )
+        if ( currentAddedInTx != NO_ID )
         {
-            PropertyCursor cursor = propertyCursor();
-            properties( cursor );
-            return cursor.next();
+            //Node added in tx-state, no reason to go down to store and check
+            TransactionState txState = read.txState();
+            return Labels.from( txState.nodeStateLabelDiffSets( currentAddedInTx ).getAdded() );
         }
         else
         {
-            return nextProp != NO_ID;
+            //Nothing in tx state, just read the data.
+            return Labels.from( storeCursor.labels() );
         }
     }
 
     @Override
-    public void relationships( RelationshipGroupCursor cursor )
+    public boolean hasLabel( int label )
     {
-        read.relationshipGroups( getId(), relationshipGroupReference(), cursor );
+        if ( hasChanges() )
+        {
+            TransactionState txState = read.txState();
+            LongDiffSets diffSets = txState.nodeStateLabelDiffSets( nodeReference() );
+            if ( diffSets.getAdded().contains( label ) )
+            {
+                return true;
+            }
+            if ( diffSets.getRemoved().contains( label ) || currentAddedInTx != NO_ID )
+            {
+                return false;
+            }
+        }
+
+        //Get labels from store and put in intSet, unfortunately we get longs back
+        return storeCursor.hasLabel( label );
     }
 
     @Override
-    public void allRelationships( RelationshipTraversalCursor cursor )
+    public void relationships( RelationshipTraversalCursor cursor, RelationshipSelection selection )
     {
-        read.relationships( getId(), allRelationshipsReference(), cursor );
+        ((DefaultRelationshipTraversalCursor) cursor).init( this, selection, read );
     }
 
     @Override
-    public void properties( PropertyCursor cursor )
+    public boolean supportsFastRelationshipsTo()
     {
-        read.nodeProperties( getId(), propertiesReference(), cursor );
+        return currentAddedInTx == NO_ID && storeCursor.supportsFastRelationshipsTo();
     }
 
     @Override
-    public long relationshipGroupReference()
+    public void relationshipsTo( RelationshipTraversalCursor relationships, RelationshipSelection selection, long neighbourNodeReference )
     {
-        return isDense() ? getNextRel() : GroupReferenceEncoding.encodeRelationship( getNextRel() );
+        ((DefaultRelationshipTraversalCursor) relationships).init( this, selection, neighbourNodeReference, read );
     }
 
     @Override
-    public long allRelationshipsReference()
+    public void properties( PropertyCursor cursor, PropertySelection selection )
     {
-        return isDense() ? RelationshipReferenceEncoding.encodeGroup( getNextRel() ) : getNextRel();
+        ((DefaultPropertyCursor) cursor).initNode( this, selection, read, read );
     }
 
     @Override
-    public long propertiesReference()
+    public long relationshipsReference()
     {
-        return getNextProp();
+        return currentAddedInTx != NO_ID ? NO_ID : storeCursor.relationshipsReference();
+    }
+
+    @Override
+    public Reference propertiesReference()
+    {
+        return currentAddedInTx != NO_ID ? NULL_REFERENCE : storeCursor.propertiesReference();
+    }
+
+    @Override
+    public boolean supportsFastDegreeLookup()
+    {
+        return currentAddedInTx == NO_ID && storeCursor.supportsFastDegreeLookup();
+    }
+
+    @Override
+    public int[] relationshipTypes()
+    {
+        boolean hasChanges = hasChanges();
+        NodeState nodeTxState = hasChanges ? read.txState().getNodeState( nodeReference() ) : null;
+        int[] storedTypes = currentAddedInTx == NO_ID ? storeCursor.relationshipTypes() : null;
+        MutableIntSet types = storedTypes != null ? IntSets.mutable.of( storedTypes ) : IntSets.mutable.empty();
+        if ( nodeTxState != null )
+        {
+            types.addAll( nodeTxState.getAddedRelationshipTypes() );
+        }
+        return types.toArray();
+    }
+
+    @Override
+    public Degrees degrees( RelationshipSelection selection )
+    {
+        EagerDegrees degrees = new EagerDegrees();
+        fillDegrees( selection, degrees );
+        return degrees;
+    }
+
+    @Override
+    public int degree( RelationshipSelection selection )
+    {
+        SingleDegree degrees = new SingleDegree();
+        fillDegrees( selection, degrees );
+        return degrees.getTotal();
+    }
+
+    @Override
+    public int degreeWithMax( int maxDegree, RelationshipSelection selection )
+    {
+        SingleDegree degrees = new SingleDegree( maxDegree );
+        fillDegrees( selection, degrees );
+        return Math.min(degrees.getTotal(), maxDegree);
+    }
+
+    private void fillDegrees( RelationshipSelection selection, Degrees.Mutator degrees )
+    {
+        boolean hasChanges = hasChanges();
+        NodeState nodeTxState = hasChanges ? read.txState().getNodeState( nodeReference() ) : null;
+        if ( currentAddedInTx == NO_ID )
+        {
+            if ( allowsTraverseAll() )
+            {
+                storeCursor.degrees( selection, degrees );
+            }
+            else
+            {
+                readRestrictedDegrees( selection, degrees );
+            }
+        }
+        if ( nodeTxState != null )
+        {
+            // Then add the remaining types that's only present in the tx-state
+            IntIterator txTypes = nodeTxState.getAddedAndRemovedRelationshipTypes().intIterator();
+            while ( txTypes.hasNext() )
+            {
+                int type = txTypes.next();
+                if ( selection.test( type ) )
+                {
+                    int outgoing = selection.test( RelationshipDirection.OUTGOING ) ? nodeTxState.augmentDegree( RelationshipDirection.OUTGOING, 0, type ) : 0;
+                    int incoming = selection.test( RelationshipDirection.INCOMING ) ? nodeTxState.augmentDegree( RelationshipDirection.INCOMING, 0, type ) : 0;
+                    int loop = selection.test( RelationshipDirection.LOOP ) ? nodeTxState.augmentDegree( RelationshipDirection.LOOP, 0, type ) : 0;
+                    if ( !degrees.add( type, outgoing, incoming, loop ) )
+                    {
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    private void readRestrictedDegrees( RelationshipSelection selection, Degrees.Mutator degrees )
+    {
+        //When we read degrees limited by security we need to traverse all relationships and check the "other side" if we can add it
+        storeCursor.relationships( securityStoreRelationshipCursor, selection );
+        while ( securityStoreRelationshipCursor.next() )
+        {
+            int type = securityStoreRelationshipCursor.type();
+            if ( accessMode.allowsTraverseRelType( type ) )
+            {
+                long source = securityStoreRelationshipCursor.sourceNodeReference();
+                long target = securityStoreRelationshipCursor.targetNodeReference();
+                boolean loop = source == target;
+                boolean outgoing = !loop && source == nodeReference();
+                boolean incoming = !loop && !outgoing;
+                if ( !loop )
+                { //No need to check labels for loops. We already know we are allowed since we have the node loaded in this cursor
+                    securityStoreNodeCursor.single( outgoing ? target : source );
+                    if ( !securityStoreNodeCursor.next() || !accessMode.allowsTraverseNode( securityStoreNodeCursor.labels() ) )
+                    {
+                        continue;
+                    }
+                }
+                degrees.add( type, outgoing ? 1 : 0, incoming ? 1 : 0, loop ? 1 : 0 );
+            }
+        }
     }
 
     @Override
     public boolean next()
     {
-        if ( next == NO_ID )
-        {
-            reset();
-            return false;
-        }
-
         // Check tx state
         boolean hasChanges = hasChanges();
-        TransactionState txs = hasChanges ? read.txState() : null;
 
-        do
+        if ( hasChanges )
         {
-            if ( hasChanges && containsNode( txs ) )
+            if ( addedNodes.hasNext() )
             {
-                setId( next++ );
-                setInUse( true );
-            }
-            else if ( hasChanges && txs.nodeIsDeletedInThisTx( next ) )
-            {
-                next++;
-                setInUse( false );
+                currentAddedInTx = addedNodes.next();
+                if ( tracer != null )
+                {
+                    tracer.onNode( nodeReference() );
+                }
+                return true;
             }
             else
             {
-                read.node( this, next++, pageCursor );
-            }
-
-            if ( next > highMark )
-            {
-                if ( isSingle() )
-                {
-                    //we are a "single cursor"
-                    next = NO_ID;
-                    return inUse();
-                }
-                else
-                {
-                    //we are a "scan cursor"
-                    //Check if there is a new high mark
-                    highMark = read.nodeHighMark();
-                    if ( next > highMark )
-                    {
-                        next = NO_ID;
-                        return inUse();
-                    }
-                }
-            }
-            else if ( next < 0 )
-            {
-                //no more longs out there...
-                next = NO_ID;
-                return inUse();
+                currentAddedInTx = NO_ID;
             }
         }
-        while ( !inUse() );
-        return true;
+
+        while ( storeCursor.next() )
+        {
+            boolean skip = hasChanges && read.txState().nodeIsDeletedInThisTx( storeCursor.entityReference() );
+            if ( !skip && allowsTraverse() )
+            {
+                if ( tracer != null )
+                {
+                    tracer.onNode( nodeReference() );
+                }
+                return true;
+            }
+        }
+        return false;
     }
 
-    private boolean containsNode( TransactionState txs )
+    boolean allowsTraverse()
     {
-        return isSingle() ? txs.nodeIsAddedInThisTx( next ) : addedNodes.contains( next );
+        return accessMode.allowsTraverseAllLabels() || accessMode.allowsTraverseNode( storeCursor.labels() );
+    }
+
+    boolean allowsTraverseAll()
+    {
+        return accessMode.allowsTraverseAllRelTypes() && accessMode.allowsTraverseAllLabels();
     }
 
     @Override
-    public void close()
+    public void closeInternal()
     {
         if ( !isClosed() )
         {
             read = null;
-            hasChanges = HasChanges.MAYBE;
-            addedNodes = emptySet();
-            reset();
-            if ( propertyCursor != null )
+            checkHasChanges = true;
+            addedNodes = ImmutableEmptyLongIterator.INSTANCE;
+            storeCursor.close();
+            storeCursor.reset();
+            if ( securityStoreNodeCursor != null )
             {
-                propertyCursor.close();
-                propertyCursor = null;
+                securityStoreNodeCursor.reset();
             }
-
-            pool.accept( this );
+            if ( securityStoreRelationshipCursor != null )
+            {
+                securityStoreRelationshipCursor.reset();
+            }
+            accessMode = null;
         }
+        super.closeInternal();
     }
 
     @Override
@@ -297,62 +445,30 @@ class DefaultNodeCursor extends NodeRecord implements NodeCursor
      * NodeCursor should only see changes that are there from the beginning
      * otherwise it will not be stable.
      */
-    private boolean hasChanges()
+    boolean hasChanges()
     {
-        switch ( hasChanges )
+        if ( checkHasChanges )
         {
-        case MAYBE:
-            boolean changes = read.hasTxStateWithChanges();
-            if ( changes )
+            computeHasChanges();
+        }
+        return hasChanges;
+    }
+
+    private void computeHasChanges()
+    {
+        checkHasChanges = false;
+        if ( hasChanges = read.hasTxStateWithChanges() )
+        {
+            if ( this.isSingle )
             {
-                if ( !isSingle() )
-                {
-                    addedNodes = read.txState().addedAndRemovedNodes().getAddedSnapshot();
-                }
-                hasChanges = HasChanges.YES;
+                addedNodes = read.txState().nodeIsAddedInThisTx( single ) ?
+                             PrimitiveLongCollections.single( single ) : ImmutableEmptyLongIterator.INSTANCE;
             }
             else
             {
-                hasChanges = HasChanges.NO;
+                addedNodes = read.txState().addedAndRemovedNodes().getAdded().freeze().longIterator();
             }
-            return changes;
-        case YES:
-            return true;
-        case NO:
-            return false;
-        default:
-            throw new IllegalStateException( "Style guide, why are you making me do this" );
         }
-    }
-
-    private void reset()
-    {
-        next = NO_ID;
-        setId( NO_ID );
-        clear();
-    }
-
-    private RecordCursor<DynamicRecord> labelCursor()
-    {
-        if ( labelCursor == null )
-        {
-            labelCursor = read.labelCursor();
-        }
-        return labelCursor;
-    }
-
-    private PropertyCursor propertyCursor()
-    {
-        if ( propertyCursor == null )
-        {
-            propertyCursor = pool.allocatePropertyCursor();
-        }
-        return propertyCursor;
-    }
-
-    private boolean isSingle()
-    {
-        return highMark == NO_ID;
     }
 
     @Override
@@ -364,22 +480,12 @@ class DefaultNodeCursor extends NodeRecord implements NodeCursor
         }
         else
         {
-            return "NodeCursor[id=" + getId() + ", open state with: highMark=" + highMark + ", next=" + next + ", underlying record=" + super.toString() + " ]";
+            return "NodeCursor[id=" + nodeReference() + ", " + storeCursor + "]";
         }
     }
 
     void release()
     {
-        if ( labelCursor != null )
-        {
-            labelCursor.close();
-            labelCursor = null;
-        }
-
-        if ( pageCursor != null )
-        {
-            pageCursor.close();
-            pageCursor = null;
-        }
+        IOUtils.closeAllUnchecked( storeCursor, securityStoreNodeCursor, securityStoreRelationshipCursor );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,17 +38,19 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.CypherRow
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.runtime.interpreted.commands.LiteralHelper.literal
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 import org.neo4j.values.storable.Values
 import org.neo4j.values.storable.Values.longValue
-import org.neo4j.values.virtual.VirtualValues.{EMPTY_LIST, list}
+import org.neo4j.values.virtual.VirtualValues.EMPTY_LIST
+import org.neo4j.values.virtual.VirtualValues.list
 
 class ListSliceTest extends CypherFunSuite {
 
   test("tests") {
-    implicit val collection = Literal(Seq(1, 2, 3, 4))
+    implicit val collection = literal(Seq(1, 2, 3, 4))
 
     slice(from = 0, to = 2) should equal(list(longValue(1), longValue(2)))
     slice(to = -2) should equal(list(longValue(1), longValue(2)))
@@ -61,14 +63,14 @@ class ListSliceTest extends CypherFunSuite {
   }
 
   test("should_handle_null") {
-    implicit val collection = Literal(null)
+    implicit val collection = Literal(Values.NO_VALUE)
 
     slice(from = -3, to = -1) should equal(Values.NO_VALUE)
   }
 
   test("should_handle_out_of_bounds_by_returning_null") {
     val fullSeq = Seq(1, 2, 3, 4)
-    implicit val collection = Literal(fullSeq)
+    implicit val collection = literal(fullSeq)
 
     slice(from = 2, to = 10) should equal(list(longValue(3), longValue(4)))
     slice(to = -10) should equal(EMPTY_LIST)
@@ -79,17 +81,17 @@ class ListSliceTest extends CypherFunSuite {
     slice(from = -10, to = -1) should equal(list(longValue(1), longValue(2), longValue(3)))
   }
 
-  private val ctx = ExecutionContext.empty
+  private val ctx = CypherRow.empty
   private implicit val state = QueryStateHelper.empty
   private val NO_VALUE = -666
 
   private def slice(from: Int = NO_VALUE, to: Int = NO_VALUE)(implicit collection: Expression) = {
-    val f = if (from == NO_VALUE) None else Some(Literal(from))
-    val t = if (to == NO_VALUE) None else Some(Literal(to))
+    val f = if (from == NO_VALUE) None else Some(literal(from))
+    val t = if (to == NO_VALUE) None else Some(literal(to))
     ListSlice(collection, f, t)(ctx, state)
   }
 
   private def sliceValue(in: Any) = {
-    ListSlice(Literal(in), Some(Literal(0)), Some(Literal(1)))(ctx, state)
+    ListSlice(literal(in), Some(literal(0)), Some(literal(1)))(ctx, state)
   }
 }

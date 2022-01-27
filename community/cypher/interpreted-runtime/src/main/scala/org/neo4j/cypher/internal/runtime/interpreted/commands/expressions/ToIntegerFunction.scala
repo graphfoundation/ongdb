@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,38 +38,19 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.util.v3_4.{CypherTypeException, ParameterWrongTypeException}
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ReadableRow
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.values._
-import org.neo4j.values.storable.{LongValue, NumberValue, TextValue, Values}
+import org.neo4j.cypher.operations.CypherFunctions
+import org.neo4j.values.AnyValue
 
 case class ToIntegerFunction(a: Expression) extends NullInNullOutExpression(a) {
 
-  def symbolTableDependencies: Set[String] = a.symbolTableDependencies
+  override def arguments: Seq[Expression] = Seq(a)
 
-  def arguments: Seq[Expression] = Seq(a)
+  override def rewrite(f: Expression => Expression): Expression = f(ToIntegerFunction(a.rewrite(f)))
 
-  def rewrite(f: (Expression) => Expression): Expression = f(ToIntegerFunction(a.rewrite(f)))
+  override def compute(value: AnyValue, ctx: ReadableRow, state: QueryState): AnyValue = CypherFunctions.toInteger(value)
 
-  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = value match {
-    case v: LongValue => v
-    case v: NumberValue => Values.longValue(v.longValue())
-    case v: TextValue =>
-      try {
-        Values.longValue(java.lang.Long.parseLong(v.stringValue()))
-      } catch {
-        case e: Exception =>
-          try {
-            val d = BigDecimal(v.stringValue())
-            if (d <= Long.MaxValue && d >= Long.MinValue) Values.longValue(d.toLong)
-            else throw new CypherTypeException(s"integer, ${v.stringValue()}, is too large")
-          } catch {
-            case _: NumberFormatException =>
-              Values.NO_VALUE
-          }
-      }
-    case v =>
-      throw new ParameterWrongTypeException("Expected a String or Number, got: " + v.toString)
-  }
+  override def children: Seq[AstNode[_]] = Seq(a)
 }

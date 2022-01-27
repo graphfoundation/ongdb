@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -74,7 +74,7 @@ public enum SourceCode implements CodeGeneratorOption
         protected CodeGenerator createCodeGenerator( ClassLoader loader, Configuration configuration )
                 throws CodeGenerationStrategyNotSupportedException
         {
-            return new SourceCodeGenerator( loader, configuration, configuration.sourceCompilerFor( this ) );
+            return new JavaSourceGenerator( loader, configuration, configuration.sourceCompilerFor( this ) );
         }
 
         @Override
@@ -88,7 +88,14 @@ public enum SourceCode implements CodeGeneratorOption
         @Override
         protected void visitSource( TypeReference reference, CharSequence sourceCode )
         {
-            System.out.println( "=== Generated class " + reference.fullName() + " ===\n" + sourceCode );
+            String[] lines = sourceCode.toString().split( "\\n" );
+            System.out.println( "=== Generated class " + reference.fullName() + " ===\n" );
+            for ( int i = 0; i < lines.length; i++ )
+            {
+                System.out.print(i + 1);
+                System.out.print('\t');
+                System.out.println(lines[i]);
+            }
         }
 
         @Override

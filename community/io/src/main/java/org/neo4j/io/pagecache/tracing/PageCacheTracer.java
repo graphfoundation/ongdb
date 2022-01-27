@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,10 +38,10 @@
  */
 package org.neo4j.io.pagecache.tracing;
 
-import java.io.File;
-
 import org.neo4j.io.pagecache.PageSwapper;
+import org.neo4j.io.pagecache.PagedFile;
 import org.neo4j.io.pagecache.monitoring.PageCacheCounters;
+import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracer;
 
 /**
  * A PageCacheTracer receives a steady stream of events and data about what
@@ -56,17 +56,35 @@ public interface PageCacheTracer extends PageCacheCounters
     PageCacheTracer NULL = new PageCacheTracer()
     {
         @Override
-        public void mappedFile( File file )
+        public PageFileSwapperTracer createFileSwapperTracer()
+        {
+            return PageFileSwapperTracer.NULL;
+        }
+
+        @Override
+        public PageCursorTracer createPageCursorTracer( String tag )
+        {
+            return PageCursorTracer.NULL;
+        }
+
+        @Override
+        public void mappedFile( int swapperId, PagedFile pagedFile )
         {
         }
 
         @Override
-        public void unmappedFile( File file )
+        public void unmappedFile( int swapperId, PagedFile pagedFile )
         {
         }
 
         @Override
         public EvictionRunEvent beginPageEvictions( int pageCountToEvict )
+        {
+            return EvictionRunEvent.NULL;
+        }
+
+        @Override
+        public EvictionRunEvent beginEviction()
         {
             return EvictionRunEvent.NULL;
         }
@@ -96,6 +114,12 @@ public interface PageCacheTracer extends PageCacheCounters
         }
 
         @Override
+        public long cooperativeEvictions()
+        {
+            return 0;
+        }
+
+        @Override
         public long pins()
         {
             return 0;
@@ -115,6 +139,12 @@ public interface PageCacheTracer extends PageCacheCounters
 
         @Override
         public long flushes()
+        {
+            return 0;
+        }
+
+        @Override
+        public long merges()
         {
             return 0;
         }
@@ -162,6 +192,36 @@ public interface PageCacheTracer extends PageCacheCounters
         }
 
         @Override
+        public long iopqPerformed()
+        {
+            return 0;
+        }
+
+        @Override
+        public long ioLimitedTimes()
+        {
+            return 0;
+        }
+
+        @Override
+        public long ioLimitedMillis()
+        {
+            return 0;
+        }
+
+        @Override
+        public long openedCursors()
+        {
+            return 0;
+        }
+
+        @Override
+        public long closedCursors()
+        {
+            return 0;
+        }
+
+        @Override
         public void pins( long pins )
         {
         }
@@ -192,6 +252,11 @@ public interface PageCacheTracer extends PageCacheCounters
         }
 
         @Override
+        public void cooperativeEvictions( long evictions )
+        {
+        }
+
+        @Override
         public void evictionExceptions( long evictionExceptions )
         {
         }
@@ -207,7 +272,32 @@ public interface PageCacheTracer extends PageCacheCounters
         }
 
         @Override
-        public void maxPages( long maxPages )
+        public void merges( long merges )
+        {
+        }
+
+        @Override
+        public void maxPages( long maxPages, long pageSize )
+        {
+        }
+
+        @Override
+        public void iopq( long iopq )
+        {
+        }
+
+        @Override
+        public void limitIO( long millis )
+        {
+        }
+
+        @Override
+        public void closeCursor()
+        {
+        }
+
+        @Override
+        public void openCursor()
         {
         }
 
@@ -219,14 +309,29 @@ public interface PageCacheTracer extends PageCacheCounters
     };
 
     /**
+     * Create page file tracer for underlying page file.
+     * Every new mapped page file will call this method to create a new instance of tracer.
+     *
+     * @return page file tracer
+     */
+    PageFileSwapperTracer createFileSwapperTracer();
+
+    /**
+     * Create page cursor tracer for underlying page cache with a specific tag.
+     * @param tag specific tag of underlying cursor tracer
+     * @return page cursor tracer.
+     */
+    PageCursorTracer createPageCursorTracer( String tag );
+
+    /**
      * The given file has been mapped, where no existing mapping for that file existed.
      */
-    void mappedFile( File file );
+    void mappedFile( int swapperId, PagedFile pagedFile );
 
     /**
      * The last reference to the given file has been unmapped.
      */
-    void unmappedFile( File file );
+    void unmappedFile( int swapperId, PagedFile pagedFile );
 
     /**
      * A background eviction has begun. Called from the background eviction thread.
@@ -236,6 +341,12 @@ public interface PageCacheTracer extends PageCacheCounters
      * The method returns an EvictionRunEvent to represent the event of this eviction run.
      **/
     EvictionRunEvent beginPageEvictions( int pageCountToEvict );
+
+    /**
+     * Start of vacuum eviction event to cleanup unknown number of pages for obsolete swappers
+     * @return an EvictionRunEvent to represent the event of this eviction run.
+     */
+    EvictionRunEvent beginEviction();
 
     /**
      * A PagedFile wants to flush all its bound pages.
@@ -284,6 +395,12 @@ public interface PageCacheTracer extends PageCacheCounters
     void evictions( long evictions );
 
     /**
+     * Report number of observed cooperative evictions
+     * @param evictions number of cooperative evictions
+     */
+    void cooperativeEvictions( long evictions );
+
+    /**
      * Report number of eviction exceptions
      * @param evictionExceptions number of eviction exceptions
      */
@@ -302,8 +419,37 @@ public interface PageCacheTracer extends PageCacheCounters
     void flushes( long flushes );
 
     /**
+     * Report number of merges
+     * @param merges number of merges
+     */
+    void merges( long merges );
+
+    /**
      * Sets the number of available pages.
      * @param maxPages the total number of available pages.
+     * @param pageSize size of page
      */
-    void maxPages( long maxPages );
+    void maxPages( long maxPages, long pageSize );
+
+    /**
+     * Report number of performed iopq.
+     * @param iopq number of performed io operations per quantum of time.
+     */
+    void iopq( long iopq );
+
+    /**
+     * Report io throttling by io limiter.
+     * @param millis number of millisecond io should be blocked.
+     */
+    void limitIO( long millis );
+
+    /**
+     * Page cache cursor closed
+     */
+    void closeCursor();
+
+    /**
+     * Page cache cursor opened
+     */
+    void openCursor();
 }

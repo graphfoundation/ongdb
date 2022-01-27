@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,13 +41,12 @@ package org.neo4j.values.storable;
 import org.neo4j.values.ValueMapper;
 
 import static java.lang.String.format;
+import static org.neo4j.memory.HeapEstimator.shallowSizeOfInstance;
 
-/**
- * This does not extend AbstractProperty since the JVM can take advantage of the 4 byte initial field alignment if
- * we don't extend a class that has fields.
- */
 public final class ShortValue extends IntegralValue
 {
+    private static final long SHALLOW_SIZE = shallowSizeOfInstance( ShortValue.class );
+
     private final short value;
 
     ShortValue( short value )
@@ -64,6 +63,24 @@ public final class ShortValue extends IntegralValue
     public long longValue()
     {
         return value;
+    }
+
+    @Override
+    public int intValue()
+    {
+        return value;
+    }
+
+    @Override
+    public short shortValue()
+    {
+        return value;
+    }
+
+    @Override
+    public byte byteValue()
+    {
+        throw new IllegalStateException( "A 16 bit integer doesn't fit in a 8 bit value" );
     }
 
     @Override
@@ -100,5 +117,17 @@ public final class ShortValue extends IntegralValue
     public String getTypeName()
     {
         return "Short";
+    }
+
+    @Override
+    public long estimatedHeapUsage()
+    {
+        return SHALLOW_SIZE;
+    }
+
+    @Override
+    public ValueRepresentation valueRepresentation()
+    {
+        return ValueRepresentation.INT16;
     }
 }

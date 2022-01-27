@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,120 +38,101 @@
  */
 package org.neo4j.cypher
 
-import org.neo4j.cypher.internal.frontend.v3_4.helpers.StringHelper._
-import org.neo4j.cypher.internal.runtime.InternalExecutionResult
-import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
-import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments.KeyNames
-import org.neo4j.cypher.internal.v3_4.logical.plans.NodeHashJoin
-import org.scalatest.matchers.{MatchResult, Matcher}
+import org.neo4j.cypher.internal.ExecutionPlan
+import org.neo4j.cypher.internal.InterpretedRuntimeName
+import org.neo4j.cypher.internal.RewindableExecutionResult
+import org.neo4j.cypher.internal.RuntimeName
+import org.neo4j.cypher.internal.plandescription.Argument
+import org.neo4j.cypher.internal.runtime.ExecutionMode
+import org.neo4j.cypher.internal.runtime.InputDataStream
+import org.neo4j.cypher.internal.runtime.QueryContext
+import org.neo4j.cypher.internal.util.InternalNotification
+import org.neo4j.cypher.internal.util.attribution.Id
+import org.neo4j.cypher.planmatching.CountInTree
+import org.neo4j.cypher.planmatching.ExactPlan
+import org.neo4j.cypher.planmatching.PlanInTree
+import org.neo4j.cypher.planmatching.PlanMatcher
+import org.neo4j.cypher.result.RuntimeResult
+import org.neo4j.kernel.impl.query.QuerySubscriber
+import org.neo4j.values.virtual.MapValue
+import org.scalatest.matchers.MatchResult
+import org.scalatest.matchers.Matcher
 
 trait QueryPlanTestSupport {
-  protected final val anonPattern = "([^\\w])anon\\[\\d+\\]".r
 
-  protected def replaceAnonVariables(planText: String) =
-    anonPattern.replaceAllIn(planText, "$1anon[*]")
+  /**
+   * Allows the syntax
+   * `plan should haveAsRoot.aPlan("ProduceResults")`
+   */
+  object haveAsRoot {
+    def aPlan: PlanMatcher = ExactPlan()
 
-  protected def matchPlan(expectedPlan: String): Matcher[InternalPlanDescription] = new Matcher[InternalPlanDescription] {
-    override def apply(plan: InternalPlanDescription): MatchResult = {
-      val planText = replaceAnonVariables(plan.toString.trim.fixNewLines)
-      val expectedText = replaceAnonVariables(expectedPlan.trim.fixNewLines)
-      MatchResult(
-        matches = planText.contains(expectedText),
-        rawFailureMessage = s"Plan does not match expected\n\nPlan:\n$planText\n\nExpected:\n$expectedText",
-        rawNegatedFailureMessage = s"Plan unexpected matches expected\n\nPlan:\n$planText\n\nExpected:\n$expectedText")
-    }
+    def aPlan(name: String): PlanMatcher = ExactPlan().withName(name)
+
+    def aSourcePlan: PlanMatcher = ExactPlan(skipCachingPlans = true)
+
+    def aSourcePlan(name: String): PlanMatcher = ExactPlan(skipCachingPlans = true).withName(name)
   }
 
-  def useOperators(operators: String*): Matcher[InternalPlanDescription] = new Matcher[InternalPlanDescription] {
-    override def apply(plan: InternalPlanDescription): MatchResult = {
-      MatchResult(
-        matches = operators.forall(plan.find(_).nonEmpty),
-        rawFailureMessage = s"Metadata: ${plan.arguments}\nPlan should use ${operators.mkString(",")}:\n$plan",
-        rawNegatedFailureMessage = s"Plan should not use ${operators.mkString(",")}:\n$plan")
-    }
+  /**
+   * Allows the syntax
+   * ```
+   * plan should includeSomewhere.aPlan("Filter")
+   * plan should includeSomewhere.nTimes(2, aPlan("Filter"))
+   * plan should includeSomewhere.atLeastNTimes(2, aPlan("Filter"))
+   * ```
+   */
+  object includeSomewhere {
+    def aPlan: PlanMatcher = PlanInTree(ExactPlan())
+
+    def aPlan(name: String): PlanMatcher = PlanInTree(ExactPlan()).withName(name)
+
+    def nTimes(n: Int, aPlan: PlanMatcher): PlanMatcher = CountInTree(n, aPlan)
+
+    def atLeastNTimes(n: Int, aPlan: PlanMatcher): PlanMatcher = CountInTree(n, aPlan, atLeast = true)
   }
 
-  def use(operators: String*): Matcher[InternalExecutionResult] = new Matcher[InternalExecutionResult] {
-    override def apply(result: InternalExecutionResult): MatchResult = useOperators(operators:_*)(result.executionPlanDescription())
+  /**
+   * Allows the syntax
+   * ```
+   * plan should haveAsRoot.aPlan("ProduceResults")
+   * .withLHS(aPlan("Filter"))
+   * ```
+   */
+  object aPlan {
+    def apply(): PlanMatcher = haveAsRoot.aPlan
+
+    def apply(name: String): PlanMatcher = haveAsRoot.aPlan(name)
   }
 
-  def useOperatorWithText(operator: String, otherText: String*): Matcher[InternalPlanDescription] = new Matcher[InternalPlanDescription] {
-    override def apply(plan: InternalPlanDescription): MatchResult = {
-      MatchResult(
-        matches = otherText.forall(o => plan.find(operator).exists(_.toString.contains(o))),
-        rawFailureMessage = s"Plan should use $operator with ${otherText.mkString(",")}:\n$plan",
-        rawNegatedFailureMessage = s"Plan should not use $operator with ${otherText.mkString(",")}:\n$plan")
-    }
+  /**
+   * Same as `aPlan`, but skips over plans that may be sporadically inserted by optimization passes
+   * that is of no interest to the test assertion,
+   * e.g. CacheProperties.
+   * This can make a test more resilient to changes in how those optimizations are applied, that
+   * are irrelevant to what is being tested.
+   */
+  object aSourcePlan {
+    def apply(): PlanMatcher = haveAsRoot.aSourcePlan
+
+    def apply(name: String): PlanMatcher = haveAsRoot.aSourcePlan(name)
   }
 
-  def useOperatorTimes(operator: String, times: Int): Matcher[InternalPlanDescription] = new Matcher[InternalPlanDescription] {
-    override def apply(plan: InternalPlanDescription): MatchResult = {
+  def haveCount(count: Int): Matcher[RewindableExecutionResult] = new Matcher[RewindableExecutionResult] {
+    override def apply(result: RewindableExecutionResult): MatchResult = {
       MatchResult(
-      matches = plan.find(operator).size == times,
-      rawFailureMessage = s"Plan should use $operator ${times} times:\n$plan",
-      rawNegatedFailureMessage = s"Plan should not use $operator ${times} times:\n$plan")
-    }
-  }
-
-  def haveCount(count: Int): Matcher[InternalExecutionResult] = new Matcher[InternalExecutionResult] {
-    override def apply(result: InternalExecutionResult): MatchResult = {
-      MatchResult(
-        matches = count == result.toList.length,
+        matches = count == result.size,
         rawFailureMessage = s"Result should have $count rows",
         rawNegatedFailureMessage = s"Result should not have $count rows")
     }
   }
+}
 
-  case class includeOnlyOneHashJoinOn(nodeVariable: String) extends Matcher[InternalPlanDescription] {
-
-    private val hashJoinStr = classOf[NodeHashJoin].getSimpleName
-
-    override def apply(result: InternalPlanDescription): MatchResult = {
-      val hashJoins = result.flatten.filter { description =>
-        description.name == hashJoinStr && description.arguments.contains(KeyNames(Seq(nodeVariable)))
-      }
-      val numberOfHashJoins = hashJoins.length
-
-      MatchResult(numberOfHashJoins == 1, matchResultMsg(negated = false, result, numberOfHashJoins), matchResultMsg(negated = true, result, numberOfHashJoins))
-    }
-
-    private def matchResultMsg(negated: Boolean, result: InternalPlanDescription, numberOfHashJoins: Integer) =
-      s"$hashJoinStr on node '$nodeVariable' should exist only once in the plan description ${if (negated) "" else s", but it occurred $numberOfHashJoins times"}\n $result"
-  }
-
-  case class includeOnlyOne[T](operator: Class[T], withVariable: String = "") extends includeOnly(operator, withVariable) {
-    override def verifyOccurences(actualOccurences: Int) =
-      actualOccurences == 1
-
-    override def matchResultMsg(negated: Boolean, result: InternalPlanDescription, numberOfOperatorOccurences: Integer) =
-      s"$joinStr on node '$withVariable' should occur only once in the plan description${if (negated) "" else s", but it occurred $numberOfOperatorOccurences times"}\n $result"
-  }
-
-  case class includeAtLeastOne[T](operator: Class[T], withVariable: String = "") extends includeOnly(operator, withVariable) {
-    override def verifyOccurences(actualOccurences: Int) =
-      actualOccurences >= 1
-
-    override def matchResultMsg(negated: Boolean, result: InternalPlanDescription, numberOfOperatorOccurences: Integer) =
-      s"$joinStr on node '$withVariable' should occur at least once in the plan description${if (negated) "" else s", but it was not found\n $result"}"
-  }
-
-  abstract class includeOnly[T](operator: Class[T], withVariable: String = "") extends Matcher[InternalPlanDescription] {
-    protected val joinStr = operator.getSimpleName
-
-    def verifyOccurences(actualOccurences: Int): Boolean
-
-    def matchResultMsg(negated: Boolean, result: InternalPlanDescription, numberOfOperatorOccurences: Integer): String
-
-    override def apply(result: InternalPlanDescription): MatchResult = {
-      val operatorOccurrences = result.flatten.filter { description =>
-        val nameCondition = description.name == joinStr
-        val variableCondition = withVariable == "" || description.variables.contains(withVariable)
-        nameCondition && variableCondition
-      }
-      val numberOfOperatorOccurrences = operatorOccurrences.length
-      val matches = verifyOccurences(numberOfOperatorOccurrences)
-
-      MatchResult(matches, matchResultMsg(negated = false, result, numberOfOperatorOccurrences), matchResultMsg(negated = true, result, numberOfOperatorOccurrences))
-    }
+object QueryPlanTestSupport {
+  case class StubExecutionPlan(runtimeName: RuntimeName = InterpretedRuntimeName,
+                               metadata: Seq[Argument] = Seq.empty[Argument],
+                               override val operatorMetadata: Id => Seq[Argument] = _ => Seq.empty[Argument],
+                               notifications: Set[InternalNotification] = Set.empty[InternalNotification]) extends ExecutionPlan {
+    override def run(queryContext: QueryContext, executionMode: ExecutionMode, params: MapValue, prePopulateResults: Boolean, input: InputDataStream, subscriber: QuerySubscriber): RuntimeResult = ???
   }
 }

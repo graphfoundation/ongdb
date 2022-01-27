@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,79 +38,90 @@
  */
 package org.neo4j.kernel.impl.api;
 
-import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.RandomUtils;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.kernel.impl.util.Validator;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.SchemaDescriptors;
+import org.neo4j.kernel.api.index.IndexValueValidator;
+import org.neo4j.values.storable.TextArray;
+import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.neo4j.kernel.impl.api.LuceneIndexValueValidator.INSTANCE;
+import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.neo4j.kernel.api.impl.schema.LuceneTestTokenNameLookup.SIMPLE_TOKEN_LOOKUP;
 import static org.neo4j.kernel.impl.api.LuceneIndexValueValidator.MAX_TERM_LENGTH;
+import static org.neo4j.values.storable.Values.of;
 
-public class LuceneIndexValueValidatorTest
+class LuceneIndexValueValidatorTest
 {
-    @Rule
-    public ExpectedException expectedException = ExpectedException.none();
+    private static final IndexDescriptor descriptor = IndexPrototype.forSchema( SchemaDescriptors.forLabel( 1, 1 ) ).withName( "test" ).materialise( 1 );
+    private static final IndexValueValidator VALIDATOR = new LuceneIndexValueValidator( descriptor, SIMPLE_TOKEN_LOOKUP );
+    private static final long ENTITY_ID = 42;
 
     @Test
-    public void tooLongArrayIsNotAllowed()
+    void tooLongArrayIsNotAllowed()
+    {
+        IllegalArgumentException iae = assertThrows( IllegalArgumentException.class, () -> {
+            TextArray largeArray = Values.stringArray( randomAlphabetic( MAX_TERM_LENGTH ), randomAlphabetic( MAX_TERM_LENGTH ) );
+            VALIDATOR.validate( ENTITY_ID, largeArray );
+        } );
+        assertThat( iae.getMessage() ).contains( "Property value is too large to index" );
+    }
+
+    @Test
+    void stringOverExceedLimitNotAllowed()
     {
         int length = MAX_TERM_LENGTH + 1;
-        expectedException.expect( IllegalArgumentException.class );
-        expectedException.expectMessage( containsString( "Property value size is too large for index. Please see index documentation for limitations." ) );
-        getValidator().validate( RandomUtils.nextBytes( length ) );
+        IllegalArgumentException iae =
+                assertThrows( IllegalArgumentException.class, () -> VALIDATOR.validate( ENTITY_ID, values( randomAlphabetic( length ) ) ) );
+        assertThat( iae.getMessage() ).contains( "Property value is too large to index" );
     }
 
     @Test
-    public void stringOverExceedLimitNotAllowed()
+    void nullIsNotAllowed()
     {
-        int length = MAX_TERM_LENGTH * 2;
-        expectedException.expect( IllegalArgumentException.class );
-        expectedException.expectMessage( containsString( "Property value size is too large for index. Please see index documentation for limitations." ) );
-        getValidator().validate( RandomStringUtils.randomAlphabetic( length ) );
+        IllegalArgumentException iae = assertThrows( IllegalArgumentException.class, () -> VALIDATOR.validate( ENTITY_ID, values( (Object) null ) ) );
+        assertEquals( iae.getMessage(), "Null value" );
     }
 
     @Test
-    public void nullIsNotAllowed()
+    void numberIsValidValue()
     {
-        expectedException.expect( IllegalArgumentException.class );
-        expectedException.expectMessage( "Null value" );
-        getValidator().validate( null );
+        VALIDATOR.validate( ENTITY_ID, values( 5 ) );
+        VALIDATOR.validate( ENTITY_ID, values( 5.0d ) );
+        VALIDATOR.validate( ENTITY_ID, values( 5.0f ) );
+        VALIDATOR.validate( ENTITY_ID, values( 5L ) );
     }
 
     @Test
-    public void numberIsValidValue()
+    void shortArrayIsValidValue()
     {
-        getValidator().validate( 5 );
-        getValidator().validate( 5.0d );
-        getValidator().validate( 5.0f );
-        getValidator().validate( 5L );
+        VALIDATOR.validate( ENTITY_ID, values( (Object) new long[] {1, 2, 3} ) );
+        VALIDATOR.validate( ENTITY_ID, values( (Object) RandomUtils.nextBytes( 200 ) ) );
     }
 
     @Test
-    public void shortArrayIsValidValue()
+    void shortStringIsValidValue()
     {
-        getValidator().validate( new long[] {1, 2, 3} );
-        getValidator().validate( RandomUtils.nextBytes( 200 ) );
+        VALIDATOR.validate( ENTITY_ID, values( randomAlphabetic( 5 ) ) );
+        VALIDATOR.validate( ENTITY_ID, values( randomAlphabetic( 10 ) ) );
+        VALIDATOR.validate( ENTITY_ID, values( randomAlphabetic( 250 ) ) );
+        VALIDATOR.validate( ENTITY_ID, values( randomAlphabetic( 450 ) ) );
+        VALIDATOR.validate( ENTITY_ID, values( randomAlphabetic( MAX_TERM_LENGTH ) ) );
     }
 
-    @Test
-    public void shortStringIsValidValue()
+    private static Value[] values( Object... objects )
     {
-        getValidator().validate( RandomStringUtils.randomAlphabetic( 5 ) );
-        getValidator().validate( RandomStringUtils.randomAlphabetic( 10 ) );
-        getValidator().validate( RandomStringUtils.randomAlphabetic( 250 ) );
-        getValidator().validate( RandomStringUtils.randomAlphabetic( 450 ) );
-        getValidator().validate( RandomStringUtils.randomAlphabetic( MAX_TERM_LENGTH ) );
-    }
-
-    // Meant to be overridden for tests that want to verify the same things, but for a different validator
-    protected Validator<Object> getValidator()
-    {
-        return object -> INSTANCE.validate( Values.of( object ) );
+        Value[] array = new Value[objects.length];
+        for ( int i = 0; i < objects.length; i++ )
+        {
+            array[i] = of( objects[i] );
+        }
+        return array;
     }
 }

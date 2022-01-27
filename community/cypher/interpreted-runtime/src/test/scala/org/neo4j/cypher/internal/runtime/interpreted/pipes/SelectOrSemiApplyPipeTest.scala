@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,126 +38,27 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
+import org.neo4j.cypher.internal.runtime.ResourceManager
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.runtime.interpreted.ValueComparisonHelper.beEquivalentTo
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Literal, Variable}
-import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.{Equals, Not, True}
-import org.neo4j.cypher.internal.util.v3_4.symbols.CTNumber
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.values.storable.Values.intValue
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Not
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.True
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
-class SelectOrSemiApplyPipeTest extends CypherFunSuite with PipeTestSupport {
+class SelectOrSemiApplyPipeTest extends CypherFunSuite {
+  test("Each row should immediately close RHS. Exhaust should close LHS.") {
+    val monitor = QueryStateHelper.trackClosedMonitor
+    val resourceManager = new ResourceManager(monitor)
+    val lhs = FakePipe(Seq(Map("a"->10),Map("a"->11)))
+    val rhs = FakePipe(Seq(Map("b"->20),Map("b"->21)))
+    val pipe = SelectOrSemiApplyPipe(lhs, rhs, Not(True()), negated = false)()
+    val result = pipe.createResults(QueryStateHelper.emptyWithResourceManager(resourceManager))
+    result.next() // First row
+    lhs.wasClosed shouldBe false
+    rhs.currentIterator.wasClosed shouldBe true
 
-  test("should only let through the one that matches when the expression is false") {
-    val lhsData = List(Map("a" -> 1), Map("a" -> 2))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
-
-    val rhs = pipeWithResults((state) => {
-      val initialContext = state.initialContext.get
-      if (initialContext("a") == intValue(1)) Iterator(initialContext) else Iterator.empty
-    })
-
-    val result =
-      SelectOrSemiApplyPipe(lhs, rhs, Not(True()), negated = false)().
-        createResults(QueryStateHelper.empty).toList
-
-    result should equal(List(Map("a" -> intValue(1))))
-  }
-
-  test("should only let through the one that not matches when the expression is false and it is negated") {
-    val lhsData = List(Map("a" -> 1), Map("a" -> 2))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
-
-    val rhs = pipeWithResults((state) => {
-      val initialContext = state.initialContext.get
-      if (initialContext("a") == intValue(1)) Iterator(initialContext) else Iterator.empty
-    })
-
-    val result =
-      SelectOrSemiApplyPipe(lhs, rhs, Not(True()), negated = true)().
-        createResults(QueryStateHelper.empty).toList
-
-    result should equal(List(Map("a" -> intValue(2))))
-  }
-
-  test("should not let anything through if rhs is empty and expression is false") {
-    val lhsData = List(Map("a" -> 1), Map("a" -> 2))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
-    val rhs = new FakePipe(Iterator.empty)
-
-    val result =
-      SelectOrSemiApplyPipe(lhs, rhs, Not(True()), negated = false)().
-        createResults(QueryStateHelper.empty).toList
-
-    result should equal(List.empty)
-  }
-
-  test("should let everything through if rhs is nonEmpty and the expression is false") {
-    val lhsData = List(Map("a" -> 1), Map("a" -> 2))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
-    val rhs = new FakePipe(Iterator(Map("a" -> 1)))
-
-    val result =
-      SelectOrSemiApplyPipe(lhs, rhs, Not(True()), negated = false)().
-        createResults(QueryStateHelper.empty).toList
-
-    result should beEquivalentTo(lhsData)
-  }
-
-  test("if lhs is empty, rhs should not be touched regardless the given expression") {
-    val rhs = pipeWithResults((_) => fail("should not use this"))
-    val lhs = new FakePipe(Iterator.empty)
-
-    // Should not throw
-    SelectOrSemiApplyPipe(lhs, rhs, True(), negated = false)().
-      createResults(QueryStateHelper.empty).toList
-  }
-
-  test("should let pass the one satisfying the expression even if the rhs is empty") {
-    val lhsData = List(Map("a" -> 1), Map("a" -> 2))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
-    val rhs = new FakePipe(Iterator.empty)
-
-    val result =
-      SelectOrSemiApplyPipe(lhs, rhs, Equals(Variable("a"), Literal(2)), negated = false)().createResults(QueryStateHelper.empty).toList
-
-    result should equal(List(Map("a" -> intValue(2))))
-  }
-
-  test("should let through the one that matches and the one satisfying the expression") {
-    val lhsData = List(Map("a" -> 1), Map("a" -> 2), Map("a" -> 3))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
-
-    val rhs = pipeWithResults((state: QueryState) => {
-        val initialContext = state.initialContext.get
-        if (initialContext("a") == intValue(1)) Iterator(initialContext) else Iterator.empty
-      })
-
-    val result = SelectOrSemiApplyPipe(lhs, rhs, Equals(Variable("a"), Literal(2)), negated = false)().createResults(QueryStateHelper.empty).toList
-
-    result should equal(List(Map("a" -> intValue(1)), Map("a" -> intValue(2))))
-  }
-
-  test("should let pass nothing if the rhs is empty and the expression is false") {
-    val lhsData = List(Map("a" -> 3), Map("a" -> 4))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
-
-    val rhs = pipeWithResults((state: QueryState) => {
-        val initialContext = state.initialContext.get
-        if (initialContext("a") == intValue(1)) Iterator(initialContext) else Iterator.empty
-      })
-
-    val result = SelectOrSemiApplyPipe(lhs, rhs, Equals(Variable("a"), Literal(2)), negated = false)().createResults(QueryStateHelper.empty).toList
-    result should equal(List.empty)
-  }
-
-  test("should register owning pipe") {
-    val lhs = new FakePipe(Iterator.empty)
-    val rhs = new FakePipe(Iterator.empty)
-    val predicate = Not(True())
-    val pipe = SelectOrSemiApplyPipe(lhs, rhs, predicate, negated = false)()
-
-    pipe.predicate.owningPipe should equal(pipe)
-    predicate.owningPipe should equal(pipe)
+    result.next() // Second row
+    result.hasNext shouldBe false // Make sure to exhaust
+    lhs.wasClosed shouldBe true
+    rhs.currentIterator.wasClosed shouldBe true
   }
 }

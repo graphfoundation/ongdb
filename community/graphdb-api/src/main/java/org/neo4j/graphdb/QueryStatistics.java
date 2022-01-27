@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,12 +38,15 @@
  */
 package org.neo4j.graphdb;
 
+import org.neo4j.annotations.api.PublicApi;
+
 /**
  * Represents statistics about the effects of a query.
  *
  * If the query did not perform any {@link #containsUpdates() updates}, all the methods of this interface will return
  * {@code 0}.
  */
+@PublicApi
 public interface QueryStatistics
 {
     // NOTE: If you change this interface, be sure to update bolt
@@ -127,9 +130,110 @@ public interface QueryStatistics
     int getConstraintsRemoved();
 
     /**
+     * Returns the number of system updates performed by this query.
+     *
+     * @return the number of system updates performed by this query.
+     */
+    int getSystemUpdates();
+
+    /**
      * If the query updated the graph in any way, this method will return true.
      *
      * @return if the graph has been updated.
      */
     boolean containsUpdates();
+
+    /**
+     * If the query updated the system graph in any way, this method will return true,
+     *
+     * @return if the system graph has been updated.
+     */
+    boolean containsSystemUpdates();
+
+    QueryStatistics EMPTY = new QueryStatistics()
+    {
+        @Override
+        public int getNodesCreated()
+        {
+            return 0;
+        }
+
+        @Override
+        public int getNodesDeleted()
+        {
+            return 0;
+        }
+
+        @Override
+        public int getRelationshipsCreated()
+        {
+            return 0;
+        }
+
+        @Override
+        public int getRelationshipsDeleted()
+        {
+            return 0;
+        }
+
+        @Override
+        public int getPropertiesSet()
+        {
+            return 0;
+        }
+
+        @Override
+        public int getLabelsAdded()
+        {
+            return 0;
+        }
+
+        @Override
+        public int getLabelsRemoved()
+        {
+            return 0;
+        }
+
+        @Override
+        public int getIndexesAdded()
+        {
+            return 0;
+        }
+
+        @Override
+        public int getIndexesRemoved()
+        {
+            return 0;
+        }
+
+        @Override
+        public int getConstraintsAdded()
+        {
+            return 0;
+        }
+
+        @Override
+        public int getConstraintsRemoved()
+        {
+            return 0;
+        }
+
+        @Override
+        public int getSystemUpdates()
+        {
+            return 0;
+        }
+
+        @Override
+        public boolean containsUpdates()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean containsSystemUpdates()
+        {
+            return false;
+        }
+    };
 }

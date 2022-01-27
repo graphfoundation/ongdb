@@ -12,11 +12,15 @@
         <license-text.header>headers/GPL-3-header.txt</license-text.header>
         <licensing.prepend.text>licensing/notice-gpl-prefix.txt</licensing.prepend.text>
         <moduleName>org.neo4j.logging</moduleName>
+        <default.jupiter.test.mode>concurrent</default.jupiter.test.mode>
+        <!-- forceCreation because otherwise the jar plugin and shade plugin don't play well together. From the jar plugin docs: "This plugin can not detect the
+         post-processing, and so leaves the post-processed jar in place. This can lead to failures when those plugins do not expect to find their own output as
+          an input."-->
+        <maven.jar.forceCreation>true</maven.jar.forceCreation>
     </properties>
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>ongdb-logging</artifactId>
-    <version>2.0.0-SNAPSHOT</version>
 
     <packaging>jar</packaging>
     <name>ONgDB - Logging</name>
@@ -33,7 +37,8 @@
         <license>
             <name>GNU General Public License, Version 3</name>
             <url>http://www.gnu.org/licenses/gpl-3.0-standalone.html</url>
-            <comments>The software ("Software") developed and owned by Graph Foundation, Inc.
+            <comments>
+                The software ("Software") developed and owned by Graph Foundation, Inc.
                 (referred to in this notice as "Graph Foundation") is licensed under the
                 GNU GENERAL PUBLIC LICENSE Version 3 to all third parties and that license is included below.
             </comments>
@@ -41,7 +46,8 @@
         <license>
             <name>GNU General Public License, Version 3</name>
             <url>http://www.gnu.org/licenses/gpl-3.0-standalone.html</url>
-            <comments>The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
+            <comments>
+                The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
                 licensed under the GNU GENERAL PUBLIC LICENSE Version 3 to all third
                 parties and that license is included below.
 
@@ -56,68 +62,106 @@
         </license>
     </licenses>
 
+    <dependencies>
+        <!-- WARNING -->
+        <!-- Be very careful when adding dependencies in this class -->
+        <!-- A bug in the Maven Shade Plugin may cause an infinite loop (livelock) while creating the dependency reduced pom on parallel builds -->
+        <!-- It seems to happen if the added dependencies are already transitive dependencies -->
+        <!-- Likely fixed by https://github.com/apache/maven-shade-plugin/pull/16 -->
+        <!-- Please verify that added dependencies does not break this by doing a full parallel maven build on the root project -->
+        <!-- Example "mvn clean install -T -DskipTests" -->
+        <!-- WARNING -->
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-io</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.codehaus.jettison</groupId>
+            <artifactId>jettison</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>io-test-utils</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
     <build>
         <plugins>
-            <!-- This module contains public API, run javadoc and revapi -->
             <plugin>
-                <artifactId>maven-javadoc-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>org.revapi</groupId>
-                <artifactId>revapi-maven-plugin</artifactId>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <artifactSet>
+                        <includes>
+                            <include>org.apache.logging.log4j:*</include>
+                        </includes>
+                    </artifactSet>
+                    <relocations>
+                        <relocation>
+                            <!-- Don't change shadedPattern without updating in Log4jPluginLoadingWorkaround as well -->
+                            <pattern>org.apache.logging.log4j</pattern>
+                            <shadedPattern>org.neo4j.logging.shaded.log4j</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <!-- workaround for also relocating log4j multi-release jars -->
+                            <pattern>META-INF.versions.9.org.apache.logging.log4j</pattern>
+                            <shadedPattern>META-INF.versions.9.org.neo4j.logging.shaded.log4j</shadedPattern>
+                        </relocation>
+                    </relocations>
+                    <transformers>
+                        <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                        <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                            <manifestEntries>
+                                <Multi-Release>true</Multi-Release>
+                            </manifestEntries>
+                        </transformer>
+                    </transformers>
+                    <filters>
+                        <filter>
+                            <artifact>*:*</artifact>
+                            <excludes>
+                                <exclude>**/javax.annotation.processing.Processor</exclude>
+                                <!-- Skip the plugins listing file to not interfere with any external Log4j dependencies.
+                                     We work around this file not existing in Log4jPluginLoadingWorkaround. -->
+                                <exclude>**/Log4j2Plugins.dat</exclude>
+                            </excludes>
+                        </filter>
+                        <filter>
+                            <artifact>org.apache.logging.log4j:*</artifact>
+                            <excludes>
+                                <exclude>META-INF/MANIFEST.MF</exclude>
+                                <exclude>META-INF/DEPENDENCIES</exclude>
+                                <exclude>META-INF/LICENSE</exclude>
+                                <exclude>META-INF/NOTICE</exclude>
+                            </excludes>
+                        </filter>
+                    </filters>
+                </configuration>
             </plugin>
         </plugins>
     </build>
-
-    <dependencies>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-io</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-common</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-io</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest-library</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>commons-codec</groupId>
-            <artifactId>commons-codec</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.google.code.findbugs</groupId>
-            <artifactId>annotations</artifactId>
-        </dependency>
-    </dependencies>
 </project>

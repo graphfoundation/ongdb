@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,28 +38,51 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, QueryState}
-import org.neo4j.values.AnyValue
-import org.neo4j.values.virtual.VirtualValues
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.ReadableRow
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.Pipe
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.internal.util.attribution.Id
+import org.neo4j.memory.MemoryTracker
+import org.neo4j.values.virtual.HeapTrackingListValueBuilder
+import org.neo4j.values.virtual.ListValue
 
-/*
-Contains an expression that is really a pipe. An inner expression is run for every row returned by the inner pipe, and
-the result of the NestedPipeExpression evaluation is a collection containing the result of these inner expressions
+/**
+ * An expression which delegates evaluation to a pipe.
  */
-case class NestedPipeExpression(pipe: Pipe, inner: Expression) extends Expression {
-  override def apply(ctx: ExecutionContext, state: QueryState): AnyValue = {
-    val innerState = state.withInitialContext(ctx).withDecorator(state.decorator.innerDecorator(owningPipe))
-    val results = pipe.createResults(innerState)
-    val map = results.map(ctx => inner(ctx, state))
-    VirtualValues.list(map.toArray:_*)
+abstract class NestedPipeExpression(pipe: Pipe,
+                                    availableExpressionVariables: Array[ExpressionVariable],
+                                    owningPlanId: Id) extends Expression {
+
+  protected def createNestedResults(row: ReadableRow,
+                                    state: QueryState): ClosingIterator[CypherRow] = {
+    val initialContext: CypherRow = createInitialContext(row, state)
+    val innerState =
+      state.withInitialContextAndDecorator(initialContext,
+                                           state.decorator.innerDecorator(owningPlanId))
+
+    pipe.createResults(innerState)
   }
 
-  override def rewrite(f: (Expression) => Expression) = f(NestedPipeExpression(pipe, inner.rewrite(f)))
+  protected def createInitialContext(row: ReadableRow, state: QueryState): CypherRow = {
+    val initialContext = pipe.rowFactory.copyWith(row)
+    availableExpressionVariables.foreach { expVar =>
+      initialContext.set(expVar.name, state.expressionVariables(expVar.offset))
+    }
+    initialContext
+  }
 
-  override def arguments = List(inner)
+  protected def collectResults(state: QueryState,
+                               results: ClosingIterator[CypherRow],
+                               projection: Expression,
+                               memoryTracker: MemoryTracker): ListValue = {
+    val all = HeapTrackingListValueBuilder.newHeapTrackingListBuilder(memoryTracker)
+    while (results.hasNext) {
+      all.add(projection(results.next(), state))
+    }
+    all.buildAndClose()
+  }
 
-  override def symbolTableDependencies = Set()
-
-  override def toString: String = s"NestedExpression()"
+  override def toString: String = s"${getClass.getSimpleName}}()"
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,6 +40,7 @@ package org.neo4j.kernel.impl.transaction.log.files;
 
 import java.io.IOException;
 
+import org.neo4j.internal.helpers.collection.LruCache;
 import org.neo4j.kernel.impl.transaction.log.LogFileInformation;
 import org.neo4j.kernel.impl.transaction.log.LogHeaderCache;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
@@ -47,8 +48,7 @@ import org.neo4j.kernel.impl.transaction.log.ReadableLogChannel;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntry;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryStart;
-
-import static org.neo4j.kernel.impl.transaction.log.TransactionIdStore.BASE_TX_ID;
+import org.neo4j.kernel.impl.transaction.log.entry.LogHeader;
 
 public class TransactionLogFileInformation implements LogFileInformation
 {
@@ -68,9 +68,10 @@ public class TransactionLogFileInformation implements LogFileInformation
     @Override
     public long getFirstExistingEntryId() throws IOException
     {
-        long version = logFiles.getHighestLogVersion();
+        LogFile logFile = logFiles.getLogFile();
+        long version = logFile.getHighestLogVersion();
         long candidateFirstTx = -1;
-        while ( logFiles.versionExists( version ) )
+        while ( logFile.versionExists( version ) )
         {
             candidateFirstTx = getFirstEntryId( version );
             version--;
@@ -79,24 +80,25 @@ public class TransactionLogFileInformation implements LogFileInformation
 
         // OK, so we now have the oldest existing log version here. Open it and see if there's any transaction
         // in there. If there is then that transaction is the first one that we have.
-        return logFiles.hasAnyEntries( version ) ? candidateFirstTx : -1;
+        return logFile.hasAnyEntries( version ) ? candidateFirstTx : -1;
     }
 
     @Override
     public long getFirstEntryId( long version ) throws IOException
     {
-        Long logHeader = logHeaderCache.getLogHeader( version );
+        LogHeader logHeader = logHeaderCache.getLogHeader( version );
         if ( logHeader != null )
         {   // It existed in cache
-            return logHeader + 1;
+            return logHeader.getLastCommittedTxId() + 1;
         }
 
         // Wasn't cached, go look for it
-        if ( logFiles.versionExists( version ) )
+        var logFile = logFiles.getLogFile();
+        if ( logFile.versionExists( version ) )
         {
-            long previousVersionLastCommittedTx = logFiles.extractHeader( version ).lastCommittedTxId;
-            logHeaderCache.putHeader( version, previousVersionLastCommittedTx );
-            return previousVersionLastCommittedTx + 1;
+            logHeader = logFile.extractHeader( version );
+            logHeaderCache.putHeader( version, logHeader );
+            return logHeader.getLastCommittedTxId() + 1;
         }
         return -1;
     }
@@ -108,27 +110,25 @@ public class TransactionLogFileInformation implements LogFileInformation
     }
 
     @Override
+    public long committingEntryId()
+    {
+        return logFileContext.committingTransactionId();
+    }
+
+    @Override
     public long getFirstStartRecordTimestamp( long version ) throws IOException
     {
         return logFileTimestampMapper.getTimestampForVersion( version );
     }
 
-    @Override
-    public boolean transactionExistsOnDisk( long transactionId ) throws IOException
-    {
-        long lowestOnDisk = getFirstExistingEntryId();
-        long highestOnDisk = getLastEntryId();
-        return ( transactionId >= BASE_TX_ID ) // It's a real transaction id
-                && ( transactionId >= lowestOnDisk && transactionId <= highestOnDisk ); // and it's in the on-disk range
-    }
-
     private static class TransactionLogFileTimestampMapper
     {
-
+        private static final String FIRST_TRANSACTION_TIME = "First Transaction Time";
         private final LogFiles logFiles;
-        private final LogEntryReader<ReadableLogChannel> logEntryReader;
+        private final LogEntryReader logEntryReader;
+        private final LruCache<Long,Long> logFileTimeStamp = new LruCache<>( FIRST_TRANSACTION_TIME, 10_000 );
 
-        TransactionLogFileTimestampMapper( LogFiles logFiles, LogEntryReader<ReadableLogChannel> logEntryReader )
+        TransactionLogFileTimestampMapper( LogFiles logFiles, LogEntryReader logEntryReader )
         {
             this.logFiles = logFiles;
             this.logEntryReader = logEntryReader;
@@ -136,15 +136,23 @@ public class TransactionLogFileInformation implements LogFileInformation
 
         long getTimestampForVersion( long version ) throws IOException
         {
-            LogPosition position = LogPosition.start( version );
-            try ( ReadableLogChannel channel = logFiles.getLogFile().getReader( position ) )
+            var cachedTimeStamp = logFileTimeStamp.get( version );
+            if ( cachedTimeStamp != null )
+            {
+                return cachedTimeStamp;
+            }
+            var logFile = logFiles.getLogFile();
+            LogPosition position = logFile.extractHeader( version ).getStartPosition();
+            try ( ReadableLogChannel channel = logFile.getRawReader( position ) )
             {
                 LogEntry entry;
                 while ( (entry = logEntryReader.readLogEntry( channel )) != null )
                 {
                     if ( entry instanceof LogEntryStart )
                     {
-                        return entry.<LogEntryStart>as().getTimeWritten();
+                        long timeWritten = ((LogEntryStart) entry).getTimeWritten();
+                        logFileTimeStamp.put( version, timeWritten );
+                        return timeWritten;
                     }
                 }
             }

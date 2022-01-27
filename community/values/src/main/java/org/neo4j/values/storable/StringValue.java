@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,15 +38,15 @@
  */
 package org.neo4j.values.storable;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.neo4j.hashing.HashFunction;
-import org.neo4j.values.AnyValue;
+import org.neo4j.internal.helpers.collection.Pair;
 import org.neo4j.values.ValueMapper;
 import org.neo4j.values.virtual.ListValue;
+import org.neo4j.values.virtual.ListValueBuilder;
 import org.neo4j.values.virtual.VirtualValues;
 
 import static java.lang.String.format;
@@ -105,41 +105,137 @@ public abstract class StringValue extends TextValue
         }
         else if ( separator.isEmpty() )
         {
-            return VirtualValues.fromArray( Values.charArray( asString.toCharArray() ) );
+            return splitOnEmptySeparator( asString );
         }
 
-        List<AnyValue> split = splitNonRegex( asString, separator );
-        return VirtualValues.fromList( split );
+        return splitNonRegex( asString, separator );
+    }
+
+    private ListValue splitOnEmptySeparator( String asString )
+    {
+        char[] charArray = asString.toCharArray();
+        String[] strArray = new String[charArray.length];
+        for ( int i = 0; i < charArray.length; i++ )
+        {
+            strArray[i] = String.valueOf( charArray[i] );
+        }
+        return VirtualValues.fromArray( Values.stringArray( strArray ) );
+    }
+
+    @Override
+    public ListValue split( List<String> separators )
+    {
+        assert separators != null;
+        String asString = value();
+        //Cypher has different semantics for the case where the separator
+        //is exactly the value, in cypher we expect two empty arrays
+        //where as java returns an empty array
+        if ( separators.stream().anyMatch( sep -> sep.equals( asString ) ) )
+        {
+            return EMPTY_SPLIT;
+        }
+        else if ( separators.stream().anyMatch( String::isEmpty ) )
+        {
+            String reduced = asString;
+            for ( var sep : separators )
+            {
+                if ( sep.isEmpty() )
+                {
+                    continue;
+                }
+                reduced = reduced.replace( sep, "" );
+            }
+            return VirtualValues.fromArray( Values.charArray( reduced.toCharArray() ) );
+        }
+
+        return splitNonRegex( asString, separators );
     }
 
     /**
-     * Splits a string.
+     * Splits a string based on a single delimiter string
      *
      * @param input String to be split
      * @param delim delimiter, must not be not empty
      * @return the split string as a List of TextValues
      */
-    private static List<AnyValue> splitNonRegex( String input, String delim )
+    private static ListValue splitNonRegex( String input, String delim )
     {
-        List<AnyValue> l = new ArrayList<>();
+        ListValueBuilder substrings = ListValueBuilder.newListBuilder();
         int offset = 0;
+        int index;
 
-        while ( true )
+        do
+        {
+            index = input.indexOf( delim, offset );
+            offset = updateSubstringsAndOffset( substrings, offset, input, index, delim );
+        }
+        while ( index != -1 );
+        return substrings.build();
+    }
+
+    /**
+     * Splits a string with multiple separator strings
+     *
+     * @param input String to be split
+     * @param delims delimiters, must not be not empty
+     * @return the split string as a List of TextValues
+     */
+    private static ListValue splitNonRegex( String input, List<String> delims )
+    {
+        ListValueBuilder substrings = ListValueBuilder.newListBuilder();
+        int offset = 0;
+        Pair<Integer,String> nextSubstring;
+
+        do
+        {
+            nextSubstring = firstIndexOf( input, offset, delims );
+            offset = updateSubstringsAndOffset( substrings, offset, input, nextSubstring.first(), nextSubstring.other() );
+        }
+        while ( nextSubstring.first() != -1 );
+        return substrings.build();
+    }
+
+    /**
+     * Make decisions based on whether the specified delimiter had been found or not.
+     * If found, add a new substring to the collection, and return a new offset after the delimiter.
+     */
+    private static int updateSubstringsAndOffset( ListValueBuilder substrings, int offset, String input, int index, String delim )
+    {
+        if ( index == -1 )
+        {
+            String substring = input.substring( offset );
+            substrings.add( Values.stringValue( substring ) );
+        }
+        else
+        {
+            String substring = input.substring( offset, index );
+            substrings.add( Values.stringValue( substring ) );
+            offset = index + delim.length();
+        }
+        return offset;
+    }
+
+    /**
+     * Search the input string, starting at the specified offset, for any of the the specified delimiter strings.
+     * The first delimiter found will be returned with it's starting index position.
+     */
+    private static Pair<Integer,String> firstIndexOf( String input, int offset, List<String> delims )
+    {
+        int firstIndex = -1;
+        String first = null;
+        for ( var delim : delims )
         {
             int index = input.indexOf( delim, offset );
-            if ( index == -1 )
+            if ( index != -1 )
             {
-                String substring = input.substring( offset );
-                l.add( Values.stringValue( substring ) );
-                return l;
-            }
-            else
-            {
-                String substring = input.substring( offset, index );
-                l.add( Values.stringValue( substring ) );
-                offset = index + delim.length();
+                if ( first == null || index < firstIndex )
+                {
+                    first = delim;
+                    firstIndex = index;
+                }
             }
         }
+        return Pair.of( firstIndex, first );
     }
 
     @Override
@@ -187,6 +283,7 @@ public abstract class StringValue extends TextValue
         return mapper.mapString( this );
     }
 
+    //NOTE: this doesn't respect code point order for code points that doesn't fit 16bits
     @Override
     public int compareTo( TextValue other )
     {
@@ -195,10 +292,16 @@ public abstract class StringValue extends TextValue
         return thisString.compareTo( thatString );
     }
 
-    static TextValue EMTPY = new StringValue()
+    @Override
+    public boolean isSameValueTypeAs( Value value )
+    {
+        return value instanceof StringValue;
+    }
+
+    static final TextValue EMPTY = new StringValue()
     {
         @Override
-        protected int computeHash()
+        protected int computeHashToMemoize()
         {
             return 0;
         }
@@ -213,6 +316,12 @@ public abstract class StringValue extends TextValue
         public int length()
         {
             return 0;
+        }
+
+        @Override
+        public boolean isEmpty()
+        {
+            return true;
         }
 
         @Override
@@ -243,6 +352,30 @@ public abstract class StringValue extends TextValue
         public TextValue reverse()
         {
             return this;
+        }
+
+        @Override
+        public TextValue plus( TextValue other )
+        {
+            return other;
+        }
+
+        @Override
+        public boolean startsWith( TextValue other )
+        {
+            return other.length() == 0;
+        }
+
+        @Override
+        public boolean endsWith( TextValue other )
+        {
+            return other.length() == 0;
+        }
+
+        @Override
+        public boolean contains( TextValue other )
+        {
+            return other.length() == 0;
         }
 
         @Override
@@ -286,6 +419,18 @@ public abstract class StringValue extends TextValue
         String value()
         {
             return "";
+        }
+
+        @Override
+        public long estimatedHeapUsage()
+        {
+            return 0;
+        }
+
+        @Override
+        public ValueRepresentation valueRepresentation()
+        {
+            return ValueRepresentation.UTF16_TEXT;
         }
     };
 }

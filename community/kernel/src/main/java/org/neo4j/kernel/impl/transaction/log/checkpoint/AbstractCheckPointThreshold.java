@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,9 +40,11 @@ package org.neo4j.kernel.impl.transaction.log.checkpoint;
 
 import java.util.function.Consumer;
 
+import org.neo4j.kernel.impl.transaction.log.LogPosition;
+
 /**
  * Abstract class that implement common logic for making the consumer to consume the description of this
- * threshold if {@link #thresholdReached(long)} is true.
+ * threshold if {@link #thresholdReached(long, LogPosition)} is true.
  */
 public abstract class AbstractCheckPointThreshold implements CheckPointThreshold
 {
@@ -54,15 +56,20 @@ public abstract class AbstractCheckPointThreshold implements CheckPointThreshold
     }
 
     @Override
-    public final boolean isCheckPointingNeeded( long lastCommittedTransactionId, Consumer<String> consumer )
+    public final boolean isCheckPointingNeeded( long lastCommittedTransactionId, LogPosition logPosition, Consumer<String> consumer )
     {
-        if ( thresholdReached( lastCommittedTransactionId ) )
+        if ( thresholdReached( lastCommittedTransactionId, logPosition ) )
         {
-            consumer.accept( description );
+            consumer.accept( createCheckpointThresholdDescription( description ) );
             return true;
         }
         return false;
     }
 
-    protected abstract boolean thresholdReached( long lastCommittedTransactionId );
+    protected String createCheckpointThresholdDescription( String description )
+    {
+        return description;
+    }
+
+    protected abstract boolean thresholdReached( long lastCommittedTransactionId, LogPosition logPosition );
 }

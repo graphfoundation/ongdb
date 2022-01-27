@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,63 +38,63 @@
  */
 package org.neo4j.kernel.api;
 
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 
+import org.neo4j.collection.Dependencies;
 import org.neo4j.collection.pool.Pool;
+import org.neo4j.configuration.Config;
+import org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker;
+import org.neo4j.dbms.database.DbmsRuntimeRepository;
+import org.neo4j.internal.kernel.api.security.CommunitySecurityLog;
 import org.neo4j.internal.kernel.api.security.LoginContext;
-import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracerSupplier;
-import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
-import org.neo4j.kernel.api.explicitindex.AutoIndexing;
+import org.neo4j.internal.schema.SchemaState;
+import org.neo4j.io.pagecache.context.EmptyVersionContextSupplier;
+import org.neo4j.kernel.KernelVersion;
+import org.neo4j.kernel.api.procedure.GlobalProcedures;
+import org.neo4j.kernel.database.DatabaseTracers;
+import org.neo4j.kernel.impl.api.InternalTransactionCommitProcess;
 import org.neo4j.kernel.impl.api.KernelTransactionImplementation;
-import org.neo4j.kernel.impl.api.SchemaState;
-import org.neo4j.kernel.impl.api.SchemaWriteGuard;
-import org.neo4j.kernel.impl.api.StatementOperationParts;
-import org.neo4j.kernel.impl.api.TransactionHeaderInformation;
-import org.neo4j.kernel.impl.api.TransactionHooks;
-import org.neo4j.kernel.impl.api.TransactionRepresentationCommitProcess;
-import org.neo4j.kernel.impl.api.index.IndexProviderMap;
+import org.neo4j.kernel.impl.api.KernelTransactions;
+import org.neo4j.kernel.impl.api.LeaseService;
 import org.neo4j.kernel.impl.api.index.IndexingService;
+import org.neo4j.kernel.impl.api.index.stats.IndexStatisticsStore;
 import org.neo4j.kernel.impl.api.state.ConstraintIndexCreator;
 import org.neo4j.kernel.impl.constraints.StandardConstraintSemantics;
 import org.neo4j.kernel.impl.factory.CanWrite;
-import org.neo4j.kernel.impl.index.ExplicitIndexStore;
-import org.neo4j.kernel.impl.locking.LockTracer;
+import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
 import org.neo4j.kernel.impl.locking.NoOpClient;
-import org.neo4j.kernel.impl.locking.SimpleStatementLocks;
-import org.neo4j.kernel.impl.locking.StatementLocks;
-import org.neo4j.kernel.impl.newapi.DefaultCursors;
-import org.neo4j.kernel.impl.proc.Procedures;
-import org.neo4j.kernel.impl.transaction.TransactionHeaderInformationFactory;
+import org.neo4j.kernel.impl.query.TransactionExecutionMonitor;
 import org.neo4j.kernel.impl.transaction.TransactionMonitor;
+import org.neo4j.kernel.internal.event.DatabaseTransactionEventListeners;
+import org.neo4j.memory.MemoryPools;
 import org.neo4j.resources.CpuClock;
-import org.neo4j.resources.HeapAllocation;
+import org.neo4j.storageengine.api.CommandCreationContext;
 import org.neo4j.storageengine.api.StorageEngine;
-import org.neo4j.storageengine.api.StorageStatement;
-import org.neo4j.storageengine.api.StoreReadLayer;
+import org.neo4j.storageengine.api.StorageReader;
+import org.neo4j.storageengine.api.cursor.StoreCursors;
 import org.neo4j.time.Clocks;
+import org.neo4j.token.TokenHolders;
+import org.neo4j.token.api.TokenHolder;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.RETURNS_MOCKS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.neo4j.kernel.impl.transaction.tracing.TransactionTracer.NULL;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo.EMBEDDED_CONNECTION;
+import static org.neo4j.kernel.database.DatabaseIdFactory.from;
 import static org.neo4j.kernel.impl.util.collection.CollectionsFactorySupplier.ON_HEAP;
 
-public class KernelTransactionFactory
+public final class KernelTransactionFactory
 {
     public static class Instances
     {
         public KernelTransactionImplementation transaction;
-        public StorageEngine storageEngine;
-        public StoreReadLayer storeReadLayer;
-        public StorageStatement storageStatement;
 
-        public Instances( KernelTransactionImplementation transaction, StorageEngine storageEngine,
-                StoreReadLayer storeReadLayer, StorageStatement storageStatement )
+        Instances( KernelTransactionImplementation transaction )
         {
             this.transaction = transaction;
-            this.storageEngine = storageEngine;
-            this.storeReadLayer = storeReadLayer;
-            this.storageStatement = storageStatement;
         }
     }
 
@@ -104,37 +104,40 @@ public class KernelTransactionFactory
 
     private static Instances kernelTransactionWithInternals( LoginContext loginContext )
     {
-        TransactionHeaderInformation headerInformation = new TransactionHeaderInformation( -1, -1, new byte[0] );
-        TransactionHeaderInformationFactory headerInformationFactory = mock( TransactionHeaderInformationFactory.class );
-        when( headerInformationFactory.create() ).thenReturn( headerInformation );
-
         StorageEngine storageEngine = mock( StorageEngine.class );
-        StoreReadLayer storeReadLayer = mock( StoreReadLayer.class );
-        StorageStatement storageStatement = mock( StorageStatement.class );
-        when( storeReadLayer.newStatement() ).thenReturn( storageStatement );
-        when( storageEngine.storeReadLayer() ).thenReturn( storeReadLayer );
+        StorageReader storageReader = mock( StorageReader.class );
+        when( storageEngine.newReader() ).thenReturn( storageReader );
+        when( storageEngine.newCommandCreationContext( any() ) ).thenReturn( mock( CommandCreationContext.class ) );
+        when( storageEngine.createStorageCursors( any() ) ).thenReturn( StoreCursors.NULL );
 
-        KernelTransactionImplementation transaction = new KernelTransactionImplementation(
-                mock( StatementOperationParts.class ),
-                mock( SchemaWriteGuard.class ),
-                new TransactionHooks(),
-                mock( ConstraintIndexCreator.class ), new Procedures(), headerInformationFactory,
-                mock( TransactionRepresentationCommitProcess.class ), mock( TransactionMonitor.class ),
-                mock( Supplier.class ),
-                mock( Pool.class ),
-                Clocks.nanoClock(), new AtomicReference<>( CpuClock.NOT_AVAILABLE ), new AtomicReference<>( HeapAllocation.NOT_AVAILABLE ), NULL,
-                LockTracer.NONE,
-                PageCursorTracerSupplier.NULL,
-                storageEngine, new CanWrite(), new DefaultCursors(), AutoIndexing.UNSUPPORTED,
-                mock( ExplicitIndexStore.class ), EmptyVersionContextSupplier.EMPTY, ON_HEAP, new StandardConstraintSemantics(),
-                mock( SchemaState.class), mock( IndexingService.class ), mock( IndexProviderMap.class ) );
+        Dependencies dependencies = new Dependencies();
+        dependencies.satisfyDependency( mock( GraphDatabaseFacade.class ) );
+        KernelTransactionImplementation transaction =
+                new KernelTransactionImplementation( Config.defaults(), mock( DatabaseTransactionEventListeners.class ),
+                                                     mock( ConstraintIndexCreator.class ), mock( GlobalProcedures.class ),
+                                                     mock( InternalTransactionCommitProcess.class ), mock( TransactionMonitor.class ),
+                                                     mock( Pool.class ), Clocks.nanoClock(), new AtomicReference<>( CpuClock.NOT_AVAILABLE ),
+                                                     mock( DatabaseTracers.class, RETURNS_MOCKS ), storageEngine,
+                                                     any -> CanWrite.INSTANCE, EmptyVersionContextSupplier.EMPTY, ON_HEAP,
+                                                     new StandardConstraintSemantics(), mock( SchemaState.class ), mockedTokenHolders(),
+                                                     mock( IndexingService.class ),
+                                                     mock( IndexStatisticsStore.class ), dependencies, from( DEFAULT_DATABASE_NAME, UUID.randomUUID() ),
+                                                     LeaseService.NO_LEASES, MemoryPools.NO_TRACKING, DatabaseReadOnlyChecker.writable(),
+                                                     TransactionExecutionMonitor.NO_OP, CommunitySecurityLog.NULL_LOG, () -> KernelVersion.LATEST,
+                                                     mock( DbmsRuntimeRepository.class ), new NoOpClient(), mock( KernelTransactions.class ) );
 
-        StatementLocks statementLocks = new SimpleStatementLocks( new NoOpClient() );
+        transaction.initialize( 0, 0, KernelTransaction.Type.IMPLICIT,
+                loginContext.authorize( LoginContext.IdLookup.EMPTY, DEFAULT_DATABASE_NAME, CommunitySecurityLog.NULL_LOG ), 0L, 1L, EMBEDDED_CONNECTION );
 
-        transaction.initialize( 0, 0, statementLocks, KernelTransaction.Type.implicit,
-                loginContext.authorize( s -> -1 ), 0L, 1L );
+        return new Instances( transaction );
+    }
 
-        return new Instances( transaction, storageEngine, storeReadLayer, storageStatement );
+    private static TokenHolders mockedTokenHolders()
+    {
+        return new TokenHolders(
+                mock( TokenHolder.class ),
+                mock( TokenHolder.class ),
+                mock( TokenHolder.class ) );
     }
 
     static KernelTransaction kernelTransaction( LoginContext loginContext )

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,9 +41,9 @@ package org.neo4j.values.storable;
 /**
  * Contains a collection of strings that needs to be supported throughout the product.
  */
-public class StringsLibrary
+class StringsLibrary
 {
-    public static String[] STRINGS = {
+    static final String[] STRINGS = {
             "",
             "1337",
             " ",
@@ -60,6 +60,7 @@ public class StringsLibrary
             ";먵�?裬岰鷲趫\uA8C5얱㓙髿ᚳᬼ≩�?� ",
             "\u001cӳ",
             "abcdefghijklmnopqrstuvwxyzåäöABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖ 1234567890-´!\"@#$%^&*()_+",
+            "йцукенгшщзхъфывапролджэячсмитьбю"
             // TODO longer lorem ipsum string?
     };
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,29 +38,46 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.{QueryContext, QueryTransactionalContext}
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryContextAdaptation, QueryStateHelper}
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.runtime.ResourceManager
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.kernel.impl.util.collection.EagerBuffer
 
 class EagerPipeTest extends CypherFunSuite {
 
-  private val queryContext = new QueryContext with QueryContextAdaptation {
-    override val transactionalContext: QueryTransactionalContext = mock[QueryTransactionalContext]
-  }
-  private val queryState = QueryStateHelper.emptyWith(query = queryContext)
+  private val queryState = QueryStateHelper.emptyWithValueSerialization
 
-  test("shouldMakeLazyEager") {
+  test("should be eager") {
     // Given a lazy iterator that is not empty
-    val lazyIterator = new LazyIterator[ExecutionContext](10, (_) => ExecutionContext.empty)
-    val src = new FakePipe(lazyIterator)
+    val src = FakePipe(Seq.fill(10)(Map()))
     val eager = EagerPipe(src)()
-    lazyIterator should not be empty
 
     // When
     val resultIterator = eager.createResults(queryState)
 
-    // Then the lazy iterator is emptied, and the returned iterator is not
-    lazyIterator shouldBe empty
+    src.numberOfPulledRows shouldBe 10
     resultIterator should not be empty
+  }
+
+  test("close should close buffer") {
+    val monitor = QueryStateHelper.trackClosedMonitor
+    val resourceManager = new ResourceManager(monitor)
+    val input = new FakePipe(Seq(Map("a"->10),Map("a"->null)))
+    val pipe = EagerPipe(input)()
+    val result = pipe.createResults(QueryStateHelper.emptyWithResourceManager(resourceManager))
+    result.close()
+    input.wasClosed shouldBe true
+    monitor.closedResources.collect { case t: EagerBuffer[_] => t } should have size(1)
+  }
+
+  test("exhaust should close buffer") {
+    val monitor = QueryStateHelper.trackClosedMonitor
+    val resourceManager = new ResourceManager(monitor)
+    val input = new FakePipe(Seq(Map("a"->10),Map("a"->null)))
+    val pipe = EagerPipe(input)()
+    // exhaust
+    pipe.createResults(QueryStateHelper.emptyWithResourceManager(resourceManager)).toList
+    input.wasClosed shouldBe true
+    monitor.closedResources.collect { case t: EagerBuffer[_] => t } should have size(1)
   }
 }

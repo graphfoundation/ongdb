@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,142 +38,28 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
+import org.neo4j.cypher.internal.runtime.ResourceManager
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Literal, Variable}
-import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.{Equals, Not, True}
-import org.neo4j.cypher.internal.util.v3_4.symbols.CTNumber
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.values.storable.Values.{FALSE, TRUE, intValue}
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Not
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.True
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
-class LetSelectOrSemiApplyPipeTest extends CypherFunSuite with PipeTestSupport {
+class LetSelectOrSemiApplyPipeTest extends CypherFunSuite {
+  test("Each row should immediately close RHS. Exhaust should close LHS.") {
+    val monitor = QueryStateHelper.trackClosedMonitor
+    val resourceManager = new ResourceManager(monitor)
+    val lhs = new FakePipe(Seq(Map("a"->10),Map("a"->11)))
+    val rhs = new FakePipe(Seq(Map("b"->20),Map("b"->21)))
+    val pipe = LetSelectOrSemiApplyPipe(lhs, rhs, "c", Not(True()), negated = false)()
+    val result = pipe.createResults(QueryStateHelper.emptyWithResourceManager(resourceManager))
+    result.next() // First row
+    lhs.wasClosed shouldBe false
+    rhs.wasClosed shouldBe true
 
-  test("should only write let = true for the one that matches when the expression is false") {
-    val lhsData = List(Map("a" -> 1), Map("a" -> 2))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
-
-    val rhs = pipeWithResults((state) => {
-      val initialContext = state.initialContext.get
-      if (initialContext("a") == intValue(1)) Iterator(initialContext) else Iterator.empty
-    })
-
-    val result =
-      LetSelectOrSemiApplyPipe(lhs, rhs, "let", Not(True()), negated = false)().
-        createResults(QueryStateHelper.empty).toList
-
-    result should equal(List(
-      Map("a" -> intValue(1), "let" -> TRUE),
-      Map("a" -> intValue(2), "let" -> FALSE)
-    ))
-  }
-
-  test("should only write let = true for the one that not matches when the expression is false and it is negated") {
-    val lhsData = List(Map("a" -> 1), Map("a" -> 2))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
-
-    val rhs = pipeWithResults((state) => {
-      val initialContext = state.initialContext.get
-      if (initialContext("a") == intValue(1)) Iterator(initialContext) else Iterator.empty
-    })
-
-    val result =
-      LetSelectOrSemiApplyPipe(lhs, rhs, "let", Not(True()), negated = true)().
-        createResults(QueryStateHelper.empty).toList
-
-    result should equal(List(
-      Map("a" -> intValue(1), "let" -> FALSE),
-      Map("a" -> intValue(2), "let" -> TRUE)
-    ))
-  }
-
-  test("should not write let = true for anything if rhs is empty and expression is false") {
-    val lhsData = List(Map("a" -> 1), Map("a" -> 2))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
-    val rhs = new FakePipe(Iterator.empty)
-
-    val result =
-      LetSelectOrSemiApplyPipe(lhs, rhs, "let", Not(True()), negated = false)().
-        createResults(QueryStateHelper.empty).toList
-
-    result should equal(List(
-      Map("a" -> intValue(1), "let" -> FALSE),
-      Map("a" -> intValue(2), "let" -> FALSE)
-    ))
-  }
-
-  test("should write let = true for everything if rhs is nonEmpty and the expression is false") {
-    val lhsData = List(Map("a" -> 1), Map("a" -> 2))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
-    val rhs = new FakePipe(Iterator(Map("a" -> 1)))
-
-    val result =
-      LetSelectOrSemiApplyPipe(lhs, rhs, "let", Not(True()), negated = false)().
-        createResults(QueryStateHelper.empty).toList
-
-    result should equal(List(
-      Map("a" -> intValue(1), "let" -> TRUE),
-      Map("a" -> intValue(2), "let" -> TRUE)
-    ))
-  }
-
-  test("if lhs is empty, rhs should not be touched regardless the given expression") {
-    val rhs = pipeWithResults((_) => fail("should not use this"))
-    val lhs = new FakePipe(Iterator.empty)
-
-    // Should not throw
-    LetSelectOrSemiApplyPipe(lhs, rhs, "let", True(), negated = false)().
-      createResults(QueryStateHelper.empty).toList
-  }
-
-  test("should write let = true for the one satisfying the expression even if the rhs is empty") {
-    val lhsData = List(Map("a" -> 1), Map("a" -> 2))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
-    val rhs = new FakePipe(Iterator.empty)
-
-    val result =
-      LetSelectOrSemiApplyPipe(lhs, rhs, "let", Equals(Variable("a"), Literal(2)), negated = false)().
-        createResults(QueryStateHelper.empty).toList
-
-    result should equal(List(
-      Map("a" -> intValue(1), "let" -> FALSE),
-      Map("a" -> intValue(2), "let" -> TRUE)
-    ))
-  }
-
-  test("should write let = true for the one that matches and the one satisfying the expression") {
-    val lhsData = List(Map("a" -> 1), Map("a" -> 2), Map("a" -> 3))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
-
-    val rhs = pipeWithResults((state: QueryState) => {
-      val initialContext = state.initialContext.get
-      if (initialContext("a") == intValue(1)) Iterator(initialContext) else Iterator.empty
-    })
-
-    val result =
-      LetSelectOrSemiApplyPipe(lhs, rhs, "let", Equals(Variable("a"), Literal(2)), negated = false)().
-        createResults(QueryStateHelper.empty).toList
-
-    result should equal(List(
-      Map("a" -> intValue(1), "let" -> TRUE),
-      Map("a" -> intValue(2), "let" -> TRUE),
-      Map("a" -> intValue(3), "let" -> FALSE)
-    ))
-  }
-
-  test("should not write let = true for anything if the rhs is empty and the expression is false") {
-    val lhsData = List(Map("a" -> 3), Map("a" -> 4))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
-
-    val rhs = pipeWithResults((state: QueryState) => {
-      val initialContext = state.initialContext.get
-      if (initialContext("a") == intValue(1)) Iterator(initialContext) else Iterator.empty
-    })
-
-    val result =
-      LetSelectOrSemiApplyPipe(lhs, rhs, "let", Equals(Variable("a"), Literal(2)), negated = false)().
-        createResults(QueryStateHelper.empty).toList
-    result should equal(List(
-      Map("a" -> intValue(3), "let" -> FALSE),
-      Map("a" -> intValue(4), "let" -> FALSE)
-    ))
+    rhs.resetClosed()
+    result.next() // Second row
+    result.hasNext shouldBe false // Make sure to exhaust
+    lhs.wasClosed shouldBe true
+    rhs.wasClosed shouldBe true
   }
 }

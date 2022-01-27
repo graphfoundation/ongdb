@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,17 +38,19 @@
  */
 package org.neo4j.graphdb;
 
+import org.neo4j.annotations.api.PublicApi;
+
 import static java.util.Objects.requireNonNull;
 
 /**
  * Signifies how a query is executed, as well as what side effects and results could be expected from the query.
  * <p>
- * In Geequel there are three different modes of execution:
+ * In Cypher there are three different modes of execution:
  * <ul>
  * <li>Normal execution,</li>
- * <li>execution with the <a href="https://graphfoundation.org/ongdb/docs/developer-manual/current/geequel/execution-plans/">{@code PROFILE}</a> directive,
+ * <li>execution with the <a href="https://neo4j.com/docs/developer-manual/current/cypher/execution-plans/">{@code PROFILE}</a> directive,
  * and</li>
- * <li>execution with the <a href="https://graphfoundation.org/ongdb/docs/developer-manual/current/geequel/execution-plans/">{@code EXPLAIN}</a>
+ * <li>execution with the <a href="https://neo4j.com/docs/developer-manual/current/cypher/execution-plans/">{@code EXPLAIN}</a>
  * directive.</li>
  * </ul>
  * Instances of this class contain the required information to be able to tell these different execution modes apart.
@@ -66,6 +68,7 @@ import static java.util.Objects.requireNonNull;
  * {@linkplain Result#getExecutionPlanDescription() get a description of the plan} that <i>would</i> be executed
  * if/when the query is executed normally (or under {@code PROFILE}).
  */
+@PublicApi
 public final class QueryExecutionType
 {
     /**
@@ -83,7 +86,9 @@ public final class QueryExecutionType
          * A schema changing query, that updates the schema but neither changes any data nor yields any rows in the
          * result.
          */
-        SCHEMA_WRITE,;
+        SCHEMA_WRITE,
+         /** A database management query */
+        DBMS,;
         private final QueryExecutionType query;
         private final QueryExecutionType profiled;
         private final QueryExecutionType explained;
@@ -144,7 +149,7 @@ public final class QueryExecutionType
      * {@linkplain ExecutionPlanDescription#getProfilerStatistics() contains profiling information}.
      *
      * This is {@code true} for queries executed with the
-     * <a href="https://graphfoundation.org/ongdb/docs/developer-manual/current/geequel/execution-plans/">{@code PROFILE}</a> directive.
+     * <a href="https://neo4j.com/docs/developer-manual/current/cypher/execution-plans/">{@code PROFILE}</a> directive.
      *
      * @return {@code true} if the results from this execution would contain profiling information.
      */
@@ -158,7 +163,7 @@ public final class QueryExecutionType
      * {@linkplain ExecutionPlanDescription description of the execution plan}.
      *
      * This is {@code true} for queries executed with either the
-     * <a href="https://graphfoundation.org/ongdb/docs/developer-manual/current/geequel/execution-plans/">{@code EXPLAIN} or {@code PROFILE} directives</a>.
+     * <a href="https://neo4j.com/docs/developer-manual/current/cypher/execution-plans/">{@code EXPLAIN} or {@code PROFILE} directives</a>.
      *
      * @return {@code true} if a description of the plan should be presented to the user.
      */
@@ -169,7 +174,7 @@ public final class QueryExecutionType
 
     /**
      * Signifies that the query was executed with the
-     * <a href="https://graphfoundation.org/ongdb/docs/developer-manual/current/geequel/execution-plans/">{@code EXPLAIN} directive</a>.
+     * <a href="https://neo4j.com/docs/developer-manual/current/cypher/execution-plans/">{@code EXPLAIN} directive</a>.
      *
      * @return {@code true} if the query was executed using the {@code EXPLAIN} directive.
      */

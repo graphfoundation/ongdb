@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,39 +39,52 @@
 package org.neo4j.internal.kernel.api;
 
 import java.util.Set;
+import java.util.stream.Stream;
 
 import org.neo4j.collection.RawIterator;
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
+import org.neo4j.internal.kernel.api.procs.ProcedureCallContext;
 import org.neo4j.internal.kernel.api.procs.ProcedureHandle;
 import org.neo4j.internal.kernel.api.procs.ProcedureSignature;
 import org.neo4j.internal.kernel.api.procs.QualifiedName;
 import org.neo4j.internal.kernel.api.procs.UserAggregator;
 import org.neo4j.internal.kernel.api.procs.UserFunctionHandle;
-import org.neo4j.internal.kernel.api.security.AccessMode;
+import org.neo4j.internal.kernel.api.procs.UserFunctionSignature;
 import org.neo4j.values.AnyValue;
-import org.neo4j.values.ValueMapper;
 
 public interface Procedures
 {
     /**
      * Get a handle to the given function
      * @param name the name of the function
-     * @return A handle to the function
+     * @return A handle to the function or null if no function was found.
      */
     UserFunctionHandle functionGet( QualifiedName name );
 
     /**
+     * Fetch all non-aggregating functions
+     * @return all non-aggregating functions
+     */
+    Stream<UserFunctionSignature> functionGetAll( );
+
+    /**
      * Get a handle to the given aggregation function
      * @param name the name of the function
-     * @return A handle to the function
+     * @return A handle to the function or null if no function was found.
      */
     UserFunctionHandle aggregationFunctionGet( QualifiedName name );
+
+    /**
+     * Fetch all aggregating functions
+     * @return all aggregating functions
+     */
+    Stream<UserFunctionSignature> aggregationFunctionGetAll( );
 
     /**
      * Fetch a procedure handle
      * @param name the name of the procedure
      * @return a procedure handle
-     * @throws ProcedureException
+     * @throws ProcedureException if there is no procedure was found for the name.
      */
     ProcedureHandle procedureGet( QualifiedName name ) throws ProcedureException;
 
@@ -86,122 +99,44 @@ public interface Procedures
      * Invoke a read-only procedure by id.
      * @param id the id of the procedure.
      * @param arguments the procedure arguments.
+     * @param context the procedure call context.
      * @return an iterator containing the procedure results.
      * @throws ProcedureException if there was an exception thrown during procedure execution.
      */
-    RawIterator<Object[], ProcedureException> procedureCallRead( int id, Object[] arguments )
-            throws ProcedureException;
-
-    /**
-     * Invoke a read-only procedure by id, and set the transaction's access mode to
-     * {@link AccessMode.Static#READ READ} for the duration of the procedure execution.
-     * @param id the id of the procedure.
-     * @param arguments the procedure arguments.
-     * @return an iterator containing the procedure results.
-     * @throws ProcedureException if there was an exception thrown during procedure execution.
-     */
-    RawIterator<Object[], ProcedureException> procedureCallReadOverride( int id, Object[] arguments )
+    RawIterator<AnyValue[], ProcedureException> procedureCallRead( int id, AnyValue[] arguments, ProcedureCallContext context )
             throws ProcedureException;
 
     /**
      * Invoke a read/write procedure by id.
      * @param id the id of the procedure.
      * @param arguments the procedure arguments.
+     * @param context the procedure call context.
      * @return an iterator containing the procedure results.
      * @throws ProcedureException if there was an exception thrown during procedure execution.
      */
-    RawIterator<Object[], ProcedureException> procedureCallWrite( int id, Object[] arguments )
-            throws ProcedureException;
-    /**
-     * Invoke a read/write procedure by id, and set the transaction's access mode to
-     * {@link AccessMode.Static#WRITE WRITE} for the duration of the procedure execution.
-     * @param id the id of the procedure.
-     * @param arguments the procedure arguments.
-     * @return an iterator containing the procedure results.
-     * @throws ProcedureException if there was an exception thrown during procedure execution.
-     */
-    RawIterator<Object[], ProcedureException> procedureCallWriteOverride( int id, Object[] arguments )
+    RawIterator<AnyValue[], ProcedureException> procedureCallWrite( int id, AnyValue[] arguments, ProcedureCallContext context )
             throws ProcedureException;
 
     /**
      * Invoke a schema write procedure by id.
      * @param id the id of the procedure.
      * @param arguments the procedure arguments.
+     * @param context the procedure call context.
      * @return an iterator containing the procedure results.
      * @throws ProcedureException if there was an exception thrown during procedure execution.
      */
-    RawIterator<Object[], ProcedureException> procedureCallSchema( int id, Object[] arguments )
+    RawIterator<AnyValue[], ProcedureException> procedureCallSchema( int id, AnyValue[] arguments, ProcedureCallContext context )
             throws ProcedureException;
+
     /**
-     * Invoke a schema write procedure by id, and set the transaction's access mode to
-     * {@link AccessMode.Static#FULL FULL} for the duration of the procedure execution.
+     * Invoke a dbms procedure by id.
      * @param id the id of the procedure.
      * @param arguments the procedure arguments.
+     * @param context the procedure call context.
      * @return an iterator containing the procedure results.
      * @throws ProcedureException if there was an exception thrown during procedure execution.
      */
-    RawIterator<Object[], ProcedureException> procedureCallSchemaOverride( int id, Object[] arguments )
-            throws ProcedureException;
-
-    /**
-     * Invoke a read-only procedure by name.
-     * @param name the name of the procedure.
-     * @param arguments the procedure arguments.
-     * @return an iterator containing the procedure results.
-     * @throws ProcedureException if there was an exception thrown during procedure execution.
-     */
-    RawIterator<Object[], ProcedureException> procedureCallRead( QualifiedName name, Object[] arguments )
-            throws ProcedureException;
-
-    /**
-     * Invoke a read-only procedure by name, and set the transaction's access mode to
-     * {@link AccessMode.Static#READ READ} for the duration of the procedure execution.
-     * @param name the name of the procedure.
-     * @param arguments the procedure arguments.
-     * @return an iterator containing the procedure results.
-     * @throws ProcedureException if there was an exception thrown during procedure execution.
-     */
-    RawIterator<Object[], ProcedureException> procedureCallReadOverride( QualifiedName name, Object[] arguments )
-            throws ProcedureException;
-
-    /**
-     * Invoke a read/write procedure by name.
-     * @param name the name of the procedure.
-     * @param arguments the procedure arguments.
-     * @return an iterator containing the procedure results.
-     * @throws ProcedureException if there was an exception thrown during procedure execution.
-     */
-    RawIterator<Object[], ProcedureException> procedureCallWrite( QualifiedName name, Object[] arguments )
-            throws ProcedureException;
-    /**
-     * Invoke a read/write procedure by name, and set the transaction's access mode to
-     * {@link AccessMode.Static#WRITE WRITE} for the duration of the procedure execution.
-     * @param name the name of the procedure.
-     * @param arguments the procedure arguments.
-     * @return an iterator containing the procedure results.
-     * @throws ProcedureException if there was an exception thrown during procedure execution.
-     */
-    RawIterator<Object[], ProcedureException> procedureCallWriteOverride( QualifiedName name, Object[] arguments )
-            throws ProcedureException;
-
-    /**
-     * Invoke a schema write procedure by name.
-     * @param name the name of the procedure.
-     * @param arguments the procedure arguments.
-     * @return an iterator containing the procedure results.
-     * @throws ProcedureException if there was an exception thrown during procedure execution.
-     */
-    RawIterator<Object[], ProcedureException> procedureCallSchema( QualifiedName name, Object[] arguments )
-            throws ProcedureException;
-    /**
-     * Invoke a schema write procedure by name, and set the transaction's access mode to
-     * {@link AccessMode.Static#FULL FULL} for the duration of the procedure execution.
-     * @param name the name of the procedure.
-     * @param arguments the procedure arguments.
-     * @return an iterator containing the procedure results.
-     * @throws ProcedureException if there was an exception thrown during procedure execution.
-     */
-    RawIterator<Object[], ProcedureException> procedureCallSchemaOverride( QualifiedName name, Object[] arguments )
+    RawIterator<AnyValue[], ProcedureException> procedureCallDbms( int id, AnyValue[] arguments, ProcedureCallContext context )
             throws ProcedureException;
 
     /** Invoke a read-only function by id
@@ -211,62 +146,26 @@ public interface Procedures
      */
     AnyValue functionCall( int id, AnyValue[] arguments ) throws ProcedureException;
 
-    /** Invoke a read-only function by name
-     * @param name the name of the function.
-     * @param arguments the function arguments.
-     * @throws ProcedureException if there was an exception thrown during function execution.
-     */
-    AnyValue functionCall( QualifiedName name, AnyValue[] arguments ) throws ProcedureException;
-
-    /** Invoke a read-only function by id, and set the transaction's access mode to
-     * {@link AccessMode.Static#READ READ} for the duration of the function execution.
+    /** Invoke a read-only built in function by id
      * @param id the id of the function.
      * @param arguments the function arguments.
      * @throws ProcedureException if there was an exception thrown during function execution.
      */
-    AnyValue functionCallOverride( int id, AnyValue[] arguments ) throws ProcedureException;
-
-    /** Invoke a read-only function by name, and set the transaction's access mode to
-     * {@link AccessMode.Static#READ READ} for the duration of the function execution.
-     * @param name the name of the function.
-     * @param arguments the function arguments.
-     * @throws ProcedureException if there was an exception thrown during function execution.
-     */
-    AnyValue functionCallOverride( QualifiedName name, AnyValue[] arguments ) throws ProcedureException;
+    AnyValue builtInFunctionCall( int id, AnyValue[] arguments ) throws ProcedureException;
 
     /**
      * Create a read-only aggregation function by id
      * @param id the id of the function
      * @return the aggregation function
-     * @throws ProcedureException
+     * @throws ProcedureException if there was an exception thrown during function execution.
      */
     UserAggregator aggregationFunction( int id ) throws ProcedureException;
 
     /**
-     * Create a read-only aggregation function by name
-     * @param name the name of the function
+     * Create a read-only built-in aggregation function by id
+     * @param id the id of the function
      * @return the aggregation function
-     * @throws ProcedureException
-     */
-    UserAggregator aggregationFunction( QualifiedName name ) throws ProcedureException;
-
-    /** Invoke a read-only aggregation function by id, and set the transaction's access mode to
-     * {@link AccessMode.Static#READ READ} for the duration of the function execution.
-     * @param id the id of the function.
      * @throws ProcedureException if there was an exception thrown during function execution.
      */
-    UserAggregator aggregationFunctionOverride( int id ) throws ProcedureException;
-
-    /** Invoke a read-only aggregation function by name, and set the transaction's access mode to
-     * {@link AccessMode.Static#READ READ} for the duration of the function execution.
-     * @param name the name of the function.
-     * @throws ProcedureException if there was an exception thrown during function execution.
-     */
-    UserAggregator aggregationFunctionOverride( QualifiedName name ) throws ProcedureException;
-
-    /**
-     * Retrieve a value mapper for mapping values to regular Java objects.
-     * @return a value mapper that maps to Java objects.
-     */
-    ValueMapper<Object> valueMapper();
+    UserAggregator builtInAggregationFunction( int id ) throws ProcedureException;
 }

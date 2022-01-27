@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -44,7 +44,8 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
 import java.util.function.Supplier;
 
-import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.common.DependencyResolver;
+import org.neo4j.exceptions.UnsatisfiedDependencyException;
 
 /**
  * Used to create dynamic proxies that implement dependency interfaces. Each method should have no arguments
@@ -77,7 +78,7 @@ public class DependenciesProxy
 
     private static class ProxyHandler implements InvocationHandler
     {
-        private DependencyResolver dependencyResolver;
+        private final DependencyResolver dependencyResolver;
 
         ProxyHandler( DependencyResolver dependencyResolver )
         {

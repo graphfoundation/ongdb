@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,58 +38,27 @@
  */
 package org.neo4j.kernel.impl.index.schema.fusion;
 
-import static org.neo4j.kernel.impl.index.schema.fusion.SlotSelector.LUCENE;
-import static org.neo4j.kernel.impl.index.schema.fusion.SlotSelector.NUMBER;
-import static org.neo4j.kernel.impl.index.schema.fusion.SlotSelector.SPATIAL;
-import static org.neo4j.kernel.impl.index.schema.fusion.SlotSelector.STRING;
-import static org.neo4j.kernel.impl.index.schema.fusion.SlotSelector.TEMPORAL;
+import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.GENERIC;
+import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.LUCENE;
 
 enum FusionVersion
 {
-    v00
+    v30
             {
                 @Override
-                int[] aliveSlots()
+                IndexSlot[] aliveSlots()
                 {
-                    return new int[]{LUCENE, SPATIAL, TEMPORAL};
+                    return new IndexSlot[]{GENERIC, LUCENE};
                 }
 
                 @Override
                 SlotSelector slotSelector()
                 {
-                    return new FusionSlotSelector00();
-                }
-            },
-    v10
-            {
-                @Override
-                int[] aliveSlots()
-                {
-                    return new int[]{NUMBER, LUCENE, SPATIAL, TEMPORAL};
-                }
-
-                @Override
-                SlotSelector slotSelector()
-                {
-                    return new FusionSlotSelector10();
-                }
-            },
-    v20
-            {
-                @Override
-                int[] aliveSlots()
-                {
-                    return new int[]{STRING, NUMBER, SPATIAL, TEMPORAL, LUCENE};
-                }
-
-                @Override
-                SlotSelector slotSelector()
-                {
-                    return new FusionSlotSelector20();
+                    return new FusionSlotSelector30();
                 }
             };
 
-    abstract int[] aliveSlots();
+    abstract IndexSlot[] aliveSlots();
 
     abstract SlotSelector slotSelector();
 }

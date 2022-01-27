@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,7 @@
  */
 package org.neo4j.server.rest.repr;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 import java.util.List;
@@ -50,35 +50,32 @@ import org.neo4j.server.rest.repr.formats.JsonFormat;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.util.Arrays.asList;
-import static org.hamcrest.core.Is.is;
-import static org.hamcrest.core.IsNull.nullValue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.neo4j.helpers.collection.MapUtil.map;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.neo4j.internal.helpers.collection.MapUtil.map;
 
-public class MapRepresentationTest
+class MapRepresentationTest
 {
     @Test
-    public void shouldSerializeMapWithSimpleTypes() throws Exception
+    void shouldSerializeMapWithSimpleTypes() throws Exception
     {
         MapRepresentation rep = new MapRepresentation( map( "nulls", null, "strings", "a string", "numbers", 42,
                 "booleans", true ) );
-        OutputFormat format = new OutputFormat( new JsonFormat(), new URI( "http://localhost/" ), null );
 
-        String serializedMap = format.assemble( rep );
+        String serializedMap = RepresentationBasedMessageBodyWriter.serialize( rep, new JsonFormat(), new URI( "http://localhost/" ) );
 
         Map<String, Object> map = JsonHelper.jsonToMap( serializedMap );
-        assertThat( map.get( "nulls" ), is( nullValue() ) );
-        assertThat( map.get( "strings" ), is( "a string" ) );
-        assertThat( map.get( "numbers" ), is( 42 ) );
-        assertThat( map.get( "booleans" ), is( true ) );
+        assertThat( map.get( "nulls" ) ).isNull();
+        assertThat( map.get( "strings" ) ).isEqualTo( "a string" );
+        assertThat( map.get( "numbers" ) ).isEqualTo( 42 );
+        assertThat( map.get( "booleans" ) ).isEqualTo( true );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
-    public void shouldSerializeMapWithArrayTypes() throws Exception
+    void shouldSerializeMapWithArrayTypes() throws Exception
     {
         MapRepresentation rep = new MapRepresentation( map(
                 "strings", new String[]{"a string", "another string"},
@@ -86,56 +83,53 @@ public class MapRepresentationTest
                 "booleans", new boolean[]{true, false},
                 "Booleans", new Boolean[]{TRUE, FALSE}
         ) );
-        OutputFormat format = new OutputFormat( new JsonFormat(), new URI( "http://localhost/" ), null );
 
-        String serializedMap = format.assemble( rep );
+        String serializedMap = RepresentationBasedMessageBodyWriter.serialize( rep, new JsonFormat(), new URI( "http://localhost/" ) );
 
         Map<String, Object> map = JsonHelper.jsonToMap( serializedMap );
-        assertThat( map.get( "strings" ), is( asList( "a string", "another string" ) ) );
-        assertThat( map.get( "numbers" ), is( asList( 42, 87 ) ) );
-        assertThat( map.get( "booleans" ), is( asList( true, false ) ) );
-        assertThat( map.get( "Booleans" ), is( asList( true, false ) ) );
+        assertThat( map.get( "strings" ) ).isEqualTo( asList( "a string", "another string" ) );
+        assertThat( map.get( "numbers" ) ).isEqualTo( asList( 42, 87 ) );
+        assertThat( map.get( "booleans" ) ).isEqualTo( asList( true, false ) );
+        assertThat( map.get( "Booleans" ) ).isEqualTo( asList( true, false ) );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
-    public void shouldSerializeMapWithListsOfSimpleTypes() throws Exception
+    void shouldSerializeMapWithListsOfSimpleTypes() throws Exception
     {
         MapRepresentation rep = new MapRepresentation( map( "lists of nulls", asList( null, null ),
                 "lists of strings", asList( "a string", "another string" ), "lists of numbers", asList( 23, 87, 42 ),
                 "lists of booleans", asList( true, false, true ) ) );
-        OutputFormat format = new OutputFormat( new JsonFormat(), new URI( "http://localhost/" ), null );
 
-        String serializedMap = format.assemble( rep );
+        String serializedMap = RepresentationBasedMessageBodyWriter.serialize( rep, new JsonFormat(), new URI( "http://localhost/" ) );
 
         Map<String, Object> map = JsonHelper.jsonToMap( serializedMap );
-        assertThat( map.get( "lists of nulls" ), is( asList( null, null ) ) );
-        assertThat( map.get( "lists of strings" ), is( asList( "a string", "another string" ) ) );
-        assertThat( map.get( "lists of numbers" ), is( asList( 23, 87, 42 ) ) );
-        assertThat( map.get( "lists of booleans" ), is( asList( true, false, true ) ) );
+        assertThat( map.get( "lists of nulls" ) ).isEqualTo( asList( null, null ) );
+        assertThat( map.get( "lists of strings" ) ).isEqualTo( asList( "a string", "another string" ) );
+        assertThat( map.get( "lists of numbers" ) ).isEqualTo( asList( 23, 87, 42 ) );
+        assertThat( map.get( "lists of booleans" ) ).isEqualTo( asList( true, false, true ) );
     }
 
     @Test
-    public void shouldSerializeMapWithMapsOfSimpleTypes() throws Exception
+    void shouldSerializeMapWithMapsOfSimpleTypes() throws Exception
     {
         MapRepresentation rep = new MapRepresentation( map( "maps with nulls", map( "nulls", null ),
                 "maps with strings", map( "strings", "a string" ),
                 "maps with numbers", map( "numbers", 42 ),
                 "maps with booleans", map( "booleans", true ) ) );
-        OutputFormat format = new OutputFormat( new JsonFormat(), new URI( "http://localhost/" ), null );
 
-        String serializedMap = format.assemble( rep );
+        String serializedMap = RepresentationBasedMessageBodyWriter.serialize( rep, new JsonFormat(), new URI( "http://localhost/" ) );
 
         Map<String, Object> map = JsonHelper.jsonToMap( serializedMap );
-        assertThat( ((Map) map.get( "maps with nulls" )).get( "nulls" ), is( nullValue() ) );
-        assertThat( ((Map) map.get( "maps with strings" )).get( "strings" ), is( "a string" ) );
-        assertThat( ((Map) map.get( "maps with numbers" )).get( "numbers" ), is( 42 ) );
-        assertThat( ((Map) map.get( "maps with booleans" )).get( "booleans" ), is( true ) );
+        assertThat( ((Map) map.get( "maps with nulls" )).get( "nulls" ) ).isNull();
+        assertThat( ((Map) map.get( "maps with strings" )).get( "strings" ) ).isEqualTo( "a string" );
+        assertThat( ((Map) map.get( "maps with numbers" )).get( "numbers" ) ).isEqualTo( 42 );
+        assertThat( ((Map) map.get( "maps with booleans" )).get( "booleans" ) ).isEqualTo( true );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
-    public void shouldSerializeArbitrarilyNestedMapsAndLists() throws Exception
+    void shouldSerializeArbitrarilyNestedMapsAndLists() throws Exception
     {
         MapRepresentation rep = new MapRepresentation(
                 map(
@@ -143,20 +137,17 @@ public class MapRepresentationTest
                         "a list with a map in it", asList( map( "foo", "bar", "baz", false ) )
                 )
         );
-        OutputFormat format = new OutputFormat( new JsonFormat(), new URI( "http://localhost/" ), null );
 
-        String serializedMap = format.assemble( rep );
+        String serializedMap = RepresentationBasedMessageBodyWriter.serialize( rep, new JsonFormat(), new URI( "http://localhost/" ) );
 
         Map<String, Object> map = JsonHelper.jsonToMap( serializedMap );
-        assertThat( ((Map) map.get( "a map with a list in it" )).get( "a list" ), is( asList( 42,
-                87 ) ) );
-        assertThat( ((Map) ((List) map.get( "a list with a map in it" )).get( 0 )).get( "foo" ), is( "bar" ) );
-        assertThat( ((Map) ((List) map.get( "a list with a map in it" )).get( 0 )).get( "baz" ),
-                is( false ) );
+        assertThat( ((Map) map.get( "a map with a list in it" )).get( "a list" ) ).isEqualTo( List.of( 42, 87 ) );
+        assertThat( ((Map) ((List) map.get( "a list with a map in it" )).get( 0 )).get( "foo" ) ).isEqualTo( "bar" );
+        assertThat( ((Map) ((List) map.get( "a list with a map in it" )).get( 0 )).get( "baz" ) ).isEqualTo( false );
     }
 
     @Test
-    public void shouldSerializeMapsWithNullKeys() throws Exception
+    void shouldSerializeMapsWithNullKeys() throws Exception
     {
         Object[] values = {null,
                 "string",
@@ -173,9 +164,8 @@ public class MapRepresentationTest
         for ( Object value : values )
         {
             MapRepresentation rep = new MapRepresentation( map( (Object) null, value ) );
-            OutputFormat format = new OutputFormat( new JsonFormat(), new URI( "http://localhost/" ), null );
 
-            String serializedMap = format.assemble( rep );
+            String serializedMap = RepresentationBasedMessageBodyWriter.serialize( rep, new JsonFormat(), new URI( "http://localhost/" ) );
 
             Map<String,Object> map = JsonHelper.jsonToMap( serializedMap );
 

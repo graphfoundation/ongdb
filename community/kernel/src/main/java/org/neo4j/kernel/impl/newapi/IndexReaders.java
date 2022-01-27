@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,27 +42,27 @@ import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.neo4j.internal.kernel.api.IndexReference;
-import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
-import org.neo4j.storageengine.api.schema.IndexReader;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.kernel.api.index.ValueIndexReader;
 
 import static org.neo4j.io.IOUtils.closeAllUnchecked;
 
 class IndexReaders implements Closeable
 {
-    private final List<IndexReader> indexReaders = new ArrayList<>();
-    private final IndexReference indexReference;
+    private final List<ValueIndexReader> indexReaders = new ArrayList<>();
+    private final IndexDescriptor descriptor;
     private final Read read;
 
-    IndexReaders( IndexReference indexReference, Read read )
+    IndexReaders( IndexDescriptor descriptor, Read read )
     {
-        this.indexReference = indexReference;
+        this.descriptor = descriptor;
         this.read = read;
     }
 
-    IndexReader createReader() throws IndexNotFoundKernelException
+    ValueIndexReader createReader() throws IndexNotFoundKernelException
     {
-        IndexReader indexReader = read.indexReader( indexReference, true );
+        var indexReader = read.newValueIndexReader( descriptor );
         indexReaders.add( indexReader );
         return indexReader;
     }

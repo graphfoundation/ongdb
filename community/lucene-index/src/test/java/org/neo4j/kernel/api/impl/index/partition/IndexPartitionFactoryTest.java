@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,55 +41,53 @@ package org.neo4j.kernel.api.impl.index.partition;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.store.Directory;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 
+import org.neo4j.configuration.Config;
 import org.neo4j.kernel.api.impl.index.IndexWriterConfigs;
+import org.neo4j.kernel.api.impl.index.SearcherReference;
 import org.neo4j.kernel.api.impl.index.storage.DirectoryFactory;
-import org.neo4j.test.rule.TestDirectory;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
+import org.neo4j.test.utils.TestDirectory;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public class IndexPartitionFactoryTest
+@TestDirectoryExtension
+class IndexPartitionFactoryTest
 {
-
-    @Rule
-    public final TestDirectory testDirectory = TestDirectory.testDirectory();
-    @Rule
-    public ExpectedException expectedException = ExpectedException.none();
-
+    @Inject
+    private TestDirectory testDirectory;
     private Directory directory;
 
-    @Before
-    public void setUp() throws IOException
+    @BeforeEach
+    void setUp() throws IOException
     {
-        directory = DirectoryFactory.PERSISTENT.open( testDirectory.directory() );
+        directory = DirectoryFactory.PERSISTENT.open( testDirectory.homePath() );
     }
 
     @Test
-    public void createReadOnlyPartition() throws Exception
+    void createReadOnlyPartition() throws Exception
     {
         prepareIndex();
         try ( AbstractIndexPartition indexPartition =
-                      new ReadOnlyIndexPartitionFactory().createPartition( testDirectory.directory(), directory ) )
+                new ReadOnlyIndexPartitionFactory().createPartition( testDirectory.homePath(), directory ) )
         {
-            expectedException.expect( UnsupportedOperationException.class );
-
-            indexPartition.getIndexWriter();
+            assertThrows(UnsupportedOperationException.class, indexPartition::getIndexWriter );
         }
     }
 
     @Test
-    public void createWritablePartition() throws Exception
+    void createWritablePartition() throws Exception
     {
         try ( AbstractIndexPartition indexPartition =
-                      new WritableIndexPartitionFactory( IndexWriterConfigs::standard )
-                              .createPartition( testDirectory.directory(), directory ) )
+                      new WritableIndexPartitionFactory( () -> IndexWriterConfigs.standard( Config.defaults() ) )
+                              .createPartition( testDirectory.homePath(), directory ) )
         {
 
             try ( IndexWriter indexWriter = indexPartition.getIndexWriter() )
@@ -97,10 +95,9 @@ public class IndexPartitionFactoryTest
                 indexWriter.addDocument( new Document() );
                 indexWriter.commit();
                 indexPartition.maybeRefreshBlocking();
-                try ( PartitionSearcher searcher = indexPartition.acquireSearcher() )
+                try ( SearcherReference searcher = indexPartition.acquireSearcher() )
                 {
-                    assertEquals( "We should be able to see newly added document ",
-                            1, searcher.getIndexSearcher().getIndexReader().numDocs() );
+                    assertEquals( 1, searcher.getIndexSearcher().getIndexReader().numDocs(), "We should be able to see newly added document " );
                 }
             }
         }
@@ -108,9 +105,9 @@ public class IndexPartitionFactoryTest
 
     private void prepareIndex() throws IOException
     {
-        File location = testDirectory.directory();
+        Path location = testDirectory.homePath();
         try ( AbstractIndexPartition ignored =
-                      new WritableIndexPartitionFactory( IndexWriterConfigs::standard )
+                      new WritableIndexPartitionFactory( () -> IndexWriterConfigs.standard( Config.defaults() ) )
                               .createPartition( location, DirectoryFactory.PERSISTENT.open( location ) ) )
         {
             // empty

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,23 +38,26 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.ImplicitValueConversion._
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{ExtractFunction, SizeFunction, Variable}
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.ImplicitValueConversion.toListValue
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ExpressionVariable
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ExtractFunction
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.SizeFunction
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Variable
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 import org.neo4j.values.storable.Values.intValue
 import org.neo4j.values.virtual.VirtualValues.list
 
 class ExtractTest extends CypherFunSuite {
   test("canReturnSomethingFromAnIterable") {
     val l = Seq("x", "xxx", "xx")
-    val expression = SizeFunction(Variable("n"))
+    val expression = SizeFunction(ExpressionVariable(0, "n"))
     val collection = Variable("l")
-    val m = ExecutionContext.from("l" -> l)
+    val m = CypherRow.from("l" -> l)
 
-    val extract = ExtractFunction(collection, "n", expression)
+    val extract = ExtractFunction(collection, "n", 0, expression)
 
-    extract.apply(m, QueryStateHelper.empty) should equal(list(intValue(1), intValue(3), intValue(2)))
+    extract.apply(m, QueryStateHelper.emptyWith(expressionVariables = new Array(1))) should equal(list(intValue(1), intValue(3), intValue(2)))
   }
 }

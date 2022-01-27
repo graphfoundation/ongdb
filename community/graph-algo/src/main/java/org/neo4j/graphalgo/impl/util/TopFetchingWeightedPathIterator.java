@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -45,12 +45,9 @@ import java.util.List;
 import org.neo4j.graphalgo.CostEvaluator;
 import org.neo4j.graphalgo.WeightedPath;
 import org.neo4j.graphdb.Path;
-import org.neo4j.helpers.collection.PrefetchingIterator;
-import org.neo4j.kernel.impl.util.NoneStrictMath;
+import org.neo4j.internal.helpers.MathUtil;
+import org.neo4j.internal.helpers.collection.PrefetchingIterator;
 
-/**
- * @author Anton Persson
- */
 public class TopFetchingWeightedPathIterator extends PrefetchingIterator<WeightedPath>
 {
     private final Iterator<Path> paths;
@@ -60,13 +57,7 @@ public class TopFetchingWeightedPathIterator extends PrefetchingIterator<Weighte
     private double foundWeight;
     private final double epsilon;
 
-    public TopFetchingWeightedPathIterator( Iterator<Path> paths, CostEvaluator<Double> costEvaluator )
-    {
-        this( paths, costEvaluator, NoneStrictMath.EPSILON );
-    }
-
-    public TopFetchingWeightedPathIterator( Iterator<Path> paths, CostEvaluator<Double> costEvaluator,
-            double epsilon )
+    public TopFetchingWeightedPathIterator( Iterator<Path> paths, CostEvaluator<Double> costEvaluator, double epsilon )
     {
         this.paths = paths;
         this.costEvaluator = costEvaluator;
@@ -85,12 +76,12 @@ public class TopFetchingWeightedPathIterator extends PrefetchingIterator<Weighte
             {
                 WeightedPath path = new WeightedPathImpl( costEvaluator, paths.next() );
 
-                if ( NoneStrictMath.compare( path.weight(), foundWeight, epsilon ) < 0 )
+                if ( MathUtil.compare( path.weight(), foundWeight, epsilon ) < 0 )
                 {
                     foundWeight = path.weight();
                     shortestPaths.clear();
                 }
-                if ( NoneStrictMath.compare( path.weight(), foundWeight, epsilon ) <= 0 )
+                if ( MathUtil.compare( path.weight(), foundWeight, epsilon ) <= 0 )
                 {
                     shortestPaths.add( path );
                 }

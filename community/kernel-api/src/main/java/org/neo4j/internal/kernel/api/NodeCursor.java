@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,28 +38,69 @@
  */
 package org.neo4j.internal.kernel.api;
 
+import org.neo4j.storageengine.api.Degrees;
+import org.neo4j.storageengine.api.RelationshipSelection;
+
 /**
  * Cursor for scanning nodes.
  */
-public interface NodeCursor extends Cursor
+public interface NodeCursor extends EntityCursor
 {
+    @Override
+    default long reference()
+    {
+        return nodeReference();
+    }
+
     long nodeReference();
 
-    LabelSet labels();
+    TokenSet labels();
 
-    boolean hasProperties();
+    TokenSet labelsIgnoringTxStateSetRemove();
 
-    void relationships( RelationshipGroupCursor cursor );
+    boolean hasLabel( int label );
 
-    void allRelationships( RelationshipTraversalCursor relationships );
+    void relationships( RelationshipTraversalCursor relationships, RelationshipSelection selection );
 
-    void properties( PropertyCursor cursor );
+    boolean supportsFastRelationshipsTo();
 
-    long relationshipGroupReference();
+    void relationshipsTo( RelationshipTraversalCursor relationships, RelationshipSelection selection, long neighbourNodeReference );
 
-    long allRelationshipsReference();
+    long relationshipsReference();
 
-    long propertiesReference();
+    /**
+     * @return whether or not this node cursor can decide degree for various relationship selections cheaper than doing a full scan of all relationships.
+     */
+    boolean supportsFastDegreeLookup();
 
-    boolean isDense();
+    int[] relationshipTypes();
+
+    /**
+     * Gathers degrees for types and direction provided by the {@link RelationshipSelection}. The returned {@link Degrees} will contain
+     * this information and will be able to answer degrees for each individual type/direction and also sums.
+     *
+     * @param selection which types/directions to get degrees for.
+     * @return a {@link Degrees} instance with the selected degree information.
+     */
+    Degrees degrees( RelationshipSelection selection );
+
+    /**
+     * Returns a single total degree for types and directions provided by the {@link RelationshipSelection}.
+     *
+     * @param selection which types/directions to get degrees for.
+     * @return the total degree of all selected relationship types and direction.
+     */
+    int degree( RelationshipSelection selection );
+
+    /**
+     * Returns a min(degree(selection), maxDegree).
+     *
+     * Allows computation to finish early if what you are interested is only if the
+     * degree is above or below a certain limit.
+     *
+     * @param maxDegree the maximum degree
+     * @param selection which types/directions to get degrees for.
+     * @return min(degree(selection), maxDegree).
+     */
+    int degreeWithMax( int maxDegree, RelationshipSelection selection );
 }

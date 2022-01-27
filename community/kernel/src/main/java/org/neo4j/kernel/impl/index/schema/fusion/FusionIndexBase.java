@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,10 +41,13 @@ package org.neo4j.kernel.impl.index.schema.fusion;
 import java.util.Arrays;
 import java.util.function.Function;
 
+import org.neo4j.annotations.documented.ReporterFactory;
 import org.neo4j.function.ThrowingConsumer;
-import org.neo4j.helpers.Exceptions;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.kernel.impl.index.schema.ConsistencyCheckable;
 import org.neo4j.values.storable.Value;
-import org.neo4j.values.storable.ValueGroup;
+import org.neo4j.values.storable.ValueCategory;
 
 /**
  * Acting as a simplifier for the multiplexing that is going in inside a fusion index. A fusion index consists of multiple parts,
@@ -55,7 +58,7 @@ import org.neo4j.values.storable.ValueGroup;
  */
 public abstract class FusionIndexBase<T>
 {
-    static Function<Value,ValueGroup> GROUP_OF = Value::valueGroup;
+    static final Function<Value,ValueCategory> CATEGORY_OF = value -> value.valueGroup().category();
 
     final SlotSelector slotSelector;
     final InstanceSelector<T> instanceSelector;
@@ -87,15 +90,7 @@ public abstract class FusionIndexBase<T>
      */
     public static <T, E extends Exception> void forAll( ThrowingConsumer<T,E> consumer, Iterable<T> subjects ) throws E
     {
-        E exception = null;
-        for ( T instance : subjects )
-        {
-            exception = consume( exception, consumer, instance );
-        }
-        if ( exception != null )
-        {
-            throw exception;
-        }
+        Iterables.safeForAll( consumer, subjects );
     }
 
     /**
@@ -122,16 +117,14 @@ public abstract class FusionIndexBase<T>
         forAll( consumer, Arrays.asList( subjects ) );
     }
 
-    private static <E extends Exception, T> E consume( E exception, ThrowingConsumer<T,E> consumer, T instance )
+    public static <T extends ConsistencyCheckable> boolean consistencyCheck( Iterable<T> checkables, ReporterFactory reporterFactory,
+            CursorContext cursorContext )
     {
-        try
+        boolean result = true;
+        for ( ConsistencyCheckable part : checkables )
         {
-            consumer.accept( instance );
+            result &= part.consistencyCheck( reporterFactory, cursorContext );
         }
-        catch ( Exception e )
-        {
-            exception = Exceptions.chain( exception, (E) e );
-        }
-        return exception;
+        return result;
     }
 }

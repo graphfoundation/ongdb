@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,17 +38,24 @@
  */
 package org.neo4j.index.internal.gbptree;
 
-import java.io.File;
-import java.io.IOException;
+import org.eclipse.collections.api.set.ImmutableSet;
+
+import java.nio.file.OpenOption;
+import java.nio.file.Path;
 import java.util.function.Consumer;
 
+import org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker;
 import org.neo4j.index.internal.gbptree.GBPTree.Monitor;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.PageCursor;
+import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 
+import static org.eclipse.collections.impl.factory.Sets.immutable;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 import static org.neo4j.index.internal.gbptree.GBPTree.NO_HEADER_READER;
 import static org.neo4j.index.internal.gbptree.GBPTree.NO_HEADER_WRITER;
 import static org.neo4j.index.internal.gbptree.GBPTree.NO_MONITOR;
+import static org.neo4j.io.pagecache.tracing.PageCacheTracer.NULL;
 
 /**
  * Convenient builder for a {@link GBPTree}. Either created using zero-argument constructor for maximum
@@ -57,79 +64,89 @@ import static org.neo4j.index.internal.gbptree.GBPTree.NO_MONITOR;
  * @param <KEY> type of key in {@link GBPTree}
  * @param <VALUE> type of value in {@link GBPTree}
  */
-class GBPTreeBuilder<KEY,VALUE>
+public class GBPTreeBuilder<KEY,VALUE>
 {
     private PageCache pageCache;
-    private File file;
-    private int tentativeIndexPageSize;
+    private Path path;
     private Monitor monitor = NO_MONITOR;
     private Header.Reader headerReader = NO_HEADER_READER;
     private Layout<KEY,VALUE> layout;
     private Consumer<PageCursor> headerWriter = NO_HEADER_WRITER;
     private RecoveryCleanupWorkCollector recoveryCleanupWorkCollector = RecoveryCleanupWorkCollector.immediate();
+    private DatabaseReadOnlyChecker readOnlyChecker = DatabaseReadOnlyChecker.writable();
+    private PageCacheTracer pageCacheTracer = NULL;
+    private ImmutableSet<OpenOption> openOptions = immutable.empty();
 
-    GBPTreeBuilder()
-    {
-    }
-
-    GBPTreeBuilder( PageCache pageCache, File file, Layout<KEY,VALUE> layout )
+    public GBPTreeBuilder( PageCache pageCache, Path path, Layout<KEY,VALUE> layout )
     {
         with( pageCache );
-        with( file );
+        with( path );
         with( layout );
     }
 
-    GBPTreeBuilder<KEY,VALUE> with( Layout<KEY,VALUE> layout )
+    public GBPTreeBuilder<KEY,VALUE> with( Layout<KEY,VALUE> layout )
     {
         this.layout = layout;
         return this;
     }
 
-    GBPTreeBuilder<KEY,VALUE> with( File file )
+    public GBPTreeBuilder<KEY,VALUE> with( Path file )
     {
-        this.file = file;
+        this.path = file;
         return this;
     }
 
-    GBPTreeBuilder<KEY,VALUE> with( PageCache pageCache )
+    public GBPTreeBuilder<KEY,VALUE> with( PageCache pageCache )
     {
         this.pageCache = pageCache;
         return this;
     }
 
-    GBPTreeBuilder<KEY,VALUE> withIndexPageSize( int tentativeIndexPageSize )
-    {
-        this.tentativeIndexPageSize = tentativeIndexPageSize;
-        return this;
-    }
-
-    GBPTreeBuilder<KEY,VALUE> with( GBPTree.Monitor monitor )
+    public GBPTreeBuilder<KEY,VALUE> with( GBPTree.Monitor monitor )
     {
         this.monitor = monitor;
         return this;
     }
 
-    GBPTreeBuilder<KEY,VALUE> with( Header.Reader headerReader )
+    public GBPTreeBuilder<KEY,VALUE> with( Header.Reader headerReader )
     {
         this.headerReader = headerReader;
         return this;
     }
 
-    GBPTreeBuilder<KEY,VALUE> with( Consumer<PageCursor> headerWriter )
+    public GBPTreeBuilder<KEY,VALUE> with( Consumer<PageCursor> headerWriter )
     {
         this.headerWriter = headerWriter;
         return this;
     }
 
-    GBPTreeBuilder<KEY,VALUE> with( RecoveryCleanupWorkCollector recoveryCleanupWorkCollector )
+    public GBPTreeBuilder<KEY,VALUE> with( RecoveryCleanupWorkCollector recoveryCleanupWorkCollector )
     {
         this.recoveryCleanupWorkCollector = recoveryCleanupWorkCollector;
         return this;
     }
 
-    GBPTree<KEY,VALUE> build() throws IOException
+    public GBPTreeBuilder<KEY,VALUE> with( DatabaseReadOnlyChecker readOnlyChecker )
     {
-        return new GBPTree<>( pageCache, file, layout, tentativeIndexPageSize, monitor, headerReader, headerWriter,
-                recoveryCleanupWorkCollector );
+        this.readOnlyChecker = readOnlyChecker;
+        return this;
+    }
+
+    public GBPTreeBuilder<KEY,VALUE> with( PageCacheTracer pageCacheTracer )
+    {
+        this.pageCacheTracer = pageCacheTracer;
+        return this;
+    }
+
+    public GBPTreeBuilder<KEY,VALUE> with( ImmutableSet<OpenOption> openOptions )
+    {
+        this.openOptions = openOptions;
+        return this;
+    }
+
+    public GBPTree<KEY,VALUE> build()
+    {
+        return new GBPTree<>( pageCache, path, layout, monitor, headerReader, headerWriter, recoveryCleanupWorkCollector, readOnlyChecker, pageCacheTracer,
+                openOptions, DEFAULT_DATABASE_NAME, "test tree" );
     }
 }

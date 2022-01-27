@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,9 +39,10 @@
 package org.neo4j.server.web;
 
 import java.net.URI;
-
-import com.sun.jersey.spi.container.ContainerRequest;
-import com.sun.jersey.spi.container.ContainerRequestFilter;
+import javax.ws.rs.container.ContainerRequestContext;
+import javax.ws.rs.container.ContainerRequestFilter;
+import javax.ws.rs.container.PreMatching;
+import javax.ws.rs.core.UriInfo;
 
 import static org.neo4j.server.web.XForwardUtil.X_FORWARD_HOST_HEADER_KEY;
 import static org.neo4j.server.web.XForwardUtil.X_FORWARD_PROTO_HEADER_KEY;
@@ -50,21 +51,23 @@ import static org.neo4j.server.web.XForwardUtil.X_FORWARD_PROTO_HEADER_KEY;
  * Changes the value of the base and request URIs to match the provided
  * X-Forwarded-Host and X-Forwarded-Proto header values.
  * <p>
- * In doing so, it means ONgDB server can use those URIs as if they were the
+ * In doing so, it means Neo4j server can use those URIs as if they were the
  * actual request URIs.
  */
+@PreMatching
 public class XForwardFilter implements ContainerRequestFilter
 {
     @Override
-    public ContainerRequest filter( ContainerRequest containerRequest )
+    public void filter( ContainerRequestContext requestContext )
     {
-        String xForwardedHost = containerRequest.getHeaderValue( X_FORWARD_HOST_HEADER_KEY );
-        String xForwardedProto = containerRequest.getHeaderValue( X_FORWARD_PROTO_HEADER_KEY );
+        String xForwardedHost = requestContext.getHeaderString( X_FORWARD_HOST_HEADER_KEY );
+        String xForwardedProto = requestContext.getHeaderString( X_FORWARD_PROTO_HEADER_KEY );
 
-        URI externalBaseUri = XForwardUtil.externalUri( containerRequest.getBaseUri(), xForwardedHost, xForwardedProto );
-        URI externalRequestUri = XForwardUtil.externalUri( containerRequest.getRequestUri(), xForwardedHost, xForwardedProto );
+        UriInfo uriInfo = requestContext.getUriInfo();
 
-        containerRequest.setUris( externalBaseUri, externalRequestUri );
-        return containerRequest;
+        URI externalBaseUri = XForwardUtil.externalUri( uriInfo.getBaseUri(), xForwardedHost, xForwardedProto );
+        URI externalRequestUri = XForwardUtil.externalUri( uriInfo.getRequestUri(), xForwardedHost, xForwardedProto );
+
+        requestContext.setRequestUri( externalBaseUri, externalRequestUri );
     }
 }

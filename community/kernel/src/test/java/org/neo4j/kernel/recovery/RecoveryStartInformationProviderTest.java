@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,103 +38,131 @@
  */
 package org.neo4j.kernel.recovery;
 
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.kernel.impl.store.UnderlyingStorageException;
+import java.io.IOException;
+
+import org.neo4j.exceptions.UnderlyingStorageException;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
-import org.neo4j.kernel.impl.transaction.log.entry.CheckPoint;
-import org.neo4j.kernel.impl.transaction.log.entry.LogEntryVersion;
-import org.neo4j.kernel.recovery.LogTailScanner.LogTailInformation;
+import org.neo4j.kernel.impl.transaction.log.entry.LogHeader;
+import org.neo4j.kernel.impl.transaction.log.files.LogFile;
+import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
+import org.neo4j.kernel.impl.transaction.log.files.LogTailInformation;
+import org.neo4j.kernel.impl.transaction.log.files.checkpoint.CheckpointInfo;
 import org.neo4j.kernel.recovery.RecoveryStartInformationProvider.Monitor;
+import org.neo4j.storageengine.api.StoreId;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.neo4j.kernel.impl.transaction.log.LogVersionRepository.INITIAL_LOG_VERSION;
-import static org.neo4j.kernel.recovery.LogTailScanner.NO_TRANSACTION_ID;
+import static org.neo4j.kernel.KernelVersion.LATEST;
+import static org.neo4j.kernel.impl.transaction.log.entry.LogVersions.CURRENT_FORMAT_LOG_HEADER_SIZE;
+import static org.neo4j.kernel.recovery.RecoveryStartInformation.MISSING_LOGS;
 
-public class RecoveryStartInformationProviderTest
+class RecoveryStartInformationProviderTest
 {
+    private static final long NO_TRANSACTION_ID = -1;
     private final long currentLogVersion = 2L;
     private final long logVersion = 2L;
-    private final LogTailScanner tailScanner = mock( LogTailScanner.class );
+    private final LogFiles logFiles = mock( LogFiles.class );
+    private final LogFile logFile = mock( LogFile.class );
     private final Monitor monitor = mock( Monitor.class );
 
+    @BeforeEach
+    void setUp() throws IOException
+    {
+        var logHeader = new LogHeader( 0, 1, StoreId.UNKNOWN );
+        when( logFile.extractHeader( 0 ) ).thenReturn( logHeader );
+        when( logFiles.getLogFile() ).thenReturn( logFile );
+    }
+
     @Test
-    public void shouldReturnUnspecifiedIfThereIsNoNeedForRecovery()
+    void shouldReturnUnspecifiedIfThereIsNoNeedForRecovery()
     {
         // given
-        when( tailScanner.getTailInformation() ).thenReturn( new LogTailScanner.LogTailInformation( false,
-                NO_TRANSACTION_ID, logVersion, currentLogVersion, LogEntryVersion.CURRENT ) );
+        when( logFiles.getTailInformation() ).thenReturn( new LogTailInformation( false,
+                NO_TRANSACTION_ID, false, currentLogVersion, LATEST.version() ) );
 
         // when
-        RecoveryStartInformation recoveryStartInformation = new RecoveryStartInformationProvider( tailScanner, monitor ).get();
+        RecoveryStartInformation recoveryStartInformation = new RecoveryStartInformationProvider( logFiles, monitor ).get();
 
         // then
         verify( monitor ).noCommitsAfterLastCheckPoint( null );
-        assertEquals( LogPosition.UNSPECIFIED, recoveryStartInformation.getRecoveryPosition() );
+        assertEquals( LogPosition.UNSPECIFIED, recoveryStartInformation.getTransactionLogPosition() );
+        assertEquals( LogPosition.UNSPECIFIED, recoveryStartInformation.getCheckpointPosition() );
         assertEquals( NO_TRANSACTION_ID, recoveryStartInformation.getFirstTxIdAfterLastCheckPoint() );
         assertFalse( recoveryStartInformation.isRecoveryRequired() );
     }
 
     @Test
-    public void shouldReturnLogPositionToRecoverFromIfNeeded()
+    void shouldReturnLogPositionToRecoverFromIfNeeded()
     {
         // given
-        LogPosition checkPointLogPosition = new LogPosition( 1L, 4242 );
-        when( tailScanner.getTailInformation() )
-                .thenReturn( new LogTailInformation( new CheckPoint( checkPointLogPosition ), true, 10L, logVersion,
-                        currentLogVersion, LogEntryVersion.CURRENT ) );
+        LogPosition txPosition = new LogPosition( 1L, 4242 );
+        LogPosition checkpointPosition = new LogPosition( 2, 4 );
+        when( logFiles.getTailInformation() ).thenReturn(
+                new LogTailInformation( new CheckpointInfo( txPosition, StoreId.UNKNOWN, checkpointPosition ), true, 10L, false,
+                        currentLogVersion, LATEST.version(), StoreId.UNKNOWN ) );
 
         // when
-        RecoveryStartInformation recoveryStartInformation = new RecoveryStartInformationProvider( tailScanner, monitor ).get();
+        RecoveryStartInformation recoveryStartInformation = new RecoveryStartInformationProvider( logFiles, monitor ).get();
 
         // then
-        verify( monitor ).commitsAfterLastCheckPoint( checkPointLogPosition, 10L );
-        assertEquals( checkPointLogPosition, recoveryStartInformation.getRecoveryPosition() );
+        verify( monitor ).commitsAfterLastCheckPoint( txPosition, 10L );
+        assertEquals( txPosition, recoveryStartInformation.getTransactionLogPosition() );
+        assertEquals( checkpointPosition, recoveryStartInformation.getCheckpointPosition() );
         assertEquals( 10L, recoveryStartInformation.getFirstTxIdAfterLastCheckPoint() );
         assertTrue( recoveryStartInformation.isRecoveryRequired() );
     }
 
     @Test
-    public void shouldRecoverFromStartOfLogZeroIfThereAreNoCheckPointAndOldestLogIsVersionZero()
+    void shouldRecoverFromStartOfLogZeroIfThereAreNoCheckPointAndOldestLogIsVersionZero()
     {
         // given
-        when( tailScanner.getTailInformation() ).thenReturn( new LogTailInformation( true, 10L, INITIAL_LOG_VERSION,
-                currentLogVersion, LogEntryVersion.CURRENT ) );
+        when( logFiles.getTailInformation() ).thenReturn( new LogTailInformation( true, 10L, false,
+                currentLogVersion, LATEST.version() ) );
 
         // when
-        RecoveryStartInformation recoveryStartInformation = new RecoveryStartInformationProvider( tailScanner, monitor ).get();
+        RecoveryStartInformation recoveryStartInformation = new RecoveryStartInformationProvider( logFiles, monitor ).get();
 
         // then
         verify( monitor ).noCheckPointFound();
-        assertEquals( LogPosition.start( INITIAL_LOG_VERSION ), recoveryStartInformation.getRecoveryPosition() );
+        assertEquals( new LogPosition( 0, CURRENT_FORMAT_LOG_HEADER_SIZE ), recoveryStartInformation.getTransactionLogPosition() );
+        assertEquals( new LogPosition( 0, CURRENT_FORMAT_LOG_HEADER_SIZE ), recoveryStartInformation.getCheckpointPosition() );
         assertEquals( 10L, recoveryStartInformation.getFirstTxIdAfterLastCheckPoint() );
         assertTrue( recoveryStartInformation.isRecoveryRequired() );
     }
 
     @Test
-    public void shouldFailIfThereAreNoCheckPointsAndOldestLogVersionInNotZero()
+    void detectMissingTransactionLogsInformation()
+    {
+        when( logFiles.getTailInformation() ).thenReturn( new LogTailInformation( false, -1, true,
+                -1, LATEST.version() ) );
+
+        RecoveryStartInformation recoveryStartInformation = new RecoveryStartInformationProvider( logFiles, monitor ).get();
+
+        assertSame( MISSING_LOGS, recoveryStartInformation );
+    }
+
+    @Test
+    void shouldFailIfThereAreNoCheckPointsAndOldestLogVersionInNotZero()
     {
         // given
         long oldestLogVersionFound = 1L;
-        when( tailScanner.getTailInformation() ).thenReturn( new LogTailScanner.LogTailInformation( true, 10L,
-            oldestLogVersionFound, currentLogVersion, LogEntryVersion.CURRENT ) );
+        when( logFile.getLowestLogVersion() ).thenReturn( oldestLogVersionFound );
+        when( logFiles.getTailInformation() ).thenReturn(
+                new LogTailInformation( true, 10L, false, currentLogVersion, LATEST.version() ) );
 
         // when
-        try
-        {
-            new RecoveryStartInformationProvider( tailScanner, monitor ).get();
-        }
-        catch ( UnderlyingStorageException ex )
-        {
-            // then
-            final String expectedMessage =
-                    "No check point found in any log file from version " + oldestLogVersionFound + " to " + logVersion;
-            assertEquals( expectedMessage, ex.getMessage() );
-        }
+        UnderlyingStorageException storageException =
+                assertThrows( UnderlyingStorageException.class, () -> new RecoveryStartInformationProvider( logFiles, monitor ).get() );
+        final String expectedMessage = "No check point found in any log file from version " + oldestLogVersionFound + " to " + logVersion;
+        assertEquals( expectedMessage, storageException.getMessage() );
     }
 }

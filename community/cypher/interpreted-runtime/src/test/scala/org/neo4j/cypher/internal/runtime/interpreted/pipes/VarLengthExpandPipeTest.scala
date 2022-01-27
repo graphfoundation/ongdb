@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,1127 +38,141 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.mockito.ArgumentMatchers._
-import org.mockito.Mockito._
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito
+import org.mockito.Mockito.when
 import org.mockito.invocation.InvocationOnMock
-import org.mockito.stubbing.Answer
-import org.neo4j.cypher.internal.runtime.interpreted.ValueComparisonHelper._
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
-import org.neo4j.cypher.internal.runtime.ImplicitValueConversion._
-import org.neo4j.cypher.internal.runtime.interpreted.symbols.SymbolTable
-import org.neo4j.cypher.internal.util.v3_4.symbols._
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.{Predicate, True}
-import org.neo4j.cypher.internal.runtime.interpreted.pipes.VarLengthExpandPipeTest.createVarLengthPredicate
-import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection
-import org.neo4j.graphdb.{Node, Relationship}
-import org.neo4j.values.AnyValue
-import org.neo4j.values.storable.Values
-import org.neo4j.values.virtual.{NodeValue, RelationshipValue}
+import org.neo4j.cypher.internal.expressions.SemanticDirection
+import org.neo4j.cypher.internal.runtime.ClosingLongIterator
+import org.neo4j.cypher.internal.runtime.PrimitiveLongHelper
+import org.neo4j.cypher.internal.runtime.RelationshipIterator
+import org.neo4j.cypher.internal.runtime.ResourceManager
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.graphdb.Node
+import org.neo4j.internal.kernel.api.NodeCursor
+import org.neo4j.storageengine.api.RelationshipVisitor
+import org.neo4j.values.virtual.NodeValue
+import org.neo4j.values.virtual.RelationshipValue
+import org.neo4j.values.virtual.VirtualNodeValue
 
 class VarLengthExpandPipeTest extends CypherFunSuite {
-
-  test("should support var length expand between two nodes") {
-    // given
-    val startNode = newMockedNode(1)
-    val endNode = newMockedNode(2)
-    val relationship = newMockedRelationship(1, startNode, endNode)
-    val query = mock[QueryContext]
-    when(query.getRelationshipsForIds(any(), any(), any())).thenAnswer(new Answer[Iterator[RelationshipValue]] {
-      def answer(invocation: InvocationOnMock): Iterator[RelationshipValue] = Iterator(relationship)
-    })
-
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val left = newMockedPipe(SymbolTable(Map("a" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]] {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("a" -> startNode))
-    })
-
-    // when
-    val result =
-      VarLengthExpandPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, SemanticDirection.OUTGOING, LazyTypes.empty, 1, None, nodeInScope = false)()
-      .createResults(queryState).toList
-
-    // then
-    val (single :: Nil) = result
-    single("a") should beEquivalentTo(startNode)
-    single("r") should beEquivalentTo(List(relationship))
-    single("b") should beEquivalentTo(endNode)
+  private trait WasClosed {
+    def wasClosed: Boolean
   }
 
-  test("should support var length expand between two nodes when the end node is in scope") {
-    // given
-    val startNode = newMockedNode(1)
-    val endNode = newMockedNode(2)
-    val relationship = newMockedRelationship(1, startNode, endNode)
-    val query = mock[QueryContext]
-    when(query.getRelationshipsForIds(any(), any(), any())).thenAnswer(new Answer[Iterator[RelationshipValue]] {
-      def answer(invocation: InvocationOnMock): Iterator[RelationshipValue] = Iterator(relationship)
-    })
+  private def relationshipIterator: ClosingLongIterator with RelationshipIterator with WasClosed =
+    new ClosingLongIterator with RelationshipIterator with WasClosed {
+      private val inner = PrimitiveLongHelper.relationshipIteratorFrom((1,1,1,1), (2,2,2,2), (3,3,3,3))
+      private var _wasClosed = false
 
-    val queryState = QueryStateHelper.emptyWith(query = query)
+      override def close(): Unit = _wasClosed = true
 
-    val left = newMockedPipe(SymbolTable(Map("a" -> CTNode, "b" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]] {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("a" -> startNode, "b" -> endNode))
-    })
+      override def wasClosed: Boolean = _wasClosed
 
-    // when
-    val result =
-      VarLengthExpandPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, SemanticDirection.OUTGOING, LazyTypes.empty, 1, None, nodeInScope = true)()
-      .createResults(queryState).toList
+      override protected[this] def innerHasNext: Boolean = inner.hasNext
 
-    // then
-    val (single :: Nil) = result
-    single("a") should beEquivalentTo(startNode)
-    single("r") should beEquivalentTo(List(relationship))
-    single("b") should beEquivalentTo(endNode)
-  }
+      override def next(): Long = inner.next()
 
-  test("should support var length expand between two nodes when a mismatching end node is in scope") {
-    // given
-    val startNode = newMockedNode(1)
-    val endNode = newMockedNode(2)
-    val relationship = newMockedRelationship(1, startNode, endNode)
-    val query = mock[QueryContext]
-    when(query.getRelationshipsForIds(any(), any(), any())).thenAnswer(new Answer[Iterator[RelationshipValue]] {
-      def answer(invocation: InvocationOnMock): Iterator[RelationshipValue] = Iterator(relationship)
-    })
+      override def relationshipVisit[EXCEPTION <: Exception](relationshipId: Long,
+                                                             visitor: RelationshipVisitor[EXCEPTION]): Boolean = inner.relationshipVisit(relationshipId, visitor)
 
-    val queryState = QueryStateHelper.emptyWith(query = query)
+      override def startNodeId(): Long = inner.startNodeId()
 
-    val left = newMockedPipe(SymbolTable(Map("a" -> CTNode, "b" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]] {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("a" -> startNode, "b" -> newMockedNode(42)))
-    })
+      override def endNodeId(): Long = inner.endNodeId()
 
-    // when
-    val result =
-      VarLengthExpandPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, SemanticDirection.OUTGOING, LazyTypes.empty, 1, None, nodeInScope = true)()
-      .createResults(queryState).toList
-
-    // then
-    result should be(empty)
-  }
-
-  test("should support var length expand between two nodes when something in scope is not a node") {
-    // given
-    val startNode = newMockedNode(1)
-    val endNode = newMockedNode(2)
-    val relationship = newMockedRelationship(1, startNode, endNode)
-    val query = mock[QueryContext]
-    when(query.getRelationshipsForIds(any(), any(), any())).thenAnswer(new Answer[Iterator[RelationshipValue]] {
-      def answer(invocation: InvocationOnMock): Iterator[RelationshipValue] = Iterator(relationship)
-    })
-
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val left = newMockedPipe(SymbolTable(Map("a" -> CTNode, "b" -> CTInteger)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]] {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("a" -> startNode, "b" -> 42))
-    })
-
-    // when
-    val result =
-      VarLengthExpandPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, SemanticDirection.OUTGOING, LazyTypes.empty, 1, None, nodeInScope = true)()
-      .createResults(queryState).toList
-
-    // then
-    result should be(empty)
-  }
-
-  test("should support var length expand between two nodes when row in input are mixed with nodes matching and not matching") {
-    // given
-    val startNode = newMockedNode(1)
-    val endNode = newMockedNode(2)
-    val relationship = newMockedRelationship(1, startNode, endNode)
-    val query = mock[QueryContext]
-    when(query.getRelationshipsForIds(any(), any(), any())).thenAnswer(new Answer[Iterator[RelationshipValue]] {
-      def answer(invocation: InvocationOnMock): Iterator[RelationshipValue] = Iterator(relationship)
-    })
-
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val left = newMockedPipe(SymbolTable(Map("a" -> CTNode, "b" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]] {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(
-        row("a" -> startNode, "b" -> newMockedNode(42)),
-        row("a" -> startNode, "b" -> endNode)
-      )
-    })
-
-    // when
-    val result =
-      VarLengthExpandPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, SemanticDirection.OUTGOING, LazyTypes.empty, 1, None, nodeInScope = true)()
-      .createResults(queryState).toList
-
-    // then
-    val (single :: Nil) = result
-    single("a") should beEquivalentTo(startNode)
-    single("r") should beEquivalentTo(List(relationship))
-    single("b") should beEquivalentTo(endNode)
-  }
-
-  test("should support var length expand between three nodes") {
-    // given
-    val startNode = newMockedNode(1)
-    val middleNode = newMockedNode(2)
-    val endNode = newMockedNode(3)
-    val leftRelationship = newMockedRelationship(1, startNode, middleNode)
-    val rightRelationship = newMockedRelationship(2, middleNode, endNode)
-
-    val query = mock[QueryContext]
-    val nodeMapping: Map[(Long, SemanticDirection), Seq[RelationshipValue]] = Map(
-      (startNode.id, SemanticDirection.OUTGOING) -> Seq(leftRelationship),
-      (middleNode.id, SemanticDirection.INCOMING) -> Seq(leftRelationship),
-      (middleNode.id, SemanticDirection.OUTGOING) -> Seq(rightRelationship),
-      (endNode.id, SemanticDirection.INCOMING) -> Seq(rightRelationship)
-    )
-    replyWithMap(query, nodeMapping.withDefaultValue(Seq.empty))
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val left = newMockedPipe(SymbolTable(Map("a" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("a" -> startNode))
-    })
-
-    // when
-    val result =
-      VarLengthExpandPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, SemanticDirection.OUTGOING, LazyTypes.empty, 1, None, nodeInScope = false)().
-        createResults(queryState).toList
-
-    // then
-    val (first :: second :: Nil) = result
-    first("a") should beEquivalentTo(startNode)
-    first("r") should beEquivalentTo(List(leftRelationship))
-    first("b") should beEquivalentTo(middleNode)
-    second("a") should beEquivalentTo(startNode)
-    second("r") should beEquivalentTo(List(leftRelationship, rightRelationship))
-    second("b") should beEquivalentTo(endNode)
-  }
-
-  test("should support var length expand between three nodes and end node in scope") {
-    // given
-    val startNode = newMockedNode(1)
-    val middleNode = newMockedNode(2)
-    val endNode = newMockedNode(3)
-    val leftRelationship = newMockedRelationship(1, startNode, middleNode)
-    val rightRelationship = newMockedRelationship(2, middleNode, endNode)
-
-    val query = mock[QueryContext]
-    val nodeMapping: Map[(Long, SemanticDirection), Seq[RelationshipValue]] = Map(
-      (startNode.id, SemanticDirection.OUTGOING) -> Seq(leftRelationship),
-      (middleNode.id, SemanticDirection.INCOMING) -> Seq(leftRelationship),
-      (middleNode.id, SemanticDirection.OUTGOING) -> Seq(rightRelationship),
-      (endNode.id, SemanticDirection.INCOMING) -> Seq(rightRelationship)
-    )
-    replyWithMap(query, nodeMapping.withDefaultValue(Seq.empty))
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val left = newMockedPipe(SymbolTable(Map("a" -> CTNode, "b" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("a" -> startNode, "b" -> endNode))
-    })
-
-    // when
-    val result =
-      VarLengthExpandPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, SemanticDirection.OUTGOING, LazyTypes.empty, 1, None, nodeInScope = false)().
-        createResults(queryState).toList
-
-    // then
-    val (first :: second :: Nil) = result
-    first("a") should beEquivalentTo(startNode)
-    first("r") should beEquivalentTo(List(leftRelationship))
-    first("b") should beEquivalentTo(middleNode)
-    second("a") should beEquivalentTo(startNode)
-    second("r") should beEquivalentTo(List(leftRelationship, rightRelationship))
-    second("b") should beEquivalentTo(endNode)
-  }
-
-  test("should support var length expand between three nodes and mismatching end node in scope") {
-    // given
-    val startNode = newMockedNode(1)
-    val middleNode = newMockedNode(2)
-    val endNode = newMockedNode(3)
-    val leftRelationship = newMockedRelationship(1, startNode, middleNode)
-    val rightRelationship = newMockedRelationship(2, middleNode, endNode)
-
-    val query = mock[QueryContext]
-    val nodeMapping: Map[(Long, SemanticDirection), Seq[RelationshipValue]] = Map(
-      (startNode.id, SemanticDirection.OUTGOING) -> Seq(leftRelationship),
-      (middleNode.id, SemanticDirection.INCOMING) -> Seq(leftRelationship),
-      (middleNode.id, SemanticDirection.OUTGOING) -> Seq(rightRelationship),
-      (endNode.id, SemanticDirection.INCOMING) -> Seq(rightRelationship)
-    )
-    replyWithMap(query, nodeMapping.withDefaultValue(Seq.empty))
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val left = newMockedPipe(SymbolTable(Map("a" -> CTNode, "b" -> CTNode)))
-    val badNode: NodeValue = newMockedNode(42)
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("a" -> startNode, "b" -> badNode))
-    })
-
-    // when
-    val result =
-      VarLengthExpandPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, SemanticDirection.OUTGOING, LazyTypes.empty, 1, None, nodeInScope = true)().
-        createResults(queryState).toList
-
-    // then
-    result should be(empty)
-  }
-
-  test("should support var length expand between three nodes with multiple relationships") {
-    // given
-    val startNode = newMockedNode(1)
-    val middleNode = newMockedNode(2)
-    val endNode = newMockedNode(3)
-    val leftRelationship1 = newMockedRelationship(1, startNode, middleNode)
-    val leftRelationship2 = newMockedRelationship(2, startNode, middleNode)
-    val rightRelationship = newMockedRelationship(3, middleNode, endNode)
-
-    val query = mock[QueryContext]
-    val nodeMapping: Map[(Long, SemanticDirection), Seq[RelationshipValue]] = Map(
-      (startNode.id, SemanticDirection.OUTGOING) -> Seq(leftRelationship1, leftRelationship2),
-      (middleNode.id, SemanticDirection.INCOMING) -> Seq(leftRelationship1, leftRelationship2),
-      (middleNode.id, SemanticDirection.OUTGOING) -> Seq(rightRelationship),
-      (endNode.id, SemanticDirection.INCOMING) -> Seq(rightRelationship)
-    )
-    replyWithMap(query, nodeMapping.withDefaultValue(Seq.empty))
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val left = newMockedPipe(SymbolTable(Map("a" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("a" -> startNode))
-    })
-
-    // when
-    val result = VarLengthExpandPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, SemanticDirection.OUTGOING, LazyTypes.empty, 1, None, nodeInScope = false)().
-      createResults(queryState).toList
-
-    // then
-    val (first :: second :: third :: fourth :: Nil) = result
-    first("a") should beEquivalentTo(startNode)
-    first("r") should beEquivalentTo(List(leftRelationship2))
-    first("b") should beEquivalentTo(middleNode)
-    second("a") should beEquivalentTo(startNode)
-    second("r") should beEquivalentTo(List(leftRelationship2, rightRelationship))
-    second("b") should beEquivalentTo(endNode)
-    third("a") should beEquivalentTo(startNode)
-    third("r") should beEquivalentTo(List(leftRelationship1))
-    third("b") should beEquivalentTo(middleNode)
-    fourth("a") should beEquivalentTo(startNode)
-    fourth("r") should beEquivalentTo(List(leftRelationship1, rightRelationship))
-    fourth("b") should beEquivalentTo(endNode)
-  }
-
-  test("should support var length expand between three nodes with multiple relationships with end node in scope") {
-    // given
-    val startNode = newMockedNode(1)
-    val middleNode = newMockedNode(2)
-    val endNode = newMockedNode(3)
-    val leftRelationship1 = newMockedRelationship(1, startNode, middleNode)
-    val leftRelationship2 = newMockedRelationship(2, startNode, middleNode)
-    val rightRelationship = newMockedRelationship(3, middleNode, endNode)
-
-    val query = mock[QueryContext]
-    val nodeMapping: Map[(Long, SemanticDirection), Seq[RelationshipValue]] = Map(
-      (startNode.id, SemanticDirection.OUTGOING) -> Seq(leftRelationship1, leftRelationship2),
-      (middleNode.id, SemanticDirection.INCOMING) -> Seq(leftRelationship1, leftRelationship2),
-      (middleNode.id, SemanticDirection.OUTGOING) -> Seq(rightRelationship),
-      (endNode.id, SemanticDirection.INCOMING) -> Seq(rightRelationship)
-    )
-    replyWithMap(query, nodeMapping.withDefaultValue(Seq.empty))
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val left = newMockedPipe(SymbolTable(Map("a" -> CTNode, "b" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("a" -> startNode, "b" -> endNode))
-    })
-
-    // when
-    val result = VarLengthExpandPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, SemanticDirection.OUTGOING, LazyTypes.empty, 1, None, nodeInScope = true)().
-      createResults(queryState).toList
-
-    // then
-    val (first :: second :: Nil) = result
-    first("a") should beEquivalentTo(startNode)
-    first("r") should beEquivalentTo(List(leftRelationship2, rightRelationship))
-    first("b") should beEquivalentTo(endNode)
-    second("a") should beEquivalentTo(startNode)
-    second("r") should beEquivalentTo(List(leftRelationship1, rightRelationship))
-    second("b") should beEquivalentTo(endNode)
-  }
-
-  test("should support var length expand between three nodes with multiple relationships with mismatching end node in scope") {
-    // given
-    val startNode = newMockedNode(1)
-    val middleNode = newMockedNode(2)
-    val endNode = newMockedNode(3)
-    val leftRelationship1 = newMockedRelationship(1, startNode, middleNode)
-    val leftRelationship2 = newMockedRelationship(2, startNode, middleNode)
-    val rightRelationship = newMockedRelationship(3, middleNode, endNode)
-
-    val query = mock[QueryContext]
-    val nodeMapping: Map[(Long, SemanticDirection), Seq[RelationshipValue]] = Map(
-      (startNode.id, SemanticDirection.OUTGOING) -> Seq(leftRelationship1, leftRelationship2),
-      (middleNode.id, SemanticDirection.INCOMING) -> Seq(leftRelationship1, leftRelationship2),
-      (middleNode.id, SemanticDirection.OUTGOING) -> Seq(rightRelationship),
-      (endNode.id, SemanticDirection.INCOMING) -> Seq(rightRelationship)
-    )
-    replyWithMap(query, nodeMapping.withDefaultValue(Seq.empty))
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val left = newMockedPipe(SymbolTable(Map("a" -> CTNode, "b" -> CTNode)))
-    val badNode = newMockedNode(42)
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("a" -> startNode, "b" -> badNode))
-    })
-
-    // when
-    val result = VarLengthExpandPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, SemanticDirection.OUTGOING, LazyTypes.empty, 1, None, nodeInScope = true)().
-      createResults(queryState).toList
-
-    // then
-    result should be(empty)
-  }
-
-  test("should support var length expand between three nodes with multiple relationships and a fixed max length") {
-    // given
-    val startNode = newMockedNode(1)
-    val middleNode = newMockedNode(2)
-    val endNode = newMockedNode(3)
-    val leftRelationship1 = newMockedRelationship(1, startNode, middleNode)
-    val leftRelationship2 = newMockedRelationship(2, startNode, middleNode)
-    val rightRelationship = newMockedRelationship(3, middleNode, endNode)
-
-    val query = mock[QueryContext]
-    val nodeMapping: Map[(Long, SemanticDirection), Seq[RelationshipValue]] = Map(
-      (startNode.id, SemanticDirection.OUTGOING) -> Seq(leftRelationship1, leftRelationship2),
-      (middleNode.id, SemanticDirection.INCOMING) -> Seq(leftRelationship1, leftRelationship2),
-      (middleNode.id, SemanticDirection.OUTGOING) -> Seq(rightRelationship),
-      (endNode.id, SemanticDirection.INCOMING) -> Seq(rightRelationship)
-    )
-    replyWithMap(query, nodeMapping.withDefaultValue(Seq.empty))
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val left = newMockedPipe(SymbolTable(Map("a" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("a" -> startNode))
-    })
-
-    // when
-    val result = VarLengthExpandPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, SemanticDirection.OUTGOING, LazyTypes.empty, 1, Some(1), nodeInScope = false)().
-      createResults(queryState).toList
-
-    // then
-    val (first :: second :: Nil) = result
-    first("a") should beEquivalentTo(startNode)
-    first("r") should beEquivalentTo(List(leftRelationship2))
-    first("b") should beEquivalentTo(middleNode)
-    second("a") should beEquivalentTo(startNode)
-    second("r") should beEquivalentTo(List(leftRelationship1))
-    second("b") should beEquivalentTo(middleNode)
-  }
-
-  test("should support var length expand between three nodes with multiple relationships and a fixed max length and end node in scope") {
-    // given
-    val startNode = newMockedNode(1)
-    val middleNode = newMockedNode(2)
-    val endNode = newMockedNode(3)
-    val leftRelationship1 = newMockedRelationship(1, startNode, middleNode)
-    val leftRelationship2 = newMockedRelationship(2, startNode, middleNode)
-    val leftRelationship3 = newMockedRelationship(4, startNode, endNode)
-    val rightRelationship = newMockedRelationship(3, middleNode, endNode)
-
-    val query = mock[QueryContext]
-    val nodeMapping: Map[(Long, SemanticDirection), Seq[RelationshipValue]] = Map(
-      (startNode.id, SemanticDirection.OUTGOING) -> Seq(leftRelationship1, leftRelationship2, leftRelationship3),
-      (middleNode.id, SemanticDirection.INCOMING) -> Seq(leftRelationship1, leftRelationship2),
-      (middleNode.id, SemanticDirection.OUTGOING) -> Seq(rightRelationship),
-      (endNode.id, SemanticDirection.INCOMING) -> Seq(rightRelationship, leftRelationship3)
-    )
-    replyWithMap(query, nodeMapping.withDefaultValue(Seq.empty))
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val left = newMockedPipe(SymbolTable(Map("a" -> CTNode, "b" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("a" -> startNode, "b" -> endNode))
-    })
-
-    // when
-    val result = VarLengthExpandPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, SemanticDirection.OUTGOING, LazyTypes.empty, 1, Some(1), nodeInScope = true)().
-      createResults(queryState).toList
-
-    // then
-    val (first :: Nil) = result
-    first("a") should beEquivalentTo(startNode)
-    first("r") should beEquivalentTo(List(leftRelationship3))
-    first("b") should beEquivalentTo(endNode)
-  }
-
-  test("should support var length expand between three nodes with multiple relationships and fixed min and max lengths") {
-    // given
-    val startNode = newMockedNode(1)
-    val middleNode = newMockedNode(2)
-    val endNode = newMockedNode(3)
-    val leftRelationship1 = newMockedRelationship(1, startNode, middleNode)
-    val leftRelationship2 = newMockedRelationship(2, startNode, middleNode)
-    val rightRelationship = newMockedRelationship(3, middleNode, endNode)
-
-    val query = mock[QueryContext]
-    val nodeMapping: Map[(Long, SemanticDirection), Seq[RelationshipValue]] = Map(
-      (startNode.id, SemanticDirection.OUTGOING) -> Seq(leftRelationship1, leftRelationship2),
-      (middleNode.id, SemanticDirection.INCOMING) -> Seq(leftRelationship1, leftRelationship2),
-      (middleNode.id, SemanticDirection.OUTGOING) -> Seq(rightRelationship),
-      (endNode.id, SemanticDirection.INCOMING) -> Seq(rightRelationship)
-    )
-    replyWithMap(query, nodeMapping.withDefaultValue(Seq.empty))
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val left = newMockedPipe(SymbolTable(Map("a" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("a" -> startNode))
-    })
-
-    // when
-    val result = VarLengthExpandPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, SemanticDirection.OUTGOING, LazyTypes.empty, 2, Some(2), nodeInScope = false)().
-      createResults(queryState).toList
-
-    // then
-    val (first :: second :: Nil) = result
-    first("a") should beEquivalentTo(startNode)
-    first("r") should beEquivalentTo(List(leftRelationship2, rightRelationship))
-    first("b") should beEquivalentTo(endNode)
-    second("a") should beEquivalentTo(startNode)
-    second("r") should beEquivalentTo(List(leftRelationship1, rightRelationship))
-    second("b") should beEquivalentTo(endNode)
-  }
-
-  test("should support var length expand between three nodes with multiple relationships and fixed min and max lengths and end node in scope") {
-    // given
-    val startNode = newMockedNode(1)
-    val middleNode = newMockedNode(2)
-    val endNode = newMockedNode(3)
-    val otherNode = newMockedNode(4)
-    val leftRelationship1 = newMockedRelationship(1, startNode, middleNode)
-    val leftRelationship2 = newMockedRelationship(2, startNode, middleNode)
-    val rightRelationship = newMockedRelationship(3, middleNode, endNode)
-    val otherRelationship = newMockedRelationship(4, middleNode, otherNode)
-
-    val query = mock[QueryContext]
-    val nodeMapping: Map[(Long, SemanticDirection), Seq[RelationshipValue]] = Map(
-      (startNode.id, SemanticDirection.OUTGOING) -> Seq(leftRelationship1, leftRelationship2),
-      (middleNode.id, SemanticDirection.INCOMING) -> Seq(leftRelationship1, leftRelationship2),
-      (middleNode.id, SemanticDirection.OUTGOING) -> Seq(rightRelationship, otherRelationship),
-      (endNode.id, SemanticDirection.INCOMING) -> Seq(rightRelationship),
-      (otherNode.id, SemanticDirection.INCOMING) -> Seq(otherRelationship)
-    )
-    replyWithMap(query, nodeMapping.withDefaultValue(Seq.empty)
-    )
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val left = newMockedPipe(SymbolTable(Map("a" -> CTNode, "b"-> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("a" -> startNode, "b" -> endNode))
-    })
-
-    // when
-    val result = VarLengthExpandPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, SemanticDirection.OUTGOING, LazyTypes.empty, 2, Some(2), nodeInScope = true)().
-      createResults(queryState).toList
-
-    // then
-    val (first :: second :: Nil) = result
-    first("a") should beEquivalentTo(startNode)
-    first("r") should beEquivalentTo(List(leftRelationship2, rightRelationship))
-    first("b") should beEquivalentTo(endNode)
-    second("a") should beEquivalentTo(startNode)
-    second("r") should beEquivalentTo(List(leftRelationship1, rightRelationship))
-    second("b") should beEquivalentTo(endNode)
-  }
-
-  test("should support var length expand between three nodes with multiple relationships and fixed min and max lengths 2") {
-    // given
-    val firstNode = newMockedNode(4)
-    val startNode = newMockedNode(1)
-    val middleNode = newMockedNode(2)
-    val endNode = newMockedNode(3)
-    val initialRelationship = newMockedRelationship(4, firstNode, startNode)
-    val leftRelationship1 = newMockedRelationship(1, startNode, middleNode)
-    val leftRelationship2 = newMockedRelationship(2, startNode, middleNode)
-    val rightRelationship = newMockedRelationship(3, middleNode, endNode)
-
-    val query = mock[QueryContext]
-    val nodeMapping: Map[(Long, SemanticDirection), Seq[RelationshipValue]] = Map(
-      (firstNode.id, SemanticDirection.OUTGOING) -> Seq(initialRelationship),
-      (startNode.id, SemanticDirection.INCOMING) -> Seq(initialRelationship),
-      (startNode.id, SemanticDirection.OUTGOING) -> Seq(leftRelationship1, leftRelationship2),
-      (middleNode.id, SemanticDirection.INCOMING) -> Seq(leftRelationship1, leftRelationship2),
-      (middleNode.id, SemanticDirection.OUTGOING) -> Seq(rightRelationship),
-      (endNode.id, SemanticDirection.INCOMING) -> Seq(rightRelationship)
-    )
-    replyWithMap(query, nodeMapping.withDefaultValue(Seq.empty)
-    )
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val left = newMockedPipe(SymbolTable(Map("a" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("a" -> firstNode))
-    })
-
-    // when
-    val result = VarLengthExpandPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, SemanticDirection.OUTGOING, LazyTypes.empty, 2, Some(3), nodeInScope = false)().
-      createResults(queryState).toList
-
-    // then
-    val (first :: second :: third :: fourth :: Nil) = result
-    first("a") should beEquivalentTo(firstNode)
-    first("r") should beEquivalentTo(List(initialRelationship, leftRelationship2))
-    first("b") should beEquivalentTo(middleNode)
-    second("a") should beEquivalentTo(firstNode)
-    second("r") should beEquivalentTo(List(initialRelationship, leftRelationship2, rightRelationship))
-    second("b") should beEquivalentTo(endNode)
-    third("a") should beEquivalentTo(firstNode)
-    third("r") should beEquivalentTo(List(initialRelationship, leftRelationship1))
-    third("b") should beEquivalentTo(middleNode)
-    fourth("a") should beEquivalentTo(firstNode)
-    fourth("r") should beEquivalentTo(List(initialRelationship, leftRelationship1, rightRelationship))
-    fourth("b") should beEquivalentTo(endNode)
-  }
-
-  test("should support var length expand between three nodes with multiple relationships and fixed min and max lengths 2 with end node in scope") {
-    // given
-    val firstNode = newMockedNode(4)
-    val startNode = newMockedNode(1)
-    val middleNode = newMockedNode(2)
-    val endNode = newMockedNode(3)
-    val otherNode = newMockedNode(5)
-    val initialRelationship = newMockedRelationship(4, firstNode, startNode)
-    val leftRelationship1 = newMockedRelationship(1, startNode, middleNode)
-    val leftRelationship2 = newMockedRelationship(2, startNode, middleNode)
-    val rightRelationship = newMockedRelationship(3, middleNode, endNode)
-    val otherRelationship = newMockedRelationship(5, middleNode, otherNode)
-
-    val query = mock[QueryContext]
-    val nodeMapping: Map[(Long, SemanticDirection), Seq[RelationshipValue]] = Map(
-      (firstNode.id, SemanticDirection.OUTGOING) -> Seq(initialRelationship),
-      (startNode.id, SemanticDirection.INCOMING) -> Seq(initialRelationship),
-      (startNode.id, SemanticDirection.OUTGOING) -> Seq(leftRelationship1, leftRelationship2),
-      (middleNode.id, SemanticDirection.INCOMING) -> Seq(leftRelationship1, leftRelationship2),
-      (middleNode.id, SemanticDirection.OUTGOING) -> Seq(rightRelationship, otherRelationship),
-      (endNode.id, SemanticDirection.INCOMING) -> Seq(rightRelationship),
-      (otherNode.id, SemanticDirection.INCOMING) -> Seq(otherRelationship)
-    )
-    replyWithMap(query, nodeMapping.withDefaultValue(Seq.empty)
-    )
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val left = newMockedPipe(SymbolTable(Map("a" -> CTNode, "b" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("a" -> firstNode, "b" -> endNode))
-    })
-
-    // when
-    val result = VarLengthExpandPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, SemanticDirection.OUTGOING, LazyTypes.empty, 2, Some(3), nodeInScope = true)().
-      createResults(queryState).toList
-
-    // then
-    val (first :: second :: Nil) = result
-    first("a") should beEquivalentTo(firstNode)
-    first("r") should beEquivalentTo(List(initialRelationship, leftRelationship2, rightRelationship))
-    first("b") should beEquivalentTo(endNode)
-    second("a") should beEquivalentTo(firstNode)
-    second("r") should beEquivalentTo(List(initialRelationship, leftRelationship1, rightRelationship))
-    second("b") should beEquivalentTo(endNode)
-  }
-
-  test("should project the relationship list in the right direction") {
-    // given
-    val startNode = newMockedNode(1)
-    val middleNode = newMockedNode(2)
-    val endNode = newMockedNode(3)
-    val leftRelationship = newMockedRelationship(1, startNode, middleNode)
-    val rightRelationship = newMockedRelationship(2, middleNode, endNode)
-
-    val query = mock[QueryContext]
-    val nodeMapping: Map[(Long, SemanticDirection), Seq[RelationshipValue]] = Map(
-      (startNode.id, SemanticDirection.OUTGOING) -> Seq(leftRelationship),
-      (middleNode.id, SemanticDirection.INCOMING) -> Seq(leftRelationship),
-      (middleNode.id, SemanticDirection.OUTGOING) -> Seq(rightRelationship),
-      (endNode.id, SemanticDirection.INCOMING) -> Seq(rightRelationship)
-    )
-    replyWithMap(query, nodeMapping.withDefaultValue(Seq.empty))
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val left = newMockedPipe(SymbolTable(Map("a" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("a" -> startNode))
-    })
-    // (b)-[r]->(a)
-
-    // when
-    val result = VarLengthExpandPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, SemanticDirection.INCOMING, LazyTypes.empty, 1, None, nodeInScope = false)().
-      createResults(queryState).toList
-
-    // then
-    val (first :: second :: Nil) = result
-    first("a") should beEquivalentTo(startNode)
-    first("r") should beEquivalentTo(List(leftRelationship))
-    first("b") should beEquivalentTo(middleNode)
-    second("a") should beEquivalentTo(startNode)
-    second("r") should beEquivalentTo(List(rightRelationship, leftRelationship))
-    second("b") should beEquivalentTo(endNode)
-  }
-
-  test("should support var length expand with expansion-stage filtering") {
-    // given
-    val firstNode = newMockedNode(4)
-    val startNode = newMockedNode(1)
-    val middleNode = newMockedNode(2)
-    val endNode = newMockedNode(3)
-    val initialRelationship = newMockedRelationship(4, firstNode, startNode)
-    val leftRelationship1 = newMockedRelationship(1, startNode, middleNode)
-    val leftRelationship2 = newMockedRelationship(2, startNode, middleNode)
-    val rightRelationship = newMockedRelationship(3, middleNode, endNode)
-    val query = mock[QueryContext]
-    val nodeMapping: Map[(Long, SemanticDirection), Seq[RelationshipValue]] = Map(
-      (firstNode.id, SemanticDirection.OUTGOING) -> Seq(initialRelationship),
-      (startNode.id, SemanticDirection.INCOMING) -> Seq(initialRelationship),
-      (startNode.id, SemanticDirection.OUTGOING) -> Seq(leftRelationship1, leftRelationship2),
-      (middleNode.id, SemanticDirection.INCOMING) -> Seq(leftRelationship1, leftRelationship2),
-      (middleNode.id, SemanticDirection.OUTGOING) -> Seq(rightRelationship),
-      (endNode.id, SemanticDirection.INCOMING) -> Seq(rightRelationship)
-    )
-    replyWithMap(query, nodeMapping.withDefaultValue(Seq.empty))
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val left = newMockedPipe(SymbolTable(Map("a" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("a" -> firstNode))
-    })
-
-    val filteringStep = new VarLengthPredicate {
-
-      override def filterNode(row: ExecutionContext,
-                              state: QueryState)
-                             (node: NodeValue): Boolean = true
-
-      override def filterRelationship(row: ExecutionContext, state: QueryState)(rel: RelationshipValue): Boolean =
-        rel.id() != 2
-
-      override def predicateExpressions: Seq[Predicate] = Seq.empty
+      override def typeId(): Int = inner.typeId()
     }
 
-    // when
-    val result = VarLengthExpandPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, SemanticDirection.OUTGOING,
-                                     LazyTypes.empty, 3, None, nodeInScope = false, filteringStep)().createResults(queryState).toList
-
-    // then
-    val (single :: Nil) = result
-    single("a") should beEquivalentTo(firstNode)
-    single("r") should beEquivalentTo(List(initialRelationship, leftRelationship1, rightRelationship))
-    single("b") should beEquivalentTo(endNode)
+  private def relationshipValue(id: Long): RelationshipValue = {
+    val r = mock[RelationshipValue]
+    Mockito.when(r.id).thenReturn(id)
+    r
   }
 
-  test("should project (a)-[r*]->(b) correctly when from = a, to = b") {
-    // given
-    val startNode = newMockedNode(1)
-    val middleNode = newMockedNode(2)
-    val endNode = newMockedNode(3)
+  test("exhaust should close cursor") {
+    val monitor = QueryStateHelper.trackClosedMonitor
+    val resourceManager = new ResourceManager(monitor)
+    val state = QueryStateHelper.emptyWithResourceManager(resourceManager)
+    val nodeCursor = mock[NodeCursor]
+    Mockito.when(nodeCursor.next()).thenReturn(true, false)
+    Mockito.when(state.query.nodeCursor()).thenReturn(nodeCursor)
+    val rels = relationshipIterator
+    Mockito.when(state.query.getRelationshipsForIds(any[Long], any[SemanticDirection], any[Array[Int]])).thenReturn(rels)
 
-    // a-[r1]->()-[r2]->b
-    val relationship1 = newNamedMockedRelationship(1, "r1", startNode, middleNode)
-    val relationship2 = newNamedMockedRelationship(2, "r2", middleNode, endNode)
+    Mockito.when(state.query.relationshipById(any[Long], any[Long], any[Long], any[Int])).thenAnswer(
+      (invocation: InvocationOnMock) => relationshipValue(invocation.getArgument[Long](0)))
 
-    val query = mock[QueryContext]
-    val nodeMapping: Map[(Long, SemanticDirection), Seq[RelationshipValue]] = Map(
-      (startNode.id, SemanticDirection.OUTGOING) -> Seq(relationship1),
-      (middleNode.id, SemanticDirection.INCOMING) -> Seq(relationship1),
-      (middleNode.id, SemanticDirection.OUTGOING) -> Seq(relationship2),
-      (endNode.id, SemanticDirection.INCOMING) -> Seq(relationship2)
-    )
-    replyWithMap(query, nodeMapping.withDefaultValue(Seq.empty))
-
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val left = newMockedPipe(SymbolTable(Map("a" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("a" -> startNode))
-    })
-
-    // when
-    val result = VarLengthExpandPipe(left, "a", "r", "b", /* dir */ SemanticDirection.OUTGOING, /* projectedDir */ SemanticDirection.OUTGOING, LazyTypes.empty, 2, Some(2), nodeInScope = false)().createResults(queryState).toList
-
-    // then
-    val (single :: Nil) = result
-    single("a") should beEquivalentTo(startNode)
-    single("r") should beEquivalentTo(Seq(relationship1, relationship2))
-    single("b") should beEquivalentTo(endNode)
+    val input = FakePipe(Seq(Map("a"->newMockedNode(10))))
+    val pipe = VarLengthExpandPipe(input,
+      "a",
+      "r",
+      "b",
+      SemanticDirection.OUTGOING,
+      SemanticDirection.OUTGOING,
+      new EagerTypes(Array(0)),
+      1,
+      Some(2),
+      nodeInScope = false)()
+    // exhaust
+    pipe.createResults(state).toList
+    input.wasClosed shouldBe true
+    rels.wasClosed shouldBe true
   }
 
-  test("should project (a)-[r*]->(b) correctly when from = b, to = a") {
-    // given
-    val startNode = newMockedNode(1)
-    val middleNode = newMockedNode(2)
-    val endNode = newMockedNode(3)
+  test("close should close cursor") {
+    val monitor = QueryStateHelper.trackClosedMonitor
+    val resourceManager = new ResourceManager(monitor)
+    val state = QueryStateHelper.emptyWithResourceManager(resourceManager)
+    val nodeCursor = mock[NodeCursor]
+    Mockito.when(nodeCursor.next()).thenReturn(true, false)
+    Mockito.when(state.query.nodeCursor()).thenReturn(nodeCursor)
+    val rels = relationshipIterator
+    Mockito.when(state.query.getRelationshipsForIds(any[Long], any[SemanticDirection], any[Array[Int]])).thenReturn(rels)
 
-    // a-[r1]->()-[r2]->b
-    val relationship2 = newNamedMockedRelationship(2, "r2", middleNode, endNode)
-    val relationship1 = newNamedMockedRelationship(1, "r1", startNode, middleNode)
+    Mockito.when(state.query.relationshipById(any[Long], any[Long], any[Long], any[Int])).thenAnswer(
+      (invocation: InvocationOnMock) => relationshipValue(invocation.getArgument[Long](0)))
 
-    val query = mock[QueryContext]
-    val nodeMapping: Map[(Long, SemanticDirection), Seq[RelationshipValue]] = Map(
-      (startNode.id, SemanticDirection.OUTGOING) -> Seq(relationship1),
-      (middleNode.id, SemanticDirection.INCOMING) -> Seq(relationship1),
-      (middleNode.id, SemanticDirection.OUTGOING) -> Seq(relationship2),
-      (endNode.id, SemanticDirection.INCOMING) -> Seq(relationship2)
-    )
-    replyWithMap(query, nodeMapping.withDefaultValue(Seq.empty))
-
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val right = newMockedPipe(SymbolTable(Map("b" -> CTNode)))
-    when(right.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("b" -> endNode))
-    })
-
-    // when
-    val result = VarLengthExpandPipe(right, "b", "r", "a", /* dir */ SemanticDirection.INCOMING, /* projectedDir */ SemanticDirection.OUTGOING, LazyTypes.empty, 2, Some(2), nodeInScope = false)().createResults(queryState).toList
-
-    // then
-    val (single :: Nil) = result
-    single("a") should beEquivalentTo(startNode)
-    single("r") should beEquivalentTo(Seq(relationship1, relationship2))
-    single("b") should beEquivalentTo(endNode)
+    val input = FakePipe(Seq(Map("a"->newMockedNode(10))))
+    val pipe = VarLengthExpandPipe(input,
+      "a",
+      "r",
+      "b",
+      SemanticDirection.OUTGOING,
+      SemanticDirection.OUTGOING,
+      new EagerTypes(Array(0)),
+      1,
+      Some(2),
+      nodeInScope = false)()
+    val result = pipe.createResults(state)
+    result.hasNext shouldBe true // Need to initialize to get cursor registered
+    result.close()
+    input.wasClosed shouldBe true
+    rels.wasClosed shouldBe true
   }
 
-  test("should project (a)<-[r*]-(b) correctly when from = a, to = b") {
-    // given
-    val startNode = newMockedNode(1)
-    val middleNode = newMockedNode(2)
-    val endNode = newMockedNode(3)
-
-    // a<-[r1]-()<-[r2]-b
-    val relationship1 = newNamedMockedRelationship(1, "r1", middleNode, startNode)
-    val relationship2 = newNamedMockedRelationship(2, "r2", endNode, middleNode)
-
-    val query = mock[QueryContext]
-    val nodeMapping: Map[(Long, SemanticDirection), Seq[RelationshipValue]] = Map(
-      (startNode.id, SemanticDirection.INCOMING) -> Seq(relationship1),
-      (middleNode.id, SemanticDirection.OUTGOING) -> Seq(relationship1),
-      (middleNode.id, SemanticDirection.INCOMING) -> Seq(relationship2),
-      (endNode.id, SemanticDirection.OUTGOING) -> Seq(relationship2)
-    )
-    replyWithMap(query, nodeMapping.withDefaultValue(Seq.empty))
-
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val left = newMockedPipe(SymbolTable(Map("a" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("a" -> startNode))
-    })
-
-    // when
-    val result = VarLengthExpandPipe(left, "a", "r", "b", /* dir */ SemanticDirection.INCOMING, /* projectedDir */ SemanticDirection.INCOMING, LazyTypes.empty, 2, Some(2), nodeInScope = false)().createResults(queryState).toList
-
-    // then
-    val (single :: Nil) = result
-    single("a") should beEquivalentTo(startNode)
-    single("r") should beEquivalentTo(Seq(relationship1, relationship2))
-    single("b") should beEquivalentTo(endNode)
-  }
-
-  test("should project (a)<-[r*]-(b) correctly when from = b, to = a") {
-    // given
-    val startNode = newMockedNode(1)
-    val middleNode = newMockedNode(2)
-    val endNode = newMockedNode(3)
-
-    // a<-[r1]-()<-[r2]-b
-    val relationship1 = newNamedMockedRelationship(1, "r1", middleNode, startNode)
-    val relationship2 = newNamedMockedRelationship(2, "r2", endNode, middleNode)
-
-    val query = mock[QueryContext]
-    val nodeMapping: Map[(Long, SemanticDirection), Seq[RelationshipValue]] = Map(
-      (startNode.id, SemanticDirection.INCOMING) -> Seq(relationship1),
-      (middleNode.id, SemanticDirection.OUTGOING) -> Seq(relationship1),
-      (middleNode.id, SemanticDirection.INCOMING) -> Seq(relationship2),
-      (endNode.id, SemanticDirection.OUTGOING) -> Seq(relationship2)
-    )
-    replyWithMap(query, nodeMapping.withDefaultValue(Seq.empty))
-
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val right = newMockedPipe(SymbolTable(Map("b" -> CTNode)))
-    when(right.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row( "b" -> endNode))
-    })
-
-    // when
-    val result = VarLengthExpandPipe(right, "b", "r", "a", /* dir */ SemanticDirection.OUTGOING, /* projectedDir */ SemanticDirection.INCOMING, LazyTypes.empty, 2, Some(2), nodeInScope = false)().createResults(queryState).toList
-
-    // then
-    val (single :: Nil) = result
-    single("a") should beEquivalentTo(startNode)
-    single("r") should beEquivalentTo(Seq(relationship1, relationship2))
-    single("b") should beEquivalentTo(endNode)
-  }
-
-  ///
-  // UNDIRECTED CASES
-  //
-
-  test("should project (a)-[r*]-(b) correctly when from = a, to = b for a graph a-[r1]->()-[r2]->b") {
-    // given
-    val startNode = newMockedNode(1)
-    val middleNode = newMockedNode(2)
-    val endNode = newMockedNode(3)
-
-    // a-[r1]->()-[r2]->b
-    val relationship1 = newNamedMockedRelationship(1, "r1", startNode, middleNode)
-    val relationship2 = newNamedMockedRelationship(2, "r2", middleNode, endNode)
-
-    val query = mock[QueryContext]
-    val nodeMapping: Map[(Long, SemanticDirection), Seq[RelationshipValue]] = Map(
-      (startNode.id, SemanticDirection.BOTH) -> Seq(relationship1),
-      (middleNode.id, SemanticDirection.BOTH) -> Seq(relationship1, relationship2),
-      (endNode.id, SemanticDirection.BOTH) -> Seq(relationship2)
-    )
-    replyWithMap(query, nodeMapping.withDefaultValue(Seq.empty))
-
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val left = newMockedPipe(SymbolTable(Map("a" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("a" -> startNode))
-    })
-
-    // when
-    val result = VarLengthExpandPipe(left, "a", "r", "b", /* dir */ SemanticDirection.BOTH, /* projectedDir */ SemanticDirection.OUTGOING, LazyTypes.empty, 2, Some(2), nodeInScope = false)().createResults(queryState).toList
-
-    // then
-    val (single :: Nil) = result
-    single("a") should beEquivalentTo(startNode)
-    single("r") should beEquivalentTo(Seq(relationship1, relationship2))
-    single("b") should beEquivalentTo(endNode)
-  }
-
-  test("should project (a)-[r*]-(b) correctly when from = b, to = a for a graph a-[r1]->()-[r2]->b") {
-    // given
-    val startNode = newMockedNode(1)
-    val middleNode = newMockedNode(2)
-    val endNode = newMockedNode(3)
-
-    // a-[r1]->()-[r2]->b
-    val relationship2 = newNamedMockedRelationship(2, "r2", middleNode, endNode)
-    val relationship1 = newNamedMockedRelationship(1, "r1", startNode, middleNode)
-
-    val query = mock[QueryContext]
-    val nodeMapping: Map[(Long, SemanticDirection), Seq[RelationshipValue]] = Map(
-      (startNode.id, SemanticDirection.BOTH) -> Seq(relationship1),
-      (middleNode.id, SemanticDirection.BOTH) -> Seq(relationship1, relationship2),
-      (endNode.id, SemanticDirection.BOTH) -> Seq(relationship2)
-    )
-    replyWithMap(query, nodeMapping.withDefaultValue(Seq.empty))
-
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val right = newMockedPipe(SymbolTable(Map("b" -> CTNode)))
-    when(right.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("b" -> endNode))
-    })
-
-    // when
-    val result = VarLengthExpandPipe(right, "b", "r", "a", /* dir */ SemanticDirection.BOTH, /* projectedDir */ SemanticDirection.INCOMING, LazyTypes.empty, 2, Some(2), nodeInScope = false)().createResults(queryState).toList
-
-    // then
-    val (single :: Nil) = result
-    single("a") should beEquivalentTo(startNode)
-    single("r") should beEquivalentTo(Seq(relationship1, relationship2))
-    single("b") should beEquivalentTo(endNode)
-  }
-
-  test("should project (a)-[r*]-(b) correctly when from = a, to = b from a<-[r1]-()<-[r2]-b") {
-    // given
-    val startNode = newMockedNode(1)
-    val middleNode = newMockedNode(2)
-    val endNode = newMockedNode(3)
-
-    // a<-[r1]-()<-[r2]-b
-    val relationship1 = newNamedMockedRelationship(1, "r1", middleNode, startNode)
-    val relationship2 = newNamedMockedRelationship(2, "r2", endNode, middleNode)
-
-    val query = mock[QueryContext]
-    val nodeMapping: Map[(Long, SemanticDirection), Seq[RelationshipValue]] = Map(
-      (startNode.id, SemanticDirection.BOTH) -> Seq(relationship1),
-      (middleNode.id, SemanticDirection.BOTH) -> Seq(relationship1, relationship2),
-      (endNode.id, SemanticDirection.BOTH) -> Seq(relationship2)
-    )
-    replyWithMap(query, nodeMapping.withDefaultValue(Seq.empty))
-
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val left = newMockedPipe(SymbolTable(Map("a" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("a" -> startNode))
-    })
-
-    // when
-    val result = VarLengthExpandPipe(left, "a", "r", "b", /* dir */ SemanticDirection.BOTH, /* projectedDir */ SemanticDirection.OUTGOING, LazyTypes.empty, 2, Some(2), nodeInScope = false)().createResults(queryState).toList
-
-    // then
-    val (single :: Nil) = result
-    single("a") should beEquivalentTo(startNode)
-    single("r") should beEquivalentTo(Seq(relationship1, relationship2))
-    single("b") should beEquivalentTo(endNode)
-  }
-
-  test("should project (a)-[r*]-(b) correctly when from = b, to = a for a graph a<-[r1]-()<-[r2]-b") {
-    // given
-    val startNode = newMockedNode(1)
-    val middleNode = newMockedNode(2)
-    val endNode = newMockedNode(3)
-
-    // a<-[r1]-()<-[r2]-b
-    val relationship1 = newNamedMockedRelationship(1, "r1", middleNode, startNode)
-    val relationship2 = newNamedMockedRelationship(2, "r2", endNode, middleNode)
-
-    val query = mock[QueryContext]
-    val nodeMapping: Map[(Long, SemanticDirection), Seq[RelationshipValue]] = Map(
-      (startNode.id, SemanticDirection.BOTH) -> Seq(relationship1),
-      (middleNode.id, SemanticDirection.BOTH) -> Seq(relationship1, relationship2),
-      (endNode.id, SemanticDirection.BOTH) -> Seq(relationship2)
-    )
-    replyWithMap(query, nodeMapping.withDefaultValue(Seq.empty))
-
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val right = newMockedPipe(SymbolTable(Map("b" -> CTNode)))
-    when(right.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("b" -> endNode))
-    })
-
-    // when
-    val result = VarLengthExpandPipe(right, "b", "r", "a", /* dir */ SemanticDirection.BOTH, /* projectedDir */ SemanticDirection.INCOMING, LazyTypes.empty, 2, Some(2), nodeInScope = false)().createResults(queryState).toList
-
-    // then
-    val (single :: Nil) = result
-    single("a") should beEquivalentTo(startNode)
-    single("r") should beEquivalentTo(Seq(relationship1, relationship2))
-    single("b") should beEquivalentTo(endNode)
-  }
-
-  test("should correctly handle nulls from source pipe") {
-    // given
-    val query = mock[QueryContext]
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val source = newMockedPipe(SymbolTable(Map("a" -> CTNode)))
-    when(source.createResults(queryState)).thenReturn(Iterator(row("a" -> Values.NO_VALUE)))
-
-    // when
-    val result = VarLengthExpandPipe(source, "a", "r", "b", SemanticDirection.BOTH, SemanticDirection.INCOMING, LazyTypes.empty, 1, None, nodeInScope = false)().createResults(queryState).toList
-
-    // then
-    val (single :: Nil) = result
-    single("a").asInstanceOf[AnyRef] should be(Values.NO_VALUE)
-    single("r").asInstanceOf[AnyRef] should be(Values.NO_VALUE)
-    single("b").asInstanceOf[AnyRef] should be(Values.NO_VALUE)
-  }
-
-  test("should not overwrite expand into to-node on nulls from source pipe") {
-    // given
-    val query = mock[QueryContext]
-    val queryState = QueryStateHelper.emptyWith(query = query)
-
-    val source = newMockedPipe(SymbolTable(Map("a" -> CTNode, "b" -> CTNode)))
-    val toNode = newMockedNode(1)
-    when(source.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]] {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = Iterator(row("a" -> Values.NO_VALUE, "b" -> toNode))
-    })
-
-    // when
-    val result = VarLengthExpandPipe(source, "a", "r", "b", SemanticDirection.BOTH, SemanticDirection.INCOMING, LazyTypes.empty, 1, None, nodeInScope = true)().createResults(queryState).toList
-
-    // then
-    val (single :: Nil) = result
-    single("a").asInstanceOf[AnyRef] should be(Values.NO_VALUE)
-    single("r").asInstanceOf[AnyRef] should be(Values.NO_VALUE)
-    single("b") should beEquivalentTo(toNode)
-  }
-
-  test("should register owning pipe") {
-    val src = new FakePipe(Iterator.empty)
-    val pred1 = True()
-    val pred2 = True()
-    val filteringStep = createVarLengthPredicate(pred1, pred2)
-    val pipe = VarLengthExpandPipe(src, "a", "r", "b", SemanticDirection.OUTGOING, SemanticDirection.OUTGOING,
-      LazyTypes.empty, 3, None, nodeInScope = false, filteringStep)()
-
-    pipe.filteringStep.predicateExpressions.foreach(_.owningPipe should equal(pipe))
-    pred1.owningPipe should equal(pipe)
-    pred2.owningPipe should equal(pipe)
-  }
-
-  private def row(values: (String, AnyValue)*) = ExecutionContext.from(values: _*)
-
-  private def newMockedNode(id: Int) = {
-    val node = mock[NodeValue]
-    when(node.id).thenReturn(id)
+  private def newMockedNode(id: Int): Node = {
+    val node = mock[Node]
+    when(node.getId).thenReturn(id)
+    when(node.toString).thenReturn("node - " + id.toString)
     node
   }
 
-  private def newNamedMockedRelationship(id: Int, relName: String, startNode: NodeValue, endNode: NodeValue): RelationshipValue = {
-    val rel = newMockedRelationship(id, startNode, endNode)
-    when(rel.toString).thenReturn(relName)
+  private def newMockedNodeValue(id: Int): NodeValue = {
+    val node = mock[NodeValue]
+    when(node.id()).thenReturn(id)
+    when(node.toString).thenReturn("node - " + id.toString)
+    node
+  }
+
+  private def newMockedRelationshipValue(id: Int): RelationshipValue = {
+    val rel = mock[RelationshipValue]
+    when(rel.id()).thenReturn(id)
+    val nv = newMockedNodeValue(id)
+    when(rel.startNode()).thenReturn(nv)
+    when(rel.otherNode(any[VirtualNodeValue])).thenReturn(nv)
+    when(rel.endNode()).thenReturn(nv)
+    when(rel.toString).thenReturn("rel - " + id.toString)
     rel
-  }
-
-  private def newMockedRelationship(id: Int, startNode: NodeValue, endNode: NodeValue): RelationshipValue = {
-    val relationship = mock[RelationshipValue]
-    when(relationship.id()).thenReturn(id)
-    when(relationship.startNode()).thenReturn(startNode)
-    when(relationship.endNode()).thenReturn(endNode)
-    when(relationship.otherNode(startNode)).thenReturn(endNode)
-    when(relationship.otherNode(endNode)).thenReturn(startNode)
-    relationship
-  }
-
-  private def replyWithMap(query: QueryContext, mapping: Map[(Long, _ <: SemanticDirection), Seq[RelationshipValue]]) {
-    when(query.getRelationshipsForIds(any(), any(), any())).thenAnswer(new Answer[Iterator[RelationshipValue]] {
-      def answer(invocation: InvocationOnMock): Iterator[RelationshipValue] = {
-        val (startNode :: dir :: _ :: Nil) = invocation.getArguments.toList
-        mapping(startNode.asInstanceOf[Long] -> dir.asInstanceOf[SemanticDirection]).iterator
-      }
-    })
-  }
-
-  private def newMockedPipe(symbolTable: SymbolTable): Pipe = {
-    val pipe = mock[Pipe]
-    pipe
-  }
-}
-
-object VarLengthExpandPipeTest {
-  def createVarLengthPredicate(nodePredicate: Predicate, relationshipPredicate: Predicate): VarLengthPredicate = {
-    new VarLengthPredicate {
-      override def filterNode(row: ExecutionContext, state: QueryState)(node: NodeValue): Boolean = {
-        row("to") = node
-        val result = nodePredicate.isTrue(row, state)
-        row.remove("to")
-        result
-      }
-
-      override def filterRelationship(row: ExecutionContext, state: QueryState)(rel: RelationshipValue): Boolean = {
-        row("r") = rel
-        val result = relationshipPredicate.isTrue(row, state)
-        row.remove("r")
-        result
-      }
-
-      override def predicateExpressions: Seq[Predicate] = Seq(nodePredicate, relationshipPredicate)
-    }
   }
 }

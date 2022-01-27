@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,8 +38,6 @@
  */
 package org.neo4j.values.storable;
 
-import org.hamcrest.Matchers;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -50,7 +48,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static java.lang.String.format;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.neo4j.values.storable.BufferValueWriter.SpecialKind.BeginArray;
 import static org.neo4j.values.storable.BufferValueWriter.SpecialKind.EndArray;
 import static org.neo4j.values.storable.BufferValueWriter.SpecialKind.WriteByteArray;
@@ -109,10 +107,9 @@ public class BufferValueWriter implements ValueWriter<RuntimeException>
 
     protected List<Object> buffer = new ArrayList<>();
 
-    @SuppressWarnings( "WeakerAccess" )
     public void assertBuffer( Object... writeEvents )
     {
-        assertThat( buffer, Matchers.contains( writeEvents ) );
+        assertThat( buffer ).containsExactly( writeEvents );
     }
 
     @Override
@@ -235,7 +232,6 @@ public class BufferValueWriter implements ValueWriter<RuntimeException>
         buffer.add( DateTimeValue.datetime( zonedDateTime ) );
     }
 
-    @SuppressWarnings( "WeakerAccess" )
     public static class Specials
     {
         public static Special byteArray( byte[] value )

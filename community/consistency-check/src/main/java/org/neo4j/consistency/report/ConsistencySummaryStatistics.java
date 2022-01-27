@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,8 +38,11 @@
  */
 package org.neo4j.consistency.report;
 
+import java.util.Collections;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -48,9 +51,10 @@ import org.neo4j.consistency.RecordType;
 public class ConsistencySummaryStatistics
 {
     private final Map<RecordType, AtomicInteger> inconsistentRecordCount = new EnumMap<>( RecordType.class );
-    private final AtomicInteger totalInconsistencyCount = new AtomicInteger();
+    private final AtomicLong totalInconsistencyCount = new AtomicLong();
     private final AtomicLong errorCount = new AtomicLong();
     private final AtomicLong warningCount = new AtomicLong();
+    private final List<String> genericErrors = new CopyOnWriteArrayList<>();
 
     public ConsistencySummaryStatistics()
     {
@@ -74,6 +78,11 @@ public class ConsistencySummaryStatistics
                       .append( entry.getKey() ).append( " records: " ).append( entry.getValue() );
             }
         }
+        if ( !genericErrors.isEmpty() )
+        {
+            result.append( "\n\tGeneric errors: " );
+            genericErrors.forEach( message -> result.append( "\n\t\t" ).append( message ) );
+        }
         return result.append( "\n}" ).toString();
     }
 
@@ -87,12 +96,22 @@ public class ConsistencySummaryStatistics
         return inconsistentRecordCount.get( recordType ).get();
     }
 
-    public int getTotalInconsistencyCount()
+    public long getTotalInconsistencyCount()
     {
         return totalInconsistencyCount.get();
     }
 
-    void update( RecordType recordType, int errors, int warnings )
+    public long getTotalWarningCount()
+    {
+        return warningCount.get();
+    }
+
+    public List<String> getGenericErrors()
+    {
+        return Collections.unmodifiableList( genericErrors );
+    }
+
+    public void update( RecordType recordType, int errors, int warnings )
     {
         if ( errors > 0 )
         {
@@ -104,5 +123,11 @@ public class ConsistencySummaryStatistics
         {
             warningCount.addAndGet( warnings );
         }
+    }
+
+    public void genericError( String message )
+    {
+        errorCount.addAndGet( 1 );
+        genericErrors.add( message );
     }
 }

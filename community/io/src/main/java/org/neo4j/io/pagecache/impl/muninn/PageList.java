@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,7 +39,9 @@
 package org.neo4j.io.pagecache.impl.muninn;
 
 import java.io.IOException;
+import java.lang.invoke.VarHandle;
 
+import org.neo4j.internal.unsafe.UnsafeUtil;
 import org.neo4j.io.mem.MemoryAllocator;
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.io.pagecache.PageSwapper;
@@ -47,7 +49,7 @@ import org.neo4j.io.pagecache.tracing.EvictionEvent;
 import org.neo4j.io.pagecache.tracing.EvictionEventOpportunity;
 import org.neo4j.io.pagecache.tracing.FlushEvent;
 import org.neo4j.io.pagecache.tracing.PageFaultEvent;
-import org.neo4j.unsafe.impl.internal.dragons.UnsafeUtil;
+import org.neo4j.io.pagecache.tracing.PageReferenceTranslator;
 
 import static java.lang.String.format;
 import static org.neo4j.util.FeatureToggles.flag;
@@ -67,7 +69,7 @@ import static org.neo4j.util.FeatureToggles.flag;
  * The last (lowest order) 3 bits are the page usage counter.</td></tr>
  * </table>
  */
-class PageList
+class PageList implements PageReferenceTranslator
 {
     private static final boolean forceSlowMemoryClear = flag( PageList.class, "forceSlowMemoryClear", false );
 
@@ -137,7 +139,7 @@ class PageList
         this.bufferAlignment = pageList.bufferAlignment;
     }
 
-    private void clearMemory( long baseAddress, long pageCount )
+    private static void clearMemory( long baseAddress, long pageCount )
     {
         long memcpyChunkSize = UnsafeUtil.pageSize();
         long metaDataEntriesPerChunk = memcpyChunkSize / META_DATA_BYTES_PER_PAGE;
@@ -149,10 +151,10 @@ class PageList
         {
             clearMemoryFast( baseAddress, pageCount, memcpyChunkSize, metaDataEntriesPerChunk );
         }
-        UnsafeUtil.fullFence(); // Guarantee the visibility of the cleared memory.
+        VarHandle.fullFence(); // Guarantee the visibility of the cleared memory.
     }
 
-    private void clearMemorySimple( long baseAddress, long pageCount )
+    private static void clearMemorySimple( long baseAddress, long pageCount )
     {
         long address = baseAddress - Long.BYTES;
         long initialLockWord = OffHeapPageLock.initialLockWordWithExclusiveLock();
@@ -165,7 +167,7 @@ class PageList
         }
     }
 
-    private void clearMemoryFast( long baseAddress, long pageCount, long memcpyChunkSize, long metaDataEntriesPerChunk )
+    private static void clearMemoryFast( long baseAddress, long pageCount, long memcpyChunkSize, long metaDataEntriesPerChunk )
     {
         // Initialise one chunk worth of data.
         clearMemorySimple( baseAddress, metaDataEntriesPerChunk );
@@ -210,93 +212,94 @@ class PageList
         return baseAddress + (id * META_DATA_BYTES_PER_PAGE);
     }
 
-    int toId( long pageRef )
+    @Override
+    public int toId( long pageRef )
     {
         // >> 5 is equivalent to dividing by 32, META_DATA_BYTES_PER_PAGE.
         return (int) ((pageRef - baseAddress) >> 5);
     }
 
-    private long offLastModifiedTransactionId( long pageRef )
+    private static long offLastModifiedTransactionId( long pageRef )
     {
         return pageRef + OFFSET_LAST_TX_ID;
     }
 
-    private long offLock( long pageRef )
+    private static long offLock( long pageRef )
     {
         return pageRef + OFFSET_LOCK_WORD;
     }
 
-    private long offAddress( long pageRef )
+    private static long offAddress( long pageRef )
     {
         return pageRef + OFFSET_ADDRESS;
     }
 
-    private long offPageBinding( long pageRef )
+    private static long offPageBinding( long pageRef )
     {
         return pageRef + OFFSET_PAGE_BINDING;
     }
 
-    long tryOptimisticReadLock( long pageRef )
+    static long tryOptimisticReadLock( long pageRef )
     {
         return OffHeapPageLock.tryOptimisticReadLock( offLock( pageRef ) );
     }
 
-    boolean validateReadLock( long pageRef, long stamp )
+    static boolean validateReadLock( long pageRef, long stamp )
     {
         return OffHeapPageLock.validateReadLock( offLock( pageRef ), stamp );
     }
 
-    boolean isModified( long pageRef )
+    static boolean isModified( long pageRef )
     {
         return OffHeapPageLock.isModified( offLock( pageRef ) );
     }
 
-    boolean isExclusivelyLocked( long pageRef )
+    static boolean isExclusivelyLocked( long pageRef )
     {
         return OffHeapPageLock.isExclusivelyLocked( offLock( pageRef ) );
     }
 
-    boolean tryWriteLock( long pageRef )
+    static boolean tryWriteLock( long pageRef )
     {
         return OffHeapPageLock.tryWriteLock( offLock( pageRef ) );
     }
 
-    void unlockWrite( long pageRef )
+    static void unlockWrite( long pageRef )
     {
         OffHeapPageLock.unlockWrite( offLock( pageRef ) );
     }
 
-    long unlockWriteAndTryTakeFlushLock( long pageRef )
+    static long unlockWriteAndTryTakeFlushLock( long pageRef )
     {
         return OffHeapPageLock.unlockWriteAndTryTakeFlushLock( offLock( pageRef ) );
     }
 
-    boolean tryExclusiveLock( long pageRef )
+    static boolean tryExclusiveLock( long pageRef )
     {
         return OffHeapPageLock.tryExclusiveLock( offLock( pageRef ) );
     }
 
-    long unlockExclusive( long pageRef )
+    static long unlockExclusive( long pageRef )
     {
         return OffHeapPageLock.unlockExclusive( offLock( pageRef ) );
     }
 
-    void unlockExclusiveAndTakeWriteLock( long pageRef )
+    static void unlockExclusiveAndTakeWriteLock( long pageRef )
     {
         OffHeapPageLock.unlockExclusiveAndTakeWriteLock( offLock( pageRef ) );
     }
 
-    long tryFlushLock( long pageRef )
+    static long tryFlushLock( long pageRef )
     {
         return OffHeapPageLock.tryFlushLock( offLock( pageRef ) );
     }
 
-    void unlockFlush( long pageRef, long stamp, boolean success )
+    static void unlockFlush( long pageRef, long stamp, boolean success )
     {
         OffHeapPageLock.unlockFlush( offLock( pageRef ), stamp, success );
     }
 
-    void explicitlyMarkPageUnmodifiedUnderExclusiveLock( long pageRef )
+    static void explicitlyMarkPageUnmodifiedUnderExclusiveLock( long pageRef )
     {
         OffHeapPageLock.explicitlyMarkPageUnmodifiedUnderExclusiveLock( offLock( pageRef ) );
     }
@@ -306,7 +309,7 @@ class PageList
         return cachePageSize;
     }
 
-    long getAddress( long pageRef )
+    static long getAddress( long pageRef )
     {
         return UnsafeUtil.getLong( offAddress( pageRef ) );
     }
@@ -320,15 +323,10 @@ class PageList
         }
     }
 
-    private byte getUsageCounter( long pageRef )
-    {
-        return (byte) (UnsafeUtil.getLongVolatile( offPageBinding( pageRef ) ) & MASK_USAGE_COUNT);
-    }
-
     /**
      * Increment the usage stamp to at most 4.
      **/
-    void incrementUsage( long pageRef )
+    static void incrementUsage( long pageRef )
     {
         // This is intentionally left benignly racy for performance.
         long address = offPageBinding( pageRef );
@@ -349,7 +347,7 @@ class PageList
     /**
      * Decrement the usage stamp. Returns true if it reaches 0.
      **/
-    boolean decrementUsage( long pageRef )
+    static boolean decrementUsage( long pageRef )
     {
         // This is intentionally left benignly racy for performance.
         long address = offPageBinding( pageRef );
@@ -364,13 +362,18 @@ class PageList
         return usage <= 1;
     }
 
-    long getFilePageId( long pageRef )
+    static long getUsage( long pageRef )
+    {
+        return UnsafeUtil.getLongVolatile( offPageBinding( pageRef ) ) & MASK_USAGE_COUNT;
+    }
+
+    static long getFilePageId( long pageRef )
     {
         long filePageId = UnsafeUtil.getLong( offPageBinding( pageRef ) ) >>> SHIFT_FILE_PAGE_ID;
         return filePageId == MAX_FILE_PAGE_ID ? PageCursor.UNBOUND_PAGE_ID : filePageId;
     }
 
-    private void setFilePageId( long pageRef, long filePageId )
+    private static void setFilePageId( long pageRef, long filePageId )
     {
         if ( filePageId > MAX_FILE_PAGE_ID )
         {
@@ -383,7 +386,7 @@ class PageList
         UnsafeUtil.putLong( address, filePageId );
     }
 
-    long getLastModifiedTxId( long pageRef )
+    static long getLastModifiedTxId( long pageRef )
     {
         return UnsafeUtil.getLongVolatile( offLastModifiedTransactionId( pageRef ) );
     }
@@ -391,23 +394,23 @@ class PageList
     /**
      * @return return last modifier transaction id and resets it to {@link #UNBOUND_LAST_MODIFIED_TX_ID}
      */
-    long getAndResetLastModifiedTransactionId( long pageRef )
+    static long getAndResetLastModifiedTransactionId( long pageRef )
     {
         return UnsafeUtil.getAndSetLong( null, offLastModifiedTransactionId( pageRef ), UNBOUND_LAST_MODIFIED_TX_ID );
     }
 
-    void setLastModifiedTxId( long pageRef, long modifierTxId )
+    static void setLastModifiedTxId( long pageRef, long modifierTxId )
     {
         UnsafeUtil.compareAndSetMaxLong( null, offLastModifiedTransactionId( pageRef ), modifierTxId );
     }
 
-    int getSwapperId( long pageRef )
+    static int getSwapperId( long pageRef )
     {
         long v = UnsafeUtil.getLong( offPageBinding( pageRef ) ) >>> SHIFT_SWAPPER_ID;
         return (int) (v & MASK_SHIFTED_SWAPPER_ID); // 21 bits.
     }
 
-    private void setSwapperId( long pageRef, int swapperId )
+    private static void setSwapperId( long pageRef, int swapperId )
     {
         swapperId = swapperId << SHIFT_SWAPPER_ID;
         long address = offPageBinding( pageRef );
@@ -415,12 +418,12 @@ class PageList
         UnsafeUtil.putLong( address, v + swapperId );
     }
 
-    boolean isLoaded( long pageRef )
+    static boolean isLoaded( long pageRef )
     {
         return getFilePageId( pageRef ) != PageCursor.UNBOUND_PAGE_ID;
     }
 
-    boolean isBoundTo( long pageRef, int swapperId, long filePageId )
+    static boolean isBoundTo( long pageRef, int swapperId, long filePageId )
     {
         long address = offPageBinding( pageRef );
         long expectedBinding = (filePageId << SHIFT_PARTIAL_FILE_PAGE_ID) + swapperId;
@@ -428,7 +431,7 @@ class PageList
         return expectedBinding == actualBinding;
     }
 
-    void fault( long pageRef, PageSwapper swapper, int swapperId, long filePageId, PageFaultEvent event )
+    static void fault( long pageRef, PageSwapper swapper, int swapperId, long filePageId, PageFaultEvent event )
             throws IOException
     {
         if ( swapper == null )
@@ -450,9 +453,8 @@ class PageList
         // the file page, so any subsequent thread that finds the page in their
         // translation table will re-do the page fault.
         setFilePageId( pageRef, filePageId ); // Page now considered isLoaded()
-        long bytesRead = swapper.read( filePageId, getAddress( pageRef ), cachePageSize );
+        long bytesRead = swapper.read( filePageId, getAddress( pageRef ) );
         event.addBytesRead( bytesRead );
-        event.setCachePageId( toId( pageRef ) );
         setSwapperId( pageRef, swapperId ); // Page now considered isBoundTo( swapper, filePageId )
     }
 
@@ -479,7 +481,7 @@ class PageList
         {
             if ( isLoaded( pageRef ) )
             {
-                try ( EvictionEvent evictionEvent = evictionOpportunity.beginEviction() )
+                try ( var evictionEvent = evictionOpportunity.beginEviction( toId( pageRef ) ) )
                 {
                     evict( pageRef, evictionEvent );
                     return true;
@@ -494,7 +496,6 @@ class PageList
     {
         long filePageId = getFilePageId( pageRef );
         evictionEvent.setFilePageId( filePageId );
-        evictionEvent.setCachePageId( pageRef );
         int swapperId = getSwapperId( pageRef );
         if ( swapperId != 0 )
         {
@@ -509,7 +510,7 @@ class PageList
 
                 if ( isModified( pageRef ) )
                 {
-                    flushModifiedPage( pageRef, evictionEvent, filePageId, swapper );
+                    flushModifiedPage( pageRef, evictionEvent, filePageId, swapper, this );
                 }
                 swapper.evicted( filePageId );
             }
@@ -517,10 +518,10 @@ class PageList
         clearBinding( pageRef );
     }
 
-    private void flushModifiedPage( long pageRef, EvictionEvent evictionEvent, long filePageId, PageSwapper swapper )
+    private static void flushModifiedPage( long pageRef, EvictionEvent evictionEvent, long filePageId, PageSwapper swapper, PageList pageReferenceTranslator )
             throws IOException
     {
-        FlushEvent flushEvent = evictionEvent.flushEventOpportunity().beginFlush( filePageId, pageRef, swapper );
+        FlushEvent flushEvent = evictionEvent.beginFlush( pageRef, swapper, pageReferenceTranslator );
         try
         {
             long address = getAddress( pageRef );
@@ -539,18 +540,8 @@ class PageList
         }
     }
 
-    private void clearBinding( long pageRef )
+    private static void clearBinding( long pageRef )
     {
         UnsafeUtil.putLong( offPageBinding( pageRef ), UNBOUND_PAGE_BINDING );
-    }
-
-    void toString( long pageRef, StringBuilder sb )
-    {
-        sb.append( "Page[ id = " ).append( toId( pageRef ) );
-        sb.append( ", address = " ).append( getAddress( pageRef ) );
-        sb.append( ", filePageId = " ).append( getFilePageId( pageRef ) );
-        sb.append( ", swapperId = " ).append( getSwapperId( pageRef ) );
-        sb.append( ", usageCounter = " ).append( getUsageCounter( pageRef ) );
-        sb.append( " ] " ).append( OffHeapPageLock.toString( offLock( pageRef ) ) );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,55 +38,133 @@
  */
 package org.neo4j.kernel.impl.locking;
 
-import org.junit.Ignore;
-import org.junit.Test;
+import org.apache.commons.lang3.mutable.MutableInt;
+import org.eclipse.collections.impl.factory.primitive.LongSets;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
 import java.util.stream.Stream;
 
+import org.neo4j.configuration.Config;
+import org.neo4j.kernel.impl.api.LeaseService;
+import org.neo4j.lock.ActiveLock;
+import org.neo4j.lock.LockTracer;
+import org.neo4j.lock.LockType;
+import org.neo4j.memory.EmptyMemoryTracker;
+
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toSet;
-import static org.junit.Assert.assertEquals;
-import static org.neo4j.kernel.impl.locking.ActiveLock.exclusiveLock;
-import static org.neo4j.kernel.impl.locking.ActiveLock.sharedLock;
-import static org.neo4j.kernel.impl.locking.ResourceTypes.LABEL;
-import static org.neo4j.kernel.impl.locking.ResourceTypes.NODE;
-import static org.neo4j.kernel.impl.locking.ResourceTypes.RELATIONSHIP;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.lock.ResourceTypes.LABEL;
+import static org.neo4j.lock.ResourceTypes.NODE;
+import static org.neo4j.lock.ResourceTypes.RELATIONSHIP;
 
-@Ignore( "Not a test. This is a compatibility suite, run from LockingCompatibilityTestSuite." )
-public class ActiveLocksListingCompatibility extends LockingCompatibilityTestSuite.Compatibility
+abstract class ActiveLocksListingCompatibility extends LockCompatibilityTestSupport
 {
-    public ActiveLocksListingCompatibility( LockingCompatibilityTestSuite suite )
+    ActiveLocksListingCompatibility( LockingCompatibilityTestSuite suite )
     {
         super( suite );
     }
 
     @Test
-    public void shouldListLocksHeldByTheCurrentClient()
+    void activeLockShouldContainUserTransactionFromClient()
+    {
+        clientA.initialize( LeaseService.NO_LEASES.newClient(), 15, EmptyMemoryTracker.INSTANCE, Config.defaults() );
+        clientA.acquireExclusive( LockTracer.NONE, NODE, 1 );
+
+        assertEquals( 1, clientA.activeLockCount() );
+        var lock = clientA.activeLocks().findFirst().get();
+        assertEquals( 15, lock.transactionId() );
+    }
+
+    @Test
+    void visitedExclusiveLockPreserveOwningTransaction()
+    {
+        int userTransactionId = 15;
+        clientA.initialize( LeaseService.NO_LEASES.newClient(), userTransactionId, EmptyMemoryTracker.INSTANCE, Config.defaults() );
+        clientA.acquireExclusive( LockTracer.NONE, NODE, 1 );
+
+        MutableInt observedLocks = new MutableInt();
+        locks.accept( ( lockType, resourceType, transactionId, resourceId, description, estimatedWaitTime, lockIdentityHashCode ) ->
+        {
+            assertEquals( userTransactionId, transactionId );
+            assertSame( NODE, resourceType );
+            observedLocks.increment();
+        } );
+        assertEquals( 1, observedLocks.intValue() );
+    }
+
+    @Test
+    void visitedSharedLockPreserveOwningTransaction()
+    {
+        int userTransactionId = 15;
+        clientA.initialize( LeaseService.NO_LEASES.newClient(), userTransactionId, EmptyMemoryTracker.INSTANCE, Config.defaults() );
+        clientA.acquireShared( LockTracer.NONE, NODE, 1 );
+
+        MutableInt observedLocks = new MutableInt();
+        locks.accept( ( lockType, resourceType, transactionId, resourceId, description, estimatedWaitTime, lockIdentityHashCode ) ->
+        {
+            assertEquals( userTransactionId, transactionId );
+            assertSame( NODE, resourceType );
+            observedLocks.increment();
+        } );
+        assertEquals( 1, observedLocks.intValue() );
+    }
+
+    @Test
+    void visitedSharedLockLockOwningByMultipleClients()
+    {
+        int userTransactionIdA = 15;
+        int userTransactionIdB = 16;
+
+        clientA.initialize( LeaseService.NO_LEASES.newClient(), userTransactionIdA, EmptyMemoryTracker.INSTANCE, Config.defaults() );
+        clientA.acquireShared( LockTracer.NONE, NODE, 1 );
+
+        clientB.initialize( LeaseService.NO_LEASES.newClient(), userTransactionIdB, EmptyMemoryTracker.INSTANCE, Config.defaults() );
+        clientB.acquireShared( LockTracer.NONE, NODE, 1 );
+
+        MutableInt observedLocks = new MutableInt();
+        var observedTransactions = LongSets.mutable.empty();
+        locks.accept( ( lockType, resourceType, transactionId, resourceId, description, estimatedWaitTime, lockIdentityHashCode ) ->
+        {
+            observedTransactions.add( transactionId );
+            assertSame( NODE, resourceType );
+            observedLocks.increment();
+        } );
+
+        assertEquals( 2, observedLocks.intValue() );
+        assertTrue( observedTransactions.containsAll( userTransactionIdA, userTransactionIdB ), "Observer set: " + observedTransactions );
+    }
+
+    @Test
+    void shouldListLocksHeldByTheCurrentClient()
     {
         // given
+        clientA.initialize( LeaseService.NO_LEASES.newClient(), 1, EmptyMemoryTracker.INSTANCE, Config.defaults() );
         clientA.acquireExclusive( LockTracer.NONE, NODE, 1, 2, 3 );
         clientA.acquireShared( LockTracer.NONE, NODE, 3, 4, 5 );
 
         // when
-        Stream<? extends ActiveLock> locks = clientA.activeLocks();
+        Stream<ActiveLock> locks = clientA.activeLocks();
 
         // then
         assertEquals(
                 new HashSet<>( asList(
-                        exclusiveLock( NODE, 1 ),
-                        exclusiveLock( NODE, 2 ),
-                        exclusiveLock( NODE, 3 ),
-                        sharedLock( NODE, 3 ),
-                        sharedLock( NODE, 4 ),
-                        sharedLock( NODE, 5 ) ) ),
+                        new ActiveLock( NODE, LockType.EXCLUSIVE, 1,1 ),
+                        new ActiveLock( NODE, LockType.EXCLUSIVE, 1, 2 ),
+                        new ActiveLock( NODE, LockType.EXCLUSIVE, 1, 3 ),
+                        new ActiveLock( NODE, LockType.SHARED, 1, 4 ),
+                        new ActiveLock( NODE, LockType.SHARED, 1, 5 ) ) ),
                 locks.collect( toSet() ) );
     }
 
     @Test
-    public void shouldCountNumberOfActiveLocks()
+    void shouldCountNumberOfActiveLocks()
     {
         // given
+        clientA.initialize( LeaseService.NO_LEASES.newClient(), 1, EmptyMemoryTracker.INSTANCE, Config.defaults() );
         clientA.acquireShared( LockTracer.NONE, LABEL, 0 );
         clientA.acquireShared( LockTracer.NONE, RELATIONSHIP, 17 );
         clientA.acquireShared( LockTracer.NONE, NODE, 12 );

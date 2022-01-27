@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,85 +38,51 @@
  */
 package org.neo4j.kernel.impl.transaction.state.storeview;
 
-import org.neo4j.collection.primitive.PrimitiveLongCollections;
-import org.neo4j.collection.primitive.PrimitiveLongResourceIterator;
-import org.neo4j.kernel.impl.api.index.StoreScan;
-import org.neo4j.kernel.impl.locking.Lock;
-import org.neo4j.kernel.impl.locking.LockService;
-import org.neo4j.kernel.impl.store.NodeStore;
-import org.neo4j.kernel.impl.store.StoreIdIterator;
-import org.neo4j.kernel.impl.store.record.NodeRecord;
-import org.neo4j.storageengine.api.schema.PopulationProgress;
+import java.util.function.Function;
+import java.util.function.IntPredicate;
 
-import static org.neo4j.kernel.impl.store.record.RecordLoad.FORCE;
+import org.neo4j.configuration.Config;
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.io.pagecache.tracing.PageCacheTracer;
+import org.neo4j.kernel.impl.api.index.PropertyScanConsumer;
+import org.neo4j.kernel.impl.api.index.TokenScanConsumer;
+import org.neo4j.lock.LockService;
+import org.neo4j.memory.MemoryTracker;
+import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.storageengine.api.EntityUpdates;
+import org.neo4j.storageengine.api.StorageNodeCursor;
+import org.neo4j.storageengine.api.StorageReader;
+import org.neo4j.storageengine.api.TokenIndexEntryUpdate;
+import org.neo4j.storageengine.api.cursor.StoreCursors;
+
+import static org.neo4j.lock.LockType.SHARED;
 
 /**
- * Node scanner that will perform some sort of process over set of nodes
- * from nodeStore {@link NodeStore} based on node ids supplied by underlying store aware id iterator.
- * @param <FAILURE> type of exception thrown on failure
+ * Scan the node store and produce {@link EntityUpdates updates for indexes} and/or {@link TokenIndexEntryUpdate updates for label index}
+ * depending on which scan consumer ({@link TokenScanConsumer}, {@link PropertyScanConsumer} or both) is used.
+ * <p>
+ * {@code labelIds} and {@code propertyKeyIdFilter} are relevant only for {@link PropertyScanConsumer} and don't influence
+ * {@link TokenScanConsumer}.
  */
-public abstract class NodeStoreScan<FAILURE extends Exception> implements StoreScan<FAILURE>
+public class NodeStoreScan extends PropertyAwareEntityStoreScan<StorageNodeCursor>
 {
-    private volatile boolean continueScanning;
-    private final NodeRecord record;
+    private static final String TRACER_TAG = "NodeStoreScan_getNodeCount";
 
-    protected final NodeStore nodeStore;
-    protected final LockService locks;
-    private final long totalCount;
-
-    private long count;
-
-    public abstract void process( NodeRecord loaded ) throws FAILURE;
-
-    public NodeStoreScan( NodeStore nodeStore, LockService locks, long totalCount )
+    public NodeStoreScan( Config config, StorageReader storageReader, Function<CursorContext,StoreCursors> storeCursorsFactory, LockService locks,
+            TokenScanConsumer labelScanConsumer, PropertyScanConsumer propertyScanConsumer,
+            int[] labelIds, IntPredicate propertyKeyIdFilter, boolean parallelWrite,
+            JobScheduler scheduler, PageCacheTracer cacheTracer, MemoryTracker memoryTracker )
     {
-        this.nodeStore = nodeStore;
-        this.record = nodeStore.newRecord();
-        this.locks = locks;
-        this.totalCount = totalCount;
+        super( config, storageReader, storeCursorsFactory, getNodeCount( storageReader, cacheTracer ), labelIds, propertyKeyIdFilter, propertyScanConsumer,
+                labelScanConsumer, id -> locks.acquireNodeLock( id, SHARED ), new NodeCursorBehaviour( storageReader ), parallelWrite, scheduler, cacheTracer,
+                memoryTracker );
     }
 
-    @Override
-    public void run() throws FAILURE
+    private static long getNodeCount( StorageReader storageReader, PageCacheTracer cacheTracer )
     {
-        try ( PrimitiveLongResourceIterator nodeIds = getNodeIdIterator() )
+        try ( CursorContext cursorContext = new CursorContext( cacheTracer.createPageCursorTracer( TRACER_TAG ) ) )
         {
-            continueScanning = true;
-            while ( continueScanning && nodeIds.hasNext() )
-            {
-                long id = nodeIds.next();
-                try ( Lock ignored = locks.acquireNodeLock( id, LockService.LockType.READ_LOCK ) )
-                {
-                    count++;
-                    if ( nodeStore.getRecord( id, record, FORCE ).inUse() )
-                    {
-                        process( record );
-                    }
-                }
-            }
+            return storageReader.nodesGetCount( cursorContext );
         }
-    }
-
-    protected PrimitiveLongResourceIterator getNodeIdIterator()
-    {
-        return PrimitiveLongCollections.resourceIterator( new StoreIdIterator( nodeStore ), null );
-    }
-
-    @Override
-    public void stop()
-    {
-        continueScanning = false;
-    }
-
-    @Override
-    public PopulationProgress getProgress()
-    {
-        if ( totalCount > 0 )
-        {
-            return new PopulationProgress( count, totalCount );
-        }
-
-        // nothing to do 100% completed
-        return PopulationProgress.DONE;
     }
 }

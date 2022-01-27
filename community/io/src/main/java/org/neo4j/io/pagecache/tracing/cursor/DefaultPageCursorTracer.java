@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,43 +38,96 @@
  */
 package org.neo4j.io.pagecache.tracing.cursor;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
-import org.neo4j.helpers.MathUtil;
+import org.neo4j.internal.helpers.MathUtil;
 import org.neo4j.io.pagecache.PageSwapper;
 import org.neo4j.io.pagecache.tracing.EvictionEvent;
 import org.neo4j.io.pagecache.tracing.FlushEvent;
-import org.neo4j.io.pagecache.tracing.FlushEventOpportunity;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.io.pagecache.tracing.PageFaultEvent;
+import org.neo4j.io.pagecache.tracing.PageFileSwapperTracer;
+import org.neo4j.io.pagecache.tracing.PageReferenceTranslator;
 import org.neo4j.io.pagecache.tracing.PinEvent;
+
+import static org.neo4j.util.FeatureToggles.flag;
 
 public class DefaultPageCursorTracer implements PageCursorTracer
 {
+    /**
+     * On encountering a mismatching counts check error in a test this debugging is useful to trace down which exact pin it's about.
+     * Just flip DEBUG_PINS = true.
+     */
+    private static final boolean DEBUG_PINS = false;
+    private static final ConcurrentMap<PinEvent,Exception> PIN_DEBUG_MAP = DEBUG_PINS ? new ConcurrentHashMap<>() : null;
+
+    private static final boolean CHECK_REPORTED_COUNTERS = flag( DefaultPageCursorTracer.class, "CHECK_REPORTED_COUNTERS", false );
+
     private long pins;
     private long unpins;
     private long hits;
-    private long historicalHits;
     private long faults;
-    private long historicalFaults;
     private long bytesRead;
     private long bytesWritten;
     private long evictions;
     private long evictionExceptions;
     private long flushes;
+    private long merges;
 
-    private PageCacheTracer pageCacheTracer = PageCacheTracer.NULL;
-    private DefaultPinEvent pinTracingEvent = new DefaultPinEvent();
+    private final DefaultPinEvent pinTracingEvent = new DefaultPinEvent();
+    private final PageFaultEvictionEvent evictionEvent = new PageFaultEvictionEvent();
+    private final DefaultPageFaultEvent pageFaultEvent = new DefaultPageFaultEvent();
+    private final DefaultFlushEvent flushEvent = new DefaultFlushEvent();
 
-    @Override
-    public void init( PageCacheTracer pageCacheTracer )
+    private final PageCacheTracer pageCacheTracer;
+    private final String tag;
+    private boolean ignoreCounterCheck;
+
+    public DefaultPageCursorTracer( PageCacheTracer pageCacheTracer, String tag )
     {
         this.pageCacheTracer = pageCacheTracer;
+        this.tag = tag;
     }
 
     @Override
+    public String getTag()
+    {
+        return tag;
+    }
+
+    @Override
+    public void closeCursor()
+    {
+        pageCacheTracer.closeCursor();
+    }
+
+    @Override
+    public void merge( PageCursorTracer cursorTracer )
+    {
+        this.pins += cursorTracer.pins();
+        this.unpins += cursorTracer.unpins();
+        this.hits += cursorTracer.hits();
+        this.faults += cursorTracer.faults();
+        this.bytesRead += cursorTracer.bytesRead();
+        this.bytesWritten += cursorTracer.bytesWritten();
+        this.evictions += cursorTracer.evictions();
+        this.evictionExceptions += cursorTracer.evictionExceptions();
+        this.flushes += cursorTracer.flushes();
+        this.merges += cursorTracer.merges();
+    }
+
+    // When updating reporting here please check if that affects any reporting on additional available tracers
+    @Override
     public void reportEvents()
     {
+        if ( CHECK_REPORTED_COUNTERS && !ignoreCounterCheck )
+        {
+            checkCounters();
+        }
         if ( pins > 0 )
         {
             pageCacheTracer.pins( pins );
@@ -86,12 +139,10 @@ public class DefaultPageCursorTracer implements PageCursorTracer
         if ( hits > 0 )
         {
             pageCacheTracer.hits( hits );
-            historicalHits = historicalHits + hits;
         }
         if ( faults > 0 )
         {
             pageCacheTracer.faults( faults );
-            historicalFaults = historicalFaults + faults;
         }
         if ( bytesRead > 0 )
         {
@@ -100,6 +151,8 @@ public class DefaultPageCursorTracer implements PageCursorTracer
         if ( evictions > 0 )
         {
             pageCacheTracer.evictions( evictions );
+            // all evictions counted by PageCursorTracer are cooperative
+            pageCacheTracer.cooperativeEvictions( evictions );
         }
         if ( evictionExceptions > 0 )
         {
@@ -113,19 +166,43 @@ public class DefaultPageCursorTracer implements PageCursorTracer
         {
             pageCacheTracer.flushes( flushes );
         }
+        if ( merges > 0 )
+        {
+            pageCacheTracer.merges( merges );
+        }
         reset();
     }
 
-    @Override
-    public long accumulatedHits()
+    private void checkCounters()
     {
-        return historicalHits + hits;
+        boolean pinsMismatch = pins != unpins;
+        if ( pinsMismatch )
+        {
+            throw new RuntimeException( "Mismatch cursor counters. " + this );
+        }
     }
 
     @Override
-    public long accumulatedFaults()
+    public String toString()
     {
-        return historicalFaults + faults;
+        return "PageCursorTracer{" + "pins=" + pins + ", unpins=" + unpins + ", hits=" + hits + ", faults=" + faults + ", bytesRead=" + bytesRead +
+                ", bytesWritten=" + bytesWritten + ", evictions=" + evictions + ", evictionExceptions=" + evictionExceptions + ", flushes=" + flushes +
+                ", merges=" + merges + ", tag='" + tag + '\'' + (DEBUG_PINS ? ", current (yet unpinned) pins:" + currentPins() : "" ) + '}';
+    }
+
+    private String currentPins()
+    {
+        assert DEBUG_PINS;
+        ByteArrayOutputStream byteArrayOut = new ByteArrayOutputStream();
+        try ( PrintStream out = new PrintStream( byteArrayOut ) )
+        {
+            PIN_DEBUG_MAP.forEach( ( pin, stackTrace ) ->
+            {
+                out.println();
+                stackTrace.printStackTrace( out );
+            } );
+        }
+        return byteArrayOut.toString();
     }
 
     private void reset()
@@ -139,6 +216,7 @@ public class DefaultPageCursorTracer implements PageCursorTracer
         evictions = 0;
         evictionExceptions = 0;
         flushes = 0;
+        merges = 0;
     }
 
     @Override
@@ -196,6 +274,12 @@ public class DefaultPageCursorTracer implements PageCursorTracer
     }
 
     @Override
+    public long merges()
+    {
+        return merges;
+    }
+
+    @Override
     public double hitRatio()
     {
         return MathUtil.portion( hits(), faults() );
@@ -205,33 +289,33 @@ public class DefaultPageCursorTracer implements PageCursorTracer
     public PinEvent beginPin( boolean writeLock, long filePageId, PageSwapper swapper )
     {
         pins++;
-        pinTracingEvent.eventHits = 1;
-        return pinTracingEvent;
+        PageFileSwapperTracer swapperTracer = swapper.fileSwapperTracer();
+        swapperTracer.pins( 1 );
+        if ( DEBUG_PINS )
+        {
+            DefaultPinEvent event = new DefaultPinEvent();
+            event.eventHits = 1;
+            event.swapperTracer = swapperTracer;
+            PIN_DEBUG_MAP.put( event, new Exception() );
+            return event;
+        }
+        else
+        {
+            pinTracingEvent.eventHits = 1;
+            pinTracingEvent.swapperTracer = swapperTracer;
+            return pinTracingEvent;
+        }
     }
 
-    private final EvictionEvent evictionEvent = new EvictionEvent()
+    public void setIgnoreCounterCheck( boolean ignoreCounterCheck )
     {
-        @Override
-        public void setFilePageId( long filePageId )
-        {
-        }
+        this.ignoreCounterCheck = ignoreCounterCheck;
+    }
 
-        @Override
-        public void setSwapper( PageSwapper swapper )
-        {
-        }
-
-        @Override
-        public FlushEventOpportunity flushEventOpportunity()
-        {
-            return flushEventOpportunity;
-        }
-
-        @Override
-        public void threwException( IOException exception )
-        {
-            evictionExceptions++;
-        }
+    private class DefaultPinEvent implements PinEvent
+    {
+        private int eventHits = 1;
+        private PageFileSwapperTracer swapperTracer;
 
         @Override
         public void setCachePageId( long cachePageId )
@@ -239,34 +323,63 @@ public class DefaultPageCursorTracer implements PageCursorTracer
         }
 
         @Override
-        public void close()
+        public PageFaultEvent beginPageFault( long filePageId, PageSwapper pageSwapper )
         {
-            evictions++;
+            eventHits = 0;
+            pageFaultEvent.swapperTracer = pageSwapper.fileSwapperTracer();
+            return pageFaultEvent;
         }
-    };
 
-    private final PageFaultEvent pageFaultEvent = new PageFaultEvent()
+        @Override
+        public void hit()
+        {
+            hits += eventHits;
+            swapperTracer.hits( eventHits );
+        }
+
+        @Override
+        public void done()
+        {
+            unpins++;
+            swapperTracer.unpins( 1 );
+            if ( DEBUG_PINS )
+            {
+                PIN_DEBUG_MAP.remove( this );
+            }
+        }
+    }
+
+    private class DefaultPageFaultEvent implements PageFaultEvent
     {
+        private PageFileSwapperTracer swapperTracer;
+
         @Override
         public void addBytesRead( long bytes )
         {
             bytesRead += bytes;
+            swapperTracer.bytesRead( bytesRead );
         }
 
         @Override
         public void done()
         {
             faults++;
+            swapperTracer.faults( 1 );
         }
 
         @Override
-        public void done( Throwable throwable )
+        public void fail( Throwable throwable )
         {
             done();
         }
 
         @Override
-        public EvictionEvent beginEviction()
+        public void freeListSize( int listSize )
+        {
+        }
+
+        @Override
+        public EvictionEvent beginEviction( long cachePageId )
         {
             return evictionEvent;
         }
@@ -275,29 +388,22 @@ public class DefaultPageCursorTracer implements PageCursorTracer
         public void setCachePageId( long cachePageId )
         {
         }
-    };
+    }
 
-    private final FlushEventOpportunity flushEventOpportunity = new FlushEventOpportunity()
+    private class DefaultFlushEvent implements FlushEvent
     {
-        @Override
-        public FlushEvent beginFlush( long filePageId, long cachePageId, PageSwapper swapper )
-        {
-            return flushEvent;
-        }
-    };
+        private PageFileSwapperTracer swapperTracer;
 
-    private final FlushEvent flushEvent = new FlushEvent()
-    {
         @Override
         public void addBytesWritten( long bytes )
         {
             bytesWritten += bytes;
+            swapperTracer.bytesWritten( bytesWritten );
         }
 
         @Override
         public void done()
         {
-            flushes++;
         }
 
         @Override
@@ -307,37 +413,58 @@ public class DefaultPageCursorTracer implements PageCursorTracer
         }
 
         @Override
-        public void addPagesFlushed( int pageCount )
+        public void addPagesFlushed( int flushedPages )
         {
+            flushes += flushedPages;
+            swapperTracer.flushes( flushedPages );
         }
-    };
 
-    private class DefaultPinEvent implements PinEvent
+        @Override
+        public void addPagesMerged( int pagesMerged )
+        {
+            merges += pagesMerged;
+            swapperTracer.merges( pagesMerged );
+        }
+    }
+
+    private class PageFaultEvictionEvent implements EvictionEvent
     {
-        int eventHits = 1;
+        private PageFileSwapperTracer swapperTracer;
 
         @Override
-        public void setCachePageId( long cachePageId )
+        public void setFilePageId( long filePageId )
         {
         }
 
         @Override
-        public PageFaultEvent beginPageFault()
+        public void setSwapper( PageSwapper swapper )
         {
-            eventHits = 0;
-            return pageFaultEvent;
+            swapperTracer = swapper.fileSwapperTracer();
         }
 
         @Override
-        public void hit()
+        public FlushEvent beginFlush( long pageRef, PageSwapper swapper, PageReferenceTranslator pageReferenceTranslator )
         {
-            hits += eventHits;
+            flushEvent.swapperTracer = swapper.fileSwapperTracer();
+            return flushEvent;
         }
 
         @Override
-        public void done()
+        public void threwException( IOException exception )
         {
-            unpins++;
+            evictionExceptions++;
+            swapperTracer.evictionExceptions( 1 );
+        }
+
+        @Override
+        public void close()
+        {
+            evictions++;
+            // it can be the case that we fail to do eviction since file was not there anymore, but we still were the one who actually cleared page binding
+            if ( swapperTracer != null )
+            {
+                swapperTracer.evictions( 1 );
+            }
         }
     }
 }

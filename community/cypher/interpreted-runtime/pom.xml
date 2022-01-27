@@ -5,14 +5,13 @@
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>cypher-parent</artifactId>
         <version>2.0.0-SNAPSHOT</version>
-        <relativePath>../</relativePath>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>ongdb-geequel-interpreted-runtime</artifactId>
+    <artifactId>ongdb-cypher-interpreted-runtime</artifactId>
     <packaging>jar</packaging>
-    <version>2.0.0-SNAPSHOT</version>
-    <name>ONgDB - Geequel Interpreted Runtime</name>
+    <name>ONgDB - Cypher Interpreted Runtime</name>
 
     <description>The traditional cypher interpreted runtime</description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
@@ -32,7 +31,8 @@
         <license>
             <name>GNU General Public License, Version 3</name>
             <url>http://www.gnu.org/licenses/gpl-3.0-standalone.html</url>
-            <comments>The software ("Software") developed and owned by Graph Foundation, Inc.
+            <comments>
+                The software ("Software") developed and owned by Graph Foundation, Inc.
                 (referred to in this notice as "Graph Foundation") is licensed under the
                 GNU GENERAL PUBLIC LICENSE Version 3 to all third parties and that license is included below.
             </comments>
@@ -40,7 +40,8 @@
         <license>
             <name>GNU General Public License, Version 3</name>
             <url>http://www.gnu.org/licenses/gpl-3.0-standalone.html</url>
-            <comments>The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
+            <comments>
+                The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
                 licensed under the GNU GENERAL PUBLIC LICENSE Version 3 to all third
                 parties and that license is included below.
 
@@ -55,42 +56,42 @@
         </license>
     </licenses>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.scalastyle</groupId>
-                <artifactId>scalastyle-maven-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
-
     <dependencies>
-
-        <!-- shared versions are defined in the parent pom -->
 
         <!-- neo4j -->
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-geequel-logical-plans-3.4</artifactId>
+            <artifactId>ongdb-exceptions</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-geequel-planner-spi-3.4</artifactId>
+            <artifactId>ongdb-cypher-logical-plans</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-geequel-runtime-util</artifactId>
+            <artifactId>ongdb-cypher-planner-spi</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-cypher-runtime-util</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>ongdb-values</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-csv</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -127,19 +128,15 @@
         <!-- scala test dependencies -->
 
         <dependency>
-            <groupId>org.scalatest</groupId>
-            <artifactId>scalatest_2.11</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.scalacheck</groupId>
-            <artifactId>scalacheck_2.11</artifactId>
+            <artifactId>scalacheck_${scala.binary.version}</artifactId>
         </dependency>
 
         <!-- other -->
 
         <dependency>
             <groupId>org.parboiled</groupId>
-            <artifactId>parboiled-scala_2.11</artifactId>
+            <artifactId>parboiled-scala_${scala.binary.version}</artifactId>
         </dependency>
 
         <dependency>
@@ -151,7 +148,21 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-geequel-util-3.4</artifactId>
+            <artifactId>ongdb-test-util</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>kernel-api-test-utils</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-ast</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
@@ -159,7 +170,7 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-geequel-runtime-util</artifactId>
+            <artifactId>ongdb-cypher-runtime-util</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
@@ -167,17 +178,8 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-kernel</artifactId>
+            <artifactId>io-test-utils</artifactId>
             <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-io</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
             <scope>test</scope>
         </dependency>
 

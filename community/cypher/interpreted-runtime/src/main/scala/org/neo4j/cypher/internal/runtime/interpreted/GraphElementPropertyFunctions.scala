@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,6 +38,7 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted
 
+import org.neo4j.cypher.internal.runtime.ListSupport
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 
 import scala.collection.Map
@@ -46,11 +47,10 @@ trait GraphElementPropertyFunctions extends ListSupport {
 
   implicit class RichMap(m: Map[String, Expression]) {
 
-    def rewrite(f: (Expression) => Expression): Map[String, Expression] = m.map {
+    def rewrite(f: Expression => Expression): Map[String, Expression] = m.map {
       case (k, v) => k -> v.rewrite(f)
     }
 
-    def symboltableDependencies: Set[String] = m.values.flatMap(_.symbolTableDependencies).toSet
   }
 
   def toString(m: Map[String, Expression]): String = m.map {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,41 +38,42 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands
 
-import org.neo4j.cypher.internal.util.v3_4.CypherTypeException
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Literal, Subtract}
+import org.neo4j.cypher.internal.runtime.CypherRow
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.runtime.interpreted.commands.LiteralHelper.literal
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Subtract
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.exceptions.CypherTypeException
 import org.neo4j.values.storable.Values.longValue
 
 class SubtractTest extends CypherFunSuite {
 
-  val m = ExecutionContext.empty
+  val m = CypherRow.empty
   val s = QueryStateHelper.empty
 
 
   test("numbers") {
-    val expr = Subtract(Literal(2), Literal(1))
-   expr(m, s) should equal(longValue(1))
+    val expr = Subtract(literal(2), literal(1))
+    expr(m, s) should equal(longValue(1))
   }
 
   test("strings") {
-    val expr = Subtract(Literal("hello"), Literal("world"))
+    val expr = Subtract(literal("hello"), literal("world"))
     intercept[CypherTypeException](expr(m, s))
   }
 
   test("stringPlusNumber") {
-    val expr = Subtract(Literal("hello"), Literal(1))
+    val expr = Subtract(literal("hello"), literal(1))
     intercept[CypherTypeException](expr(m, s))
   }
 
   test("numberPlusString") {
-    val expr = Subtract(Literal(1), Literal("world"))
+    val expr = Subtract(literal(1), literal("world"))
     intercept[CypherTypeException](expr(m, s))
   }
 
   test("numberPlusBool") {
-    val expr = Subtract(Literal("1"), Literal(true))
+    val expr = Subtract(literal("1"), literal(true))
     intercept[CypherTypeException](expr(m, s))
   }
 }

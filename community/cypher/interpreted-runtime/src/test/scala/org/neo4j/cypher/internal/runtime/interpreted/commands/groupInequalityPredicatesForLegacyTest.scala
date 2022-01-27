@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,11 +38,21 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands
 
-import org.neo4j.cypher.internal.util.v3_4.NonEmptyList
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Expression, Literal, Property, Variable}
-import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates._
+import org.neo4j.cypher.internal.runtime.interpreted.commands.LiteralHelper.literal
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Property
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Variable
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.AndedPropertyComparablePredicates
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.ComparablePredicate
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Equals
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.GreaterThan
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.GreaterThanOrEqual
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.LessThan
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.LessThanOrEqual
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.groupInequalityPredicatesForLegacy
 import org.neo4j.cypher.internal.runtime.interpreted.commands.values.TokenType.PropertyKey
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.util.NonEmptyList
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
 class GroupInequalityPredicatesForLegacyTest extends CypherFunSuite {
 
@@ -102,19 +112,19 @@ class GroupInequalityPredicatesForLegacyTest extends CypherFunSuite {
   }
 
   private def equals(lhs: Expression, v: Int) =
-    Equals(lhs, Literal(v))
+    Equals(lhs, literal(v))
 
   private def lessThan(lhs: Expression, v: Int) =
-    LessThan(lhs, Literal(v))
+    LessThan(lhs, literal(v))
 
   private def lessThanOrEqual(lhs: Expression, v: Int) =
-    LessThanOrEqual(lhs, Literal(v))
+    LessThanOrEqual(lhs, literal(v))
 
   private def greaterThan(lhs: Expression, v: Int) =
-    GreaterThan(lhs, Literal(v))
+    GreaterThan(lhs, literal(v))
 
   private def greaterThanOrEqual(lhs: Expression, v: Int) =
-    GreaterThanOrEqual(lhs, Literal(v))
+    GreaterThanOrEqual(lhs, literal(v))
 
   private def anded(property: Property, first: ComparablePredicate, others: ComparablePredicate*) = {
     val variable = property.mapExpr.asInstanceOf[Variable]

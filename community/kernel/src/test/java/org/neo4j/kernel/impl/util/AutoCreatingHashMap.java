@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,6 +38,7 @@
  */
 package org.neo4j.kernel.impl.util;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -106,8 +107,6 @@ import org.neo4j.function.Factory;
  *
  * An enormous improvement in readability. The only reflection used is in the {@link #values()} {@link Factory},
  * however that's just a convenience as well. Any {@link Factory} can be supplied instead.
- *
- * @author Mattias Persson
  */
 public class AutoCreatingHashMap<K,V> extends HashMap<K,V>
 {
@@ -141,9 +140,9 @@ public class AutoCreatingHashMap<K,V> extends HashMap<K,V>
         {
             try
             {
-                return valueType.newInstance();
+                return valueType.getDeclaredConstructor().newInstance();
             }
-            catch ( InstantiationException | IllegalAccessException e )
+            catch ( InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e )
             {
                 throw new RuntimeException( e );
             }
@@ -154,7 +153,7 @@ public class AutoCreatingHashMap<K,V> extends HashMap<K,V>
      * @return a {@link Factory} that creates {@link AutoCreatingHashMap} instances as values, and where the
      * created maps have the supplied {@code nested} {@link Factory} as value factory.
      */
-    public static <K,V> Factory<Map<K,V>> nested( Class<K> keyClass, final Factory<V> nested )
+    public static <K,V> Factory<Map<K,V>> nested( final Factory<V> nested )
     {
         return () -> new AutoCreatingHashMap<>( nested );
     }

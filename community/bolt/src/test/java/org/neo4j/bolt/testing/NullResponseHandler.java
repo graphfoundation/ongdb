@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,9 +38,9 @@
  */
 package org.neo4j.bolt.testing;
 
-import org.neo4j.bolt.v1.runtime.BoltResponseHandler;
-import org.neo4j.bolt.v1.runtime.Neo4jError;
-import org.neo4j.bolt.v1.runtime.spi.BoltResult;
+import org.neo4j.bolt.runtime.BoltResponseHandler;
+import org.neo4j.bolt.runtime.BoltResult;
+import org.neo4j.bolt.runtime.Neo4jError;
 import org.neo4j.values.AnyValue;
 
 /**
@@ -60,15 +60,15 @@ public class NullResponseHandler implements BoltResponseHandler
     }
 
     @Override
-    public void onStart()
+    public boolean onPullRecords( BoltResult result, long size )
     {
-        // this page intentionally left blank
+        return false;
     }
 
     @Override
-    public void onRecords( BoltResult result, boolean pull )
+    public boolean onDiscardRecords( BoltResult result, long size )
     {
-        // this page intentionally left blank
+        return false;
     }
 
     @Override

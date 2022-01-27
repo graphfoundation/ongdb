@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -99,12 +99,12 @@ public class UserAggregationFunctionProcessorTest extends ExtensionTestBase
                 .withErrorContaining( "@UserAggregationUpdate usage error: expected aggregation type " +
                 "<org.neo4j.tooling.procedure.procedures.invalid.aggregation.FunctionWithoutAggregationMethods.MyAggregation> " +
                 "to define exactly 1 method with this annotation. Found none." )
-                .in( function ).onLine( 50 );
+                .in( function ).onLine( 31 );
         unsuccessfulCompilationClause
                 .withErrorContaining( "@UserAggregationResult usage error: expected aggregation type " +
                 "<org.neo4j.tooling.procedure.procedures.invalid.aggregation.FunctionWithoutAggregationMethods.MyAggregation> " +
                 "to define exactly 1 method with this annotation. Found none." )
-                .in( function ).onLine( 50 );
+                .in( function ).onLine( 31 );
     }
 
     @Override

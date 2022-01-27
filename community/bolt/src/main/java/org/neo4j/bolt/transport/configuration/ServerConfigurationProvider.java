@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,11 +41,12 @@ package org.neo4j.bolt.transport.configuration;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 
+import java.net.SocketAddress;
 import java.util.concurrent.ThreadFactory;
 
 public interface ServerConfigurationProvider
 {
-    EventLoopGroup createEventLoopGroup( int numberOfThreads, ThreadFactory threadFactory );
+    EventLoopGroup createEventLoopGroup( ThreadFactory threadFactory );
 
-    Class<? extends ServerChannel> getChannelClass();
+    Class<? extends ServerChannel> getChannelClass( SocketAddress socketAddress );
 }

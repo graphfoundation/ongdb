@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,13 +40,12 @@ package org.neo4j.csv.reader;
 
 import java.io.FileReader;
 
-import static org.neo4j.csv.reader.Configuration.DEFAULT;
 import static org.neo4j.csv.reader.ThreadAheadReadable.threadAhead;
 
 /**
  * Factory for common {@link CharSeeker} implementations.
  */
-public class CharSeekers
+public final class CharSeekers
 {
     private CharSeekers()
     {
@@ -87,19 +86,10 @@ public class CharSeekers
     public static CharSeeker charSeeker( CharReadable reader, final int bufferSize, boolean readAhead,
             final char quotationCharacter )
     {
-        return charSeeker( reader, new Configuration.Overridden( DEFAULT )
-        {
-            @Override
-            public char quotationCharacter()
-            {
-                return quotationCharacter;
-            }
-
-            @Override
-            public int bufferSize()
-            {
-                return bufferSize;
-            }
-        }, readAhead );
+        final var config = Configuration.newBuilder()
+                .withQuotationCharacter( quotationCharacter )
+                .withBufferSize( bufferSize )
+                .build();
+        return charSeeker( reader, config, readAhead );
     }
 }

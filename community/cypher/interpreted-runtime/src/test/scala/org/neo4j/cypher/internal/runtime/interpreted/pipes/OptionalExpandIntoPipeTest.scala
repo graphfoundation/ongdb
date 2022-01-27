@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,272 +38,62 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.mockito.ArgumentMatchers._
-import org.mockito.Mockito._
-import org.mockito.invocation.InvocationOnMock
-import org.mockito.stubbing.Answer
-import org.neo4j.cypher.internal.runtime.ImplicitValueConversion._
-import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.{Not, Predicate, True}
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection
-import org.neo4j.graphdb.{Node, Relationship}
-import org.neo4j.kernel.impl.util.ValueUtils
-import org.neo4j.kernel.impl.util.ValueUtils.{fromNodeProxy, fromRelationshipProxy}
-import org.neo4j.values.AnyValue
-import org.neo4j.values.storable.Values.NO_VALUE
-import org.neo4j.values.virtual.RelationshipValue
+import org.mockito.Mockito
+import org.neo4j.cypher.internal.expressions.SemanticDirection
+import org.neo4j.cypher.internal.runtime.ResourceManager
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.internal.kernel.api.RelationshipTraversalCursor
+import org.neo4j.internal.kernel.api.helpers.CachingExpandInto
+import org.neo4j.internal.kernel.api.helpers.StubNodeCursor
+import org.neo4j.internal.kernel.api.helpers.StubRelationshipCursor
+import org.neo4j.internal.kernel.api.helpers.TestRelationshipChain
+import org.neo4j.values.storable.Values
+import org.neo4j.values.virtual.VirtualValues
 
 class OptionalExpandIntoPipeTest extends CypherFunSuite {
+  test("exhaust should close cursor and cache") {
+    val monitor = QueryStateHelper.trackClosedMonitor
+    val resourceManager = new ResourceManager(monitor)
+    val state = QueryStateHelper.emptyWithResourceManager(resourceManager)
+    val nodeValue = VirtualValues.nodeValue(10, Values.stringArray(), VirtualValues.map(Array(), Array()))
 
-  val startNode = newMockedNode(1)
-  val endNode1 = newMockedNode(2)
-  val endNode2 = newMockedNode(3)
-  val endNode3 = newMockedNode(4)
-  val relationship1 = newMockedRelationship(1, startNode, endNode1)
-  val relationship2 = newMockedRelationship(2, startNode, endNode2)
-  val relationship3 = newMockedRelationship(3, startNode, endNode3)
-  val selfRelationship = newMockedRelationship(4, startNode, startNode)
-  val query = mock[QueryContext]
-  val queryState = QueryStateHelper.emptyWith(query = query)
+    val nodeCursor = new StubNodeCursor(false)
+      .withNode(10).withNode(10).withDegree(25)
+    val relCursor = new StubRelationshipCursor(new TestRelationshipChain(10).outgoing(1, 10, 0))
+    Mockito.when(state.query.traversalCursor()).thenReturn(relCursor)
+    Mockito.when(state.query.nodeCursor()).thenReturn(nodeCursor)
 
-  test("should support expand between two nodes with a relationship") {
-    // given
-    mockRelationships(relationship1)
-    val left = newMockedPipe("a",
-      row("a" -> startNode, "b" -> endNode1))
-
-    // when
-    val result = OptionalExpandIntoPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, LazyTypes.empty, True())().createResults(queryState).toList
-
-    // then
-    val (single :: Nil) = result
-    single.toMap should equal(Map("a" -> fromNodeProxy(startNode), "r" -> fromRelationshipProxy(relationship1), "b" -> fromNodeProxy(endNode1)))
+    val input = FakePipe(Seq(Map("a"->nodeValue, "b"->nodeValue)))
+    val pipe = OptionalExpandIntoPipe(input, "a", "r", "b", SemanticDirection.OUTGOING, new EagerTypes(Array(0)), None)()
+    // exhaust
+    pipe.createResults(state).toList
+    input.wasClosed shouldBe true
+    // Our RelationshipTraversalCursor is wrapped in an ExpandIntoSelectionCursor. Thus not asserting on same instance.
+    monitor.closedResources.collect { case r:RelationshipTraversalCursor => r } should have size(1)
+    monitor.closedResources.collect { case r:CachingExpandInto => r } should have size(1)
   }
 
-  test("should support optional expand from a node with no relationships") {
-    // given
-    mockRelationships()
-    val left = newMockedPipe("a",
-      row("a" -> startNode, "b" -> endNode1))
+  test("close should close cursor and cache") {
+    val monitor = QueryStateHelper.trackClosedMonitor
+    val resourceManager = new ResourceManager(monitor)
+    val state = QueryStateHelper.emptyWithResourceManager(resourceManager)
+    val nodeValue = VirtualValues.nodeValue(10, Values.stringArray(), VirtualValues.map(Array(), Array()))
 
-    // when
-    val result = OptionalExpandIntoPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, LazyTypes.empty, True())().createResults(queryState).toList
+    val nodeCursor = new StubNodeCursor(false)
+      .withNode(10).withNode(10).withDegree(25)
+    val relCursor = new StubRelationshipCursor(new TestRelationshipChain(10).outgoing(1, 10, 0))
+    Mockito.when(state.query.traversalCursor()).thenReturn(relCursor)
+    Mockito.when(state.query.nodeCursor()).thenReturn(nodeCursor)
 
-    // then
-    val (single :: Nil) = result
-    single.toMap should equal(Map("a" -> fromNodeProxy(startNode), "r" -> NO_VALUE, "b" -> fromNodeProxy(endNode1)))
-  }
-
-  test("should find null when two nodes have no shared relationships but do have some rels") {
-    // given
-    mockRelationships(relationship1)
-    val left = newMockedPipe("a",
-      row("a" -> startNode, "b" -> endNode2))
-
-    // when
-    val result = OptionalExpandIntoPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, LazyTypes.empty, True())().createResults(queryState).toList
-
-    // then
-    val (single :: Nil) = result
-
-    single.toMap should equal(Map("a" -> fromNodeProxy(startNode), "r" -> NO_VALUE, "b" -> fromNodeProxy(endNode2)))
-  }
-
-  test("should filter out relationships not matching the end node") {
-    // given
-    mockRelationships(relationship1, relationship2)
-
-    val left = newMockedPipe("a",
-      row("a" -> startNode, "b" -> endNode2))
-
-    // when
-    val result = OptionalExpandIntoPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, LazyTypes.empty, True())().createResults(queryState).toList
-
-    // then
-    val (single :: Nil) = result
-    single.toMap should equal(Map("a" -> fromNodeProxy(startNode), "r" -> fromRelationshipProxy(relationship2), "b" -> fromNodeProxy(endNode2)))
-  }
-
-  test("should support optional expand from a node with relationships that do not match the predicates") {
-    // given
-    mockRelationships(relationship1)
-    val left = newMockedPipe("a",
-      row("a" -> startNode, "b" -> endNode1))
-
-    val falsePredicate: Predicate = Not(True())
-    // when
-    val result = OptionalExpandIntoPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, LazyTypes.empty, falsePredicate)().createResults(queryState).toList
-
-    // then
-    val (single :: Nil) = result
-    single.toMap should equal(Map("a" -> fromNodeProxy(startNode), "r" -> NO_VALUE, "b" -> fromNodeProxy(endNode1)))
-  }
-
-  test("should support expand between two nodes with multiple relationships") {
-    // given
-    when(query.getRelationshipsForIds(any(), any(), any())).thenAnswer(new Answer[Iterator[RelationshipValue]] {
-      override def answer(invocation: InvocationOnMock): Iterator[RelationshipValue] = {
-        val node = invocation.getArgument[Long](0)
-        val dir = invocation.getArgument[SemanticDirection](1)
-        (node, dir) match {
-          case (start, SemanticDirection.OUTGOING) if start == startNode.getId =>
-            Iterator(fromRelationshipProxy(relationship1), fromRelationshipProxy(relationship2),
-                     fromRelationshipProxy(relationship3), fromRelationshipProxy(selfRelationship))
-          case (start, SemanticDirection.INCOMING) if start == endNode1.getId =>
-            Iterator(fromRelationshipProxy(relationship1))
-          case (start, SemanticDirection.INCOMING) if start == endNode2.getId =>
-            Iterator(fromRelationshipProxy(relationship2))
-          case (start, SemanticDirection.INCOMING) if start == endNode3.getId =>
-            Iterator(fromRelationshipProxy(relationship3))
-          case _ => Iterator.empty
-
-        }
-      }
-    })
-
-    val left = newMockedPipe("a",
-      row("a" -> startNode, "b" -> endNode1),//(1) - (2)
-      row("a" -> startNode, "b" -> endNode2))// (1) - (3)
-
-    // when
-    val result = OptionalExpandIntoPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, LazyTypes.empty, True())().createResults(queryState).toList
-
-    // then
-    val (first :: second :: Nil) = result
-    first.toMap should equal(Map("a" -> fromNodeProxy(startNode), "r" -> fromRelationshipProxy(relationship1), "b" -> fromNodeProxy(endNode1)))
-    second.toMap should equal(Map("a" -> fromNodeProxy(startNode), "r" -> fromRelationshipProxy(relationship2), "b" -> fromNodeProxy(endNode2)))
-  }
-
-  test("should support expand between two nodes with multiple relationships and self loops") {
-    // given
-    mockRelationships(relationship1, selfRelationship, relationship3)
-    val left = newMockedPipe("a",
-      row("a" -> startNode, "b" -> endNode1),
-      row("a" -> startNode, "b" -> startNode)
-    )
-
-    // when
-    val result = OptionalExpandIntoPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, LazyTypes.empty, True())().createResults(queryState).toList
-
-    // then
-    val (first :: second :: Nil) = result
-    first.toMap should equal(Map("a" -> fromNodeProxy(startNode), "r" -> fromRelationshipProxy(relationship1), "b" -> fromNodeProxy(endNode1)))
-    second.toMap should equal(Map("a" -> fromNodeProxy(startNode), "r" -> fromRelationshipProxy(selfRelationship), "b" -> fromNodeProxy(startNode)))
-  }
-
-  test("given empty input, should return empty output") {
-    // given
-    mockRelationships()
-    val left = newMockedPipe("a")
-
-    // when
-    val result = OptionalExpandIntoPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, LazyTypes.empty, True())().createResults(queryState).toList
-
-    // then
-    result shouldBe 'empty
-  }
-
-  test("expand into null should return nulled row") {
-    // given
-    val node: Node = mock[Node]
-    val input = new FakePipe(Iterator(Map("a" -> node, "b" -> null)))
-
-    // when
-    val result: List[ExecutionContext] = OptionalExpandIntoPipe(input, "a", "r", "b", SemanticDirection.OUTGOING, LazyTypes.empty, True())().createResults(queryState).toList
-
-    // then
-    result should equal(List(Map("a" -> fromNodeProxy(node), "r" -> NO_VALUE, "b" -> NO_VALUE)))
-  }
-
-  test("expand null into something should return nulled row") {
-    // given
-    val node: Node = mock[Node]
-    val input = new FakePipe(Iterator(Map("a" -> null, "b" -> node)))
-
-    // when
-    val result: List[ExecutionContext] = OptionalExpandIntoPipe(input, "a", "r", "b", SemanticDirection.OUTGOING, LazyTypes.empty, True())().createResults(queryState).toList
-
-    // then
-    result should equal(List(Map("a" -> NO_VALUE, "r" -> NO_VALUE, "b" -> fromNodeProxy(node))))
-  }
-
-  test("expand null into null should return nulled row") {
-    // given
-    val input = new FakePipe(Iterator(Map("a" -> null, "b" -> null)))
-
-    // when
-    val result: List[ExecutionContext] = OptionalExpandIntoPipe(input, "a", "r", "b", SemanticDirection.OUTGOING, LazyTypes.empty, True())().createResults(queryState).toList
-
-    // then
-    result should equal(List(Map("a" -> NO_VALUE, "r" -> NO_VALUE, "b" -> NO_VALUE)))
-  }
-
-  test("expand into should handle multiple relationships between the same node") {
-    // given
-    val rel1 = newMockedRelationship(1, startNode, endNode1)
-    val rel2 = newMockedRelationship(1, startNode, endNode1)
-    mockRelationships(rel1, rel2)
-    val left = newMockedPipe("a",
-      row("a" -> startNode, "b" -> endNode1)
-    )
-
-    val predicate = mock[Predicate]
-    when(predicate.isTrue(any[ExecutionContext], any[QueryState]))
-      .thenReturn(true)
-      .thenReturn(false)
-    // when
-    val result = OptionalExpandIntoPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, LazyTypes.empty, predicate)().createResults(queryState).toList
-
-    // then
-    result should equal(List(
-      Map("a" -> fromNodeProxy(startNode), "b" -> fromNodeProxy(endNode1), "r" -> fromRelationshipProxy(rel1))))
-  }
-
-  test("should register owning pipe") {
-    // given
-    mockRelationships(relationship1)
-    val left = newMockedPipe("a",
-      row("a" -> startNode, "b" -> endNode1))
-
-    // when
-    val pipe = OptionalExpandIntoPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, LazyTypes.empty, True())()
-
-    // then
-    pipe.predicate.owningPipe should equal(pipe)
-  }
-
-  private def mockRelationships(rels: Relationship*) {
-    when(query.getRelationshipsForIds(any(), any(), any())).thenAnswer(new Answer[Iterator[RelationshipValue]] {
-      def answer(invocation: InvocationOnMock): Iterator[RelationshipValue] = rels.iterator.map(fromRelationshipProxy)
-    })
-  }
-
-  private def row(values: (String, AnyValue)*) = ExecutionContext.from(values: _*)
-
-  private def newMockedNode(id: Int) = {
-    val node = mock[Node]
-    when(node.getId).thenReturn(id)
-    node
-  }
-
-  private def newMockedRelationship(id: Int, startNode: Node, endNode: Node): Relationship = {
-    val relationship = mock[Relationship]
-    when(relationship.getId).thenReturn(id)
-    when(relationship.getStartNode).thenReturn(startNode)
-    when(relationship.getEndNode).thenReturn(endNode)
-    when(relationship.getOtherNode(startNode)).thenReturn(endNode)
-    when(relationship.getOtherNode(endNode)).thenReturn(startNode)
-    relationship
-  }
-
-  private def newMockedPipe(node: String, rows: ExecutionContext*): Pipe = {
-    val pipe = mock[Pipe]
-    when(pipe.createResults(any())).thenAnswer(new Answer[Iterator[ExecutionContext]] {
-      def answer(invocation: InvocationOnMock): Iterator[ExecutionContext] = rows.iterator
-    })
-
-    pipe
+    val input = FakePipe(Seq(Map("a"->nodeValue, "b"->nodeValue)))
+    val pipe = OptionalExpandIntoPipe(input, "a", "r", "b", SemanticDirection.OUTGOING, new EagerTypes(Array(0)), None)()
+    val result = pipe.createResults(state)
+    result.hasNext shouldBe true // Need to initialize to get cursor registered
+    result.close()
+    input.wasClosed shouldBe true
+    // Our RelationshipTraversalCursor is wrapped in an ExpandIntoSelectionCursor. Thus not asserting on same instance.
+    monitor.closedResources.collect { case r:RelationshipTraversalCursor => r } should have size(1)
+    monitor.closedResources.collect { case r:CachingExpandInto => r } should have size(1)
   }
 }

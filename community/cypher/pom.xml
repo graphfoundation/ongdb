@@ -7,14 +7,13 @@
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>parent</artifactId>
         <version>2.0.0-SNAPSHOT</version>
-        <relativePath>../..</relativePath>
+        <relativePath>../../pom.xml</relativePath>
     </parent>
 
     <artifactId>cypher-parent</artifactId>
-    <version>2.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
-    <name>ONgDB - Community Geequel Build</name>
-    <description>Project that builds the ONgDB Geequel modules as part of the Community distribution.</description>
+    <name>ONgDB - Community Cypher Build</name>
+    <description>Project that builds the Neo4j Cypher modules as part of the Community distribution.</description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
     <properties>
@@ -28,6 +27,14 @@
         <url>https://github.com/graphfoundation/ongdb</url>
     </scm>
 
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
     <profiles>
         <profile>
             <id>include-cypher</id>
@@ -37,16 +44,25 @@
                 </property>
             </activation>
             <modules>
-                <module>frontend-3.4</module>
-                <module>util-3.4</module>
-                <module>ir-3.4</module>
-                <module>cypher-planner-3.4</module>
-                <module>planner-spi-3.4</module>
-                <module>expressions-3.4</module>
+                <module>ir</module>
+                <module>cypher-planner</module>
+                <module>planner-spi</module>
                 <module>cypher</module>
-                <module>cypher-logical-plans-3.4</module>
+                <module>cypher-logical-plans</module>
+                <module>front-end</module>
                 <module>runtime-util</module>
                 <module>interpreted-runtime</module>
+                <module>acceptance-spec-suite</module>
+                <module>compatibility-spec-suite</module>
+                <module>spec-suite-tools</module>
+                <module>logical-plan-builder</module>
+                <module>logical-plan-generator</module>
+                <module>runtime-spec-suite</module>
+                <module>expression-evaluator</module>
+                <module>cypher-testing</module>
+                <module>cypher-config</module>
+                <module>literal-interpreter</module>
+                <module>graph-counts</module>
             </modules>
         </profile>
     </profiles>
@@ -65,6 +81,10 @@
                     <rules combine.children="append">
                         <requireFilesDontExist>
                             <files>
+                                <file>cypher-planner-3.6</file>
+                                <file>cypher-planner-3.5</file>
+                                <file>cypher-compiler-3.4</file>
+                                <file>cypher-compiler-3.3</file>
                                 <file>cypher-compiler-3.2</file>
                                 <file>cypher-compiler-3.1</file>
                                 <file>cypher-compiler-3.0</file>
@@ -75,125 +95,26 @@
                 </configuration>
             </plugin>
         </plugins>
-
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>org.scalastyle</groupId>
-                    <artifactId>scalastyle-maven-plugin</artifactId>
-                    <version>1.0.0</version>
-                    <configuration>
-                        <verbose>false</verbose>
-                        <failOnViolation>true</failOnViolation>
-                        <includeTestSourceDirectory>true</includeTestSourceDirectory>
-                        <failOnWarning>false</failOnWarning>
-                        <inputEncoding>UTF-8</inputEncoding>
-                        <sourceDirectory>${basedir}/src/main/scala</sourceDirectory>
-                        <testSourceDirectory>${basedir}/src/test/scala</testSourceDirectory>
-                        <configLocation>${project.basedir}/../scalastyle_config.xml</configLocation>
-                        <outputFile>${basedir}/target/scalastyle-output.xml</outputFile>
-                        <outputEncoding>UTF-8</outputEncoding>
-                    </configuration>
-                    <executions>
-                        <execution>
-                            <goals>
-                                <goal>check</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                </plugin>
-            </plugins>
-        </pluginManagement>
     </build>
-
-    <!-- inherited dependencies, versions are set in dependencyManagement -->
-
-    <dependencies>
-
-        <dependency>
-            <groupId>com.google.code.findbugs</groupId>
-            <artifactId>annotations</artifactId>
-        </dependency>
-
-        <!-- shared java test dependencies -->
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest-library</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-        </dependency>
-
-    </dependencies>
-
-    <!-- Required versions for each dependency, inherited dependencies are set in dependencies -->
 
     <dependencyManagement>
         <dependencies>
-            <!-- neo4j -->
-            <dependency>
-                <groupId>org.graphfoundation.ongdb</groupId>
-                <artifactId>ongdb-kernel</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.graphfoundation.ongdb</groupId>
-                <artifactId>ongdb-kernel</artifactId>
-                <version>${project.version}</version>
-                <type>test-jar</type>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.graphfoundation.ongdb</groupId>
-                <artifactId>ongdb-common</artifactId>
-                <version>${project.version}</version>
-                <type>test-jar</type>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.graphfoundation.ongdb</groupId>
-                <artifactId>ongdb-io</artifactId>
-                <version>${project.version}</version>
-                <type>test-jar</type>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.graphfoundation.ongdb</groupId>
-                <artifactId>ongdb-lucene-index</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <!-- graph matching is used in old cypher compilers 3.1 and 2.3 we can use the old component -->
-            <dependency>
-                <groupId>org.neo4j</groupId>
-                <artifactId>neo4j-graph-matching</artifactId>
-                <version>${cypher.compatibility.31}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.graphfoundation.ongdb</groupId>
-                <artifactId>ongdb-graph-algo</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
-            <!-- other -->
             <dependency>
                 <groupId>org.parboiled</groupId>
-                <artifactId>parboiled-scala_2.11</artifactId>
-                <version>1.1.7</version>
+                <artifactId>parboiled-scala_${scala.binary.version}</artifactId>
+                <version>1.2.0</version>
                 <exclusions>
                     <exclusion>
                         <artifactId>scala-library</artifactId>
                         <groupId>org.scala-lang</groupId>
                     </exclusion>
                 </exclusions>
+            </dependency>
+
+            <dependency>
+                <groupId>com.propensive</groupId>
+                <artifactId>magnolia_${scala.binary.version}</artifactId>
+                <version>0.17.0</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

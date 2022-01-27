@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -55,8 +55,6 @@ import org.neo4j.values.virtual.MapValue;
 import org.neo4j.values.virtual.NodeValue;
 import org.neo4j.values.virtual.RelationshipValue;
 
-import static java.lang.String.format;
-
 /**
  * Pretty printer for AnyValues.
  * <p>
@@ -76,33 +74,59 @@ public class PrettyPrinter implements AnyValueWriter<RuntimeException>
 {
     private final Deque<Writer> stack = new ArrayDeque<>();
     private final String quoteMark;
+    private final StringBuilder builder;
+    private final EntityMode entityMode;
+    private final Counter counter;
 
     public PrettyPrinter()
     {
-        this( "\"" );
+        this( EntityMode.FULL );
     }
 
-    public PrettyPrinter( String quoteMark )
+    public PrettyPrinter( EntityMode entityMode )
+    {
+        this( "\"", entityMode, Integer.MAX_VALUE );
+    }
+
+    public PrettyPrinter( String quoteMark, EntityMode entityMode )
+    {
+        this( quoteMark, entityMode, Integer.MAX_VALUE );
+    }
+
+    public PrettyPrinter( String quoteMark, EntityMode entityMode, int maxLength )
     {
         this.quoteMark = quoteMark;
-        stack.push( new ValueWriter() );
+        this.entityMode = entityMode;
+        this.counter = new Counter( maxLength );
+        builder = new StringBuilder( 64 );
+        stack.push( new ValueWriter( builder, quoteMark, counter ) );
+    }
+
+    @Override
+    public EntityMode entityMode()
+    {
+        return entityMode;
     }
 
     @Override
     public void writeNodeReference( long nodeId )
     {
-        append( format( "(id=%d)", nodeId ) );
+        append( "(id=" );
+        append( String.valueOf( nodeId ) );
+        append( ")" );
     }
 
     @Override
-    public void writeNode( long nodeId, TextArray labels, MapValue properties )
+    public void writeNode( long nodeId, TextArray labels, MapValue properties, boolean ignored )
     {
-        append( format( "(id=%d", nodeId ) );
+        append( "(id=" );
+        append( String.valueOf( nodeId ) );
         String sep = " ";
         for ( int i = 0; i < labels.length(); i++ )
         {
             append( sep );
-            append( ":" + labels.stringValue( i ) );
+            append( ":" );
+            append( labels.stringValue( i ) );
             sep = "";
         }
         if ( properties.size() > 0 )
@@ -117,13 +141,18 @@ public class PrettyPrinter implements AnyValueWriter<RuntimeException>
     @Override
     public void writeRelationshipReference( long relId )
     {
-        append( format( "-[id=%d]-", relId ) );
+        append( "-[id=" );
+        append( String.valueOf( relId ) );
+        append( "]-" );
     }
 
     @Override
-    public void writeRelationship( long relId, long startNodeId, long endNodeId, TextValue type, MapValue properties )
+    public void writeRelationship( long relId, long startNodeId, long endNodeId, TextValue type, MapValue properties, boolean ignored )
     {
-        append( format( "-[id=%d :%s", relId, type.stringValue() ) );
+        append( "-[id=" );
+        append( String.valueOf( relId ) );
+        append( " :" );
+        append( type.stringValue() );
         if ( properties.size() > 0 )
         {
             append( " " );
@@ -135,27 +164,56 @@ public class PrettyPrinter implements AnyValueWriter<RuntimeException>
     @Override
     public void beginMap( int size )
     {
-        stack.push( new MapWriter() );
+        assert !stack.isEmpty();
+        stack.peek().nest();
+        stack.push( new MapWriter( builder, quoteMark, counter ) );
     }
 
     @Override
     public void endMap()
     {
         assert !stack.isEmpty();
-        append( stack.pop().done() );
+        stack.pop().done();
+        if ( !stack.isEmpty() )
+        {
+            stack.peek().next();
+        }
     }
 
     @Override
     public void beginList( int size )
     {
-        stack.push( new ListWriter() );
+        assert !stack.isEmpty();
+        stack.peek().nest();
+        stack.push( new ListWriter( builder, quoteMark, counter ) );
     }
 
     @Override
     public void endList()
     {
         assert !stack.isEmpty();
-        append( stack.pop().done() );
+        stack.pop().done();
+        if ( !stack.isEmpty() )
+        {
+            stack.peek().next();
+        }
+    }
+
+    @Override
+    public void writePathReference( long[] nodes, long[] relationships )
+    {
+        if ( nodes.length == 0 )
+        {
+            return;
+        }
+        //Path guarantees that nodes.length = edges.length = 1
+       writeNodeReference( nodes[0] );
+        for ( int i = 0; i < relationships.length; i++ )
+        {
+            writeRelationshipReference( relationships[i] );
+            append( ">" );
+            writeNodeReference(  nodes[i + 1] );
+        }
     }
 
     @Override
@@ -173,14 +231,13 @@ public class PrettyPrinter implements AnyValueWriter<RuntimeException>
             append( ">" );
             nodes[i + 1].writeTo( this );
         }
-
     }
 
     @Override
     public void writePoint( CoordinateReferenceSystem crs, double[] coordinate ) throws RuntimeException
     {
         append( "{geometry: {type: \"Point\", coordinates: " );
-        append( Arrays.toString(coordinate) );
+        append( Arrays.toString( coordinate ) );
         append( ", crs: {type: link, properties: {href: \"" );
         append( crs.getHref() );
         append( "\", code: " );
@@ -206,7 +263,7 @@ public class PrettyPrinter implements AnyValueWriter<RuntimeException>
     public void writeDate( LocalDate localDate ) throws RuntimeException
     {
         append( "{date: " );
-        append( quote( localDate.toString() ) );
+        appendQuoted( localDate.toString() );
         append( "}" );
     }
 
@@ -214,7 +271,7 @@ public class PrettyPrinter implements AnyValueWriter<RuntimeException>
     public void writeLocalTime( LocalTime localTime ) throws RuntimeException
     {
         append( "{localTime: " );
-        append( quote( localTime.toString() ) );
+        appendQuoted( localTime.toString() );
         append( "}" );
     }
 
@@ -222,7 +279,7 @@ public class PrettyPrinter implements AnyValueWriter<RuntimeException>
     public void writeTime( OffsetTime offsetTime ) throws RuntimeException
     {
         append( "{time: " );
-        append( quote( offsetTime.toString() ) );
+        appendQuoted( offsetTime.toString() );
         append( "}" );
     }
 
@@ -230,7 +287,7 @@ public class PrettyPrinter implements AnyValueWriter<RuntimeException>
     public void writeLocalDateTime( LocalDateTime localDateTime ) throws RuntimeException
     {
         append( "{localDateTime: " );
-        append( quote( localDateTime.toString() ) );
+        appendQuoted( localDateTime.toString() );
         append( "}" );
     }
 
@@ -238,7 +295,7 @@ public class PrettyPrinter implements AnyValueWriter<RuntimeException>
     public void writeDateTime( ZonedDateTime zonedDateTime ) throws RuntimeException
     {
         append( "{datetime: " );
-        append( quote( zonedDateTime.toString() ) );
+        appendQuoted( zonedDateTime.toString() );
         append( "}" );
     }
 
@@ -293,7 +350,7 @@ public class PrettyPrinter implements AnyValueWriter<RuntimeException>
     @Override
     public void writeString( String value )
     {
-        append( quote( value ) );
+        appendQuoted( value );
     }
 
     @Override
@@ -305,14 +362,20 @@ public class PrettyPrinter implements AnyValueWriter<RuntimeException>
     @Override
     public void beginArray( int size, ArrayType arrayType )
     {
-        stack.push( new ListWriter() );
+        assert !stack.isEmpty();
+        stack.peek().nest();
+        stack.push( new ListWriter( builder, quoteMark, counter ) );
     }
 
     @Override
     public void endArray()
     {
         assert !stack.isEmpty();
-        append( stack.pop().done() );
+        stack.pop().done();
+        if ( !stack.isEmpty() )
+        {
+            stack.peek().next();
+        }
     }
 
     @Override
@@ -332,67 +395,129 @@ public class PrettyPrinter implements AnyValueWriter<RuntimeException>
     public String value()
     {
         assert stack.size() == 1;
-        return stack.getLast().done();
+        stack.getLast().done();
+        return builder.toString();
+    }
+
+    public void valueInto( StringBuilder target )
+    {
+        assert stack.size() == 1;
+        stack.getLast().done();
+        target.append( builder );
     }
 
     private void append( String value )
     {
+        if ( counter.isDone() )
+        {
+            return;
+        }
         assert !stack.isEmpty();
-        Writer head = stack.peek();
-        head.append( value );
+        stack.peek().append( value );
     }
 
-    private String quote( String value )
+    private void appendQuoted( String value )
     {
+        if ( counter.isDone() )
+        {
+            return;
+        }
         assert !stack.isEmpty();
-        Writer head = stack.peek();
-        return head.quote( value );
+        stack.peek().appendQuoted( value );
     }
 
     private interface Writer
     {
         void append( String value );
 
-        String done();
+        void appendQuoted( String value );
 
-        String quote( String in );
+        void next();
+
+        void done();
+
+        void nest();
     }
 
-    private abstract class BaseWriter implements Writer
+    private abstract static class BaseWriter implements Writer
     {
-        protected final StringBuilder builder = new StringBuilder();
+        protected final StringBuilder builder;
+        protected Counter counter;
+        private final String quoteMark;
 
-        @Override
-        public String done()
+        protected BaseWriter( StringBuilder builder, String quoteMark, Counter counter )
         {
-            return builder.toString();
+            this.builder = builder;
+            this.quoteMark = quoteMark;
+            this.counter = counter;
         }
 
         @Override
-        public String quote( String in )
+        public void appendQuoted( String value )
         {
-            return quoteMark + in + quoteMark;
+            write( quoteMark );
+            this.append( value );
+            write( quoteMark );
+        }
+
+        @Override
+        public void next()
+        {
+        }
+
+        @Override
+        public void done()
+        {
+        }
+
+        @Override
+        public void nest()
+        {
+        }
+
+        protected void write( String value )
+        {
+            int remaining = counter.remaining();
+            if ( remaining <= 0 )
+            {
+                return;
+            }
+            if ( remaining < value.length() )
+            {
+                builder.append( value, 0, remaining ).append( "..." );
+                counter.decrement( remaining );
+            }
+            else
+            {
+                builder.append( value );
+                counter.decrement( value.length() );
+            }
         }
     }
 
-    private class ValueWriter extends BaseWriter
+    private static class ValueWriter extends BaseWriter
     {
+        private ValueWriter( StringBuilder builder, String quoteMark, Counter counter )
+        {
+            super( builder, quoteMark, counter );
+        }
+
         @Override
         public void append( String value )
         {
-            builder.append( value );
+            write( value );
         }
     }
 
-    private class MapWriter extends BaseWriter
+    private static class MapWriter extends BaseWriter
     {
         private boolean writeKey = true;
         private String sep = "";
 
-        MapWriter()
+        MapWriter( StringBuilder builder, String quoteMark, Counter counter )
         {
-            super();
-            builder.append( "{" );
+            super( builder, quoteMark, counter );
+            write( "{" );
         }
 
         @Override
@@ -400,26 +525,41 @@ public class PrettyPrinter implements AnyValueWriter<RuntimeException>
         {
             if ( writeKey )
             {
-                builder.append( sep ).append( value ).append( ": " );
+                write( sep );
+                write( value );
+                write( ": " );
             }
             else
             {
-                builder.append( value );
+                write( value );
             }
             writeKey = !writeKey;
             sep = ", ";
         }
 
         @Override
-        public String done()
+        public void appendQuoted( String value )
         {
-            return builder.append( "}" ).toString();
+            if ( writeKey )
+            {
+                append( value );
+            }
+            else
+            {
+                super.appendQuoted( value );
+            }
         }
 
         @Override
-        public String quote( String in )
+        public void next()
         {
-            return writeKey ? in : super.quote( in );
+            writeKey = true;
+        }
+
+        @Override
+        public void done()
+        {
+            write( "}" );
         }
     }
 
@@ -427,23 +567,65 @@ public class PrettyPrinter implements AnyValueWriter<RuntimeException>
     {
         private String sep = "";
 
-        ListWriter()
+        ListWriter( StringBuilder builder, String quoteMark, Counter counter )
         {
-            super();
-            builder.append( "[" );
+            super( builder, quoteMark, counter );
+            write( "[" );
         }
 
         @Override
         public void append( String value )
         {
-            builder.append( sep ).append( value );
+            write( sep );
+            write( value );
             sep = ", ";
         }
 
         @Override
-        public String done()
+        public void appendQuoted( String value )
         {
-            return builder.append( "]" ).toString();
+            write( sep );
+            write( quoteMark );
+            write( value );
+            write( quoteMark );
+            sep = ", ";
+        }
+
+        @Override
+        public void done()
+        {
+            write( "]" );
+        }
+
+        @Override
+        public void nest()
+        {
+            write( sep );
+        }
+    }
+
+    private static final class Counter
+    {
+        private int count;
+
+        Counter( int count )
+        {
+            this.count = count;
+        }
+
+        void decrement( int n )
+        {
+            count -= n;
+        }
+
+        int remaining()
+        {
+            return count;
+        }
+
+        public boolean isDone()
+        {
+            return count <= 0;
         }
     }
 }

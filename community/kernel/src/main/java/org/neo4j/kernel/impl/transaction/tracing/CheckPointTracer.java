@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,9 +38,36 @@
  */
 package org.neo4j.kernel.impl.transaction.tracing;
 
-public interface CheckPointTracer
+import org.neo4j.kernel.impl.transaction.stats.CheckpointCounters;
+
+public interface CheckPointTracer extends CheckpointCounters
 {
-    CheckPointTracer NULL = () -> LogCheckPointEvent.NULL;
+    CheckPointTracer NULL = new CheckPointTracer()
+    {
+        @Override
+        public LogCheckPointEvent beginCheckPoint()
+        {
+            return LogCheckPointEvent.NULL;
+        }
+
+        @Override
+        public long numberOfCheckPoints()
+        {
+            return 0;
+        }
+
+        @Override
+        public long checkPointAccumulatedTotalTimeMillis()
+        {
+            return 0;
+        }
+
+        @Override
+        public long lastCheckpointTimeMillis()
+        {
+            return 0;
+        }
+    };
 
     /**
      * Begin a check point write to the log

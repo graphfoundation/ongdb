@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,21 +39,24 @@
 package org.neo4j.kernel.impl.api;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.function.LongConsumer;
 
-import org.neo4j.helpers.collection.Visitor;
-import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContext;
-import org.neo4j.io.pagecache.tracing.cursor.context.VersionContext;
+import org.neo4j.common.HexPrinter;
+import org.neo4j.common.Subject;
+import org.neo4j.internal.helpers.collection.Visitor;
+import org.neo4j.internal.kernel.api.security.AuthSubject;
+import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.kernel.impl.transaction.TransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.log.Commitment;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.tracing.CommitEvent;
-import org.neo4j.kernel.impl.util.HexPrinter;
 import org.neo4j.storageengine.api.CommandsToApply;
 import org.neo4j.storageengine.api.StorageCommand;
 import org.neo4j.storageengine.api.TransactionApplicationMode;
+import org.neo4j.storageengine.api.cursor.StoreCursors;
 
-import static org.neo4j.helpers.Format.date;
+import static org.neo4j.internal.helpers.Format.date;
 
 /**
  * A chain of transactions to apply. Transactions form a linked list, each pointing to the {@link #next()}
@@ -74,10 +77,8 @@ import static org.neo4j.helpers.Format.date;
  * <li>Pass into {@link TransactionCommitProcess#commit(TransactionToApply, CommitEvent, TransactionApplicationMode)}</li>
  * <li>=== COMMIT PROCESS ===</li>
  * <li>Commit, where {@link #commitment(Commitment, long)} is called to store the {@link Commitment} and transaction id</li>
- * <li>Apply, where {@link #commitment()},
+ * <li>Apply, where {@link #publishAsCommitted()} ()},
  * {@link #transactionRepresentation()} and {@link #next()} are called</li>
- * <li>=== USER ===</li>
- * <li>Data about the commit can now also be accessed using f.ex {@link #commitment()} or {@link #transactionId()}</li>
  * </ol>
  */
 public class TransactionToApply implements CommandsToApply, AutoCloseable
@@ -87,7 +88,8 @@ public class TransactionToApply implements CommandsToApply, AutoCloseable
     // These fields are provided by user
     private final TransactionRepresentation transactionRepresentation;
     private long transactionId;
-    private final VersionContext versionContext;
+    private final CursorContext cursorContext;
+    private final StoreCursors storeCursors;
     private TransactionToApply nextTransactionInBatch;
 
     // These fields are provided by commit process, storage engine, or recovery process
@@ -98,30 +100,17 @@ public class TransactionToApply implements CommandsToApply, AutoCloseable
     /**
      * Used when committing a transaction that hasn't already gotten a transaction id assigned.
      */
-    public TransactionToApply( TransactionRepresentation transactionRepresentation )
+    public TransactionToApply( TransactionRepresentation transactionRepresentation, CursorContext cursorContext, StoreCursors storeCursors )
     {
-        this( transactionRepresentation, EmptyVersionContext.EMPTY );
+        this( transactionRepresentation, TRANSACTION_ID_NOT_SPECIFIED, cursorContext, storeCursors );
     }
 
-    /**
-     * Used when committing a transaction that hasn't already gotten a transaction id assigned.
-     */
-    public TransactionToApply( TransactionRepresentation transactionRepresentation, VersionContext versionContext )
-    {
-        this( transactionRepresentation, TRANSACTION_ID_NOT_SPECIFIED, versionContext );
-    }
-
-    public TransactionToApply( TransactionRepresentation transactionRepresentation, long transactionId )
-    {
-        this( transactionRepresentation, transactionId, EmptyVersionContext.EMPTY );
-    }
-
-    public TransactionToApply( TransactionRepresentation transactionRepresentation, long transactionId,
-            VersionContext versionContext )
+    public TransactionToApply( TransactionRepresentation transactionRepresentation, long transactionId, CursorContext cursorContext, StoreCursors storeCursors )
     {
         this.transactionRepresentation = transactionRepresentation;
         this.transactionId = transactionId;
-        this.versionContext = versionContext;
+        this.cursorContext = cursorContext;
+        this.storeCursors = storeCursors;
     }
 
     // These methods are called by the user when building a batch
@@ -130,16 +119,51 @@ public class TransactionToApply implements CommandsToApply, AutoCloseable
         nextTransactionInBatch = next;
     }
 
-    // These methods are called by the commit process
-    public Commitment commitment()
+    public void publishAsCommitted()
     {
-        return commitment;
+        commitment.publishAsCommitted( cursorContext );
+    }
+
+    public void publishAsClosed()
+    {
+        if ( commitment.markedAsCommitted() )
+        {
+            commitment.publishAsClosed( cursorContext );
+        }
     }
 
     @Override
     public long transactionId()
     {
         return transactionId;
+    }
+
+    @Override
+    public Subject subject()
+    {
+        if ( transactionRepresentation.getAuthSubject() == AuthSubject.AUTH_DISABLED )
+        {
+            return Subject.AUTH_DISABLED;
+        }
+
+        if ( transactionRepresentation.getAuthSubject() == AuthSubject.ANONYMOUS )
+        {
+            return Subject.ANONYMOUS;
+        }
+
+        return new Subject( transactionRepresentation.getAuthSubject().executingUser() );
+    }
+
+    @Override
+    public CursorContext cursorContext()
+    {
+        return cursorContext;
+    }
+
+    @Override
+    public StoreCursors storeCursors()
+    {
+        return storeCursors;
     }
 
     @Override
@@ -153,17 +177,11 @@ public class TransactionToApply implements CommandsToApply, AutoCloseable
         return transactionRepresentation;
     }
 
-    @Override
-    public boolean requiresApplicationOrdering()
-    {
-        return commitment.hasExplicitIndexChanges();
-    }
-
     public void commitment( Commitment commitment, long transactionId )
     {
         this.commitment = commitment;
         this.transactionId = transactionId;
-        this.versionContext.initWrite( transactionId );
+        this.cursorContext.getVersionContext().initWrite( transactionId );
     }
 
     public void logPosition( LogPosition position )
@@ -200,9 +218,7 @@ public class TransactionToApply implements CommandsToApply, AutoCloseable
                " {started " + date( tr.getTimeStarted() ) +
                ", committed " + date( tr.getTimeCommitted() ) +
                ", with " + countCommands() + " commands in this transaction" +
-               ", authored by " + tr.getAuthorId() +
-               ", with master id " + tr.getMasterId() +
-               ", lock session " + tr.getLockSessionId() +
+               ", lease " + tr.getLeaseId() +
                ", latest committed transaction id when started was " + tr.getLatestCommittedTxWhenStarted() +
                ", additional header bytes: " + HexPrinter.hex( tr.additionalHeader(), Integer.MAX_VALUE, "" ) + "}";
     }
@@ -231,4 +247,11 @@ public class TransactionToApply implements CommandsToApply, AutoCloseable
             return "(unable to count: " + e.getMessage() + ")";
         }
     }
+
+    @Override
+    public Iterator<StorageCommand> iterator()
+    {
+        return transactionRepresentation.iterator();
+    }
+
 }

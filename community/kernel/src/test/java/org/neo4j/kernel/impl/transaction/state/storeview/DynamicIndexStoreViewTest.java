@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,126 +38,218 @@
  */
 package org.neo4j.kernel.impl.transaction.state.storeview;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.Mockito;
+import org.eclipse.collections.api.list.primitive.MutableLongList;
+import org.eclipse.collections.impl.factory.primitive.LongLists;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.function.IntPredicate;
+import java.util.function.Supplier;
 
-import org.neo4j.collection.primitive.PrimitiveLongResourceCollections;
-import org.neo4j.collection.primitive.PrimitiveLongResourceIterator;
-import org.neo4j.helpers.collection.Visitor;
-import org.neo4j.kernel.api.labelscan.AllEntriesLabelScanReader;
-import org.neo4j.kernel.api.labelscan.LabelScanStore;
-import org.neo4j.kernel.api.labelscan.NodeLabelUpdate;
-import org.neo4j.kernel.impl.api.index.NodeUpdates;
+import org.neo4j.configuration.Config;
+import org.neo4j.function.Predicates;
+import org.neo4j.internal.kernel.api.InternalIndexState;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.kernel.impl.api.index.IndexProxy;
+import org.neo4j.kernel.impl.api.index.IndexingService.IndexProxyProvider;
 import org.neo4j.kernel.impl.api.index.StoreScan;
-import org.neo4j.kernel.impl.locking.LockService;
-import org.neo4j.kernel.impl.store.NeoStores;
-import org.neo4j.kernel.impl.store.NodeStore;
-import org.neo4j.kernel.impl.store.counts.CountsTracker;
-import org.neo4j.kernel.impl.store.record.NodeRecord;
-import org.neo4j.kernel.impl.store.record.RecordLoad;
+import org.neo4j.kernel.impl.scheduler.JobSchedulerFactory;
 import org.neo4j.logging.NullLogProvider;
-import org.neo4j.register.Register;
-import org.neo4j.register.Registers;
-import org.neo4j.storageengine.api.schema.LabelScanReader;
+import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.storageengine.api.StorageReader;
+import org.neo4j.storageengine.api.StubStorageCursors;
+import org.neo4j.storageengine.api.cursor.StoreCursors;
+import org.neo4j.values.storable.Value;
+import org.neo4j.values.storable.Values;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
+import static org.neo4j.common.EntityType.NODE;
+import static org.neo4j.common.EntityType.RELATIONSHIP;
+import static org.neo4j.internal.schema.IndexPrototype.forSchema;
+import static org.neo4j.internal.schema.SchemaDescriptors.forAnyEntityTokens;
+import static org.neo4j.io.pagecache.tracing.PageCacheTracer.NULL;
+import static org.neo4j.kernel.impl.index.schema.TokenIndexProvider.DESCRIPTOR;
+import static org.neo4j.kernel.impl.locking.Locks.NO_LOCKS;
+import static org.neo4j.lock.LockService.NO_LOCK_SERVICE;
+import static org.neo4j.memory.EmptyMemoryTracker.INSTANCE;
 
-public class DynamicIndexStoreViewTest
+class DynamicIndexStoreViewTest
 {
-    private final LabelScanStore labelScanStore = mock( LabelScanStore.class );
-    private final NeoStores neoStores = mock( NeoStores.class );
-    private final NodeStore nodeStore = mock( NodeStore.class );
-    private final CountsTracker countStore = mock( CountsTracker.class );
-    private final Visitor<NodeUpdates,Exception> propertyUpdateVisitor = mock( Visitor.class );
-    private final Visitor<NodeLabelUpdate,Exception> labelUpdateVisitor = mock( Visitor.class );
-    private final IntPredicate propertyKeyIdFilter = mock( IntPredicate.class );
-    private final AllEntriesLabelScanReader nodeLabelRanges = mock( AllEntriesLabelScanReader.class );
+    private final JobScheduler jobScheduler = JobSchedulerFactory.createInitialisedScheduler();
 
-    @Before
-    public void setUp()
+    @AfterEach
+    void tearDown() throws Exception
     {
-        NodeRecord nodeRecord = getNodeRecord();
-        when( labelScanStore.allNodeLabelRanges()).thenReturn( nodeLabelRanges );
-        when( neoStores.getCounts() ).thenReturn( countStore );
-        when( neoStores.getNodeStore() ).thenReturn( nodeStore );
-        when( nodeStore.newRecord() ).thenReturn( nodeRecord );
-        when( nodeStore.getRecord( anyLong(), any( NodeRecord.class ), any( RecordLoad.class ) ) ).thenReturn( nodeRecord );
+        jobScheduler.close();
     }
 
     @Test
-    public void visitOnlyLabeledNodes() throws Exception
+    void shouldVisitNodesUsingTokenIndex() throws Exception
     {
-        LabelScanReader labelScanReader = mock( LabelScanReader.class );
-        when( labelScanStore.newReader() ).thenReturn( labelScanReader );
-        when( nodeLabelRanges.maxCount() ).thenReturn( 1L );
+        long[] nodeIds = {1, 2, 3, 4, 5, 6, 7, 8};
+        int[] indexedLabels = {2, 6};
+        StubStorageCursors cursors = new StubStorageCursors().withTokenIndexes();
+        IndexProxy indexProxy = mock( IndexProxy.class );
+        IndexProxyProvider indexProxies = mock( IndexProxyProvider.class );
+        StubTokenIndexReader tokenReader = new StubTokenIndexReader();
+        IndexDescriptor descriptor = forSchema( forAnyEntityTokens( NODE ), DESCRIPTOR ).withName( "index" ).materialise( 0 );
+        when( indexProxy.getState() ).thenReturn( InternalIndexState.ONLINE );
+        when( indexProxy.newTokenReader() ).thenReturn( tokenReader );
+        when( indexProxy.getDescriptor()).thenReturn( descriptor );
+        when( indexProxies.getIndexProxy( any() ) ).thenReturn( indexProxy );
+        // Nodes indexed by label
+        for ( long nodeId : nodeIds )
+        {
+            cursors.withNode( nodeId ).propertyId( 1 ).relationship( 1 ).labels( 2, 6 );
+            tokenReader.index( indexedLabels, nodeId );
+        }
 
-        PrimitiveLongResourceIterator labeledNodesIterator = PrimitiveLongResourceCollections.iterator( null, 1, 2, 3, 4, 5, 6, 7, 8 );
-        when( nodeStore.getHighestPossibleIdInUse() ).thenReturn( 200L );
-        when( nodeStore.getHighId() ).thenReturn( 20L );
-        when( labelScanReader.nodesWithAnyOfLabels( 2, 6)).thenReturn( labeledNodesIterator );
+        // Nodes not indexed
+        cursors.withNode( 9 ).labels( 5 );
+        cursors.withNode( 10 ).labels( 6 );
 
-        mockLabelNodeCount( countStore, 2 );
-        mockLabelNodeCount( countStore, 6 );
+        DynamicIndexStoreView storeView = dynamicIndexStoreView( cursors, indexProxies );
+        TestTokenScanConsumer consumer = new TestTokenScanConsumer();
+        StoreScan storeScan = storeView.visitNodes(
+                indexedLabels, Predicates.ALWAYS_TRUE_INT, new TestPropertyScanConsumer(), consumer, false, true, NULL, INSTANCE );
+        storeScan.run( StoreScan.NO_EXTERNAL_UPDATES );
 
-        DynamicIndexStoreView storeView = dynamicIndexStoreView();
-
-        StoreScan<Exception> storeScan = storeView
-                .visitNodes( new int[]{2, 6}, propertyKeyIdFilter, propertyUpdateVisitor, labelUpdateVisitor, false );
-
-        storeScan.run();
-
-        Mockito.verify( nodeStore, times( 8 ) )
-                .getRecord( anyLong(), any( NodeRecord.class ), any( RecordLoad.class ) );
+        assertThat( consumer.batches.size() ).isEqualTo( 1 );
+        assertThat( consumer.batches.get( 0 ).size() ).isEqualTo( nodeIds.length );
     }
 
     @Test
-    public void shouldBeAbleToForceStoreScan() throws Exception
+    void shouldVisitRelationshipsUsingTokenIndex() throws Throwable
     {
-        when( labelScanStore.newReader() ).thenThrow( new RuntimeException( "Should not be used" ) );
+        // Given
+        StubTokenIndexReader tokenReader = new StubTokenIndexReader();
+        StubStorageCursors cursors = new StubStorageCursors().withTokenIndexes();
+        IndexProxy indexProxy = mock( IndexProxy.class );
+        IndexProxyProvider indexProxies = mock( IndexProxyProvider.class );
+        IndexDescriptor descriptor = forSchema( forAnyEntityTokens( RELATIONSHIP ), DESCRIPTOR ).withName( "index" ).materialise( 0 );
+        when( indexProxy.getState() ).thenReturn( InternalIndexState.ONLINE );
+        when( indexProxy.getDescriptor()).thenReturn( descriptor );
+        when( indexProxy.newTokenReader() ).thenReturn( tokenReader );
+        when( indexProxies.getIndexProxy( any() ) ).thenReturn( indexProxy );
 
-        when( nodeStore.getHighestPossibleIdInUse() ).thenReturn( 200L );
-        when( nodeStore.getHighId() ).thenReturn( 20L );
+        int targetType = 1;
+        int notTargetType = 2;
+        int[] indexedTypes = {targetType};
+        String targetPropertyKey = "key";
+        String notTargetPropertyKey = "not-key";
+        Value propertyValue = Values.stringValue( "value" );
+        MutableLongList relationshipsWithTargetType = LongLists.mutable.empty();
+        long id = 0;
+        int wantedPropertyUpdates = 5;
+        for ( int i = 0; i < wantedPropertyUpdates; i++ )
+        {
+            // Relationships that are indexed
+            cursors.withRelationship( id, 1, targetType, 3 ).properties( targetPropertyKey, propertyValue );
+            tokenReader.index( indexedTypes, id );
+            relationshipsWithTargetType.add( id++ );
 
-        mockLabelNodeCount( countStore, 2 );
-        mockLabelNodeCount( countStore, 6 );
+            // Relationship with wrong property
+            cursors.withRelationship( id++, 1, targetType, 3 ).properties( notTargetPropertyKey, propertyValue );
 
-        DynamicIndexStoreView storeView = dynamicIndexStoreView();
+            // Relationship with wrong type
+            cursors.withRelationship( id++, 1, notTargetType, 3 ).properties( targetPropertyKey, propertyValue );
+        }
 
-        StoreScan<Exception> storeScan = storeView
-                .visitNodes( new int[]{2, 6}, propertyKeyIdFilter, propertyUpdateVisitor, labelUpdateVisitor, true );
+        //When
+        DynamicIndexStoreView storeView = dynamicIndexStoreView( cursors, indexProxies );
+        TestTokenScanConsumer tokenConsumer = new TestTokenScanConsumer();
+        TestPropertyScanConsumer propertyScanConsumer = new TestPropertyScanConsumer();
+        StoreScan storeScan = storeView.visitRelationships(
+                indexedTypes, relationType -> true, propertyScanConsumer, tokenConsumer, false, true, NULL, INSTANCE );
+        storeScan.run( StoreScan.NO_EXTERNAL_UPDATES );
 
-        storeScan.run();
-
-        Mockito.verify( nodeStore, times( 20 ) )
-                .getRecord( anyLong(), any( NodeRecord.class ), any( RecordLoad.class ) );
+        // Then make sure all the fitting relationships where included
+        assertThat( propertyScanConsumer.batches.size() ).isEqualTo( 1 );
+        assertThat( propertyScanConsumer.batches.get( 0 ).size() ).isEqualTo( wantedPropertyUpdates );
+        // and that we didn't visit any more relationships than what we would get from scan store
+        assertThat( tokenConsumer.batches.size() ).isEqualTo( 1 );
+        assertThat( tokenConsumer.batches.get( 0 ).size() ).isEqualTo( relationshipsWithTargetType.size() );
     }
 
-    private DynamicIndexStoreView dynamicIndexStoreView()
+    @Test
+    void shouldVisitAllNodesWithoutTokenIndexes()
     {
-        LockService locks = LockService.NO_LOCK_SERVICE;
-        return new DynamicIndexStoreView( new NeoStoreIndexStoreView( locks, neoStores ), labelScanStore,
-                locks, neoStores, NullLogProvider.getInstance() );
+        long[] nodeIds = {1, 2, 3, 4, 5, 6, 7, 8};
+        int[] indexedLabels = {2, 6};
+        StubStorageCursors cursors = new StubStorageCursors().withoutTokenIndexes();
+        IndexProxyProvider indexProxies = mock( IndexProxyProvider.class );
+        // Nodes indexed by label
+        for ( long nodeId : nodeIds )
+        {
+            cursors.withNode( nodeId ).propertyId( 1 ).relationship( 1 ).labels( 2, 6 );
+        }
+
+        // Nodes not in index
+        cursors.withNode( 9 ).labels( 5 );
+        cursors.withNode( 10 ).labels( 6 );
+
+        DynamicIndexStoreView storeView = dynamicIndexStoreView( cursors, indexProxies );
+        TestTokenScanConsumer consumer = new TestTokenScanConsumer();
+        StoreScan storeScan = storeView.visitNodes(
+                indexedLabels, Predicates.ALWAYS_TRUE_INT, new TestPropertyScanConsumer(), consumer, false, true, NULL, INSTANCE );
+        storeScan.run( StoreScan.NO_EXTERNAL_UPDATES );
+
+        assertThat( consumer.batches.size() ).isEqualTo( 1 );
+        assertThat( consumer.batches.get( 0 ).size() ).isEqualTo( nodeIds.length + 2 );
     }
 
-    private NodeRecord getNodeRecord()
+    @Test
+    void shouldVisitAllRelationshipsWithoutTokenIndexes()
     {
-        NodeRecord nodeRecord = new NodeRecord( 0L );
-        nodeRecord.initialize( true, 1L, false, 1L, 0L );
-        return nodeRecord;
+        StubStorageCursors cursors = new StubStorageCursors().withoutTokenIndexes();
+        IndexProxyProvider indexProxies = mock( IndexProxyProvider.class );
+
+        int targetType = 1;
+        int notTargetType = 2;
+        int[] targetTypeArray = {targetType};
+        String targetPropertyKey = "key";
+        Value propertyValue = Values.stringValue( "value" );
+        MutableLongList relationshipsWithTargetType = LongLists.mutable.empty();
+        long id = 0;
+        int wantedPropertyUpdates = 5;
+        for ( int i = 0; i < wantedPropertyUpdates; i++ )
+        {
+            // Relationship fitting our target
+            cursors.withRelationship( id, 1, targetType, 3 ).properties( targetPropertyKey, propertyValue );
+            relationshipsWithTargetType.add( id++ );
+
+            // Relationship with different type
+            cursors.withRelationship( id, 1, notTargetType, 3 ).properties( targetPropertyKey, propertyValue );
+            relationshipsWithTargetType.add( id++ );
+        }
+        int targetPropertyKeyId = cursors.propertyKeyTokenHolder().getIdByName( targetPropertyKey );
+        IntPredicate propertyKeyIdFilter = value -> value == targetPropertyKeyId;
+
+        DynamicIndexStoreView storeView = dynamicIndexStoreView( cursors, indexProxies );
+        TestTokenScanConsumer tokenConsumer = new TestTokenScanConsumer();
+        TestPropertyScanConsumer propertyScanConsumer = new TestPropertyScanConsumer();
+        StoreScan storeScan = storeView.visitRelationships(
+                targetTypeArray, propertyKeyIdFilter, propertyScanConsumer, tokenConsumer, false, true, NULL, INSTANCE );
+        storeScan.run( StoreScan.NO_EXTERNAL_UPDATES );
+
+        assertThat( tokenConsumer.batches.size() ).isEqualTo( 1 );
+        assertThat( tokenConsumer.batches.get( 0 ).size() ).isEqualTo( relationshipsWithTargetType.size()  );
     }
 
-    private void mockLabelNodeCount( CountsTracker countStore, int labelId )
+    private DynamicIndexStoreView dynamicIndexStoreView( StorageReader cursors, IndexProxyProvider indexingService )
     {
-        Register.DoubleLongRegister register = Registers.newDoubleLongRegister( labelId, labelId );
-        when( countStore.nodeCount( eq( labelId ), any( Register.DoubleLongRegister.class ) ) ).thenReturn( register );
+        Supplier<StorageReader> storageReaderSupplier = () -> cursors;
+        return dynamicIndexStoreView( cursors, indexingService,
+                new FullScanStoreView( NO_LOCK_SERVICE, storageReaderSupplier, any -> StoreCursors.NULL, Config.defaults(), jobScheduler ) );
     }
 
+    private static DynamicIndexStoreView dynamicIndexStoreView( StorageReader cursors, IndexProxyProvider indexingService, FullScanStoreView fullScanStoreView )
+    {
+        Supplier<StorageReader> storageReaderSupplier = () -> cursors;
+        return new DynamicIndexStoreView( fullScanStoreView, NO_LOCKS, NO_LOCK_SERVICE, Config.defaults(), indexingService, storageReaderSupplier,
+                any -> StoreCursors.NULL, NullLogProvider.getInstance() );
+    }
 }

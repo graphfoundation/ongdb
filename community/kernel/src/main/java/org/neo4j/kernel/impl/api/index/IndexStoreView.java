@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,71 +40,71 @@ package org.neo4j.kernel.impl.api.index;
 
 import java.util.function.IntPredicate;
 
-import org.neo4j.collection.primitive.PrimitiveIntSet;
-import org.neo4j.helpers.collection.Visitor;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
-import org.neo4j.kernel.api.index.PropertyAccessor;
-import org.neo4j.kernel.api.labelscan.NodeLabelUpdate;
-import org.neo4j.register.Register.DoubleLongRegister;
-import org.neo4j.storageengine.api.schema.PopulationProgress;
-import org.neo4j.values.storable.Value;
-import org.neo4j.values.storable.Values;
+import org.neo4j.internal.kernel.api.PopulationProgress;
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.io.pagecache.tracing.PageCacheTracer;
+import org.neo4j.memory.MemoryTracker;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 
 /** The indexing services view of the universe. */
-public interface IndexStoreView extends PropertyAccessor, PropertyLoader
+public interface IndexStoreView
 {
     /**
-     * Retrieve all nodes in the database which has got one or more of the given labels AND
-     * one or more of the given property key ids. This scan additionally accepts a visitor
+     * Retrieve all nodes in the database which have got one or more of the given labels AND
+     * one or more of the given property key ids. This scan additionally accepts a consumer
      * for label updates for a joint scan.
      *
      * @param labelIds array of label ids to generate updates for. Empty array means all.
+     * This filter is used only for property scan consumer and not for label scan consumer.
      * @param propertyKeyIdFilter property key ids to generate updates for.
-     * @param propertyUpdateVisitor visitor which will see all generated {@link NodeUpdates}.
-     * @param labelUpdateVisitor visitor which will see all generated {@link NodeLabelUpdate}.
+     * This filter is used only for property scan consumer and not for label scan consumer.
+     * @param propertyScanConsumer a consumer of a scan over nodes generating a tuple of
+     * node id, labels and property map for each scanned node.
+     * @param labelScanConsumer a consumer of a scan over nodes generating a tuple of node id and labels
+     * for each scanned node.
      * @param forceStoreScan overrides decision about which source to scan from. If {@code true}
      * then store scan will be used, otherwise if {@code false} then the best suited will be used.
+     * @param parallelWrite whether or not the visitors can be called by multiple threads concurrently.
+     * @param cacheTracer underlying page cursor events tracer.
      * @return a {@link StoreScan} to start and to stop the scan.
      */
-    <FAILURE extends Exception> StoreScan<FAILURE> visitNodes(
-            int[] labelIds, IntPredicate propertyKeyIdFilter,
-            Visitor<NodeUpdates, FAILURE> propertyUpdateVisitor,
-            Visitor<NodeLabelUpdate, FAILURE> labelUpdateVisitor,
-            boolean forceStoreScan );
+    StoreScan visitNodes( int[] labelIds, IntPredicate propertyKeyIdFilter, PropertyScanConsumer propertyScanConsumer, TokenScanConsumer labelScanConsumer,
+            boolean forceStoreScan, boolean parallelWrite, PageCacheTracer cacheTracer, MemoryTracker memoryTracker );
 
     /**
-     * Produces {@link NodeUpdates} objects from reading node {@code nodeId}, its labels and properties
-     * and puts those updates into node updates container.
+     * Retrieve all relationships in the database which have any of the the given relationship types AND
+     * one or more of the given property key ids. This scan additionally accepts a consumer
+     * for relationship type updates for a joint scan.
      *
-     * @param nodeId id of node to load.
-     * @return node updates container
+     * @param relationshipTypeIds array of relationship type ids to generate updates for. Empty array means all.
+     * This filter is used only for property scan consumer and not for relationship type scan consumer.
+     * @param propertyKeyIdFilter property key ids to generate updates for.
+     * This filter is used only for property scan consumer and not for relationship type scan consumer.
+     * @param propertyScanConsumer a consumer of a scan over relationships generating a tuple of
+     * relationship id, relationshipType and property map for each scanned relationship.
+     * @param relationshipTypeScanConsumer a consumer of a scan over relationships generating a tuple of
+     * relationship id and relationshipType for each scanned relationship.
+     * @param forceStoreScan overrides decision about which source to scan from. If {@code true}
+     * then store scan will be used, otherwise if {@code false} then the best suited will be used.
+     * @param parallelWrite whether or not the visitors can be called by multiple threads concurrently.
+     * @param cacheTracer underlying page cursor events tracer.
+     * @return a {@link StoreScan} to start and to stop the scan.
      */
-    NodeUpdates nodeAsUpdates( long nodeId );
+    StoreScan visitRelationships( int[] relationshipTypeIds, IntPredicate propertyKeyIdFilter,
+            PropertyScanConsumer propertyScanConsumer, TokenScanConsumer relationshipTypeScanConsumer,
+            boolean forceStoreScan, boolean parallelWrite, PageCacheTracer cacheTracer, MemoryTracker memoryTracker );
 
-    DoubleLongRegister indexUpdatesAndSize( long indexId, DoubleLongRegister output );
+    NodePropertyAccessor newPropertyAccessor( CursorContext cursorContext, MemoryTracker memoryTracker );
 
-    DoubleLongRegister indexSample( long indexId, DoubleLongRegister output );
-
-    void replaceIndexCounts( long indexId, long uniqueElements, long maxUniqueElements, long indexSize );
-
-    void incrementIndexUpdates( long indexId, long updatesDelta );
-
-    @SuppressWarnings( "rawtypes" )
     StoreScan EMPTY_SCAN = new StoreScan()
     {
         @Override
-        public void run()
+        public void run( ExternalUpdatesCheck externalUpdatesCheck )
         {
         }
 
         @Override
         public void stop()
-        {
-        }
-
-        @Override
-        public void acceptUpdate( MultipleIndexPopulator.MultipleIndexUpdater updater, IndexEntryUpdate update,
-                long currentlyIndexedNodeId )
         {
         }
 
@@ -117,55 +117,36 @@ public interface IndexStoreView extends PropertyAccessor, PropertyLoader
 
     IndexStoreView EMPTY = new Adaptor();
 
+    boolean isEmpty();
+
     class Adaptor implements IndexStoreView
     {
         @Override
-        public void loadProperties( long nodeId, PrimitiveIntSet propertyIds, PropertyLoadSink sink )
-        {
-        }
-
-        @Override
-        public Value getPropertyValue( long nodeId, int propertyKeyId )
-        {
-            return Values.NO_VALUE;
-        }
-
-        @SuppressWarnings( "unchecked" )
-        @Override
-        public <FAILURE extends Exception> StoreScan<FAILURE> visitNodes( int[] labelIds,
-                IntPredicate propertyKeyIdFilter, Visitor<NodeUpdates,FAILURE> propertyUpdateVisitor,
-                Visitor<NodeLabelUpdate,FAILURE> labelUpdateVisitor, boolean forceStoreScan )
+        public StoreScan visitNodes( int[] labelIds, IntPredicate propertyKeyIdFilter, PropertyScanConsumer propertyScanConsumer,
+                TokenScanConsumer labelScanConsumer, boolean forceStoreScan, boolean parallelWrite, PageCacheTracer cacheTracer,
+                MemoryTracker memoryTracker )
         {
             return EMPTY_SCAN;
         }
 
         @Override
-        public void replaceIndexCounts( long indexId, long uniqueElements, long maxUniqueElements,
-                long indexSize )
+        public StoreScan visitRelationships( int[] relationshipTypeIds, IntPredicate propertyKeyIdFilter, PropertyScanConsumer propertyScanConsumer,
+                TokenScanConsumer relationshipTypeScanConsumer, boolean forceStoreScan, boolean parallelWrite, PageCacheTracer cacheTracer,
+                MemoryTracker memoryTracker )
         {
+            return EMPTY_SCAN;
         }
 
         @Override
-        public NodeUpdates nodeAsUpdates( long nodeId )
+        public NodePropertyAccessor newPropertyAccessor( CursorContext cursorContext, MemoryTracker memoryTracker )
         {
-            return null;
+            return NodePropertyAccessor.EMPTY;
         }
 
         @Override
-        public DoubleLongRegister indexUpdatesAndSize( long indexId, DoubleLongRegister output )
+        public boolean isEmpty()
         {
-            return output;
+            return true;
         }
-
-        @Override
-        public DoubleLongRegister indexSample( long indexId, DoubleLongRegister output )
-        {
-            return output;
-        }
-
-        @Override
-        public void incrementIndexUpdates( long indexId, long updatesDelta )
-        {
-        }
-    };
+    }
 }

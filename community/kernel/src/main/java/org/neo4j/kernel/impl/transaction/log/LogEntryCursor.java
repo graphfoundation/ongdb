@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -49,13 +49,12 @@ import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
  */
 public class LogEntryCursor implements IOCursor<LogEntry>
 {
-    private final LogEntryReader<ReadableClosablePositionAwareChannel> logEntryReader;
-    private final ReadableClosablePositionAwareChannel channel;
+    private final LogEntryReader logEntryReader;
+    private final ReadableClosablePositionAwareChecksumChannel channel;
     private final LogPositionMarker position = new LogPositionMarker();
     private LogEntry entry;
 
-    public LogEntryCursor( LogEntryReader<ReadableClosablePositionAwareChannel> logEntryReader,
-                           ReadableClosablePositionAwareChannel channel )
+    public LogEntryCursor( LogEntryReader logEntryReader, ReadableClosablePositionAwareChecksumChannel channel )
     {
         this.logEntryReader = logEntryReader;
         this.channel = channel;

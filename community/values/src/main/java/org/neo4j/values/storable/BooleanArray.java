@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -45,9 +45,13 @@ import org.neo4j.values.AnyValue;
 import org.neo4j.values.ValueMapper;
 
 import static java.lang.String.format;
+import static org.neo4j.memory.HeapEstimator.shallowSizeOfInstance;
+import static org.neo4j.memory.HeapEstimator.sizeOf;
 
-public class BooleanArray extends ArrayValue
+public final class BooleanArray extends ArrayValue
 {
+    private static final long SHALLOW_SIZE = shallowSizeOfInstance( BooleanArray.class );
+
     private final boolean[] value;
 
     BooleanArray( boolean[] value )
@@ -86,7 +90,7 @@ public class BooleanArray extends ArrayValue
     }
 
     @Override
-    public int computeHash()
+    protected int computeHashToMemoize()
     {
         return NumberValues.hash( value );
     }
@@ -114,7 +118,7 @@ public class BooleanArray extends ArrayValue
     @Override
     public boolean[] asObjectCopy()
     {
-        return value.clone();
+        return Arrays.copyOf( value, value.length );
     }
 
     @Override
@@ -125,15 +129,15 @@ public class BooleanArray extends ArrayValue
     }
 
     @Override
-    int unsafeCompareTo( Value otherValue )
+    protected int unsafeCompareTo( Value otherValue )
     {
         return NumberValues.compareBooleanArrays( this, (BooleanArray) otherValue );
     }
 
     @Override
-    public ValueGroup valueGroup()
+    public ValueRepresentation valueRepresentation()
     {
-        return ValueGroup.BOOLEAN_ARRAY;
+        return ValueRepresentation.BOOLEAN_ARRAY;
     }
 
     @Override
@@ -158,5 +162,36 @@ public class BooleanArray extends ArrayValue
     public String toString()
     {
         return format( "%s%s", getTypeName(), Arrays.toString( value ) );
+    }
+
+    @Override
+    public long estimatedHeapUsage()
+    {
+        return SHALLOW_SIZE + sizeOf( value );
+    }
+
+    @Override
+    public boolean hasCompatibleType( AnyValue value )
+    {
+        return value instanceof BooleanValue;
+    }
+
+    @Override
+    public ArrayValue copyWithAppended( AnyValue added )
+    {
+        assert hasCompatibleType( added ) : "Incompatible types";
+        boolean[] newArray = Arrays.copyOf( value, value.length + 1 );
+        newArray[value.length] = ((BooleanValue) added).booleanValue();
+        return new BooleanArray( newArray );
+    }
+
+    @Override
+    public ArrayValue copyWithPrepended( AnyValue prepended )
+    {
+        assert hasCompatibleType( prepended ) : "Incompatible types";
+        boolean[] newArray = new boolean[value.length + 1];
+        newArray[0] = ((BooleanValue) prepended).booleanValue();
+        System.arraycopy( value, 0, newArray, 1, value.length );
+        return new BooleanArray( newArray );
     }
 }

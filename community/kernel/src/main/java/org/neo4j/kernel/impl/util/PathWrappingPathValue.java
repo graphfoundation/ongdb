@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -45,8 +45,12 @@ import org.neo4j.values.virtual.NodeValue;
 import org.neo4j.values.virtual.PathValue;
 import org.neo4j.values.virtual.RelationshipValue;
 
+import static org.neo4j.memory.HeapEstimator.shallowSizeOfInstance;
+
 public class PathWrappingPathValue extends PathValue
 {
+    static final long SHALLOW_SIZE = shallowSizeOfInstance( PathWrappingPathValue.class );
+
     private final Path path;
 
     PathWrappingPathValue( Path path )
@@ -57,19 +61,19 @@ public class PathWrappingPathValue extends PathValue
     @Override
     public NodeValue startNode()
     {
-        return ValueUtils.fromNodeProxy( path.startNode() );
+        return (NodeValue) ValueUtils.wrapNodeEntity( path.startNode() );
     }
 
     @Override
     public NodeValue endNode()
     {
-        return ValueUtils.fromNodeProxy( path.endNode() );
+        return (NodeValue) ValueUtils.wrapNodeEntity( path.endNode() );
     }
 
     @Override
     public RelationshipValue lastRelationship()
     {
-        return ValueUtils.fromRelationshipProxy( path.lastRelationship() );
+        return (RelationshipValue) ValueUtils.wrapRelationshipEntity( path.lastRelationship() );
     }
 
     @Override
@@ -80,7 +84,7 @@ public class PathWrappingPathValue extends PathValue
         int i = 0;
         for ( Node node : path.nodes() )
         {
-            values[i++] = ValueUtils.fromNodeProxy( node );
+            values[i++] = (NodeValue) ValueUtils.wrapNodeEntity( node );
         }
         return values;
     }
@@ -93,7 +97,7 @@ public class PathWrappingPathValue extends PathValue
         int i = 0;
         for ( Relationship relationship : path.relationships() )
         {
-            values[i++] = ValueUtils.fromRelationshipProxy( relationship );
+            values[i++] = (RelationshipValue) ValueUtils.wrapRelationshipEntity( relationship );
         }
         return values;
     }
@@ -101,5 +105,17 @@ public class PathWrappingPathValue extends PathValue
     public Path path()
     {
         return path;
+    }
+
+    @Override
+    public long estimatedHeapUsage()
+    {
+        int length = path.length();
+
+        // There are many different implementations of Path, so here we are left guessing.
+        // We calculate some size for each node and relationship, but that will not include any potentially cached properties, labels, etc.
+        return SHALLOW_SIZE
+               + length * RelationshipEntityWrappingValue.SHALLOW_SIZE
+               + (length + 1) * NodeEntityWrappingNodeValue.SHALLOW_SIZE;
     }
 }

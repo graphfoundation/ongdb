@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,7 @@
  */
 package org.neo4j.graphalgo.impl.path;
 
-import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphalgo.EvaluationContext;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.PathExpander;
 import org.neo4j.graphdb.traversal.TraversalDescription;
@@ -57,19 +57,19 @@ import static org.neo4j.graphdb.traversal.Uniqueness.NODE_PATH;
  */
 public class TraversalShortestPath extends TraversalPathFinder
 {
+    private final EvaluationContext context;
     private final PathExpander expander;
     private final int maxDepth;
     private final Integer maxResultCount;
 
-    public TraversalShortestPath( PathExpander expander, int maxDepth )
+    public TraversalShortestPath( EvaluationContext context, PathExpander expander, int maxDepth )
     {
-        this.expander = expander;
-        this.maxDepth = maxDepth;
-        this.maxResultCount = null;
+        this( context, expander, maxDepth, null );
     }
 
-    public TraversalShortestPath( PathExpander expander, int maxDepth, int maxResultCount )
+    public TraversalShortestPath( EvaluationContext context, PathExpander expander, int maxDepth, Integer maxResultCount )
     {
+        this.context = context;
         this.expander = expander;
         this.maxDepth = maxDepth;
         this.maxResultCount = maxResultCount;
@@ -78,9 +78,9 @@ public class TraversalShortestPath extends TraversalPathFinder
     @Override
     protected Traverser instantiateTraverser( Node start, Node end )
     {
-        GraphDatabaseService db = start.getGraphDatabase();
-        TraversalDescription sideBase = db.traversalDescription().breadthFirst().uniqueness( NODE_PATH );
-        return db.bidirectionalTraversalDescription().mirroredSides( sideBase.expand( expander ) )
+        var transaction = context.transaction();
+        TraversalDescription sideBase = transaction.traversalDescription().breadthFirst().uniqueness( NODE_PATH );
+        return transaction.bidirectionalTraversalDescription().mirroredSides( sideBase.expand( expander ) )
             .sideSelector( LEVEL_STOP_DESCENT_ON_RESULT, maxDepth )
             .collisionEvaluator( toDepth( maxDepth ) )
             .traverse( start, end );

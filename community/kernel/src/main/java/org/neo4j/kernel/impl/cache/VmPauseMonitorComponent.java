@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,39 +38,43 @@
  */
 package org.neo4j.kernel.impl.cache;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.lifecycle.Lifecycle;
-import org.neo4j.kernel.monitoring.VmPauseMonitor;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseInternalSettings;
+import org.neo4j.kernel.lifecycle.LifecycleAdapter;
+import org.neo4j.kernel.monitoring.LoggingVmPauseMonitor;
 import org.neo4j.logging.Log;
+import org.neo4j.monitoring.Monitors;
+import org.neo4j.monitoring.VmPauseMonitor;
 import org.neo4j.scheduler.JobScheduler;
 
-public class VmPauseMonitorComponent implements Lifecycle
+public class VmPauseMonitorComponent extends LifecycleAdapter
 {
     private final Config config;
     private final Log log;
     private final JobScheduler jobScheduler;
+    private final VmPauseMonitor.Monitor monitor;
+    private final LoggingVmPauseMonitor loggingVmPauseMonitor;
+    private final Monitors globalMonitors;
     private volatile VmPauseMonitor vmPauseMonitor;
 
-    public VmPauseMonitorComponent( Config config, Log log, JobScheduler jobScheduler )
+    public VmPauseMonitorComponent( Config config, Log log, JobScheduler jobScheduler, Monitors globalMonitors )
     {
         this.config = config;
         this.log = log;
         this.jobScheduler = jobScheduler;
-    }
-
-    @Override
-    public void init()
-    {
+        this.globalMonitors = globalMonitors;
+        monitor = globalMonitors.newMonitor( VmPauseMonitor.Monitor.class );
+        loggingVmPauseMonitor = new LoggingVmPauseMonitor( log );
     }
 
     @Override
     public void start()
     {
+        globalMonitors.addMonitorListener( loggingVmPauseMonitor );
         vmPauseMonitor = new VmPauseMonitor(
-                config.get( GraphDatabaseSettings.vm_pause_monitor_measurement_duration ),
-                config.get( GraphDatabaseSettings.vm_pause_monitor_stall_alert_threshold ),
-                log, jobScheduler, vmPauseInfo -> log.warn( "Detected VM stop-the-world pause: %s", vmPauseInfo )
+                config.get( GraphDatabaseInternalSettings.vm_pause_monitor_measurement_duration ),
+                config.get( GraphDatabaseInternalSettings.vm_pause_monitor_stall_alert_threshold ),
+                monitor, jobScheduler
         );
         vmPauseMonitor.start();
     }
@@ -80,11 +84,6 @@ public class VmPauseMonitorComponent implements Lifecycle
     {
         vmPauseMonitor.stop();
         vmPauseMonitor = null;
+        globalMonitors.removeMonitorListener( loggingVmPauseMonitor );
     }
-
-    @Override
-    public void shutdown()
-    {
-    }
-
 }

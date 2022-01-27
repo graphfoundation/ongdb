@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,38 +38,38 @@
  */
 package org.neo4j.kernel.api.impl.index.storage.layout;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.io.File;
+import java.nio.file.Path;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class IndexFolderLayoutTest
+class IndexFolderLayoutTest
 {
-    private final File indexRoot = new File( "indexRoot" );
+    private final Path indexRoot = Path.of( "indexRoot" );
 
     @Test
-    public void testIndexFolder()
+    void testIndexFolder()
     {
         IndexFolderLayout indexLayout = createTestIndex();
-        File indexFolder = indexLayout.getIndexFolder();
+        Path indexFolder = indexLayout.getIndexFolder();
 
         assertEquals( indexRoot, indexFolder );
     }
 
     @Test
-    public void testIndexPartitionFolder()
+    void testIndexPartitionFolder()
     {
         IndexFolderLayout indexLayout = createTestIndex();
 
-        File indexFolder = indexLayout.getIndexFolder();
-        File partitionFolder1 = indexLayout.getPartitionFolder( 1 );
-        File partitionFolder3 = indexLayout.getPartitionFolder( 3 );
+        Path indexFolder = indexLayout.getIndexFolder();
+        Path partitionFolder1 = indexLayout.getPartitionFolder( 1 );
+        Path partitionFolder3 = indexLayout.getPartitionFolder( 3 );
 
-        assertEquals( partitionFolder1.getParentFile(), partitionFolder3.getParentFile() );
-        assertEquals( indexFolder, partitionFolder1.getParentFile() );
-        assertEquals( "1", partitionFolder1.getName() );
-        assertEquals( "3", partitionFolder3.getName() );
+        assertEquals( partitionFolder1.getParent(), partitionFolder3.getParent() );
+        assertEquals( indexFolder, partitionFolder1.getParent() );
+        assertEquals( "1", partitionFolder1.getFileName().toString() );
+        assertEquals( "3", partitionFolder3.getFileName().toString() );
     }
 
     private IndexFolderLayout createTestIndex()

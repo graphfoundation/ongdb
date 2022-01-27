@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,17 +38,29 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted
 
-import java.util.concurrent.atomic.AtomicInteger
 
-import org.neo4j.cypher.internal.planner.v3_4.spi.IndexDescriptor
-import org.neo4j.cypher.internal.runtime.{Operations, QueryContext, QueryStatistics}
-import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection
+import org.eclipse.collections.api.map.primitive.IntObjectMap
+import org.neo4j.common.EntityType
+import org.neo4j.cypher.internal.expressions.SemanticDirection
+import org.neo4j.cypher.internal.runtime.ConstraintInfo
+import org.neo4j.cypher.internal.runtime.IndexInfo
+import org.neo4j.cypher.internal.runtime.NodeOperations
+import org.neo4j.cypher.internal.runtime.Operations
+import org.neo4j.cypher.internal.runtime.QueryContext
+import org.neo4j.cypher.internal.runtime.QueryStatistics
+import org.neo4j.cypher.internal.runtime.RelationshipOperations
+import org.neo4j.cypher.internal.runtime.interpreted.CountingQueryContext.Counter
+import org.neo4j.internal.kernel.api.NodeCursor
+import org.neo4j.internal.kernel.api.RelationshipScanCursor
+import org.neo4j.internal.schema.ConstraintDescriptor
+import org.neo4j.internal.schema.IndexConfig
+import org.neo4j.internal.schema.IndexDescriptor
+import org.neo4j.internal.schema.IndexProviderDescriptor
 import org.neo4j.values.storable.Value
-import org.neo4j.values.virtual.{RelationshipValue, NodeValue}
+import org.neo4j.values.virtual.VirtualNodeValue
+import org.neo4j.values.virtual.VirtualRelationshipValue
 
-class UpdateCountingQueryContext(inner: QueryContext) extends DelegatingQueryContext(inner) {
-
-  override def createNewQueryContext(): QueryContext = inner.createNewQueryContext()
+class UpdateCountingQueryContext(inner: QueryContext) extends DelegatingQueryContext(inner) with CountingQueryContext {
 
   private val nodesCreated = new Counter
   private val relationshipsCreated = new Counter
@@ -65,8 +77,9 @@ class UpdateCountingQueryContext(inner: QueryContext) extends DelegatingQueryCon
   private val propertyExistenceConstraintsRemoved = new Counter
   private val nodekeyConstraintsAdded = new Counter
   private val nodekeyConstraintsRemoved = new Counter
+  private val namedConstraintsRemoved = new Counter
 
-  def getStatistics = QueryStatistics(
+  def getTrackedStatistics: QueryStatistics = QueryStatistics(
     nodesCreated = nodesCreated.count,
     relationshipsCreated = relationshipsCreated.count,
     propertiesSet = propertiesSet.count,
@@ -81,25 +94,40 @@ class UpdateCountingQueryContext(inner: QueryContext) extends DelegatingQueryCon
     existenceConstraintsAdded = propertyExistenceConstraintsAdded.count,
     existenceConstraintsRemoved = propertyExistenceConstraintsRemoved.count,
     nodekeyConstraintsAdded = nodekeyConstraintsAdded.count,
-    nodekeyConstraintsRemoved = nodekeyConstraintsRemoved.count)
+    nodekeyConstraintsRemoved = nodekeyConstraintsRemoved.count,
+    namedConstraintsRemoved = namedConstraintsRemoved.count)
 
-  override def getOptStatistics = Some(getStatistics)
-
-  override def createNode() = {
-    nodesCreated.increase()
-    inner.createNode()
+  override def addStatistics(statistics: QueryStatistics): Unit = {
+    nodesCreated.increase(statistics.nodesCreated)
+    relationshipsCreated.increase(statistics.relationshipsCreated)
+    propertiesSet.increase(statistics.propertiesSet)
+    nodesDeleted.increase(statistics.nodesDeleted)
+    labelsAdded.increase(statistics.labelsAdded)
+    labelsRemoved.increase(statistics.labelsRemoved)
+    relationshipsDeleted.increase(statistics.relationshipsDeleted)
+    indexesAdded.increase(statistics.indexesAdded)
+    indexesRemoved.increase(statistics.indexesRemoved)
+    uniqueConstraintsAdded.increase(statistics.uniqueConstraintsAdded)
+    uniqueConstraintsRemoved.increase(statistics.uniqueConstraintsRemoved)
+    propertyExistenceConstraintsAdded.increase(statistics.existenceConstraintsAdded)
+    propertyExistenceConstraintsRemoved.increase(statistics.existenceConstraintsRemoved)
+    nodekeyConstraintsAdded.increase(statistics.nodekeyConstraintsAdded)
+    nodekeyConstraintsRemoved.increase(statistics.nodekeyConstraintsRemoved)
+    inner.addStatistics(statistics)
   }
 
-  override def createNodeId() = {
+
+  override def createNodeId(labels: Array[Int]): Long = {
     nodesCreated.increase()
-    inner.createNodeId()
+    labelsAdded.increase(labels.length)
+    inner.createNodeId(labels)
   }
 
-  override def nodeOps: Operations[NodeValue] =
-    new CountingOps[NodeValue](inner.nodeOps, nodesDeleted)
+  override val nodeWriteOps: NodeOperations =
+    new CountingOps[VirtualNodeValue, NodeCursor](inner.nodeWriteOps, nodesDeleted) with NodeOperations
 
-  override def relationshipOps: Operations[RelationshipValue] =
-    new CountingOps[RelationshipValue](inner.relationshipOps, relationshipsDeleted)
+  override val relationshipWriteOps: RelationshipOperations =
+    new CountingOps[VirtualRelationshipValue, RelationshipScanCursor](inner.relationshipWriteOps, relationshipsDeleted) with RelationshipOperations
 
   override def setLabelsOnNode(node: Long, labelIds: Iterator[Int]): Int = {
     val added = inner.setLabelsOnNode(node, labelIds)
@@ -107,9 +135,9 @@ class UpdateCountingQueryContext(inner: QueryContext) extends DelegatingQueryCon
     added
   }
 
-  override def createRelationship(start: Long, end: Long, relType: Int) = {
+  override def createRelationshipId(start: Long, end: Long, relType: Int): Long = {
     relationshipsCreated.increase()
-    inner.createRelationship(start, end, relType)
+    inner.createRelationshipId(start, end, relType)
   }
 
   override def removeLabelsFromNode(node: Long, labelIds: Iterator[Int]): Int = {
@@ -118,96 +146,156 @@ class UpdateCountingQueryContext(inner: QueryContext) extends DelegatingQueryCon
     removed
   }
 
-  override def addIndexRule(descriptor: IndexDescriptor) = {
-    val result = inner.addIndexRule(descriptor)
-    result.ifCreated { indexesAdded.increase() }
+  override def addBtreeIndexRule(entityId: Int, entityType: EntityType, propertyKeyIds: Seq[Int], name: Option[String], provider: Option[String], indexConfig: IndexConfig): IndexDescriptor = {
+    val result = inner.addBtreeIndexRule(entityId, entityType, propertyKeyIds, name, provider, indexConfig)
+    indexesAdded.increase()
     result
   }
 
-  override def dropIndexRule(descriptor: IndexDescriptor) {
-    inner.dropIndexRule(descriptor)
+  override def addRangeIndexRule(entityId: Int, entityType: EntityType, propertyKeyIds: Seq[Int], name: Option[String], provider: Option[IndexProviderDescriptor]): IndexDescriptor = {
+    val result = inner.addRangeIndexRule(entityId, entityType, propertyKeyIds, name, provider)
+    indexesAdded.increase()
+    result
+  }
+
+  override def addLookupIndexRule(entityType: EntityType, name: Option[String], provider: Option[IndexProviderDescriptor]): IndexDescriptor = {
+    val result = inner.addLookupIndexRule(entityType, name, provider)
+    indexesAdded.increase()
+    result
+  }
+
+  override def addFulltextIndexRule(entityIds: List[Int], entityType: EntityType, propertyKeyIds: Seq[Int], name: Option[String], provider: Option[IndexProviderDescriptor], indexConfig: IndexConfig): IndexDescriptor = {
+    val result = inner.addFulltextIndexRule(entityIds, entityType, propertyKeyIds, name, provider, indexConfig)
+    indexesAdded.increase()
+    result
+  }
+
+  override def addTextIndexRule(entityId: Int, entityType: EntityType, propertyKeyIds: Seq[Int], name: Option[String], provider: Option[IndexProviderDescriptor]): IndexDescriptor = {
+    val result = inner.addTextIndexRule(entityId, entityType, propertyKeyIds, name, provider)
+    indexesAdded.increase()
+    result
+  }
+
+  override def addPointIndexRule(entityId: Int, entityType: EntityType, propertyKeyIds: Seq[Int], name: Option[String], provider: Option[IndexProviderDescriptor], indexConfig: IndexConfig): IndexDescriptor = {
+    val result = inner.addPointIndexRule(entityId, entityType, propertyKeyIds, name, provider, indexConfig)
+    indexesAdded.increase()
+    result
+  }
+
+  override def dropIndexRule(labelId: Int, propertyKeyIds: Seq[Int]): Unit = {
+    inner.dropIndexRule(labelId, propertyKeyIds)
     indexesRemoved.increase()
   }
 
-  override def createNodeKeyConstraint(descriptor: IndexDescriptor): Boolean = {
-    val result = inner.createNodeKeyConstraint(descriptor)
-    if ( result ) nodekeyConstraintsAdded.increase()
-    result
+  override def dropIndexRule(name: String): Unit = {
+    inner.dropIndexRule(name)
+    indexesRemoved.increase()
   }
 
-  override def dropNodeKeyConstraint(descriptor: IndexDescriptor): Unit = {
-    inner.dropNodeKeyConstraint(descriptor)
+  override def getAllIndexes(): Map[IndexDescriptor, IndexInfo] = {
+    inner.getAllIndexes()
+  }
+
+  override def indexExists(name: String): Boolean = {
+    inner.indexExists(name)
+  }
+
+  override def constraintExists(name: String): Boolean = {
+    inner.constraintExists(name)
+  }
+
+  override def constraintExists(matchFn: ConstraintDescriptor => Boolean, entityId: Int, properties: Int*): Boolean = {
+    inner.constraintExists(matchFn, entityId, properties: _*)
+  }
+
+  override def createNodeKeyConstraint(labelId: Int, propertyKeyIds: Seq[Int], name: Option[String], provider: Option[String], indexConfig: IndexConfig): Unit = {
+    inner.createNodeKeyConstraint(labelId, propertyKeyIds, name, provider, indexConfig)
+    nodekeyConstraintsAdded.increase()
+  }
+
+  override def dropNodeKeyConstraint(labelId: Int, propertyKeyIds: Seq[Int]): Unit = {
+    inner.dropNodeKeyConstraint(labelId, propertyKeyIds)
     nodekeyConstraintsRemoved.increase()
   }
 
-  override def createUniqueConstraint(descriptor: IndexDescriptor): Boolean = {
-    val result = inner.createUniqueConstraint(descriptor)
-    if ( result ) uniqueConstraintsAdded.increase()
-    result
+  override def createUniqueConstraint(labelId: Int, propertyKeyIds: Seq[Int], name: Option[String], provider: Option[String], indexConfig: IndexConfig): Unit = {
+    inner.createUniqueConstraint(labelId, propertyKeyIds, name, provider, indexConfig)
+    uniqueConstraintsAdded.increase()
   }
 
-  override def dropUniqueConstraint(descriptor: IndexDescriptor) {
-    inner.dropUniqueConstraint(descriptor)
+  override def dropUniqueConstraint(labelId: Int, propertyKeyIds: Seq[Int]): Unit = {
+    inner.dropUniqueConstraint(labelId, propertyKeyIds)
     uniqueConstraintsRemoved.increase()
   }
 
-  override def createNodePropertyExistenceConstraint(labelId: Int, propertyKeyId: Int): Boolean = {
-    val result = inner.createNodePropertyExistenceConstraint(labelId, propertyKeyId)
-    if ( result ) propertyExistenceConstraintsAdded.increase()
-    result
+  override def createNodePropertyExistenceConstraint(labelId: Int, propertyKeyId: Int, name: Option[String]): Unit = {
+    inner.createNodePropertyExistenceConstraint(labelId, propertyKeyId, name)
+    propertyExistenceConstraintsAdded.increase()
   }
 
-  override def dropNodePropertyExistenceConstraint(labelId: Int, propertyKeyId: Int) {
+  override def dropNodePropertyExistenceConstraint(labelId: Int, propertyKeyId: Int): Unit = {
     inner.dropNodePropertyExistenceConstraint(labelId, propertyKeyId)
     propertyExistenceConstraintsRemoved.increase()
   }
 
-  override def createRelationshipPropertyExistenceConstraint(relTypeId: Int, propertyKeyId: Int): Boolean = {
-    val result = inner.createRelationshipPropertyExistenceConstraint(relTypeId, propertyKeyId)
-    if ( result ) propertyExistenceConstraintsAdded.increase()
-    result
+  override def createRelationshipPropertyExistenceConstraint(relTypeId: Int, propertyKeyId: Int, name: Option[String]): Unit = {
+    inner.createRelationshipPropertyExistenceConstraint(relTypeId, propertyKeyId, name)
+    propertyExistenceConstraintsAdded.increase()
   }
 
-  override def dropRelationshipPropertyExistenceConstraint(relTypeId: Int, propertyKeyId: Int) {
+  override def dropRelationshipPropertyExistenceConstraint(relTypeId: Int, propertyKeyId: Int): Unit = {
     inner.dropRelationshipPropertyExistenceConstraint(relTypeId, propertyKeyId)
     propertyExistenceConstraintsRemoved.increase()
   }
 
-  override def nodeGetDegree(node: Long, dir: SemanticDirection): Int = super.nodeGetDegree(node, dir)
+  override def dropNamedConstraint(name: String): Unit = {
+    inner.dropNamedConstraint(name)
+    namedConstraintsRemoved.increase()
+  }
+
+  override def getAllConstraints(): Map[ConstraintDescriptor, ConstraintInfo] = inner.getAllConstraints()
+
+  override def nodeGetDegree(node: Long, dir: SemanticDirection, nodeCursor: NodeCursor): Int = super.nodeGetDegree(node, dir, nodeCursor)
 
   override def detachDeleteNode(node: Long): Int = {
-    nodesDeleted.increase()
+    nodesDeleted.increase() // This relies on the assumption that the node was not already deleted
     val count = inner.detachDeleteNode(node)
     relationshipsDeleted.increase(count)
     count
   }
 
-  class Counter {
-    val counter: AtomicInteger = new AtomicInteger()
+  override def contextWithNewTransaction(): UpdateCountingQueryContext = new UpdateCountingQueryContext(inner.contextWithNewTransaction())
 
-    def count: Int = counter.get()
+  private class CountingOps[T, CURSOR](inner: Operations[T, CURSOR], deletes: Counter)
+    extends DelegatingOperations[T, CURSOR](inner) {
 
-    def increase(amount: Int = 1) {
-      counter.addAndGet(amount)
-    }
-  }
-
-  private class CountingOps[T](inner: Operations[T], deletes: Counter)
-    extends DelegatingOperations[T](inner) {
-
-    override def delete(id: Long) {
-      deletes.increase()
-      inner.delete(id)
+    override def delete(id: Long): Boolean = {
+      if (inner.delete(id)) {
+        deletes.increase()
+        true
+      } else {
+        false
+      }
     }
 
-    override def removeProperty(id: Long, propertyKeyId: Int) {
-      propertiesSet.increase()
-      inner.removeProperty(id, propertyKeyId)
+    override def removeProperty(id: Long, propertyKeyId: Int): Boolean = {
+      val wasRemoved = inner.removeProperty(id, propertyKeyId)
+      if (wasRemoved) {
+        propertiesSet.increase()
+      }
+      wasRemoved
     }
 
-    override def setProperty(id: Long, propertyKeyId: Int, value: Value) {
+    override def setProperty(id: Long, propertyKeyId: Int, value: Value): Unit = {
       propertiesSet.increase()
       inner.setProperty(id, propertyKeyId, value)
+    }
+
+    override def setProperties(obj: Long,
+                               properties: IntObjectMap[Value]): Unit = {
+
+      propertiesSet.increase(properties.size())
+      inner.setProperties(obj, properties)
     }
   }
 }

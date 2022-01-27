@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,34 +38,31 @@
  */
 package org.neo4j.kernel.impl.api;
 
-
-import org.neo4j.internal.kernel.api.Modes;
-import org.neo4j.internal.kernel.api.Session;
-import org.neo4j.internal.kernel.api.Transaction;
+import org.neo4j.configuration.Config;
+import org.neo4j.internal.kernel.api.CursorFactory;
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
-import org.neo4j.internal.kernel.api.security.LoginContext;
-import org.neo4j.kernel.api.InwardKernel;
-import org.neo4j.kernel.api.KernelTransaction;
-import org.neo4j.kernel.api.TransactionHook;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
-import org.neo4j.kernel.api.proc.CallableProcedure;
-import org.neo4j.kernel.api.proc.CallableUserAggregationFunction;
-import org.neo4j.kernel.api.proc.CallableUserFunction;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.newapi.NewKernel;
-import org.neo4j.kernel.impl.proc.Procedures;
+import org.neo4j.internal.kernel.api.security.LoginContext;
+import org.neo4j.kernel.api.Kernel;
+import org.neo4j.kernel.api.KernelTransaction;
+import org.neo4j.kernel.api.procedure.CallableProcedure;
+import org.neo4j.kernel.api.procedure.CallableUserAggregationFunction;
+import org.neo4j.kernel.api.procedure.CallableUserFunction;
+import org.neo4j.kernel.api.procedure.GlobalProcedures;
+import org.neo4j.kernel.impl.newapi.DefaultThreadSafeCursors;
+import org.neo4j.kernel.impl.query.TransactionExecutionMonitor;
 import org.neo4j.kernel.impl.transaction.TransactionMonitor;
-import org.neo4j.kernel.internal.DatabaseHealth;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
+import org.neo4j.monitoring.Health;
 import org.neo4j.storageengine.api.StorageEngine;
 
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.transaction_timeout;
+import static org.neo4j.configuration.GraphDatabaseSettings.transaction_timeout;
+import static org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo.EMBEDDED_CONNECTION;
 
 /**
- * This is the ONgDB Kernel, an implementation of the Kernel API which is an internal component used by Cypher and the
+ * This is the Neo4j Kernel, an implementation of the Kernel API which is an internal component used by Cypher and the
  * Core API (the API under org.neo4j.graphdb).
- *
- * WARNING: This class is under transition.
  *
  * <h1>Structure</h1>
  *
@@ -76,91 +73,103 @@ import static org.neo4j.graphdb.factory.GraphDatabaseSettings.transaction_timeou
  * Please refer to the {@link KernelTransaction} javadoc for details.
  *
  */
-public class KernelImpl extends LifecycleAdapter implements InwardKernel
+public class KernelImpl extends LifecycleAdapter implements Kernel
 {
     private final KernelTransactions transactions;
-    private final TransactionHooks hooks;
-    private final DatabaseHealth health;
+    private final Health health;
     private final TransactionMonitor transactionMonitor;
-    private final Procedures procedures;
+    private final TransactionExecutionMonitor transactionExecutionMonitor;
+    private final GlobalProcedures globalProcedures;
     private final Config config;
+    private final DefaultThreadSafeCursors cursors;
+    private volatile boolean isRunning;
 
-    private final NewKernel newKernel;
-
-    public KernelImpl( KernelTransactions transactionFactory, TransactionHooks hooks, DatabaseHealth health,
-            TransactionMonitor transactionMonitor, Procedures procedures, Config config, StorageEngine engine )
+    public KernelImpl( KernelTransactions transactionFactory, Health health,
+                       TransactionMonitor transactionMonitor,
+                       GlobalProcedures globalProcedures, Config config, StorageEngine storageEngine,
+                       TransactionExecutionMonitor transactionExecutionMonitor )
     {
         this.transactions = transactionFactory;
-        this.hooks = hooks;
         this.health = health;
         this.transactionMonitor = transactionMonitor;
-        this.procedures = procedures;
+        this.globalProcedures = globalProcedures;
         this.config = config;
-        this.newKernel = new NewKernel( engine, this );
+        this.cursors = new DefaultThreadSafeCursors( storageEngine.newReader(), config, storageEngine::createStorageCursors );
+        this.transactionExecutionMonitor = transactionExecutionMonitor;
     }
 
     @Override
-    public KernelTransaction newTransaction( Transaction.Type type, LoginContext loginContext )
+    public KernelTransaction beginTransaction( KernelTransaction.Type type, LoginContext loginContext ) throws TransactionFailureException
+    {
+        return beginTransaction( type, loginContext, EMBEDDED_CONNECTION );
+    }
+
+    @Override
+    public KernelTransaction beginTransaction( KernelTransaction.Type type, LoginContext loginContext, ClientConnectionInfo connectionInfo )
             throws TransactionFailureException
     {
-        return newTransaction( type, loginContext, config.get( transaction_timeout ).toMillis() );
+        if ( !isRunning )
+        {
+            throw new IllegalStateException( "Kernel is not running, so it is not possible to use it" );
+        }
+        return beginTransaction( type, loginContext, connectionInfo, config.get( transaction_timeout ).toMillis() );
     }
 
     @Override
-    public KernelTransaction newTransaction( Transaction.Type type, LoginContext loginContext, long timeout ) throws
-            TransactionFailureException
+    public KernelTransaction beginTransaction( KernelTransaction.Type type, LoginContext loginContext, ClientConnectionInfo connectionInfo, long timeout )
+            throws TransactionFailureException
     {
         health.assertHealthy( TransactionFailureException.class );
-        KernelTransaction transaction = transactions.newInstance( type, loginContext, timeout );
+        KernelTransaction transaction = transactions.newInstance( type, loginContext, connectionInfo, timeout );
         transactionMonitor.transactionStarted();
+        transactionExecutionMonitor.start( transaction );
         return transaction;
-    }
-
-    @Override
-    public void registerTransactionHook( TransactionHook hook )
-    {
-        hooks.register( hook );
     }
 
     @Override
     public void registerProcedure( CallableProcedure procedure ) throws ProcedureException
     {
-        procedures.register( procedure );
+        globalProcedures.register( procedure );
     }
 
     @Override
     public void registerUserFunction( CallableUserFunction function ) throws ProcedureException
     {
-        procedures.register( function );
+        globalProcedures.register( function );
     }
 
     @Override
     public void registerUserAggregationFunction( CallableUserAggregationFunction function ) throws ProcedureException
     {
-        procedures.register( function );
+        globalProcedures.register( function );
     }
 
     @Override
     public void start()
     {
-        newKernel.start();
+        isRunning = true;
     }
 
     @Override
     public void stop()
     {
-        newKernel.stop();
+        if ( !isRunning )
+        {
+            throw new IllegalStateException( "Kernel is not running, so it is not possible to stop it" );
+        }
+
+        isRunning = false;
     }
 
     @Override
-    public Session beginSession( LoginContext loginContext )
+    public CursorFactory cursors()
     {
-        return newKernel.beginSession( loginContext );
+        return cursors;
     }
 
     @Override
-    public Modes modes()
+    public void shutdown()
     {
-        return newKernel;
+        cursors.close();
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,19 +38,14 @@
  */
 package org.neo4j.kernel.api.impl.schema;
 
-import org.apache.lucene.document.DoubleField;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.ConstantScoreQuery;
-import org.apache.lucene.search.NumericRangeQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
 
-import org.neo4j.kernel.api.index.ArrayEncoder;
-import org.neo4j.values.storable.PointValue;
 import org.neo4j.values.storable.Value;
-import org.neo4j.values.storable.Values;
 
 import static org.apache.lucene.document.Field.Store.NO;
 
@@ -60,175 +55,6 @@ import static org.apache.lucene.document.Field.Store.NO;
  */
 public enum ValueEncoding
 {
-    Number
-            {
-                @Override
-                public String key()
-                {
-                    return "number";
-                }
-
-                @Override
-                boolean canEncode( Value value )
-                {
-                    return Values.isNumberValue( value );
-                }
-
-                @Override
-                Field encodeField( String name, Value value )
-                {
-                    return new DoubleField( name, Values.coerceToDouble(value), NO );
-                }
-
-                @Override
-                void setFieldValue( Value value, Field field )
-                {
-                    field.setDoubleValue( Values.coerceToDouble(value) );
-                }
-
-                @Override
-                Query encodeQuery( Value value, int propertyNumber )
-                {
-                    Double doubleValue = Values.coerceToDouble(value);
-                    return new ConstantScoreQuery( NumericRangeQuery
-                            .newDoubleRange( key( propertyNumber ), doubleValue, doubleValue, true, true ) );
-                }
-            },
-    Array
-            {
-                @Override
-                public String key()
-                {
-                    return "array";
-                }
-
-                @Override
-                boolean canEncode( Value value )
-                {
-                    return Values.isArrayValue( value );
-                }
-
-                @Override
-                Field encodeField( String name, Value value )
-                {
-                    return stringField( name, ArrayEncoder.encode( value ) );
-                }
-
-                @Override
-                void setFieldValue( Value value, Field field )
-                {
-                    field.setStringValue( ArrayEncoder.encode( value ) );
-                }
-
-                @Override
-                Query encodeQuery( Value value, int propertyNumber )
-                {
-                    return new ConstantScoreQuery(
-                            new TermQuery( new Term( key( propertyNumber ), ArrayEncoder.encode( value ) ) ) );
-                }
-            },
-    Bool
-            {
-                @Override
-                public String key()
-                {
-                    return "bool";
-                }
-
-                @Override
-                boolean canEncode( Value value )
-                {
-                    return Values.isBooleanValue( value );
-                }
-
-                @Override
-                Field encodeField( String name, Value value )
-                {
-                    return stringField( name, value.prettyPrint() );
-                }
-
-                @Override
-                void setFieldValue( Value value, Field field )
-                {
-                    field.setStringValue( value.prettyPrint() );
-                }
-
-                @Override
-                Query encodeQuery( Value value, int propertyNumber )
-                {
-                    return new ConstantScoreQuery(
-                            new TermQuery( new Term( key( propertyNumber ), value.prettyPrint() ) ) );
-                }
-            },
-    Spatial
-            {
-                @Override
-                public String key()
-                {
-                    return "spatial";
-                }
-
-                @Override
-                boolean canEncode( Value value )
-                {
-                    return Values.isGeometryValue( value );
-                }
-
-                @Override
-                Field encodeField( String name, Value value )
-                {
-                    PointValue pointVal = (PointValue) value;
-                    return stringField( name, pointVal.toIndexableString() );
-                }
-
-                @Override
-                void setFieldValue( Value value, Field field )
-                {
-                    PointValue pointVal = (PointValue) value;
-                    field.setStringValue( pointVal.toIndexableString() );
-                }
-
-                @Override
-                Query encodeQuery( Value value, int propertyNumber )
-                {
-                    PointValue pointVal = (PointValue) value;
-                    return new ConstantScoreQuery(
-                            new TermQuery( new Term( key( propertyNumber ), pointVal.toIndexableString() ) ) );
-                }
-            },
-    Temporal
-            {
-                @Override
-                public String key()
-                {
-                    return "temporal";
-                }
-
-                @Override
-                boolean canEncode( Value value )
-                {
-                    return Values.isTemporalValue( value );
-                }
-
-                @Override
-                Field encodeField( String name, Value value )
-                {
-                    return stringField( name, value.prettyPrint() );
-                }
-
-                @Override
-                void setFieldValue( Value value, Field field )
-                {
-                    field.setStringValue( value.prettyPrint() );
-                }
-
-                @Override
-                Query encodeQuery( Value value, int propertyNumber )
-                {
-                    return new ConstantScoreQuery(
-                            new TermQuery( new Term( key( propertyNumber ), value.prettyPrint() ) ) );
-                }
-            },
     String
             {
                 @Override
@@ -259,14 +85,13 @@ public enum ValueEncoding
                 @Override
                 Query encodeQuery( Value value, int propertyNumber )
                 {
-                    return new ConstantScoreQuery(
-                            new TermQuery( new Term( key( propertyNumber ), value.asObject().toString() ) ) );
+                    return new ConstantScoreQuery( new TermQuery( new Term( key( propertyNumber ), value.asObject().toString() ) ) );
                 }
             };
 
     private static final ValueEncoding[] AllEncodings = values();
 
-    public  abstract String key();
+    public abstract String key();
 
     String key( int propertyNumber )
     {
@@ -294,18 +119,6 @@ public enum ValueEncoding
     abstract void setFieldValue( Value value, Field field );
 
     abstract Query encodeQuery( Value value, int propertyNumber );
-
-    public static ValueEncoding forKey( String key )
-    {
-        for ( ValueEncoding encoding : AllEncodings )
-        {
-            if ( key.endsWith( encoding.key( ) ) )
-            {
-                return encoding;
-            }
-        }
-        throw new IllegalArgumentException( "Unknown key: " + key );
-    }
 
     public static ValueEncoding forValue( Value value )
     {

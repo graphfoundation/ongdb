@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,12 +41,11 @@ package org.neo4j.server.rest.repr;
 import java.util.Iterator;
 import java.util.Map;
 
-import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
-import org.neo4j.helpers.collection.FirstItemIterable;
-import org.neo4j.helpers.collection.IterableWrapper;
-import org.neo4j.helpers.collection.IteratorWrapper;
+import org.neo4j.internal.helpers.collection.FirstItemIterable;
+import org.neo4j.internal.helpers.collection.IterableWrapper;
+import org.neo4j.internal.helpers.collection.IteratorWrapper;
 
 public class ObjectToRepresentationConverter
 {
@@ -63,7 +62,6 @@ public class ObjectToRepresentationConverter
         }
         if ( data instanceof Map )
         {
-
             return getMapRepresentation( (Map) data );
         }
         return getSingleRepresentation( data );
@@ -75,7 +73,6 @@ public class ObjectToRepresentationConverter
 
     public static MappingRepresentation getMapRepresentation( Map data )
     {
-
         return new MapRepresentation( data );
     }
 
@@ -90,8 +87,7 @@ public class ObjectToRepresentationConverter
                     {
                         if ( value instanceof Iterable )
                         {
-                            FirstItemIterable<Representation> nested =
-                                    convertValuesToRepresentations( (Iterable) value );
+                            FirstItemIterable<Representation> nested = convertValuesToRepresentations( (Iterable) value );
                             return new ListRepresentation( getType( nested ), nested );
                         }
                         else
@@ -137,10 +133,6 @@ public class ObjectToRepresentationConverter
         if ( result == null )
         {
             return ValueRepresentation.ofNull();
-        }
-        else if ( result instanceof GraphDatabaseService )
-        {
-            return new DatabaseRepresentation();
         }
         else if ( result instanceof Node )
         {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,92 +38,88 @@
  */
 package org.neo4j.server.security.auth;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
+import org.neo4j.configuration.Config;
+import org.neo4j.cypher.internal.security.SecureHasher;
 import org.neo4j.internal.kernel.api.security.AccessMode;
+import org.neo4j.internal.kernel.api.security.CommunitySecurityLog;
+import org.neo4j.internal.kernel.api.security.LoginContext;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.api.security.OverriddenAccessMode;
 import org.neo4j.kernel.impl.api.security.RestrictedAccessMode;
+import org.neo4j.kernel.impl.security.User;
+import org.neo4j.server.security.systemgraph.BasicSystemGraphRealm;
+import org.neo4j.server.security.systemgraph.SystemGraphRealmHelper;
 import org.neo4j.time.Clocks;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo.EMBEDDED_CONNECTION;
 import static org.neo4j.server.security.auth.SecurityTestUtils.authToken;
+import static org.neo4j.server.security.auth.SecurityTestUtils.credentialFor;
 
-public class SecurityContextDescriptionTest
+class SecurityContextDescriptionTest
 {
-    private BasicAuthManager manager;
     private SecurityContext context;
 
-    @Before
-    public void setup() throws Throwable
+    @BeforeEach
+    void setup() throws Throwable
     {
-        manager =
-            new BasicAuthManager(
-                    new InMemoryUserRepository(),
-                    new BasicPasswordPolicy(),
-                    Clocks.systemClock(),
-                    new InMemoryUserRepository(),
-                    Config.defaults() );
-        manager.init();
-        manager.start();
-        manager.newUser( "johan", "bar", false );
-        context = manager.login( authToken( "johan", "bar" ) ).authorize( s -> -1 );
-    }
-
-    @After
-    public void teardown() throws Throwable
-    {
-        manager.stop();
-        manager.shutdown();
+        SystemGraphRealmHelper realmHelper = spy( new SystemGraphRealmHelper( null, new SecureHasher() ) );
+        BasicSystemGraphRealm realm =
+                new BasicSystemGraphRealm( realmHelper, new RateLimitedAuthenticationStrategy( Clocks.systemClock(), Config.defaults() ) );
+        User user =  new User.Builder( "johan", credentialFor( "bar" ) ).withId( "id" ).build();
+        doReturn( user ).when( realmHelper ).getUser( "johan" );
+        context = realm.login( authToken( "johan", "bar" ), EMBEDDED_CONNECTION )
+                       .authorize( LoginContext.IdLookup.EMPTY, DEFAULT_DATABASE_NAME, CommunitySecurityLog.NULL_LOG );
     }
 
     @Test
-    public void shouldMakeNiceDescription()
+    void shouldMakeNiceDescription()
     {
-        assertThat( context.description(), equalTo( "user 'johan' with FULL" ) );
+        assertThat( context.description() ).isEqualTo( "user 'johan' with FULL" );
     }
 
     @Test
-    public void shouldMakeNiceDescriptionWithMode()
+    void shouldMakeNiceDescriptionWithMode()
     {
         SecurityContext modified = context.withMode( AccessMode.Static.WRITE );
-        assertThat( modified.description(), equalTo( "user 'johan' with WRITE" ) );
+        assertThat( modified.description() ).isEqualTo( "user 'johan' with WRITE" );
     }
 
     @Test
-    public void shouldMakeNiceDescriptionRestricted()
+    void shouldMakeNiceDescriptionRestricted()
     {
         SecurityContext restricted =
                 context.withMode( new RestrictedAccessMode( context.mode(), AccessMode.Static.READ ) );
-        assertThat( restricted.description(), equalTo( "user 'johan' with FULL restricted to READ" ) );
+        assertThat( restricted.description() ).isEqualTo( "user 'johan' with FULL restricted to READ" );
     }
 
     @Test
-    public void shouldMakeNiceDescriptionOverridden()
+    void shouldMakeNiceDescriptionOverridden()
     {
         SecurityContext overridden =
                 context.withMode( new OverriddenAccessMode( context.mode(), AccessMode.Static.READ ) );
-        assertThat( overridden.description(), equalTo( "user 'johan' with FULL overridden by READ" ) );
+        assertThat( overridden.description() ).isEqualTo( "user 'johan' with FULL overridden by READ" );
     }
 
     @Test
-    public void shouldMakeNiceDescriptionAuthDisabled()
+    void shouldMakeNiceDescriptionAuthDisabled()
     {
         SecurityContext disabled = SecurityContext.AUTH_DISABLED;
-        assertThat( disabled.description(), equalTo( "AUTH_DISABLED with FULL" ) );
+        assertThat( disabled.description() ).isEqualTo( "AUTH_DISABLED with FULL" );
     }
 
     @Test
-    public void shouldMakeNiceDescriptionAuthDisabledAndRestricted()
+    void shouldMakeNiceDescriptionAuthDisabledAndRestricted()
     {
         SecurityContext disabled = SecurityContext.AUTH_DISABLED;
         SecurityContext restricted =
                 disabled.withMode( new RestrictedAccessMode( disabled.mode(), AccessMode.Static.READ ) );
-        assertThat( restricted.description(), equalTo( "AUTH_DISABLED with FULL restricted to READ" ) );
+        assertThat( restricted.description() ).isEqualTo( "AUTH_DISABLED with FULL restricted to READ" );
     }
-
 }

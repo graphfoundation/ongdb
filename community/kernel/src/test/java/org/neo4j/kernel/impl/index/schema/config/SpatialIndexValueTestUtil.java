@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,30 +38,28 @@
  */
 package org.neo4j.kernel.impl.index.schema.config;
 
+import org.neo4j.configuration.Config;
 import org.neo4j.gis.spatial.index.curves.SpaceFillingCurve;
-import org.neo4j.helpers.collection.Pair;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.internal.helpers.collection.Pair;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.PointValue;
 import org.neo4j.values.storable.Values;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.not;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class SpatialIndexValueTestUtil
 {
     public static Pair<PointValue,PointValue> pointsWithSameValueOnSpaceFillingCurve( Config config )
     {
-        SpaceFillingCurveSettingsFactory spaceFillingCurveSettingsFactory = new SpaceFillingCurveSettingsFactory( config );
-        SpaceFillingCurveSettings spaceFillingCurveSettings = spaceFillingCurveSettingsFactory.settingsFor( CoordinateReferenceSystem.WGS84 );
+        ConfiguredSpaceFillingCurveSettingsCache configuredCache = new ConfiguredSpaceFillingCurveSettingsCache( config );
+        SpaceFillingCurveSettings spaceFillingCurveSettings = configuredCache.forCRS( CoordinateReferenceSystem.WGS84 );
         SpaceFillingCurve curve = spaceFillingCurveSettings.curve();
         double[] origin = {0.0, 0.0};
         Long spaceFillingCurveMapForOrigin = curve.derivedValueFor( origin );
         double[] centerPointForOriginTile = curve.centerPointFor( spaceFillingCurveMapForOrigin );
         PointValue originValue = Values.pointValue( CoordinateReferenceSystem.WGS84, origin );
         PointValue centerPointValue = Values.pointValue( CoordinateReferenceSystem.WGS84, centerPointForOriginTile );
-        assertThat( "need non equal points for this test", origin, not( equalTo( centerPointValue ) ) );
+        assertThat( origin ).as( "need non equal points for this test" ).isNotEqualTo( centerPointValue );
         return Pair.of( originValue, centerPointValue );
     }
 }

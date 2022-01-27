@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -48,16 +48,18 @@ import org.neo4j.io.fs.StoreChannel;
 @FunctionalInterface
 public interface LogVersionBridge
 {
-    LogVersionBridge NO_MORE_CHANNELS = channel -> channel;
+    LogVersionBridge NO_MORE_CHANNELS = ( channel, raw ) -> channel;
 
     /**
      * Provides the next channel, given the current channel and version.
      * Returning the same value as was passed in means that no bridging was needed or that the end was reached.
      *
      * @param channel {@link StoreChannel} to advance from.
+     * @param raw flag to specify if raw channel should open. Raw channel will not gonna perform any calls to pre-load, offload file content from page cache
+     * and potentially will not perform some other optimisations.
      * @return the next {@link StoreChannel} having advanced on from the given channel, or {@code channel}
      * if no bridging needed or end was reached.
      * @throws IOException on error opening next version channel.
      */
-    LogVersionedStoreChannel next( LogVersionedStoreChannel channel ) throws IOException;
+    LogVersionedStoreChannel next( LogVersionedStoreChannel channel, boolean raw ) throws IOException;
 }

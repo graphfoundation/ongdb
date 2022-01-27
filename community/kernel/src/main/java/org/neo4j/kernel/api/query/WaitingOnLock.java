@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -44,20 +44,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import org.neo4j.kernel.impl.locking.ActiveLock;
-import org.neo4j.storageengine.api.lock.ResourceType;
+import org.neo4j.lock.ActiveLock;
+import org.neo4j.lock.LockType;
+import org.neo4j.lock.ResourceType;
 
 class WaitingOnLock extends ExecutingQueryStatus
 {
-    private final String mode;
+    private final LockType lockType;
     private final ResourceType resourceType;
+    private final long transactionId;
     private final long[] resourceIds;
     private final long startTimeNanos;
 
-    WaitingOnLock( String mode, ResourceType resourceType, long[] resourceIds, long startTimeNanos )
+    WaitingOnLock( LockType lockType, ResourceType resourceType, long transactionId, long[] resourceIds, long startTimeNanos )
     {
-        this.mode = mode;
+        this.lockType = lockType;
         this.resourceType = resourceType;
+        this.transactionId = transactionId;
         this.resourceIds = resourceIds;
         this.startTimeNanos = startTimeNanos;
     }
@@ -72,10 +75,11 @@ class WaitingOnLock extends ExecutingQueryStatus
     Map<String,Object> toMap( long currentTimeNanos )
     {
         Map<String,Object> map = new HashMap<>();
-        map.put( "lockMode", mode );
+        map.put( "lockMode", lockType.getDescription() );
         map.put( "waitTimeMillis", TimeUnit.NANOSECONDS.toMillis( waitTimeNanos( currentTimeNanos ) ) );
         map.put( "resourceType", resourceType.toString() );
         map.put( "resourceIds", resourceIds );
+        map.put( "transactionId", transactionId );
         return map;
     }
 
@@ -94,24 +98,10 @@ class WaitingOnLock extends ExecutingQueryStatus
     @Override
     List<ActiveLock> waitingOnLocks()
     {
-        List<ActiveLock> locks = new ArrayList<>();
-        switch ( mode )
+        List<ActiveLock> locks = new ArrayList<>( resourceIds.length );
+        for ( long resourceId : resourceIds )
         {
-        case ActiveLock.EXCLUSIVE_MODE:
-
-            for ( long resourceId : resourceIds )
-            {
-                locks.add( ActiveLock.exclusiveLock( resourceType, resourceId ) );
-            }
-            break;
-        case ActiveLock.SHARED_MODE:
-            for ( long resourceId : resourceIds )
-            {
-                locks.add( ActiveLock.sharedLock( resourceType, resourceId ) );
-            }
-            break;
-        default:
-            throw new IllegalArgumentException( "Unsupported type of lock mode: " + mode );
+            locks.add( new ActiveLock( resourceType, lockType, transactionId, resourceId ) );
         }
         return locks;
     }

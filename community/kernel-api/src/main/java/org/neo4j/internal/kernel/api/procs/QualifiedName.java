@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,7 +41,7 @@ package org.neo4j.internal.kernel.api.procs;
 import java.util.Arrays;
 import java.util.List;
 
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterables;
 
 import static java.util.Arrays.asList;
 
@@ -52,7 +52,7 @@ public class QualifiedName
 
     public QualifiedName( List<String> namespace, String name )
     {
-        this( namespace.toArray( new String[namespace.size()] ), name );
+        this( namespace.toArray( new String[0] ), name );
     }
 
     public QualifiedName( String[] namespace, String name )
@@ -97,8 +97,6 @@ public class QualifiedName
     @Override
     public int hashCode()
     {
-        int result = Arrays.hashCode( namespace );
-        result = 31 * result + name.hashCode();
-        return result;
+        return 31 * Arrays.hashCode( namespace ) + name.hashCode();
     }
 }

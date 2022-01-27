@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,19 +38,24 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.predicates
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.ImplicitValueConversion._
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Expression, ListLiteral, Literal, Variable}
+import org.neo4j.cypher.internal.runtime.CypherRow
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.values.storable.Values._
+import org.neo4j.cypher.internal.runtime.interpreted.commands.LiteralHelper.literal
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ListLiteral
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Literal
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Variable
+import org.neo4j.cypher.internal.util.attribution.Id
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.values.storable.Values.NO_VALUE
+import org.neo4j.values.storable.Values.intValue
 import org.neo4j.values.virtual.VirtualValues
 
 class ConstantCachedInTest extends CachedInTest {
-  override def createPredicate(lhs: Variable, rhs: Expression): Predicate = ConstantCachedIn(lhs, rhs)
+  override def createPredicate(lhs: Variable, rhs: Expression): Predicate = ConstantCachedIn(lhs, rhs, Id.INVALID_ID)
 }
 class DynamicConstantInTest extends CachedInTest {
-  override def createPredicate(lhs: Variable, rhs: Expression): Predicate = DynamicCachedIn(lhs, rhs)
+  override def createPredicate(lhs: Variable, rhs: Expression): Predicate = DynamicCachedIn(lhs, rhs, Id.INVALID_ID)
 }
 
 abstract class CachedInTest extends CypherFunSuite {
@@ -59,13 +64,13 @@ abstract class CachedInTest extends CypherFunSuite {
 
   test("tests") {
     // given
-    val predicate = createPredicate(Variable("x"), ListLiteral(Literal(1), Literal(2), Literal(3)))
+    val predicate = createPredicate(Variable("x"), ListLiteral(literal(1), literal(2), literal(3)))
 
     val state = QueryStateHelper.empty
 
-    val v1 = ExecutionContext.empty.set("x", intValue(1))
-    val vNull = ExecutionContext.empty.set("x", NO_VALUE)
-    val v14 = ExecutionContext.empty.set("x", intValue(14))
+    val v1 = CypherRow.empty.copyWith("x", intValue(1))
+    val vNull = CypherRow.empty.copyWith("x", NO_VALUE)
+    val v14 = CypherRow.empty.copyWith("x", intValue(14))
 
     // then when
     predicate.isMatch(v1, state) should equal(Some(true))
@@ -80,12 +85,12 @@ abstract class CachedInTest extends CypherFunSuite {
 
   test("check with a collection containing null") {
     // given
-    val predicate = createPredicate(Variable("x"), ListLiteral(Literal(1), Literal(2), Literal(null)))
+    val predicate = createPredicate(Variable("x"), ListLiteral(literal(1), literal(2), Literal(NO_VALUE)))
 
     val state = QueryStateHelper.empty
-    val v1 = ExecutionContext.empty.set("x",intValue(1))
-    val vNull = ExecutionContext.empty.set("x",NO_VALUE)
-    val v14 = ExecutionContext.empty.set("x", intValue(14))
+    val v1 = CypherRow.empty.copyWith("x", intValue(1))
+    val vNull = CypherRow.empty.copyWith("x", NO_VALUE)
+    val v14 = CypherRow.empty.copyWith("x", intValue(14))
 
     // then when
     predicate.isMatch(v1, state) should equal(Some(true))
@@ -100,14 +105,14 @@ abstract class CachedInTest extends CypherFunSuite {
 
   test("check with a collection that is null") {
     // given
-    val predicate = createPredicate(Variable("x"), Literal(null))
+    val predicate = createPredicate(Variable("x"), literal(NO_VALUE))
 
     val state = QueryStateHelper.empty
 
 
-    val v1 = ExecutionContext.empty.set("x", intValue(1))
-    val vNull = ExecutionContext.empty.set("x", NO_VALUE)
-    val v14 = ExecutionContext.empty.set("x", intValue(14))
+    val v1 = CypherRow.empty.copyWith("x", intValue(1))
+    val vNull = CypherRow.empty.copyWith("x", NO_VALUE)
+    val v14 = CypherRow.empty.copyWith("x", intValue(14))
 
     // then when
     predicate.isMatch(v1, state) should equal(None)
@@ -123,15 +128,15 @@ abstract class CachedInTest extends CypherFunSuite {
   test("check lists") {
     // given
     val listInList = ListLiteral(
-      ListLiteral(Literal(1), Literal(2)),
-      ListLiteral(Literal(3), Literal(4)))
+      ListLiteral(literal(1), literal(2)),
+      ListLiteral(literal(3), literal(4)))
     val predicate = createPredicate(Variable("x"), listInList)
 
     val state = QueryStateHelper.empty
 
-    val v1 = ExecutionContext.empty.set("x", VirtualValues.list(intValue(1),intValue(2)))
-    val vNull = ExecutionContext.empty.set("x", NO_VALUE)
-    val v14 = ExecutionContext.empty.set("x", intValue(14))
+    val v1 = CypherRow.empty.copyWith("x", VirtualValues.list(intValue(1), intValue(2)))
+    val vNull = CypherRow.empty.copyWith("x", NO_VALUE)
+    val v14 = CypherRow.empty.copyWith("x", intValue(14))
 
     // then when
     predicate.isMatch(v1, state) should equal(Some(true))

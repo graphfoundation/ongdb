@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -50,17 +50,20 @@ import static org.neo4j.codegen.MethodReference.methodReference;
 import static org.neo4j.codegen.TypeReference.NO_TYPES;
 import static org.neo4j.codegen.TypeReference.typeReference;
 
+/**
+ * A ClassGenerator enrichs a ClassWriter with field management, and returns CodeBlocks instead of MethodWriters.
+ */
 public class ClassGenerator implements AutoCloseable
 {
     private final ClassHandle handle;
-    private ClassEmitter emitter;
+    private ClassWriter writer;
     private Map<String,FieldReference> fields;
     private boolean hasConstructor;
 
-    ClassGenerator( ClassHandle handle, ClassEmitter emitter )
+    ClassGenerator( ClassHandle handle, ClassWriter writer )
     {
         this.handle = handle;
-        this.emitter = emitter;
+        this.writer = writer;
     }
 
     @Override
@@ -70,9 +73,9 @@ public class ClassGenerator implements AutoCloseable
         {
             generate( MethodTemplate.constructor().invokeSuper().build() );
         }
-        emitter.done();
+        writer.done();
         handle.generator.closeClass();
-        emitter = InvalidState.CLASS_DONE;
+        writer = InvalidState.CLASS_DONE;
     }
 
     public ClassHandle handle()
@@ -90,17 +93,27 @@ public class ClassGenerator implements AutoCloseable
         return emitField( Modifier.PUBLIC, type, name, null );
     }
 
-    public FieldReference staticField( Class<?> type, String name, Expression value )
+    public FieldReference privateStaticFinalField( Class<?> type, String name, Expression value )
     {
-        return staticField( typeReference( type ), name, value );
+        return privateStaticFinalField( typeReference( type ), name, value );
     }
 
-    public FieldReference staticField( TypeReference type, String name )
+    public FieldReference publicStaticField( TypeReference type, String name )
     {
         return emitField( Modifier.PUBLIC | Modifier.STATIC, type, name, null );
     }
 
-    public FieldReference staticField( TypeReference type, String name, Expression value )
+    public FieldReference privateStaticField( Class<?> type, String name, Expression value )
+    {
+        return privateStaticField( typeReference( type ), name, value );
+    }
+
+    public FieldReference privateStaticField( TypeReference type, String name, Expression value )
+    {
+        return emitField( Modifier.PRIVATE | Modifier.STATIC, type, name, value );
+    }
+
+    public FieldReference privateStaticFinalField( TypeReference type, String name, Expression value )
     {
         return emitField( Modifier.PRIVATE | Modifier.STATIC | Modifier.FINAL, type, name, Objects.requireNonNull( value ) );
     }
@@ -117,7 +130,7 @@ public class ClassGenerator implements AutoCloseable
         }
         FieldReference field = new FieldReference( modifiers, handle, type, name );
         fields.put( name, field );
-        emitter.field( field, value );
+        writer.field( field, value );
         return field;
     }
 
@@ -171,7 +184,7 @@ public class ClassGenerator implements AutoCloseable
         {
             hasConstructor = true;
         }
-        return new CodeBlock( this, emitter.method( declaration ), declaration.parameters() );
+        return new CodeBlock( this, writer.method( declaration ), declaration.parameters() );
     }
 
     FieldReference getField( String name )

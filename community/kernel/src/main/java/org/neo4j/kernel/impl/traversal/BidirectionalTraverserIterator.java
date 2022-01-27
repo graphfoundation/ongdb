@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -45,7 +45,6 @@ import java.util.Map;
 import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
-import org.neo4j.graphdb.Resource;
 import org.neo4j.graphdb.traversal.BidirectionalUniquenessFilter;
 import org.neo4j.graphdb.traversal.BranchCollisionDetector;
 import org.neo4j.graphdb.traversal.BranchSelector;
@@ -76,15 +75,13 @@ class BidirectionalTraverserIterator extends AbstractTraverserIterator
         }
     }
 
-    BidirectionalTraverserIterator( Resource resource,
-                                    MonoDirectionalTraversalDescription start,
+    BidirectionalTraverserIterator( MonoDirectionalTraversalDescription start,
                                     MonoDirectionalTraversalDescription end,
                                     SideSelectorPolicy sideSelector,
                                     org.neo4j.graphdb.traversal.BranchCollisionPolicy collisionPolicy,
                                     PathEvaluator collisionEvaluator, int maxDepth,
                                     Iterable<Node> startNodes, Iterable<Node> endNodes )
     {
-        super( resource );
         this.sides.put( Direction.OUTGOING, new Side( start ) );
         this.sides.put( Direction.INCOMING, new Side( end ) );
         this.uniqueness = makeSureStartAndEndHasSameUniqueness( start, end );
@@ -103,9 +100,9 @@ class BidirectionalTraverserIterator extends AbstractTraverserIterator
         this.collisionDetector = collisionPolicy.create( collisionEvaluator, uniqueness::checkFull );
     }
 
-    private BidirectionalUniquenessFilter makeSureStartAndEndHasSameUniqueness( MonoDirectionalTraversalDescription
+    private static BidirectionalUniquenessFilter makeSureStartAndEndHasSameUniqueness( MonoDirectionalTraversalDescription
             start,
-                                                                   MonoDirectionalTraversalDescription end )
+            MonoDirectionalTraversalDescription end )
     {
         if ( !start.uniqueness.equals( end.uniqueness ) )
         {
@@ -132,7 +129,7 @@ class BidirectionalTraverserIterator extends AbstractTraverserIterator
         return (BidirectionalUniquenessFilter) uniqueness;
     }
 
-    private SideSelector fixedSide( final Direction direction )
+    private static SideSelector fixedSide( final Direction direction )
     {
         return new SideSelector()
         {
@@ -158,19 +155,17 @@ class BidirectionalTraverserIterator extends AbstractTraverserIterator
             if ( foundPaths.hasNext() )
             {
                 numberOfPathsReturned++;
-                Path next = foundPaths.next();
-                return next;
+                return foundPaths.next();
             }
             foundPaths = null;
         }
 
-        TraversalBranch result = null;
+        TraversalBranch result;
         while ( true )
         {
             result = selector.next( this );
             if ( result == null )
             {
-                close();
                 return null;
             }
             Iterable<Path> pathCollisions = collisionDetector.evaluate( result, selector.currentSide() );

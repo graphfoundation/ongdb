@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,18 +38,18 @@
  */
 package org.neo4j.values.storable;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-public class ValueAsObjectCopyTest
+class ValueAsObjectCopyTest
 {
-    private Iterable<AsObjectCopyTest> scalars = Arrays.asList(
+    private final Iterable<AsObjectCopyTest> scalars = Arrays.asList(
             shouldGivePublic( Values.byteValue( (byte)1 ), (byte)1 ),
             shouldGivePublic( Values.shortValue( (short)2 ), (short)2 ),
             shouldGivePublic( Values.intValue( 3 ), 3 ),
@@ -62,7 +62,7 @@ public class ValueAsObjectCopyTest
         );
 
     @Test
-    public void shouldProvideScalarValueAsPublic()
+    void shouldProvideScalarValueAsPublic()
     {
         for ( AsObjectCopyTest test : scalars )
         {
@@ -73,150 +73,150 @@ public class ValueAsObjectCopyTest
     // DIRECT ARRAYS
 
     @Test
-    public void shouldProvideDirectByteArrayAsPublic()
+    void shouldProvideDirectByteArrayAsPublic()
     {
         byte[] inStore = {1};
         Value value = Values.byteArray( inStore );
         Object asObject = value.asObjectCopy();
-        assertTrue( "should return byte[]", asObject instanceof byte[] );
+        assertNotNull( asObject, "should return byte[]" );
 
         byte[] arr = (byte[]) asObject;
-        assertTrue( "should have same values", Arrays.equals( inStore, arr ) );
+        assertArrayEquals( inStore, arr, "should have same values" );
 
         arr[0] = -1;
-        assertFalse( "should not modify inStore array", Arrays.equals( inStore, arr ) );
-        assertTrue( "should still generate inStore array", Arrays.equals( inStore, (byte[])value.asObjectCopy() ) );
+        assertFalse( Arrays.equals( inStore, arr ), "should not modify inStore array" );
+        assertArrayEquals( inStore, (byte[]) value.asObjectCopy(), "should still generate inStore array" );
     }
 
     @Test
-    public void shouldProvideDirectShortArrayAsPublic()
+    void shouldProvideDirectShortArrayAsPublic()
     {
         short[] inStore = {1};
         Value value = Values.shortArray( inStore );
         Object asObject = value.asObjectCopy();
-        assertTrue( "should return short[]", asObject instanceof short[] );
+        assertNotNull( asObject, "should return short[]" );
 
         short[] arr = (short[]) asObject;
-        assertTrue( "should have same values", Arrays.equals( inStore, arr ) );
+        assertArrayEquals( inStore, arr, "should have same values" );
 
         arr[0] = -1;
-        assertFalse( "should not modify inStore array", Arrays.equals( inStore, arr ) );
-        assertTrue( "should still generate inStore array", Arrays.equals( inStore, (short[])value.asObjectCopy() ) );
+        assertFalse( Arrays.equals( inStore, arr ), "should not modify inStore array" );
+        assertArrayEquals( inStore, (short[]) value.asObjectCopy(), "should still generate inStore array" );
     }
 
     @Test
-    public void shouldProvideDirectIntArrayAsPublic()
+    void shouldProvideDirectIntArrayAsPublic()
     {
         int[] inStore = {1};
         Value value = Values.intArray( inStore );
         Object asObject = value.asObjectCopy();
-        assertTrue( "should return int[]", asObject instanceof int[] );
+        assertNotNull( asObject, "should return int[]" );
 
         int[] arr = (int[]) asObject;
-        assertTrue( "should have same values", Arrays.equals( inStore, arr ) );
+        assertArrayEquals( inStore, arr, "should have same values" );
 
         arr[0] = -1;
-        assertFalse( "should not modify inStore array", Arrays.equals( inStore, arr ) );
-        assertTrue( "should still generate inStore array", Arrays.equals( inStore, (int[])value.asObjectCopy() ) );
+        assertFalse( Arrays.equals( inStore, arr ), "should not modify inStore array" );
+        assertArrayEquals( inStore, (int[]) value.asObjectCopy(), "should still generate inStore array" );
     }
 
     @Test
-    public void shouldProvideDirectLongArrayAsPublic()
+    void shouldProvideDirectLongArrayAsPublic()
     {
         long[] inStore = {1};
         Value value = Values.longArray( inStore );
         Object asObject = value.asObjectCopy();
-        assertTrue( "should return long[]", asObject instanceof long[] );
+        assertNotNull( asObject, "should return long[]" );
 
         long[] arr = (long[]) asObject;
-        assertTrue( "should have same values", Arrays.equals( inStore, arr ) );
+        assertArrayEquals( inStore, arr, "should have same values" );
 
         arr[0] = -1;
-        assertFalse( "should not modify inStore array", Arrays.equals( inStore, arr ) );
-        assertTrue( "should still generate inStore array", Arrays.equals( inStore, (long[])value.asObjectCopy() ) );
+        assertFalse( Arrays.equals( inStore, arr ), "should not modify inStore array" );
+        assertArrayEquals( inStore, (long[]) value.asObjectCopy(), "should still generate inStore array" );
     }
 
     @Test
-    public void shouldProvideDirectFloatArrayAsPublic()
+    void shouldProvideDirectFloatArrayAsPublic()
     {
         float[] inStore = {1};
         Value value = Values.floatArray( inStore );
         Object asObject = value.asObjectCopy();
-        assertTrue( "should return float[]", asObject instanceof float[] );
+        assertNotNull( asObject, "should return float[]" );
 
         float[] arr = (float[]) asObject;
-        assertTrue( "should have same values", Arrays.equals( inStore, arr ) );
+        assertArrayEquals( inStore, arr, "should have same values" );
 
         arr[0] = -1;
-        assertFalse( "should not modify inStore array", Arrays.equals( inStore, arr ) );
-        assertTrue( "should still generate inStore array", Arrays.equals( inStore, (float[])value.asObjectCopy() ) );
+        assertFalse( Arrays.equals( inStore, arr ), "should not modify inStore array" );
+        assertArrayEquals( inStore, (float[]) value.asObjectCopy(), "should still generate inStore array" );
     }
 
     @Test
-    public void shouldProvideDirectDoubleArrayAsPublic()
+    void shouldProvideDirectDoubleArrayAsPublic()
     {
         double[] inStore = {1};
         Value value = Values.doubleArray( inStore );
         Object asObject = value.asObjectCopy();
-        assertTrue( "should return double[]", asObject instanceof double[] );
+        assertNotNull( asObject, "should return double[]" );
 
         double[] arr = (double[]) asObject;
-        assertTrue( "should have same values", Arrays.equals( inStore, arr ) );
+        assertArrayEquals( inStore, arr, "should have same values" );
 
         arr[0] = -1;
-        assertFalse( "should not modify inStore array", Arrays.equals( inStore, arr ) );
-        assertTrue( "should still generate inStore array", Arrays.equals( inStore, (double[])value.asObjectCopy() ) );
+        assertFalse( Arrays.equals( inStore, arr ), "should not modify inStore array" );
+        assertArrayEquals( inStore, (double[]) value.asObjectCopy(), "should still generate inStore array" );
     }
 
     @Test
-    public void shouldProvideDirectCharArrayAsPublic()
+    void shouldProvideDirectCharArrayAsPublic()
     {
         char[] inStore = {'a'};
         Value value = Values.charArray( inStore );
         Object asObject = value.asObjectCopy();
-        assertTrue( "should return char[]", asObject instanceof char[] );
+        assertNotNull( asObject, "should return char[]" );
 
         char[] arr = (char[]) asObject;
-        assertTrue( "should have same values", Arrays.equals( inStore, arr ) );
+        assertArrayEquals( inStore, arr, "should have same values" );
 
         arr[0] = 'b';
-        assertFalse( "should not modify inStore array", Arrays.equals( inStore, arr ) );
-        assertTrue( "should still generate inStore array", Arrays.equals( inStore, (char[])value.asObjectCopy() ) );
+        assertFalse( Arrays.equals( inStore, arr ), "should not modify inStore array" );
+        assertArrayEquals( inStore, (char[]) value.asObjectCopy(), "should still generate inStore array" );
     }
 
     @Test
-    public void shouldProvideDirectStringArrayAsPublic()
+    void shouldProvideDirectStringArrayAsPublic()
     {
         String[] inStore = {"a"};
         Value value = Values.stringArray( inStore );
         Object asObject = value.asObjectCopy();
-        assertTrue( "should return String[]", asObject instanceof String[] );
+        assertNotNull( asObject, "should return String[]" );
 
         String[] arr = (String[]) asObject;
-        assertTrue( "should have same values", Arrays.equals( inStore, arr ) );
+        assertArrayEquals( inStore, arr, "should have same values" );
 
         arr[0] = "b";
-        assertFalse( "should not modify inStore array", Arrays.equals( inStore, arr ) );
-        assertTrue( "should still generate inStore array", Arrays.equals( inStore, (String[])value.asObjectCopy() ) );
+        assertFalse( Arrays.equals( inStore, arr ), "should not modify inStore array" );
+        assertArrayEquals( inStore, (String[]) value.asObjectCopy(), "should still generate inStore array" );
     }
 
     @Test
-    public void shouldProvideDirectBooleanArrayAsPublic()
+    void shouldProvideDirectBooleanArrayAsPublic()
     {
         boolean[] inStore = {true};
         Value value = Values.booleanArray( inStore );
         Object asObject = value.asObjectCopy();
-        assertTrue( "should return boolean[]", asObject instanceof boolean[] );
+        assertNotNull( asObject, "should return boolean[]" );
 
         boolean[] arr = (boolean[]) asObject;
-        assertTrue( "should have same values", Arrays.equals( inStore, arr ) );
+        assertArrayEquals( inStore, arr, "should have same values" );
 
         arr[0] = false;
-        assertFalse( "should not modify inStore array", Arrays.equals( inStore, arr ) );
-        assertTrue( "should still generate inStore array", Arrays.equals( inStore, (boolean[])value.asObjectCopy() ) );
+        assertFalse( Arrays.equals( inStore, arr ), "should not modify inStore array" );
+        assertArrayEquals( inStore, (boolean[]) value.asObjectCopy(), "should still generate inStore array" );
     }
 
-    private AsObjectCopyTest shouldGivePublic( Value value, Object asObject )
+    private static AsObjectCopyTest shouldGivePublic( Value value, Object asObject )
     {
         return new AsObjectCopyTest( value, asObject );
     }
@@ -234,7 +234,7 @@ public class ValueAsObjectCopyTest
 
         void assertGeneratesPublic()
         {
-            assertThat( value.asObjectCopy(), equalTo( expected ) );
+            assertThat( value.asObjectCopy() ).isEqualTo( expected );
         }
     }
 }

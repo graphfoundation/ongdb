@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,38 +38,30 @@
  */
 package org.neo4j.kernel.api.impl.index.storage;
 
+import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.FilterDirectory;
-import org.apache.lucene.store.IOContext;
-import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.NIOFSDirectory;
 import org.apache.lucene.store.NRTCachingDirectory;
-import org.apache.lucene.store.RAMDirectory;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
-import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.IOUtils;
 import org.neo4j.util.FeatureToggles;
 
-import static java.lang.Math.min;
-
-public interface DirectoryFactory extends FileSystemAbstraction.ThirdPartyFileSystem
+public interface DirectoryFactory extends AutoCloseable
 {
-    Directory open( File dir ) throws IOException;
+    static DirectoryFactory directoryFactory( boolean ephemeral )
+    {
+        return ephemeral ? new DirectoryFactory.InMemoryDirectoryFactory() : DirectoryFactory.PERSISTENT;
+    }
 
-    /**
-     * Called when the directory factory is disposed of, really only here to allow
-     * the ram directory thing to close open directories.
-     */
-    @Override
-    void close();
+    Directory open( Path dir ) throws IOException;
 
     DirectoryFactory PERSISTENT = new DirectoryFactory()
     {
@@ -82,10 +74,10 @@ public interface DirectoryFactory extends FileSystemAbstraction.ThirdPartyFileSy
 
         @SuppressWarnings( "ResultOfMethodCallIgnored" )
         @Override
-        public Directory open( File dir ) throws IOException
+        public Directory open( Path dir ) throws IOException
         {
-            dir.mkdirs();
-            FSDirectory directory = USE_DEFAULT_DIRECTORY_FACTORY ? FSDirectory.open( dir.toPath() ) : new NIOFSDirectory( dir.toPath() );
+            Files.createDirectories( dir );
+            FSDirectory directory = USE_DEFAULT_DIRECTORY_FACTORY ? FSDirectory.open( dir ) : new NIOFSDirectory( dir );
             return new NRTCachingDirectory( directory, MAX_MERGE_SIZE_MB, MAX_CACHED_MB );
         }
 
@@ -95,60 +87,27 @@ public interface DirectoryFactory extends FileSystemAbstraction.ThirdPartyFileSy
             // No resources to release. This method only exists as a hook for test implementations.
         }
 
-        @Override
-        public void dumpToZip( ZipOutputStream zip, byte[] scratchPad )
-        {
-            // do nothing
-        }
     };
 
     final class InMemoryDirectoryFactory implements DirectoryFactory
     {
-        private final Map<File, RAMDirectory> directories = new HashMap<>();
+        private final Map<Path, Directory> directories = new HashMap<>();
 
         @Override
-        public synchronized Directory open( File dir )
+        public synchronized Directory open( Path dir )
         {
             if ( !directories.containsKey( dir ) )
             {
-                directories.put( dir, new RAMDirectory() );
+                directories.put( dir, new ByteBuffersDirectory() );
             }
             return new UncloseableDirectory( directories.get( dir ) );
         }
 
         @Override
-        public synchronized void close()
+        public synchronized void close() throws IOException
         {
-            for ( RAMDirectory ramDirectory : directories.values() )
-            {
-                ramDirectory.close();
-            }
+            IOUtils.closeAll( directories.values() );
             directories.clear();
-        }
-
-        @Override
-        public void dumpToZip( ZipOutputStream zip, byte[] scratchPad ) throws IOException
-        {
-            for ( Map.Entry<File, RAMDirectory> entry : directories.entrySet() )
-            {
-                RAMDirectory ramDir = entry.getValue();
-                for ( String fileName : ramDir.listAll() )
-                {
-                    zip.putNextEntry( new ZipEntry( new File( entry.getKey(), fileName ).getAbsolutePath() ) );
-                    copy( ramDir.openInput( fileName, IOContext.DEFAULT ), zip, scratchPad );
-                    zip.closeEntry();
-                }
-            }
-        }
-
-        private static void copy( IndexInput source, OutputStream target, byte[] buffer ) throws IOException
-        {
-            for ( long remaining = source.length(), read; remaining > 0; remaining -= read )
-            {
-                read = min( remaining, buffer.length );
-                source.readBytes( buffer, 0, (int) read );
-                target.write( buffer, 0, (int) read );
-            }
         }
     }
 
@@ -162,7 +121,7 @@ public interface DirectoryFactory extends FileSystemAbstraction.ThirdPartyFileSy
         }
 
         @Override
-        public Directory open( File dir )
+        public Directory open( Path dir )
         {
             return directory;
         }
@@ -170,12 +129,6 @@ public interface DirectoryFactory extends FileSystemAbstraction.ThirdPartyFileSy
         @Override
         public void close()
         {
-        }
-
-        @Override
-        public void dumpToZip( ZipOutputStream zip, byte[] scratchPad )
-        {
-            throw new UnsupportedOperationException();
         }
     }
 

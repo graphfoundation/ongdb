@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,8 +38,6 @@
  */
 package org.neo4j.tooling.procedure.procedures.invalid.bad_record_field_type;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -63,7 +61,7 @@ public class BadRecordGenericFieldType
     public List<Relationship> okType11;
     public List<Object> okType12;
     public Map<String,Object> okType13;
-    public HashMap<String,Object> okType14;
-    public ArrayList<Boolean> okType15;
-    public ArrayList<Object> okType16;
+    public Map<String,Object> okType14;
+    public List<Boolean> okType15;
+    public List<Object> okType16;
 }

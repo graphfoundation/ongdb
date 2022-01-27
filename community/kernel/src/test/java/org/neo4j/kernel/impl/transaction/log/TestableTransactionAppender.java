@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,13 +38,12 @@
  */
 package org.neo4j.kernel.impl.transaction.log;
 
-import java.io.IOException;
-
 import org.neo4j.kernel.impl.api.TransactionToApply;
 import org.neo4j.kernel.impl.transaction.tracing.LogAppendEvent;
-import org.neo4j.kernel.impl.transaction.tracing.LogCheckPointEvent;
+import org.neo4j.kernel.lifecycle.LifecycleAdapter;
+import org.neo4j.storageengine.api.TransactionIdStore;
 
-public class TestableTransactionAppender implements TransactionAppender
+public class TestableTransactionAppender extends LifecycleAdapter implements TransactionAppender
 {
     private final TransactionIdStore transactionIdStore;
 
@@ -61,14 +60,9 @@ public class TestableTransactionAppender implements TransactionAppender
         {
             txId = transactionIdStore.nextCommittingTransactionId();
             batch.commitment( new FakeCommitment( txId, transactionIdStore ), txId );
-            batch.commitment().publishAsCommitted();
+            batch.publishAsCommitted();
             batch = batch.next();
         }
         return txId;
-    }
-
-    @Override
-    public void checkPoint( LogPosition logPosition, LogCheckPointEvent logCheckPointEvent )
-    {
     }
 }

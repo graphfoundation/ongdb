@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -124,10 +124,23 @@ public interface Layout<KEY, VALUE> extends Comparator<KEY>
     void readValue( PageCursor cursor, VALUE into, int valueSize );
 
     /**
-     * Indicate if keys and values are fixed or dynamix size.
+     * Indicate if keys and values are fixed or dynamic size.
      * @return true if keys and values are fixed size, otherwise true.
      */
     boolean fixedSize();
+
+    /**
+     * Find shortest key (best effort) that separate left from right in sort order
+     * and initialize into with result.
+     * @param left key that is less than right
+     * @param right key that is greater than left.
+     * @param into will be initialized with result.
+     */
+    default void minimalSplitter( KEY left, KEY right, KEY into )
+    {
+        copyKey( right, into );
+    }
+
     /**
      * Used as verification when loading an index after creation, to verify that the same layout is used,
      * as the one it was initially created with.
@@ -145,28 +158,6 @@ public interface Layout<KEY, VALUE> extends Comparator<KEY>
      * @return minor version of layout. Will be compared to version written into meta page when opening index.
      */
     int minorVersion();
-
-    /**
-     * Writes meta data specific to this layout instance to {@code cursor} at its current offset.
-     *
-     * @param cursor {@link PageCursor} to write into, at its current offset.
-     */
-    default void writeMetaData( PageCursor cursor )
-    {   // no meta-data by default
-    }
-
-    /**
-     * Reads meta data specific to this layout instance from {@code cursor} at its current offset.
-     * The read meta data must also be verified against meta data provided in constructor of this Layout.
-     * Constructor-provided meta data can be {@code null} to skip this verification.
-     * if read meta data doesn't match with the meta data provided in constructor
-     * {@link PageCursor#setCursorException(String)} should be called with appropriate error message.
-     *
-     * @param cursor {@link PageCursor} to read from, at its current offset.
-     */
-    default void readMetaData( PageCursor cursor )
-    {   // no meta-data by default
-    }
 
     /**
      * Utility method for generating an {@link #identifier()}. Generates an 8-byte identifier from a short name
@@ -213,6 +204,18 @@ public interface Layout<KEY, VALUE> extends Comparator<KEY>
     boolean compatibleWith( long layoutIdentifier, int majorVersion, int minorVersion );
 
     /**
+     * Initializes the given key to a state where it's lower than any possible key in the tree.
+     * @param key key to initialize.
+     */
+    void initializeAsLowest( KEY key );
+
+    /**
+     * Initializes the given key to a state where it's higher than any possible key in the tree.
+     * @param key key to initialize.
+     */
+    void initializeAsHighest( KEY key );
+
+    /**
      * Adapter for {@link Layout}, which contains convenient standard implementations of some methods.
      *
      * @param <KEY> type of key
@@ -220,12 +223,48 @@ public interface Layout<KEY, VALUE> extends Comparator<KEY>
      */
     abstract class Adapter<KEY, VALUE> implements Layout<KEY,VALUE>
     {
+        private final boolean fixedSize;
+        private final long identifier;
+        private final int majorVersion;
+        private final int minorVersion;
+
+        protected Adapter( boolean fixedSize, long identifier, int majorVersion, int minorVersion )
+        {
+            this.fixedSize = fixedSize;
+            this.identifier = identifier;
+            this.majorVersion = majorVersion;
+            this.minorVersion = minorVersion;
+        }
+
+        @Override
+        public boolean fixedSize()
+        {
+            return fixedSize;
+        }
+
+        @Override
+        public long identifier()
+        {
+            return identifier;
+        }
+
+        @Override
+        public int majorVersion()
+        {
+            return majorVersion;
+        }
+
+        @Override
+        public int minorVersion()
+        {
+            return minorVersion;
+        }
+
         @Override
         public String toString()
         {
-            return format( "%s[version:%d.%d, identifier:%d, keySize:%d, valueSize:%d, fixedSize:%b]",
-                    getClass().getSimpleName(), majorVersion(), minorVersion(), identifier(),
-                    keySize( null ), valueSize( null ), fixedSize() );
+            return format( "%s[version:%d.%d, identifier:%d, fixedSize:%b]",
+                    getClass().getSimpleName(), majorVersion(), minorVersion(), identifier(), fixedSize() );
         }
 
         @Override

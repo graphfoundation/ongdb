@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,10 +38,12 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.CypherRow
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.values.storable.Values._
+import org.neo4j.cypher.internal.runtime.interpreted.commands.LiteralHelper.literal
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.values.storable.Values.NO_VALUE
+import org.neo4j.values.storable.Values.stringValue
 import org.neo4j.values.virtual.VirtualValues.list
 
 class SplitFunctionTest extends CypherFunSuite {
@@ -80,10 +82,56 @@ class SplitFunctionTest extends CypherFunSuite {
     split("", "") should be(seq(""))
   }
 
+  test("splitting non-empty string with multiple separator characters") {
+    split("first,second;third", List(",", ";")) should be(seq("first", "second", "third"))
+  }
+
+  test("splitting non-empty string with multiple separator strings") {
+    split("(a)-->(b)<--(c)-->(d)--(e)", List("-->", "<--", "--")) should be(seq("(a)", "(b)", "(c)", "(d)", "(e)"))
+  }
+
+  test("splitting non-empty string with multiple separator strings where one is empty should return all one-char substrings") {
+    val expected = list("this is a sentence".split("").map(stringValue): _*)
+    split("this is a sentence", List(",", ";", "")) should be(expected)
+  }
+
+  test("splitting non-empty string with multiple separator strings where one is empty and others match valid characters should return all one-char substrings without the other matching characters") {
+    val sentence = ";This is a sentence;, with punctuation..."
+    val expected = list(sentence.replaceAll("[,.;]", "").split("").map(stringValue): _*)
+    split(sentence, List(",", ".", ";", "")) should be(expected)
+  }
+
+  test("splitting char with separator set to same char should return empty") {
+    split('a', "a") should be(seq("", ""))
+  }
+
+  test("splitting char with separator set to different char should return original") {
+    split('a', "b") should be(seq("a"))
+  }
+
+  test("splitting char with multiple separator characters where one is the same should return empty") {
+    split('a', List("a", "b")) should be(seq("", ""))
+  }
+
   private def seq(vals: String*) = list(vals.map(stringValue):_*)
 
   private def split(orig: String, splitPattern: String) = {
-    val expr = SplitFunction(Literal(orig), Literal(splitPattern))
-    expr(ExecutionContext.empty, QueryStateHelper.empty)
+    val expr = SplitFunction(literal(orig), literal(splitPattern))
+    expr(CypherRow.empty, QueryStateHelper.empty)
+  }
+
+  private def split(orig: Char, splitPattern: String) = {
+    val expr = SplitFunction(literal(orig), literal(splitPattern))
+    expr(CypherRow.empty, QueryStateHelper.empty)
+  }
+
+  private def split(orig: String, splitDelimiters: List[String]) = {
+    val expr = SplitFunction(literal(orig), literal(splitDelimiters))
+    expr(CypherRow.empty, QueryStateHelper.empty)
+  }
+
+  private def split(orig: Char, splitDelimiters: List[String]) = {
+    val expr = SplitFunction(literal(orig), literal(splitDelimiters))
+    expr(CypherRow.empty, QueryStateHelper.empty)
   }
 }

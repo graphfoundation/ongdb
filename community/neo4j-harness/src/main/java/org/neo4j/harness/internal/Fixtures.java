@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,63 +38,61 @@
  */
 package org.neo4j.harness.internal;
 
-import java.io.File;
-import java.io.FileFilter;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.LinkedList;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.io.fs.FileUtils;
 
 /**
  * Manages user-defined cypher fixtures that can be exercised against the server.
  */
 public class Fixtures
 {
-    private final List<String> fixtureStatements = new LinkedList<>();
-    private final List<Function<GraphDatabaseService, Void>> fixtureFunctions = new LinkedList<>();
+    private final List<String> fixtureStatements = new ArrayList<>();
+    private final List<Function<GraphDatabaseService, Void>> fixtureFunctions = new ArrayList<>();
 
-    private final String cypherSuffix = "cyp";
+    private static final String cypherSuffix = "cyp";
 
-    private final FileFilter cypherFileOrDirectoryFilter = file ->
+    private final DirectoryStream.Filter<Path> cypherFileOrDirectoryFilter = file ->
     {
-        if ( file.isDirectory() )
+        if ( Files.isDirectory( file ) )
         {
             return true;
         }
-        String[] split = file.getName().split( "\\." );
+        String[] split = file.getFileName().toString().split( "\\." );
         String suffix = split[split.length - 1];
         return suffix.equals( cypherSuffix );
     };
 
-    public void add( File fixturePath )
+    public void add( Path fixturePath )
     {
         try
         {
-            if ( fixturePath.isDirectory() )
+            if ( Files.isDirectory( fixturePath ) )
             {
-                for ( File file : fixturePath.listFiles( cypherFileOrDirectoryFilter ) )
+                try ( DirectoryStream<Path> paths = Files.newDirectoryStream( fixturePath, cypherFileOrDirectoryFilter ) )
                 {
-                    add( file );
+                    paths.forEach( this::add );
                 }
                 return;
             }
-            add( FileUtils.readTextFile( fixturePath, StandardCharsets.UTF_8 ) );
+            add( Files.readString( fixturePath ) );
         }
         catch ( IOException e )
         {
-            throw new RuntimeException(
-                    "Unable to read fixture file '" + fixturePath.getAbsolutePath() + "': " + e.getMessage(), e );
+            throw new RuntimeException( "Unable to read fixture file '" + fixturePath.toAbsolutePath() + "': " + e.getMessage(), e );
         }
     }
 
     public void add( String statement )
     {
-        if ( statement.trim().length() > 0 )
+        if ( !statement.isBlank() )
         {
             fixtureStatements.add( statement );
         }
@@ -105,15 +103,15 @@ public class Fixtures
         fixtureFunctions.add( fixtureFunction );
     }
 
-    public void applyTo( InProcessServerControls controls )
+    void applyTo( InProcessNeo4j controls )
     {
-        GraphDatabaseService db = controls.graph();
+        GraphDatabaseService db = controls.defaultDatabaseService();
         for ( String fixtureStatement : fixtureStatements )
         {
             try ( Transaction tx = db.beginTx() )
             {
-                db.execute( fixtureStatement );
-                tx.success();
+                tx.execute( fixtureStatement );
+                tx.commit();
             }
         }
         for ( Function<GraphDatabaseService,Void> fixtureFunction : fixtureFunctions )

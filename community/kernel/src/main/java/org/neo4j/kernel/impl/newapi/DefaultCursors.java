@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,336 +40,48 @@ package org.neo4j.kernel.impl.newapi;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
-import java.util.ArrayList;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.List;
+import java.util.Collection;
 
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseInternalSettings;
 import org.neo4j.internal.kernel.api.AutoCloseablePlus;
-import org.neo4j.internal.kernel.api.CursorFactory;
 
 import static java.lang.String.format;
-import static org.neo4j.util.FeatureToggles.flag;
 
-public class DefaultCursors implements CursorFactory
+abstract class DefaultCursors
 {
-    private DefaultNodeCursor nodeCursor;
-    private DefaultRelationshipScanCursor relationshipScanCursor;
-    private DefaultRelationshipTraversalCursor relationshipTraversalCursor;
-    private DefaultPropertyCursor propertyCursor;
-    private DefaultRelationshipGroupCursor relationshipGroupCursor;
-    private DefaultNodeValueIndexCursor nodeValueIndexCursor;
-    private DefaultNodeLabelIndexCursor nodeLabelIndexCursor;
-    private DefaultNodeExplicitIndexCursor nodeExplicitIndexCursor;
-    private DefaultRelationshipExplicitIndexCursor relationshipExplicitIndexCursor;
+    private final Collection<CloseableStacktrace> closeables;
+    private final boolean trackCursorClose;
+    private final boolean traceCursorClose;
 
-    private static final boolean DEBUG_CLOSING = flag( DefaultCursors.class, "trackCursors", false );
-    private List<CloseableStacktrace> closeables = new ArrayList<>();
-
-    @Override
-    public DefaultNodeCursor allocateNodeCursor()
+    DefaultCursors( Collection<CloseableStacktrace> closeables, Config config )
     {
-        if ( nodeCursor == null )
-        {
-            return trace( new DefaultNodeCursor( this ) );
-        }
-
-        try
-        {
-            return nodeCursor;
-        }
-        finally
-        {
-            nodeCursor = null;
-        }
+        this.closeables = closeables;
+        this.trackCursorClose = config.get( GraphDatabaseInternalSettings.track_cursor_close );
+        this.traceCursorClose = config.get( GraphDatabaseInternalSettings.trace_cursors );
     }
 
-    public void accept( DefaultNodeCursor cursor )
+    protected <T extends AutoCloseablePlus> T trace( T closeable )
     {
-        if ( nodeCursor != null )
+        if ( trackCursorClose )
         {
-            nodeCursor.release();
-        }
-        nodeCursor = cursor;
-    }
+            StackTraceElement[] stackTrace = null;
+            if ( traceCursorClose )
+            {
+                stackTrace = Thread.currentThread().getStackTrace();
+                stackTrace = Arrays.copyOfRange( stackTrace, 2, stackTrace.length );
+            }
 
-    @Override
-    public DefaultRelationshipScanCursor allocateRelationshipScanCursor()
-    {
-        if ( relationshipScanCursor == null )
-        {
-            return trace( new DefaultRelationshipScanCursor( this ) );
-        }
-
-        try
-        {
-            return relationshipScanCursor;
-        }
-        finally
-        {
-            relationshipScanCursor = null;
-        }
-    }
-
-    public void accept( DefaultRelationshipScanCursor cursor )
-    {
-        if ( relationshipScanCursor != null )
-        {
-            relationshipScanCursor.release();
-        }
-        relationshipScanCursor = cursor;
-    }
-
-    @Override
-    public DefaultRelationshipTraversalCursor allocateRelationshipTraversalCursor()
-    {
-        if ( relationshipTraversalCursor == null )
-        {
-            return trace( new DefaultRelationshipTraversalCursor( new DefaultRelationshipGroupCursor( null ), this ) );
-        }
-
-        try
-        {
-            return relationshipTraversalCursor;
-        }
-        finally
-        {
-            relationshipTraversalCursor = null;
-        }
-    }
-
-    public void accept( DefaultRelationshipTraversalCursor cursor )
-    {
-        if ( relationshipTraversalCursor != null )
-        {
-            relationshipTraversalCursor.release();
-        }
-        relationshipTraversalCursor = cursor;
-    }
-
-    @Override
-    public DefaultPropertyCursor allocatePropertyCursor()
-    {
-        if ( propertyCursor == null )
-        {
-            return trace( new DefaultPropertyCursor( this ) );
-        }
-
-        try
-        {
-            return propertyCursor;
-        }
-        finally
-        {
-            propertyCursor = null;
-        }
-    }
-
-    public void accept( DefaultPropertyCursor cursor )
-    {
-        if ( propertyCursor != null )
-        {
-            propertyCursor.release();
-        }
-        propertyCursor = cursor;
-    }
-
-    @Override
-    public DefaultRelationshipGroupCursor allocateRelationshipGroupCursor()
-    {
-        if ( relationshipGroupCursor == null )
-        {
-            return trace( new DefaultRelationshipGroupCursor( this ) );
-        }
-
-        try
-        {
-            return relationshipGroupCursor;
-        }
-        finally
-        {
-            relationshipGroupCursor = null;
-        }
-    }
-
-    public void accept( DefaultRelationshipGroupCursor cursor )
-    {
-        if ( relationshipGroupCursor != null )
-        {
-            relationshipGroupCursor.release();
-        }
-        relationshipGroupCursor = cursor;
-    }
-
-    @Override
-    public DefaultNodeValueIndexCursor allocateNodeValueIndexCursor()
-    {
-        if ( nodeValueIndexCursor == null )
-        {
-            return trace( new DefaultNodeValueIndexCursor( this ) );
-        }
-
-        try
-        {
-            return nodeValueIndexCursor;
-        }
-        finally
-        {
-            nodeValueIndexCursor = null;
-        }
-    }
-
-    public void accept( DefaultNodeValueIndexCursor cursor )
-    {
-        if ( nodeValueIndexCursor != null )
-        {
-            nodeValueIndexCursor.release();
-        }
-        nodeValueIndexCursor = cursor;
-    }
-
-    @Override
-    public DefaultNodeLabelIndexCursor allocateNodeLabelIndexCursor()
-    {
-        if ( nodeLabelIndexCursor == null )
-        {
-            return trace( new DefaultNodeLabelIndexCursor( this ) );
-        }
-
-        try
-        {
-            return nodeLabelIndexCursor;
-        }
-        finally
-        {
-            nodeLabelIndexCursor = null;
-        }
-    }
-
-    public void accept( DefaultNodeLabelIndexCursor cursor )
-    {
-        if ( nodeLabelIndexCursor != null )
-        {
-            nodeLabelIndexCursor.release();
-        }
-        nodeLabelIndexCursor = cursor;
-    }
-
-    @Override
-    public DefaultNodeExplicitIndexCursor allocateNodeExplicitIndexCursor()
-    {
-        if ( nodeExplicitIndexCursor == null )
-        {
-            return trace( new DefaultNodeExplicitIndexCursor( this ) );
-        }
-
-        try
-        {
-            return nodeExplicitIndexCursor;
-        }
-        finally
-        {
-            nodeExplicitIndexCursor = null;
-        }
-    }
-
-    public void accept( DefaultNodeExplicitIndexCursor cursor )
-    {
-        if ( nodeExplicitIndexCursor != null )
-        {
-            nodeExplicitIndexCursor.release();
-        }
-        nodeExplicitIndexCursor = cursor;
-    }
-
-    @Override
-    public DefaultRelationshipExplicitIndexCursor allocateRelationshipExplicitIndexCursor()
-    {
-        if ( relationshipExplicitIndexCursor == null )
-        {
-            return trace( new DefaultRelationshipExplicitIndexCursor( new DefaultRelationshipScanCursor( null ), this ) );
-        }
-
-        try
-        {
-            return relationshipExplicitIndexCursor;
-        }
-        finally
-        {
-            relationshipExplicitIndexCursor = null;
-        }
-    }
-
-    public void accept( DefaultRelationshipExplicitIndexCursor cursor )
-    {
-        if ( relationshipExplicitIndexCursor != null )
-        {
-            relationshipExplicitIndexCursor.release();
-        }
-        relationshipExplicitIndexCursor = cursor;
-    }
-
-    public void release()
-    {
-        if ( nodeCursor != null )
-        {
-            nodeCursor.release();
-            nodeCursor = null;
-        }
-        if ( relationshipScanCursor != null )
-        {
-            relationshipScanCursor.release();
-            relationshipScanCursor = null;
-        }
-        if ( relationshipTraversalCursor != null )
-        {
-            relationshipTraversalCursor.release();
-            relationshipTraversalCursor = null;
-        }
-        if ( propertyCursor != null )
-        {
-            propertyCursor.release();
-            propertyCursor = null;
-        }
-        if ( relationshipGroupCursor != null )
-        {
-            relationshipGroupCursor.release();
-            relationshipGroupCursor = null;
-        }
-        if ( nodeValueIndexCursor != null )
-        {
-            nodeValueIndexCursor.release();
-            nodeValueIndexCursor = null;
-        }
-        if ( nodeLabelIndexCursor != null )
-        {
-            nodeLabelIndexCursor.release();
-            nodeLabelIndexCursor = null;
-        }
-        if ( nodeExplicitIndexCursor != null )
-        {
-            nodeExplicitIndexCursor.release();
-            nodeExplicitIndexCursor = null;
-        }
-        if ( relationshipExplicitIndexCursor != null )
-        {
-            relationshipExplicitIndexCursor.release();
-            relationshipExplicitIndexCursor = null;
-        }
-    }
-
-    private <T extends AutoCloseablePlus> T trace( T closeable )
-    {
-        if ( DEBUG_CLOSING )
-        {
-            StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
-            closeables.add( new CloseableStacktrace( closeable, Arrays.copyOfRange( stackTrace, 2, stackTrace.length ) ) );
+            closeables.add( new CloseableStacktrace( closeable, stackTrace ) );
         }
         return closeable;
     }
 
     void assertClosed()
     {
-        if ( DEBUG_CLOSING )
+        if ( trackCursorClose )
         {
             for ( CloseableStacktrace c : closeables )
             {
@@ -395,14 +107,23 @@ public class DefaultCursors implements CursorFactory
             if ( !c.isClosed() )
             {
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
-                PrintStream printStream = new PrintStream( out );
+                PrintStream printStream = new PrintStream( out, false, StandardCharsets.UTF_8 );
 
-                for ( StackTraceElement traceElement : stackTrace )
+                if ( stackTrace != null )
                 {
-                    printStream.println( "\tat " + traceElement );
+                    printStream.println();
+                    for ( StackTraceElement traceElement : stackTrace )
+                    {
+                        printStream.println( "\tat " + traceElement );
+                    }
+                }
+                else
+                {
+                    String msg = format( " To see stack traces please set '%s' setting to true", GraphDatabaseInternalSettings.trace_cursors.name() );
+                    printStream.print( msg );
                 }
                 printStream.println();
-                throw new IllegalStateException( format( "Closeable %s was not closed!\n%s", c, out.toString() ) );
+                throw new IllegalStateException( format( "Closeable %s was not closed!%s", c, out.toString( StandardCharsets.UTF_8 ) ) );
             }
         }
     }

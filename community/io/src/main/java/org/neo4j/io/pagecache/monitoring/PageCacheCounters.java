@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -55,6 +55,11 @@ public interface PageCacheCounters
     long evictions();
 
     /**
+     * @return The number of cooperative page evictions observed thus far.
+     */
+    long cooperativeEvictions();
+
+    /**
      * @return The number of page pins observed thus far.
      */
     long pins();
@@ -73,6 +78,11 @@ public interface PageCacheCounters
      * @return The number of page flushes observed thus far.
      */
     long flushes();
+
+    /**
+     * @return The number of page merges observed so far
+     */
+    long merges();
 
     /**
      * @return The sum total of bytes read in through page faults thus far.
@@ -105,8 +115,34 @@ public interface PageCacheCounters
     double hitRatio();
 
     /**
-     * @return The current usage ration of number of used pages to the total number of pages or {@code NaN} if it cannot
+     * @return The current usage ration of number of used pages to the total number of pages or {@code 0} if it cannot
      * be determined.
      */
     double usageRatio();
+
+    /**
+     * @return The number of IOPQ performed thus far.
+     */
+    long iopqPerformed();
+
+    /**
+     * @return The number of times page cache io was throttled by io limiter thus far.
+     */
+    long ioLimitedTimes();
+
+    /**
+     * @return The number of millis page cache io was throttled by io limiter thus far.
+     */
+    long ioLimitedMillis();
+
+    /**
+     * @return Total number of opened page cache cursors.
+     */
+    long openedCursors();
+
+    /**
+     *
+     * @return Total number of closed page cache cursors.
+     */
+    long closedCursors();
 }

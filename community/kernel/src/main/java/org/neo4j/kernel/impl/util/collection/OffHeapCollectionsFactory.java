@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,59 +38,69 @@
  */
 package org.neo4j.kernel.impl.util.collection;
 
-import org.neo4j.collection.primitive.Primitive;
-import org.neo4j.collection.primitive.PrimitiveIntObjectMap;
-import org.neo4j.collection.primitive.PrimitiveLongObjectMap;
-import org.neo4j.collection.primitive.PrimitiveLongSet;
-import org.neo4j.kernel.impl.util.diffsets.PrimitiveLongDiffSets;
-import org.neo4j.memory.MemoryAllocationTracker;
+import org.eclipse.collections.api.map.primitive.MutableLongObjectMap;
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+
+import java.util.ArrayList;
+import java.util.Collection;
+
+import org.neo4j.graphdb.Resource;
+import org.neo4j.kernel.impl.api.state.AppendOnlyValuesContainer;
+import org.neo4j.kernel.impl.api.state.ValuesContainer;
+import org.neo4j.kernel.impl.api.state.ValuesMap;
+import org.neo4j.kernel.impl.util.diffsets.MutableLongDiffSets;
 import org.neo4j.memory.MemoryTracker;
+import org.neo4j.values.storable.Value;
 
-import static java.util.Objects.requireNonNull;
-import static org.neo4j.collection.primitive.PrimitiveLongCollections.emptySet;
+import static org.neo4j.kernel.impl.util.diffsets.TrackableDiffSets.newMutableLongDiffSets;
 
-class OffHeapCollectionsFactory implements CollectionsFactory
+public class OffHeapCollectionsFactory implements CollectionsFactory
 {
-    private final MemoryAllocationTracker memoryTracker;
+    private final MemoryAllocator allocator;
 
-    OffHeapCollectionsFactory( MemoryAllocationTracker memoryTracker )
+    private final Collection<Resource> resources = new ArrayList<>();
+    private ValuesContainer valuesContainer;
+
+    public OffHeapCollectionsFactory( OffHeapBlockAllocator blockAllocator )
     {
-        this.memoryTracker = requireNonNull( memoryTracker );
+        this.allocator = new OffHeapMemoryAllocator( blockAllocator );
     }
 
     @Override
-    public PrimitiveLongSet newLongSet()
+    public MutableLongSet newLongSet( MemoryTracker memoryTracker )
     {
-        return Primitive.offHeapLongSet( memoryTracker );
+        final MutableLinearProbeLongHashSet set = new MutableLinearProbeLongHashSet( allocator, memoryTracker );
+        resources.add( set );
+        return set;
     }
 
     @Override
-    public <V> PrimitiveLongObjectMap<V> newLongObjectMap()
+    public MutableLongDiffSets newLongDiffSets( MemoryTracker memoryTracker )
     {
-        return Primitive.longObjectMap();
+        return newMutableLongDiffSets( this, memoryTracker );
     }
 
     @Override
-    public <V> PrimitiveIntObjectMap<V> newIntObjectMap()
+    public MutableLongObjectMap<Value> newValuesMap( MemoryTracker memoryTracker )
     {
-        return Primitive.intObjectMap();
+        if ( valuesContainer == null )
+        {
+            valuesContainer = new AppendOnlyValuesContainer( allocator, memoryTracker );
+        }
+        final LinearProbeLongLongHashMap refs = new LinearProbeLongLongHashMap( allocator, memoryTracker );
+        resources.add( refs );
+        return new ValuesMap( refs, valuesContainer );
     }
 
     @Override
-    public PrimitiveLongDiffSets newLongDiffSets()
+    public void release()
     {
-        return new PrimitiveLongDiffSets( emptySet(), emptySet(), this );
-    }
-
-    @Override
-    public MemoryTracker getMemoryTracker()
-    {
-        return memoryTracker;
-    }
-
-    @Override
-    public boolean collectionsMustBeReleased()
-    {
-        return true;
+        resources.forEach( Resource::close );
+        resources.clear();
+        if ( valuesContainer != null )
+        {
+            valuesContainer.close();
+            valuesContainer = null;
+        }
     }
 }

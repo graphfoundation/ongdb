@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -45,7 +45,8 @@ public class IllegalTokenNameException extends SchemaKernelException
     public IllegalTokenNameException( String tokenName )
     {
         super( Status.Schema.TokenNameError,
-                String.format( "%s is not a valid token name. Only non-null, non-empty strings are allowed.",
+                String.format( "%s is not a valid token name. " +
+                                "Token names cannot be empty or contain any null-bytes.",
                 tokenName != null ? "'" + tokenName + "'" : "Null" ) );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -86,4 +86,12 @@ public interface Extractor<T> extends Cloneable
     String name();
 
     Extractor<T> clone();
+
+    /**
+     * Normalizes this extractor to that of a broader type, if possible. E.g. an extractor for {@code int} becomes {@code long}.
+     * This normalization should match higher levels of type systems, like Cypher.
+     *
+     * @return an extractor which potentially is of a broader type than this extractor.
+     */
+    Extractor<?> normalize();
 }

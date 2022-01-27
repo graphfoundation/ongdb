@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,9 +41,9 @@ package org.neo4j.kernel.impl.traversal;
 import java.util.Iterator;
 import java.util.LinkedList;
 
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.PathExpander;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.traversal.BranchState;
@@ -51,10 +51,10 @@ import org.neo4j.graphdb.traversal.Evaluation;
 import org.neo4j.graphdb.traversal.Paths;
 import org.neo4j.graphdb.traversal.TraversalBranch;
 import org.neo4j.graphdb.traversal.TraversalContext;
-import org.neo4j.helpers.collection.Iterators;
-import org.neo4j.helpers.collection.PrefetchingIterator;
+import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.internal.helpers.collection.PrefetchingIterator;
 
-import static org.neo4j.helpers.collection.Iterators.asResourceIterator;
+import static org.neo4j.internal.helpers.collection.Iterators.asResourceIterator;
 
 class TraversalBranchImpl implements TraversalBranch
 {
@@ -94,7 +94,7 @@ class TraversalBranchImpl implements TraversalBranch
         this.depthAndEvaluationBits |= bitValue( evaluation.includes(), 30 ) | bitValue( evaluation.continues(), 31 );
     }
 
-    private int bitValue( boolean value, int bit )
+    private static int bitValue( boolean value, int bit )
     {
         return (value ? 1 : 0) << bit;
     }
@@ -219,7 +219,7 @@ class TraversalBranchImpl implements TraversalBranch
     @Override
     public void evaluation( Evaluation eval )
     {
-        setEvaluation( Evaluation.of( includes() & eval.includes(), continues() & eval.continues() ) );
+        setEvaluation( Evaluation.of( includes() && eval.includes(), continues() && eval.continues() ) );
     }
 
     @Override
@@ -266,7 +266,7 @@ class TraversalBranchImpl implements TraversalBranch
     @Override
     public Iterable<Relationship> reverseRelationships()
     {
-        return () -> new PrefetchingIterator<Relationship>()
+        return () -> new PrefetchingIterator<>()
         {
             private TraversalBranch branch = TraversalBranchImpl.this;
 
@@ -302,7 +302,7 @@ class TraversalBranchImpl implements TraversalBranch
     @Override
     public Iterable<Node> reverseNodes()
     {
-        return () -> new PrefetchingIterator<Node>()
+        return () -> new PrefetchingIterator<>()
         {
             private TraversalBranch branch = TraversalBranchImpl.this;
 
@@ -322,9 +322,9 @@ class TraversalBranchImpl implements TraversalBranch
     }
 
     @Override
-    public Iterator<PropertyContainer> iterator()
+    public Iterator<Entity> iterator()
     {
-        LinkedList<PropertyContainer> entities = new LinkedList<>();
+        LinkedList<Entity> entities = new LinkedList<>();
         TraversalBranch branch = this;
         while ( branch.length() > 0 )
         {

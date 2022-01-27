@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,11 +38,12 @@
  */
 package org.neo4j.values.virtual;
 
-
 import org.neo4j.values.AnyValueWriter;
 import org.neo4j.values.storable.TextArray;
 
 import static java.lang.String.format;
+import static org.neo4j.memory.HeapEstimator.shallowSizeOfInstance;
+import static org.neo4j.values.AnyValueWriter.EntityMode.REFERENCE;
 
 public abstract class NodeValue extends VirtualNodeValue
 {
@@ -60,7 +61,14 @@ public abstract class NodeValue extends VirtualNodeValue
     @Override
     public <E extends Exception> void writeTo( AnyValueWriter<E> writer ) throws E
     {
-        writer.writeNode( id, labels(), properties() );
+        if ( writer.entityMode() == REFERENCE )
+        {
+            writer.writeNodeReference( id );
+        }
+        else
+        {
+            writer.writeNode( id, labels(), properties(), isDeleted() );
+        }
     }
 
     @Override
@@ -81,10 +89,12 @@ public abstract class NodeValue extends VirtualNodeValue
         return "Node";
     }
 
+    private static final long DIRECT_NODE_SHALLOW_SIZE = shallowSizeOfInstance( DirectNodeValue.class );
     static class DirectNodeValue extends NodeValue
     {
         private final TextArray labels;
         private final MapValue properties;
+        private final boolean isDeleted;
 
         DirectNodeValue( long id, TextArray labels, MapValue properties )
         {
@@ -93,6 +103,17 @@ public abstract class NodeValue extends VirtualNodeValue
             assert properties != null;
             this.labels = labels;
             this.properties = properties;
+            this.isDeleted = false;
+        }
+
+        DirectNodeValue( long id, TextArray labels, MapValue properties, boolean isDeleted )
+        {
+            super( id );
+            assert labels != null;
+            assert properties != null;
+            this.labels = labels;
+            this.properties = properties;
+            this.isDeleted = isDeleted;
         }
 
         @Override
@@ -105,6 +126,18 @@ public abstract class NodeValue extends VirtualNodeValue
         public MapValue properties()
         {
             return properties;
+        }
+
+        @Override
+        public long estimatedHeapUsage()
+        {
+            return DIRECT_NODE_SHALLOW_SIZE + labels.estimatedHeapUsage() + properties.estimatedHeapUsage();
+        }
+
+        @Override
+        public boolean isDeleted()
+        {
+            return isDeleted;
         }
     }
 }

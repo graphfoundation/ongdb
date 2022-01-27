@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,16 +38,19 @@
  */
 package org.neo4j.logging;
 
+import org.neo4j.annotations.api.PublicApi;
+
 /**
  * Used to obtain a {@link Log} for a specified context
  */
+@PublicApi
 public interface LogProvider
 {
     /**
      * @param loggingClass the context for the returned {@link Log}
      * @return a {@link Log} that logs messages with the {@code loggingClass} as the context
      */
-    Log getLog( Class loggingClass );
+    Log getLog( Class<?> loggingClass );
 
     /**
      * @param name the context for the returned {@link Log}

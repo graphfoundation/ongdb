@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,157 +39,117 @@
 package org.neo4j.kernel.impl.api.state;
 
 import org.apache.commons.lang3.mutable.MutableBoolean;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.RuleChain;
-import org.junit.rules.TestRule;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.eclipse.collections.api.IntIterable;
+import org.eclipse.collections.api.set.primitive.LongSet;
+import org.eclipse.collections.impl.UnmodifiableMap;
+import org.eclipse.collections.impl.factory.primitive.LongSets;
+import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.NavigableMap;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.TreeMap;
 
-import org.neo4j.cursor.Cursor;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.helpers.collection.Pair;
-import org.neo4j.internal.kernel.api.IndexQuery;
-import org.neo4j.internal.kernel.api.exceptions.schema.ConstraintValidationException;
-import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
-import org.neo4j.kernel.api.exceptions.schema.CreateConstraintFailureException;
-import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.api.schema.constaints.ConstraintDescriptorFactory;
-import org.neo4j.kernel.api.schema.constaints.UniquenessConstraintDescriptor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
+import org.neo4j.common.EntityType;
+import org.neo4j.exceptions.KernelException;
+import org.neo4j.function.Predicates;
+import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.internal.helpers.collection.Pair;
+import org.neo4j.internal.schema.ConstraintDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptors;
+import org.neo4j.internal.schema.constraints.ConstraintDescriptorFactory;
+import org.neo4j.internal.schema.constraints.IndexBackedConstraintDescriptor;
+import org.neo4j.internal.schema.constraints.UniquenessConstraintDescriptor;
+import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
 import org.neo4j.kernel.impl.util.collection.CollectionsFactory;
 import org.neo4j.kernel.impl.util.collection.CollectionsFactorySupplier;
-import org.neo4j.storageengine.api.Direction;
-import org.neo4j.storageengine.api.RelationshipItem;
-import org.neo4j.storageengine.api.txstate.PrimitiveLongReadableDiffSets;
-import org.neo4j.storageengine.api.txstate.ReadableDiffSets;
+import org.neo4j.kernel.impl.util.diffsets.MutableLongDiffSets;
+import org.neo4j.kernel.impl.util.diffsets.MutableLongDiffSetsImpl;
+import org.neo4j.memory.LocalMemoryTracker;
+import org.neo4j.memory.MemoryTracker;
+import org.neo4j.storageengine.api.StorageProperty;
+import org.neo4j.storageengine.api.txstate.DiffSets;
+import org.neo4j.storageengine.api.txstate.LongDiffSets;
+import org.neo4j.storageengine.api.txstate.RelationshipModifications;
+import org.neo4j.storageengine.api.txstate.TransactionStateBehaviour;
 import org.neo4j.storageengine.api.txstate.TxStateVisitor;
-import org.neo4j.test.rule.RandomRule;
-import org.neo4j.test.rule.RepeatRule;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
+import org.neo4j.test.RandomSupport;
 import org.neo4j.values.storable.Value;
-import org.neo4j.values.storable.ValueGroup;
 import org.neo4j.values.storable.ValueTuple;
 import org.neo4j.values.storable.Values;
 
-import static java.util.Arrays.asList;
-import static java.util.Collections.emptySet;
 import static java.util.Collections.singleton;
-import static java.util.Collections.singletonList;
-import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.junit.runners.Parameterized.Parameter;
-import static org.junit.runners.Parameterized.Parameters;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.eclipse.collections.impl.set.mutable.primitive.LongHashSet.newSetWith;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.neo4j.collection.primitive.Primitive.intObjectMap;
-import static org.neo4j.collection.primitive.PrimitiveIntCollections.toList;
-import static org.neo4j.collection.primitive.PrimitiveLongCollections.toSet;
-import static org.neo4j.helpers.collection.Iterators.asSet;
-import static org.neo4j.helpers.collection.Pair.of;
-import static org.neo4j.kernel.impl.api.state.StubCursors.cursor;
-import static org.neo4j.kernel.impl.api.state.StubCursors.relationship;
-import static org.neo4j.values.storable.ValueGroup.TEXT;
-import static org.neo4j.values.storable.Values.NO_VALUE;
+import static org.mockito.internal.verification.VerificationModeFactory.times;
+import static org.neo4j.internal.helpers.collection.Iterators.asSet;
+import static org.neo4j.internal.helpers.collection.Pair.of;
+import static org.neo4j.internal.schema.SchemaDescriptors.forLabel;
+import static org.neo4j.values.storable.Values.stringValue;
 
-@RunWith( Parameterized.class )
-public class TxStateTest
+@ExtendWith( RandomExtension.class )
+abstract class TxStateTest
 {
-    public final RandomRule random = new RandomRule();
+    @Inject
+    private RandomSupport random;
 
-    @Rule
-    public final TestRule repeatWithDifferentRandomization()
-    {
-        return RuleChain.outerRule( new RepeatRule() ).around( random );
-    }
-
-    private final SchemaIndexDescriptor indexOn_1_1 = SchemaIndexDescriptorFactory.forLabel( 1, 1 );
-    private final SchemaIndexDescriptor indexOn_1_2 = SchemaIndexDescriptorFactory.forLabel( 1, 2 );
-    private final SchemaIndexDescriptor indexOn_2_1 = SchemaIndexDescriptorFactory.forLabel( 2, 1 );
-
+    private final IndexDescriptor indexOn_1_1 = TestIndexDescriptorFactory.forLabel( 1, 1 );
+    private final IndexDescriptor indexOn_2_1 = TestIndexDescriptorFactory.forLabel( 2, 1 );
+    private final IndexDescriptor indexOnRels = TestIndexDescriptorFactory.forSchema( SchemaDescriptors.forRelType( 3, 1 ) );
+    private final CollectionsFactorySupplier collectionsFactorySupplier;
     private CollectionsFactory collectionsFactory;
     private TxState state;
+    private MemoryTracker memoryTracker;
 
-    @Parameter
-    public CollectionsFactorySupplier collectionsFactorySupplier;
-
-    @Parameters( name = "{0}" )
-    public static List<CollectionsFactorySupplier> data()
+    TxStateTest( CollectionsFactorySupplier collectionsFactorySupplier )
     {
-        return asList(
-                new CollectionsFactorySupplier()
-                {
-                    @Override
-                    public CollectionsFactory create()
-                    {
-                        return CollectionsFactorySupplier.ON_HEAP.create();
-                    }
-
-                    @Override
-                    public String toString()
-                    {
-                        return "On heap";
-                    }
-                },
-                new CollectionsFactorySupplier()
-                {
-                    @Override
-                    public CollectionsFactory create()
-                    {
-                        return CollectionsFactorySupplier.OFF_HEAP.create();
-                    }
-
-                    @Override
-                    public String toString()
-                    {
-                        return "Off heap";
-                    }
-                }
-        );
+        this.collectionsFactorySupplier = collectionsFactorySupplier;
     }
 
-    @Before
-    public void before()
+    @BeforeEach
+    void before()
     {
-        collectionsFactory = collectionsFactorySupplier.create();
-        state = new TxState( collectionsFactory );
+        memoryTracker = new LocalMemoryTracker();
+        collectionsFactory = spy( collectionsFactorySupplier.create() );
+        state = new TxState( collectionsFactory, memoryTracker, TransactionStateBehaviour.DEFAULT_BEHAVIOUR );
     }
 
-    @After
-    public void after()
+    @AfterEach
+    void after()
     {
-        state.release();
-        assertEquals( "Seems like native memory is leaking", 0L, collectionsFactory.getMemoryTracker().usedDirectMemory() );
+        collectionsFactory.release();
+        assertEquals( 0L, memoryTracker.usedNativeMemory(), "Seems like native memory is leaking" );
     }
-
-    //region node label update tests
 
     @Test
-    public void shouldGetAddedLabels()
+    void shouldGetAddedLabels()
     {
         // GIVEN
         state.nodeDoAddLabel( 1, 0 );
@@ -197,14 +157,14 @@ public class TxStateTest
         state.nodeDoAddLabel( 2, 1 );
 
         // WHEN
-        Set<Integer> addedLabels = state.nodeStateLabelDiffSets( 1 ).getAdded();
+        LongSet addedLabels = state.nodeStateLabelDiffSets( 1 ).getAdded();
 
         // THEN
-        assertEquals( asSet( 1, 2 ), addedLabels );
+        assertEquals( newSetWith( 1, 2 ), addedLabels );
     }
 
     @Test
-    public void shouldGetRemovedLabels()
+    void shouldGetRemovedLabels()
     {
         // GIVEN
         state.nodeDoRemoveLabel( 1, 0 );
@@ -212,14 +172,14 @@ public class TxStateTest
         state.nodeDoRemoveLabel( 2, 1 );
 
         // WHEN
-        Set<Integer> removedLabels = state.nodeStateLabelDiffSets( 1 ).getRemoved();
+        LongSet removedLabels = state.nodeStateLabelDiffSets( 1 ).getRemoved();
 
         // THEN
-        assertEquals( asSet( 1, 2 ), removedLabels );
+        assertEquals( newSetWith( 1, 2 ), removedLabels );
     }
 
     @Test
-    public void removeAddedLabelShouldRemoveFromAdded()
+    void removeAddedLabelShouldRemoveFromAdded()
     {
         // GIVEN
         state.nodeDoAddLabel( 1, 0 );
@@ -230,11 +190,11 @@ public class TxStateTest
         state.nodeDoRemoveLabel( 1, 1 );
 
         // THEN
-        assertEquals( asSet( 2 ), state.nodeStateLabelDiffSets( 1 ).getAdded() );
+        assertEquals( newSetWith( 2 ), state.nodeStateLabelDiffSets( 1 ).getAdded() );
     }
 
     @Test
-    public void addRemovedLabelShouldRemoveFromRemoved()
+    void addRemovedLabelShouldRemoveFromRemoved()
     {
         // GIVEN
         state.nodeDoRemoveLabel( 1, 0 );
@@ -245,31 +205,11 @@ public class TxStateTest
         state.nodeDoAddLabel( 1, 1 );
 
         // THEN
-        assertEquals( asSet( 2 ), state.nodeStateLabelDiffSets( 1 ).getRemoved() );
+        assertEquals( newSetWith( 2 ), state.nodeStateLabelDiffSets( 1 ).getRemoved() );
     }
 
     @Test
-    public void shouldHandleMultipleLabels()
-    {
-        // GIVEN
-        state.nodeDoRemoveLabel( 1, 0 );
-        state.nodeDoRemoveLabel( 2, 1 );
-        state.nodeDoRemoveLabel( 3, 2 );
-        state.nodeDoAddLabel( 1, 3 );
-        state.nodeDoAddLabel( 2, 4 );
-        state.nodeDoAddLabel( 3, 5 );
-
-        // WHEN
-        Set<Long> removed = state.nodesWithAllLabelsChanged( 1, 2, 3 ).getRemoved();
-        Set<Long> added = state.nodesWithAllLabelsChanged( 1, 2, 3 ).getAdded();
-
-        // THEN
-        assertEquals( asSet( 0L, 1L, 2L ), Iterables.asSet( removed ) );
-        assertEquals( asSet( 3L, 4L, 5L ), Iterables.asSet( added ) );
-    }
-
-    @Test
-    public void shouldMapFromRemovedLabelToNodes()
+    void shouldMapFromRemovedLabelToNodes()
     {
         // GIVEN
         state.nodeDoRemoveLabel( 1, 0 );
@@ -279,862 +219,213 @@ public class TxStateTest
         state.nodeDoRemoveLabel( 2, 2 );
 
         // WHEN
-        Set<Long> nodes = state.nodesWithLabelChanged( 2 ).getRemoved();
+        LongSet nodes = state.nodesWithLabelChanged( 2 ).getRemoved();
 
         // THEN
-        assertEquals( asSet( 0L, 2L ), Iterables.asSet( nodes ) );
-    }
-
-    //endregion
-
-    //region index rule tests
-
-    @Test
-    public void shouldAddAndGetByLabel()
-    {
-        // WHEN
-        state.indexRuleDoAdd( indexOn_1_1, null );
-        state.indexRuleDoAdd( indexOn_2_1, null );
-
-        // THEN
-        assertEquals( asSet( indexOn_1_1 ),
-                state.indexDiffSetsByLabel( indexOn_1_1.schema().keyId() ).getAdded() );
+        assertEquals( newSetWith( 0L, 2L ), nodes );
     }
 
     @Test
-    public void shouldAddAndGetByRuleId()
+    void shouldGetAddedRelationshipsByType()
     {
         // GIVEN
-        state.indexRuleDoAdd( indexOn_1_1, null );
+        state.relationshipDoCreate( 1, 1, 1, 1 );
+        state.relationshipDoCreate( 2, 1, 1, 1 );
+        state.relationshipDoCreate( 3, 2, 1, 1 );
+
+        // WHEN
+        LongSet addedRelationshipsWithType = state.relationshipsWithTypeChanged( 1 ).getAdded();
+
+        // THEN
+        assertEquals( newSetWith( 1, 2 ), addedRelationshipsWithType );
+    }
+
+    @Test
+    void shouldGetRemovedRelationshipsByType()
+    {
+        // GIVEN
+        state.relationshipDoDelete( 1, 1, 1, 1 );
+        state.relationshipDoDelete( 2, 1, 1, 1 );
+        state.relationshipDoDelete( 3, 2, 1, 1 );
+
+        // WHEN
+        LongSet removedRelationshipsWithType = state.relationshipsWithTypeChanged( 1 ).getRemoved();
+
+        // THEN
+        assertEquals( newSetWith( 1, 2 ), removedRelationshipsWithType );
+    }
+
+    @Test
+    void removeAddedRelationshipTypeShouldRemoveFromAdded()
+    {
+        // GIVEN
+        state.relationshipDoCreate( 1, 1, 1, 1 );
+        state.relationshipDoCreate( 2, 1, 1, 1 );
+        state.relationshipDoCreate( 3, 2, 1, 1 );
+
+        // WHEN
+        state.relationshipDoDelete( 2, 1, 1, 1 );
+        LongSet addedRelationshipsWithType = state.relationshipsWithTypeChanged( 1 ).getAdded();
+
+        // THEN
+        assertEquals( newSetWith( 1 ), addedRelationshipsWithType );
+    }
+
+    @Test
+    void addRemovedRelationshipTypeShouldRemoveFromRemoved()
+    {
+        // GIVEN
+        state.relationshipDoDelete( 1, 1, 1, 1 );
+        state.relationshipDoDelete( 2, 1, 1, 1 );
+        state.relationshipDoDelete( 3, 2, 1, 1 );
+
+        // WHEN
+        state.relationshipDoCreate( 2, 1, 1, 1 );
+        LongSet removedRelationshipsWithType = state.relationshipsWithTypeChanged( 1 ).getRemoved();
+
+        // THEN
+        assertEquals( newSetWith( 1 ), removedRelationshipsWithType );
+    }
+
+    @Test
+    void removeRelationshipAddedInThisTxShouldRemoveFromTypeChanges()
+    {
+        // GIVEN
+        state.relationshipDoCreate( 1, 1, 1, 1 );
+        state.relationshipDoCreate( 2, 1, 1, 1 );
+        state.relationshipDoCreate( 3, 2, 1, 1 );
+
+        // WHEN
+        state.relationshipDoDeleteAddedInThisTx( 2 );
+        LongSet addedRelationshipsWithType = state.relationshipsWithTypeChanged( 1 ).getAdded();
+
+        // THEN
+        assertEquals( newSetWith( 1 ), addedRelationshipsWithType );
+    }
+
+    @Test
+    void shouldComputeIndexUpdatesOnUninitializedTxState()
+    {
+        // WHEN
+        UnmodifiableMap<ValueTuple,? extends LongDiffSets> diffSets = state.getIndexUpdates( indexOn_1_1.schema() );
+
+        // THEN
+        assertNull( diffSets );
+    }
+
+    @Test
+    void shouldComputeSortedIndexUpdatesOnUninitializedTxState()
+    {
+        // WHEN
+        NavigableMap<ValueTuple,? extends LongDiffSets> diffSets = state.getSortedIndexUpdates( indexOn_1_1.schema() );
+
+        // THEN
+        assertNull( diffSets );
+    }
+
+    @Test
+    void shouldComputeIndexUpdatesOnEmptyTxState()
+    {
+        // GIVEN
+        addNodesToIndex( indexOn_2_1 ).withDefaultStringProperties( 42L );
+
+        // WHEN
+        UnmodifiableMap<ValueTuple,? extends LongDiffSets> diffSets = state.getIndexUpdates( indexOn_1_1.schema() );
+
+        // THEN
+        assertNull( diffSets );
+    }
+
+    @Test
+    void shouldComputeSortedIndexUpdatesOnEmptyTxState()
+    {
+        // GIVEN
+        addNodesToIndex( indexOn_2_1 ).withDefaultStringProperties( 42L );
+
+        // WHEN
+        NavigableMap<ValueTuple,? extends LongDiffSets> diffSets = state.getSortedIndexUpdates( indexOn_1_1.schema() );
+
+        // THEN
+        assertNull( diffSets );
+    }
+
+    @Test
+    void shouldComputeIndexUpdatesOnTxStateWithAddedNodes()
+    {
+        // GIVEN
+        addNodesToIndex( indexOn_1_1 ).withDefaultStringProperties( 42L );
+        addNodesToIndex( indexOn_1_1 ).withDefaultStringProperties( 43L );
+        addNodesToIndex( indexOn_1_1 ).withDefaultStringProperties( 41L );
+
+        // WHEN
+        UnmodifiableMap<ValueTuple,? extends LongDiffSets> diffSets = state.getIndexUpdates( indexOn_1_1.schema() );
+
+        // THEN
+        assertNotNull( diffSets );
+        assertEqualDiffSets( addedNodes( 42L ), diffSets.get( ValueTuple.of( stringValue( "value42" ) ) ) );
+        assertEqualDiffSets( addedNodes( 43L ), diffSets.get( ValueTuple.of( stringValue( "value43" ) ) ) );
+        assertEqualDiffSets( addedNodes( 41L ), diffSets.get( ValueTuple.of( stringValue( "value41" ) ) ) );
+    }
+
+    @Test
+    void shouldComputeSortedIndexUpdatesOnTxStateWithAddedNodes()
+    {
+        // GIVEN
+        addNodesToIndex( indexOn_1_1 ).withDefaultStringProperties( 42L );
+        addNodesToIndex( indexOn_1_1 ).withDefaultStringProperties( 43L );
+        addNodesToIndex( indexOn_1_1 ).withDefaultStringProperties( 41L );
+
+        // WHEN
+        NavigableMap<ValueTuple,? extends LongDiffSets> diffSets = state.getSortedIndexUpdates( indexOn_1_1.schema() );
+
+        TreeMap<ValueTuple,LongDiffSets> expected = sortedAddedNodesDiffSets( 42, 41, 43 );
+        // THEN
+        assertNotNull( diffSets );
+        assertEquals( expected.keySet(), diffSets.keySet() );
+        for ( final ValueTuple key : expected.keySet() )
+        {
+            assertEqualDiffSets( expected.get( key ), diffSets.get( key ) );
+        }
+    }
+
+    @Test
+    void shouldAddAndGetByLabel()
+    {
+        // WHEN
+        state.indexDoAdd( indexOn_1_1 );
+        state.indexDoAdd( indexOn_2_1 );
+
+        // THEN
+        SchemaDescriptor schema = indexOn_1_1.schema();
+        int[] labels = schema.getEntityTokenIds();
+        assertEquals( schema.entityType(), EntityType.NODE );
+        assertEquals( 1, labels.length );
+        assertEquals( asSet( indexOn_1_1 ), state.indexDiffSetsByLabel( labels[0] ).getAdded() );
+    }
+
+    @Test
+    void shouldAddAndGetByRelType()
+    {
+        // WHEN
+        state.indexDoAdd( indexOnRels );
+        state.indexDoAdd( indexOn_2_1 );
+
+        // THEN
+        assertEquals( asSet( indexOnRels ), state.indexDiffSetsByRelationshipType( indexOnRels.schema().getRelTypeId() ).getAdded() );
+    }
+
+    @Test
+    void shouldAddAndGetByRuleId()
+    {
+        // GIVEN
+        state.indexDoAdd( indexOn_1_1 );
 
         // THEN
         assertEquals( asSet( indexOn_1_1 ), state.indexChanges().getAdded() );
     }
 
     @Test
-    public void shouldRememberSpecificallySetIndexProviderDescriptor() throws ConstraintValidationException, CreateConstraintFailureException
-    {
-        // given
-        IndexProvider.Descriptor specificProvider = new IndexProvider.Descriptor( "myProvider", "9.9" );
-        state.indexRuleDoAdd( indexOn_1_1, specificProvider );
-
-        // when
-        AtomicReference<IndexProvider.Descriptor> visitedProviderDescriptor = new AtomicReference<>();
-        state.accept( new TxStateVisitor.Adapter()
-        {
-            @Override
-            public void visitAddedIndex( SchemaIndexDescriptor index, IndexProvider.Descriptor providerDescriptor )
-            {
-                visitedProviderDescriptor.set( providerDescriptor );
-            }
-        } );
-
-        // then
-        assertEquals( specificProvider, visitedProviderDescriptor.get() );
-    }
-
-    @Test
-    public void shouldForgetSpecificallySetIndexProviderDescriptorOnDrop() throws ConstraintValidationException, CreateConstraintFailureException
-    {
-        // given
-        IndexProvider.Descriptor specificProvider = new IndexProvider.Descriptor( "myProvider", "9.9" );
-        state.indexRuleDoAdd( indexOn_1_1, specificProvider );
-        state.indexDoDrop( indexOn_1_1 );
-        state.indexRuleDoAdd( indexOn_1_1, null );
-
-        // when
-        MutableBoolean called = new MutableBoolean();
-        state.accept( new TxStateVisitor.Adapter()
-        {
-            @Override
-            public void visitAddedIndex( SchemaIndexDescriptor index, IndexProvider.Descriptor providerDescriptor )
-            {
-                assertNull( providerDescriptor );
-                called.setTrue();
-            }
-        } );
-
-        // then
-        assertTrue( called.booleanValue() );
-    }
-
-    @Test
-    public void shouldSpecificallySetIndexProviderDescriptorOnRecreate() throws ConstraintValidationException, CreateConstraintFailureException
-    {
-        // given
-        IndexProvider.Descriptor specificProvider = new IndexProvider.Descriptor( "myProvider", "9.9" );
-        IndexProvider.Descriptor specificProvider2 = new IndexProvider.Descriptor( "myOtherProvider", "7.7" );
-        state.indexRuleDoAdd( indexOn_1_1, specificProvider );
-        state.indexDoDrop( indexOn_1_1 );
-        state.indexRuleDoAdd( indexOn_1_1, specificProvider2 );
-
-        // when
-        AtomicReference<IndexProvider.Descriptor> visitedProviderDescriptor = new AtomicReference<>();
-        state.accept( new TxStateVisitor.Adapter()
-        {
-            @Override
-            public void visitAddedIndex( SchemaIndexDescriptor index, IndexProvider.Descriptor providerDescriptor )
-            {
-                visitedProviderDescriptor.set( providerDescriptor );
-            }
-        } );
-
-        // then
-        assertEquals( specificProvider2, visitedProviderDescriptor.get() );
-    }
-
-    @Test
-    public void shouldUseNullForUnspecifiedIndexProviderDescriptor() throws ConstraintValidationException, CreateConstraintFailureException
-    {
-        // given
-        state.indexRuleDoAdd( indexOn_1_1, null );
-
-        // when
-        MutableBoolean called = new MutableBoolean();
-        state.accept( new TxStateVisitor.Adapter()
-        {
-            @Override
-            public void visitAddedIndex( SchemaIndexDescriptor index, IndexProvider.Descriptor providerDescriptor )
-            {
-                // then
-                assertNull( providerDescriptor );
-                called.setTrue();
-            }
-        } );
-
-        // and then
-        assertTrue( called.booleanValue() );
-    }
-
-    // endregion
-
-    //region scan and seek index update tests
-
-    @Test
-    public void shouldComputeIndexUpdatesForScanOrSeekOnAnEmptyTxState()
-    {
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets = state.indexUpdatesForScan( indexOn_1_1 );
-
-        // THEN
-        assertTrue( diffSets.isEmpty() );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForScanWhenThereAreNewNodes()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withDefaultStringProperties( 42L, 43L );
-        addNodesToIndex( indexOn_1_2 ).withDefaultStringProperties( 44L );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets = state.indexUpdatesForScan( indexOn_1_1 );
-
-        // THEN
-        assertEquals( asSet( 42L, 43L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForSeekWhenThereAreNewNodes()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withDefaultStringProperties( 42L, 43L );
-        addNodesToIndex( indexOn_1_2 ).withDefaultStringProperties( 44L );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets = state.indexUpdatesForSeek( indexOn_1_1, ValueTuple.of( "value43" ) );
-
-        // THEN
-        assertEquals( asSet( 43L ), toSet( diffSets.getAdded() ) );
-    }
-
-    //endregion
-
-    //region range seek by number index update tests
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByNumberWhenThereAreNoMatchingNodes()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withNumberProperties( asList( of( 42L, 500 ), of( 43L, 550 ) ) );
-        addNodesToIndex( indexOn_1_2 ).withNumberProperties( singletonList( of( 44L, 520 ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, Values.of( 660 ), false, Values.of( 800 ), true ) );
-
-        // THEN
-        assertEquals( emptySet(), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByNumberWhenThereAreNewNodesCreatedInSingleBatch()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withNumberProperties( asList( of( 42L, 500 ), of( 43L, 550 ) ) );
-        addNodesToIndex( indexOn_1_2 ).withNumberProperties( singletonList( of( 44L, 520 ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, Values.of( 510 ), true, Values.of( 600 ), true ) );
-
-        // THEN
-        assertEquals( asSet( 43L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByNumberWhenThereAreNewNodesCreatedInTwoBatches()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withNumberProperties( singletonList( of( 42L, 500 ) ) );
-        addNodesToIndex( indexOn_1_2 ).withNumberProperties( singletonList( of( 44L, 520 ) ) );
-        addNodesToIndex( indexOn_1_1 ).withNumberProperties( singletonList( of( 43L, 550 ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, Values.of( 510 ), true, Values.of( 600 ), true ) );
-
-        // THEN
-        assertEquals( asSet( 43L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByNumberWithIncludeLowerAndIncludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withNumberProperties(
-                asList( of( 42L, 500 ), of( 43L, 510 ), of( 44L, 520 ), of( 45L, 530 ), of( 47L, 540 ), of( 48L, 550 ),
-                        of( 49L, 560 ) ) );
-        addNodesToIndex( indexOn_1_2 ).withNumberProperties( singletonList( of( 46L, 520 ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, Values.of( 510 ), true, Values.of( 550 ), true ) );
-
-        // THEN
-        assertEquals( asSet( 43L, 44L, 45L, 47L, 48L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByNumberWithIncludeLowerAndExcludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withNumberProperties(
-                asList( of( 42L, 500 ), of( 43L, 510 ), of( 44L, 520 ), of( 45L, 530 ), of( 47L, 540 ), of( 48L, 550 ),
-                        of( 49L, 560 ) ) );
-        addNodesToIndex( indexOn_1_2 ).withNumberProperties( singletonList( of( 46L, 520 ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, Values.of( 510 ), true, Values.of( 550 ), false ) );
-
-        // THEN
-        assertEquals( asSet( 43L, 44L, 45L, 47L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByNumberWithExcludeLowerAndIncludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withNumberProperties(
-                asList( of( 42L, 500 ), of( 43L, 510 ), of( 44L, 520 ), of( 45L, 530 ), of( 47L, 540 ), of( 48L, 550 ),
-                        of( 49L, 560 ) ) );
-        addNodesToIndex( indexOn_1_2 ).withNumberProperties( singletonList( of( 46L, 520 ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, Values.of( 510 ), false, Values.of( 550 ), true ) );
-
-        // THEN
-        assertEquals( asSet( 44L, 45L, 47L, 48L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByNumberWithExcludeLowerAndExcludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withNumberProperties(
-                asList( of( 42L, 500 ), of( 43L, 510 ), of( 44L, 520 ), of( 45L, 530 ), of( 47L, 540 ), of( 48L, 550 ),
-                        of( 49L, 560 ) ) );
-        addNodesToIndex( indexOn_1_2 ).withNumberProperties( singletonList( of( 46L, 520 ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, Values.of( 510 ), false, Values.of( 550 ), false ) );
-
-        // THEN
-        assertEquals( asSet( 44L, 45L, 47L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByNumberWithUnboundedLowerExcludeLowerAndIncludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withBooleanProperties( asList( of( 39L, true ), of( 38L, false ) ) );
-        addNodesToIndex( indexOn_1_1 ).withNumberProperties(
-                asList( of( 42L, 500 ), of( 43L, 510 ), of( 44L, 520 ), of( 45L, 530 ), of( 47L, 540 ), of( 48L, 550 ),
-                        of( 49L, 560 ) ) );
-        addNodesToIndex( indexOn_1_2 ).withNumberProperties( singletonList( of( 46L, 520 ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, null, false, Values.of( 550 ), true ) );
-
-        // THEN
-        assertEquals( asSet( 42L, 43L, 44L, 45L, 47L, 48L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByNumberWithUnboundedLowerIncludeLowerAndIncludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withBooleanProperties( asList( of( 39L, true ), of( 38L, false ) ) );
-        addNodesToIndex( indexOn_1_1 ).withNumberProperties(
-                asList( of( 42L, 500 ), of( 43L, 510 ), of( 44L, 520 ), of( 45L, 530 ), of( 47L, 540 ), of( 48L, 550 ),
-                        of( 49L, 560 ) ) );
-        addNodesToIndex( indexOn_1_2 ).withNumberProperties( singletonList( of( 46L, 520 ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, null, true, Values.of( 550 ), true ) );
-
-        // THEN
-        assertEquals( asSet( 42L, 43L, 44L, 45L, 47L, 48L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByNumberWithUnboundedLowerExcludeLowerAndExcludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withBooleanProperties( asList( of( 39L, true ), of( 38L, false ) ) );
-        addNodesToIndex( indexOn_1_1 ).withNumberProperties(
-                asList( of( 42L, 500 ), of( 43L, 510 ), of( 44L, 520 ), of( 45L, 530 ), of( 47L, 540 ), of( 48L, 550 ),
-                        of( 49L, 560 ) ) );
-        addNodesToIndex( indexOn_1_2 ).withNumberProperties( singletonList( of( 46L, 520 ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, null, false, Values.of( 550 ), false ) );
-
-        // THEN
-        assertEquals( asSet( 42L, 43L, 44L, 45L, 47L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByNumberWithUnboundedLowerIncludeLowerAndExcludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withBooleanProperties( asList( of( 39L, true ), of( 38L, false ) ) );
-        addNodesToIndex( indexOn_1_1 ).withNumberProperties(
-                asList( of( 42L, 500 ), of( 43L, 510 ), of( 44L, 520 ), of( 45L, 530 ), of( 47L, 540 ), of( 48L, 550 ),
-                        of( 49L, 560 ) ) );
-        addNodesToIndex( indexOn_1_2 ).withNumberProperties( singletonList( of( 46L, 520 ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, null, true, Values.of( 550 ), false ) );
-
-        // THEN
-        assertEquals( asSet( 42L, 43L, 44L, 45L, 47L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByNumberWithUnboundedUpperIncludeLowerAndIncludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withBooleanProperties( asList( of( 39L, true ), of( 38L, false ) ) );
-        addNodesToIndex( indexOn_1_1 ).withNumberProperties(
-                asList( of( 42L, 500 ), of( 43L, 510 ), of( 44L, 520 ), of( 45L, 530 ), of( 47L, 540 ), of( 48L, 550 ),
-                        of( 49L, 560 ) ) );
-        addNodesToIndex( indexOn_1_2 ).withNumberProperties( singletonList( of( 46L, 520 ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, Values.of( 540 ), true, null, true ) );
-
-        // THEN
-        assertEquals( asSet( 47L, 48L, 49L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByNumberWithUnboundedUpperIncludeLowerAndExcludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withBooleanProperties( asList( of( 39L, true ), of( 38L, false ) ) );
-        addNodesToIndex( indexOn_1_1 ).withNumberProperties(
-                asList( of( 42L, 500 ), of( 43L, 510 ), of( 44L, 520 ), of( 45L, 530 ), of( 47L, 540 ), of( 48L, 550 ),
-                        of( 49L, 560 ) ) );
-        addNodesToIndex( indexOn_1_2 ).withNumberProperties( singletonList( of( 46L, 520 ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, Values.of( 540 ), true, null, false ) );
-
-        // THEN
-        assertEquals( asSet( 47L, 48L, 49L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByNumberWithUnboundedUpperExcludeLowerAndIncludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withBooleanProperties( asList( of( 39L, true ), of( 38L, false ) ) );
-        addNodesToIndex( indexOn_1_1 ).withNumberProperties(
-                asList( of( 42L, 500 ), of( 43L, 510 ), of( 44L, 520 ), of( 45L, 530 ), of( 47L, 540 ), of( 48L, 550 ),
-                        of( 49L, 560 ) ) );
-        addNodesToIndex( indexOn_1_2 ).withNumberProperties( singletonList( of( 46L, 520 ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, Values.of( 540 ), false, null, true ) );
-
-        // THEN
-        assertEquals( asSet( 48L, 49L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByNumberWithUnboundedUpperExcludeLowerAndExcludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withBooleanProperties( asList( of( 39L, true ), of( 38L, false ) ) );
-        addNodesToIndex( indexOn_1_1 ).withNumberProperties(
-                asList( of( 42L, 500 ), of( 43L, 510 ), of( 44L, 520 ), of( 45L, 530 ), of( 47L, 540 ), of( 48L, 550 ),
-                        of( 49L, 560 ) ) );
-        addNodesToIndex( indexOn_1_2 ).withNumberProperties( singletonList( of( 46L, 520 ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, Values.of( 540 ), false, null, false ) );
-
-        // THEN
-        assertEquals( asSet( 48L, 49L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByNumberWithNoBounds()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withBooleanProperties( asList( of( 39L, true ), of( 38L, false ) ) );
-        addNodesToIndex( indexOn_1_1 ).withNumberProperties( asList( of( 42L, 500 ), of( 43L, 510 ), of( 44L, 520 ) ) );
-        addNodesToIndex( indexOn_1_2 ).withNumberProperties( singletonList( of( 46L, 520 ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets = state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1,  ValueGroup.NUMBER ) );
-
-        // THEN
-        assertEquals( asSet( 42L, 43L, 44L ), toSet( diffSets.getAdded() ) );
-    }
-
-    //endregion
-
-    //region range seek by string index update tests
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByStringWhenThereAreNoMatchingNodes()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withStringProperties( asList( of( 42L, "Agatha" ), of( 43L, "Barbara" ) ) );
-        addNodesToIndex( indexOn_1_2 ).withStringProperties( singletonList( of( 44L, "Andreas" ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, Values.of( "Cindy" ), false, Values.of( "William" ), true ) );
-
-        // THEN
-        assertEquals( emptySet(), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByStringWhenThereAreNewNodesCreatedInSingleBatch()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withStringProperties( asList( of( 42L, "Agatha" ), of( 43L, "Barbara" ) ) );
-        addNodesToIndex( indexOn_1_2 ).withStringProperties( singletonList( of( 44L, "Andreas" ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, Values.of( "Amy" ), true, Values.of( "Cathy" ), true ) );
-
-        // THEN
-        assertEquals( asSet( 43L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByStringWhenThereAreNewNodesCreatedInTwoBatches()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withStringProperties( singletonList( of( 42L, "Agatha" ) ) );
-        addNodesToIndex( indexOn_1_2 ).withStringProperties( singletonList( of( 44L, "Andreas" ) ) );
-        addNodesToIndex( indexOn_1_1 ).withStringProperties( singletonList( of( 43L, "Barbara" ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, Values.of( "Amy" ), true, Values.of( "Cathy" ), true ) );
-
-        // THEN
-        assertEquals( asSet( 43L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByStringWithIncludeLowerAndIncludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withStringProperties(
-                asList( of( 42L, "Agatha" ), of( 43L, "Amy" ), of( 44L, "Andreas" ), of( 45L, "Aristotle" ),
-                        of( 47L, "Arthur" ), of( 48L, "Arwen" ), of( 49L, "Ashley" ) ) );
-        addNodesToIndex( indexOn_1_2 ).withStringProperties( singletonList( of( 46L, "Andreas" ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, Values.of( "Amy" ), true, Values.of( "Arwen" ), true ) );
-
-        // THEN
-        assertEquals( asSet( 43L, 44L, 45L, 47L, 48L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByStringWithIncludeLowerAndExcludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withStringProperties(
-                asList( of( 42L, "Agatha" ), of( 43L, "Amy" ), of( 44L, "Andreas" ), of( 45L, "Aristotle" ),
-                        of( 47L, "Arthur" ), of( 48L, "Arwen" ), of( 49L, "Ashley" ) ) );
-        addNodesToIndex( indexOn_1_2 ).withStringProperties( singletonList( of( 46L, "Andreas" ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, Values.of( "Amy" ), true, Values.of( "Arwen" ), false ) );
-
-        // THEN
-        assertEquals( asSet( 43L, 44L, 45L, 47L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByStringWithExcludeLowerAndIncludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withStringProperties(
-                asList( of( 42L, "Agatha" ), of( 43L, "Amy" ), of( 44L, "Andreas" ), of( 45L, "Aristotle" ),
-                        of( 47L, "Arthur" ), of( 48L, "Arwen" ), of( 49L, "Ashley" ) ) );
-        addNodesToIndex( indexOn_1_2 ).withStringProperties( singletonList( of( 46L, "Andreas" ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, Values.of( "Amy" ), false, Values.of( "Arwen" ), true ) );
-
-        // THEN
-        assertEquals( asSet( 44L, 45L, 47L, 48L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByStringWithExcludeLowerAndExcludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withStringProperties(
-                asList( of( 42L, "Agatha" ), of( 43L, "Amy" ), of( 44L, "Andreas" ), of( 45L, "Aristotle" ),
-                        of( 47L, "Arthur" ), of( 48L, "Arwen" ), of( 49L, "Ashley" ) ) );
-        addNodesToIndex( indexOn_1_2 ).withStringProperties( singletonList( of( 46L, "Andreas" ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, Values.of( "Amy" ), false, Values.of( "Arwen" ), false ) );
-
-        // THEN
-        assertEquals( asSet( 44L, 45L, 47L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByStringWithUnboundedLowerExcludeLowerAndIncludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withBooleanProperties( asList( of( 39L, true ), of( 38L, false ) ) );
-        addNodesToIndex( indexOn_1_1 ).withStringProperties(
-                asList( of( 42L, "Agatha" ), of( 43L, "Amy" ), of( 44L, "Andreas" ), of( 45L, "Aristotle" ),
-                        of( 47L, "Arthur" ), of( 48L, "Arwen" ), of( 49L, "Ashley" ) ) );
-        addNodesToIndex( indexOn_1_2 ).withStringProperties( singletonList( of( 46L, "Andreas" ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets = state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, null, false, Values.of( "Arwen" ), true ) );
-
-        // THEN
-        assertEquals( asSet( 42L, 43L, 44L, 45L, 47L, 48L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByStringWithUnboundedLowerIncludeLowerAndIncludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withBooleanProperties( asList( of( 39L, true ), of( 38L, false ) ) );
-        addNodesToIndex( indexOn_1_1 ).withStringProperties(
-                asList( of( 42L, "Agatha" ), of( 43L, "Amy" ), of( 44L, "Andreas" ), of( 45L, "Aristotle" ),
-                        of( 47L, "Arthur" ), of( 48L, "Arwen" ), of( 49L, "Ashley" ) ) );
-        addNodesToIndex( indexOn_1_2 ).withStringProperties( singletonList( of( 46L, "Andreas" ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets = state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, null, true, Values.of( "Arwen" ), true ) );
-
-        // THEN
-        assertEquals( asSet( 42L, 43L, 44L, 45L, 47L, 48L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByStringWithUnboundedLowerExcludeLowerAndExcludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withBooleanProperties( asList( of( 39L, true ), of( 38L, false ) ) );
-        addNodesToIndex( indexOn_1_1 ).withStringProperties(
-                asList( of( 42L, "Agatha" ), of( 43L, "Amy" ), of( 44L, "Andreas" ), of( 45L, "Aristotle" ),
-                        of( 47L, "Arthur" ), of( 48L, "Arwen" ), of( 49L, "Ashley" ) ) );
-        addNodesToIndex( indexOn_1_2 ).withStringProperties( singletonList( of( 46L, "Andreas" ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, null, false, Values.of( "Arwen" ), false ) );
-
-        // THEN
-        assertEquals( asSet( 42L, 43L, 44L, 45L, 47L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByStringWithUnboundedLowerIncludeLowerAndExcludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withBooleanProperties( asList( of( 39L, true ), of( 38L, false ) ) );
-        addNodesToIndex( indexOn_1_1 ).withStringProperties(
-                asList( of( 42L, "Agatha" ), of( 43L, "Amy" ), of( 44L, "Andreas" ), of( 45L, "Aristotle" ),
-                        of( 47L, "Arthur" ), of( 48L, "Arwen" ), of( 49L, "Ashley" ) ) );
-        addNodesToIndex( indexOn_1_2 ).withStringProperties( singletonList( of( 46L, "Andreas" ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets = state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, null, true, Values.of( "Arwen" ), false ) );
-
-        // THEN
-        assertEquals( asSet( 42L, 43L, 44L, 45L, 47L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByStringWithUnboundedUpperIncludeLowerAndIncludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withBooleanProperties( asList( of( 39L, true ), of( 38L, false ) ) );
-        addNodesToIndex( indexOn_1_1 ).withStringProperties(
-                asList( of( 42L, "Agatha" ), of( 43L, "Amy" ), of( 44L, "Andreas" ), of( 45L, "Aristotle" ),
-                        of( 47L, "Arthur" ), of( 48L, "Arwen" ), of( 49L, "Ashley" ) ) );
-        addNodesToIndex( indexOn_1_2 ).withStringProperties( singletonList( of( 46L, "Andreas" ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets = state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, Values.of( "Arthur" ), true, null, true ) );
-
-        // THEN
-        assertEquals( asSet( 47L, 48L, 49L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByStringWithUnboundedUpperIncludeLowerAndExcludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withBooleanProperties( asList( of( 39L, true ), of( 38L, false ) ) );
-        addNodesToIndex( indexOn_1_1 ).withStringProperties(
-                asList( of( 42L, "Agatha" ), of( 43L, "Amy" ), of( 44L, "Andreas" ), of( 45L, "Aristotle" ),
-                        of( 47L, "Arthur" ), of( 48L, "Arwen" ), of( 49L, "Ashley" ) ) );
-        addNodesToIndex( indexOn_1_2 ).withStringProperties( singletonList( of( 46L, "Andreas" ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, Values.of( "Arthur" ), true, null, false ) );
-
-        // THEN
-        assertEquals( asSet( 47L, 48L, 49L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByStringWithUnboundedUpperExcludeLowerAndIncludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withBooleanProperties( asList( of( 39L, true ), of( 38L, false ) ) );
-        addNodesToIndex( indexOn_1_1 ).withStringProperties(
-                asList( of( 42L, "Agatha" ), of( 43L, "Amy" ), of( 44L, "Andreas" ), of( 45L, "Aristotle" ),
-                        of( 47L, "Arthur" ), of( 48L, "Arwen" ), of( 49L, "Ashley" ) ) );
-        addNodesToIndex( indexOn_1_2 ).withStringProperties( singletonList( of( 46L, "Andreas" ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, Values.of( "Arthur" ), false, null, true ) );
-
-        // THEN
-        assertEquals( asSet( 48L, 49L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByStringWithUnboundedUpperExcludeLowerAndExcludeUpper()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withBooleanProperties( asList( of( 39L, true ), of( 38L, false ) ) );
-        addNodesToIndex( indexOn_1_1 ).withStringProperties(
-                asList( of( 42L, "Agatha" ), of( 43L, "Amy" ), of( 44L, "Andreas" ), of( 45L, "Aristotle" ),
-                        of( 47L, "Arthur" ), of( 48L, "Arwen" ), of( 49L, "Ashley" ) ) );
-        addNodesToIndex( indexOn_1_2 ).withStringProperties( singletonList( of( 46L, "Andreas" ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets =
-                state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, Values.of( "Arthur" ), false, null, false ) );
-
-        // THEN
-        assertEquals( asSet( 48L, 49L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForBetweenRangeSeekByStringWithNoBounds()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withBooleanProperties( asList( of( 39L, true ), of( 38L, false ) ) );
-        addNodesToIndex( indexOn_1_1 )
-                .withStringProperties( asList( of( 42L, "Agatha" ), of( 43L, "Amy" ), of( 44L, "Andreas" ) ) );
-        addNodesToIndex( indexOn_1_2 ).withStringProperties( singletonList( of( 46L, "Andreas" ) ) );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets = state.indexUpdatesForRangeSeek( indexOn_1_1, IndexQuery.range( -1, TEXT ) );
-
-        // THEN
-        assertEquals( asSet( 42L, 43L, 44L ), toSet( diffSets.getAdded() ) );
-    }
-
-    //endregion
-
-    //region range seek by prefix index update tests
-
-    @Test
-    public void shouldComputeIndexUpdatesForRangeSeekByPrefixWhenThereAreNoMatchingNodes()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withDefaultStringProperties( 42L, 43L );
-        addNodesToIndex( indexOn_1_2 ).withDefaultStringProperties( 44L );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets = state.indexUpdatesForRangeSeekByPrefix( indexOn_1_1, "eulav" );
-
-        // THEN
-        assertEquals( emptySet(), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForRangeSeekByPrefixWhenThereAreNewNodesCreatedInOneBatch()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withDefaultStringProperties( 42L, 43L );
-        addNodesToIndex( indexOn_1_2 ).withDefaultStringProperties( 44L );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets = state.indexUpdatesForRangeSeekByPrefix( indexOn_1_1, "value" );
-
-        // THEN
-        assertEquals( asSet( 42L, 43L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForRangeSeekByPrefixWhenThereArePartiallyMatchingNewNodes1()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withStringProperties(
-                asList( of( 40L, "Aaron" ), of( 41L, "Agatha" ), of( 42L, "Andreas" ), of( 43L, "Andrea" ),
-                        of( 44L, "Aristotle" ), of( 45L, "Barbara" ), of( 46L, "Barbarella" ),
-                        of( 47L, "Cinderella" ) ) );
-        addNodesToIndex( indexOn_1_2 ).withDefaultStringProperties( 44L );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets = state.indexUpdatesForRangeSeekByPrefix( indexOn_1_1, "And" );
-
-        // THEN
-        assertEquals( asSet( 42L, 43L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForRangeSeekByPrefixWhenThereArePartiallyMatchingNewNodes2()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withStringProperties(
-                asList( of( 40L, "Aaron" ), of( 41L, "Agatha" ), of( 42L, "Andreas" ), of( 43L, "Andrea" ),
-                        of( 44L, "Aristotle" ), of( 45L, "Barbara" ), of( 46L, "Barbarella" ),
-                        of( 47L, "Cinderella" ) ) );
-        addNodesToIndex( indexOn_1_2 ).withDefaultStringProperties( 44L );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets = state.indexUpdatesForRangeSeekByPrefix( indexOn_1_1, "Bar" );
-
-        // THEN
-        assertEquals( asSet( 45L, 46L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForRangeSeekByPrefixWhenThereArePartiallyMatchingLeadingNewNodes()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withStringProperties(
-                asList( of( 40L, "Aaron" ), of( 41L, "Agatha" ), of( 42L, "Andreas" ), of( 43L, "Andrea" ),
-                        of( 44L, "Aristotle" ), of( 45L, "Barbara" ), of( 46L, "Barbarella" ),
-                        of( 47L, "Cinderella" ) ) );
-        addNodesToIndex( indexOn_1_2 ).withDefaultStringProperties( 44L );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets = state.indexUpdatesForRangeSeekByPrefix( indexOn_1_1, "Aa" );
-
-        // THEN
-        assertEquals( asSet( 40L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForRangeSeekByPrefixWhenThereArePartiallyMatchingTrailingNewNodes()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withStringProperties(
-                asList( of( 40L, "Aaron" ), of( 41L, "Agatha" ), of( 42L, "Andreas" ), of( 43L, "Andrea" ),
-                        of( 44L, "Aristotle" ), of( 45L, "Barbara" ), of( 46L, "Barbarella" ),
-                        of( 47L, "Cinderella" ) ) );
-        addNodesToIndex( indexOn_1_2 ).withDefaultStringProperties( 44L );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets = state.indexUpdatesForRangeSeekByPrefix( indexOn_1_1, "Ci" );
-
-        // THEN
-        assertEquals( asSet( 47L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForRangeSeekByPrefixWhenThereAreNewNodesCreatedInTwoBatches()
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withDefaultStringProperties( 42L );
-        addNodesToIndex( indexOn_1_2 ).withDefaultStringProperties( 44L );
-        addNodesToIndex( indexOn_1_1 ).withDefaultStringProperties( 43L );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets = state.indexUpdatesForRangeSeekByPrefix( indexOn_1_1, "value" );
-
-        // THEN
-        assertEquals( asSet( 42L, 43L ), toSet( diffSets.getAdded() ) );
-    }
-
-    @Test
-    public void shouldComputeIndexUpdatesForRangeSeekByPrefixWhenThereAreNonStringNodes() throws Exception
-    {
-        // GIVEN
-        addNodesToIndex( indexOn_1_1 ).withDefaultStringProperties( 42L );
-        addNodesToIndex( indexOn_1_1 ).withNumberProperties( Collections.singleton( Pair.of( 44L, 101L ) ) );
-        addNodesToIndex( indexOn_1_1 ).withDefaultStringProperties( 43L );
-
-        // WHEN
-        PrimitiveLongReadableDiffSets diffSets = state.indexUpdatesForRangeSeekByPrefix( indexOn_1_1, "value" );
-
-        // THEN
-        assertEquals( asSet( 42L, 43L ), toSet( diffSets.getAdded() ) );
-    }
-
-    //endregion
-
-    //region miscellaneous
-
-    @Test
-    public void shouldListNodeAsDeletedIfItIsDeleted()
+    void shouldListNodeAsDeletedIfItIsDeleted()
     {
         // Given
 
@@ -1143,33 +434,35 @@ public class TxStateTest
         state.nodeDoDelete( nodeId );
 
         // Then
-        assertThat( Iterables.asSet( state.addedAndRemovedNodes().getRemoved() ), equalTo( asSet( nodeId ) ) );
+        assertThat( state.addedAndRemovedNodes().getRemoved() ).isEqualTo( newSetWith( nodeId ) );
     }
 
     @Test
-    public void shouldAddUniquenessConstraint()
+    void shouldAddUniquenessConstraint()
     {
         // when
-        UniquenessConstraintDescriptor constraint = ConstraintDescriptorFactory.uniqueForLabel( 1, 17 );
-        state.constraintDoAdd( constraint, 7 );
+        LabelSchemaDescriptor schema = forLabel( 1, 17 );
+        UniquenessConstraintDescriptor constraint = ConstraintDescriptorFactory.uniqueForSchema( schema );
+        state.constraintDoAdd( constraint, IndexPrototype.uniqueForSchema( schema ).withName( "constraint_7" ).materialise( 7 ) );
 
         // then
-        ReadableDiffSets<ConstraintDescriptor> diff = state.constraintsChangesForLabel( 1 );
+        DiffSets<ConstraintDescriptor> diff = state.constraintsChangesForLabel( 1 );
 
         assertEquals( singleton( constraint ), diff.getAdded() );
         assertTrue( diff.getRemoved().isEmpty() );
     }
 
     @Test
-    public void addingUniquenessConstraintShouldBeIdempotent()
+    void addingUniquenessConstraintShouldBeIdempotent()
     {
         // given
-        UniquenessConstraintDescriptor constraint1 = ConstraintDescriptorFactory.uniqueForLabel( 1, 17 );
-        state.constraintDoAdd( constraint1, 7 );
+        LabelSchemaDescriptor schema = forLabel( 1, 17 );
+        UniquenessConstraintDescriptor constraint1 = ConstraintDescriptorFactory.uniqueForSchema( schema );
+        state.constraintDoAdd( constraint1, IndexPrototype.uniqueForSchema( schema ).withName( "constraint_7" ).materialise( 7 ) );
 
         // when
-        UniquenessConstraintDescriptor constraint2 = ConstraintDescriptorFactory.uniqueForLabel( 1, 17 );
-        state.constraintDoAdd( constraint2, 19 );
+        UniquenessConstraintDescriptor constraint2 = ConstraintDescriptorFactory.uniqueForSchema( schema );
+        state.constraintDoAdd( constraint2, IndexPrototype.uniqueForSchema( schema ).withName( "constraint_19" ).materialise( 19 ) );
 
         // then
         assertEquals( constraint1, constraint2 );
@@ -1177,13 +470,15 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldDifferentiateBetweenUniquenessConstraintsForDifferentLabels()
+    void shouldDifferentiateBetweenUniquenessConstraintsForDifferentLabels()
     {
         // when
-        UniquenessConstraintDescriptor constraint1 = ConstraintDescriptorFactory.uniqueForLabel( 1, 17 );
-        state.constraintDoAdd( constraint1, 7 );
-        UniquenessConstraintDescriptor constraint2 = ConstraintDescriptorFactory.uniqueForLabel( 2, 17 );
-        state.constraintDoAdd( constraint2, 19 );
+        LabelSchemaDescriptor schema1 = forLabel( 1, 17 );
+        UniquenessConstraintDescriptor constraint1 = ConstraintDescriptorFactory.uniqueForSchema( schema1 );
+        state.constraintDoAdd( constraint1, IndexPrototype.uniqueForSchema( schema1 ).withName( "constraint_7" ).materialise( 7 ) );
+        LabelSchemaDescriptor schema2 = forLabel( 2, 17 );
+        UniquenessConstraintDescriptor constraint2 = ConstraintDescriptorFactory.uniqueForSchema( schema2 );
+        state.constraintDoAdd( constraint2, IndexPrototype.uniqueForSchema( schema2 ).withName( "constraint_19" ).materialise( 19 ) );
 
         // then
         assertEquals( singleton( constraint1 ), state.constraintsChangesForLabel( 1 ).getAdded() );
@@ -1191,7 +486,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldAddRelationshipPropertyExistenceConstraint()
+    void shouldAddRelationshipPropertyExistenceConstraint()
     {
         // Given
         ConstraintDescriptor constraint = ConstraintDescriptorFactory.existsForRelType( 1, 42 );
@@ -1204,7 +499,7 @@ public class TxStateTest
     }
 
     @Test
-    public void addingRelationshipPropertyExistenceConstraintConstraintShouldBeIdempotent()
+    void addingRelationshipPropertyExistenceConstraintConstraintShouldBeIdempotent()
     {
         // Given
         ConstraintDescriptor constraint1 = ConstraintDescriptorFactory.existsForRelType( 1, 42 );
@@ -1220,7 +515,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldDropRelationshipPropertyExistenceConstraint()
+    void shouldDropRelationshipPropertyExistenceConstraint()
     {
         // Given
         ConstraintDescriptor constraint = ConstraintDescriptorFactory.existsForRelType( 1, 42 );
@@ -1234,7 +529,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldDifferentiateRelationshipPropertyExistenceConstraints()
+    void shouldDifferentiateRelationshipPropertyExistenceConstraints()
     {
         // Given
         ConstraintDescriptor constraint1 = ConstraintDescriptorFactory.existsForRelType( 1, 11 );
@@ -1248,17 +543,14 @@ public class TxStateTest
 
         // Then
         assertEquals( asSet( constraint1, constraint2 ), state.constraintsChangesForRelationshipType( 1 ).getAdded() );
-        assertEquals( singleton( constraint1 ),
-                state.constraintsChangesForSchema( constraint1.schema() ).getAdded() );
-        assertEquals( singleton( constraint2 ),
-                state.constraintsChangesForSchema( constraint2.schema() ).getAdded() );
+        assertEquals( singleton( constraint1 ), state.constraintsChangesForSchema( constraint1.schema() ).getAdded() );
+        assertEquals( singleton( constraint2 ), state.constraintsChangesForSchema( constraint2.schema() ).getAdded() );
         assertEquals( singleton( constraint3 ), state.constraintsChangesForRelationshipType( 3 ).getAdded() );
-        assertEquals( singleton( constraint3 ),
-                state.constraintsChangesForSchema( constraint3.schema() ).getAdded() );
+        assertEquals( singleton( constraint3 ), state.constraintsChangesForSchema( constraint3.schema() ).getAdded() );
     }
 
     @Test
-    public void shouldListRelationshipsAsCreatedIfCreated()
+    void shouldListRelationshipsAsCreatedIfCreated()
     {
         // When
         long relId = 10;
@@ -1270,53 +562,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldGiveCorrectDegreeWhenAddingAndRemovingRelationships()
-    {
-        // Given
-        int startNode = 1;
-        int endNode = 2;
-        int relType = 0;
-
-        // When
-        state.relationshipDoCreate( 10, relType, startNode, endNode );
-        state.relationshipDoCreate( 11, relType, startNode, endNode );
-        state.relationshipDoCreate( 12, relType + 1, startNode, endNode );
-        state.relationshipDoCreate( 13, relType + 1, endNode, startNode );
-
-        state.relationshipDoDelete( 1337, relType, startNode, endNode );
-        state.relationshipDoDelete( 1338, relType + 1, startNode, startNode );
-
-        // Then
-        assertEquals( 12, state.augmentNodeDegree( startNode, 10, Direction.BOTH ) );
-        assertEquals( 10, state.augmentNodeDegree( startNode, 10, Direction.INCOMING ) );
-        assertEquals( 11, state.augmentNodeDegree( startNode, 10, Direction.BOTH, relType ) );
-    }
-
-    @Test
-    public void shouldGiveCorrectRelationshipTypesForNode()
-    {
-        // Given
-        int startNode = 1;
-        int endNode = 2;
-        int relType = 0;
-
-        // When
-        long relA = 10;
-        long relB = 11;
-        long relC = 12;
-        state.relationshipDoCreate( relA, relType, startNode, endNode );
-        state.relationshipDoCreate( relB, relType, startNode, endNode );
-        state.relationshipDoCreate( relC, relType + 1, startNode, endNode );
-
-        state.relationshipDoDelete( relB, relType, startNode, endNode );
-        state.relationshipDoDelete( relC, relType + 1, startNode, endNode );
-
-        // Then
-        assertThat( toList( state.nodeRelationshipTypes( startNode ).iterator() ), equalTo( asList( relType ) ) );
-    }
-
-    @Test
-    public void shouldNotChangeRecordForCreatedAndDeletedNode() throws Exception
+    void shouldNotChangeRecordForCreatedAndDeletedNode() throws Exception
     {
         // GIVEN
         state.nodeDoCreate( 0 );
@@ -1329,7 +575,7 @@ public class TxStateTest
             @Override
             public void visitCreatedNode( long id )
             {
-                assertEquals( "Should not create any other node than 1", 1, id );
+                assertEquals( 1, id, "Should not create any other node than 1" );
             }
 
             @Override
@@ -1341,7 +587,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldVisitDeletedNode() throws Exception
+    void shouldVisitDeletedNode() throws Exception
     {
         // Given
         state.nodeDoDelete( 42 );
@@ -1353,13 +599,13 @@ public class TxStateTest
             public void visitDeletedNode( long id )
             {
                 // Then
-                assertEquals( "Wrong deleted node id", 42, id );
+                assertEquals( 42, id, "Wrong deleted node id" );
             }
         } );
     }
 
     @Test
-    public void shouldReportDeletedNodeIfItWasCreatedAndDeletedInSameTx()
+    void shouldReportDeletedNodeIfItWasCreatedAndDeletedInSameTx()
     {
         // Given
         long nodeId = 42;
@@ -1373,7 +619,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldNotReportDeletedNodeIfItIsNotDeleted()
+    void shouldNotReportDeletedNodeIfItIsNotDeleted()
     {
         // Given
         long nodeId = 42;
@@ -1386,7 +632,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldNotChangeRecordForCreatedAndDeletedRelationship() throws Exception
+    void shouldNotChangeRecordForCreatedAndDeletedRelationship() throws Exception
     {
         // GIVEN
         state.relationshipDoCreate( 0, 0, 1, 2 );
@@ -1397,21 +643,69 @@ public class TxStateTest
         state.accept( new TxStateVisitor.Adapter()
         {
             @Override
-            public void visitCreatedRelationship( long id, int type, long startNode, long endNode )
+            public void visitRelationshipModifications( RelationshipModifications modifications )
             {
-                assertEquals( "Should not create any other relationship than 1", 1, id );
-            }
-
-            @Override
-            public void visitDeletedRelationship( long id )
-            {
-                fail( "Should not delete any relationship" );
+                modifications.creations()
+                        .forEach( ( id, type, startNode, endNode, addedProps ) -> assertEquals( 1, id, "Should not create any other relationship than 1" ) );
+                modifications.deletions().forEach( ( id, type, startNode, endNode, noProps ) -> fail( "Should not delete any relationship" ) );
             }
         } );
     }
 
     @Test
-    public void shouldVisitDeletedRelationship() throws Exception
+    void doNotVisitNotModifiedPropertiesOnModifiedNodes() throws KernelException
+    {
+        state.nodeDoAddLabel( 5, 1 );
+        MutableBoolean labelsChecked = new MutableBoolean();
+        state.accept( new TxStateVisitor.Adapter()
+        {
+            @Override
+            public void visitNodeLabelChanges( long id, LongSet added, LongSet removed )
+            {
+                labelsChecked.setTrue();
+                assertEquals( 1, id );
+                assertEquals( 1, added.size() );
+                assertTrue( added.contains( 5 ) );
+                assertTrue( removed.isEmpty() );
+            }
+
+            @Override
+            public void visitNodePropertyChanges( long id, Iterable<StorageProperty> added, Iterable<StorageProperty> changed, IntIterable removed )
+            {
+                fail( "Properties were not changed." );
+            }
+        } );
+        assertTrue( labelsChecked.booleanValue() );
+    }
+
+    @Test
+    void doNotVisitNotModifiedLabelsOnModifiedNodes() throws KernelException
+    {
+        state.nodeDoAddProperty( 1, 2, stringValue( "propertyValue" ) );
+        MutableBoolean propertiesChecked = new MutableBoolean();
+        state.accept( new TxStateVisitor.Adapter()
+        {
+            @Override
+            public void visitNodeLabelChanges( long id, LongSet added, LongSet removed )
+            {
+                fail( "Labels were not changed." );
+            }
+
+            @Override
+            public void visitNodePropertyChanges( long id, Iterable<StorageProperty> added, Iterable<StorageProperty> changed, IntIterable removed )
+            {
+                propertiesChecked.setTrue();
+                assertEquals( 1, id );
+                assertFalse( changed.iterator().hasNext() );
+                assertTrue( removed.isEmpty() );
+                assertEquals( 1, Iterators.count( added.iterator(), Predicates.alwaysTrue() ) );
+            }
+        } );
+        assertTrue( propertiesChecked.booleanValue() );
+    }
+
+    @Test
+    void shouldVisitDeletedRelationship() throws Exception
     {
         // Given
         state.relationshipDoDelete( 42, 2, 3, 4 );
@@ -1420,16 +714,17 @@ public class TxStateTest
         state.accept( new TxStateVisitor.Adapter()
         {
             @Override
-            public void visitDeletedRelationship( long id )
+            public void visitRelationshipModifications( RelationshipModifications ids )
             {
                 // Then
-                assertEquals( "Wrong deleted relationship id", 42, id );
+                assertThat( ids.deletions().size() ).isEqualTo( 1 );
+                ids.deletions().forEach( ( id, type, start, end, noProps ) -> assertEquals( 42, id, "Wrong deleted relationship id" ) );
             }
         } );
     }
 
     @Test
-    public void shouldReportDeletedRelationshipIfItWasCreatedAndDeletedInSameTx()
+    void shouldReportDeletedRelationshipIfItWasCreatedAndDeletedInSameTx()
     {
         // Given
         long startNodeId = 1;
@@ -1446,7 +741,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldNotReportDeletedRelationshipIfItIsNotDeleted()
+    void shouldNotReportDeletedRelationshipIfItIsNotDeleted()
     {
         // Given
         long startNodeId = 1;
@@ -1461,9 +756,8 @@ public class TxStateTest
         assertFalse( state.relationshipIsDeletedInThisTx( relationshipId ) );
     }
 
-    @Test
-    @RepeatRule.Repeat( times = 100 )
-    public void shouldVisitCreatedNodesBeforeDeletedNodes() throws Exception
+    @RepeatedTest( 100 )
+    void shouldVisitCreatedNodesBeforeDeletedNodes() throws Exception
     {
         // when
         state.accept( new VisitationOrder( random.nextInt( 100 ) )
@@ -1498,9 +792,8 @@ public class TxStateTest
         } );
     }
 
-    @Test
-    @RepeatRule.Repeat( times = 100 )
-    public void shouldVisitCreatedNodesBeforeCreatedRelationships() throws Exception
+    @RepeatedTest( 100 )
+    void shouldVisitCreatedNodesBeforeCreatedRelationships() throws Exception
     {
         // when
         state.accept( new VisitationOrder( random.nextInt( 100 ) )
@@ -1531,16 +824,18 @@ public class TxStateTest
             }
 
             @Override
-            public void visitCreatedRelationship( long id, int type, long startNode, long endNode )
+            public void visitRelationshipModifications( RelationshipModifications modifications )
             {
-                visitLate();
+                if ( !modifications.creations().isEmpty() )
+                {
+                    visitLate();
+                }
             }
         } );
     }
 
-    @Test
-    @RepeatRule.Repeat( times = 100 )
-    public void shouldVisitCreatedRelationshipsBeforeDeletedRelationships() throws Exception
+    @RepeatedTest( 100 )
+    void shouldVisitCreatedRelationshipsBeforeDeletedRelationships() throws Exception
     {
         // when
         state.accept( new VisitationOrder( random.nextInt( 100 ) )
@@ -1567,22 +862,22 @@ public class TxStateTest
 
             // then
             @Override
-            public void visitCreatedRelationship( long id, int type, long startNode, long endNode )
+            public void visitRelationshipModifications( RelationshipModifications modifications )
             {
-                visitEarly();
-            }
-
-            @Override
-            public void visitDeletedRelationship( long id )
-            {
-                visitLate();
+                if ( !modifications.creations().isEmpty() )
+                {
+                    visitEarly();
+                }
+                if ( !modifications.deletions().isEmpty() )
+                {
+                    visitLate();
+                }
             }
         } );
     }
 
-    @Test
-    @RepeatRule.Repeat( times = 100 )
-    public void shouldVisitDeletedNodesAfterDeletedRelationships() throws Exception
+    @RepeatedTest( 100 )
+    void shouldVisitDeletedNodesAfterDeletedRelationships() throws Exception
     {
         // when
         state.accept( new VisitationOrder( random.nextInt( 100 ) )
@@ -1607,7 +902,7 @@ public class TxStateTest
             // then
 
             @Override
-            public void visitDeletedRelationship( long id )
+            public void visitRelationshipModifications( RelationshipModifications ids )
             {
                 visitEarly();
             }
@@ -1621,177 +916,257 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldObserveCorrectAugmentedNodeRelationshipsState()
+    void dataRevisionMustChangeOnDataChange()
     {
-        // GIVEN random committed state
-        TxState state = new TxState();
-        for ( int i = 0; i < 100; i++ )
-        {
-            state.nodeDoCreate( i );
-        }
-        for ( int i = 0; i < 5; i++ )
-        {
-            state.relationshipTypeDoCreateForName( "Type-" + i, i );
-        }
-        Map<Long,RelationshipItem> committedRelationships = new HashMap<>();
-        long relationshipId = 0;
-        int nodeCount = 100;
-        int relationshipTypeCount = 5;
-        for ( int i = 0; i < 30; i++ )
-        {
-            RelationshipItem relationship = relationship( relationshipId++, random.nextInt( relationshipTypeCount ),
-                    random.nextInt( nodeCount ), random.nextInt( nodeCount ) );
-            committedRelationships.put( relationship.id(), relationship );
-        }
-        Map<Long,RelationshipItem> allRelationships = new HashMap<>( committedRelationships );
-        // and some random changes to that
-        for ( int i = 0; i < 10; i++ )
-        {
-            if ( random.nextBoolean() )
-            {
-                RelationshipItem relationship = relationship( relationshipId++, random.nextInt( relationshipTypeCount ),
-                        random.nextInt( nodeCount ), random.nextInt( nodeCount ) );
-                allRelationships.put( relationship.id(), relationship );
-                state.relationshipDoCreate( relationship.id(), relationship.type(), relationship.startNode(),
-                        relationship.endNode() );
-            }
-            else
-            {
-                RelationshipItem relationship = Iterables
-                        .fromEnd( committedRelationships.values(), random.nextInt( committedRelationships.size() ) );
-                state.relationshipDoDelete( relationship.id(), relationship.type(), relationship.startNode(),
-                        relationship.endNode() );
-                allRelationships.remove( relationship.id() );
-            }
-        }
-        // WHEN
-        for ( int i = 0; i < nodeCount; i++ )
-        {
-            Direction direction = Direction.values()[random.nextInt( Direction.values().length )];
-            int[] relationshipTypes = randomTypes( relationshipTypeCount, random.random() );
-            Cursor<RelationshipItem> committed = cursor(
-                    relationshipsForNode( i, committedRelationships, direction, relationshipTypes ).values() );
-            Cursor<RelationshipItem> augmented = relationshipTypes == null
-                                                 ? state.augmentNodeRelationshipCursor( committed, state.getNodeState( i ), direction )
-                                                 : state.augmentNodeRelationshipCursor( committed, state.getNodeState( i ), direction,
-                                                         relationshipTypes );
+        assertThat( state.getDataRevision() ).isEqualTo( 0L );
+        assertFalse( state.hasDataChanges() );
+        LongHashSet observedRevisions = new LongHashSet();
+        observedRevisions.add( 0L );
 
-            Map<Long,RelationshipItem> expectedRelationships =
-                    relationshipsForNode( i, allRelationships, direction, relationshipTypes );
-            // THEN
-            while ( augmented.next() )
-            {
-                RelationshipItem relationship = augmented.get();
-                RelationshipItem actual = expectedRelationships.remove( relationship.id() );
-                assertNotNull( "Augmented cursor returned relationship " + relationship + ", but shouldn't have",
-                        actual );
-                assertRelationshipEquals( actual, relationship );
-            }
-            assertTrue( "Augmented cursor didn't return some expected relationships: " + expectedRelationships,
-                    expectedRelationships.isEmpty() );
-        }
+        state.nodeDoCreate( 0 );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.nodeDoAddLabel( 0, 0 );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.nodeDoRemoveLabel( 0, 0 );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.nodeDoAddProperty( 0, 0, Values.booleanValue( true ) );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.nodeDoChangeProperty( 0, 0, Values.booleanValue( false ) );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.nodeDoRemoveProperty( 0, 0 );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.nodeDoDelete( 0 );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.relationshipDoCreate( 0, 0, 0, 0 );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.relationshipDoReplaceProperty( 0, 0, 0, 0, 0, Values.NO_VALUE, Values.booleanValue( true ) );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.relationshipDoReplaceProperty( 0, 0, 0, 0, 0, Values.booleanValue( true ), Values.booleanValue( false ) );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.relationshipDoRemoveProperty( 0, 0, 0, 0, 0 );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.relationshipDoDeleteAddedInThisTx( 0 );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.relationshipDoDelete( 1, 0, 0, 0 );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
     }
 
     @Test
-    public void useCollectionFactory()
+    void dataRevisionMustNotChangeOnSchemaChanges()
     {
-        final CollectionsFactory collectionsFactory = mock( CollectionsFactory.class );
-        doAnswer( invocation -> intObjectMap() ).when( collectionsFactory ).newIntObjectMap();
+        assertThat( state.getDataRevision() ).isEqualTo( 0L );
+        assertFalse( state.hasDataChanges() );
 
-        state = new TxState( collectionsFactory );
+        state.indexDoAdd( indexOn_1_1 );
+        assertThat( state.getDataRevision() ).isEqualTo( 0L );
+        assertFalse( state.hasDataChanges() );
 
-        state.labelDoCreateForName( "foo", 1 );
-        state.propertyKeyDoCreateForName( "bar", 2 );
-        state.relationshipTypeDoCreateForName( "baz", 3 );
+        state.indexDoDrop( indexOn_1_1 );
+        assertThat( state.getDataRevision() ).isEqualTo( 0L );
+        assertFalse( state.hasDataChanges() );
 
-        verify( collectionsFactory, times( 3 ) ).newIntObjectMap();
+        state.indexDoUnRemove( indexOn_1_1 );
+        assertThat( state.getDataRevision() ).isEqualTo( 0L );
+        assertFalse( state.hasDataChanges() );
+
+        UniquenessConstraintDescriptor constraint1 = ConstraintDescriptorFactory.uniqueForLabel( 1, 17 );
+        state.constraintDoAdd( constraint1 );
+        assertThat( state.getDataRevision() ).isEqualTo( 0L );
+        assertFalse( state.hasDataChanges() );
+
+        state.constraintDoDrop( constraint1 );
+        assertThat( state.getDataRevision() ).isEqualTo( 0L );
+        assertFalse( state.hasDataChanges() );
+
+        state.constraintDoUnRemove( constraint1 );
+        assertThat( state.getDataRevision() ).isEqualTo( 0L );
+        assertFalse( state.hasDataChanges() );
+
+        IndexBackedConstraintDescriptor constraint2 = ConstraintDescriptorFactory.nodeKeyForLabel( 0, 0 );
+        state.constraintDoAdd( constraint2, IndexPrototype.uniqueForSchema( forLabel( 0, 0 ) ).withName( "index" ).materialise( 0 ) );
+        assertThat( state.getDataRevision() ).isEqualTo( 0L );
+        assertFalse( state.hasDataChanges() );
+
+        state.labelDoCreateForName( "Label", false, 0 );
+        assertThat( state.getDataRevision() ).isEqualTo( 0L );
+        assertFalse( state.hasDataChanges() );
+
+        state.relationshipTypeDoCreateForName( "REL", false, 0 );
+        assertThat( state.getDataRevision() ).isEqualTo( 0L );
+        assertFalse( state.hasDataChanges() );
+
+        state.propertyKeyDoCreateForName( "prop", false, 0 );
+        assertThat( state.getDataRevision() ).isEqualTo( 0L );
+        assertFalse( state.hasDataChanges() );
+
+        // This is not strictly a schema-change, but it is a "non-data" change in that these will not transform into store updates.
+        // Or schema updates for that matter. We only do these to speed up the transaction state filtering of schema index query results.
+        state.indexDoUpdateEntry( indexOn_1_1.schema(), 0, ValueTuple.of( Values.booleanValue( true ) ), ValueTuple.of( Values.booleanValue( false ) ) );
+        assertThat( state.getDataRevision() ).isEqualTo( 0L );
+        assertFalse( state.hasDataChanges() );
+    }
+
+    //    getOrCreateLabelStateNodeDiffSets
+
+    @Test
+    void getOrCreateNodeState_props_useCollectionsFactory()
+    {
+        final NodeStateImpl nodeState = state.getOrCreateNodeState( 1 );
+
+        nodeState.addProperty( 2, stringValue( "foo" ) );
+        nodeState.removeProperty( 3 );
+        nodeState.changeProperty( 4, stringValue( "bar" ) );
+
+        verify( collectionsFactory, times( 2 ) ).newValuesMap( memoryTracker );
+        verify( collectionsFactory ).newLongSet( memoryTracker );
         verifyNoMoreInteractions( collectionsFactory );
     }
 
-    private Map<Long,RelationshipItem> relationshipsForNode( long nodeId, Map<Long,RelationshipItem> allRelationships,
-            Direction direction, int[] relationshipTypes )
+    @Test
+    void getOrCreateLabelStateNodeDiffSets_useCollectionsFactory()
     {
-        Map<Long,RelationshipItem> result = new HashMap<>();
-        for ( RelationshipItem relationship : allRelationships.values() )
-        {
-            switch ( direction )
-            {
-            case OUTGOING:
-                if ( relationship.startNode() != nodeId )
-                {
-                    continue;
-                }
-                break;
-            case INCOMING:
-                if ( relationship.endNode() != nodeId )
-                {
-                    continue;
-                }
-                break;
-            case BOTH:
-                if ( relationship.startNode() != nodeId && relationship.endNode() != nodeId )
-                {
-                    continue;
-                }
-                break;
-            default:
-                throw new IllegalStateException( "Unknown direction: " + direction );
-            }
+        final MutableLongDiffSets diffSets = state.getOrCreateLabelStateNodeDiffSets(1);
 
-            if ( relationshipTypes != null )
-            {
-                if ( !contains( relationshipTypes, relationship.type() ) )
-                {
-                    continue;
-                }
-            }
+        diffSets.add( 1 );
+        diffSets.remove( 2 );
 
-            result.put( relationship.id(), relationship );
-        }
-        return result;
+        verify( collectionsFactory, times( 2 ) ).newLongSet( memoryTracker );
+        verifyNoMoreInteractions( collectionsFactory );
     }
 
-    private void assertRelationshipEquals( RelationshipItem expected, RelationshipItem relationship )
+    @Test
+    void getOrCreateTypeStateRelationshipDiffSets_useCollectionsFactory()
     {
-        assertEquals( expected.id(), relationship.id() );
-        assertEquals( expected.type(), relationship.type() );
-        assertEquals( expected.startNode(), relationship.startNode() );
-        assertEquals( expected.endNode(), relationship.endNode() );
+        final MutableLongDiffSets diffSets = state.getOrCreateTypeStateRelationshipDiffSets(1);
+
+        diffSets.add( 1 );
+        diffSets.remove( 2 );
+
+        verify( collectionsFactory, times( 2 ) ).newLongSet( memoryTracker );
+        verifyNoMoreInteractions( collectionsFactory );
     }
 
-    private int[] randomTypes( int high, Random random )
+    @Test
+    void getOrCreateIndexUpdatesForSeek_useCollectionsFactory()
     {
-        int count = random.nextInt( high );
-        if ( count == 0 )
+        final MutableLongDiffSets diffSets = state.getOrCreateIndexUpdatesForSeek( new HashMap<>(), ValueTuple.of( stringValue( "test" ) ) );
+        diffSets.add( 1 );
+        diffSets.remove( 2 );
+        verify( collectionsFactory, times( 2 ) ).newLongSet( memoryTracker );
+        verifyNoMoreInteractions( collectionsFactory );
+    }
+
+    @Test
+    void visitedRelationshipChangesShouldBeSortedByNode() throws KernelException
+    {
+        //Given
+        for ( int i = 0; i < 100; i++ )
         {
-            return null;
+            state.relationshipDoCreate( /*id=*/random.nextInt( 1 << 20 ),
+                    /*type=*/random.nextInt( 128 ),
+                    /*startNode=*/random.nextInt( 1 << 20 ),
+                    /*endNode=*/random.nextInt( 1 << 20 ) );
         }
-        int[] types = new int[count];
-        Arrays.fill( types, -1 );
-        for ( int i = 0; i < count; )
+
+        //When
+        List<Long> visitedRelationshipIds = new ArrayList<>();
+        state.accept( new TxStateVisitor.Adapter()
         {
-            int candidate = random.nextInt( high );
-            if ( !contains( types, candidate ) )
+            @Override
+            public void visitRelationshipModifications( RelationshipModifications modifications )
             {
-                types[i++] = candidate;
+                modifications.forEachSplit( nodeRelationshipIds -> visitedRelationshipIds.add( nodeRelationshipIds.nodeId() ) );
             }
-        }
-        return types;
+        } );
+        //Then
+        assertThat( visitedRelationshipIds ).isNotEmpty();
+        assertThat( visitedRelationshipIds ).isSorted();
     }
 
-    private boolean contains( int[] array, int candidate )
+    @ParameterizedTest
+    @ValueSource( booleans = {true, false} )
+    void shouldKeepMetaDataForDeletedRelationshipsIfToldTo( boolean keepDeletedRelationshipMetaData ) throws KernelException
     {
-        for ( int i : array )
+        // given
+        TxState state = new TxState( collectionsFactory, memoryTracker, () -> keepDeletedRelationshipMetaData );
+        long id = 9;
+        int type = 10;
+        long startNode = 11;
+        long endNode = 12;
+        state.relationshipDoDelete( id, type, startNode, endNode );
+
+        // when/then
+        MutableBoolean found = new MutableBoolean();
+        state.accept( new TxStateVisitor.Adapter()
         {
-            if ( i == candidate )
+            @Override
+            public void visitRelationshipModifications( RelationshipModifications modifications )
             {
-                return true;
+                modifications.deletions().forEach( ( relationshipId, typeId, startNodeId, endNodeId, addedProperties ) ->
+                {
+                    assertThat( found.booleanValue() ).isFalse();
+                    found.setTrue();
+
+                    if ( keepDeletedRelationshipMetaData )
+                    {
+                        assertThat( relationshipId ).isEqualTo( id );
+                        assertThat( typeId ).isEqualTo( type );
+                        assertThat( startNodeId ).isEqualTo( startNode );
+                        assertThat( endNodeId ).isEqualTo( endNode );
+                    }
+                    else
+                    {
+                        assertThat( relationshipId ).isEqualTo( id );
+                        assertThat( typeId ).isEqualTo( -1 );
+                        assertThat( startNodeId ).isEqualTo( -1 );
+                        assertThat( endNodeId ).isEqualTo( -1 );
+                    }
+                } );
             }
-        }
-        return false;
+        } );
+        assertThat( found.booleanValue() ).isTrue();
     }
 
-    //endregion
+    private LongDiffSets addedNodes( long... added )
+    {
+        return new MutableLongDiffSetsImpl( LongSets.mutable.of( added ), LongSets.mutable.empty(), collectionsFactory, memoryTracker );
+    }
+
+    private TreeMap<ValueTuple,LongDiffSets> sortedAddedNodesDiffSets( long... added )
+    {
+        TreeMap<ValueTuple,LongDiffSets> map = new TreeMap<>( ValueTuple.COMPARATOR );
+        for ( long node : added )
+        {
+
+            map.put( ValueTuple.of( stringValue( "value" + node ) ), addedNodes( node ) );
+        }
+        return map;
+    }
 
     abstract class VisitationOrder extends TxStateVisitor.Adapter
     {
@@ -1806,7 +1181,6 @@ public class TxStateTest
                     visitMethods.add( method.getName() );
                 }
             }
-            assertEquals( "should implement exactly two visit*(...) methods", 2, visitMethods.size() );
             do
             {
                 if ( random.nextBoolean() )
@@ -1861,15 +1235,9 @@ public class TxStateTest
     private interface IndexUpdater
     {
         void withDefaultStringProperties( long... nodeIds );
-
-        void withStringProperties( Collection<Pair<Long,String>> nodesWithValues );
-
-        <T extends Number> void withNumberProperties( Collection<Pair<Long,T>> nodesWithValues );
-
-        void withBooleanProperties( Collection<Pair<Long,Boolean>> nodesWithValues );
     }
 
-    private IndexUpdater addNodesToIndex( final SchemaIndexDescriptor descriptor )
+    private IndexUpdater addNodesToIndex( final IndexDescriptor descriptor )
     {
         return new IndexUpdater()
         {
@@ -1881,42 +1249,32 @@ public class TxStateTest
                 {
                     entries.add( of( nodeId, "value" + nodeId ) );
                 }
-                withStringProperties( entries );
-            }
-
-            @Override
-            public void withStringProperties( Collection<Pair<Long,String>> nodesWithValues )
-            {
-                withProperties( nodesWithValues );
-            }
-
-            @Override
-            public <T extends Number> void withNumberProperties( Collection<Pair<Long,T>> nodesWithValues )
-            {
-                withProperties( nodesWithValues );
-            }
-
-            @Override
-            public void withBooleanProperties( Collection<Pair<Long,Boolean>> nodesWithValues )
-            {
-                withProperties( nodesWithValues );
+                withProperties( entries );
             }
 
             private <T> void withProperties( Collection<Pair<Long,T>> nodesWithValues )
             {
-                final int labelId = descriptor.schema().keyId();
-                final int propertyKeyId = descriptor.schema().getPropertyId();
+                SchemaDescriptor schema = descriptor.schema();
+                int[] labelIds = schema.getEntityTokenIds();
+                int[] propertyKeyIds = schema.getPropertyIds();
+                assertEquals( 1, labelIds.length );
+                assertEquals( 1, propertyKeyIds.length );
                 for ( Pair<Long,T> entry : nodesWithValues )
                 {
                     long nodeId = entry.first();
                     state.nodeDoCreate( nodeId );
-                    state.nodeDoAddLabel( labelId, nodeId );
+                    state.nodeDoAddLabel( labelIds[0], nodeId );
                     Value valueAfter = Values.of( entry.other() );
-                    state.nodeDoAddProperty( nodeId, propertyKeyId, valueAfter );
-                    state.indexDoUpdateEntry( descriptor.schema(), nodeId, null,
-                            ValueTuple.of( valueAfter ) );
+                    state.nodeDoAddProperty( nodeId, propertyKeyIds[0], valueAfter );
+                    state.indexDoUpdateEntry( schema, nodeId, null, ValueTuple.of( valueAfter ) );
                 }
             }
         };
+    }
+
+    private static void assertEqualDiffSets( LongDiffSets expected, LongDiffSets actual )
+    {
+        assertEquals( expected.getRemoved(), actual.getRemoved() );
+        assertEquals( expected.getAdded(), actual.getAdded() );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,36 +41,91 @@ package org.neo4j.dbms.archive;
 import org.apache.commons.compress.archivers.ArchiveEntry;
 import org.apache.commons.compress.archivers.ArchiveInputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
-import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintStream;
+import java.io.UncheckedIOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileSystemException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
+import org.neo4j.commandline.dbms.StoreVersionLoader;
+import org.neo4j.configuration.Config;
+import org.neo4j.dbms.archive.printer.OutputProgressPrinter;
+import org.neo4j.function.ThrowingSupplier;
+import org.neo4j.graphdb.Resource;
+import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFiles;
+import org.neo4j.util.VisibleForTesting;
 
 import static java.nio.file.Files.exists;
 import static org.neo4j.dbms.archive.Utils.checkWritableDirectory;
+import static org.neo4j.dbms.archive.printer.ProgressPrinters.emptyPrinter;
+import static org.neo4j.dbms.archive.printer.ProgressPrinters.printStreamPrinter;
 
 public class Loader
 {
-    public void load( Path archive, Path databaseDestination, Path transactionLogsDirectory ) throws IOException, IncorrectFormat
+    private final ArchiveProgressPrinter progressPrinter;
+
+    @VisibleForTesting
+    public Loader()
     {
-        validatePath( databaseDestination );
-        validatePath( transactionLogsDirectory );
+        this( emptyPrinter() );
+    }
+
+    public Loader( PrintStream output )
+    {
+        this( printStreamPrinter( output ) );
+    }
+
+    private Loader( OutputProgressPrinter progressPrinter )
+    {
+        this.progressPrinter = new ArchiveProgressPrinter( progressPrinter );
+    }
+
+    public void load( DatabaseLayout databaseLayout, ThrowingSupplier<InputStream,IOException> streamSupplier ) throws IOException, IncorrectFormat
+    {
+        load( databaseLayout, streamSupplier, "" );
+    }
+
+    public void load( DatabaseLayout databaseLayout, ThrowingSupplier<InputStream,IOException> streamSupplier,
+                      String inputName ) throws IOException, IncorrectFormat
+    {
+        load( databaseLayout, false, true, DumpFormatSelector::decompress, streamSupplier, inputName );
+    }
+
+    public void load( Path archive, DatabaseLayout databaseLayout, boolean validateDatabaseExistence, boolean validateLogsExistence,
+                      DecompressionSelector selector ) throws IOException, IncorrectFormat
+    {
+        load( databaseLayout, validateDatabaseExistence, validateLogsExistence, selector, () -> Files.newInputStream( archive ), archive.toString() );
+    }
+
+    public void load( DatabaseLayout databaseLayout, boolean validateDatabaseExistence, boolean validateLogsExistence,
+                      DecompressionSelector selector, ThrowingSupplier<InputStream,IOException> streamSupplier, String inputName )
+            throws IOException, IncorrectFormat
+    {
+        Path databaseDestination = databaseLayout.databaseDirectory();
+        Path transactionLogsDirectory = databaseLayout.getTransactionLogsDirectory();
+
+        validatePath( databaseDestination, validateDatabaseExistence );
+        validatePath( transactionLogsDirectory, validateLogsExistence );
 
         createDestination( databaseDestination );
         createDestination( transactionLogsDirectory );
 
-        try ( ArchiveInputStream stream = openArchiveIn( archive ) )
+        checkDatabasePresence( databaseLayout );
+
+        try ( ArchiveInputStream stream = openArchiveIn( selector, streamSupplier, inputName );
+              Resource ignore = progressPrinter.startPrinting() )
         {
             ArchiveEntry entry;
-            while ( (entry = nextEntry( stream, archive )) != null )
+            while ( (entry = nextEntry( stream, inputName )) != null )
             {
                 Path destination = determineEntryDestination( entry, databaseDestination, transactionLogsDirectory );
                 loadEntry( destination, stream, entry );
@@ -78,17 +133,52 @@ public class Loader
         }
     }
 
-    private void createDestination( Path destination ) throws IOException
+    public StoreVersionLoader.Result getStoreVersion( FileSystemAbstraction fs, Config config, DatabaseLayout databaseLayout )
     {
-        if ( !destination.toFile().exists() )
+        try ( StoreVersionLoader stl = new StoreVersionLoader( fs, config ) )
+        {
+            return stl.loadStoreVersion( databaseLayout );
+        }
+    }
+
+    public DumpMetaData getMetaData( ThrowingSupplier<InputStream,IOException> streamSupplier ) throws IOException
+    {
+        try ( InputStream decompressor = DumpFormatSelector.decompress( streamSupplier ) )
+        {
+            String format = "TAR+GZIP.";
+            String files = "?";
+            String bytes = "?";
+            if ( StandardCompressionFormat.ZSTD.isFormat( decompressor ) )
+            {
+                format = "Neo4j ZSTD Dump.";
+                // Important: Only the ZSTD compressed archives have any archive metadata.
+                readArchiveMetadata( decompressor );
+                files = String.valueOf( progressPrinter.maxFiles );
+                bytes = String.valueOf( progressPrinter.maxBytes );
+            }
+            return new DumpMetaData( format, files, bytes );
+        }
+    }
+
+    private static void checkDatabasePresence( DatabaseLayout databaseLayout ) throws FileAlreadyExistsException
+    {
+        if ( Files.exists( databaseLayout.metadataStore() ) )
+        {
+            throw new FileAlreadyExistsException( databaseLayout.metadataStore().toAbsolutePath().toString() );
+        }
+    }
+
+    private static void createDestination( Path destination ) throws IOException
+    {
+        if ( !Files.exists( destination ) )
         {
             Files.createDirectories( destination );
         }
     }
 
-    private void validatePath( Path path ) throws FileSystemException
+    private static void validatePath( Path path, boolean validateExistence ) throws FileSystemException
     {
-        if ( exists( path ) )
+        if ( validateExistence && exists( path ) )
         {
             throw new FileAlreadyExistsException( path.toString() );
         }
@@ -98,12 +188,19 @@ public class Loader
     private static Path determineEntryDestination( ArchiveEntry entry, Path databaseDestination,
             Path transactionLogsDirectory )
     {
-        String entryName = Paths.get( entry.getName() ).getFileName().toString();
-        return TransactionLogFiles.DEFAULT_FILENAME_FILTER.accept( null, entryName ) ? transactionLogsDirectory
-                                                                                           : databaseDestination;
+        Path entryName = Path.of( entry.getName() ).getFileName();
+        try
+        {
+            return TransactionLogFiles.DEFAULT_FILENAME_FILTER.accept( entryName ) ? transactionLogsDirectory
+                                                                                         : databaseDestination;
+        }
+        catch ( IOException e )
+        {
+            throw new UncheckedIOException( e );
+        }
     }
 
-    private ArchiveEntry nextEntry( ArchiveInputStream stream, Path archive ) throws IncorrectFormat
+    private static ArchiveEntry nextEntry( ArchiveInputStream stream, String inputName ) throws IncorrectFormat
     {
         try
         {
@@ -111,7 +208,7 @@ public class Loader
         }
         catch ( IOException e )
         {
-            throw new IncorrectFormat( archive, e );
+            throw new IncorrectFormat( inputName, e );
         }
     }
 
@@ -131,24 +228,65 @@ public class Loader
         {
             try ( OutputStream output = Files.newOutputStream( file ) )
             {
-                Utils.copy( stream, output );
+                Utils.copy( stream, output, progressPrinter );
             }
         }
     }
 
-    private static ArchiveInputStream openArchiveIn( Path archive ) throws IOException, IncorrectFormat
+    private ArchiveInputStream openArchiveIn( DecompressionSelector selector, ThrowingSupplier<InputStream,IOException> streamSupplier, String inputName )
+            throws IOException, IncorrectFormat
     {
-        InputStream input = Files.newInputStream( archive );
-        GzipCompressorInputStream compressor;
         try
         {
-            compressor = new GzipCompressorInputStream( input );
+            InputStream decompressor = selector.decompress( streamSupplier );
+
+            if ( StandardCompressionFormat.ZSTD.isFormat( decompressor ) )
+            {
+                // Important: Only the ZSTD compressed archives have any archive metadata.
+                readArchiveMetadata( decompressor );
+            }
+
+            return new TarArchiveInputStream( decompressor );
+        }
+        catch ( NoSuchFileException ioe )
+        {
+            throw ioe;
         }
         catch ( IOException e )
         {
-            input.close();
-            throw new IncorrectFormat( archive, e );
+            throw new IncorrectFormat( inputName, e );
         }
-        return new TarArchiveInputStream( compressor );
+    }
+
+    /**
+     * @see Dumper#writeArchiveMetadata(OutputStream)
+     */
+    void readArchiveMetadata( InputStream stream ) throws IOException
+    {
+        DataInputStream metadata = new DataInputStream( stream ); // Unbuffered. Will not play naughty tricks with the file position.
+        int version = metadata.readInt();
+        if ( version == 1 )
+        {
+            progressPrinter.maxFiles = metadata.readLong();
+            progressPrinter.maxBytes = metadata.readLong();
+        }
+        else
+        {
+            throw new IOException( "Cannot read archive meta-data. I don't recognise this archive version: " + version + "." );
+        }
+    }
+
+    public static class DumpMetaData
+    {
+        public final String format;
+        public final String fileCount;
+        public final String byteCount;
+
+        public DumpMetaData( String format, String fileCount, String byteCount )
+        {
+            this.format = format;
+            this.fileCount = fileCount;
+            this.byteCount = byteCount;
+        }
     }
 }

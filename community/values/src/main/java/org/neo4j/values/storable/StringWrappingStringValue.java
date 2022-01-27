@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -43,12 +43,18 @@ import java.util.regex.Pattern;
 
 import org.neo4j.hashing.HashFunction;
 
+import static org.neo4j.memory.HeapEstimator.shallowSizeOfInstance;
+import static org.neo4j.memory.HeapEstimator.sizeOf;
+import static org.neo4j.values.utils.ValueMath.HASH_CONSTANT;
+
 /**
  * Implementation of StringValue that wraps a `java.lang.String` and
  * delegates methods to that instance.
  */
 final class StringWrappingStringValue extends StringValue
 {
+    private static final long SHALLOW_SIZE = shallowSizeOfInstance( StringWrappingStringValue.class );
+
     private final String value;
 
     StringWrappingStringValue( String value )
@@ -70,7 +76,13 @@ final class StringWrappingStringValue extends StringValue
     }
 
     @Override
-    public int computeHash()
+    public boolean isEmpty()
+    {
+        return value.isEmpty();
+    }
+
+    @Override
+    protected int computeHashToMemoize()
     {
         //NOTE that we are basing the hash code on code points instead of char[] values.
         if ( value.isEmpty() )
@@ -81,7 +93,7 @@ final class StringWrappingStringValue extends StringValue
         for ( int offset = 0, codePoint; offset < length; offset += Character.charCount( codePoint ) )
         {
             codePoint = value.codePointAt( offset );
-            h = 31 * h + codePoint;
+            h = HASH_CONSTANT * h + codePoint;
         }
         return h;
     }
@@ -137,7 +149,7 @@ final class StringWrappingStringValue extends StringValue
     public TextValue ltrim()
     {
         int start = ltrimIndex( value );
-        return Values.stringValue( value.substring( start, value.length() ) );
+        return Values.stringValue( value.substring( start ) );
     }
 
     @Override
@@ -155,12 +167,48 @@ final class StringWrappingStringValue extends StringValue
     }
 
     @Override
+    public TextValue plus( TextValue other )
+    {
+        return new StringWrappingStringValue( value + other.stringValue() );
+    }
+
+    @Override
+    public boolean startsWith( TextValue other )
+    {
+        return value.startsWith( other.stringValue() );
+    }
+
+    @Override
+    public boolean endsWith( TextValue other )
+    {
+        return value.endsWith( other.stringValue() );
+    }
+
+    @Override
+    public boolean contains( TextValue other )
+    {
+        return value.contains( other.stringValue() );
+    }
+
+    @Override
     Matcher matcher( Pattern pattern )
     {
         return pattern.matcher( value );
     }
 
-    private int ltrimIndex( String value )
+    @Override
+    public long estimatedHeapUsage()
+    {
+        return SHALLOW_SIZE + sizeOf( value );
+    }
+
+    @Override
+    public ValueRepresentation valueRepresentation()
+    {
+        return ValueRepresentation.UTF16_TEXT;
+    }
+
+    private static int ltrimIndex( String value )
     {
         int start = 0, length = value.length();
         while ( start < length )
@@ -176,7 +224,7 @@ final class StringWrappingStringValue extends StringValue
         return start;
     }
 
-    private int rtrimIndex( String value )
+    private static int rtrimIndex( String value )
     {
         int end = value.length();
         while ( end > 0 )

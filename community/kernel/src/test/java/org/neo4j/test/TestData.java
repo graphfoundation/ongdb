@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,22 +38,19 @@
  */
 package org.neo4j.test;
 
-import org.junit.rules.TestRule;
-import org.junit.runner.Description;
-import org.junit.runners.model.MultipleFailureException;
-import org.junit.runners.model.Statement;
+import org.junit.jupiter.api.extension.AfterEachCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 
-import org.neo4j.kernel.impl.annotations.Documented;
+import org.neo4j.annotations.documented.Documented;
 
-public class TestData<T> implements TestRule
+public class TestData<T> implements BeforeEachCallback, AfterEachCallback
 {
     @Target( ElementType.METHOD )
     @Retention( RetentionPolicy.RUNTIME )
@@ -65,8 +62,6 @@ public class TestData<T> implements TestRule
     public interface Producer<T>
     {
         T create( GraphDefinition graph, String title, String documentation );
-
-        void destroy( T product, boolean successful );
     }
 
     public static <T> TestData<T> producedThrough( Producer<T> transformation )
@@ -135,67 +130,25 @@ public class TestData<T> implements TestRule
     }
 
     @Override
-    public Statement apply( final Statement base, final Description description )
+    public void beforeEach( ExtensionContext context )
     {
-        final Title title = description.getAnnotation( Title.class );
-        final Documented doc = description.getAnnotation( Documented.class );
-        GraphDescription.Graph g = description.getAnnotation( GraphDescription.Graph.class );
+        var method = context.getRequiredTestMethod();
+        final Title title = method.getAnnotation( Title.class );
+        final Documented doc = method.getAnnotation( Documented.class );
+        GraphDescription.Graph g = method.getAnnotation( GraphDescription.Graph.class );
         if ( g == null )
         {
-            g = description.getTestClass().getAnnotation( GraphDescription.Graph.class );
+            g = context.getRequiredTestClass().getAnnotation( GraphDescription.Graph.class );
         }
         final GraphDescription graph = GraphDescription.create( g );
-        return new Statement()
-        {
-            @Override
-            public void evaluate() throws Throwable
-            {
-                product.set( create( graph, title == null ? null : title.value(), doc == null ? null : doc.value(),
-                        description.getMethodName() ) );
-                try
-                {
-                    try
-                    {
-                        base.evaluate();
-                    }
-                    catch ( Throwable err )
-                    {
-                        try
-                        {
-                            destroy( get( false ), false );
-                        }
-                        catch ( Throwable sub )
-                        {
-                            List<Throwable> failures = new ArrayList<>();
-                            if ( err instanceof MultipleFailureException )
-                            {
-                                failures.addAll( ( (MultipleFailureException) err ).getFailures() );
-                            }
-                            else
-                            {
-                                failures.add( err );
-                            }
-                            failures.add( sub );
-                            throw new MultipleFailureException( failures );
-                        }
-                        throw err;
-                    }
-                    destroy( get( false ), false );
-                }
-                finally
-                {
-                    product.set( null );
-                }
-            }
-        };
+        product.set( create( graph, title == null ? null : title.value(), doc == null ? null : doc.value(),
+                method.getName() ) );
     }
 
-    private void destroy( @SuppressWarnings( "hiding" ) T product, boolean successful )
+    @Override
+    public void afterEach( ExtensionContext context )
     {
-        if ( product != null )
-        {
-            producer.destroy( product, successful );
-        }
+        product.set( null );
     }
 
     private T get( boolean create )

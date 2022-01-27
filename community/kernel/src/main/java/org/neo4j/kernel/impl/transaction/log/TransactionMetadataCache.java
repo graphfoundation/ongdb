@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,66 +40,46 @@ package org.neo4j.kernel.impl.transaction.log;
 
 import java.util.Objects;
 
-import org.neo4j.helpers.collection.LruCache;
+import org.neo4j.internal.helpers.collection.LruCache;
 
 public class TransactionMetadataCache
 {
-    private final LruCache<Long /*tx id*/, TransactionMetadata> txStartPositionCache;
+    private static final int DEFAULT_TRANSACTION_CACHE_SIZE = 10_000;
+    private final LruCache<Long,TransactionMetadata> txIdMetadataCache;
 
-    public TransactionMetadataCache( int transactionCacheSize )
+    public TransactionMetadataCache()
     {
-        this.txStartPositionCache = new LruCache<>( "Tx start position cache", transactionCacheSize );
+        this.txIdMetadataCache = new LruCache<>( "Tx start position cache", DEFAULT_TRANSACTION_CACHE_SIZE );
     }
 
     public void clear()
     {
-        txStartPositionCache.clear();
+        txIdMetadataCache.clear();
     }
 
     public TransactionMetadata getTransactionMetadata( long txId )
     {
-        return txStartPositionCache.get( txId );
+        return txIdMetadataCache.get( txId );
     }
 
-    public TransactionMetadata cacheTransactionMetadata( long txId, LogPosition position, int masterId,
-                                                         int authorId, long checksum, long timeWritten )
+    public void cacheTransactionMetadata( long txId, LogPosition position )
     {
         if ( position.getByteOffset() == -1 )
         {
             throw new RuntimeException( "StartEntry.position is " + position );
         }
 
-        TransactionMetadata result = new TransactionMetadata( masterId, authorId, position, checksum, timeWritten );
-        txStartPositionCache.put( txId, result );
-        return result;
+        TransactionMetadata result = new TransactionMetadata( position );
+        txIdMetadataCache.put( txId, result );
     }
 
     public static class TransactionMetadata
     {
-        private final int masterId;
-        private final int authorId;
         private final LogPosition startPosition;
-        private final long checksum;
-        private final long timeWritten;
 
-        public TransactionMetadata( int masterId, int authorId, LogPosition startPosition, long checksum,
-                long timeWritten )
+        public TransactionMetadata( LogPosition startPosition )
         {
-            this.masterId = masterId;
-            this.authorId = authorId;
             this.startPosition = startPosition;
-            this.checksum = checksum;
-            this.timeWritten = timeWritten;
-        }
-
-        public int getMasterId()
-        {
-            return masterId;
-        }
-
-        public int getAuthorId()
-        {
-            return authorId;
         }
 
         public LogPosition getStartPosition()
@@ -107,25 +87,11 @@ public class TransactionMetadataCache
             return startPosition;
         }
 
-        public long getChecksum()
-        {
-            return checksum;
-        }
-
-        public long getTimeWritten()
-        {
-            return timeWritten;
-        }
-
         @Override
         public String toString()
         {
             return "TransactionMetadata{" +
-                   "masterId=" + masterId +
-                   ", authorId=" + authorId +
                    ", startPosition=" + startPosition +
-                   ", checksum=" + checksum +
-                   ", timeWritten=" + timeWritten +
                    '}';
         }
 
@@ -141,22 +107,13 @@ public class TransactionMetadataCache
                 return false;
             }
             TransactionMetadata that = (TransactionMetadata) o;
-            return masterId == that.masterId &&
-                   authorId == that.authorId &&
-                   checksum == that.checksum &&
-                   timeWritten == that.timeWritten &&
-                   Objects.equals( startPosition, that.startPosition );
+            return Objects.equals( startPosition, that.startPosition );
         }
 
         @Override
         public int hashCode()
         {
-            int result = masterId;
-            result = 31 * result + authorId;
-            result = 31 * result + startPosition.hashCode();
-            result = 31 * result + (int) (checksum ^ (checksum >>> 32));
-            result = 31 * result + (int) (timeWritten ^ (timeWritten >>> 32));
-            return result;
+            return startPosition.hashCode();
         }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -46,20 +46,20 @@ import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.index.SnapshotDeletionPolicy;
 import org.apache.lucene.store.Directory;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Collection;
 
 import org.neo4j.graphdb.ResourceIterator;
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterables;
 
-import static org.neo4j.helpers.collection.Iterators.emptyResourceIterator;
+import static org.neo4j.internal.helpers.collection.Iterators.emptyResourceIterator;
 
 /**
  * Create iterators over Lucene index files for a particular {@link IndexCommit index commit}.
  * Applicable only to a single Lucene index partition.
  */
-public class LuceneIndexSnapshots
+public final class LuceneIndexSnapshots
 {
     private LuceneIndexSnapshots()
     {
@@ -72,7 +72,7 @@ public class LuceneIndexSnapshots
      * @return index file name iterator
      * @throws IOException
      */
-    public static ResourceIterator<File> forIndex( File indexFolder, IndexWriter indexWriter ) throws IOException
+    public static ResourceIterator<Path> forIndex( Path indexFolder, IndexWriter indexWriter ) throws IOException
     {
         IndexDeletionPolicy deletionPolicy = indexWriter.getConfig().getIndexDeletionPolicy();
         if ( deletionPolicy instanceof SnapshotDeletionPolicy )
@@ -98,7 +98,7 @@ public class LuceneIndexSnapshots
      * @return index file name resource iterator
      * @throws IOException
      */
-    public static ResourceIterator<File> forIndex( File indexFolder, Directory directory ) throws IOException
+    public static ResourceIterator<Path> forIndex( Path indexFolder, Directory directory ) throws IOException
     {
         if ( !hasCommits( directory ) )
         {

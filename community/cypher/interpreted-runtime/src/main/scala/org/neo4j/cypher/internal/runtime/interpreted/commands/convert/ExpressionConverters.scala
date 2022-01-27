@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,100 +38,160 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.convert
 
-import org.neo4j.cypher.internal.util.v3_4._
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ProjectedPath._
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{ProjectedPath, Expression => CommandExpression}
+import org.neo4j.cypher.internal
+import org.neo4j.cypher.internal.expressions
+import org.neo4j.cypher.internal.expressions.Expression
+import org.neo4j.cypher.internal.expressions.LogicalVariable
+import org.neo4j.cypher.internal.expressions.SemanticDirection
+import org.neo4j.cypher.internal.logical.plans.ManySeekableArgs
+import org.neo4j.cypher.internal.logical.plans.SeekableArgs
+import org.neo4j.cypher.internal.logical.plans.SingleSeekableArg
+import org.neo4j.cypher.internal.runtime.interpreted.CommandProjection
+import org.neo4j.cypher.internal.runtime.interpreted.GroupingExpression
+import org.neo4j.cypher.internal.runtime.interpreted.commands
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ProjectedPath
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ProjectedPath.Projector
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ProjectedPath.multiIncomingRelationshipProjector
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ProjectedPath.multiOutgoingRelationshipProjector
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ProjectedPath.multiUndirectedRelationshipProjector
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ProjectedPath.nilProjector
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ProjectedPath.singleIncomingRelationshipProjector
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ProjectedPath.singleNodeProjector
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ProjectedPath.singleOutgoingRelationshipProjector
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ProjectedPath.singleRelationshipWithKnownTargetProjector
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ProjectedPath.singleUndirectedRelationshipProjector
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Predicate
-import org.neo4j.cypher.internal.runtime.interpreted.pipes.{ManySeekArgs, SeekArgs, SingleSeekArg}
-import org.neo4j.cypher.internal.v3_4.{expressions => ast}
-import org.neo4j.cypher.internal.v3_4.expressions.{SemanticDirection, Variable}
-import org.neo4j.cypher.internal.v3_4.logical.plans.{ManySeekableArgs, SeekableArgs, SingleSeekableArg}
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.ManySeekArgs
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.SeekArgs
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.SingleSeekArg
+import org.neo4j.cypher.internal.util.InternalNotification
+import org.neo4j.cypher.internal.util.Many
+import org.neo4j.cypher.internal.util.One
+import org.neo4j.cypher.internal.util.Zero
+import org.neo4j.cypher.internal.util.ZeroOneOrMany
+import org.neo4j.cypher.internal.util.attribution.Id
+import org.neo4j.exceptions.InternalException
 import org.neo4j.graphdb.Direction
 
 trait ExpressionConverter {
-  def toCommandExpression(expression: ast.Expression, self: ExpressionConverters): Option[CommandExpression]
+  def toCommandExpression(id: Id, expression: Expression, self: ExpressionConverters): Option[commands.expressions.Expression]
+  def toCommandProjection(id: Id, projections: Map[String, Expression], self: ExpressionConverters): Option[CommandProjection]
+  def toGroupingExpression(id: Id, groupings: Map[String, Expression], orderToLeverage: Seq[Expression], self: ExpressionConverters): Option[GroupingExpression]
+}
+
+trait ExpressionConversionLogger {
+  def failedToConvertExpression(expression: internal.expressions.Expression)
+  def failedToConvertProjection(projection: Map[String, expressions.Expression])
+  def warnings: Set[InternalNotification]
+}
+
+object NullExpressionConversionLogger extends ExpressionConversionLogger {
+  override def failedToConvertExpression(expression: internal.expressions.Expression): Unit = {}
+  override def failedToConvertProjection(projection: Map[String, Expression]): Unit = {}
+  override def warnings: Set[InternalNotification] = Set.empty
+
 }
 
 class ExpressionConverters(converters: ExpressionConverter*) {
 
   self =>
 
-  def toCommandExpression(expression: ast.Expression): CommandExpression = {
+  def toCommandExpression(id: Id, expression: internal.expressions.Expression): commands.expressions.Expression = {
     converters foreach { c: ExpressionConverter =>
-        c.toCommandExpression(expression, this) match {
-          case Some(x) => return x
-          case None =>
-        }
+      c.toCommandExpression(id, expression, this) match {
+        case Some(x) => return x
+        case None =>
+      }
     }
 
     throw new InternalException(s"Unknown expression type during transformation (${expression.getClass})")
   }
 
-  def toCommandPredicate(in: ast.Expression): Predicate = in match {
-    case e: ast.PatternExpression => predicates.NonEmpty(toCommandExpression(e))
-    case e: ast.FilterExpression => predicates.NonEmpty(toCommandExpression(e))
-    case e: ast.ExtractExpression => predicates.NonEmpty(toCommandExpression(e))
-    case e: ast.ListComprehension => predicates.NonEmpty(toCommandExpression(e))
-    case e => toCommandExpression(e) match {
+  def toCommandProjection(id: Id, projections: Map[String, internal.expressions.Expression]): CommandProjection = {
+    converters foreach { c: ExpressionConverter =>
+      c.toCommandProjection(id, projections, this) match {
+        case Some(x) => return x
+        case None =>
+      }
+    }
+
+    throw new InternalException(s"Unknown projection type during transformation ($projections)")
+  }
+
+  def toGroupingExpression(id: Id, groupings: Map[String, internal.expressions.Expression], orderToLeverage: Seq[internal.expressions.Expression]): GroupingExpression = {
+    converters foreach { c: ExpressionConverter =>
+      c.toGroupingExpression(id, groupings, orderToLeverage, this) match {
+        case Some(x) => return x
+        case None =>
+      }
+    }
+
+    throw new InternalException(s"Unknown grouping type during transformation ($groupings)")
+  }
+
+  def toCommandPredicate(id: Id, in: internal.expressions.Expression): Predicate = in match {
+    case e: internal.expressions.PatternExpression => predicates.NonEmpty(toCommandExpression(id, e))
+    case e: internal.expressions.ListComprehension => predicates.NonEmpty(toCommandExpression(id, e))
+    case e => toCommandExpression(id, e) match {
       case c: Predicate => c
       case c => predicates.CoercedPredicate(c)
     }
   }
 
-  def toCommandPredicate(e: Option[ast.Expression]): Predicate =
-    e.map(self.toCommandPredicate).getOrElse(predicates.True())
+  def toCommandPredicate(id: Id, expression: Option[internal.expressions.Expression]): Predicate =
+    expression.map(e => self.toCommandPredicate(id, e)).getOrElse(predicates.True())
 
-  def toCommandSeekArgs(seek: SeekableArgs): SeekArgs = seek match {
-    case SingleSeekableArg(expr) => SingleSeekArg(toCommandExpression(expr))
+  def toCommandSeekArgs(id: Id, seek: SeekableArgs): SeekArgs = seek match {
+    case SingleSeekableArg(expr) => SingleSeekArg(toCommandExpression(id, expr))
     case ManySeekableArgs(expr) => expr match {
-      case coll: ast.ListLiteral =>
+      case coll: internal.expressions.ListLiteral =>
         ZeroOneOrMany(coll.expressions) match {
           case Zero => SeekArgs.empty
-          case One(value) => SingleSeekArg(toCommandExpression(value))
-          case Many(_) => ManySeekArgs(toCommandExpression(coll))
+          case One(value) => SingleSeekArg(toCommandExpression(id, value))
+          case Many(_) => ManySeekArgs(toCommandExpression(id, coll))
         }
 
       case _ =>
-        ManySeekArgs(toCommandExpression(expr))
+        ManySeekArgs(toCommandExpression(id, expr))
     }
   }
 
-  def toCommandProjectedPath(e: ast.PathExpression): ProjectedPath = {
-    def project(pathStep: ast.PathStep): Projector = pathStep match {
+  def toCommandProjectedPath(e: internal.expressions.PathExpression): ProjectedPath = {
+    def project(pathStep: internal.expressions.PathStep): Projector = pathStep match {
 
-      case ast.NodePathStep(ast.Variable(node), next) =>
-        singleNodeProjector(node, project(next))
+      case internal.expressions.NodePathStep(node: LogicalVariable, next) =>
+        singleNodeProjector(node.name, project(next))
 
-      case ast.SingleRelationshipPathStep(ast.Variable(rel), SemanticDirection.INCOMING, next) =>
-        singleIncomingRelationshipProjector(rel, project(next))
+      case internal.expressions.SingleRelationshipPathStep(rel: LogicalVariable, _, Some(target: LogicalVariable), next) =>
+        singleRelationshipWithKnownTargetProjector(rel.name, target.name, project(next))
 
-      case ast.SingleRelationshipPathStep(ast.Variable(rel), SemanticDirection.OUTGOING, next) =>
-        singleOutgoingRelationshipProjector(rel, project(next))
+      case internal.expressions.SingleRelationshipPathStep(rel: LogicalVariable, SemanticDirection.INCOMING, _, next) =>
+        singleIncomingRelationshipProjector(rel.name, project(next))
 
-      case ast.SingleRelationshipPathStep(ast.Variable(rel), SemanticDirection.BOTH, next) =>
-        singleUndirectedRelationshipProjector(rel, project(next))
+      case internal.expressions.SingleRelationshipPathStep(rel: LogicalVariable, SemanticDirection.OUTGOING, _, next) =>
+        singleOutgoingRelationshipProjector(rel.name, project(next))
 
-      case ast.MultiRelationshipPathStep(ast.Variable(rel), SemanticDirection.INCOMING, next) =>
-        multiIncomingRelationshipProjector(rel, project(next))
+      case internal.expressions.SingleRelationshipPathStep(rel: LogicalVariable, SemanticDirection.BOTH, _, next) =>
+        singleUndirectedRelationshipProjector(rel.name, project(next))
 
-      case ast.MultiRelationshipPathStep(ast.Variable(rel), SemanticDirection.OUTGOING, next) =>
-        multiOutgoingRelationshipProjector(rel, project(next))
+      case internal.expressions.MultiRelationshipPathStep(rel: LogicalVariable, SemanticDirection.INCOMING, _, next) =>
+        multiIncomingRelationshipProjector(rel.name, project(next))
 
-      case ast.MultiRelationshipPathStep(ast.Variable(rel), SemanticDirection.BOTH, next) =>
-        multiUndirectedRelationshipProjector(rel, project(next))
+      case internal.expressions.MultiRelationshipPathStep(rel: LogicalVariable, SemanticDirection.OUTGOING, _, next) =>
+        multiOutgoingRelationshipProjector(rel.name, project(next))
 
-      case ast.NilPathStep =>
+      case internal.expressions.MultiRelationshipPathStep(rel: LogicalVariable, SemanticDirection.BOTH, _, next) =>
+        multiUndirectedRelationshipProjector(rel.name, project(next))
+
+      case internal.expressions.NilPathStep() =>
         nilProjector
 
       case x =>
         throw new IllegalArgumentException(s"Unknown pattern part found in expression: $x")
     }
 
-    val projector = project(e.step)
-    val dependencies = e.step.dependencies.map(_.asInstanceOf[Variable].name)
-
-    ProjectedPath(dependencies, projector)
+    ProjectedPath(project(e.step))
   }
 }
 

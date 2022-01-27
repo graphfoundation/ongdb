@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,11 +39,13 @@
 package org.neo4j.kernel.impl.transaction.log.pruning;
 
 import java.time.Clock;
-import java.util.stream.LongStream;
 
+import org.neo4j.internal.helpers.collection.LongRange;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.pruning.ThresholdConfigParser.ThresholdConfigValue;
+import org.neo4j.logging.LogProvider;
+import org.neo4j.util.VisibleForTesting;
 
 import static java.util.concurrent.TimeUnit.DAYS;
 import static java.util.concurrent.TimeUnit.HOURS;
@@ -51,19 +53,19 @@ import static org.neo4j.kernel.impl.transaction.log.pruning.ThresholdConfigParse
 
 public class LogPruneStrategyFactory
 {
-    private static final LogPruneStrategy NO_PRUNING = new LogPruneStrategy()
+    static final LogPruneStrategy NO_PRUNING = new LogPruneStrategy()
     {
         @Override
-        public LongStream findLogVersionsToDelete( long upToLogVersion )
+        public LongRange findLogVersionsToDelete( long upToLogVersion )
         {
             // Never delete anything.
-            return LongStream.empty();
+            return LongRange.EMPTY_RANGE;
         }
 
         @Override
         public String toString()
         {
-            return "NO_PRUNING";
+            return "keep_all";
         }
     };
 
@@ -85,7 +87,8 @@ public class LogPruneStrategyFactory
      *   <li>1k hours - For keeping last 1000 hours worth of log data</li>
      * </ul>
      */
-    LogPruneStrategy strategyFromConfigValue( FileSystemAbstraction fileSystem, LogFiles logFiles, Clock clock, String configValue )
+    LogPruneStrategy strategyFromConfigValue( FileSystemAbstraction fileSystem, LogFiles logFiles, LogProvider logProvider, Clock clock,
+            String configValue )
     {
         ThresholdConfigValue value = parse( configValue );
 
@@ -94,12 +97,12 @@ public class LogPruneStrategyFactory
             return NO_PRUNING;
         }
 
-        Threshold thresholdToUse = getThresholdByType( fileSystem, clock, value, configValue );
-        return new ThresholdBasedPruneStrategy( fileSystem, logFiles, thresholdToUse );
+        Threshold thresholdToUse = getThresholdByType( fileSystem, logProvider, clock, value, configValue );
+        return new ThresholdBasedPruneStrategy( logFiles.getLogFile(), thresholdToUse );
     }
 
-    // visible for testing
-    static Threshold getThresholdByType( FileSystemAbstraction fileSystem, Clock clock, ThresholdConfigValue value,
+    @VisibleForTesting
+    static Threshold getThresholdByType( FileSystemAbstraction fileSystem, LogProvider logProvider, Clock clock, ThresholdConfigValue value,
             String originalConfigValue )
     {
         long thresholdValue = value.value;
@@ -112,11 +115,11 @@ public class LogPruneStrategyFactory
                 return new FileSizeThreshold( fileSystem, thresholdValue );
             case "txs":
             case "entries": // txs and entries are synonyms
-                return new EntryCountThreshold( thresholdValue );
+                return new EntryCountThreshold( logProvider, thresholdValue );
             case "hours":
-                return new EntryTimespanThreshold( clock, HOURS, thresholdValue );
+                return new EntryTimespanThreshold( logProvider, clock, HOURS, thresholdValue );
             case "days":
-                return new EntryTimespanThreshold( clock, DAYS, thresholdValue );
+                return new EntryTimespanThreshold( logProvider, clock, DAYS, thresholdValue );
             default:
                 throw new IllegalArgumentException( "Invalid log pruning configuration value '" + originalConfigValue +
                         "'. Invalid type '" + value.type + "', valid are files, size, txs, entries, hours, days." );

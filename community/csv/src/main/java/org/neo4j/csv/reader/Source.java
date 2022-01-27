@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -81,23 +81,17 @@ public interface Source extends Closeable
         /**
          * @return position in the {@link #data()} array where the current field which is being
          * read starts. Some characters of the current field may have started in the previous chunk
-         * and so those characters are transfered over to this data array before {@link #startPosition()}
+         * and so those characters are transferred over to this data array before {@link #startPosition()}
          */
         int backPosition();
     }
 
-    Chunk EMPTY_CHUNK = new Chunk()
+    class Empty extends SourceTraceability.Empty implements Chunk
     {
         @Override
         public int startPosition()
         {
             return 0;
-        }
-
-        @Override
-        public String sourceDescription()
-        {
-            return "EMPTY";
         }
 
         @Override
@@ -123,7 +117,9 @@ public interface Source extends Closeable
         {
             return 0;
         }
-    };
+    }
+
+    Chunk EMPTY_CHUNK = new Empty();
 
     static Source singleChunk( Chunk chunk )
     {

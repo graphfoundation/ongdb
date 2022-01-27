@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,19 +38,18 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
+import org.neo4j.internal.helpers.Exceptions;
 import org.neo4j.scheduler.JobScheduler;
 
-import static org.neo4j.scheduler.JobScheduler.Groups.indexPopulation;
+import static org.neo4j.scheduler.Group.INDEX_POPULATION;
 
 class IndexPopulationJobController
 {
-    private final Set<IndexPopulationJob> populationJobs =
-            Collections.newSetFromMap( new ConcurrentHashMap<IndexPopulationJob,Boolean>() );
+    private final Set<IndexPopulationJob> populationJobs = ConcurrentHashMap.newKeySet();
     private final JobScheduler scheduler;
 
     IndexPopulationJobController( JobScheduler scheduler )
@@ -58,21 +57,38 @@ class IndexPopulationJobController
         this.scheduler = scheduler;
     }
 
-    void stop() throws ExecutionException, InterruptedException
+    void stop() throws InterruptedException
     {
         for ( IndexPopulationJob job : populationJobs )
         {
-            job.cancel().get();
+            job.stop();
+        }
+
+        InterruptedException interrupted = null;
+        for ( IndexPopulationJob job : populationJobs )
+        {
+            try
+            {
+                job.awaitCompletion( 0, TimeUnit.SECONDS );
+            }
+            catch ( InterruptedException e )
+            {
+                interrupted = Exceptions.chain( interrupted, e );
+            }
+        }
+        if ( interrupted != null )
+        {
+            throw interrupted;
         }
     }
 
     void startIndexPopulation( IndexPopulationJob job )
     {
         populationJobs.add( job );
-        scheduler.schedule( indexPopulation, new IndexPopulationJobWrapper( job, this ) );
+        job.setHandle( scheduler.schedule( INDEX_POPULATION, job.getMonitoringParams(), new IndexPopulationJobWrapper( job, this ) ) );
     }
 
-    void indexPopulationCompleted( IndexPopulationJob populationJob )
+    private void indexPopulationCompleted( IndexPopulationJob populationJob )
     {
         populationJobs.remove( populationJob );
     }
@@ -84,8 +100,8 @@ class IndexPopulationJobController
 
     private static class IndexPopulationJobWrapper implements Runnable
     {
-        private IndexPopulationJob indexPopulationJob;
-        private IndexPopulationJobController jobController;
+        private final IndexPopulationJob indexPopulationJob;
+        private final IndexPopulationJobController jobController;
 
         IndexPopulationJobWrapper( IndexPopulationJob indexPopulationJob, IndexPopulationJobController jobController )
         {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,92 +38,85 @@
  */
 package org.neo4j.values.storable;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.neo4j.values.storable.Values.EMPTY_STRING;
 import static org.neo4j.values.storable.Values.charValue;
 import static org.neo4j.values.storable.Values.stringValue;
 import static org.neo4j.values.virtual.VirtualValues.list;
 
-public class CharValueTest
+class CharValueTest
 {
-    @Rule
-    public ExpectedException exception = ExpectedException.none();
-
-    private char[] chars = {' ', '楡', 'a', '7', 'Ö'};
+    private static final char[] CHARS = {' ', '楡', 'a', '7', 'Ö'};
 
     @Test
-    public void shouldHandleDifferentTypesOfChars()
+    void shouldHandleDifferentTypesOfChars()
     {
-        for ( char c : chars )
+        for ( char c : CHARS )
         {
             TextValue charValue = charValue( c );
             TextValue stringValue = stringValue( Character.toString( c ) );
 
-            assertThat( charValue, equalTo( stringValue ) );
-            assertThat( charValue.length(), equalTo( stringValue.length() ) );
-            assertThat( charValue.hashCode(), equalTo( stringValue.hashCode() ) );
-            assertThat( charValue.split( Character.toString( c ) ),
-                    equalTo( stringValue.split( Character.toString( c ) ) ) );
-            assertThat( charValue.toUpper(), equalTo( stringValue.toUpper() ) );
-            assertThat( charValue.toLower(), equalTo( stringValue.toLower() ) );
+            assertThat( charValue ).isEqualTo( stringValue );
+            assertThat( charValue.length() ).isEqualTo( stringValue.length() );
+            assertThat( charValue.hashCode() ).isEqualTo( stringValue.hashCode() );
+            assertThat( charValue.split( Character.toString( c ) ) ).isEqualTo( stringValue.split( Character.toString( c ) ) );
+            assertThat( charValue.toUpper() ).isEqualTo( stringValue.toUpper() );
+            assertThat( charValue.toLower() ).isEqualTo( stringValue.toLower() );
         }
     }
 
     @Test
-    public void shouldSplit()
+    void shouldSplit()
     {
         CharValue charValue = charValue( 'a' );
-        assertThat( charValue.split( "a" ), equalTo( list( EMPTY_STRING, EMPTY_STRING ) ) );
-        assertThat( charValue.split( "A" ), equalTo( list( charValue ) ) );
+        assertThat( charValue.split( "a" ) ).isEqualTo( list( EMPTY_STRING, EMPTY_STRING ) );
+        assertThat( charValue.split( "A" ) ).isEqualTo( list( charValue ) );
     }
 
     @Test
-    public void shouldTrim()
+    void shouldTrim()
     {
-        assertThat( charValue( 'a' ).trim(), equalTo( charValue( 'a' ) ) );
-        assertThat( charValue( ' ' ).trim(), equalTo( EMPTY_STRING ) );
+        assertThat( charValue( 'a' ).trim() ).isEqualTo( charValue( 'a' ) );
+        assertThat( charValue( ' ' ).trim() ).isEqualTo( EMPTY_STRING );
     }
 
     @Test
-    public void shouldLTrim()
+    void shouldLTrim()
     {
-        assertThat( charValue( 'a' ).ltrim(), equalTo( charValue( 'a' ) ) );
-        assertThat( charValue( ' ' ).ltrim(), equalTo( EMPTY_STRING ) );
+        assertThat( charValue( 'a' ).ltrim() ).isEqualTo( charValue( 'a' ) );
+        assertThat( charValue( ' ' ).ltrim() ).isEqualTo( EMPTY_STRING );
     }
 
     @Test
-    public void shouldRTrim()
+    void shouldRTrim()
     {
-        assertThat( charValue( 'a' ).rtrim(), equalTo( charValue( 'a' ) ) );
-        assertThat( charValue( ' ' ).rtrim(), equalTo( EMPTY_STRING ) );
+        assertThat( charValue( 'a' ).rtrim() ).isEqualTo( charValue( 'a' ) );
+        assertThat( charValue( ' ' ).rtrim() ).isEqualTo( EMPTY_STRING );
     }
 
     @Test
-    public void shouldReverse()
+    void shouldReverse()
     {
-        for ( char c : chars )
+        for ( char c : CHARS )
         {
             CharValue charValue = charValue( c );
-            assertThat( charValue.reverse(), equalTo( charValue ) );
+            assertThat( charValue.reverse() ).isEqualTo( charValue );
         }
     }
 
     @Test
-    public void shouldReplace()
+    void shouldReplace()
     {
-        assertThat( charValue( 'a' ).replace( "a", "a long string" ), equalTo( stringValue( "a long string" ) ) );
-        assertThat( charValue( 'a' ).replace( "b", "a long string" ), equalTo( charValue( 'a' ) ) );
+        assertThat( charValue( 'a' ).replace( "a", "a long string" ) ).isEqualTo( stringValue( "a long string" ) );
+        assertThat( charValue( 'a' ).replace( "b", "a long string" ) ).isEqualTo( charValue( 'a' ) );
     }
 
     @Test
-    public void shouldSubstring()
+    void shouldSubstring()
     {
-        assertThat( charValue( 'a' ).substring( 0, 1 ), equalTo( charValue( 'a' ) ) );
-        assertThat( charValue( 'a' ).substring( 1, 3 ), equalTo( EMPTY_STRING ) );
+        assertThat( charValue( 'a' ).substring( 0, 1 ) ).isEqualTo( charValue( 'a' ) );
+        assertThat( charValue( 'a' ).substring( 1, 3 ) ).isEqualTo( EMPTY_STRING );
     }
 }

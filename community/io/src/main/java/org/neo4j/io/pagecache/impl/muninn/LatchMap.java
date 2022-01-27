@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,9 +38,13 @@
  */
 package org.neo4j.io.pagecache.impl.muninn;
 
-import org.neo4j.concurrent.BinaryLatch;
-import org.neo4j.unsafe.impl.internal.dragons.UnsafeUtil;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+
 import org.neo4j.util.FeatureToggles;
+import org.neo4j.util.concurrent.BinaryLatch;
+
+import static org.neo4j.util.Preconditions.requirePowerOfTwo;
 
 /**
  * The LatchMap is used by the {@link MuninnPagedFile} to coordinate concurrent page faults, and ensure that no two
@@ -52,47 +56,50 @@ final class LatchMap
 {
     static final class Latch extends BinaryLatch
     {
-        private LatchMap latchMap;
-        private int index;
+        private final LatchMap latchMap;
+        private final int index;
+
+        Latch( LatchMap latchMap, int index )
+        {
+            this.latchMap = latchMap;
+            this.index = index;
+        }
 
         @Override
         public void release()
         {
-            latchMap.setLatch( index, null );
+            latchMap.releaseLatch( index );
             super.release();
         }
     }
 
-    private static final int faultLockStriping = FeatureToggles.getInteger( LatchMap.class, "faultLockStriping", 128 );
-    private static final long faultLockMask = faultLockStriping - 1;
-    private static final int latchesArrayBase = UnsafeUtil.arrayBaseOffset( Latch[].class );
-    private static final int latchesArrayScale = UnsafeUtil.arrayIndexScale( Latch[].class );
+    static final int DEFAULT_FAULT_LOCK_STRIPING = 128;
+    static final int faultLockStriping = FeatureToggles.getInteger( LatchMap.class, "faultLockStriping", DEFAULT_FAULT_LOCK_STRIPING );
 
     private final Latch[] latches;
+    private static final VarHandle LATCHES_ARRAY = MethodHandles.arrayElementVarHandle( Latch[].class );
+    private final long faultLockMask;
 
-    LatchMap()
+    LatchMap( int size )
     {
-        latches = new Latch[faultLockStriping];
+        requirePowerOfTwo( size );
+        latches = new Latch[size];
+        faultLockMask = size - 1;
     }
 
-    private long offset( int index )
+    private void releaseLatch( int index )
     {
-        return UnsafeUtil.arrayOffset( index, latchesArrayBase, latchesArrayScale );
+        LATCHES_ARRAY.setVolatile( latches, index, (BinaryLatch) null );
     }
 
-    private void setLatch( int index, BinaryLatch newValue )
+    private boolean tryInsertLatch( int index, Latch latch )
     {
-        UnsafeUtil.putObjectVolatile( latches, offset( index ), newValue );
-    }
-
-    private boolean compareAndSetLatch( int index, Latch expected, Latch update )
-    {
-        return UnsafeUtil.compareAndSwapObject( latches, offset( index ), expected, update );
+        return LATCHES_ARRAY.compareAndSet( latches, index, (Latch) null, latch );
     }
 
     private Latch getLatch( int index )
     {
-        return (Latch) UnsafeUtil.getObjectVolatile( latches, offset( index ) );
+        return (Latch) LATCHES_ARRAY.getVolatile( latches, index );
     }
 
     /**
@@ -110,11 +117,9 @@ final class LatchMap
         Latch latch = getLatch( index );
         while ( latch == null )
         {
-            latch = new Latch();
-            if ( compareAndSetLatch( index, null, latch ) )
+            latch = new Latch( this, index );
+            if ( tryInsertLatch( index, latch ) )
             {
-                latch.latchMap = this;
-                latch.index = index;
                 return latch;
             }
             latch = getLatch( index );
@@ -125,14 +130,6 @@ final class LatchMap
 
     private int index( long identifier )
     {
-        return (int) (mix( identifier ) & faultLockMask);
-    }
-
-    private long mix( long identifier )
-    {
-        identifier ^= identifier << 21;
-        identifier ^= identifier >>> 35;
-        identifier ^= identifier << 4;
-        return identifier;
+        return (int) (identifier & faultLockMask);
     }
 }

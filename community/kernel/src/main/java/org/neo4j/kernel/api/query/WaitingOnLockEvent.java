@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,14 +38,16 @@
  */
 package org.neo4j.kernel.api.query;
 
-import org.neo4j.kernel.impl.locking.LockWaitEvent;
-import org.neo4j.storageengine.api.lock.ResourceType;
+import org.neo4j.lock.LockTracer;
+import org.neo4j.lock.LockType;
+import org.neo4j.lock.LockWaitEvent;
+import org.neo4j.lock.ResourceType;
 
 /**
  * This is both a status state in the state machine of {@link ExecutingQuery}, and a {@link LockWaitEvent}.
  * The reason for this is to avoid unnecessary object allocation and indirection, since there is always a one-to-one
  * mapping between the status corresponding to the lock we are waiting on (caused by
- * {@linkplain org.neo4j.kernel.impl.locking.LockTracer#waitForLock(boolean, ResourceType, long...) the event of waiting
+ * {@linkplain LockTracer#waitForLock(LockType, ResourceType, long, long...)} the event of waiting
  * on a lock}) and the event object used to {@linkplain LockWaitEvent#close() signal the end of the wait}.
  */
 class WaitingOnLockEvent extends WaitingOnLock implements LockWaitEvent
@@ -54,14 +56,15 @@ class WaitingOnLockEvent extends WaitingOnLock implements LockWaitEvent
     private final ExecutingQuery executingQuery;
 
     WaitingOnLockEvent(
-            String mode,
+            LockType lockType,
             ResourceType resourceType,
+            long transactionId,
             long[] resourceIds,
             ExecutingQuery executingQuery,
             long currentTimeNanos,
             ExecutingQueryStatus previous )
     {
-        super( mode, resourceType, resourceIds, currentTimeNanos );
+        super( lockType, resourceType, transactionId, resourceIds, currentTimeNanos );
         this.executingQuery = executingQuery;
         this.previous = previous;
     }
@@ -78,8 +81,8 @@ class WaitingOnLockEvent extends WaitingOnLock implements LockWaitEvent
     }
 
     @Override
-    boolean isPlanning()
+    boolean isParsingOrPlanning()
     {
-        return previous.isPlanning();
+        return previous.isParsingOrPlanning();
     }
 }

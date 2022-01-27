@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,7 @@
  */
 package org.neo4j.server.rest.web;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import javax.servlet.FilterChain;
@@ -62,7 +62,7 @@ import static org.neo4j.server.rest.web.CorsFilter.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static org.neo4j.server.rest.web.CorsFilter.ACCESS_CONTROL_REQUEST_HEADERS;
 import static org.neo4j.server.rest.web.CorsFilter.ACCESS_CONTROL_REQUEST_METHOD;
 
-public class CorsFilterTest
+class CorsFilterTest
 {
     private final HttpServletRequest emptyRequest = requestMock( emptyList(), emptyList() );
     private final HttpServletResponse response = responseMock();
@@ -71,7 +71,7 @@ public class CorsFilterTest
     private final CorsFilter filter = new CorsFilter( NullLogProvider.getInstance(), "*" );
 
     @Test
-    public void shouldCallChainDoFilter() throws Exception
+    void shouldCallChainDoFilter() throws Exception
     {
         filter.doFilter( emptyRequest, response, chain );
 
@@ -79,7 +79,7 @@ public class CorsFilterTest
     }
 
     @Test
-    public void shouldSetAccessControlAllowOrigin() throws Exception
+    void shouldSetAccessControlAllowOrigin() throws Exception
     {
         filter.doFilter( emptyRequest, response, filterChainMock() );
 
@@ -87,7 +87,7 @@ public class CorsFilterTest
     }
 
     @Test
-    public void shouldAttachNoHttpMethodsToAccessControlAllowMethodsWhenHeaderIsEmpty() throws Exception
+    void shouldAttachNoHttpMethodsToAccessControlAllowMethodsWhenHeaderIsEmpty() throws Exception
     {
         filter.doFilter( emptyRequest, response, chain );
 
@@ -95,7 +95,7 @@ public class CorsFilterTest
     }
 
     @Test
-    public void shouldAttachNoHttpMethodsToAccessControlAllowMethodsWhenHeaderIsNull() throws Exception
+    void shouldAttachNoHttpMethodsToAccessControlAllowMethodsWhenHeaderIsNull() throws Exception
     {
         HttpServletRequest request = requestMock();
         when( request.getHeaders( ACCESS_CONTROL_REQUEST_METHOD ) ).thenReturn( null );
@@ -106,7 +106,7 @@ public class CorsFilterTest
     }
 
     @Test
-    public void shouldAttachValidHttpMethodsToAccessControlAllowMethods() throws Exception
+    void shouldAttachValidHttpMethodsToAccessControlAllowMethods() throws Exception
     {
         List<String> accessControlRequestMethods = asList( "GET", "WRONG", "POST", "TAKE", "CONNECT" );
         HttpServletRequest request = requestMock( accessControlRequestMethods, emptyList() );
@@ -122,7 +122,7 @@ public class CorsFilterTest
     }
 
     @Test
-    public void shouldAttachNoRequestHeadersToAccessControlAllowHeadersWhenHeaderIsEmpty() throws Exception
+    void shouldAttachNoRequestHeadersToAccessControlAllowHeadersWhenHeaderIsEmpty() throws Exception
     {
         filter.doFilter( emptyRequest, response, chain );
 
@@ -130,7 +130,7 @@ public class CorsFilterTest
     }
 
     @Test
-    public void shouldAttachNoRequestHeadersToAccessControlAllowHeadersWhenHeaderIsNull() throws Exception
+    void shouldAttachNoRequestHeadersToAccessControlAllowHeadersWhenHeaderIsNull() throws Exception
     {
         HttpServletRequest request = requestMock();
         when( request.getHeaders( ACCESS_CONTROL_REQUEST_HEADERS ) ).thenReturn( null );
@@ -141,7 +141,7 @@ public class CorsFilterTest
     }
 
     @Test
-    public void shouldAttachValidRequestHeadersToAccessControlAllowHeaders() throws Exception
+    void shouldAttachValidRequestHeadersToAccessControlAllowHeaders() throws Exception
     {
         List<String> accessControlRequestHeaders = asList( "Accept", "X-Wrong\nHeader", "Content-Type", "Accept\r", "Illegal\r\nHeader", "", null, "   " );
         HttpServletRequest request = requestMock( emptyList(), accessControlRequestHeaders );

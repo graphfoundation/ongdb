@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,215 +38,219 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
-import java.nio.ByteBuffer;
 import java.util.Iterator;
-import java.util.regex.Pattern;
+import java.util.function.Supplier;
 
 import org.neo4j.internal.kernel.api.PropertyCursor;
-import org.neo4j.io.pagecache.PageCursor;
+import org.neo4j.internal.kernel.api.RelTypeSupplier;
+import org.neo4j.internal.kernel.api.TokenSet;
+import org.neo4j.internal.kernel.api.security.AccessMode;
 import org.neo4j.kernel.api.AssertOpen;
-import org.neo4j.kernel.impl.store.GeometryType;
-import org.neo4j.kernel.impl.store.LongerShortString;
-import org.neo4j.kernel.impl.store.PropertyType;
-import org.neo4j.kernel.impl.store.ShortArray;
-import org.neo4j.kernel.impl.store.TemporalType;
-import org.neo4j.kernel.impl.store.record.PropertyBlock;
-import org.neo4j.kernel.impl.store.record.PropertyRecord;
-import org.neo4j.kernel.impl.util.Bits;
+import org.neo4j.storageengine.api.PropertySelection;
+import org.neo4j.storageengine.api.Reference;
 import org.neo4j.storageengine.api.StorageProperty;
-import org.neo4j.storageengine.api.txstate.PropertyContainerState;
-import org.neo4j.values.storable.ArrayValue;
-import org.neo4j.values.storable.BooleanValue;
-import org.neo4j.values.storable.ByteValue;
-import org.neo4j.values.storable.DoubleValue;
-import org.neo4j.values.storable.FloatValue;
-import org.neo4j.values.storable.IntValue;
-import org.neo4j.values.storable.LongValue;
-import org.neo4j.values.storable.ShortValue;
-import org.neo4j.values.storable.TextValue;
+import org.neo4j.storageengine.api.StoragePropertyCursor;
+import org.neo4j.storageengine.api.txstate.EntityState;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.ValueGroup;
-import org.neo4j.values.storable.ValueWriter;
-import org.neo4j.values.storable.Values;
 
-public class DefaultPropertyCursor extends PropertyRecord implements PropertyCursor
+import static org.neo4j.kernel.api.StatementConstants.NO_SUCH_ENTITY;
+import static org.neo4j.kernel.impl.newapi.Read.NO_ID;
+import static org.neo4j.storageengine.api.LongReference.NULL_REFERENCE;
+import static org.neo4j.storageengine.api.PropertySelection.ALL_PROPERTIES;
+import static org.neo4j.token.api.TokenConstants.NO_TOKEN;
+
+public class DefaultPropertyCursor extends TraceableCursor<DefaultPropertyCursor> implements PropertyCursor, Supplier<TokenSet>, RelTypeSupplier
 {
-    private static final int MAX_BYTES_IN_SHORT_STRING_OR_SHORT_ARRAY = 32;
-    private static final int INITIAL_POSITION = -1;
+    private static final int NODE = -2;
     private Read read;
-    private long next;
-    private int block;
-    ByteBuffer buffer;
-    private PageCursor page;
-    private PageCursor stringPage;
-    private PageCursor arrayPage;
-    private PropertyContainerState propertiesState;
+    private final StoragePropertyCursor storeCursor;
+    private final FullAccessNodeCursor securityNodeCursor;
+    private final FullAccessRelationshipScanCursor securityRelCursor;
+    private EntityState propertiesState;
     private Iterator<StorageProperty> txStateChangedProperties;
     private StorageProperty txStateValue;
     private AssertOpen assertOpen;
-    private final DefaultCursors pool;
+    private AccessMode accessMode;
+    private long entityReference = NO_ID;
+    private TokenSet labels;
+    //stores relationship type or NODE if not a relationship
+    private int type = NO_TOKEN;
+    private boolean addedInTx;
+    private PropertySelection selection;
 
-    DefaultPropertyCursor( DefaultCursors pool )
+    DefaultPropertyCursor( CursorPool<DefaultPropertyCursor> pool, StoragePropertyCursor storeCursor,
+                           FullAccessNodeCursor securityNodeCursor, FullAccessRelationshipScanCursor securityRelCursor )
     {
-        super( NO_ID );
-        this.pool = pool;
+        super( pool );
+        this.storeCursor = storeCursor;
+        this.securityNodeCursor = securityNodeCursor;
+        this.securityRelCursor = securityRelCursor;
     }
 
-    void initNode( long nodeReference, long reference, Read read, AssertOpen assertOpen )
+    void initNode( long nodeReference, Reference reference, PropertySelection selection, Read read, AssertOpen assertOpen )
     {
         assert nodeReference != NO_ID;
 
-        init( reference, read, assertOpen );
+        init( selection, read, assertOpen );
+        this.type = NODE;
+        storeCursor.initNodeProperties( reference, selection );
+        this.entityReference = nodeReference;
 
-        // Transaction state
+        initializeNodeTransactionState( nodeReference, read );
+    }
+
+    void initNode( DefaultNodeCursor nodeCursor, PropertySelection selection, Read read, AssertOpen assertOpen )
+    {
+        entityReference = nodeCursor.nodeReference();
+        assert entityReference != NO_ID;
+
+        init( selection, read, assertOpen );
+        this.type = NODE;
+        this.addedInTx = nodeCursor.currentNodeIsAddedInTx();
+        if ( !addedInTx )
+        {
+            storeCursor.initNodeProperties( nodeCursor.storeCursor, selection );
+        }
+        else
+        {
+            storeCursor.initNodeProperties( NULL_REFERENCE, ALL_PROPERTIES );
+        }
+
+        initializeNodeTransactionState( entityReference, read );
+    }
+
+    private void initializeNodeTransactionState( long nodeReference, Read read )
+    {
         if ( read.hasTxStateWithChanges() )
         {
             this.propertiesState = read.txState().getNodeState( nodeReference );
-            this.txStateChangedProperties = this.propertiesState.addedAndChangedProperties();
+            this.txStateChangedProperties = this.propertiesState.addedAndChangedProperties().iterator();
+        }
+        else
+        {
+            this.propertiesState = null;
+            this.txStateChangedProperties = null;
         }
     }
 
-    void initRelationship( long relationshipReference, long reference, Read read, AssertOpen assertOpen )
+    void initRelationship( long relationshipReference, Reference reference, PropertySelection selection, Read read, AssertOpen assertOpen )
     {
         assert relationshipReference != NO_ID;
 
-        init( reference, read, assertOpen );
+        init( selection, read, assertOpen );
+        storeCursor.initRelationshipProperties( reference, selection );
+        this.entityReference = relationshipReference;
 
+        initializeRelationshipTransactionState( relationshipReference, read );
+    }
+
+    void initRelationship( DefaultRelationshipCursor<?,?> relationshipCursor, PropertySelection selection, Read read, AssertOpen assertOpen )
+    {
+        entityReference = relationshipCursor.relationshipReference();
+        assert entityReference != NO_ID;
+
+        init( selection, read, assertOpen );
+        this.addedInTx = relationshipCursor.currentRelationshipIsAddedInTx();
+        if ( !addedInTx )
+        {
+            storeCursor.initRelationshipProperties( relationshipCursor.storeCursor, selection );
+        }
+        else
+        {
+            storeCursor.initRelationshipProperties( NULL_REFERENCE, selection );
+        }
+
+        initializeRelationshipTransactionState( entityReference, read );
+    }
+
+    private void initializeRelationshipTransactionState( long relationshipReference, Read read )
+    {
         // Transaction state
         if ( read.hasTxStateWithChanges() )
         {
             this.propertiesState = read.txState().getRelationshipState( relationshipReference );
-            this.txStateChangedProperties = this.propertiesState.addedAndChangedProperties();
+            this.txStateChangedProperties = this.propertiesState.addedAndChangedProperties().iterator();
+        }
+        else
+        {
+            this.propertiesState = null;
+            this.txStateChangedProperties = null;
         }
     }
 
-    void initGraph( long reference, Read read, AssertOpen assertOpen )
+    void initEmptyRelationship( Read read, AssertOpen assertOpen )
     {
-        init( reference, read, assertOpen );
+        init( ALL_PROPERTIES, read, assertOpen );
+        storeCursor.initRelationshipProperties( NULL_REFERENCE, ALL_PROPERTIES );
+        this.entityReference = NO_SUCH_ENTITY;
 
-        // Transaction state
-        if ( read.hasTxStateWithChanges() )
-        {
-            this.propertiesState = read.txState().getGraphState( );
-            if ( this.propertiesState != null )
-            {
-                this.txStateChangedProperties = this.propertiesState.addedAndChangedProperties();
-            }
-        }
+        this.propertiesState = null;
+        this.txStateChangedProperties = null;
     }
 
-    private void init( long reference, Read read, AssertOpen assertOpen )
+    private void init( PropertySelection selection, Read read, AssertOpen assertOpen )
     {
-        if ( getId() != NO_ID )
-        {
-            clear();
-        }
-
+        this.selection = selection;
         this.assertOpen = assertOpen;
-        //Set to high value to force a read
-        this.block = Integer.MAX_VALUE;
         this.read = read;
-        if ( reference != NO_ID )
-        {
-            if ( page == null )
-            {
-                page = read.propertyPage( reference );
-            }
-        }
+        this.labels = null;
+        this.type = NO_TOKEN;
+    }
 
-        // Store state
-        this.next = reference;
+    boolean allowed( int propertyKey )
+    {
+        if ( isNode() )
+        {
+            ensureAccessMode();
+            return accessMode.allowsReadNodeProperty( this, propertyKey );
+        }
+        else
+        {
+            ensureAccessMode();
+            return accessMode.allowsReadRelationshipProperty( this, propertyKey );
+        }
     }
 
     @Override
     public boolean next()
     {
-        boolean hasNext;
-        do
-        {
-            hasNext = innerNext();
-        } while ( hasNext && !allowed( propertyKey() ) );
-        return hasNext;
-    }
-
-    private boolean allowed( int propertyKey )
-    {
-        return read.ktx.securityContext().mode().allowsPropertyReads( propertyKey );
-    }
-
-    private boolean innerNext()
-    {
         if ( txStateChangedProperties != null )
         {
-            if ( txStateChangedProperties.hasNext() )
+            while ( txStateChangedProperties.hasNext() )
             {
                 txStateValue = txStateChangedProperties.next();
-                return true;
-            }
-            else
-            {
-                txStateChangedProperties = null;
-                txStateValue = null;
-            }
-        }
-
-        while ( true )
-        {
-            //Figure out number of blocks of record
-            int numberOfBlocks = getNumberOfBlocks();
-            while ( block < numberOfBlocks )
-            {
-                //We have just read a record, so we are at the beginning
-                if ( block == INITIAL_POSITION )
+                if ( selection.test( txStateValue.propertyKeyId() ) )
                 {
-                    block = 0;
-                }
-                else
-                {
-                    //Figure out the type and how many blocks that are used
-                    long current = currentBlock();
-                    PropertyType type = PropertyType.getPropertyTypeOrNull( current );
-                    if ( type == null )
+                    if ( tracer != null )
                     {
-                        break;
+                        tracer.onProperty( txStateValue.propertyKeyId() );
                     }
-                    block += type.calculateNumberOfBlocksUsed( current );
-                }
-                //nothing left, need to read a new record
-                if ( block >= numberOfBlocks || type() == null )
-                {
-                    break;
-                }
-
-                if ( !isPropertyChangedOrRemoved() )
-                {
                     return true;
                 }
             }
-
-            if ( next == NO_ID )
-            {
-                return false;
-            }
-
-            read.property( this, next, page );
-            next = getNextProp();
-            block = INITIAL_POSITION;
+            txStateChangedProperties = null;
+            txStateValue = null;
         }
-    }
 
-    private boolean isPropertyChangedOrRemoved()
-    {
-        return propertiesState != null && propertiesState.isPropertyChangedOrRemoved( propertyKey() );
-    }
-
-    private long currentBlock()
-    {
-        return getBlocks()[block];
+        while ( storeCursor.next() )
+        {
+            int propertyKey = storeCursor.propertyKey();
+            boolean skip = propertiesState != null && propertiesState.isPropertyChangedOrRemoved( propertyKey );
+            if ( !skip && allowed( propertyKey ) )
+            {
+                if ( tracer != null )
+                {
+                    tracer.onProperty( propertyKey );
+                }
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
-    public void close()
+    public void closeInternal()
     {
         if ( !isClosed() )
         {
@@ -254,10 +258,10 @@ public class DefaultPropertyCursor extends PropertyRecord implements PropertyCur
             txStateChangedProperties = null;
             txStateValue = null;
             read = null;
-            clear();
-
-            pool.accept( this );
+            storeCursor.reset();
+            accessMode = null;
         }
+        super.closeInternal();
     }
 
     @Override
@@ -267,7 +271,7 @@ public class DefaultPropertyCursor extends PropertyRecord implements PropertyCur
         {
             return txStateValue.propertyKeyId();
         }
-        return PropertyBlock.keyIndexId( currentBlock() );
+        return storeCursor.propertyKey();
     }
 
     @Override
@@ -277,41 +281,7 @@ public class DefaultPropertyCursor extends PropertyRecord implements PropertyCur
         {
             return txStateValue.value().valueGroup();
         }
-
-        PropertyType type = type();
-        if ( type == null )
-        {
-            return ValueGroup.NO_VALUE;
-        }
-        switch ( type )
-        {
-        case BOOL:
-            return ValueGroup.BOOLEAN;
-        case BYTE:
-        case SHORT:
-        case INT:
-        case LONG:
-        case FLOAT:
-        case DOUBLE:
-            return ValueGroup.NUMBER;
-        case STRING:
-        case CHAR:
-        case SHORT_STRING:
-            return ValueGroup.TEXT;
-        case TEMPORAL:
-        case GEOMETRY:
-        case SHORT_ARRAY:
-        case ARRAY:
-            // value read is needed to get correct value group since type is not fine grained enough to match all ValueGroups
-            return propertyValue().valueGroup();
-        default:
-            throw new UnsupportedOperationException( type.name() + " not implemented" );
-        }
-    }
-
-    private PropertyType type()
-    {
-        return PropertyType.getPropertyTypeOrNull( currentBlock() );
+        return storeCursor.propertyType();
     }
 
     @Override
@@ -322,248 +292,10 @@ public class DefaultPropertyCursor extends PropertyRecord implements PropertyCur
             return txStateValue.value();
         }
 
-        Value value = readValue();
+        Value value = storeCursor.propertyValue();
 
         assertOpen.assertOpen();
         return value;
-    }
-
-    private Value readValue()
-    {
-        PropertyType type = type();
-        if ( type == null )
-        {
-            return Values.NO_VALUE;
-        }
-        switch ( type )
-        {
-        case BOOL:
-            return readBoolean();
-        case BYTE:
-            return readByte();
-        case SHORT:
-            return readShort();
-        case INT:
-            return readInt();
-        case LONG:
-            return readLong();
-        case FLOAT:
-            return readFloat();
-        case DOUBLE:
-            return readDouble();
-        case CHAR:
-            return readChar();
-        case SHORT_STRING:
-            return readShortString();
-        case SHORT_ARRAY:
-            return readShortArray();
-        case STRING:
-            return readLongString();
-        case ARRAY:
-            return readLongArray();
-        case GEOMETRY:
-            return geometryValue();
-        case TEMPORAL:
-            return temporalValue();
-        default:
-            throw new IllegalStateException( "Unsupported PropertyType: " + type.name() );
-        }
-    }
-
-    Value geometryValue()
-    {
-        return GeometryType.decode( getBlocks(), block );
-    }
-
-    Value temporalValue()
-    {
-        return TemporalType.decode( getBlocks(), block );
-    }
-
-    private ArrayValue readLongArray()
-    {
-        long reference = PropertyBlock.fetchLong( currentBlock() );
-        if ( arrayPage == null )
-        {
-            arrayPage = read.arrayPage( reference );
-        }
-        return read.array( this, reference, arrayPage );
-    }
-
-    private TextValue readLongString()
-    {
-        long reference = PropertyBlock.fetchLong( currentBlock() );
-        if ( stringPage == null )
-        {
-            stringPage = read.stringPage( reference );
-        }
-        return read.string( this, reference, stringPage );
-    }
-
-    private Value readShortArray()
-    {
-        Bits bits = Bits.bits( MAX_BYTES_IN_SHORT_STRING_OR_SHORT_ARRAY );
-        int blocksUsed = ShortArray.calculateNumberOfBlocksUsed( currentBlock() );
-        for ( int i = 0; i < blocksUsed; i++ )
-        {
-            bits.put( getBlocks()[block + i] );
-        }
-        return ShortArray.decode( bits );
-    }
-
-    private TextValue readShortString()
-    {
-        return LongerShortString
-                .decode( getBlocks(), block, LongerShortString.calculateNumberOfBlocksUsed( currentBlock() ) );
-    }
-
-    private TextValue readChar()
-    {
-        return Values.charValue( (char) PropertyBlock.fetchShort( currentBlock() ) );
-    }
-
-    private DoubleValue readDouble()
-    {
-        return Values.doubleValue( Double.longBitsToDouble( getBlocks()[block + 1] ) );
-    }
-
-    private FloatValue readFloat()
-    {
-        return Values.floatValue( Float.intBitsToFloat( PropertyBlock.fetchInt( currentBlock() ) ) );
-    }
-
-    private LongValue readLong()
-    {
-        if ( PropertyBlock.valueIsInlined( currentBlock() ) )
-        {
-            return Values.longValue( PropertyBlock.fetchLong( currentBlock() ) >>> 1 );
-        }
-        else
-        {
-            return Values.longValue( getBlocks()[block + 1] );
-        }
-    }
-
-    private IntValue readInt()
-    {
-        return Values.intValue( PropertyBlock.fetchInt( currentBlock() ) );
-    }
-
-    private ShortValue readShort()
-    {
-        return Values.shortValue( PropertyBlock.fetchShort( currentBlock() ) );
-    }
-
-    private ByteValue readByte()
-    {
-        return Values.byteValue( PropertyBlock.fetchByte( currentBlock() ) );
-    }
-
-    private BooleanValue readBoolean()
-    {
-        return Values.booleanValue( PropertyBlock.fetchByte( currentBlock() ) == 1 );
-    }
-
-    @Override
-    public <E extends Exception> void writeTo( ValueWriter<E> target )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean booleanValue()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public String stringValue()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public long longValue()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public double doubleValue()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueEqualTo( long value )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueEqualTo( double value )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueEqualTo( String value )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueMatches( Pattern regex )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueGreaterThan( long number )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueGreaterThan( double number )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueLessThan( long number )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueLessThan( double number )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueGreaterThanOrEqualTo( long number )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueGreaterThanOrEqualTo( double number )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueLessThanOrEqualTo( long number )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueLessThanOrEqualTo( double number )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
     }
 
     @Override
@@ -581,27 +313,81 @@ public class DefaultPropertyCursor extends PropertyRecord implements PropertyCur
         }
         else
         {
-            return "PropertyCursor[id=" + getId() + ", open state with: block=" + block + ", next=" + next +
-                   ", underlying record=" + super.toString() + " ]";
+            return "PropertyCursor[id=" + propertyKey() +
+                   ", " + storeCursor + " ]";
+        }
+    }
+
+    /**
+     * Gets the label while ignoring removes in the tx state. Implemented as a Supplier so that we don't need additional
+     * allocations.
+     *
+     * Only used for security checks
+     */
+    @Override
+    public TokenSet get()
+    {
+        assert isNode();
+
+        if ( labels == null )
+        {
+            read.singleNode( entityReference, securityNodeCursor );
+            securityNodeCursor.next();
+            labels = securityNodeCursor.labelsIgnoringTxStateSetRemove();
+        }
+        return labels;
+    }
+
+    /**
+     * Only used for security checks
+     */
+    @Override
+    public int getRelType()
+    {
+        assert isRelationship();
+
+        if ( type < 0 )
+        {
+            read.singleRelationship( entityReference, securityRelCursor );
+            securityRelCursor.next();
+            this.type = securityRelCursor.type();
+        }
+        return type;
+    }
+
+    private void ensureAccessMode()
+    {
+        if ( accessMode == null )
+        {
+            accessMode = read.ktx.securityContext().mode();
         }
     }
 
     public void release()
     {
-        if ( stringPage != null )
+        if ( storeCursor != null )
         {
-            stringPage.close();
-            stringPage = null;
+            storeCursor.close();
         }
-        if ( arrayPage != null )
+        if ( securityNodeCursor != null )
         {
-            arrayPage.close();
-            arrayPage = null;
+            securityNodeCursor.close();
+            securityNodeCursor.release();
         }
-        if ( page != null )
+        if ( securityRelCursor != null )
         {
-            page.close();
-            page = null;
+            securityRelCursor.close();
+            securityRelCursor.release();
         }
+    }
+
+    private boolean isNode()
+    {
+        return type == NODE;
+    }
+
+    private boolean isRelationship()
+    {
+        return type != NODE;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,13 +38,12 @@
  */
 package org.neo4j.cypher.internal.runtime
 
-import java.util.{List => JavaList, Map => JavaMap}
+import java.util
 
-import org.neo4j.cypher.internal.util.v3_4.Eagerly.immutableMapValues
-import org.neo4j.cypher.result.QueryResult.{QueryResultVisitor, Record}
-import org.neo4j.values.AnyValue
+import org.neo4j.cypher.internal.util.Eagerly.immutableMapValues
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.collection.Map
 
 // This converts runtime scala values into runtime Java value
@@ -53,43 +52,16 @@ import scala.collection.Map
 //
 class RuntimeJavaValueConverter(skip: Any => Boolean) {
 
-  final def asDeepJavaMap[S](map: Map[S, Any]): JavaMap[S, Any] =
-    if (map == null) null else immutableMapValues(map, asDeepJavaValue).asJava: JavaMap[S, Any]
+  final def asDeepJavaMap[S](map: Map[S, Any]): util.Map[S, Any] =
+    if (map == null) null else immutableMapValues(map, asDeepJavaValue).asJava: util.Map[S, Any]
 
   def asDeepJavaValue(value: Any): Any = value match {
     case anything if skip(anything) => anything
-    case map: Map[_, _] => immutableMapValues(map, asDeepJavaValue).asJava: JavaMap[_, _]
+    case map: Map[_, _] => immutableMapValues(map, asDeepJavaValue).asJava: util.Map[_, _]
     case JavaListWrapper(inner, _) => inner
-    case iterable: Iterable[_] => iterable.map(asDeepJavaValue).toIndexedSeq.asJava: JavaList[_]
-    case traversable: TraversableOnce[_] => traversable.map(asDeepJavaValue).toVector.asJava: JavaList[_]
+    case iterable: Iterable[_] => iterable.map(asDeepJavaValue).toIndexedSeq.asJava: util.List[_]
+    case traversable: TraversableOnce[_] => traversable.map(asDeepJavaValue).toVector.asJava: util.List[_]
     case anything => anything
-  }
-
-  case class feedIteratorToVisitable[EX <: Exception](fields: Iterator[Array[AnyValue]]) {
-    def accept(visitor: QueryResultVisitor[EX]) = {
-      val row = new ResultRecord()
-      var continue = true
-      while (continue && fields.hasNext) {
-        row._fields = fields.next()
-        continue = visitor.visit(row)
-      }
-    }
-  }
-
-  case class feedQueryResultRecordIteratorToVisitable[EX <: Exception](recordIterator: Iterator[Record]) {
-    def accept(visitor: QueryResultVisitor[EX]) = {
-      var continue = true
-      while (continue && recordIterator.hasNext) {
-        val row = recordIterator.next()
-        continue = visitor.visit(row)
-        row.release()
-      }
-    }
-  }
-
-  private class ResultRecord extends Record {
-    var _fields: Array[AnyValue] = Array.empty
-    override def fields(): Array[AnyValue] = _fields
   }
 }
 

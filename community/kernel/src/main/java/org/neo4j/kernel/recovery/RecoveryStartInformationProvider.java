@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,12 +40,17 @@ package org.neo4j.kernel.recovery;
 
 import java.io.IOException;
 
+import org.neo4j.exceptions.UnderlyingStorageException;
 import org.neo4j.function.ThrowingSupplier;
-import org.neo4j.kernel.impl.store.UnderlyingStorageException;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
-import org.neo4j.kernel.impl.transaction.log.entry.CheckPoint;
+import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
+import org.neo4j.kernel.impl.transaction.log.files.LogTailInformation;
+import org.neo4j.kernel.impl.transaction.log.files.checkpoint.CheckpointInfo;
 
-import static org.neo4j.kernel.impl.transaction.log.LogVersionRepository.INITIAL_LOG_VERSION;
+import static org.neo4j.kernel.impl.transaction.log.entry.LogVersions.CURRENT_FORMAT_LOG_HEADER_SIZE;
+import static org.neo4j.kernel.recovery.RecoveryStartInformation.MISSING_LOGS;
+import static org.neo4j.kernel.recovery.RecoveryStartInformation.NO_RECOVERY_REQUIRED;
+import static org.neo4j.storageengine.api.LogVersionRepository.INITIAL_LOG_VERSION;
 
 /**
  * Utility class to find the log position to start recovery from
@@ -80,18 +85,26 @@ public class RecoveryStartInformationProvider implements ThrowingSupplier<Recove
         default void noCheckPointFound()
         {   // no-op by default
         }
+
+        /**
+         * Failure to read initial header of initial log file
+         */
+        default void failToExtractInitialFileHeader( Exception e )
+        {
+            // no-op by default
+        }
     }
 
     public static final Monitor NO_MONITOR = new Monitor()
     {
     };
 
-    private final LogTailScanner logTailScanner;
+    private final LogFiles logFiles;
     private final Monitor monitor;
 
-    public RecoveryStartInformationProvider( LogTailScanner logTailScanner, Monitor monitor )
+    public RecoveryStartInformationProvider( LogFiles logFiles, Monitor monitor )
     {
-        this.logTailScanner = logTailScanner;
+        this.logFiles = logFiles;
         this.monitor = monitor;
     }
 
@@ -105,36 +118,59 @@ public class RecoveryStartInformationProvider implements ThrowingSupplier<Recove
     @Override
     public RecoveryStartInformation get()
     {
-        LogTailScanner.LogTailInformation logTailInformation = logTailScanner.getTailInformation();
-        CheckPoint lastCheckPoint = logTailInformation.lastCheckPoint;
+        LogTailInformation logTailInformation = logFiles.getTailInformation();
+        CheckpointInfo lastCheckPoint = logTailInformation.lastCheckPoint;
         long txIdAfterLastCheckPoint = logTailInformation.firstTxIdAfterLastCheckPoint;
-        if ( !logTailInformation.commitsAfterLastCheckpoint() )
-        {
-            monitor.noCommitsAfterLastCheckPoint( lastCheckPoint != null ? lastCheckPoint.getLogPosition() : null );
-            return createRecoveryInformation( LogPosition.UNSPECIFIED, txIdAfterLastCheckPoint );
-        }
 
-        if ( lastCheckPoint != null )
+        if ( !logTailInformation.isRecoveryRequired() )
         {
-            monitor.commitsAfterLastCheckPoint( lastCheckPoint.getLogPosition(), txIdAfterLastCheckPoint );
-            return createRecoveryInformation( lastCheckPoint.getLogPosition(), txIdAfterLastCheckPoint );
+            monitor.noCommitsAfterLastCheckPoint( lastCheckPoint != null ? lastCheckPoint.getTransactionLogPosition() : null );
+            return NO_RECOVERY_REQUIRED;
+        }
+        if ( logTailInformation.logsMissing() )
+        {
+            return MISSING_LOGS;
+        }
+        if ( logTailInformation.commitsAfterLastCheckpoint() )
+        {
+            if ( lastCheckPoint == null )
+            {
+                long lowestLogVersion = logFiles.getLogFile().getLowestLogVersion();
+                if ( lowestLogVersion != INITIAL_LOG_VERSION )
+                {
+                    throw new UnderlyingStorageException( "No check point found in any log file from version " + lowestLogVersion
+                            + " to " + logTailInformation.currentLogVersion );
+                }
+                monitor.noCheckPointFound();
+                LogPosition position = tryExtractHeaderSize();
+                return createRecoveryInformation( position, new LogPosition( INITIAL_LOG_VERSION, CURRENT_FORMAT_LOG_HEADER_SIZE ), txIdAfterLastCheckPoint );
+            }
+            LogPosition transactionLogPosition = lastCheckPoint.getTransactionLogPosition();
+            monitor.commitsAfterLastCheckPoint( transactionLogPosition, txIdAfterLastCheckPoint );
+            return createRecoveryInformation( transactionLogPosition, lastCheckPoint.getCheckpointEntryPosition(), txIdAfterLastCheckPoint );
         }
         else
         {
-            if ( logTailInformation.oldestLogVersionFound != INITIAL_LOG_VERSION )
-            {
-                long fromLogVersion = Math.max( INITIAL_LOG_VERSION, logTailInformation.oldestLogVersionFound );
-                throw new UnderlyingStorageException(
-                        "No check point found in any log file from version " + fromLogVersion + " to " +
-                                logTailInformation.currentLogVersion );
-            }
-            monitor.noCheckPointFound();
-            return createRecoveryInformation( LogPosition.start( 0 ), txIdAfterLastCheckPoint );
+            throw new UnderlyingStorageException( "Fail to determine recovery information Log tail info: " + logTailInformation );
         }
     }
 
-    private RecoveryStartInformation createRecoveryInformation( LogPosition logPosition, long firstTxId )
+    private LogPosition tryExtractHeaderSize()
     {
-        return new RecoveryStartInformation( logPosition, firstTxId );
+        try
+        {
+            return logFiles.getLogFile().extractHeader( 0 ).getStartPosition();
+        }
+        catch ( IOException e )
+        {
+            monitor.failToExtractInitialFileHeader( e );
+            // we can't even read header, lets assume we need to recover from the latest format and from the beginning
+            return new LogPosition( 0, CURRENT_FORMAT_LOG_HEADER_SIZE );
+        }
+    }
+
+    private static RecoveryStartInformation createRecoveryInformation( LogPosition transactionLogPosition, LogPosition checkpointLogPosition, long firstTxId )
+    {
+        return new RecoveryStartInformation( transactionLogPosition, checkpointLogPosition, firstTxId );
     }
 }

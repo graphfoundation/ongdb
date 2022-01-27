@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -46,7 +46,7 @@ import org.neo4j.csv.reader.Source.Chunk;
 import org.neo4j.values.storable.CSVHeaderInformation;
 
 import static java.lang.String.format;
-
+import static org.neo4j.csv.reader.Configuration.COMMAS;
 import static org.neo4j.csv.reader.Mark.END_OF_LINE_CHARACTER;
 
 /**
@@ -91,7 +91,6 @@ public class BufferedCharSeeker implements CharSeeker
     {
         this.source = source;
         this.quoteChar = config.quotationCharacter();
-        this.lineStartPos = this.bufferPos;
         this.multilineFields = config.multilineFields();
         this.legacyStyleQuoting = config.legacyStyleQuoting();
         this.trim = getTrimStringIgnoreErrors( config );
@@ -239,7 +238,7 @@ public class BufferedCharSeeker implements CharSeeker
         return index;
     }
 
-    private boolean isWhitespace( int ch )
+    private static boolean isWhitespace( int ch )
     {
         return ch == ' ' ||
                 ch == Character.SPACE_SEPARATOR ||
@@ -264,7 +263,7 @@ public class BufferedCharSeeker implements CharSeeker
         buffer[offset - stepsBack] = buffer[offset];
     }
 
-    private boolean isNewLine( int ch )
+    private static boolean isNewLine( int ch )
     {
         return ch == EOL_CHAR || ch == EOL_CHAR_2;
     }
@@ -285,7 +284,7 @@ public class BufferedCharSeeker implements CharSeeker
         }
     }
 
-    private boolean eof( Mark mark )
+    private static boolean eof( Mark mark )
     {
         mark.set( -1, -1, Mark.END_OF_LINE_CHARACTER, false );
         return false;
@@ -301,7 +300,7 @@ public class BufferedCharSeeker implements CharSeeker
         {
             // Cypher compatibility can result in older Cypher 2.3 code being passed here with older implementations of
             // Configuration. So we need to ignore the fact that those implementations do not include trimStrings().
-            return Configuration.DEFAULT.trimStrings();
+            return COMMAS.trimStrings();
         }
     }
 
@@ -362,7 +361,7 @@ public class BufferedCharSeeker implements CharSeeker
         {
             if ( bufferPos - seekStartPos >= dataCapacity )
             {
-                throw new BufferOverflowException(  "Tried to read a field larger than buffer size " +
+                throw new BufferOverflowException( "Tried to read a field larger than buffer size " +
                         dataLength + ". A common cause of this is that a field has an unterminated " +
                         "quote and so will try to seek until the next quote, which ever line it may be on." +
                         " This should not happen if multi-line fields are disabled, given that the fields contains " +

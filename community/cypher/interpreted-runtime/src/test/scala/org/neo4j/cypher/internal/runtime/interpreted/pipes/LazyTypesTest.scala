@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,15 +38,17 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.mockito.Mockito._
+import org.mockito.Mockito.verify
+import org.mockito.Mockito.verifyNoInteractions
+import org.mockito.Mockito.when
 import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
 class LazyTypesTest extends CypherFunSuite {
 
   test("should not initialize state when state is complete") {
     // given
-    val types = new LazyTypes(Array("a", "b", "c"))
+    val types = RelationshipTypes(Array("a", "b", "c"))
 
     val context = mock[QueryContext]
     when(context.getOptRelTypeId("a")).thenReturn(Some(1))
@@ -59,12 +61,12 @@ class LazyTypesTest extends CypherFunSuite {
     types.types(newContext)
 
     // then
-    verifyZeroInteractions(newContext)
+    verifyNoInteractions(newContext)
   }
 
   test("should re-initialize if not fully initialized") {
     // given
-    val types = new LazyTypes(Array("a", "b", "c"))
+    val types = RelationshipTypes(Array("a", "b", "c"))
 
     val context = mock[QueryContext]
     when(context.getOptRelTypeId("a")).thenReturn(Some(1))

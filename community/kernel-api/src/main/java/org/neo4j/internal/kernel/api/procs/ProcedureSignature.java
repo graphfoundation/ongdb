@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,17 +40,17 @@ package org.neo4j.internal.kernel.api.procs;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterables;
 import org.neo4j.procedure.Mode;
+
 import static java.util.Collections.unmodifiableList;
 
 /**
- * This describes the signature of a procedure, made up of its namespace, name, and input/output description.
- * Procedure uniqueness is currently *only* on the namespace/name level - no procedure overloading allowed (yet).
+ * This describes the signature of a procedure, made up of its namespace, name, and input/output description. Procedure uniqueness is currently *only* on the
+ * namespace/name level - no procedure overloading allowed (yet).
  */
 public class ProcedureSignature
 {
@@ -60,35 +60,47 @@ public class ProcedureSignature
     private final List<FieldSignature> inputSignature;
     private final List<FieldSignature> outputSignature;
     private final Mode mode;
+    private final boolean admin;
     private final String deprecated;
     private final String[] allowed;
     private final String description;
     private final String warning;
     private final boolean eager;
     private final boolean caseInsensitive;
+    private final boolean systemProcedure;
+    private final boolean internal;
+    private final boolean allowExpiredCredentials;
 
     public ProcedureSignature(
             QualifiedName name,
             List<FieldSignature> inputSignature,
             List<FieldSignature> outputSignature,
             Mode mode,
+            boolean admin,
             String deprecated,
             String[] allowed,
             String description,
             String warning,
             boolean eager,
-            boolean caseInsensitive )
+            boolean caseInsensitive,
+            boolean systemProcedure,
+            boolean internal,
+            boolean allowExpiredCredentials )
     {
         this.name = name;
         this.inputSignature = unmodifiableList( inputSignature );
         this.outputSignature = outputSignature == VOID ? outputSignature : unmodifiableList( outputSignature );
         this.mode = mode;
+        this.admin = admin;
         this.deprecated = deprecated;
         this.allowed = allowed;
         this.description = description;
         this.warning = warning;
         this.eager = eager;
         this.caseInsensitive = caseInsensitive;
+        this.systemProcedure = systemProcedure;
+        this.internal = internal;
+        this.allowExpiredCredentials = allowExpiredCredentials;
     }
 
     public QualifiedName name()
@@ -99,6 +111,11 @@ public class ProcedureSignature
     public Mode mode()
     {
         return mode;
+    }
+
+    public boolean admin()
+    {
+        return admin;
     }
 
     public Optional<String> deprecated()
@@ -146,6 +163,21 @@ public class ProcedureSignature
         return eager;
     }
 
+    public boolean systemProcedure()
+    {
+        return systemProcedure;
+    }
+
+    public boolean internal()
+    {
+        return internal;
+    }
+
+    public boolean allowedExpiredCredentials()
+    {
+        return allowExpiredCredentials;
+    }
+
     @Override
     public boolean equals( Object o )
     {
@@ -187,14 +219,18 @@ public class ProcedureSignature
     public static class Builder
     {
         private final QualifiedName name;
-        private final List<FieldSignature> inputSignature = new LinkedList<>();
-        private List<FieldSignature> outputSignature = new LinkedList<>();
+        private final List<FieldSignature> inputSignature = new ArrayList<>();
+        private List<FieldSignature> outputSignature = new ArrayList<>();
         private Mode mode = Mode.READ;
         private String deprecated;
         private String[] allowed = new String[0];
         private String description;
         private String warning;
         private boolean eager;
+        private boolean admin;
+        private boolean systemProcedure;
+        private boolean internal;
+        private boolean allowExpiredCredentials;
 
         public Builder( String[] namespace, String name )
         {
@@ -226,6 +262,12 @@ public class ProcedureSignature
             return this;
         }
 
+        public Builder in( String name, Neo4jTypes.AnyType type, DefaultParameterValue defaultValue )
+        {
+            inputSignature.add( FieldSignature.inputField( name, type, defaultValue ) );
+            return this;
+        }
+
         /** Define an output field */
         public Builder out( String name, Neo4jTypes.AnyType type )
         {
@@ -245,9 +287,15 @@ public class ProcedureSignature
             return this;
         }
 
+        public Builder admin( boolean admin )
+        {
+            this.admin = admin;
+            return this;
+        }
+
         public Builder warning( String warning )
         {
-            this.warning =  warning;
+            this.warning = warning;
             return this;
         }
 
@@ -257,9 +305,28 @@ public class ProcedureSignature
             return this;
         }
 
+        public Builder systemProcedure()
+        {
+            this.systemProcedure = true;
+            return this;
+        }
+
+        public Builder internal()
+        {
+            this.internal = true;
+            return this;
+        }
+
+        public Builder allowExpiredCredentials()
+        {
+            this.allowExpiredCredentials = true;
+            return this;
+        }
+
         public ProcedureSignature build()
         {
-            return new ProcedureSignature( name, inputSignature, outputSignature, mode, deprecated, allowed, description, warning, eager, false );
+            return new ProcedureSignature( name, inputSignature, outputSignature, mode, admin, deprecated, allowed,
+                                           description, warning, eager, false, systemProcedure, internal, allowExpiredCredentials );
         }
     }
 

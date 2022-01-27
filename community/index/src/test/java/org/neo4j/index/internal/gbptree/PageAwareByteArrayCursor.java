@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,9 +38,9 @@
  */
 package org.neo4j.index.internal.gbptree;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -60,6 +60,7 @@ class PageAwareByteArrayCursor extends PageCursor
     private long nextPageId;
     private PageCursor linkedCursor;
     private boolean shouldRetry;
+    private int closeCount;
 
     PageAwareByteArrayCursor( int pageSize )
     {
@@ -127,7 +128,7 @@ class PageAwareByteArrayCursor extends PageCursor
         assertPages();
 
         byte[] page = page( currentPageId );
-        current = wrap( page, 0, page.length );
+        current = wrap( page, 0, page.length, currentPageId );
         return true;
     }
 
@@ -147,7 +148,7 @@ class PageAwareByteArrayCursor extends PageCursor
     {
         if ( sourceOffset < 0 || targetOffset < 0 || lengthInBytes < 0 )
         {
-            throw new IllegalArgumentException( format( "sourceOffset=%d, targetOffset=%d, lengthInBytes=%d, currenPageId=%d",
+            throw new IllegalArgumentException( format( "sourceOffset=%d, targetOffset=%d, lengthInBytes=%d, currentPageId=%d",
                     sourceOffset, targetOffset, lengthInBytes, currentPageId ) );
         }
         int bytesToCopy = Math.min( lengthInBytes,
@@ -198,9 +199,15 @@ class PageAwareByteArrayCursor extends PageCursor
     /* DELEGATE METHODS */
 
     @Override
-    public File getCurrentFile()
+    public Path getCurrentFile()
     {
         return current.getCurrentFile();
+    }
+
+    @Override
+    public Path getRawCurrentFile()
+    {
+        return current.getRawCurrentFile();
     }
 
     @Override
@@ -342,6 +349,18 @@ class PageAwareByteArrayCursor extends PageCursor
     }
 
     @Override
+    public void mark()
+    {
+        current.mark();
+    }
+
+    @Override
+    public void setOffsetToMark()
+    {
+        current.setOffsetToMark();
+    }
+
+    @Override
     public void rewind()
     {
         current.rewind();
@@ -350,6 +369,7 @@ class PageAwareByteArrayCursor extends PageCursor
     @Override
     public void close()
     {
+        closeCount++;
         if ( linkedCursor != null )
         {
             linkedCursor.close();
@@ -432,5 +452,10 @@ class PageAwareByteArrayCursor extends PageCursor
     public boolean isWriteLocked()
     {
         return current == null || current.isWriteLocked();
+    }
+
+    public int getCloseCount()
+    {
+        return closeCount;
     }
 }

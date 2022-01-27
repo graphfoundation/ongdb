@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,9 +38,7 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,38 +46,22 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.neo4j.configuration.Config;
+import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettings;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
-import static java.util.Arrays.asList;
 import static java.util.Collections.unmodifiableList;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.kernel.impl.index.schema.NativeIndexKey.Inclusion.NEUTRAL;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
-@RunWith( Parameterized.class )
-public class RawBitsTest
+class RawBitsTest
 {
-    @Parameterized.Parameter()
-    public String name;
+    private static final IndexSpecificSpaceFillingCurveSettings specificSettings = IndexSpecificSpaceFillingCurveSettings.fromConfig( Config.defaults() );
+    public GenericLayout layout = new GenericLayout( 1, specificSettings );
 
-    @Parameterized.Parameter( 1 )
-    public NumberLayout layout;
-
-    @Parameterized.Parameters( name = "{0}" )
-    public static List<Object[]> layouts()
-    {
-        return asList(
-                new Object[]{"Unique",
-                        new NumberLayoutUnique()
-                },
-                new Object[]{"NonUnique",
-                        new NumberLayoutNonUnique()
-                }
-        );
-    }
-
-    final List<Object> objects = Arrays.asList(
+    private final List<Object> objects = Arrays.asList(
             Double.NEGATIVE_INFINITY,
             -Double.MAX_VALUE,
             Long.MIN_VALUE,
@@ -128,41 +110,41 @@ public class RawBitsTest
     );
 
     @Test
-    public void mustSortInSameOrderAsValueComparator()
+    void mustSortInSameOrderAsValueComparator()
     {
         // given
         List<Value> values = asValueObjects( objects );
-        List<NumberSchemaKey> schemaNumberKeys = asSchemaNumberKeys( values );
+        List<BtreeKey> numberIndexKeys = asNumberIndexKeys( values );
         Collections.shuffle( values );
-        Collections.shuffle( schemaNumberKeys );
+        Collections.shuffle( numberIndexKeys );
 
         // when
         values.sort( Values.COMPARATOR );
-        schemaNumberKeys.sort( layout );
-        List<Value> actual = asValues( schemaNumberKeys );
+        numberIndexKeys.sort( layout );
+        List<Value> actual = asValues( numberIndexKeys );
 
         // then
         assertSameOrder( actual, values );
     }
 
     @Test
-    public void shouldCompareAllValuesToAllOtherValuesLikeValueComparator()
+    void shouldCompareAllValuesToAllOtherValuesLikeValueComparator()
     {
         // given
         List<Value> values = asValueObjects( objects );
-        List<NumberSchemaKey> schemaNumberKeys = asSchemaNumberKeys( values );
+        List<BtreeKey> numberIndexKeys = asNumberIndexKeys( values );
         values.sort( Values.COMPARATOR );
 
         // when
-        for ( NumberSchemaKey numberKey : schemaNumberKeys )
+        for ( BtreeKey genericKey : numberIndexKeys )
         {
-            List<NumberSchemaKey> withoutThisOne = new ArrayList<>( schemaNumberKeys );
-            assertTrue( withoutThisOne.remove( numberKey ) );
+            List<BtreeKey> withoutThisOne = new ArrayList<>( numberIndexKeys );
+            assertTrue( withoutThisOne.remove( genericKey ) );
             withoutThisOne = unmodifiableList( withoutThisOne );
             for ( int i = 0; i < withoutThisOne.size(); i++ )
             {
-                List<NumberSchemaKey> withThisOneInWrongPlace = new ArrayList<>( withoutThisOne );
-                withThisOneInWrongPlace.add( i, numberKey );
+                List<BtreeKey> withThisOneInWrongPlace = new ArrayList<>( withoutThisOne );
+                withThisOneInWrongPlace.add( i, genericKey );
                 withThisOneInWrongPlace.sort( layout );
                 List<Value> actual = asValues( withThisOneInWrongPlace );
 
@@ -173,38 +155,38 @@ public class RawBitsTest
     }
 
     @Test
-    public void shouldHaveSameCompareResultsAsValueCompare()
+    void shouldHaveSameCompareResultsAsValueCompare()
     {
         // given
         List<Value> values = asValueObjects( objects );
-        List<NumberSchemaKey> schemaNumberKeys = asSchemaNumberKeys( values );
+        List<BtreeKey> numberIndexKeys = asNumberIndexKeys( values );
 
         // when
         for ( int i = 0; i < values.size(); i++ )
         {
             Value value1 = values.get( i );
-            NumberSchemaKey schemaNumberKey1 = schemaNumberKeys.get( i );
+            BtreeKey numberIndexKey1 = numberIndexKeys.get( i );
             for ( int j = 0; j < values.size(); j++ )
             {
                 // then
                 Value value2 = values.get( j );
-                NumberSchemaKey schemaNumberKey2 = schemaNumberKeys.get( j );
+                BtreeKey numberIndexKey2 = numberIndexKeys.get( j );
                 assertEquals( Values.COMPARATOR.compare( value1, value2 ),
-                        layout.compare( schemaNumberKey1, schemaNumberKey2 ) );
+                        layout.compare( numberIndexKey1, numberIndexKey2 ) );
                 assertEquals( Values.COMPARATOR.compare( value2, value1 ),
-                        layout.compare( schemaNumberKey2, schemaNumberKey1 ) );
+                        layout.compare( numberIndexKey2, numberIndexKey1 ) );
             }
         }
     }
 
-    private List<Value> asValues( List<NumberSchemaKey> schemaNumberKeys )
+    private static List<Value> asValues( List<BtreeKey> numberIndexKeys )
     {
-        return schemaNumberKeys.stream()
-                .map( k -> RawBits.asNumberValue( k.rawValueBits, k.type ) )
+        return numberIndexKeys.stream()
+                .map( k -> RawBits.asNumberValue( k.long0, (byte) k.long1 ) )
                 .collect( Collectors.toList() );
     }
 
-    private void assertSameOrder( List<Value> actual, List<Value> values )
+    private static void assertSameOrder( List<Value> actual, List<Value> values )
     {
         assertEquals( actual.size(), values.size() );
         for ( int i = 0; i < actual.size(); i++ )
@@ -223,7 +205,7 @@ public class RawBitsTest
         }
     }
 
-    private List<Value> asValueObjects( List<Object> objects )
+    private static List<Value> asValueObjects( List<Object> objects )
     {
         List<Value> values = new ArrayList<>();
         for ( Object object : objects )
@@ -233,15 +215,16 @@ public class RawBitsTest
         return values;
     }
 
-    private List<NumberSchemaKey> asSchemaNumberKeys( List<Value> values )
+    private List<BtreeKey> asNumberIndexKeys( List<Value> values )
     {
-        List<NumberSchemaKey> schemaNumberKeys = new ArrayList<>();
+        List<BtreeKey> numberIndexKeys = new ArrayList<>();
         for ( Value value : values )
         {
-            NumberSchemaKey key = new NumberSchemaKey();
-            key.from( 0, value );
-            schemaNumberKeys.add( key );
+            BtreeKey key = layout.newKey();
+            key.initialize( 0 );
+            key.initFromValue( 0, value, NEUTRAL );
+            numberIndexKeys.add( key );
         }
-        return schemaNumberKeys;
+        return numberIndexKeys;
     }
 }

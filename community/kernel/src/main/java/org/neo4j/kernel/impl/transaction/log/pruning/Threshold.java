@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,13 +38,25 @@
  */
 package org.neo4j.kernel.impl.transaction.log.pruning;
 
-import java.io.File;
+import java.nio.file.Path;
 
 import org.neo4j.kernel.impl.transaction.log.LogFileInformation;
 
+/**
+ * Determines transaction log pruning point below which it should be safe to prune log files.
+ */
 public interface Threshold
 {
     void init();
 
-    boolean reached( File file, long version, LogFileInformation source );
+    /**
+     * Check if threshold is reached for provided version of transaction log file.
+     * Even if file can't be read or some condition can't be evaluated threshold should not throw exception and make any assumptions about presence or
+     * absence of file, correctness of information, etc. Instead threshold should not be reached as result.
+     * @param path transaction log file
+     * @param version version of log file
+     * @param source meta information about particular transaction file
+     * @return true if reached, false otherwise
+     */
+    boolean reached( Path path, long version, LogFileInformation source );
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,9 +39,9 @@
 package org.neo4j.bolt.runtime;
 
 import io.netty.channel.Channel;
-import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import java.net.SocketAddress;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -49,23 +49,23 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.neo4j.bolt.BoltChannel;
-import org.neo4j.bolt.BoltKernelExtension;
-import org.neo4j.bolt.v1.packstream.PackOutput;
-import org.neo4j.bolt.v1.runtime.BoltConnectionAuthFatality;
-import org.neo4j.bolt.v1.runtime.BoltProtocolBreachFatality;
-import org.neo4j.bolt.v1.runtime.BoltStateMachine;
-import org.neo4j.bolt.v1.runtime.Job;
-import org.neo4j.bolt.v1.runtime.Neo4jError;
+import org.neo4j.bolt.BoltServer;
+import org.neo4j.bolt.messaging.BoltResponseMessageWriter;
+import org.neo4j.bolt.runtime.scheduling.BoltConnectionLifetimeListener;
+import org.neo4j.bolt.runtime.scheduling.BoltConnectionQueueMonitor;
+import org.neo4j.bolt.runtime.statemachine.BoltStateMachine;
+import org.neo4j.bolt.transport.pipeline.KeepAliveHandler;
 import org.neo4j.kernel.api.exceptions.Status;
-import org.neo4j.kernel.impl.logging.LogService;
 import org.neo4j.logging.Log;
+import org.neo4j.logging.internal.LogService;
 import org.neo4j.util.FeatureToggles;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.commons.lang3.exception.ExceptionUtils.hasCause;
 
 public class DefaultBoltConnection implements BoltConnection
 {
-    protected static final int DEFAULT_MAX_BATCH_SIZE = FeatureToggles.getInteger( BoltKernelExtension.class, "max_batch_size", 100 );
+    static final int DEFAULT_MAX_BATCH_SIZE = FeatureToggles.getInteger( BoltServer.class, "max_batch_size", 100 );
 
     private final String id;
 
@@ -73,7 +73,6 @@ public class DefaultBoltConnection implements BoltConnection
     private final BoltStateMachine machine;
     private final BoltConnectionLifetimeListener listener;
     private final BoltConnectionQueueMonitor queueMonitor;
-    private final PackOutput output;
 
     private final Log log;
     private final Log userLog;
@@ -84,21 +83,21 @@ public class DefaultBoltConnection implements BoltConnection
 
     private final AtomicBoolean shouldClose = new AtomicBoolean();
     private final AtomicBoolean closed = new AtomicBoolean();
+    private final AtomicBoolean idle = new AtomicBoolean( true );
 
-    public DefaultBoltConnection( BoltChannel channel, PackOutput output, BoltStateMachine machine, LogService logService,
-            BoltConnectionLifetimeListener listener,
-            BoltConnectionQueueMonitor queueMonitor )
-    {
-        this( channel, output, machine, logService, listener, queueMonitor, DEFAULT_MAX_BATCH_SIZE );
-    }
+    private final BoltConnectionMetricsMonitor metricsMonitor;
+    private final Clock clock;
+    private final BoltResponseMessageWriter messageWriter;
+    private final KeepAliveHandler keepAliveHandler;
 
-    public DefaultBoltConnection( BoltChannel channel, PackOutput output, BoltStateMachine machine, LogService logService,
-            BoltConnectionLifetimeListener listener,
-            BoltConnectionQueueMonitor queueMonitor, int maxBatchSize )
+    DefaultBoltConnection( BoltChannel channel, BoltResponseMessageWriter messageWriter, BoltStateMachine machine,
+                           LogService logService, BoltConnectionLifetimeListener listener,
+                           BoltConnectionQueueMonitor queueMonitor, int maxBatchSize, KeepAliveHandler keepAliveHandler,
+                           BoltConnectionMetricsMonitor metricsMonitor,
+                           Clock clock )
     {
         this.id = channel.id();
         this.channel = channel;
-        this.output = output;
         this.machine = machine;
         this.listener = listener;
         this.queueMonitor = queueMonitor;
@@ -106,12 +105,24 @@ public class DefaultBoltConnection implements BoltConnection
         this.userLog = logService.getUserLog( getClass() );
         this.maxBatchSize = maxBatchSize;
         this.batch = new ArrayList<>( maxBatchSize );
+        this.metricsMonitor = metricsMonitor;
+        this.clock = clock;
+        this.messageWriter = messageWriter;
+        this.keepAliveHandler = keepAliveHandler;
     }
 
     @Override
     public String id()
     {
         return id;
+    }
+
+    @Override
+    public boolean idle()
+    {
+        // Checking additionally for whether the job queue is empty in order to respect
+        // pending and accepted jobs
+        return idle.get() && queue.isEmpty();
     }
 
     @Override
@@ -133,12 +144,6 @@ public class DefaultBoltConnection implements BoltConnection
     }
 
     @Override
-    public PackOutput output()
-    {
-        return output;
-    }
-
-    @Override
     public boolean hasPendingJobs()
     {
         return !queue.isEmpty();
@@ -148,12 +153,41 @@ public class DefaultBoltConnection implements BoltConnection
     public void start()
     {
         notifyCreated();
+        metricsMonitor.connectionOpened();
     }
 
     @Override
     public void enqueue( Job job )
     {
-        enqueueInternal( job );
+        metricsMonitor.messageReceived();
+        long queuedAt = clock.millis();
+        enqueueInternal( machine ->
+                         {
+                             if ( keepAliveHandler != null )
+                             {
+                                 keepAliveHandler.setActive( true );
+                             }
+
+                             long queueTime = clock.millis() - queuedAt;
+                             metricsMonitor.messageProcessingStarted( queueTime );
+                             try
+                             {
+                                 job.perform( machine );
+                                 metricsMonitor.messageProcessingCompleted( clock.millis() - queuedAt - queueTime );
+                             }
+                             catch ( Throwable t )
+                             {
+                                 metricsMonitor.messageProcessingFailed();
+                                 throw t;
+                             }
+                             finally
+                             {
+                                 if ( keepAliveHandler != null && !machine.hasOpenStatement() )
+                                 {
+                                     keepAliveHandler.setActive( false );
+                                 }
+                             }
+                         } );
     }
 
     @Override
@@ -162,7 +196,30 @@ public class DefaultBoltConnection implements BoltConnection
         return processNextBatch( maxBatchSize, false );
     }
 
-    protected boolean processNextBatch( int batchCount, boolean exitIfNoJobsAvailable )
+    private boolean processNextBatch( int batchCount, boolean exitIfNoJobsAvailable )
+    {
+        idle.set( false );
+        metricsMonitor.connectionActivated();
+
+        try
+        {
+            boolean continueProcessing = processNextBatchInternal( batchCount, exitIfNoJobsAvailable );
+
+            if ( !continueProcessing )
+            {
+                metricsMonitor.connectionClosed();
+            }
+
+            return continueProcessing;
+        }
+        finally
+        {
+            idle.set( true );
+            metricsMonitor.connectionWaiting();
+        }
+    }
+
+    private boolean processNextBatchInternal( int batchCount, boolean exitIfNoJobsAvailable )
     {
         try
         {
@@ -184,7 +241,7 @@ public class DefaultBoltConnection implements BoltConnection
                     queue.drainTo( batch, batchCount );
                     // if we expect one message but did not get any (because it was already
                     // processed), silently exit
-                    if ( batch.size() == 0 && !exitIfNoJobsAvailable )
+                    if ( batch.isEmpty() && !exitIfNoJobsAvailable )
                     {
                         // loop until we get a new job, if we cannot then validate
                         // transaction to check for termination condition. We'll
@@ -207,7 +264,7 @@ public class DefaultBoltConnection implements BoltConnection
                     notifyDrained( batch );
 
                     // execute each job that's in the batch
-                    while ( batch.size() > 0 )
+                    while ( !batch.isEmpty() )
                     {
                         Job current = batch.remove( 0 );
 
@@ -222,18 +279,15 @@ public class DefaultBoltConnection implements BoltConnection
                 }
 
                 // we processed all pending messages, let's flush underlying channel
-                if ( queue.size() == 0 || maxBatchSize == 1 )
+                if ( queue.isEmpty() )
                 {
-                    output.flush();
+                    messageWriter.flush();
                 }
             }
             while ( loop );
 
             // assert only if we'll stay alive
-            if ( !willClose() )
-            {
-                assert !machine.hasOpenStatement();
-            }
+            assert willClose() || !machine.hasOpenStatement();
         }
         catch ( BoltConnectionAuthFatality ex )
         {
@@ -277,7 +331,7 @@ public class DefaultBoltConnection implements BoltConnection
         {
             String message;
             Neo4jError error;
-            if ( ExceptionUtils.hasCause( t, RejectedExecutionException.class ) )
+            if ( hasCause( t, RejectedExecutionException.class ) )
             {
                 error = Neo4jError.from( Status.Request.NoThreadsAvailable, Status.Request.NoThreadsAvailable.code().description() );
                 message = String.format( "Unable to schedule bolt session '%s' for execution since there are no available threads to " +
@@ -298,6 +352,9 @@ public class DefaultBoltConnection implements BoltConnection
         // and it will either send a failure response to the client or close the connection and its
         // related resources (if closing)
         processNextBatch( 1, true );
+        // we close the connection directly to enforce the client to stop waiting for
+        // any more messages responses besides the failure message.
+        close();
     }
 
     @Override
@@ -311,7 +368,7 @@ public class DefaultBoltConnection implements BoltConnection
     {
         if ( shouldClose.compareAndSet( false, true ) )
         {
-            machine.terminate();
+            machine.markForTermination();
 
             // Enqueue an empty job for close to be handled linearly
             // This is for already executing connections
@@ -320,6 +377,27 @@ public class DefaultBoltConnection implements BoltConnection
 
             } );
         }
+    }
+
+    @Override
+    @Deprecated( forRemoval = true )
+    public void keepAlive()
+    {
+        try
+        {
+            messageWriter.keepAlive();
+        }
+        catch ( Throwable e )
+        {
+            log.error( "Failed to perform keep alive check.", e );
+            shouldClose.set( true );
+        }
+    }
+
+    @Override
+    public void initKeepAliveTimer()
+    {
+        messageWriter.initKeepAliveTimer();
     }
 
     private boolean willClose()
@@ -333,7 +411,7 @@ public class DefaultBoltConnection implements BoltConnection
         {
             try
             {
-                output.close();
+                messageWriter.close();
             }
             catch ( Throwable t )
             {
@@ -387,7 +465,7 @@ public class DefaultBoltConnection implements BoltConnection
 
     private void notifyDrained( List<Job> jobs )
     {
-        if ( queueMonitor != null && jobs.size() > 0 )
+        if ( queueMonitor != null && !jobs.isEmpty() )
         {
             queueMonitor.drained( this, jobs );
         }

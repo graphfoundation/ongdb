@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,24 +38,40 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.frontend.v3_4.semantics.SemanticTable
-import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.v3_4.expressions.RelTypeName
+import org.neo4j.cypher.internal.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.expressions.RelTypeName
+import org.neo4j.cypher.internal.planner.spi.ReadTokenContext
+import org.neo4j.cypher.internal.runtime.WriteQueryContext
+import org.neo4j.internal.kernel.api.TokenWrite
 
 case class LazyType(name: String) {
 
-  private var id = LazyType.UNINITIALIZED
+  private var id = LazyType.UNKNOWN
 
-  def typ(context: QueryContext): Int = {
-    if (id == LazyType.UNINITIALIZED) {
+  def getOrCreateType(context: WriteQueryContext): Int = {
+    if (id == LazyType.UNKNOWN) {
       id = context.getOrCreateRelTypeId(name)
+    }
+    id
+  }
+
+  def getOrCreateType(token: TokenWrite): Int = {
+    if (id == LazyType.UNKNOWN) {
+      id = token.relationshipTypeGetOrCreateForName(name)
+    }
+    id
+  }
+
+  def getId(context: ReadTokenContext): Int = {
+    if (id == LazyLabel.UNKNOWN) {
+      id = context.getOptRelTypeId(name).getOrElse(LazyType.UNKNOWN)
     }
     id
   }
 }
 
 object LazyType {
-  val UNINITIALIZED = -1
+  val UNKNOWN: Int = -1
 
   def apply(relTypeName: RelTypeName)(implicit table: SemanticTable): LazyType = {
     val typ = LazyType(relTypeName.name)

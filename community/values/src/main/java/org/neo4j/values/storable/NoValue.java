@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,6 +40,7 @@ package org.neo4j.values.storable;
 
 import org.neo4j.hashing.HashFunction;
 import org.neo4j.values.AnyValue;
+import org.neo4j.values.Equality;
 import org.neo4j.values.ValueMapper;
 
 /**
@@ -48,25 +49,30 @@ import org.neo4j.values.ValueMapper;
  * The NULL object of the Value world. Is implemented as a singleton, to allow direct reference equality checks (==),
  * and avoid unnecessary object creation.
  */
-final class NoValue extends Value
+public final class NoValue extends Value
 {
-    @SuppressWarnings( "WeakerAccess" )
-    static final NoValue NO_VALUE = new NoValue();
+    public static final NoValue NO_VALUE = new NoValue();
 
     private NoValue()
     {
     }
 
     @Override
-    public boolean eq( Object other )
+    public boolean equalTo( Object other )
     {
         return this == other;
     }
 
     @Override
-    public Boolean ternaryEquals( AnyValue other )
+    public Equality ternaryEquals( AnyValue other )
     {
-        return null;
+        return Equality.UNDEFINED;
+    }
+
+    @Override
+    boolean ternaryUndefined()
+    {
+        return true;
     }
 
     @Override
@@ -82,7 +88,7 @@ final class NoValue extends Value
     }
 
     @Override
-    public int computeHash()
+    protected int computeHash()
     {
         return System.identityHashCode( this );
     }
@@ -124,9 +130,9 @@ final class NoValue extends Value
     }
 
     @Override
-    public ValueGroup valueGroup()
+    public ValueRepresentation valueRepresentation()
     {
-        return ValueGroup.NO_VALUE;
+        return ValueRepresentation.NO_VALUE;
     }
 
     @Override
@@ -136,8 +142,14 @@ final class NoValue extends Value
     }
 
     @Override
-    int unsafeCompareTo( Value other )
+    protected int unsafeCompareTo( Value other )
     {
         return 0;
+    }
+
+    @Override
+    public long estimatedHeapUsage()
+    {
+        return 0L;
     }
 }

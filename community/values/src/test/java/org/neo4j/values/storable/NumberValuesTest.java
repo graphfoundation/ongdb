@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,49 +38,48 @@
  */
 package org.neo4j.values.storable;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.neo4j.values.storable.NumberValues.hash;
-import static org.neo4j.values.utils.AnyValueTestUtil.assertIncomparable;
+import static org.neo4j.values.utils.AnyValueTestUtil.assertNotEqual;
 import static org.neo4j.values.virtual.VirtualValueTestUtil.toAnyValue;
 
-public class NumberValuesTest
+class NumberValuesTest
 {
 
     @Test
-    public void shouldHashNaN()
+    void shouldHashNaN()
     {
-        assertThat( hash( Double.NaN ), equalTo( hash( Float.NaN ) ) );
+        assertThat( hash( Double.NaN ) ).isEqualTo( hash( Float.NaN ) );
     }
 
     @Test
-    public void shouldHashInfinite()
+    void shouldHashInfinite()
     {
-        assertThat( hash( Double.NEGATIVE_INFINITY ), equalTo( hash( Float.NEGATIVE_INFINITY ) ) );
-        assertThat( hash( Double.POSITIVE_INFINITY ), equalTo( hash( Float.POSITIVE_INFINITY ) ) );
+        assertThat( hash( Double.NEGATIVE_INFINITY ) ).isEqualTo( hash( Float.NEGATIVE_INFINITY ) );
+        assertThat( hash( Double.POSITIVE_INFINITY ) ).isEqualTo( hash( Float.POSITIVE_INFINITY ) );
     }
 
     @Test
-    public void shouldHandleNaNCorrectly()
+    void shouldHandleNaNCorrectly()
     {
-        assertIncomparable( toAnyValue(Double.NaN), toAnyValue( Double.NaN ) );
-        assertIncomparable( toAnyValue( 1 ), toAnyValue( Double.NaN ) );
-        assertIncomparable( toAnyValue( Double.NaN ), toAnyValue( 1 ) );
+        assertNotEqual( toAnyValue(Double.NaN), toAnyValue( Double.NaN ) );
+        assertNotEqual( toAnyValue( 1 ), toAnyValue( Double.NaN ) );
+        assertNotEqual( toAnyValue( Double.NaN ), toAnyValue( 1 ) );
     }
 
     @Test
-    public void shouldHashIntegralDoubleAsLong()
+    void shouldHashIntegralDoubleAsLong()
     {
-        assertThat( hash( 1337d ), equalTo( hash( 1337L ) ) );
+        assertThat( hash( 1337d ) ).isEqualTo( hash( 1337L ) );
     }
 
     @Test
-    public void shouldGiveSameResultEvenWhenArraysContainDifferentTypes()
+    void shouldGiveSameResultEvenWhenArraysContainDifferentTypes()
     {
         int[] ints = new int[32];
         long[] longs = new long[32];
@@ -93,22 +92,22 @@ public class NumberValuesTest
             longs[i] = nextInt;
         }
 
-        assertThat( hash( ints ), equalTo( hash( longs ) ) );
+        assertThat( hash( ints ) ).isEqualTo( hash( longs ) );
     }
 
     @Test
-    public void shouldGiveSameHashForLongsAndInts()
+    void shouldGiveSameHashForLongsAndInts()
     {
         Random r = ThreadLocalRandom.current();
         for ( int i = 0; i < 1_000_000; i++ )
         {
             int anInt = r.nextInt();
-            assertThat( anInt, equalTo( hash( (long) anInt ) ) );
+            assertThat( anInt ).isEqualTo( hash( anInt ) );
         }
     }
 
     @Test
-    public void shouldGiveSameResultEvenWhenArraysContainDifferentTypes2()
+    void shouldGiveSameResultEvenWhenArraysContainDifferentTypes2()
     {
         byte[] bytes = new byte[32];
         short[] shorts = new short[32];
@@ -121,6 +120,6 @@ public class NumberValuesTest
             shorts[i] = nextByte;
         }
 
-        assertThat( hash( bytes ), equalTo( hash( shorts ) ) );
+        assertThat( hash( bytes ) ).isEqualTo( hash( shorts ) );
     }
 }

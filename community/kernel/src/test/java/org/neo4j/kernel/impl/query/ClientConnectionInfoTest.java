@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,78 +38,62 @@
  */
 package org.neo4j.kernel.impl.query;
 
+import org.junit.jupiter.api.Test;
+
 import java.net.InetSocketAddress;
 
-import org.junit.Test;
-
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
 import org.neo4j.kernel.impl.query.clientconnection.BoltConnectionInfo;
-import org.neo4j.kernel.impl.query.clientconnection.ClientConnectionInfo;
 import org.neo4j.kernel.impl.query.clientconnection.HttpConnectionInfo;
-import org.neo4j.kernel.impl.query.clientconnection.ShellConnectionInfo;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class ClientConnectionInfoTest
+class ClientConnectionInfoTest
 {
     @Test
-    public void connectionDetailsForBoltQuerySource()
+    void connectionDetailsForBoltQuerySource()
     {
         // given
         ClientConnectionInfo clientConnection = new BoltConnectionInfo(
-                "username",
+                "bolt-42",
                 "neo4j-java-bolt-driver",
                 new InetSocketAddress( "127.0.0.1", 56789 ),
-                new InetSocketAddress( "127.0.0.1", 7687 ) )
-                .withUsername( "username" );
+                new InetSocketAddress( "127.0.0.1", 7687 ) );
 
         // when
         String connectionDetails = clientConnection.asConnectionDetails();
 
         // then
         assertEquals(
-                "bolt-session\tbolt\tusername\tneo4j-java-bolt-driver\t\tclient/127.0.0.1:56789\t"
-                        + "server/127.0.0.1:7687>\tusername",
+                "bolt-session\tbolt\tneo4j-java-bolt-driver\t\tclient/127.0.0.1:56789\t"
+                        + "server/127.0.0.1:7687>",
                 connectionDetails );
     }
 
     @Test
-    public void connectionDetailsForHttpQuerySource()
+    void connectionDetailsForHttpQuerySource()
     {
         // given
         ClientConnectionInfo clientConnection =
-                new HttpConnectionInfo( "http", null,
-                        new InetSocketAddress( "127.0.0.1", 1337 ), null, "/db/data/transaction/45/commit" )
-                        .withUsername( "username" );
+                new HttpConnectionInfo( "http-42", "http",
+                        new InetSocketAddress( "127.0.0.1", 1337 ), null, "/db/neo4j/tx/45/commit" );
 
         // when
         String connectionDetails = clientConnection.asConnectionDetails();
 
         // then
         assertEquals(
-                "server-session\thttp\t127.0.0.1\t/db/data/transaction/45/commit\tusername",
+                "server-session\thttp\t127.0.0.1\t/db/neo4j/tx/45/commit",
                 connectionDetails );
     }
 
     @Test
-    public void connectionDetailsForEmbeddedQuerySource()
+    void connectionDetailsForEmbeddedQuerySource()
     {
         // when
         String connectionDetails = ClientConnectionInfo.EMBEDDED_CONNECTION.asConnectionDetails();
 
         // then
         assertEquals( "embedded-session\t", connectionDetails );
-    }
-
-    @Test
-    public void connectionDetailsForShellSession()
-    {
-        // given
-        ClientConnectionInfo clientConnection = new ShellConnectionInfo( 1 ).withUsername( "FULL" );
-
-        // when
-        String connectionDetails = clientConnection.asConnectionDetails();
-
-        // then
-        assertEquals( "shell-session\tshell\t1\tFULL", connectionDetails );
     }
 }

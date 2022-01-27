@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,211 +38,213 @@
  */
 package org.neo4j.harness;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.parallel.Resources;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 
+import org.neo4j.configuration.ssl.SslPolicyConfig;
 import org.neo4j.graphdb.Label;
+import org.neo4j.graphdb.QueryExecutionException;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.io.fs.FileUtils;
-import org.neo4j.kernel.configuration.Settings;
-import org.neo4j.kernel.configuration.ssl.LegacySslPolicyConfig;
-import org.neo4j.server.ServerTestUtils;
-import org.neo4j.server.configuration.ServerSettings;
-import org.neo4j.test.rule.SuppressOutput;
-import org.neo4j.test.rule.TestDirectory;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.SuppressOutputExtension;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
+import org.neo4j.test.utils.TestDirectory;
 import org.neo4j.test.server.HTTP;
+import org.neo4j.test.ssl.SelfSignedCertificateFactory;
 
-import static java.lang.System.lineSeparator;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.fail;
-import static org.neo4j.harness.TestServerBuilders.newInProcessBuilder;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.neo4j.configuration.ssl.SslPolicyScope.BOLT;
+import static org.neo4j.configuration.ssl.SslPolicyScope.HTTPS;
 import static org.neo4j.test.server.HTTP.RawPayload.quotedJson;
 
-public class FixturesTestIT
+@TestDirectoryExtension
+@ExtendWith( SuppressOutputExtension.class )
+@ResourceLock( Resources.SYSTEM_OUT )
+class FixturesTestIT
 {
-    @Rule
-    public TestDirectory testDir = TestDirectory.testDirectory();
-
-    @Rule
-    public SuppressOutput suppressOutput = SuppressOutput.suppressAll();
+    @Inject
+    private TestDirectory testDir;
 
     @Test
-    public void shouldAccepSingleCypherFileAsFixture() throws Exception
+    void shouldAcceptSingleCypherFileAsFixture() throws Exception
     {
         // Given
-        File targetFolder = testDir.directory();
-        File fixture = new File( targetFolder, "fixture.cyp" );
-        FileUtils.writeToFile(fixture,
+        Path targetFolder = testDir.homePath();
+        Path fixture = targetFolder.resolve( "fixture.cyp" );
+        writeFixture( fixture,
                 "CREATE (u:User)" +
-                "CREATE (a:OtherUser)", false);
+                "CREATE (a:OtherUser)" );
 
         // When
-        try ( ServerControls server = getServerBuilder( targetFolder ).withFixture( fixture ).newServer() )
+        try ( Neo4j server = getServerBuilder( targetFolder ).withFixture( fixture ).build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI().toString() + "db/data/transaction/commit",
+            HTTP.Response response = HTTP.POST( server.httpURI() + "db/neo4j/tx/commit",
                     quotedJson( "{'statements':[{'statement':'MATCH (n:User) RETURN n'}]}" ) );
 
-            assertThat( response.status(), equalTo( 200 ) );
-            assertThat(response.get( "results" ).get(0).get("data").size(), equalTo(1));
+            assertThat( response.status() ).isEqualTo( 200 );
+            assertThat( response.get( "results" ).get( 0 ).get( "data" ).size() ).isEqualTo( 1 );
         }
     }
 
     @Test
-    public void shouldAcceptFolderWithCypFilesAsFixtures() throws Exception
+    void shouldAcceptFolderWithCypFilesAsFixtures() throws Exception
     {
         // Given two files in the root folder
-        File targetFolder = testDir.directory();
-        FileUtils.writeToFile( new File( targetFolder, "fixture1.cyp" ), "CREATE (u:User)\n" + "CREATE (a:OtherUser)",
-                false );
-        FileUtils.writeToFile( new File( targetFolder, "fixture2.cyp" ), "CREATE (u:User)\n" + "CREATE (a:OtherUser)",
-                false );
+        Path targetFolder = testDir.homePath();
+        writeFixture( targetFolder.resolve( "fixture1.cyp" ), "CREATE (u:User)\n" + "CREATE (a:OtherUser)" );
+        writeFixture( targetFolder.resolve( "fixture2.cyp" ), "CREATE (u:User)\n" + "CREATE (a:OtherUser)" );
 
         // And given one file in a sub directory
-        File subDir = new File( targetFolder, "subdirectory" );
-        subDir.mkdir();
-        FileUtils.writeToFile( new File( subDir, "subDirFixture.cyp" ), "CREATE (u:User)\n" + "CREATE (a:OtherUser)",
-                false );
+        Path subDir = targetFolder.resolve( "subdirectory" );
+        Files.createDirectories( subDir );
+        writeFixture( subDir.resolve( "subDirFixture.cyp" ), "CREATE (u:User)\n" + "CREATE (a:OtherUser)" );
 
         // When
-        try ( ServerControls server = getServerBuilder( targetFolder ).withFixture( targetFolder ).newServer() )
+        try ( Neo4j server = getServerBuilder( targetFolder ).withFixture( targetFolder ).build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI().toString() + "db/data/transaction/commit",
+            HTTP.Response response = HTTP.POST( server.httpURI() + "db/neo4j/tx/commit",
                     quotedJson( "{'statements':[{'statement':'MATCH (n:User) RETURN n'}]}" ) );
 
-            assertThat( response.toString(), response.get( "results" ).get(0).get("data").size(), equalTo(3) );
+            assertThat( response.get( "results" ).get( 0 ).get( "data" ).size() ).as( response.toString() ).isEqualTo( 3 );
         }
     }
 
     @Test
-    public void shouldHandleMultipleFixtures() throws Exception
+    void shouldHandleMultipleFixtures() throws Exception
     {
         // Given two files in the root folder
-        File targetFolder = testDir.directory();
-        File fixture1 = new File( targetFolder, "fixture1.cyp" );
-        FileUtils.writeToFile( fixture1,
+        Path targetFolder = testDir.homePath();
+        Path fixture1 = targetFolder.resolve( "fixture1.cyp" );
+        writeFixture( fixture1,
                 "CREATE (u:User)\n" +
-                "CREATE (a:OtherUser)", false);
-        File fixture2 = new File( targetFolder, "fixture2.cyp" );
-        FileUtils.writeToFile( fixture2,
+                "CREATE (a:OtherUser)" );
+        Path fixture2 = targetFolder.resolve( "fixture2.cyp" );
+        writeFixture( fixture2,
                 "CREATE (u:User)\n" +
-                "CREATE (a:OtherUser)", false);
+                "CREATE (a:OtherUser)" );
 
         // When
-        try ( ServerControls server = getServerBuilder( targetFolder )
+        try ( Neo4j server = getServerBuilder( targetFolder )
                 .withFixture( fixture1 )
                 .withFixture( fixture2 )
-                .newServer() )
+                .build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI().toString() + "db/data/transaction/commit",
+            HTTP.Response response = HTTP.POST( server.httpURI() + "db/neo4j/tx/commit",
                     quotedJson( "{'statements':[{'statement':'MATCH (n:User) RETURN n'}]}" ) );
 
-            assertThat( response.get( "results" ).get(0).get("data").size(), equalTo(2));
+            assertThat( response.get( "results" ).get( 0 ).get( "data" ).size() ).isEqualTo( 2 );
         }
     }
 
     @Test
-    public void shouldHandleStringFixtures() throws Exception
+    void shouldHandleStringFixtures() throws Exception
     {
         // Given two files in the root folder
-        File targetFolder = testDir.directory();
+        Path targetFolder = testDir.homePath();
 
         // When
-        try ( ServerControls server = getServerBuilder( targetFolder )
+        try ( Neo4j server = getServerBuilder( targetFolder )
                 .withFixture( "CREATE (a:User)" )
-                .newServer() )
+                .build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI().toString() + "db/data/transaction/commit",
+            HTTP.Response response = HTTP.POST( server.httpURI() + "db/neo4j/tx/commit",
                     quotedJson( "{'statements':[{'statement':'MATCH (n:User) RETURN n'}]}" ) );
 
-            assertThat( response.get( "results" ).get(0).get("data").size(), equalTo(1));
+            assertThat( response.get( "results" ).get( 0 ).get( "data" ).size() ).isEqualTo( 1 );
         }
     }
 
     @Test
-    public void shouldIgnoreEmptyFixtureFiles() throws Exception
+    void shouldIgnoreEmptyFixtureFiles() throws Exception
     {
         // Given two files in the root folder
-        File targetFolder = testDir.directory();
-        FileUtils.writeToFile( new File( targetFolder, "fixture1.cyp" ), "CREATE (u:User)\n" + "CREATE (a:OtherUser)",
-                false );
-        FileUtils.writeToFile( new File( targetFolder, "fixture2.cyp" ), "", false );
+        Path targetFolder = testDir.homePath();
+        writeFixture( targetFolder.resolve( "fixture1.cyp" ), "CREATE (u:User)\n" + "CREATE (a:OtherUser)" );
+        writeFixture( targetFolder.resolve( "fixture2.cyp" ), "" );
 
         // When
-        try ( ServerControls server = getServerBuilder( targetFolder )
-                .withFixture( targetFolder ).newServer() )
+        try ( Neo4j server = getServerBuilder( targetFolder )
+                .withFixture( targetFolder ).build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI().toString() + "db/data/transaction/commit",
+            HTTP.Response response = HTTP.POST( server.httpURI() + "db/neo4j/tx/commit",
                     quotedJson( "{'statements':[{'statement':'MATCH (n:User) RETURN n'}]}" ) );
 
-            assertThat( response.get( "results" ).get(0).get("data").size(), equalTo(1));
+            assertThat( response.get( "results" ).get( 0 ).get( "data" ).size() ).isEqualTo( 1 );
         }
     }
 
     @Test
-    public void shouldHandleFixturesWithSyntaxErrorsGracefully() throws Exception
+    void shouldHandleFixturesWithSyntaxErrorsGracefully() throws Exception
     {
         // Given two files in the root folder
-        File targetFolder = testDir.directory();
-        FileUtils.writeToFile( new File( targetFolder, "fixture1.cyp" ), "this is not a valid cypher statement", false );
+        Path targetFolder = testDir.homePath();
+        writeFixture( targetFolder.resolve( "fixture1.cyp" ), "this is not a valid cypher statement" );
 
         // When
-        try ( ServerControls ignore = getServerBuilder( targetFolder )
-                .withFixture( targetFolder ).newServer() )
+        try ( Neo4j ignore = getServerBuilder( targetFolder )
+                .withFixture( targetFolder ).build() )
         {
-            fail("Should have thrown exception");
+            fail( "Should have thrown exception" );
         }
-        catch ( RuntimeException e )
+        catch ( QueryExecutionException e )
         {
-            assertThat( e.getMessage(), equalTo(
-                    "Invalid input 't': expected <init> (line 1, column 1 (offset: 0))" + lineSeparator() +
-                    "\"this is not a valid cypher statement\"" + lineSeparator() + " ^" ) );
+            assertThat( e.getStatusCode() ).isEqualTo( "Neo.ClientError.Statement.SyntaxError" );
         }
     }
 
     @Test
-    public void shouldHandleFunctionFixtures() throws Exception
+    void shouldHandleFunctionFixtures() throws Exception
     {
         // Given two files in the root folder
-        File targetFolder = testDir.directory();
+        Path targetFolder = testDir.homePath();
 
         // When
-
-        try ( ServerControls server = getServerBuilder( targetFolder )
+        try ( Neo4j server = getServerBuilder( targetFolder )
                 .withFixture( graphDatabaseService ->
                 {
                     try ( Transaction tx = graphDatabaseService.beginTx() )
                     {
-                        graphDatabaseService.createNode( Label.label( "User" ) );
-                        tx.success();
+                        tx.createNode( Label.label( "User" ) );
+                        tx.commit();
                     }
                     return null;
                 } )
-                .newServer() )
+                .build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI().toString() + "db/data/transaction/commit",
+            HTTP.Response response = HTTP.POST( server.httpURI() + "db/neo4j/tx/commit",
                     quotedJson( "{'statements':[{'statement':'MATCH (n:User) RETURN n'}]}" ) );
 
-            assertThat( response.get( "results" ).get( 0 ).get( "data" ).size(), equalTo( 1 ) );
+            assertThat( response.get( "results" ).get( 0 ).get( "data" ).size() ).isEqualTo( 1 );
         }
     }
 
-    private TestServerBuilder getServerBuilder( File targetFolder )
+    private Neo4jBuilder getServerBuilder( Path targetFolder )
     {
-        TestServerBuilder serverBuilder = newInProcessBuilder( targetFolder )
-                .withConfig( LegacySslPolicyConfig.certificates_directory.name(),
-                        ServerTestUtils.getRelativePath( testDir.directory(), LegacySslPolicyConfig.certificates_directory ) )
-                .withConfig( ServerSettings.script_enabled, Settings.TRUE );
-        return serverBuilder;
+        SelfSignedCertificateFactory.create( testDir.homePath() );
+        return Neo4jBuilders.newInProcessBuilder( targetFolder )
+                .withConfig( SslPolicyConfig.forScope( BOLT ).enabled, Boolean.TRUE )
+                .withConfig( SslPolicyConfig.forScope( BOLT ).base_directory, testDir.homePath() )
+                .withConfig( SslPolicyConfig.forScope( HTTPS ).enabled, Boolean.TRUE )
+                .withConfig( SslPolicyConfig.forScope( HTTPS ).base_directory, testDir.homePath() );
     }
 
+    private static void writeFixture( Path fixture, String cypher ) throws IOException
+    {
+        Files.writeString( fixture, cypher, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING );
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,13 +38,11 @@
  */
 package org.neo4j.kernel.api.txstate;
 
-import javax.annotation.Nullable;
-
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
-import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.api.schema.constaints.IndexBackedConstraintDescriptor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
+import org.neo4j.internal.schema.ConstraintDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.constraints.IndexBackedConstraintDescriptor;
+import org.neo4j.memory.MemoryTracker;
 import org.neo4j.storageengine.api.txstate.ReadableTransactionState;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.ValueTuple;
@@ -73,48 +71,37 @@ public interface TransactionState extends ReadableTransactionState
 
     void nodeDoAddProperty( long nodeId, int newPropertyKeyId, Value value );
 
-    void nodeDoChangeProperty( long nodeId, int propertyKeyId, Value replacedValue, Value newValue );
+    void nodeDoChangeProperty( long nodeId, int propertyKeyId, Value newValue );
 
-    void relationshipDoReplaceProperty( long relationshipId, int propertyKeyId, Value replacedValue, Value newValue );
-
-    void graphDoReplaceProperty( int propertyKeyId, Value replacedValue, Value newValue );
+    void relationshipDoReplaceProperty( long relationshipId, int type, long startNode, long endNode, int propertyKeyId, Value replacedValue, Value newValue );
 
     void nodeDoRemoveProperty( long nodeId, int propertyKeyId );
 
-    void relationshipDoRemoveProperty( long relationshipId, int propertyKeyId );
+    void relationshipDoRemoveProperty( long relationshipId, int type, long startNode, long endNode, int propertyKeyId );
 
-    void graphDoRemoveProperty( int propertyKeyId );
+    void nodeDoAddLabel( long labelId, long nodeId );
 
-    void nodeDoAddLabel( int labelId, long nodeId );
-
-    void nodeDoRemoveLabel( int labelId, long nodeId );
+    void nodeDoRemoveLabel( long labelId, long nodeId );
 
     // TOKEN RELATED
 
-    void labelDoCreateForName( String labelName, int id );
+    void labelDoCreateForName( String labelName, boolean internal, long id );
 
-    void propertyKeyDoCreateForName( String propertyKeyName, int id );
+    void propertyKeyDoCreateForName( String propertyKeyName, boolean internal, int id );
 
-    void relationshipTypeDoCreateForName( String relationshipTypeName, int id );
+    void relationshipTypeDoCreateForName( String relationshipTypeName, boolean internal, int id );
 
     // SCHEMA RELATED
 
-    /**
-     * Adds transaction state about creating an index rule.
-     *
-     * @param descriptor {@link SchemaIndexDescriptor} for the index to be created.
-     * @param providerDescriptor specific {@link IndexProvider.Descriptor} to use for this index to be created.
-     * This provider descriptor is allowed to be null, which will be interpreted as simply using the default instead.
-     */
-    void indexRuleDoAdd( SchemaIndexDescriptor descriptor, @Nullable IndexProvider.Descriptor providerDescriptor );
+    void indexDoAdd( IndexDescriptor index );
 
-    void indexDoDrop( SchemaIndexDescriptor descriptor );
+    void indexDoDrop( IndexDescriptor index );
 
-    boolean indexDoUnRemove( SchemaIndexDescriptor constraint );
+    boolean indexDoUnRemove( IndexDescriptor index );
 
     void constraintDoAdd( ConstraintDescriptor constraint );
 
-    void constraintDoAdd( IndexBackedConstraintDescriptor constraint, long indexId );
+    void constraintDoAdd( IndexBackedConstraintDescriptor constraint, IndexDescriptor index );
 
     void constraintDoDrop( ConstraintDescriptor constraint );
 
@@ -122,4 +109,7 @@ public interface TransactionState extends ReadableTransactionState
 
     void indexDoUpdateEntry( SchemaDescriptor descriptor, long nodeId, ValueTuple before, ValueTuple after );
 
+    // MEMORY TRACKING
+
+    MemoryTracker memoryTracker();
 }

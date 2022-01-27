@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,14 +38,17 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.values.storable.{DoubleValue, LongValue}
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
+import org.neo4j.cypher.internal.runtime.interpreted.commands.LiteralHelper.literal
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.values.storable.DoubleValue
+import org.neo4j.values.storable.LongValue
 
 class TypeTest extends CypherFunSuite {
 
   test("plus int int") {
-    val op = Add(Literal(1), Literal(2))
+    val op = Add(literal(1), literal(2))
 
     val result = calc(op)
 
@@ -54,7 +57,7 @@ class TypeTest extends CypherFunSuite {
   }
 
   test("plus double int") {
-    val op = Add(Literal(1.2), Literal(2))
+    val op = Add(literal(1.2), literal(2))
 
     val result = calc(op)
 
@@ -62,7 +65,7 @@ class TypeTest extends CypherFunSuite {
   }
 
   test("minus int int") {
-    val op = Subtract(Literal(1), Literal(2))
+    val op = Subtract(literal(1), literal(2))
 
     val result = calc(op)
 
@@ -71,7 +74,7 @@ class TypeTest extends CypherFunSuite {
   }
 
   test("minus double int") {
-    val op = Subtract(Literal(1.2), Literal(2))
+    val op = Subtract(literal(1.2), literal(2))
 
     val result = calc(op)
 
@@ -79,7 +82,7 @@ class TypeTest extends CypherFunSuite {
   }
 
   test("multiply int int") {
-    val op = Multiply(Literal(1), Literal(2))
+    val op = Multiply(literal(1), literal(2))
 
     val result = calc(op)
 
@@ -88,7 +91,7 @@ class TypeTest extends CypherFunSuite {
   }
 
   test("multiply double int") {
-    val op = Multiply(Literal(1.2), Literal(2))
+    val op = Multiply(literal(1.2), literal(2))
 
     val result = calc(op)
 
@@ -96,7 +99,7 @@ class TypeTest extends CypherFunSuite {
   }
 
   test("divide int int") {
-    val op = Divide(Literal(1), Literal(2))
+    val op = Divide(literal(1), literal(2))
 
     val result = calc(op)
 
@@ -104,12 +107,12 @@ class TypeTest extends CypherFunSuite {
   }
 
   test("divide double int") {
-    val op = Divide(Literal(1.2), Literal(2))
+    val op = Divide(literal(1.2), literal(2))
 
     val result = calc(op)
 
     result shouldBe a [DoubleValue]
   }
 
-  private def calc(e:Expression) = e.apply(ExecutionContext.empty, QueryStateHelper.empty)
+  private def calc(e:Expression) = e.apply(CypherRow.empty, QueryStateHelper.empty)
 }

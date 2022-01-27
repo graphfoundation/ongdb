@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,12 +38,15 @@
  */
 package org.neo4j.io.pagecache;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
+
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.io.pagecache.impl.FileIsNotMappedException;
 
 /**
- * A PageCursor is returned from {@link org.neo4j.io.pagecache.PagedFile#io(long, int)},
+ * A PageCursor is returned from {@link PagedFile#io(long, int, CursorContext)},
  * and is used to scan through pages and process them in a consistent and safe fashion.
  * <p>
  * A page must be processed in the following manner:
@@ -81,8 +84,7 @@ import java.nio.ByteBuffer;
  * consistent state.
  * </li>
  * </ul>
- * You can alternatively use the {@link #next(long)} method, to navigate the
- * pages you need in a non-linear fashion.
+ * You can alternatively use the {@link #next(long)} method, to navigate the pages you need in an arbitrary order.
  */
 public abstract class PageCursor implements AutoCloseable
 {
@@ -219,6 +221,16 @@ public abstract class PageCursor implements AutoCloseable
     public abstract int getOffset();
 
     /**
+     * Mark the current offset. Only one offset can be marked at any time.
+     */
+    public abstract void mark();
+
+    /**
+     * Set the offset to the marked offset. This does not modify the value of the mark.
+     */
+    public abstract void setOffsetToMark();
+
+    /**
      * Get the file page id that the cursor is currently positioned at, or
      * UNBOUND_PAGE_ID if next() has not yet been called on this cursor, or returned false.
      * A call to rewind() will make the current page id unbound as well, until
@@ -238,7 +250,13 @@ public abstract class PageCursor implements AutoCloseable
      * cursor, or returned false.
      * A call to rewind() will make the cursor unbound as well, until next() is called.
      */
-    public abstract File getCurrentFile();
+    public abstract Path getCurrentFile();
+
+    /**
+     * Get page cursor page file if cursor is still open or null otherwise
+     * @return cursor page file or null if closed
+     */
+    public abstract Path getRawCurrentFile();
 
     /**
      * Rewinds the cursor to its initial condition, as if freshly returned from
@@ -305,6 +323,7 @@ public abstract class PageCursor implements AutoCloseable
      * @throws IOException If the page was evicted while doing IO, the cursor will have
      * to do a page fault to get the page back.
      * This may throw an IOException.
+     * @throws FileIsNotMappedException if page file was unmapped while doing cursor operations.
      */
     public abstract boolean shouldRetry() throws IOException;
 
@@ -392,7 +411,8 @@ public abstract class PageCursor implements AutoCloseable
     public abstract void clearCursorException();
 
     /**
-     * Open a new page cursor with the same pf_flags as this cursor, as if calling the {@link PagedFile#io(long, int)}
+     * Open a new page cursor with the same pf_flags as this cursor,
+     * as if calling the {@link PagedFile#io(long, int, CursorContext)}
      * on the relevant paged file. This cursor will then also delegate to the linked cursor when checking
      * {@link #shouldRetry()} and {@link #checkAndClearBoundsFlag()}.
      * <p>

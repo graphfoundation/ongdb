@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,50 +38,59 @@
  */
 package org.neo4j.test.server;
 
-import com.sun.jersey.api.client.Client;
-import com.sun.jersey.api.client.ClientRequest;
-import com.sun.jersey.api.client.ClientResponse;
-import com.sun.jersey.api.client.config.ClientConfig;
-import com.sun.jersey.api.client.config.DefaultClientConfig;
-import org.codehaus.jackson.JsonNode;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import javax.ws.rs.core.MediaType;
+import java.util.concurrent.TimeUnit;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
 
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterables;
 import org.neo4j.server.rest.domain.JsonHelper;
 import org.neo4j.server.rest.domain.JsonParseException;
 
+import static java.net.http.HttpClient.Redirect.NEVER;
 import static java.util.Collections.unmodifiableMap;
-import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.anyOf;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
-import static org.neo4j.helpers.collection.MapUtil.stringMap;
+import static javax.ws.rs.core.HttpHeaders.AUTHORIZATION;
+import static javax.ws.rs.core.HttpHeaders.CONTENT_ENCODING;
+import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
+import static javax.ws.rs.core.HttpHeaders.LOCATION;
+import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
+import static javax.ws.rs.core.Response.Status.NO_CONTENT;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.neo4j.internal.helpers.collection.MapUtil.stringMap;
 import static org.neo4j.server.rest.domain.JsonHelper.createJsonFrom;
 
 /**
  * A tool for performing REST HTTP requests
  */
-public class HTTP
+public final class HTTP
 {
-
-    private static final Builder BUILDER = new Builder().withHeaders( "Accept", "application/json" );
-    private static final Client CLIENT;
-    static
-    {
-        DefaultClientConfig defaultClientConfig = new DefaultClientConfig();
-        defaultClientConfig.getProperties().put( ClientConfig.PROPERTY_FOLLOW_REDIRECTS, Boolean.FALSE );
-        CLIENT = Client.create( defaultClientConfig );
-    }
+    private static final Builder BUILDER = new Builder();
+    private static final HttpClient CLIENT = newClient();
 
     private HTTP()
     {
+    }
+
+    public static String basicAuthHeader( String username, String password )
+    {
+        var usernamePassword = username + ':' + password;
+        return "Basic " + Base64.getEncoder().encodeToString( usernamePassword.getBytes() );
+    }
+
+    public static Builder withBasicAuth( String username, String password )
+    {
+        return withHeaders( AUTHORIZATION, basicAuthHeader( username, password ) );
     }
 
     public static Builder withHeaders( String... kvPairs )
@@ -119,6 +128,24 @@ public class HTTP
         return BUILDER.request( method, uri, payload );
     }
 
+    public static HttpClient newClient()
+    {
+        try
+        {
+            var sslContext = SSLContext.getInstance( "TLS" );
+            sslContext.init( null, new TrustManager[]{new InsecureTrustManager()}, null );
+
+            return HttpClient.newBuilder()
+                    .followRedirects( NEVER )
+                    .sslContext( sslContext )
+                    .build();
+        }
+        catch ( Exception e )
+        {
+            throw new RuntimeException( e );
+        }
+    }
+
     public static class Builder
     {
         private final Map<String, String> headers;
@@ -142,10 +169,10 @@ public class HTTP
 
         public Builder withHeaders( Map<String, String> newHeaders )
         {
-            HashMap<String, String> combined = new HashMap<>();
-            combined.putAll( headers );
-            combined.putAll( newHeaders );
-            return new Builder( combined, baseUri );
+            var combinedHeaders = new HashMap<String,String>();
+            combinedHeaders.putAll( headers );
+            combinedHeaders.putAll( newHeaders );
+            return new Builder( combinedHeaders, baseUri );
         }
 
         public Builder withBaseUri( String baseUri )
@@ -180,7 +207,9 @@ public class HTTP
 
         public Response request( String method, String uri )
         {
-            return new Response( CLIENT.handle( build().build( buildUri( uri ), method ) ) );
+            var request = requestBuilder( uri ).method( method, BodyPublishers.noBody() ).build();
+            var response = send( request );
+            return new Response( response );
         }
 
         public Response request( String method, String uri, Object payload )
@@ -189,16 +218,21 @@ public class HTTP
             {
                 return request( method, uri );
             }
-            String jsonPayload = payload instanceof RawPayload ? ((RawPayload) payload).get() : createJsonFrom(
-                    payload );
-            ClientRequest.Builder lastBuilder = build().entity( jsonPayload, MediaType.APPLICATION_JSON_TYPE );
+            var jsonPayload = payload instanceof RawPayload ? ((RawPayload) payload).get() : createJsonFrom( payload );
 
-            return new Response( CLIENT.handle( lastBuilder.build( buildUri( uri ), method ) ) );
+            var request = requestBuilder( uri )
+                    .method( method, BodyPublishers.ofString( jsonPayload ) )
+                    .setHeader( CONTENT_TYPE, APPLICATION_JSON )
+                    .build();
+
+            var response = send( request );
+
+            return new Response( response );
         }
 
         private URI buildUri( String uri )
         {
-            URI unprefixedUri = URI.create( uri );
+            var unprefixedUri = URI.create( uri );
             if ( unprefixedUri.isAbsolute() )
             {
                 return unprefixedUri;
@@ -209,62 +243,93 @@ public class HTTP
             }
         }
 
-        private ClientRequest.Builder build()
+        private HttpRequest.Builder requestBuilder( String uri )
         {
-            ClientRequest.Builder builder = ClientRequest.create();
-            for ( Map.Entry<String, String> header : headers.entrySet() )
+            var builder = HttpRequest.newBuilder( buildUri( uri ) );
+            for ( var headerEntry : headers.entrySet() )
             {
-                builder = builder.header( header.getKey(), header.getValue() );
+                builder = builder.setHeader( headerEntry.getKey(), headerEntry.getValue() );
             }
 
             return builder;
+        }
+
+        private static HttpResponse<String> send( HttpRequest request )
+        {
+            try
+            {
+                return getStringHttpResponse( request );
+            }
+            catch ( Exception e )
+            {
+                if ( e.getMessage().contains( "HTTP/1.1 header parser received no bytes" ) )
+                {
+                    // Retry once to avoid flakiness
+                    try
+                    {
+                        return getStringHttpResponse( request );
+                    }
+                    catch ( Exception e2 )
+                    {
+                        throw new RuntimeException( e2 );
+                    }
+                }
+                throw new RuntimeException( e );
+            }
+        }
+
+        private static HttpResponse<String> getStringHttpResponse( HttpRequest request )
+                throws InterruptedException, java.util.concurrent.ExecutionException, java.util.concurrent.TimeoutException
+        {
+            return CLIENT.sendAsync( request, BodyHandlers.ofString() ).get( 4, TimeUnit.MINUTES );
         }
     }
 
     /**
      * Check some general validations that all REST responses should always pass.
      */
-    public static ClientResponse sanityCheck( ClientResponse response )
+    private static HttpResponse<String> sanityCheck( HttpResponse<String> response )
     {
-        List<String> contentEncodings = response.getHeaders().get( "Content-Encoding" );
+        var contentEncodings = response.headers().allValues( CONTENT_ENCODING );
         String contentEncoding;
         if ( contentEncodings != null && (contentEncoding = Iterables.singleOrNull( contentEncodings )) != null )
         {
             // Specifically, this is never used for character encoding.
             contentEncoding = contentEncoding.toLowerCase();
-            assertThat( contentEncoding, anyOf(
-                    containsString( "gzip" ),
-                    containsString( "deflate" ) ) );
-            assertThat( contentEncoding, allOf(
-                    not( containsString( "utf-8" ) ) ) );
+            assertThat( contentEncoding ).satisfiesAnyOf( s -> assertThat( s ).contains( "gzip" ), s -> assertThat( s ).contains( "deflate" ) );
+            assertThat( contentEncoding ).doesNotContain( "utf-8" );
         }
         return response;
     }
 
     public static class Response
     {
-        private final ClientResponse response;
+        private final HttpResponse<String> response;
         private final String entity;
 
-        public Response( ClientResponse response )
+        public Response( HttpResponse<String> response )
         {
             this.response = sanityCheck( response );
-            this.entity = response.getEntity( String.class );
+            if ( response.statusCode() == NO_CONTENT.getStatusCode() )
+            {
+                entity = "";
+            }
+            else
+            {
+                this.entity = response.body();
+            }
         }
 
         public int status()
         {
-            return response.getStatus();
+            return response.statusCode();
         }
 
         public String location()
         {
-            if ( response.getLocation() != null )
-            {
-                return response.getLocation().toString();
-            }
-            throw new RuntimeException( "The request did not contain a location header, " +
-                    "unable to provide location. Status code was: " + status() );
+            return response.headers()
+                    .firstValue( LOCATION )
+                    .orElseThrow( () -> new RuntimeException( "The request did not contain a location header.\n" + this ) );
         }
 
         @SuppressWarnings( "unchecked" )
@@ -297,19 +362,19 @@ public class HTTP
 
         public String header( String name )
         {
-            return response.getHeaders().getFirst( name );
+            return response.headers().firstValue( name ).orElse( null );
         }
 
         @Override
         public String toString()
         {
-            StringBuilder sb = new StringBuilder();
-            sb.append( "HTTP " ).append( response.getStatus() ).append( "\n" );
-            for ( Map.Entry<String, List<String>> header : response.getHeaders().entrySet() )
+            var sb = new StringBuilder();
+            sb.append( "HTTP " ).append( response.statusCode() ).append( "\n" );
+            for ( var headerEntry : response.headers().map().entrySet() )
             {
-                for ( String headerEntry : header.getValue() )
+                for ( var headerValue : headerEntry.getValue() )
                 {
-                    sb.append( header.getKey() + ": " ).append( headerEntry ).append( "\n" );
+                    sb.append( headerEntry.getKey() ).append( ": " ).append( headerValue ).append( "\n" );
                 }
             }
             sb.append( "\n" );

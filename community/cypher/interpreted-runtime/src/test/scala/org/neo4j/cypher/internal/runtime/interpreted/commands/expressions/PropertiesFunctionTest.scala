@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,30 +40,30 @@ package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
 import java.util
 
-import org.mockito.Mockito
-import org.mockito.invocation.InvocationOnMock
-import org.mockito.stubbing.Answer
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
-import org.neo4j.cypher.internal.runtime.{Operations, QueryContext}
-import org.neo4j.cypher.internal.util.v3_4.CypherTypeException
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.graphdb.{Node, Relationship}
-import org.neo4j.values.storable.Values.{NO_VALUE, stringValue}
+import org.mockito.Mockito.when
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.NodeReadOperations
+import org.neo4j.cypher.internal.runtime.QueryContext
+import org.neo4j.cypher.internal.runtime.RelationshipReadOperations
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
+import org.neo4j.cypher.internal.runtime.interpreted.commands.LiteralHelper.literal
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.exceptions.CypherTypeException
+import org.neo4j.graphdb.Node
+import org.neo4j.graphdb.Relationship
+import org.neo4j.values.storable.Values.NO_VALUE
+import org.neo4j.values.storable.Values.stringValue
 import org.neo4j.values.virtual.VirtualValues.map
-import org.neo4j.values.virtual.{RelationshipValue, NodeValue}
-
-import org.mockito.ArgumentMatchers.any
 
 class PropertiesFunctionTest extends CypherFunSuite {
 
-  import Mockito._
+  private val query = mock[QueryContext]
+  private val nodeReadOps = mock[NodeReadOperations]
+  private val relReadOps = mock[RelationshipReadOperations]
+  private val state = QueryStateHelper.empty.withQueryContext(query)
 
-  val query = mock[QueryContext]
-  val nodeOps = mock[Operations[NodeValue]]
-  val relOps = mock[Operations[RelationshipValue]]
-
-  when(query.nodeOps).thenReturn(nodeOps)
-  when(query.relationshipOps).thenReturn(relOps)
+  when(query.nodeReadOps).thenReturn(nodeReadOps)
+  when(query.relationshipReadOps).thenReturn(relReadOps)
 
   test("should return null if argument is null") {
     properties(null.asInstanceOf[AnyRef]) should be(NO_VALUE)
@@ -86,30 +86,19 @@ class PropertiesFunctionTest extends CypherFunSuite {
   test("should map nodes to maps") {
     val node = mock[Node]
     when(node.getId).thenReturn(0)
-    when(nodeOps.propertyKeyIds(any())).thenAnswer(new Answer[Iterator[Int]] {
-      override def answer(invocationOnMock: InvocationOnMock): Iterator[Int] = List(0,1).iterator
-    })
-    when(query.getPropertyKeyName(0)).thenReturn("a")
-    when(query.getPropertyKeyName(1)).thenReturn("b")
-    when(nodeOps.getProperty(0, 0)).thenReturn(stringValue("x"))
-    when(nodeOps.getProperty(0, 1)).thenReturn(stringValue("y"))
+    val value = map(Array("a", "b"), Array(stringValue("x"), stringValue("y")))
+    when(query.nodeAsMap(0, state.cursors.nodeCursor, state.cursors.propertyCursor)).thenReturn(value)
 
-    properties(node) should equal(map(Array("a", "b"), Array(stringValue("x"), stringValue("y"))))
+    properties(node) should equal(value)
   }
 
   test("should map relationships to maps") {
     val rel = mock[Relationship]
     when(rel.getId).thenReturn(0)
-    when(rel.getId).thenReturn(0)
-    when(relOps.propertyKeyIds(any())).thenAnswer(new Answer[Iterator[Int]] {
-      override def answer(invocationOnMock: InvocationOnMock): Iterator[Int] = List(0,1).iterator
-    })
-    when(query.getPropertyKeyName(0)).thenReturn("a")
-    when(query.getPropertyKeyName(1)).thenReturn("b")
-    when(relOps.getProperty(0, 0)).thenReturn(stringValue("x"))
-    when(relOps.getProperty(0, 1)).thenReturn(stringValue("y"))
+    val value = map(Array("a", "b"), Array(stringValue("x"), stringValue("y")))
+    when(query.relationshipAsMap(0, state.cursors.relationshipScanCursor, state.cursors.propertyCursor)).thenReturn(value)
 
-    properties(rel) should equal(map(Array("a", "b"), Array(stringValue("x"), stringValue("y"))))
+    properties(rel) should equal(value)
   }
 
   test("should fail trying to map an int") {
@@ -131,6 +120,6 @@ class PropertiesFunctionTest extends CypherFunSuite {
   }
 
   private def properties(orig: Any) = {
-    PropertiesFunction(Literal(orig))(ExecutionContext.empty, QueryStateHelper.empty.withQueryContext(query))
+    PropertiesFunction(literal(orig))(CypherRow.empty, state)
   }
 }

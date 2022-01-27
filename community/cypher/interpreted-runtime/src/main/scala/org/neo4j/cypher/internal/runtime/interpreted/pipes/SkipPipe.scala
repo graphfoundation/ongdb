@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,22 +38,35 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Expression, NumericHelper}
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.SkipPipe.evaluateStaticSkipOrLimitNumberOrThrow
+import org.neo4j.cypher.internal.util.attribution.Id
+import org.neo4j.exceptions.InvalidArgumentException
 
 case class SkipPipe(source: Pipe, exp: Expression)
                    (val id: Id = Id.INVALID_ID)
-  extends PipeWithSource(source) with NumericHelper {
+  extends PipeWithSource(source) {
 
-  exp.registerOwningPipe(this)
+  protected def internalCreateResults(input: ClosingIterator[CypherRow], state: QueryState): ClosingIterator[CypherRow] = {
+    val skip = evaluateStaticSkipOrLimitNumberOrThrow(exp, state, "SKIP")
+    SkipPipe.drop[CypherRow, ClosingIterator[CypherRow]](skip, input)
+  }
 
-  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
-    if(input.isEmpty)
-      return Iterator.empty
+}
 
-    val skip = asPrimitiveInt(exp(state.createOrGetInitialContext(executionContextFactory), state))
+object SkipPipe {
+  def drop[T, ITER <: Iterator[T]](n: Long, iterator: ITER): ITER = {
+    var j = 0L
+    while (j < n && iterator.hasNext) {
+      iterator.next()
+      j += 1
+    }
+    iterator
+  }
 
-    input.drop(skip)
+  def evaluateStaticSkipOrLimitNumberOrThrow(skipExp: Expression, state: QueryState, prefix: String): Long = {
+    PipeHelper.evaluateStaticLongOrThrow(skipExp, _ >= 0, state, prefix, " Must be a non-negative integer.")
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,32 +38,78 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.util.attribution.Id
 
 /*
 A PipeDecorator is used to instrument calls between Pipes, and between a Pipe and the graph
  */
 trait PipeDecorator {
-  def decorate(pipe: Pipe, state: QueryState): QueryState
+  /**
+   * Return a decorated QueryState for the given plan id.
+   *
+   * @param state the original query state to be decorated
+   * @return the decorated query state
+   */
+  def decorate(planId: Id, state: QueryState): QueryState
 
-  def decorate(pipe: Pipe, iter: Iterator[ExecutionContext]): Iterator[ExecutionContext]
+  /**
+   * This method should be called after createResults, with the decorated QueryState.
+   *
+   * @param state the decorated query state
+   */
+  def afterCreateResults(planId: Id, state: QueryState): Unit
 
-  def decorate(plan: () => InternalPlanDescription, verifyProfileReady: () => Unit): () => InternalPlanDescription
+  /**
+   * Return a decorated iterator. To be used from other pipe decorators.
+   *
+   * @param state the decorated query state
+   * @param iter  iterator to decorate
+   * @return the decorated iterator
+   */
+  def decorate(planId: Id, state: QueryState, iter: ClosingIterator[CypherRow]): ClosingIterator[CypherRow]
 
-  /*
+  // These two are used for linenumber only
+
+  /**
+   * Called if the pipe has a source.
+   *
+   * @param state the decorated query state
+   * @param iter  iterator to decorate
+   * @return the decorated iterator
+   */
+  def decorate(planId: Id, state: QueryState, iter: ClosingIterator[CypherRow], sourceIter: ClosingIterator[CypherRow]): ClosingIterator[CypherRow] =
+    decorate(planId, state, iter)
+
+  /**
+   * @param state the decorated query state
+   * @param iter  iterator to decorate
+   * @return the decorated iterator
+   */
+  def decorate(planId: Id, state: QueryState, iter: ClosingIterator[CypherRow], previousContextSupplier: () => Option[CypherRow]): ClosingIterator[CypherRow] =
+    decorate(planId, state, iter)
+
+  /**
+   * Called on the root pipe. This can be useful if some decorator wants to only decorate the root pipe. It then can implement this method and ignore the others.
+   */
+  def decorateRoot(planId: Id, state: QueryState, iter: ClosingIterator[CypherRow]): ClosingIterator[CypherRow] = iter
+
+  /**
    * Returns the inner decorator of this decorator. The inner decorator is used for nested expressions
    * where the `decorate` should refer to the parent pipe instead of the calling pipe.
    */
-  def innerDecorator(pipe: Pipe): PipeDecorator
+  def innerDecorator(planId: Id): PipeDecorator
 }
 
 object NullPipeDecorator extends PipeDecorator {
-  def decorate(pipe: Pipe, iter: Iterator[ExecutionContext]): Iterator[ExecutionContext] = iter
+  override def decorate(planId: Id, state: QueryState, iter: ClosingIterator[CypherRow]): ClosingIterator[CypherRow] = iter
 
-  def decorate(plan: () => InternalPlanDescription, verifyProfileReady: () => Unit): () => InternalPlanDescription = plan
+  override def decorate(planId: Id, state: QueryState): QueryState = state
 
-  def decorate(pipe: Pipe, state: QueryState): QueryState = state
+  override def innerDecorator(planId: Id): PipeDecorator = NullPipeDecorator
 
-  def innerDecorator(pipe: Pipe): PipeDecorator = NullPipeDecorator
+  override def afterCreateResults(planId: Id, state: QueryState): Unit = {}
 }
+
+

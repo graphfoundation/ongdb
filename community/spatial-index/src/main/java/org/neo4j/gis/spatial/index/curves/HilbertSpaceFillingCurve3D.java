@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -104,13 +104,7 @@ public class HilbertSpaceFillingCurve3D extends SpaceFillingCurve
             return name().toString();
         }
 
-        static String binaryString( int value )
-        {
-            String binary = "00" + Integer.toBinaryString( value );
-            return binary.substring( binary.length() - 3, binary.length() );
-        }
-
-        private Direction3D direction( int start, int end )
+        private static Direction3D direction( int start, int end )
         {
             end -= start;
             switch ( end )
@@ -226,7 +220,7 @@ public class HilbertSpaceFillingCurve3D extends SpaceFillingCurve
             children[7] = singleton( curves, rotateOneThirdDiagonalNeg( false ) );
         }
 
-        private HilbertCurve3D singleton( Map<SubCurve3D,HilbertCurve3D> curves, HilbertCurve3D newCurve )
+        private static HilbertCurve3D singleton( Map<SubCurve3D,HilbertCurve3D> curves, HilbertCurve3D newCurve )
         {
             return curves.computeIfAbsent( newCurve.name(), key -> newCurve );
         }
@@ -270,12 +264,11 @@ public class HilbertSpaceFillingCurve3D extends SpaceFillingCurve
         @Override
         public String toString()
         {
-            return firstMove.toString() + secondMove.toString() + overallDirection.toString();
+            return firstMove.toString() + secondMove + overallDirection;
         }
     }
 
-    // this is left accessible to make debugging easier
-    static Map<SubCurve3D,HilbertCurve3D> curves = new LinkedHashMap<>();
+    private static final Map<SubCurve3D,HilbertCurve3D> CURVES = new LinkedHashMap<>();
 
     private static HilbertCurve3D buildTheCurve()
     {
@@ -283,7 +276,7 @@ public class HilbertSpaceFillingCurve3D extends SpaceFillingCurve
         int[] npointValues = {0b000, 0b010, 0b011, 0b001, 0b101, 0b111, 0b110, 0b100};
         HilbertCurve3D theCurve = new HilbertCurve3D( npointValues );
 
-        theCurve.buildCurveTree( curves );
+        theCurve.buildCurveTree( CURVES );
         return theCurve;
     }
 
@@ -291,7 +284,7 @@ public class HilbertSpaceFillingCurve3D extends SpaceFillingCurve
 
     public static final int MAX_LEVEL = 63 / 3 - 1;
 
-    public HilbertSpaceFillingCurve3D( Envelope range )
+    HilbertSpaceFillingCurve3D( Envelope range )
     {
         this( range, MAX_LEVEL );
     }

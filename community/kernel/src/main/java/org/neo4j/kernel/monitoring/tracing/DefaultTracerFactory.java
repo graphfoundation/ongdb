@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,46 +38,41 @@
  */
 package org.neo4j.kernel.monitoring.tracing;
 
+import java.time.Clock;
+
+import org.neo4j.annotations.service.ServiceProvider;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseInternalSettings;
 import org.neo4j.io.pagecache.tracing.DefaultPageCacheTracer;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
-import org.neo4j.kernel.impl.api.DefaultTransactionTracer;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.DefaultCheckPointerTracer;
-import org.neo4j.kernel.impl.transaction.tracing.CheckPointTracer;
-import org.neo4j.kernel.impl.transaction.tracing.TransactionTracer;
-import org.neo4j.scheduler.JobScheduler;
-import org.neo4j.kernel.monitoring.Monitors;
+import org.neo4j.kernel.impl.api.tracer.DefaultTracer;
+import org.neo4j.kernel.impl.transaction.tracing.DatabaseTracer;
 import org.neo4j.logging.Log;
+import org.neo4j.monitoring.Monitors;
+import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.time.SystemNanoClock;
 
 /**
  * The default TracerFactory, when nothing else is otherwise configured.
  */
+@ServiceProvider
 public class DefaultTracerFactory implements TracerFactory
 {
     @Override
-    public String getImplementationName()
+    public String getName()
     {
         return "default";
     }
 
     @Override
-    public PageCacheTracer createPageCacheTracer( Monitors monitors, JobScheduler jobScheduler, SystemNanoClock clock,
-            Log log )
+    public PageCacheTracer createPageCacheTracer( Monitors monitors, JobScheduler jobScheduler, SystemNanoClock clock, Log log, Config config )
     {
-        return new DefaultPageCacheTracer();
+        return new DefaultPageCacheTracer( config.get( GraphDatabaseInternalSettings.per_file_metrics_counters ) );
     }
 
     @Override
-    public TransactionTracer createTransactionTracer( Monitors monitors, JobScheduler jobScheduler )
+    public DatabaseTracer createDatabaseTracer( Clock clock )
     {
-        DefaultTransactionTracer.Monitor monitor = monitors.newMonitor( DefaultTransactionTracer.Monitor.class );
-        return new DefaultTransactionTracer( monitor, jobScheduler );
-    }
-
-    @Override
-    public CheckPointTracer createCheckPointTracer( Monitors monitors, JobScheduler jobScheduler )
-    {
-        DefaultCheckPointerTracer.Monitor monitor = monitors.newMonitor( DefaultCheckPointerTracer.Monitor.class );
-        return new DefaultCheckPointerTracer( monitor, jobScheduler );
+        return new DefaultTracer();
     }
 }

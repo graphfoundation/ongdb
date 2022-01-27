@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,11 @@
  */
 package org.neo4j.consistency.store.synthetic;
 
+import org.neo4j.common.TokenNameLookup;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
+
+import static java.lang.String.format;
 
 /**
  * Synthetic record type that stands in for a real record to fit in conveniently
@@ -46,9 +50,14 @@ import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
  */
 public class IndexEntry extends AbstractBaseRecord
 {
-    public IndexEntry( long nodeId )
+    private final IndexDescriptor indexDescriptor;
+    private final TokenNameLookup tokenNameLookup;
+
+    public IndexEntry( IndexDescriptor indexDescriptor, TokenNameLookup tokenNameLookup, long nodeId )
     {
         super( nodeId );
+        this.indexDescriptor = indexDescriptor;
+        this.tokenNameLookup = tokenNameLookup;
         setInUse( true );
     }
 
@@ -59,8 +68,14 @@ public class IndexEntry extends AbstractBaseRecord
     }
 
     @Override
+    public IndexEntry copy()
+    {
+        throw new UnsupportedOperationException( "Synthetic records cannot be copied." );
+    }
+
+    @Override
     public String toString()
     {
-        return "IndexEntry[nodeId=" + getId() + "]";
+        return format( "IndexEntry[nodeId=%d, index=%s]", getId(), indexDescriptor.userDescription( tokenNameLookup ) );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -58,6 +58,12 @@ public abstract class IntegralValue extends NumberValue
                 name + " must be an integer value, but was a " + value.getClass().getSimpleName() );
     }
 
+    public abstract int intValue();
+
+    public abstract short shortValue();
+
+    public abstract byte byteValue();
+
     @Override
     public boolean equals( long x )
     {
@@ -71,7 +77,7 @@ public abstract class IntegralValue extends NumberValue
     }
 
     @Override
-    public final int computeHash()
+    protected final int computeHash()
     {
         return NumberValues.hash( longValue() );
     }
@@ -83,7 +89,7 @@ public abstract class IntegralValue extends NumberValue
     }
 
     @Override
-    public boolean eq( Object other )
+    public boolean equalTo( Object other )
     {
         return other instanceof Value && equals( (Value) other );
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,40 +38,51 @@
  */
 package org.neo4j.kernel.impl.transaction;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.apache.commons.lang3.mutable.MutableBoolean;
+import org.junit.jupiter.api.Test;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
 
-import org.neo4j.helpers.collection.Visitor;
-import org.neo4j.io.fs.OpenMode;
+import org.neo4j.internal.helpers.collection.Visitor;
+import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.fs.ReadPastEndException;
 import org.neo4j.io.fs.StoreChannel;
+import org.neo4j.io.memory.ByteBuffers;
 import org.neo4j.kernel.impl.transaction.log.LogVersionBridge;
 import org.neo4j.kernel.impl.transaction.log.LogVersionedStoreChannel;
 import org.neo4j.kernel.impl.transaction.log.PhysicalLogVersionedStoreChannel;
 import org.neo4j.kernel.impl.transaction.log.ReadAheadLogChannel;
-import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
+import org.neo4j.kernel.impl.transaction.log.files.LogFileChannelNativeAccessor;
+import org.neo4j.kernel.impl.transaction.tracing.DatabaseTracer;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
+import org.neo4j.test.utils.TestDirectory;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.neo4j.kernel.impl.transaction.log.LogVersionBridge.NO_MORE_CHANNELS;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.neo4j.io.ByteUnit.KibiByte;
+import static org.neo4j.memory.EmptyMemoryTracker.INSTANCE;
 
-public class ReadAheadLogChannelTest
+@TestDirectoryExtension
+class ReadAheadLogChannelTest
 {
-
-    @Rule
-    public final DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
-    @Rule
-    public final TestDirectory directory = TestDirectory.testDirectory();
+    @Inject
+    private FileSystemAbstraction fileSystem;
+    @Inject
+    private TestDirectory directory;
+    private final LogFileChannelNativeAccessor nativeChannelAccessor = mock( LogFileChannelNativeAccessor.class );
+    private final DatabaseTracer databaseTracer = DatabaseTracer.NULL;
 
     @Test
-    public void shouldReadFromSingleChannel() throws Exception
+    void shouldReadFromSingleChannel() throws Exception
     {
         // GIVEN
-        File file = file( 0 );
+        Path file = file( 0 );
         final byte byteValue = (byte) 5;
         final short shortValue = (short) 56;
         final int intValue = 32145;
@@ -91,10 +102,10 @@ public class ReadAheadLogChannelTest
             return true;
         } );
 
-        StoreChannel storeChannel = fileSystemRule.get().open( file, OpenMode.READ );
+        StoreChannel storeChannel = fileSystem.read( file );
         PhysicalLogVersionedStoreChannel versionedStoreChannel =
-                new PhysicalLogVersionedStoreChannel( storeChannel, -1 /* ignored */, (byte) -1 /* ignored */ );
-        try ( ReadAheadLogChannel channel = new ReadAheadLogChannel( versionedStoreChannel, NO_MORE_CHANNELS, 16 ) )
+                new PhysicalLogVersionedStoreChannel( storeChannel, -1 /* ignored */, (byte) -1, file, nativeChannelAccessor, databaseTracer );
+        try ( ReadAheadLogChannel channel = new ReadAheadLogChannel( versionedStoreChannel, INSTANCE ) )
         {
             // THEN
             assertEquals( byteValue, channel.get() );
@@ -111,7 +122,26 @@ public class ReadAheadLogChannelTest
     }
 
     @Test
-    public void shouldReadFromMultipleChannels() throws Exception
+    void rawReadAheadChannelOpensRawChannelOnNext() throws IOException
+    {
+        Path path = file( 0 );
+        directory.createFile( path.getFileName().toString() );
+        var storeChannel = fileSystem.read( path );
+        var versionedStoreChannel =
+                new PhysicalLogVersionedStoreChannel( storeChannel, -1 , (byte) -1, path, nativeChannelAccessor, databaseTracer );
+        var capturingLogVersionBridge = new RawCapturingLogVersionBridge();
+        assertThrows( ReadPastEndException.class, () ->
+        {
+            try ( ReadAheadLogChannel channel = new ReadAheadLogChannel( versionedStoreChannel, capturingLogVersionBridge, INSTANCE, true ) )
+            {
+                channel.get();
+            }
+        } );
+        assertTrue( capturingLogVersionBridge.isRaw() );
+    }
+
+    @Test
+    void shouldReadFromMultipleChannels() throws Exception
     {
         // GIVEN
         writeSomeData( file( 0 ), element ->
@@ -131,26 +161,26 @@ public class ReadAheadLogChannelTest
             return true;
         } );
 
-        StoreChannel storeChannel = fileSystemRule.get().open( file( 0 ), OpenMode.READ );
+        StoreChannel storeChannel = fileSystem.read( file( 0 ) );
         PhysicalLogVersionedStoreChannel versionedStoreChannel =
-                new PhysicalLogVersionedStoreChannel( storeChannel, -1 /* ignored */, (byte) -1 /* ignored */ );
+                new PhysicalLogVersionedStoreChannel( storeChannel, -1 /* ignored */, (byte) -1, file( 0 ), nativeChannelAccessor, databaseTracer );
         try ( ReadAheadLogChannel channel = new ReadAheadLogChannel( versionedStoreChannel, new LogVersionBridge()
         {
             private boolean returned;
 
             @Override
-            public LogVersionedStoreChannel next( LogVersionedStoreChannel channel ) throws IOException
+            public LogVersionedStoreChannel next( LogVersionedStoreChannel channel, boolean raw ) throws IOException
             {
                 if ( !returned )
                 {
                     returned = true;
                     channel.close();
-                    return new PhysicalLogVersionedStoreChannel( fileSystemRule.get().open( file( 1 ), OpenMode.READ ),
-                            -1 /* ignored */, (byte) -1 /* ignored */ );
+                    return new PhysicalLogVersionedStoreChannel( fileSystem.read( file( 1 ) ),
+                            -1 /* ignored */, (byte) -1, file( 1 ), nativeChannelAccessor, databaseTracer );
                 }
                 return channel;
             }
-        }, 10 ) )
+        }, INSTANCE ) )
         {
             // THEN
             for ( long i = 0; i < 20; i++ )
@@ -160,19 +190,36 @@ public class ReadAheadLogChannelTest
         }
     }
 
-    private void writeSomeData( File file, Visitor<ByteBuffer, IOException> visitor ) throws IOException
+    private void writeSomeData( Path file, Visitor<ByteBuffer, IOException> visitor ) throws IOException
     {
-        try ( StoreChannel channel = fileSystemRule.get().open( file, OpenMode.READ_WRITE ) )
+        try ( StoreChannel channel = fileSystem.write( file ) )
         {
-            ByteBuffer buffer = ByteBuffer.allocate( 1024 );
+            ByteBuffer buffer = ByteBuffers.allocate( 1, KibiByte, INSTANCE );
             visitor.visit( buffer );
             buffer.flip();
-            channel.write( buffer );
+            channel.writeAll( buffer );
         }
     }
 
-    private File file( int index )
+    private Path file( int index )
     {
-        return new File( directory.directory(), "" + index );
+        return directory.homePath().resolve( "" + index );
+    }
+
+    private static class RawCapturingLogVersionBridge implements LogVersionBridge
+    {
+        private final MutableBoolean rawWitness = new MutableBoolean( false );
+
+        @Override
+        public LogVersionedStoreChannel next( LogVersionedStoreChannel channel, boolean raw ) throws IOException
+        {
+            rawWitness.setValue( raw );
+            return channel;
+        }
+
+        public boolean isRaw()
+        {
+            return rawWitness.booleanValue();
+        }
     }
 }

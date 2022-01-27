@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,7 +40,7 @@ package org.neo4j.kernel.api.impl.index;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
-import org.apache.lucene.document.LongField;
+import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.IndexWriter;
@@ -50,123 +50,118 @@ import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.store.Lock;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.RuleChain;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.RepeatedTest;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.zip.ZipOutputStream;
 
+import org.neo4j.configuration.Config;
+import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.kernel.api.impl.index.partition.AbstractIndexPartition;
 import org.neo4j.kernel.api.impl.index.partition.IndexPartitionFactory;
 import org.neo4j.kernel.api.impl.index.partition.WritableIndexPartitionFactory;
 import org.neo4j.kernel.api.impl.index.storage.DirectoryFactory;
 import org.neo4j.kernel.api.impl.index.storage.PartitionedIndexStorage;
-import org.neo4j.test.rule.RepeatRule;
-import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.VerboseTimeout;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
+import org.neo4j.kernel.api.index.AbstractValueIndexReader;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
+import org.neo4j.test.utils.TestDirectory;
+import org.neo4j.util.concurrent.Futures;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static java.time.Duration.ofSeconds;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
+import static org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker.writable;
 
-public class DatabaseIndexIntegrationTest
+@TestDirectoryExtension
+class DatabaseIndexIntegrationTest
 {
     private static final int THREAD_NUMBER = 5;
     private static ExecutorService workers;
 
-    private final TestDirectory testDirectory = TestDirectory.testDirectory();
-    private final RepeatRule repeatRule = new RepeatRule();
-    private final DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
-
-    @Rule
-    public final RuleChain ruleChain = RuleChain.outerRule( testDirectory ).around( repeatRule )
-            .around( fileSystemRule );
-
-    @Rule
-    public final VerboseTimeout timeout = VerboseTimeout.builder()
-            .withTimeout( 60, TimeUnit.SECONDS )
-            .build();
+    @Inject
+    private TestDirectory testDirectory;
+    @Inject
+    private DefaultFileSystemAbstraction fileSystem;
 
     private final CountDownLatch raceSignal = new CountDownLatch( 1 );
     private SyncNotifierDirectoryFactory directoryFactory;
     private WritableTestDatabaseIndex luceneIndex;
 
-    @BeforeClass
-    public static void initExecutors()
+    @BeforeAll
+    static void initExecutors()
     {
         workers = Executors.newFixedThreadPool( THREAD_NUMBER );
     }
 
-    @AfterClass
-    public static void shutDownExecutor()
+    @AfterAll
+    static void shutDownExecutor()
     {
         workers.shutdownNow();
     }
 
-    @Before
-    public void setUp() throws IOException
+    @BeforeEach
+    void setUp() throws IOException
     {
         directoryFactory = new SyncNotifierDirectoryFactory( raceSignal );
-        luceneIndex = createTestLuceneIndex( directoryFactory, testDirectory.directory() );
+        luceneIndex = createTestLuceneIndex( directoryFactory, testDirectory.homePath() );
     }
 
-    @After
-    public void tearDown()
+    @AfterEach
+    void tearDown()
     {
         directoryFactory.close();
     }
 
-    @Test
-    @RepeatRule.Repeat( times = 2 )
-    public void testSaveCallCommitAndCloseFromMultipleThreads() throws Exception
+    @RepeatedTest( 2 )
+    void testSaveCallCommitAndCloseFromMultipleThreads()
     {
-        generateInitialData();
-        Supplier<Runnable> closeTaskSupplier = () -> createConcurrentCloseTask( raceSignal );
-        List<Future<?>> closeFutures = submitTasks( closeTaskSupplier );
-
-        for ( Future<?> closeFuture : closeFutures )
+        assertTimeoutPreemptively( ofSeconds( 60 ), () ->
         {
-            closeFuture.get();
-        }
+            generateInitialData();
+            Supplier<Runnable> closeTaskSupplier = () -> createConcurrentCloseTask( raceSignal );
+            List<Future<?>> closeFutures = submitTasks( closeTaskSupplier );
 
-        assertFalse( luceneIndex.isOpen() );
+            Futures.getAll( closeFutures );
+
+            assertFalse( luceneIndex.isOpen() );
+        } );
     }
 
-    @Test
-    @RepeatRule.Repeat( times = 2 )
-    public void saveCallCloseAndDropFromMultipleThreads() throws Exception
+    @RepeatedTest( 2 )
+    void saveCallCloseAndDropFromMultipleThreads()
     {
-        generateInitialData();
-        Supplier<Runnable> dropTaskSupplier = () -> createConcurrentDropTask( raceSignal );
-        List<Future<?>> futures = submitTasks( dropTaskSupplier );
-
-        for ( Future<?> future : futures )
+        assertTimeoutPreemptively( ofSeconds( 60 ), () ->
         {
-            future.get();
-        }
+            generateInitialData();
+            Supplier<Runnable> dropTaskSupplier = () -> createConcurrentDropTask( raceSignal );
+            List<Future<?>> futures = submitTasks( dropTaskSupplier );
 
-        assertFalse( luceneIndex.isOpen() );
+            Futures.getAll( futures );
+
+            assertFalse( luceneIndex.isOpen() );
+        } );
     }
 
-    private WritableTestDatabaseIndex createTestLuceneIndex( DirectoryFactory dirFactory, File folder ) throws IOException
+    private WritableTestDatabaseIndex createTestLuceneIndex( DirectoryFactory dirFactory, Path folder ) throws IOException
     {
         PartitionedIndexStorage indexStorage = new PartitionedIndexStorage(
-                dirFactory, fileSystemRule.get(), folder );
+                dirFactory, fileSystem, folder );
         WritableTestDatabaseIndex index = new WritableTestDatabaseIndex( indexStorage );
         index.create();
         index.open();
@@ -242,11 +237,11 @@ public class DatabaseIndexIntegrationTest
         };
     }
 
-    private Document createTestDocument()
+    private static Document createTestDocument()
     {
         Document document = new Document();
         document.add( new TextField( "text", "textValue", Field.Store.YES ) );
-        document.add( new LongField( "long", 1, Field.Store.YES ) );
+        document.add( new LongPoint( "long", 1 ) );
         return document;
     }
 
@@ -258,21 +253,33 @@ public class DatabaseIndexIntegrationTest
         return partition.getIndexWriter();
     }
 
-    private static class WritableTestDatabaseIndex extends WritableAbstractDatabaseIndex<TestLuceneIndex>
+    private static class WritableTestDatabaseIndex extends WritableAbstractDatabaseIndex<TestLuceneIndex,AbstractValueIndexReader>
     {
         WritableTestDatabaseIndex( PartitionedIndexStorage indexStorage )
         {
             super( new TestLuceneIndex( indexStorage,
-                    new WritableIndexPartitionFactory( IndexWriterConfigs::standard ) ) );
+                    new WritableIndexPartitionFactory( () -> IndexWriterConfigs.standard( Config.defaults() ) ) ), writable() );
         }
     }
 
-    private static class TestLuceneIndex extends AbstractLuceneIndex
+    private static class TestLuceneIndex extends AbstractLuceneIndex<AbstractValueIndexReader>
     {
 
         TestLuceneIndex( PartitionedIndexStorage indexStorage, IndexPartitionFactory partitionFactory )
         {
-            super( indexStorage, partitionFactory );
+            super( indexStorage, partitionFactory, null );
+        }
+
+        @Override
+        protected AbstractValueIndexReader createSimpleReader( List<AbstractIndexPartition> partitions )
+        {
+            return null;
+        }
+
+        @Override
+        protected AbstractValueIndexReader createPartitionedReader( List<AbstractIndexPartition> partitions )
+        {
+            return null;
         }
     }
 
@@ -285,17 +292,17 @@ public class DatabaseIndexIntegrationTest
             this.signal = signal;
         }
 
-        public Directory open( File dir, CountDownLatch signal ) throws IOException
+        public Directory open( Path dir, CountDownLatch signal ) throws IOException
         {
             Directory directory = open( dir );
             return new SyncNotifierDirectory( directory, signal );
         }
 
         @Override
-        public Directory open( File dir ) throws IOException
+        public Directory open( Path dir ) throws IOException
         {
-            dir.mkdirs();
-            FSDirectory fsDir = FSDirectory.open( dir.toPath() );
+            Files.createDirectories( dir );
+            FSDirectory fsDir = FSDirectory.open( dir );
             return new SyncNotifierDirectory( fsDir, signal );
         }
 
@@ -304,12 +311,7 @@ public class DatabaseIndexIntegrationTest
         {
         }
 
-        @Override
-        public void dumpToZip( ZipOutputStream zip, byte[] scratchPad )
-        {
-        }
-
-        private class SyncNotifierDirectory extends Directory
+        private static class SyncNotifierDirectory extends Directory
         {
             private final Directory delegate;
             private final CountDownLatch signal;
@@ -345,6 +347,12 @@ public class DatabaseIndexIntegrationTest
             }
 
             @Override
+            public IndexOutput createTempOutput( String prefix, String suffix, IOContext context ) throws IOException
+            {
+                return delegate.createTempOutput( prefix, suffix, context );
+            }
+
+            @Override
             public void sync( Collection<String> names ) throws IOException
             {
                 // where are waiting for a specific sync during index commit process inside lucene
@@ -366,9 +374,15 @@ public class DatabaseIndexIntegrationTest
             }
 
             @Override
-            public void renameFile( String source, String dest ) throws IOException
+            public void syncMetaData() throws IOException
             {
-                delegate.renameFile( source, dest );
+                delegate.syncMetaData();
+            }
+
+            @Override
+            public void rename( String source, String dest ) throws IOException
+            {
+                delegate.rename( source, dest );
             }
 
             @Override
@@ -387,6 +401,12 @@ public class DatabaseIndexIntegrationTest
             public void close() throws IOException
             {
                 delegate.close();
+            }
+
+            @Override
+            public Set<String> getPendingDeletions() throws IOException
+            {
+                return delegate.getPendingDeletions();
             }
         }
     }

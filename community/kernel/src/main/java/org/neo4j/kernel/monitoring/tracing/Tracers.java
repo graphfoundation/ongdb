@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,17 +38,21 @@
  */
 package org.neo4j.kernel.monitoring.tracing;
 
-import org.neo4j.helpers.Service;
+import org.neo4j.configuration.Config;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
-import org.neo4j.io.pagecache.tracing.cursor.DefaultPageCursorTracerSupplier;
-import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracerSupplier;
-import org.neo4j.kernel.impl.locking.LockTracer;
-import org.neo4j.kernel.impl.transaction.tracing.CheckPointTracer;
-import org.neo4j.kernel.impl.transaction.tracing.TransactionTracer;
-import org.neo4j.scheduler.JobScheduler;
-import org.neo4j.kernel.monitoring.Monitors;
+import org.neo4j.kernel.impl.transaction.tracing.DatabaseTracer;
+import org.neo4j.lock.LockTracer;
 import org.neo4j.logging.Log;
+import org.neo4j.logging.NullLog;
+import org.neo4j.monitoring.Monitors;
+import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.service.Services;
+import org.neo4j.time.Clocks;
 import org.neo4j.time.SystemNanoClock;
+
+import static java.lang.String.format;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.neo4j.kernel.monitoring.tracing.NullTracersFactory.NULL_TRACERS_NAME;
 
 /**
  * <h1>Tracers</h1>
@@ -119,65 +123,81 @@ import org.neo4j.time.SystemNanoClock;
  */
 public class Tracers
 {
-    public final PageCacheTracer pageCacheTracer;
-    public final PageCursorTracerSupplier pageCursorTracerSupplier;
-    public final TransactionTracer transactionTracer;
-    public final CheckPointTracer checkPointTracer;
-    public final LockTracer lockTracer;
+    public static Tracers EMPTY_TRACERS = new Tracers( NULL_TRACERS_NAME, NullLog.getInstance(), new Monitors(), null, Clocks.nanoClock(), null );
+
+    private final PageCacheTracer pageCacheTracer;
+    private final TracerFactory tracersFactory;
+    private final SystemNanoClock clock;
 
     /**
      * Create a Tracers subsystem with the desired implementation, if it can be found and created.
      *
      * Otherwise the default implementation is used, and a warning is logged to the given StringLogger.
      * @param desiredImplementationName The name of the desired {@link org.neo4j.kernel.monitoring.tracing
-     * .TracerFactory} implementation, as given by its {@link TracerFactory#getImplementationName()} method.
+     * .TracerFactory} implementation, as given by its {@link TracerFactory#getName()} method.
      * @param msgLog A {@link Log} for logging when the desired implementation cannot be created.
      * @param monitors the monitoring manager
      * @param jobScheduler a scheduler for async jobs
      */
     public Tracers( String desiredImplementationName, Log msgLog, Monitors monitors, JobScheduler jobScheduler,
-            SystemNanoClock clock )
+            SystemNanoClock clock, Config config )
     {
-        if ( "null".equalsIgnoreCase( desiredImplementationName ) )
+        this.clock = clock;
+        this.tracersFactory = createTracersFactory( desiredImplementationName, msgLog );
+        this.pageCacheTracer = tracersFactory.createPageCacheTracer( monitors, jobScheduler, clock, msgLog, config );
+    }
+
+    public PageCacheTracer getPageCacheTracer()
+    {
+        return pageCacheTracer;
+    }
+
+    public LockTracer getLockTracer()
+    {
+        return tracersFactory.createLockTracer( clock );
+    }
+
+    public DatabaseTracer getDatabaseTracer()
+    {
+        return tracersFactory.createDatabaseTracer( clock );
+    }
+
+    private static TracerFactory createTracersFactory( String desiredImplementationName, Log msgLog )
+    {
+        if ( NULL_TRACERS_NAME.equalsIgnoreCase( desiredImplementationName ) )
         {
-            pageCursorTracerSupplier = DefaultPageCursorTracerSupplier.NULL;
-            pageCacheTracer = PageCacheTracer.NULL;
-            transactionTracer = TransactionTracer.NULL;
-            checkPointTracer = CheckPointTracer.NULL;
-            lockTracer = LockTracer.NONE;
+            return new NullTracersFactory();
         }
         else
         {
-            TracerFactory foundFactory = new DefaultTracerFactory();
-            boolean found = desiredImplementationName == null;
-            for ( TracerFactory factory : Service.load( TracerFactory.class ) )
-            {
-                try
-                {
-                    if ( factory.getImplementationName().equalsIgnoreCase( desiredImplementationName ) )
-                    {
-                        foundFactory = factory;
-                        found = true;
-                        break;
-                    }
-                }
-                catch ( Exception e )
-                {
-                    msgLog.warn( "Failed to instantiate desired tracer implementations '" +
-                                 desiredImplementationName + "'", e );
-                }
-            }
-
-            if ( !found )
-            {
-                msgLog.warn( "Using default tracer implementations instead of '%s'", desiredImplementationName );
-            }
-
-            pageCursorTracerSupplier = foundFactory.createPageCursorTracerSupplier( monitors, jobScheduler );
-            pageCacheTracer = foundFactory.createPageCacheTracer( monitors, jobScheduler, clock, msgLog );
-            transactionTracer = foundFactory.createTransactionTracer( monitors, jobScheduler );
-            checkPointTracer = foundFactory.createCheckPointTracer( monitors, jobScheduler );
-            lockTracer = foundFactory.createLockTracer( monitors, jobScheduler );
+            return selectTracerFactory( desiredImplementationName, msgLog );
         }
+    }
+
+    private static TracerFactory selectTracerFactory( String desiredImplementationName, Log msgLog )
+    {
+        if ( isBlank( desiredImplementationName ) )
+        {
+            return createDefaultTracerFactory();
+        }
+        try
+        {
+            return Services.load( TracerFactory.class, desiredImplementationName )
+                    .orElseGet( () ->
+                    {
+                        msgLog.warn( "Using default tracer implementations instead of '%s'", desiredImplementationName );
+                        return Tracers.createDefaultTracerFactory();
+                    } );
+        }
+        catch ( Exception e )
+        {
+            msgLog.warn( format( "Failed to instantiate desired tracer implementations '%s', using default", desiredImplementationName ), e );
+            return createDefaultTracerFactory();
+        }
+    }
+
+    private static TracerFactory createDefaultTracerFactory()
+    {
+        return new DefaultTracerFactory();
     }
 }

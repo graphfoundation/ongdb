@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -44,9 +44,13 @@ import org.neo4j.values.AnyValue;
 import org.neo4j.values.ValueMapper;
 
 import static java.lang.String.format;
+import static org.neo4j.memory.HeapEstimator.shallowSizeOfInstance;
+import static org.neo4j.memory.HeapEstimator.sizeOf;
 
 public class ShortArray extends IntegralArray
 {
+    private static final long SHALLOW_SIZE = shallowSizeOfInstance( ShortArray.class );
+
     private final short[] value;
 
     ShortArray( short[] value )
@@ -68,7 +72,7 @@ public class ShortArray extends IntegralArray
     }
 
     @Override
-    public int computeHash()
+    protected int computeHashToMemoize()
     {
         return NumberValues.hash( value );
     }
@@ -130,7 +134,7 @@ public class ShortArray extends IntegralArray
     @Override
     public short[] asObjectCopy()
     {
-        return value.clone();
+        return Arrays.copyOf( value, value.length );
     }
 
     @Override
@@ -162,5 +166,42 @@ public class ShortArray extends IntegralArray
     public String getTypeName()
     {
         return "ShortArray";
+    }
+
+    @Override
+    public long estimatedHeapUsage()
+    {
+        return SHALLOW_SIZE + sizeOf( value );
+    }
+
+    @Override
+    public boolean hasCompatibleType( AnyValue value )
+    {
+        return value instanceof ShortValue;
+    }
+
+    @Override
+    public ArrayValue copyWithAppended( AnyValue added )
+    {
+        assert hasCompatibleType( added ) : "Incompatible types";
+        short[] newArray = Arrays.copyOf( value, value.length + 1 );
+        newArray[value.length] = ((ShortValue) added).value();
+        return new ShortArray( newArray );
+    }
+
+    @Override
+    public ArrayValue copyWithPrepended( AnyValue prepended )
+    {
+        assert hasCompatibleType( prepended ) : "Incompatible types";
+        short[] newArray = new short[value.length + 1];
+        System.arraycopy( value, 0, newArray, 1, value.length );
+        newArray[0] = ((ShortValue) prepended).value();
+        return new ShortArray( newArray );
+    }
+
+    @Override
+    public ValueRepresentation valueRepresentation()
+    {
+        return ValueRepresentation.INT16_ARRAY;
     }
 }

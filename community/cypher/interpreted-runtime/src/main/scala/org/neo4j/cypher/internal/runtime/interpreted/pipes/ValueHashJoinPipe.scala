@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,51 +38,57 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.util.attribution.Id
+import org.neo4j.kernel.impl.util.collection
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
 
-import scala.collection.mutable
+import scala.collection.JavaConverters.asScalaIteratorConverter
 
 case class ValueHashJoinPipe(lhsExpression: Expression, rhsExpression: Expression, left: Pipe, right: Pipe)
                             (val id: Id = Id.INVALID_ID)
   extends PipeWithSource(left) {
 
-  override protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
+  override protected def internalCreateResults(input: ClosingIterator[CypherRow], state: QueryState): ClosingIterator[CypherRow] = {
 
     if (input.isEmpty)
-      return Iterator.empty
+      return ClosingIterator.empty
 
     val rhsIterator = right.createResults(state)
 
     if (rhsIterator.isEmpty)
-      return Iterator.empty
+      return ClosingIterator.empty
 
     val table = buildProbeTable(input, state)
+    state.query.resources.trace(table)
 
-    if (table.isEmpty)
-      return Iterator.empty
+    if (table.isEmpty) {
+      table.close()
+      return ClosingIterator.empty
+    }
 
-    val result = for {context: ExecutionContext <- rhsIterator
-                      joinKey = rhsExpression(context, state) if joinKey != Values.NO_VALUE}
-      yield {
+    val result: ClosingIterator[CypherRow] = for {
+      rhsRow <- rhsIterator
+      joinKey = rhsExpression(rhsRow, state) if !(joinKey eq Values.NO_VALUE)
+      lhsRow <- table.get(joinKey).asScala
+    } yield {
+      val outputRow = lhsRow.createClone()
+      outputRow.mergeWith(rhsRow, state.query)
+      outputRow
+    }
 
-        val seq = table.getOrElse(joinKey, mutable.MutableList.empty)
-        seq.map(context.mergeWith)
-      }
-
-    result.flatten
+    result.closing(table)
   }
 
-  private def buildProbeTable(input: Iterator[ExecutionContext], state: QueryState) = {
-    val table = new mutable.HashMap[AnyValue, mutable.MutableList[ExecutionContext]]
+  private def buildProbeTable(input: Iterator[CypherRow], state: QueryState): collection.ProbeTable[AnyValue, CypherRow] = {
+    val table = collection.ProbeTable.createProbeTable[AnyValue, CypherRow](state.memoryTrackerForOperatorProvider.memoryTrackerForOperator(id.x))
 
     for (context <- input;
          joinKey = lhsExpression(context, state) if joinKey != null) {
-      val seq = table.getOrElseUpdate(joinKey, mutable.MutableList.empty)
-      seq += context
+      table.put(joinKey, context)
     }
 
     table

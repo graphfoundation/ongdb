@@ -43,24 +43,50 @@ Third-party licenses
 --------------------
 
 Apache Software License, Version 2.0
+  Apache Commons BeanUtils
+  Apache Commons Collections
   Apache Commons Compress
+  Apache Commons IO
   Apache Commons Lang
   Apache Commons Text
+  Apache Log4j API
+  Apache Log4j Core
+  Apache Shiro :: Cache
+  Apache Shiro :: Configuration :: Core
+  Apache Shiro :: Configuration :: OGDL
+  Apache Shiro :: Core
+  Apache Shiro :: Cryptography :: Ciphers
+  Apache Shiro :: Cryptography :: Core
+  Apache Shiro :: Cryptography :: Hashing
+  Apache Shiro :: Event
+  Apache Shiro :: Lang
   Caffeine cache
-  ConcurrentLinkedHashMap
-  Data Mapper for Jackson
-  Jackson
+  Java Agent for Memory Measurements
+  Java Concurrency Tools Core Library
+  Java Native Access
+  Jettison
   jPowerShell
   jProcesses
-  Lucene codecs
   Lucene Common Analyzers
   Lucene Core
+  Lucene Memory
   Lucene QueryParsers
-  Neo4j - Cypher Frontend 3.3
-  Netty/All-in-One
-  opencsv
+  magnolia
+  mercator
+  Netty/Buffer
+  Netty/Codec
+  Netty/Codec/HTTP
+  Netty/Common
+  Netty/Handler
+  Netty/Resolver
+  Netty/Transport
+  Netty/Transport/Classes/Epoll
+  Netty/Transport/Native/Epoll
+  Netty/Transport/Native/Unix/Common
   parboiled-core
   parboiled-scala
+  picocli - a mighty tiny Command Line Interface
+  Scala Compiler
   WMI4Java
 
 BSD - Scala License
@@ -71,9 +97,38 @@ BSD License
   asm-analysis
   asm-tree
   asm-util
-  Scala Compiler
+  Zstandard
+
+BSD License 2-clause
+  zstd-jni
 
 Bouncy Castle License
+  Bouncy Castle ASN.1 Extension and Utility APIs
   Bouncy Castle PKIX, CMS, EAC, TSP, PKCS, OCSP, CMP, and CRMF APIs
   Bouncy Castle Provider
+
+Eclipse Distribution License - v 1.0
+  Eclipse Collections API
+  Eclipse Collections Main Library
+
+Eclipse Public License - v 1.0
+  Eclipse Collections API
+  Eclipse Collections Main Library
+
+Eclipse Public License v2.0
+  javax.ws.rs-api
+
+MIT License
+  SLF4J API Module
+
+Dependencies with multiple licenses
+-----------------------------------
+
+Eclipse Collections API
+  Eclipse Distribution License - v 1.0
+  Eclipse Public License - v 1.0
+
+Eclipse Collections Main Library
+  Eclipse Distribution License - v 1.0
+  Eclipse Public License - v 1.0
 

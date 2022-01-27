@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,12 +38,29 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.InternalException
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection
-import org.neo4j.values.storable.Values
-import org.neo4j.values.virtual.NodeValue
+import org.neo4j.cypher.internal.expressions.SemanticDirection
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.ClosingLongIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.IsNoValue
+import org.neo4j.cypher.internal.runtime.PrimitiveLongHelper
+import org.neo4j.cypher.internal.runtime.RelationshipIterator
+import org.neo4j.cypher.internal.runtime.ResourceManager
+import org.neo4j.cypher.internal.runtime.interpreted.TransactionBoundQueryContext.RelationshipCursorIterator
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.ExpandIntoPipe.getRowNode
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.ExpandIntoPipe.relationshipSelectionCursorIterator
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.ExpandIntoPipe.traceRelationshipSelectionCursor
+import org.neo4j.cypher.internal.util.attribution.Id
+import org.neo4j.exceptions.ParameterWrongTypeException
+import org.neo4j.graphdb.Direction
+import org.neo4j.internal.kernel.api.RelationshipTraversalCursor
+import org.neo4j.internal.kernel.api.helpers.CachingExpandInto
+import org.neo4j.values.AnyValue
+import org.neo4j.values.storable.Values.NO_VALUE
+import org.neo4j.values.virtual.VirtualNodeValue
+import org.neo4j.values.virtual.VirtualValues
+
+import scala.collection.Iterator
 
 /**
  * Expand when both end-points are known, find all relationships of the given
@@ -59,36 +76,77 @@ case class ExpandIntoPipe(source: Pipe,
                           relName: String,
                           toName: String,
                           dir: SemanticDirection,
-                          lazyTypes: LazyTypes)
+                          lazyTypes: RelationshipTypes)
                           (val id: Id = Id.INVALID_ID)
-  extends PipeWithSource(source) with CachingExpandInto {
+  extends PipeWithSource(source) {
   self =>
-  private final val CACHE_SIZE = 100000
+  private val kernelDirection = dir match {
+    case SemanticDirection.OUTGOING => Direction.OUTGOING
+    case SemanticDirection.INCOMING => Direction.INCOMING
+    case SemanticDirection.BOTH => Direction.BOTH
+  }
 
-  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
-    //cache of known connected nodes
-    val relCache = new RelationshipsCache(CACHE_SIZE)
+  protected def internalCreateResults(input: ClosingIterator[CypherRow], state: QueryState): ClosingIterator[CypherRow] = {
+    val query = state.query
+
+    val expandInto = new CachingExpandInto(query.transactionalContext.dataRead, kernelDirection, state.memoryTrackerForOperatorProvider.memoryTrackerForOperator(id.x))
+    state.query.resources.trace(expandInto)
 
     input.flatMap {
       row =>
         val fromNode = getRowNode(row, fromName)
         fromNode match {
-          case fromNode: NodeValue =>
+          case fromNode: VirtualNodeValue =>
             val toNode = getRowNode(row, toName)
             toNode match {
-              case Values.NO_VALUE => Iterator.empty
-              case n: NodeValue =>
-
-                val relationships = relCache.get(fromNode, n, dir)
-                  .getOrElse(findRelationships(state.query, fromNode, n, relCache, dir, lazyTypes.types(state.query)))
-
-                if (relationships.isEmpty) Iterator.empty
-                else relationships.map(r => executionContextFactory.copyWith(row, relName, r))
-              case _ => throw new InternalException(s"$toNode must be node or null")
+              case IsNoValue() => Iterator.empty
+              case n: VirtualNodeValue =>
+                val traversalCursor = query.traversalCursor()
+                val nodeCursor = query.nodeCursor()
+                try {
+                  val selectionCursor = expandInto.connectingRelationships(nodeCursor,
+                                                                           traversalCursor,
+                                                                           fromNode.id(),
+                                                                           lazyTypes.types(query),
+                                                                           n.id())
+                  traceRelationshipSelectionCursor(query.resources, selectionCursor, traversalCursor)
+                  val relationships = relationshipSelectionCursorIterator(selectionCursor, traversalCursor)
+                  if (!relationships.hasNext) Iterator.empty
+                  else PrimitiveLongHelper.map(relationships, r => rowFactory.copyWith(row, relName, VirtualValues.relationship(r, relationships.startNodeId(), relationships.endNodeId(), relationships.typeId())))
+                } finally {
+                  nodeCursor.close()
+                }
+              case value =>
+                throw new ParameterWrongTypeException(
+                  s"Expected to find a node at '$fromName' but found $value instead")
             }
 
-          case Values.NO_VALUE => Iterator.empty
+          case IsNoValue() => Iterator.empty
         }
+    }.closing(expandInto)
+  }
+}
+
+object ExpandIntoPipe {
+
+  def traceRelationshipSelectionCursor(resources: ResourceManager, selectionCursor: RelationshipTraversalCursor, traversalCursor: RelationshipTraversalCursor): Unit = {
+    resources.trace(selectionCursor)
+    // In case the originating node cursor supports fast relationships these two could be the same object, so we need to do this check
+    if (!(traversalCursor eq selectionCursor)) {
+      resources.trace(traversalCursor)
+    }
+  }
+
+
+  def relationshipSelectionCursorIterator(cursor: RelationshipTraversalCursor, traversalCursor: RelationshipTraversalCursor): ClosingLongIterator with RelationshipIterator =
+    new RelationshipCursorIterator(cursor, traversalCursor)
+
+  @inline
+  def getRowNode(row: CypherRow, col: String): AnyValue = {
+    row.getByName(col) match {
+      case n: VirtualNodeValue => n
+      case IsNoValue() => NO_VALUE
+      case value => throw new ParameterWrongTypeException(s"Expected to find a node at '$col' but found $value instead")
     }
   }
 }

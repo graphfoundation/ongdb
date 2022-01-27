@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,58 +38,74 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
+import org.neo4j.cypher.internal.logical.plans.UserFunctionSignature
+import org.neo4j.cypher.internal.runtime.ReadableRow
 import org.neo4j.cypher.internal.runtime.UserDefinedAggregator
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.aggregation.AggregationFunction
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, ValueConversion}
-import org.neo4j.cypher.internal.v3_4.logical.plans.UserFunctionSignature
+import org.neo4j.memory.HeapEstimator.shallowSizeOfInstanceWithObjectReferences
+import org.neo4j.memory.MemoryTracker
 import org.neo4j.values.AnyValue
 
-abstract class AggregationFunctionInvocation(signature: UserFunctionSignature, arguments: IndexedSeq[Expression])
+abstract class AggregationFunctionInvocation(arguments: IndexedSeq[Expression])
   extends AggregationExpression {
-  private val valueConverter = ValueConversion.getValueConverter(signature.outputType)
 
-  override def createAggregationFunction: AggregationFunction = new AggregationFunction {
-    private var inner: UserDefinedAggregator = _
+  override def createAggregationFunction(memoryTracker: MemoryTracker): AggregationFunction = {
+    memoryTracker.allocateHeap(AggregationFunctionInvocation.SHALLOW_SIZE)
+    new AggregationFunction {
+      private var inner: UserDefinedAggregator = _
 
-    override def result(state: QueryState): AnyValue = {
-      valueConverter(aggregator(state).result)
-    }
-
-    override def apply(data: ExecutionContext, state: QueryState): Unit = {
-      val argValues = arguments.map(arg => {
-        state.query.asObject(arg(data, state))
-      })
-      aggregator(state).update(argValues)
-    }
-
-    private def aggregator(state: QueryState) = {
-      if (inner == null) {
-        inner = call(state)
+      override def result(state: QueryState): AnyValue = {
+        aggregator(state).result
       }
-      inner
+
+      override def apply(data: ReadableRow, state: QueryState): Unit = {
+        val argValues = arguments.map(arg => {
+          arg(data, state)
+        })
+        aggregator(state).update(argValues)
+      }
+
+      private def aggregator(state: QueryState) = {
+        if (inner == null) {
+          inner = call(state)
+        }
+        inner
+      }
     }
   }
 
-  override def symbolTableDependencies: Set[String] = arguments.flatMap(_.symbolTableDependencies).toSet
+  override def children: Seq[AstNode[_]] = arguments
 
   protected def call(state: QueryState): UserDefinedAggregator
 }
 
-case class AggregationFunctionInvocationById(signature: UserFunctionSignature,  arguments: IndexedSeq[Expression])
-  extends AggregationFunctionInvocation(signature, arguments)
-{
-  protected def call(state: QueryState) = {state.query.aggregateFunction(signature.id.get, signature.allowed)}
+object AggregationFunctionInvocation {
 
-  override def rewrite(f: (Expression) => Expression): Expression = f(
-    AggregationFunctionInvocationById(signature, arguments.map(a => a.rewrite(f))))
+  def apply(signature: UserFunctionSignature, arguments: IndexedSeq[Expression]): AggregationFunctionInvocation = {
+    if (signature.builtIn) BuiltInAggregationFunctionInvocation(signature.id, arguments)
+    else UserAggregationFunctionInvocation(signature.id, arguments)
+  }
+
+  // AggregationFunction instances are usually created from nested anonymous classes with some outer context:
+  // This should give a low-end approximate.
+  final val SHALLOW_SIZE: Long =
+    shallowSizeOfInstanceWithObjectReferences(2) + // AggregationFunction: 1 ref + 1 $outer
+    shallowSizeOfInstanceWithObjectReferences(1) + // UserDefinedAggregator: 1 ref
+    shallowSizeOfInstanceWithObjectReferences(3)   // UserAggregator: 2 refs + 1 this$0 (one is a new SecurityContext, but not counted)
 }
 
-case class AggregationFunctionInvocationByName(signature: UserFunctionSignature,  arguments: IndexedSeq[Expression])
-  extends AggregationFunctionInvocation(signature, arguments)
-{
-  protected def call(state: QueryState) = {state.query.aggregateFunction(signature.name, signature.allowed)}
+case class UserAggregationFunctionInvocation(fcnId: Int, arguments: IndexedSeq[Expression]) extends AggregationFunctionInvocation(arguments) {
+  override def rewrite(f: Expression => Expression): Expression =
+    f(UserAggregationFunctionInvocation(fcnId, arguments.map(a => a.rewrite(f))))
 
-  override def rewrite(f: (Expression) => Expression): Expression = f(
-    AggregationFunctionInvocationByName(signature, arguments.map(a => a.rewrite(f))))
+  override protected def call(state: QueryState): UserDefinedAggregator = state.query.aggregateFunction(fcnId)
+}
+
+case class BuiltInAggregationFunctionInvocation(fcnId: Int, arguments: IndexedSeq[Expression]) extends AggregationFunctionInvocation(arguments) {
+  override def rewrite(f: Expression => Expression): Expression =
+    f(BuiltInAggregationFunctionInvocation(fcnId, arguments.map(a => a.rewrite(f))))
+
+  override protected def call(state: QueryState): UserDefinedAggregator = state.query.builtInAggregateFunction(fcnId)
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,18 +38,19 @@
  */
 package org.neo4j.test;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 
-import org.neo4j.concurrent.Runnables;
+import org.neo4j.util.concurrent.Runnables;
 
 import static java.lang.Thread.sleep;
 import static java.util.concurrent.ThreadLocalRandom.current;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -58,10 +59,10 @@ import static org.neo4j.test.Race.throwing;
 /**
  * Test of a test utility {@link Race}.
  */
-public class RaceTest
+class RaceTest
 {
     @Test
-    public void shouldWaitForAllContestantsToComplete() throws Throwable
+    void shouldWaitForAllContestantsToComplete() throws Throwable
     {
         // GIVEN
         Race race = new Race();
@@ -81,7 +82,7 @@ public class RaceTest
     }
 
     @Test
-    public void shouldConsultEndCondition() throws Throwable
+    void shouldConsultEndCondition() throws Throwable
     {
         // GIVEN
         CallCountBooleanSupplier endCondition = new CallCountBooleanSupplier( 100 );
@@ -96,7 +97,7 @@ public class RaceTest
     }
 
     @Test
-    public void shouldHaveMultipleEndConditions() throws Throwable
+    void shouldHaveMultipleEndConditions() throws Throwable
     {
         // GIVEN
         ControlledBooleanSupplier endCondition1 = spy( new ControlledBooleanSupplier( false ) );
@@ -115,7 +116,7 @@ public class RaceTest
     }
 
     @Test
-    public void shouldBreakOnError() throws Throwable
+    void shouldBreakOnError()
     {
         // GIVEN
         String error = "Noooo";
@@ -125,28 +126,34 @@ public class RaceTest
         {
             throw new RuntimeException( error );
         } );
-        race.addContestants( 3, () ->
+        race.addContestants( 3, () -> { } );
+
+        // WHEN/THEN
+        Exception exception = assertThrows( Exception.class, race::go );
+        assertEquals( error, exception.getMessage() );
+    }
+
+    @Test
+    void shouldRunFailureAction()
+    {
+        // GIVEN
+        AtomicBoolean failureActionRun = new AtomicBoolean();
+        Race race = new Race().withFailureAction( t -> failureActionRun.set( true ) );
+        race.addContestant( () ->
         {
+            throw new RuntimeException();
         } );
 
-        // WHEN
-        try
-        {
-            race.go();
-            fail( "Should've failed ");
-        }
-        catch ( Exception e )
-        {
-            // THEN
-            assertEquals( error, e.getMessage() );
-        }
+        // WHEN/THEN
+        assertThrows( Exception.class, race::go );
+        assertTrue( failureActionRun.get() );
     }
 
     public static class ControlledBooleanSupplier implements BooleanSupplier
     {
         private volatile boolean value;
 
-        public ControlledBooleanSupplier( boolean initialValue )
+        ControlledBooleanSupplier( boolean initialValue )
         {
             this.value = initialValue;
         }
@@ -168,7 +175,7 @@ public class RaceTest
         private final int callCountTriggeringTrueEndCondition;
         private final AtomicInteger callCount = new AtomicInteger();
 
-        public CallCountBooleanSupplier( int callCountTriggeringTrueEndCondition )
+        CallCountBooleanSupplier( int callCountTriggeringTrueEndCondition )
         {
             this.callCountTriggeringTrueEndCondition = callCountTriggeringTrueEndCondition;
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,71 +42,67 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexWriterConfig;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.stream.IntStream;
+import java.util.function.Supplier;
 
-import org.neo4j.function.Factory;
-import org.neo4j.helpers.Exceptions;
-import org.neo4j.helpers.Strings;
+import org.neo4j.configuration.Config;
+import org.neo4j.internal.helpers.Exceptions;
+import org.neo4j.internal.helpers.Strings;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
 import org.neo4j.io.IOUtils;
+import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.index.storage.DirectoryFactory;
 import org.neo4j.kernel.api.impl.schema.LuceneDocumentStructure;
 import org.neo4j.kernel.api.impl.schema.LuceneSchemaIndexBuilder;
 import org.neo4j.kernel.api.impl.schema.SchemaIndex;
-import org.neo4j.kernel.api.index.PropertyAccessor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.test.Randoms;
-import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
+import org.neo4j.test.utils.TestDirectory;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
 import static java.util.stream.Collectors.toSet;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker.writable;
+import static org.neo4j.internal.schema.SchemaDescriptors.forLabel;
 
-public class LuceneSchemaIndexUniquenessVerificationIT
+@TestDirectoryExtension
+class LuceneSchemaIndexUniquenessVerificationIT
 {
     private static final int DOCS_PER_PARTITION = ThreadLocalRandom.current().nextInt( 10, 100 );
     private static final int PROPERTY_KEY_ID = 42;
-    private static final SchemaIndexDescriptor descriptor = SchemaIndexDescriptorFactory
-            .uniqueForLabel( 0, PROPERTY_KEY_ID );
+    private static final IndexDescriptor descriptor = IndexPrototype.uniqueForSchema( forLabel( 0, PROPERTY_KEY_ID ) ).withName( "a" ).materialise( 1 );
+    private static final int nodesToCreate = DOCS_PER_PARTITION * 2 + 1;
 
-    @Rule
-    public TestDirectory testDir = TestDirectory.testDirectory();
-    @Rule
-    public final DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
-
-    private final int nodesToCreate = DOCS_PER_PARTITION * 2 + 1;
+    @Inject
+    private TestDirectory testDir;
+    @Inject
+    private DefaultFileSystemAbstraction fileSystem;
 
     private SchemaIndex index;
-    private static final long MAX_LONG_VALUE = Long.MAX_VALUE >> 10;
-    private static final long MIN_LONG_VALUE = MAX_LONG_VALUE - 20;
 
-    @Before
-    public void setPartitionSize() throws Exception
+    @BeforeEach
+    void setPartitionSize() throws Exception
     {
         System.setProperty( "luceneSchemaIndex.maxPartitionSize", String.valueOf( DOCS_PER_PARTITION ) );
 
-        Factory<IndexWriterConfig> configFactory = new TestConfigFactory();
-        index = LuceneSchemaIndexBuilder.create( descriptor, Config.defaults() )
-                .withFileSystem( fileSystemRule.get() )
-                .withIndexRootFolder( new File( testDir.directory( "uniquenessVerification" ), "index" ) )
+        Supplier<IndexWriterConfig> configFactory = new TestConfigFactory( Config.defaults() );
+        index = LuceneSchemaIndexBuilder.create( descriptor, writable(), Config.defaults() )
+                .withFileSystem( fileSystem )
+                .withIndexRootFolder( testDir.directory( "uniquenessVerification" ).resolve( "index" ) )
                 .withWriterConfig( configFactory )
                 .withDirectoryFactory( DirectoryFactory.PERSISTENT )
                 .build();
@@ -115,8 +111,8 @@ public class LuceneSchemaIndexUniquenessVerificationIT
         index.open();
     }
 
-    @After
-    public void resetPartitionSize() throws IOException
+    @AfterEach
+    void resetPartitionSize() throws IOException
     {
         System.setProperty( "luceneSchemaIndex.maxPartitionSize", "" );
 
@@ -124,7 +120,7 @@ public class LuceneSchemaIndexUniquenessVerificationIT
     }
 
     @Test
-    public void stringValuesWithoutDuplicates() throws IOException
+    void stringValuesWithoutDuplicates() throws IOException
     {
         Set<Value> data = randomStrings();
 
@@ -134,7 +130,7 @@ public class LuceneSchemaIndexUniquenessVerificationIT
     }
 
     @Test
-    public void stringValuesWithDuplicates() throws IOException
+    void stringValuesWithDuplicates() throws IOException
     {
         List<Value> data = withDuplicate( randomStrings() );
 
@@ -143,165 +139,9 @@ public class LuceneSchemaIndexUniquenessVerificationIT
         assertUniquenessConstraintFails( data );
     }
 
-    @Test
-    public void smallLongValuesWithoutDuplicates() throws IOException
-    {
-        long min = randomLongInRange( 100, 10_000 );
-        long max = min + nodesToCreate;
-        Set<Value> data = randomLongs( min, max );
-
-        insert( data );
-
-        assertUniquenessConstraintHolds( data );
-    }
-
-    @Test
-    public void smallLongValuesWithDuplicates() throws IOException
-    {
-        long min = randomLongInRange( 100, 10_000 );
-        long max = min + nodesToCreate;
-        List<Value> data = withDuplicate( randomLongs( min, max ) );
-
-        insert( data );
-
-        assertUniquenessConstraintFails( data );
-    }
-
-    @Test
-    public void largeLongValuesWithoutDuplicates() throws IOException
-    {
-        long max = randomLongInRange( MIN_LONG_VALUE, MAX_LONG_VALUE );
-        long min = max - nodesToCreate;
-        Set<Value> data = randomLongs( min, max );
-
-        insert( data );
-
-        assertUniquenessConstraintHolds( data );
-    }
-
-    @Test
-    public void largeLongValuesWithDuplicates() throws IOException
-    {
-        long max = randomLongInRange( MIN_LONG_VALUE, MAX_LONG_VALUE );
-        long min = max - nodesToCreate;
-        List<Value> data = withDuplicate( randomLongs( min, max ) );
-
-        insert( data );
-
-        assertUniquenessConstraintFails( data );
-    }
-
-    @Test
-    public void smallDoubleValuesWithoutDuplicates() throws IOException
-    {
-        double min = randomDoubleInRange( 100, 10_000 );
-        double max = min + nodesToCreate;
-        Set<Value> data = randomDoubles( min, max );
-
-        insert( data );
-
-        assertUniquenessConstraintHolds( data );
-    }
-
-    @Test
-    public void smallDoubleValuesWithDuplicates() throws IOException
-    {
-        double min = randomDoubleInRange( 100, 10_000 );
-        double max = min + nodesToCreate;
-        List<Value> data = withDuplicate( randomDoubles( min, max ) );
-
-        insert( data );
-
-        assertUniquenessConstraintFails( data );
-    }
-
-    @Test
-    public void largeDoubleValuesWithoutDuplicates() throws IOException
-    {
-        double max = randomDoubleInRange( Double.MAX_VALUE / 2, Double.MAX_VALUE );
-        double min = max / 2;
-        Set<Value> data = randomDoubles( min, max );
-
-        insert( data );
-
-        assertUniquenessConstraintHolds( data );
-    }
-
-    @Test
-    public void largeDoubleValuesWithDuplicates() throws IOException
-    {
-        double max = randomDoubleInRange( Double.MAX_VALUE / 2, Double.MAX_VALUE );
-        double min = max / 2;
-        List<Value> data = withDuplicate( randomDoubles( min, max ) );
-
-        insert( data );
-
-        assertUniquenessConstraintFails( data );
-    }
-
-    @Test
-    public void smallArrayValuesWithoutDuplicates() throws IOException
-    {
-        Set<Value> data = randomArrays( 3, 7 );
-
-        insert( data );
-
-        assertUniquenessConstraintHolds( data );
-    }
-
-    @Test
-    public void smallArrayValuesWithDuplicates() throws IOException
-    {
-        List<Value> data = withDuplicate( randomArrays( 3, 7 ) );
-
-        insert( data );
-
-        assertUniquenessConstraintFails( data );
-    }
-
-    @Test
-    public void largeArrayValuesWithoutDuplicates() throws IOException
-    {
-        Set<Value> data = randomArrays( 70, 100 );
-
-        insert( data );
-
-        assertUniquenessConstraintHolds( data );
-    }
-
-    @Test
-    public void largeArrayValuesWithDuplicates() throws IOException
-    {
-        List<Value> data = withDuplicate( randomArrays( 70, 100 ) );
-
-        insert( data );
-
-        assertUniquenessConstraintFails( data );
-    }
-
-    @Test
-    public void variousValuesWithoutDuplicates() throws IOException
-    {
-        Set<Value> data = randomValues();
-
-        insert( data );
-
-        assertUniquenessConstraintHolds( data );
-    }
-
-    @Test
-    public void variousValuesWitDuplicates() throws IOException
-    {
-        List<Value> data = withDuplicate( randomValues() );
-
-        insert( data );
-
-        assertUniquenessConstraintFails( data );
-    }
-
     private void insert( Collection<Value> data ) throws IOException
     {
-        Value[] dataArray = data.toArray( new Value[data.size()] );
+        Value[] dataArray = data.toArray( new Value[0] );
         for ( int i = 0; i < dataArray.length; i++ )
         {
             Document doc = LuceneDocumentStructure.documentRepresentingProperties( i, dataArray[i] );
@@ -325,76 +165,29 @@ public class LuceneSchemaIndexUniquenessVerificationIT
 
     private void assertUniquenessConstraintFails( Collection<Value> data )
     {
-        try
-        {
-            verifyUniqueness( data );
-            fail( "Should not be possible to create uniqueness constraint for data: " +
-                  Strings.prettyPrint( data.toArray() ) );
-        }
-        catch ( Throwable t )
-        {
-            assertThat( t, instanceOf( IndexEntryConflictException.class ) );
-        }
+        assertThrows( IndexEntryConflictException.class, () -> verifyUniqueness( data ) );
     }
 
     private void verifyUniqueness( Collection<Value> data ) throws IOException, IndexEntryConflictException
     {
-        PropertyAccessor propertyAccessor = new TestPropertyAccessor( new ArrayList<>( data ) );
-        index.verifyUniqueness( propertyAccessor, new int[]{PROPERTY_KEY_ID} );
+        NodePropertyAccessor nodePropertyAccessor = new TestPropertyAccessor( new ArrayList<>( data ) );
+        index.verifyUniqueness( nodePropertyAccessor, new int[]{PROPERTY_KEY_ID} );
     }
 
-    private Set<Value> randomStrings()
+    private static Set<Value> randomStrings()
     {
         return ThreadLocalRandom.current()
                 .ints( nodesToCreate, 1, 200 )
-                .mapToObj( this::randomString )
+                .mapToObj( LuceneSchemaIndexUniquenessVerificationIT::randomString )
                 .map( Values::of )
                 .collect( toSet() );
     }
 
-    private String randomString( int size )
+    private static String randomString( int size )
     {
         return ThreadLocalRandom.current().nextBoolean()
                ? RandomStringUtils.random( size )
                : RandomStringUtils.randomAlphabetic( size );
-    }
-
-    private Set<Value> randomLongs( long min, long max )
-    {
-        return ThreadLocalRandom.current()
-                .longs( nodesToCreate, min, max )
-                .boxed()
-                .map( Values::of )
-                .collect( toSet() );
-    }
-
-    private Set<Value> randomDoubles( double min, double max )
-    {
-        return ThreadLocalRandom.current()
-                .doubles( nodesToCreate, min, max )
-                .boxed()
-                .map( Values::of )
-                .collect( toSet() );
-    }
-
-    private Set<Value> randomArrays( int minLength, int maxLength )
-    {
-        Randoms randoms = new Randoms( ThreadLocalRandom.current(), new ArraySizeConfig( minLength, maxLength ) );
-
-        return IntStream.range( 0, nodesToCreate )
-                .mapToObj( i -> randoms.array() )
-                .map( Values::of )
-                .collect( toSet() );
-    }
-
-    private Set<Value> randomValues()
-    {
-        Randoms randoms = new Randoms( ThreadLocalRandom.current(), new ArraySizeConfig( 5, 100 ) );
-
-        return IntStream.range( 0, nodesToCreate )
-                .mapToObj( i -> randoms.propertyValue() )
-                .map( Values::of )
-                .collect( toSet() );
     }
 
     private static List<Value> withDuplicate( Set<Value> set )
@@ -433,47 +226,19 @@ public class LuceneSchemaIndexUniquenessVerificationIT
         return ThreadLocalRandom.current().nextInt( min, max );
     }
 
-    private static long randomLongInRange( long min, long max )
+    private static class TestConfigFactory implements Supplier<IndexWriterConfig>
     {
-        return ThreadLocalRandom.current().nextLong( min, max );
-    }
+        private final Config config;
 
-    private static double randomDoubleInRange( double min, double max )
-    {
-        return ThreadLocalRandom.current().nextDouble( min, max );
-    }
-
-    private static class ArraySizeConfig extends Randoms.Default
-    {
-        final int minLength;
-        final int maxLength;
-
-        ArraySizeConfig( int minLength, int maxLength )
+        TestConfigFactory( Config config )
         {
-            this.minLength = minLength;
-            this.maxLength = maxLength;
+            this.config = config;
         }
 
         @Override
-        public int arrayMinLength()
+        public IndexWriterConfig get()
         {
-            return super.arrayMinLength();
-        }
-
-        @Override
-        public int arrayMaxLength()
-        {
-            return super.arrayMaxLength();
-        }
-    }
-
-    private static class TestConfigFactory implements Factory<IndexWriterConfig>
-    {
-
-        @Override
-        public IndexWriterConfig newInstance()
-        {
-            IndexWriterConfig verboseConfig = IndexWriterConfigs.standard();
+            IndexWriterConfig verboseConfig = IndexWriterConfigs.standard( config );
             verboseConfig.setCodec( Codec.getDefault() );
             return verboseConfig;
         }

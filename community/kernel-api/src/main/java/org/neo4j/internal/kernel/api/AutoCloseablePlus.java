@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,11 +41,31 @@ package org.neo4j.internal.kernel.api;
 /**
  * Enriches AutoCloseable with isClosed(). This method can be used to query whether a resource was closed or
  * to make sure that it is only closed once.
+ * <p>
+ * Also provides ability to register a listener for when this is closed.
  */
 public interface AutoCloseablePlus extends AutoCloseable
 {
     @Override
     void close();
 
+    /**
+     * Same as close(), but invoked before the listener has been notified.
+     */
+    void closeInternal();
+
     boolean isClosed();
+
+    void setCloseListener( CloseListener closeListener );
+
+    /**
+     * Assigns a token to the AutoCloseable that can be used to as an index for faster lookups.
+     * @param token the token to assign to the AutoCloseable
+     */
+    void setToken( int token );
+
+    /**
+     * Retrieves the token associated with the AutoCloseable
+     */
+    int getToken();
 }

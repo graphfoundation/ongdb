@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,140 +38,137 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
-import java.util.Set;
+import org.eclipse.collections.api.iterator.LongIterator;
+import org.eclipse.collections.impl.iterator.ImmutableEmptyLongIterator;
+import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
 
 import org.neo4j.internal.kernel.api.RelationshipScanCursor;
-import org.neo4j.io.pagecache.PageCursor;
-import org.neo4j.kernel.api.txstate.TransactionState;
+import org.neo4j.internal.kernel.api.security.AccessMode;
+import org.neo4j.storageengine.api.AllRelationshipsScan;
+import org.neo4j.storageengine.api.StorageRelationshipScanCursor;
 
-import static java.util.Collections.emptySet;
+import static org.neo4j.kernel.impl.newapi.Read.NO_ID;
 
-class DefaultRelationshipScanCursor extends RelationshipCursor implements RelationshipScanCursor
+class DefaultRelationshipScanCursor extends DefaultRelationshipCursor<StorageRelationshipScanCursor,DefaultRelationshipScanCursor>
+        implements RelationshipScanCursor
 {
-    private int type;
-    private long next;
-    private long highMark;
-    private PageCursor pageCursor;
-    private Set<Long> addedRelationships;
+    private long single;
+    private LongIterator addedRelationships;
+    private final DefaultNodeCursor securityNodeCursor;
 
-    DefaultRelationshipScanCursor( DefaultCursors pool )
+    DefaultRelationshipScanCursor( CursorPool<DefaultRelationshipScanCursor> pool,
+                                   StorageRelationshipScanCursor storeCursor,
+                                   DefaultNodeCursor securityNodeCursor )
     {
-        super( pool );
+        super( storeCursor, pool );
+        this.securityNodeCursor = securityNodeCursor;
     }
 
-    void scan( int type, Read read )
+    void scan( Read read )
     {
-        if ( getId() != NO_ID )
-        {
-            reset();
-        }
-        if ( pageCursor == null )
-        {
-            pageCursor = read.relationshipPage( 0 );
-        }
-        next = 0;
-        this.type = type;
-        highMark = read.relationshipHighMark();
+        storeCursor.scan();
+        this.single = NO_ID;
         init( read );
-        this.addedRelationships = emptySet();
+        this.addedRelationships = ImmutableEmptyLongIterator.INSTANCE;
+    }
+
+    boolean scanBatch( Read read, AllRelationshipsScan scan, int sizeHint, LongIterator addedRelationships, boolean hasChanges, AccessMode accessMode )
+    {
+        this.read = read;
+        this.single = NO_ID;
+        this.currentAddedInTx = NO_ID;
+        this.addedRelationships = addedRelationships;
+        this.hasChanges = hasChanges;
+        this.checkHasChanges = false;
+        this.accessMode = accessMode;
+        boolean scanBatch = storeCursor.scanBatch( scan, sizeHint );
+        return addedRelationships.hasNext() || scanBatch;
     }
 
     void single( long reference, Read read )
     {
-        if ( getId() != NO_ID )
-        {
-            reset();
-        }
-        if ( pageCursor == null )
-        {
-            pageCursor = read.relationshipPage( reference );
-        }
-        next = reference >= 0 ? reference : NO_ID;
-        type = -1;
-        highMark = NO_ID;
+        storeCursor.single( reference );
+        this.single = reference;
         init( read );
-        this.addedRelationships = emptySet();
+        this.addedRelationships = ImmutableEmptyLongIterator.INSTANCE;
+    }
+
+    void single( long reference, long sourceNodeReference, int type, long targetNodeReference, Read read )
+    {
+        storeCursor.single( reference, sourceNodeReference, type, targetNodeReference );
+        this.single = reference;
+        init( read );
+        this.addedRelationships = ImmutableEmptyLongIterator.INSTANCE;
     }
 
     @Override
     public boolean next()
     {
-        if ( next == NO_ID )
-        {
-            reset();
-            return false;
-        }
-
         // Check tx state
         boolean hasChanges = hasChanges();
-        TransactionState txs = hasChanges ? read.txState() : null;
 
-        do
+        if ( hasChanges )
         {
-            if ( hasChanges && containsRelationship( txs ) )
+            if ( addedRelationships.hasNext() )
             {
-                loadFromTxState( next++ );
-                setInUse( true );
-            }
-            else if ( hasChanges && txs.relationshipIsDeletedInThisTx( next ) )
-            {
-                next++;
-                setInUse( false );
+                read.txState().relationshipVisit( addedRelationships.next(), relationshipTxStateDataVisitor );
+                if ( tracer != null )
+                {
+                    tracer.onRelationship( relationshipReference() );
+                }
+                return true;
             }
             else
             {
-                read.relationship( this, next++, pageCursor );
-            }
-
-            if ( next > highMark )
-            {
-                if ( isSingle() )
-                {
-                    next = NO_ID;
-                    return isWantedTypeAndInUse();
-                }
-                else
-                {
-                    highMark = read.relationshipHighMark();
-                    if ( next > highMark )
-                    {
-                        next = NO_ID;
-                        return isWantedTypeAndInUse();
-                    }
-                }
+                currentAddedInTx = NO_ID;
             }
         }
-        while ( !isWantedTypeAndInUse() );
 
-        return true;
+        while ( storeCursor.next() )
+        {
+            boolean skip = hasChanges && read.txState().relationshipIsDeletedInThisTx( storeCursor.entityReference() );
+            if ( !skip && allowed() )
+            {
+                if ( tracer != null )
+                {
+                    tracer.onRelationship( relationshipReference() );
+                }
+                return true;
+            }
+        }
+        return false;
     }
 
-    private boolean isWantedTypeAndInUse()
+    boolean allowed()
     {
-        return (type == -1 || type() == type) && inUse();
+        return accessMode.allowsTraverseRelType( storeCursor.type() ) && allowedToSeeEndNode( accessMode );
     }
 
-    private boolean containsRelationship( TransactionState txs )
+    private boolean allowedToSeeEndNode( AccessMode mode )
     {
-        return isSingle() ? txs.relationshipIsAddedInThisTx( next ) : addedRelationships.contains( next );
+        if ( mode.allowsTraverseAllLabels() )
+        {
+            return true;
+        }
+        read.singleNode( storeCursor.sourceNodeReference(), securityNodeCursor );
+        if ( securityNodeCursor.next() )
+        {
+            read.singleNode( storeCursor.targetNodeReference(), securityNodeCursor );
+            return securityNodeCursor.next();
+        }
+        return false;
     }
 
     @Override
-    public void close()
+    public void closeInternal()
     {
-        super.close();
         if ( !isClosed() )
         {
             read = null;
-            reset();
-
-            pool.accept( this );
+            accessMode = null;
+            storeCursor.close();
         }
-    }
-
-    private void reset()
-    {
-        setId( next = NO_ID );
+        super.closeInternal();
     }
 
     @Override
@@ -189,30 +186,42 @@ class DefaultRelationshipScanCursor extends RelationshipCursor implements Relati
         }
         else
         {
-            return "RelationshipScanCursor[id=" + getId() + ", open state with: highMark=" + highMark + ", next=" + next + ", type=" + type +
-                    ", underlying record=" + super.toString() + " ]";
+            return "RelationshipScanCursor[id=" + storeCursor.entityReference() +
+                    ", open state with: single=" + single +
+                    ", " + storeCursor + "]";
+        }
+    }
+
+    @Override
+    protected void collectAddedTxStateSnapshot()
+    {
+        if ( isSingle() )
+        {
+            addedRelationships = read.txState().relationshipIsAddedInThisTx( single )
+                                 ? LongHashSet.newSetWith( single ).longIterator()
+                                 : ImmutableEmptyLongIterator.INSTANCE;
+        }
+        else
+        {
+            addedRelationships = read.txState().addedAndRemovedRelationships().getAdded().longIterator();
         }
     }
 
     private boolean isSingle()
     {
-        return highMark == NO_ID;
-    }
-
-    protected void collectAddedTxStateSnapshot()
-    {
-        if ( !isSingle() )
-        {
-            addedRelationships = read.txState().addedAndRemovedRelationships().getAddedSnapshot();
-        }
+        return single != NO_ID;
     }
 
     public void release()
     {
-        if ( pageCursor != null )
+        if ( storeCursor != null )
         {
-            pageCursor.close();
-            pageCursor = null;
+            storeCursor.close();
+        }
+        if ( securityNodeCursor != null )
+        {
+            securityNodeCursor.close();
+            securityNodeCursor.release();
         }
     }
 }

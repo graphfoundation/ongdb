@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,19 +38,20 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import java.io.IOException;
 import java.util.Iterator;
 
-import org.neo4j.cursor.RawCursor;
-import org.neo4j.index.internal.gbptree.Hit;
+import org.neo4j.configuration.Config;
+import org.neo4j.index.internal.gbptree.Seeker;
+import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettings;
 
 import static org.neo4j.values.storable.Values.stringValue;
 
-class ResultCursor implements RawCursor<Hit<StringSchemaKey,NativeSchemaValue>,IOException>
+class ResultCursor implements Seeker<BtreeKey,NullValue>
 {
+    private static final IndexSpecificSpaceFillingCurveSettings specificSettings = IndexSpecificSpaceFillingCurveSettings.fromConfig( Config.defaults() );
     private final Iterator<String> iterator;
-    private String current;
     private int pos = -1;
+    private BtreeKey key;
 
     ResultCursor( Iterator<String> keys )
     {
@@ -62,8 +63,11 @@ class ResultCursor implements RawCursor<Hit<StringSchemaKey,NativeSchemaValue>,I
     {
         if ( iterator.hasNext() )
         {
-            current = iterator.next();
+            String current = iterator.next();
             pos++;
+            key = new BtreeKey( specificSettings );
+            key.initialize( pos );
+            key.initFromValue( 0, stringValue( current ), NativeIndexKey.Inclusion.NEUTRAL );
             return true;
         }
         return false;
@@ -76,10 +80,14 @@ class ResultCursor implements RawCursor<Hit<StringSchemaKey,NativeSchemaValue>,I
     }
 
     @Override
-    public Hit<StringSchemaKey,NativeSchemaValue> get()
+    public BtreeKey key()
     {
-        StringSchemaKey key = new StringSchemaKey();
-        key.from( pos, stringValue( current ) );
-        return new SimpleHit<>( key, NativeSchemaValue.INSTANCE );
+        return key;
+    }
+
+    @Override
+    public NullValue value()
+    {
+        return NullValue.INSTANCE;
     }
 }

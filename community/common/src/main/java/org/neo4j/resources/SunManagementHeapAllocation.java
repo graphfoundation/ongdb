@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,19 +40,21 @@ package org.neo4j.resources;
 
 import com.sun.management.ThreadMXBean;
 
-class SunManagementHeapAllocation extends HeapAllocation
+import static org.neo4j.util.Preconditions.checkArgument;
+import static org.neo4j.util.Preconditions.checkState;
+
+final class SunManagementHeapAllocation extends HeapAllocation
 {
     /**
-     * Invoked from {@link HeapAllocation#load(java.lang.management.ThreadMXBean)} through reflection.
+     * Invoked from {@code HeapAllocation#load(java.lang.management.ThreadMXBean)} through reflection.
      */
     @SuppressWarnings( "unused" )
     static HeapAllocation load( java.lang.management.ThreadMXBean bean )
     {
-        if ( ThreadMXBean.class.isInstance( bean ) )
-        {
-            return new SunManagementHeapAllocation( (ThreadMXBean) bean );
-        }
-        return NOT_AVAILABLE;
+        checkArgument( bean instanceof ThreadMXBean, "The ThreadMXBean must be an instance of '" + ThreadMXBean.class.getName() + "'." );
+        ThreadMXBean threadMXBean = (ThreadMXBean) bean;
+        checkState( threadMXBean.isThreadAllocatedMemorySupported(), "Thread allocations not supported." );
+        return new SunManagementHeapAllocation( threadMXBean );
     }
 
     private final ThreadMXBean threadMXBean;
@@ -60,19 +62,15 @@ class SunManagementHeapAllocation extends HeapAllocation
     private SunManagementHeapAllocation( ThreadMXBean threadMXBean )
     {
         this.threadMXBean = threadMXBean;
+        if ( !threadMXBean.isThreadAllocatedMemoryEnabled() )
+        {
+            threadMXBean.setThreadAllocatedMemoryEnabled( true );
+        }
     }
 
     @Override
     public long allocatedBytes( long threadId )
     {
-        if ( !threadMXBean.isThreadAllocatedMemorySupported() )
-        {
-            return -1;
-        }
-        if ( !threadMXBean.isThreadAllocatedMemoryEnabled() )
-        {
-            threadMXBean.setThreadAllocatedMemoryEnabled( true );
-        }
         return threadMXBean.getThreadAllocatedBytes( threadId );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,10 +38,8 @@
  */
 package org.neo4j.kernel.impl.transaction.log.entry;
 
-import java.io.File;
 import java.io.IOException;
-
-import static org.neo4j.kernel.impl.transaction.log.entry.LogHeader.LOG_HEADER_SIZE;
+import java.nio.file.Path;
 
 /**
  * Used to signal an incomplete log header, i.e. if file is smaller than the header.
@@ -50,25 +48,25 @@ import static org.neo4j.kernel.impl.transaction.log.entry.LogHeader.LOG_HEADER_S
  */
 public class IncompleteLogHeaderException extends IOException
 {
-    public IncompleteLogHeaderException( File file, int readSize )
+    public IncompleteLogHeaderException( Path file, int readSize, int expectedSize )
     {
-        super( template( file, readSize ) );
+        super( template( file, readSize, expectedSize ) );
     }
 
-    public IncompleteLogHeaderException( int readSize )
+    public IncompleteLogHeaderException( int readSize, int expectedSize )
     {
-        super( template( null, readSize ) );
+        super( template( null, readSize, expectedSize ) );
     }
 
-    private static String template( File file, int readSize )
+    private static String template( Path file, int readSize, int expectedSize )
     {
         StringBuilder builder = new StringBuilder( "Unable to read log version and last committed tx" );
         if ( file != null )
         {
-            builder.append( " from '" ).append( file.getAbsolutePath() ).append( '\'' );
+            builder.append( " from '" ).append( file.toAbsolutePath() ).append( '\'' );
         }
         builder.append( ". Was only able to read " ).append( readSize ).append( " bytes, but was expecting " )
-               .append( LOG_HEADER_SIZE );
+               .append( expectedSize );
         return builder.toString();
     }
 }

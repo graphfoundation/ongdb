@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,15 +38,48 @@
  */
 package org.neo4j.cypher.internal.runtime
 
-import org.neo4j.graphdb.{Node, Path, Relationship}
+import org.neo4j.graphdb.Node
+import org.neo4j.graphdb.Path
+import org.neo4j.graphdb.Relationship
 import org.neo4j.kernel.impl.util.ValueUtils
-import org.neo4j.values._
-import org.neo4j.values.storable.Values._
-import org.neo4j.values.storable._
+import org.neo4j.values.AnyValue
+import org.neo4j.values.storable.ArrayValue
+import org.neo4j.values.storable.BooleanValue
+import org.neo4j.values.storable.ByteValue
+import org.neo4j.values.storable.DoubleValue
+import org.neo4j.values.storable.FloatValue
+import org.neo4j.values.storable.IntValue
+import org.neo4j.values.storable.LongValue
+import org.neo4j.values.storable.ShortValue
+import org.neo4j.values.storable.TextValue
+import org.neo4j.values.storable.Values.booleanValue
+import org.neo4j.values.storable.Values.byteArray
+import org.neo4j.values.storable.Values.byteValue
+import org.neo4j.values.storable.Values.charArray
+import org.neo4j.values.storable.Values.doubleArray
+import org.neo4j.values.storable.Values.doubleValue
+import org.neo4j.values.storable.Values.floatArray
+import org.neo4j.values.storable.Values.floatValue
+import org.neo4j.values.storable.Values.intArray
+import org.neo4j.values.storable.Values.intValue
+import org.neo4j.values.storable.Values.longArray
+import org.neo4j.values.storable.Values.longValue
+import org.neo4j.values.storable.Values.shortArray
+import org.neo4j.values.storable.Values.shortValue
+import org.neo4j.values.storable.Values.stringArray
+import org.neo4j.values.storable.Values.stringValue
+import org.neo4j.values.virtual.ListValue
+import org.neo4j.values.virtual.MapValue
+import org.neo4j.values.virtual.NodeValue
+import org.neo4j.values.virtual.RelationshipValue
+import org.neo4j.values.virtual.VirtualNodeValue
+import org.neo4j.values.virtual.VirtualPathValue
+import org.neo4j.values.virtual.VirtualRelationshipValue
 import org.neo4j.values.virtual.VirtualValues.list
-import org.neo4j.values.virtual._
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.asJavaIterableConverter
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.language.implicitConversions
 
 object ImplicitValueConversion {
 
@@ -93,13 +126,13 @@ object ImplicitValueConversion {
   implicit def toMapValue(m: java.util.Map[String, Any]): MapValue =
     ValueUtils.asMapValue(m.asInstanceOf[java.util.Map[String, AnyRef]])
 
-  implicit def toNodeValue(n: Node): NodeValue = ValueUtils.fromNodeProxy(n)
+  implicit def toNodeValue(n: Node): VirtualNodeValue = ValueUtils.fromNodeEntity(n)
 
-  implicit def toRelationshipValue(r: Relationship): RelationshipValue = ValueUtils.fromRelationshipProxy(r)
+  implicit def toRelationshipValue(r: Relationship): VirtualRelationshipValue = ValueUtils.fromRelationshipEntity(r)
 
-  implicit def toPathValue(p: Path): PathValue = ValueUtils.fromPath(p)
+  implicit def toPathValue(p: Path): VirtualPathValue = ValueUtils.fromPath(p)
 
-  implicit def toPathValue(p: PathImpl): PathValue = ValueUtils.fromPath(p)
+  implicit def toPathValue(p: PathImpl): VirtualPathValue = ValueUtils.fromPath(p)
 
   implicit def toListValue(t: TraversableOnce[_]): ListValue =
     ValueUtils.asListValue(t.toIterable.asJava)

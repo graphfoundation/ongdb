@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,10 +38,13 @@
  */
 package org.neo4j.test;
 
+import java.util.concurrent.TimeUnit;
+
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Transaction;
+import org.neo4j.graphdb.schema.AnyTokens;
 import org.neo4j.graphdb.schema.ConstraintDefinition;
 import org.neo4j.graphdb.schema.IndexDefinition;
 
@@ -62,16 +65,27 @@ public class GraphDatabaseServiceCleaner
     {
         try ( Transaction tx = db.beginTx() )
         {
-            for ( ConstraintDefinition constraint : db.schema().getConstraints() )
+            for ( ConstraintDefinition constraint : tx.schema().getConstraints() )
             {
                 constraint.drop();
             }
 
-            for ( IndexDefinition index : db.schema().getIndexes() )
+            for ( IndexDefinition index : tx.schema().getIndexes() )
             {
                 index.drop();
             }
-            tx.success();
+            tx.commit();
+        }
+        // re-create the default indexes
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().indexFor( AnyTokens.ANY_RELATIONSHIP_TYPES ).withName( "rti" ).create();
+            tx.schema().indexFor( AnyTokens.ANY_LABELS ).withName( "lti" ).create();
+            tx.commit();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
         }
     }
 
@@ -79,16 +93,16 @@ public class GraphDatabaseServiceCleaner
     {
         try ( Transaction tx = db.beginTx() )
         {
-            for ( Relationship relationship : db.getAllRelationships() )
+            for ( Relationship relationship : tx.getAllRelationships() )
             {
                 relationship.delete();
             }
 
-            for ( Node node : db.getAllNodes() )
+            for ( Node node : tx.getAllNodes() )
             {
                 node.delete();
             }
-            tx.success();
+            tx.commit();
         }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,35 +38,47 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.internal.kernel.api.DefaultCloseListenable
+import org.neo4j.kernel.impl.util.collection
+import org.neo4j.kernel.impl.util.collection.EagerBuffer
+import org.neo4j.kernel.impl.util.collection.EagerBuffer.GROW_NEW_CHUNKS_BY_100_PCT
+import org.neo4j.memory.MemoryTracker
 import org.neo4j.values.AnyValue
+import org.neo4j.values.storable.LongArray
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.VirtualNodeValue
 
-import scala.collection.mutable
-import scala.collection.mutable.{ListBuffer, MutableList}
+import scala.collection.JavaConverters.asScalaIteratorConverter
 
-abstract class NodeOuterHashJoinPipe(nodeVariables: Set[String], lhs: Pipe, rhs: Pipe, nullableVariables: Set[String]) extends PipeWithSource(lhs) {
+abstract class NodeOuterHashJoinPipe(nodeVariables: Set[String],
+                                     lhs: Pipe,
+                                     nullableVariables: Set[String]) extends PipeWithSource(lhs) {
 
   private val myVariables = nodeVariables.toIndexedSeq
-  private val nullColumns: Seq[(String, AnyValue)] = nullableVariables.map(_ -> Values.NO_VALUE).toSeq
+  private val nullVariables: Array[(String, AnyValue)] = nullableVariables.map(_ -> Values.NO_VALUE).toArray
 
-  protected def computeKey(context: ExecutionContext): Option[IndexedSeq[Long]] = {
+  protected def computeKey(context: CypherRow): Option[LongArray] = {
     val key = new Array[Long](myVariables.length)
 
     for (idx <- myVariables.indices) {
-      key(idx) = context(myVariables(idx)) match {
+      key(idx) = context.getByName(myVariables(idx)) match {
         case n: VirtualNodeValue => n.id
         case _ => return None
       }
     }
-    Some(key.toIndexedSeq)
+    Some(Values.longArray(key))
   }
 
-  protected def addNulls(in: ExecutionContext): ExecutionContext = executionContextFactory.copyWith(in).set(nullColumns)
+  protected def addNulls(in: CypherRow): CypherRow = {
+    val withNulls = rowFactory.copyWith(in)
+    withNulls.set(nullVariables)
+    withNulls
+  }
 
-  protected def buildProbeTableAndFindNullRows(input: Iterator[ExecutionContext], withNulls: Boolean): ProbeTable = {
-    val probeTable = new ProbeTable()
+  protected def buildProbeTableAndFindNullRows(input: Iterator[CypherRow], memoryTracker: MemoryTracker, withNulls: Boolean): ProbeTable = {
+    val probeTable = new ProbeTable(memoryTracker)
 
     for (context <- input) {
       val key = computeKey(context)
@@ -82,24 +94,32 @@ abstract class NodeOuterHashJoinPipe(nodeVariables: Set[String], lhs: Pipe, rhs:
 }
 
 //noinspection ReferenceMustBePrefixed
-class ProbeTable() {
-  private val table: mutable.HashMap[IndexedSeq[Long], MutableList[ExecutionContext]] =
-    new mutable.HashMap[IndexedSeq[Long], MutableList[ExecutionContext]]
+class ProbeTable(memoryTracker: MemoryTracker) extends DefaultCloseListenable {
+  private[this] var table: collection.ProbeTable[LongArray, CypherRow] =
+    collection.ProbeTable.createProbeTable[LongArray, CypherRow](memoryTracker)
+  private[this] var rowsWithNullInKey: EagerBuffer[CypherRow] =
+    EagerBuffer.createEagerBuffer[CypherRow](memoryTracker, 16, 8192, GROW_NEW_CHUNKS_BY_100_PCT)
 
-  private val rowsWithNullInKey: ListBuffer[ExecutionContext] = new ListBuffer[ExecutionContext]()
-
-  def addValue(key: IndexedSeq[Long], newValue: ExecutionContext) {
-    val values = table.getOrElseUpdate(key, MutableList.empty)
-    values += newValue
+  def addValue(key: LongArray, newValue: CypherRow) {
+    table.put(key, newValue)
   }
 
-  def addNull(context: ExecutionContext): Unit = rowsWithNullInKey += context
+  def addNull(context: CypherRow): Unit = rowsWithNullInKey.add(context)
 
-  private val EMPTY: MutableList[ExecutionContext] = MutableList.empty
+  def apply(key: LongArray): java.util.Iterator[CypherRow] = table.get(key)
 
-  def apply(key: IndexedSeq[Long]): MutableList[ExecutionContext] = table.getOrElse(key, EMPTY)
+  def keySet: java.util.Set[LongArray] = table.keySet
 
-  def keySet: collection.Set[IndexedSeq[Long]] = table.keySet
+  def nullRows: ClosingIterator[CypherRow] = ClosingIterator(rowsWithNullInKey.autoClosingIterator().asScala).closing(rowsWithNullInKey)
 
-  def nullRows: Iterator[ExecutionContext] = rowsWithNullInKey.iterator
+  override def isClosed: Boolean = table == null
+
+  override def closeInternal(): Unit = {
+    if (table != null) {
+      table.close()
+      rowsWithNullInKey.close()
+      table = null
+      rowsWithNullInKey = null
+    }
+  }
 }

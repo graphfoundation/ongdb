@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,20 +38,21 @@
  */
 package org.neo4j.codegen;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 
 public class ClassHandle extends TypeReference
 {
     private final TypeReference parent;
     final CodeGenerator generator;
-    private final long generation;
+    private final long compilationUnit;
 
-    ClassHandle( String packageName, String name, TypeReference parent, CodeGenerator generator, long generation )
+    ClassHandle( String packageName, String name, TypeReference parent, CodeGenerator generator, long compilationUnit )
     {
-        super( packageName, name, parent.isPrimitive(), parent.isArray(), false, "", Modifier.PUBLIC );
+        super( packageName, name, parent.arrayDepth(), false, null, Modifier.PUBLIC );
         this.parent = parent;
         this.generator = generator;
-        this.generation = generation;
+        this.compilationUnit = compilationUnit;
     }
 
     @Override
@@ -66,18 +67,30 @@ public class ClassHandle extends TypeReference
         return simpleName().hashCode();
     }
 
-    public Object newInstance() throws CompilationFailureException, IllegalAccessException, InstantiationException
+    public Object newInstance()
+            throws CompilationFailureException, IllegalAccessException, InstantiationException, NoSuchMethodException,
+            InvocationTargetException
     {
-        return loadClass().newInstance();
+        return loadClass().getConstructor().newInstance();
     }
 
     public Class<?> loadClass() throws CompilationFailureException
     {
-        return generator.loadClass( fullName(), generation );
+        return generator.loadClass( fullName(), compilationUnit );
+    }
+
+    public Class<?> loadAnonymousClass() throws CompilationFailureException
+    {
+        return generator.loadAnonymousClass( fullName(), compilationUnit );
     }
 
     public TypeReference parent()
     {
         return parent;
+    }
+
+    public CodeGenerator generator()
+    {
+        return generator;
     }
 }

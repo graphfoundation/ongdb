@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,9 @@
  */
 package org.neo4j.kernel.impl.transaction;
 
-import org.neo4j.kernel.impl.locking.Locks;
+import org.neo4j.internal.kernel.api.security.AuthSubject;
+import org.neo4j.kernel.KernelVersion;
+import org.neo4j.kernel.impl.api.LeaseService;
 import org.neo4j.kernel.impl.transaction.log.TransactionAppender;
 import org.neo4j.storageengine.api.CommandStream;
 
@@ -52,17 +54,6 @@ public interface TransactionRepresentation extends CommandStream
      * to this transaction representation.
      */
     byte[] additionalHeader();
-
-    /**
-     * @return database instance id of current master in a potential database cluster at the time of committing
-     * this transaction {@code -1} means no cluster.
-     */
-    int getMasterId();
-
-    /**
-     * @return database instance id of the author of this transaction.
-     */
-    int getAuthorId();
 
     /**
      * @return time when transaction was started, i.e. when the user started it, not when it was committed.
@@ -81,8 +72,16 @@ public interface TransactionRepresentation extends CommandStream
     long getTimeCommitted();
 
     /**
-     * @return the identifier for the lock session associated with this transaction, or {@value Locks.Client#NO_LOCK_SESSION_ID} if none.
-     * This is only used for slave commits.
+     * @return the identifier for the lease associated with this transaction, or {@value LeaseService#NO_LEASE}.
+     * This is only used for coordinating transaction validity in a cluster.
      */
-    int getLockSessionId();
+    int getLeaseId();
+
+    /**
+     * @return the subject associated with the transaction.
+     * Typically an authenticated end user that created the transaction.
+     */
+    AuthSubject getAuthSubject();
+
+    KernelVersion version();
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,23 +38,29 @@
  */
 package org.neo4j.kernel.impl.transaction.log.pruning;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Clock;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 import org.neo4j.kernel.impl.transaction.log.LogFileInformation;
+import org.neo4j.logging.Log;
+import org.neo4j.logging.LogProvider;
 
 public final class EntryTimespanThreshold implements Threshold
 {
     private final long timeToKeepInMillis;
     private final Clock clock;
-
+    private final TimeUnit timeUnit;
+    private final Log log;
     private long lowerLimit;
 
-    EntryTimespanThreshold( Clock clock, TimeUnit timeUnit, long timeToKeep )
+    EntryTimespanThreshold( LogProvider logProvider, Clock clock, TimeUnit timeUnit, long timeToKeep )
     {
+        this.log = logProvider.getLog( getClass() );
         this.clock = clock;
+        this.timeUnit = timeUnit;
         this.timeToKeepInMillis = timeUnit.toMillis( timeToKeep );
     }
 
@@ -65,7 +71,7 @@ public final class EntryTimespanThreshold implements Threshold
     }
 
     @Override
-    public boolean reached( File file, long version, LogFileInformation source )
+    public boolean reached( Path file, long version, LogFileInformation source )
     {
         try
         {
@@ -74,7 +80,14 @@ public final class EntryTimespanThreshold implements Threshold
         }
         catch ( IOException e )
         {
-            throw new RuntimeException( e );
+            log.warn( "Fail to get timestamp info from transaction log file " + version, e );
+            return false;
         }
+    }
+
+    @Override
+    public String toString()
+    {
+        return timeUnit.convert( timeToKeepInMillis, TimeUnit.MILLISECONDS ) + " " + timeUnit.name().toLowerCase( Locale.ROOT );
     }
 }

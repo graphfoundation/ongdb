@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -45,19 +45,31 @@ public class SchemaIndexUsage extends IndexUsage
 {
     private final String label;
     private final String[] propertyKeys;
+    private final int[] propertyKeyIds;
     private final int labelId;
 
-    public SchemaIndexUsage( String identifier, int labelId, String label, String... propertyKeys )
+    public SchemaIndexUsage( String identifier, int labelId, String label, int[] propertyKeyIds, String... propertyKeys )
     {
         super( identifier );
         this.label = label;
         this.labelId = labelId;
         this.propertyKeys = propertyKeys;
+        this.propertyKeyIds = propertyKeyIds;
+    }
+
+    public SchemaIndexUsage( String identifier, int labelId, String label, String... propertyKeys )
+    {
+        this( identifier, labelId, label, new int[0], propertyKeys );
     }
 
     public int getLabelId()
     {
         return labelId;
+    }
+
+    public int[] getPropertyKeys()
+    {
+        return propertyKeyIds;
     }
 
     @Override

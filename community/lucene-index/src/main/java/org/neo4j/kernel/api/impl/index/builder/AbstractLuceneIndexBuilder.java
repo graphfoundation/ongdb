@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,16 +38,13 @@
  */
 package org.neo4j.kernel.api.impl.index.builder;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.Objects;
 
-import org.neo4j.graphdb.config.Setting;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.api.impl.index.storage.DirectoryFactory;
 import org.neo4j.kernel.api.impl.index.storage.PartitionedIndexStorage;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.factory.OperationalMode;
 
 /**
  * Base class for lucene index builders.
@@ -57,12 +54,11 @@ import org.neo4j.kernel.impl.factory.OperationalMode;
 public abstract class AbstractLuceneIndexBuilder<T extends AbstractLuceneIndexBuilder<T>>
 {
     protected LuceneIndexStorageBuilder storageBuilder = LuceneIndexStorageBuilder.create();
-    private final Config config;
-    private OperationalMode operationalMode = OperationalMode.single;
+    protected final DatabaseReadOnlyChecker readOnlyChecker;
 
-    public AbstractLuceneIndexBuilder( Config config )
+    public AbstractLuceneIndexBuilder( DatabaseReadOnlyChecker readOnlyChecker )
     {
-        this.config = Objects.requireNonNull( config );
+        this.readOnlyChecker = Objects.requireNonNull( readOnlyChecker );
     }
 
     /**
@@ -107,40 +103,9 @@ public abstract class AbstractLuceneIndexBuilder<T extends AbstractLuceneIndexBu
      * @param indexRootFolder root folder
      * @return index builder
      */
-    public T withIndexRootFolder( File indexRootFolder )
+    public T withIndexRootFolder( Path indexRootFolder )
     {
         storageBuilder.withIndexFolder( indexRootFolder );
         return (T) this;
-    }
-
-    /**
-     * Specify db operational mode
-     * @param operationalMode operational mode
-     * @return index builder
-     */
-    public T withOperationalMode( OperationalMode operationalMode )
-    {
-        this.operationalMode = operationalMode;
-        return (T) this;
-    }
-
-    /**
-     * Check if index should be read only
-     * @return true if index should be read only
-     */
-    protected boolean isReadOnly()
-    {
-        return getConfig( GraphDatabaseSettings.read_only ) && (OperationalMode.single == operationalMode);
-    }
-
-    /**
-     * Lookup a config parameter.
-     * @param flag the parameter to look up.
-     * @param <F> the type of the parameter.
-     * @return the value of the parameter.
-     */
-    protected  <F> F getConfig( Setting<F> flag )
-    {
-        return config.get( flag );
     }
 }

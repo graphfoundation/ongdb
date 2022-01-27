@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -87,9 +87,10 @@ public class PartitionedIndexWriter implements LuceneIndexWriter
     public void updateDocument( Term term, Document doc ) throws IOException
     {
         List<AbstractIndexPartition> partitions = index.getPartitions();
-        if ( index.hasSinglePartition( partitions ) && writablePartition( index.getFirstPartition( partitions ), 1 ) )
+        if ( WritableAbstractDatabaseIndex.hasSinglePartition( partitions ) &&
+                writablePartition( WritableAbstractDatabaseIndex.getFirstPartition( partitions ), 1 ) )
         {
-            index.getFirstPartition( partitions ).getIndexWriter().updateDocument( term, doc );
+            WritableAbstractDatabaseIndex.getFirstPartition( partitions ).getIndexWriter().updateDocument( term, doc );
         }
         else
         {
@@ -150,7 +151,7 @@ public class PartitionedIndexWriter implements LuceneIndexWriter
 
     private boolean writablePartition( AbstractIndexPartition partition, int numDocs )
     {
-        return MAXIMUM_PARTITION_SIZE - partition.getIndexWriter().maxDoc() >= numDocs;
+        return MAXIMUM_PARTITION_SIZE - partition.getIndexWriter().getDocStats().maxDoc >= numDocs;
     }
 }
 

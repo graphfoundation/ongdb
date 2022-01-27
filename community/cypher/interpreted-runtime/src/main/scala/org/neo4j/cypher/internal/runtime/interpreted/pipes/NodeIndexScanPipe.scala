@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,28 +38,30 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.cypher.internal.v3_4.expressions.{LabelToken, PropertyKeyToken}
-import org.neo4j.internal.kernel.api.{CapableIndexReference, IndexReference}
+import org.neo4j.cypher.internal.expressions.CachedProperty
+import org.neo4j.cypher.internal.expressions.LabelToken
+import org.neo4j.cypher.internal.logical.plans.IndexOrder
+import org.neo4j.cypher.internal.logical.plans.IndexedProperty
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.util.attribution.Id
 
 case class NodeIndexScanPipe(ident: String,
                              label: LabelToken,
-                             propertyKey: PropertyKeyToken)
-                            (val id: Id = Id.INVALID_ID) extends Pipe {
+                             properties: Seq[IndexedProperty],
+                             queryIndexId: Int,
+                             indexOrder: IndexOrder)
+                            (val id: Id = Id.INVALID_ID) extends Pipe with IndexPipeWithValues {
 
-  private var reference: IndexReference = CapableIndexReference.NO_INDEX
+  override val indexPropertyIndices: Array[Int] =
+    properties.indices.filter(properties(_).shouldGetValue).toArray
+  override val indexCachedProperties: Array[CachedProperty] =
+    indexPropertyIndices.map(offset => properties(offset).asCachedProperty(ident))
+  private val needsValues: Boolean = indexPropertyIndices.nonEmpty
 
-  private def reference(context: QueryContext): IndexReference = {
-    if (reference == CapableIndexReference.NO_INDEX) {
-      reference = context.indexReference(label.nameId.id, propertyKey.nameId.id)
-    }
-    reference
-  }
-  protected def internalCreateResults(state: QueryState): Iterator[ExecutionContext] = {
-    val baseContext = state.createOrGetInitialContext(executionContextFactory)
-    val resultNodes = state.query.indexScan(reference(state.query))
-    resultNodes.map(node => executionContextFactory.copyWith(baseContext, ident, node))
+  protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
+    val baseContext = state.newRowWithArgument(rowFactory)
+    val cursor = state.query.nodeIndexScan(state.queryIndexes(queryIndexId), needsValues, indexOrder)
+    new NodeIndexIterator(state, state.query, baseContext, cursor)
   }
 }

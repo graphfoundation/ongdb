@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,7 +40,7 @@ package org.neo4j.kernel.impl.api;
 
 import java.util.Set;
 
-import org.neo4j.kernel.api.KernelTransactionHandle;
+import org.neo4j.internal.id.IdController;
 
 /**
  * An instance of this class can get a snapshot of all currently running transactions and be able to tell
@@ -49,19 +49,18 @@ import org.neo4j.kernel.api.KernelTransactionHandle;
  * Creating a snapshot creates a list and one additional book keeping object per open transaction.
  * No thread doing normal transaction work should create snapshots, only threads that monitor transactions.
  */
-public class KernelTransactionsSnapshot
+public class KernelTransactionsSnapshot implements IdController.IdFreeCondition
 {
     private Tx relevantTransactions;
-    private final long snapshotTime;
 
-    public KernelTransactionsSnapshot( Set<KernelTransactionHandle> allTransactions, long snapshotTime )
+    KernelTransactionsSnapshot( Set<KernelTransactionStamp> transactionStamps )
     {
         Tx head = null;
-        for ( KernelTransactionHandle tx : allTransactions )
+        for ( KernelTransactionStamp stamp : transactionStamps )
         {
-            if ( tx.isOpen() )
+            if ( stamp.isOpen() )
             {
-                Tx current = new Tx( tx );
+                Tx current = new Tx( stamp );
                 if ( head != null )
                 {
                     current.next = head;
@@ -74,10 +73,10 @@ public class KernelTransactionsSnapshot
             }
         }
         relevantTransactions = head;
-        this.snapshotTime = snapshotTime;
     }
 
-    public boolean allClosed()
+    @Override
+    public boolean eligibleForFreeing()
     {
         while ( relevantTransactions != null )
         {
@@ -95,24 +94,19 @@ public class KernelTransactionsSnapshot
         return true;
     }
 
-    public long snapshotTime()
-    {
-        return snapshotTime;
-    }
-
     private static class Tx
     {
-        private final KernelTransactionHandle transaction;
+        private final KernelTransactionStamp txStamp;
         private Tx next;
 
-        Tx( KernelTransactionHandle tx )
+        Tx( KernelTransactionStamp tx )
         {
-            this.transaction = tx;
+            this.txStamp = tx;
         }
 
         boolean haveClosed()
         {
-            return !transaction.isOpen();
+            return !txStamp.isOpen();
         }
     }
 }

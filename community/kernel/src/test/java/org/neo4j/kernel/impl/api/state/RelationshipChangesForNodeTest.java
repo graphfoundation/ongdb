@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,83 +38,63 @@
  */
 package org.neo4j.kernel.impl.api.state;
 
-import org.hamcrest.Matcher;
-import org.junit.Test;
+import org.eclipse.collections.api.iterator.LongIterator;
+import org.eclipse.collections.api.map.primitive.MutableIntObjectMap;
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+import org.eclipse.collections.impl.factory.primitive.IntObjectMaps;
+import org.eclipse.collections.impl.factory.primitive.LongSets;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-import org.neo4j.collection.primitive.PrimitiveLongCollections;
-import org.neo4j.collection.primitive.PrimitiveLongIterator;
-import org.neo4j.kernel.impl.api.RelationshipVisitor;
-import org.neo4j.kernel.impl.api.store.RelationshipIterator;
-import org.neo4j.kernel.impl.newapi.RelationshipDirection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Function;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
-import static org.neo4j.kernel.impl.api.store.RelationshipIterator.EMPTY;
-import static org.neo4j.storageengine.api.Direction.BOTH;
-import static org.neo4j.storageengine.api.Direction.INCOMING;
-import static org.neo4j.storageengine.api.Direction.OUTGOING;
+import org.neo4j.graphdb.Direction;
+import org.neo4j.storageengine.api.RelationshipDirection;
+import org.neo4j.storageengine.api.txstate.RelationshipModifications;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
+import org.neo4j.test.RandomSupport;
 
-public class RelationshipChangesForNodeTest
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.neo4j.collection.PrimitiveLongCollections.asArray;
+import static org.neo4j.kernel.impl.api.state.RelationshipChangesForNode.DiffStrategy.ADD;
+import static org.neo4j.kernel.impl.api.state.RelationshipChangesForNode.DiffStrategy.REMOVE;
+import static org.neo4j.kernel.impl.api.state.RelationshipChangesForNode.createRelationshipChangesForNode;
+import static org.neo4j.memory.EmptyMemoryTracker.INSTANCE;
+import static org.neo4j.storageengine.api.RelationshipDirection.INCOMING;
+import static org.neo4j.storageengine.api.RelationshipDirection.LOOP;
+import static org.neo4j.storageengine.api.RelationshipDirection.OUTGOING;
+
+@ExtendWith( RandomExtension.class )
+class RelationshipChangesForNodeTest
 {
-    private static final int REL_0 = 0;
-    private static final int REL_1 = 1;
-    private static final int TYPE_SELF = 0;
-    private static final int TYPE_DIR = 1;
+    @Inject
+    private RandomSupport random;
 
     @Test
-    public void testOutgoingRelsWithTypeAndLoop()
+    void shouldGetRelationships()
     {
-        RelationshipChangesForNode changes = new RelationshipChangesForNode(
-                RelationshipChangesForNode.DiffStrategy.ADD, mock( RelationshipVisitor.Home.class ) );
-        changes.addRelationship( REL_0, TYPE_SELF, BOTH );
-        changes.addRelationship( REL_1, TYPE_DIR, OUTGOING );
-
-        RelationshipIterator iterator = changes.augmentRelationships( OUTGOING, new int[]{TYPE_DIR}, EMPTY );
-        assertEquals( true, iterator.hasNext() );
-        assertEquals( REL_1, iterator.next() );
-        assertEquals( "should have no next relationships but has ", false, iterator.hasNext() );
-    }
-
-    @Test
-    public void testIncomingRelsWithTypeAndLoop()
-    {
-        RelationshipChangesForNode changes = new RelationshipChangesForNode(
-                RelationshipChangesForNode.DiffStrategy.ADD, mock( RelationshipVisitor.Home.class ) );
-        changes.addRelationship( REL_0, TYPE_SELF, BOTH );
-        changes.addRelationship( REL_1, TYPE_DIR, INCOMING );
-
-        RelationshipIterator iterator = changes.augmentRelationships( INCOMING, new int[]{TYPE_DIR}, EMPTY );
-        assertEquals( true, iterator.hasNext() );
-        assertEquals( REL_1, iterator.next() );
-        assertEquals( "should have no next relationships but has ", false, iterator.hasNext() );
-    }
-
-    @Test
-    public void shouldGetRelationships()
-    {
-        RelationshipChangesForNode changes = new RelationshipChangesForNode(
-                RelationshipChangesForNode.DiffStrategy.ADD, mock( RelationshipVisitor.Home.class ) );
+        RelationshipChangesForNode changes = createRelationshipChangesForNode( ADD, INSTANCE );
 
         final int TYPE = 2;
 
         changes.addRelationship( 1, TYPE, INCOMING );
         changes.addRelationship( 2, TYPE, OUTGOING );
         changes.addRelationship( 3, TYPE, OUTGOING );
-        changes.addRelationship( 4, TYPE, BOTH );
-        changes.addRelationship( 5, TYPE, BOTH );
-        changes.addRelationship( 6, TYPE, BOTH );
+        changes.addRelationship( 4, TYPE, LOOP );
+        changes.addRelationship( 5, TYPE, LOOP );
+        changes.addRelationship( 6, TYPE, LOOP );
 
-        PrimitiveLongIterator rawRelationships = changes.getRelationships();
-        assertThat( PrimitiveLongCollections.asArray( rawRelationships ), ids( 1, 2, 3, 4, 5, 6 ) );
+        LongIterator rawRelationships = changes.getRelationships();
+        assertThat( asArray( rawRelationships ) ).containsExactly( 1, 2, 3, 4, 5, 6 );
     }
 
     @Test
-    public void shouldGetRelationshipsByTypeAndDirection()
+    void shouldGetRelationshipsByTypeAndDirection()
     {
-        RelationshipChangesForNode changes = new RelationshipChangesForNode(
-                RelationshipChangesForNode.DiffStrategy.ADD, mock( RelationshipVisitor.Home.class ) );
+        RelationshipChangesForNode changes = createRelationshipChangesForNode( ADD, INSTANCE );
 
         final int TYPE = 2;
         final int DECOY_TYPE = 666;
@@ -122,29 +102,89 @@ public class RelationshipChangesForNodeTest
         changes.addRelationship( 1, TYPE, INCOMING );
         changes.addRelationship( 2, TYPE, OUTGOING );
         changes.addRelationship( 3, TYPE, OUTGOING );
-        changes.addRelationship( 4, TYPE, BOTH );
-        changes.addRelationship( 5, TYPE, BOTH );
-        changes.addRelationship( 6, TYPE, BOTH );
+        changes.addRelationship( 4, TYPE, LOOP );
+        changes.addRelationship( 5, TYPE, LOOP );
+        changes.addRelationship( 6, TYPE, LOOP );
 
         changes.addRelationship( 10, DECOY_TYPE, INCOMING );
         changes.addRelationship( 11, DECOY_TYPE, OUTGOING );
-        changes.addRelationship( 12, DECOY_TYPE, BOTH );
+        changes.addRelationship( 12, DECOY_TYPE, LOOP );
+        LongIterator rawIncoming = changes.getRelationships( Direction.INCOMING, TYPE );
+        assertThat( asArray( rawIncoming ) ).containsExactly( 1, 4, 5, 6 );
 
-        PrimitiveLongIterator rawIncoming =
-                changes.getRelationships( RelationshipDirection.INCOMING, TYPE );
-        assertThat( PrimitiveLongCollections.asArray( rawIncoming ), ids( 1 ) );
-
-        PrimitiveLongIterator rawOutgoing =
-                changes.getRelationships( RelationshipDirection.OUTGOING, TYPE );
-        assertThat( PrimitiveLongCollections.asArray( rawOutgoing ), ids( 2, 3 ) );
-
-        PrimitiveLongIterator rawLoops =
-                changes.getRelationships( RelationshipDirection.LOOP, TYPE );
-        assertThat( PrimitiveLongCollections.asArray( rawLoops ), ids( 4, 5, 6 ) );
+        LongIterator rawOutgoing = changes.getRelationships( Direction.OUTGOING, TYPE );
+        assertThat( asArray( rawOutgoing ) ).containsExactly( 2, 3, 4, 5, 6 );
     }
 
-    private Matcher<long[]> ids( long... ids )
+    @Test
+    void shouldVisitRelationshipIds()
     {
-        return equalTo( ids );
+        // given
+        RelationshipChangesForNode changes = createRelationshipChangesForNode( REMOVE, INSTANCE );
+        MutableIntObjectMap<Map<RelationshipDirection,MutableLongSet>> expected = IntObjectMaps.mutable.empty();
+        MutableLongSet allExpected = LongSets.mutable.empty();
+        for ( int id = 0; id < 100; id++ )
+        {
+            int type = random.nextInt( 5 );
+            RelationshipDirection direction = random.nextBoolean() ? random.nextBoolean() ? OUTGOING : INCOMING : LOOP;
+            changes.addRelationship( id, type, direction );
+            expected.getIfAbsentPut( type, HashMap::new ).computeIfAbsent( direction, d -> LongSets.mutable.empty() ).add( id );
+            allExpected.add( id );
+        }
+
+        // when
+        MutableLongSet allChangedIds = LongSets.mutable.empty();
+        changes.visitIds( allChangedIds::add );
+
+        // then
+        assertThat( allChangedIds ).isEqualTo( allExpected );
+
+        // and when
+        changes.visitIdsSplit( typeIds ->
+        {
+            Map<RelationshipDirection,MutableLongSet> dirMap = expected.remove( typeIds.type() );
+            visitExpectedIds( typeIds, dirMap, OUTGOING, RelationshipModifications.NodeRelationshipTypeIds::out );
+            visitExpectedIds( typeIds, dirMap, INCOMING, RelationshipModifications.NodeRelationshipTypeIds::in );
+            visitExpectedIds( typeIds, dirMap, LOOP, RelationshipModifications.NodeRelationshipTypeIds::loop );
+            assertThat( dirMap ).isEmpty();
+            return false;
+        }, RelationshipModifications.noAdditionalDataDecorator() );
+        assertThat( expected ).isEmpty();
+    }
+
+    @Test
+    void shouldReportHasRelationshipsOfType()
+    {
+        // given
+        int type = 1;
+        RelationshipChangesForNode changes = createRelationshipChangesForNode( ADD, INSTANCE );
+        assertThat( changes.hasRelationships( type ) ).isFalse();
+
+        long relId = 123;
+        RelationshipDirection[] directions = new RelationshipDirection[]{OUTGOING, INCOMING, LOOP};
+        for ( int i = 0; i < directions.length; i++ )
+        {
+            // when/then
+            changes.addRelationship( relId + i, type, directions[i] );
+            assertThat( changes.hasRelationships( type ) ).isTrue();
+        }
+        for ( RelationshipDirection direction : directions )
+        {
+            // when/then
+            assertThat( changes.hasRelationships( type ) ).isTrue();
+            changes.removeRelationship( relId++, type, direction );
+        }
+        // and then
+        assertThat( changes.hasRelationships( type ) ).isFalse();
+    }
+
+    private static void visitExpectedIds( RelationshipModifications.NodeRelationshipTypeIds typeIds, Map<RelationshipDirection,MutableLongSet> dirMap,
+            RelationshipDirection direction, Function<RelationshipModifications.NodeRelationshipTypeIds,RelationshipModifications.RelationshipBatch> dude )
+    {
+        if ( dirMap.containsKey( direction ) )
+        {
+            dude.apply( typeIds ).forEach( ( id, type, startNode, endNode, props ) -> assertThat( dirMap.get( direction ).remove( id ) ).isTrue() );
+            assertThat( dirMap.remove( direction ).size() ).isEqualTo( 0 );
+        }
     }
 }

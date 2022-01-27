@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,21 +38,25 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.neo4j.internal.kernel.api.TokenNameLookup;
-import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.api.SchemaState;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
+import org.neo4j.common.TokenNameLookup;
+import org.neo4j.configuration.Config;
+import org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.SchemaState;
+import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingController;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingControllerFactory;
-import org.neo4j.kernel.impl.store.record.IndexRule;
+import org.neo4j.kernel.impl.api.index.stats.IndexStatisticsStore;
+import org.neo4j.internal.kernel.api.IndexMonitor;
+import org.neo4j.kernel.impl.transaction.state.storeview.IndexStoreViewFactory;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.memory.MemoryTracker;
 import org.neo4j.scheduler.JobScheduler;
 
 /**
  * Factory to create {@link IndexingService}
  */
-public class IndexingServiceFactory
+public final class IndexingServiceFactory
 {
     private IndexingServiceFactory()
     {
@@ -61,31 +65,29 @@ public class IndexingServiceFactory
     public static IndexingService createIndexingService( Config config,
                                           JobScheduler scheduler,
                                           IndexProviderMap providerMap,
-                                          IndexStoreView storeView,
+                                          IndexStoreViewFactory indexStoreViewFactory,
                                           TokenNameLookup tokenNameLookup,
-                                          Iterable<IndexRule> indexRules,
-                                          LogProvider logProvider,
-                                          IndexingService.Monitor monitor,
-                                          SchemaState schemaState )
+                                          Iterable<IndexDescriptor> indexRules,
+                                          LogProvider internalLogProvider,
+                                          LogProvider userLogProvider,
+                                          IndexMonitor monitor,
+                                          SchemaState schemaState,
+                                          IndexStatisticsStore indexStatisticsStore,
+                                          PageCacheTracer pageCacheTracer,
+                                          MemoryTracker memoryTracker,
+                                          String databaseName,
+                                          DatabaseReadOnlyChecker readOnlyChecker )
     {
-        if ( providerMap == null || providerMap.getDefaultProvider() == null )
-        {
-            throw new IllegalStateException( "You cannot run the database without an index provider, " +
-                                             "please make sure that a valid provider (subclass of " + IndexProvider.class.getName() +
-                                             ") is on your classpath." );
-        }
-
         IndexSamplingConfig samplingConfig = new IndexSamplingConfig( config );
-        MultiPopulatorFactory multiPopulatorFactory = MultiPopulatorFactory.forConfig( config );
         IndexMapReference indexMapRef = new IndexMapReference();
-        IndexSamplingControllerFactory factory =
-                new IndexSamplingControllerFactory( samplingConfig, storeView, scheduler, tokenNameLookup, logProvider );
+        IndexSamplingControllerFactory factory = new IndexSamplingControllerFactory( samplingConfig, indexStatisticsStore, scheduler,
+                tokenNameLookup, internalLogProvider, pageCacheTracer, config, databaseName );
         IndexSamplingController indexSamplingController = factory.create( indexMapRef );
         IndexProxyCreator proxySetup =
-                new IndexProxyCreator( samplingConfig, storeView, providerMap, tokenNameLookup, logProvider );
+                new IndexProxyCreator( samplingConfig, indexStatisticsStore, providerMap, tokenNameLookup, internalLogProvider );
 
-        return new IndexingService( proxySetup, providerMap, indexMapRef, storeView, indexRules,
+        return new IndexingService( proxySetup, providerMap, indexMapRef, indexStoreViewFactory, indexRules,
                 indexSamplingController, tokenNameLookup, scheduler, schemaState,
-                multiPopulatorFactory, logProvider, monitor );
+                internalLogProvider, userLogProvider, monitor, indexStatisticsStore, pageCacheTracer, memoryTracker, databaseName, readOnlyChecker, config );
     }
 }

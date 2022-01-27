@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -59,4 +59,34 @@ public interface LuceneIndexWriter
     void deleteDocuments( Term term ) throws IOException;
 
     void deleteDocuments( Query query ) throws IOException;
+
+    /**
+     * addDocument variant that can handle adds where the document to add has become empty
+     * (this can happen if properties doesn't have a value type we support).
+     */
+    default void nullableAddDocument( Document document ) throws IOException
+    {
+        if ( document != null )
+        {
+            addDocument( document );
+        }
+    }
+
+    /**
+     * updateDocument variant that handle updates where the document to update with has become empty and should be removed
+     * (this can happen if properties doesn't have a value type we support).
+     *
+     * @param document The updated document or null if any existing version of it should be removed.
+     */
+    default void updateOrDeleteDocument( Term term, Document document ) throws IOException
+    {
+        if ( document != null )
+        {
+            updateDocument( term, document );
+        }
+        else
+        {
+            deleteDocuments( term );
+        }
+    }
 }

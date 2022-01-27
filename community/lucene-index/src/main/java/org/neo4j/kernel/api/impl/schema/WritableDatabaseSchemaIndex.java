@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,87 +41,40 @@ package org.neo4j.kernel.api.impl.schema;
 import java.io.IOException;
 import java.util.List;
 
+import org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.index.WritableAbstractDatabaseIndex;
-import org.neo4j.kernel.api.impl.index.partition.AbstractIndexPartition;
 import org.neo4j.kernel.api.impl.index.partition.WritableIndexPartitionFactory;
 import org.neo4j.kernel.api.impl.index.storage.PartitionedIndexStorage;
-import org.neo4j.kernel.api.impl.schema.writer.LuceneIndexWriter;
-import org.neo4j.kernel.api.index.PropertyAccessor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.storageengine.api.schema.IndexReader;
+import org.neo4j.kernel.api.index.ValueIndexReader;
+import org.neo4j.kernel.impl.api.index.IndexSamplingConfig;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.values.storable.Value;
 
 /**
  * Writable schema index
  */
-public class WritableDatabaseSchemaIndex extends WritableAbstractDatabaseIndex<LuceneSchemaIndex> implements SchemaIndex
+public class WritableDatabaseSchemaIndex extends WritableAbstractDatabaseIndex<LuceneSchemaIndex,ValueIndexReader> implements SchemaIndex
 {
 
-    public WritableDatabaseSchemaIndex( PartitionedIndexStorage storage, SchemaIndexDescriptor descriptor,
-            IndexSamplingConfig samplingConfig, WritableIndexPartitionFactory writableIndexPartitionFactory )
+    WritableDatabaseSchemaIndex( PartitionedIndexStorage storage, IndexDescriptor descriptor, IndexSamplingConfig samplingConfig,
+            WritableIndexPartitionFactory writableIndexPartitionFactory, DatabaseReadOnlyChecker readOnlyChecker )
     {
-        super( new LuceneSchemaIndex( storage, descriptor, samplingConfig, writableIndexPartitionFactory ) );
-    }
-
-    @Override
-    public LuceneIndexWriter getIndexWriter()
-    {
-        return luceneIndex.getIndexWriter( this );
-    }
-
-    @Override
-    public IndexReader getIndexReader() throws IOException
-    {
-        return luceneIndex.getIndexReader();
-    }
-
-    @Override
-    public SchemaIndexDescriptor getDescriptor()
-    {
-        return luceneIndex.getDescriptor();
+        super( new LuceneSchemaIndex( storage, descriptor, samplingConfig, writableIndexPartitionFactory ), readOnlyChecker );
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void verifyUniqueness( PropertyAccessor accessor, int[] propertyKeyIds )
+    public void verifyUniqueness( NodePropertyAccessor accessor, int[] propertyKeyIds )
             throws IOException, IndexEntryConflictException
-    {
-        luceneIndex.verifyUniqueness( accessor, propertyKeyIds );
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void verifyUniqueness( PropertyAccessor accessor, int[] propertyKeyIds, List<Value[]> updatedValueTuples )
-            throws IOException, IndexEntryConflictException
-    {
-        luceneIndex.verifyUniqueness( accessor, propertyKeyIds, updatedValueTuples );
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean isOnline() throws IOException
-    {
-        return luceneIndex.isOnline();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void markAsOnline() throws IOException
     {
         commitCloseLock.lock();
         try
         {
-            luceneIndex.markAsOnline();
+            luceneIndex.verifyUniqueness( accessor, propertyKeyIds );
         }
         finally
         {
@@ -133,20 +86,18 @@ public class WritableDatabaseSchemaIndex extends WritableAbstractDatabaseIndex<L
      * {@inheritDoc}
      */
     @Override
-    public void markAsFailed( String failure ) throws IOException
+    public void verifyUniqueness( NodePropertyAccessor accessor, int[] propertyKeyIds, List<Value[]> updatedValueTuples )
+            throws IOException, IndexEntryConflictException
     {
-        luceneIndex.markAsFailed( failure );
-    }
+        commitCloseLock.lock();
+        try
+        {
 
-    @Override
-    public boolean hasSinglePartition( List<AbstractIndexPartition> partitions )
-    {
-        return luceneIndex.hasSinglePartition( partitions );
-    }
-
-    @Override
-    public AbstractIndexPartition getFirstPartition( List<AbstractIndexPartition> partitions )
-    {
-        return luceneIndex.getFirstPartition( partitions );
+            luceneIndex.verifyUniqueness( accessor, propertyKeyIds, updatedValueTuples );
+        }
+        finally
+        {
+            commitCloseLock.unlock();
+        }
     }
 }

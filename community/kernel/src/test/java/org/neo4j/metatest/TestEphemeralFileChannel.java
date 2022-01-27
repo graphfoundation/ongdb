@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,41 +38,41 @@
  */
 package org.neo4j.metatest;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.io.File;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
+import java.nio.file.Path;
 
-import org.neo4j.graphdb.mockfs.EphemeralFileSystemAbstraction;
-import org.neo4j.io.fs.OpenMode;
+import org.neo4j.io.fs.EphemeralFileSystemAbstraction;
 import org.neo4j.io.fs.StoreChannel;
-import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
+import org.neo4j.test.extension.EphemeralFileSystemExtension;
+import org.neo4j.test.extension.Inject;
 
-import static java.nio.ByteBuffer.allocate;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.neo4j.helpers.collection.Iterators.asSet;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.io.memory.ByteBuffers.allocate;
+import static org.neo4j.memory.EmptyMemoryTracker.INSTANCE;
 
-public class TestEphemeralFileChannel
+@ExtendWith( EphemeralFileSystemExtension.class )
+class TestEphemeralFileChannel
 {
 
-    @Rule
-    public final EphemeralFileSystemRule fileSystemRule = new EphemeralFileSystemRule();
+    @Inject
+    private EphemeralFileSystemAbstraction fileSystem;
 
     @Test
-    public void smoke() throws Exception
+    void smoke() throws Exception
     {
-        EphemeralFileSystemAbstraction fs = fileSystemRule.get();
-        StoreChannel channel = fs.open( new File( "yo" ), OpenMode.READ_WRITE );
+        StoreChannel channel = fileSystem.write( Path.of( "yo" ) );
 
         // Clear it because we depend on it to be zeros where we haven't written
-        ByteBuffer buffer = allocate( 23 );
+        ByteBuffer buffer = allocate( 23, INSTANCE );
         buffer.put( new byte[23] ); // zeros
         buffer.flip();
         channel.write( buffer );
-        channel = fs.open( new File( "yo" ), OpenMode.READ_WRITE );
+        channel = fileSystem.write( Path.of( "yo" ) );
         long longValue = 1234567890L;
 
         // [1].....[2]........[1234567890L]...
@@ -121,32 +121,29 @@ public class TestEphemeralFileChannel
         channel.read( buffer, 15 );
         buffer.flip();
         assertEquals( longValue, buffer.getLong() );
-        fs.close();
     }
 
     @Test
-    public void absoluteVersusRelative() throws Exception
+    void absoluteVersusRelative() throws Exception
     {
         // GIVEN
-        File file = new File( "myfile" );
-        EphemeralFileSystemAbstraction fs = fileSystemRule.get();
-        StoreChannel channel = fs.open( file, OpenMode.READ_WRITE );
+        Path file = Path.of( "myfile" ).toAbsolutePath();
+        StoreChannel channel = fileSystem.write( file );
         byte[] bytes = "test".getBytes();
         channel.write( ByteBuffer.wrap( bytes ) );
         channel.close();
 
         // WHEN
-        channel = fs.open( new File( file.getAbsolutePath() ), OpenMode.READ );
+        channel = fileSystem.read( file );
         byte[] readBytes = new byte[bytes.length];
         channel.readAll( ByteBuffer.wrap( readBytes ) );
 
         // THEN
-        assertTrue( Arrays.equals( bytes, readBytes ) );
-        fs.close();
+        assertArrayEquals( bytes, readBytes );
     }
 
     @Test
-    public void listFiles() throws Exception
+    void listFiles() throws Exception
     {
         /* GIVEN
          *                        root
@@ -157,30 +154,28 @@ public class TestEphemeralFileChannel
          *       |
          *     file
          */
-        EphemeralFileSystemAbstraction fs = fileSystemRule.get();
-        File root = new File( "/root" ).getCanonicalFile();
-        File dir1 = new File( root, "dir1" );
-        File dir2 = new File( root, "dir2" );
-        File subdir1 = new File( dir1, "sub" );
-        File file1 = new File( dir1, "file" );
-        File file2 = new File( dir1, "file2" );
-        File file3 = new File( dir2, "file" );
-        File file4 = new File( subdir1, "file" );
+        Path root = Path.of( "/root" ).toAbsolutePath().normalize();
+        Path dir1 = root.resolve( "dir1" );
+        Path dir2 = root.resolve( "dir2" );
+        Path subdir1 = dir1.resolve( "sub" );
+        Path file1 = dir1.resolve( "file" );
+        Path file2 = dir1.resolve( "file2" );
+        Path file3 = dir2.resolve( "file" );
+        Path file4 = subdir1.resolve( "file" );
 
-        fs.mkdirs( dir2 );
-        fs.mkdirs( dir1 );
-        fs.mkdirs( subdir1 );
+        fileSystem.mkdirs( dir2 );
+        fileSystem.mkdirs( dir1 );
+        fileSystem.mkdirs( subdir1 );
 
-        fs.create( file1 );
-        fs.create( file2 );
-        fs.create( file3 );
-        fs.create( file4 );
+        fileSystem.write( file1 );
+        fileSystem.write( file2 );
+        fileSystem.write( file3 );
+        fileSystem.write( file4 );
 
         // THEN
-        assertEquals( asSet( dir1, dir2 ), asSet( fs.listFiles( root ) ) );
-        assertEquals( asSet( subdir1, file1, file2 ), asSet( fs.listFiles( dir1 ) ) );
-        assertEquals( asSet( file3 ), asSet( fs.listFiles( dir2 ) ) );
-        assertEquals( asSet( file4 ), asSet( fs.listFiles( subdir1 ) ) );
-        fs.close();
+        assertThat( fileSystem.listFiles( root ) ).containsExactlyInAnyOrder( dir1, dir2 );
+        assertThat( fileSystem.listFiles( dir1 ) ).containsExactlyInAnyOrder( subdir1, file1, file2 );
+        assertThat( fileSystem.listFiles( dir2 ) ).containsExactly( file3 );
+        assertThat( fileSystem.listFiles( subdir1 ) ).containsExactly( file4 );
     }
 }

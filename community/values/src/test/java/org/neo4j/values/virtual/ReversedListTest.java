@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,25 +38,26 @@
  */
 package org.neo4j.values.virtual;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.values.storable.Values.longArray;
 import static org.neo4j.values.storable.Values.longValue;
 import static org.neo4j.values.virtual.VirtualValues.EMPTY_LIST;
+import static org.neo4j.values.virtual.VirtualValues.fromArray;
 import static org.neo4j.values.virtual.VirtualValues.list;
-import static org.neo4j.values.virtual.VirtualValues.reverse;
 
-public class ReversedListTest
+class ReversedListTest
 {
 
     @Test
-    public void shouldHandleEmptyList()
+    void shouldHandleEmptyList()
     {
         // Given
         ListValue inner = EMPTY_LIST;
         // When
-        ListValue reverse = reverse( inner );
+        ListValue reverse = inner.reverse();
 
         // Then
         assertEquals( inner, reverse );
@@ -65,13 +66,13 @@ public class ReversedListTest
     }
 
     @Test
-    public void shouldHandleSingleItemList()
+    void shouldHandleSingleItemList()
     {
         // Given
         ListValue inner = list( longValue( 5L ) );
 
         // When
-        ListValue reverse = reverse( inner );
+        ListValue reverse = inner.reverse();
 
         // Then
         assertEquals( inner, reverse );
@@ -80,18 +81,31 @@ public class ReversedListTest
     }
 
     @Test
-    public void shouldReverseList()
+    void shouldReverseList()
     {
         // Given
         ListValue inner = list( longValue( 5L ), longValue( 6L ), longValue( 7L ) );
 
         // When
-        ListValue reverse = reverse( inner );
+        ListValue reverse = inner.reverse();
 
         // Then
         ListValue expected = list( longValue( 7L ), longValue( 6L ), longValue( 5L ) );
         assertEquals( expected, reverse );
         assertEquals( expected.hashCode(), reverse.hashCode() );
         assertArrayEquals( expected.asArray(), reverse.asArray() );
+    }
+
+    @Test
+    void reversedListIsStorableIfInnerIsStorable()
+    {
+        // Given
+        ListValue inner = fromArray( longArray( new long[] {5, 6, 7, 8} ) );
+
+        // When
+        ListValue reverse = inner.reverse();
+
+        // Then
+       assertEquals( longArray( new long[] {8, 7, 6, 5} ), reverse.toStorableArray() );
     }
 }

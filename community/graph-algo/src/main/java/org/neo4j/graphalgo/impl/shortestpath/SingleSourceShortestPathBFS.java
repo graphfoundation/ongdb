@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -44,8 +44,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.neo4j.graphdb.Direction;
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 
@@ -55,7 +55,6 @@ import org.neo4j.graphdb.RelationshipType;
  * Dijkstra with the right arguments, but this should be faster.
  * @complexity This algorithm runs in O(m) time (not including the case when m
  *             is zero).
- * @author Patrik Larsson
  */
 public class SingleSourceShortestPathBFS implements
     SingleSourceShortestPath<Integer>
@@ -63,8 +62,8 @@ public class SingleSourceShortestPathBFS implements
     protected Node startNode;
     protected Direction relationShipDirection;
     protected RelationshipType[] relationShipTypes;
-    protected HashMap<Node,Integer> distances = new HashMap<>();
-    protected HashMap<Node,List<Relationship>> predecessors = new HashMap<>();
+    protected Map<Node,Integer> distances = new HashMap<>();
+    protected Map<Node,List<Relationship>> predecessors = new HashMap<>();
     // Limits
     protected long maxDepth = Long.MAX_VALUE;
     protected long depth;
@@ -127,7 +126,7 @@ public class SingleSourceShortestPathBFS implements
      * @see SingleSourceShortestPath
      */
     @Override
-    public List<PropertyContainer> getPath( Node targetNode )
+    public List<Entity> getPath( Node targetNode )
     {
         if ( targetNode == null )
         {
@@ -184,7 +183,7 @@ public class SingleSourceShortestPathBFS implements
      * @see SingleSourceShortestPath
      */
     @Override
-    public List<List<PropertyContainer>> getPaths( Node targetNode )
+    public List<List<Entity>> getPaths( Node targetNode )
     {
         if ( targetNode == null )
         {
@@ -267,8 +266,7 @@ public class SingleSourceShortestPathBFS implements
         // Follow all edges
         for ( RelationshipType relationshipType : relationShipTypes )
         {
-            for ( Relationship relationship : node.getRelationships(
-                relationshipType, relationShipDirection ) )
+            for ( Relationship relationship : node.getRelationships( relationShipDirection, relationshipType ) )
             {
                 Node targetNode = relationship.getOtherNode( node );
                 // Are we going back into the already finished area?
@@ -320,7 +318,7 @@ public class SingleSourceShortestPathBFS implements
         List<Node> result = new LinkedList<>();
         List<Relationship> predecessorRelationShips = predecessors.get( node );
         if ( predecessorRelationShips == null
-            || predecessorRelationShips.size() == 0 )
+            || predecessorRelationShips.isEmpty() )
         {
             return null;
         }

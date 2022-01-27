@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,28 +38,96 @@
  */
 package org.neo4j.kernel.lifecycle;
 
+import org.neo4j.function.ThrowingAction;
+
 /**
  * Adapter for Lifecycle interface. Subclass and override methods as needed
  */
 public class LifecycleAdapter implements Lifecycle
 {
     @Override
-    public void init() throws Throwable
+    public void init() throws Exception
     {
     }
 
     @Override
-    public void start() throws Throwable
+    public void start() throws Exception
     {
     }
 
     @Override
-    public void stop() throws Throwable
+    public void stop() throws Exception
     {
     }
 
     @Override
-    public void shutdown() throws Throwable
+    public void shutdown() throws Exception
     {
+    }
+
+    public static Lifecycle simpleLife( ThrowingAction onStart, ThrowingAction onStop )
+    {
+        return new LifecycleAdapter()
+        {
+            @Override
+            public void start() throws Exception
+            {
+                onStart.apply();
+            }
+
+            @Override
+            public void stop() throws Exception
+            {
+                onStop.apply();
+            }
+        };
+    }
+
+    public static Lifecycle onInit( ThrowingAction action )
+    {
+        return new LifecycleAdapter()
+        {
+            @Override
+            public void init() throws Exception
+            {
+                action.apply();
+            }
+        };
+    }
+
+    public static Lifecycle onStart( ThrowingAction action )
+    {
+        return new LifecycleAdapter()
+        {
+            @Override
+            public void start() throws Exception
+            {
+                action.apply();
+            }
+        };
+    }
+
+    public static Lifecycle onStop( ThrowingAction action )
+    {
+        return new LifecycleAdapter()
+        {
+            @Override
+            public void stop() throws Exception
+            {
+                action.apply();
+            }
+        };
+    }
+
+    public static Lifecycle onShutdown( ThrowingAction action )
+    {
+        return new LifecycleAdapter()
+        {
+            @Override
+            public void shutdown() throws Exception
+            {
+                action.apply();
+            }
+        };
     }
 }

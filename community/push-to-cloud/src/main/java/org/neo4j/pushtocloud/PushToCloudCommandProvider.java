@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,51 +32,26 @@
  */
 package org.neo4j.pushtocloud;
 
-import java.nio.file.Path;
+import org.neo4j.annotations.service.ServiceProvider;
+import org.neo4j.cli.Command;
+import org.neo4j.cli.CommandProvider;
+import org.neo4j.cli.ExecutionContext;
 
-import org.neo4j.commandline.admin.AdminCommand;
-import org.neo4j.commandline.admin.AdminCommandSection;
-import org.neo4j.commandline.admin.OutsideWorld;
-import org.neo4j.commandline.arguments.Arguments;
+import static org.neo4j.cli.Command.CommandType.PUSH_TO_CLOUD;
 
-public class PushToCloudCommandProvider extends AdminCommand.Provider
+@ServiceProvider
+public class PushToCloudCommandProvider implements CommandProvider<PushToCloudCommand>
 {
-    public PushToCloudCommandProvider()
+    @Override
+    public PushToCloudCommand createCommand( ExecutionContext ctx )
     {
-        super( "push-to-cloud" );
+        return new PushToCloudCommand( ctx, new HttpCopier( ctx ),
+                                       new RealDumpCreator( ctx ), PushToCloudConsole.realConsole() );
     }
 
     @Override
-    public Arguments allArguments()
+    public Command.CommandType commandType()
     {
-        return PushToCloudCommand.arguments;
-    }
-
-    @Override
-    public String summary()
-    {
-        return "Push database to Neo4j cloud";
-    }
-
-    @Override
-    public AdminCommandSection commandSection()
-    {
-        return AdminCommandSection.general();
-
-    }
-
-    @Override
-    public String description()
-    {
-        return "Push your local database to a Neo4j Aura instance. The database must be shutdown in order to take a dump to upload. " +
-                "The target location is your Neo4j Aura Bolt URI. You will be asked your Neo4j Cloud username and password during " +
-                "the push-to-cloud operation.";
-    }
-
-    @Override
-    public AdminCommand create( Path homeDir, Path configDir, OutsideWorld outsideWorld )
-    {
-        return new PushToCloudCommand( homeDir, configDir, outsideWorld, new HttpCopier( outsideWorld ),
-                new RealDumpCreator( homeDir, configDir, outsideWorld ) );
+        return PUSH_TO_CLOUD;
     }
 }

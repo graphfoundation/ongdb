@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,6 +40,7 @@ package org.neo4j.values;
 
 import java.util.Comparator;
 
+import org.neo4j.values.storable.ValueRepresentation;
 import org.neo4j.values.virtual.VirtualValueGroup;
 
 import static org.neo4j.values.storable.Values.NO_VALUE;
@@ -48,10 +49,10 @@ import static org.neo4j.values.storable.Values.NO_VALUE;
  * Value that can exist transiently during computations, but that cannot be stored as a property value. A Virtual
  * Value could be a NodeReference for example.
  */
-public abstract class VirtualValue extends AnyValue
+public abstract class VirtualValue extends HashMemoizingAnyValue
 {
     @Override
-    public final boolean eq( Object other )
+    public final boolean equalTo( Object other )
     {
         if ( other == null )
         {
@@ -68,11 +69,13 @@ public abstract class VirtualValue extends AnyValue
     public abstract boolean equals( VirtualValue other );
 
     @Override
-    public Boolean ternaryEquals( AnyValue other )
+    public Equality ternaryEquals( AnyValue other )
     {
-        if ( other == null || other == NO_VALUE )
+        assert other != null : "null values are not supported, use NoValue.NO_VALUE instead";
+
+        if ( other == NO_VALUE )
         {
-            return null;
+            return Equality.UNDEFINED;
         }
         if ( other instanceof SequenceValue && this.isSequenceValue() )
         {
@@ -80,12 +83,25 @@ public abstract class VirtualValue extends AnyValue
         }
         if ( other instanceof VirtualValue && ((VirtualValue) other).valueGroup() == valueGroup() )
         {
-            return equals( (VirtualValue) other );
+            return equals( (VirtualValue) other ) ? Equality.TRUE : Equality.FALSE;
         }
-        return Boolean.FALSE;
+        return Equality.FALSE;
     }
 
     public abstract VirtualValueGroup valueGroup();
 
-    public abstract int compareTo( VirtualValue other, Comparator<AnyValue> comparator );
+    public abstract int unsafeCompareTo( VirtualValue other, Comparator<AnyValue> comparator );
+
+    public abstract Comparison unsafeTernaryCompareTo( VirtualValue other, TernaryComparator<AnyValue> comparator );
+
+    @Override
+    public ValueRepresentation valueRepresentation()
+    {
+        return ValueRepresentation.UNKNOWN;
+    }
+
+    public boolean isDeleted()
+    {
+        return false;
+    }
 }

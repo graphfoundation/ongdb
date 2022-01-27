@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,69 +38,81 @@
  */
 package org.neo4j.server.security.auth;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
 import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
 
+import org.neo4j.configuration.Config;
 import org.neo4j.internal.kernel.api.security.AuthenticationResult;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.security.Credential;
 import org.neo4j.kernel.impl.security.User;
 import org.neo4j.time.Clocks;
 import org.neo4j.time.FakeClock;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.auth_lock_time;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.configuration.GraphDatabaseSettings.auth_lock_time;
+import static org.neo4j.server.security.auth.SecurityTestUtils.credentialFor;
+import static org.neo4j.server.security.auth.SecurityTestUtils.password;
 
-public class RateLimitedAuthenticationStrategyTest
+class RateLimitedAuthenticationStrategyTest
 {
     @Test
-    public void shouldReturnSuccessForValidAttempt()
+    void shouldReturnSuccessForValidAttempt()
     {
         // Given
         FakeClock clock = getFakeClock();
         AuthenticationStrategy authStrategy = newAuthStrategy( clock, 3 );
-        User user = new User.Builder( "user", Credential.forPassword( "right" ) ).build();
+        User user = new User.Builder( "user", credentialFor( "right" ) ).build();
 
         // Then
-        assertThat( authStrategy.authenticate( user, "right" ), equalTo( AuthenticationResult.SUCCESS ) );
+        assertThat( authStrategy.authenticate( user, password( "right" ) ) ).isEqualTo( AuthenticationResult.SUCCESS );
     }
 
     @Test
-    public void shouldReturnFailureForInvalidAttempt()
+    void shouldReturnSuccessForValidAttemptWithUserId()
     {
         // Given
         FakeClock clock = getFakeClock();
         AuthenticationStrategy authStrategy = newAuthStrategy( clock, 3 );
-        User user = new User.Builder( "user", Credential.forPassword( "right" ) ).build();
+        User user = new User.Builder( "user", credentialFor( "right" ) ).withId( "id" ).build();
 
         // Then
-        assertThat( authStrategy.authenticate( user, "wrong" ), equalTo( AuthenticationResult.FAILURE ) );
+        assertThat( authStrategy.authenticate( user, password( "right" ) ) ).isEqualTo( AuthenticationResult.SUCCESS );
     }
 
     @Test
-    public void shouldNotSlowRequestRateOnLessThanMaxFailedAttempts()
+    void shouldReturnFailureForInvalidAttempt()
     {
         // Given
         FakeClock clock = getFakeClock();
         AuthenticationStrategy authStrategy = newAuthStrategy( clock, 3 );
-        User user = new User.Builder( "user", Credential.forPassword( "right" ) ).build();
+        User user = new User.Builder( "user", credentialFor( "right" ) ).build();
+
+        // Then
+        assertThat( authStrategy.authenticate( user, password( "wrong" ) ) ).isEqualTo( AuthenticationResult.FAILURE );
+    }
+
+    @Test
+    void shouldNotSlowRequestRateOnLessThanMaxFailedAttempts()
+    {
+        // Given
+        FakeClock clock = getFakeClock();
+        AuthenticationStrategy authStrategy = newAuthStrategy( clock, 3 );
+        User user = new User.Builder( "user", credentialFor( "right" ) ).build();
 
         // When we've failed two times
-        assertThat( authStrategy.authenticate( user, "wrong" ), equalTo( AuthenticationResult.FAILURE ) );
-        assertThat( authStrategy.authenticate( user, "wrong" ), equalTo( AuthenticationResult.FAILURE ) );
+        assertThat( authStrategy.authenticate( user, password( "wrong" ) ) ).isEqualTo( AuthenticationResult.FAILURE );
+        assertThat( authStrategy.authenticate( user, password( "wrong" ) ) ).isEqualTo( AuthenticationResult.FAILURE );
 
         // Then
-        assertThat( authStrategy.authenticate( user, "right" ), equalTo( AuthenticationResult.SUCCESS ));
+        assertThat( authStrategy.authenticate( user, password( "right" ) ) ).isEqualTo( AuthenticationResult.SUCCESS );
     }
 
     @Test
-    public void shouldSlowRequestRateOnMultipleFailedAttempts()
+    void shouldSlowRequestRateOnMultipleFailedAttempts()
     {
         testSlowRequestRateOnMultipleFailedAttempts( 3, Duration.ofSeconds( 5 ) );
         testSlowRequestRateOnMultipleFailedAttempts( 1, Duration.ofSeconds( 10 ) );
@@ -109,7 +121,7 @@ public class RateLimitedAuthenticationStrategyTest
     }
 
     @Test
-    public void shouldSlowRequestRateOnMultipleFailedAttemptsWhereAttemptIsValid()
+    void shouldSlowRequestRateOnMultipleFailedAttemptsWhereAttemptIsValid()
     {
         testSlowRequestRateOnMultipleFailedAttemptsWhereAttemptIsValid( 3, Duration.ofSeconds( 5 ) );
         testSlowRequestRateOnMultipleFailedAttemptsWhereAttemptIsValid( 1, Duration.ofSeconds( 11 ) );
@@ -117,78 +129,78 @@ public class RateLimitedAuthenticationStrategyTest
         testSlowRequestRateOnMultipleFailedAttemptsWhereAttemptIsValid( 42, Duration.ofDays( 4 ) );
     }
 
-    private void testSlowRequestRateOnMultipleFailedAttempts( int maxFailedAttempts, Duration lockDuration )
+    private static void testSlowRequestRateOnMultipleFailedAttempts( int maxFailedAttempts, Duration lockDuration )
     {
         // Given
         FakeClock clock = getFakeClock();
         AuthenticationStrategy authStrategy = newAuthStrategy( clock, maxFailedAttempts, lockDuration );
-        User user = new User.Builder( "user", Credential.forPassword( "right" ) ).build();
+        User user = new User.Builder( "user", credentialFor( "right" ) ).build();
 
         // When we've failed max number of times
         for ( int i = 0; i < maxFailedAttempts; i++ )
         {
-            assertThat( authStrategy.authenticate( user, "wrong" ), equalTo( AuthenticationResult.FAILURE ) );
+            assertThat( authStrategy.authenticate( user, password( "wrong" ) ) ).isEqualTo( AuthenticationResult.FAILURE );
         }
 
         // Then
-        assertThat( authStrategy.authenticate( user, "wrong" ), equalTo( AuthenticationResult.TOO_MANY_ATTEMPTS ) );
+        assertThat( authStrategy.authenticate( user, password( "wrong" ) ) ).isEqualTo( AuthenticationResult.TOO_MANY_ATTEMPTS );
 
         // But when time heals all wounds
         clock.forward( lockDuration.plus( 1, SECONDS ) );
 
         // Then things should be alright
-        assertThat( authStrategy.authenticate( user, "wrong" ), equalTo( AuthenticationResult.FAILURE ) );
+        assertThat( authStrategy.authenticate( user, password( "wrong" ) ) ).isEqualTo( AuthenticationResult.FAILURE );
     }
 
-    private void testSlowRequestRateOnMultipleFailedAttemptsWhereAttemptIsValid( int maxFailedAttempts, Duration lockDuration )
+    private static void testSlowRequestRateOnMultipleFailedAttemptsWhereAttemptIsValid( int maxFailedAttempts, Duration lockDuration )
     {
         // Given
         FakeClock clock = getFakeClock();
         AuthenticationStrategy authStrategy = newAuthStrategy( clock, maxFailedAttempts, lockDuration );
-        User user = new User.Builder( "user", Credential.forPassword( "right" ) ).build();
+        User user = new User.Builder( "user", credentialFor( "right" ) ).build();
 
         // When we've failed max number of times
         for ( int i = 0; i < maxFailedAttempts; i++ )
         {
-            assertThat( authStrategy.authenticate( user, "wrong" ), equalTo( AuthenticationResult.FAILURE ) );
+            assertThat( authStrategy.authenticate( user, password( "wrong" ) ) ).isEqualTo( AuthenticationResult.FAILURE );
         }
 
         // Then
-        assertThat( authStrategy.authenticate( user, "right" ), equalTo( AuthenticationResult.TOO_MANY_ATTEMPTS ));
+        assertThat( authStrategy.authenticate( user, password( "right" ) ) ).isEqualTo( AuthenticationResult.TOO_MANY_ATTEMPTS );
 
         // But when time heals all wounds
         clock.forward( lockDuration.plus( 1, SECONDS ) );
 
         // Then things should be alright
-        assertThat( authStrategy.authenticate( user, "right" ), equalTo( AuthenticationResult.SUCCESS ) );
+        assertThat( authStrategy.authenticate( user, password( "right" ) ) ).isEqualTo( AuthenticationResult.SUCCESS );
     }
 
     @Test
-    public void shouldAllowUnlimitedFailedAttemptsWhenMaxFailedAttemptsIsZero()
+    void shouldAllowUnlimitedFailedAttemptsWhenMaxFailedAttemptsIsZero()
     {
         testUnlimitedFailedAuthAttempts( 0 );
     }
 
     @Test
-    public void shouldAllowUnlimitedFailedAttemptsWhenMaxFailedAttemptsIsNegative()
+    void shouldAllowUnlimitedFailedAttemptsWhenMaxFailedAttemptsIsNegative()
     {
         testUnlimitedFailedAuthAttempts( -42 );
     }
 
-    private void testUnlimitedFailedAuthAttempts( int maxFailedAttempts )
+    private static void testUnlimitedFailedAuthAttempts( int maxFailedAttempts )
     {
         FakeClock clock = getFakeClock();
         AuthenticationStrategy authStrategy = newAuthStrategy( clock, maxFailedAttempts );
-        User user = new User.Builder( "user", Credential.forPassword( "right" ) ).build();
+        User user = new User.Builder( "user", credentialFor( "right" ) ).build();
 
         int attempts = ThreadLocalRandom.current().nextInt( 5, 100 );
         for ( int i = 0; i < attempts; i++ )
         {
-            assertEquals( AuthenticationResult.FAILURE, authStrategy.authenticate( user, "wrong" ) );
+            assertEquals( AuthenticationResult.FAILURE, authStrategy.authenticate( user, password( "wrong" ) ) );
         }
     }
 
-    private FakeClock getFakeClock()
+    private static FakeClock getFakeClock()
     {
         return Clocks.fakeClock();
     }

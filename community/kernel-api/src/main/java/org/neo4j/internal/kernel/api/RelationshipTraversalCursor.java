@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,13 +41,8 @@ package org.neo4j.internal.kernel.api;
 /**
  * Cursor for traversing the relationships of a single node.
  */
-public interface RelationshipTraversalCursor
-        extends RelationshipDataAccessor, SuspendableCursor<RelationshipTraversalCursor.Position>
+public interface RelationshipTraversalCursor extends RelationshipDataAccessor, Cursor
 {
-    abstract class Position extends CursorPosition<Position>
-    {
-    }
-
     /**
      * Get the other node, the one that this cursor was not initialized from.
      * <p>
@@ -56,9 +51,9 @@ public interface RelationshipTraversalCursor
      *
      * @param cursor the cursor to use for accessing the other node.
      */
-    void neighbour( NodeCursor cursor );
+    void otherNode( NodeCursor cursor );
 
-    long neighbourNodeReference();
+    long otherNodeReference();
 
     long originNodeReference();
 }

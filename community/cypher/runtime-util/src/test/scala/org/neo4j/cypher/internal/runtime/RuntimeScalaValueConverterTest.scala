@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,9 +40,11 @@ package org.neo4j.cypher.internal.runtime
 
 import java.util
 import java.util.Arrays.asList
-import java.util.Collections.{emptyList, emptyMap, singletonMap, singleton => singletonSet}
+import java.util.Collections.emptyList
+import java.util.Collections.emptyMap
+import java.util.Collections.singletonMap
 
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
 class RuntimeScalaValueConverterTest extends CypherFunSuite {
 
@@ -93,7 +95,7 @@ class RuntimeScalaValueConverterTest extends CypherFunSuite {
   }
 
   test("should convert singleton set") {
-    val it = singletonSet(3)
+    val it = util.Collections.singleton(3)
 
     converter.asDeepScalaValue(it) should equal(List(3))
   }
@@ -105,7 +107,7 @@ class RuntimeScalaValueConverterTest extends CypherFunSuite {
   }
 
   test("should convert nested data structures") {
-    val it = singletonSet(asList(3, 4))
+    val it = util.Collections.singleton(asList(3, 4))
 
     converter.asDeepScalaValue(it) should equal(List(List(3, 4)))
   }

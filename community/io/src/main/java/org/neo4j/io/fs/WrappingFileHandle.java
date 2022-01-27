@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,17 +38,17 @@
  */
 package org.neo4j.io.fs;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.CopyOption;
+import java.nio.file.Path;
 
 class WrappingFileHandle implements FileHandle
 {
-    private final File file;
-    private final File baseDirectory;
+    private final Path file;
+    private final Path baseDirectory;
     private final FileSystemAbstraction fs;
 
-    WrappingFileHandle( File file, File baseDirectory, FileSystemAbstraction fs )
+    WrappingFileHandle( Path file, Path baseDirectory, FileSystemAbstraction fs )
     {
         this.file = file;
         this.baseDirectory = baseDirectory;
@@ -56,55 +56,50 @@ class WrappingFileHandle implements FileHandle
     }
 
     @Override
-    public File getFile()
+    public Path getPath()
     {
         return file;
     }
 
     @Override
-    public File getRelativeFile()
+    public Path getRelativePath()
     {
-        int baseLength = baseDirectory.getPath().length();
-        if ( baseDirectory.getParent() != null )
-        {
-            baseLength++;
-        }
-        return new File( file.getPath().substring( baseLength ) );
+        return baseDirectory.relativize( file );
     }
 
     @Override
-    public void rename( File to, CopyOption... options ) throws IOException
+    public void rename( Path to, CopyOption... options ) throws IOException
     {
-        File parentFile = file.getParentFile();
-        File cannonicalTarget = to.getCanonicalFile();
-        fs.mkdirs( cannonicalTarget.getParentFile() );
-        fs.renameFile( file, cannonicalTarget, options );
+        Path parentFile = file.getParent();
+        Path canonicalTarget = to.normalize();
+        fs.mkdirs( canonicalTarget.getParent() );
+        fs.renameFile( file, canonicalTarget, options );
         removeEmptyParent( parentFile );
     }
 
-    private void removeEmptyParent( File parentFile )
+    private void removeEmptyParent( Path parentFile ) throws IOException
     {
         // delete up to and including the base directory, but not above.
         // Note that this may be 'null' if 'baseDirectory' is the top directory.
         // Fortunately, 'File.equals(other)' handles 'null' and returns 'false' when 'other' is 'null'.
-        File end = baseDirectory.getParentFile();
+        Path end = baseDirectory.getParent();
         while ( parentFile != null && !parentFile.equals( end ) )
         {
-            File[] files = fs.listFiles( parentFile );
-            if ( files == null || files.length > 0 )
+            Path[] files = fs.listFiles( parentFile );
+            if ( files.length > 0 )
             {
                 return;
             }
             fs.deleteFile( parentFile );
-            parentFile = parentFile.getParentFile();
+            parentFile = parentFile.getParent();
         }
     }
 
     @Override
     public void delete() throws IOException
     {
-        File parentFile = file.getParentFile();
+        Path parent = file.getParent();
         fs.deleteFileOrThrow( file );
-        removeEmptyParent( parentFile );
+        removeEmptyParent( parent );
     }
 }

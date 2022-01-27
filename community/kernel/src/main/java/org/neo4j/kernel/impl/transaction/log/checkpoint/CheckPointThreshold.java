@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -43,12 +43,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
+import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.pruning.LogPruning;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.time.SystemNanoClock;
 
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.check_point_policy;
+import static org.neo4j.configuration.GraphDatabaseSettings.check_point_policy;
 
 
 /**
@@ -62,17 +63,19 @@ public interface CheckPointThreshold
      * This method initialize the threshold by providing the initial transaction id
      *
      * @param transactionId the latest transaction committed id
+     * @param logPosition the latest committed transaction log position
      */
-    void initialize( long transactionId );
+    void initialize( long transactionId, LogPosition logPosition );
 
     /**
      * This method can be used for querying the threshold about the necessity of a check point.
      *
      * @param lastCommittedTransactionId the latest transaction committed id
+     * @param logPosition the latest closed transaction log position
      * @param consumer will be called with the description about this threshold only if the return value is true
      * @return true is a check point is needed, false otherwise.
      */
-    boolean isCheckPointingNeeded( long lastCommittedTransactionId, Consumer<String> consumer );
+    boolean isCheckPointingNeeded( long lastCommittedTransactionId, LogPosition logPosition, Consumer<String> consumer );
 
     /**
      * This method notifies the threshold that a check point has happened. This must be called every time a check point
@@ -81,12 +84,13 @@ public interface CheckPointThreshold
      * This is important since we might have multiple thresholds or forced check points.
      *
      * @param transactionId the latest transaction committed id used by the check point
+     * @param logPosition the latest committed transaction log position
      */
-    void checkPointHappened( long transactionId );
+    void checkPointHappened( long transactionId, LogPosition logPosition );
 
     /**
      * Return a desired checking frequency, as a number of milliseconds between calls to
-     * {@link #isCheckPointingNeeded(long, Consumer)}.
+     * {@link #isCheckPointingNeeded(long, LogPosition, Consumer)}.
      *
      * @return A desired scheduling frequency in milliseconds.
      */
@@ -98,7 +102,7 @@ public interface CheckPointThreshold
     static CheckPointThreshold createThreshold(
             Config config, SystemNanoClock clock, LogPruning logPruning, LogProvider logProvider )
     {
-        String policyName = config.get( check_point_policy );
+        String policyName = config.get( check_point_policy ).name().toLowerCase();
         CheckPointThresholdPolicy policy;
         try
         {
@@ -122,20 +126,20 @@ public interface CheckPointThreshold
         return new CheckPointThreshold()
         {
             @Override
-            public void initialize( long transactionId )
+            public void initialize( long transactionId, LogPosition logPosition )
             {
                 for ( CheckPointThreshold threshold : thresholds )
                 {
-                    threshold.initialize( transactionId );
+                    threshold.initialize( transactionId, logPosition );
                 }
             }
 
             @Override
-            public boolean isCheckPointingNeeded( long transactionId, Consumer<String> consumer )
+            public boolean isCheckPointingNeeded( long transactionId, LogPosition logPosition, Consumer<String> consumer )
             {
                 for ( CheckPointThreshold threshold : thresholds )
                 {
-                    if ( threshold.isCheckPointingNeeded( transactionId, consumer ) )
+                    if ( threshold.isCheckPointingNeeded( transactionId, logPosition, consumer ) )
                     {
                         return true;
                     }
@@ -145,11 +149,11 @@ public interface CheckPointThreshold
             }
 
             @Override
-            public void checkPointHappened( long transactionId )
+            public void checkPointHappened( long transactionId, LogPosition logPosition )
             {
                 for ( CheckPointThreshold threshold : thresholds )
                 {
-                    threshold.checkPointHappened( transactionId );
+                    threshold.checkPointHappened( transactionId, logPosition );
                 }
             }
 

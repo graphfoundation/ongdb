@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,26 +38,30 @@
  */
 package org.neo4j.index.internal.gbptree;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import org.neo4j.io.pagecache.ByteArrayPageCursor;
 import org.neo4j.io.pagecache.PageCursor;
-import org.neo4j.test.rule.RandomRule;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
+import org.neo4j.test.RandomSupport;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.index.internal.gbptree.PageCursorUtil._2B_MASK;
+import static org.neo4j.index.internal.gbptree.PageCursorUtil._3B_MASK;
 import static org.neo4j.index.internal.gbptree.PageCursorUtil._6B_MASK;
 
-public class PageCursorUtilTest
+@ExtendWith( RandomExtension.class )
+class PageCursorUtilTest
 {
-    @Rule
-    public final RandomRule random = new RandomRule();
+    @Inject
+    private RandomSupport random;
 
     @Test
-    public void shouldPutAndGet6BLongs()
+    void shouldPutAndGet6BLongs()
     {
         // GIVEN
         PageCursor cursor = ByteArrayPageCursor.wrap( 10 );
@@ -68,18 +72,126 @@ public class PageCursorUtilTest
             long expected = random.nextLong() & _6B_MASK;
             cursor.setOffset( 0 );
             PageCursorUtil.put6BLong( cursor, expected );
+            int offsetAfterWrite = cursor.getOffset();
             cursor.setOffset( 0 );
             long read = PageCursorUtil.get6BLong( cursor );
+            int offsetAfterRead = cursor.getOffset();
 
             // THEN
             assertEquals( expected, read );
             assertTrue( read >= 0 );
             assertEquals( 0, read & ~_6B_MASK );
+            assertEquals( 6, offsetAfterWrite );
+            assertEquals( 6, offsetAfterRead );
         }
     }
 
     @Test
-    public void shouldFailOnInvalidValues()
+    void shouldPutAndGet3BInt()
+    {
+        // GIVEN
+        PageCursor cursor = ByteArrayPageCursor.wrap( 10 );
+
+        // WHEN
+        for ( int i = 0; i < 1_000; i++ )
+        {
+            int expected = random.nextInt() & _3B_MASK;
+            cursor.setOffset( 0 );
+            PageCursorUtil.put3BInt( cursor, expected );
+            int offsetAfterWrite = cursor.getOffset();
+            cursor.setOffset( 0 );
+            int read = PageCursorUtil.get3BInt( cursor );
+            int offsetAfterRead = cursor.getOffset();
+
+            // THEN
+            assertEquals( expected, read );
+            assertTrue( read >= 0 );
+            assertEquals( 0, read & ~_3B_MASK );
+            assertEquals( 3, offsetAfterWrite );
+            assertEquals( 3, offsetAfterRead );
+        }
+    }
+
+    @Test
+    void shouldPutAndGet3BIntAtOffset()
+    {
+        // GIVEN
+        PageCursor cursor = ByteArrayPageCursor.wrap( 10 );
+
+        // WHEN
+        for ( int i = 0; i < 1_000; i++ )
+        {
+            int expected = random.nextInt() & _3B_MASK;
+            cursor.setOffset( 0 );
+            PageCursorUtil.put3BInt( cursor, 1, expected );
+            int offsetAfterWrite = cursor.getOffset();
+            cursor.setOffset( 0 );
+            int read = PageCursorUtil.get3BInt( cursor, 1 );
+            int offsetAfterRead = cursor.getOffset();
+
+            // THEN
+            assertEquals( expected, read );
+            assertTrue( read >= 0 );
+            assertEquals( 0, read & ~_3B_MASK );
+            assertEquals( 0, offsetAfterWrite );
+            assertEquals( 0, offsetAfterRead );
+        }
+    }
+
+    @Test
+    void shouldPutAndGetUnsignedShort()
+    {
+        // GIVEN
+        PageCursor cursor = ByteArrayPageCursor.wrap( 10 );
+
+        // WHEN
+        for ( int i = 0; i < 1_000; i++ )
+        {
+            int expected = random.nextInt() & _2B_MASK;
+            cursor.setOffset( 0 );
+            PageCursorUtil.putUnsignedShort( cursor, expected );
+            int offsetAfterWrite = cursor.getOffset();
+            cursor.setOffset( 0 );
+            int read = PageCursorUtil.getUnsignedShort( cursor );
+            int offsetAfterRead = cursor.getOffset();
+
+            // THEN
+            assertEquals( expected, read );
+            assertTrue( read >= 0 );
+            assertEquals( 0, read & ~_2B_MASK );
+            assertEquals( 2, offsetAfterWrite );
+            assertEquals( 2, offsetAfterRead );
+        }
+    }
+
+    @Test
+    void shouldPutAndGetUnsignedShortAtOffset()
+    {
+        // GIVEN
+        PageCursor cursor = ByteArrayPageCursor.wrap( 10 );
+
+        // WHEN
+        for ( int i = 0; i < 1_000; i++ )
+        {
+            int expected = random.nextInt() & _2B_MASK;
+            cursor.setOffset( 0 );
+            PageCursorUtil.putUnsignedShort( cursor, 1, expected );
+            int offsetAfterWrite = cursor.getOffset();
+            cursor.setOffset( 0 );
+            int read = PageCursorUtil.getUnsignedShort( cursor, 1 );
+            int offsetAfterRead = cursor.getOffset();
+
+            // THEN
+            assertEquals( expected, read );
+            assertTrue( read >= 0 );
+            assertEquals( 0, read & ~_2B_MASK );
+            assertEquals( 0, offsetAfterWrite );
+            assertEquals( 0, offsetAfterRead );
+        }
+    }
+
+    @Test
+    void shouldFailOnInvalidValues()
     {
         // GIVEN
         PageCursor cursor = ByteArrayPageCursor.wrap( 10 );
@@ -92,15 +204,7 @@ public class PageCursorUtilTest
             {
                 // OK here we have an invalid value
                 cursor.setOffset( 0 );
-                try
-                {
-                    PageCursorUtil.put6BLong( cursor, expected );
-                    fail( "Should have failed" );
-                }
-                catch ( IllegalArgumentException e )
-                {
-                    // THEN good
-                }
+                assertThrows( IllegalArgumentException.class, () -> PageCursorUtil.put6BLong( cursor, expected ) );
                 i++;
             }
         }

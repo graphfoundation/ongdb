@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -43,10 +43,6 @@ import org.neo4j.values.ValueMapper;
 
 import static java.lang.String.format;
 
-/**
- * This does not extend AbstractProperty since the JVM can take advantage of the 4 byte initial field alignment if
- * we don't extend a class that has fields.
- */
 public abstract class BooleanValue extends ScalarValue
 {
 
@@ -55,9 +51,9 @@ public abstract class BooleanValue extends ScalarValue
     }
 
     @Override
-    public boolean eq( Object other )
+    public boolean equalTo( Object other )
     {
-        return other != null && other instanceof Value && equals( (Value) other );
+        return other instanceof Value && equals( (Value) other );
     }
 
     @Override
@@ -66,9 +62,10 @@ public abstract class BooleanValue extends ScalarValue
         return mapper.mapBoolean( this );
     }
 
-    public ValueGroup valueGroup()
+    @Override
+    public ValueRepresentation valueRepresentation()
     {
-        return ValueGroup.BOOLEAN;
+        return ValueRepresentation.BOOLEAN;
     }
 
     public abstract boolean booleanValue();
@@ -91,6 +88,12 @@ public abstract class BooleanValue extends ScalarValue
         return "Boolean";
     }
 
+    @Override
+    public long estimatedHeapUsage()
+    {
+        return 0L;
+    }
+
     public static final BooleanValue TRUE = new BooleanValue()
     {
         @Override
@@ -106,19 +109,19 @@ public abstract class BooleanValue extends ScalarValue
         }
 
         @Override
-        public int computeHash()
+        protected int computeHash()
         {
-            //Use same as Boolean.TRUE.hashCode
-            return 1231;
+            return Boolean.hashCode( true );
         }
 
+        @Override
         public boolean booleanValue()
         {
             return true;
         }
 
         @Override
-        int unsafeCompareTo( Value otherValue )
+        protected int unsafeCompareTo( Value otherValue )
         {
             BooleanValue other = (BooleanValue) otherValue;
             return other.booleanValue() ? 0 : 1;
@@ -145,7 +148,7 @@ public abstract class BooleanValue extends ScalarValue
         @Override
         public String toString()
         {
-            return format( "%s('%s')", getTypeName(), Boolean.toString( true ) );
+            return format( "%s('%s')", getTypeName(), true );
         }
     };
 
@@ -164,19 +167,19 @@ public abstract class BooleanValue extends ScalarValue
         }
 
         @Override
-        public int computeHash()
+        protected int computeHash()
         {
-            //Use same as Boolean.FALSE.hashCode
-            return 1237;
+            return Boolean.hashCode( false );
         }
 
+        @Override
         public boolean booleanValue()
         {
             return false;
         }
 
         @Override
-        int unsafeCompareTo( Value otherValue )
+        protected int unsafeCompareTo( Value otherValue )
         {
             BooleanValue other = (BooleanValue) otherValue;
             return !other.booleanValue() ? 0 : -1;
@@ -203,7 +206,7 @@ public abstract class BooleanValue extends ScalarValue
         @Override
         public String toString()
         {
-            return format( "%s('%s')", getTypeName(), Boolean.toString( false ) );
+            return format( "%s('%s')", getTypeName(), false );
         }
     };
 }

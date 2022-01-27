@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,10 +41,17 @@ package org.neo4j.values.storable;
 import java.time.LocalDate;
 import java.util.Arrays;
 
+import org.neo4j.values.AnyValue;
 import org.neo4j.values.ValueMapper;
 
-public class DateArray extends TemporalArray<LocalDate,DateValue>
+import static org.neo4j.memory.HeapEstimator.LOCAL_DATE_SIZE;
+import static org.neo4j.memory.HeapEstimator.shallowSizeOfInstance;
+import static org.neo4j.memory.HeapEstimator.sizeOfObjectArray;
+
+public final class DateArray extends TemporalArray<LocalDate>
 {
+    private static final long SHALLOW_SIZE = shallowSizeOfInstance( DateArray.class );
+
     private final LocalDate[] value;
 
     DateArray( LocalDate[] value )
@@ -84,13 +91,13 @@ public class DateArray extends TemporalArray<LocalDate,DateValue>
     }
 
     @Override
-    public ValueGroup valueGroup()
+    public ValueRepresentation valueRepresentation()
     {
-        return ValueGroup.DATE_ARRAY;
+        return ValueRepresentation.DATE_ARRAY;
     }
 
     @Override
-    int unsafeCompareTo( Value otherValue )
+    protected int unsafeCompareTo( Value otherValue )
     {
         return compareToNonPrimitiveArray( (DateArray) otherValue );
     }
@@ -99,5 +106,36 @@ public class DateArray extends TemporalArray<LocalDate,DateValue>
     public String getTypeName()
     {
         return "DateArray";
+    }
+
+    @Override
+    public long estimatedHeapUsage()
+    {
+        return SHALLOW_SIZE + sizeOfObjectArray( LOCAL_DATE_SIZE, value.length );
+    }
+
+    @Override
+    public boolean hasCompatibleType( AnyValue value )
+    {
+        return value instanceof DateValue;
+    }
+
+    @Override
+    public ArrayValue copyWithAppended( AnyValue added )
+    {
+        assert hasCompatibleType( added ) : "Incompatible types";
+        LocalDate[] newArray = Arrays.copyOf( value, value.length + 1 );
+        newArray[value.length] = ((DateValue) added).temporal();
+        return new DateArray( newArray );
+    }
+
+    @Override
+    public ArrayValue copyWithPrepended( AnyValue prepended )
+    {
+        assert hasCompatibleType( prepended ) : "Incompatible types";
+        LocalDate[] newArray = new LocalDate[value.length + 1];
+        System.arraycopy( value, 0, newArray, 1, value.length );
+        newArray[0] = ((DateValue) prepended).temporal();
+        return new DateArray( newArray );
     }
 }

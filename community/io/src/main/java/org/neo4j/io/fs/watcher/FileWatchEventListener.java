@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,6 +38,7 @@
  */
 package org.neo4j.io.fs.watcher;
 
+import java.nio.file.WatchKey;
 import java.util.EventListener;
 
 /**
@@ -48,9 +49,10 @@ public interface FileWatchEventListener extends EventListener
     /**
      * Notification about deletion of file with provided name
      *
+     * @param key watched resource key
      * @param fileName deleted file name
      */
-    default void fileDeleted( String fileName )
+    default void fileDeleted( WatchKey key, String fileName )
     {
         // no-op
     }
@@ -58,9 +60,10 @@ public interface FileWatchEventListener extends EventListener
     /**
      * Notification about update of file with provided name
      *
+     * @param key watched resource key
      * @param fileName updated file name
      */
-    default void fileModified( String fileName )
+    default void fileModified( WatchKey key, String fileName )
     {
         // no-op
     }

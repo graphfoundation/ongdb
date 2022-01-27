@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,61 +38,48 @@
  */
 package org.neo4j.server.security.auth;
 
-import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.charset.Charset;
+import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.Random;
 
+import org.neo4j.cypher.internal.security.FormatException;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.server.security.auth.exception.FormatException;
 import org.neo4j.string.UTF8;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.StandardCopyOption.ATOMIC_MOVE;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+import static org.apache.commons.io.IOUtils.readLines;
 
 public abstract class FileRepositorySerializer<S>
 {
-    private Random random = new SecureRandom();
+    private final SecureRandom random = new SecureRandom();
 
-    public static void writeToFile( FileSystemAbstraction fs, File file, byte[] bytes ) throws IOException
+    public static void writeToFile( FileSystemAbstraction fs, Path path, byte[] bytes ) throws IOException
     {
-        try ( OutputStream o = fs.openAsOutputStream( file, false ) )
+        try ( OutputStream o = fs.openAsOutputStream( path, false ) )
         {
             o.write( bytes );
         }
     }
 
-    public static List<String> readFromFile( FileSystemAbstraction fs, File file ) throws IOException
+    private static List<String> readFromFile( FileSystemAbstraction fs, Path path ) throws IOException
     {
-        ArrayList<String> lines = new ArrayList<>();
-
-        try ( BufferedReader r = new BufferedReader( fs.openAsReader( file, Charset.forName( "UTF-8" ) ) ) )
+        try ( var reader = fs.openAsReader( path, UTF_8 ) )
         {
-            while ( true )
-            {
-                String line = r.readLine();
-                if ( line == null )
-                {
-                    break;
-                }
-                lines.add( line );
-            }
+            return readLines( reader );
         }
-
-        return lines;
     }
 
-    public void saveRecordsToFile( FileSystemAbstraction fileSystem, File recordsFile, Collection<S> records ) throws
+    public void saveRecordsToFile( FileSystemAbstraction fileSystem, Path recordsFile, Collection<S> records ) throws
             IOException
     {
-        File tempFile = getTempFile( fileSystem, recordsFile );
+        Path tempFile = getTempFile( fileSystem, recordsFile );
 
         try
         {
@@ -106,9 +93,9 @@ public abstract class FileRepositorySerializer<S>
         }
     }
 
-    protected File getTempFile( FileSystemAbstraction fileSystem, File recordsFile ) throws IOException
+    private Path getTempFile( FileSystemAbstraction fileSystem, Path recordsFile ) throws IOException
     {
-        File directory = recordsFile.getParentFile();
+        Path directory = recordsFile.getParent();
         if ( !fileSystem.fileExists( directory ) )
         {
             fileSystem.mkdirs( directory );
@@ -116,10 +103,10 @@ public abstract class FileRepositorySerializer<S>
 
         long n = random.nextLong();
         n = (n == Long.MIN_VALUE) ? 0 : Math.abs( n );
-        return new File( directory, Long.toString( n ) + "_" + recordsFile.getName() + ".tmp" );
+        return directory.resolve( n + "_" + recordsFile.getFileName() + ".tmp" );
     }
 
-    public List<S> loadRecordsFromFile( FileSystemAbstraction fileSystem, File recordsFile ) throws IOException, FormatException
+    public List<S> loadRecordsFromFile( FileSystemAbstraction fileSystem, Path recordsFile ) throws IOException, FormatException
     {
         return deserializeRecords( readFromFile( fileSystem, recordsFile ) );
     }
@@ -139,13 +126,13 @@ public abstract class FileRepositorySerializer<S>
         return deserializeRecords( Arrays.asList( UTF8.decode( bytes ).split( "\n" ) ) );
     }
 
-    public List<S> deserializeRecords( List<String> lines ) throws FormatException
+    private List<S> deserializeRecords( List<String> lines ) throws FormatException
     {
         List<S> out = new ArrayList<>();
         int lineNumber = 1;
         for ( String line : lines )
         {
-            if ( line.trim().length() > 0 )
+            if ( !line.isBlank() )
             {
                 out.add( deserializeRecord( line, lineNumber ) );
             }

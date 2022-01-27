@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,62 +38,55 @@
  */
 package org.neo4j.kernel.lifecycle;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.neo4j.kernel.lifecycle.LifecycleStatus.NONE;
 import static org.neo4j.kernel.lifecycle.LifecycleStatus.SHUTDOWN;
 import static org.neo4j.kernel.lifecycle.LifecycleStatus.STARTED;
 import static org.neo4j.kernel.lifecycle.LifecycleStatus.STOPPED;
 
-public class TestLifecycleException
+class TestLifecycleException
 {
 
     @Test
-    public void shouldMakeNoneToStoppedIntoHumanReadableInitMessage()
+    void shouldMakeNoneToStoppedIntoHumanReadableInitMessage()
     {
-        assertThat( exceptionFor( NONE, STOPPED ).getMessage(),
-                is( "Component 'SomeComponent' failed to initialize." ) );
+        assertThat( exceptionFor( NONE, STOPPED ).getMessage() ).isEqualTo( "Component 'SomeComponent' failed to initialize." );
     }
 
     @Test
-    public void shouldMakeStoppedToStartedIntoHumanReadableStartingMessage()
+    void shouldMakeStoppedToStartedIntoHumanReadableStartingMessage()
     {
-        assertThat( exceptionFor( STOPPED, STARTED ).getMessage(),
-                is( "Component 'SomeComponent' was successfully initialized, but failed to start." ) );
+        assertThat( exceptionFor( STOPPED, STARTED ).getMessage() ).isEqualTo( "Component 'SomeComponent' was successfully initialized, but failed to start." );
     }
 
     @Test
-    public void shouldMakeStartedToStoppedIntoHumanReadableStoppingMessage()
+    void shouldMakeStartedToStoppedIntoHumanReadableStoppingMessage()
     {
-        assertThat( exceptionFor( STARTED, STOPPED ).getMessage(),
-                is( "Component 'SomeComponent' failed to stop." ) );
+        assertThat( exceptionFor( STARTED, STOPPED ).getMessage() ).isEqualTo( "Component 'SomeComponent' failed to stop." );
     }
 
     @Test
-    public void shouldMakeShutdownIntoHumanReadableShutdownMessage()
+    void shouldMakeShutdownIntoHumanReadableShutdownMessage()
     {
-        assertThat( exceptionFor( STOPPED, SHUTDOWN ).getMessage(),
-                is( "Component 'SomeComponent' failed to shut down." ) );
+        assertThat( exceptionFor( STOPPED, SHUTDOWN ).getMessage() ).isEqualTo( "Component 'SomeComponent' failed to shut down." );
     }
 
     @Test
-    public void shouldIncludeRootCauseMessageInExceptionMessage()
+    void shouldIncludeRootCauseMessageInExceptionMessage()
     {
         Exception root = new Exception( "big bad root cause" );
         Exception intermediate = new Exception( "intermediate exception", root );
-        assertThat( exceptionFor( STARTED, STOPPED, intermediate ).getMessage(),
-                containsString( root.getMessage()));
+        assertThat( exceptionFor( STARTED, STOPPED, intermediate ) ).hasMessageContaining( root.getMessage() );
     }
 
-    private LifecycleException exceptionFor( LifecycleStatus from, LifecycleStatus to )
+    private static LifecycleException exceptionFor( LifecycleStatus from, LifecycleStatus to )
     {
         return exceptionFor( from, to, null );
     }
 
-    private LifecycleException exceptionFor( LifecycleStatus from, LifecycleStatus to, Throwable cause )
+    private static LifecycleException exceptionFor( LifecycleStatus from, LifecycleStatus to, Throwable cause )
     {
         return new LifecycleException( new Object()
         {
@@ -104,5 +97,4 @@ public class TestLifecycleException
             }
         }, from, to, cause );
     }
-
 }

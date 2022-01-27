@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,10 +41,17 @@ package org.neo4j.values.storable;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 
+import org.neo4j.values.AnyValue;
 import org.neo4j.values.ValueMapper;
 
-public class LocalDateTimeArray extends TemporalArray<LocalDateTime, LocalDateTimeValue>
+import static org.neo4j.memory.HeapEstimator.LOCAL_DATE_TIME_SIZE;
+import static org.neo4j.memory.HeapEstimator.shallowSizeOfInstance;
+import static org.neo4j.memory.HeapEstimator.sizeOfObjectArray;
+
+public class LocalDateTimeArray extends TemporalArray<LocalDateTime>
 {
+    private static final long SHALLOW_SIZE = shallowSizeOfInstance( LocalDateTimeArray.class );
+
     private final LocalDateTime[] value;
 
     LocalDateTimeArray( LocalDateTime[] value )
@@ -84,13 +91,13 @@ public class LocalDateTimeArray extends TemporalArray<LocalDateTime, LocalDateTi
     }
 
     @Override
-    public ValueGroup valueGroup()
+    public ValueRepresentation valueRepresentation()
     {
-        return ValueGroup.LOCAL_DATE_TIME_ARRAY;
+        return ValueRepresentation.LOCAL_DATE_TIME_ARRAY;
     }
 
     @Override
-    int unsafeCompareTo( Value otherValue )
+    protected int unsafeCompareTo( Value otherValue )
     {
         return compareToNonPrimitiveArray( (LocalDateTimeArray) otherValue );
     }
@@ -99,5 +106,36 @@ public class LocalDateTimeArray extends TemporalArray<LocalDateTime, LocalDateTi
     public String getTypeName()
     {
         return "LocalDateTimeArray";
+    }
+
+    @Override
+    public long estimatedHeapUsage()
+    {
+        return SHALLOW_SIZE + sizeOfObjectArray( LOCAL_DATE_TIME_SIZE, value.length );
+    }
+
+    @Override
+    public boolean hasCompatibleType( AnyValue value )
+    {
+        return value instanceof LocalDateTimeValue;
+    }
+
+    @Override
+    public ArrayValue copyWithAppended( AnyValue added )
+    {
+        assert hasCompatibleType( added ) : "Incompatible types";
+        LocalDateTime[] newArray = Arrays.copyOf( value, value.length + 1 );
+        newArray[value.length] = ((LocalDateTimeValue) added).temporal();
+        return new LocalDateTimeArray( newArray );
+    }
+
+    @Override
+    public ArrayValue copyWithPrepended( AnyValue prepended )
+    {
+        assert hasCompatibleType( prepended ) : "Incompatible types";
+        LocalDateTime[] newArray = new LocalDateTime[value.length + 1];
+        System.arraycopy( value, 0, newArray, 1, value.length );
+        newArray[0] = ((LocalDateTimeValue) prepended).temporal();
+        return new LocalDateTimeArray( newArray );
     }
 }

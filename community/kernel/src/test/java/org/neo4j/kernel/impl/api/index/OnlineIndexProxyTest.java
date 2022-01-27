@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,41 +38,40 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.SchemaDescriptors;
 import org.neo4j.kernel.api.index.IndexAccessor;
-import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
+import org.neo4j.kernel.api.schema.SchemaTestUtil;
+import org.neo4j.kernel.impl.api.index.stats.IndexStatisticsStore;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.neo4j.internal.kernel.api.IndexCapability.NO_CAPABILITY;
 
-public class OnlineIndexProxyTest
+class OnlineIndexProxyTest
 {
     private final long indexId = 1;
-    private final SchemaIndexDescriptor descriptor = SchemaIndexDescriptorFactory.forLabel( 1, 2 );
-    private final IndexProvider.Descriptor providerDescriptor = mock( IndexProvider.Descriptor.class );
+    private final IndexDescriptor descriptor = IndexPrototype.forSchema( SchemaDescriptors.forLabel( 1, 2 ) ).withName( "index" ).materialise( indexId );
     private final IndexAccessor accessor = mock( IndexAccessor.class );
     private final IndexStoreView storeView = mock( IndexStoreView.class );
+    private final IndexStatisticsStore indexStatisticsStore = mock( IndexStatisticsStore.class );
+    private final IndexProxyStrategy indexProxyStrategy = new ValueIndexProxyStrategy( descriptor, indexStatisticsStore, SchemaTestUtil.SIMPLE_NAME_LOOKUP );
 
     @Test
-    public void shouldRemoveIndexCountsWhenTheIndexItselfIsDropped() throws IOException
+    void shouldRemoveIndexCountsWhenTheIndexItselfIsDropped()
     {
         // given
-        IndexMeta indexMeta = new IndexMeta( indexId, descriptor, providerDescriptor, NO_CAPABILITY );
-        OnlineIndexProxy index = new OnlineIndexProxy( indexId, indexMeta, accessor, storeView, false );
+        OnlineIndexProxy index = new OnlineIndexProxy( indexProxyStrategy, accessor, false );
 
         // when
         index.drop();
 
         // then
         verify( accessor ).drop();
-        verify( storeView ).replaceIndexCounts( indexId, 0L, 0L, 0L );
+        verify( indexStatisticsStore ).removeIndex( indexId );
         verifyNoMoreInteractions( accessor, storeView );
     }
 }

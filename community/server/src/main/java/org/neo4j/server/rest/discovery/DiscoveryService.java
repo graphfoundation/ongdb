@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,90 +38,74 @@
  */
 package org.neo4j.server.rest.discovery;
 
-import java.net.URISyntaxException;
-import java.util.Optional;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
+import javax.ws.rs.core.Variant;
 
-import org.neo4j.helpers.AdvertisedSocketAddress;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.configuration.ConnectorPortRegister;
-import org.neo4j.server.NeoServer;
+import org.neo4j.configuration.Config;
+import org.neo4j.server.NeoWebServer;
 import org.neo4j.server.configuration.ServerSettings;
 import org.neo4j.server.rest.repr.DiscoveryRepresentation;
-import org.neo4j.server.rest.repr.OutputFormat;
+import org.neo4j.server.config.AuthConfigProvider;
 
 /**
- * Used to discover the rest of the server URIs through a HTTP GET request to
- * the server root (/).
+ * Used to discover the rest of the server URIs through a HTTP GET request to the server root (/).
  */
 @Path( "/" )
 public class DiscoveryService
 {
     private final Config config;
-    private final OutputFormat outputFormat;
-    private final ConnectorPortRegister connectorPortRegister;
+    private final DiscoverableURIs uris;
+    private final ServerVersionAndEdition serverInfo;
+    private final AuthConfigProvider authConfigProvider;
 
     // Your IDE might tell you to make this less visible than public. Don't. JAX-RS demands is to be public.
-    public DiscoveryService( @Context Config config, @Context OutputFormat outputFormat, @Context NeoServer neoServer )
+    public DiscoveryService( @Context Config config, @Context DiscoverableURIs uris, @Context NeoWebServer neoWebServer,
+                             @Context AuthConfigProvider authConfigProvider )
     {
-        this.config = config;
-        this.outputFormat = outputFormat;
-        connectorPortRegister = neoServer.getDatabase().getGraph().getDependencyResolver()
-                .resolveDependency( ConnectorPortRegister.class );
+        this( config, uris, new ServerVersionAndEdition( neoWebServer ), authConfigProvider );
     }
 
-    @GET
-    @Produces( MediaType.APPLICATION_JSON )
-    public Response getDiscoveryDocument( @Context UriInfo uriInfo )
+    // Used in internal unit test to avoid providing a neo server
+    DiscoveryService( Config config, DiscoverableURIs uris, ServerVersionAndEdition serverInfo,
+                      AuthConfigProvider authConfigProvider )
     {
-        String managementUri = config.get( ServerSettings.management_api_path ).getPath() + "/";
-        String dataUri = config.get( ServerSettings.rest_api_path ).getPath() + "/";
-
-        Optional<AdvertisedSocketAddress> boltAddress = config.enabledBoltConnectors().stream().findFirst()
-                .map( boltConnector -> config.get( boltConnector.advertised_address ) );
-
-        if ( boltAddress.isPresent() )
-        {
-            AdvertisedSocketAddress advertisedSocketAddress = boltAddress.get();
-
-            // If port is 0 it's been assigned a random port from the OS, list this instead
-            if ( advertisedSocketAddress.getPort() == 0 )
-            {
-                int boltPort = connectorPortRegister.getLocalAddress( "bolt" ).getPort();
-                advertisedSocketAddress = new AdvertisedSocketAddress( advertisedSocketAddress.getHostname(), boltPort );
-            }
-
-            if ( advertisedSocketAddress.getHostname().equals( "localhost" ) )
-            {
-                // Use the port specified in the config, but not the host
-                return outputFormat.ok( new DiscoveryRepresentation( managementUri, dataUri,
-                        new AdvertisedSocketAddress( uriInfo.getBaseUri().getHost(), advertisedSocketAddress.getPort() ) ) );
-            }
-            else
-            {
-                // Use the config verbatim since it seems sane
-                return outputFormat
-                        .ok( new DiscoveryRepresentation( managementUri, dataUri, advertisedSocketAddress ) );
-            }
-        }
-        else
-        {
-            // There's no config, compute possible endpoint using host header and default bolt port.
-            return outputFormat.ok( new DiscoveryRepresentation( managementUri, dataUri,
-                    new AdvertisedSocketAddress( uriInfo.getBaseUri().getHost(), 7687 ) ) );
-        }
+        this.config = config;
+        this.uris = uris;
+        this.serverInfo = serverInfo;
+        this.authConfigProvider = authConfigProvider;
     }
 
     @GET
     @Produces( MediaType.WILDCARD )
-    public Response redirectToBrowser()
+    public Response get( @Context Request request, @Context UriInfo uriInfo )
     {
-        return outputFormat.seeOther( config.get( ServerSettings.browser_path ) );
+
+        Variant v = request.selectVariant( Variant.mediaTypes( MediaType.APPLICATION_JSON_TYPE, MediaType.TEXT_HTML_TYPE ).build() );
+        Response.ResponseBuilder responseBuilder;
+        if ( v == null )
+        {
+            responseBuilder = Response.serverError().status( Response.Status.NOT_ACCEPTABLE );
+        }
+        else if ( v.getMediaType() == MediaType.APPLICATION_JSON_TYPE )
+        {
+            responseBuilder = Response.ok()
+                                      .entity( new DiscoveryRepresentation( uris.update( uriInfo.getBaseUri() ), serverInfo,
+                                                                            authConfigProvider.getRepresentation() ) )
+                                      .variant( v );
+        }
+        else
+        {
+            responseBuilder = Response.seeOther( uriInfo.getBaseUri().resolve( config.get( ServerSettings.browser_path ) ) )
+                                      .variant( v );
+        }
+
+        return responseBuilder.build();
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,20 +38,20 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
 import scala.util.Random
 
 class IndexedInclusiveLongRangeTest extends CypherFunSuite {
 
   test("single element") {
-    IndexedInclusiveLongRange(0L, 0L, 1L).toIndexedSeq should equal(IndexedSeq(0L))
+    IndexedInclusiveLongRange(0L, 0L, 1L) should equal(IndexedSeq(0L))
   }
 
   test("step length 1"){
     val range= IndexedInclusiveLongRange(0L, 11L, 1L)
 
-    range.toIndexedSeq should equal(IndexedSeq(0L, 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L))
+    range should equal(IndexedSeq(0L, 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L))
     range should have length 12
 
     for (i <- 0 to 11) {
@@ -62,7 +62,7 @@ class IndexedInclusiveLongRangeTest extends CypherFunSuite {
   test("step length 3"){
     val range= IndexedInclusiveLongRange(3L, 14L, 3L)
 
-    range.toIndexedSeq should equal(IndexedSeq(3L, 6L, 9L, 12L))
+    range should equal(IndexedSeq(3L, 6L, 9L, 12L))
     range should have length 4
     range(0) should equal(3L)
     range(1) should equal(6L)
@@ -73,7 +73,7 @@ class IndexedInclusiveLongRangeTest extends CypherFunSuite {
   test("negative step"){
     val range= IndexedInclusiveLongRange(14L, 3L, -3L)
 
-    range.toIndexedSeq should equal(IndexedSeq(14L, 11L, 8L, 5L))
+    range should equal(IndexedSeq(14L, 11L, 8L, 5L))
     range should have length 4
     range(0) should equal(14L)
     range(1) should equal(11L)
@@ -83,17 +83,17 @@ class IndexedInclusiveLongRangeTest extends CypherFunSuite {
 
   test("stress test") {
     val random = new Random
-    for (i <- 1 to 100;
+    for (_ <- 1 to 100;
          a = random.nextInt(Int.MaxValue);
          b = random.nextInt(Int.MaxValue);
          c = random.nextInt(Int.MaxValue)
-    ) {
+         ) {
       val input = Array(a,b,c).sorted
       val step = input(0)
       val start = input(1)
       val end = input(2)
 
-      IndexedInclusiveLongRange(start, end, step).toIndexedSeq.map(_.toInt) should equal(start to end by step)
+      IndexedInclusiveLongRange(start, end, step).map(_.toInt) should equal(start to end by step)
     }
   }
 
@@ -103,7 +103,7 @@ class IndexedInclusiveLongRangeTest extends CypherFunSuite {
     an [OutOfMemoryError] shouldBe thrownBy(range(2))
   }
 
-  test("should handle big ranges as long as you only iterat") {
+  test("should handle big ranges as long as you only iterate") {
     val range = IndexedInclusiveLongRange(0, Int.MaxValue + 1L, 1L)
 
     var i = 0L

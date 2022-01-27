@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,18 +38,17 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ValueComparisonHelper._
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
-import org.neo4j.cypher.internal.util.v3_4.symbols.CTNumber
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
+import org.neo4j.cypher.internal.runtime.interpreted.ValueComparisonHelper.beEquivalentTo
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 import org.neo4j.values.storable.Values
 
 class ApplyPipeTest extends CypherFunSuite with PipeTestSupport {
 
   test("should work by applying the identity operator on the rhs") {
     val lhsData = List(Map("a" -> 1), Map("a" -> 2))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
-    val rhs = pipeWithResults { (state) => Iterator(state.initialContext.get) }
+    val lhs = new FakePipe(lhsData.iterator)
+    val rhs = pipeWithResults { state => Iterator(state.initialContext.get) }
 
     val result = ApplyPipe(lhs, rhs)().createResults(QueryStateHelper.empty).toList
 
@@ -58,22 +57,34 @@ class ApplyPipeTest extends CypherFunSuite with PipeTestSupport {
 
   test("should work by applying a  on the rhs") {
     val lhsData = List(Map("a" -> 1, "b" -> 3), Map("a" -> 2, "b" -> 4))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber, "b" -> CTNumber)
+    val lhs = new FakePipe(lhsData.iterator)
     val rhsData = "c" -> Values.intValue(36)
-    val rhs = pipeWithResults { (state) => Iterator(ExecutionContext.empty += rhsData) }
+    val rhs = pipeWithResults { state =>
+      state.initialContext.get.set(rhsData._1, rhsData._2)
+      Iterator(state.initialContext.get)
+    }
 
     val result = ApplyPipe(lhs, rhs)().createResults(QueryStateHelper.empty).toList
 
     result should beEquivalentTo(lhsData.map(_ + rhsData))
   }
 
-  test("should work even if inner pipe overwrites values") {
-    val lhsData = List(Map("a" -> 1, "b" -> 3), Map("a" -> 2, "b" -> 4))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber, "b" -> CTNumber)
-    val rhs = pipeWithResults { (state) => Iterator(state.initialContext.get += "b" -> null) }
+  test("Close should close current RHS and LHS.") {
+    val lhs = new FakePipe(Seq(Map("a"->10),Map("a"->11)))
+    val rhs = new FakePipe(Seq(Map("b"->20),Map("b"->21)))
+    val pipe = ApplyPipe(lhs, rhs)()
+    val result = pipe.createResults(QueryStateHelper.empty)
+    result.next() // First row
+    val firstRhs = rhs.currentIterator
+    result.next() // Second row
+    result.next() // Third row. First RHS should be exhausted and closed by now
+    lhs.wasClosed shouldBe false
+    firstRhs.wasClosed shouldBe true
 
-    val result = ApplyPipe(lhs, rhs)().createResults(QueryStateHelper.empty).toList
-
-    result should beEquivalentTo(lhsData)
+    val secondRhs = rhs.currentIterator
+    result.next() // Fourth row
+    result.hasNext shouldBe false // Make sure to exhaust
+    lhs.wasClosed shouldBe true
+    secondRhs.wasClosed shouldBe true
   }
 }

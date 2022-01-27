@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,24 +38,25 @@
  */
 package org.neo4j.server.rest.dbms;
 
-import com.sun.jersey.core.util.Base64;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.string.UTF8;
+import java.util.Base64;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import org.neo4j.test.server.HTTP;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.neo4j.server.rest.dbms.AuthorizationHeaders.decode;
 
-public class AuthorizationHeadersTest
+class AuthorizationHeadersTest
 {
     @Test
-    public void shouldParseHappyPath()
+    void shouldParseHappyPath()
     {
         // Given
         String username = "jake";
         String password = "qwerty123456";
-        String header = "Basic " + base64( username + ":" + password );
+        String header = HTTP.basicAuthHeader( username, password );
 
         // When
         String[] parsed = decode( header );
@@ -66,17 +67,12 @@ public class AuthorizationHeadersTest
     }
 
     @Test
-    public void shouldHandleSadPaths()
+    void shouldHandleSadPaths()
     {
         // When & then
         assertNull( decode( "" ) );
         assertNull( decode( "Basic" ) );
         assertNull( decode( "Basic not valid value" ) );
-        assertNull( decode( "Basic " + base64( "" ) ) );
-    }
-
-    private String base64( String value )
-    {
-        return UTF8.decode( Base64.encode( value ) );
+        assertNull( decode( "Basic " + Base64.getEncoder().encodeToString( "".getBytes() ) ) );
     }
 }

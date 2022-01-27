@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,53 +38,85 @@
  */
 package org.neo4j.server.security.auth;
 
-import java.io.File;
+import java.nio.file.Path;
+import java.util.function.Supplier;
 
-import org.neo4j.dbms.DatabaseManagementSystemSettings;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.helpers.Service;
+import org.neo4j.collection.Dependencies;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseInternalSettings;
+import org.neo4j.cypher.internal.security.SecureHasher;
+import org.neo4j.dbms.database.DatabaseManager;
+import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.internal.kernel.api.security.AbstractSecurityLog;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
-import org.neo4j.kernel.api.security.PasswordPolicy;
+import org.neo4j.kernel.api.procedure.GlobalProcedures;
+import org.neo4j.kernel.api.security.AuthManager;
 import org.neo4j.kernel.api.security.SecurityModule;
-import org.neo4j.kernel.api.security.UserManager;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.factory.CommunityEditionModule;
-import org.neo4j.kernel.impl.proc.Procedures;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.logging.internal.LogService;
+import org.neo4j.server.security.systemgraph.BasicSystemGraphRealm;
+import org.neo4j.server.security.systemgraph.SystemGraphRealmHelper;
+import org.neo4j.server.security.systemgraph.UserSecurityGraphComponent;
 import org.neo4j.time.Clocks;
 
-@Service.Implementation( SecurityModule.class )
+import static org.neo4j.configuration.GraphDatabaseSettings.SYSTEM_DATABASE_NAME;
+import static org.neo4j.kernel.database.NamedDatabaseId.NAMED_SYSTEM_DATABASE_ID;
+
 public class CommunitySecurityModule extends SecurityModule
 {
-    public CommunitySecurityModule()
+    private final LogProvider logProvider;
+    private final Config config;
+    private final Dependencies globalDependencies;
+    private BasicSystemGraphRealm authManager;
+
+    public CommunitySecurityModule(
+            LogService logService,
+            Config config,
+            Dependencies globalDependencies )
     {
-        super( CommunityEditionModule.COMMUNITY_SECURITY_MODULE_ID );
+        this.logProvider = logService.getUserLogProvider();
+        this.config = config;
+        this.globalDependencies = globalDependencies;
     }
 
     @Override
-    public void setup( Dependencies dependencies ) throws KernelException
+    public void setup()
     {
-        Config config = dependencies.config();
-        Procedures procedures = dependencies.procedures();
-        LogProvider logProvider = dependencies.logService().getUserLogProvider();
-        FileSystemAbstraction fileSystem = dependencies.fileSystem();
-        final UserRepository userRepository = getUserRepository( config, logProvider, fileSystem );
-        final UserRepository initialUserRepository = getInitialUserRepository( config, logProvider, fileSystem );
+        Supplier<GraphDatabaseService> systemSupplier = () ->
+        {
+            DatabaseManager<?> databaseManager = globalDependencies.resolveDependency( DatabaseManager.class );
+            return databaseManager.getDatabaseContext( NAMED_SYSTEM_DATABASE_ID ).orElseThrow(
+                    () -> new RuntimeException( "No database called `" + SYSTEM_DATABASE_NAME + "` was found." ) ).databaseFacade();
+        };
 
-        final PasswordPolicy passwordPolicy = new BasicPasswordPolicy();
+        authManager = new BasicSystemGraphRealm(
+                new SystemGraphRealmHelper( systemSupplier, new SecureHasher() ),
+                createAuthenticationStrategy( config )
+        );
 
-        BasicAuthManager authManager = new BasicAuthManager( userRepository, passwordPolicy, Clocks.systemClock(),
-                initialUserRepository, config );
-
-        dependencies.lifeSupport().add( dependencies.dependencySatisfier().satisfyDependency( authManager ) );
-
-        procedures.registerComponent( UserManager.class, ctx -> authManager, false );
-        procedures.registerProcedure( AuthProcedures.class );
+        registerProcedure( globalDependencies.resolveDependency( GlobalProcedures.class ), logProvider.getLog( getClass() ), AuthProcedures.class, null );
     }
 
-    public static final String USER_STORE_FILENAME = "auth";
-    public static final String INITIAL_USER_STORE_FILENAME = "auth.ini";
+    @Override
+    public AuthManager authManager()
+    {
+        return authManager;
+    }
+
+    @Override
+    public AuthManager inClusterAuthManager()
+    {
+        return null;
+    }
+
+    @Override
+    public AuthManager loopbackAuthManager()
+    {
+        return null;
+    }
+
+    private static final String USER_STORE_FILENAME = "auth";
+    private static final String INITIAL_USER_STORE_FILENAME = "auth.ini";
 
     public static FileUserRepository getUserRepository( Config config, LogProvider logProvider,
             FileSystemAbstraction fileSystem )
@@ -92,34 +124,39 @@ public class CommunitySecurityModule extends SecurityModule
         return new FileUserRepository( fileSystem, getUserRepositoryFile( config ), logProvider );
     }
 
-    public static FileUserRepository getInitialUserRepository( Config config, LogProvider logProvider,
-            FileSystemAbstraction fileSystem )
+    private static FileUserRepository getInitialUserRepository( Config config, LogProvider logProvider, FileSystemAbstraction fileSystem )
     {
         return new FileUserRepository( fileSystem, getInitialUserRepositoryFile( config ), logProvider );
     }
 
-    public static File getUserRepositoryFile( Config config )
+    public static Path getUserRepositoryFile( Config config )
     {
         return getUserRepositoryFile( config, USER_STORE_FILENAME );
     }
 
-    public static File getInitialUserRepositoryFile( Config config )
+    public static Path getInitialUserRepositoryFile( Config config )
     {
         return getUserRepositoryFile( config, INITIAL_USER_STORE_FILENAME );
     }
 
-    private static File getUserRepositoryFile( Config config, String fileName )
+    private static Path getUserRepositoryFile( Config config, String fileName )
     {
         // Resolve auth store file names
-        File authStoreDir = config.get( DatabaseManagementSystemSettings.auth_store_directory );
+        Path authStoreDir = config.get( GraphDatabaseInternalSettings.auth_store_directory );
+        return authStoreDir.resolve( fileName );
+    }
 
-        // Because it contains sensitive information there is a legacy setting to configure
-        // the location of the user store file that we still respect
-        File userStoreFile = config.get( GraphDatabaseSettings.auth_store );
-        if ( userStoreFile == null )
-        {
-            userStoreFile = new File( authStoreDir, fileName );
-        }
-        return userStoreFile;
+    public static UserSecurityGraphComponent createSecurityComponent( AbstractSecurityLog securityLog, Config config, FileSystemAbstraction fileSystem,
+                                                                      LogProvider logProvider )
+    {
+        UserRepository migrationUserRepository = CommunitySecurityModule.getUserRepository( config, logProvider, fileSystem );
+        UserRepository initialUserRepository = CommunitySecurityModule.getInitialUserRepository( config, logProvider, fileSystem );
+
+        return new UserSecurityGraphComponent( securityLog, migrationUserRepository, initialUserRepository, config );
+    }
+
+    public static AuthenticationStrategy createAuthenticationStrategy( Config config )
+    {
+        return new RateLimitedAuthenticationStrategy( Clocks.systemClock(), config );
     }
 }

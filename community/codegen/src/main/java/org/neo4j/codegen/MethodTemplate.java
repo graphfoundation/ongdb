@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,6 +40,7 @@ package org.neo4j.codegen;
 
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -150,7 +151,7 @@ public class MethodTemplate
             }
             else
             {
-                this.parameters = parameters.clone();
+                this.parameters = Arrays.copyOf( parameters, parameters.length );
             }
             for ( int i = 0; i < this.parameters.length; i++ )
             {
@@ -183,7 +184,7 @@ public class MethodTemplate
             return this;
         }
 
-        public Builder modiferes( int modifiers )
+        public Builder modifiers( int modifiers )
         {
             this.modifiers = modifiers;
             return this;
@@ -263,7 +264,7 @@ public class MethodTemplate
         this.name = name;
         this.declaration = builder.declaration();
         this.parameters = builder.parameters;
-        this.statements = builder.statements.toArray( new Statement[builder.statements.size()] );
+        this.statements = builder.statements.toArray( new Statement[0] );
         this.modifiers = builder.modifiers;
     }
 }

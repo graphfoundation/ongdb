@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,14 +38,18 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.util.v3_4.InternalException
-import org.neo4j.cypher.internal.v3_4.logical.plans.{QueryExpression, RangeQueryExpression}
-import org.neo4j.values.virtual.NodeValue
+import org.neo4j.cypher.internal.logical.plans.CompositeQueryExpression
+import org.neo4j.cypher.internal.logical.plans.QueryExpression
+import org.neo4j.cypher.internal.logical.plans.RangeQueryExpression
+import org.neo4j.exceptions.InternalException
+import org.neo4j.values.virtual.VirtualNodeValue
 
 case class IndexSeekModeFactory(unique: Boolean, readOnly: Boolean) {
   def fromQueryExpression[T](qexpr: QueryExpression[T]): IndexSeekMode = qexpr match {
     case _: RangeQueryExpression[_] if unique => UniqueIndexSeekByRange
     case _: RangeQueryExpression[_] => IndexSeekByRange
+    case qe: CompositeQueryExpression[_] if unique && !readOnly && qe.exactOnly => LockingUniqueIndexSeek
+    case _: CompositeQueryExpression[_] if unique => UniqueIndexSeek
     case _ if unique && !readOnly => LockingUniqueIndexSeek
     case _ if unique => UniqueIndexSeek
     case _ => IndexSeek
@@ -53,7 +57,7 @@ case class IndexSeekModeFactory(unique: Boolean, readOnly: Boolean) {
 }
 
 object IndexSeekMode {
-  type MultipleValueQuery = (QueryState) => (Seq[Any]) => Iterator[NodeValue]
+  type MultipleValueQuery = QueryState => Seq[Any] => Iterator[VirtualNodeValue]
 
   def assertSingleValue(values: Seq[Any]): Any = {
     if(values.size != 1)
@@ -62,22 +66,22 @@ object IndexSeekMode {
   }
 }
 
-sealed abstract class IndexSeekMode(val name: String)
+sealed trait IndexSeekMode
 
 sealed trait ExactSeek {
   self: IndexSeekMode =>
 }
 
-case object IndexSeek extends IndexSeekMode("NodeIndexSeek") with ExactSeek
+case object IndexSeek extends IndexSeekMode with ExactSeek
 
-case object UniqueIndexSeek extends IndexSeekMode("NodeUniqueIndexSeek") with ExactSeek
+case object UniqueIndexSeek extends IndexSeekMode with ExactSeek
 
-case object LockingUniqueIndexSeek extends IndexSeekMode("NodeUniqueIndexSeek(Locking)")
+case object LockingUniqueIndexSeek extends IndexSeekMode
 
 sealed trait SeekByRange {
   self: IndexSeekMode =>
 }
 
-case object IndexSeekByRange extends IndexSeekMode("NodeIndexSeekByRange") with SeekByRange
+case object IndexSeekByRange extends IndexSeekMode with SeekByRange
 
-case object UniqueIndexSeekByRange extends IndexSeekMode("NodeUniqueIndexSeekByRange") with SeekByRange
+case object UniqueIndexSeekByRange extends IndexSeekMode with SeekByRange

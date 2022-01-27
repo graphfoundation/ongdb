@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,17 +38,14 @@
  */
 package org.neo4j.values.virtual;
 
-import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.Objects;
 
 import org.neo4j.values.AnyValue;
-import org.neo4j.values.VirtualValue;
-import org.neo4j.values.storable.Value;
+import org.neo4j.values.storable.ValueRepresentation;
 
 /**
- * This class is way too similar to org.neo4j.collection.primitive.PrimitiveArrays.
+ * This class is way too similar to org.neo4j.collection.PrimitiveArrays.
  * <p>
  * Should we introduce dependency on primitive collections?
  */
@@ -56,42 +53,6 @@ final class ArrayHelpers
 {
     private ArrayHelpers()
     {
-    }
-
-    static boolean isSortedSet( int[] keys )
-    {
-        for ( int i = 0; i < keys.length - 1; i++ )
-        {
-            if ( keys[i] >= keys[i + 1] )
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    static boolean isSortedSet( VirtualValue[] keys, Comparator<AnyValue> comparator )
-    {
-        for ( int i = 0; i < keys.length - 1; i++ )
-        {
-            if ( comparator.compare( keys[i], keys[i + 1] ) >= 0 )
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    static boolean isSortedSet( Value[] keys, Comparator<AnyValue> comparator )
-    {
-        for ( int i = 0; i < keys.length - 1; i++ )
-        {
-            if ( comparator.compare( keys[i], keys[i + 1] ) >= 0 )
-            {
-                return false;
-            }
-        }
-        return true;
     }
 
     static boolean containsNull( AnyValue[] values )
@@ -118,28 +79,13 @@ final class ArrayHelpers
         return false;
     }
 
-    static <T> Iterator<T> asIterator( T[] array )
+    static boolean assertValueRepresentation( AnyValue[] values, ValueRepresentation representation )
     {
-        assert array != null;
-        return new Iterator<T>()
+        ValueRepresentation actual = null;
+        for ( AnyValue value : values )
         {
-            private int index;
-
-            @Override
-            public boolean hasNext()
-            {
-                return index < array.length;
-            }
-
-            @Override
-            public T next()
-            {
-                if ( !hasNext() )
-                {
-                    throw new NoSuchElementException();
-                }
-                return array[index++];
-            }
-        };
+            actual = actual == null ? value.valueRepresentation() : actual.coerce( value.valueRepresentation() );
+        }
+        return Objects.requireNonNullElse( actual, ValueRepresentation.UNKNOWN ) == representation;
     }
 }

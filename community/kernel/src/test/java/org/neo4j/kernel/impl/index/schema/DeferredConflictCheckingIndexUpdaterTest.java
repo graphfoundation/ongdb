@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,59 +38,59 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import org.neo4j.internal.kernel.api.IndexQuery;
+import org.neo4j.internal.kernel.api.PropertyIndexQuery;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
-import org.neo4j.kernel.impl.api.index.UpdateMode;
-import org.neo4j.storageengine.api.schema.IndexReader;
+import org.neo4j.kernel.api.index.ValueIndexReader;
+import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
+import org.neo4j.storageengine.api.UpdateMode;
+import org.neo4j.storageengine.api.ValueIndexEntryUpdate;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.anyVararg;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
-import static org.neo4j.collection.primitive.PrimitiveLongCollections.iterator;
-import static org.neo4j.kernel.api.index.IndexEntryUpdate.add;
-import static org.neo4j.kernel.api.index.IndexEntryUpdate.change;
-import static org.neo4j.kernel.api.index.IndexEntryUpdate.remove;
+import static org.neo4j.io.pagecache.context.CursorContext.NULL;
+import static org.neo4j.storageengine.api.IndexEntryUpdate.add;
+import static org.neo4j.storageengine.api.IndexEntryUpdate.change;
+import static org.neo4j.storageengine.api.IndexEntryUpdate.remove;
 
-public class DeferredConflictCheckingIndexUpdaterTest
+class DeferredConflictCheckingIndexUpdaterTest
 {
-    private final int labelId = 1;
+    private static final int labelId = 1;
     private final int[] propertyKeyIds = {2, 3};
-    private final SchemaIndexDescriptor descriptor = SchemaIndexDescriptorFactory.forLabel( labelId, propertyKeyIds );
+    private final IndexDescriptor descriptor = TestIndexDescriptorFactory.forLabel( labelId, propertyKeyIds );
 
     @Test
-    public void shouldQueryAboutAddedAndChangedValueTuples() throws Exception
+    void shouldQueryAboutAddedAndChangedValueTuples() throws Exception
     {
         // given
         IndexUpdater actual = mock( IndexUpdater.class );
-        IndexReader reader = mock( IndexReader.class );
-        when( reader.query( anyVararg() ) ).thenAnswer( invocation -> iterator( 0 ) );
+        ValueIndexReader reader = mock( ValueIndexReader.class );
+        doAnswer( new NodeIdsIndexReaderQueryAnswer( descriptor, 0 ) ).when( reader ).query( any(), any(), any(), any(), any(), any() );
         long nodeId = 0;
-        List<IndexEntryUpdate<SchemaIndexDescriptor>> updates = new ArrayList<>();
+        List<ValueIndexEntryUpdate<IndexDescriptor>> updates = new ArrayList<>();
         updates.add( add( nodeId++, descriptor, tuple( 10, 11 ) ) );
         updates.add( change( nodeId++, descriptor, tuple( "abc", "def" ), tuple( "ghi", "klm" ) ) );
         updates.add( remove( nodeId++, descriptor, tuple( 1001L, 1002L ) ) );
         updates.add( change( nodeId++, descriptor, tuple( (byte) 2, (byte) 3 ), tuple( (byte) 4, (byte) 5 ) ) );
-        updates.add( add( nodeId++, descriptor, tuple( 5, "5" ) ) );
-        try ( DeferredConflictCheckingIndexUpdater updater = new DeferredConflictCheckingIndexUpdater( actual, () -> reader, descriptor ) )
+        updates.add( add( nodeId, descriptor, tuple( 5, "5" ) ) );
+        try ( DeferredConflictCheckingIndexUpdater updater = new DeferredConflictCheckingIndexUpdater( actual, () -> reader, descriptor, NULL ) )
         {
             // when
-            for ( IndexEntryUpdate<SchemaIndexDescriptor> update : updates )
+            for ( ValueIndexEntryUpdate<IndexDescriptor> update : updates )
             {
                 updater.process( update );
                 verify( actual ).process( update );
@@ -98,17 +98,17 @@ public class DeferredConflictCheckingIndexUpdaterTest
         }
 
         // then
-        for ( IndexEntryUpdate<SchemaIndexDescriptor> update : updates )
+        for ( ValueIndexEntryUpdate<IndexDescriptor> update : updates )
         {
             if ( update.updateMode() == UpdateMode.ADDED || update.updateMode() == UpdateMode.CHANGED )
             {
                 Value[] tuple = update.values();
-                IndexQuery[] query = new IndexQuery[tuple.length];
+                PropertyIndexQuery[] query = new PropertyIndexQuery[tuple.length];
                 for ( int i = 0; i < tuple.length; i++ )
                 {
-                    query[i] = IndexQuery.exact( propertyKeyIds[i], tuple[i] );
+                    query[i] = PropertyIndexQuery.exact( propertyKeyIds[i], tuple[i] );
                 }
-                verify( reader ).query( query );
+                verify( reader ).query( any(), any(), any(), any(), eq( query[0] ), eq( query[1] ) );
             }
         }
         verify( reader ).close();
@@ -116,30 +116,22 @@ public class DeferredConflictCheckingIndexUpdaterTest
     }
 
     @Test
-    public void shouldThrowOnIndexEntryConflict() throws Exception
+    void shouldThrowOnIndexEntryConflict() throws Exception
     {
         // given
         IndexUpdater actual = mock( IndexUpdater.class );
-        IndexReader reader = mock( IndexReader.class );
-        when( reader.query( anyVararg() ) ).thenAnswer( invocation -> iterator( 101, 202 ) );
-        DeferredConflictCheckingIndexUpdater updater = new DeferredConflictCheckingIndexUpdater( actual, () -> reader, descriptor );
+        ValueIndexReader reader = mock( ValueIndexReader.class );
+        doAnswer( new NodeIdsIndexReaderQueryAnswer( descriptor, 101, 202 ) ).when( reader ).query( any(), any(), any(), any(), any() );
+        DeferredConflictCheckingIndexUpdater updater = new DeferredConflictCheckingIndexUpdater( actual, () -> reader, descriptor, NULL );
 
         // when
         updater.process( add( 0, descriptor, tuple( 10, 11 ) ) );
-        try
-        {
-            updater.close();
-            fail( "Should have failed" );
-        }
-        catch ( IndexEntryConflictException e )
-        {
-            // then good
-            assertThat( e.getMessage(), containsString( "101" ) );
-            assertThat( e.getMessage(), containsString( "202" ) );
-        }
+        var e = assertThrows( IndexEntryConflictException.class, updater::close );
+        assertThat( e.getMessage() ).contains( "101" );
+        assertThat( e.getMessage() ).contains( "202" );
     }
 
-    private Value[] tuple( Object... values )
+    private static Value[] tuple( Object... values )
     {
         Value[] result = new Value[values.length];
         for ( int i = 0; i < values.length; i++ )

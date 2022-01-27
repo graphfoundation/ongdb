@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,87 +38,134 @@
  */
 package org.neo4j.logging;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import java.util.function.Consumer;
 
-/**
- * An abstract implementation of {@link Log}, providing implementations
- * for the shortcut methods (debug, info, warn, error) that delegate
- * to the appropriate {@link Logger} (as obtained by {@link Log#debugLogger()},
- * {@link Log#infoLogger()}, {@link Log#warnLogger()} and
- * {@link Log#errorLogger()} respectively).
- */
-public abstract class AbstractLog implements Log
+import org.neo4j.logging.log4j.LogExtended;
+
+public abstract class AbstractLog implements LogExtended
 {
     @Override
-    public void debug( @Nonnull String message )
+    public Logger debugLogger()
     {
-        debugLogger().log( message );
+        return new Logger()
+        {
+            @Override
+            public void log( String message )
+            {
+                debug( message );
+            }
+
+            @Override
+            public void log( String message, Throwable throwable )
+            {
+                debug( message, throwable );
+            }
+
+            @Override
+            public void log( String format, Object... arguments )
+            {
+                debug( format, arguments );
+            }
+
+            @Override
+            public void bulk( Consumer<Logger> consumer )
+            {
+                consumer.accept( this );
+            }
+        };
     }
 
     @Override
-    public void debug( @Nonnull String message, @Nonnull Throwable throwable )
+    public Logger infoLogger()
     {
-        debugLogger().log( message, throwable );
+        return new Logger()
+        {
+            @Override
+            public void log( String message )
+            {
+                info( message );
+            }
+
+            @Override
+            public void log( String message, Throwable throwable )
+            {
+                info( message, throwable );
+            }
+
+            @Override
+            public void log( String format, Object... arguments )
+            {
+                info( format, arguments );
+            }
+
+            @Override
+            public void bulk( Consumer<Logger> consumer )
+            {
+                consumer.accept( this );
+            }
+        };
     }
 
     @Override
-    public void debug( @Nonnull String format, @Nullable Object... arguments )
+    public Logger warnLogger()
     {
-        debugLogger().log( format, arguments );
+        return new Logger()
+        {
+            @Override
+            public void log( String message )
+            {
+                warn( message );
+            }
+
+            @Override
+            public void log( String message, Throwable throwable )
+            {
+                warn( message, throwable );
+            }
+
+            @Override
+            public void log( String format, Object... arguments )
+            {
+                warn( format, arguments );
+            }
+
+            @Override
+            public void bulk( Consumer<Logger> consumer )
+            {
+                consumer.accept( this );
+            }
+        };
     }
 
     @Override
-    public void info( @Nonnull String message )
+    public Logger errorLogger()
     {
-        infoLogger().log( message );
+        return new Logger()
+        {
+            @Override
+            public void log( String message )
+            {
+                error( message );
+            }
+
+            @Override
+            public void log( String message, Throwable throwable )
+            {
+                error( message, throwable );
+            }
+
+            @Override
+            public void log( String format, Object... arguments )
+            {
+                error( format, arguments );
+            }
+
+            @Override
+            public void bulk( Consumer<Logger> consumer )
+            {
+                consumer.accept( this );
+            }
+        };
     }
 
-    @Override
-    public void info( @Nonnull String message, @Nonnull Throwable throwable )
-    {
-        infoLogger().log( message, throwable );
-    }
-
-    @Override
-    public void info( @Nonnull String format, @Nullable Object... arguments )
-    {
-        infoLogger().log( format, arguments );
-    }
-
-    @Override
-    public void warn( @Nonnull String message )
-    {
-        warnLogger().log( message );
-    }
-
-    @Override
-    public void warn( @Nonnull String message, @Nonnull Throwable throwable )
-    {
-        warnLogger().log( message, throwable );
-    }
-
-    @Override
-    public void warn( @Nonnull String format, @Nullable Object... arguments )
-    {
-        warnLogger().log( format, arguments );
-    }
-
-    @Override
-    public void error( @Nonnull String message )
-    {
-        errorLogger().log( message );
-    }
-
-    @Override
-    public void error( @Nonnull String message, @Nonnull Throwable throwable )
-    {
-        errorLogger().log( message, throwable );
-    }
-
-    @Override
-    public void error( @Nonnull String format, @Nullable Object... arguments )
-    {
-        errorLogger().log( format, arguments );
-    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,21 +41,24 @@ package org.neo4j.cypher.internal.runtime.interpreted
 import java.net.URL
 
 import org.apache.commons.lang3.SystemUtils
-import org.mockito.ArgumentMatchers._
-import org.mockito.Mockito._
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.verify
 import org.neo4j.cypher.internal.runtime.CreateTempFileTestSupport
+import org.neo4j.cypher.internal.runtime.ResourceManager
 import org.neo4j.cypher.internal.runtime.interpreted.CSVResources.DEFAULT_BUFFER_SIZE
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.util.v3_4.{LoadExternalResourceException, TaskCloser}
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.exceptions.LoadExternalResourceException
+import org.neo4j.internal.kernel.api.AutoCloseablePlus
 import org.neo4j.io.fs.FileUtils
+import org.neo4j.values.storable.TextValue
 
 class CSVResourcesTest extends CypherFunSuite with CreateTempFileTestSupport {
 
   var resources: CSVResources = _
-  var cleaner: TaskCloser = _
+  var cleaner: ResourceManager = _
 
   override def beforeEach() {
-    cleaner = mock[TaskCloser]
+    cleaner = mock[ResourceManager]
     resources = new CSVResources(cleaner)
   }
 
@@ -71,7 +74,7 @@ class CSVResourcesTest extends CypherFunSuite with CreateTempFileTestSupport {
 
     //when
     val result: List[Array[String]] = resources.getCsvIterator(new URL(url), None, legacyCsvQuoteEscaping = false,
-                                                               DEFAULT_BUFFER_SIZE).toList
+      DEFAULT_BUFFER_SIZE).map(_.map(_.asInstanceOf[TextValue].stringValue)).toList
 
     (result zip List(
       Array[String]("1"),
@@ -95,7 +98,7 @@ class CSVResourcesTest extends CypherFunSuite with CreateTempFileTestSupport {
 
     //when
     val result = resources.getCsvIterator(new URL(url), None, legacyCsvQuoteEscaping = false,
-                                          DEFAULT_BUFFER_SIZE).toList
+      DEFAULT_BUFFER_SIZE).map(_.map(_.asInstanceOf[TextValue].stringValue)).toList
 
     //then
     (result zip List(
@@ -119,7 +122,7 @@ class CSVResourcesTest extends CypherFunSuite with CreateTempFileTestSupport {
 
     //when
     val result = resources.getCsvIterator(new URL(url), None, legacyCsvQuoteEscaping = false,
-                                          DEFAULT_BUFFER_SIZE).toList
+      DEFAULT_BUFFER_SIZE).map(_.map(_.asInstanceOf[TextValue].stringValue)).toList
 
     //then
     (result zip List(
@@ -138,12 +141,12 @@ class CSVResourcesTest extends CypherFunSuite with CreateTempFileTestSupport {
 
     //when
     val result = resources.getCsvIterator(new URL(url), None, legacyCsvQuoteEscaping = false,
-                                          DEFAULT_BUFFER_SIZE).toList
+      DEFAULT_BUFFER_SIZE).map(_.map(_.asInstanceOf[TextValue].stringValue)).toList
 
     result should equal(List.empty)
   }
 
-  test("should register a task in the cleanupper") {
+  test("should register a task in the resource manager") {
     // given
     val url = createCSVTempFileURL {
       writer =>
@@ -156,7 +159,7 @@ class CSVResourcesTest extends CypherFunSuite with CreateTempFileTestSupport {
     resources.getCsvIterator(new URL(url), None, legacyCsvQuoteEscaping = false, DEFAULT_BUFFER_SIZE)
 
     // then
-    verify(cleaner, times(1)).addTask(any(classOf[Boolean => Unit]))
+    verify(cleaner).trace(any(classOf[AutoCloseablePlus]))
   }
 
   test("should accept and use a custom field terminator") {
@@ -171,7 +174,7 @@ class CSVResourcesTest extends CypherFunSuite with CreateTempFileTestSupport {
 
     //when
     val result: List[Array[String]] = resources.getCsvIterator(new URL(url), Some("\t"), legacyCsvQuoteEscaping = false,
-                                                               DEFAULT_BUFFER_SIZE).toList
+      DEFAULT_BUFFER_SIZE).map(_.map(_.asInstanceOf[TextValue].stringValue)).toList
 
     (result zip List(
       Array[String]("122", "foo"),
@@ -194,7 +197,7 @@ class CSVResourcesTest extends CypherFunSuite with CreateTempFileTestSupport {
 
     //when
     val result: List[Array[String]] = resources.getCsvIterator(new URL(url), None, legacyCsvQuoteEscaping = false,
-                                                               DEFAULT_BUFFER_SIZE).toList
+      DEFAULT_BUFFER_SIZE).map(_.map(_.asInstanceOf[TextValue].stringValue)).toList
 
     (result zip List(
       Array[String]("Malm\u0246"),
@@ -217,7 +220,7 @@ class CSVResourcesTest extends CypherFunSuite with CreateTempFileTestSupport {
 
     // when
     val e = intercept[IllegalStateException](resources.getCsvIterator(new URL(url), None, legacyCsvQuoteEscaping = false,
-                                                                      DEFAULT_BUFFER_SIZE))
+      DEFAULT_BUFFER_SIZE))
 
     var path = url.replace("file:", "")
     if (SystemUtils.IS_OS_WINDOWS) {
@@ -250,7 +253,7 @@ class CSVResourcesTest extends CypherFunSuite with CreateTempFileTestSupport {
 
     //when
     val result: List[Array[String]] = resources.getCsvIterator(new URL(url), Some("\t"), legacyCsvQuoteEscaping = false,
-                                                               DEFAULT_BUFFER_SIZE).toList
+      DEFAULT_BUFFER_SIZE).map(_.map(_.asInstanceOf[TextValue].stringValue)).toList
 
     (result zip List(
       Array[String]("a", "b"),

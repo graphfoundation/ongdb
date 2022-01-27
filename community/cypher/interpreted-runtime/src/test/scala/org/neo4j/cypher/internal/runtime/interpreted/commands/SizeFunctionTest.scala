@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,14 +38,19 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands
 
-import org.neo4j.cypher.internal.util.v3_4.CypherTypeException
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.ImplicitValueConversion._
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.ImplicitValueConversion.toListValue
+import org.neo4j.cypher.internal.runtime.ImplicitValueConversion.toPathValue
+import org.neo4j.cypher.internal.runtime.ImplicitValueConversion.toStringValue
 import org.neo4j.cypher.internal.runtime.PathImpl
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{SizeFunction, Variable}
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.graphdb.{Node, Relationship}
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.SizeFunction
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Variable
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.exceptions.CypherTypeException
+import org.neo4j.graphdb.Node
+import org.neo4j.graphdb.Relationship
+import org.neo4j.values.storable.Values
 import org.neo4j.values.storable.Values.longValue
 
 class SizeFunctionTest extends CypherFunSuite {
@@ -53,7 +58,7 @@ class SizeFunctionTest extends CypherFunSuite {
   test("size can be used on collections") {
     //given
     val l = Seq("it", "was", "the")
-    val m = ExecutionContext.from("l" -> l)
+    val m = CypherRow.from("l" -> l)
     val sizeFunction = SizeFunction(Variable("l"))
 
     //when
@@ -66,7 +71,7 @@ class SizeFunctionTest extends CypherFunSuite {
   test("size can be used on strings") {
     //given
     val s = "it was the"
-    val m = ExecutionContext.from("s" -> s)
+    val m = CypherRow.from("s" -> s)
     val sizeFunction = SizeFunction(Variable("s"))
 
     //when
@@ -78,11 +83,22 @@ class SizeFunctionTest extends CypherFunSuite {
 
   test("size cannot be used on paths") {
     //given
-    val p = new PathImpl(mock[Node], mock[Relationship], mock[Node])
-    val m = ExecutionContext.from("p" -> p)
+    val p = PathImpl(mock[Node], mock[Relationship], mock[Node])
+    val m = CypherRow.from("p" -> p)
     val sizeFunction = SizeFunction(Variable("p"))
 
     //when/then
-    intercept[CypherTypeException](sizeFunction.apply(m, QueryStateHelper.empty))
+    val e = intercept[CypherTypeException](sizeFunction.apply(m, QueryStateHelper.empty))
+    e.getMessage should be("Invalid input for function 'size()': Expected a String or List, got: Path{(0)-[0]-(0)}")
+  }
+
+  test("size cannot be used on integers") {
+    //given
+    val m = CypherRow.from("p" -> Values.of(33))
+    val sizeFunction = SizeFunction(Variable("p"))
+
+    //when/then
+    val e = intercept[CypherTypeException](sizeFunction.apply(m, QueryStateHelper.empty))
+    e.getMessage should be("Invalid input for function 'size()': Expected a String or List, got: Int(33)")
   }
 }

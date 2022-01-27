@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,16 +38,17 @@
  */
 package org.neo4j.io.pagecache.impl.muninn;
 
-import org.neo4j.graphdb.config.Configuration;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.mem.MemoryAllocator;
 import org.neo4j.io.pagecache.PageCache;
+import org.neo4j.io.pagecache.PageSwapperFactory;
 import org.neo4j.io.pagecache.impl.SingleFilePageSwapperFactory;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
-import org.neo4j.io.pagecache.tracing.cursor.DefaultPageCursorTracerSupplier;
-import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
-import org.neo4j.io.pagecache.tracing.cursor.context.VersionContextSupplier;
-import org.neo4j.memory.GlobalMemoryTracker;
+import org.neo4j.memory.EmptyMemoryTracker;
+import org.neo4j.scheduler.JobScheduler;
+
+import static org.neo4j.io.ByteUnit.MebiByte;
+import static org.neo4j.io.pagecache.impl.muninn.MuninnPageCache.config;
 
 /*
  * This class is an helper to allow to construct properly a page cache in the few places we need it without all
@@ -62,15 +63,32 @@ public final class StandalonePageCacheFactory
     {
     }
 
-    public static PageCache createPageCache( FileSystemAbstraction fileSystem )
+    public static PageCache createPageCache( FileSystemAbstraction fileSystem, JobScheduler jobScheduler, PageCacheTracer cacheTracer )
     {
-        SingleFilePageSwapperFactory factory = new SingleFilePageSwapperFactory();
-        factory.open( fileSystem, Configuration.EMPTY );
+        SingleFilePageSwapperFactory factory = new SingleFilePageSwapperFactory( fileSystem, cacheTracer );
+        int pageSize = PageCache.PAGE_SIZE;
+        return createPageCache( factory, jobScheduler, cacheTracer, pageSize );
+    }
 
+    public static PageCache createPageCache( FileSystemAbstraction fileSystem, JobScheduler jobScheduler )
+    {
         PageCacheTracer cacheTracer = PageCacheTracer.NULL;
-        DefaultPageCursorTracerSupplier cursorTracerSupplier = DefaultPageCursorTracerSupplier.INSTANCE;
-        VersionContextSupplier versionContextSupplier = EmptyVersionContextSupplier.EMPTY;
-        MemoryAllocator memoryAllocator = MemoryAllocator.createAllocator( "8 MiB", GlobalMemoryTracker.INSTANCE );
-        return new MuninnPageCache( factory, memoryAllocator, cacheTracer, cursorTracerSupplier, versionContextSupplier );
+        int pageSize = PageCache.PAGE_SIZE;
+        SingleFilePageSwapperFactory factory = new SingleFilePageSwapperFactory( fileSystem, cacheTracer );
+        return createPageCache( factory, jobScheduler, cacheTracer, pageSize );
+    }
+
+    public static PageCache createPageCache( FileSystemAbstraction fileSystem, JobScheduler jobScheduler, int pageSize )
+    {
+        PageCacheTracer cacheTracer = PageCacheTracer.NULL;
+        SingleFilePageSwapperFactory factory = new SingleFilePageSwapperFactory( fileSystem, cacheTracer );
+        return createPageCache( factory, jobScheduler, cacheTracer, pageSize );
+    }
+
+    private static PageCache createPageCache( PageSwapperFactory factory, JobScheduler jobScheduler, PageCacheTracer cacheTracer, int pageSize )
+    {
+        long expectedMemory = Math.max( MebiByte.toBytes( 8 ), 10L * pageSize );
+        MemoryAllocator memoryAllocator = MemoryAllocator.createAllocator( expectedMemory, EmptyMemoryTracker.INSTANCE );
+        return new MuninnPageCache( factory, jobScheduler, config( memoryAllocator ).pageCacheTracer( cacheTracer ).pageSize( pageSize ) );
     }
 }

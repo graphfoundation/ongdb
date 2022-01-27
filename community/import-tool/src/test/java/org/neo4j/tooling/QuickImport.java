@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,54 +38,63 @@
  */
 package org.neo4j.tooling;
 
-import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
+import java.nio.file.Path;
+import java.util.concurrent.TimeUnit;
 
+import org.neo4j.configuration.Config;
 import org.neo4j.csv.reader.CharSeeker;
 import org.neo4j.csv.reader.CharSeekers;
+import org.neo4j.csv.reader.Configuration;
 import org.neo4j.csv.reader.Extractors;
 import org.neo4j.csv.reader.Readables;
-import org.neo4j.helpers.Args;
+import org.neo4j.internal.batchimport.BatchImporter;
+import org.neo4j.internal.batchimport.BatchImporterFactory;
+import org.neo4j.internal.batchimport.IndexConfig;
+import org.neo4j.internal.batchimport.ParallelBatchImporter;
+import org.neo4j.internal.batchimport.input.Collector;
+import org.neo4j.internal.batchimport.input.DataGeneratorInput;
+import org.neo4j.internal.batchimport.input.Groups;
+import org.neo4j.internal.batchimport.input.IdType;
+import org.neo4j.internal.batchimport.input.Input;
+import org.neo4j.internal.batchimport.input.csv.DataFactories;
+import org.neo4j.internal.batchimport.input.csv.Header;
+import org.neo4j.internal.batchimport.staging.ExecutionMonitor;
+import org.neo4j.internal.batchimport.staging.SpectrumExecutionMonitor;
+import org.neo4j.internal.helpers.Args;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.configuration.Settings;
-import org.neo4j.kernel.impl.logging.SimpleLogService;
+import org.neo4j.io.layout.recordstorage.RecordDatabaseLayout;
+import org.neo4j.io.pagecache.tracing.PageCacheTracer;
+import org.neo4j.kernel.impl.index.schema.IndexImporterFactoryImpl;
 import org.neo4j.kernel.impl.store.format.RecordFormatSelector;
-import org.neo4j.kernel.impl.scheduler.CentralJobScheduler;
+import org.neo4j.kernel.impl.transaction.log.files.TransactionLogInitializer;
 import org.neo4j.kernel.lifecycle.Lifespan;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.NullLogProvider;
+import org.neo4j.logging.internal.SimpleLogService;
 import org.neo4j.scheduler.JobScheduler;
-import org.neo4j.unsafe.impl.batchimport.BatchImporter;
-import org.neo4j.unsafe.impl.batchimport.BatchImporterFactory;
-import org.neo4j.unsafe.impl.batchimport.ParallelBatchImporter;
-import org.neo4j.unsafe.impl.batchimport.input.Collector;
-import org.neo4j.unsafe.impl.batchimport.input.DataGeneratorInput;
-import org.neo4j.unsafe.impl.batchimport.input.Groups;
-import org.neo4j.unsafe.impl.batchimport.input.Input;
-import org.neo4j.unsafe.impl.batchimport.input.csv.Configuration;
-import org.neo4j.unsafe.impl.batchimport.input.csv.DataFactories;
-import org.neo4j.unsafe.impl.batchimport.input.csv.Header;
-import org.neo4j.unsafe.impl.batchimport.input.csv.IdType;
 
 import static java.lang.System.currentTimeMillis;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.dense_node_threshold;
-import static org.neo4j.unsafe.impl.batchimport.AdditionalInitialIds.EMPTY;
-import static org.neo4j.unsafe.impl.batchimport.ImportLogic.NO_MONITOR;
-import static org.neo4j.unsafe.impl.batchimport.staging.ExecutionMonitors.defaultVisible;
+import static org.neo4j.configuration.SettingValueParsers.parseLongWithUnit;
+import static org.neo4j.internal.batchimport.AdditionalInitialIds.EMPTY;
+import static org.neo4j.internal.batchimport.Configuration.calculateMaxMemoryFromPercent;
+import static org.neo4j.internal.batchimport.Configuration.defaultConfiguration;
+import static org.neo4j.internal.batchimport.ImportLogic.NO_MONITOR;
+import static org.neo4j.internal.batchimport.staging.ExecutionMonitors.defaultVisible;
+import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createScheduler;
+import static org.neo4j.memory.EmptyMemoryTracker.INSTANCE;
 
 /**
  * Uses all available shortcuts to as quickly as possible import as much data as possible. Usage of this
  * utility is most likely just testing behavior of some components in the face of various dataset sizes,
  * even quite big ones. Uses the import tool, or rather directly the {@link ParallelBatchImporter}.
- *
+ * <p>
  * Quick comes from gaming terminology where you sometimes just want to play a quick game, without
  * any settings or hazzle, just play.
- *
+ * <p>
  * Uses {@link DataGeneratorInput} as random data {@link Input}.
- *
+ * <p>
  * For the time being the node/relationship data can't be controlled via command-line arguments,
  * only through changing the code. The {@link DataGeneratorInput} accepts two {@link Header headers}
  * describing which sort of data it should generate.
@@ -99,11 +108,11 @@ public class QuickImport
     public static void main( String[] arguments ) throws IOException
     {
         Args args = Args.parse( arguments );
-        long nodeCount = Settings.parseLongWithUnit( args.get( "nodes", null ) );
-        long relationshipCount = Settings.parseLongWithUnit( args.get( "relationships", null ) );
+        long nodeCount = parseLongWithUnit( args.get( "nodes", null ) );
+        long relationshipCount = parseLongWithUnit( args.get( "relationships", null ) );
         int labelCount = args.getNumber( "labels", 4 ).intValue();
         int relationshipTypeCount = args.getNumber( "relationship-types", 4 ).intValue();
-        File dir = new File( args.get( ImportTool.Options.STORE_DIR.key() ) );
+        Path dir = Path.of( args.get( "into" ) );
         long randomSeed = args.getNumber( "random-seed", currentTimeMillis() ).longValue();
         Configuration config = Configuration.COMMAS;
 
@@ -115,40 +124,33 @@ public class QuickImport
         Header relationshipHeader = parseRelationshipHeader( args, idType, extractors, groups );
 
         Config dbConfig;
-        String dbConfigFileName = args.get( ImportTool.Options.DATABASE_CONFIG.key(), null );
+        String dbConfigFileName = args.get( "db-config", null );
         if ( dbConfigFileName != null )
         {
-            dbConfig = new Config.Builder().withFile( new File( dbConfigFileName ) ).build();
+            dbConfig = Config.newBuilder().fromFile( Path.of( dbConfigFileName ) ).build();
         }
         else
         {
             dbConfig = Config.defaults();
         }
 
-        boolean highIo = args.getBoolean( ImportTool.Options.HIGH_IO.key() );
+        Boolean highIo = args.has( "high-io" ) ? args.getBoolean( "high-io" ) : null;
 
         LogProvider logging = NullLogProvider.getInstance();
         long pageCacheMemory = args.getNumber( "pagecache-memory",
-                org.neo4j.unsafe.impl.batchimport.Configuration.MAX_PAGE_CACHE_MEMORY ).longValue();
-        org.neo4j.unsafe.impl.batchimport.Configuration importConfig =
-                new org.neo4j.unsafe.impl.batchimport.Configuration()
+                org.neo4j.internal.batchimport.Configuration.MAX_PAGE_CACHE_MEMORY ).longValue();
+        org.neo4j.internal.batchimport.Configuration importConfig = new org.neo4j.internal.batchimport.Configuration.Overridden( defaultConfiguration( dir ) )
         {
             @Override
             public int maxNumberOfProcessors()
             {
-                return args.getNumber( ImportTool.Options.PROCESSORS.key(), DEFAULT.maxNumberOfProcessors() ).intValue();
-            }
-
-            @Override
-            public int denseNodeThreshold()
-            {
-                return args.getNumber( dense_node_threshold.name(), DEFAULT.denseNodeThreshold() ).intValue();
+                return args.getNumber( "processors", super.maxNumberOfProcessors() ).intValue();
             }
 
             @Override
             public boolean highIO()
             {
-                return highIo;
+                return highIo != null ? highIo : super.highIO();
             }
 
             @Override
@@ -160,8 +162,14 @@ public class QuickImport
             @Override
             public long maxMemoryUsage()
             {
-                String custom = args.get( ImportTool.Options.MAX_MEMORY.key(), (String) ImportTool.Options.MAX_MEMORY.defaultValue() );
-                return custom != null ? ImportTool.parseMaxMemory( custom ) : DEFAULT.maxMemoryUsage();
+                String custom = args.get( "max-memory", null );
+                return custom != null ? parseMaxMemory( custom ) : super.maxMemoryUsage();
+            }
+
+            @Override
+            public IndexConfig indexConfig()
+            {
+                return IndexConfig.create().withLabelIndex().withRelationshipTypeIndex();
             }
         };
 
@@ -170,12 +178,12 @@ public class QuickImport
 
         Input input = new DataGeneratorInput(
                 nodeCount, relationshipCount,
-                idType, Collector.EMPTY, randomSeed,
+                idType, randomSeed,
                 0, nodeHeader, relationshipHeader, labelCount, relationshipTypeCount,
                 factorBadNodeData, factorBadRelationshipData );
 
         try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction();
-              Lifespan life = new Lifespan() )
+                Lifespan life = new Lifespan() )
         {
             BatchImporter consumer;
             if ( args.getBoolean( "to-csv" ) )
@@ -185,14 +193,31 @@ public class QuickImport
             else
             {
                 System.out.println( "Seed " + randomSeed );
-                final JobScheduler jobScheduler = life.add( new CentralJobScheduler() );
-                consumer = BatchImporterFactory.withHighestPriority().instantiate( dir, fileSystem, null, importConfig,
-                        new SimpleLogService( logging, logging ), defaultVisible( jobScheduler ), EMPTY, dbConfig,
-                        RecordFormatSelector.selectForConfig( dbConfig, logging ), NO_MONITOR );
-                ImportTool.printOverview( dir, Collections.emptyList(), Collections.emptyList(), importConfig, System.out );
+                final JobScheduler jobScheduler = life.add( createScheduler() );
+                boolean verbose = args.getBoolean( "v" );
+                ExecutionMonitor monitor = verbose ? new SpectrumExecutionMonitor( 2, TimeUnit.SECONDS, System.out, 100 ) : defaultVisible();
+                consumer = BatchImporterFactory.withHighestPriority().instantiate(
+                        RecordDatabaseLayout.ofFlat( dir ), fileSystem, PageCacheTracer.NULL, importConfig, new SimpleLogService( logging, logging ),
+                        monitor, EMPTY, dbConfig, RecordFormatSelector.selectForConfig( dbConfig, logging ), NO_MONITOR, jobScheduler,
+                        Collector.EMPTY, TransactionLogInitializer.getLogFilesInitializer(), new IndexImporterFactoryImpl( dbConfig ), INSTANCE );
             }
             consumer.doImport( input );
         }
+    }
+
+    private static Long parseMaxMemory( String maxMemoryString )
+    {
+        if ( maxMemoryString != null )
+        {
+            maxMemoryString = maxMemoryString.trim();
+            if ( maxMemoryString.endsWith( "%" ) )
+            {
+                int percent = Integer.parseInt( maxMemoryString.substring( 0, maxMemoryString.length() - 1 ) );
+                return calculateMaxMemoryFromPercent( percent );
+            }
+            return parseLongWithUnit( maxMemoryString );
+        }
+        return null;
     }
 
     private static Header parseNodeHeader( Args args, IdType idType, Extractors extractors, Groups groups )
@@ -220,16 +245,8 @@ public class QuickImport
                 idType, groups );
     }
 
-    private static CharSeeker seeker( String definition, Configuration config )
+    private static CharSeeker seeker( String definition, org.neo4j.csv.reader.Configuration config )
     {
-        return CharSeekers.charSeeker( Readables.wrap( definition ),
-                new org.neo4j.csv.reader.Configuration.Overridden( config )
-        {
-            @Override
-            public int bufferSize()
-            {
-                return 10_000;
-            }
-        }, false );
+        return CharSeekers.charSeeker( Readables.wrap( definition ), config.toBuilder().withBufferSize( 10_000 ).build(), false );
     }
 }

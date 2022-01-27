@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,14 +38,15 @@
  */
 package org.neo4j.io.fs;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
+import static org.neo4j.io.IOUtils.uncheckedFunction;
 
-public class StreamFilesRecursive
+public final class StreamFilesRecursive
 {
     private StreamFilesRecursive()
     {
@@ -53,13 +54,13 @@ public class StreamFilesRecursive
     }
 
     /**
-     * Static implementation of {@link FileSystemAbstraction#streamFilesRecursive(File)} that does not require
+     * Static implementation of {@link FileSystemAbstraction#streamFilesRecursive(Path)} that does not require
      * any external state, other than what is presented through the given {@link FileSystemAbstraction}.
      *
      * Return a stream of {@link FileHandle file handles} for every file in the given directory, and its
      * sub-directories.
      * <p>
-     * Alternatively, if the {@link File} given as an argument refers to a file instead of a directory, then a stream
+     * Alternatively, if the {@link Path} given as an argument refers to a file instead of a directory, then a stream
      * will be returned with a file handle for just that file.
      * <p>
      * The stream is based on a snapshot of the file tree, so changes made to the tree using the returned file handles
@@ -73,31 +74,26 @@ public class StreamFilesRecursive
      * @param directory The base directory to start streaming files from, or the specific individual file to stream.
      * @param fs The {@link FileSystemAbstraction} to use for manipulating files.
      * @return A {@link Stream} of {@link FileHandle}s
-     * @throws IOException If an I/O error occurs, possibly with the canonicalisation of the paths.
      */
-    public static Stream<FileHandle> streamFilesRecursive( File directory, FileSystemAbstraction fs ) throws IOException
+    public static Stream<FileHandle> streamFilesRecursive( Path directory, FileSystemAbstraction fs ) throws IOException
     {
-        File canonicalizedDirectory = directory.getCanonicalFile();
+        Path canonicalizedDirectory = directory.toAbsolutePath().normalize();
         // We grab a snapshot of the file tree to avoid seeing the same file twice or more due to renames.
-        List<File> snapshot = streamFilesRecursiveInner( canonicalizedDirectory, fs ).collect( toList() );
+        List<Path> snapshot = streamFilesRecursiveInner( canonicalizedDirectory, fs ).collect( toList() );
         return snapshot.stream().map( f -> new WrappingFileHandle( f, canonicalizedDirectory, fs ) );
     }
 
-    private static Stream<File> streamFilesRecursiveInner( File directory, FileSystemAbstraction fs )
+    private static Stream<Path> streamFilesRecursiveInner( Path directory, FileSystemAbstraction fs ) throws IOException
     {
-        File[] files = fs.listFiles( directory );
-        if ( files == null )
+        if ( !fs.fileExists( directory ) )
         {
-            if ( !fs.fileExists( directory ) )
-            {
-                return Stream.empty();
-            }
+            return Stream.empty();
+        }
+        if ( !fs.isDirectory( directory ) )
+        {
             return Stream.of( directory );
         }
-        else
-        {
-            return Stream.of( files )
-                    .flatMap( f -> fs.isDirectory( f ) ? streamFilesRecursiveInner( f, fs ) : Stream.of( f ) );
-        }
+        return Stream.of( fs.listFiles( directory ) )
+                     .flatMap( uncheckedFunction( f -> fs.isDirectory( f ) ? streamFilesRecursiveInner( f, fs ) : Stream.of( f ) ) );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -44,13 +44,25 @@ import static java.util.Collections.emptyMap;
 
 final class SimpleState extends ExecutingQueryStatus
 {
+    private static final ExecutingQueryStatus PARSING = new SimpleState( PARSING_STATE );
     private static final ExecutingQueryStatus PLANNING = new SimpleState( PLANNING_STATE );
+    private static final ExecutingQueryStatus PLANNED = new SimpleState( PLANNED_STATE );
     private static final ExecutingQueryStatus RUNNING = new SimpleState( RUNNING_STATE );
     private final String name;
+
+    static ExecutingQueryStatus parsing()
+    {
+        return PARSING;
+    }
 
     static ExecutingQueryStatus planning()
     {
         return PLANNING;
+    }
+
+    static ExecutingQueryStatus planned()
+    {
+        return PLANNED;
     }
 
     static ExecutingQueryStatus running()
@@ -82,8 +94,8 @@ final class SimpleState extends ExecutingQueryStatus
     }
 
     @Override
-    boolean isPlanning()
+    boolean isParsingOrPlanning()
     {
-        return this == PLANNING;
+        return this == PLANNING || this == PARSING;
     }
 }

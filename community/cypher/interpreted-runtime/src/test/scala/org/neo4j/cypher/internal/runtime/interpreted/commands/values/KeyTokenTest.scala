@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,9 +38,9 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.values
 
-import org.neo4j.cypher.internal.planner.v3_4.spi.TokenContext
+import org.neo4j.cypher.internal.planner.spi.ReadTokenContext
 import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
 class KeyTokenTest extends CypherFunSuite {
 
@@ -82,9 +82,9 @@ class KeyTokenTest extends CypherFunSuite {
 }
 
 case class MapKeyTokenType(m: Map[String, Int]) extends TokenType {
-  def getOptIdForName(name: String, tokenContext: TokenContext): Option[Int] = m.get(name)
+  def getOptIdForName(name: String, tokenContext: ReadTokenContext): Option[Int] = m.get(name)
 
-  def getIdForNameOrFail(name: String, tokenContext: TokenContext): Int = m(name)
+  def getIdForNameOrFail(name: String, tokenContext: ReadTokenContext): Int = m(name)
 
   def getOrCreateIdForName(name: String, queryContext: QueryContext): Int = throw new UnsupportedOperationException
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -81,7 +81,7 @@ public interface CharReadable extends Closeable, SourceTraceability
      * Similar to {@link Reader#read(char[], int, int)}
      * @param into char[] to read the data into.
      * @param offset offset to start reading into the char[].
-     * @param length number of bytes to read maxuimum.
+     * @param length number of bytes to read maximum.
      * @return number of bytes read, or 0 if there were no bytes read and end of readable is reached.
      * @throws IOException on read error.
      */
@@ -98,22 +98,16 @@ public interface CharReadable extends Closeable, SourceTraceability
         public void close() throws IOException
         {   // Nothing to close
         }
+
+        @Override
+        public float compressionRatio()
+        {
+            return 1f;
+        }
     }
 
-    CharReadable EMPTY = new CharReadable()
+    class Empty extends SourceTraceability.Empty implements CharReadable
     {
-        @Override
-        public long position()
-        {
-            return 0;
-        }
-
-        @Override
-        public String sourceDescription()
-        {
-            return "EMPTY";
-        }
-
         @Override
         public int read( char[] into, int offset, int length )
         {
@@ -138,4 +132,6 @@ public interface CharReadable extends Closeable, SourceTraceability
         {
         }
     };
+
+    CharReadable EMPTY = new Empty();
 }

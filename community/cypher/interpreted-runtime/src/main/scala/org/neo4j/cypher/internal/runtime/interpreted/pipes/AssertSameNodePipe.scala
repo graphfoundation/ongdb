@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,27 +38,28 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.util.v3_4.MergeConstraintConflictException
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.CastSupport
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.runtime.CastSupport
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.util.attribution.Id
+import org.neo4j.exceptions.MergeConstraintConflictException
 import org.neo4j.values.virtual.VirtualNodeValue
 
 case class AssertSameNodePipe(source: Pipe, inner: Pipe, node: String)
                              (val id: Id = Id.INVALID_ID)
   extends PipeWithSource(source) {
 
-  protected def internalCreateResults(lhsResult: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
+  protected def internalCreateResults(input: ClosingIterator[CypherRow], state: QueryState): ClosingIterator[CypherRow] = {
     val rhsResults = inner.createResults(state)
-    if (lhsResult.isEmpty != rhsResults.isEmpty) {
+    if (input.isEmpty != rhsResults.isEmpty) {
       throw new MergeConstraintConflictException(
         s"Merge did not find a matching node $node and can not create a new node due to conflicts with existing unique nodes")
     }
 
-    lhsResult.map { leftRow =>
-      val lhsNode = CastSupport.castOrFail[VirtualNodeValue](leftRow.get(node).get)
+    input.map { leftRow =>
+      val lhsNode = CastSupport.castOrFail[VirtualNodeValue](leftRow.getByName(node))
       rhsResults.foreach { rightRow =>
-        val rhsNode = CastSupport.castOrFail[VirtualNodeValue](rightRow.get(node).get)
+        val rhsNode = CastSupport.castOrFail[VirtualNodeValue](rightRow.getByName(node))
         if (lhsNode.id != rhsNode.id) {
           throw new MergeConstraintConflictException(
             s"Merge did not find a matching node $node and can not create a new node due to conflicts with existing unique nodes")

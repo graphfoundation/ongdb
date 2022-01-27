@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,20 +38,110 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.cypher.internal.util.v3_4.symbols.CypherType
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.ClosingLongIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.RelationshipIterator
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.FakePipe.CountingIterator
+import org.neo4j.cypher.internal.util.attribution.Id
 import org.neo4j.kernel.impl.util.ValueUtils
-import org.scalatest.mock.MockitoSugar
+import org.neo4j.storageengine.api.RelationshipVisitor
 
 import scala.collection.Map
 
-class FakePipe(val data: Iterator[Map[String, Any]], newVariables: (String, CypherType)*) extends Pipe with MockitoSugar {
+case class FakePipe(data: Traversable[Map[String, Any]]) extends Pipe {
 
-  def this(data: Traversable[Map[String, Any]], variables: (String, CypherType)*) = this(data.toIterator, variables:_*)
+  private var _countingIterator: CountingIterator[CypherRow] = _
 
-  def internalCreateResults(state: QueryState): Iterator[ExecutionContext] =
-    data.map(m => ExecutionContext(collection.mutable.Map(m.mapValues(ValueUtils.of).toSeq: _*)))
+  def this(data: Iterator[Map[String, Any]]) = this(data.toList)
 
-  var id: Id = Id.INVALID_ID
+  override def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
+    _countingIterator = new CountingIterator(data.map(m => CypherRow(collection.mutable.Map(m.mapValues(ValueUtils.of).toSeq: _*))).toIterator)
+    _countingIterator
+  }
+
+  def numberOfPulledRows: Int = _countingIterator.count
+
+  def wasClosed: Boolean = _countingIterator.wasClosed
+
+  def resetClosed(): Unit = _countingIterator.resetClosed()
+
+  def currentIterator: CountingIterator[CypherRow] = _countingIterator
+
+  override val id: Id = Id.INVALID_ID
+}
+
+object FakePipe {
+  class CountingIterator[T](inner: Iterator[T]) extends ClosingIterator[T] {
+    private var _count = 0
+    private var _closed = false
+
+    override protected[this] def closeMore(): Unit = _closed = true
+
+    override protected[this] def innerHasNext: Boolean = inner.hasNext
+
+    override def next(): T = {
+      _count += 1
+      inner.next()
+    }
+
+    def count: Int = _count
+
+    def wasClosed: Boolean = _closed
+
+    def resetClosed(): Unit = _closed = false
+  }
+
+  class CountingLongIterator(inner: ClosingLongIterator) extends ClosingLongIterator {
+    private var _count = 0
+    private var _closed = false
+
+    override def close(): Unit = _closed = true
+
+    override protected[this] def innerHasNext: Boolean = inner.hasNext
+
+    override def next(): Long = {
+      _count += 1
+      inner.next()
+    }
+
+    def count: Int = _count
+
+    def wasClosed: Boolean = _closed
+
+    def resetClosed(): Unit = _closed = false
+
+  }
+
+  class CountingRelationshipIterator(inner: ClosingLongIterator with RelationshipIterator) extends ClosingLongIterator with RelationshipIterator {
+    private var _count = 0
+    private var _closed = false
+
+    override def close(): Unit = _closed = true
+
+    override protected[this] def innerHasNext: Boolean = inner.hasNext
+
+    override def next(): Long = {
+      _count += 1
+      inner.next()
+    }
+
+    def count: Int = _count
+
+    def wasClosed: Boolean = _closed
+
+    def resetClosed(): Unit = _closed = false
+
+    override def relationshipVisit[EXCEPTION <: Exception](relationshipId: Long,
+                                                           visitor: RelationshipVisitor[EXCEPTION]): Boolean = {
+      visitor.visit(relationshipId, typeId(), startNodeId(), endNodeId())
+      true
+    }
+
+    override def startNodeId(): Long = inner.startNodeId()
+
+    override def endNodeId(): Long = inner.endNodeId()
+
+    override def typeId(): Int = inner.typeId()
+  }
 }

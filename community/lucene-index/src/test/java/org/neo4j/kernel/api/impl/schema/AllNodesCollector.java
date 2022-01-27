@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,7 +42,7 @@ import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
-import org.apache.lucene.search.SearcherFactory;
+import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.SearcherManager;
 import org.apache.lucene.search.SimpleCollector;
 import org.apache.lucene.store.Directory;
@@ -51,13 +51,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.neo4j.kernel.api.impl.index.partition.Neo4jSearcherFactory;
 import org.neo4j.values.storable.Value;
 
 public class AllNodesCollector extends SimpleCollector
 {
     public static List<Long> getAllNodes( Directory directory, Value propertyValue ) throws IOException
     {
-        try ( SearcherManager manager = new SearcherManager( directory, new SearcherFactory() ) )
+        try ( SearcherManager manager = new SearcherManager( directory, new Neo4jSearcherFactory() ) )
         {
             IndexSearcher searcher = manager.acquire();
             Query query = LuceneDocumentStructure.newSeekQuery( propertyValue );
@@ -77,9 +78,9 @@ public class AllNodesCollector extends SimpleCollector
     }
 
     @Override
-    public boolean needsScores()
+    public ScoreMode scoreMode()
     {
-        return false;
+        return ScoreMode.COMPLETE_NO_SCORES;
     }
 
     @Override

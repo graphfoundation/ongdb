@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,63 +38,58 @@
  */
 package org.neo4j.kernel.api.impl.schema;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.configuration.Settings;
-import org.neo4j.kernel.impl.factory.OperationalMode;
-import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
+import org.neo4j.configuration.Config;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.SchemaDescriptors;
+import org.neo4j.io.fs.DefaultFileSystemAbstraction;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
+import org.neo4j.test.utils.TestDirectory;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker.readOnly;
+import static org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker.writable;
 
-public class LuceneSchemaIndexBuilderTest
+@TestDirectoryExtension
+class LuceneSchemaIndexBuilderTest
 {
-    @Rule
-    public final TestDirectory testDir = TestDirectory.testDirectory();
-    @Rule
-    public final DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
+    @Inject
+    private TestDirectory testDir;
+    @Inject
+    private DefaultFileSystemAbstraction fileSystemRule;
 
-    private final SchemaIndexDescriptor descriptor = SchemaIndexDescriptorFactory.forLabel( 0, 0 );
+    private final IndexDescriptor descriptor = IndexPrototype.forSchema( SchemaDescriptors.forLabel( 0, 0 ) ).withName( "a" ).materialise( 0 );
 
     @Test
-    public void readOnlyIndexCreation() throws Exception
+    void readOnlyIndexCreation() throws Exception
     {
-        try ( SchemaIndex schemaIndex = LuceneSchemaIndexBuilder.create( descriptor, getReadOnlyConfig() )
-                .withFileSystem( fileSystemRule.get() )
-                .withOperationalMode( OperationalMode.single )
+        try ( SchemaIndex schemaIndex = LuceneSchemaIndexBuilder.create( descriptor, readOnly(), getDefaultConfig() )
+                .withFileSystem( fileSystemRule )
                 .withIndexRootFolder( testDir.directory( "a" ) )
                 .build() )
         {
-            assertTrue( "Builder should construct read only index.", schemaIndex.isReadOnly() );
+            assertTrue( schemaIndex.isReadOnly(), "Builder should construct read only index." );
         }
     }
 
     @Test
-    public void writableIndexCreation() throws Exception
+    void writableIndexCreation() throws Exception
     {
-        try ( SchemaIndex schemaIndex = LuceneSchemaIndexBuilder.create( descriptor, getDefaultConfig() )
-                .withFileSystem( fileSystemRule.get() )
-                .withOperationalMode( OperationalMode.single )
+        try ( SchemaIndex schemaIndex = LuceneSchemaIndexBuilder.create( descriptor, writable(), getDefaultConfig() )
+                .withFileSystem( fileSystemRule )
                 .withIndexRootFolder( testDir.directory( "b" ) )
                 .build() )
         {
-            assertFalse( "Builder should construct writable index.", schemaIndex.isReadOnly() );
+            assertFalse( schemaIndex.isReadOnly(), "Builder should construct writable index." );
         }
     }
 
-    private Config getDefaultConfig()
+    private static Config getDefaultConfig()
     {
         return Config.defaults();
-    }
-
-    private Config getReadOnlyConfig()
-    {
-        return Config.defaults( GraphDatabaseSettings.read_only, Settings.TRUE );
     }
 }

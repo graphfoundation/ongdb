@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -51,7 +51,7 @@ import static java.util.Arrays.asList;
 public class MapRepresentation extends MappingRepresentation
 {
 
-    private final Map value;
+    private final Map<String,Object> value;
 
     public MapRepresentation( Map value )
     {
@@ -62,10 +62,10 @@ public class MapRepresentation extends MappingRepresentation
     @Override
     protected void serialize( MappingSerializer serializer )
     {
-        for ( Object key : value.keySet() )
+        for ( var entry : value.entrySet() )
         {
-            Object val = value.get( key );
-            String keyString = key == null ? "null" : key.toString();
+            Object val = entry.getValue();
+            String keyString = entry.getKey() == null ? "null" : entry.getKey();
             if ( val instanceof Number )
             {
                 serializer.putNumber( keyString, (Number) val );
@@ -85,13 +85,11 @@ public class MapRepresentation extends MappingRepresentation
             }
             else if ( val instanceof Iterable )
             {
-                serializer.putList( keyString, ObjectToRepresentationConverter.getListRepresentation( (Iterable)
-                        val ) );
+                serializer.putList( keyString, ObjectToRepresentationConverter.getListRepresentation( (Iterable) val ) );
             }
             else if ( val instanceof Map )
             {
-                serializer.putMapping( keyString, ObjectToRepresentationConverter.getMapRepresentation( (Map)
-                        val ) );
+                serializer.putMapping( keyString, ObjectToRepresentationConverter.getMapRepresentation( (Map) val ) );
             }
             else if ( val == null )
             {
@@ -115,7 +113,7 @@ public class MapRepresentation extends MappingRepresentation
         }
     }
 
-    private Object[] toArray( Object val )
+    private static Object[] toArray( Object val )
     {
         int length = getLength( val );
 

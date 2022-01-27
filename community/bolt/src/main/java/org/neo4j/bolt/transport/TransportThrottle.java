@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,6 +40,8 @@ package org.neo4j.bolt.transport;
 
 import io.netty.channel.Channel;
 
+import org.neo4j.memory.MemoryTracker;
+
 public interface TransportThrottle
 {
 
@@ -47,8 +49,9 @@ public interface TransportThrottle
      * Installs the throttle to the given channel.
      *
      * @param channel the netty channel to which this throttle should be installed
+     * @param memoryTracker the pool from which memory is to be allocated
      */
-    void install( Channel channel );
+    void install( Channel channel, MemoryTracker memoryTracker );
 
     /**
      * Apply throttling logic for the given channel..

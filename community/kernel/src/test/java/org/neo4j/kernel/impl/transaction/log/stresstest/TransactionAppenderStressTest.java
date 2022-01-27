@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,60 +38,62 @@
  */
 package org.neo4j.kernel.impl.transaction.log.stresstest;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.concurrent.Callable;
 import java.util.function.BooleanSupplier;
 
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.impl.transaction.log.PhysicalLogVersionedStoreChannel;
 import org.neo4j.kernel.impl.transaction.log.ReadAheadLogChannel;
 import org.neo4j.kernel.impl.transaction.log.ReadableLogChannel;
 import org.neo4j.kernel.impl.transaction.log.ReaderLogVersionBridge;
-import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntry;
-import org.neo4j.kernel.impl.transaction.log.entry.LogEntryByteCodes;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryCommit;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
-import org.neo4j.kernel.impl.transaction.log.entry.VersionAwareLogEntryReader;
+import org.neo4j.kernel.impl.transaction.log.files.LogFile;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.impl.transaction.log.stresstest.workload.Runner;
-import org.neo4j.test.rule.TestDirectory;
+import org.neo4j.storageengine.api.TransactionIdStore;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.Neo4jLayoutExtension;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.neo4j.function.Suppliers.untilTimeExpired;
+import static org.neo4j.kernel.impl.transaction.log.TestLogEntryReader.logEntryReader;
+import static org.neo4j.memory.EmptyMemoryTracker.INSTANCE;
 
+@Neo4jLayoutExtension
 public class TransactionAppenderStressTest
 {
-    @Rule
-    public final TestDirectory directory = TestDirectory.testDirectory( );
+    @Inject
+    private DatabaseLayout databaseLayout;
 
     @Test
-    public void concurrentTransactionAppendingTest() throws Exception
+    void concurrentTransactionAppendingTest() throws Exception
     {
         int threads = 10;
-        File workingDirectory = directory.directory( "work" );
         Callable<Long> runner = new Builder()
                 .with( untilTimeExpired( 10, SECONDS ) )
-                .withWorkingDirectory( workingDirectory )
+                .withWorkingDirectory( databaseLayout )
                 .withNumThreads( threads )
                 .build();
 
         long appendedTxs = runner.call();
 
-        assertEquals( new TransactionIdChecker( workingDirectory ).parseAllTxLogs(), appendedTxs );
+        assertEquals( new TransactionIdChecker( databaseLayout.getTransactionLogsDirectory() ).parseAllTxLogs(), appendedTxs );
     }
 
     public static class Builder
     {
         private BooleanSupplier condition;
-        private File workingDirectory;
+        private DatabaseLayout databaseLayout;
         private int threads;
 
         public Builder with( BooleanSupplier condition )
@@ -100,9 +102,9 @@ public class TransactionAppenderStressTest
             return this;
         }
 
-        public Builder withWorkingDirectory( File workingDirectory )
+        public Builder withWorkingDirectory( DatabaseLayout databaseLayout )
         {
-            this.workingDirectory = workingDirectory;
+            this.databaseLayout = databaseLayout;
             return this;
         }
 
@@ -114,15 +116,15 @@ public class TransactionAppenderStressTest
 
         public Callable<Long> build()
         {
-            return new Runner( workingDirectory, condition, threads );
+            return new Runner( databaseLayout, condition, threads );
         }
     }
 
     public static class TransactionIdChecker
     {
-        private final File workingDirectory;
+        private final Path workingDirectory;
 
-        public TransactionIdChecker( File workingDirectory )
+        public TransactionIdChecker( Path workingDirectory )
         {
             this.workingDirectory = workingDirectory;
         }
@@ -139,13 +141,13 @@ public class TransactionAppenderStressTest
             try ( FileSystemAbstraction fs = new DefaultFileSystemAbstraction();
                   ReadableLogChannel channel = openLogFile( fs, 0 ) )
             {
-                LogEntryReader<ReadableLogChannel> reader = new VersionAwareLogEntryReader<>();
+                LogEntryReader reader = logEntryReader();
                 LogEntry logEntry = reader.readLogEntry( channel );
                 for ( ; logEntry != null; logEntry = reader.readLogEntry( channel ) )
                 {
-                    if ( logEntry.getType() == LogEntryByteCodes.TX_COMMIT )
+                    if ( logEntry instanceof LogEntryCommit )
                     {
-                        txId = logEntry.<LogEntryCommit>as().getTxId();
+                        txId = ((LogEntryCommit) logEntry).getTxId();
                     }
                 }
             }
@@ -154,9 +156,12 @@ public class TransactionAppenderStressTest
 
         private ReadableLogChannel openLogFile( FileSystemAbstraction fs, int version ) throws IOException
         {
-            LogFiles logFiles = LogFilesBuilder.logFilesBasedOnlyBuilder( workingDirectory, fs ).build();
-            PhysicalLogVersionedStoreChannel channel = logFiles.openForVersion( version );
-            return new ReadAheadLogChannel( channel, new ReaderLogVersionBridge( logFiles ) );
+            LogFiles logFiles = LogFilesBuilder.logFilesBasedOnlyBuilder( workingDirectory, fs )
+                    .withLogEntryReader( logEntryReader() )
+                    .build();
+            LogFile logFile = logFiles.getLogFile();
+            PhysicalLogVersionedStoreChannel channel = logFile.openForVersion( version );
+            return new ReadAheadLogChannel( channel, new ReaderLogVersionBridge( logFile ), INSTANCE );
         }
     }
 }

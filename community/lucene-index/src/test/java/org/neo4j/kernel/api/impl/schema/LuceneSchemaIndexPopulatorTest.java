@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -43,78 +43,88 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.TotalHits;
+import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.RAMDirectory;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 
+import org.neo4j.configuration.Config;
 import org.neo4j.internal.kernel.api.InternalIndexState;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.index.storage.DirectoryFactory;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.IndexQueryHelper;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.index.PropertyAccessor;
-import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.api.index.IndexStoreView;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.kernel.impl.factory.OperationalMode;
-import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
+import org.neo4j.kernel.impl.api.index.IndexSamplingConfig;
+import org.neo4j.monitoring.Monitors;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
+import org.neo4j.test.utils.TestDirectory;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
 import static java.lang.Long.parseLong;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
-import static org.neo4j.helpers.collection.Iterators.asSet;
-import static org.neo4j.kernel.api.impl.schema.LuceneIndexProvider.defaultDirectoryStructure;
+import static org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker.writable;
+import static org.neo4j.internal.helpers.collection.Iterators.asSet;
+import static org.neo4j.internal.schema.SchemaDescriptors.forLabel;
+import static org.neo4j.io.memory.ByteBufferFactory.heapBufferFactory;
+import static org.neo4j.io.pagecache.context.CursorContext.NULL;
+import static org.neo4j.kernel.api.impl.schema.LuceneTestTokenNameLookup.SIMPLE_TOKEN_LOOKUP;
+import static org.neo4j.kernel.api.index.IndexDirectoryStructure.directoriesByProvider;
+import static org.neo4j.memory.EmptyMemoryTracker.INSTANCE;
 
-public class LuceneSchemaIndexPopulatorTest
+@TestDirectoryExtension
+class LuceneSchemaIndexPopulatorTest
 {
-    @Rule
-    public final DefaultFileSystemRule fs = new DefaultFileSystemRule();
-    @Rule
-    public TestDirectory testDir = TestDirectory.testDirectory();
+    @Inject
+    private DefaultFileSystemAbstraction fs;
+    @Inject
+    private TestDirectory testDir;
 
-    private IndexStoreView indexStoreView;
     private LuceneIndexProvider provider;
     private Directory directory;
     private IndexPopulator indexPopulator;
     private IndexReader reader;
     private IndexSearcher searcher;
-    private final long indexId = 0;
     private static final int propertyKeyId = 666;
-    private static final SchemaIndexDescriptor index = SchemaIndexDescriptorFactory.forLabel( 42, propertyKeyId );
+    private IndexDescriptor index;
+    private NodePropertyAccessor propertyAccessor;
 
-    @Before
-    public void before() throws Exception
+    @BeforeEach
+    void before() throws IOException
     {
-        directory = new RAMDirectory();
+        directory = new ByteBuffersDirectory();
         DirectoryFactory directoryFactory = new DirectoryFactory.Single(
                 new DirectoryFactory.UncloseableDirectory( directory ) );
-        provider = new LuceneIndexProvider( fs.get(), directoryFactory, defaultDirectoryStructure( testDir.directory( "folder" ) ),
-                IndexProvider.Monitor.EMPTY, Config.defaults(), OperationalMode.single );
-        indexStoreView = mock( IndexStoreView.class );
+        provider = new LuceneIndexProvider( fs, directoryFactory, directoriesByProvider( testDir.directory( "folder" ) ),
+                new Monitors(), Config.defaults(), writable() );
+        propertyAccessor = mock( NodePropertyAccessor.class );
         IndexSamplingConfig samplingConfig = new IndexSamplingConfig( Config.defaults() );
-        indexPopulator = provider.getPopulator( indexId, index, samplingConfig );
+        index = IndexPrototype.forSchema( forLabel( 42, propertyKeyId ), provider.getProviderDescriptor() ).withName( "index" ).materialise( 0 );
+        indexPopulator = provider.getPopulator( index, samplingConfig, heapBufferFactory( 1024 ), INSTANCE, SIMPLE_TOKEN_LOOKUP );
         indexPopulator.create();
     }
 
-    @After
-    public void after() throws Exception
+    @AfterEach
+    void after() throws Exception
     {
         if ( reader != null )
         {
@@ -124,32 +134,47 @@ public class LuceneSchemaIndexPopulatorTest
     }
 
     @Test
-    public void addingValuesShouldPersistThem() throws Exception
+    void addingValuesShouldPersistThem() throws Exception
     {
         // WHEN
         addUpdate( indexPopulator, 1, "First" );
         addUpdate( indexPopulator, 2, "Second" );
-        addUpdate( indexPopulator, 3, (byte) 1 );
-        addUpdate( indexPopulator, 4, (short) 2 );
-        addUpdate( indexPopulator, 5, 3 );
-        addUpdate( indexPopulator, 6, 4L );
-        addUpdate( indexPopulator, 7, 5F );
-        addUpdate( indexPopulator, 8, 6D );
+        addUpdate( indexPopulator, 3, "(byte) 1" );
+        addUpdate( indexPopulator, 4, "(short) 2" );
+        addUpdate( indexPopulator, 5, "3" );
+        addUpdate( indexPopulator, 6, "4L" );
+        addUpdate( indexPopulator, 7, "5F" );
+        addUpdate( indexPopulator, 8, "6D" );
 
         // THEN
         assertIndexedValues(
                 hit( "First", 1 ),
                 hit( "Second", 2 ),
-                hit( (byte)1, 3 ),
-                hit( (short)2, 4 ),
-                hit( 3, 5 ),
-                hit( 4L, 6 ),
-                hit( 5F, 7 ),
-                hit( 6D, 8 ) );
+                hit( "(byte) 1", 3 ),
+                hit( "(short) 2", 4 ),
+                hit( "3", 5 ),
+                hit( "4L", 6 ),
+                hit( "5F", 7 ),
+                hit( "6D", 8 ) );
     }
 
     @Test
-    public void multipleEqualValues() throws Exception
+    void shouldIgnoreAddingUnsupportedValueTypes() throws Exception
+    {
+        // given  populating an empty index
+        final var ids = LongStream.range( 0L, 10L ).toArray();
+
+        // when   updates of unsupported value types (longs in this case) are processed
+        final var updates = Arrays.stream( ids ).mapToObj( id -> add( id, id ) ).collect( Collectors.toUnmodifiableList() );
+        indexPopulator.add( updates, NULL );
+
+        // then   should not be indexed
+        final var hits = Arrays.stream( ids ).mapToObj( Hit::new ).toArray( Hit[]::new );
+        assertIndexedValues( hits );
+    }
+
+    @Test
+    void multipleEqualValues() throws Exception
     {
         // WHEN
         addUpdate( indexPopulator, 1, "value" );
@@ -162,13 +187,13 @@ public class LuceneSchemaIndexPopulatorTest
     }
 
     @Test
-    public void multipleEqualValuesWithUpdateThatRemovesOne() throws Exception
+    void multipleEqualValuesWithUpdateThatRemovesOne() throws Exception
     {
         // WHEN
         addUpdate( indexPopulator, 1, "value" );
         addUpdate( indexPopulator, 2, "value" );
         addUpdate( indexPopulator, 3, "value" );
-        updatePopulator( indexPopulator, singletonList( remove( 2, "value" ) ), indexStoreView );
+        updatePopulator( indexPopulator, singletonList( remove( 2, "value" ) ), propertyAccessor );
 
         // THEN
         assertIndexedValues(
@@ -176,12 +201,12 @@ public class LuceneSchemaIndexPopulatorTest
     }
 
     @Test
-    public void changeUpdatesInterleavedWithAdds() throws Exception
+    void changeUpdatesInterleavedWithAdds() throws Exception
     {
         // WHEN
         addUpdate( indexPopulator, 1, "1" );
         addUpdate( indexPopulator, 2, "2" );
-        updatePopulator( indexPopulator, singletonList( change( 1, "1", "1a" ) ), indexStoreView );
+        updatePopulator( indexPopulator, singletonList( change( 1, "1", "1a" ) ), propertyAccessor );
         addUpdate( indexPopulator, 3, "3" );
 
         // THEN
@@ -193,12 +218,12 @@ public class LuceneSchemaIndexPopulatorTest
     }
 
     @Test
-    public void addUpdatesInterleavedWithAdds() throws Exception
+    void addUpdatesInterleavedWithAdds() throws Exception
     {
         // WHEN
         addUpdate( indexPopulator, 1, "1" );
         addUpdate( indexPopulator, 2, "2" );
-        updatePopulator( indexPopulator, asList( remove( 1, "1" ), add( 1, "1a" ) ), indexStoreView );
+        updatePopulator( indexPopulator, asList( remove( 1, "1" ), add( 1, "1a" ) ), propertyAccessor );
         addUpdate( indexPopulator, 3, "3" );
 
         // THEN
@@ -210,12 +235,12 @@ public class LuceneSchemaIndexPopulatorTest
     }
 
     @Test
-    public void removeUpdatesInterleavedWithAdds() throws Exception
+    void removeUpdatesInterleavedWithAdds() throws Exception
     {
         // WHEN
         addUpdate( indexPopulator, 1, "1" );
         addUpdate( indexPopulator, 2, "2" );
-        updatePopulator( indexPopulator, singletonList( remove( 2, "2" ) ), indexStoreView );
+        updatePopulator( indexPopulator, singletonList( remove( 2, "2" ) ), propertyAccessor );
         addUpdate( indexPopulator, 3, "3" );
 
         // THEN
@@ -226,15 +251,15 @@ public class LuceneSchemaIndexPopulatorTest
     }
 
     @Test
-    public void multipleInterleaves() throws Exception
+    void multipleInterleaves() throws Exception
     {
         // WHEN
         addUpdate( indexPopulator, 1, "1" );
         addUpdate( indexPopulator, 2, "2" );
-        updatePopulator( indexPopulator, asList( change( 1, "1", "1a" ), change( 2, "2", "2a" ) ), indexStoreView );
+        updatePopulator( indexPopulator, asList( change( 1, "1", "1a" ), change( 2, "2", "2a" ) ), propertyAccessor );
         addUpdate( indexPopulator, 3, "3" );
         addUpdate( indexPopulator, 4, "4" );
-        updatePopulator( indexPopulator, asList( change( 1, "1a", "1b" ), change( 4, "4", "4a" ) ), indexStoreView );
+        updatePopulator( indexPopulator, asList( change( 1, "1a", "1b" ), change( 4, "4", "4a" ) ), propertyAccessor );
 
         // THEN
         assertIndexedValues(
@@ -248,17 +273,17 @@ public class LuceneSchemaIndexPopulatorTest
                 hit( "4a", 4 ) );
     }
 
-    private Hit hit( Object value, Long... nodeIds )
+    private static Hit hit( Object value, Long... nodeIds )
     {
         return new Hit( value, nodeIds );
     }
 
-    private Hit hit( Object value, long nodeId )
+    private static Hit hit( Object value, long nodeId )
     {
         return new Hit( value, nodeId );
     }
 
-    private Hit no( Object value )
+    private static Hit no( Object value )
     {
         return new Hit( value );
     }
@@ -277,17 +302,17 @@ public class LuceneSchemaIndexPopulatorTest
 
     private IndexEntryUpdate<?> add( long nodeId, Object value )
     {
-        return IndexQueryHelper.add( nodeId, index.schema(), value );
+        return IndexQueryHelper.add( nodeId, index, value );
     }
 
     private IndexEntryUpdate<?> change( long nodeId, Object valueBefore, Object valueAfter )
     {
-        return IndexQueryHelper.change( nodeId, index.schema(), valueBefore, valueAfter );
+        return IndexQueryHelper.change( nodeId, index, valueBefore, valueAfter );
     }
 
     private IndexEntryUpdate<?> remove( long nodeId, Object removedValue )
     {
-        return IndexQueryHelper.remove( nodeId, index.schema(), removedValue );
+        return IndexQueryHelper.remove( nodeId, index, removedValue );
     }
 
     private void assertIndexedValues( Hit... expectedHits ) throws IOException
@@ -297,9 +322,10 @@ public class LuceneSchemaIndexPopulatorTest
         for ( Hit hit : expectedHits )
         {
             TopDocs hits = searcher.search( LuceneDocumentStructure.newSeekQuery( hit.value ), 10 );
-            assertEquals( "Unexpected number of index results from " + hit.value, hit.nodeIds.length, hits.totalHits );
+            assertEquals( TotalHits.Relation.EQUAL_TO, hits.totalHits.relation );
+            assertEquals( hit.nodeIds.length, hits.totalHits.value, "Unexpected number of index results from " + hit.value );
             Set<Long> foundNodeIds = new HashSet<>();
-            for ( int i = 0; i < hits.totalHits; i++ )
+            for ( int i = 0; i < hits.totalHits.value; i++ )
             {
                 Document document = searcher.doc( hits.scoreDocs[i].doc );
                 foundNodeIds.add( parseLong( document.get( "id" ) ) );
@@ -310,25 +336,23 @@ public class LuceneSchemaIndexPopulatorTest
 
     private void switchToVerification() throws IOException
     {
-        indexPopulator.close( true );
-        assertEquals( InternalIndexState.ONLINE, provider.getInitialState( indexId, index ) );
+        indexPopulator.close( true, NULL );
+        assertEquals( InternalIndexState.ONLINE, provider.getInitialState( index, NULL ) );
         reader = DirectoryReader.open( directory );
         searcher = new IndexSearcher( reader );
     }
 
-    private static void addUpdate( IndexPopulator populator, long nodeId, Object value )
-            throws IOException, IndexEntryConflictException
+    private void addUpdate( IndexPopulator populator, long nodeId, Object value ) throws IndexEntryConflictException
     {
-        populator.add( singletonList( IndexQueryHelper.add( nodeId, index.schema(), value ) ) );
+        populator.add( singletonList( IndexQueryHelper.add( nodeId, index, value ) ), NULL );
     }
 
     private static void updatePopulator(
             IndexPopulator populator,
             Iterable<IndexEntryUpdate<?>> updates,
-            PropertyAccessor accessor )
-            throws IOException, IndexEntryConflictException
+            NodePropertyAccessor accessor ) throws IndexEntryConflictException
     {
-        try ( IndexUpdater updater = populator.newPopulatingUpdater( accessor ) )
+        try ( IndexUpdater updater = populator.newPopulatingUpdater( accessor, NULL ) )
         {
             for ( IndexEntryUpdate<?> update :  updates )
             {

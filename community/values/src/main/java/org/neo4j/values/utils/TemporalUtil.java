@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -51,14 +51,11 @@ public final class TemporalUtil
     public static final long SECONDS_PER_DAY = DAYS.getDuration().getSeconds();
     public static final long AVG_SECONDS_PER_MONTH = 2_629_746;
 
-    /** 30.4375 days = 30 days, 10 hours, 30 minutes */
-    public static final double AVG_DAYS_PER_MONTH = 365.2425 / 12;
-
     private TemporalUtil()
     {
     }
 
-    public static OffsetTime truncateOffsetToMinutes( OffsetTime value )
+    static OffsetTime truncateOffsetToMinutes( OffsetTime value )
     {
         int offsetMinutes = value.getOffset().getTotalSeconds() / 60;
         ZoneOffset truncatedOffset = ZoneOffset.ofTotalSeconds( offsetMinutes * 60 );

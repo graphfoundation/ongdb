@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,79 +38,50 @@
  */
 package org.neo4j.kernel.impl.locking;
 
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicLong;
 
+import org.neo4j.configuration.Config;
 import org.neo4j.kernel.DeadlockDetectedException;
+import org.neo4j.kernel.impl.api.LeaseService.NoLeaseClient;
+import org.neo4j.lock.LockTracer;
+import org.neo4j.memory.EmptyMemoryTracker;
 
 import static java.lang.System.currentTimeMillis;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.neo4j.kernel.impl.locking.ResourceTypes.NODE;
+import static java.util.concurrent.TimeUnit.MINUTES;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.neo4j.lock.ResourceTypes.NODE;
 
 /**
  * This is the test suite that tested the original (from 2007) lock manager.
  * It has been ported to test {@link org.neo4j.kernel.impl.locking.Locks}
  * to ensure implementors of that API don't fall in any of the traps this test suite sets for them.
  */
-@Ignore( "Not a test. This is a compatibility suite, run from LockingCompatibilityTestSuite." )
-public class RWLockCompatibility extends LockingCompatibilityTestSuite.Compatibility
+abstract class RWLockCompatibility extends LockCompatibilityTestSupport
 {
-    public RWLockCompatibility( LockingCompatibilityTestSuite suite )
+    RWLockCompatibility( LockingCompatibilityTestSuite suite )
     {
         super( suite );
     }
 
     @Test
-    public void testSingleThread()
+    void testSingleThread()
     {
-        try
-        {
-            clientA.releaseExclusive( NODE, 1L );
-            fail( "Invalid release should throw exception" );
-        }
-        catch ( Exception e )
-        {
-            // good
-        }
-        try
-        {
-            clientA.releaseShared( NODE, 1L );
-            fail( "Invalid release should throw exception" );
-        }
-        catch ( Exception e )
-        {
-            // good
-        }
+        assertThrows( Exception.class, () -> clientA.releaseExclusive( NODE, 1L ), "Invalid release should throw exception" );
+        assertThrows( Exception.class, () -> clientA.releaseShared( NODE, 1L ), "Invalid release should throw exception" );
 
         clientA.acquireShared( LockTracer.NONE, NODE, 1L );
-        try
-        {
-            clientA.releaseExclusive( NODE, 1L );
-            fail( "Invalid release should throw exception" );
-        }
-        catch ( Exception e )
-        {
-            // good
-        }
-
+        assertThrows( Exception.class, () -> clientA.releaseExclusive( NODE, 1L ), "Invalid release should throw exception" );
         clientA.releaseShared( NODE, 1L );
+
         clientA.acquireExclusive( LockTracer.NONE, NODE, 1L );
-        try
-        {
-            clientA.releaseShared( NODE, 1L );
-            fail( "Invalid release should throw exception" );
-        }
-        catch ( Exception e )
-        {
-            // good
-        }
+        assertThrows( Exception.class, () -> clientA.releaseShared( NODE, 1L ), "Invalid release should throw exception" );
         clientA.releaseExclusive( NODE, 1L );
 
         clientA.acquireShared( LockTracer.NONE, NODE, 1L );
@@ -148,7 +119,7 @@ public class RWLockCompatibility extends LockingCompatibilityTestSuite.Compatibi
     }
 
     @Test
-    public void testMultipleThreads() throws Exception
+    void testMultipleThreads() throws Exception
     {
         LockWorker t1 = new LockWorker( "T1", locks );
         LockWorker t2 = new LockWorker( "T2", locks );
@@ -163,7 +134,7 @@ public class RWLockCompatibility extends LockingCompatibilityTestSuite.Compatibi
             Future<Void> t4Wait = t4.getWriteLock( r1, false );
             t3.releaseReadLock( r1 );
             t2.releaseReadLock( r1 );
-            assertTrue( !t4Wait.isDone() );
+            assertFalse( t4Wait.isDone() );
             t1.releaseReadLock( r1 );
             // now we can wait for write lock since it can be acquired
             // get write lock
@@ -176,7 +147,7 @@ public class RWLockCompatibility extends LockingCompatibilityTestSuite.Compatibi
             t4.releaseReadLock( r1 );
             t4.getWriteLock( r1, true );
             t4.releaseWriteLock( r1 );
-            assertTrue( !t1Wait.isDone() );
+            assertFalse( t1Wait.isDone() );
             t4.releaseWriteLock( r1 );
             // get read lock
             t1.awaitFuture( t1Wait );
@@ -216,8 +187,8 @@ public class RWLockCompatibility extends LockingCompatibilityTestSuite.Compatibi
         catch ( Exception e )
         {
             LockWorkFailureDump dumper = new LockWorkFailureDump( testDir.file( getClass().getSimpleName() ) );
-            File file = dumper.dumpState( locks, t1, t2, t3, t4 );
-            throw new RuntimeException( "Failed, forensics information dumped to " + file.getAbsolutePath(), e );
+            Path file = dumper.dumpState( locks, t1, t2, t3, t4 );
+            throw new RuntimeException( "Failed, forensics information dumped to " + file.toAbsolutePath(), e );
         }
         finally
         {
@@ -228,6 +199,7 @@ public class RWLockCompatibility extends LockingCompatibilityTestSuite.Compatibi
         }
     }
 
+    static final AtomicLong TRANSACTION_ID = new AtomicLong();
     public class StressThread extends Thread
     {
         private final Random rand = new Random( currentTimeMillis() );
@@ -254,6 +226,7 @@ public class RWLockCompatibility extends LockingCompatibilityTestSuite.Compatibi
             this.depthCount = depthCount;
             this.readWriteRatio = readWriteRatio;
             this.startSignal = startSignal;
+            client.initialize( NoLeaseClient.INSTANCE, TRANSACTION_ID.getAndIncrement(), EmptyMemoryTracker.INSTANCE, Config.defaults() );
         }
 
         @Override
@@ -329,22 +302,23 @@ public class RWLockCompatibility extends LockingCompatibilityTestSuite.Compatibi
     }
 
     @Test
-    public void testStressMultipleThreads() throws Exception
+    void testStressMultipleThreads() throws Exception
     {
         long r1 = 1L;
-        StressThread[] stressThreads = new StressThread[100];
+        int numThreads = 15;
+        StressThread[] stressThreads = new StressThread[numThreads];
         CountDownLatch startSignal = new CountDownLatch( 1 );
-        for ( int i = 0; i < 100; i++ )
+        for ( int i = 0; i < numThreads; i++ )
         {
-            stressThreads[i] = new StressThread( "Thread" + i, 100, 9, 0.50f, r1, startSignal );
+            stressThreads[i] = new StressThread( "Thread" + i, 50, 9, 0.50f, r1, startSignal );
         }
-        for ( int i = 0; i < 100; i++ )
+        for ( int i = 0; i < numThreads; i++ )
         {
             stressThreads[i].start();
         }
         startSignal.countDown();
 
-        long end = currentTimeMillis() + SECONDS.toMillis( 2000 );
+        long end = currentTimeMillis() + MINUTES.toMillis( 10 );
         boolean anyAlive;
         while ( (anyAlive = anyAliveAndAllWell( stressThreads )) && currentTimeMillis() < end )
         {
@@ -372,15 +346,14 @@ public class RWLockCompatibility extends LockingCompatibilityTestSuite.Compatibi
 
     }
 
-    private void sleepALittle()
+    private static void sleepALittle()
     {
         try
         {
             Thread.sleep( 100 );
         }
-        catch ( InterruptedException e )
+        catch ( InterruptedException ignore )
         {
-            Thread.interrupted();
         }
     }
 

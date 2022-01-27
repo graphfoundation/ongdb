@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,9 +38,9 @@
  */
 package org.neo4j.kernel.impl.transaction.log.checkpoint;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.helpers.Service;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.annotations.service.ServiceProvider;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.kernel.impl.transaction.log.pruning.LogPruning;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.time.SystemNanoClock;
@@ -51,12 +51,13 @@ import static org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointThresho
  * The {@code periodic} check point threshold policy uses the {@link GraphDatabaseSettings#check_point_interval_time}
  * and {@link GraphDatabaseSettings#check_point_interval_tx} to decide when check points processes should be started.
  */
-@Service.Implementation( CheckPointThresholdPolicy.class )
-public class PeriodicThresholdPolicy extends CheckPointThresholdPolicy
+@ServiceProvider
+public class PeriodicThresholdPolicy implements CheckPointThresholdPolicy
 {
-    public PeriodicThresholdPolicy()
+    @Override
+    public String getName()
     {
-        super( "periodic" );
+        return "periodic";
     }
 
     @Override

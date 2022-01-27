@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -43,7 +43,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterables;
 
 import static java.util.Collections.unmodifiableList;
 
@@ -59,7 +59,9 @@ public final class UserFunctionSignature
     private final String[] allowed;
     private final String deprecated;
     private final String description;
+    private final String category;
     private final boolean caseInsensitive;
+    private final boolean isBuiltIn;
 
     public UserFunctionSignature( QualifiedName name,
             List<FieldSignature> inputSignature,
@@ -67,6 +69,7 @@ public final class UserFunctionSignature
             String deprecated,
             String[] allowed,
             String description,
+            String category,
             boolean caseInsensitive )
     {
         this.name = name;
@@ -74,8 +77,31 @@ public final class UserFunctionSignature
         this.type = type;
         this.deprecated = deprecated;
         this.description = description;
+        this.category = category;
         this.allowed = allowed;
         this.caseInsensitive = caseInsensitive;
+        this.isBuiltIn = false;
+    }
+
+    public UserFunctionSignature( QualifiedName name,
+            List<FieldSignature> inputSignature,
+            Neo4jTypes.AnyType type,
+            String deprecated,
+            String[] allowed,
+            String description,
+            String category,
+            boolean caseInsensitive,
+            boolean isBuiltIn )
+    {
+        this.name = name;
+        this.inputSignature = unmodifiableList( inputSignature );
+        this.type = type;
+        this.deprecated = deprecated;
+        this.description = description;
+        this.category = category;
+        this.allowed = allowed;
+        this.caseInsensitive = caseInsensitive;
+        this.isBuiltIn = isBuiltIn;
     }
 
     public QualifiedName name()
@@ -103,6 +129,11 @@ public final class UserFunctionSignature
         return Optional.ofNullable( description );
     }
 
+    public Optional<String> category()
+    {
+        return Optional.ofNullable( category );
+    }
+
     public String[] allowed()
     {
         return allowed;
@@ -111,6 +142,11 @@ public final class UserFunctionSignature
     public boolean caseInsensitive()
     {
         return caseInsensitive;
+    }
+
+    public boolean isBuiltIn()
+    {
+        return isBuiltIn;
     }
 
     @Override
@@ -151,6 +187,7 @@ public final class UserFunctionSignature
         private String[] allowed = new String[0];
         private String deprecated;
         private String description;
+        private String category;
 
         public Builder( String[] namespace, String name )
         {
@@ -160,6 +197,12 @@ public final class UserFunctionSignature
         public Builder description( String description )
         {
             this.description = description;
+            return this;
+        }
+
+        public Builder category( String category )
+        {
+            this.category = category;
             return this;
         }
 
@@ -173,6 +216,12 @@ public final class UserFunctionSignature
         public Builder in( String name, Neo4jTypes.AnyType type )
         {
             inputSignature.add( FieldSignature.inputField( name, type ) );
+            return this;
+        }
+
+        public Builder in( String name, Neo4jTypes.AnyType type, DefaultParameterValue defaultValue )
+        {
+            inputSignature.add( FieldSignature.inputField( name, type, defaultValue ) );
             return this;
         }
 
@@ -195,7 +244,7 @@ public final class UserFunctionSignature
             {
                 throw new IllegalStateException( "output type must be set" );
             }
-            return new UserFunctionSignature( name, inputSignature, outputType, deprecated, allowed, description, false  );
+            return new UserFunctionSignature( name, inputSignature, outputType, deprecated, allowed, description, category, false );
         }
     }
 
@@ -216,10 +265,5 @@ public final class UserFunctionSignature
     public static Builder functionSignature( String[] namespace, String name )
     {
         return new Builder( namespace, name );
-    }
-
-    public static QualifiedName procedureName( String... namespaceAndName )
-    {
-        return functionSignature( namespaceAndName ).build().name();
     }
 }

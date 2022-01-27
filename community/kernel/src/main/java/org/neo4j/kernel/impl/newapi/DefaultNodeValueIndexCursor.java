@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,316 +38,140 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
+import org.eclipse.collections.api.set.primitive.ImmutableLongSet;
+import org.eclipse.collections.api.set.primitive.LongSet;
+
 import java.util.Arrays;
 
-import org.neo4j.collection.primitive.PrimitiveLongCollections;
-import org.neo4j.collection.primitive.PrimitiveLongIterator;
-import org.neo4j.collection.primitive.PrimitiveLongSet;
-import org.neo4j.internal.kernel.api.IndexQuery;
+import org.neo4j.internal.kernel.api.KernelReadTracer;
 import org.neo4j.internal.kernel.api.NodeCursor;
 import org.neo4j.internal.kernel.api.NodeValueIndexCursor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
+import org.neo4j.internal.kernel.api.security.AccessMode;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.kernel.api.txstate.TransactionState;
-import org.neo4j.storageengine.api.schema.IndexProgressor;
-import org.neo4j.storageengine.api.schema.IndexProgressor.NodeValueClient;
-import org.neo4j.storageengine.api.txstate.PrimitiveLongReadableDiffSets;
-import org.neo4j.values.storable.Value;
-import org.neo4j.values.storable.ValueCategory;
-import org.neo4j.values.storable.ValueGroup;
+import org.neo4j.memory.MemoryTracker;
 
-import static java.util.Arrays.stream;
-import static org.neo4j.collection.primitive.PrimitiveLongCollections.asSet;
-import static org.neo4j.collection.primitive.PrimitiveLongCollections.emptyIterator;
-import static org.neo4j.collection.primitive.PrimitiveLongCollections.emptySet;
-import static org.neo4j.kernel.impl.store.record.AbstractBaseRecord.NO_ID;
+import static org.neo4j.collection.PrimitiveLongCollections.mergeToSet;
 
-final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
-        implements NodeValueIndexCursor, NodeValueClient
+class DefaultNodeValueIndexCursor extends DefaultEntityValueIndexCursor<DefaultNodeValueIndexCursor> implements NodeValueIndexCursor
 {
-    private Read read;
-    private long node;
-    private IndexQuery[] query;
-    private Value[] values;
-    private PrimitiveLongIterator added = emptyIterator();
-    private PrimitiveLongSet removed = emptySet();
-    private boolean needsValues;
-    private final DefaultCursors pool;
+    private final DefaultNodeCursor securityNodeCursor;
+    private int[] propertyIds;
 
-    DefaultNodeValueIndexCursor( DefaultCursors pool )
+    DefaultNodeValueIndexCursor( CursorPool<DefaultNodeValueIndexCursor> pool, DefaultNodeCursor securityNodeCursor, MemoryTracker memoryTracker )
     {
-        this.pool = pool;
-        node = NO_ID;
+        super( pool, memoryTracker );
+        this.securityNodeCursor = securityNodeCursor;
     }
 
+    /**
+     * Check that the user is allowed to access all nodes and properties given by the index descriptor.
+     * <p>
+     * If the current user is allowed to traverse all labels used in this index and read the properties
+     * of all nodes in the index, we can skip checking on every node we get back.
+     */
     @Override
-    public void initialize( SchemaIndexDescriptor descriptor, IndexProgressor progressor,
-                            IndexQuery[] query )
+    protected boolean canAccessAllDescribedEntities( IndexDescriptor descriptor, AccessMode accessMode )
     {
-        assert query != null;
-        super.initialize( progressor );
-        this.query = query;
+        propertyIds = descriptor.schema().getPropertyIds();
+        final long[] labelIds = Arrays.stream( descriptor.schema().getEntityTokenIds() ).mapToLong( i -> i ).toArray();
 
-        if ( query.length > 0 )
+        for ( long label : labelIds )
         {
-            IndexQuery firstPredicate = query[0];
-            switch ( firstPredicate.type() )
+            /*
+             * If there can be nodes in the index that that are disallowed to traverse,
+             * post-filtering is needed.
+             */
+            if ( !accessMode.allowsTraverseAllNodesWithLabel( label ) )
             {
-            case exact:
-                seekQuery( descriptor, query );
-                break;
-
-            case exists:
-                scanQuery( descriptor );
-                break;
-
-            case range:
-                assert query.length == 1;
-                rangeQuery( descriptor, (IndexQuery.RangePredicate) firstPredicate );
-                break;
-
-            case stringPrefix:
-                assert query.length == 1;
-                prefixQuery( descriptor, (IndexQuery.StringPrefixPredicate) firstPredicate );
-                break;
-
-            case stringSuffix:
-            case stringContains:
-                assert query.length == 1;
-                suffixOrContainsQuery( descriptor, firstPredicate );
-                break;
-
-            default:
-                throw new UnsupportedOperationException( "Query not supported: " + Arrays.toString( query ) );
+                return false;
             }
         }
-        else
-        {
-            // this is used for distinct values query
-            needsValues = true;
-        }
-    }
 
-    private boolean isRemoved( long reference )
-    {
-        return removed.contains( reference );
+        for ( int propId : propertyIds )
+        {
+            /*
+             * If reading the property is denied for some label,
+             * there can be property values in the index that are disallowed,
+             * so post-filtering is needed.
+             */
+            if ( accessMode.disallowsReadPropertyForSomeLabel( propId ) )
+            {
+                return false;
+            }
+
+            /*
+             * If reading the property is not granted for all labels of the the index,
+             * there can be property values in the index that are disallowed,
+             * so post-filtering is needed.
+             */
+            for ( long label : labelIds )
+            {
+                if ( !accessMode.allowsReadNodeProperty( () -> Labels.from( label ), propId ) )
+                {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     @Override
-    public boolean acceptNode( long reference, Value[] values )
+    void traceOnEntity( KernelReadTracer tracer, long entity )
     {
-        if ( isRemoved( reference ) )
+        tracer.onNode( entity );
+    }
+
+    @Override
+    String implementationName()
+    {
+        return "NodeValueIndexCursor";
+    }
+
+    @Override
+    protected boolean allowed( long reference, AccessMode accessMode )
+    {
+        readEntity( read -> read.singleNode( reference, securityNodeCursor ) );
+        if ( !securityNodeCursor.next() )
         {
+            // This node is not visible to this security context
             return false;
         }
-        else
-        {
-            this.node = reference;
-            this.values = values;
-            return true;
-        }
-    }
 
-    @Override
-    public boolean needsValues()
-    {
-        return needsValues;
-    }
-
-    @Override
-    public boolean next()
-    {
-        if ( added.hasNext() )
+        boolean allowed = true;
+        long[] labels = securityNodeCursor.labelsIgnoringTxStateSetRemove().all();
+        for ( int prop : propertyIds )
         {
-            this.node = added.next();
-            this.values = null;
-            return true;
+            allowed &= accessMode.allowsReadNodeProperty( () -> Labels.from( labels ), prop );
         }
-        else
-        {
-            return innerNext();
-        }
-    }
 
-    public void setRead( Read read )
-    {
-        this.read = read;
+        return allowed;
     }
 
     @Override
     public void node( NodeCursor cursor )
     {
-        read.singleNode( node, cursor );
+        readEntity( read -> read.singleNode( entityReference(), cursor ) );
     }
 
     @Override
     public long nodeReference()
     {
-        return node;
+        return entityReference();
     }
 
     @Override
-    public int numberOfProperties()
+    protected ImmutableLongSet removed( TransactionState txState, LongSet removedFromIndex )
     {
-        return query == null ? 0 : query.length;
-    }
-
-    @Override
-    public int propertyKey( int offset )
-    {
-        return query[offset].propertyKeyId();
-    }
-
-    @Override
-    public boolean hasValue()
-    {
-        return values != null;
-    }
-
-    @Override
-    public Value propertyValue( int offset )
-    {
-        return values[offset];
-    }
-
-    @Override
-    public void close()
-    {
-        if ( !isClosed() )
-        {
-            super.close();
-            this.node = NO_ID;
-            this.query = null;
-            this.values = null;
-            this.read = null;
-            this.added = emptyIterator();
-            this.removed = PrimitiveLongCollections.emptySet();
-
-            pool.accept( this );
-        }
-    }
-
-    @Override
-    public boolean isClosed()
-    {
-        return super.isClosed();
-    }
-
-    @Override
-    public String toString()
-    {
-        if ( isClosed() )
-        {
-            return "NodeValueIndexCursor[closed state]";
-        }
-        else
-        {
-            String keys = query == null ? "unknown" : Arrays.toString( stream( query ).map( IndexQuery::propertyKeyId ).toArray( Integer[]::new ) );
-            return "NodeValueIndexCursor[node=" + node + ", open state with: keys=" + keys +
-                   ", values=" + Arrays.toString( values ) +
-                   ", underlying record=" + super.toString() + " ]";
-        }
-    }
-
-    private void prefixQuery( SchemaIndexDescriptor descriptor, IndexQuery.StringPrefixPredicate predicate )
-    {
-        needsValues = true;
-        if ( read.hasTxStateWithChanges() )
-        {
-            TransactionState txState = read.txState();
-            PrimitiveLongReadableDiffSets changes = txState
-                    .indexUpdatesForRangeSeekByPrefix( descriptor, predicate.prefix() );
-            added = changes.augment( emptyIterator() );
-            removed = removed( txState, changes );
-        }
-    }
-
-    private void rangeQuery( SchemaIndexDescriptor descriptor, IndexQuery.RangePredicate<?> predicate )
-    {
-        ValueGroup valueGroup = predicate.valueGroup();
-        ValueCategory category = valueGroup.category();
-        this.needsValues = category == ValueCategory.TEXT || category == ValueCategory.NUMBER || category == ValueCategory.TEMPORAL;
-        if ( read.hasTxStateWithChanges() )
-        {
-            TransactionState txState = read.txState();
-            PrimitiveLongReadableDiffSets changes = txState.indexUpdatesForRangeSeek( descriptor, predicate );
-            added = changes.augment( emptyIterator() );
-            removed = removed( txState, changes );
-        }
-    }
-
-    private void scanQuery( SchemaIndexDescriptor descriptor )
-    {
-        needsValues = true;
-        if ( read.hasTxStateWithChanges() )
-        {
-            TransactionState txState = read.txState();
-            PrimitiveLongReadableDiffSets changes = txState.indexUpdatesForScan( descriptor );
-            added = changes.augment( emptyIterator() );
-            removed = removed( txState, changes );
-        }
-    }
-
-    private void suffixOrContainsQuery( SchemaIndexDescriptor descriptor, IndexQuery query )
-    {
-        needsValues = true;
-        if ( read.hasTxStateWithChanges() )
-        {
-            TransactionState txState = read.txState();
-            PrimitiveLongReadableDiffSets changes = txState.indexUpdatesForSuffixOrContains( descriptor, query );
-            added = changes.augment( emptyIterator() );
-            removed = removed( txState, changes );
-        }
-    }
-
-    private void seekQuery( SchemaIndexDescriptor descriptor, IndexQuery[] query )
-    {
-        needsValues = false;
-        IndexQuery.ExactPredicate[] exactPreds = assertOnlyExactPredicates( query );
-        if ( read.hasTxStateWithChanges() )
-        {
-            TransactionState txState = read.txState();
-            PrimitiveLongReadableDiffSets changes = read.txState()
-                    .indexUpdatesForSeek( descriptor, IndexQuery.asValueTuple( exactPreds ) );
-            added = changes.augment( emptyIterator() );
-            removed = removed( txState, changes );
-        }
-    }
-
-    private PrimitiveLongSet removed( TransactionState txState, PrimitiveLongReadableDiffSets changes )
-    {
-        PrimitiveLongSet longSet = asSet( txState.addedAndRemovedNodes().getRemoved() );
-        longSet.addAll( changes.getRemoved().iterator() );
-        return longSet;
-    }
-
-    private static IndexQuery.ExactPredicate[] assertOnlyExactPredicates( IndexQuery[] predicates )
-    {
-        IndexQuery.ExactPredicate[] exactPredicates;
-        if ( predicates.getClass() == IndexQuery.ExactPredicate[].class )
-        {
-            exactPredicates = (IndexQuery.ExactPredicate[]) predicates;
-        }
-        else
-        {
-            exactPredicates = new IndexQuery.ExactPredicate[predicates.length];
-            for ( int i = 0; i < predicates.length; i++ )
-            {
-                if ( predicates[i] instanceof IndexQuery.ExactPredicate )
-                {
-                    exactPredicates[i] = (IndexQuery.ExactPredicate) predicates[i];
-                }
-                else
-                {
-                    // TODO: what to throw?
-                    throw new IllegalArgumentException( "Query not supported: " + Arrays.toString( predicates ) );
-                }
-            }
-        }
-        return exactPredicates;
+        return mergeToSet( txState.addedAndRemovedNodes().getRemoved(), removedFromIndex ).toImmutable();
     }
 
     public void release()
     {
-        // nothing to do
+        if ( securityNodeCursor != null )
+        {
+            securityNodeCursor.close();
+            securityNodeCursor.release();
+        }
     }
 }

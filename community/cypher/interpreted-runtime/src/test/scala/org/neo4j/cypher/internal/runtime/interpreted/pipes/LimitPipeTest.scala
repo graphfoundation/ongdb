@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,22 +38,26 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.mockito.Mockito._
+import org.mockito.Mockito.never
+import org.mockito.Mockito.verify
+import org.mockito.Mockito.when
 import org.mockito.internal.stubbing.defaultanswers.ReturnsMocks
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Literal
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
+import org.neo4j.cypher.internal.runtime.interpreted.commands.LiteralHelper.literal
+import org.neo4j.cypher.internal.util.attribution.Id
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
 class LimitPipeTest extends CypherFunSuite {
   test("limit 0 should not pull anything from the incoming iterator") {
     // Given
-    val inputIterator = mock[Iterator[ExecutionContext]](new ReturnsMocks)
+    val inputIterator = mock[Iterator[CypherRow]](new ReturnsMocks)
 
     when(inputIterator.isEmpty).thenReturn(false)
 
     val src: Pipe = new DummyPipe(inputIterator)
-    val limitPipe = LimitPipe(src, Literal(0))()
+    val limitPipe = LimitPipe(src, literal(0))()
 
     // When
     limitPipe.createResults(QueryStateHelper.empty)
@@ -63,10 +67,10 @@ class LimitPipeTest extends CypherFunSuite {
   }
 }
 
-class DummyPipe(inputIterator: Iterator[ExecutionContext]) extends Pipe {
-  override protected def internalCreateResults(state: QueryState): Iterator[ExecutionContext] = ???
+class DummyPipe(inputIterator: Iterator[CypherRow]) extends Pipe {
+  override protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = ???
 
-  override def id(): Id = ???
+  override def id: Id = ???
 
-  override def createResults(state: QueryState): Iterator[ExecutionContext] = inputIterator
+  override def createResults(state: QueryState): ClosingIterator[CypherRow] = ClosingIterator(inputIterator)
 }

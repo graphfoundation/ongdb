@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -47,18 +47,15 @@ import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.impl.traversal.StandardBranchCollisionDetector;
 import org.neo4j.graphdb.traversal.Evaluator;
 import org.neo4j.graphdb.traversal.TraversalBranch;
-import org.neo4j.kernel.impl.util.NoneStrictMath;
+import org.neo4j.internal.helpers.MathUtil;
 
-/**
- * @author Anton Persson
- */
 public class DijkstraBranchCollisionDetector extends StandardBranchCollisionDetector
 {
-    private final CostEvaluator costEvaluator;
+    private final CostEvaluator<Double> costEvaluator;
     private final MutableDouble shortestSoFar;
     private final double epsilon;
 
-    public DijkstraBranchCollisionDetector( Evaluator evaluator, CostEvaluator costEvaluator,
+    public DijkstraBranchCollisionDetector( Evaluator evaluator, CostEvaluator<Double> costEvaluator,
             MutableDouble shortestSoFar, double epsilon, Predicate<Path> pathPredicate )
     {
         super( evaluator, pathPredicate );
@@ -109,7 +106,7 @@ public class DijkstraBranchCollisionDetector extends StandardBranchCollisionDete
         {
             shortestSoFar.setValue( cost );
         }
-        return NoneStrictMath.compare( cost, shortestSoFar.doubleValue(), epsilon ) <= 0;
+        return MathUtil.compare( cost, shortestSoFar.doubleValue(), epsilon ) <= 0;
 
     }
 }

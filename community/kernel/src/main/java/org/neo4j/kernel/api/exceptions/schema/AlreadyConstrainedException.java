@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,9 +38,9 @@
  */
 package org.neo4j.kernel.api.exceptions.schema;
 
-import org.neo4j.internal.kernel.api.TokenNameLookup;
+import org.neo4j.common.TokenNameLookup;
 import org.neo4j.internal.kernel.api.exceptions.schema.SchemaKernelException;
-import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
+import org.neo4j.internal.schema.ConstraintDescriptor;
 import org.neo4j.kernel.api.exceptions.Status;
 
 import static java.lang.String.format;
@@ -51,7 +51,7 @@ public class AlreadyConstrainedException extends SchemaKernelException
 
     private static final String ALREADY_CONSTRAINED_MESSAGE_PREFIX = "Constraint already exists: ";
 
-    private static final String INDEX_CONTEXT_FORMAT = "Label '%s' and %s have a unique constraint defined on them, so an index is " +
+    private static final String INDEX_CONTEXT_FORMAT = "There is a uniqueness constraint on %s, so an index is " +
                                                        "already created that matches this.";
 
     private final ConstraintDescriptor constraint;
@@ -65,11 +65,6 @@ public class AlreadyConstrainedException extends SchemaKernelException
         this.context = context;
     }
 
-    public ConstraintDescriptor constraint()
-    {
-        return constraint;
-    }
-
     private static String constructUserMessage( OperationContext context, TokenNameLookup tokenNameLookup,
             ConstraintDescriptor constraint )
     {
@@ -79,7 +74,7 @@ public class AlreadyConstrainedException extends SchemaKernelException
                 return messageWithLabelAndPropertyName( tokenNameLookup, INDEX_CONTEXT_FORMAT, constraint.schema() );
 
             case CONSTRAINT_CREATION:
-                return ALREADY_CONSTRAINED_MESSAGE_PREFIX + constraint.prettyPrint( tokenNameLookup );
+                return ALREADY_CONSTRAINED_MESSAGE_PREFIX + constraint.userDescription( tokenNameLookup );
 
             default:
                 return format( NO_CONTEXT_FORMAT, constraint );
@@ -89,6 +84,10 @@ public class AlreadyConstrainedException extends SchemaKernelException
     @Override
     public String getUserMessage( TokenNameLookup tokenNameLookup )
     {
-        return constructUserMessage( context, tokenNameLookup, constraint );
+        if ( constraint != null )
+        {
+            return constructUserMessage( context, tokenNameLookup, constraint );
+        }
+        return "Already constrained.";
     }
 }

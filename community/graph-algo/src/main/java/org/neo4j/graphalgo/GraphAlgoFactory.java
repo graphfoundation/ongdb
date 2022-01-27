@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,6 +38,7 @@
  */
 package org.neo4j.graphalgo;
 
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphalgo.impl.path.AStar;
 import org.neo4j.graphalgo.impl.path.AllPaths;
 import org.neo4j.graphalgo.impl.path.AllSimplePaths;
@@ -51,14 +52,15 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.PathExpander;
 import org.neo4j.graphdb.Relationship;
-import org.neo4j.graphdb.traversal.InitialBranchState;
-import org.neo4j.kernel.impl.util.NoneStrictMath;
+
+import static org.neo4j.internal.helpers.MathUtil.DEFAULT_EPSILON;
 
 /**
  * Static factory methods for the recommended implementations of common
  * graph algorithms for Neo4j. The algorithms exposed here are implementations
  * which are tested extensively and also scale on bigger graphs.
  */
+@PublicApi
 public abstract class GraphAlgoFactory
 {
     /**
@@ -66,15 +68,16 @@ public abstract class GraphAlgoFactory
      * nodes. These returned paths can contain loops (i.e. a node can occur
      * more than once in any returned path).
      *
+     * @param context algorithm evaluation context
      * @param expander the {@link PathExpander} to use for expanding
      * {@link Relationship}s for each {@link Path}.
      * @param maxDepth the max {@link Path#length()} returned paths are
      * allowed to have.
      * @return an algorithm which finds all paths between two nodes.
      */
-    public static PathFinder<Path> allPaths( PathExpander expander, int maxDepth )
+    public static PathFinder<Path> allPaths( EvaluationContext context, PathExpander expander, int maxDepth )
     {
-        return new AllPaths( maxDepth, expander );
+        return new AllPaths( context, maxDepth, expander );
     }
 
     /**
@@ -82,52 +85,56 @@ public abstract class GraphAlgoFactory
      * nodes. These returned paths cannot contain loops (i.e. a node cannot
      * occur more than once in any returned path).
      *
+     * @param context algorithm evaluation context
      * @param expander the {@link PathExpander} to use for expanding
      * {@link Relationship}s for each {@link Path}.
      * @param maxDepth the max {@link Path#length()} returned paths are
      * allowed to have.
      * @return an algorithm which finds simple paths between two nodes.
      */
-    public static PathFinder<Path> allSimplePaths( PathExpander expander,
-            int maxDepth )
+    public static PathFinder<Path> allSimplePaths( EvaluationContext context, PathExpander expander, int maxDepth )
     {
-        return new AllSimplePaths( maxDepth, expander );
+        return new AllSimplePaths( context, maxDepth, expander );
     }
 
     /**
      * Returns an algorithm which can find all shortest paths (that is paths
      * with as short {@link Path#length()} as possible) between two nodes. These
      * returned paths cannot contain loops (i.e. a node cannot occur more than
-     * once in any returned path).
+     * once in any returned path). The algorithm is bi-directional breadth-first
+     * where nodes will be expanded according to the given {@code expander}.
      *
+     * @param context algorithm evaluation context
      * @param expander the {@link PathExpander} to use for expanding
      *            {@link Relationship}s for each {@link Path}.
      * @param maxDepth the max {@link Path#length()} returned paths are allowed
-     *            to have.
+     *            to have. Longer paths than that will not be examined.
      * @return an algorithm which finds shortest paths between two nodes.
      */
-    public static PathFinder<Path> shortestPath( PathExpander expander, int maxDepth )
+    public static PathFinder<Path> shortestPath( EvaluationContext context, PathExpander expander, int maxDepth )
     {
-        return new ShortestPath( maxDepth, expander );
+        return new ShortestPath( context, maxDepth, expander );
     }
 
     /**
      * Returns an algorithm which can find all shortest paths (that is paths
      * with as short {@link Path#length()} as possible) between two nodes. These
      * returned paths cannot contain loops (i.e. a node cannot occur more than
-     * once in any returned path).
+     * once in any returned path). The algorithm is bi-directional breadth-first
+     * where nodes will be expanded according to the given {@code expander}.
      *
+     * @param context algorithm evaluation context
      * @param expander the {@link PathExpander} to use for expanding
      *            {@link Relationship}s for each {@link Path}.
      * @param maxDepth the max {@link Path#length()} returned paths are allowed
-     *            to have.
+     *            to have. Longer paths than that will not be examined.
      * @param maxHitCount the maximum number of {@link Path}s to return.
      * If this number of found paths are encountered the traversal will stop.
      * @return an algorithm which finds shortest paths between two nodes.
      */
-    public static PathFinder<Path> shortestPath( PathExpander expander, int maxDepth, int maxHitCount )
+    public static PathFinder<Path> shortestPath( EvaluationContext context, PathExpander expander, int maxDepth, int maxHitCount )
     {
-        return new ShortestPath( maxDepth, expander, maxHitCount );
+        return new ShortestPath( context, maxDepth, expander, maxHitCount );
     }
 
     /**
@@ -135,15 +142,16 @@ public abstract class GraphAlgoFactory
      * between two nodes. These returned paths cannot contain loops (i.e. a node
      * could not occur more than once in any returned path).
      *
+     * @param context algorithm evaluation context
      * @param expander the {@link PathExpander} to use for expanding
      * {@link Relationship}s for each {@link Node}.
      * @param length the {@link Path#length()} returned paths will have, if any
      * paths were found.
      * @return an algorithm which finds paths of a certain length between two nodes.
      */
-    public static PathFinder<Path> pathsWithLength( PathExpander expander, int length )
+    public static PathFinder<Path> pathsWithLength( EvaluationContext context, PathExpander expander, int length )
     {
-        return new ExactDepthPathFinder( expander, length, Integer.MAX_VALUE, false );
+        return new ExactDepthPathFinder( context, expander, length, Integer.MAX_VALUE, false );
     }
 
     /**
@@ -157,6 +165,7 @@ public abstract class GraphAlgoFactory
      * See http://en.wikipedia.org/wiki/A*_search_algorithm for more
      * information.
      *
+     * @param context algorithm evaluation context
      * @param expander the {@link PathExpander} to use for expanding
      * {@link Relationship}s for each {@link Path}.
      * @param lengthEvaluator evaluator that can return the cost represented
@@ -167,10 +176,10 @@ public abstract class GraphAlgoFactory
      * @return an algorithm which finds the cheapest path between two nodes
      * using the A* algorithm.
      */
-    public static PathFinder<WeightedPath> aStar( PathExpander expander,
+    public static PathFinder<WeightedPath> aStar( EvaluationContext context, PathExpander expander,
             CostEvaluator<Double> lengthEvaluator, EstimateEvaluator<Double> estimateEvaluator )
     {
-        return new AStar( expander, lengthEvaluator, estimateEvaluator );
+        return new AStar( context, expander, lengthEvaluator, estimateEvaluator );
     }
 
     /**
@@ -189,40 +198,34 @@ public abstract class GraphAlgoFactory
      * See http://en.wikipedia.org/wiki/Dijkstra%27s_algorithm for more
      * information.
      *
-     * @param expander the {@link PathExpander} to use for expanding
-     * {@link Relationship}s for each {@link Path}.
-     * @param costEvaluator evaluator that can return the cost represented
-     * by each relationship the algorithm traverses.
-     * @return an algorithm which finds the cheapest path between two nodes
-     * using the Dijkstra algorithm.
+     * @param context algorithm evaluation context
+     * @param expander the {@link PathExpander} to use for expanding {@link Relationship}s for each {@link Path}.
+     * @param costEvaluator evaluator that can return the cost represented by each relationship the algorithm traverses.
+     * @return an algorithm which finds the cheapest path between two nodes using the Dijkstra algorithm.
      */
-    public static PathFinder<WeightedPath> dijkstra( PathExpander expander,
-            CostEvaluator<Double> costEvaluator )
+    public static PathFinder<WeightedPath> dijkstra( EvaluationContext context, PathExpander<Double> expander, CostEvaluator<Double> costEvaluator )
     {
-        return new DijkstraBidirectional( expander, costEvaluator );
+        return new DijkstraBidirectional( context, expander, costEvaluator, DEFAULT_EPSILON );
     }
 
     /**
-     * See {@link #dijkstra(PathExpander, CostEvaluator)} for documentation.
+     * See {@link #dijkstra(EvaluationContext, PathExpander, CostEvaluator)} for documentation.
      *
      * Uses a cost evaluator which uses the supplied property key to
      * represent the cost (values of type <b>double</b>).
      *
-     * @param expander the {@link PathExpander} to use for expanding
-     * {@link Relationship}s for each {@link Path}.
-     * @param relationshipPropertyRepresentingCost the property to represent cost
-     * on each relationship the algorithm traverses.
-     * @return an algorithm which finds the cheapest path between two nodes
-     * using the Dijkstra algorithm.
+     * @param context algorithm evaluation context
+     * @param expander the {@link PathExpander} to use for expanding {@link Relationship}s for each {@link Path}.
+     * @param relationshipPropertyRepresentingCost the property to represent cost on each relationship the algorithm traverses.
+     * @return an algorithm which finds the cheapest path between two nodes using the Dijkstra algorithm.
      */
-    public static PathFinder<WeightedPath> dijkstra( PathExpander expander,
-            String relationshipPropertyRepresentingCost )
+    public static PathFinder<WeightedPath> dijkstra( EvaluationContext context, PathExpander<Double> expander, String relationshipPropertyRepresentingCost )
     {
-        return dijkstra( expander, new DoubleEvaluator( relationshipPropertyRepresentingCost ) );
+        return dijkstra( context, expander, new DoubleEvaluator( relationshipPropertyRepresentingCost ) );
     }
 
     /**
-     * See {@link #dijkstra(PathExpander, CostEvaluator)} for documentation
+     * See {@link #dijkstra(EvaluationContext, PathExpander, CostEvaluator)} for documentation
      *
      * Instead of finding all shortest paths with equal cost, find the top {@code numberOfWantedPaths} paths.
      * This is usually slower than finding all shortest paths with equal cost.
@@ -230,85 +233,29 @@ public abstract class GraphAlgoFactory
      * Uses a cost evaluator which uses the supplied property key to
      * represent the cost (values of type <b>double</b>).
      *
-     * @param expander the {@link PathExpander} to use for expanding
-     * {@link Relationship}s for each {@link Path}.
-     * @param relationshipPropertyRepresentingCost the property to represent cost
-     * on each relationship the algorithm traverses.
+     * @param expander the {@link PathExpander} to use for expanding {@link Relationship}s for each {@link Path}.
+     * @param relationshipPropertyRepresentingCost the property to represent cost on each relationship the algorithm traverses.
      * @param numberOfWantedPaths number of paths to find.
-     * @return an algorithm which finds the cheapest path between two nodes
-     * using the Dijkstra algorithm.
+     * @return an algorithm which finds the cheapest path between two nodes using the Dijkstra algorithm.
      */
-    public static PathFinder<WeightedPath> dijkstra( PathExpander expander,
-            String relationshipPropertyRepresentingCost, int numberOfWantedPaths )
+    public static PathFinder<WeightedPath> dijkstra( PathExpander<Double> expander, String relationshipPropertyRepresentingCost, int numberOfWantedPaths )
     {
         return dijkstra( expander, new DoubleEvaluator( relationshipPropertyRepresentingCost ), numberOfWantedPaths );
     }
 
     /**
-     * See {@link #dijkstra(PathExpander, CostEvaluator)} for documentation
+     * See {@link #dijkstra(EvaluationContext, PathExpander, CostEvaluator)} for documentation
      *
      * Instead of finding all shortest paths with equal cost, find the top {@code numberOfWantedPaths} paths.
      * This is usually slower than finding all shortest paths with equal cost.
      *
-     * @param expander the {@link PathExpander} to use for expanding
-     * {@link Relationship}s for each {@link Path}.
-     * @param costEvaluator evaluator that can return the cost represented
-     * by each relationship the algorithm traverses.
+     * @param expander the {@link PathExpander} to use for expanding {@link Relationship}s for each {@link Path}.
+     * @param costEvaluator evaluator that can return the cost represented by each relationship the algorithm traverses.
      * @param numberOfWantedPaths number of paths to find.
-     * @return an algorithm which finds the cheapest path between two nodes
-     * using the Dijkstra algorithm.
+     * @return an algorithm which finds the cheapest path between two nodes using the Dijkstra algorithm.
      */
-    public static PathFinder<WeightedPath> dijkstra( PathExpander expander,
-            CostEvaluator<Double> costEvaluator, int numberOfWantedPaths )
+    public static PathFinder<WeightedPath> dijkstra( PathExpander<Double> expander, CostEvaluator<Double> costEvaluator, int numberOfWantedPaths )
     {
-        return new Dijkstra( expander, costEvaluator, NoneStrictMath.EPSILON,
-                PathInterestFactory.numberOfShortest( NoneStrictMath.EPSILON, numberOfWantedPaths ) );
-    }
-
-    /**
-     * @deprecated Dijkstra should not be used with state on {@link PathExpander}
-     * See {@link #dijkstra(PathExpander, CostEvaluator)}.
-     *
-     * See {@link #dijkstra(PathExpander, CostEvaluator)} for documentation.
-     *
-     * Uses a cost evaluator which uses the supplied property key to
-     * represent the cost (values of type <b>double</b>).
-     *
-     * @param expander the {@link PathExpander} to use for expanding
-     * {@link Relationship}s for each {@link Path}.
-     * @param stateFactory initial state for the traversal branches.
-     * @param costEvaluator the cost evaluator for each relationship the algorithm traverses.
-     * @return an algorithm which finds the cheapest path between two nodes
-     * using the Dijkstra algorithm.
-     */
-    @Deprecated
-    public static PathFinder<WeightedPath> dijkstra( PathExpander expander,
-            InitialBranchState stateFactory, CostEvaluator<Double> costEvaluator )
-    {
-        return new Dijkstra( expander, stateFactory, costEvaluator );
-    }
-
-    /**
-     * @deprecated Dijkstra should not be used with state on {@link PathExpander}
-     * See {@link #dijkstra(PathExpander, CostEvaluator)}.
-     *
-     * See {@link #dijkstra(PathExpander, CostEvaluator)} for documentation.
-     *
-     * Uses a cost evaluator which uses the supplied property key to
-     * represent the cost (values of type <b>double</b>).
-     *
-     * @param expander the {@link PathExpander} to use for expanding
-     * {@link Relationship}s for each {@link Path}.
-     * @param stateFactory initial state for the traversal branches.
-     * @param relationshipPropertyRepresentingCost the property to represent cost
-     * on each relationship the algorithm traverses.
-     * @return an algorithm which finds the cheapest path between two nodes
-     * using the Dijkstra algorithm.
-     */
-    @Deprecated
-    public static PathFinder<WeightedPath> dijkstra( PathExpander expander,
-            InitialBranchState stateFactory, String relationshipPropertyRepresentingCost )
-    {
-        return dijkstra( expander, stateFactory, new DoubleEvaluator( relationshipPropertyRepresentingCost ) );
+        return new Dijkstra( expander, costEvaluator, DEFAULT_EPSILON, PathInterestFactory.numberOfShortest( DEFAULT_EPSILON, numberOfWantedPaths ) );
     }
 }

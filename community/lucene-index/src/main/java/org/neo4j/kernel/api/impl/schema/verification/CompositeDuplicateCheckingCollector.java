@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,32 +42,33 @@ import org.apache.lucene.document.Document;
 
 import java.io.IOException;
 
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.kernel.api.StatementConstants;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
-import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.schema.LuceneDocumentStructure;
-import org.neo4j.kernel.api.index.PropertyAccessor;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.values.storable.Value;
+
+import static org.neo4j.io.pagecache.context.CursorContext.NULL;
 
 public class CompositeDuplicateCheckingCollector extends DuplicateCheckingCollector
 {
     private final int[] propertyKeyIds;
 
-    CompositeDuplicateCheckingCollector( PropertyAccessor accessor, int[] propertyKeyIds )
+    CompositeDuplicateCheckingCollector( NodePropertyAccessor accessor, int[] propertyKeyIds )
     {
         super( accessor, StatementConstants.NO_SUCH_PROPERTY_KEY );
         this.propertyKeyIds = propertyKeyIds;
     }
 
     @Override
-    protected void doCollect( int doc ) throws IOException, KernelException, IndexEntryConflictException
+    protected void doCollect( int doc ) throws IOException, KernelException
     {
         Document document = reader.document( doc );
         long nodeId = LuceneDocumentStructure.getNodeId( document );
         Value[] values = new Value[propertyKeyIds.length];
         for ( int i = 0; i < values.length; i++ )
         {
-            values[i] = accessor.getPropertyValue( nodeId, propertyKeyIds[i] );
+            values[i] = accessor.getNodePropertyValue( nodeId, propertyKeyIds[i], NULL );
         }
         duplicateCheckStrategy.checkForDuplicate( values, nodeId );
     }

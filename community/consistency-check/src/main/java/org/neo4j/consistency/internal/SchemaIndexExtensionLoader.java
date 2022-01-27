@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,51 +38,45 @@
  */
 package org.neo4j.consistency.internal;
 
-import java.io.File;
-
-import org.neo4j.helpers.Service;
+import org.neo4j.collection.Dependencies;
+import org.neo4j.configuration.Config;
+import org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker;
 import org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
+import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.extension.KernelExtensionFactory;
-import org.neo4j.kernel.extension.KernelExtensions;
-import org.neo4j.kernel.extension.UnsatisfiedDependencyStrategies;
-import org.neo4j.kernel.extension.dependency.AllByPrioritySelectionStrategy;
-import org.neo4j.kernel.impl.api.index.IndexProviderMap;
-import org.neo4j.kernel.impl.factory.DatabaseInfo;
-import org.neo4j.kernel.impl.logging.LogService;
-import org.neo4j.kernel.impl.spi.KernelContext;
-import org.neo4j.kernel.impl.spi.SimpleKernelContext;
-import org.neo4j.kernel.impl.transaction.state.DefaultIndexProviderMap;
-import org.neo4j.kernel.impl.util.Dependencies;
-import org.neo4j.kernel.monitoring.Monitors;
+import org.neo4j.kernel.extension.DatabaseExtensions;
+import org.neo4j.kernel.extension.ExtensionFactory;
+import org.neo4j.kernel.extension.ExtensionFailureStrategies;
+import org.neo4j.kernel.extension.context.DatabaseExtensionContext;
+import org.neo4j.kernel.impl.factory.DbmsInfo;
+import org.neo4j.logging.internal.LogService;
+import org.neo4j.monitoring.Monitors;
+import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.service.Services;
+import org.neo4j.token.TokenHolders;
 
 /**
- * Utility for loading {@link IndexProvider} instances from {@link KernelExtensions}.
+ * Utility for loading {@link IndexProvider} instances from {@link DatabaseExtensions}.
  */
 public class SchemaIndexExtensionLoader
 {
-    public static IndexProviderMap loadIndexProviders( KernelExtensions extensions )
-    {
-        AllByPrioritySelectionStrategy<IndexProvider> indexProviderSelection = new AllByPrioritySelectionStrategy<>();
-        IndexProvider defaultIndexProvider =
-                extensions.resolveDependency( IndexProvider.class, indexProviderSelection );
-        return new DefaultIndexProviderMap( defaultIndexProvider,
-                indexProviderSelection.lowerPrioritizedCandidates() );
-    }
 
     @SuppressWarnings( "unchecked" )
-    public static KernelExtensions instantiateKernelExtensions( File storeDir, FileSystemAbstraction fileSystem,
-            Config config, LogService logService, PageCache pageCache,
-            RecoveryCleanupWorkCollector recoveryCollector, DatabaseInfo databaseInfo, Monitors monitors )
+    public static DatabaseExtensions instantiateExtensions( DatabaseLayout databaseLayout, FileSystemAbstraction fileSystem, Config config,
+                                                            LogService logService, PageCache pageCache, JobScheduler jobScheduler,
+                                                            RecoveryCleanupWorkCollector recoveryCollector, DbmsInfo dbmsInfo,
+                                                            Monitors monitors, TokenHolders tokenHolders,
+                                                            PageCacheTracer pageCacheTracer, DatabaseReadOnlyChecker readOnlyChecker )
     {
         Dependencies deps = new Dependencies();
-        deps.satisfyDependencies( fileSystem, config, logService, pageCache, recoveryCollector, monitors );
+        deps.satisfyDependencies( fileSystem, config, logService, pageCache, recoveryCollector, monitors, jobScheduler, tokenHolders, pageCacheTracer,
+                databaseLayout, readOnlyChecker );
         @SuppressWarnings( "rawtypes" )
-        Iterable kernelExtensions = Service.load( KernelExtensionFactory.class );
-        KernelContext kernelContext = new SimpleKernelContext( storeDir, databaseInfo, deps );
-        return new KernelExtensions( kernelContext, kernelExtensions, deps, UnsatisfiedDependencyStrategies.ignore() );
+        Iterable extensions = Services.loadAll( ExtensionFactory.class );
+        DatabaseExtensionContext extensionContext = new DatabaseExtensionContext( databaseLayout, dbmsInfo, deps );
+        return new DatabaseExtensions( extensionContext, extensions, deps, ExtensionFailureStrategies.ignore() );
     }
 }

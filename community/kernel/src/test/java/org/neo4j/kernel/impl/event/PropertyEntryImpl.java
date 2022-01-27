@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,17 +38,16 @@
  */
 package org.neo4j.kernel.impl.event;
 
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.event.PropertyEntry;
-import org.neo4j.helpers.Strings;
+import org.neo4j.internal.helpers.Strings;
 import org.neo4j.values.storable.Values;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.fail;
 
-class PropertyEntryImpl<T extends PropertyContainer> implements PropertyEntry<T>
+class PropertyEntryImpl<T> implements PropertyEntry<T>
 {
     private final T entity;
     private final String key;
@@ -82,7 +81,7 @@ class PropertyEntryImpl<T extends PropertyContainer> implements PropertyEntry<T>
     }
 
     @Override
-    public Object previouslyCommitedValue()
+    public Object previouslyCommittedValue()
     {
         return this.valueBeforeTx;
     }
@@ -108,11 +107,11 @@ class PropertyEntryImpl<T extends PropertyContainer> implements PropertyEntry<T>
         assertNull( value() );
     }
 
-    void basicCompareTo( PropertyEntry<T> entry )
+    private void basicCompareTo( PropertyEntry<T> entry )
     {
         assertEquals( entry.entity(), entity() );
         assertEquals( entry.key(), key() );
-        assertEqualsMaybeNull( entry.previouslyCommitedValue(), previouslyCommitedValue(),
+        assertEqualsMaybeNull( entry.previouslyCommittedValue(), previouslyCommittedValue(),
                 entry.entity(), entry.key() );
     }
 
@@ -123,16 +122,16 @@ class PropertyEntryImpl<T extends PropertyContainer> implements PropertyEntry<T>
                 + valueBeforeTx + "]";
     }
 
-    public static <T extends PropertyContainer> void assertEqualsMaybeNull( Object o1, Object o2, T entity, String key )
+    private static <T> void assertEqualsMaybeNull( Object o1, Object o2, T entity, String key )
     {
         String entityDescription = "For " + entity + " and " + key;
         if ( o1 == null || o2 == null )
         {
-            assertTrue( entityDescription + ". " + Strings.prettyPrint( o1 ) + " != " + Strings.prettyPrint( o2 ), o1 == o2 );
+            assertSame( o1, o2, entityDescription + ". " + Strings.prettyPrint( o1 ) + " != " + Strings.prettyPrint( o2 ) );
         }
         else
         {
-            assertEquals( entityDescription, Values.of( o1 ) , Values.of( o2 ) );
+            assertEquals( Values.of( o1 ) , Values.of( o2 ), entityDescription );
         }
     }
 }

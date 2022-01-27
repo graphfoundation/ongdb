@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,21 +38,19 @@
  */
 package org.neo4j.kernel.impl.transaction.log.stresstest.workload;
 
-
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
-import org.neo4j.kernel.impl.api.TransactionHeaderInformation;
+import org.neo4j.kernel.impl.api.TestCommand;
 import org.neo4j.kernel.impl.api.TransactionToApply;
-import org.neo4j.kernel.impl.store.record.NodeRecord;
-import org.neo4j.kernel.impl.transaction.command.Command;
 import org.neo4j.kernel.impl.transaction.log.PhysicalTransactionRepresentation;
 import org.neo4j.storageengine.api.StorageCommand;
+import org.neo4j.storageengine.api.cursor.StoreCursors;
 
 import static java.lang.System.currentTimeMillis;
-import static org.neo4j.kernel.impl.transaction.TransactionHeaderInformationFactory.DEFAULT;
+import static org.neo4j.internal.kernel.api.security.AuthSubject.ANONYMOUS;
+import static org.neo4j.io.pagecache.context.CursorContext.NULL;
 
 class TransactionRepresentationFactory
 {
@@ -60,15 +58,12 @@ class TransactionRepresentationFactory
 
     TransactionToApply nextTransaction( long txId )
     {
-        PhysicalTransactionRepresentation representation =
-                new PhysicalTransactionRepresentation( createRandomCommands() );
-        TransactionHeaderInformation headerInfo = DEFAULT.create();
-        representation.setHeader( headerInfo.getAdditionalHeader(), headerInfo.getMasterId(),
-                headerInfo.getAuthorId(), headerInfo.getAuthorId(), txId, currentTimeMillis(), 42 );
-        return new TransactionToApply( representation );
+        PhysicalTransactionRepresentation representation = new PhysicalTransactionRepresentation( createRandomCommands() );
+        representation.setHeader( new byte[0], currentTimeMillis(), txId, currentTimeMillis(), 42, ANONYMOUS );
+        return new TransactionToApply( representation, NULL, StoreCursors.NULL );
     }
 
-    private Collection<StorageCommand> createRandomCommands()
+    private List<StorageCommand> createRandomCommands()
     {
         int commandNum = ThreadLocalRandom.current().nextInt( 1, 17 );
         List<StorageCommand> commands = new ArrayList<>( commandNum );
@@ -81,22 +76,14 @@ class TransactionRepresentationFactory
 
     private static class CommandGenerator
     {
-        private NodeRecordGenerator nodeRecordGenerator = new NodeRecordGenerator();
+        private final ThreadLocalRandom random = ThreadLocalRandom.current();
 
-        Command nextCommand()
+        StorageCommand nextCommand()
         {
-            return new Command.NodeCommand( nodeRecordGenerator.nextRecord(), nodeRecordGenerator.nextRecord() );
-        }
-    }
-
-    private static class NodeRecordGenerator
-    {
-
-        NodeRecord nextRecord()
-        {
-            ThreadLocalRandom random = ThreadLocalRandom.current();
-            return new NodeRecord( random.nextLong(), random.nextBoolean(), random.nextBoolean(),
-                    random.nextLong(), random.nextLong(), random.nextLong() );
+            int length = random.nextInt( 100 + 1 );
+            byte[] bytes = new byte[length];
+            random.nextBytes( bytes );
+            return new TestCommand( bytes );
         }
     }
 }

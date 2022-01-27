@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,61 +38,54 @@
  */
 package org.neo4j.kernel.impl.locking;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.helpers.Exceptions;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.test.rule.VerboseTimeout;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.kernel.impl.api.LeaseService.NoLeaseClient;
+import org.neo4j.lock.LockTracer;
+import org.neo4j.lock.ResourceTypes;
+import org.neo4j.memory.EmptyMemoryTracker;
 import org.neo4j.time.Clocks;
 import org.neo4j.time.FakeClock;
 
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
-import static org.neo4j.test.rule.concurrent.OtherThreadRule.isWaiting;
+import static org.apache.commons.lang3.exception.ExceptionUtils.getRootCause;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-@Ignore( "Not a test. This is a compatibility suite, run from LockingCompatibilityTestSuite." )
-public class AcquisitionTimeoutCompatibility extends LockingCompatibilityTestSuite.Compatibility
+abstract class AcquisitionTimeoutCompatibility extends LockCompatibilityTestSupport
 {
-
-    private final long TEST_TIMEOUT_SECONDS = 30;
     private FakeClock clock;
-    private Config customConfig;
     private Locks lockManager;
     private Locks.Client client;
     private Locks.Client client2;
 
-    @Rule
-    public VerboseTimeout timeout = VerboseTimeout.builder()
-                                        .withTimeout( TEST_TIMEOUT_SECONDS, TimeUnit.SECONDS )
-                                        .build();
-
-    public AcquisitionTimeoutCompatibility( LockingCompatibilityTestSuite suite )
+    AcquisitionTimeoutCompatibility( LockingCompatibilityTestSuite suite )
     {
         super( suite );
     }
 
-    @Before
-    public void setUp()
+    @BeforeEach
+    void setUp()
     {
-        customConfig = Config.defaults( GraphDatabaseSettings.lock_acquisition_timeout, "100ms" );
+        Config customConfig = Config.defaults( GraphDatabaseSettings.lock_acquisition_timeout, Duration.ofMillis( 100 ) );
         clock = Clocks.fakeClock(100000, TimeUnit.MINUTES);
         lockManager = suite.createLockManager( customConfig, clock );
         client = lockManager.newClient();
         client2 = lockManager.newClient();
+        client.initialize( NoLeaseClient.INSTANCE, 1, EmptyMemoryTracker.INSTANCE, customConfig );
+        client2.initialize( NoLeaseClient.INSTANCE, 2, EmptyMemoryTracker.INSTANCE, customConfig );
     }
 
-    @After
-    public void tearDown()
+    @AfterEach
+    void tearDown()
     {
         client2.close();
         client.close();
@@ -100,16 +93,16 @@ public class AcquisitionTimeoutCompatibility extends LockingCompatibilityTestSui
     }
 
     @Test
-    public void terminateSharedLockAcquisition() throws InterruptedException
+    void terminateSharedLockAcquisition() throws InterruptedException
     {
         client.acquireExclusive( LockTracer.NONE, ResourceTypes.NODE, 1 );
-        Future<Boolean> sharedLockAcquisition = threadB.execute( state ->
+        Future<Boolean> sharedLockAcquisition = threadB.submit( () ->
         {
             client2.acquireShared( LockTracer.NONE, ResourceTypes.NODE, 1 );
             return true;
         } );
 
-        assertThat( threadB, isWaiting() );
+        threadB.untilWaiting();
 
         clock.forward( 101, TimeUnit.MILLISECONDS );
 
@@ -117,16 +110,16 @@ public class AcquisitionTimeoutCompatibility extends LockingCompatibilityTestSui
     }
 
     @Test
-    public void terminateExclusiveLockAcquisitionForExclusivelyLockedResource() throws InterruptedException
+    void terminateExclusiveLockAcquisitionForExclusivelyLockedResource() throws InterruptedException
     {
         client.acquireExclusive( LockTracer.NONE, ResourceTypes.NODE, 1 );
-        Future<Boolean> exclusiveLockAcquisition = threadB.execute( state ->
+        Future<Boolean> exclusiveLockAcquisition = threadB.submit( () ->
         {
             client2.acquireExclusive( LockTracer.NONE, ResourceTypes.NODE, 1 );
             return true;
         } );
 
-        assertThat( threadB, isWaiting() );
+        threadB.untilWaiting();
 
         clock.forward( 101, TimeUnit.MILLISECONDS );
 
@@ -134,16 +127,16 @@ public class AcquisitionTimeoutCompatibility extends LockingCompatibilityTestSui
     }
 
     @Test
-    public void terminateExclusiveLockAcquisitionForSharedLockedResource() throws InterruptedException
+    void terminateExclusiveLockAcquisitionForSharedLockedResource() throws InterruptedException
     {
         client.acquireShared( LockTracer.NONE, ResourceTypes.NODE, 1 );
-        Future<Boolean> exclusiveLockAcquisition = threadB.execute( state ->
+        Future<Boolean> exclusiveLockAcquisition = threadB.submit( () ->
         {
             client2.acquireExclusive( LockTracer.NONE, ResourceTypes.NODE, 1 );
             return true;
         } );
 
-        assertThat( threadB, isWaiting() );
+        threadB.untilWaiting();
 
         clock.forward( 101, TimeUnit.MILLISECONDS );
 
@@ -151,33 +144,26 @@ public class AcquisitionTimeoutCompatibility extends LockingCompatibilityTestSui
     }
 
     @Test
-    public void terminateExclusiveLockAcquisitionForSharedLockedResourceWithSharedLockHeld() throws InterruptedException
+    void terminateExclusiveLockAcquisitionForSharedLockedResourceWithSharedLockHeld() throws InterruptedException
     {
         client.acquireShared( LockTracer.NONE, ResourceTypes.NODE, 1 );
         client2.acquireShared( LockTracer.NONE, ResourceTypes.NODE, 1 );
-        Future<Boolean> exclusiveLockAcquisition = threadB.execute( state ->
+        Future<Boolean> exclusiveLockAcquisition = threadB.submit( () ->
         {
             client2.acquireExclusive( LockTracer.NONE, ResourceTypes.NODE, 1 );
             return true;
         } );
 
-        assertThat( threadB, isWaiting() );
+        threadB.untilWaiting();
 
         clock.forward( 101, TimeUnit.MILLISECONDS );
 
         verifyAcquisitionFailure( exclusiveLockAcquisition );
     }
 
-    private void verifyAcquisitionFailure( Future<Boolean> lockAcquisition ) throws InterruptedException
+    private static void verifyAcquisitionFailure( Future<Boolean> lockAcquisition )
     {
-        try
-        {
-            lockAcquisition.get();
-            fail("Lock acquisition should fail.");
-        }
-        catch ( ExecutionException e )
-        {
-            assertThat( Exceptions.rootCause( e ), instanceOf( LockAcquisitionTimeoutException.class ) );
-        }
+        ExecutionException exception = assertThrows( ExecutionException.class, lockAcquisition::get );
+        assertThat( getRootCause( exception ) ).isInstanceOf( LockAcquisitionTimeoutException.class );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,41 +38,53 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.IsMap
+import org.neo4j.cypher.internal.runtime.ReadableRow
 import org.neo4j.cypher.internal.runtime.interpreted.GraphElementPropertyFunctions
+import org.neo4j.cypher.internal.runtime.interpreted.IsMap
+import org.neo4j.cypher.internal.runtime.interpreted.LazyMap
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
+import org.neo4j.values.virtual.MapValueBuilder
 import org.neo4j.values.virtual.VirtualValues
 
-import scala.collection.JavaConverters._
 import scala.collection.Map
 
-case class DesugaredMapProjection(id: String, includeAllProps: Boolean, literalExpressions: Map[String, Expression])
+case class DesugaredMapProjection(variable: VariableCommand, includeAllProps: Boolean, literalExpressions: Map[String, Expression])
   extends Expression with GraphElementPropertyFunctions {
 
-  override def apply(ctx: ExecutionContext, state: QueryState): AnyValue = {
-    val variableValue = ctx(id)
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = {
+    val variableValue = variable(row, state)
 
     val mapOfProperties = variableValue match {
-      case v if v == Values.NO_VALUE => return Values.NO_VALUE
-      case IsMap(m) => if (includeAllProps) m(state.query) else VirtualValues.emptyMap()
+      case v if v eq Values.NO_VALUE => return Values.NO_VALUE
+      case IsMap(m) => if (includeAllProps) m(state) else VirtualValues.EMPTY_MAP
     }
-    val mapOfLiteralValues = literalExpressions.map {
-      case (k, e) => (k, e(ctx, state))
-    }.toMap.asJava
 
+    //in case we get a lazy map we need to make sure it has been loaded
+    mapOfProperties match {
+      case m :LazyMap[_,_] => m.load()
+      case _ =>
+    }
 
-    VirtualValues.combine(mapOfProperties, VirtualValues.map(mapOfLiteralValues))
+    if (literalExpressions.nonEmpty)
+    {
+      val builder = new MapValueBuilder(literalExpressions.size)
+      literalExpressions.foreach {
+        case (k, e) => builder.add(k, e(row, state))
+      }
+      return mapOfProperties.updatedWith(builder.build())
+    }
+    mapOfProperties
   }
 
-  override def rewrite(f: (Expression) => Expression) =
-    f(DesugaredMapProjection(id, includeAllProps, literalExpressions.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression =
+    f(DesugaredMapProjection(variable, includeAllProps, literalExpressions.rewrite(f)))
 
-  override def arguments = literalExpressions.values.toIndexedSeq
+  override def arguments: Seq[Expression] = literalExpressions.values.toIndexedSeq
 
-  override def symbolTableDependencies = literalExpressions.symboltableDependencies + id
+  override def children: Seq[AstNode[_]] = Seq(variable) ++ arguments
 
-  override def toString = s"$id{.*, " + literalExpressions.mkString + "}"
+  override def toString: String = s"$variable{.*, " + literalExpressions.mkString + "}"
 }

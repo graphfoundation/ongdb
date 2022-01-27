@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -43,11 +43,14 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.concurrent.EventExecutorGroup;
 
 import org.neo4j.bolt.runtime.BoltConnection;
-import org.neo4j.helpers.Exceptions;
+import org.neo4j.internal.helpers.Exceptions;
 import org.neo4j.logging.Log;
+import org.neo4j.memory.HeapEstimator;
 
 public class HouseKeeper extends ChannelInboundHandlerAdapter
 {
+    public static final long SHALLOW_SIZE = HeapEstimator.shallowSizeOfInstance( HouseKeeper.class );
+
     private final BoltConnection connection;
     private final Log log;
     private boolean failed;
@@ -78,15 +81,13 @@ public class HouseKeeper extends ChannelInboundHandlerAdapter
             // Netty throws a NativeIoException on connection reset - directly importing that class
             // caused a host of linking errors, because it depends on JNI to work. Hence, we just
             // test on the message we know we'll get.
-            if ( Exceptions.contains( cause, e -> e.getMessage().contains( "Connection reset by peer" ) ) )
+            if ( Exceptions.contains( cause, e -> e.getMessage() != null && e.getMessage().contains( "Connection reset by peer" ) ) )
             {
-                log.warn( "Fatal error occurred when handling a client connection, " +
-                        "remote peer unexpectedly closed connection: %s", ctx.channel() );
+                log.warn( "Fatal error occurred when handling a client connection, " + "remote peer unexpectedly closed connection: %s", ctx.channel() );
             }
             else
             {
-                log.error( "Fatal error occurred when handling a client connection: " + ctx.channel(),
-                        cause );
+                log.error( "Fatal error occurred when handling a client connection: " + ctx.channel(), cause );
             }
         }
         finally

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,20 +38,20 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ReadableRow
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.commands.coerce
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.util.v3_4.symbols._
+import org.neo4j.cypher.internal.util.symbols.CypherType
 import org.neo4j.values.AnyValue
-
 
 case class CoerceTo(expr: Expression, typ: CypherType) extends Expression {
 
-  def apply(ctx: ExecutionContext, state: QueryState): AnyValue = coerce(expr(ctx, state), typ)(state.query)
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = coerce(expr(row, state), state, typ)
 
-  def symbolTableDependencies = expr.symbolTableDependencies
-
-  override def rewrite(f: (Expression) => Expression): Expression = f(CoerceTo(expr.rewrite(f), typ))
+  override def rewrite(f: Expression => Expression): Expression = f(CoerceTo(expr.rewrite(f), typ))
 
   override def arguments: Seq[Expression] = Seq(expr)
+
+  override def children: Seq[AstNode[_]] = Seq(expr)
 }

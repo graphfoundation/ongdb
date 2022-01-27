@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,25 +40,28 @@ package org.neo4j.kernel.impl.api.index;
 
 import java.util.function.Consumer;
 
+import org.neo4j.internal.schema.IndexConfigCompleter;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexProviderDescriptor;
 import org.neo4j.kernel.api.index.IndexProvider;
 
 /**
- * Contains mapping from {@link IndexProvider.Descriptor} or provider name to {@link IndexProvider}.
+ * Contains mapping from {@link IndexProviderDescriptor} or provider name to {@link IndexProvider}.
  */
-public interface IndexProviderMap
+public interface IndexProviderMap extends IndexConfigCompleter
 {
     /**
-     * Looks up and returns the {@link IndexProvider} for the given {@link IndexProvider.Descriptor}.
+     * Looks up and returns the {@link IndexProvider} for the given {@link IndexProviderDescriptor}.
      *
      * @param providerDescriptor the descriptor identifying the {@link IndexProvider}.
-     * @return the {@link IndexProvider} with the given {@link IndexProvider.Descriptor}.
+     * @return the {@link IndexProvider} with the given {@link IndexProviderDescriptor}.
      * @throws IndexProviderNotFoundException if no such {@link IndexProvider} was found.
      */
-    IndexProvider lookup( IndexProvider.Descriptor providerDescriptor ) throws IndexProviderNotFoundException;
+    IndexProvider lookup( IndexProviderDescriptor providerDescriptor ) throws IndexProviderNotFoundException;
 
     /**
      * Looks up and returns the {@link IndexProvider} for the given index provider name. The name is what
-     * an {@link IndexProvider.Descriptor#name()} call would return.
+     * an {@link IndexProviderDescriptor#name()} call would return.
      *
      * @param providerDescriptorName the descriptor name identifying the {@link IndexProvider}.
      * @return the {@link IndexProvider} with the given name.
@@ -74,9 +77,103 @@ public interface IndexProviderMap
     IndexProvider getDefaultProvider();
 
     /**
+     * The preferred {@link IndexProvider} for handling full-text indexes.
+     *
+     * @return the default or preferred index provider for full-text indexes.
+     */
+    IndexProvider getFulltextProvider();
+
+    /**
+     * There's always a token index provider, this method returns it.
+     *
+     * @return token index provider for this instance
+     */
+    IndexProvider getTokenIndexProvider();
+
+    /**
+     * The preferred {@link IndexProvider} for handling text indexes.
+     *
+     * @return the default or preferred index provider for full-text indexes.
+     */
+    IndexProvider getTextIndexProvider();
+
+    /**
+     * The preferred {@link IndexProvider} for handling range indexes.
+     */
+    IndexProvider getRangeIndexProvider();
+
+    /**
+     * The preferred {@link IndexProvider} for handling point indexes.
+     */
+    IndexProvider getPointIndexProvider();
+
+    /**
      * Visits all the {@link IndexProvider} with the visitor.
      *
      * @param visitor {@link Consumer} visiting all the {@link IndexProvider index providers} in this map.
      */
     void accept( Consumer<IndexProvider> visitor );
+
+    IndexProviderMap EMPTY = new IndexProviderMap()
+    {
+        @Override
+        public IndexDescriptor completeConfiguration( IndexDescriptor index )
+        {
+            return index;
+        }
+
+        @Override
+        public IndexProvider lookup( IndexProviderDescriptor descriptor ) throws IndexProviderNotFoundException
+        {
+            return IndexProvider.EMPTY;
+        }
+
+        @Override
+        public IndexProvider lookup( String providerDescriptorName ) throws IndexProviderNotFoundException
+        {
+            return IndexProvider.EMPTY;
+        }
+
+        @Override
+        public IndexProvider getDefaultProvider()
+        {
+            return IndexProvider.EMPTY;
+        }
+
+        @Override
+        public IndexProvider getFulltextProvider()
+        {
+            return IndexProvider.EMPTY;
+        }
+
+        @Override
+        public IndexProvider getTokenIndexProvider()
+        {
+            return IndexProvider.EMPTY;
+        }
+
+        @Override
+        public IndexProvider getTextIndexProvider()
+        {
+            return IndexProvider.EMPTY;
+        }
+
+        @Override
+        public IndexProvider getRangeIndexProvider()
+        {
+            return IndexProvider.EMPTY;
+        }
+
+        @Override
+        public IndexProvider getPointIndexProvider()
+        {
+            return IndexProvider.EMPTY;
+        }
+
+        @Override
+        public void accept( Consumer<IndexProvider> visitor )
+        {
+            // yey!
+        }
+    };
 }

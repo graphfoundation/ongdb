@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,7 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.internal.kernel.api.exceptions.EntityNotFoundException;
 import org.neo4j.internal.kernel.api.helpers.StubNodeCursor;
@@ -47,15 +47,16 @@ import org.neo4j.internal.kernel.api.helpers.StubRead;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-import static org.neo4j.helpers.collection.MapUtil.genericMap;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.neo4j.internal.helpers.collection.MapUtil.genericMap;
+import static org.neo4j.io.pagecache.context.CursorContext.NULL;
 import static org.neo4j.values.storable.Values.NO_VALUE;
 
-public class CursorPropertyAccessorTest
+class CursorPropertyAccessorTest
 {
     @Test
-    public void shouldLookupProperty() throws EntityNotFoundException
+    void shouldLookupProperty() throws EntityNotFoundException
     {
         // given
         long nodeId = 10;
@@ -65,14 +66,14 @@ public class CursorPropertyAccessorTest
         CursorPropertyAccessor accessor = new CursorPropertyAccessor( nodeCursor, new StubPropertyCursor(), new StubRead() );
 
         // when
-        Value readValue = accessor.getPropertyValue( nodeId, propertyKeyId );
+        Value readValue = accessor.getNodePropertyValue( nodeId, propertyKeyId, NULL );
 
         // then
         assertEquals( value, readValue );
     }
 
     @Test
-    public void shouldReturnNoValueOnMissingProperty() throws EntityNotFoundException
+    void shouldReturnNoValueOnMissingProperty() throws EntityNotFoundException
     {
         // given
         long nodeId = 10;
@@ -80,14 +81,14 @@ public class CursorPropertyAccessorTest
         CursorPropertyAccessor accessor = new CursorPropertyAccessor( nodeCursor, new StubPropertyCursor(), new StubRead() );
 
         // when
-        Value readValue = accessor.getPropertyValue( nodeId, 0 );
+        Value readValue = accessor.getNodePropertyValue( nodeId, 0, NULL );
 
         // then
         assertEquals( NO_VALUE, readValue );
     }
 
     @Test
-    public void shouldThrowOnEntityNotFound()
+    void shouldThrowOnEntityNotFound()
     {
         // given
         long nodeId = 10;
@@ -97,14 +98,6 @@ public class CursorPropertyAccessorTest
         CursorPropertyAccessor accessor = new CursorPropertyAccessor( nodeCursor, new StubPropertyCursor(), new StubRead() );
 
         // when
-        try
-        {
-            accessor.getPropertyValue( nodeId + 1, propertyKeyId );
-            fail();
-        }
-        catch ( EntityNotFoundException e )
-        {
-            // then good
-        }
+        assertThrows( EntityNotFoundException.class, () -> accessor.getNodePropertyValue( nodeId + 1, propertyKeyId, NULL ) );
     }
 }

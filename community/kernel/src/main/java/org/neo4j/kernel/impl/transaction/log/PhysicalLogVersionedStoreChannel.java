@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,39 +38,47 @@
  */
 package org.neo4j.kernel.impl.transaction.log;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.FileLock;
+import java.nio.file.Path;
 
-import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.fs.OpenMode;
+import org.neo4j.io.fs.DelegatingStoreChannel;
 import org.neo4j.io.fs.StoreChannel;
-import org.neo4j.kernel.impl.transaction.log.entry.LogHeader;
+import org.neo4j.kernel.impl.transaction.log.files.ChannelNativeAccessor;
+import org.neo4j.kernel.impl.transaction.tracing.DatabaseTracer;
 
-import static org.neo4j.kernel.impl.transaction.log.entry.LogHeader.LOG_HEADER_SIZE;
-import static org.neo4j.kernel.impl.transaction.log.entry.LogHeaderReader.readLogHeader;
-
-public class PhysicalLogVersionedStoreChannel implements LogVersionedStoreChannel
+public class PhysicalLogVersionedStoreChannel extends DelegatingStoreChannel<StoreChannel> implements LogVersionedStoreChannel
 {
-    private final StoreChannel delegateChannel;
     private final long version;
     private final byte formatVersion;
     private long position;
+    private final Path path;
+    private final ChannelNativeAccessor nativeChannelAccessor;
+    private final boolean raw;
+    private final DatabaseTracer databaseTracer;
 
-    public PhysicalLogVersionedStoreChannel( StoreChannel delegateChannel, long version, byte formatVersion )
-            throws IOException
+    public PhysicalLogVersionedStoreChannel( StoreChannel delegateChannel, long version, byte formatVersion, Path path,
+            ChannelNativeAccessor nativeChannelAccessor, DatabaseTracer databaseTracer ) throws IOException
     {
-        this.delegateChannel = delegateChannel;
+        this( delegateChannel, version, formatVersion, path, nativeChannelAccessor, databaseTracer, false );
+    }
+
+    public PhysicalLogVersionedStoreChannel( StoreChannel delegateChannel, long version, byte formatVersion, Path path,
+            ChannelNativeAccessor nativeChannelAccessor, DatabaseTracer databaseTracer, boolean raw ) throws IOException
+    {
+        super( delegateChannel );
         this.version = version;
         this.formatVersion = formatVersion;
         this.position = delegateChannel.position();
+        this.path = path;
+        this.nativeChannelAccessor = nativeChannelAccessor;
+        this.databaseTracer = databaseTracer;
+        this.raw = raw;
     }
 
-    @Override
-    public FileLock tryLock() throws IOException
+    public Path getPath()
     {
-        return delegateChannel.tryLock();
+        return path;
     }
 
     @Override
@@ -83,7 +91,7 @@ public class PhysicalLogVersionedStoreChannel implements LogVersionedStoreChanne
     public void writeAll( ByteBuffer src ) throws IOException
     {
         advance( src.remaining() );
-        delegateChannel.writeAll( src );
+        super.writeAll( src );
     }
 
     @Override
@@ -93,34 +101,16 @@ public class PhysicalLogVersionedStoreChannel implements LogVersionedStoreChanne
     }
 
     @Override
-    public void readAll( ByteBuffer dst )
-    {
-        throw new UnsupportedOperationException( "Not needed" );
-    }
-
-    @Override
-    public void force( boolean metaData ) throws IOException
-    {
-        delegateChannel.force( metaData );
-    }
-
-    @Override
     public StoreChannel position( long newPosition ) throws IOException
     {
         this.position = newPosition;
-        return delegateChannel.position( newPosition );
-    }
-
-    @Override
-    public StoreChannel truncate( long size ) throws IOException
-    {
-        return delegateChannel.truncate( size );
+        return super.position( newPosition );
     }
 
     @Override
     public int read( ByteBuffer dst ) throws IOException
     {
-        return (int) advance( delegateChannel.read( dst ) );
+        return (int) advance( super.read( dst ) );
     }
 
     private long advance( long bytes )
@@ -135,7 +125,7 @@ public class PhysicalLogVersionedStoreChannel implements LogVersionedStoreChanne
     @Override
     public int write( ByteBuffer src ) throws IOException
     {
-        return (int) advance( delegateChannel.write( src ) );
+        return (int) advance( super.write( src ) );
     }
 
     @Override
@@ -145,45 +135,37 @@ public class PhysicalLogVersionedStoreChannel implements LogVersionedStoreChanne
     }
 
     @Override
-    public long size() throws IOException
-    {
-        return delegateChannel.size();
-    }
-
-    @Override
-    public boolean isOpen()
-    {
-        return delegateChannel.isOpen();
-    }
-
-    @Override
     public void close() throws IOException
     {
-        delegateChannel.close();
+        if ( !raw )
+        {
+            nativeChannelAccessor.evictFromSystemCache( this, version );
+        }
+        super.close();
     }
 
     @Override
-    public long write( ByteBuffer[] srcs, int offset, int length ) throws IOException
+    public long write( ByteBuffer[] sources, int offset, int length ) throws IOException
     {
-        return advance( delegateChannel.write( srcs, offset, length ) );
+        return advance( super.write( sources, offset, length ) );
     }
 
     @Override
     public long write( ByteBuffer[] srcs ) throws IOException
     {
-        return advance( delegateChannel.write( srcs ) );
+        return advance( super.write( srcs ) );
     }
 
     @Override
     public long read( ByteBuffer[] dsts, int offset, int length ) throws IOException
     {
-        return advance( delegateChannel.read( dsts, offset, length ) );
+        return advance( super.read( dsts, offset, length ) );
     }
 
     @Override
     public long read( ByteBuffer[] dsts ) throws IOException
     {
-        return advance( delegateChannel.read( dsts ) );
+        return advance( super.read( dsts ) );
     }
 
     @Override
@@ -212,20 +194,23 @@ public class PhysicalLogVersionedStoreChannel implements LogVersionedStoreChanne
 
         PhysicalLogVersionedStoreChannel that = (PhysicalLogVersionedStoreChannel) o;
 
-        return version == that.version && delegateChannel.equals( that.delegateChannel );
-    }
-
-    @Override
-    public int hashCode()
-    {
-        int result = delegateChannel.hashCode();
-        result = 31 * result + (int) (version ^ (version >>> 32));
-        return result;
+        return version == that.version && delegate.equals( that.delegate );
     }
 
     @Override
     public void flush() throws IOException
     {
-        force( false );
+        try ( var flushEvent = databaseTracer.flushFile() )
+        {
+            super.flush();
+        }
+    }
+
+    @Override
+    public int hashCode()
+    {
+        int result = delegate.hashCode();
+        result = 31 * result + (int) (version ^ (version >>> 32));
+        return result;
     }
 }

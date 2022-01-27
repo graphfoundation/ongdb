@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,72 +38,135 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted
 
-import org.neo4j.cypher.internal.planner.v3_4.spi.KernelStatisticProvider
+import org.neo4j.cypher.internal.profiling.KernelStatisticProvider
 import org.neo4j.cypher.internal.runtime.QueryTransactionalContext
-import org.neo4j.graphdb.{Lock, PropertyContainer}
-import org.neo4j.internal.kernel.api._
+import org.neo4j.graphdb.Entity
+import org.neo4j.internal.kernel.api.CursorFactory
+import org.neo4j.internal.kernel.api.Locks
+import org.neo4j.internal.kernel.api.Procedures
+import org.neo4j.internal.kernel.api.QueryContext
+import org.neo4j.internal.kernel.api.Read
+import org.neo4j.internal.kernel.api.SchemaRead
+import org.neo4j.internal.kernel.api.SchemaWrite
+import org.neo4j.internal.kernel.api.Token
+import org.neo4j.internal.kernel.api.TokenRead
+import org.neo4j.internal.kernel.api.TokenWrite
+import org.neo4j.internal.kernel.api.Write
+import org.neo4j.internal.kernel.api.security.SecurityAuthorizationHandler
 import org.neo4j.internal.kernel.api.security.SecurityContext
+import org.neo4j.io.pagecache.context.CursorContext
 import org.neo4j.kernel.GraphDatabaseQueryService
-import org.neo4j.kernel.api.KernelTransaction.Revertable
-import org.neo4j.kernel.api.dbms.DbmsOperations
-import org.neo4j.kernel.api.query.PlannerInfo
-import org.neo4j.kernel.api.txstate.TxStateHolder
-import org.neo4j.kernel.api.{KernelTransaction, ResourceTracker, Statement}
-import org.neo4j.kernel.impl.factory.DatabaseInfo
+import org.neo4j.kernel.api.KernelTransaction
+import org.neo4j.kernel.api.KernelTransaction.ExecutionContext
+import org.neo4j.kernel.database.NamedDatabaseId
+import org.neo4j.kernel.impl.api.SchemaStateKey
+import org.neo4j.kernel.impl.factory.DbmsInfo
 import org.neo4j.kernel.impl.query.TransactionalContext
+import org.neo4j.memory.MemoryTracker
 
-case class TransactionalContextWrapper(tc: TransactionalContext) extends QueryTransactionalContext {
-  def twoLayerTransactionState: Boolean = tc.twoLayerTransactionState()
+/**
+ * @param threadSafeCursors use this instead of the cursors of the current transaction, unless this is `null`.
+ */
+abstract class TransactionalContextWrapper extends QueryTransactionalContext {
 
-  def getOrBeginNewIfClosed(): TransactionalContextWrapper = TransactionalContextWrapper(tc.getOrBeginNewIfClosed())
+  def kernelTransaction: KernelTransaction
 
-  def isOpen: Boolean = tc.isOpen
+  def kernelTransactionalContext: TransactionalContext
 
-  def kernelTransaction: KernelTransaction = tc.kernelTransaction()
+  def graph: GraphDatabaseQueryService
 
-  def graph: GraphDatabaseQueryService = tc.graph()
+  def getOrCreateFromSchemaState[T](key: SchemaStateKey, f: => T): T
 
-  def statement: Statement = tc.statement()
+  def contextWithNewTransaction: TransactionalContextWrapper
 
-  def stateView: TxStateHolder = tc.stateView()
+  def createParallelTransactionalContext(): ParallelTransactionalContextWrapper
+}
 
-  def cleanForReuse(): Unit = tc.cleanForReuse()
+class SingleThreadedTransactionalContextWrapper(tc: TransactionalContext, threadSafeCursors: CursorFactory = null) extends TransactionalContextWrapper {
 
-  // needed only for compatibility with 2.3
-  def acquireWriteLock(p: PropertyContainer): Lock = tc.acquireWriteLock(p)
+  override def kernelTransaction: KernelTransaction = tc.kernelTransaction()
 
+  override def kernelTransactionalContext: TransactionalContext = tc
 
-  override def cursors: CursorFactory = tc.kernelTransaction.cursors()
+  override def graph: GraphDatabaseQueryService = tc.graph()
+
+  override def createKernelExecutionContext(): ExecutionContext = tc.kernelTransaction.createExecutionContext()
+
+  override def commitTransaction(): Unit = tc.transaction.commit()
+
+  override def kernelQueryContext: QueryContext = tc.kernelTransaction.queryContext
+
+  override def cursors: CursorFactory = if (threadSafeCursors == null) tc.kernelTransaction.cursors() else threadSafeCursors
+
+  override def cursorContext: CursorContext = tc.kernelTransaction.cursorContext
+
+  override def memoryTracker: MemoryTracker = tc.kernelTransaction().memoryTracker()
+
+  override def locks: Locks = tc.kernelTransaction().locks()
 
   override def dataRead: Read = tc.kernelTransaction().dataRead()
 
-  override def stableDataRead: Read = tc.kernelTransaction().stableDataRead()
-
-  override def markAsStable(): Unit = tc.kernelTransaction().markAsStable()
+  override def dataWrite: Write = tc.kernelTransaction().dataWrite()
 
   override def tokenRead: TokenRead = tc.kernelTransaction().tokenRead()
 
+  override def tokenWrite: TokenWrite = tc.kernelTransaction().tokenWrite()
+
+  override def token: Token = tc.kernelTransaction().token()
+
   override def schemaRead: SchemaRead = tc.kernelTransaction().schemaRead()
 
-  override def dataWrite: Write = tc.kernelTransaction().dataWrite()
+  override def schemaWrite: SchemaWrite = tc.kernelTransaction().schemaWrite()
 
-  override def dbmsOperations: DbmsOperations = tc.dbmsOperations()
+  override def procedures: Procedures = tc.kernelTransaction.procedures()
 
-  override def commitAndRestartTx() { tc.commitAndRestartTx() }
+  override def securityContext: SecurityContext = tc.kernelTransaction.securityContext
+
+  override def securityAuthorizationHandler: SecurityAuthorizationHandler = tc.kernelTransaction.securityAuthorizationHandler()
+
+  override def commitAndRestartTx(): Unit = tc.commitAndRestartTx()
 
   override def isTopLevelTx: Boolean = tc.isTopLevelTx
 
-  override def close(success: Boolean) { tc.close(success) }
+  override def close(): Unit = tc.close()
 
-  def restrictCurrentTransaction(context: SecurityContext): Revertable = tc.restrictCurrentTransaction(context)
+  override def kernelStatisticProvider: KernelStatisticProvider = ProfileKernelStatisticProvider(tc.kernelStatisticProvider())
 
-  def securityContext: SecurityContext = tc.securityContext
+  override def dbmsInfo: DbmsInfo = tc.graph().getDependencyResolver.resolveDependency(classOf[DbmsInfo])
 
-  def notifyPlanningCompleted(plannerInfo: PlannerInfo): Unit = tc.executingQuery().planningCompleted(plannerInfo)
+  override def databaseId: NamedDatabaseId = tc.databaseId()
 
-  def kernelStatisticProvider: KernelStatisticProvider = new ProfileKernelStatisticProvider(tc.kernelStatisticProvider())
+  def getOrCreateFromSchemaState[T](key: SchemaStateKey, f: => T): T = {
+    val javaCreator = new java.util.function.Function[SchemaStateKey, T]() {
+      def apply(key: SchemaStateKey): T = f
+    }
+    schemaRead.schemaStateGetOrCreate(key, javaCreator)
+  }
 
-  override def databaseInfo: DatabaseInfo = tc.graph().getDependencyResolver.resolveDependency(classOf[DatabaseInfo])
+  override def rollback(): Unit = tc.rollback()
 
-  def resourceTracker: ResourceTracker = tc.resourceTracker
+  override def contextWithNewTransaction: TransactionalContextWrapper = {
+    if (threadSafeCursors != null) {
+      throw new UnsupportedOperationException("Cypher transactions are not designed to work with parallel runtime, yet.")
+    }
+    val newTC = tc.contextWithNewTransaction()
+    TransactionalContextWrapper(newTC, threadSafeCursors)
+  }
+
+  override def freezeLocks(): Unit = tc.kernelTransaction.freezeLocks()
+
+  override def thawLocks(): Unit = tc.kernelTransaction.thawLocks()
+
+  override def validateSameDB[E <: Entity](entity: E): E = tc.transaction().validateSameDB(entity)
+
+  override def createParallelTransactionalContext(): ParallelTransactionalContextWrapper = {
+    require(threadSafeCursors != null)
+    new ParallelTransactionalContextWrapper(kernelTransactionalContext, threadSafeCursors)
+  }
+}
+
+object TransactionalContextWrapper {
+  def apply(tc: TransactionalContext, threadSafeCursors: CursorFactory = null): TransactionalContextWrapper = {
+    new SingleThreadedTransactionalContextWrapper(tc, threadSafeCursors)
+  }
 }

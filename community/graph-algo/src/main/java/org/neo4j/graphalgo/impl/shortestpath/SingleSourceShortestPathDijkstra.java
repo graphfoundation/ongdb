@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -47,8 +47,8 @@ import java.util.Map;
 import org.neo4j.graphalgo.CostAccumulator;
 import org.neo4j.graphalgo.CostEvaluator;
 import org.neo4j.graphdb.Direction;
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 
@@ -59,14 +59,13 @@ import org.neo4j.graphdb.RelationshipType;
  *             cost comparator will all be called once for every relationship
  *             traversed. Assuming they run in constant time, the time
  *             complexity for this algorithm is O(m + n * log(n)).
- * @author Patrik Larsson
  * @param <CostType>
  *            The datatype the edge weights are represented by.
  */
 public class SingleSourceShortestPathDijkstra<CostType> extends
     Dijkstra<CostType> implements SingleSourceShortestPath<CostType>
 {
-    DijstraIterator dijstraIterator;
+    DijkstraIterator dijkstraIterator;
 
     /**
      * @see Dijkstra
@@ -82,17 +81,17 @@ public class SingleSourceShortestPathDijkstra<CostType> extends
         reset();
     }
 
-    protected HashMap<Node,CostType> distances = new HashMap<>();
+    protected Map<Node,CostType> distances = new HashMap<>();
 
     @Override
     public void reset()
     {
         super.reset();
         distances = new HashMap<>();
-        HashMap<Node,CostType> seen1 = new HashMap<>();
-        HashMap<Node,CostType> seen2 = new HashMap<>();
-        HashMap<Node,CostType> dists2 = new HashMap<>();
-        dijstraIterator = new DijstraIterator( startNode, predecessors1, seen1,
+        Map<Node,CostType> seen1 = new HashMap<>();
+        Map<Node,CostType> seen2 = new HashMap<>();
+        Map<Node,CostType> dists2 = new HashMap<>();
+        dijkstraIterator = new DijkstraIterator( startNode, predecessors1, seen1,
             seen2, distances, dists2, false );
     }
 
@@ -124,9 +123,9 @@ public class SingleSourceShortestPathDijkstra<CostType> extends
     public boolean calculate( Node targetNode )
     {
         while ( (targetNode == null || !distances.containsKey( targetNode ))
-            && dijstraIterator.hasNext() && !limitReached() )
+            && dijkstraIterator.hasNext() && !limitReached() )
         {
-            dijstraIterator.next();
+            dijkstraIterator.next();
         }
         return true;
     }
@@ -153,7 +152,7 @@ public class SingleSourceShortestPathDijkstra<CostType> extends
     }
 
     @Override
-    public List<List<PropertyContainer>> getPaths( Node targetNode )
+    public List<List<Entity>> getPaths( Node targetNode )
     {
         if ( targetNode == null )
         {
@@ -198,7 +197,7 @@ public class SingleSourceShortestPathDijkstra<CostType> extends
     }
 
     @Override
-    public List<PropertyContainer> getPath( Node targetNode )
+    public List<Entity> getPath( Node targetNode )
     {
         if ( targetNode == null )
         {
@@ -253,7 +252,7 @@ public class SingleSourceShortestPathDijkstra<CostType> extends
     }
 
     @Override
-    public List<PropertyContainer> getPath()
+    public List<Entity> getPath()
     {
         return getPath( endNode );
     }
@@ -271,7 +270,7 @@ public class SingleSourceShortestPathDijkstra<CostType> extends
     }
 
     @Override
-    public List<List<PropertyContainer>> getPaths()
+    public List<List<Entity>> getPaths()
     {
         return getPaths( endNode );
     }
@@ -297,7 +296,7 @@ public class SingleSourceShortestPathDijkstra<CostType> extends
         List<Node> result = new LinkedList<>();
         List<Relationship> predecessorRelationShips = predecessors1.get( node );
         if ( predecessorRelationShips == null
-            || predecessorRelationShips.size() == 0 )
+            || predecessorRelationShips.isEmpty() )
         {
             return null;
         }

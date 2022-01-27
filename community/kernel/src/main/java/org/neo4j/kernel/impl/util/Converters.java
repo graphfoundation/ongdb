@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,24 +38,16 @@
  */
 package org.neo4j.kernel.impl.util;
 
-import java.io.File;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
-import org.neo4j.helpers.HostnamePort;
-import org.neo4j.helpers.collection.Pair;
+import org.neo4j.internal.helpers.collection.NumberAwareStringComparator;
 
-import static org.neo4j.function.Predicates.not;
+import static org.neo4j.util.Preconditions.checkState;
 
 public class Converters
 {
@@ -63,100 +55,83 @@ public class Converters
     {
     }
 
-    public static <T> Function<String,T> mandatory()
-    {
-        return key ->
-        {
-            throw new IllegalArgumentException( "Missing argument '" + key + "'" );
-        };
-    }
-
     public static <T> Function<String,T> optional()
     {
         return from -> null;
     }
 
-    public static <T> Function<String,T> withDefault( final T defaultValue )
-    {
-        return from -> defaultValue;
-    }
+    private static final Comparator<Path> BY_FILE_NAME = Comparator.comparing( Path::getFileName );
 
-    public static Function<String,File> toFile()
-    {
-        return File::new;
-    }
+    private static final Comparator<Path> BY_FILE_NAME_WITH_CLEVER_NUMBERS =
+            ( o1, o2 ) -> NumberAwareStringComparator.INSTANCE.compare( o1.toAbsolutePath().toString(), o2.toAbsolutePath().toString() );
 
-    public static Function<String, Path> toPath()
-    {
-        return Paths::get;
-    }
-
-    public static Function<String, String> identity()
-    {
-        return s -> s;
-    }
-
-    public static final Comparator<File> BY_FILE_NAME = Comparator.comparing( File::getName );
-
-    public static final Comparator<File> BY_FILE_NAME_WITH_CLEVER_NUMBERS =
-            ( o1, o2 ) -> NumberAwareStringComparator.INSTANCE.compare( o1.getAbsolutePath(), o2.getAbsolutePath() );
-
-    public static Function<String,File[]> regexFiles( final boolean cleverNumberRegexSort )
+    public static Function<String,Path[]> regexFiles( final boolean cleverNumberRegexSort )
     {
         return name ->
         {
-            Comparator<File> sorting = cleverNumberRegexSort ? BY_FILE_NAME_WITH_CLEVER_NUMBERS : BY_FILE_NAME;
-            List<File> files = Validators.matchingFiles( new File( name ) );
+            Comparator<Path> sorting = cleverNumberRegexSort ? BY_FILE_NAME_WITH_CLEVER_NUMBERS : BY_FILE_NAME;
+            List<Path> files = Validators.matchingFiles( name.trim() );
             files.sort( sorting );
-            return files.toArray( new File[files.size()] );
+            return files.toArray( new Path[0] );
         };
     }
 
-    public static Function<String,File[]> toFiles( final String delimiter,
-            final Function<String,File[]> eachFileConverter )
+    public static Function<String,Path[]> toFiles( final String delimiter, final Function<String,Path[]> eachFileConverter )
     {
         return from ->
         {
             if ( from == null )
             {
-                return new File[0];
+                return new Path[0];
             }
 
-            String[] names = from.split( delimiter );
-            List<File> files = new ArrayList<>();
+            String[] names = quotationAwareSplit( from, delimiter );
+            List<Path> files = new ArrayList<>();
             for ( String name : names )
             {
                 files.addAll( Arrays.asList( eachFileConverter.apply( name ) ) );
             }
-            return files.toArray( new File[files.size()] );
+            return files.toArray( new Path[0] );
         };
     }
 
-    public static Function<String,Integer> toInt()
-    {
-        return Integer::new;
-    }
-
     /**
-     * Takes a raw address that can have a single port or 2 ports (lower and upper bounds of port range) and
-     * processes it to a clean separation of host and ports. When only one port is specified, it is in the lower bound.
-     * The presence of an upper bound implies a range.
+     * Splits a string by the delimiter, but will not split by delimiters inside ' quatation characters. Example:
      *
-     * @param rawAddress the raw address that a user can provide via config or command line
-     * @return the host, lower bound port, and upper bound port
+     * <pre>
+     * The first part,'the second, but longer part',the third part
+     * </pre>
+     *
+     * Will be split into:
+     * <ol>
+     *     <li>The first part</li>
+     *     <li>the second, but longer part</li>
+     *     <li>the third part</li>
+     * </ol>
+     *
+     * @param from string to be split into smaller parts.
+     * @param delimiter the delimiter to split on.
+     * @return an array of parts split from the provided string, where delimiters inside quoted strings will not be split.
      */
-    public static OptionalHostnamePort toOptionalHostnamePortFromRawAddress( String rawAddress )
+    private static String[] quotationAwareSplit( String from, String delimiter )
     {
-        HostnamePort hostnamePort = new HostnamePort( rawAddress );
-        Optional<String> processedHost = Optional.ofNullable( hostnamePort.getHost() )
-                .map( str -> str.replaceAll( "\\[", "" ) )
-                .map( str -> str.replaceAll( "]", "" ) );
-        return new OptionalHostnamePort( processedHost, optionalFromZeroable( hostnamePort.getPorts()[0] ),
-                optionalFromZeroable( hostnamePort.getPorts()[1] ) );
-    }
-
-    private static Optional<Integer> optionalFromZeroable( int port )
-    {
-        return port == 0 ? Optional.empty() : Optional.of( port );
+        String[] parts = from.split( delimiter );
+        List<String> mendedParts = new ArrayList<>();
+        for ( int i = 0; i < parts.length; i++ )
+        {
+            String part = parts[i];
+            if ( part.startsWith( "'" ) )
+            {
+                // put back together the parts which were split by a comma, but where inside quotation
+                while ( !part.endsWith( "'" ) )
+                {
+                    checkState( i + 1 < parts.length, "When splitting \"%s\" the inner start quote in part \"%s\" had no matching end quote", from, part );
+                    part += delimiter + parts[++i];
+                }
+                part = part.substring( 1, part.length() - 1 ); // remove the quotation
+            }
+            mendedParts.add( part );
+        }
+        return mendedParts.toArray( new String[0] );
     }
 }

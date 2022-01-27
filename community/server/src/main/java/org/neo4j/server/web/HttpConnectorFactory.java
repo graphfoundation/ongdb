@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,30 +38,44 @@
  */
 package org.neo4j.server.web;
 
+import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.HttpConfiguration;
-import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 
 import java.util.Arrays;
 
-import org.neo4j.helpers.ListenSocketAddress;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.helpers.SocketAddress;
+import org.neo4j.kernel.api.net.NetworkConnectionTracker;
 import org.neo4j.server.configuration.ServerSettings;
 
 public class HttpConnectorFactory
 {
-    private Config configuration;
+    private static final String NAME = "http";
 
-    public HttpConnectorFactory( Config config )
+    private final String name;
+    private final NetworkConnectionTracker connectionTracker;
+    private final Config configuration;
+    private final ByteBufferPool byteBufferPool;
+
+    public HttpConnectorFactory( NetworkConnectionTracker connectionTracker, Config config, ByteBufferPool byteBufferPool )
     {
-        this.configuration = config;
+        this( NAME, connectionTracker, config, byteBufferPool );
+    }
+
+    protected HttpConnectorFactory( String name, NetworkConnectionTracker connectionTracker, Config configuration, ByteBufferPool byteBufferPool )
+    {
+        this.name = name;
+        this.connectionTracker = connectionTracker;
+        this.configuration = configuration;
+        this.byteBufferPool = byteBufferPool;
     }
 
     public ConnectionFactory createHttpConnectionFactory()
     {
-        return new HttpConnectionFactory( createHttpConfig() );
+        return new JettyHttpConnectionFactory( connectionTracker, createHttpConfig() );
     }
 
     protected HttpConfiguration createHttpConfig()
@@ -73,20 +87,22 @@ public class HttpConnectorFactory
         return httpConfig;
     }
 
-    public ServerConnector createConnector( Server server, ListenSocketAddress address, JettyThreadCalculator jettyThreadCalculator )
+    public ServerConnector createConnector( Server server, SocketAddress address, JettyThreadCalculator jettyThreadCalculator )
     {
         ConnectionFactory httpFactory = createHttpConnectionFactory();
         return createConnector(server, address, jettyThreadCalculator, httpFactory );
     }
 
-    public ServerConnector createConnector( Server server, ListenSocketAddress address,
+    public ServerConnector createConnector( Server server, SocketAddress address,
             JettyThreadCalculator jettyThreadCalculator, ConnectionFactory... httpFactories )
     {
         int acceptors = jettyThreadCalculator.getAcceptors();
         int selectors = jettyThreadCalculator.getSelectors();
 
         ServerConnector connector =
-                new ServerConnector( server, null, null, null, acceptors, selectors, httpFactories );
+                new ServerConnector( server, null, null, byteBufferPool, acceptors, selectors, httpFactories );
+
+        connector.setName( name );
 
         connector.setConnectionFactories( Arrays.asList( httpFactories ) );
 

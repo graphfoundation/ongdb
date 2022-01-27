@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,76 +38,67 @@
  */
 package org.neo4j.kernel.internal.locker;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.io.File;
 import java.io.IOException;
 
-import org.neo4j.kernel.StoreLockException;
-import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
-import org.neo4j.test.rule.fs.FileSystemRule;
+import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.Neo4jLayout;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.Neo4jLayoutExtension;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public class GlobalStoreLockerTest
+@Neo4jLayoutExtension
+class GlobalStoreLockerTest
 {
-
-    @Rule
-    public final TestDirectory testDirectory = TestDirectory.testDirectory();
-    @Rule
-    public final FileSystemRule fileSystemRule = new DefaultFileSystemRule();
+    @Inject
+    private FileSystemAbstraction fileSystem;
+    @Inject
+    private Neo4jLayout neo4jLayout;
 
     @Test
-    public void failToLockSameFolderAcrossIndependentLockers() throws Exception
+    void failToLockSameFolderAcrossIndependentLockers() throws Exception
     {
-        File directory = testDirectory.directory( "store-dir" );
-        try ( GlobalStoreLocker storeLocker = new GlobalStoreLocker( fileSystemRule.get(), directory ) )
+        try ( GlobalLocker storeLocker = new GlobalLocker( fileSystem, neo4jLayout ) )
         {
             storeLocker.checkLock();
 
-            try ( GlobalStoreLocker locker = new GlobalStoreLocker( fileSystemRule.get(), directory ) )
+            assertThrows( FileLockException.class, () ->
             {
-                locker.checkLock();
-                fail("directory should be locked");
-            }
-            catch ( StoreLockException expected )
-            {
-                // expected
-            }
+                try ( GlobalLocker locker = new GlobalLocker( fileSystem, neo4jLayout ) )
+                {
+                    locker.checkLock();
+                }
+            } );
 
-            try ( GlobalStoreLocker locker = new GlobalStoreLocker( fileSystemRule.get(), directory ) )
+            assertThrows( FileLockException.class, () ->
             {
-                locker.checkLock();
-                fail("directory should be locked");
-            }
-            catch ( StoreLockException expected )
-            {
-                // expected
-            }
+                try ( GlobalLocker locker = new GlobalLocker( fileSystem, neo4jLayout ) )
+                {
+                    locker.checkLock();
+                }
+            } );
         }
     }
 
     @Test
-    public void allowToLockSameDirectoryIfItWasUnlocked() throws IOException
+    void allowToLockSameDirectoryIfItWasUnlocked() throws IOException
     {
-        File directory = testDirectory.directory( "doubleLock" );
-        try ( GlobalStoreLocker storeLocker = new GlobalStoreLocker( fileSystemRule.get(), directory ) )
+        try ( GlobalLocker storeLocker = new GlobalLocker( fileSystem, neo4jLayout ) )
         {
             storeLocker.checkLock();
         }
-        try ( GlobalStoreLocker storeLocker = new GlobalStoreLocker( fileSystemRule.get(), directory ) )
+        try ( GlobalLocker storeLocker = new GlobalLocker( fileSystem, neo4jLayout ) )
         {
             storeLocker.checkLock();
         }
     }
 
     @Test
-    public void allowMultipleCallstoActuallStoreLocker() throws IOException
+    void allowMultipleCallstoActuallyStoreLocker() throws IOException
     {
-        File directory = testDirectory.directory( "multipleCalls" );
-        try ( GlobalStoreLocker storeLocker = new GlobalStoreLocker( fileSystemRule.get(), directory ) )
+        try ( GlobalLocker storeLocker = new GlobalLocker( fileSystem, neo4jLayout ) )
         {
             storeLocker.checkLock();
             storeLocker.checkLock();

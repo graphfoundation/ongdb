@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,79 +38,149 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted
 
+import org.mockito.ArgumentMatchers
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito
+import org.mockito.Mockito.when
 import org.mockito.invocation.InvocationOnMock
-import org.mockito.stubbing.Answer
-import org.mockito.{ArgumentMatchers, Mockito}
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.ExpressionCursors
+import org.neo4j.cypher.internal.runtime.InputDataStream
+import org.neo4j.cypher.internal.runtime.NoInput
 import org.neo4j.cypher.internal.runtime.QueryContext
+import org.neo4j.cypher.internal.runtime.ResourceManager
+import org.neo4j.cypher.internal.runtime.ResourceMonitor
 import org.neo4j.cypher.internal.runtime.interpreted.TransactionBoundQueryContext.IndexSearchMonitor
-import org.neo4j.cypher.internal.runtime.interpreted.pipes.{ExternalCSVResource, NullPipeDecorator, PipeDecorator, QueryState}
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.ExternalCSVResource
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.NullPipeDecorator
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.PipeDecorator
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.internal.runtime.memory.NoOpMemoryTrackerForOperatorProvider
+import org.neo4j.cypher.internal.runtime.memory.NoOpQueryMemoryTracker
+import org.neo4j.graphdb.Node
+import org.neo4j.graphdb.Relationship
 import org.neo4j.graphdb.spatial.Point
-import org.neo4j.graphdb.{Node, Relationship}
+import org.neo4j.internal.kernel.api.AutoCloseablePlus
+import org.neo4j.internal.kernel.api.CursorFactory
+import org.neo4j.internal.kernel.api.IndexReadSession
+import org.neo4j.internal.kernel.api.NodeCursor
+import org.neo4j.internal.kernel.api.PropertyCursor
+import org.neo4j.internal.kernel.api.RelationshipScanCursor
+import org.neo4j.internal.kernel.api.TokenReadSession
+import org.neo4j.io.pagecache.context.CursorContext
 import org.neo4j.kernel.GraphDatabaseQueryService
-import org.neo4j.kernel.impl.coreapi.{InternalTransaction, PropertyContainerLocker}
+import org.neo4j.kernel.impl.coreapi.InternalTransaction
 import org.neo4j.kernel.impl.query.Neo4jTransactionalContextFactory
-import org.neo4j.kernel.impl.query.clientconnection.ClientConnectionInfo
+import org.neo4j.kernel.impl.query.QuerySubscriber
 import org.neo4j.kernel.impl.util.BaseToObjectValueWriter
-import org.neo4j.kernel.monitoring.{Monitors => KernelMonitors}
+import org.neo4j.memory.EmptyMemoryTracker
+import org.neo4j.monitoring.Monitors
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.CoordinateReferenceSystem
-import org.neo4j.values.virtual.MapValue
 import org.neo4j.values.virtual.VirtualValues.EMPTY_MAP
+import org.scalatest.mockito.MockitoSugar
 
-import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
-object QueryStateHelper {
+object QueryStateHelper extends MockitoSugar {
   def empty: QueryState = emptyWith()
 
   def emptyWith(db: GraphDatabaseQueryService = null,
                 query: QueryContext = null,
                 resources: ExternalCSVResource = null,
-                params: MapValue = EMPTY_MAP,
+                params: Array[AnyValue] = Array.empty,
+                expressionCursors: ExpressionCursors = new ExpressionCursors(mockCursorFactory, CursorContext.NULL, EmptyMemoryTracker.INSTANCE),
+                queryIndexes: Array[IndexReadSession] = Array(mock[IndexReadSession]),
+                nodeTokenIndex: Option[TokenReadSession] = Some(mock[TokenReadSession]),
+                relTokenIndex: Option[TokenReadSession] = Some(mock[TokenReadSession]),
+                expressionVariables: Array[AnyValue] = Array.empty,
+                subscriber: QuerySubscriber = QuerySubscriber.DO_NOTHING_SUBSCRIBER,
                 decorator: PipeDecorator = NullPipeDecorator,
-                initialContext: Option[ExecutionContext] = None
+                initialContext: Option[CypherRow] = None,
+                input: InputDataStream = NoInput
                ):QueryState =
-    new QueryState(query, resources, params, decorator,
-      triadicState = mutable.Map.empty, repeatableReads = mutable.Map.empty, initialContext = initialContext)
-
-  private val locker: PropertyContainerLocker = new PropertyContainerLocker
+    new QueryState(query,
+      resources,
+      params,
+      expressionCursors,
+      queryIndexes,
+      nodeTokenIndex,
+      relTokenIndex,
+      expressionVariables,
+      subscriber,
+      NoOpQueryMemoryTracker,
+      NoOpMemoryTrackerForOperatorProvider,
+      decorator = decorator,
+      initialContext = initialContext,
+      input = input)
 
   def queryStateFrom(db: GraphDatabaseQueryService,
                      tx: InternalTransaction,
-                     params: MapValue = EMPTY_MAP
+                     params: Array[AnyValue] = Array.empty,
+                     subscriber: QuerySubscriber = QuerySubscriber.DO_NOTHING_SUBSCRIBER
                     ): QueryState = {
-    val searchMonitor = new KernelMonitors().newMonitor(classOf[IndexSearchMonitor])
-    val contextFactory = Neo4jTransactionalContextFactory.create(db, locker)
-    val transactionalContext = TransactionalContextWrapper(contextFactory.newContext(ClientConnectionInfo.EMBEDDED_CONNECTION, tx, "X", EMPTY_MAP))
-    val queryContext = new TransactionBoundQueryContext(transactionalContext)(searchMonitor)
-    emptyWith(db = db, query = queryContext, params = params)
+    val searchMonitor = new Monitors().newMonitor(classOf[IndexSearchMonitor])
+    val contextFactory = Neo4jTransactionalContextFactory.create(db)
+    val transactionalContext = TransactionalContextWrapper(contextFactory.newContext(tx, "X", EMPTY_MAP))
+    val queryContext = new TransactionBoundQueryContext(transactionalContext, new ResourceManager)(searchMonitor)
+    emptyWith(db = db,
+      query = queryContext,
+      params = params,
+      expressionCursors = new ExpressionCursors(transactionalContext.cursors, transactionalContext.cursorContext, transactionalContext.memoryTracker),
+      subscriber = subscriber)
   }
 
-  def withQueryState[T](db: GraphDatabaseQueryService, tx: InternalTransaction, params: MapValue = EMPTY_MAP, f: (QueryState) => T)  = {
-    val queryState = queryStateFrom(db, tx, params)
+  def withQueryState[T](db: GraphDatabaseQueryService, tx: InternalTransaction, params: Array[AnyValue] = Array.empty,
+                        f: QueryState => T, subscriber: QuerySubscriber = QuerySubscriber.DO_NOTHING_SUBSCRIBER): T = {
+    val queryState = queryStateFrom(db, tx, params, subscriber)
     try {
       f(queryState)
     } finally {
-      queryState.query.transactionalContext.close(true)
+      queryState.close()
+      queryState.query.transactionalContext.close()
     }
 
   }
 
-  def countStats(q: QueryState) = q.withQueryContext(query = new UpdateCountingQueryContext(q.query))
+  def countStats(q: QueryState): QueryState = q.withQueryContext(query = new UpdateCountingQueryContext(q.query))
 
-  def emptyWithValueSerialization: QueryState = emptyWith(query = context)
+  def emptyWithValueSerialization: QueryState = {
+    val context = mock[QueryContext](Mockito.RETURNS_DEEP_STUBS)
+    Mockito.when(context.asObject(ArgumentMatchers.any())).thenAnswer((invocationOnMock: InvocationOnMock) => toObject(invocationOnMock.getArgument(0)))
+    emptyWith(query = context)
+  }
 
-  private val context = Mockito.mock(classOf[QueryContext])
-  Mockito.when(context.asObject(ArgumentMatchers.any())).thenAnswer(new Answer[Any] {
-    override def answer(invocationOnMock: InvocationOnMock): AnyRef = toObject(invocationOnMock.getArgument(0))
-  })
+  def emptyWithResourceManager(resourceManager: ResourceManager): QueryState = {
+    val context = mock[QueryContext](Mockito.RETURNS_DEEP_STUBS)
+    Mockito.when(context.resources).thenReturn(resourceManager)
+    emptyWith(query = context)
+  }
+
+  class TrackClosedMonitor extends ResourceMonitor {
+    private val _closedResources = new ArrayBuffer[AutoCloseablePlus]()
+    override def trace(resource: AutoCloseablePlus): Unit = ()
+    override def untrace(resource: AutoCloseablePlus): Unit = ()
+    override def close(resource: AutoCloseablePlus): Unit = _closedResources += resource
+    def closedResources: Seq[AutoCloseablePlus] = _closedResources
+  }
+
+  def trackClosedMonitor = new TrackClosedMonitor
 
   private def toObject(any: AnyValue) = {
     val writer = new BaseToObjectValueWriter[RuntimeException] {
-      override protected def newNodeProxyById(id: Long): Node = ???
-      override protected def newRelationshipProxyById(id: Long): Relationship = ???
+      override protected def newNodeEntityById(id: Long): Node = ???
+      override protected def newRelationshipEntityById(id: Long): Relationship = ???
       override protected def newPoint(crs: CoordinateReferenceSystem, coordinate: Array[Double]): Point = ???
     }
     any.writeTo(writer)
     writer.value()
+  }
+
+  private def mockCursorFactory: CursorFactory = {
+    val factory = mock[CursorFactory]
+    when(factory.allocateNodeCursor(any())).thenReturn(mock[NodeCursor])
+    when(factory.allocateRelationshipScanCursor(any())).thenReturn(mock[RelationshipScanCursor])
+    when(factory.allocatePropertyCursor(any(), any())).thenReturn(mock[PropertyCursor])
+    factory
   }
 }

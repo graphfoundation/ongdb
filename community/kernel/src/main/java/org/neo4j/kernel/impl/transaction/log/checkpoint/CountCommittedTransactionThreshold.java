@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,6 +38,8 @@
  */
 package org.neo4j.kernel.impl.transaction.log.checkpoint;
 
+import org.neo4j.kernel.impl.transaction.log.LogPosition;
+
 class CountCommittedTransactionThreshold extends AbstractCheckPointThreshold
 {
     private final int notificationThreshold;
@@ -46,24 +48,24 @@ class CountCommittedTransactionThreshold extends AbstractCheckPointThreshold
 
     CountCommittedTransactionThreshold( int notificationThreshold )
     {
-        super( "tx count threshold" );
+        super( "every " + notificationThreshold + " transactions threshold" );
         this.notificationThreshold = notificationThreshold;
     }
 
     @Override
-    public void initialize( long transactionId )
+    public void initialize( long transactionId, LogPosition logPosition )
     {
         nextTransactionIdTarget = transactionId + notificationThreshold;
     }
 
     @Override
-    protected boolean thresholdReached( long lastCommittedTransactionId )
+    protected boolean thresholdReached( long lastCommittedTransactionId, LogPosition logPosition )
     {
         return lastCommittedTransactionId >= nextTransactionIdTarget;
     }
 
     @Override
-    public void checkPointHappened( long transactionId )
+    public void checkPointHappened( long transactionId, LogPosition logPosition )
     {
         nextTransactionIdTarget = transactionId + notificationThreshold;
     }

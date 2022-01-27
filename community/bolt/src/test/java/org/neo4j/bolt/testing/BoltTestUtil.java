@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,11 +39,35 @@
 package org.neo4j.bolt.testing;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
+import io.netty.channel.embedded.EmbeddedChannel;
 
-import static org.junit.Assert.assertEquals;
+import org.neo4j.bolt.BoltChannel;
+import org.neo4j.bolt.transport.pipeline.ChannelProtector;
 
-public class BoltTestUtil
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+public final class BoltTestUtil
 {
+    private BoltTestUtil()
+    {
+    }
+
+    public static BoltChannel newTestBoltChannel()
+    {
+        return newTestBoltChannel( "bolt-1" );
+    }
+
+    public static BoltChannel newTestBoltChannel( String id )
+    {
+        return new BoltChannel( id, "bolt", new EmbeddedChannel(), ChannelProtector.NULL );
+    }
+
+    public static BoltChannel newTestBoltChannel( Channel ch )
+    {
+        return new BoltChannel( "bolt-1", "bolt", ch, ChannelProtector.NULL );
+    }
+
     public static void assertByteBufEquals( ByteBuf expected, ByteBuf actual )
     {
         try

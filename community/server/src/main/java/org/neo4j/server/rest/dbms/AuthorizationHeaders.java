@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,11 @@
  */
 package org.neo4j.server.rest.dbms;
 
-import com.sun.jersey.core.util.Base64;
+import org.apache.commons.lang3.StringUtils;
+
+import java.util.Base64;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class AuthorizationHeaders
 {
@@ -54,13 +58,13 @@ public class AuthorizationHeaders
         String[] parts = authorizationHeader.trim().split( " " );
         String tokenSegment = parts[parts.length - 1];
 
-        if ( tokenSegment.trim().length() == 0 )
+        if ( tokenSegment.isBlank() )
         {
             return null;
         }
 
-        String decoded = Base64.base64Decode( tokenSegment );
-        if ( decoded.length() < 1 )
+        String decoded = decodeBase64( tokenSegment );
+        if ( decoded.isEmpty() )
         {
             return null;
         }
@@ -72,5 +76,18 @@ public class AuthorizationHeaders
         }
 
         return userAndPassword;
+    }
+
+    private static String decodeBase64( String base64 )
+    {
+        try
+        {
+            byte[] decodedBytes = Base64.getDecoder().decode( base64 );
+            return new String( decodedBytes, UTF_8 );
+        }
+        catch ( IllegalArgumentException e )
+        {
+            return StringUtils.EMPTY;
+        }
     }
 }

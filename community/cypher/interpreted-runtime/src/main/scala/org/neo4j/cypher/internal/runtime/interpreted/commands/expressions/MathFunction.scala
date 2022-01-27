@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,276 +38,376 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.util.v3_4.{CypherTypeException, InvalidArgumentException}
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.ReadableRow
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.util.v3_4.symbols._
-import org.neo4j.values._
-import org.neo4j.values.storable._
-import org.neo4j.values.virtual.VirtualValues
+import org.neo4j.cypher.internal.util.symbols.CTNumber
+import org.neo4j.cypher.internal.util.symbols.NumberType
+import org.neo4j.cypher.operations.CypherFunctions
+import org.neo4j.exceptions.CypherTypeException
+import org.neo4j.kernel.api.StatementConstants
+import org.neo4j.values.AnyValue
+import org.neo4j.values.storable.DoubleValue
+import org.neo4j.values.storable.FloatingPointValue
+import org.neo4j.values.storable.IntValue
+import org.neo4j.values.storable.IntegralValue
+import org.neo4j.values.storable.LongValue
+import org.neo4j.values.storable.NumberValue
+import org.neo4j.values.storable.NumberValues
+import org.neo4j.values.storable.Values
+import org.neo4j.values.storable.Values.NO_VALUE
 
-abstract class MathFunction(arg: Expression) extends Expression with NumericHelper {
+abstract class MathFunction(arg: Expression) extends Expression {
 
-  def innerExpectedType = CTNumber
+  def innerExpectedType: NumberType = CTNumber
 
-  override def arguments = Seq(arg)
+  override def arguments: Seq[Expression] = Seq(arg)
 
-  override def symbolTableDependencies = arg.symbolTableDependencies
 }
 
 abstract class NullSafeMathFunction(arg: Expression) extends MathFunction(arg) {
 
-  override def apply(ctx: ExecutionContext, state: QueryState): AnyValue = {
-    val value = arg(ctx, state)
-    if (Values.NO_VALUE == value) Values.NO_VALUE else Values.doubleValue(apply(asDouble(value).doubleValue()))
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = {
+    val value = arg(row, state)
+    if (NO_VALUE eq value) NO_VALUE else Values.doubleValue(apply(NumericHelper.asDouble(value).doubleValue()))
   }
 
   def apply(value: Double): Double
 }
 
-trait NumericHelper {
+// We need this to be able to call the static functions from compiled code.
+class NumericHelper
 
-  protected def asLongEntityId(a: AnyValue): Option[Long] = a match {
+object NumericHelper {
+
+  def asLongEntityId(a: AnyValue): Option[Long] = a match {
     case i: IntegralValue => Some(i.longValue())
     case f: FloatingPointValue => if (NumberValues.numbersEqual(f.doubleValue(), f.longValue())) Some(f.longValue()) else None
     case _ => None
   }
 
-  protected def asDouble(a: AnyValue): DoubleValue = Values.doubleValue(asNumber(a).doubleValue())
+  def asLongEntityIdPrimitive(a: AnyValue): Long = a match {
+    case d:IntegralValue => d.longValue()
+    case f: FloatingPointValue if NumberValues.numbersEqual(f.doubleValue(), f.longValue()) => f.longValue()
+    case _ => StatementConstants.NO_SUCH_ENTITY
+  }
 
-  protected def asInt(a: AnyValue): IntValue = Values.intValue(asPrimitiveInt(a))
+  def asDouble(a: AnyValue): DoubleValue = Values.doubleValue(asNumber(a).doubleValue())
 
-  protected def asPrimitiveInt(a: AnyValue): Int = asNumber(a).longValue().toInt
+  def asInt(a: AnyValue): IntValue = Values.intValue(asPrimitiveInt(a))
 
-  protected def asLong(a: AnyValue): LongValue = Values.longValue(asPrimitiveLong(a))
+  def asPrimitiveInt(a: AnyValue): Int = asNumber(a).longValue().toInt
 
-  protected def asPrimitiveLong(a: AnyValue): Long = asNumber(a).longValue()
+  def asLong(a: AnyValue): LongValue = Values.longValue(asPrimitiveLong(a))
 
-  private def asNumber(a: AnyValue): NumberValue = a match {
+  def asPrimitiveLong(a: AnyValue): Long = asNumber(a).longValue()
+
+  def asNumber(a: AnyValue): NumberValue = a match {
     case null => throw new CypherTypeException("Expected a numeric value for " + toString + ", but got null")
-    case Values.NO_VALUE => throw new CypherTypeException("Expected a numeric value for " + toString + ", but got null")
+    case x if x eq NO_VALUE => throw new CypherTypeException("Expected a numeric value for " + toString + ", but got null")
     case n: NumberValue => n
     case _ => throw new CypherTypeException("Expected a numeric value for " + toString + ", but got: " + a.toString)
+  }
+
+  def evaluateStaticallyKnownNumber(exp: Expression, state: QueryState): NumberValue = {
+    asNumber(exp(CypherRow.empty, state))
   }
 }
 
 case class AbsFunction(argument: Expression) extends MathFunction(argument) {
 
-  override def apply(ctx: ExecutionContext, state: QueryState): AnyValue = {
-    val value = argument(ctx, state)
-    if (Values.NO_VALUE == value) Values.NO_VALUE
-    else value match {
-      case f: IntegralValue => Values.longValue(Math.abs(f.longValue()))
-      case d: NumberValue =>  Values.doubleValue(Math.abs(d.doubleValue()))
-      case x => throw new CypherTypeException("Expected a numeric value for " + toString + ", but got: " + x.toString)
-    }
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = {
+    val value = argument(row, state)
+    if (value eq NO_VALUE) NO_VALUE else CypherFunctions.abs(value)
   }
 
-  override def rewrite(f: (Expression) => Expression) = f(AbsFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(AbsFunction(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
-case class AcosFunction(argument: Expression) extends NullSafeMathFunction(argument) {
+case class AcosFunction(argument: Expression) extends MathFunction(argument) {
 
-  override def apply(value: Double): Double = Math.acos(value)
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = argument(row, state) match {
+    case x if x eq NO_VALUE => NO_VALUE
+    case v => CypherFunctions.acos(v)
+  }
 
-  override def rewrite(f: (Expression) => Expression) = f(AcosFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(AcosFunction(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
-case class AsinFunction(argument: Expression) extends NullSafeMathFunction(argument) {
+case class AsinFunction(argument: Expression) extends MathFunction(argument) {
 
-  override def apply(value: Double): Double = Math.asin(value)
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = argument(row, state) match {
+    case x if x eq NO_VALUE => NO_VALUE
+    case v => CypherFunctions.asin(v)
+  }
 
-  override def rewrite(f: (Expression) => Expression) = f(AsinFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(AsinFunction(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
-case class AtanFunction(argument: Expression) extends NullSafeMathFunction(argument) {
+case class AtanFunction(argument: Expression) extends MathFunction(argument) {
 
-  override def apply(value: Double): Double = Math.atan(value)
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = argument(row, state) match {
+    case x if x eq NO_VALUE => NO_VALUE
+    case v => CypherFunctions.atan(v)
+  }
 
-  override def rewrite(f: (Expression) => Expression) = f(AtanFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(AtanFunction(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
-case class Atan2Function(y: Expression, x: Expression) extends Expression with NumericHelper {
+case class Atan2Function(y: Expression, x: Expression) extends Expression {
 
-  def apply(ctx: ExecutionContext, state: QueryState): AnyValue = {
-    val yValue = y(ctx, state)
-    val xValue = x(ctx, state)
-    if (Values.NO_VALUE == yValue || Values.NO_VALUE == xValue)
-      Values.NO_VALUE
+  def apply(row: ReadableRow, state: QueryState): AnyValue = {
+    val yValue = y(row, state)
+    val xValue = x(row, state)
+    if ((NO_VALUE eq yValue) || (NO_VALUE eq xValue))
+      NO_VALUE
     else
-      Values.doubleValue(math.atan2(asDouble(yValue).doubleValue(), asDouble(xValue).doubleValue()))
+     CypherFunctions.atan2(yValue, xValue)
   }
 
-  override def arguments = Seq(x, y)
+  override def arguments: Seq[Expression] = Seq(x, y)
 
-  override def rewrite(f: (Expression) => Expression) = f(Atan2Function(y.rewrite(f), x.rewrite(f)))
+  override def children: Seq[AstNode[_]] = Seq(x, y)
 
-  override def symbolTableDependencies = x.symbolTableDependencies ++ y.symbolTableDependencies
+  override def rewrite(f: Expression => Expression): Expression = f(Atan2Function(y.rewrite(f), x.rewrite(f)))
 }
 
-case class CeilFunction(argument: Expression) extends NullSafeMathFunction(argument) {
+case class CeilFunction(argument: Expression) extends MathFunction(argument) {
 
-  override def apply(value: Double) = math.ceil(value)
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = argument(row, state) match {
+    case x if x eq NO_VALUE => NO_VALUE
+    case v => CypherFunctions.ceil(v)
+  }
 
-  override def rewrite(f: (Expression) => Expression) = f(CeilFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(CeilFunction(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
-case class CosFunction(argument: Expression) extends NullSafeMathFunction(argument) {
+case class CosFunction(argument: Expression) extends MathFunction(argument) {
 
-  override def apply(value: Double): Double = math.cos(value)
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = argument(row, state) match {
+    case x if x eq NO_VALUE => NO_VALUE
+    case v => CypherFunctions.cos(v)
+  }
 
-  override def rewrite(f: (Expression) => Expression) = f(CosFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(CosFunction(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
-case class CotFunction(argument: Expression) extends NullSafeMathFunction(argument) {
+case class CotFunction(argument: Expression) extends MathFunction(argument) {
 
-  override def apply(value: Double): Double = 1.0 / math.tan(value)
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = argument(row, state) match {
+    case x if x eq NO_VALUE => NO_VALUE
+    case v => CypherFunctions.cot(v)
+  }
 
-  override def rewrite(f: (Expression) => Expression) = f(CotFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(CotFunction(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
-case class DegreesFunction(argument: Expression) extends NullSafeMathFunction(argument) {
+case class DegreesFunction(argument: Expression) extends MathFunction(argument) {
 
-  override def apply(value: Double): Double = math.toDegrees(value)
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = argument(row, state) match {
+    case x if x eq NO_VALUE => NO_VALUE
+    case v => CypherFunctions.toDegrees(v)
+  }
 
-  override def rewrite(f: (Expression) => Expression) = f(DegreesFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(DegreesFunction(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
 case class EFunction() extends Expression() {
 
-  override def apply(ctx: ExecutionContext, state: QueryState): AnyValue = Values.E
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = Values.E
 
-  override def arguments = Seq()
+  override def arguments: Seq[Expression] = Seq.empty
 
-  override def symbolTableDependencies = Set[String]()
+  override def children: Seq[AstNode[_]] = Seq.empty
 
-  override def rewrite(f: (Expression) => Expression) = f(EFunction())
+
+  override def rewrite(f: Expression => Expression): Expression = f(EFunction())
 }
 
-case class ExpFunction(argument: Expression) extends NullSafeMathFunction(argument) {
+case class ExpFunction(argument: Expression) extends MathFunction(argument) {
 
-  override def apply(value: Double): Double = math.exp(value)
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = argument(row, state) match {
+    case x if x eq NO_VALUE => NO_VALUE
+    case v => CypherFunctions.exp(v)
+  }
 
-  override def rewrite(f: (Expression) => Expression) = f(ExpFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(ExpFunction(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
-case class FloorFunction(argument: Expression) extends NullSafeMathFunction(argument) {
+case class FloorFunction(argument: Expression) extends MathFunction(argument) {
 
-  override def apply(value: Double) = math.floor(value)
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = argument(row, state) match {
+    case x if x eq NO_VALUE => NO_VALUE
+    case v => CypherFunctions.floor(v)
+  }
 
-  override def rewrite(f: (Expression) => Expression) = f(FloorFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(FloorFunction(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
-case class LogFunction(argument: Expression) extends NullSafeMathFunction(argument) {
+case class LogFunction(argument: Expression) extends MathFunction(argument) {
 
-  override def apply(value: Double) = math.log(value)
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = argument(row, state) match {
+    case x if x eq NO_VALUE => NO_VALUE
+    case v => CypherFunctions.log(v)
+  }
 
-  override def rewrite(f: (Expression) => Expression) = f(LogFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(LogFunction(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
-case class Log10Function(argument: Expression) extends NullSafeMathFunction(argument) {
+case class Log10Function(argument: Expression) extends MathFunction(argument) {
 
-  override def apply(value: Double) = math.log10(value)
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = argument(row, state) match {
+    case x if x eq NO_VALUE => NO_VALUE
+    case v => CypherFunctions.log10(v)
+  }
 
-  override def rewrite(f: (Expression) => Expression) = f(Log10Function(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(Log10Function(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
 case class PiFunction() extends Expression {
 
-  override def apply(ctx: ExecutionContext, state: QueryState): AnyValue = Values.PI
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = Values.PI
 
-  override def arguments = Seq()
+  override def arguments: Seq[Expression] = Seq.empty
 
-  override def symbolTableDependencies = Set()
+  override def children: Seq[AstNode[_]] = Seq.empty
 
-  override def rewrite(f: (Expression) => Expression) = f(PiFunction())
+  override def rewrite(f: Expression => Expression): Expression = f(PiFunction())
 }
 
-case class RadiansFunction(argument: Expression) extends NullSafeMathFunction(argument) {
+case class RadiansFunction(argument: Expression) extends MathFunction(argument) {
 
-  override def apply(value: Double) = math.toRadians(value)
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = argument(row, state) match {
+    case x if x eq NO_VALUE => NO_VALUE
+    case v => CypherFunctions.toRadians(v)
+  }
 
-  override def rewrite(f: (Expression) => Expression) = f(RadiansFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(RadiansFunction(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
-case class SinFunction(argument: Expression) extends NullSafeMathFunction(argument) {
+case class SinFunction(argument: Expression) extends MathFunction(argument) {
 
-  override def apply(value: Double) = math.sin(value)
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = argument(row, state) match {
+    case x if x eq NO_VALUE => NO_VALUE
+    case v => CypherFunctions.sin(v)
+  }
 
-  override def rewrite(f: (Expression) => Expression) = f(SinFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(SinFunction(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
-case class HaversinFunction(argument: Expression) extends NullSafeMathFunction(argument) {
+case class HaversinFunction(argument: Expression) extends MathFunction(argument) {
 
-  override def apply(value: Double) = (1.0d - math.cos(value)) / 2
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = argument(row, state) match {
+    case x if x eq NO_VALUE => NO_VALUE
+    case v => CypherFunctions.haversin(v)
+  }
 
-  override def rewrite(f: (Expression) => Expression) = f(HaversinFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(HaversinFunction(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
-case class TanFunction(argument: Expression) extends NullSafeMathFunction(argument) {
+case class TanFunction(argument: Expression) extends MathFunction(argument) {
 
-  override def apply(value: Double) = math.tan(value)
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = argument(row, state) match {
+    case x if x eq NO_VALUE => NO_VALUE
+    case v => CypherFunctions.tan(v)
+  }
 
-  override def rewrite(f: (Expression) => Expression) = f(TanFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(TanFunction(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
 case class RandFunction() extends Expression {
 
-  override def apply(ctx: ExecutionContext, state: QueryState): AnyValue = Values.doubleValue(math.random)
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = CypherFunctions.rand()
 
-  override def arguments = Seq()
+  override def arguments: Seq[Expression] = Seq.empty
 
-  override def symbolTableDependencies = Set[String]()
+  override def children: Seq[AstNode[_]] = Seq.empty
 
-  override def rewrite(f: (Expression) => Expression) = f(RandFunction())
+  override def rewrite(f: Expression => Expression): Expression = f(RandFunction())
 }
 
-case class RangeFunction(start: Expression, end: Expression, step: Expression) extends Expression with NumericHelper {
+case class RangeFunction(start: Expression, end: Expression, step: Expression) extends Expression {
 
-  override def apply(ctx: ExecutionContext, state: QueryState): AnyValue = {
-    val stepVal = asPrimitiveLong(step(ctx, state))
-    if (stepVal == 0L)
-      throw new InvalidArgumentException("step argument to range() cannot be zero")
+  override def apply(row: ReadableRow, state: QueryState): AnyValue =
+    CypherFunctions.range(start(row, state), end(row, state), step(row, state))
 
-    val startVal = asPrimitiveLong(start(ctx, state))
-    val inclusiveEndVal = asPrimitiveLong(end(ctx, state))
+  override def arguments: Seq[Expression] = Seq(start, end, step)
 
-    VirtualValues.range(startVal, inclusiveEndVal, stepVal)
-  }
+  override def children: Seq[AstNode[_]] = Seq(start, end, step)
 
-  override def arguments = Seq(start, end, step)
-
-  override def rewrite(f: (Expression) => Expression) =
+  override def rewrite(f: Expression => Expression): Expression =
     f(RangeFunction(start.rewrite(f), end.rewrite(f), step.rewrite(f)))
 
-  override def symbolTableDependencies = start.symbolTableDependencies ++
-    end.symbolTableDependencies ++
-    step.symbolTableDependencies
 }
 
 case class SignFunction(argument: Expression) extends MathFunction(argument) {
 
-  override def apply(ctx: ExecutionContext, state: QueryState): AnyValue = {
-    val value = argument(ctx, state)
-    if (Values.NO_VALUE == value) Values.NO_VALUE
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = {
+    val value = argument(row, state)
+    if (NO_VALUE eq value) NO_VALUE
     else {
-      Values.longValue(Math.signum(asDouble(value).doubleValue()).toLong)
+      Values.longValue(Math.signum(NumericHelper.asDouble(value).doubleValue()).toLong)
     }
   }
 
-  override def rewrite(f: (Expression) => Expression) = f(SignFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(SignFunction(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
-case class RoundFunction(expression: Expression) extends NullSafeMathFunction(expression) {
+case class RoundFunction(argument: Expression, precision: Expression, mode: Expression) extends MathFunction(argument) {
 
-  override def apply(value: Double) = math.round(value)
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = (argument(row, state), precision(row, state), mode(row, state)) match {
+    case (value, precision, mode) if (value eq NO_VALUE) || (precision eq NO_VALUE) || (mode eq NO_VALUE) => NO_VALUE
+    case (value, precision, mode) => CypherFunctions.round(value, precision, mode)
+  }
 
-  override def rewrite(f: (Expression) => Expression) = f(RoundFunction(expression.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(RoundFunction(argument.rewrite(f), precision.rewrite(f), mode.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
-case class SqrtFunction(argument: Expression) extends NullSafeMathFunction(argument) {
+case class SqrtFunction(argument: Expression) extends MathFunction(argument) {
 
-  override def apply(value: Double) = Math.sqrt(value)
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = argument(row, state) match {
+    case x if x eq NO_VALUE => NO_VALUE
+    case v => CypherFunctions.sqrt(v)
+  }
 
-  override def rewrite(f: (Expression) => Expression) = f(SqrtFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(SqrtFunction(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }

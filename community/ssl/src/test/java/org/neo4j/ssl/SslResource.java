@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,16 +38,16 @@
  */
 package org.neo4j.ssl;
 
-import java.io.File;
+import java.nio.file.Path;
 
 public class SslResource
 {
-    private final File privateKey;
-    private final File publicCertificate;
-    private final File trustedDirectory;
-    private final File revokedDirectory;
+    private final Path privateKey;
+    private final Path publicCertificate;
+    private final Path trustedDirectory;
+    private final Path revokedDirectory;
 
-    SslResource( File privateKey, File publicCertificate, File trustedDirectory, File revokedDirectory )
+    SslResource( Path privateKey, Path publicCertificate, Path trustedDirectory, Path revokedDirectory )
     {
         this.privateKey = privateKey;
         this.publicCertificate = publicCertificate;
@@ -55,22 +55,22 @@ public class SslResource
         this.revokedDirectory = revokedDirectory;
     }
 
-    public File privateKey()
+    public Path privateKey()
     {
         return privateKey;
     }
 
-    public File publicCertificate()
+    public Path publicCertificate()
     {
         return publicCertificate;
     }
 
-    public File trustedDirectory()
+    public Path trustedDirectory()
     {
         return trustedDirectory;
     }
 
-    public File revokedDirectory()
+    public Path revokedDirectory()
     {
         return revokedDirectory;
     }

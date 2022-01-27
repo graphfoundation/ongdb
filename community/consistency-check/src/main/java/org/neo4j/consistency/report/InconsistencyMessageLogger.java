@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,20 +38,29 @@
  */
 package org.neo4j.consistency.report;
 
+import java.util.function.Function;
+
 import org.neo4j.consistency.RecordType;
-import org.neo4j.helpers.Strings;
+import org.neo4j.internal.helpers.Strings;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
 import org.neo4j.logging.Log;
 
-import static org.neo4j.helpers.Strings.TAB;
+import static org.neo4j.internal.helpers.Strings.TAB;
 
 public class InconsistencyMessageLogger implements InconsistencyLogger
 {
     private final Log log;
+    private final Function<AbstractBaseRecord,String> recordToStringFunction;
 
     public InconsistencyMessageLogger( Log log )
     {
+        this( log, AbstractBaseRecord::toString );
+    }
+
+    public InconsistencyMessageLogger( Log log, Function<AbstractBaseRecord,String> recordToStringFunction )
+    {
         this.log = log;
+        this.recordToStringFunction = recordToStringFunction;
     }
 
     @Override
@@ -68,6 +77,12 @@ public class InconsistencyMessageLogger implements InconsistencyLogger
     }
 
     @Override
+    public void error( String message )
+    {
+        log.error( buildMessage( message ) );
+    }
+
+    @Override
     public void warning( RecordType recordType, AbstractBaseRecord record, String message, Object... args )
     {
         log.warn( buildMessage( message, record, args ) );
@@ -80,20 +95,55 @@ public class InconsistencyMessageLogger implements InconsistencyLogger
         log.warn( buildMessage( message, oldRecord, newRecord, args ) );
     }
 
-    private static String buildMessage( String message, AbstractBaseRecord record, Object[] args )
+    @Override
+    public void warning( String message )
     {
-        StringBuilder builder = joinLines( message ).append( System.lineSeparator() ).append( TAB ).append( record );
+        log.warn( buildMessage( message ) );
+    }
+
+    private String buildMessage( String message )
+    {
+        StringBuilder builder = tabAfterLinebreak( message );
+        return builder.toString();
+    }
+
+    private String buildMessage( String message, AbstractBaseRecord record, Object... args )
+    {
+        StringBuilder builder = joinLines( message ).append( System.lineSeparator() ).append( TAB ).append( safeToString( record ) );
         appendArgs( builder, args );
         return builder.toString();
     }
 
-    private static String buildMessage( String message, AbstractBaseRecord oldRecord, AbstractBaseRecord newRecord, Object[] args )
+    private String safeToString( AbstractBaseRecord record )
+    {
+        try
+        {
+            return recordToStringFunction.apply( record );
+        }
+        catch ( Exception e )
+        {
+            return String.format( "%s[%d,Error generating toString: %s]", record.getClass().getSimpleName(), record.getId(), e );
+        }
+    }
+
+    private String buildMessage( String message, AbstractBaseRecord oldRecord, AbstractBaseRecord newRecord, Object... args )
     {
         StringBuilder builder = joinLines( message );
         builder.append( System.lineSeparator() ).append( TAB ).append( "- " ).append( oldRecord );
         builder.append( System.lineSeparator() ).append( TAB ).append( "+ " ).append( newRecord );
         appendArgs( builder, args );
         return builder.toString();
+    }
+
+    private static StringBuilder tabAfterLinebreak( String message )
+    {
+        String[] lines = message.split( "\n" );
+        StringBuilder builder = new StringBuilder( lines[0].trim() );
+        for ( int i = 1; i < lines.length; i++ )
+        {
+            builder.append( System.lineSeparator() ).append( TAB ).append( lines[i].trim() );
+        }
+        return builder;
     }
 
     private static StringBuilder joinLines( String message )
@@ -107,17 +157,20 @@ public class InconsistencyMessageLogger implements InconsistencyLogger
         return builder;
     }
 
-    private static StringBuilder appendArgs( StringBuilder builder, Object[] args )
+    private void appendArgs( StringBuilder builder, Object[] args )
     {
         if ( args == null || args.length == 0 )
         {
-            return builder;
+            return;
         }
         builder.append( System.lineSeparator() ).append( TAB ).append( "Inconsistent with:" );
         for ( Object arg : args )
         {
-            builder.append( ' ' ).append( Strings.prettyPrint( arg ) );
+            builder.append( ' ' );
+            String argToString = arg instanceof AbstractBaseRecord
+                                 ? recordToStringFunction.apply( (AbstractBaseRecord) arg )
+                                 : Strings.prettyPrint( arg );
+            builder.append( argToString );
         }
-        return builder;
     }
 }

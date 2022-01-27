@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,13 +42,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.neo4j.helpers.MathUtil;
+import org.neo4j.annotations.api.PublicApi;
+import org.neo4j.internal.helpers.MathUtil;
 
 /**
- * Instances describe single execution steps in a Geequel query execution plan
+ * Instances describe single execution steps in a Cypher query execution plan
  *
  * Execution plans form a tree of execution steps.  Each step is described by a {@link ExecutionPlanDescription} object.
  */
+@PublicApi
 public interface ExecutionPlanDescription
 {
     /**
@@ -84,7 +86,7 @@ public interface ExecutionPlanDescription
      * Signifies that the query was profiled, and that statistics from the profiling can
      * {@link #getProfilerStatistics() be retrieved}.
      *
-     * The <a href="https://graphfoundation.org/ongdb/docs/developer-manual/current/geequel/execution-plans/">{@code PROFILE}</a> directive in Geequel
+     * The <a href="https://neo4j.com/docs/developer-manual/current/cypher/execution-plans/">{@code PROFILE}</a> directive in Cypher
      * ensures the presence of profiler statistics in the plan description.
      *
      * @return true, if {@link ProfilerStatistics} are available for this execution step
@@ -107,37 +109,64 @@ public interface ExecutionPlanDescription
     interface ProfilerStatistics
     {
         /**
+         * @return if the number of rows was recorded.
+         */
+        boolean hasRows();
+
+        /**
          * @return number of rows processed by the associated execution step
+         * @throws IllegalStateException if no time was recorded.
          */
         long getRows();
 
         /**
+         * @return if the number of DB hits was recorded.
+         */
+        boolean hasDbHits();
+
+        /**
          * @return number of database hits (potential disk accesses) caused by executing the associated execution step
+         * @throws IllegalStateException if no time was recorded.
          */
         long getDbHits();
 
         /**
-         * @return number of page cache hits caused by executing the associated execution step
+         * @return if the number page cache hits and misses and the ratio was recorded.
          */
-        default long getPageCacheHits()
-        {
-            return 0;
-        }
+        boolean hasPageCacheStats();
+
+        /**
+         * @return number of page cache hits caused by executing the associated execution step
+         * @throws IllegalStateException if no time was recorded.
+         */
+        long getPageCacheHits();
 
         /**
          * @return number of page cache misses caused by executing the associated execution step
+
+         * @throws IllegalStateException if no time was recorded.
          */
-        default long getPageCacheMisses()
-        {
-            return 0;
-        }
+        long getPageCacheMisses();
 
         /**
-         * @return the ratio of page cache hits to total number of lookups or {@link Double#NaN} if no data is available
+         * @return the ratio of page cache hits to total number of lookups or 0 if no data is available
+
+         * @throws IllegalStateException if no time was recorded.
          */
         default double getPageCacheHitRatio()
         {
             return MathUtil.portion( getPageCacheHits(), getPageCacheMisses() );
         }
+
+        /**
+         * @return if the time was recorded.
+         */
+        boolean hasTime();
+
+        /**
+         * @return amount of time spent in the associated execution step.
+         * @throws IllegalStateException if no time was recorded.
+         */
+        long getTime();
     }
 }

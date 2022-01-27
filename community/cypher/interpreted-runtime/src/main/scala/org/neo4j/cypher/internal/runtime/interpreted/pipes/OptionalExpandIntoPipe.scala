@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,55 +38,88 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Predicate
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection
+import org.neo4j.cypher.internal.expressions.SemanticDirection
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.IsNoValue
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.ExpandIntoPipe.getRowNode
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.ExpandIntoPipe.relationshipSelectionCursorIterator
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.ExpandIntoPipe.traceRelationshipSelectionCursor
+import org.neo4j.cypher.internal.util.attribution.Id
+import org.neo4j.graphdb.Direction
+import org.neo4j.internal.kernel.api.helpers.CachingExpandInto
 import org.neo4j.values.storable.Values
-import org.neo4j.values.virtual.NodeValue
+import org.neo4j.values.virtual.VirtualNodeValue
+import org.neo4j.values.virtual.VirtualValues
 
 import scala.collection.mutable.ListBuffer
 
-case class OptionalExpandIntoPipe(source: Pipe, fromName: String, relName: String, toName: String,
-                                  dir: SemanticDirection, types: LazyTypes, predicate: Predicate)
+case class OptionalExpandIntoPipe(source: Pipe,
+                                  fromName: String,
+                                  relName: String,
+                                  toName: String,
+                                  dir: SemanticDirection,
+                                  types: RelationshipTypes,
+                                  predicate: Option[Expression])
                                  (val id: Id = Id.INVALID_ID)
-  extends PipeWithSource(source) with CachingExpandInto {
-  private final val CACHE_SIZE = 100000
+  extends PipeWithSource(source)  {
+  private val kernelDirection = dir match {
+    case SemanticDirection.OUTGOING => Direction.OUTGOING
+    case SemanticDirection.INCOMING => Direction.INCOMING
+    case SemanticDirection.BOTH => Direction.BOTH
+  }
 
-  predicate.registerOwningPipe(this)
-
-  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
-    //cache of known connected nodes
-    val relCache = new RelationshipsCache(CACHE_SIZE)
-
+  protected def internalCreateResults(input: ClosingIterator[CypherRow], state: QueryState): ClosingIterator[CypherRow] = {
+    val query = state.query
+    val expandInto = new CachingExpandInto(query.transactionalContext.dataRead, kernelDirection, state.memoryTrackerForOperatorProvider.memoryTrackerForOperator(id.x))
+    state.query.resources.trace(expandInto)
     input.flatMap {
       row =>
         val fromNode = getRowNode(row, fromName)
         fromNode match {
-          case fromNode: NodeValue =>
+          case fromNode: VirtualNodeValue =>
             val toNode = getRowNode(row, toName)
 
             toNode match {
-              case Values.NO_VALUE => Iterator.single(row.set(relName, Values.NO_VALUE))
-              case n: NodeValue =>
-                val relationships = relCache.get(fromNode, n, dir)
-                  .getOrElse(findRelationships(state.query, fromNode, n, relCache, dir, types.types(state.query)))
-
-                val it = relationships.toIterator
-                val filteredRows = ListBuffer.empty[ExecutionContext]
-                while (it.hasNext) {
-                  val candidateRow = executionContextFactory.copyWith(row, relName, it.next())
-                  if (predicate.isTrue(candidateRow, state)) {
-                    filteredRows.append(candidateRow)
+              case IsNoValue() =>
+                row.set(relName, Values.NO_VALUE)
+                ClosingIterator.single(row)
+              case n: VirtualNodeValue =>
+                val traversalCursor = query.traversalCursor()
+                val nodeCursor = query.nodeCursor()
+                try {
+                  val selectionCursor = expandInto.connectingRelationships(nodeCursor,
+                                                                           traversalCursor,
+                                                                           fromNode.id(),
+                                                                           types.types(query),
+                                                                           n.id())
+                  traceRelationshipSelectionCursor(query.resources, selectionCursor, traversalCursor)
+                  query.resources.trace(selectionCursor)
+                  val relationships = relationshipSelectionCursorIterator(selectionCursor, traversalCursor)
+                  val filteredRows = ListBuffer.empty[CypherRow]
+                  // This is exhausting relationships directly, thus we do not need to return
+                  // a ClosingIterator in this flatMap.
+                  while (relationships.hasNext) {
+                    val candidateRow = rowFactory.copyWith(row, relName, VirtualValues.relationship(relationships.next(), relationships.startNodeId(), relationships.endNodeId(), relationships.typeId()))
+                    if (predicate.forall(p => p(candidateRow, state) eq Values.TRUE)) {
+                      filteredRows.append(candidateRow)
+                    }
                   }
+                  if (filteredRows.isEmpty) {
+                    row.set(relName, Values.NO_VALUE)
+                    ClosingIterator.single(row)
+                  }
+                  else filteredRows
+                } finally {
+                  nodeCursor.close()
                 }
-
-                if (filteredRows.isEmpty) Iterator.single(row.set(relName, Values.NO_VALUE))
-                else filteredRows
             }
 
-          case Values.NO_VALUE => Iterator(row.set(relName, Values.NO_VALUE))
+          case IsNoValue() =>
+            row.set(relName, Values.NO_VALUE)
+            ClosingIterator.single(row)
         }
-    }
+    }.closing(expandInto)
   }
 }

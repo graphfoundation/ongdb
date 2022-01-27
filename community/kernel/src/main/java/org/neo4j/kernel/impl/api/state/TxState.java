@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,74 +38,65 @@
  */
 package org.neo4j.kernel.impl.api.state;
 
-import java.util.HashMap;
-import java.util.HashSet;
+import org.eclipse.collections.api.map.MutableMap;
+import org.eclipse.collections.api.map.primitive.MutableLongObjectMap;
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+import org.eclipse.collections.impl.UnmodifiableMap;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.NavigableMap;
-import java.util.Set;
 import java.util.TreeMap;
-import java.util.function.Consumer;
 
-import org.neo4j.collection.primitive.PrimitiveIntObjectMap;
-import org.neo4j.collection.primitive.PrimitiveIntObjectVisitor;
-import org.neo4j.collection.primitive.PrimitiveIntSet;
-import org.neo4j.collection.primitive.PrimitiveLongIterator;
-import org.neo4j.collection.primitive.PrimitiveLongObjectMap;
-import org.neo4j.collection.primitive.PrimitiveLongSet;
-import org.neo4j.cursor.Cursor;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.internal.kernel.api.IndexQuery;
-import org.neo4j.internal.kernel.api.exceptions.schema.ConstraintValidationException;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptorPredicates;
-import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
-import org.neo4j.kernel.api.exceptions.schema.CreateConstraintFailureException;
-import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.api.schema.constaints.IndexBackedConstraintDescriptor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.kernel.api.txstate.RelationshipChangeVisitorAdapter;
+import org.neo4j.collection.trackable.HeapTrackingArrayList;
+import org.neo4j.exceptions.KernelException;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.internal.schema.ConstraintDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptorPredicates;
+import org.neo4j.internal.schema.SchemaDescriptors;
+import org.neo4j.internal.schema.constraints.IndexBackedConstraintDescriptor;
 import org.neo4j.kernel.api.txstate.TransactionState;
-import org.neo4j.kernel.impl.api.RelationshipVisitor;
-import org.neo4j.kernel.impl.api.cursor.TxAllPropertyCursor;
-import org.neo4j.kernel.impl.api.cursor.TxIteratorRelationshipCursor;
-import org.neo4j.kernel.impl.api.cursor.TxSingleNodeCursor;
-import org.neo4j.kernel.impl.api.cursor.TxSinglePropertyCursor;
-import org.neo4j.kernel.impl.api.cursor.TxSingleRelationshipCursor;
-import org.neo4j.kernel.impl.api.store.RelationshipIterator;
-import org.neo4j.kernel.impl.util.InstanceCache;
 import org.neo4j.kernel.impl.util.collection.CollectionsFactory;
 import org.neo4j.kernel.impl.util.collection.OnHeapCollectionsFactory;
-import org.neo4j.kernel.impl.util.diffsets.DiffSets;
-import org.neo4j.kernel.impl.util.diffsets.PrimitiveLongDiffSets;
-import org.neo4j.kernel.impl.util.diffsets.RelationshipDiffSets;
-import org.neo4j.storageengine.api.Direction;
-import org.neo4j.storageengine.api.NodeItem;
-import org.neo4j.storageengine.api.PropertyItem;
-import org.neo4j.storageengine.api.RelationshipItem;
-import org.neo4j.storageengine.api.StorageProperty;
-import org.neo4j.storageengine.api.txstate.DiffSetsVisitor;
+import org.neo4j.kernel.impl.util.diffsets.MutableDiffSets;
+import org.neo4j.kernel.impl.util.diffsets.MutableLongDiffSets;
+import org.neo4j.kernel.impl.util.diffsets.RemovalsCountingDiffSets;
+import org.neo4j.memory.EmptyMemoryTracker;
+import org.neo4j.memory.HeapEstimator;
+import org.neo4j.memory.MemoryTracker;
+import org.neo4j.storageengine.api.RelationshipDirection;
+import org.neo4j.storageengine.api.RelationshipVisitor;
+import org.neo4j.storageengine.api.RelationshipVisitorWithProperties;
+import org.neo4j.storageengine.api.txstate.DiffSets;
+import org.neo4j.storageengine.api.txstate.LongDiffSets;
 import org.neo4j.storageengine.api.txstate.NodeState;
-import org.neo4j.storageengine.api.txstate.PrimitiveLongReadableDiffSets;
-import org.neo4j.storageengine.api.txstate.PropertyContainerState;
-import org.neo4j.storageengine.api.txstate.ReadableDiffSets;
-import org.neo4j.storageengine.api.txstate.ReadableRelationshipDiffSets;
-import org.neo4j.storageengine.api.txstate.ReadableTransactionState;
+import org.neo4j.storageengine.api.txstate.RelationshipModifications;
+import org.neo4j.storageengine.api.txstate.RelationshipModifications.NodeRelationshipIds;
 import org.neo4j.storageengine.api.txstate.RelationshipState;
+import org.neo4j.storageengine.api.txstate.TransactionStateBehaviour;
 import org.neo4j.storageengine.api.txstate.TxStateVisitor;
-import org.neo4j.values.storable.TextValue;
+import org.neo4j.util.VisibleForTesting;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.ValueTuple;
-import org.neo4j.values.storable.Values;
 
-import static org.neo4j.collection.primitive.PrimitiveLongCollections.toPrimitiveIterator;
-import static org.neo4j.helpers.collection.Iterables.map;
+import static org.neo4j.collection.trackable.HeapTrackingCollections.newLongObjectMap;
+import static org.neo4j.collection.trackable.HeapTrackingCollections.newMap;
+import static org.neo4j.kernel.impl.api.state.TokenState.createTokenState;
+import static org.neo4j.kernel.impl.util.diffsets.TrackableDiffSets.newMutableDiffSets;
+import static org.neo4j.kernel.impl.util.diffsets.TrackableDiffSets.newMutableLongDiffSets;
+import static org.neo4j.kernel.impl.util.diffsets.TrackableDiffSets.newRemovalsCountingDiffSets;
+import static org.neo4j.storageengine.api.txstate.RelationshipModifications.idsAsBatch;
 import static org.neo4j.values.storable.Values.NO_VALUE;
 
 /**
  * This class contains transaction-local changes to the graph. These changes can then be used to augment reads from the
  * committed state of the database (to make the local changes appear in local transaction read operations). At commit
- * time a visitor is sent into this class to convert the end result of the tx changes into a physical changeset.
+ * time a visitor is sent into this class to convert the end result of the tx changes into a physical change-set.
  * <p>
  * See {@link org.neo4j.kernel.impl.api.KernelTransactionImplementation} for how this happens.
  * <p>
@@ -115,318 +106,235 @@ import static org.neo4j.values.storable.Values.NO_VALUE;
  */
 public class TxState implements TransactionState, RelationshipVisitor.Home
 {
+    private static final long SHALLOW_SIZE = HeapEstimator.shallowSizeOfInstance( TxState.class );
     /**
      * This factory must be used only for creating collections representing internal state that doesn't leak outside this class.
      */
     private final CollectionsFactory collectionsFactory;
 
-    private PrimitiveIntObjectMap<DiffSets<Long>> labelStatesMap;
-    private PrimitiveLongObjectMap<NodeStateImpl> nodeStatesMap;
-    private PrimitiveLongObjectMap<RelationshipStateImpl> relationshipStatesMap;
+    private MutableLongObjectMap<MutableLongDiffSets> labelStatesMap;
+    private MutableLongObjectMap<NodeStateImpl> nodeStatesMap;
+    private MutableLongObjectMap<MutableLongDiffSets> relationshipTypeStatesMap;
+    private MutableLongObjectMap<RelationshipStateImpl> relationshipStatesMap;
 
-    private static final ValueTuple MAX_STRING_TUPLE = ValueTuple.of( Values.MAX_STRING );
+    private MutableLongObjectMap<TokenState> createdLabelTokens;
+    private MutableLongObjectMap<TokenState> createdPropertyKeyTokens;
+    private MutableLongObjectMap<TokenState> createdRelationshipTypeTokens;
 
-    private PrimitiveIntObjectMap<String> createdLabelTokens;
-    private PrimitiveIntObjectMap<String> createdPropertyKeyTokens;
-    private PrimitiveIntObjectMap<String> createdRelationshipTypeTokens;
-
-    private GraphState graphState;
-
-    /**
-     * The {@link SchemaIndexDescriptor} keys in {@link #indexChanges} have a corresponding entry in {@link #specificIndexProviders},
-     * but may have been set there in cases where the default is to be used (which is the typical case). Keep these two in sync.
-     */
-    private DiffSets<SchemaIndexDescriptor> indexChanges;
-    private Map<SchemaIndexDescriptor,IndexProvider.Descriptor> specificIndexProviders;
-
-    private DiffSets<ConstraintDescriptor> constraintsChanges;
+    private MutableDiffSets<IndexDescriptor> indexChanges;
+    private MutableDiffSets<ConstraintDescriptor> constraintsChanges;
 
     private RemovalsCountingDiffSets nodes;
-    private RemovalsCountingRelationshipsDiffSets relationships;
+    private RemovalsCountingDiffSets relationships;
 
-    private Map<IndexBackedConstraintDescriptor, Long> createdConstraintIndexesByConstraint;
+    private MutableMap<IndexBackedConstraintDescriptor,IndexDescriptor> createdConstraintIndexesByConstraint;
 
-    private Map<SchemaDescriptor,Map<ValueTuple,PrimitiveLongDiffSets>> indexUpdates;
+    private MutableMap<SchemaDescriptor, Map<ValueTuple, MutableLongDiffSets>> indexUpdates;
 
-    private InstanceCache<TxSingleNodeCursor> singleNodeCursor;
-    private InstanceCache<TxIteratorRelationshipCursor> iteratorRelationshipCursor;
-    private InstanceCache<TxSingleRelationshipCursor> singleRelationshipCursor;
-    private InstanceCache<TxAllPropertyCursor> propertyCursor;
-    private InstanceCache<TxSinglePropertyCursor> singlePropertyCursor;
+    private final MemoryTracker memoryTracker;
+    private final TransactionStateBehaviour behaviour;
+    private long revision;
+    private long dataRevision;
 
-    private boolean hasChanges;
-    private boolean hasDataChanges;
-
+    @VisibleForTesting
     public TxState()
     {
-        this( OnHeapCollectionsFactory.INSTANCE );
+        this( OnHeapCollectionsFactory.INSTANCE, EmptyMemoryTracker.INSTANCE, TransactionStateBehaviour.DEFAULT_BEHAVIOUR );
     }
 
-    public TxState( CollectionsFactory collectionsFactory )
+    public TxState( CollectionsFactory collectionsFactory, MemoryTracker memoryTracker, TransactionStateBehaviour behaviour )
     {
         this.collectionsFactory = collectionsFactory;
-        singleNodeCursor = new InstanceCache<TxSingleNodeCursor>()
-        {
-            @Override
-            protected TxSingleNodeCursor create()
-            {
-                return new TxSingleNodeCursor( TxState.this, this );
-            }
-        };
-        propertyCursor = new InstanceCache<TxAllPropertyCursor>()
-        {
-            @Override
-            protected TxAllPropertyCursor create()
-            {
-                return new TxAllPropertyCursor( (Consumer) this );
-            }
-        };
-        singlePropertyCursor = new InstanceCache<TxSinglePropertyCursor>()
-        {
-            @Override
-            protected TxSinglePropertyCursor create()
-            {
-                return new TxSinglePropertyCursor( (Consumer) this );
-            }
-        };
-        singleRelationshipCursor = new InstanceCache<TxSingleRelationshipCursor>()
-        {
-            @Override
-            protected TxSingleRelationshipCursor create()
-            {
-                return new TxSingleRelationshipCursor( TxState.this, this );
-            }
-        };
-
-        iteratorRelationshipCursor = new InstanceCache<TxIteratorRelationshipCursor>()
-        {
-            @Override
-            protected TxIteratorRelationshipCursor create()
-            {
-                return new TxIteratorRelationshipCursor( TxState.this, this );
-            }
-        };
+        this.memoryTracker = memoryTracker;
+        this.behaviour = behaviour;
+        this.memoryTracker.allocateHeap( SHALLOW_SIZE );
     }
 
     @Override
-    public void accept( final TxStateVisitor visitor )
-            throws ConstraintValidationException, CreateConstraintFailureException
+    public void accept( final TxStateVisitor visitor ) throws KernelException
     {
-        // Created nodes
         if ( nodes != null )
         {
-            nodes.accept( createdNodesVisitor( visitor ) );
+            nodes.getAdded().each( visitor::visitCreatedNode );
         }
 
         if ( relationships != null )
         {
-            // Created relationships
-            relationships.accept( createdRelationshipsVisitor( this, visitor ) );
+            try ( HeapTrackingArrayList<NodeRelationshipIds> sortedNodeRelState = HeapTrackingArrayList.newArrayList( nodeStatesMap.size(), memoryTracker ) )
+            {
+                nodeStatesMap.forEachValue( nodeState ->
+                {
+                    if ( nodeState.isDeleted() && nodeState.isAddedInThisTx() )
+                    {
+                        return;
+                    }
+                    if ( nodeState.hasAddedRelationships() || nodeState.hasRemovedRelationships() )
+                    {
+                        sortedNodeRelState.add(
+                                StateNodeRelationshipIds.createStateNodeRelationshipIds( nodeState, this::relationshipVisitWithProperties, memoryTracker ) );
+                    }
+                } );
+                sortedNodeRelState.sort( Comparator.comparingLong( NodeRelationshipIds::nodeId ) );
 
-            // Deleted relationships
-            relationships.accept( deletedRelationshipsVisitor( visitor ) );
+                // Visit relationships, this will grab all the locks needed to do the updates
+                visitor.visitRelationshipModifications( new RelationshipModifications()
+                {
+                    @Override
+                    public void forEachSplit( IdsVisitor visitor )
+                    {
+                        sortedNodeRelState.forEach( visitor );
+                    }
+
+                    @Override
+                    public RelationshipBatch creations()
+                    {
+                        return idsAsBatch( relationships.getAdded(), TxState.this::relationshipVisitWithProperties );
+                    }
+
+                    @Override
+                    public RelationshipBatch deletions()
+                    {
+                        if ( behaviour.keepMetaDataForDeletedRelationship() )
+                        {
+                            return idsAsBatch( relationships.getRemoved(), TxState.this::deletedRelationshipVisit );
+                        }
+                        else
+                        {
+                            return idsAsBatch( relationships.getRemoved() );
+                        }
+                    }
+                } );
+            }
         }
 
-        // Deleted nodes
         if ( nodes != null )
         {
-            nodes.accept( deletedNodesVisitor( visitor ) );
+            nodes.getRemoved().each( visitor::visitDeletedNode );
         }
 
         for ( NodeState node : modifiedNodes() )
         {
-            node.accept( nodeVisitor( visitor ) );
+            if ( node.hasPropertyChanges() )
+            {
+                visitor.visitNodePropertyChanges( node.getId(), node.addedProperties(), node.changedProperties(), node.removedProperties() );
+            }
+
+            final LongDiffSets labelDiffSets = node.labelDiffSets();
+            if ( !labelDiffSets.isEmpty() )
+            {
+                visitor.visitNodeLabelChanges( node.getId(), labelDiffSets.getAdded(), labelDiffSets.getRemoved() );
+            }
         }
 
         for ( RelationshipState rel : modifiedRelationships() )
         {
-            rel.accept( relVisitor( visitor ) );
-        }
-
-        if ( graphState != null )
-        {
-            graphState.accept( graphPropertyVisitor( visitor ) );
+            if ( relationships == null || !relationships.getAdded().contains( rel.getId() ) )
+            {
+                // Only specifically visit property changes for relationships that aren't created.
+                // Created relationships will get added properties directly into the creation call instead.
+                relationshipStatesMap.get( rel.getId() ).accept(
+                        ( relationshipId, typeId, startNodeId, endNodeId ) -> visitor.visitRelPropertyChanges( relationshipId, typeId, startNodeId, endNodeId,
+                                rel.addedProperties(), rel.changedProperties(), rel.removedProperties() ) );
+            }
         }
 
         if ( indexChanges != null )
         {
-            indexChanges.accept( indexVisitor( visitor ) );
+            for ( IndexDescriptor indexDescriptor : indexChanges.getAdded() )
+            {
+                visitor.visitAddedIndex( indexDescriptor );
+            }
+            indexChanges.getRemoved().forEach( visitor::visitRemovedIndex );
         }
 
         if ( constraintsChanges != null )
         {
-            constraintsChanges.accept( constraintsVisitor( visitor ) );
+            for ( ConstraintDescriptor added : constraintsChanges.getAdded() )
+            {
+                visitor.visitAddedConstraint( added );
+            }
+            constraintsChanges.getRemoved().forEach( visitor::visitRemovedConstraint );
         }
 
         if ( createdLabelTokens != null )
         {
-            createdLabelTokens.visitEntries( new LabelTokenStateVisitor( visitor ) );
+            createdLabelTokens.forEachKeyValue( ( id, token ) -> visitor.visitCreatedLabelToken( id, token.name, token.internal ) );
         }
 
         if ( createdPropertyKeyTokens != null )
         {
-            createdPropertyKeyTokens.visitEntries( new PropertyKeyTokenStateVisitor( visitor ) );
+            createdPropertyKeyTokens.forEachKeyValue( ( id, token ) -> visitor.visitCreatedPropertyKeyToken( id, token.name, token.internal ) );
         }
 
         if ( createdRelationshipTypeTokens != null )
         {
-            createdRelationshipTypeTokens.visitEntries( new RelationshipTypeTokenStateVisitor( visitor ) );
+            createdRelationshipTypeTokens.forEachKeyValue( ( id, token ) -> visitor.visitCreatedRelationshipTypeToken( id, token.name, token.internal ) );
         }
-    }
-
-    private static DiffSetsVisitor<Long> deletedNodesVisitor( final TxStateVisitor visitor )
-    {
-        return new DiffSetsVisitor.Adapter<Long>()
-        {
-            @Override
-            public void visitRemoved( Long element )
-            {
-                visitor.visitDeletedNode( element );
-            }
-        };
-    }
-
-    private static DiffSetsVisitor<Long> createdNodesVisitor( final TxStateVisitor visitor )
-    {
-        return new DiffSetsVisitor.Adapter<Long>()
-        {
-            @Override
-            public void visitAdded( Long element )
-            {
-                visitor.visitCreatedNode( element );
-            }
-        };
-    }
-
-    private static DiffSetsVisitor<Long> deletedRelationshipsVisitor( final TxStateVisitor visitor )
-    {
-        return new DiffSetsVisitor.Adapter<Long>()
-        {
-            @Override
-            public void visitRemoved( Long id )
-            {
-                visitor.visitDeletedRelationship( id );
-            }
-        };
-    }
-
-    private static DiffSetsVisitor<Long> createdRelationshipsVisitor( ReadableTransactionState tx, final TxStateVisitor visitor )
-    {
-        return new RelationshipChangeVisitorAdapter( tx )
-        {
-            @Override
-            protected void visitAddedRelationship( long relationshipId, int type, long startNode, long endNode )
-                    throws ConstraintValidationException
-            {
-                visitor.visitCreatedRelationship( relationshipId, type, startNode, endNode );
-            }
-        };
-    }
-
-    private static DiffSetsVisitor<ConstraintDescriptor> constraintsVisitor( final TxStateVisitor visitor )
-    {
-        return new ConstraintDiffSetsVisitor( visitor );
-    }
-
-    private DiffSetsVisitor<SchemaIndexDescriptor> indexVisitor( final TxStateVisitor visitor )
-    {
-        return new DiffSetsVisitor<SchemaIndexDescriptor>()
-        {
-            @Override
-            public void visitAdded( SchemaIndexDescriptor index )
-            {
-                visitor.visitAddedIndex( index, specificIndexProviders.get( index ) );
-            }
-
-            @Override
-            public void visitRemoved( SchemaIndexDescriptor index )
-            {
-                visitor.visitRemovedIndex( index );
-            }
-        };
-    }
-
-    private static NodeState.Visitor nodeVisitor( final TxStateVisitor visitor )
-    {
-        return new NodeState.Visitor()
-        {
-            @Override
-            public void visitLabelChanges( long nodeId, Set<Integer> added, Set<Integer> removed )
-                    throws ConstraintValidationException
-            {
-                visitor.visitNodeLabelChanges( nodeId, added, removed );
-            }
-
-            @Override
-            public void visitPropertyChanges( long entityId, Iterator<StorageProperty> added,
-                    Iterator<StorageProperty> changed, Iterator<Integer> removed )
-                    throws ConstraintValidationException
-            {
-                visitor.visitNodePropertyChanges( entityId, added, changed, removed );
-            }
-        };
-    }
-
-    private static PropertyContainerState.Visitor relVisitor( final TxStateVisitor visitor )
-    {
-        return visitor::visitRelPropertyChanges;
-    }
-
-    private static PropertyContainerState.Visitor graphPropertyVisitor( final TxStateVisitor visitor )
-    {
-        return ( entityId, added, changed, removed ) -> visitor.visitGraphPropertyChanges( added, changed, removed );
     }
 
     @Override
     public boolean hasChanges()
     {
-        return hasChanges;
+        return revision != 0;
+    }
+
+    @Override
+    public boolean hasDataChanges()
+    {
+        return getDataRevision() != 0;
     }
 
     @Override
     public Iterable<NodeState> modifiedNodes()
     {
-        return nodeStatesMap == null ? Iterables.empty() : Iterables.cast( nodeStatesMap.values() );
+        if ( nodeStatesMap == null )
+        {
+            return Iterables.empty();
+        }
+        Collection<NodeStateImpl> nodeStates = nodeStatesMap.values();
+        return Iterables.cast( Iterables.filter( ns -> !ns.isDeleted(), nodeStates ) );
     }
 
-    private DiffSets<Long> getOrCreateLabelStateNodeDiffSets( int labelId )
+    @VisibleForTesting
+    MutableLongDiffSets getOrCreateLabelStateNodeDiffSets( long labelId )
     {
         if ( labelStatesMap == null )
         {
-            labelStatesMap = collectionsFactory.newIntObjectMap();
+            labelStatesMap = newLongObjectMap( memoryTracker );
         }
-        return labelStatesMap.computeIfAbsent( labelId, unused -> new DiffSets<>() );
+        return labelStatesMap.getIfAbsentPut( labelId, () -> newMutableLongDiffSets( collectionsFactory, memoryTracker ) );
     }
 
-    private ReadableDiffSets<Long> getLabelStateNodeDiffSets( int labelId )
+    private LongDiffSets getLabelStateNodeDiffSets( long labelId )
     {
         if ( labelStatesMap == null )
         {
-            return ReadableDiffSets.Empty.instance();
+            return LongDiffSets.EMPTY;
         }
-        final DiffSets<Long> nodeDiffSets = labelStatesMap.get( labelId );
-        return ReadableDiffSets.Empty.ifNull( nodeDiffSets );
+        final LongDiffSets nodeDiffSets = labelStatesMap.get( labelId );
+        return nodeDiffSets == null ? LongDiffSets.EMPTY : nodeDiffSets;
+    }
+
+    @VisibleForTesting
+    MutableLongDiffSets getOrCreateTypeStateRelationshipDiffSets( int relationshipType )
+    {
+        if ( relationshipTypeStatesMap == null )
+        {
+            relationshipTypeStatesMap = newLongObjectMap( memoryTracker );
+        }
+        return relationshipTypeStatesMap
+                .getIfAbsentPut( relationshipType, () -> newMutableLongDiffSets( collectionsFactory, memoryTracker ) );
     }
 
     @Override
-    public ReadableDiffSets<Integer> nodeStateLabelDiffSets( long nodeId )
+    public LongDiffSets nodeStateLabelDiffSets( long nodeId )
     {
         return getNodeState( nodeId ).labelDiffSets();
     }
 
-    private DiffSets<Integer> getOrCreateNodeStateLabelDiffSets( long nodeId )
+    private MutableLongDiffSets getOrCreateNodeStateLabelDiffSets( long nodeId )
     {
         return getOrCreateNodeState( nodeId ).getOrCreateLabelDiffSets();
-    }
-
-    @Override
-    public Iterator<StorageProperty> augmentGraphProperties( Iterator<StorageProperty> original )
-    {
-        if ( graphState != null )
-        {
-            return graphState.augmentProperties( original );
-        }
-        return original;
     }
 
     @Override
@@ -443,13 +351,13 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
 
     private void changed()
     {
-        hasChanges = true;
+        revision++;
     }
 
     private void dataChanged()
     {
         changed();
-        hasDataChanges = true;
+        dataRevision = revision;
     }
 
     @Override
@@ -466,16 +374,15 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
 
         if ( nodeStatesMap != null )
         {
-            NodeStateImpl nodeState = nodeStatesMap.remove( nodeId );
+            // Previously this node state was removed completely and its state cleared. Was that to reduce memory footprint for large deletions?
+            // We have changed this so that it still keeps the removed relationships for this node so that they can be handed to command creation
+            // grouped by type and direction.
+            NodeStateImpl nodeState = nodeStatesMap.get( nodeId );
             if ( nodeState != null )
             {
-                ReadableDiffSets<Integer> diff = nodeState.labelDiffSets();
-                for ( Integer label : diff.getAdded() )
-                {
-                    getOrCreateLabelStateNodeDiffSets( label ).remove( nodeId );
-                }
-                nodeState.clearIndexDiffs( nodeId );
-                nodeState.clear();
+                final LongDiffSets diff = nodeState.labelDiffSets();
+                diff.getAdded().each( label -> getOrCreateLabelStateNodeDiffSets( label ).remove( nodeId ) );
+                nodeState.markAsDeleted();
             }
         }
         dataChanged();
@@ -488,15 +395,16 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
 
         if ( startNodeId == endNodeId )
         {
-            getOrCreateNodeState( startNodeId ).addRelationship( id, relationshipTypeId, Direction.BOTH );
+            getOrCreateNodeState( startNodeId ).addRelationship( id, relationshipTypeId, RelationshipDirection.LOOP );
         }
         else
         {
-            getOrCreateNodeState( startNodeId ).addRelationship( id, relationshipTypeId, Direction.OUTGOING );
-            getOrCreateNodeState( endNodeId ).addRelationship( id, relationshipTypeId, Direction.INCOMING );
+            getOrCreateNodeState( startNodeId ).addRelationship( id, relationshipTypeId, RelationshipDirection.OUTGOING );
+            getOrCreateNodeState( endNodeId ).addRelationship( id, relationshipTypeId, RelationshipDirection.INCOMING );
         }
 
-        getOrCreateRelationshipState( id ).setMetaData( startNodeId, endNodeId, relationshipTypeId );
+        getOrCreateRelationshipState( id, relationshipTypeId, startNodeId, endNodeId );
+        getOrCreateTypeStateRelationshipDiffSets( relationshipTypeId ).add( id );
 
         dataChanged();
     }
@@ -508,34 +416,38 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     }
 
     @Override
-    public boolean nodeModifiedInThisTx( long nodeId )
-    {
-        return nodeIsAddedInThisTx( nodeId ) || nodeIsDeletedInThisTx( nodeId ) || hasNodeState( nodeId );
-    }
-
-    @Override
     public void relationshipDoDelete( long id, int type, long startNodeId, long endNodeId )
     {
-        relationships().remove( id );
+        RemovalsCountingDiffSets relationships = relationships();
+        boolean wasAddedInThisTx = relationships.isAdded( id );
+        relationships.remove( id );
 
         if ( startNodeId == endNodeId )
         {
-            getOrCreateNodeState( startNodeId ).removeRelationship( id, type, Direction.BOTH );
+            getOrCreateNodeState( startNodeId ).removeRelationship( id, type, RelationshipDirection.LOOP );
         }
         else
         {
-            getOrCreateNodeState( startNodeId ).removeRelationship( id, type, Direction.OUTGOING );
-            getOrCreateNodeState( endNodeId ).removeRelationship( id, type, Direction.INCOMING );
+            getOrCreateNodeState( startNodeId ).removeRelationship( id, type, RelationshipDirection.OUTGOING );
+            getOrCreateNodeState( endNodeId ).removeRelationship( id, type, RelationshipDirection.INCOMING );
         }
 
-        if ( relationshipStatesMap != null )
+        if ( wasAddedInThisTx || !behaviour.keepMetaDataForDeletedRelationship() )
         {
-            RelationshipStateImpl removed = relationshipStatesMap.remove( id );
-            if ( removed != null )
+            if ( relationshipStatesMap != null )
             {
-                removed.clear();
+                RelationshipStateImpl removed = relationshipStatesMap.remove( id );
+                if ( removed != null )
+                {
+                    removed.clear();
+                }
             }
         }
+        else
+        {
+            getOrCreateRelationshipState( id, type, startNodeId, endNodeId ).setDeleted();
+        }
+        getOrCreateTypeStateRelationshipDiffSets( type ).remove( id );
 
         dataChanged();
     }
@@ -561,37 +473,24 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     }
 
     @Override
-    public void nodeDoChangeProperty( long nodeId, int propertyKeyId, Value replacedValue, Value newValue )
+    public void nodeDoChangeProperty( long nodeId, int propertyKeyId, Value newValue )
     {
         getOrCreateNodeState( nodeId ).changeProperty( propertyKeyId, newValue );
         dataChanged();
     }
 
     @Override
-    public void relationshipDoReplaceProperty( long relationshipId, int propertyKeyId, Value replacedValue,
-            Value newValue )
+    public void relationshipDoReplaceProperty( long relationshipId, int type, long startNode, long endNode, int propertyKeyId,
+            Value replacedValue, Value newValue )
     {
+        RelationshipStateImpl relationshipState = getOrCreateRelationshipState( relationshipId, type, startNode, endNode );
         if ( replacedValue != NO_VALUE )
         {
-            getOrCreateRelationshipState( relationshipId ).changeProperty( propertyKeyId, newValue );
+            relationshipState.changeProperty( propertyKeyId, newValue );
         }
         else
         {
-            getOrCreateRelationshipState( relationshipId ).addProperty( propertyKeyId, newValue );
-        }
-        dataChanged();
-    }
-
-    @Override
-    public void graphDoReplaceProperty( int propertyKeyId, Value replacedValue, Value newValue )
-    {
-        if ( replacedValue != NO_VALUE )
-        {
-            getOrCreateGraphState().changeProperty( propertyKeyId, newValue );
-        }
-        else
-        {
-            getOrCreateGraphState().addProperty( propertyKeyId, newValue );
+            relationshipState.addProperty( propertyKeyId, newValue );
         }
         dataChanged();
     }
@@ -604,21 +503,14 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     }
 
     @Override
-    public void relationshipDoRemoveProperty( long relationshipId, int propertyKeyId )
+    public void relationshipDoRemoveProperty( long relationshipId, int type, long startNode, long endNode, int propertyKeyId )
     {
-        getOrCreateRelationshipState( relationshipId ).removeProperty( propertyKeyId );
+        getOrCreateRelationshipState( relationshipId, type, startNode, endNode ).removeProperty( propertyKeyId );
         dataChanged();
     }
 
     @Override
-    public void graphDoRemoveProperty( int propertyKeyId )
-    {
-        getOrCreateGraphState().removeProperty( propertyKeyId );
-        dataChanged();
-    }
-
-    @Override
-    public void nodeDoAddLabel( int labelId, long nodeId )
+    public void nodeDoAddLabel( long labelId, long nodeId )
     {
         getOrCreateLabelStateNodeDiffSets( labelId ).add( nodeId );
         getOrCreateNodeStateLabelDiffSets( nodeId ).add( labelId );
@@ -626,7 +518,7 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     }
 
     @Override
-    public void nodeDoRemoveLabel( int labelId, long nodeId )
+    public void nodeDoRemoveLabel( long labelId, long nodeId )
     {
         getOrCreateLabelStateNodeDiffSets( labelId ).remove( nodeId );
         getOrCreateNodeStateLabelDiffSets( nodeId ).remove( labelId );
@@ -634,35 +526,36 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     }
 
     @Override
-    public void labelDoCreateForName( String labelName, int id )
+    public void labelDoCreateForName( String labelName, boolean internal, long id )
     {
         if ( createdLabelTokens == null )
         {
-            createdLabelTokens = collectionsFactory.newIntObjectMap();
+            createdLabelTokens = newLongObjectMap( memoryTracker );
+
         }
-        createdLabelTokens.put( id, labelName );
+        createdLabelTokens.put( id, createTokenState( labelName, internal, memoryTracker ) );
         changed();
     }
 
     @Override
-    public void propertyKeyDoCreateForName( String propertyKeyName, int id )
+    public void propertyKeyDoCreateForName( String propertyKeyName, boolean internal, int id )
     {
         if ( createdPropertyKeyTokens == null )
         {
-            createdPropertyKeyTokens = collectionsFactory.newIntObjectMap();
+            createdPropertyKeyTokens = newLongObjectMap( memoryTracker );
         }
-        createdPropertyKeyTokens.put( id, propertyKeyName );
+        createdPropertyKeyTokens.put( id, createTokenState( propertyKeyName, internal, memoryTracker ) );
         changed();
     }
 
     @Override
-    public void relationshipTypeDoCreateForName( String labelName, int id )
+    public void relationshipTypeDoCreateForName( String labelName, boolean internal, int id )
     {
         if ( createdRelationshipTypeTokens == null )
         {
-            createdRelationshipTypeTokens = collectionsFactory.newIntObjectMap();
+            createdRelationshipTypeTokens = newLongObjectMap( memoryTracker );
         }
-        createdRelationshipTypeTokens.put( id, labelName );
+        createdRelationshipTypeTokens.put( id, createTokenState( labelName, internal, memoryTracker ) );
         changed();
     }
 
@@ -673,8 +566,8 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
         {
             return NodeStateImpl.EMPTY;
         }
-        final NodeState nodeState = nodeStatesMap.get( id );
-        return nodeState == null ? NodeStateImpl.EMPTY : nodeState;
+        final NodeStateImpl nodeState = nodeStatesMap.get( id );
+        return nodeState == null || nodeState.isDeleted() ? NodeStateImpl.EMPTY : nodeState;
     }
 
     @Override
@@ -685,41 +578,23 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
             return RelationshipStateImpl.EMPTY;
         }
         final RelationshipStateImpl relationshipState = relationshipStatesMap.get( id );
+        return relationshipState == null || relationshipState.isDeleted() ? RelationshipStateImpl.EMPTY : relationshipState;
+    }
+
+    public RelationshipState getRelationshipStateEvenThoDeleted( long id )
+    {
+        if ( relationshipStatesMap == null )
+        {
+            return RelationshipStateImpl.EMPTY;
+        }
+        final RelationshipStateImpl relationshipState = relationshipStatesMap.get( id );
         return relationshipState == null ? RelationshipStateImpl.EMPTY : relationshipState;
     }
 
     @Override
-    public GraphState getGraphState( )
+    public MutableLongSet augmentLabels( MutableLongSet labels, NodeState nodeState )
     {
-        return graphState;
-    }
-
-    @Override
-    public Cursor<NodeItem> augmentSingleNodeCursor( Cursor<NodeItem> cursor, long nodeId )
-    {
-        return hasChanges ? singleNodeCursor.get().init( cursor, nodeId ) : cursor;
-    }
-
-    @Override
-    public Cursor<PropertyItem> augmentPropertyCursor( Cursor<PropertyItem> cursor,
-            PropertyContainerState propertyContainerState )
-    {
-        return propertyContainerState.hasPropertyChanges() ?
-                propertyCursor.get().init( cursor, propertyContainerState ) : cursor;
-    }
-
-    @Override
-    public Cursor<PropertyItem> augmentSinglePropertyCursor( Cursor<PropertyItem> cursor,
-            PropertyContainerState propertyContainerState, int propertyKeyId )
-    {
-        return propertyContainerState.hasPropertyChanges() ?
-                singlePropertyCursor.get().init( cursor, propertyContainerState, propertyKeyId ) : cursor;
-    }
-
-    @Override
-    public PrimitiveIntSet augmentLabels( PrimitiveIntSet labels, NodeState nodeState )
-    {
-        ReadableDiffSets<Integer> labelDiffSets = nodeState.labelDiffSets();
+        final LongDiffSets labelDiffSets = nodeState.labelDiffSets();
         if ( !labelDiffSets.isEmpty() )
         {
             labelDiffSets.getRemoved().forEach( labels::remove );
@@ -729,185 +604,105 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     }
 
     @Override
-    public Cursor<RelationshipItem> augmentSingleRelationshipCursor( Cursor<RelationshipItem> cursor,
-            long relationshipId )
-    {
-        return hasChanges ? singleRelationshipCursor.get().init( cursor, relationshipId ) : cursor;
-    }
-
-    @Override
-    public Cursor<RelationshipItem> augmentNodeRelationshipCursor( Cursor<RelationshipItem> cursor,
-            NodeState nodeState,
-            Direction direction )
-    {
-        return nodeState.hasRelationshipChanges()
-               ? iteratorRelationshipCursor.get().init( cursor, nodeState.getAddedRelationships( direction ) )
-               : cursor;
-    }
-
-    @Override
-    public Cursor<RelationshipItem> augmentNodeRelationshipCursor( Cursor<RelationshipItem> cursor,
-            NodeState nodeState,
-            Direction direction,
-            int[] relTypes )
-    {
-        return nodeState.hasRelationshipChanges()
-               ? iteratorRelationshipCursor.get().init( cursor, nodeState.getAddedRelationships( direction, relTypes ) )
-               : cursor;
-    }
-
-    @Override
-    public Cursor<RelationshipItem> augmentRelationshipsGetAllCursor( Cursor<RelationshipItem> cursor )
-    {
-        return hasChanges && relationships != null && !relationships.isEmpty()
-               ? iteratorRelationshipCursor.get().init( cursor, toPrimitiveIterator( relationships.getAdded().iterator() ) )
-               : cursor;
-    }
-
-    @Override
-    public ReadableDiffSets<Long> nodesWithLabelChanged( int label )
+    public LongDiffSets nodesWithLabelChanged( long label )
     {
         return getLabelStateNodeDiffSets( label );
     }
 
     @Override
-    public ReadableDiffSets<Long> nodesWithAnyOfLabelsChanged( int... labels )
+    public void indexDoAdd( IndexDescriptor descriptor )
     {
-        //It is enough that one of the labels is added
-        //It is necessary for all the labels are removed
-        Set<Long> added = new HashSet<>();
-        Set<Long> removed = new HashSet<>();
-        for ( int i = 0; i < labels.length; i++ )
-        {
-            ReadableDiffSets<Long> nodeDiffSets = getLabelStateNodeDiffSets( labels[i] );
-            if ( i == 0 )
-            {
-                removed.addAll( nodeDiffSets.getRemoved() );
-            }
-            else
-            {
-                removed.retainAll( nodeDiffSets.getRemoved() );
-            }
-            added.addAll( nodeDiffSets.getAdded() );
-        }
-
-        return new DiffSets<>( added, removed );
-    }
-
-    @Override
-    public ReadableDiffSets<Long> nodesWithAllLabelsChanged( int... labels )
-    {
-        DiffSets<Long> changes = new DiffSets<>();
-        for ( int label : labels )
-        {
-            final ReadableDiffSets<Long> nodeDiffSets = getLabelStateNodeDiffSets( label );
-            changes.addAll( nodeDiffSets.getAdded().iterator() );
-            changes.removeAll( nodeDiffSets.getRemoved().iterator() );
-        }
-        return changes;
-    }
-
-    @Override
-    public void indexRuleDoAdd( SchemaIndexDescriptor descriptor, IndexProvider.Descriptor providerDescriptor )
-    {
-        DiffSets<SchemaIndexDescriptor> diff = indexChangesDiffSets();
+        MutableDiffSets<IndexDescriptor> diff = indexChangesDiffSets();
         if ( !diff.unRemove( descriptor ) )
         {
             diff.add( descriptor );
         }
-        if ( specificIndexProviders == null )
-        {
-            specificIndexProviders = new HashMap<>();
-        }
-        if ( providerDescriptor != null )
-        {
-            specificIndexProviders.put( descriptor, providerDescriptor );
-        }
         changed();
     }
 
     @Override
-    public void indexDoDrop( SchemaIndexDescriptor descriptor )
+    public void indexDoDrop( IndexDescriptor index )
     {
-        indexChangesDiffSets().remove( descriptor );
-        if ( specificIndexProviders != null )
-        {
-            specificIndexProviders.remove( descriptor );
-        }
+        indexChangesDiffSets().remove( index );
         changed();
     }
 
     @Override
-    public boolean indexDoUnRemove( SchemaIndexDescriptor descriptor )
+    public boolean indexDoUnRemove( IndexDescriptor index )
     {
-        return indexChangesDiffSets().unRemove( descriptor );
+        return indexChangesDiffSets().unRemove( index );
     }
 
     @Override
-    public ReadableDiffSets<SchemaIndexDescriptor> indexDiffSetsByLabel( int labelId )
+    public DiffSets<IndexDescriptor> indexDiffSetsByLabel( int labelId )
     {
         return indexChangesDiffSets().filterAdded( SchemaDescriptorPredicates.hasLabel( labelId ) );
     }
 
     @Override
-    public ReadableDiffSets<SchemaIndexDescriptor> indexChanges()
+    public DiffSets<IndexDescriptor> indexDiffSetsByRelationshipType( int relationshipType )
     {
-        return ReadableDiffSets.Empty.ifNull( indexChanges );
+        return indexChangesDiffSets().filterAdded( SchemaDescriptorPredicates.hasRelType( relationshipType ) );
     }
 
-    private DiffSets<SchemaIndexDescriptor> indexChangesDiffSets()
+    @Override
+    public DiffSets<IndexDescriptor> indexDiffSetsBySchema( SchemaDescriptor schema )
+    {
+        return indexChangesDiffSets().filterAdded( indexDescriptor -> indexDescriptor.schema().equals( schema ) );
+    }
+
+    @Override
+    public DiffSets<IndexDescriptor> indexChanges()
+    {
+        return DiffSets.Empty.ifNull( indexChanges );
+    }
+
+    private MutableDiffSets<IndexDescriptor> indexChangesDiffSets()
     {
         if ( indexChanges == null )
         {
-            indexChanges = new DiffSets<>();
+            indexChanges = newMutableDiffSets( memoryTracker );
         }
         return indexChanges;
     }
 
     @Override
-    public ReadableDiffSets<Long> addedAndRemovedNodes()
+    public LongDiffSets addedAndRemovedNodes()
     {
-        return ReadableDiffSets.Empty.ifNull( nodes );
+        return nodes == null ? LongDiffSets.EMPTY : nodes;
     }
 
     private RemovalsCountingDiffSets nodes()
     {
         if ( nodes == null )
         {
-            nodes = new RemovalsCountingDiffSets();
+            nodes = newRemovalsCountingDiffSets( collectionsFactory, memoryTracker );
         }
         return nodes;
     }
 
     @Override
-    public int augmentNodeDegree( long nodeId, int degree, Direction direction )
+    public LongDiffSets relationshipsWithTypeChanged( int type )
     {
-        return getNodeState( nodeId ).augmentDegree( direction, degree );
+        if ( relationshipTypeStatesMap == null )
+        {
+            return LongDiffSets.EMPTY;
+        }
+        MutableLongDiffSets relationshipDiffSets = relationshipTypeStatesMap.get( type );
+        return relationshipDiffSets == null ? LongDiffSets.EMPTY : relationshipDiffSets;
     }
 
     @Override
-    public int augmentNodeDegree( long nodeId, int degree, Direction direction, int typeId )
+    public LongDiffSets addedAndRemovedRelationships()
     {
-        return getNodeState( nodeId ).augmentDegree( direction, degree, typeId );
+        return relationships == null ? LongDiffSets.EMPTY : relationships;
     }
 
-    @Override
-    public PrimitiveIntSet nodeRelationshipTypes( long nodeId )
-    {
-        return getNodeState( nodeId ).relationshipTypes();
-    }
-
-    @Override
-    public ReadableRelationshipDiffSets<Long> addedAndRemovedRelationships()
-    {
-        return ReadableRelationshipDiffSets.Empty.ifNull( relationships );
-    }
-
-    private RemovalsCountingRelationshipsDiffSets relationships()
+    private RemovalsCountingDiffSets relationships()
     {
         if ( relationships == null )
         {
-            relationships = new RemovalsCountingRelationshipsDiffSets( this );
+            relationships = newRemovalsCountingDiffSets( collectionsFactory, memoryTracker );
         }
         return relationships;
     }
@@ -915,41 +710,37 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     @Override
     public Iterable<RelationshipState> modifiedRelationships()
     {
-        return relationshipStatesMap == null ? Iterables.empty() : Iterables.cast( relationshipStatesMap.values() );
+        return relationshipStatesMap == null ? Iterables.empty()
+                                             : Iterables.cast( Iterables.filter( rel -> !rel.isDeleted(), relationshipStatesMap.values() ) );
     }
 
-    private NodeStateImpl getOrCreateNodeState( long nodeId )
+    @VisibleForTesting
+    NodeStateImpl getOrCreateNodeState( long nodeId )
     {
         if ( nodeStatesMap == null )
         {
-            nodeStatesMap = collectionsFactory.newLongObjectMap();
+            nodeStatesMap = newLongObjectMap( memoryTracker );
         }
-        return nodeStatesMap.computeIfAbsent( nodeId, unused -> new NodeStateImpl( nodeId, this ) );
+        return nodeStatesMap.getIfAbsentPut( nodeId, () -> newNodeState( nodeId ) );
     }
 
-    private RelationshipStateImpl getOrCreateRelationshipState( long relationshipId )
+    private RelationshipStateImpl getOrCreateRelationshipState( long relationshipId, int type, long startNode, long endNode )
     {
         if ( relationshipStatesMap == null )
         {
-            relationshipStatesMap = collectionsFactory.newLongObjectMap();
+            relationshipStatesMap = newLongObjectMap( memoryTracker );
         }
-        return relationshipStatesMap.computeIfAbsent( relationshipId, unused -> new RelationshipStateImpl( relationshipId ) );
-    }
-
-    private GraphState getOrCreateGraphState()
-    {
-        if ( graphState == null )
-        {
-            graphState = new GraphState();
-        }
-        return graphState;
+        return relationshipStatesMap.getIfAbsentPut( relationshipId, () -> newRelationshipState( relationshipId, type, startNode, endNode ) );
     }
 
     @Override
-    public void constraintDoAdd( IndexBackedConstraintDescriptor constraint, long indexId )
+    public void constraintDoAdd( IndexBackedConstraintDescriptor constraint, IndexDescriptor index )
     {
         constraintsChangesDiffSets().add( constraint );
-        createdConstraintIndexesByConstraint().put( constraint, indexId );
+        if ( index != null && index != IndexDescriptor.NO_INDEX )
+        {
+            createdConstraintIndexesByConstraint().put( constraint, index );
+        }
         changed();
     }
 
@@ -961,34 +752,34 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     }
 
     @Override
-    public ReadableDiffSets<ConstraintDescriptor> constraintsChangesForLabel( int labelId )
+    public DiffSets<ConstraintDescriptor> constraintsChangesForLabel( int labelId )
     {
         return constraintsChangesDiffSets().filterAdded( SchemaDescriptorPredicates.hasLabel( labelId ) );
     }
 
     @Override
-    public ReadableDiffSets<ConstraintDescriptor> constraintsChangesForSchema( SchemaDescriptor descriptor )
+    public DiffSets<ConstraintDescriptor> constraintsChangesForSchema( SchemaDescriptor descriptor )
     {
-        return constraintsChangesDiffSets().filterAdded( SchemaDescriptor.equalTo( descriptor ) );
+        return constraintsChangesDiffSets().filterAdded( SchemaDescriptors.equalTo( descriptor ) );
     }
 
     @Override
-    public ReadableDiffSets<ConstraintDescriptor> constraintsChangesForRelationshipType( int relTypeId )
+    public DiffSets<ConstraintDescriptor> constraintsChangesForRelationshipType( int relTypeId )
     {
         return constraintsChangesDiffSets().filterAdded( SchemaDescriptorPredicates.hasRelType( relTypeId ) );
     }
 
     @Override
-    public ReadableDiffSets<ConstraintDescriptor> constraintsChanges()
+    public DiffSets<ConstraintDescriptor> constraintsChanges()
     {
-        return ReadableDiffSets.Empty.ifNull( constraintsChanges );
+        return DiffSets.Empty.ifNull( constraintsChanges );
     }
 
-    private DiffSets<ConstraintDescriptor> constraintsChangesDiffSets()
+    private MutableDiffSets<ConstraintDescriptor> constraintsChangesDiffSets()
     {
         if ( constraintsChanges == null )
         {
-            constraintsChanges = new DiffSets<>();
+            constraintsChanges = newMutableDiffSets( memoryTracker );
         }
         return constraintsChanges;
     }
@@ -997,10 +788,6 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     public void constraintDoDrop( ConstraintDescriptor constraint )
     {
         constraintsChangesDiffSets().remove( constraint );
-        if ( constraint.enforcesUniqueness() )
-        {
-            indexDoDrop( getIndexForIndexBackedConstraint( (IndexBackedConstraintDescriptor) constraint ) );
-        }
         changed();
     }
 
@@ -1011,183 +798,47 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     }
 
     @Override
-    public Iterable<SchemaIndexDescriptor> constraintIndexesCreatedInTx()
+    public Iterator<IndexDescriptor> constraintIndexesCreatedInTx()
     {
         if ( createdConstraintIndexesByConstraint != null && !createdConstraintIndexesByConstraint.isEmpty() )
         {
-            return map( this::getIndexForIndexBackedConstraint, createdConstraintIndexesByConstraint.keySet() );
+            return createdConstraintIndexesByConstraint.values().iterator();
         }
-        return Iterables.empty();
+        return Collections.emptyIterator();
     }
 
     @Override
-    public Long indexCreatedForConstraint( ConstraintDescriptor constraint )
-    {
-        return createdConstraintIndexesByConstraint == null ? null :
-                createdConstraintIndexesByConstraint.get( constraint );
-    }
-
-    @Override
-    public PrimitiveLongReadableDiffSets indexUpdatesForScan( SchemaIndexDescriptor descriptor )
-    {
-        if ( indexUpdates == null )
-        {
-            return PrimitiveLongReadableDiffSets.EMPTY;
-        }
-        Map<ValueTuple, PrimitiveLongDiffSets> updates = indexUpdates.get( descriptor.schema() );
-        if ( updates == null )
-        {
-            return PrimitiveLongReadableDiffSets.EMPTY;
-        }
-        PrimitiveLongDiffSets diffs = new PrimitiveLongDiffSets();
-        for ( PrimitiveLongDiffSets diffSet : updates.values() )
-        {
-            diffs.addAll( diffSet.getAdded().iterator() );
-            diffs.removeAll( diffSet.getRemoved().iterator() );
-        }
-        return diffs;
-    }
-
-    @Override
-    public PrimitiveLongReadableDiffSets indexUpdatesForSuffixOrContains( SchemaIndexDescriptor descriptor, IndexQuery query )
-    {
-        assert descriptor.schema().getPropertyIds().length == 1 :
-                "Suffix and contains queries are only supported for single property queries";
-
-        if ( indexUpdates == null )
-        {
-            return PrimitiveLongReadableDiffSets.EMPTY;
-        }
-        Map<ValueTuple, PrimitiveLongDiffSets> updates = indexUpdates.get( descriptor.schema() );
-        if ( updates == null )
-        {
-            return PrimitiveLongReadableDiffSets.EMPTY;
-        }
-        PrimitiveLongDiffSets diffs = new PrimitiveLongDiffSets();
-        for ( Map.Entry<ValueTuple,PrimitiveLongDiffSets> entry : updates.entrySet() )
-        {
-            if ( query.acceptsValue( entry.getKey().getOnlyValue() ) )
-            {
-                PrimitiveLongDiffSets diffsets = entry.getValue();
-                diffs.addAll( diffsets.getAdded().iterator() );
-                diffs.removeAll( diffsets.getRemoved().iterator() );
-            }
-        }
-        return diffs;
-    }
-
-    @Override
-    public PrimitiveLongReadableDiffSets indexUpdatesForSeek( SchemaIndexDescriptor descriptor, ValueTuple values )
-    {
-        PrimitiveLongDiffSets indexUpdatesForSeek = getIndexUpdatesForSeek( descriptor.schema(), values, /*create=*/false );
-        return indexUpdatesForSeek == null ? PrimitiveLongReadableDiffSets.EMPTY : indexUpdatesForSeek;
-    }
-
-    @Override
-    public PrimitiveLongReadableDiffSets indexUpdatesForRangeSeek( SchemaIndexDescriptor descriptor, IndexQuery.RangePredicate<?> predicate )
-    {
-        Value lower = predicate.fromValue();
-        Value upper = predicate.toValue();
-        assert lower != null && upper != null : "Use Values.NO_VALUE to encode the lack of a bound";
-
-        TreeMap<ValueTuple, PrimitiveLongDiffSets> sortedUpdates = getSortedIndexUpdates( descriptor.schema() );
-        if ( sortedUpdates == null )
-        {
-            return PrimitiveLongReadableDiffSets.EMPTY;
-        }
-
-        ValueTuple selectedLower;
-        boolean selectedIncludeLower;
-
-        ValueTuple selectedUpper;
-        boolean selectedIncludeUpper;
-
-        if ( lower == NO_VALUE )
-        {
-            selectedLower = ValueTuple.of( Values.minValue( predicate.valueGroup(), upper ) );
-            selectedIncludeLower = true;
-        }
-        else
-        {
-            selectedLower = ValueTuple.of( lower );
-            selectedIncludeLower = predicate.fromInclusive();
-        }
-
-        if ( upper == NO_VALUE )
-        {
-            selectedUpper = ValueTuple.of( Values.maxValue( predicate.valueGroup(), lower ) );
-            selectedIncludeUpper = false;
-        }
-        else
-        {
-            selectedUpper = ValueTuple.of( upper );
-            selectedIncludeUpper = predicate.toInclusive();
-        }
-
-        PrimitiveLongDiffSets diffs = new PrimitiveLongDiffSets();
-
-        NavigableMap<ValueTuple,PrimitiveLongDiffSets> inRangeX =
-                sortedUpdates.subMap( selectedLower, selectedIncludeLower, selectedUpper, selectedIncludeUpper );
-        for ( Map.Entry<ValueTuple,PrimitiveLongDiffSets> entry : inRangeX.entrySet() )
-        {
-            ValueTuple values = entry.getKey();
-            PrimitiveLongDiffSets diffForSpecificValue = entry.getValue();
-            // The TreeMap cannot perfectly order multi-dimensional types (spatial) and need additional filtering out false positives
-            // TODO: If the composite index starts to be able to handle spatial types the line below needs enhancement
-            if ( predicate.isRegularOrder() || predicate.acceptsValue( values.getOnlyValue() ) )
-            {
-                diffs.addAll( diffForSpecificValue.getAdded().iterator() );
-                diffs.removeAll( diffForSpecificValue.getRemoved().iterator() );
-            }
-        }
-        return diffs;
-    }
-
-    @Override
-    public PrimitiveLongReadableDiffSets indexUpdatesForRangeSeekByPrefix( SchemaIndexDescriptor descriptor, String prefix )
-    {
-        TreeMap<ValueTuple, PrimitiveLongDiffSets> sortedUpdates = getSortedIndexUpdates( descriptor.schema() );
-        if ( sortedUpdates == null )
-        {
-            return PrimitiveLongReadableDiffSets.EMPTY;
-        }
-        ValueTuple floor = ValueTuple.of( Values.stringValue( prefix ) );
-        PrimitiveLongDiffSets diffs = new PrimitiveLongDiffSets();
-        for ( Map.Entry<ValueTuple,PrimitiveLongDiffSets> entry : sortedUpdates.subMap( floor, MAX_STRING_TUPLE ).entrySet() )
-        {
-            ValueTuple key = entry.getKey();
-            if ( ((TextValue) key.getOnlyValue()).stringValue().startsWith( prefix ) )
-            {
-                PrimitiveLongDiffSets diffSets = entry.getValue();
-                diffs.addAll( diffSets.getAdded().iterator() );
-                diffs.removeAll( diffSets.getRemoved().iterator() );
-            }
-            else
-            {
-                break;
-            }
-        }
-        return diffs;
-    }
-
-    // Ensure sorted index updates for a given index. This is needed for range query support and
-    // may involve converting the existing hash map first
-    //
-    private TreeMap<ValueTuple, PrimitiveLongDiffSets> getSortedIndexUpdates( SchemaDescriptor descriptor )
+    public UnmodifiableMap<ValueTuple, ? extends LongDiffSets> getIndexUpdates( SchemaDescriptor schema )
     {
         if ( indexUpdates == null )
         {
             return null;
         }
-        Map<ValueTuple, PrimitiveLongDiffSets> updates = indexUpdates.get( descriptor );
+        Map<ValueTuple, MutableLongDiffSets> updates = indexUpdates.get( schema );
         if ( updates == null )
         {
             return null;
         }
-        TreeMap<ValueTuple,PrimitiveLongDiffSets> sortedUpdates;
+
+        return new UnmodifiableMap<>( updates );
+    }
+
+    @Override
+    public NavigableMap<ValueTuple, ? extends LongDiffSets> getSortedIndexUpdates( SchemaDescriptor descriptor )
+    {
+        if ( indexUpdates == null )
+        {
+            return null;
+        }
+        Map<ValueTuple, MutableLongDiffSets> updates = indexUpdates.get( descriptor );
+        if ( updates == null )
+        {
+            return null;
+        }
+        TreeMap<ValueTuple, MutableLongDiffSets> sortedUpdates;
         if ( updates instanceof TreeMap )
         {
-            sortedUpdates = (TreeMap<ValueTuple,PrimitiveLongDiffSets>) updates;
+            sortedUpdates = (TreeMap<ValueTuple, MutableLongDiffSets>) updates;
         }
         else
         {
@@ -1195,115 +846,54 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
             sortedUpdates.putAll( updates );
             indexUpdates.put( descriptor, sortedUpdates );
         }
-        return sortedUpdates;
+        return Collections.unmodifiableNavigableMap( sortedUpdates );
     }
 
     @Override
-    public void indexDoUpdateEntry( SchemaDescriptor descriptor, long nodeId,
+    public void indexDoUpdateEntry( SchemaDescriptor descriptor, long entityIdId,
             ValueTuple propertiesBefore, ValueTuple propertiesAfter )
     {
-        NodeStateImpl nodeState = getOrCreateNodeState( nodeId );
-        Map<ValueTuple,PrimitiveLongDiffSets> updates = getIndexUpdatesByDescriptor( descriptor, true);
+        Map<ValueTuple, MutableLongDiffSets> updates = getOrCreateIndexUpdatesByDescriptor( descriptor );
         if ( propertiesBefore != null )
         {
-            PrimitiveLongDiffSets before = getIndexUpdatesForSeek( updates, propertiesBefore, true );
-            //noinspection ConstantConditions
-            before.remove( nodeId );
-            if ( before.getRemoved().contains( nodeId ) )
-            {
-                nodeState.addIndexDiff( before );
-            }
-            else
-            {
-                nodeState.removeIndexDiff( before );
-            }
+            MutableLongDiffSets before = getOrCreateIndexUpdatesForSeek( updates, propertiesBefore );
+            before.remove( entityIdId );
         }
         if ( propertiesAfter != null )
         {
-            PrimitiveLongDiffSets after = getIndexUpdatesForSeek( updates, propertiesAfter, true );
-            //noinspection ConstantConditions
-            after.add( nodeId );
-            if ( after.getAdded().contains( nodeId ) )
-            {
-                nodeState.addIndexDiff( after );
-            }
-            else
-            {
-                nodeState.removeIndexDiff( after );
-            }
+            MutableLongDiffSets after = getOrCreateIndexUpdatesForSeek( updates, propertiesAfter );
+            after.add( entityIdId );
         }
     }
 
-    private PrimitiveLongDiffSets getIndexUpdatesForSeek(
-            SchemaDescriptor schema, ValueTuple values, boolean create )
+    @Override
+    public MemoryTracker memoryTracker()
     {
-        Map<ValueTuple,PrimitiveLongDiffSets> updates = getIndexUpdatesByDescriptor( schema, create );
-        if ( updates != null )
-        {
-            return getIndexUpdatesForSeek( updates, values, create );
-        }
-        return null;
+        return memoryTracker;
     }
 
-    private PrimitiveLongDiffSets getIndexUpdatesForSeek( Map<ValueTuple,PrimitiveLongDiffSets> updates,
-            ValueTuple values, boolean create )
+    @VisibleForTesting
+    MutableLongDiffSets getOrCreateIndexUpdatesForSeek( Map<ValueTuple, MutableLongDiffSets> updates, ValueTuple values )
     {
-        return create ? updates.computeIfAbsent( values, value -> new PrimitiveLongDiffSets() ) : updates.get( values );
+        return updates.computeIfAbsent( values, value -> newMutableLongDiffSets( collectionsFactory, memoryTracker ) );
     }
 
-    private Map<ValueTuple,PrimitiveLongDiffSets> getIndexUpdatesByDescriptor( SchemaDescriptor schema,
-            boolean create )
+    private Map<ValueTuple, MutableLongDiffSets> getOrCreateIndexUpdatesByDescriptor( SchemaDescriptor schema )
     {
         if ( indexUpdates == null )
         {
-            if ( !create )
-            {
-                return null;
-            }
-            indexUpdates = new HashMap<>();
+            indexUpdates = newMap( memoryTracker );
         }
-        Map<ValueTuple, PrimitiveLongDiffSets> updates = indexUpdates.get( schema );
-        if ( updates == null )
-        {
-            if ( !create )
-            {
-                return null;
-            }
-            updates = new HashMap<>();
-            indexUpdates.put( schema, updates );
-        }
-        return updates;
+        return indexUpdates.getIfAbsentPut( schema, () -> newMap( memoryTracker ) );
     }
 
-    private Map<IndexBackedConstraintDescriptor, Long> createdConstraintIndexesByConstraint()
+    private Map<IndexBackedConstraintDescriptor,IndexDescriptor> createdConstraintIndexesByConstraint()
     {
         if ( createdConstraintIndexesByConstraint == null )
         {
-            createdConstraintIndexesByConstraint = new HashMap<>();
+            createdConstraintIndexesByConstraint = newMap( memoryTracker );
         }
         return createdConstraintIndexesByConstraint;
-    }
-
-    private SchemaIndexDescriptor getIndexForIndexBackedConstraint( IndexBackedConstraintDescriptor constraint )
-    {
-        return constraint.ownedIndexDescriptor();
-    }
-
-    private boolean hasNodeState( long nodeId )
-    {
-        return nodeStatesMap != null && nodeStatesMap.containsKey( nodeId );
-    }
-
-    @Override
-    public PrimitiveLongIterator augmentNodesGetAll( PrimitiveLongIterator committed )
-    {
-        return addedAndRemovedNodes().augment( committed );
-    }
-
-    @Override
-    public RelationshipIterator augmentRelationshipsGetAll( RelationshipIterator committed )
-    {
-        return addedAndRemovedRelationships().augment( committed );
     }
 
     @Override
@@ -1312,184 +902,29 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
         return getRelationshipState( relId ).accept( visitor );
     }
 
+    public <EX extends Exception> boolean relationshipVisitWithProperties( long relId, RelationshipVisitorWithProperties<EX> visitor ) throws EX
+    {
+        return getRelationshipState( relId ).accept( visitor );
+    }
+
+    public <EX extends Exception> boolean deletedRelationshipVisit( long relId, RelationshipVisitorWithProperties<EX> visitor ) throws EX
+    {
+        return getRelationshipStateEvenThoDeleted( relId ).accept( visitor );
+    }
+
     @Override
-    public boolean hasDataChanges()
+    public long getDataRevision()
     {
-        return hasDataChanges;
+        return dataRevision;
     }
 
-    /**
-     * Release all underlying resources. The instance must not be used after calling this method .
-     */
-    public void release()
+    private NodeStateImpl newNodeState( long nodeId )
     {
-        if ( !collectionsFactory.collectionsMustBeReleased() )
-        {
-            return;
-        }
-        if ( labelStatesMap != null )
-        {
-            labelStatesMap.close();
-        }
-        if ( createdLabelTokens != null )
-        {
-            createdLabelTokens.close();
-        }
-        if ( createdRelationshipTypeTokens != null )
-        {
-            createdRelationshipTypeTokens.close();
-        }
-        if ( nodeStatesMap != null )
-        {
-            nodeStatesMap.close();
-        }
-        if ( relationshipStatesMap != null )
-        {
-            relationshipStatesMap.close();
-        }
-        if ( nodes != null && nodes.removedFromAdded != null )
-        {
-            nodes.removedFromAdded.close();
-        }
-        if ( relationships != null && relationships.removedFromAdded != null )
-        {
-            relationships.removedFromAdded.close();
-        }
+        return NodeStateImpl.createNodeState( nodeId, nodeIsAddedInThisTx( nodeId ), collectionsFactory, memoryTracker );
     }
 
-    private static class LabelTokenStateVisitor implements PrimitiveIntObjectVisitor<String,RuntimeException>
+    private RelationshipStateImpl newRelationshipState( long relationshipId, int type, long startNode, long endNode )
     {
-        private final TxStateVisitor visitor;
-
-        LabelTokenStateVisitor( TxStateVisitor visitor )
-        {
-            this.visitor = visitor;
-        }
-
-        @Override
-        public boolean visited( int key, String value )
-        {
-            visitor.visitCreatedLabelToken( value, key );
-            return false;
-        }
-    }
-
-    private static class PropertyKeyTokenStateVisitor implements PrimitiveIntObjectVisitor<String,RuntimeException>
-    {
-        private final TxStateVisitor visitor;
-
-        PropertyKeyTokenStateVisitor( TxStateVisitor visitor )
-        {
-            this.visitor = visitor;
-        }
-
-        @Override
-        public boolean visited( int key, String value )
-        {
-            visitor.visitCreatedPropertyKeyToken( value, key );
-            return false;
-        }
-    }
-
-    private static class RelationshipTypeTokenStateVisitor implements PrimitiveIntObjectVisitor<String,RuntimeException>
-    {
-        private final TxStateVisitor visitor;
-
-        RelationshipTypeTokenStateVisitor( TxStateVisitor visitor )
-        {
-            this.visitor = visitor;
-        }
-
-        @Override
-        public boolean visited( int key, String value )
-        {
-            visitor.visitCreatedRelationshipTypeToken( value, key );
-            return false;
-        }
-    }
-
-    private static class ConstraintDiffSetsVisitor implements DiffSetsVisitor<ConstraintDescriptor>
-    {
-        private final TxStateVisitor visitor;
-
-        ConstraintDiffSetsVisitor( TxStateVisitor visitor )
-        {
-            this.visitor = visitor;
-        }
-
-        @Override
-        public void visitAdded( ConstraintDescriptor constraint ) throws CreateConstraintFailureException
-        {
-            visitor.visitAddedConstraint( constraint );
-        }
-
-        @Override
-        public void visitRemoved( ConstraintDescriptor constraint )
-        {
-            visitor.visitRemovedConstraint( constraint );
-        }
-    }
-
-    /**
-     * This class works around the fact that create-delete in the same transaction is a no-op in {@link DiffSets},
-     * whereas we need to know total number of explicit removals.
-     */
-    private class RemovalsCountingDiffSets extends DiffSets<Long>
-    {
-        private PrimitiveLongSet removedFromAdded;
-
-        @Override
-        public boolean remove( Long elem )
-        {
-            if ( added( false ).remove( elem ) )
-            {
-                if ( removedFromAdded == null )
-                {
-                    removedFromAdded = collectionsFactory.newLongSet();
-                }
-                removedFromAdded.add( elem );
-                return true;
-            }
-            return removed( true ).add( elem );
-        }
-
-        private boolean wasRemoved( long id )
-        {
-            return (removedFromAdded != null && removedFromAdded.contains( id )) || super.isRemoved( id );
-        }
-    }
-
-    /**
-     * This class works around the fact that create-delete in the same transaction is a no-op in {@link DiffSets},
-     * whereas we need to know total number of explicit removals.
-     */
-    private class RemovalsCountingRelationshipsDiffSets extends RelationshipDiffSets<Long>
-    {
-        private PrimitiveLongSet removedFromAdded;
-
-        private RemovalsCountingRelationshipsDiffSets( RelationshipVisitor.Home txStateRelationshipHome )
-        {
-            super( txStateRelationshipHome );
-        }
-
-        @Override
-        public boolean remove( Long elem )
-        {
-            if ( added( false ).remove( elem ) )
-            {
-                if ( removedFromAdded == null )
-                {
-                    removedFromAdded = collectionsFactory.newLongSet();
-                }
-                removedFromAdded.add( elem );
-                return true;
-            }
-            return removed( true ).add( elem );
-        }
-
-        private boolean wasRemoved( long id )
-        {
-            return (removedFromAdded != null && removedFromAdded.contains( id )) || super.isRemoved( id );
-        }
+        return RelationshipStateImpl.createRelationshipStateImpl( relationshipId, type, startNode, endNode, collectionsFactory, memoryTracker );
     }
 }

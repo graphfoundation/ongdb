@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,22 +38,16 @@
  */
 package org.neo4j.kernel.impl.index.schema.fusion;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.function.IntFunction;
+import java.util.EnumMap;
+import java.util.function.Function;
 
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.impl.api.index.updater.SwallowingIndexUpdater;
-import org.neo4j.test.rule.RandomRule;
+import org.neo4j.kernel.impl.api.index.SwallowingIndexUpdater;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.values.storable.Value;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -63,52 +57,37 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.neo4j.helpers.ArrayUtil.without;
+import static org.neo4j.internal.helpers.ArrayUtil.without;
 import static org.neo4j.kernel.impl.index.schema.fusion.FusionIndexTestHelp.add;
 import static org.neo4j.kernel.impl.index.schema.fusion.FusionIndexTestHelp.change;
+import static org.neo4j.kernel.impl.index.schema.fusion.FusionIndexTestHelp.fill;
 import static org.neo4j.kernel.impl.index.schema.fusion.FusionIndexTestHelp.remove;
-import static org.neo4j.kernel.impl.index.schema.fusion.FusionVersion.v00;
-import static org.neo4j.kernel.impl.index.schema.fusion.FusionVersion.v10;
-import static org.neo4j.kernel.impl.index.schema.fusion.FusionVersion.v20;
-import static org.neo4j.kernel.impl.index.schema.fusion.SlotSelector.INSTANCE_COUNT;
-import static org.neo4j.kernel.impl.index.schema.fusion.SlotSelector.LUCENE;
-import static org.neo4j.kernel.impl.index.schema.fusion.SlotSelector.NUMBER;
-import static org.neo4j.kernel.impl.index.schema.fusion.SlotSelector.SPATIAL;
-import static org.neo4j.kernel.impl.index.schema.fusion.SlotSelector.STRING;
-import static org.neo4j.kernel.impl.index.schema.fusion.SlotSelector.TEMPORAL;
+import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.GENERIC;
+import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.LUCENE;
 
-@RunWith( Parameterized.class )
-public class FusionIndexUpdaterTest
+abstract class FusionIndexUpdaterTest
 {
+    private final FusionVersion fusionVersion;
     private IndexUpdater[] aliveUpdaters;
-    private IndexUpdater[] updaters;
+    private EnumMap<IndexSlot,IndexUpdater> updaters;
     private FusionIndexUpdater fusionIndexUpdater;
 
-    @Rule
-    public RandomRule random = new RandomRule();
-    @Parameterized.Parameters( name = "{0}" )
-    public static FusionVersion[] versions()
+    FusionIndexUpdaterTest( FusionVersion fusionVersion )
     {
-        return new FusionVersion[]
-                {
-                        v00, v10, v20
-                };
+        this.fusionVersion = fusionVersion;
     }
 
-    @Parameterized.Parameter
-    public static FusionVersion fusionVersion;
-
-    @Before
-    public void setup()
+    @BeforeEach
+    void setup()
     {
         initiateMocks();
     }
 
     private void initiateMocks()
     {
-        int[] activeSlots = fusionVersion.aliveSlots();
-        updaters = new IndexUpdater[INSTANCE_COUNT];
-        Arrays.fill( updaters, SwallowingIndexUpdater.INSTANCE );
+        IndexSlot[] activeSlots = fusionVersion.aliveSlots();
+        updaters = new EnumMap<>( IndexSlot.class );
+        fill( updaters, SwallowingIndexUpdater.INSTANCE );
         aliveUpdaters = new IndexUpdater[activeSlots.length];
         for ( int i = 0; i < activeSlots.length; i++ )
         {
@@ -116,35 +95,23 @@ public class FusionIndexUpdaterTest
             aliveUpdaters[i] = mock;
             switch ( activeSlots[i] )
             {
-            case STRING:
-                updaters[STRING] = mock;
-                break;
-            case NUMBER:
-                updaters[NUMBER] = mock;
-                break;
-            case SPATIAL:
-                updaters[SPATIAL] = mock;
-                break;
-            case TEMPORAL:
-                updaters[TEMPORAL] = mock;
+            case GENERIC:
+                updaters.put( GENERIC, mock );
                 break;
             case LUCENE:
-                updaters[LUCENE] = mock;
+                updaters.put( LUCENE, mock );
                 break;
             default:
                 throw new RuntimeException();
             }
         }
-        fusionIndexUpdater = new FusionIndexUpdater( fusionVersion.slotSelector(), new LazyInstanceSelector<>( updaters, throwingFactory() ) );
+        fusionIndexUpdater = new FusionIndexUpdater( fusionVersion.slotSelector(), new LazyInstanceSelector<>( updaters, THROWING_FACTORY ) );
     }
 
-    private IntFunction<IndexUpdater> throwingFactory()
+    private static final Function<IndexSlot,IndexUpdater> THROWING_FACTORY = i ->
     {
-        return i ->
-        {
-            throw new IllegalStateException( "All updaters should exist already" );
-        };
-    }
+        throw new IllegalStateException( "All updaters should exist already" );
+    };
 
     private void resetMocks()
     {
@@ -157,18 +124,18 @@ public class FusionIndexUpdaterTest
     /* process */
 
     @Test
-    public void processMustSelectCorrectForAdd() throws Exception
+    void processMustSelectCorrectForAdd() throws Exception
     {
         // given
-        Value[][] values = FusionIndexTestHelp.valuesByGroup();
+        EnumMap<IndexSlot,Value[]> values = FusionIndexTestHelp.valuesByGroup();
         Value[] allValues = FusionIndexTestHelp.allValues();
 
-        for ( int i = 0; i < updaters.length; i++ )
+        for ( IndexSlot slot : IndexSlot.values() )
         {
-            for ( Value value : values[i] )
+            for ( Value value : values.get( slot ) )
             {
                 // then
-                verifyAddWithCorrectUpdater( orLucene( updaters[i] ), value );
+                verifyAddWithCorrectUpdater( orLucene( updaters.get( slot ) ), value );
             }
         }
 
@@ -177,24 +144,24 @@ public class FusionIndexUpdaterTest
         {
             for ( Value secondValue : allValues )
             {
-                verifyAddWithCorrectUpdater( updaters[LUCENE], firstValue, secondValue );
+                verifyAddWithCorrectUpdater( updaters.get( GENERIC ), firstValue, secondValue );
             }
         }
     }
 
     @Test
-    public void processMustSelectCorrectForRemove() throws Exception
+    void processMustSelectCorrectForRemove() throws Exception
     {
         // given
-        Value[][] values = FusionIndexTestHelp.valuesByGroup();
+        EnumMap<IndexSlot,Value[]> values = FusionIndexTestHelp.valuesByGroup();
         Value[] allValues = FusionIndexTestHelp.allValues();
 
-        for ( int i = 0; i < updaters.length; i++ )
+        for ( IndexSlot slot : IndexSlot.values() )
         {
-            for ( Value value : values[i] )
+            for ( Value value : values.get( slot ) )
             {
                 // then
-                verifyRemoveWithCorrectUpdater( orLucene( updaters[i] ), value );
+                verifyRemoveWithCorrectUpdater( orLucene( updaters.get( slot ) ), value );
             }
         }
 
@@ -203,47 +170,48 @@ public class FusionIndexUpdaterTest
         {
             for ( Value secondValue : allValues )
             {
-                verifyRemoveWithCorrectUpdater( updaters[LUCENE], firstValue, secondValue );
+                verifyRemoveWithCorrectUpdater( updaters.get( GENERIC ), firstValue, secondValue );
             }
         }
     }
 
     @Test
-    public void processMustSelectCorrectForChange() throws Exception
+    void processMustSelectCorrectForChange() throws Exception
     {
         // given
-        Value[][] values = FusionIndexTestHelp.valuesByGroup();
+        EnumMap<IndexSlot,Value[]> values = FusionIndexTestHelp.valuesByGroup();
 
         // when
-        for ( int i = 0; i < updaters.length; i++ )
+        for ( IndexSlot slot : IndexSlot.values() )
         {
-            for ( Value before : values[i] )
+            for ( Value before : values.get( slot ) )
             {
-                for ( Value after : values[i] )
+                for ( Value after : values.get( slot ) )
                 {
-                    verifyChangeWithCorrectUpdaterNotMixed( orLucene( updaters[i] ), before, after );
+                    verifyChangeWithCorrectUpdaterNotMixed( orLucene( updaters.get( slot ) ), before, after );
                 }
             }
         }
     }
 
     @Test
-    public void processMustSelectCorrectForChangeFromOneGroupToAnother() throws Exception
+    void processMustSelectCorrectForChangeFromOneGroupToAnother() throws Exception
     {
-        Value[][] values = FusionIndexTestHelp.valuesByGroup();
-        for ( int f = 0; f < values.length; f++ )
+        EnumMap<IndexSlot,Value[]> values = FusionIndexTestHelp.valuesByGroup();
+        for ( IndexSlot from : IndexSlot.values() )
         {
             // given
-            for ( int t = 0; t < values.length; t++ )
+            for ( IndexSlot to : IndexSlot.values() )
             {
-                if ( f != t )
+                if ( from != to )
                 {
                     // when
-                    verifyChangeWithCorrectUpdaterMixed( orLucene( updaters[f] ), orLucene( updaters[t] ), values[f], values[t] );
+                    verifyChangeWithCorrectUpdaterMixed(
+                            orLucene( updaters.get( from ) ), orLucene( updaters.get( to ) ), values.get( from ), values.get( to ) );
                 }
                 else
                 {
-                    verifyChangeWithCorrectUpdaterNotMixed( orLucene( updaters[f] ), values[f] );
+                    verifyChangeWithCorrectUpdaterNotMixed( orLucene( updaters.get( from ) ), values.get( from ) );
                 }
                 resetMocks();
             }
@@ -252,15 +220,15 @@ public class FusionIndexUpdaterTest
 
     private IndexUpdater orLucene( IndexUpdater updater )
     {
-        return updater != SwallowingIndexUpdater.INSTANCE ? updater : updaters[LUCENE];
+        return updater != SwallowingIndexUpdater.INSTANCE ? updater : updaters.get( LUCENE );
     }
 
     private void verifyAddWithCorrectUpdater( IndexUpdater correctPopulator, Value... numberValues )
-            throws IndexEntryConflictException, IOException
+            throws IndexEntryConflictException
     {
-        IndexEntryUpdate<LabelSchemaDescriptor> update = add( numberValues );
+        var update = add( numberValues );
         fusionIndexUpdater.process( update );
-        verify( correctPopulator, times( 1 ) ).process( update );
+        verify( correctPopulator ).process( update );
         for ( IndexUpdater populator : aliveUpdaters )
         {
             if ( populator != correctPopulator )
@@ -271,11 +239,11 @@ public class FusionIndexUpdaterTest
     }
 
     private void verifyRemoveWithCorrectUpdater( IndexUpdater correctPopulator, Value... numberValues )
-            throws IndexEntryConflictException, IOException
+            throws IndexEntryConflictException
     {
-        IndexEntryUpdate<LabelSchemaDescriptor> update = FusionIndexTestHelp.remove( numberValues );
+        var update = FusionIndexTestHelp.remove( numberValues );
         fusionIndexUpdater.process( update );
-        verify( correctPopulator, times( 1 ) ).process( update );
+        verify( correctPopulator ).process( update );
         for ( IndexUpdater populator : aliveUpdaters )
         {
             if ( populator != correctPopulator )
@@ -286,11 +254,11 @@ public class FusionIndexUpdaterTest
     }
 
     private void verifyChangeWithCorrectUpdaterNotMixed( IndexUpdater correctPopulator, Value before,
-            Value after ) throws IndexEntryConflictException, IOException
+            Value after ) throws IndexEntryConflictException
     {
-        IndexEntryUpdate<LabelSchemaDescriptor> update = FusionIndexTestHelp.change( before, after );
+        var update = FusionIndexTestHelp.change( before, after );
         fusionIndexUpdater.process( update );
-        verify( correctPopulator, times( 1 ) ).process( update );
+        verify( correctPopulator ).process( update );
         for ( IndexUpdater populator : aliveUpdaters )
         {
             if ( populator != correctPopulator )
@@ -300,7 +268,7 @@ public class FusionIndexUpdaterTest
         }
     }
 
-    private void verifyChangeWithCorrectUpdaterNotMixed( IndexUpdater updater, Value[] supportedValues ) throws IndexEntryConflictException, IOException
+    private void verifyChangeWithCorrectUpdaterNotMixed( IndexUpdater updater, Value[] supportedValues ) throws IndexEntryConflictException
     {
         for ( Value before : supportedValues )
         {
@@ -312,7 +280,7 @@ public class FusionIndexUpdaterTest
     }
 
     private void verifyChangeWithCorrectUpdaterMixed( IndexUpdater expectRemoveFrom, IndexUpdater expectAddTo, Value[] beforeValues,
-            Value[] afterValues ) throws IOException, IndexEntryConflictException
+            Value[] afterValues ) throws IndexEntryConflictException
     {
         for ( int beforeIndex = 0; beforeIndex < beforeValues.length; beforeIndex++ )
         {
@@ -321,7 +289,7 @@ public class FusionIndexUpdaterTest
             {
                 Value after = afterValues[afterIndex];
 
-                IndexEntryUpdate<LabelSchemaDescriptor> change = change( before, after );
+                var change = change( before, after );
                 fusionIndexUpdater.process( change );
 
                 if ( expectRemoveFrom != expectAddTo )
@@ -331,7 +299,7 @@ public class FusionIndexUpdaterTest
                 }
                 else
                 {
-                    verify( expectRemoveFrom, times( 1 ) ).process( change( before, after ) );
+                    verify( expectRemoveFrom ).process( change( before, after ) );
                 }
             }
         }
@@ -340,7 +308,7 @@ public class FusionIndexUpdaterTest
     /* close */
 
     @Test
-    public void closeMustCloseAll() throws Exception
+    void closeMustCloseAll() throws Exception
     {
         // when
         fusionIndexUpdater.close();
@@ -348,62 +316,61 @@ public class FusionIndexUpdaterTest
         // then
         for ( IndexUpdater updater : aliveUpdaters )
         {
-            verify( updater, times( 1 ) ).close();
+            verify( updater ).close();
         }
     }
 
     @Test
-    public void closeMustThrowIfAnyThrow() throws Exception
+    void closeMustThrowIfAnyThrow() throws Exception
     {
-        for ( int i = 0; i < aliveUpdaters.length; i++ )
+        for ( IndexSlot indexSlot : fusionVersion.aliveSlots() )
         {
-            IndexUpdater updater = aliveUpdaters[i];
-            FusionIndexTestHelp.verifyFusionCloseThrowOnSingleCloseThrow( updater, fusionIndexUpdater );
+            FusionIndexTestHelp.verifyFusionCloseThrowOnSingleCloseThrow( updaters.get( indexSlot ), fusionIndexUpdater );
             initiateMocks();
         }
     }
 
     @Test
-    public void closeMustCloseOthersIfAnyThrow() throws Exception
+    void closeMustCloseOthersIfAnyThrow() throws Exception
     {
-        for ( int i = 0; i < aliveUpdaters.length; i++ )
+        for ( IndexSlot indexSlot : fusionVersion.aliveSlots() )
         {
-            IndexUpdater updater = aliveUpdaters[i];
-            FusionIndexTestHelp.verifyOtherIsClosedOnSingleThrow( updater, fusionIndexUpdater, without( aliveUpdaters, updater ) );
+            IndexUpdater failingUpdater = updaters.get( indexSlot );
+            FusionIndexTestHelp.verifyOtherIsClosedOnSingleThrow( failingUpdater, fusionIndexUpdater, without( aliveUpdaters, failingUpdater ) );
             initiateMocks();
         }
     }
 
     @Test
-    public void closeMustThrowIfAllThrow() throws Exception
+    void closeMustThrowIfAllThrow() throws Exception
     {
         FusionIndexTestHelp.verifyFusionCloseThrowIfAllThrow( fusionIndexUpdater, aliveUpdaters );
     }
 
     @Test
-    public void shouldInstantiatePartLazilyForSpecificValueGroupUpdates() throws IOException, IndexEntryConflictException
+    void shouldInstantiatePartLazilyForSpecificValueGroupUpdates() throws IndexEntryConflictException
     {
         // given
-        Value[][] values = FusionIndexTestHelp.valuesByGroup();
-        for ( int i = 0; i < updaters.length; i++ )
+        EnumMap<IndexSlot,Value[]> values = FusionIndexTestHelp.valuesByGroup();
+        for ( IndexSlot i : IndexSlot.values() )
         {
-            if ( updaters[i] != SwallowingIndexUpdater.INSTANCE )
+            if ( updaters.get( i ) != SwallowingIndexUpdater.INSTANCE )
             {
                 // when
-                Value value = values[i][0];
+                Value value = values.get( i )[0];
                 fusionIndexUpdater.process( add( value ) );
-                for ( int j = 0; j < updaters.length; j++ )
+                for ( IndexSlot j : IndexSlot.values() )
                 {
                     // then
-                    if ( updaters[j] != SwallowingIndexUpdater.INSTANCE )
+                    if ( updaters.get( j ) != SwallowingIndexUpdater.INSTANCE )
                     {
                         if ( i == j )
                         {
-                            verify( updaters[i] ).process( any( IndexEntryUpdate.class ) );
+                            verify( updaters.get( i ) ).process( any( IndexEntryUpdate.class ) );
                         }
                         else
                         {
-                            verifyNoMoreInteractions( updaters[j] );
+                            verifyNoMoreInteractions( updaters.get( j ) );
                         }
                     }
                 }

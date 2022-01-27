@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,43 +38,50 @@
  */
 package org.neo4j.kernel.impl.transaction.log.stresstest.workload;
 
-import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.BooleanSupplier;
 
+import org.neo4j.configuration.Config;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.impl.core.DatabasePanicEventGenerator;
+import org.neo4j.io.layout.DatabaseLayout;
+import org.neo4j.kernel.impl.api.TestCommandReaderFactory;
 import org.neo4j.kernel.impl.transaction.SimpleLogVersionRepository;
 import org.neo4j.kernel.impl.transaction.SimpleTransactionIdStore;
-import org.neo4j.kernel.impl.transaction.log.BatchingTransactionAppender;
 import org.neo4j.kernel.impl.transaction.log.TransactionAppender;
-import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
 import org.neo4j.kernel.impl.transaction.log.TransactionMetadataCache;
+import org.neo4j.kernel.impl.transaction.log.entry.VersionAwareLogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
-import org.neo4j.kernel.impl.transaction.log.rotation.LogRotation;
-import org.neo4j.kernel.impl.transaction.log.rotation.LogRotationImpl;
-import org.neo4j.kernel.impl.util.IdOrderingQueue;
-import org.neo4j.kernel.internal.DatabaseHealth;
-import org.neo4j.kernel.internal.KernelEventHandlers;
 import org.neo4j.kernel.lifecycle.Lifespan;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.NullLog;
+import org.neo4j.logging.NullLogProvider;
+import org.neo4j.monitoring.DatabaseHealth;
+import org.neo4j.monitoring.PanicEventGenerator;
+import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.storageengine.api.StoreId;
+import org.neo4j.storageengine.api.TransactionIdStore;
+import org.neo4j.test.scheduler.ThreadPoolJobScheduler;
+import org.neo4j.util.concurrent.Futures;
+
+import static org.neo4j.kernel.impl.transaction.log.TransactionAppenderFactory.createTransactionAppender;
 
 public class Runner implements Callable<Long>
 {
-    private final File workingDirectory;
+    private final DatabaseLayout databaseLayout;
     private final BooleanSupplier condition;
     private final int threads;
 
-    public Runner( File workingDirectory, BooleanSupplier condition, int threads )
+    public Runner( DatabaseLayout databaseLayout, BooleanSupplier condition, int threads )
     {
-        this.workingDirectory = workingDirectory;
+        this.databaseLayout = databaseLayout;
         this.condition = condition;
         this.threads = threads;
     }
@@ -85,31 +92,29 @@ public class Runner implements Callable<Long>
         long lastCommittedTransactionId;
 
         try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction();
+                var jobScheduler = new ThreadPoolJobScheduler();
                 Lifespan life = new Lifespan() )
         {
             TransactionIdStore transactionIdStore = new SimpleTransactionIdStore();
-            TransactionMetadataCache transactionMetadataCache = new TransactionMetadataCache( 100_000 );
+            TransactionMetadataCache transactionMetadataCache = new TransactionMetadataCache();
             LogFiles logFiles = life.add( createLogFiles( transactionIdStore, fileSystem ) );
 
-            TransactionAppender transactionAppender = life.add(
-                    createBatchingTransactionAppender( transactionIdStore, transactionMetadataCache, logFiles ) );
+            TransactionAppender transactionAppender =
+                    life.add( createBatchingTransactionAppender( transactionMetadataCache, logFiles, transactionIdStore, Config.defaults(), jobScheduler ) );
 
             ExecutorService executorService = Executors.newFixedThreadPool( threads );
             try
             {
-                Future<?>[] handlers = new Future[threads];
+                List<Future<?>> handlers = new ArrayList<>( threads );
                 for ( int i = 0; i < threads; i++ )
                 {
                     TransactionRepresentationFactory factory = new TransactionRepresentationFactory();
                     Worker task = new Worker( transactionAppender, factory, condition );
-                    handlers[i] = executorService.submit( task );
+                    handlers.add( executorService.submit( task ) );
                 }
 
                 // wait for all the workers to complete
-                for ( Future<?> handle : handlers )
-                {
-                    handle.get();
-                }
+                Futures.getAll( handlers );
             }
             finally
             {
@@ -122,41 +127,24 @@ public class Runner implements Callable<Long>
         return lastCommittedTransactionId;
     }
 
-    private BatchingTransactionAppender createBatchingTransactionAppender( TransactionIdStore transactionIdStore,
-            TransactionMetadataCache transactionMetadataCache, LogFiles logFiles )
+    private static TransactionAppender createBatchingTransactionAppender( TransactionMetadataCache transactionMetadataCache, LogFiles logFiles,
+            TransactionIdStore transactionIdStore, Config config, JobScheduler jobScheduler )
     {
         Log log = NullLog.getInstance();
-        KernelEventHandlers kernelEventHandlers = new KernelEventHandlers( log );
-        DatabasePanicEventGenerator panicEventGenerator = new DatabasePanicEventGenerator( kernelEventHandlers );
-        DatabaseHealth databaseHealth = new DatabaseHealth( panicEventGenerator, log );
-        LogRotationImpl logRotation = new LogRotationImpl( NOOP_LOGROTATION_MONITOR, logFiles, databaseHealth );
-        return new BatchingTransactionAppender( logFiles, logRotation,
-                transactionMetadataCache, transactionIdStore, IdOrderingQueue.BYPASS, databaseHealth );
+        DatabaseHealth databaseHealth = new DatabaseHealth( PanicEventGenerator.NO_OP, log );
+        return createTransactionAppender( logFiles, transactionIdStore, transactionMetadataCache, config, databaseHealth,
+                jobScheduler, NullLogProvider.getInstance() );
     }
 
     private LogFiles createLogFiles( TransactionIdStore transactionIdStore,
             FileSystemAbstraction fileSystemAbstraction ) throws IOException
     {
         SimpleLogVersionRepository logVersionRepository = new SimpleLogVersionRepository();
-        return LogFilesBuilder.builder( workingDirectory, fileSystemAbstraction )
-                                                      .withTransactionIdStore(transactionIdStore)
-                                                      .withLogVersionRepository( logVersionRepository )
-                                                      .build();
+        return LogFilesBuilder.builder( databaseLayout, fileSystemAbstraction )
+                .withTransactionIdStore( transactionIdStore )
+                .withLogVersionRepository( logVersionRepository )
+                .withLogEntryReader( new VersionAwareLogEntryReader( new TestCommandReaderFactory() ) )
+                .withStoreId( StoreId.UNKNOWN )
+                .build();
     }
-
-    private static final LogRotation.Monitor NOOP_LOGROTATION_MONITOR = new LogRotation.Monitor()
-    {
-        @Override
-        public void startedRotating( long currentVersion )
-        {
-
-        }
-
-        @Override
-        public void finishedRotating( long currentVersion )
-        {
-
-        }
-    };
-
 }

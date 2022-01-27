@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,19 +39,21 @@
 package org.neo4j.kernel.api.impl.index.backup;
 
 import org.apache.lucene.index.IndexWriter;
+import org.junit.jupiter.api.AfterEach;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 
+import org.neo4j.configuration.Config;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.kernel.api.impl.index.IndexWriterConfigs;
 
 public class WritableIndexSnapshotFileIteratorTest extends ReadOnlyIndexSnapshotFileIteratorTest
 {
-
     private IndexWriter indexWriter;
 
     @Override
+    @AfterEach
     public void tearDown() throws IOException
     {
         if ( indexWriter != null )
@@ -62,9 +64,9 @@ public class WritableIndexSnapshotFileIteratorTest extends ReadOnlyIndexSnapshot
     }
 
     @Override
-    protected ResourceIterator<File> makeSnapshot() throws IOException
+    protected ResourceIterator<Path> makeSnapshot() throws IOException
     {
-        indexWriter = new IndexWriter( dir, IndexWriterConfigs.standard() );
+        indexWriter = new IndexWriter( dir, IndexWriterConfigs.standard( Config.defaults() ) );
         return LuceneIndexSnapshots.forIndex( indexDir, indexWriter );
     }
 }

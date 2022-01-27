@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,9 @@
  */
 package org.neo4j.index.internal.gbptree;
 
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 /**
  * A job cleaning something up after recovery. Usually added to {@link RecoveryCleanupWorkCollector}.
@@ -72,15 +74,43 @@ public interface CleanupJob
      * Run cleanup job and use provided executor for parallel tasks.
      * This method will wait for all jobs passed to executor to finish before returning.
      */
-    void run( ExecutorService executor );
+    void run( Executor executor );
 
     /**
      * A {@link CleanupJob} that doesn't need cleaning, i.e. it's already clean.
      */
-    CleanupJob CLEAN = new CleanupJob()
+    CleanupJob CLEAN = new Adaptor();
+
+    /**
+     * Executor of asynchronous units of work needed during the recovery clean up.
+     */
+    @FunctionalInterface
+    interface Executor
+    {
+        <T> JobResult<T> submit( String jobDescription, Callable<T> job );
+    }
+
+    /**
+     * Result handle of jobs executed by {@link Executor}.
+     */
+    @FunctionalInterface
+    interface JobResult<T>
+    {
+        /**
+         * Waits if necessary for the computation to complete, and then
+         * retrieves its result, similar to {@link Future#get()}.
+         *
+         * @return the computed result
+         * @throws ExecutionException if the computation threw an exception
+         * @throws InterruptedException if the current thread was interrupted while waiting
+         */
+        T get() throws ExecutionException, InterruptedException;
+    }
+
+    class Adaptor implements CleanupJob
     {
         @Override
-        public void run( ExecutorService executor )
+        public void run( Executor executor )
         {   // no-op
         }
 
@@ -106,5 +136,5 @@ public interface CleanupJob
         public void close()
         {   // no-op
         }
-    };
+    }
 }

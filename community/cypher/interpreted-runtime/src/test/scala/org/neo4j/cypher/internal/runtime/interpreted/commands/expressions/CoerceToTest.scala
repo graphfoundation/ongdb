@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,24 +38,49 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import java.util.{ArrayList => JavaList, HashMap => JavaMap}
-
-import org.neo4j.cypher.internal.runtime.{Counter, QueryContext}
-import org.neo4j.cypher.internal.util.v3_4.CypherTypeException
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
+import org.neo4j.cypher.internal.runtime.Counter
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.QueryContext
+import org.neo4j.cypher.internal.runtime.ReadableRow
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.util.v3_4.symbols._
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.util.symbols.CTAny
+import org.neo4j.cypher.internal.util.symbols.CTBoolean
+import org.neo4j.cypher.internal.util.symbols.CTFloat
+import org.neo4j.cypher.internal.util.symbols.CTGeometry
+import org.neo4j.cypher.internal.util.symbols.CTInteger
+import org.neo4j.cypher.internal.util.symbols.CTList
+import org.neo4j.cypher.internal.util.symbols.CTMap
+import org.neo4j.cypher.internal.util.symbols.CTNode
+import org.neo4j.cypher.internal.util.symbols.CTNumber
+import org.neo4j.cypher.internal.util.symbols.CTPath
+import org.neo4j.cypher.internal.util.symbols.CTPoint
+import org.neo4j.cypher.internal.util.symbols.CTRelationship
+import org.neo4j.cypher.internal.util.symbols.CTString
+import org.neo4j.cypher.internal.util.symbols.CypherType
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.exceptions.CypherTypeException
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.PointValue
-import org.neo4j.values.storable.Values._
-import org.neo4j.values.virtual.VirtualValues._
+import org.neo4j.values.storable.Values.EMPTY_STRING
+import org.neo4j.values.storable.Values.NO_VALUE
+import org.neo4j.values.storable.Values.TRUE
+import org.neo4j.values.storable.Values.doubleValue
+import org.neo4j.values.storable.Values.longValue
+import org.neo4j.values.storable.Values.stringArray
+import org.neo4j.values.storable.Values.stringValue
+import org.neo4j.values.virtual.VirtualValues.EMPTY_LIST
+import org.neo4j.values.virtual.VirtualValues.EMPTY_MAP
+import org.neo4j.values.virtual.VirtualValues.list
+import org.neo4j.values.virtual.VirtualValues.nodeValue
+import org.neo4j.values.virtual.VirtualValues.relationshipValue
 
 import scala.language.postfixOps
 
 class CoerceToTest extends CypherFunSuite {
 
-  implicit var openCases: Counter = Counter()
+  implicit val openCases: Counter = Counter()
   implicit val qtx = mock[QueryContext]
   implicit val state = QueryStateHelper.emptyWith(query = qtx)
 
@@ -229,7 +254,7 @@ class CoerceToTest extends CypherFunSuite {
 
       def notTo(typ: CypherType) = {
         a[CypherTypeException] should be thrownBy {
-          CoerceTo(TestExpression(actualValue), typ)(ExecutionContext.empty, state)
+          CoerceTo(TestExpression(actualValue), typ)(CypherRow.empty, state)
         }
 
         remaining -= typ
@@ -239,17 +264,18 @@ class CoerceToTest extends CypherFunSuite {
 
       case class TestExpression(in: AnyValue) extends Expression {
 
-        override def rewrite(f: (Expression) => Expression): Expression = this
+        override def rewrite(f: Expression => Expression): Expression = this
 
         override def arguments: Seq[Expression] = Seq.empty
 
-        override def symbolTableDependencies: Set[String] = Set.empty
-        def apply(ctx: ExecutionContext, state: QueryState): AnyValue = in
+        override def children: Seq[AstNode[_]] = Seq.empty
+
+        override def apply(row: ReadableRow, state: QueryState): AnyValue = in
 
       }
 
       case class to(typ: CypherType) {
-        private val coercedValue = CoerceTo(TestExpression(actualValue), typ)(ExecutionContext.empty, state)
+        private val coercedValue = CoerceTo(TestExpression(actualValue), typ)(CypherRow.empty, state)
 
         counter += 1
         remaining -= typ

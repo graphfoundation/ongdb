@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -55,18 +55,17 @@ import org.neo4j.graphdb.PathExpander;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.traversal.BranchState;
 import org.neo4j.graphdb.traversal.Evaluation;
-import org.neo4j.graphdb.traversal.Evaluators;
 import org.neo4j.graphdb.traversal.InitialBranchState;
 import org.neo4j.graphdb.traversal.PathEvaluator;
 import org.neo4j.graphdb.traversal.TraversalMetadata;
 import org.neo4j.graphdb.traversal.Traverser;
 import org.neo4j.graphdb.traversal.Uniqueness;
+import org.neo4j.internal.helpers.MathUtil;
 import org.neo4j.kernel.impl.traversal.MonoDirectionalTraversalDescription;
-import org.neo4j.kernel.impl.util.NoneStrictMath;
 
 import static org.neo4j.graphalgo.impl.util.PathInterestFactory.single;
 import static org.neo4j.graphdb.Direction.OUTGOING;
-import static org.neo4j.helpers.collection.Iterators.firstOrNull;
+import static org.neo4j.internal.helpers.collection.Iterators.firstOrNull;
 
 /**
  * Find (one or some) simple shortest path(s) between two nodes.
@@ -82,81 +81,16 @@ import static org.neo4j.helpers.collection.Iterators.firstOrNull;
  *                                                            {@link DijkstraBidirectional} does this faster.
  * {@link PathInterestFactory#all(double)}                  - Find all paths in increasing order. This option has
  *                                                            performance problem and is not recommended.
- *
- * @author Tobias Ivarsson
- * @author Martin Neumann
- * @author Mattias Persson
- * @author Anton Persson
  */
 public class Dijkstra implements PathFinder<WeightedPath>
 {
-    private final PathExpander expander;
-    private final InitialBranchState stateFactory;
+    private final PathExpander<Double> expander;
+    private final InitialBranchState<Double> stateFactory;
     private final CostEvaluator<Double> costEvaluator;
     private Traverser lastTraverser;
     private final double epsilon;
     private final PathInterest<Double> interest;
-    private final boolean stateInUse;
-    // TODO: Remove stateInUse when removing deprecated constructors that uses InitialBranchState.
-    // TODO: ALso set traverser to always use DijkstaPathExpander and DijkstraEvaluator.
-
-    /**
-     * @deprecated Dijkstra should not be used with state
-     * Use {@link #Dijkstra(PathExpander, CostEvaluator)} instead.
-     */
-    @Deprecated
-    public Dijkstra( PathExpander expander, InitialBranchState stateFactory, CostEvaluator<Double> costEvaluator )
-    {
-        this( expander, stateFactory, costEvaluator, true );
-    }
-
-    /**
-     * @deprecated Dijkstra should not be used with state.
-     * Use {@link #Dijkstra(PathExpander, CostEvaluator, PathInterest)} instead.
-     */
-    @Deprecated
-    public Dijkstra( PathExpander expander, InitialBranchState stateFactory, CostEvaluator<Double> costEvaluator,
-            boolean stopAfterLowestCost )
-    {
-        this.expander = expander;
-        this.costEvaluator = costEvaluator;
-        this.stateFactory = stateFactory;
-        interest = stopAfterLowestCost ? PathInterestFactory.allShortest( NoneStrictMath.EPSILON ) :
-                                         PathInterestFactory.all( NoneStrictMath.EPSILON );
-        epsilon = NoneStrictMath.EPSILON;
-        this.stateInUse = true;
-    }
-
-    /**
-     * See {@link #Dijkstra(PathExpander, CostEvaluator, double, PathInterest)}
-     * Use {@link NoneStrictMath#EPSILON} as tolerance.
-     * Use {@link PathInterestFactory#allShortest(double)} as PathInterest.
-     */
-    public Dijkstra( PathExpander expander, CostEvaluator<Double> costEvaluator )
-    {
-        this( expander, costEvaluator, PathInterestFactory.allShortest( NoneStrictMath.EPSILON ) );
-    }
-
-    /**
-     * @deprecated in favor for {@link #Dijkstra(PathExpander, CostEvaluator, PathInterest)}  }.
-     */
-    @Deprecated
-    public Dijkstra( PathExpander expander, CostEvaluator<Double> costEvaluator,
-            boolean stopAfterLowestCost )
-    {
-        this( expander, costEvaluator, NoneStrictMath.EPSILON, stopAfterLowestCost ?
-                                                          PathInterestFactory.allShortest( NoneStrictMath.EPSILON ) :
-                                                          PathInterestFactory.all( NoneStrictMath.EPSILON ) );
-    }
-
-    /**
-     * See {@link #Dijkstra(PathExpander, CostEvaluator, double, PathInterest)}
-     * Use {@link NoneStrictMath#EPSILON} as tolerance.
-     */
-    public Dijkstra( PathExpander expander, CostEvaluator<Double> costEvaluator, PathInterest<Double> interest )
-    {
-        this( expander, costEvaluator, NoneStrictMath.EPSILON, interest );
-    }
+    // TODO: ALso set traverser to always use DijkstraPathExpander and DijkstraEvaluator.
 
     /**
      * Construct new dijkstra algorithm.
@@ -167,41 +101,28 @@ public class Dijkstra implements PathFinder<WeightedPath>
      * @param interest          {@link PathInterest} to be used when deciding if a path is interesting.
      *                          Recommend to use {@link PathInterestFactory} to get reliable behaviour.
      */
-    public Dijkstra( PathExpander expander, CostEvaluator<Double> costEvaluator, double epsilon,
-            PathInterest<Double> interest )
+    public Dijkstra( PathExpander<Double> expander, CostEvaluator<Double> costEvaluator, double epsilon, PathInterest<Double> interest )
     {
         this.expander = expander;
         this.costEvaluator = costEvaluator;
         this.epsilon = epsilon;
         this.interest = interest;
         this.stateFactory = InitialBranchState.DOUBLE_ZERO;
-        this.stateInUse = false;
     }
 
     @Override
     public Iterable<WeightedPath> findAllPaths( Node start, final Node end )
     {
         final Traverser traverser = traverser( start, end, interest );
-        return () -> new WeightedPathIterator( traverser.iterator(), costEvaluator, epsilon,
-                interest );
+        return () -> new WeightedPathIterator( traverser.iterator(), costEvaluator, epsilon, interest );
     }
 
     private Traverser traverser( Node start, final Node end, PathInterest<Double> interest )
     {
-        PathExpander dijkstraExpander;
-        PathEvaluator dijkstraEvaluator;
-        if ( stateInUse )
-        {
-            dijkstraExpander = expander;
-            dijkstraEvaluator = Evaluators.includeWhereEndNodeIs( end );
-        }
-        else
-        {
-            MutableDouble shortestSoFar = new MutableDouble( Double.MAX_VALUE );
-            dijkstraExpander = new DijkstraPathExpander( expander, shortestSoFar, epsilon,
-                    interest.stopAfterLowestCost() );
-            dijkstraEvaluator = new DijkstraEvaluator( shortestSoFar, end, costEvaluator );
-        }
+        MutableDouble shortestSoFar = new MutableDouble( Double.MAX_VALUE );
+        PathExpander<Double> dijkstraExpander = new DijkstraPathExpander( expander, shortestSoFar, epsilon, interest.stopAfterLowestCost() );
+        PathEvaluator<Double> dijkstraEvaluator = new DijkstraEvaluator( shortestSoFar, end, costEvaluator );
+
         lastTraverser = new MonoDirectionalTraversalDescription( )
                 .uniqueness( Uniqueness.NODE_PATH )
                 .expand( dijkstraExpander, stateFactory )
@@ -225,13 +146,12 @@ public class Dijkstra implements PathFinder<WeightedPath>
 
     private static class DijkstraPathExpander implements PathExpander<Double>
     {
-        protected final PathExpander source;
+        protected final PathExpander<Double> source;
         protected MutableDouble shortestSoFar;
         private final double epsilon;
         protected final boolean stopAfterLowestCost;
 
-        DijkstraPathExpander( final PathExpander source,
-                org.apache.commons.lang3.mutable.MutableDouble shortestSoFar, double epsilon, boolean stopAfterLowestCost )
+        DijkstraPathExpander( final PathExpander<Double> source, MutableDouble shortestSoFar, double epsilon, boolean stopAfterLowestCost )
         {
             this.source = source;
             this.shortestSoFar = shortestSoFar;
@@ -242,7 +162,7 @@ public class Dijkstra implements PathFinder<WeightedPath>
         @Override
         public Iterable<Relationship> expand( Path path, BranchState<Double> state )
         {
-            if ( NoneStrictMath.compare( state.getState(), shortestSoFar.doubleValue(), epsilon ) > 0 && stopAfterLowestCost )
+            if ( MathUtil.compare( state.getState(), shortestSoFar.doubleValue(), epsilon ) > 0 && stopAfterLowestCost )
             {
                 return Collections.emptyList();
             }

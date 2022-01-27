@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,17 +38,18 @@
  */
 package org.neo4j.graphdb;
 
+import org.neo4j.annotations.api.PublicApi;
+
 /**
  * An acquired lock on an entity for a transaction, acquired from
- * {@link Transaction#acquireWriteLock(PropertyContainer)} or
- * {@link Transaction#acquireReadLock(PropertyContainer)} this lock
+ * {@link Transaction#acquireWriteLock(Entity)} or
+ * {@link Transaction#acquireReadLock(Entity)} this lock
  * can be released manually using {@link #release()}. If not released
  * manually it will be automatically released when the transaction owning
  * it finishes.
- *
- * @author Mattias Persson
  */
-public interface Lock
+@PublicApi
+public interface Lock extends AutoCloseable
 {
     /**
      * Releases this lock before the transaction finishes. It is an optional
@@ -58,4 +59,15 @@ public interface Lock
      * @throws IllegalStateException if this lock has already been released.
      */
     void release();
+
+    /**
+     * Release this lock as described by {@link #release()} method.
+     *
+     * @throws IllegalStateException if this lock has already been released.
+     */
+    @Override
+    default void close()
+    {
+        release();
+    }
 }

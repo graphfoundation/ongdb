@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -45,9 +45,9 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.neo4j.graphdb.ConstraintViolationException;
-import org.neo4j.helpers.collection.IterableWrapper;
+import org.neo4j.internal.helpers.collection.IterableWrapper;
 import org.neo4j.kernel.api.exceptions.Status;
-import org.neo4j.server.rest.transactional.error.Neo4jError;
+import org.neo4j.server.rest.Neo4jError;
 
 public class ExceptionRepresentation extends MappingRepresentation
 {
@@ -90,7 +90,7 @@ public class ExceptionRepresentation extends MappingRepresentation
         serializer.putList( "errors", ErrorEntryRepresentation.list( errors ) );
     }
 
-    private void renderWithLegacyFormat( Throwable exception, MappingSerializer serializer )
+    private static void renderWithLegacyFormat( Throwable exception, MappingSerializer serializer )
     {
         String message = exception.getMessage();
         if ( message != null )

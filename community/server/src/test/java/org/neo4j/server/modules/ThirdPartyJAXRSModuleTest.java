@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,40 +38,36 @@
  */
 package org.neo4j.server.modules;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
 import org.neo4j.logging.NullLogProvider;
-import org.neo4j.server.CommunityNeoServer;
+import org.neo4j.server.CommunityNeoWebServer;
 import org.neo4j.server.configuration.ServerSettings;
 import org.neo4j.server.configuration.ThirdPartyJaxRsPackage;
-import org.neo4j.server.database.Database;
 import org.neo4j.server.web.WebServer;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class ThirdPartyJAXRSModuleTest
+class ThirdPartyJAXRSModuleTest
 {
     @Test
-    public void shouldReportThirdPartyPackagesAtSpecifiedMount() throws Exception
+    void shouldReportThirdPartyPackagesAtSpecifiedMount() throws Exception
     {
         // Given
         WebServer webServer = mock( WebServer.class );
 
-        CommunityNeoServer neoServer = mock( CommunityNeoServer.class );
-        when( neoServer.baseUri() ).thenReturn( new URI( "http://localhost:7575" ) );
+        CommunityNeoWebServer neoServer = mock( CommunityNeoWebServer.class );
+        when( neoServer.getBaseUri() ).thenReturn( new URI( "http://localhost:7575" ) );
         when( neoServer.getWebServer() ).thenReturn( webServer );
-        Database database = mock( Database.class );
-        when( neoServer.getDatabase() ).thenReturn( database );
 
         Config config = mock( Config.class );
         List<ThirdPartyJaxRsPackage> jaxRsPackages = new ArrayList<>();
@@ -81,10 +77,10 @@ public class ThirdPartyJAXRSModuleTest
 
         // When
         ThirdPartyJAXRSModule module =
-                new ThirdPartyJAXRSModule( webServer, config, NullLogProvider.getInstance(), neoServer );
+                new ThirdPartyJAXRSModule( webServer, config, NullLogProvider.getInstance() );
         module.start();
 
         // Then
-        verify( webServer ).addJAXRSPackages( any( List.class ), anyString(), anyCollection() );
+        verify( webServer ).addJAXRSPackages( any( List.class ), anyString(), any() );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,33 +39,43 @@
 package org.neo4j.bolt;
 
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
 
 import java.net.SocketAddress;
 
-import org.neo4j.bolt.logging.BoltMessageLogger;
+import org.neo4j.bolt.transport.pipeline.ChannelProtector;
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
+import org.neo4j.kernel.api.net.TrackedNetworkConnection;
+import org.neo4j.kernel.impl.query.clientconnection.BoltConnectionInfo;
+import org.neo4j.memory.HeapEstimator;
 
 /**
  * A channel through which Bolt messaging can occur.
  */
-public class BoltChannel implements AutoCloseable, BoltConnectionDescriptor
+public class BoltChannel implements TrackedNetworkConnection
 {
+    public static final long SHALLOW_SIZE = HeapEstimator.shallowSizeOfInstance( BoltChannel.class );
+
+    private final String id;
+    private final long connectTime;
     private final String connector;
     private final Channel rawChannel;
-    private final BoltMessageLogger messageLogger;
+    private final ChannelProtector protector;
 
-    public static BoltChannel open( String connector, Channel rawChannel,
-                                    BoltMessageLogger messageLogger )
-    {
-        return new BoltChannel( connector, rawChannel, messageLogger );
-    }
+    private volatile String username;
+    private volatile String userAgent;
+    private volatile ClientConnectionInfo info;
+    private volatile String defaultDatabase;
 
-    private BoltChannel( String connector, Channel rawChannel,
-                         BoltMessageLogger messageLogger )
+    public BoltChannel( String id, String connector, Channel rawChannel, ChannelProtector protector )
     {
+        this.id = id;
+        this.connectTime = System.currentTimeMillis();
         this.connector = connector;
         this.rawChannel = rawChannel;
-        this.messageLogger = messageLogger;
-        messageLogger.serverEvent( "OPEN" );
+        this.info = createConnectionInfo();
+        this.protector = protector;
+        this.protector.afterChannelCreated();
     }
 
     public Channel rawChannel()
@@ -73,26 +83,27 @@ public class BoltChannel implements AutoCloseable, BoltConnectionDescriptor
         return rawChannel;
     }
 
-    public BoltMessageLogger log()
+    public void installBoltProtocol( ChannelHandler... handlers )
     {
-        return messageLogger;
+        protector.beforeBoltProtocolInstalled();
+        rawChannel.pipeline().addLast( handlers );
     }
 
-    @Override
-    public void close()
+    public ClientConnectionInfo info()
     {
-        Channel rawChannel = rawChannel();
-        if ( rawChannel.isOpen() )
-        {
-            messageLogger.serverEvent( "CLOSE" );
-            rawChannel.close().syncUninterruptibly();
-        }
+        return info;
     }
 
     @Override
     public String id()
     {
-        return rawChannel().id().asLongText();
+        return id;
+    }
+
+    @Override
+    public long connectTime()
+    {
+        return connectTime;
     }
 
     @Override
@@ -102,15 +113,73 @@ public class BoltChannel implements AutoCloseable, BoltConnectionDescriptor
     }
 
     @Override
+    public SocketAddress serverAddress()
+    {
+        return rawChannel.localAddress();
+    }
+
+    @Override
     public SocketAddress clientAddress()
     {
         return rawChannel.remoteAddress();
     }
 
     @Override
-    public SocketAddress serverAddress()
+    public String username()
     {
-        return rawChannel.localAddress();
+        return username;
     }
 
+    @Override
+    public String userAgent()
+    {
+        return userAgent;
+    }
+
+    @Override
+    public void updateUser( String username, String userAgent )
+    {
+        this.username = username;
+        this.userAgent = userAgent;
+        this.info = createConnectionInfo();
+        this.protector.disable();
+    }
+
+    public void updateDefaultDatabase( String defaultDatabase )
+    {
+        this.defaultDatabase = defaultDatabase;
+    }
+
+    public String defaultDatabase()
+    {
+        return defaultDatabase;
+    }
+
+    @Override
+    public void close()
+    {
+        Channel channel = rawChannel();
+        if ( channel.isOpen() )
+        {
+            channel.close().syncUninterruptibly();
+        }
+    }
+
+    @Override
+    public String toString()
+    {
+        return "BoltChannel{" +
+               "id='" + id + '\'' +
+               ", connectTime=" + connectTime +
+               ", connector='" + connector + '\'' +
+               ", rawChannel=" + rawChannel +
+               ", username='" + username + '\'' +
+               ", userAgent='" + userAgent + '\'' +
+               '}';
+    }
+
+    private ClientConnectionInfo createConnectionInfo()
+    {
+        return new BoltConnectionInfo( id, userAgent, clientAddress(), serverAddress() );
+    }
 }

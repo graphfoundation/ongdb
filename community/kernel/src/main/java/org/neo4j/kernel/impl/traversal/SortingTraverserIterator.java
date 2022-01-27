@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -44,22 +44,19 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.neo4j.graphdb.Path;
-import org.neo4j.graphdb.Resource;
 import org.neo4j.graphdb.traversal.BranchState;
 import org.neo4j.graphdb.traversal.Evaluation;
 import org.neo4j.graphdb.traversal.TraversalBranch;
-import org.neo4j.helpers.collection.PrefetchingResourceIterator;
+import org.neo4j.internal.helpers.collection.PrefetchingIterator;
 
-class SortingTraverserIterator extends PrefetchingResourceIterator<Path> implements TraverserIterator
+class SortingTraverserIterator extends PrefetchingIterator<Path> implements TraverserIterator
 {
     private final Comparator<? super Path> sortingStrategy;
     private final MonoDirectionalTraverserIterator source;
-    private final Resource resource;
     private Iterator<Path> sortedResultIterator;
 
-    SortingTraverserIterator( Resource resource, Comparator<? super Path> sortingStrategy, MonoDirectionalTraverserIterator source )
+    SortingTraverserIterator( Comparator<? super Path> sortingStrategy, MonoDirectionalTraverserIterator source )
     {
-        this.resource = resource;
         this.sortingStrategy = sortingStrategy;
         this.source = source;
     }
@@ -125,11 +122,5 @@ class SortingTraverserIterator extends PrefetchingResourceIterator<Path> impleme
         }
         result.sort( sortingStrategy );
         return result.iterator();
-    }
-
-    @Override
-    public void close()
-    {
-        resource.close();
     }
 }

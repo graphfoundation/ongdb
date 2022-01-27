@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,20 +38,21 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.util.v3_4.InternalException
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.logical.plans.PrefixRange
+import org.neo4j.cypher.internal.runtime.ReadableRow
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.v3_4.logical.plans.PrefixRange
+import org.neo4j.exceptions.InternalException
 import org.neo4j.values.AnyValue
 
 case class PrefixSeekRangeExpression(range: PrefixRange[Expression]) extends Expression {
 
-  override def apply(ctx: ExecutionContext, state: QueryState): AnyValue = throw new
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = throw new
       InternalException("This should never be called")
 
-  override def rewrite(f: (Expression) => Expression): Expression = f(this)
+  override def rewrite(f: Expression => Expression): Expression = f(this)
 
   override def arguments: Seq[Expression] = Seq.empty
 
-  override def symbolTableDependencies: Set[String] = Set.empty
+  override def children: Seq[AstNode[_]] = range.arguments
 }

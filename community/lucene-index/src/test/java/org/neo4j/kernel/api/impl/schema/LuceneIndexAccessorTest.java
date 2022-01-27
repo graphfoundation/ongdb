@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,44 +38,62 @@
  */
 package org.neo4j.kernel.api.impl.schema;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.apache.commons.lang3.mutable.MutableBoolean;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
+import java.lang.reflect.InvocationHandler;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import org.neo4j.annotations.documented.ReporterFactories;
+import org.neo4j.annotations.documented.ReporterFactory;
+import org.neo4j.internal.schema.IndexPrototype;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.neo4j.internal.schema.SchemaDescriptors.forLabel;
+import static org.neo4j.io.pagecache.context.CursorContext.NULL;
+import static org.neo4j.kernel.api.impl.schema.AbstractLuceneIndexProvider.UPDATE_IGNORE_STRATEGY;
+import static org.neo4j.kernel.api.impl.schema.LuceneTestTokenNameLookup.SIMPLE_TOKEN_LOOKUP;
 
-@RunWith( MockitoJUnitRunner.class )
-public class LuceneIndexAccessorTest
+class LuceneIndexAccessorTest
 {
-    @Mock
-    private SchemaIndex schemaIndex;
-    @Mock
-    private SchemaIndexDescriptor schemaIndexDescriptor;
+    private final SchemaIndex schemaIndex = mock( SchemaIndex.class );
+
     private LuceneIndexAccessor accessor;
 
-    @Before
-    public void setUp()
+    @BeforeEach
+    void setUp()
     {
-        accessor = new LuceneIndexAccessor( schemaIndex, schemaIndexDescriptor );
+        accessor = new LuceneIndexAccessor( schemaIndex, IndexPrototype.forSchema( forLabel( 1, 2 ) ).withName( "a" ).materialise( 1 ),
+                                            SIMPLE_TOKEN_LOOKUP, UPDATE_IGNORE_STRATEGY );
     }
 
     @Test
-    public void indexIsDirtyWhenLuceneIndexIsNotValid()
+    void indexIsNotConsistentWhenIndexIsNotValid()
     {
         when( schemaIndex.isValid() ).thenReturn( false );
-        assertTrue( accessor.isDirty() );
+        assertFalse( accessor.consistencyCheck( ReporterFactories.noopReporterFactory(), NULL ) );
     }
 
     @Test
-    public void indexIsCleanWhenLuceneIndexIsValid()
+    void indexIsConsistentWhenIndexIsValid()
     {
         when( schemaIndex.isValid() ).thenReturn( true );
-        assertFalse( accessor.isDirty() );
+        assertTrue( accessor.consistencyCheck( ReporterFactories.noopReporterFactory(), NULL ) );
+    }
+
+    @Test
+    void indexReportInconsistencyToVisitor()
+    {
+        when( schemaIndex.isValid() ).thenReturn( false );
+        MutableBoolean called = new MutableBoolean();
+        final InvocationHandler handler = ( proxy, method, args ) -> {
+            called.setTrue();
+            return null;
+        };
+        assertFalse( accessor.consistencyCheck( new ReporterFactory( handler ), NULL ), "Expected index to be inconsistent" );
+        assertTrue( called.booleanValue(), "Expected visitor to be called" );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,10 +38,11 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.CastSupport
+import org.neo4j.cypher.internal.runtime.CastSupport
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
 import org.neo4j.cypher.internal.runtime.interpreted.GraphElementPropertyFunctions
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.util.attribution.Id
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.VirtualNodeValue
 
@@ -49,17 +50,16 @@ case class RemoveLabelsPipe(src: Pipe, variable: String, labels: Seq[LazyLabel])
                            (val id: Id = Id.INVALID_ID)
   extends PipeWithSource(src) with GraphElementPropertyFunctions {
 
-  override protected def internalCreateResults(input: Iterator[ExecutionContext],
-                                               state: QueryState): Iterator[ExecutionContext] = {
+  override protected def internalCreateResults(input: ClosingIterator[CypherRow], state: QueryState): ClosingIterator[CypherRow] = {
     input.map { row =>
-      val item = row.get(variable).get
-      if (item != Values.NO_VALUE) removeLabels(row, state, CastSupport.castOrFail[VirtualNodeValue](item).id)
+      val item = row.getByName(variable)
+      if (!(item eq Values.NO_VALUE)) removeLabels(state, CastSupport.castOrFail[VirtualNodeValue](item).id)
       row
     }
   }
 
-  private def removeLabels(context: ExecutionContext, state: QueryState, nodeId: Long) = {
-    val labelIds = labels.flatMap(_.getOptId(state.query)).map(_.id)
+  private def removeLabels(state: QueryState, nodeId: Long): Int = {
+    val labelIds = labels.map(_.getId(state.query)).filter(_ != LazyLabel.UNKNOWN)
     state.query.removeLabelsFromNode(nodeId, labelIds.iterator)
   }
 }

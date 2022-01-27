@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,45 +38,66 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.PrefetchingIterator
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.util.v3_4.Eagerly
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.DistinctPipe.GroupingCol
+import org.neo4j.cypher.internal.util.attribution.Id
+import org.neo4j.kernel.impl.util.collection.DistinctSet
 import org.neo4j.values.AnyValue
-import org.neo4j.values.virtual.VirtualValues
+import org.neo4j.values.virtual.ListValueBuilder
 
-import scala.collection.mutable
-
-case class DistinctPipe(source: Pipe, expressions: Map[String, Expression])
+case class DistinctPipe(source: Pipe, groupingColumns: Array[GroupingCol])
                        (val id: Id = Id.INVALID_ID) extends PipeWithSource(source) {
 
-  val keyNames: Seq[String] = expressions.keys.toIndexedSeq
+  private val keyNames = groupingColumns.map(_.key)
 
-  expressions.values.foreach(_.registerOwningPipe(this))
+  protected def internalCreateResults(input: ClosingIterator[CypherRow], state: QueryState): ClosingIterator[CypherRow] = {
+    new PrefetchingIterator[CypherRow] {
+      /*
+       * The filtering is done by extracting from the context the values of all return expressions, and keeping them
+       * in a set.
+       */
+      private var seen = DistinctSet.createDistinctSet[AnyValue](state.memoryTrackerForOperatorProvider.memoryTrackerForOperator(id.x))
 
-  protected def internalCreateResults(input: Iterator[ExecutionContext],
-                                      state: QueryState): Iterator[ExecutionContext] = {
-    // Run the return item expressions, and replace the execution context's with their values
-    val result = input.map(ctx => {
-      val newMap = Eagerly.mutableMapValues(expressions, (expression: Expression) => expression(ctx, state))
-      executionContextFactory.newExecutionContext(newMap)
-    })
+      state.query.resources.trace(seen)
 
-    /*
-     * The filtering is done by extracting from the context the values of all return expressions, and keeping them
-     * in a set.
-     */
-    var seen = mutable.Set[AnyValue]()
+      override def produceNext(): Option[CypherRow] = {
+        while (input.hasNext) {
+          val next: CypherRow = input.next()
 
-    result.filter { ctx =>
-      val values = VirtualValues.list(keyNames.map(ctx): _*)
+          var i = 0
+          while (i < groupingColumns.length) {
+            next.set(groupingColumns(i).key, groupingColumns(i).expression(next, state))
+            i += 1
+          }
+          val builder = ListValueBuilder.newListBuilder(keyNames.length)
+          keyNames.foreach(name => builder.add(next.getByName(name)))
+          val groupingValue = builder.build()
 
-      if (seen.contains(values)) {
-        false
-      } else {
-        seen += values
-        true
+          if (seen.add(groupingValue)) {
+            return Some(next)
+          }
+        }
+        seen.close()
+        seen = null
+        None
       }
+
+      override protected[this] def closeMore(): Unit = if(seen != null) seen.close()
     }
   }
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case DistinctPipe(otherSource, otherGroupingColumns) =>
+        otherSource == this.source && otherGroupingColumns.sameElements(this.groupingColumns)
+      case _ => false
+    }
+  }
+}
+
+object DistinctPipe {
+  case class GroupingCol(key: String, expression: Expression, ordered: Boolean = false)
 }

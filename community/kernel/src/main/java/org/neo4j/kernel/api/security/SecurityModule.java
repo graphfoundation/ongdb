@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,39 +38,26 @@
  */
 package org.neo4j.kernel.api.security;
 
-import org.neo4j.helpers.Service;
-import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.logging.LogService;
-import org.neo4j.kernel.impl.proc.Procedures;
-import org.neo4j.kernel.impl.util.DependencySatisfier;
-import org.neo4j.scheduler.JobScheduler;
-import org.neo4j.kernel.lifecycle.LifeSupport;
+import org.neo4j.exceptions.KernelException;
+import org.neo4j.kernel.api.procedure.GlobalProcedures;
+import org.neo4j.kernel.api.security.provider.SecurityProvider;
+import org.neo4j.logging.Log;
 
-public abstract class SecurityModule extends Service
+public abstract class SecurityModule implements SecurityProvider
 {
-    public SecurityModule( String key, String... altKeys )
+    protected static void registerProcedure( GlobalProcedures globalProcedures, Log log, Class procedureClass, String warning )
     {
-        super( key, altKeys );
+        try
+        {
+            globalProcedures.registerProcedure( procedureClass, true, warning );
+        }
+        catch ( KernelException e )
+        {
+            String message = "Failed to register security procedures: " + e.getMessage();
+            log.error( message, e );
+            throw new RuntimeException( message, e );
+        }
     }
 
-    public abstract void setup( Dependencies dependencies ) throws KernelException;
-
-    public interface Dependencies
-    {
-        LogService logService();
-
-        Config config();
-
-        Procedures procedures();
-
-        JobScheduler scheduler();
-
-        FileSystemAbstraction fileSystem();
-
-        LifeSupport lifeSupport();
-
-        DependencySatisfier dependencySatisfier();
-    }
+    public abstract void setup();
 }

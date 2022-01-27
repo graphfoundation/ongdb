@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,8 +38,8 @@
  */
 package org.neo4j.kernel.api.impl.schema.sampler;
 
-import org.apache.lucene.index.Fields;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
@@ -50,13 +50,14 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.neo4j.helpers.TaskControl;
-import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
+import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.kernel.api.impl.schema.LuceneDocumentStructure;
-import org.neo4j.kernel.impl.api.index.sampling.DefaultNonUniqueIndexSampler;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.kernel.impl.api.index.sampling.NonUniqueIndexSampler;
-import org.neo4j.storageengine.api.schema.IndexSample;
+import org.neo4j.kernel.api.impl.schema.TaskCoordinator;
+import org.neo4j.kernel.api.impl.schema.populator.DefaultNonUniqueIndexSampler;
+import org.neo4j.kernel.api.index.IndexSample;
+import org.neo4j.kernel.api.index.NonUniqueIndexSampler;
+import org.neo4j.kernel.impl.api.index.IndexSamplingConfig;
 
 /**
  * Sampler for non-unique Lucene schema index.
@@ -67,59 +68,67 @@ public class NonUniqueLuceneIndexSampler extends LuceneIndexSampler
     private final IndexSearcher indexSearcher;
     private final IndexSamplingConfig indexSamplingConfig;
 
-    public NonUniqueLuceneIndexSampler( IndexSearcher indexSearcher, TaskControl taskControl,
+    public NonUniqueLuceneIndexSampler( IndexSearcher indexSearcher, TaskCoordinator taskCoordinator,
             IndexSamplingConfig indexSamplingConfig )
     {
-        super( taskControl );
+        super( taskCoordinator );
         this.indexSearcher = indexSearcher;
         this.indexSamplingConfig = indexSamplingConfig;
     }
 
     @Override
-    public IndexSample sampleIndex() throws IndexNotFoundKernelException
+    public IndexSample sampleIndex( CursorContext cursorContext ) throws IndexNotFoundKernelException
     {
-        NonUniqueIndexSampler sampler = new DefaultNonUniqueIndexSampler( indexSamplingConfig.sampleSizeLimit() );
-        IndexReader indexReader = indexSearcher.getIndexReader();
-        for ( LeafReaderContext readerContext : indexReader.leaves() )
+        try ( TaskCoordinator.Task task = newTask() )
         {
-            try
+            NonUniqueIndexSampler sampler = new DefaultNonUniqueIndexSampler( indexSamplingConfig.sampleSizeLimit() );
+            IndexReader indexReader = indexSearcher.getIndexReader();
+            for ( LeafReaderContext readerContext : indexReader.leaves() )
             {
-                Set<String> fieldNames = getFieldNamesToSample( readerContext );
-                for ( String fieldName : fieldNames )
+                try
                 {
-                    Terms terms = readerContext.reader().terms( fieldName );
-                    if ( terms != null )
+                    Set<String> fieldNames = getFieldNamesToSample( readerContext );
+                    for ( String fieldName : fieldNames )
                     {
-                        TermsEnum termsEnum = LuceneDocumentStructure.originalTerms( terms, fieldName );
-                        BytesRef termsRef;
-                        while ( (termsRef = termsEnum.next()) != null )
+                        Terms terms = readerContext.reader().terms( fieldName );
+                        if ( terms != null )
                         {
-                            sampler.include( termsRef.utf8ToString(), termsEnum.docFreq() );
-                            checkCancellation();
+                            TermsEnum termsEnum = terms.iterator();
+                            BytesRef termsRef;
+                            while ( (termsRef = termsEnum.next()) != null )
+                            {
+                               // Note from Lucene docs:
+                               // "Once a document is deleted it will not appear in search results.
+                               // The presence of this document may still be reflected in the docFreq statistics, and thus alter search scores,
+                               // though this will be corrected eventually as segments containing deletions are merged."
+                                sampler.include( termsRef.utf8ToString(), termsEnum.docFreq() );
+                                checkCancellation( task );
+                            }
                         }
                     }
                 }
+                catch ( IOException e )
+                {
+                    throw new RuntimeException( e );
+                }
             }
-            catch ( IOException e )
-            {
-                throw new RuntimeException( e );
-            }
-        }
 
-        return sampler.result( indexReader.numDocs() );
+            return sampler.sample( indexReader.numDocs(), cursorContext );
+        }
     }
 
-    private static Set<String> getFieldNamesToSample( LeafReaderContext readerContext ) throws IOException
+    private static Set<String> getFieldNamesToSample( LeafReaderContext readerContext )
     {
-        Fields fields = readerContext.reader().fields();
         Set<String> fieldNames = new HashSet<>();
-        for ( String field : fields )
+        LeafReader reader = readerContext.reader();
+        reader.getFieldInfos().forEach( info ->
         {
-            if ( !LuceneDocumentStructure.NODE_ID_KEY.equals( field ) )
+            String name = info.name;
+            if ( !LuceneDocumentStructure.NODE_ID_KEY.equals( name ) )
             {
-                fieldNames.add( field );
+                fieldNames.add( name );
             }
-        }
+        });
         return fieldNames;
     }
 }

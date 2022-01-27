@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,60 +38,48 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.IsList
+import org.neo4j.cypher.internal.runtime.PrimitiveLongHelper
+import org.neo4j.cypher.internal.runtime.ReadableRow
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.runtime.interpreted.IsList
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.values.virtual.{ListValue, VirtualValues}
-
-import scala.collection.JavaConverters._
+import org.neo4j.cypher.internal.util.attribution.Id
+import org.neo4j.values.virtual.ListValue
+import org.neo4j.values.virtual.VirtualValues
 
 sealed trait SeekArgs {
-  def expressions(ctx: ExecutionContext, state: QueryState): ListValue
-  def registerOwningPipe(pipe: Pipe): Unit
+  def expressions(ctx: ReadableRow, state: QueryState): ListValue
 }
 
 object SeekArgs {
   object empty extends SeekArgs {
-    def expressions(ctx: ExecutionContext, state: QueryState):  ListValue = VirtualValues.EMPTY_LIST
-
-    override def registerOwningPipe(pipe: Pipe){}
+    def expressions(ctx: ReadableRow, state: QueryState):  ListValue = VirtualValues.EMPTY_LIST
   }
 }
 
 case class SingleSeekArg(expr: Expression) extends SeekArgs {
-  def expressions(ctx: ExecutionContext, state: QueryState): ListValue =
+  def expressions(ctx: ReadableRow, state: QueryState): ListValue =
     expr(ctx, state) match {
       case value => VirtualValues.list(value)
     }
-
-  override def registerOwningPipe(pipe: Pipe): Unit = expr.registerOwningPipe(pipe)
 }
 
 case class ManySeekArgs(coll: Expression) extends SeekArgs {
-  def expressions(ctx: ExecutionContext, state: QueryState): ListValue = {
+  def expressions(ctx: ReadableRow, state: QueryState): ListValue = {
     coll(ctx, state) match {
       case IsList(values) => values
     }
   }
-
-  override def registerOwningPipe(pipe: Pipe): Unit = coll.registerOwningPipe(pipe)
 }
 
 case class NodeByIdSeekPipe(ident: String, nodeIdsExpr: SeekArgs)
                            (val id: Id = Id.INVALID_ID) extends Pipe {
 
-  nodeIdsExpr.registerOwningPipe(this)
-
-  protected def internalCreateResults(state: QueryState): Iterator[ExecutionContext] = {
-    val ctx = state.newExecutionContext(executionContextFactory)
+  protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
+    val ctx = state.newRowWithArgument(rowFactory)
     val nodeIds = nodeIdsExpr.expressions(ctx, state)
-    new NodeIdSeekIterator(
-      ident,
-      ctx,
-      executionContextFactory,
-      state.query.nodeOps,
-      nodeIds.iterator().asScala
-    )
+    val nodes = new NodeIdSeekIterator(nodeIds.iterator(), state.query)
+    PrimitiveLongHelper.map(nodes, n =>  rowFactory.copyWith(ctx, ident, VirtualValues.node(n)))
   }
 }

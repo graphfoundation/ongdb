@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,27 +42,20 @@ package org.neo4j.kernel.lifecycle;
  * Convenient use of a {@link LifeSupport}, effectively making one or more {@link Lifecycle} look and feel
  * like one {@link AutoCloseable}.
  */
-public class Lifespan implements AutoCloseable
+public class Lifespan extends LifeSupport implements AutoCloseable
 {
-    private final LifeSupport life = new LifeSupport();
-
     public Lifespan( Lifecycle... subjects )
     {
         for ( Lifecycle subject : subjects )
         {
-            life.add( subject );
+            add( subject );
         }
-        life.start();
-    }
-
-    public <T extends Lifecycle> T add( T subject )
-    {
-        return life.add( subject );
+        start();
     }
 
     @Override
     public void close()
     {
-        life.shutdown();
+        shutdown();
     }
 }

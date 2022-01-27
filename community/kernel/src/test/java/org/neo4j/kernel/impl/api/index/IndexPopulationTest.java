@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,75 +38,91 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.function.IntPredicate;
 
-import org.neo4j.helpers.collection.Visitor;
-import org.neo4j.internal.kernel.api.IndexCapability;
+import org.neo4j.common.EntityType;
+import org.neo4j.configuration.Config;
 import org.neo4j.internal.kernel.api.InternalIndexState;
+import org.neo4j.internal.kernel.api.PopulationProgress;
+import org.neo4j.internal.schema.SchemaDescriptorSupplier;
+import org.neo4j.internal.schema.SchemaDescriptors;
+import org.neo4j.internal.schema.SchemaState;
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.index.IndexAccessor;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.index.PropertyAccessor;
-import org.neo4j.kernel.api.labelscan.NodeLabelUpdate;
-import org.neo4j.kernel.api.schema.LabelSchemaDescriptor;
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
-import org.neo4j.kernel.impl.api.SchemaState;
+import org.neo4j.kernel.api.index.MinimalIndexAccessor;
+import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
+import org.neo4j.kernel.impl.api.index.stats.IndexStatisticsStore;
+import org.neo4j.kernel.impl.scheduler.JobSchedulerFactory;
 import org.neo4j.logging.NullLogProvider;
-import org.neo4j.storageengine.api.schema.PopulationProgress;
+import org.neo4j.memory.MemoryTracker;
+import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
+import org.neo4j.storageengine.api.ValueIndexEntryUpdate;
+import org.neo4j.test.InMemoryTokens;
 import org.neo4j.values.storable.Values;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
+import static org.neo4j.common.Subject.AUTH_DISABLED;
+import static org.neo4j.memory.EmptyMemoryTracker.INSTANCE;
 
-public class IndexPopulationTest
+class IndexPopulationTest
 {
+    private final IndexStatisticsStore indexStatisticsStore = mock( IndexStatisticsStore.class );
+    private final InMemoryTokens tokens = new InMemoryTokens();
+
     @Test
-    public void mustFlipToFailedIfFailureToApplyLastBatchWhileFlipping() throws Exception
+    void mustFlipToFailedIfFailureToApplyLastBatchWhileFlipping() throws Exception
     {
         // given
         NullLogProvider logProvider = NullLogProvider.getInstance();
         IndexStoreView storeView = emptyIndexStoreViewThatProcessUpdates();
         IndexPopulator.Adapter populator = emptyPopulatorWithThrowingUpdater();
-        FailedIndexProxy failedProxy = failedIndexProxy( storeView, populator );
-        OnlineIndexProxy onlineProxy = onlineIndexProxy( storeView );
+        FailedIndexProxy failedProxy = failedIndexProxy( populator );
+        OnlineIndexProxy onlineProxy = onlineIndexProxy();
         FlippableIndexProxy flipper = new FlippableIndexProxy();
         flipper.setFlipTarget( () -> onlineProxy );
-        MultipleIndexPopulator multipleIndexPopulator = new MultipleIndexPopulator( storeView, logProvider,
-                                                                                    mock( SchemaState.class ) );
-        MultipleIndexPopulator.IndexPopulation indexPopulation =
-                multipleIndexPopulator.addPopulator( populator, 0, dummyMeta(), flipper, t -> failedProxy, "userDescription" );
-        multipleIndexPopulator.queue( someUpdate() );
-        multipleIndexPopulator.indexAllNodes().run();
 
-        // when
-        indexPopulation.flip();
+        try ( JobScheduler scheduler = JobSchedulerFactory.createInitialisedScheduler();
+                MultipleIndexPopulator multipleIndexPopulator = new MultipleIndexPopulator( storeView, logProvider, EntityType.NODE, mock( SchemaState.class ),
+                        scheduler, tokens, PageCacheTracer.NULL, INSTANCE, "", AUTH_DISABLED, Config.defaults() ) )
+        {
+            MultipleIndexPopulator.IndexPopulation indexPopulation = multipleIndexPopulator.addPopulator( populator, dummyIndex(), flipper, t -> failedProxy );
+            multipleIndexPopulator.queueConcurrentUpdate( someUpdate() );
+            multipleIndexPopulator.createStoreScan( PageCacheTracer.NULL ).run( StoreScan.NO_EXTERNAL_UPDATES );
 
-        // then
-        assertTrue( "flipper should have flipped to failing proxy", flipper.getState() == InternalIndexState.FAILED );
+            // when
+            indexPopulation.flip( false, CursorContext.NULL );
+
+            // then
+            assertSame( InternalIndexState.FAILED, flipper.getState(), "flipper should have flipped to failing proxy" );
+        }
     }
 
-    private OnlineIndexProxy onlineIndexProxy( IndexStoreView storeView )
+    private OnlineIndexProxy onlineIndexProxy()
     {
-        return new OnlineIndexProxy( 0, dummyMeta(), IndexAccessor.EMPTY, storeView, false );
+        return new OnlineIndexProxy( dummyIndex(), IndexAccessor.EMPTY, false );
     }
 
-    private FailedIndexProxy failedIndexProxy( IndexStoreView storeView, IndexPopulator.Adapter populator )
+    private FailedIndexProxy failedIndexProxy( MinimalIndexAccessor minimalIndexAccessor )
     {
-        return new FailedIndexProxy( dummyMeta(), "userDescription", populator, IndexPopulationFailure
-                .failure( "failure" ), new IndexCountsRemover( storeView, 0 ), NullLogProvider.getInstance() );
+        return new FailedIndexProxy( dummyIndex(), minimalIndexAccessor, IndexPopulationFailure
+                .failure( "failure" ), NullLogProvider.getInstance() );
     }
 
-    private IndexPopulator.Adapter emptyPopulatorWithThrowingUpdater()
+    private static IndexPopulator.Adapter emptyPopulatorWithThrowingUpdater()
     {
         return new IndexPopulator.Adapter()
         {
             @Override
-            public IndexUpdater newPopulatingUpdater( PropertyAccessor accessor )
+            public IndexUpdater newPopulatingUpdater( NodePropertyAccessor accessor, CursorContext cursorContext )
             {
                 return new IndexUpdater()
                 {
@@ -125,20 +141,19 @@ public class IndexPopulationTest
         };
     }
 
-    private IndexStoreView.Adaptor emptyIndexStoreViewThatProcessUpdates()
+    private static IndexStoreView.Adaptor emptyIndexStoreViewThatProcessUpdates()
     {
         return new IndexStoreView.Adaptor()
         {
             @Override
-            public <FAILURE extends Exception> StoreScan<FAILURE> visitNodes( int[] labelIds, IntPredicate propertyKeyIdFilter,
-                    Visitor<NodeUpdates,FAILURE> propertyUpdateVisitor, Visitor<NodeLabelUpdate,FAILURE> labelUpdateVisitor, boolean forceStoreScan )
+            public StoreScan visitNodes( int[] labelIds, IntPredicate propertyKeyIdFilter, PropertyScanConsumer propertyScanConsumer,
+                    TokenScanConsumer labelScanConsumer, boolean forceStoreScan, boolean parallelWrite, PageCacheTracer cacheTracer,
+                    MemoryTracker memoryTracker )
             {
-                //noinspection unchecked
                 return new StoreScan()
                 {
-
                     @Override
-                    public void run()
+                    public void run( ExternalUpdatesCheck externalUpdatesCheck )
                     {
                     }
 
@@ -152,25 +167,18 @@ public class IndexPopulationTest
                     {
                         return null;
                     }
-
-                    @Override
-                    public void acceptUpdate( MultipleIndexPopulator.MultipleIndexUpdater updater, IndexEntryUpdate update, long currentlyIndexedNodeId )
-                    {
-                        updater.process( update );
-                    }
                 };
             }
         };
     }
 
-    private IndexMeta dummyMeta()
+    private IndexProxyStrategy dummyIndex()
     {
-        return new IndexMeta( 0, SchemaIndexDescriptorFactory.forLabel( 0, 0 ),
-                TestIndexProviderDescriptor.PROVIDER_DESCRIPTOR, IndexCapability.NO_CAPABILITY );
+        return new ValueIndexProxyStrategy( TestIndexDescriptorFactory.forLabel( 0, 0 ), indexStatisticsStore, tokens );
     }
 
-    private IndexEntryUpdate<LabelSchemaDescriptor> someUpdate()
+    private static ValueIndexEntryUpdate<SchemaDescriptorSupplier> someUpdate()
     {
-        return IndexEntryUpdate.add( 0, SchemaDescriptorFactory.forLabel( 0, 0 ), Values.numberValue( 0 ) );
+        return IndexEntryUpdate.add( 0, () -> SchemaDescriptors.forLabel( 0, 0 ), Values.numberValue( 0 ) );
     }
 }

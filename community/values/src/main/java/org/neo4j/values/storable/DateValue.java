@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -55,24 +55,34 @@ import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.neo4j.helpers.collection.Pair;
+import org.neo4j.exceptions.InvalidArgumentException;
+import org.neo4j.exceptions.TemporalParseException;
+import org.neo4j.exceptions.UnsupportedTemporalUnitException;
 import org.neo4j.values.StructureBuilder;
 import org.neo4j.values.ValueMapper;
-import org.neo4j.values.utils.InvalidValuesArgumentException;
-import org.neo4j.values.utils.UnsupportedTemporalUnitException;
 import org.neo4j.values.virtual.MapValue;
-import org.neo4j.values.virtual.VirtualValues;
 
 import static java.lang.Integer.parseInt;
 import static java.util.Objects.requireNonNull;
+import static org.neo4j.memory.HeapEstimator.LOCAL_DATE_SIZE;
+import static org.neo4j.memory.HeapEstimator.shallowSizeOfInstance;
 import static org.neo4j.util.FeatureToggles.flag;
 import static org.neo4j.values.storable.DateTimeValue.parseZoneName;
 import static org.neo4j.values.storable.IntegralValue.safeCastIntegral;
 
 public final class DateValue extends TemporalValue<LocalDate,DateValue>
 {
+    private static final long INSTANCE_SIZE = shallowSizeOfInstance( DateValue.class ) + LOCAL_DATE_SIZE;
+
     public static final DateValue MIN_VALUE = new DateValue( LocalDate.MIN );
     public static final DateValue MAX_VALUE = new DateValue( LocalDate.MAX );
+
+    private final LocalDate value;
+
+    private DateValue( LocalDate value )
+    {
+        this.value = value;
+    }
 
     public static DateValue date( LocalDate value )
     {
@@ -101,7 +111,12 @@ public final class DateValue extends TemporalValue<LocalDate,DateValue>
 
     public static DateValue epochDate( long epochDay )
     {
-        return new DateValue( assertValidArgument( () -> LocalDate.ofEpochDay( epochDay ) ) );
+        return new DateValue( epochDateRaw( epochDay ) );
+    }
+
+    public static LocalDate epochDateRaw( long epochDay )
+    {
+        return assertValidArgument( () -> LocalDate.ofEpochDay( epochDay ) );
     }
 
     public static DateValue parse( CharSequence text )
@@ -153,7 +168,7 @@ public final class DateValue extends TemporalValue<LocalDate,DateValue>
         }
         else
         {
-            MapValue updatedFields = VirtualValues.copy( fields, Pair.of( "date", truncated ) );
+            MapValue updatedFields = fields.updatedWith( "date", truncated );
             return build( updatedFields, defaultZone );
         }
     }
@@ -202,20 +217,13 @@ public final class DateValue extends TemporalValue<LocalDate,DateValue>
         }
     }
 
-    static DateBuilder builder( Supplier<ZoneId> defaultZone )
+    private static DateBuilder builder( Supplier<ZoneId> defaultZone )
     {
         return new DateBuilder( defaultZone );
     }
 
-    private final LocalDate value;
-
-    private DateValue( LocalDate value )
-    {
-        this.value = value;
-    }
-
     @Override
-    int unsafeCompareTo( Value otherValue )
+    protected int unsafeCompareTo( Value otherValue )
     {
         DateValue other = (DateValue) otherValue;
         return value.compareTo( other.value );
@@ -258,12 +266,6 @@ public final class DateValue extends TemporalValue<LocalDate,DateValue>
     }
 
     @Override
-    ZoneId getZoneId()
-    {
-        throw new UnsupportedTemporalUnitException( String.format( "Cannot get the timezone of: %s", this ) );
-    }
-
-    @Override
     ZoneOffset getZoneOffset()
     {
         throw new UnsupportedTemporalUnitException( String.format( "Cannot get the offset of: %s", this ) );
@@ -300,13 +302,13 @@ public final class DateValue extends TemporalValue<LocalDate,DateValue>
     }
 
     @Override
-    public ValueGroup valueGroup()
+    public ValueRepresentation valueRepresentation()
     {
-        return ValueGroup.DATE;
+        return ValueRepresentation.DATE;
     }
 
     @Override
-    protected int computeHash()
+    protected int computeHashToMemoize()
     {
         return Long.hashCode( value.toEpochDay() );
     }
@@ -372,17 +374,17 @@ public final class DateValue extends TemporalValue<LocalDate,DateValue>
      * <li>Year & Week:<ul>
      * <li>{@code [0-9]{4} W [0-9]{2}}<br>
      * Parsing: {@code shortYear, shortWeek}</li>
-     * <li>{@code [0-9]{4} - W [0-9]{2}}<br>
+     * <li>{@code [0-9]{4} -? W [0-9]{1,2}} - dash optional<br>
      * Parsing: {@code longYear, longWeek}</li>
-     * <li>{@code [+-] [0-9]{1,9} - W [0-9]{2}}<br>
+     * <li>{@code [+-] [0-9]{1,9} -? W [0-9]{2}} - dash optional<br>
      * Parsing: {@code longYear, longWeek}</li>
      * </ul></li>
      * <li>Week date (year & week & day of week):<ul>
      * <li>{@code [0-9]{4} W [0-9]{2} [0-9]} - unique without dashes, contains W followed by 2 numbers<br>
      * Parsing: {@code shortYear, shortWeek, shortDOW}</li>
-     * <li>{@code [0-9]{4} - W [0-9]{1,2} - [0-9]}<br>
+     * <li>{@code [0-9]{4} -? W [0-9]{1,2} - [0-9]} - dash before week optional<br>
      * Parsing: {@code longYear, longWeek, longDOW}</li>
-     * <li>{@code [+-] [0-9]{1,9} - W [0-9]{2} - [0-9]}<br>
+     * <li>{@code [+-] [0-9]{1,9} -? W [0-9]{2} - [0-9]} - dash before week optional<br>
      * Parsing: {@code longYear, longWeek, longDOW}</li>
      * </ul></li>
      * <li>Ordinal date (year & day of year):<ul>
@@ -406,8 +408,8 @@ public final class DateValue extends TemporalValue<LocalDate,DateValue>
                                        // long formats - includes dashes:
                                        + "(?<longYear>(?:[0-9]{4}|[+-][0-9]{1,9}))(?:"
                                        + "-(?<longMonth>[0-9]{1,2})(?:-(?<longDay>[0-9]{1,2}))?|" // calendar date
-                                       + "-W(?<longWeek>[0-9]{1,2})(?:-(?<longDOW>[0-9]))?|" // week date
-                                       + (QUARTER_DATES ? "-Q(?<longQuarter>[0-9])(?:-(?<longDOQ>[0-9]{1,2}))?|" : "")
+                                       + "-?W(?<longWeek>[0-9]{1,2})(?:-(?<longDOW>[0-9]))?|" // week date
+                                       + (QUARTER_DATES ? "-?Q(?<longQuarter>[0-9])(?:-(?<longDOQ>[0-9]{1,2}))?|" : "")
                                        // quarter date
                                        + "-(?<longDOY>[0-9]{3}))?" + ")"; // ordinal date
     private static final Pattern PATTERN = Pattern.compile( DATE_PATTERN );
@@ -442,7 +444,25 @@ public final class DateValue extends TemporalValue<LocalDate,DateValue>
         String month = matcher.group( MONTH );
         if ( month != null )
         {
-            return assertParsable( () -> LocalDate.of( year, parseInt( month ), optInt( matcher.group( DAY ) ) ) );
+            var day = matcher.group( DAY );
+
+            /*
+             * Validation
+             *
+             * ISO 8601 standard specifies the use of two digits for month.
+             * We sometimes allow a single digit. But for year+month dates
+             * with a single digit for month (e.g. 2015-2), which are ambiguous
+             * to ordinal dates, we fail in this validation.
+             */
+            if ( day == null && month.length() == 1 )
+            {
+                throw new TemporalParseException(
+                        "Text cannot be parsed to a Date. Hint, year+month needs to have two digits for " +
+                        "month (e.g. 2015-02) and " + "ordinal dates three digits (e.g. 2015-032).", null
+                );
+            }
+
+            return assertParsable( () -> LocalDate.of( year, parseInt( month ), optInt( day ) ) );
         }
         String week = matcher.group( WEEK );
         if ( week != null )
@@ -481,7 +501,7 @@ public final class DateValue extends TemporalValue<LocalDate,DateValue>
         // week 53 of years that don't have 53 weeks, so we have to guard for this:
         if ( week == 53 && withWeek.get( IsoFields.WEEK_BASED_YEAR ) != year )
         {
-            throw new InvalidValuesArgumentException(
+            throw new InvalidArgumentException(
                     String.format( "Year %d does not contain %d weeks.", year, week ) );
         }
         return withWeek.with( ChronoField.DAY_OF_WEEK, dayOfWeek );
@@ -492,13 +512,13 @@ public final class DateValue extends TemporalValue<LocalDate,DateValue>
         // special handling for the range of Q1 and Q2, since they are shorter than Q3 and Q4
         if ( quarter == 2 && dayOfQuarter == 92 )
         {
-            throw new InvalidValuesArgumentException( "Quarter 2 only has 91 days." );
+            throw new InvalidArgumentException( "Quarter 2 only has 91 days." );
         }
         // instantiate the yearDate now, because we use it to know if it is a leap year
         LocalDate yearDate = LocalDate.ofYearDay( year, dayOfQuarter ); // guess on the day
         if ( quarter == 1 && dayOfQuarter > 90 && (!yearDate.isLeapYear() || dayOfQuarter == 92) )
         {
-            throw new InvalidValuesArgumentException( String.format(
+            throw new InvalidArgumentException( String.format(
                     "Quarter 1 of %d only has %d days.", year, yearDate.isLeapYear() ? 91 : 90 ) );
         }
         return yearDate
@@ -540,14 +560,14 @@ public final class DateValue extends TemporalValue<LocalDate,DateValue>
             return false;
         }
 
-        private LocalDate getDateOf( org.neo4j.values.AnyValue temporal )
+        private static LocalDate getDateOf( org.neo4j.values.AnyValue temporal )
         {
             if ( temporal instanceof TemporalValue )
             {
                 TemporalValue v = (TemporalValue) temporal;
                 return v.getDatePart();
             }
-            throw new InvalidValuesArgumentException( String.format( "Cannot construct date from: %s", temporal ) );
+            throw new InvalidArgumentException( String.format( "Cannot construct date from: %s", temporal ) );
         }
 
         @Override
@@ -576,7 +596,7 @@ public final class DateValue extends TemporalValue<LocalDate,DateValue>
             return date( result );
         }
 
-        DateValue selectDate( org.neo4j.values.AnyValue date )
+        static DateValue selectDate( org.neo4j.values.AnyValue date )
         {
             if ( date instanceof DateValue )
             {
@@ -584,5 +604,11 @@ public final class DateValue extends TemporalValue<LocalDate,DateValue>
             }
             return date( getDateOf( date ) );
         }
+    }
+
+    @Override
+    public long estimatedHeapUsage()
+    {
+        return INSTANCE_SIZE;
     }
 }

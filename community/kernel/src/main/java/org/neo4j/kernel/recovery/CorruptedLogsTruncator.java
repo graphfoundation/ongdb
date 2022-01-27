@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,24 +38,37 @@
  */
 package org.neo4j.kernel.recovery;
 
-import java.io.BufferedOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.LongConsumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import org.neo4j.io.ByteUnit;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.fs.OpenMode;
 import org.neo4j.io.fs.StoreChannel;
+import org.neo4j.io.memory.HeapScopedBuffer;
+import org.neo4j.io.memory.NativeScopedBuffer;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
+import org.neo4j.kernel.impl.transaction.log.PhysicalLogVersionedStoreChannel;
+import org.neo4j.kernel.impl.transaction.log.files.LogFile;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
-import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFiles;
+import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFilesHelper;
+import org.neo4j.kernel.impl.transaction.log.files.checkpoint.CheckpointFile;
+import org.neo4j.kernel.impl.transaction.log.files.checkpoint.CheckpointInfo;
+import org.neo4j.memory.MemoryTracker;
 
 import static java.lang.String.format;
+import static org.neo4j.internal.helpers.Numbers.safeCastLongToInt;
+import static org.neo4j.io.ByteUnit.MebiByte;
+import static org.neo4j.io.ByteUnit.kibiBytes;
+import static org.neo4j.io.IOUtils.uncheckedLongConsumer;
 
 /**
  * Transaction log truncator used during recovery to truncate all the logs after some specified position, that
@@ -67,24 +80,27 @@ import static java.lang.String.format;
  */
 public class CorruptedLogsTruncator
 {
-    public static final String CORRUPTED_TX_LOGS_BASE_NAME = "corrupted-" + TransactionLogFiles.DEFAULT_NAME;
+    public static final String CORRUPTED_TX_LOGS_BASE_NAME = "corrupted-" + TransactionLogFilesHelper.DEFAULT_NAME;
     private static final String LOG_FILE_ARCHIVE_PATTERN = CORRUPTED_TX_LOGS_BASE_NAME + "-%d-%d-%d.zip";
 
-    private final File storeDir;
+    private final Path storeDir;
     private final LogFiles logFiles;
     private final FileSystemAbstraction fs;
+    private final MemoryTracker memoryTracker;
 
-    public CorruptedLogsTruncator( File storeDir, LogFiles logFiles, FileSystemAbstraction fs )
+    public CorruptedLogsTruncator( Path storeDir, LogFiles logFiles, FileSystemAbstraction fs, MemoryTracker memoryTracker )
     {
         this.storeDir = storeDir;
         this.logFiles = logFiles;
         this.fs = fs;
+        this.memoryTracker = memoryTracker;
     }
 
     /**
      * Truncate all transaction logs after provided position. Log version specified in a position will be
-     * truncated to provided byte offset, any subsequent log files will be deleted. Backup copy of removed data will
-     * be stored in separate archive.
+     * truncated to provided byte offset, any subsequent log files will be deleted.
+     * Any checkpoints pointing ahead of the position will be removed.
+     * Backup copy of removed data will be stored in separate archive.
      * @param positionAfterLastRecoveredTransaction position after last recovered transaction
      * @throws IOException
      */
@@ -95,75 +111,114 @@ public class CorruptedLogsTruncator
         if ( isRecoveredLogCorrupted( recoveredTransactionLogVersion, recoveredTransactionOffset ) ||
                 haveMoreRecentLogFiles( recoveredTransactionLogVersion ) )
         {
-            backupCorruptedContent( recoveredTransactionLogVersion, recoveredTransactionOffset );
-            truncateLogFiles( recoveredTransactionLogVersion, recoveredTransactionOffset );
+            Optional<CheckpointInfo> corruptCheckpoint =
+                    findFirstCorruptDetachedCheckpoint( recoveredTransactionLogVersion, recoveredTransactionOffset );
+            backupCorruptedContent( recoveredTransactionLogVersion, recoveredTransactionOffset, corruptCheckpoint );
+            truncateLogFiles( recoveredTransactionLogVersion, recoveredTransactionOffset, corruptCheckpoint );
         }
     }
 
-    private void truncateLogFiles( long recoveredTransactionLogVersion, long recoveredTransactionOffset )
-            throws IOException
+    private void truncateLogFiles( long recoveredTransactionLogVersion, long recoveredTransactionOffset,
+            Optional<CheckpointInfo> corruptCheckpoint ) throws IOException
     {
-        File lastRecoveredTransactionLog = logFiles.getLogFileForVersion( recoveredTransactionLogVersion );
-        fs.truncate( lastRecoveredTransactionLog, recoveredTransactionOffset );
-        forEachSubsequentLogFile( recoveredTransactionLogVersion,
-                fileIndex -> fs.deleteFile( logFiles.getLogFileForVersion( fileIndex ) ) );
+        LogFile transactionLogFile = logFiles.getLogFile();
+        truncateFilesFromVersion( recoveredTransactionLogVersion, recoveredTransactionOffset, transactionLogFile.getHighestLogVersion(),
+                transactionLogFile::getLogFileForVersion );
+
+        if ( corruptCheckpoint.isPresent() )
+        {
+            LogPosition checkpointPosition = corruptCheckpoint.get().getCheckpointEntryPosition();
+            CheckpointFile checkpointFile = logFiles.getCheckpointFile();
+
+            truncateFilesFromVersion( checkpointPosition.getLogVersion(), checkpointPosition.getByteOffset(),
+                    checkpointFile.getCurrentDetachedLogVersion(), checkpointFile::getDetachedCheckpointFileForVersion );
+        }
     }
 
-    private void forEachSubsequentLogFile( long recoveredTransactionLogVersion, LongConsumer action )
+    private void truncateFilesFromVersion( long recoveredLogVersion, long recoveredOffset, long highestLogVersion,
+            Function<Long,Path> getFileForVersion ) throws IOException
     {
-        long highestLogVersion = logFiles.getHighestLogVersion();
-        for ( long fileIndex = recoveredTransactionLogVersion + 1; fileIndex <= highestLogVersion; fileIndex++ )
+        Path lastRecoveredLog = getFileForVersion.apply( recoveredLogVersion );
+        fs.truncate( lastRecoveredLog, recoveredOffset );
+        forEachSubsequentFile( recoveredLogVersion, highestLogVersion,
+                uncheckedLongConsumer( fileIndex -> fs.deleteFile( getFileForVersion.apply( fileIndex ) ) ) );
+    }
+
+    private static void forEachSubsequentFile( long recoveredLogVersion, long highestLogVersion, LongConsumer action )
+    {
+        for ( long fileIndex = recoveredLogVersion + 1; fileIndex <= highestLogVersion; fileIndex++ )
         {
             action.accept( fileIndex );
         }
     }
 
-    private void backupCorruptedContent( long recoveredTransactionLogVersion, long recoveredTransactionOffset )
-            throws IOException
+    private void backupCorruptedContent( long recoveredTransactionLogVersion, long recoveredTransactionOffset,
+            Optional<CheckpointInfo> corruptCheckpoint ) throws IOException
     {
-        File corruptedLogArchive = getArchiveFile( recoveredTransactionLogVersion, recoveredTransactionOffset );
+        Path corruptedLogArchive = getArchiveFile( recoveredTransactionLogVersion, recoveredTransactionOffset );
         try ( ZipOutputStream recoveryContent = new ZipOutputStream(
-                new BufferedOutputStream( fs.openAsOutputStream( corruptedLogArchive, false ) ) ) )
+                fs.openAsOutputStream( corruptedLogArchive, false ) );
+                var bufferScope = new HeapScopedBuffer(  1, MebiByte, memoryTracker ) )
         {
-            ByteBuffer zipBuffer = ByteBuffer.allocate( (int) ByteUnit.mebiBytes( 1 ) );
-            copyTransactionLogContent( recoveredTransactionLogVersion, recoveredTransactionOffset, recoveryContent,
-                    zipBuffer );
-            forEachSubsequentLogFile( recoveredTransactionLogVersion, fileIndex ->
+            LogFile transactionLogFile = logFiles.getLogFile();
+            copyLogsContent( recoveredTransactionLogVersion, recoveredTransactionOffset, transactionLogFile.getHighestLogVersion(),
+                    recoveryContent, bufferScope, transactionLogFile::getLogFileForVersion );
+
+            if ( corruptCheckpoint.isPresent() )
             {
-                try
-                {
-                    copyTransactionLogContent( fileIndex, 0, recoveryContent, zipBuffer );
-                }
-                catch ( IOException io )
-                {
-                    throw new UncheckedIOException( io );
-                }
-            } );
+                LogPosition checkpointPosition = corruptCheckpoint.get().getCheckpointEntryPosition();
+                CheckpointFile checkpointFile = logFiles.getCheckpointFile();
+
+                copyLogsContent( checkpointPosition.getLogVersion(), checkpointPosition.getByteOffset(), checkpointFile.getCurrentDetachedLogVersion(),
+                        recoveryContent, bufferScope, checkpointFile::getDetachedCheckpointFileForVersion );
+            }
         }
     }
 
-    private File getArchiveFile( long recoveredTransactionLogVersion, long recoveredTransactionOffset )
+    private void copyLogsContent( long recoveredLogVersion, long recoveredOffset, long highestLogVersion,
+            ZipOutputStream recoveryContent, HeapScopedBuffer bufferScope, Function<Long,Path> getFileForVersion ) throws IOException
+    {
+        copyLogContent( recoveredLogVersion, recoveredOffset, recoveryContent, bufferScope.getBuffer(), getFileForVersion );
+        forEachSubsequentFile( recoveredLogVersion, highestLogVersion, fileIndex ->
+        {
+            try
+            {
+                copyLogContent( fileIndex, 0, recoveryContent, bufferScope.getBuffer(), getFileForVersion );
+            }
+            catch ( IOException io )
+            {
+                throw new UncheckedIOException( io );
+            }
+        } );
+    }
+
+    private Path getArchiveFile( long recoveredTransactionLogVersion, long recoveredTransactionOffset )
             throws IOException
     {
-        File corruptedLogsFolder = new File( storeDir, CORRUPTED_TX_LOGS_BASE_NAME );
+        Path corruptedLogsFolder = storeDir.resolve( CORRUPTED_TX_LOGS_BASE_NAME );
         fs.mkdirs( corruptedLogsFolder );
-        return new File( corruptedLogsFolder,
+        return corruptedLogsFolder.resolve(
                 format( LOG_FILE_ARCHIVE_PATTERN, recoveredTransactionLogVersion, recoveredTransactionOffset,
                         System.currentTimeMillis() ) );
     }
 
-    private void copyTransactionLogContent( long logFileIndex, long logOffset, ZipOutputStream destination,
-            ByteBuffer byteBuffer ) throws IOException
+    private void copyLogContent( long logFileIndex, long logOffset, ZipOutputStream destination,
+            ByteBuffer byteBuffer, Function<Long,Path> getFileForVersion ) throws IOException
     {
-        File logFile = logFiles.getLogFileForVersion( logFileIndex );
+        Path logFile = getFileForVersion.apply( logFileIndex );
         if ( fs.getFileSize( logFile ) == logOffset )
         {
             // file was recovered fully, nothing to backup
             return;
         }
-        ZipEntry zipEntry = new ZipEntry( logFile.getName() );
+        addLogFileToZipStream( logOffset, destination, byteBuffer, logFile );
+    }
+
+    private void addLogFileToZipStream( long logOffset, ZipOutputStream destination, ByteBuffer byteBuffer, Path logFile ) throws IOException
+    {
+        ZipEntry zipEntry = new ZipEntry( logFile.getFileName().toString() );
         destination.putNextEntry( zipEntry );
-        try ( StoreChannel transactionLogChannel = fs.open( logFile, OpenMode.READ ) )
+        try ( StoreChannel transactionLogChannel = fs.read( logFile ) )
         {
             transactionLogChannel.position( logOffset );
             while ( transactionLogChannel.read( byteBuffer ) >= 0 )
@@ -178,11 +233,57 @@ public class CorruptedLogsTruncator
 
     private boolean haveMoreRecentLogFiles( long recoveredTransactionLogVersion )
     {
-        return logFiles.getHighestLogVersion() > recoveredTransactionLogVersion;
+        return logFiles.getLogFile().getHighestLogVersion() > recoveredTransactionLogVersion;
     }
 
-    private boolean isRecoveredLogCorrupted( long recoveredTransactionLogVersion, long recoveredTransactionOffset )
+    private boolean isRecoveredLogCorrupted( long recoveredTransactionLogVersion, long recoveredTransactionOffset ) throws IOException
     {
-        return logFiles.getLogFileForVersion( recoveredTransactionLogVersion ).length() > recoveredTransactionOffset;
+        try
+        {
+            LogFile logFile = logFiles.getLogFile();
+            if ( Files.size( logFile.getLogFileForVersion( recoveredTransactionLogVersion ) ) > recoveredTransactionOffset )
+            {
+                try ( PhysicalLogVersionedStoreChannel channel = logFile.openForVersion( recoveredTransactionLogVersion );
+                        var scopedBuffer = new NativeScopedBuffer( safeCastLongToInt( kibiBytes( 64 ) ), memoryTracker ) )
+                {
+                    channel.position( recoveredTransactionOffset );
+                    ByteBuffer byteBuffer = scopedBuffer.getBuffer();
+                    while ( channel.read( byteBuffer ) >= 0 )
+                    {
+                        byteBuffer.flip();
+                        while ( byteBuffer.hasRemaining() )
+                        {
+                            if ( byteBuffer.get() != 0 )
+                            {
+                                return true;
+                            }
+                        }
+                        byteBuffer.clear();
+                    }
+                }
+            }
+            return false;
+        }
+        catch ( NoSuchFileException ignored )
+        {
+            return false;
+        }
+    }
+
+    private Optional<CheckpointInfo> findFirstCorruptDetachedCheckpoint( long recoveredTransactionLogVersion, long recoveredTransactionOffset )
+            throws IOException
+    {
+        List<CheckpointInfo> detachedCheckpoints = logFiles.getCheckpointFile().getReachableDetachedCheckpoints();
+        for ( CheckpointInfo checkpoint : detachedCheckpoints )
+        {
+            LogPosition transactionLogPosition = checkpoint.getTransactionLogPosition();
+            long logVersion = transactionLogPosition.getLogVersion();
+            if ( logVersion > recoveredTransactionLogVersion ||
+                 (logVersion == recoveredTransactionLogVersion && transactionLogPosition.getByteOffset() > recoveredTransactionOffset) )
+            {
+                return Optional.of( checkpoint );
+            }
+        }
+        return Optional.empty();
     }
 }

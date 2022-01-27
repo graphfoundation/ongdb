@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -43,17 +43,20 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
-import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.scheduler.CancelListener;
+import org.neo4j.scheduler.JobHandle;
 
-final class PooledJobHandle implements JobScheduler.JobHandle
+final class PooledJobHandle<T> implements JobHandle<T>
 {
-    private final Future<?> future;
+    private final Future<T> future;
     private final Object registryKey;
-    private final ConcurrentHashMap<Object,Future<?>> registry;
-    private final List<JobScheduler.CancelListener> cancelListeners = new CopyOnWriteArrayList<>();
+    private final ConcurrentHashMap<Object,?> registry;
+    private final List<CancelListener> cancelListeners = new CopyOnWriteArrayList<>();
 
-    PooledJobHandle( Future<?> future, Object registryKey, ConcurrentHashMap<Object,Future<?>> registry )
+    PooledJobHandle( Future<T> future, Object registryKey, ConcurrentHashMap<Object,?> registry )
     {
         this.future = future;
         this.registryKey = registryKey;
@@ -61,12 +64,12 @@ final class PooledJobHandle implements JobScheduler.JobHandle
     }
 
     @Override
-    public void cancel( boolean mayInterruptIfRunning )
+    public void cancel()
     {
-        future.cancel( mayInterruptIfRunning );
-        for ( JobScheduler.CancelListener cancelListener : cancelListeners )
+        future.cancel( false );
+        for ( CancelListener cancelListener : cancelListeners )
         {
-            cancelListener.cancelled( mayInterruptIfRunning );
+            cancelListener.cancelled();
         }
         registry.remove( registryKey );
     }
@@ -78,7 +81,19 @@ final class PooledJobHandle implements JobScheduler.JobHandle
     }
 
     @Override
-    public void registerCancelListener( JobScheduler.CancelListener listener )
+    public void waitTermination( long timeout, TimeUnit unit ) throws InterruptedException, ExecutionException, TimeoutException
+    {
+        future.get( timeout, unit );
+    }
+
+    @Override
+    public T get() throws ExecutionException, InterruptedException
+    {
+        return future.get();
+    }
+
+    @Override
+    public void registerCancelListener( CancelListener listener )
     {
         cancelListeners.add( listener );
     }

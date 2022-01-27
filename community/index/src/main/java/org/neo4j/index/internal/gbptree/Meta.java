@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -44,6 +44,7 @@ import org.neo4j.index.internal.gbptree.TreeNodeSelector.Factory;
 import org.neo4j.io.pagecache.CursorException;
 import org.neo4j.io.pagecache.PageCursor;
 
+import static java.lang.String.format;
 import static org.neo4j.index.internal.gbptree.PageCursorUtil.checkOutOfBounds;
 
 /**
@@ -66,7 +67,7 @@ import static org.neo4j.index.internal.gbptree.PageCursorUtil.checkOutOfBounds;
  * {@link #CURRENT_STATE_VERSION} and {@link #CURRENT_GBPTREE_VERSION} aren't used yet because they have
  * never needed to be versioned yet, but remain reserved for future use. The are fixed at 0 a.t.m.
  */
-class Meta
+public class Meta
 {
     static final byte CURRENT_STATE_VERSION = 0;
     static final byte CURRENT_GBPTREE_VERSION = 0;
@@ -117,17 +118,14 @@ class Meta
     }
 
     /**
-     * Reads meta information from the meta page. Reading meta information also involves {@link Layout} in that
-     * it can have written layout-specific information to this page too. The layout identifier and its version
-     * that the returned {@link Meta} instance will have are the ones read from the page, not retrieved from {@link Layout}.
+     * Reads meta information from the meta page. The layout identifier and its version
+     * that the returned {@link Meta} instance will have are the ones read from the page.
      *
      * @param cursor {@link PageCursor} to read meta information from.
-     * @param layout {@link Layout} instance that will get the opportunity to read layout-specific data from the meta page.
-     * {@code layout} is allowed to be {@code null} where it won't be told to read layout-specific data from the meta page.
      * @return {@link Meta} instance with all meta information.
      * @throws IOException on {@link PageCursor} I/O error.
      */
-    static Meta read( PageCursor cursor, Layout<?,?> layout ) throws IOException
+    static Meta read( PageCursor cursor ) throws IOException
     {
         int format;
         int pageSize;
@@ -143,10 +141,6 @@ class Meta
                 layoutIdentifier = cursor.getLong();
                 layoutMajorVersion = cursor.getInt();
                 layoutMinorVersion = cursor.getInt();
-                if ( layout != null )
-                {
-                    layout.readMetaData( cursor );
-                }
             }
             while ( cursor.shouldRetry() );
             checkOutOfBounds( cursor );
@@ -154,15 +148,14 @@ class Meta
         }
         catch ( CursorException e )
         {
-            throw new MetadataMismatchException( e,
-                    "Tried to open, but caught an error while reading meta data. " +
-                    "File is expected to be corrupt, try to rebuild." );
+            throw new MetadataMismatchException( "Tried to open, but caught an error while reading meta data. File is expected " +
+                    "to be corrupt, try to rebuild.", e );
         }
 
         return parseMeta( format, pageSize, layoutIdentifier, layoutMajorVersion, layoutMinorVersion );
     }
 
-    void verify( Layout<?,?> layout )
+    public void verify( Layout<?,?> layout )
     {
         if ( unusedVersionSlot3 != Meta.UNUSED_VERSION )
         {
@@ -175,39 +168,36 @@ class Meta
 
         if ( !layout.compatibleWith( layoutIdentifier, layoutMajorVersion, layoutMinorVersion ) )
         {
-            throw new MetadataMismatchException(
+            throw new MetadataMismatchException( format(
                     "Tried to open using layout not compatible with " +
                     "what the index was created with. Created with: layoutIdentifier=%d,majorVersion=%d,minorVersion=%d. " +
                     "Opened with layoutIdentifier=%d,majorVersion=%d,minorVersion=%d",
                     layoutIdentifier, layoutMajorVersion, layoutMinorVersion,
-                    layout.identifier(), layout.majorVersion(), layout.minorVersion() );
+                    layout.identifier(), layout.majorVersion(), layout.minorVersion() ) );
         }
 
         Factory formatByLayout = TreeNodeSelector.selectByLayout( layout );
         if ( formatByLayout.formatIdentifier() != formatIdentifier ||
              formatByLayout.formatVersion() != formatVersion )
         {
-            throw new MetadataMismatchException( "Tried to open using layout not compatible with what index was created with. " +
+            throw new MetadataMismatchException( format( "Tried to open using layout not compatible with what index was created with. " +
                     "Created with formatIdentifier:%d,formatVersion:%d. Opened with formatIdentifier:%d,formatVersion%d",
-                    formatIdentifier, formatVersion, formatByLayout.formatIdentifier(), formatByLayout.formatVersion() );
+                    formatIdentifier, formatVersion, formatByLayout.formatIdentifier(), formatByLayout.formatVersion() ) );
         }
     }
 
     /**
-     * Writes meta information to the meta page. Writing meta information also involves {@link Layout} in that
-     * it can write layout-specific information to this page too.
+     * Writes meta information to the meta page.
      *
      * @param cursor {@link PageCursor} to read meta information from.
-     * @param layout {@link Layout} instance that will get the opportunity to write layout-specific data to the meta page.
      */
-    void write( PageCursor cursor, Layout<?,?> layout )
+    void write( PageCursor cursor )
     {
         cursor.putInt( allVersionsCombined() );
         cursor.putInt( getPageSize() );
         cursor.putLong( getLayoutIdentifier() );
         cursor.putInt( getLayoutMajorVersion() );
         cursor.putInt( getLayoutMinorVersion() );
-        layout.writeMetaData( cursor );
         checkOutOfBounds( cursor );
     }
 

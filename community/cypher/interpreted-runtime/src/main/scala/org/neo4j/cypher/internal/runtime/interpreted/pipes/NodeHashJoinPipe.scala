@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,49 +38,59 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.util.v3_4.CypherTypeException
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.IsNoValue
+import org.neo4j.cypher.internal.util.attribution.Id
+import org.neo4j.exceptions.CypherTypeException
+import org.neo4j.kernel.impl.util.collection
+import org.neo4j.values.storable.LongArray
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.VirtualNodeValue
 
-import scala.collection.mutable
+import scala.collection.JavaConverters.asScalaIteratorConverter
 
 case class NodeHashJoinPipe(nodeVariables: Set[String], left: Pipe, right: Pipe)
                            (val id: Id = Id.INVALID_ID)
   extends PipeWithSource(left) {
 
-  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
+  protected def internalCreateResults(input: ClosingIterator[CypherRow], state: QueryState): ClosingIterator[CypherRow] = {
     if (input.isEmpty)
-      return Iterator.empty
+      return ClosingIterator.empty
 
     val rhsIterator = right.createResults(state)
 
     if (rhsIterator.isEmpty)
-      return Iterator.empty
+      return ClosingIterator.empty
 
-    val table = buildProbeTable(input)
+    val table = buildProbeTable(input, state)
+    state.query.resources.trace(table)
 
-    if (table.isEmpty)
-      return Iterator.empty
-
-    val result = for {context: ExecutionContext <- rhsIterator
-                      joinKey <- computeKey(context)}
-    yield {
-      val seq = table.getOrElse(joinKey, mutable.MutableList.empty)
-      seq.map(context.mergeWith)
+    if (table.isEmpty) {
+      table.close()
+      return ClosingIterator.empty
     }
 
-    result.flatten
+    val result =
+      for {
+        rhsRow <- rhsIterator
+        joinKey <- computeKey(rhsRow).toIterator
+        lhsRow <- table.get(joinKey).asScala
+      } yield {
+        val output = lhsRow.createClone()
+        output.mergeWith(rhsRow, state.query)
+        output
+      }
+
+    result.closing(table)
   }
 
-  private def buildProbeTable(input: Iterator[ExecutionContext]): mutable.HashMap[IndexedSeq[Long], mutable.MutableList[ExecutionContext]] = {
-    val table = new mutable.HashMap[IndexedSeq[Long], mutable.MutableList[ExecutionContext]]
+  private def buildProbeTable(input: Iterator[CypherRow], queryState: QueryState): collection.ProbeTable[LongArray, CypherRow] = {
+    val table = collection.ProbeTable.createProbeTable[LongArray, CypherRow](queryState.memoryTrackerForOperatorProvider.memoryTrackerForOperator(id.x))
 
     for {context <- input
          joinKey <- computeKey(context)} {
-      val seq = table.getOrElseUpdate(joinKey, mutable.MutableList.empty)
-      seq += context
+      table.put(joinKey, context)
     }
 
     table
@@ -88,16 +98,16 @@ case class NodeHashJoinPipe(nodeVariables: Set[String], left: Pipe, right: Pipe)
 
   private val cachedVariables = nodeVariables.toIndexedSeq
 
-  private def computeKey(context: ExecutionContext): Option[IndexedSeq[Long]] = {
+  private def computeKey(context: CypherRow): Option[LongArray] = {
     val key = new Array[Long](cachedVariables.length)
 
     for (idx <- cachedVariables.indices) {
-      key(idx) = context(cachedVariables(idx)) match {
+      key(idx) = context.getByName(cachedVariables(idx)) match {
         case n: VirtualNodeValue => n.id()
-        case Values.NO_VALUE => return None
+        case IsNoValue() => return None
         case _ => throw new CypherTypeException("Created a plan that uses non-nodes when expecting a node")
       }
     }
-    Some(key.toIndexedSeq)
+    Some(Values.longArray(key))
   }
 }

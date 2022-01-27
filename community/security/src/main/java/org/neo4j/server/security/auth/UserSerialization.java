@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,12 +38,17 @@
  */
 package org.neo4j.server.security.auth;
 
+import org.neo4j.cypher.internal.security.FormatException;
+import org.neo4j.cypher.internal.security.SecureHasher;
+import org.neo4j.cypher.internal.security.SecureHasherConfigurations;
+import org.neo4j.cypher.internal.security.SystemGraphCredential;
+import org.neo4j.exceptions.InvalidArgumentException;
 import org.neo4j.kernel.impl.security.Credential;
 import org.neo4j.kernel.impl.security.User;
-import org.neo4j.server.security.auth.exception.FormatException;
 import org.neo4j.string.HexString;
 
 import static java.lang.String.format;
+import static org.neo4j.kernel.impl.security.Credential.CREDENTIAL_SEPARATOR;
 
 /**
  * Serializes user authorization and authentication data to a format similar to unix passwd files.
@@ -51,14 +56,13 @@ import static java.lang.String.format;
 public class UserSerialization extends FileRepositorySerializer<User>
 {
     private static final String userSeparator = ":";
-    private static final String credentialSeparator = ",";
 
     @Override
     protected String serialize( User user )
     {
         return String.join( userSeparator,
                 user.name(),
-                serialize( user.credentials() ),
+                user.credentials().serialize(),
                 String.join( ",", user.getFlags() )
             );
     }
@@ -75,9 +79,7 @@ public class UserSerialization extends FileRepositorySerializer<User>
             ) );
         }
 
-        User.Builder b = new User.Builder()
-                .withName( parts[0] )
-                .withCredentials( deserializeCredentials( parts[1], lineNumber ) );
+        User.Builder b = new User.Builder( parts[0], deserializeCredentials( parts[1], lineNumber ) );
 
         for ( String flag : parts[2].split( ",", -1 ) )
         {
@@ -91,26 +93,49 @@ public class UserSerialization extends FileRepositorySerializer<User>
         return  b.build();
     }
 
-    private String serialize( Credential cred )
+    protected static String serialize( LegacyCredential cred )
     {
-        String encodedSalt = HexString.encodeHexString( cred.salt() );
-        String encodedPassword = HexString.encodeHexString( cred.passwordHash() );
-        return String.join( credentialSeparator, Credential.DIGEST_ALGO, encodedPassword, encodedSalt );
+        return cred.serialize();
     }
 
-    private Credential deserializeCredentials( String part, int lineNumber ) throws FormatException
+    private static Credential deserializeCredentials( String part, int lineNumber ) throws FormatException
     {
-        String[] split = part.split( credentialSeparator, -1 );
-        if ( split.length != 3 )
+        String[] split = part.split( CREDENTIAL_SEPARATOR, -1 );
+        String algorithm = split[0];
+        int iterations;
+        String hasherVersion;
+
+        if ( split.length == 4 )
+        {
+            iterations = Integer.parseInt( split[3] );
+        }
+        else if ( split.length == 3 )
+        {
+            iterations = LegacyCredential.ITERATIONS;
+        }
+        else
         {
             throw new FormatException( format( "wrong number of credential fields [line %d]", lineNumber ) );
         }
-        if ( !split[0].equals( Credential.DIGEST_ALGO ) )
+
+        try
         {
-            throw new FormatException( format( "unknown digest \"%s\" [line %d]", split[0], lineNumber ) );
+            hasherVersion = SecureHasherConfigurations.getVersionForConfiguration( algorithm, iterations );
         }
-        byte[] decodedPassword = HexString.decodeHexString( split[1] );
-        byte[] decodedSalt = HexString.decodeHexString( split[2] );
-        return new Credential( decodedSalt, decodedPassword );
+        catch ( InvalidArgumentException e )
+        {
+            throw new FormatException( format( "unknown digest \"%s\" [line %d]:", part, lineNumber ) );
+        }
+
+        if ( hasherVersion.equals( "0" ) )
+        {
+            byte[] decodedPassword = HexString.decodeHexString( split[1] );
+            byte[] decodedSalt = HexString.decodeHexString( split[2] );
+            return new LegacyCredential( decodedSalt, decodedPassword );
+        }
+        else
+        {
+            return SystemGraphCredential.deserialize( part, new SecureHasher( hasherVersion ) );
+        }
     }
 }

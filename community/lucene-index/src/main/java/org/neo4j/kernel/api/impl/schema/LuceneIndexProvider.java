@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,166 +38,85 @@
  */
 package org.neo4j.kernel.api.impl.schema;
 
-import java.io.File;
-import java.io.IOException;
-
-import org.neo4j.internal.kernel.api.IndexCapability;
-import org.neo4j.internal.kernel.api.InternalIndexState;
+import org.neo4j.configuration.Config;
+import org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker;
+import org.neo4j.internal.schema.IndexCapability;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexOrderCapability;
+import org.neo4j.internal.schema.IndexProviderDescriptor;
+import org.neo4j.internal.schema.IndexQuery;
+import org.neo4j.internal.schema.IndexQuery.IndexQueryType;
+import org.neo4j.internal.schema.IndexType;
+import org.neo4j.internal.schema.IndexValueCapability;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.kernel.api.impl.index.IndexWriterConfigs;
 import org.neo4j.kernel.api.impl.index.storage.DirectoryFactory;
-import org.neo4j.kernel.api.impl.index.storage.IndexStorageFactory;
-import org.neo4j.kernel.api.impl.index.storage.PartitionedIndexStorage;
-import org.neo4j.kernel.api.impl.schema.populator.NonUniqueLuceneIndexPopulator;
-import org.neo4j.kernel.api.impl.schema.populator.UniqueLuceneIndexPopulator;
-import org.neo4j.kernel.api.index.IndexAccessor;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
-import org.neo4j.kernel.api.index.IndexPopulator;
-import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.kernel.impl.factory.OperationalMode;
-import org.neo4j.kernel.impl.storemigration.StoreMigrationParticipant;
-import org.neo4j.kernel.impl.storemigration.participant.SchemaIndexMigrator;
+import org.neo4j.monitoring.Monitors;
+import org.neo4j.util.Preconditions;
+import org.neo4j.values.storable.ValueCategory;
 
-import static org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor.Type.UNIQUE;
+import static org.neo4j.internal.schema.IndexCapability.NO_CAPABILITY;
 
-public class LuceneIndexProvider extends IndexProvider
+public class LuceneIndexProvider extends AbstractLuceneIndexProvider
 {
-    static final int PRIORITY = 1;
+    public static final IndexProviderDescriptor DESCRIPTOR = new IndexProviderDescriptor( "lucene", "2.0" );
+    public static final IndexCapability CAPABILITY = new LuceneIndexCapability();
 
-    private final IndexStorageFactory indexStorageFactory;
-    private final Config config;
-    private final OperationalMode operationalMode;
-    private final FileSystemAbstraction fileSystem;
-    private final Monitor monitor;
-
-    public LuceneIndexProvider( FileSystemAbstraction fileSystem, DirectoryFactory directoryFactory,
-                                IndexDirectoryStructure.Factory directoryStructureFactory, Monitor monitor, Config config,
-                                OperationalMode operationalMode )
+    public LuceneIndexProvider(
+            FileSystemAbstraction fileSystem, DirectoryFactory directoryFactory, IndexDirectoryStructure.Factory directoryStructureFactory,
+            Monitors monitors, Config config, DatabaseReadOnlyChecker readOnlyChecker )
     {
-        super( LuceneIndexProviderFactory.PROVIDER_DESCRIPTOR, PRIORITY, directoryStructureFactory );
-        this.monitor = monitor;
-        this.indexStorageFactory = buildIndexStorageFactory( fileSystem, directoryFactory );
-        this.fileSystem = fileSystem;
-        this.config = config;
-        this.operationalMode = operationalMode;
-    }
-
-    public static IndexDirectoryStructure.Factory defaultDirectoryStructure( File storeDir )
-    {
-        return IndexDirectoryStructure.directoriesByProviderKey( storeDir );
-    }
-
-    /**
-     * Visible <b>only</b> for testing.
-     */
-    protected IndexStorageFactory buildIndexStorageFactory( FileSystemAbstraction fileSystem, DirectoryFactory directoryFactory )
-    {
-        return new IndexStorageFactory( directoryFactory, fileSystem, directoryStructure() );
+        super( IndexType.BTREE, DESCRIPTOR, fileSystem, directoryFactory, directoryStructureFactory, monitors, config, readOnlyChecker );
     }
 
     @Override
-    public IndexPopulator getPopulator( long indexId, SchemaIndexDescriptor descriptor, IndexSamplingConfig samplingConfig )
+    public IndexDescriptor completeConfiguration( IndexDescriptor index )
     {
-        SchemaIndex luceneIndex = LuceneSchemaIndexBuilder.create( descriptor, config )
-                                        .withFileSystem( fileSystem )
-                                        .withOperationalMode( operationalMode )
-                                        .withSamplingConfig( samplingConfig )
-                                        .withIndexStorage( getIndexStorage( indexId ) )
-                                        .withWriterConfig( IndexWriterConfigs::population )
-                                        .build();
-        if ( luceneIndex.isReadOnly() )
+        return index.getCapability().equals( NO_CAPABILITY ) ? index.withIndexCapability( CAPABILITY ) : index;
+    }
+
+    public static class LuceneIndexCapability implements IndexCapability
+    {
+
+        @Override
+        public IndexOrderCapability orderCapability( ValueCategory... valueCategories )
         {
-            throw new UnsupportedOperationException( "Can't create populator for read only index" );
+            return IndexOrderCapability.NONE;
         }
-        if ( descriptor.type() == UNIQUE )
+
+        @Override
+        public IndexValueCapability valueCapability( ValueCategory... valueCategories )
         {
-            return new UniqueLuceneIndexPopulator( luceneIndex, descriptor );
+            return IndexValueCapability.NO;
         }
-        else
+
+        @Override
+        public boolean areValueCategoriesAccepted( ValueCategory... valueCategories )
         {
-            return new NonUniqueLuceneIndexPopulator( luceneIndex, samplingConfig );
+            Preconditions.requireNonEmpty( valueCategories );
+            Preconditions.requireNoNullElements( valueCategories );
+            return valueCategories.length == 1 && valueCategories[0] == ValueCategory.TEXT;
         }
-    }
 
-    @Override
-    public IndexAccessor getOnlineAccessor( long indexId, SchemaIndexDescriptor descriptor,
-            IndexSamplingConfig samplingConfig ) throws IOException
-    {
-        SchemaIndex luceneIndex = LuceneSchemaIndexBuilder.create( descriptor, config )
-                                            .withOperationalMode( operationalMode )
-                                            .withSamplingConfig( samplingConfig )
-                                            .withIndexStorage( getIndexStorage( indexId ) )
-                                            .build();
-        luceneIndex.open();
-        return new LuceneIndexAccessor( luceneIndex, descriptor );
-    }
-
-    @Override
-    public void shutdown()
-    {   // Nothing to shut down
-    }
-
-    @Override
-    public InternalIndexState getInitialState( long indexId, SchemaIndexDescriptor descriptor )
-    {
-        PartitionedIndexStorage indexStorage = getIndexStorage( indexId );
-        String failure = indexStorage.getStoredIndexFailure();
-        if ( failure != null )
+        @Override
+        public boolean isQuerySupported( IndexQueryType queryType, ValueCategory valueCategory )
         {
-            return InternalIndexState.FAILED;
+            return queryType != IndexQueryType.FULLTEXT_SEARCH
+                   && queryType != IndexQueryType.TOKEN_LOOKUP
+                   && areValueCategoriesAccepted( valueCategory );
         }
-        try
+
+        @Override
+        public double getCostMultiplier( IndexQueryType... queryTypes )
         {
-            return indexIsOnline( indexStorage, descriptor ) ? InternalIndexState.ONLINE : InternalIndexState.POPULATING;
+            return 1.0;
         }
-        catch ( IOException e )
+
+        @Override
+        public boolean supportPartitionedScan( IndexQuery... queries )
         {
-            monitor.failedToOpenIndex( indexId, descriptor, "Requesting re-population.", e );
-            return InternalIndexState.POPULATING;
-        }
-    }
-
-    @Override
-    public IndexCapability getCapability( SchemaIndexDescriptor schemaIndexDescriptor )
-    {
-        return IndexCapability.NO_CAPABILITY;
-    }
-
-    @Override
-    public StoreMigrationParticipant storeMigrationParticipant( final FileSystemAbstraction fs, PageCache pageCache )
-    {
-        return new SchemaIndexMigrator( fs, this );
-    }
-
-    @Override
-    public String getPopulationFailure( long indexId, SchemaIndexDescriptor descriptor ) throws IllegalStateException
-    {
-        String failure = getIndexStorage( indexId ).getStoredIndexFailure();
-        if ( failure == null )
-        {
-            throw new IllegalStateException( "Index " + indexId + " isn't failed" );
-        }
-        return failure;
-    }
-
-    private PartitionedIndexStorage getIndexStorage( long indexId )
-    {
-        return indexStorageFactory.indexStorageOf( indexId );
-    }
-
-    private boolean indexIsOnline( PartitionedIndexStorage indexStorage, SchemaIndexDescriptor descriptor ) throws IOException
-    {
-        try ( SchemaIndex index = LuceneSchemaIndexBuilder.create( descriptor, config ).withIndexStorage( indexStorage ).build() )
-        {
-            if ( index.exists() )
-            {
-                index.open();
-                return index.isOnline();
-            }
+            Preconditions.requireNonEmpty( queries );
+            Preconditions.requireNoNullElements( queries );
             return false;
         }
     }

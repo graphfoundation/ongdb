@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,6 +39,7 @@
 package org.neo4j.index.internal.gbptree;
 
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -67,7 +68,7 @@ public abstract class RecoveryCleanupWorkCollector extends LifecycleAdapter
      */
     abstract void add( CleanupJob job );
 
-    void executeWithExecutor( CleanupJobGroupAction action )
+    static void executeWithExecutor( CleanupJobGroupAction action )
     {
         ExecutorService executor = Executors.newFixedThreadPool( Runtime.getRuntime().availableProcessors() );
         try
@@ -79,17 +80,17 @@ public abstract class RecoveryCleanupWorkCollector extends LifecycleAdapter
             shutdownExecutorAndVerifyNoLeaks( executor );
         }
     }
-    private void shutdownExecutorAndVerifyNoLeaks( ExecutorService executor )
+    private static void shutdownExecutorAndVerifyNoLeaks( ExecutorService executor )
     {
         List<Runnable> leakedTasks = executor.shutdownNow();
-        if ( leakedTasks.size() != 0 )
+        if ( !leakedTasks.isEmpty() )
         {
-            throw new IllegalStateException( "Tasks leaked from CleanupJob. Tasks where " + leakedTasks.toString() );
+            throw new IllegalStateException( "Tasks leaked from CleanupJob. Tasks where " + leakedTasks );
         }
     }
 
     /**
-     * {@link CleanupJob#run( ExecutorService ) Runs} {@link #add(CleanupJob) added} cleanup jobs right away in the thread
+     * {@link CleanupJob#run(CleanupJob.Executor) Runs} {@link #add(CleanupJob) added} cleanup jobs right away in the thread
      * calling {@link #add(CleanupJob)}.
      */
     public static RecoveryCleanupWorkCollector immediate()
@@ -126,7 +127,16 @@ public abstract class RecoveryCleanupWorkCollector extends LifecycleAdapter
             {
                 try
                 {
-                    job.run( executor );
+                    job.run( new CleanupJob.Executor()
+                    {
+
+                        @Override
+                        public <T> CleanupJob.JobResult<T> submit( String jobDescription, Callable<T> job )
+                        {
+                            var future = executor.submit( job );
+                            return future::get;
+                        }
+                    } );
                 }
                 finally
                 {

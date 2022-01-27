@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,43 +38,48 @@
  */
 package org.neo4j.kernel.impl.api;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.TimeUnit;
 
+import org.neo4j.kernel.impl.api.transaction.monitor.KernelTransactionMonitor;
+import org.neo4j.kernel.impl.api.transaction.monitor.TransactionMonitorScheduler;
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobMonitoringParams;
 import org.neo4j.scheduler.JobScheduler;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.verifyNoInteractions;
 
-public class KernelTransactionMonitorSchedulerTest
+class KernelTransactionMonitorSchedulerTest
 {
-
     private final JobScheduler scheduler = mock( JobScheduler.class );
-    private final KernelTransactionTimeoutMonitor transactionTimeoutMonitor = mock( KernelTransactionTimeoutMonitor.class );
+    private final KernelTransactionMonitor transactionTimeoutMonitor = mock( KernelTransactionMonitor.class );
 
     @Test
-    public void scheduleRecurringMonitorJobIfConfigured()
+    void scheduleRecurringMonitorJobIfConfigured()
     {
-        KernelTransactionMonitorScheduler transactionMonitorScheduler = createMonitorScheduler(1);
+        TransactionMonitorScheduler transactionMonitorScheduler = createMonitorScheduler(1);
         transactionMonitorScheduler.start();
 
-        verify( scheduler).scheduleRecurring( JobScheduler.Groups.transactionTimeoutMonitor, transactionTimeoutMonitor, 1, TimeUnit
-                .MILLISECONDS  );
+        verify( scheduler ).scheduleRecurring( eq( Group.TRANSACTION_TIMEOUT_MONITOR ), any( JobMonitoringParams.class ), eq( transactionTimeoutMonitor ),
+                eq( 1L ), eq( TimeUnit.MILLISECONDS ) );
     }
 
     @Test
-    public void doNotScheduleMonitorJobIfDisabled()
+    void doNotScheduleMonitorJobIfDisabled()
     {
-        KernelTransactionMonitorScheduler transactionMonitorScheduler = createMonitorScheduler( 0 );
+        TransactionMonitorScheduler transactionMonitorScheduler = createMonitorScheduler( 0 );
         transactionMonitorScheduler.start();
 
-        verifyZeroInteractions( scheduler);
+        verifyNoInteractions( scheduler);
     }
 
-    private KernelTransactionMonitorScheduler createMonitorScheduler( long checkInterval )
+    private TransactionMonitorScheduler createMonitorScheduler( long checkInterval )
     {
-        return new KernelTransactionMonitorScheduler( transactionTimeoutMonitor, scheduler, checkInterval );
+        return new TransactionMonitorScheduler( transactionTimeoutMonitor, scheduler, checkInterval, "test database" );
     }
 }

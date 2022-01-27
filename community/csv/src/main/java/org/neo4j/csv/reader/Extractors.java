@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,31 +38,48 @@
  */
 package org.neo4j.csv.reader;
 
+import org.apache.commons.lang3.exception.CloneFailedException;
+
 import java.lang.reflect.Field;
 import java.nio.CharBuffer;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import org.neo4j.graphdb.spatial.Point;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.storable.CSVHeaderInformation;
+import org.neo4j.values.storable.DateArray;
+import org.neo4j.values.storable.DateTimeArray;
 import org.neo4j.values.storable.DateTimeValue;
 import org.neo4j.values.storable.DateValue;
+import org.neo4j.values.storable.DurationArray;
 import org.neo4j.values.storable.DurationValue;
+import org.neo4j.values.storable.LocalDateTimeArray;
 import org.neo4j.values.storable.LocalDateTimeValue;
+import org.neo4j.values.storable.LocalTimeArray;
 import org.neo4j.values.storable.LocalTimeValue;
+import org.neo4j.values.storable.PointArray;
 import org.neo4j.values.storable.PointValue;
+import org.neo4j.values.storable.TimeArray;
 import org.neo4j.values.storable.TimeValue;
+import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
 import static java.lang.Character.isWhitespace;
 import static java.lang.reflect.Modifier.isStatic;
 import static java.time.ZoneOffset.UTC;
-import static org.neo4j.collection.primitive.PrimitiveLongCollections.EMPTY_LONG_ARRAY;
-import static org.neo4j.helpers.Numbers.safeCastLongToByte;
-import static org.neo4j.helpers.Numbers.safeCastLongToInt;
-import static org.neo4j.helpers.Numbers.safeCastLongToShort;
+import static org.neo4j.collection.PrimitiveLongCollections.EMPTY_LONG_ARRAY;
+import static org.neo4j.csv.reader.Configuration.COMMAS;
+import static org.neo4j.internal.helpers.Numbers.safeCastLongToByte;
+import static org.neo4j.internal.helpers.Numbers.safeCastLongToInt;
+import static org.neo4j.internal.helpers.Numbers.safeCastLongToShort;
 
 /**
  * Common implementations of {@link Extractor}. Since array values can have a delimiter of user choice that isn't
@@ -120,21 +137,29 @@ public class Extractors
     private final Extractor<float[]> floatArray;
     private final Extractor<double[]> doubleArray;
     private final PointExtractor point;
+    private final PointArrayExtractor pointArray;
     private final DateExtractor date;
+    private final DateArrayExtractor dateArray;
     private final TimeExtractor time;
+    private final TimeArrayExtractor timeArray;
     private final DateTimeExtractor dateTime;
+    private final DateTimeArrayExtractor dateTimeArray;
     private final LocalTimeExtractor localTime;
+    private final LocalTimeArrayExtractor localTimeArray;
     private final LocalDateTimeExtractor localDateTime;
+    private final LocalDateTimeArrayExtractor localDateTimeArray;
     private final DurationExtractor duration;
+    private final TextValueExtractor textValue;
+    private final DurationArrayExtractor durationArray;
 
     public Extractors( char arrayDelimiter )
     {
-        this( arrayDelimiter, Configuration.DEFAULT.emptyQuotedStringsAsNull(), Configuration.DEFAULT.trimStrings(), inUTC );
+        this( arrayDelimiter, COMMAS.emptyQuotedStringsAsNull(), COMMAS.trimStrings(), inUTC );
     }
 
     public Extractors( char arrayDelimiter, boolean emptyStringsAsNull )
     {
-        this( arrayDelimiter, emptyStringsAsNull, Configuration.DEFAULT.trimStrings(), inUTC );
+        this( arrayDelimiter, emptyStringsAsNull, COMMAS.trimStrings(), inUTC );
     }
 
     public Extractors( char arrayDelimiter, boolean emptyStringsAsNull, boolean trimStrings )
@@ -166,13 +191,13 @@ public class Extractors
 
             add( string = new StringExtractor( emptyStringsAsNull ) );
             add( long_ = new LongExtractor() );
-            add( int_ = new IntExtractor() );
+            add( int_ = new IntExtractor( long_ ) );
             add( char_ = new CharExtractor() );
-            add( short_ = new ShortExtractor() );
-            add( byte_ = new ByteExtractor() );
+            add( short_ = new ShortExtractor( long_ ) );
+            add( byte_ = new ByteExtractor( long_ ) );
             add( boolean_ = new BooleanExtractor() );
-            add( float_ = new FloatExtractor() );
             add( double_ = new DoubleExtractor() );
+            add( float_ = new FloatExtractor( double_ ) );
             add( stringArray = new StringArrayExtractor( arrayDelimiter, trimStrings ) );
             add( booleanArray = new BooleanArrayExtractor( arrayDelimiter ) );
             add( byteArray = new ByteArrayExtractor( arrayDelimiter ) );
@@ -182,12 +207,20 @@ public class Extractors
             add( floatArray = new FloatArrayExtractor( arrayDelimiter ) );
             add( doubleArray = new DoubleArrayExtractor( arrayDelimiter ) );
             add( point = new PointExtractor() );
+            add( pointArray = new PointArrayExtractor( arrayDelimiter ) );
             add( date = new DateExtractor() );
+            add( dateArray = new DateArrayExtractor( arrayDelimiter ) );
             add( time = new TimeExtractor( defaultTimeZone ) );
+            add( timeArray = new TimeArrayExtractor( arrayDelimiter, defaultTimeZone ) );
             add( dateTime = new DateTimeExtractor( defaultTimeZone ) );
+            add( dateTimeArray = new DateTimeArrayExtractor( arrayDelimiter, defaultTimeZone ) );
             add( localTime = new LocalTimeExtractor() );
+            add( localTimeArray = new LocalTimeArrayExtractor( arrayDelimiter ) );
             add( localDateTime = new LocalDateTimeExtractor() );
+            add( localDateTimeArray = new LocalDateTimeArrayExtractor( arrayDelimiter ) );
             add( duration = new DurationExtractor() );
+            add( textValue = new TextValueExtractor( emptyStringsAsNull ) );
+            add( durationArray = new DurationArrayExtractor( arrayDelimiter ) );
         }
         catch ( IllegalAccessException e )
         {
@@ -300,9 +333,19 @@ public class Extractors
         return point;
     }
 
+    public PointArrayExtractor pointArray()
+    {
+        return pointArray;
+    }
+
     public DateExtractor date()
     {
         return date;
+    }
+
+    public DateArrayExtractor dateArray()
+    {
+        return dateArray;
     }
 
     public TimeExtractor time()
@@ -310,9 +353,19 @@ public class Extractors
         return time;
     }
 
+    public TimeArrayExtractor timeArray()
+    {
+        return timeArray;
+    }
+
     public DateTimeExtractor dateTime()
     {
         return dateTime;
+    }
+
+    public DateTimeArrayExtractor dateTimeArray()
+    {
+        return dateTimeArray;
     }
 
     public LocalTimeExtractor localTime()
@@ -320,9 +373,19 @@ public class Extractors
         return localTime;
     }
 
+    public LocalTimeArrayExtractor localTimeArray()
+    {
+        return localTimeArray;
+    }
+
     public LocalDateTimeExtractor localDateTime()
     {
         return localDateTime;
+    }
+
+    public LocalDateTimeArrayExtractor localDateTimeArray()
+    {
+        return localDateTimeArray;
     }
 
     public DurationExtractor duration()
@@ -330,13 +393,30 @@ public class Extractors
         return duration;
     }
 
+    public TextValueExtractor textValue()
+    {
+        return textValue;
+    }
+
+    public DurationArrayExtractor durationArray()
+    {
+        return durationArray;
+    }
+
     private abstract static class AbstractExtractor<T> implements Extractor<T>
     {
         private final String name;
+        private final Extractor<?> normalizedExtractor;
 
         AbstractExtractor( String name )
         {
+            this( name, null );
+        }
+
+        AbstractExtractor( String name, Extractor<?> normalizedExtractor )
+        {
             this.name = name;
+            this.normalizedExtractor = normalizedExtractor;
         }
 
         @Override
@@ -355,9 +435,15 @@ public class Extractors
             }
             catch ( CloneNotSupportedException e )
             {
-                throw new AssertionError( Extractor.class.getName() + " implements " + Cloneable.class.getSimpleName() +
+                throw new CloneFailedException( Extractor.class.getName() + " implements " + Cloneable.class.getSimpleName() +
                         ", at least this implementation assumes that. This doesn't seem to be the case anymore", e );
             }
+        }
+
+        @Override
+        public Extractor<?> normalize()
+        {
+            return normalizedExtractor != null ? normalizedExtractor : this;
         }
     }
 
@@ -365,7 +451,12 @@ public class Extractors
     {
         AbstractSingleValueExtractor( String toString )
         {
-            super( toString );
+            super( toString, null );
+        }
+
+        AbstractSingleValueExtractor( String toString, Extractor<?> normalizedExtractor )
+        {
+            super( toString, normalizedExtractor );
         }
 
         @Override
@@ -496,9 +587,9 @@ public class Extractors
     {
         private int value;
 
-        IntExtractor()
+        IntExtractor( LongExtractor longExtractor )
         {
-            super( Integer.TYPE.toString() );
+            super( Integer.TYPE.toString(), longExtractor );
         }
 
         @Override
@@ -534,9 +625,9 @@ public class Extractors
     {
         private short value;
 
-        ShortExtractor()
+        ShortExtractor( LongExtractor longExtractor )
         {
-            super( Short.TYPE.getSimpleName() );
+            super( Short.TYPE.getSimpleName(), longExtractor );
         }
 
         @Override
@@ -572,9 +663,9 @@ public class Extractors
     {
         private byte value;
 
-        ByteExtractor()
+        ByteExtractor( LongExtractor longExtractor )
         {
-            super( Byte.TYPE.getSimpleName() );
+            super( Byte.TYPE.getSimpleName(), longExtractor );
         }
 
         @Override
@@ -689,9 +780,9 @@ public class Extractors
     {
         private float value;
 
-        FloatExtractor()
+        FloatExtractor( DoubleExtractor doubleExtractor )
         {
-            super( Float.TYPE.getSimpleName() );
+            super( Float.TYPE.getSimpleName(), doubleExtractor );
         }
 
         @Override
@@ -776,9 +867,9 @@ public class Extractors
         protected final char arrayDelimiter;
         protected T value;
 
-        ArrayExtractor( char arrayDelimiter, Class<?> componentType )
+        ArrayExtractor( char arrayDelimiter, String componentTypeName )
         {
-            super( componentType.getSimpleName() + "[]" );
+            super( componentTypeName + "[]" );
             this.arrayDelimiter = arrayDelimiter;
         }
 
@@ -848,7 +939,7 @@ public class Extractors
 
         StringArrayExtractor( char arrayDelimiter, boolean trimStrings )
         {
-            super( arrayDelimiter, String.class );
+            super( arrayDelimiter, String.class.getSimpleName() );
             this.trimStrings = trimStrings;
         }
 
@@ -876,7 +967,7 @@ public class Extractors
 
         ByteArrayExtractor( char arrayDelimiter )
         {
-            super( arrayDelimiter, Byte.TYPE );
+            super( arrayDelimiter, Byte.TYPE.getSimpleName() );
         }
 
         @Override
@@ -899,7 +990,7 @@ public class Extractors
 
         ShortArrayExtractor( char arrayDelimiter )
         {
-            super( arrayDelimiter, Short.TYPE );
+            super( arrayDelimiter, Short.TYPE.getSimpleName() );
         }
 
         @Override
@@ -922,7 +1013,7 @@ public class Extractors
 
         IntArrayExtractor( char arrayDelimiter )
         {
-            super( arrayDelimiter, Integer.TYPE );
+            super( arrayDelimiter, Integer.TYPE.getSimpleName() );
         }
 
         @Override
@@ -943,7 +1034,7 @@ public class Extractors
     {
         LongArrayExtractor( char arrayDelimiter )
         {
-            super( arrayDelimiter, Long.TYPE );
+            super( arrayDelimiter, Long.TYPE.getSimpleName() );
         }
 
         @Override
@@ -966,7 +1057,7 @@ public class Extractors
 
         FloatArrayExtractor( char arrayDelimiter )
         {
-            super( arrayDelimiter, Float.TYPE );
+            super( arrayDelimiter, Float.TYPE.getSimpleName() );
         }
 
         @Override
@@ -991,7 +1082,7 @@ public class Extractors
 
         DoubleArrayExtractor( char arrayDelimiter )
         {
-            super( arrayDelimiter, Double.TYPE );
+            super( arrayDelimiter, Double.TYPE.getSimpleName() );
         }
 
         @Override
@@ -1016,7 +1107,7 @@ public class Extractors
 
         BooleanArrayExtractor( char arrayDelimiter )
         {
-            super( arrayDelimiter, Boolean.TYPE );
+            super( arrayDelimiter, Boolean.TYPE.getSimpleName() );
         }
 
         @Override
@@ -1056,6 +1147,35 @@ public class Extractors
         public static final String NAME = "Point";
     }
 
+    public static class PointArrayExtractor extends ArrayExtractor<PointArray>
+    {
+        private static final PointArray EMPTY = Values.pointArray( new Point[0] );
+
+        PointArrayExtractor( char arrayDelimiter )
+        {
+            super( arrayDelimiter, PointExtractor.NAME );
+        }
+
+        @Override
+        protected void extract0( char[] data, int offset, int length, CSVHeaderInformation optionalData )
+        {
+            int numberOfValues = numberOfValues( data, offset, length );
+            if ( numberOfValues <= 0 )
+            {
+                value = EMPTY;
+                return;
+            }
+            var localValue = new PointValue[numberOfValues];
+            for ( int arrayIndex = 0, charIndex = 0; arrayIndex < numberOfValues; arrayIndex++, charIndex++ )
+            {
+                int numberOfChars = charsToNextDelimiter( data, offset + charIndex, length - charIndex );
+                localValue[arrayIndex] = PointValue.parse( CharBuffer.wrap( data, offset + charIndex, numberOfChars ), optionalData );
+                charIndex += numberOfChars;
+            }
+            value = Values.pointArray( localValue );
+        }
+    }
+
     public static class DateExtractor extends AbstractSingleAnyValueExtractor
     {
         DateExtractor()
@@ -1079,9 +1199,39 @@ public class Extractors
         public static final String NAME = "Date";
     }
 
+    public static class DateArrayExtractor extends ArrayExtractor<DateArray>
+    {
+        private static final DateArray EMPTY = Values.dateArray( new LocalDate[0] );
+
+        DateArrayExtractor( char arrayDelimiter )
+        {
+            super( arrayDelimiter, DateExtractor.NAME );
+        }
+
+        @Override
+        protected void extract0( char[] data, int offset, int length, CSVHeaderInformation optionalData )
+        {
+            int numberOfValues = numberOfValues( data, offset, length );
+            if ( numberOfValues <= 0 )
+            {
+                value = EMPTY;
+                return;
+            }
+
+            var localValue = new LocalDate[numberOfValues];
+            for ( int arrayIndex = 0, charIndex = 0; arrayIndex < numberOfValues; arrayIndex++, charIndex++ )
+            {
+                int numberOfChars = charsToNextDelimiter( data, offset + charIndex, length - charIndex );
+                localValue[arrayIndex] = DateValue.parse( CharBuffer.wrap( data, offset + charIndex, numberOfChars ) ).asObjectCopy();
+                charIndex += numberOfChars;
+            }
+            value = Values.dateArray( localValue );
+        }
+    }
+
     public static class TimeExtractor extends AbstractSingleAnyValueExtractor
     {
-        private Supplier<ZoneId> defaultTimeZone;
+        private final Supplier<ZoneId> defaultTimeZone;
 
         TimeExtractor( Supplier<ZoneId> defaultTimeZone )
         {
@@ -1105,9 +1255,43 @@ public class Extractors
         public static final String NAME = "Time";
     }
 
+    public static class TimeArrayExtractor extends ArrayExtractor<TimeArray>
+    {
+        private static final TimeArray EMPTY = Values.timeArray( new OffsetTime[0] );
+
+        private final Supplier<ZoneId> defaultTimeZone;
+
+        TimeArrayExtractor( char arrayDelimiter, Supplier<ZoneId> defaultTimeZone )
+        {
+            super( arrayDelimiter, TimeExtractor.NAME );
+            this.defaultTimeZone = defaultTimeZone;
+        }
+
+        @Override
+        protected void extract0( char[] data, int offset, int length, CSVHeaderInformation optionalData )
+        {
+            int numberOfValues = numberOfValues( data, offset, length );
+            if ( numberOfValues <= 0 )
+            {
+                value = EMPTY;
+                return;
+            }
+
+            var localValue = new OffsetTime[numberOfValues];
+            for ( int arrayIndex = 0, charIndex = 0; arrayIndex < numberOfValues; arrayIndex++, charIndex++ )
+            {
+                int numberOfChars = charsToNextDelimiter( data, offset + charIndex, length - charIndex );
+                localValue[arrayIndex] = TimeValue.parse( CharBuffer.wrap( data, offset + charIndex, numberOfChars ), defaultTimeZone, optionalData )
+                                                  .asObjectCopy();
+                charIndex += numberOfChars;
+            }
+            value = Values.timeArray( localValue );
+        }
+    }
+
     public static class DateTimeExtractor extends AbstractSingleAnyValueExtractor
     {
-        private Supplier<ZoneId> defaultTimeZone;
+        private final Supplier<ZoneId> defaultTimeZone;
 
         DateTimeExtractor( Supplier<ZoneId> defaultTimeZone )
         {
@@ -1129,6 +1313,40 @@ public class Extractors
         }
 
         public static final String NAME = "DateTime";
+    }
+
+    public static class DateTimeArrayExtractor extends ArrayExtractor<DateTimeArray>
+    {
+        private static final DateTimeArray EMPTY = Values.dateTimeArray( new ZonedDateTime[0] );
+
+        private final Supplier<ZoneId> defaultTimeZone;
+
+        DateTimeArrayExtractor( char arrayDelimiter, Supplier<ZoneId> defaultTimeZone )
+        {
+            super( arrayDelimiter, DateTimeExtractor.NAME );
+            this.defaultTimeZone = defaultTimeZone;
+        }
+
+        @Override
+        protected void extract0( char[] data, int offset, int length, CSVHeaderInformation optionalData )
+        {
+            int numberOfValues = numberOfValues( data, offset, length );
+            if ( numberOfValues <= 0 )
+            {
+                value = EMPTY;
+                return;
+            }
+
+            var localValue = new ZonedDateTime[numberOfValues];
+            for ( int arrayIndex = 0, charIndex = 0; arrayIndex < numberOfValues; arrayIndex++, charIndex++ )
+            {
+                int numberOfChars = charsToNextDelimiter( data, offset + charIndex, length - charIndex );
+                localValue[arrayIndex] = DateTimeValue.parse( CharBuffer.wrap( data, offset + charIndex, numberOfChars ), defaultTimeZone, optionalData )
+                                                      .asObjectCopy();
+                charIndex += numberOfChars;
+            }
+            value = Values.dateTimeArray( localValue );
+        }
     }
 
     public static class LocalTimeExtractor extends AbstractSingleAnyValueExtractor
@@ -1154,6 +1372,37 @@ public class Extractors
         public static final String NAME = "LocalTime";
     }
 
+    public static class LocalTimeArrayExtractor extends ArrayExtractor<LocalTimeArray>
+    {
+        private static final LocalTimeArray EMPTY = Values.localTimeArray( new LocalTime[0] );
+
+        LocalTimeArrayExtractor( char arrayDelimiter )
+        {
+            super( arrayDelimiter, LocalTimeExtractor.NAME );
+        }
+
+        @Override
+        protected void extract0( char[] data, int offset, int length, CSVHeaderInformation optionalData )
+        {
+            int numberOfValues = numberOfValues( data, offset, length );
+            if ( numberOfValues <= 0 )
+            {
+                value = EMPTY;
+                return;
+            }
+
+            var localValue = new LocalTime[numberOfValues];
+            for ( int arrayIndex = 0, charIndex = 0; arrayIndex < numberOfValues; arrayIndex++, charIndex++ )
+            {
+                int numberOfChars = charsToNextDelimiter( data, offset + charIndex, length - charIndex );
+                localValue[arrayIndex] = LocalTimeValue.parse( CharBuffer.wrap( data, offset + charIndex, numberOfChars ) )
+                                                       .asObjectCopy();
+                charIndex += numberOfChars;
+            }
+            value = Values.localTimeArray( localValue );
+        }
+    }
+
     public static class LocalDateTimeExtractor extends AbstractSingleAnyValueExtractor
     {
         LocalDateTimeExtractor()
@@ -1177,6 +1426,37 @@ public class Extractors
         public static final String NAME = "LocalDateTime";
     }
 
+    public static class LocalDateTimeArrayExtractor extends ArrayExtractor<LocalDateTimeArray>
+    {
+        private static final LocalDateTimeArray EMPTY = Values.localDateTimeArray( new LocalDateTime[0] );
+
+        LocalDateTimeArrayExtractor( char arrayDelimiter )
+        {
+            super( arrayDelimiter, LocalDateTimeExtractor.NAME );
+        }
+
+        @Override
+        protected void extract0( char[] data, int offset, int length, CSVHeaderInformation optionalData )
+        {
+            int numberOfValues = numberOfValues( data, offset, length );
+            if ( numberOfValues <= 0 )
+            {
+                value = EMPTY;
+                return;
+            }
+
+            var localValue = new LocalDateTime[numberOfValues];
+            for ( int arrayIndex = 0, charIndex = 0; arrayIndex < numberOfValues; arrayIndex++, charIndex++ )
+            {
+                int numberOfChars = charsToNextDelimiter( data, offset + charIndex, length - charIndex );
+                localValue[arrayIndex] = LocalDateTimeValue.parse( CharBuffer.wrap( data, offset + charIndex, numberOfChars ) )
+                                                           .asObjectCopy();
+                charIndex += numberOfChars;
+            }
+            value = Values.localDateTimeArray( localValue );
+        }
+    }
+
     public static class DurationExtractor extends AbstractSingleAnyValueExtractor
     {
         DurationExtractor()
@@ -1198,6 +1478,76 @@ public class Extractors
         }
 
         public static final String NAME = "Duration";
+    }
+
+    public static class TextValueExtractor extends AbstractSingleValueExtractor<Value>
+    {
+        private Value value;
+        private final boolean emptyStringsAsNull;
+
+        TextValueExtractor( boolean emptyStringsAsNull )
+        {
+            super( NAME );
+            this.emptyStringsAsNull = emptyStringsAsNull;
+        }
+
+        @Override
+        protected boolean nullValue( int length, boolean hadQuotes )
+        {
+            return length == 0 && (!hadQuotes || emptyStringsAsNull);
+        }
+
+        @Override
+        protected void clear()
+        {
+            value = Values.NO_VALUE;
+        }
+
+        @Override
+        protected boolean extract0( char[] data, int offset, int length, CSVHeaderInformation optionalData )
+        {
+            // TODO: If the file format is known to be UTF8 we could create a UTF8-value directly
+            value = Values.utf8Value( new String( data, offset, length ) );
+            return true;
+        }
+
+        @Override
+        public Value value()
+        {
+            return value;
+        }
+
+        public static final String NAME = "TextValue";
+    }
+
+    public static class DurationArrayExtractor extends ArrayExtractor<DurationArray>
+    {
+        private static final DurationArray EMPTY = Values.durationArray( new DurationValue[0] );
+
+        DurationArrayExtractor( char arrayDelimiter )
+        {
+            super( arrayDelimiter, DurationExtractor.NAME );
+        }
+
+        @Override
+        protected void extract0( char[] data, int offset, int length, CSVHeaderInformation optionalData )
+        {
+            int numberOfValues = numberOfValues( data, offset, length );
+            if ( numberOfValues <= 0 )
+            {
+                value = EMPTY;
+                return;
+            }
+
+            var localValue = new DurationValue[numberOfValues];
+            for ( int arrayIndex = 0, charIndex = 0; arrayIndex < numberOfValues; arrayIndex++, charIndex++ )
+            {
+                int numberOfChars = charsToNextDelimiter( data, offset + charIndex, length - charIndex );
+                localValue[arrayIndex] = DurationValue.parse( CharBuffer.wrap( data, offset + charIndex, numberOfChars ) );
+                charIndex += numberOfChars;
+            }
+            value = Values.durationArray( localValue );
+        }
     }
 
     private static final Supplier<ZoneId> inUTC = () -> UTC;

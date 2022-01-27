@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,6 +41,7 @@ package org.neo4j.index.internal.gbptree;
 import java.io.IOException;
 
 import org.neo4j.io.pagecache.PageCursor;
+import org.neo4j.io.pagecache.context.CursorContext;
 
 /**
  * Provide tree node (page) ids which can be used for storing tree node data.
@@ -54,19 +55,52 @@ interface IdProvider
      *
      * @param stableGeneration current stable generation.
      * @param unstableGeneration current unstable generation.
+     * @param cursorContext underlying page cache cursor context
      * @return page id guaranteed to current not be used and whose bytes are all zeros.
      * @throws IOException on {@link PageCursor} error.
      */
-    long acquireNewId( long stableGeneration, long unstableGeneration ) throws IOException;
+    long acquireNewId( long stableGeneration, long unstableGeneration, CursorContext cursorContext ) throws IOException;
 
     /**
      * Releases a page id which has previously been used, but isn't anymore, effectively allowing
-     * it to be reused and returned from {@link #acquireNewId(long, long)}.
+     * it to be reused and returned from {@link #acquireNewId(long, long, CursorContext)}.
      *
      * @param stableGeneration current stable generation.
      * @param unstableGeneration current unstable generation.
      * @param id page id to release.
+     * @param cursorContext underlying page cache cursor context
      * @throws IOException on {@link PageCursor} error.
      */
-    void releaseId( long stableGeneration, long unstableGeneration, long id ) throws IOException;
+    void releaseId( long stableGeneration, long unstableGeneration, long id, CursorContext cursorContext ) throws IOException;
+
+    void visitFreelist( IdProviderVisitor visitor, CursorContext cursorContext ) throws IOException;
+
+    long lastId();
+
+    interface IdProviderVisitor
+    {
+        void beginFreelistPage( long pageId );
+
+        void endFreelistPage( long pageId );
+
+        void freelistEntry( long pageId, long generation, int pos );
+
+        class Adaptor implements IdProviderVisitor
+        {
+            @Override
+            public void beginFreelistPage( long pageId )
+            {
+            }
+
+            @Override
+            public void endFreelistPage( long pageId )
+            {
+            }
+
+            @Override
+            public void freelistEntry( long pageId, long generation, int pos )
+            {
+            }
+        }
+    }
 }

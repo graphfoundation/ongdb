@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,16 +38,19 @@
  */
 package org.neo4j.cypher.internal.javacompat;
 
-import java.util.Map;
-
-import org.neo4j.cypher.internal.CompatibilityFactory;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseInternalSettings;
+import org.neo4j.cypher.internal.CompilerFactory;
+import org.neo4j.cypher.internal.FullyParsedQuery;
+import org.neo4j.cypher.internal.cache.CaffeineCacheFactory;
+import org.neo4j.cypher.internal.runtime.InputDataStream;
 import org.neo4j.graphdb.Result;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.io.pagecache.tracing.cursor.context.VersionContext;
+import org.neo4j.io.pagecache.context.VersionContext;
 import org.neo4j.kernel.GraphDatabaseQueryService;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.api.KernelStatement;
+import org.neo4j.kernel.impl.query.QueryExecution;
 import org.neo4j.kernel.impl.query.QueryExecutionKernelException;
+import org.neo4j.kernel.impl.query.QueryExecutionMonitor;
+import org.neo4j.kernel.impl.query.QuerySubscriber;
 import org.neo4j.kernel.impl.query.TransactionalContext;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.values.virtual.MapValue;
@@ -62,79 +65,104 @@ public class SnapshotExecutionEngine extends ExecutionEngine
 {
     private final int maxQueryExecutionAttempts;
 
-    SnapshotExecutionEngine( GraphDatabaseQueryService queryService, Config config, LogProvider logProvider,
-            CompatibilityFactory compatibilityFactory )
+    SnapshotExecutionEngine( GraphDatabaseQueryService queryService, Config config, CaffeineCacheFactory cacheFactory, LogProvider logProvider,
+                             CompilerFactory compilerFactory )
     {
-        super( queryService, logProvider, compatibilityFactory );
-        this.maxQueryExecutionAttempts = config.get( GraphDatabaseSettings.snapshot_query_retries );
+        super( queryService, cacheFactory, logProvider, compilerFactory );
+        this.maxQueryExecutionAttempts = config.get( GraphDatabaseInternalSettings.snapshot_query_retries );
     }
 
     @Override
-    public Result executeQuery( String query, MapValue parameters, TransactionalContext context )
+    public Result executeQuery( String query, MapValue parameters, TransactionalContext context, boolean prePopulate )
             throws QueryExecutionKernelException
     {
-        return executeWithRetries( query, parameters, context, super::executeQuery );
+        QueryExecutor queryExecutor = querySubscriber -> super.executeQuery( query, parameters, context, prePopulate, querySubscriber );
+        ResultSubscriber resultSubscriber = new ResultSubscriber( context );
+        MaterialisedResult materialisedResult = executeWithRetries( query, context, queryExecutor );
+        QueryExecution queryExecution = materialisedResult.stream( resultSubscriber );
+        resultSubscriber.init( queryExecution );
+        return resultSubscriber;
     }
 
     @Override
-    public Result executeQuery( String query, Map<String,Object> parameters, TransactionalContext context )
+    public QueryExecution executeQuery( String query, MapValue parameters, TransactionalContext context, boolean prePopulate, QuerySubscriber subscriber )
             throws QueryExecutionKernelException
     {
-        return executeWithRetries( query, parameters, context, super::executeQuery );
+        QueryExecutor queryExecutor = querySubscriber -> super.executeQuery( query, parameters, context, prePopulate, querySubscriber );
+        MaterialisedResult materialisedResult = executeWithRetries( query, context, queryExecutor );
+        return materialisedResult.stream( subscriber );
     }
 
     @Override
-    public Result profileQuery( String query, Map<String,Object> parameters, TransactionalContext context )
+    public QueryExecution executeQuery( FullyParsedQuery query, MapValue parameters, TransactionalContext context,
+                                        boolean prePopulate, InputDataStream input, QueryExecutionMonitor queryMonitor, QuerySubscriber subscriber )
             throws QueryExecutionKernelException
     {
-        return executeWithRetries( query, parameters, context, super::profileQuery );
+        QueryExecutor queryExecutor = querySubscriber -> super.executeQuery( query, parameters, context, prePopulate, input, queryMonitor, querySubscriber );
+        MaterialisedResult materialisedResult = executeWithRetries( query.description(), context, queryExecutor );
+        return materialisedResult.stream( subscriber );
     }
 
-    protected <T> Result executeWithRetries( String query, T parameters, TransactionalContext context,
-            ParametrizedQueryExecutor<T> executor ) throws QueryExecutionKernelException
+    protected MaterialisedResult executeWithRetries( String query,
+            TransactionalContext context,
+            QueryExecutor executor ) throws QueryExecutionKernelException
     {
         VersionContext versionContext = getCursorContext( context );
-        EagerResult eagerResult;
+        MaterialisedResult materialisedResult;
         int attempt = 0;
         boolean dirtySnapshot;
         do
         {
             if ( attempt == maxQueryExecutionAttempts )
             {
-                return throwQueryExecutionException(
-                        "Unable to get clean data snapshot for query '%s' after %d attempts.", query, attempt );
+                throw new QueryExecutionKernelException( new UnstableSnapshotException( "Unable to get clean data snapshot for query '%s' after %d attempts.",
+                                                                                        query, attempt ) );
             }
+
+            if ( attempt > 0 )
+            {
+                context.executingQuery().onRetryAttempted();
+            }
+
             attempt++;
             versionContext.initRead();
-            Result result = executor.execute( query, parameters, context );
-            eagerResult = new EagerResult( result, versionContext );
-            eagerResult.consume();
-            dirtySnapshot = versionContext.isDirty();
-            if ( dirtySnapshot && result.getQueryStatistics().containsUpdates() )
+
+            materialisedResult = new MaterialisedResult();
+
+            QueryExecution queryExecution = executor.execute( materialisedResult );
+            materialisedResult.consumeAll( queryExecution );
+
+            // we always allow indexes/constraints to be created since their population/verification should see the latest data and uniqueness of those schema
+            // objects is guaranteed by schema and not by execution engine
+            if ( context.transaction().kernelTransaction().isSchemaTransaction() )
             {
-                return throwQueryExecutionException(
-                        "Unable to get clean data snapshot for query '%s' that perform updates.", query, attempt );
+                return materialisedResult;
+            }
+            dirtySnapshot = versionContext.isDirty();
+            if ( isUnstableSnapshot( materialisedResult, dirtySnapshot ) )
+            {
+                throw new QueryExecutionKernelException( new UnstableSnapshotException(
+                        "Unable to get clean data snapshot for query '%s' that performs updates.", query, attempt ) );
             }
         }
         while ( dirtySnapshot );
-        return eagerResult;
+
+        return materialisedResult;
     }
 
-    private Result throwQueryExecutionException( String message, Object... parameters ) throws
-            QueryExecutionKernelException
+    private boolean isUnstableSnapshot( MaterialisedResult materialisedResult, boolean dirtySnapshot )
     {
-        throw new QueryExecutionKernelException( new UnstableSnapshotException( message, parameters ) );
+        return dirtySnapshot && materialisedResult.getQueryStatistics().containsUpdates();
     }
 
     private static VersionContext getCursorContext( TransactionalContext context )
     {
-        return ((KernelStatement) context.statement()).getVersionContext();
+        return context.kernelTransaction().cursorContext().getVersionContext();
     }
 
     @FunctionalInterface
-    protected interface ParametrizedQueryExecutor<T>
+    protected interface QueryExecutor
     {
-        Result execute( String query, T parameters, TransactionalContext context ) throws QueryExecutionKernelException;
+        QueryExecution execute( MaterialisedResult materialisedResult ) throws QueryExecutionKernelException;
     }
-
 }

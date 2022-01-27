@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,26 +41,28 @@ package org.neo4j.kernel.api.impl.index.partition;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.ReferenceManager;
 
-import java.io.Closeable;
 import java.io.IOException;
+
+import org.neo4j.kernel.api.impl.index.SearcherReference;
 
 /**
  * Container for {@link IndexSearcher} of the particular {@link AbstractIndexPartition partition}.
  * Manages lifecycle of the underlying {@link IndexSearcher searcher}.
  */
-public class PartitionSearcher implements Closeable
+public class PartitionSearcher implements SearcherReference
 {
-    private IndexSearcher indexSearcher;
+    private Neo4jIndexSearcher indexSearcher;
     private ReferenceManager<IndexSearcher> referenceManager;
 
     public PartitionSearcher( ReferenceManager<IndexSearcher> referenceManager ) throws IOException
     {
         this.referenceManager = referenceManager;
-        this.indexSearcher = referenceManager.acquire();
+        this.indexSearcher = (Neo4jIndexSearcher) referenceManager.acquire();
         this.indexSearcher.setQueryCache( null );
     }
 
-    public IndexSearcher getIndexSearcher()
+    @Override
+    public Neo4jIndexSearcher getIndexSearcher()
     {
         return indexSearcher;
     }

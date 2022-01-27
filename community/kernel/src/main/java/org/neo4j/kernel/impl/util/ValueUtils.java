@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,8 +38,6 @@
  */
 package org.neo4j.kernel.impl.util;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -50,35 +48,39 @@ import java.util.stream.StreamSupport;
 import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.spatial.Geometry;
 import org.neo4j.graphdb.spatial.Point;
+import org.neo4j.util.CalledFromGeneratedCode;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.storable.BooleanValue;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.DoubleValue;
+import org.neo4j.values.storable.IntValue;
 import org.neo4j.values.storable.LongValue;
 import org.neo4j.values.storable.PointValue;
 import org.neo4j.values.storable.TextValue;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
-import org.neo4j.values.virtual.RelationshipValue;
 import org.neo4j.values.virtual.ListValue;
+import org.neo4j.values.virtual.ListValueBuilder;
 import org.neo4j.values.virtual.MapValue;
-import org.neo4j.values.virtual.NodeValue;
-import org.neo4j.values.virtual.PathValue;
+import org.neo4j.values.virtual.MapValueBuilder;
 import org.neo4j.values.virtual.VirtualNodeValue;
+import org.neo4j.values.virtual.VirtualPathValue;
 import org.neo4j.values.virtual.VirtualRelationshipValue;
 import org.neo4j.values.virtual.VirtualValues;
-
-import static org.neo4j.values.virtual.VirtualValues.map;
 
 public final class ValueUtils
 {
     private ValueUtils()
     {
         throw new UnsupportedOperationException( "do not instantiate" );
+    }
+
+    public static AnyValue of( Object object )
+    {
+        return of( object, false );
     }
 
     /**
@@ -88,8 +90,12 @@ public final class ValueUtils
      * @return the AnyValue corresponding to object.
      */
     @SuppressWarnings( "unchecked" )
-    public static AnyValue of( Object object )
+    public static AnyValue of( Object object, boolean wrapEntities )
     {
+        if ( object instanceof AnyValue )
+        {
+            return (AnyValue) object;
+        }
         Value value = Values.unsafeOf( object, true );
         if ( value != null )
         {
@@ -101,11 +107,25 @@ public final class ValueUtils
             {
                 if ( object instanceof Node )
                 {
-                    return fromNodeProxy( (Node) object );
+                    if ( wrapEntities )
+                    {
+                        return wrapNodeEntity( (Node) object );
+                    }
+                    else
+                    {
+                        return fromNodeEntity( (Node) object );
+                    }
                 }
                 else if ( object instanceof Relationship )
                 {
-                    return fromRelationshipProxy( (Relationship) object );
+                    if ( wrapEntities )
+                    {
+                        return wrapRelationshipEntity( (Relationship) object );
+                    }
+                    else
+                    {
+                        return fromRelationshipEntity( (Relationship) object );
+                    }
                 }
                 else
                 {
@@ -116,40 +136,52 @@ public final class ValueUtils
             {
                 if ( object instanceof Path )
                 {
-                    return fromPath( (Path) object );
+                    if ( wrapEntities )
+                    {
+                        return wrapPath( (Path) object );
+                    }
+                    else
+                    {
+                        return pathReferenceFromPath( (Path) object );
+                    }
                 }
                 else if ( object instanceof List<?> )
                 {
-                    return asListValue( (List<?>) object );
+                    return asListValue( (List<Object>) object, wrapEntities );
                 }
                 else
                 {
-                    return asListValue( (Iterable<?>) object );
+                    return asListValue( (Iterable<Object>) object, wrapEntities );
                 }
             }
             else if ( object instanceof Map<?,?> )
             {
-                return asMapValue( (Map<String,Object>) object );
+                return asMapValue( (Map<String,Object>) object, wrapEntities );
             }
             else if ( object instanceof Iterator<?> )
             {
-                ArrayList<Object> objects = new ArrayList<>();
+                ListValueBuilder builder = ListValueBuilder.newListBuilder();
                 Iterator<?> iterator = (Iterator<?>) object;
                 while ( iterator.hasNext() )
                 {
-                    objects.add( iterator.next() );
+                    builder.add( ValueUtils.of( iterator.next(), wrapEntities ) );
                 }
-                return asListValue( objects );
+                return builder.build();
             }
             else if ( object instanceof Object[] )
             {
                 Object[] array = (Object[]) object;
-                AnyValue[] anyValues = new AnyValue[array.length];
-                for ( int i = 0; i < array.length; i++ )
+                if ( array.length == 0 )
                 {
-                    anyValues[i] = ValueUtils.of( array[i] );
+                    return VirtualValues.EMPTY_LIST;
                 }
-                return VirtualValues.list( anyValues );
+
+                ListValueBuilder builder = ListValueBuilder.newListBuilder( array.length );
+                for ( Object o : array )
+                {
+                    builder.add( ValueUtils.of( o, wrapEntities ) );
+                }
+                return builder.build();
             }
             else if ( object instanceof Stream<?> )
             {
@@ -159,14 +191,16 @@ public final class ValueUtils
             {
                 return asGeometryValue( (Geometry) object );
             }
-            else if ( object instanceof VirtualNodeValue || object instanceof VirtualRelationshipValue )
-            {
-                return (AnyValue) object;
-            }
             else
             {
+                ClassLoader classLoader = object.getClass().getClassLoader();
                 throw new IllegalArgumentException(
-                        String.format( "Cannot convert %s to AnyValue", object.getClass().getName() ) );
+                        String.format( "Cannot convert %s of type %s to AnyValue, classloader=%s, classloader-name=%s",
+                                object,
+                                object.getClass().getName(),
+                                classLoader != null ? classLoader.toString() : "null",
+                                classLoader != null ? classLoader.getName() : "null" )
+                );
             }
         }
     }
@@ -199,33 +233,49 @@ public final class ValueUtils
 
     public static ListValue asListValue( List<?> collection )
     {
-        ArrayList<AnyValue> values = new ArrayList<>( collection.size() );
+        return asListValue( collection, false );
+    }
+
+    public static ListValue asListValue( List<?> collection, boolean wrapEntities )
+    {
+        int size = collection.size();
+        if ( size == 0 )
+        {
+            return VirtualValues.EMPTY_LIST;
+        }
+
+        ListValueBuilder values = ListValueBuilder.newListBuilder( size );
         for ( Object o : collection )
         {
-            values.add( ValueUtils.of( o ) );
+            values.add( ValueUtils.of( o, wrapEntities ) );
         }
-        return VirtualValues.fromList( values );
+        return values.build();
     }
 
     public static ListValue asListValue( Iterable<?> collection )
     {
-        ArrayList<AnyValue> values = new ArrayList<>();
-        for ( Object o : collection )
-        {
-            values.add( ValueUtils.of( o ) );
-        }
-        return VirtualValues.fromList( values );
+        return asListValue( collection, false );
     }
 
-    public static AnyValue asNodeOrEdgeValue( PropertyContainer container )
+    public static ListValue asListValue( Iterable<?> collection, boolean wrapEntities )
+    {
+        ListValueBuilder values = ListValueBuilder.newListBuilder();
+        for ( Object o : collection )
+        {
+            values.add( ValueUtils.of( o, wrapEntities ) );
+        }
+        return values.build();
+    }
+
+    public static AnyValue asNodeOrEdgeValue( Entity container )
     {
         if ( container instanceof Node )
         {
-            return fromNodeProxy( (Node) container );
+            return fromNodeEntity( (Node) container );
         }
         else if ( container instanceof Relationship )
         {
-            return fromRelationshipProxy( (Relationship) container );
+            return fromRelationshipEntity( (Relationship) container );
         }
         else
         {
@@ -237,61 +287,158 @@ public final class ValueUtils
     public static ListValue asListOfEdges( Iterable<Relationship> rels )
     {
         return VirtualValues.list( StreamSupport.stream( rels.spliterator(), false )
-                .map( ValueUtils::fromRelationshipProxy ).toArray( RelationshipValue[]::new ) );
+                .map( ValueUtils::fromRelationshipEntity ).toArray( VirtualRelationshipValue[]::new ) );
     }
 
     public static ListValue asListOfEdges( Relationship[] rels )
     {
-        RelationshipValue[] relValues = new RelationshipValue[rels.length];
-        for ( int i = 0; i < relValues.length; i++ )
+        if ( rels.length == 0 )
         {
-            relValues[i] = fromRelationshipProxy( rels[i] );
+            return VirtualValues.EMPTY_LIST;
         }
-        return VirtualValues.list( relValues );
+
+        ListValueBuilder relValues = ListValueBuilder.newListBuilder( rels.length );
+        for ( Relationship rel : rels )
+        {
+            relValues.add( fromRelationshipEntity( rel ) );
+        }
+        return relValues.build();
+    }
+    public static MapValue asMapValue( Map<String,?> map )
+    {
+        return asMapValue( map, false );
     }
 
-    public static MapValue asMapValue( Map<String,Object> map )
+    public static MapValue asMapValue( Map<String,?> map, boolean wrapEntities )
     {
-        HashMap<String,AnyValue> newMap = new HashMap<>( map.size() );
-        for ( Map.Entry<String,Object> entry : map.entrySet() )
+        int size = map.size();
+        if ( size == 0 )
         {
-            newMap.put( entry.getKey(), ValueUtils.of( entry.getValue() ) );
+            return VirtualValues.EMPTY_MAP;
         }
 
-        return map( newMap );
+        MapValueBuilder builder = new MapValueBuilder( size );
+        for ( Map.Entry<String,?> entry : map.entrySet() )
+        {
+            builder.add( entry.getKey(), ValueUtils.of( entry.getValue(), wrapEntities ) );
+        }
+        return builder.build();
     }
 
     public static MapValue asParameterMapValue( Map<String,Object> map )
     {
-        HashMap<String,AnyValue> newMap = new HashMap<>( map.size() );
+        int size = map.size();
+        if ( size == 0 )
+        {
+            return VirtualValues.EMPTY_MAP;
+        }
+
+        MapValueBuilder builder = new MapValueBuilder( size );
         for ( Map.Entry<String,Object> entry : map.entrySet() )
         {
             try
             {
-                newMap.put( entry.getKey(), ValueUtils.of( entry.getValue() ) );
+                builder.add( entry.getKey(), ValueUtils.of( entry.getValue(), true ) );
             }
             catch ( IllegalArgumentException e )
             {
-                newMap.put( entry.getKey(), VirtualValues.error( e ) );
+                builder.add( entry.getKey(), VirtualValues.error( e ) );
             }
         }
 
-        return map( newMap );
+        return builder.build();
     }
 
-    public static NodeValue fromNodeProxy( Node node )
+    public static VirtualNodeValue fromNodeEntity( Node node )
     {
-        return new NodeProxyWrappingNodeValue( node );
+        //sigh: negative ids are used as a mechanism for transferring "fake" entities from and to procedures.
+        //We use it ourselves in some internal procedures, see VirtualNodeHack, and it is also used extensively
+        //in apoc.
+        if ( node.getId() < 0 )
+        {
+            return wrapNodeEntity( node );
+        }
+        else
+        {
+            return VirtualValues.node( node.getId() );
+        }
     }
 
-    public static RelationshipValue fromRelationshipProxy( Relationship relationship )
+    //sigh: For procedures we must support "fake" entities from and to procedures.
+    //We use it ourselves in some internal procedures, see VirtualNodeHack, and it is also used extensively
+    // in apoc.
+    @Deprecated
+    public static VirtualNodeValue wrapNodeEntity( Node node )
     {
-        return new RelationshipProxyWrappingValue( relationship );
+        return new NodeEntityWrappingNodeValue( node );
     }
 
-    public static PathValue fromPath( Path path )
+    public static VirtualRelationshipValue fromRelationshipEntity( Relationship relationship )
+    {
+        //sigh: negative ids are used as a mechanism for transferring "fake" entities from and to procedures.
+        //We use it ourselves in some internal procedures, see VirtualNodeHack, and it is also used extensively
+        //in apoc.
+        if ( relationship.getId() < 0 )
+        {
+            return wrapRelationshipEntity( relationship );
+        }
+        else
+        {
+            return VirtualValues.relationship( relationship.getId() );
+        }
+    }
+
+    //sigh: For procedures we must support "fake" entities from and to procedures.
+    //We use it ourselves in some internal procedures, see VirtualNodeHack, and it is also used extensively
+    // in apoc.
+    @Deprecated
+    public static VirtualRelationshipValue wrapRelationshipEntity( Relationship relationship )
+    {
+        return RelationshipEntityWrappingValue.wrapLazy( relationship );
+    }
+
+    public static VirtualPathValue fromPath( Path path )
+    {
+        return VirtualValues.pathReference(
+                StreamSupport.stream(path.nodes().spliterator(), false )
+                             .map( ValueUtils::fromNodeEntity ).toArray( VirtualNodeValue[]::new ) ,
+                StreamSupport.stream(path.relationships().spliterator(), false )
+                             .map( ValueUtils::fromRelationshipEntity )
+                             .toArray( VirtualRelationshipValue[]::new )
+        );
+    }
+
+    //sigh: For procedures we must support "fake" entities from and to procedures.
+    //We use it ourselves in some internal procedures, see VirtualNodeHack, and it is also used extensively
+    // in apoc.
+    @Deprecated
+    public static VirtualPathValue wrapPath( Path path )
     {
         return new PathWrappingPathValue( path );
+    }
+
+    public static VirtualPathValue pathReferenceFromPath( Path path )
+    {
+        if ( path instanceof DefaultValueMapper.CoreAPIPath )
+        {
+            return ((DefaultValueMapper.CoreAPIPath) path).pathValue();
+        }
+        else
+        {
+            int len = path.length();
+            long[] nodes = new long[len + 1];
+            long[] rels = new long[len];
+            Iterator<Node> nodeIterator = path.nodes().iterator();
+            Iterator<Relationship> relIterator = path.relationships().iterator();
+            int i = 0;
+            for ( ; i < len; i++ )
+            {
+                nodes[i] = nodeIterator.next().getId();
+                rels[i] = relIterator.next().getId();
+            }
+            nodes[i] = nodeIterator.next().getId();
+            return VirtualValues.pathReference( nodes, rels );
+        }
     }
 
     /**
@@ -324,34 +471,40 @@ public final class ValueUtils
         return ValueUtils.of( value );
     }
 
-    public static NodeValue asNodeValue( Object object )
+    @CalledFromGeneratedCode
+    public static VirtualNodeValue asNodeValue( Object object )
     {
-        if ( object instanceof NodeValue )
+        if ( object instanceof VirtualNodeValue )
         {
-            return (NodeValue) object;
+            return (VirtualNodeValue) object;
         }
         if ( object instanceof Node )
         {
-            return fromNodeProxy( (Node) object );
+            return fromNodeEntity( (Node) object );
         }
         throw new IllegalArgumentException(
                 "Cannot produce a node from " + object.getClass().getName() );
     }
 
-    public static RelationshipValue asRelationshipValue( Object object )
+    @CalledFromGeneratedCode
+    public static VirtualRelationshipValue asRelationshipValue( Object object )
     {
-        if ( object instanceof RelationshipValue )
+        if ( object instanceof VirtualRelationshipValue )
         {
-            return (RelationshipValue) object;
+            return (VirtualRelationshipValue) object;
         }
-        if ( object instanceof Relationship )
+        else if ( object instanceof Relationship )
         {
-            return fromRelationshipProxy( (Relationship) object );
+            return fromRelationshipEntity( (Relationship) object );
         }
-        throw new IllegalArgumentException(
-                "Cannot produce a relationship from " + object.getClass().getName() );
+        else
+        {
+            throw new IllegalArgumentException(
+                    "Cannot produce a relationship from " + object.getClass().getName() );
+        }
     }
 
+    @CalledFromGeneratedCode
     public static LongValue asLongValue( Object object )
     {
         if ( object instanceof LongValue )
@@ -362,10 +515,20 @@ public final class ValueUtils
         {
             return Values.longValue( (long) object );
         }
+        if ( object instanceof IntValue )
+        {
+            return Values.longValue(((IntValue) object).longValue());
+        }
+        if ( object instanceof Integer )
+        {
+            return Values.longValue( (int) object );
+        }
+
         throw new IllegalArgumentException(
                 "Cannot produce a long from " + object.getClass().getName() );
     }
 
+    @CalledFromGeneratedCode
     public static DoubleValue asDoubleValue( Object object )
     {
         if ( object instanceof DoubleValue )
@@ -380,6 +543,7 @@ public final class ValueUtils
                 "Cannot produce a double from " + object.getClass().getName() );
     }
 
+    @CalledFromGeneratedCode
     public static BooleanValue asBooleanValue( Object object )
     {
         if ( object instanceof BooleanValue )
@@ -394,6 +558,7 @@ public final class ValueUtils
                 "Cannot produce a boolean from " + object.getClass().getName() );
     }
 
+    @CalledFromGeneratedCode
     public static TextValue asTextValue( Object object )
     {
         if ( object instanceof TextValue )
@@ -402,7 +567,7 @@ public final class ValueUtils
         }
         if ( object instanceof String )
         {
-            return Values.stringValue( (String) object );
+            return Values.utf8Value( (String) object );
         }
         throw new IllegalArgumentException(
                 "Cannot produce a string from " + object.getClass().getName() );

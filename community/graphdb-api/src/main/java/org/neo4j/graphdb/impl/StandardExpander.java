@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -45,6 +45,7 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
@@ -58,15 +59,15 @@ import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.ResourceIterable;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.traversal.BranchState;
-import org.neo4j.helpers.collection.ArrayIterator;
-import org.neo4j.helpers.collection.FilteringIterator;
-import org.neo4j.helpers.collection.MappingResourceIterator;
-import org.neo4j.helpers.collection.NestingResourceIterator;
+import org.neo4j.internal.helpers.collection.ArrayIterator;
+import org.neo4j.internal.helpers.collection.FilteringIterator;
+import org.neo4j.internal.helpers.collection.MappingResourceIterator;
+import org.neo4j.internal.helpers.collection.NestingResourceIterator;
 
 import static java.util.Arrays.asList;
 import static org.neo4j.graphdb.traversal.Paths.singleNodePath;
-import static org.neo4j.helpers.collection.Iterators.asResourceIterator;
-import static org.neo4j.helpers.collection.ResourceClosingIterator.newResourceIterator;
+import static org.neo4j.internal.helpers.collection.Iterators.asResourceIterator;
+import static org.neo4j.internal.helpers.collection.ResourceClosingIterator.newResourceIterator;
 
 public abstract class StandardExpander implements PathExpander
 {
@@ -107,16 +108,6 @@ public abstract class StandardExpander implements PathExpander
         public StandardExpansion<T> excluding( RelationshipType type )
         {
             return createNew( expander.remove( type ) );
-        }
-
-        public StandardExpansion<T> filterNodes( Predicate<? super Node> filter )
-        {
-            return createNew( expander.addNodeFilter( filter ) );
-        }
-
-        public StandardExpansion<T> filterRelationships( Predicate<? super Relationship> filter )
-        {
-            return createNew( expander.addRelationshipFilter( filter ) );
         }
 
         public T getSingle()
@@ -213,7 +204,7 @@ public abstract class StandardExpander implements PathExpander
         {
             final Node node = path.endNode();
 
-            return new MappingResourceIterator<Node, Relationship>( expander.doExpand( path, state ) )
+            return new MappingResourceIterator<>( expander.doExpand( path, state ) )
             {
                 @Override
                 protected Node map( Relationship rel )
@@ -239,9 +230,9 @@ public abstract class StandardExpander implements PathExpander
             if ( direction != Direction.BOTH )
             {
                 result.append( direction );
-                result.append( ":" );
+                result.append( ':' );
             }
-            result.append( "*" );
+            result.append( '*' );
         }
 
         @Override
@@ -379,10 +370,10 @@ public abstract class StandardExpander implements PathExpander
         {
             // FIXME: not really correct
             result.append( defaultExclusion );
-            result.append( "*" );
+            result.append( '*' );
             for ( Map.Entry<String, Exclusion> entry : exclusion.entrySet() )
             {
-                result.append( "," );
+                result.append( ',' );
                 result.append( entry.getValue() );
                 result.append( entry.getKey() );
             }
@@ -509,7 +500,7 @@ public abstract class StandardExpander implements PathExpander
         @Override
         void buildString( StringBuilder result )
         {
-            result.append( typesMap.toString() );
+            result.append( typesMap );
         }
 
         @Override
@@ -519,16 +510,16 @@ public abstract class StandardExpander implements PathExpander
             if ( directions.length == 1 )
             {
                 DirectionAndTypes direction = directions[0];
-                return asResourceIterator( node.getRelationships( direction.direction, direction.types ).iterator() );
+                return asResourceIterator( node.getRelationships( direction.direction, direction.types ) );
             }
             else
             {
-                return new NestingResourceIterator<Relationship, DirectionAndTypes>( new ArrayIterator<>( directions ) )
+                return new NestingResourceIterator<>( new ArrayIterator<>( directions ) )
                 {
                     @Override
                     protected ResourceIterator<Relationship> createNestedIterator( DirectionAndTypes item )
                     {
-                        return asResourceIterator( node.getRelationships( item.direction, item.types ).iterator() );
+                        return asResourceIterator( node.getRelationships( item.direction, item.types ) );
                     }
                 };
             }
@@ -598,7 +589,7 @@ public abstract class StandardExpander implements PathExpander
             result.append( "; filter:" );
             for ( Filter filter : filters )
             {
-                result.append( " " );
+                result.append( ' ' );
                 result.append( filter );
             }
         }
@@ -662,53 +653,6 @@ public abstract class StandardExpander implements PathExpander
         }
     }
 
-    private static final class WrappingExpander extends StandardExpander
-    {
-        private static final String IMMUTABLE = "Immutable Expander ";
-        private final PathExpander expander;
-
-        WrappingExpander( PathExpander expander )
-        {
-            this.expander = expander;
-        }
-
-        @Override
-        void buildString( StringBuilder result )
-        {
-            result.append( expander );
-        }
-
-        @Override
-        ResourceIterator<Relationship> doExpand( Path path, BranchState state )
-        {
-            return asResourceIterator( expander.expand( path, state ).iterator() );
-        }
-
-        @Override
-        public StandardExpander add( RelationshipType type, Direction direction )
-        {
-            throw new UnsupportedOperationException( IMMUTABLE + expander );
-        }
-
-        @Override
-        public StandardExpander remove( RelationshipType type )
-        {
-            throw new UnsupportedOperationException( IMMUTABLE + expander );
-        }
-
-        @Override
-        public StandardExpander reversed()
-        {
-            return reverse();
-        }
-
-        @Override
-        public StandardExpander reverse()
-        {
-            throw new UnsupportedOperationException( IMMUTABLE + expander );
-        }
-    }
-
     private abstract static class Filter
     {
         abstract boolean exclude( Path path );
@@ -758,28 +702,6 @@ public abstract class StandardExpander implements PathExpander
         }
     }
 
-    private static final class PathFilter extends Filter
-    {
-        private final Predicate<? super Path> predicate;
-
-        PathFilter( Predicate<? super Path> predicate )
-        {
-            this.predicate = predicate;
-        }
-
-        @Override
-        public String toString()
-        {
-            return predicate.toString();
-        }
-
-        @Override
-        boolean exclude( Path path )
-        {
-            return !predicate.test( path );
-        }
-    }
-
     public final StandardExpansion<Relationship> expand( Node node )
     {
         return new RelationshipExpansion( this, singleNodePath( node ), BranchState.NO_STATE );
@@ -801,7 +723,7 @@ public abstract class StandardExpander implements PathExpander
         return result;
     }
 
-    static boolean matchDirection( Direction dir, Node start, Relationship rel )
+    private static boolean matchDirection( Direction dir, Node start, Relationship rel )
     {
         switch ( dir )
         {
@@ -823,7 +745,7 @@ public abstract class StandardExpander implements PathExpander
     {
         StringBuilder result = new StringBuilder( "Expander[" );
         buildString( result );
-        result.append( "]" );
+        result.append( ']' );
         return result.toString();
     }
 
@@ -854,11 +776,6 @@ public abstract class StandardExpander implements PathExpander
         return new FilteringExpander( this, new RelationshipFilter( filter ) );
     }
 
-    static StandardExpander wrap( PathExpander expander )
-    {
-        return new WrappingExpander( expander );
-    }
-
     public static StandardExpander create( Direction direction )
     {
         return new AllExpander( direction );
@@ -869,15 +786,6 @@ public abstract class StandardExpander implements PathExpander
         Map<Direction, RelationshipType[]> types = new EnumMap<>( Direction.class );
         types.put( dir, new RelationshipType[]{type} );
         return new RegularExpander( types );
-    }
-
-    static StandardExpander create( RelationshipType type1, Direction dir1,
-                                    RelationshipType type2, Direction dir2 )
-    {
-        Map<Direction, Collection<RelationshipType>> tempMap = temporaryTypeMap();
-        tempMap.get( dir1 ).add( type1 );
-        tempMap.get( dir2 ).add( type2 );
-        return new RegularExpander( toTypeMap( tempMap ) );
     }
 
     private static Map<Direction, RelationshipType[]> toTypeMap(
@@ -894,7 +802,7 @@ public abstract class StandardExpander implements PathExpander
         {
             if ( !entry.getValue().isEmpty() )
             {
-                map.put( entry.getKey(), entry.getValue().toArray( new RelationshipType[entry.getValue().size()] ) );
+                map.put( entry.getKey(), entry.getValue().toArray( new RelationshipType[0] ) );
             }
         }
         return map;
@@ -916,7 +824,7 @@ public abstract class StandardExpander implements PathExpander
         Map<Direction, Collection<RelationshipType>> map = new EnumMap<>( Direction.class );
         for ( Direction direction : Direction.values() )
         {
-            ArrayList<RelationshipType> types = new ArrayList<>();
+            List<RelationshipType> types = new ArrayList<>();
             map.put( direction, types );
             RelationshipType[] existing = typeMap.get( direction );
             if ( existing != null )

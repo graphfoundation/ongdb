@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,16 +40,24 @@ package org.neo4j.kernel.impl.coreapi.schema;
 
 import org.neo4j.graphdb.schema.ConstraintDefinition;
 import org.neo4j.graphdb.schema.ConstraintType;
+import org.neo4j.internal.schema.ConstraintDescriptor;
 
 import static java.util.Objects.requireNonNull;
 
-abstract class PropertyConstraintDefinition implements ConstraintDefinition
+public abstract class PropertyConstraintDefinition implements ConstraintDefinition
 {
     protected final InternalSchemaActions actions;
+    protected ConstraintDescriptor constraint;
 
-    protected PropertyConstraintDefinition( InternalSchemaActions actions )
+    PropertyConstraintDefinition( InternalSchemaActions actions, ConstraintDescriptor constraint )
     {
         this.actions = requireNonNull( actions );
+        this.constraint = requireNonNull( constraint );
+    }
+
+    public ConstraintDescriptor getConstraintReference()
+    {
+        return constraint;
     }
 
     @Override
@@ -60,6 +68,19 @@ abstract class PropertyConstraintDefinition implements ConstraintDefinition
     {
         assertInUnterminatedTransaction();
         return getConstraintType().equals( type );
+    }
+
+    @Override
+    public String getName()
+    {
+        return constraint.getName();
+    }
+
+    @Override
+    public void drop()
+    {
+        assertInUnterminatedTransaction();
+        actions.dropConstraint( constraint );
     }
 
     @Override
