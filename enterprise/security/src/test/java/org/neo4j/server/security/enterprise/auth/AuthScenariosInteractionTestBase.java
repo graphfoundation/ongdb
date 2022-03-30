@@ -34,7 +34,7 @@
  */
 package org.neo4j.server.security.enterprise.auth;
 
-import org.apache.commons.io.Charsets;
+import org.apache.commons.codec.Charsets;
 import org.junit.Test;
 
 import java.io.BufferedReader;
