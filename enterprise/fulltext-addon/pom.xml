@@ -6,12 +6,12 @@
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>parent</artifactId>
-        <version>1.0.1-SNAPSHOT</version>
+        <version>1.0.2-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
 
     <artifactId>ongdb-fulltext-addon</artifactId>
-    <version>1.0.1-SNAPSHOT</version>
+    <version>1.0.2-SNAPSHOT</version>
 
     <name>ONgDB - Fulltext add-on</name>
     <description>Fulltext index addon for neo4j</description>

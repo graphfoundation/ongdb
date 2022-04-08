@@ -6,12 +6,12 @@
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>parent</artifactId>
-        <version>1.0.1-SNAPSHOT</version>
+        <version>1.0.2-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
 
     <artifactId>ongdb-deferred-locks</artifactId>
-    <version>1.0.1-SNAPSHOT</version>
+    <version>1.0.2-SNAPSHOT</version>
 
     <name>ONgDB - Deferred Locks</name>
     <description>Enterprise locks deferred to commit time</description>
