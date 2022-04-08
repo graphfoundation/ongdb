@@ -4,14 +4,14 @@
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>cypher-parent</artifactId>
-        <version>1.0.1-SNAPSHOT</version>
+        <version>1.0.2-SNAPSHOT</version>
         <relativePath>../</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>openCypher-frontend-1</artifactId>
     <packaging>jar</packaging>
-    <version>1.0.1-SNAPSHOT</version>
+    <version>1.0.2-SNAPSHOT</version>
     <name>openCypher - Frontend</name>
 
     <description>

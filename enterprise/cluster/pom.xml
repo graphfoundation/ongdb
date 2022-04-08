@@ -4,11 +4,11 @@
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>parent</artifactId>
-        <version>1.0.1-SNAPSHOT</version>
+        <version>1.0.2-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
     <artifactId>ongdb-cluster</artifactId>
-    <version>1.0.1-SNAPSHOT</version>
+    <version>1.0.2-SNAPSHOT</version>
 
     <name>ONgDB - Clustering Infrastructure</name>
     <description>Library implementing Paxos and Heartbeat components required for High Availability ONgDB</description>
