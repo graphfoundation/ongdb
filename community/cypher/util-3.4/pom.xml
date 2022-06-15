@@ -4,14 +4,14 @@
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>cypher-parent</artifactId>
-        <version>1.0.2-SNAPSHOT</version>
+        <version>1.0.3-SNAPSHOT</version>
         <relativePath>../</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>ongdb-geequel-util-3.4</artifactId>
     <packaging>jar</packaging>
-    <version>1.0.2-SNAPSHOT</version>
+    <version>1.0.3-SNAPSHOT</version>
     <name>ONgDB - Geequel Util 3.4</name>
 
     <description>Cypher utilities</description>
