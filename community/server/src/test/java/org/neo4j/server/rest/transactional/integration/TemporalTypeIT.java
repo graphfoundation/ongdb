@@ -38,7 +38,8 @@
  */
 package org.neo4j.server.rest.transactional.integration;
 
-import org.codehaus.jackson.JsonNode;
+import com.fasterxml.jackson.databind.JsonNode;
+
 import org.junit.Test;
 
 import org.neo4j.server.rest.AbstractRestFunctionalTestBase;

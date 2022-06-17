@@ -38,8 +38,9 @@
  */
 package org.neo4j.server.rest.security;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.sun.jersey.core.util.Base64;
-import org.codehaus.jackson.JsonNode;
+
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;

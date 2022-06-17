@@ -38,9 +38,9 @@
  */
 package org.neo4j.server.rest.transactional;
 
-import org.codehaus.jackson.JsonGenerator;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.map.SerializationConfig;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
@@ -105,7 +105,7 @@ public class Neo4jJsonCodec extends ObjectMapper
 
     public Neo4jJsonCodec()
     {
-        getSerializationConfig().without( SerializationConfig.Feature.FLUSH_AFTER_WRITE_VALUE );
+        getSerializationConfig().without( SerializationFeature.FLUSH_AFTER_WRITE_VALUE );
     }
 
     @Override

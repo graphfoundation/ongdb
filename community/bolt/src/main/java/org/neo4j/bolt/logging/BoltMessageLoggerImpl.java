@@ -38,9 +38,10 @@
  */
 package org.neo4j.bolt.logging;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.netty.channel.Channel;
 import io.netty.util.AttributeKey;
-import org.codehaus.jackson.map.ObjectMapper;
 
 import java.io.IOException;
 import java.net.InetAddress;

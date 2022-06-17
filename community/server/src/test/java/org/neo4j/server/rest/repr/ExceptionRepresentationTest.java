@@ -38,7 +38,8 @@
  */
 package org.neo4j.server.rest.repr;
 
-import org.codehaus.jackson.JsonNode;
+import com.fasterxml.jackson.databind.JsonNode;
+
 import org.junit.Test;
 
 import java.net.URI;

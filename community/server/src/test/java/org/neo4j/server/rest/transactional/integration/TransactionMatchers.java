@@ -38,7 +38,8 @@
  */
 package org.neo4j.server.rest.transactional.integration;
 
-import org.codehaus.jackson.JsonNode;
+import com.fasterxml.jackson.databind.JsonNode;
+
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
@@ -189,7 +190,7 @@ public class TransactionMatchers
                         assertTrue( meta.hasNext() );
                         JsonNode node = meta.next();
                         assertThat( node.get( "deleted" ).asBoolean(), equalTo( Boolean.TRUE ) );
-                        String type = node.get( "type" ).getTextValue();
+                        String type = node.get( "type" ).asText();
                         switch ( type )
                         {
                         case "node":
@@ -243,7 +244,7 @@ public class TransactionMatchers
                     assertTrue( "Expected the node to be a list (for a path)", node.isArray() );
                     for ( JsonNode inner : node )
                     {
-                        String type = inner.get( "type" ).getTextValue();
+                        String type = inner.get( "type" ).asText();
                         switch ( type )
                         {
                         case "node":
@@ -326,7 +327,7 @@ public class TransactionMatchers
                 JsonNode node = meta.next();
                 if ( !node.isNull() )
                 {
-                    String type = node.get( "type" ).getTextValue();
+                    String type = node.get( "type" ).asText();
                     if ( type.equals( element ) )
                     {
                         assertEquals( "Expected " + element + " to be at indexes " + Arrays.toString( indexes ) +

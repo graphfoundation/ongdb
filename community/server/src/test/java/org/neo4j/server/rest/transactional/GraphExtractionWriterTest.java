@@ -38,9 +38,10 @@
  */
 package org.neo4j.server.rest.transactional;
 
-import org.codehaus.jackson.JsonFactory;
-import org.codehaus.jackson.JsonGenerator;
-import org.codehaus.jackson.JsonNode;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.JsonNode;
+
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -267,10 +268,10 @@ public class GraphExtractionWriterTest
                                             String endNodeId, Property... properties )
     {
         JsonNode relationship = get( relationships, id );
-        assertEquals( "Relationship[" + id + "].labels", type, relationship.get( "type" ).getTextValue() );
+        assertEquals( "Relationship[" + id + "].labels", type, relationship.get( "type" ).asText() );
         assertEquals( "Relationship[" + id + "].startNode", startNodeId,
-                      relationship.get( "startNode" ).getTextValue() );
-        assertEquals( "Relationship[" + id + "].endNode", endNodeId, relationship.get( "endNode" ).getTextValue() );
+                      relationship.get( "startNode" ).asText() );
+        assertEquals( "Relationship[" + id + "].endNode", endNodeId, relationship.get( "endNode" ).asText() );
         JsonNode props = relationship.get( "properties" );
         assertEquals( "length( Relationship[" + id + "].properties )", properties.length, props.size() );
         for ( Property property : properties )
@@ -288,11 +289,11 @@ public class GraphExtractionWriterTest
         }
         else if ( expected instanceof String )
         {
-            assertEquals( message, expected, actual.getTextValue() );
+            assertEquals( message, expected, actual.asText() );
         }
         else if ( expected instanceof Number )
         {
-            assertEquals( message, expected, actual.getNumberValue() );
+            assertEquals( message, expected, actual.asInt() );
         }
         else
         {
@@ -306,7 +307,7 @@ public class GraphExtractionWriterTest
         List<String> actual = new ArrayList<>( jsonNode.size() );
         for ( JsonNode node : jsonNode )
         {
-            actual.add( node.getTextValue() );
+            actual.add( node.asText() );
         }
         assertEquals( what, expected, actual );
     }
@@ -315,7 +316,7 @@ public class GraphExtractionWriterTest
     {
         for ( JsonNode jsonNode : jsonNodes )
         {
-            if ( id.equals( jsonNode.get( "id" ).getTextValue() ) )
+            if ( id.equals( jsonNode.get( "id" ).asText() ) )
             {
                 return jsonNode;
             }

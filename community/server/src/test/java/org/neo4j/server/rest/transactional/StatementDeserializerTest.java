@@ -206,8 +206,8 @@ public class StatementDeserializerTest
                 new Neo4jError( Status.Request.InvalidFormat,
                         new DeserializationException( "Unable to deserialize request: Unexpected close marker ']': " +
                                 "expected '}' " +
-                                "(for OBJECT starting at [Source: TestInputStream; line: 1, column: 1])\n " +
-                                "at [Source: TestInputStream; line: 1, column: 4]" ) ) );
+                                "(for Object starting at [Source: (org.neo4j.server.rest.transactional.StatementDeserializerTest$1); line: 1, column: 2])\n" +
+                                " at [Source: (org.neo4j.server.rest.transactional.StatementDeserializerTest$1); line: 1, column: 4]" ) ) );
 
         assertYieldsErrors( "{ \"statements\" : \"ITS A STRING\" }",
                 new Neo4jError( Status.Request.InvalidFormat,
@@ -217,15 +217,17 @@ public class StatementDeserializerTest
 
         assertYieldsErrors( "{ \"statements\" : [ { \"statement\" : [\"dd\"] } ] }",
                 new Neo4jError( Status.Request.InvalidFormat,
-                        new DeserializationException( "Unable to deserialize request: Can not deserialize instance of" +
-                                " java.lang.String out of START_ARRAY token\n at [Source: TestInputStream; line: 1, " +
-                                "column: 22]" ) ) );
+                        new DeserializationException( "Unable to deserialize request: Cannot deserialize value of type" +
+                                " `java.lang.String` from Array value (token `JsonToken.START_ARRAY`)\n" +
+                                " at [Source: (org.neo4j.server.rest.transactional.StatementDeserializerTest$1); line: 1, " +
+                                "column: 36]" ) ) );
 
         assertYieldsErrors( "{ \"statements\" : [ { \"statement\" : \"stmt\", \"parameters\" : [\"AN ARRAY!!\"] } ] }",
                 new Neo4jError( Status.Request.InvalidFormat,
-                        new DeserializationException( "Unable to deserialize request: Can not deserialize instance of" +
-                                " java.util.LinkedHashMap out of START_ARRAY token\n at [Source: TestInputStream; " +
-                                "line: 1, column: 42]" ) ) );
+                        new DeserializationException( "Unable to deserialize request: Cannot deserialize value of type" +
+                                " `java.util.LinkedHashMap<java.lang.Object,java.lang.Object>` from Array value (token `JsonToken.START_ARRAY`)\n" +
+                                " at [Source: (org.neo4j.server.rest.transactional.StatementDeserializerTest$1); " +
+                                "line: 1, column: 59]" ) ) );
     }
 
     private void assertYieldsErrors( String json, Neo4jError... expectedErrors )

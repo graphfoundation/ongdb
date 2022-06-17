@@ -40,7 +40,7 @@ package org.neo4j.server.rest;
 
 import com.sun.jersey.api.client.ClientHandlerException;
 import com.sun.jersey.api.client.UniformInterfaceException;
-import org.codehaus.jackson.JsonNode;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.json.JSONException;
 import org.junit.Test;
 
@@ -768,7 +768,7 @@ public class BatchOperationIT extends AbstractRestFunctionalDocTestBase
             assertTrue( "Errors not an array", errors.isArray() );
             assertEquals( 1, errors.size() );
 
-            String errorCode = errors.get(0).get("code").getTextValue();
+            String errorCode = errors.get(0).get("code").asText();
             assertEquals( "Neo.ClientError.Statement.SemanticError", errorCode );
         } );
     }
