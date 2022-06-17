@@ -291,6 +291,7 @@ MIT License
   loose-envify
   mime-db
   mime-types
+  minimal-json
   minimist
   mkdirp
   ms

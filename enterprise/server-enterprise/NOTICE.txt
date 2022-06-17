@@ -121,6 +121,7 @@ GNU General Public License, version 2 with the Classpath Exception
   Java Servlet API
 
 MIT License
+  minimal-json
   scallop
   SLF4J API Module
   SLF4J NOP Binding

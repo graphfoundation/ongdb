@@ -34,6 +34,7 @@
  */
 package org.neo4j.causalclustering.discovery;
 
+import com.hazelcast.aggregation.Aggregator;
 import com.hazelcast.core.Client;
 import com.hazelcast.core.ClientService;
 import com.hazelcast.core.Cluster;
@@ -54,6 +55,7 @@ import com.hazelcast.core.MultiExecutionCallback;
 import com.hazelcast.core.MultiMap;
 import com.hazelcast.map.EntryProcessor;
 import com.hazelcast.map.MapInterceptor;
+import com.hazelcast.map.QueryCache;
 import com.hazelcast.map.listener.MapListener;
 import com.hazelcast.map.listener.MapPartitionLostListener;
 import com.hazelcast.mapreduce.JobTracker;
@@ -62,6 +64,7 @@ import com.hazelcast.mapreduce.aggregation.Supplier;
 import com.hazelcast.monitor.LocalExecutorStats;
 import com.hazelcast.monitor.LocalMapStats;
 import com.hazelcast.monitor.LocalMultiMapStats;
+import com.hazelcast.projection.Projection;
 import com.hazelcast.query.Predicate;
 import org.junit.Test;
 
@@ -656,6 +659,48 @@ public class HazelcastClientTest
         }
 
         @Override
+        public <R> R aggregate( Aggregator<Entry<Object,Object>,R> aggregator )
+        {
+            return null;
+        }
+
+        @Override
+        public <R> R aggregate( Aggregator<Entry<Object,Object>,R> aggregator, Predicate<Object,Object> predicate )
+        {
+            return null;
+        }
+
+        @Override
+        public <R> Collection<R> project( Projection<Entry<Object,Object>,R> projection )
+        {
+            return null;
+        }
+
+        @Override
+        public <R> Collection<R> project( Projection<Entry<Object,Object>,R> projection, Predicate<Object,Object> predicate )
+        {
+            return null;
+        }
+
+        @Override
+        public QueryCache<Object,Object> getQueryCache( String s )
+        {
+            return null;
+        }
+
+        @Override
+        public QueryCache<Object,Object> getQueryCache( String s, Predicate<Object,Object> predicate, boolean b )
+        {
+            return null;
+        }
+
+        @Override
+        public QueryCache<Object,Object> getQueryCache( String s, MapListener mapListener, Predicate<Object,Object> predicate, boolean b )
+        {
+            return null;
+        }
+
+        @Override
         public Object aggregate( Supplier supplier, Aggregation aggregation, JobTracker jobTracker )
         {
             return null;
@@ -695,6 +740,12 @@ public class HazelcastClientTest
         public boolean remove( Object key, Object value )
         {
             return delegate.remove( key, value );
+        }
+
+        @Override
+        public void removeAll( Predicate<Object,Object> predicate )
+        {
+
         }
 
         @Override
@@ -1067,6 +1118,12 @@ public class HazelcastClientTest
         public Collection<Object> remove( Object key )
         {
             return asSet( delegate.remove( key ) );
+        }
+
+        @Override
+        public void delete( Object o )
+        {
+
         }
 
         @Override

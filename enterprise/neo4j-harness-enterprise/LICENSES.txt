@@ -1109,6 +1109,7 @@ version.
 
 ------------------------------------------------------------------------------
 MIT License
+  minimal-json
   scallop
   SLF4J API Module
   SLF4J NOP Binding
