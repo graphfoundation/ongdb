@@ -224,7 +224,9 @@ public class CommunicationIT
             fail( "Shouldn't be able to communicate with different application protocol versions" );
         }
         catch ( IllegalProtocolVersionException e )
-        { /* Good */ }
+        {
+            /* Good */
+        }
     }
 
     @Test
@@ -243,7 +245,9 @@ public class CommunicationIT
             fail( "Shouldn't be able to communicate with different application protocol versions" );
         }
         catch ( IllegalProtocolVersionException e )
-        { /* Good */ }
+        {
+            /* Good */
+        }
 
         server.shutdown();
     }
@@ -261,7 +265,9 @@ public class CommunicationIT
             fail( "Shouldn't be able to communicate with different application protocol versions" );
         }
         catch ( IllegalProtocolVersionException e )
-        { /* Good */ }
+        {
+            /* Good */
+        }
     }
 
     @Test
@@ -279,7 +285,9 @@ public class CommunicationIT
             fail( "Shouldn't be able to communicate with different application protocol versions" );
         }
         catch ( IllegalProtocolVersionException e )
-        { /* Good */ }
+        {
+            /* Good */
+        }
 
         server.shutdown();
     }
