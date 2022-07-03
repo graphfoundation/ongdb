@@ -4,11 +4,11 @@
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>parent</artifactId>
-        <version>1.0.3-SNAPSHOT</version>
+        <version>1.0.4-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
     <artifactId>ongdb-consistency-check</artifactId>
-    <version>1.0.3-SNAPSHOT</version>
+    <version>1.0.4-SNAPSHOT</version>
 
     <name>ONgDB - Consistency Checker</name>
     <description>Tool for checking consistency of a ONgDB data store.</description>
