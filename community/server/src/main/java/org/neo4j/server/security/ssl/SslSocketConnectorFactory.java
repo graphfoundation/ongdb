@@ -55,7 +55,6 @@ import org.neo4j.server.web.HttpConnectorFactory;
 import org.neo4j.server.web.JettyThreadCalculator;
 import org.neo4j.ssl.SslPolicy;
 
-
 public class SslSocketConnectorFactory extends HttpConnectorFactory
 {
     private final Customizer requestCustomizer;
@@ -78,12 +77,12 @@ public class SslSocketConnectorFactory extends HttpConnectorFactory
             JettyThreadCalculator jettyThreadCalculator )
     {
         SslConnectionFactory sslConnectionFactory = createSslConnectionFactory( sslPolicy );
-        return super.createConnector( server, address, jettyThreadCalculator, sslConnectionFactory, createHttpConnectionFactory() );
+        return createConnector( server, address, jettyThreadCalculator, sslConnectionFactory, createHttpConnectionFactory() );
     }
 
     private SslConnectionFactory createSslConnectionFactory( SslPolicy sslPolicy )
     {
-        SslContextFactory sslContextFactory = new SslContextFactory();
+        SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
 
         String password = UUID.randomUUID().toString();
         sslContextFactory.setKeyStore( sslPolicy.getKeyStore( password.toCharArray(), password.toCharArray() ) );
@@ -93,7 +92,7 @@ public class SslSocketConnectorFactory extends HttpConnectorFactory
         List<String> ciphers = sslPolicy.getCipherSuites();
         if ( ciphers != null )
         {
-            sslContextFactory.setIncludeCipherSuites( ciphers.toArray( new String[ciphers.size()] ) );
+            sslContextFactory.setIncludeCipherSuites( ciphers.toArray( new String[0] ) );
             sslContextFactory.setExcludeCipherSuites();
         }
 
