@@ -38,8 +38,6 @@
  */
 package org.neo4j.udc;
 
-import java.util.function.Supplier;
-
 import org.neo4j.concurrent.DecayingFlags;
 import org.neo4j.concurrent.DecayingFlags.Key;
 import org.neo4j.concurrent.RecentK;
@@ -50,35 +48,45 @@ import static org.neo4j.udc.UsageDataKey.key;
 
 /**
  * Inventory of common keys. This list is not exhaustive, and all items listed may not be available.
- * Still, this serves as a useful starting point for what you can expect to find, and new items added are
- * encouraged to have their keys listed here.
+ * <p>
+ * Still, this serves as a useful starting point for what you can expect to find, and new items added are encouraged to have their keys listed here.
  */
 public class UsageDataKeys
 {
-    /** Edition of ONgDB running, eg 'community' or 'enterprise' */
-    public static final UsageDataKey<Edition> edition = key( "neo4j.edition", Edition.unknown );
+    /**
+     * Edition of ONgDB running, eg 'community' or 'enterprise'
+     */
+    public static final UsageDataKey<Edition> edition = key( "ongdb.edition", Edition.unknown );
 
-    /** Version of ONgDB running, eg. 1.2.3-RC1 */
+    /**
+     * Version of ONgDB running, eg. 1.2.3-RC1
+     */
     public static final UsageDataKey<String> version = key( "ongdb.version", "N/A" );
 
-    /** Revision of ONgDB running, a link back to source control revision ids. */
-    public static final UsageDataKey<String> revision = key( "neo4j.revision", "N/A" );
+    /**
+     * Revision of ONgDB running, a link back to source control revision ids.
+     */
+    public static final UsageDataKey<String> revision = key( "ongdb.revision", "N/A" );
 
-    /** Operational mode of the database */
-    public static final UsageDataKey<OperationalMode> operationalMode = key( "neo4j.opMode", OperationalMode.unknown );
+    /**
+     * Operational mode of the database
+     */
+    public static final UsageDataKey<OperationalMode> operationalMode = key( "ongdb.opMode", OperationalMode.unknown );
 
-    /** Self-reported names of clients connecting to us. */
-    public static final UsageDataKey<RecentK<String>> clientNames = key( "neo4j.clientNames",
-            (Supplier<RecentK<String>>) () -> new RecentK<>( 10 ) );
+    /**
+     * Self-reported names of clients connecting to us.
+     */
+    public static final UsageDataKey<RecentK<String>> clientNames = key( "ongdb.clientNames", () -> new RecentK<>( 10 ) );
 
-    /** Cluster server ID */
-    public static final UsageDataKey<String> serverId = key( "neo4j.serverId" );
+    /**
+     * Cluster server ID
+     */
+    public static final UsageDataKey<String> serverId = key( "ongdb.serverId" );
 
     public interface Features
     {
-        // Note: The indexes used here is how we track which feature a flag
-        //       refers to. Be very careful about re-using indexes so features
-        //       don't get confused.
+        // Note: The indexes used here is how we track which feature a flag refers to.
+        //       Be very careful about re-using indexes so features don't get confused.
         Key http_cypher_endpoint = new Key( 0 );
         Key http_tx_endpoint = new Key( 1 );
         Key http_batch_endpoint = new Key( 2 );
@@ -91,12 +99,9 @@ public class UsageDataKeys
     }
 
     /**
-     * Tracks features in use, including decay such that features that are not
-     * used for a while are marked as no longer in use.
-     *
-     * Decay is handled by an external mechanism invoking a 'sweep' method on this
-     * DecayingFlags instance. See usages of this field to find where that happens.
+     * Tracks features in use, including decay such that features that are not used for a while are marked as no longer in use.
+     * <p>
+     * Decay is handled by an external mechanism invoking a 'sweep' method on this DecayingFlags instance. See usages of this field to find where that happens.
      */
-    public static final UsageDataKey<DecayingFlags> features = key( "neo4j.features",
-            (Supplier<DecayingFlags>) () -> new DecayingFlags( 7/*days*/ ) );
+    public static final UsageDataKey<DecayingFlags> features = key( "ongdb.features", () -> new DecayingFlags( 7/*days*/ ) );
 }
