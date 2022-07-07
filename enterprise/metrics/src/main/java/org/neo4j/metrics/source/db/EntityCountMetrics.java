@@ -46,7 +46,7 @@ import static com.codahale.metrics.MetricRegistry.name;
 @Documented( ".Database Data Metrics" )
 public class EntityCountMetrics extends LifecycleAdapter
 {
-    private static final String COUNTS_PREFIX = "neo4j.ids_in_use";
+    private static final String COUNTS_PREFIX = "ongdb.ids_in_use";
 
     @Documented( "The total number of different relationship types stored in the database" )
     public static final String COUNTS_RELATIONSHIP_TYPE = name( COUNTS_PREFIX, "relationship_type" );

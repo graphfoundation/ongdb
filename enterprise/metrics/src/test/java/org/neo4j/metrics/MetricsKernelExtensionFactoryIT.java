@@ -121,7 +121,7 @@ public class MetricsKernelExtensionFactoryIT
         File metricsFile = metricsCsv( outputPath, TransactionMetrics.TX_COMMITTED );
 
         // WHEN
-        // We should at least have a "timestamp" column, and a "neo4j.transaction.committed" column
+        // We should at least have a "timestamp" column, and a "ongdb.transaction.committed" column
         long committedTransactions = readLongValueAndAssert( metricsFile,
                 ( newValue, currentValue ) -> newValue >= currentValue );
 
@@ -139,7 +139,7 @@ public class MetricsKernelExtensionFactoryIT
         File metricsFile = metricsCsv( outputPath, EntityCountMetrics.COUNTS_NODE );
 
         // WHEN
-        // We should at least have a "timestamp" column, and a "neo4j.transaction.committed" column
+        // We should at least have a "timestamp" column, and a "ongdb.transaction.committed" column
         long committedTransactions = readLongValueAndAssert( metricsFile,
                 ( newValue, currentValue ) -> newValue >= currentValue );
 
@@ -156,7 +156,7 @@ public class MetricsKernelExtensionFactoryIT
         File metricsFile = metricsCsv( outputPath, ClusterMetrics.IS_MASTER );
 
         // WHEN
-        // We should at least have a "timestamp" column, and a "neo4j.transaction.committed" column
+        // We should at least have a "timestamp" column, and a "ongdb.transaction.committed" column
         long committedTransactions = readLongValueAndAssert( metricsFile,
                 ( newValue, currentValue ) -> newValue >= currentValue );
 
