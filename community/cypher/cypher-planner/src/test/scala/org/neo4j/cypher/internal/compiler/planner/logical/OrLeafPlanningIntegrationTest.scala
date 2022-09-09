@@ -38,6 +38,7 @@
  */
 package org.neo4j.cypher.internal.compiler.planner.logical
 
+import org.neo4j.configuration.GraphDatabaseInternalSettings
 import org.neo4j.cypher.internal.ast.AstConstructionTestSupport
 import org.neo4j.cypher.internal.compiler.planner.LogicalPlanConstructionTestSupport
 import org.neo4j.cypher.internal.compiler.planner.LogicalPlanningIntegrationTestSupport
@@ -53,6 +54,8 @@ import org.neo4j.cypher.internal.logical.plans.Selection
 import org.neo4j.cypher.internal.logical.plans.Union
 import org.neo4j.cypher.internal.planner.spi.IndexOrderCapability
 import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.scalacheck.Gen
+import org.scalatest.prop.PropertyChecks
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -61,7 +64,8 @@ class OrLeafPlanningIntegrationTest
   extends CypherFunSuite
   with LogicalPlanningIntegrationTestSupport
   with AstConstructionTestSupport
-  with LogicalPlanConstructionTestSupport {
+  with LogicalPlanConstructionTestSupport
+  with PropertyChecks {
 
   private def plannerConfig(): StatisticsBackedLogicalPlanningConfigurationBuilder =
     plannerBuilder()
@@ -1294,7 +1298,7 @@ class OrLeafPlanningIntegrationTest
 
     val plan = runWithTimeout(1000)(cfg.plan(query))
 
-    plan.treeCount {
+    plan.folder.treeCount {
       case _: NodeIndexSeek => true
     } should be(90)
   }
@@ -1330,6 +1334,176 @@ class OrLeafPlanningIntegrationTest
         .nodeByIdSeek("n", Set(), 1)
         .build()
     ))
+  }
+
+  test("should be able to cope with disjunction of overlapping predicates") {
+    val planner = plannerBuilder()
+      .setAllNodesCardinality(0)
+      .setLabelCardinality("A", 0)
+      .enableMinimumGraphStatistics()
+      .addNodeIndex("A", Seq("prop2"), 0.1, 0.001)
+      .build()
+
+    // Note that prop1 is present on all parts of the conjunction.
+    // After the OrLeafPlanner has distributed the disjunction on prop1 and prop2, it calculates what the union of the two resulting plans solves.
+    // When doing this, the predicates solved are separated in those predicates which are solved by all (two) plans and those which are solved by just one plan.
+    // In this case, `a.prop1 != NULL` and `a.prop1 != NULL OR a.prop3 != NULL` are solved by both plans, whereas the plan given `a.prop2 != NULL` will also solve that.
+    // The OrLeafPlanner then tries to create a disjunction over the predicates that only one plan solves.
+    // This might go wrong because the prop1-plan will not contribute any predicate and therefore saying that the overall plan solves
+    // the disjunction of all individual plan's predicates (= Ors(`a.prop2 != NULL`)) is wrong.
+    val plan = planner.plan(
+      """MATCH (a:A)
+        |WHERE (
+        |  a.prop1 IS NOT NULL OR
+        |  a.prop2 IS NOT NULL
+        |)
+        |AND (
+        |  a.prop1 IS NOT NULL OR
+        |  a.prop3 IS NOT NULL
+        |)
+        |AND a.prop1 IS NOT NULL
+        |RETURN a""".stripMargin)
+
+    plan should (equal(
+      planner.planBuilder()
+        .produceResults("a")
+        .filter(
+          "a.prop2 IS NOT NULL OR cacheN[a.prop1] IS NOT NULL",
+          "a.prop3 IS NOT NULL OR cacheN[a.prop1] IS NOT NULL")
+        .distinct("a AS a")
+        .union()
+        .|.filter("cacheNFromStore[a.prop1] IS NOT NULL")
+        .|.nodeByLabelScan("a", "A")
+        .filter("cacheNFromStore[a.prop1] IS NOT NULL")
+        .nodeIndexOperator("a:A(prop2)")
+        .build()
+    ) or equal(
+      planner.planBuilder()
+        .produceResults("a")
+        .filter(
+          "a.prop2 IS NOT NULL OR cacheN[a.prop1] IS NOT NULL",
+          "a.prop3 IS NOT NULL OR cacheN[a.prop1] IS NOT NULL")
+        .distinct("a AS a")
+        .union()
+        .|.filter("cacheNFromStore[a.prop1] IS NOT NULL")
+        .|.nodeIndexOperator("a:A(prop2)")
+        .filter("cacheNFromStore[a.prop1] IS NOT NULL")
+        .nodeByLabelScan("a", "A")
+        .build()
+    ))
+  }
+
+  test("should be able to cope with any combination of disjunction of predicates") {
+    val planner = plannerBuilder()
+      .setAllNodesCardinality(0)
+      .setLabelCardinality("A", 0)
+      .enableMinimumGraphStatistics()
+      .build()
+
+    forAll (for {
+      size <- Gen.choose(2, 3)
+      disjunctions <- Gen.sequence[Seq[Set[Int]], Set[Int]](Seq.fill(size)(Gen.nonEmptyBuildableOf[Set[Int], Int](Gen.choose(1,3))))
+    } yield disjunctions) { (disjunctions: Seq[Set[Int]]) =>
+      val selections =
+        disjunctions.map(
+          _.map(operand => s"a.prop$operand IS NOT NULL").mkString("(", " AND ", ")")
+        ).mkString("WHERE ", " OR ", "")
+      val query =
+        s"""MATCH (a:A)
+           |$selections
+           |RETURN a""".stripMargin
+      withClue(query) {
+        planner.plan(query)
+      }
+    }
+  }
+
+  test("should plan index with fuzzy expression in ORs") {
+    val cfg = plannerBuilder()
+      .setAllNodesCardinality(100)
+      .setLabelCardinality("L", 50)
+      .addNodeIndex("L", Seq("a"), 0.5, 0.5)
+      .build()
+
+    val plan = cfg.plan(
+      """MATCH (n:L) WHERE n.a OR (((""=~"") AND NOT(true)) >= n.a)
+        |RETURN n
+        |""".stripMargin
+    )
+    atLeast(1, plan.leaves) should matchPattern {
+      case _: NodeIndexSeek =>
+    }
+  }
+
+  test("should plan index with nested property in ORs") {
+    val cfg = plannerBuilder()
+      .setAllNodesCardinality(100)
+      .setLabelCardinality("L", 50)
+      .addNodeIndex("L", Seq("a"), 0.5, 0.5)
+      .build()
+
+    val plan = cfg.plan(
+      """MATCH (x) WITH x SKIP 0
+        |MATCH (n:L) WHERE n.a OR (((""=~"") AND x.b > 5) >= n.a)
+        |RETURN n
+        |""".stripMargin
+    )
+    atLeast(1, plan.leaves) should matchPattern {
+      case _: NodeIndexSeek =>
+    }
+  }
+
+  test("should not plan a distinct union if the number of predicates on a single variable in a WHERE sub-clause is greater than `predicates_as_union_max_size`") {
+    val cfg = plannerConfig()
+      .withSetting(GraphDatabaseInternalSettings.predicates_as_union_max_size, java.lang.Integer.valueOf(1))
+      .build()
+
+    val plan = cfg.plan(
+      """MATCH (n)
+        |WHERE (n:L OR n:P)
+        |RETURN n""".stripMargin
+    )
+
+    val expectedPlan =
+      cfg.planBuilder()
+        .produceResults("n")
+        .filterExpression(hasAnyLabel("n", "L", "P"))
+        .allNodeScan("n")
+        .build()
+
+    plan shouldEqual expectedPlan
+  }
+
+  test("should not plan a distinct union if the size of the relationship type disjunction is greater than `predicates_as_union_max_size`") {
+    val cfg = plannerConfig()
+      .withSetting(GraphDatabaseInternalSettings.predicates_as_union_max_size, java.lang.Integer.valueOf(1))
+      .build()
+
+    val plan = cfg.plan(
+      """MATCH (a)-[r:REL1|REL2]-(b)
+        |RETURN r""".stripMargin
+    )
+
+    plan shouldEqual
+      cfg.planBuilder()
+        .produceResults("r")
+        .expandAll("(a)-[r:REL1|REL2]-(b)")
+        .allNodeScan("a")
+        .build()
+  }
+
+  test("should not crash on XOR predicates that might get rewritten to Ors with a single predicate") {
+    val cfg = plannerBuilder()
+      .setAllNodesCardinality(100)
+      .setLabelCardinality("L", 50)
+      .build()
+
+    noException should be thrownBy {
+      cfg.plan(
+        """MATCH (n:L) WHERE NOT(((NOT(toBoolean(true))) AND NOT(isEmpty(n.p))) XOR (isEmpty(n.p)))
+          |RETURN *
+          |""".stripMargin)
+    }
   }
 
   private def runWithTimeout[T](timeout: Long)(f: => T): T = {

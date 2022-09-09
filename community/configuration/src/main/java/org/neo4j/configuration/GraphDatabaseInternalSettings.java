@@ -38,8 +38,11 @@
  */
 package org.neo4j.configuration;
 
+import inet.ipaddr.IPAddressString;
+
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import java.util.Set;
 
 import org.neo4j.annotations.service.ServiceProvider;
@@ -57,12 +60,14 @@ import static org.neo4j.configuration.SettingConstraints.range;
 import static org.neo4j.configuration.SettingImpl.newBuilder;
 import static org.neo4j.configuration.SettingValueParsers.BOOL;
 import static org.neo4j.configuration.SettingValueParsers.BYTES;
+import static org.neo4j.configuration.SettingValueParsers.CIDR_IP;
 import static org.neo4j.configuration.SettingValueParsers.DOUBLE;
 import static org.neo4j.configuration.SettingValueParsers.DURATION;
 import static org.neo4j.configuration.SettingValueParsers.INT;
 import static org.neo4j.configuration.SettingValueParsers.LONG;
 import static org.neo4j.configuration.SettingValueParsers.PATH;
 import static org.neo4j.configuration.SettingValueParsers.STRING;
+import static org.neo4j.configuration.SettingValueParsers.listOf;
 import static org.neo4j.configuration.SettingValueParsers.ofEnum;
 import static org.neo4j.configuration.SettingValueParsers.setOf;
 import static org.neo4j.io.ByteUnit.kibiBytes;
@@ -71,6 +76,16 @@ import static org.neo4j.io.ByteUnit.mebiBytes;
 @ServiceProvider
 public class GraphDatabaseInternalSettings implements SettingsDeclaration
 {
+
+    //=========================================================================
+    // LOAD CSV and apoc.load.json input URI restrictions
+    //=========================================================================
+    @Internal
+    @Description( "A list of CIDR-notation IPv4 or IPv6 addresses to block when accessing URLs." +
+                  "This list is checked when LOAD CSV or apoc.load.json is called." )
+    public static final Setting<List<IPAddressString>> cypher_ip_blocklist =
+            newBuilder( "unsupported.dbms.cypher_ip_blocklist", listOf( CIDR_IP ), List.of() ).build();
+
     @Internal
     @Description( "Path of the databases directory" )
     public static final Setting<Path> databases_root_path =
@@ -325,6 +340,11 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration
     @Description( "Enable or disable the ability to alter databases." )
     public static final Setting<Boolean> block_alter_database =
             newBuilder( "unsupported.dbms.block_alter_database", BOOL, false ).build();
+
+    @Internal
+    @Description( "Enable or disable the ability to use remote aliases." )
+    public static final Setting<Boolean> block_remote_alias =
+            newBuilder( "unsupported.dbms.block_remote_alias", BOOL, false ).build();
 
     @Internal
     @Description( "Enable or disable the ability to execute the `dbms.upgrade` procedure." )
@@ -814,4 +834,14 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration
     @Internal
     @Description( "Enables sketching of next transaction log file in the background during reverse recovery." )
     public static final Setting<Boolean> pre_sketch_transaction_logs = newBuilder( "unsupported.dbms.tx_log.presketch", BOOL, false ).build();
+
+    @Internal
+    @Description( "Maximum size after which the planner will not attempt to plan the disjunction of predicates on a single variable as a distinct union." +
+              "For example, given the following pattern: `()-[e:FOO|BAR|BAZ]->()`, the planner will attempt to plan a union of `e:Foo`, `e:Bar`, and `e:Baz`" +
+              "unless `unsupported.cypher.predicates_as_union_max_size` is less than 3." )
+    public static final Setting<Integer> predicates_as_union_max_size =
+            newBuilder( "unsupported.cypher.predicates_as_union_max_size", INT, 255 )
+                    .addConstraint( min( 0 ) )
+                    .build();
+
 }

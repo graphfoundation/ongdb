@@ -181,17 +181,17 @@ class CypherPlannerTest extends CypherFunSuite {
     val statement = planner
       .parseAndPlan(preParserQuery, NO_TRACING, tc, MapValue.EMPTY, InterpretedRuntime)
       .logicalPlanState
-      .statement()
+      .statement
 
     val withAnons = statement
-      .findByClass[With]
-      .findAllByClass[Variable]
+      .folder.treeFindByClass[With].get
+      .folder.findAllByClass[Variable]
       .map(_.name)
       .map(NameDeduplicator.removeGeneratedNamesAndParams)
 
     val whereAnons = statement
-      .findByClass[Where]
-      .findAllByClass[Variable]
+      .folder.treeFindByClass[Where].get
+      .folder.findAllByClass[Variable]
       .map(_.name)
       .map(NameDeduplicator.removeGeneratedNamesAndParams)
 

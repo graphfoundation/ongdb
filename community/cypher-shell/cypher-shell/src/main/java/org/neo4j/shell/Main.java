@@ -39,6 +39,8 @@
 package org.neo4j.shell;
 
 import java.io.PrintStream;
+import java.util.logging.Level;
+import java.util.logging.LogManager;
 
 import org.neo4j.driver.exceptions.AuthenticationException;
 import org.neo4j.driver.exceptions.Neo4jException;
@@ -48,9 +50,7 @@ import org.neo4j.shell.cli.CliArgs;
 import org.neo4j.shell.cli.Format;
 import org.neo4j.shell.commands.CommandHelper;
 import org.neo4j.shell.exception.CommandException;
-import org.neo4j.shell.exception.NoMoreInputException;
 import org.neo4j.shell.exception.ThrowingAction;
-import org.neo4j.shell.exception.UserInterruptException;
 import org.neo4j.shell.log.AnsiFormattedText;
 import org.neo4j.shell.log.AnsiLogger;
 import org.neo4j.shell.log.Logger;
@@ -118,6 +118,8 @@ public class Main
         {
             System.exit( 1 );
         }
+
+        setupLogging();
 
         System.exit( new Main( cliArgs ).startShell() );
     }
@@ -252,13 +254,13 @@ public class Main
         if ( connectionConfig.username().isEmpty() )
         {
             String username = isOutputInteractive ?
-                    promptForNonEmptyText( "username", null ) :
-                    promptForText( "username", null );
+                    promptForNonEmptyText( "username", false ) :
+                    promptForText( "username", false );
             connectionConfig.setUsername( username );
         }
         if ( connectionConfig.password().isEmpty() )
         {
-            connectionConfig.setPassword( promptForText( "password", '*' ) );
+            connectionConfig.setPassword( promptForText( "password", true ) );
         }
     }
 
@@ -271,18 +273,18 @@ public class Main
         if ( connectionConfig.username().isEmpty() )
         {
             String username = isOutputInteractive ?
-                    promptForNonEmptyText( "username", null ) :
-                    promptForText( "username", null );
+                    promptForNonEmptyText( "username", false ) :
+                    promptForText( "username", false );
             connectionConfig.setUsername( username );
         }
         if ( connectionConfig.password().isEmpty() )
         {
-            connectionConfig.setPassword( promptForText( "password", '*' ) );
+            connectionConfig.setPassword( promptForText( "password", true ) );
         }
         String newPassword = isOutputInteractive ?
-                             promptForNonEmptyText( "new password", '*' ) :
-                             promptForText( "new password", '*' );
-        String reenteredNewPassword = promptForText( "confirm password", '*' );
+                             promptForNonEmptyText( "new password", true ) :
+                             promptForText( "new password", true );
+        String reenteredNewPassword = promptForText( "confirm password", true );
 
         if ( !reenteredNewPassword.equals( newPassword ) )
         {
@@ -300,27 +302,45 @@ public class Main
         return shell;
     }
 
-    private String promptForNonEmptyText( String prompt, Character mask ) throws Exception
+    private String promptForNonEmptyText( String prompt, boolean maskInput ) throws Exception
     {
-        String text = promptForText( prompt, mask );
-        if ( !text.isEmpty() )
+        String text = promptForText( prompt, maskInput );
+        while ( text.isEmpty() )
         {
-            return text;
+            text = promptForText( String.format("%s cannot be empty%n%n%s", prompt, prompt), maskInput );
         }
-        terminal.write().println( prompt + " cannot be empty" );
-        terminal.write().println();
-        return promptForNonEmptyText( prompt, mask );
+        return text;
     }
 
-    private String promptForText( String prompt, Character mask ) throws CommandException
+    private String promptForText( String prompt, boolean maskInput ) throws CommandException
+    {
+        String read;
+        try ( var simplePrompt = terminal.simplePrompt() )
+        {
+            final var promptWithColon = prompt + ": ";
+            read = maskInput ? simplePrompt.readPassword( promptWithColon ) : simplePrompt.readLine( promptWithColon );
+        }
+        catch ( Exception e )
+        {
+            throw new CommandException( "No text could be read, exiting..." );
+        }
+        if ( read == null )
+        {
+            throw new CommandException( "No text could be read, exiting..." );
+        }
+        return read;
+    }
+
+    private static void setupLogging()
     {
         try
         {
-            return terminal.read().simplePrompt( prompt + ": ", mask );
+            // Avoid jline spilling unwanted log statements into system err.
+            LogManager.getLogManager().getLogger( "" ).setLevel( Level.OFF );
         }
-        catch ( NoMoreInputException | UserInterruptException e )
+        catch ( Exception e )
         {
-            throw new CommandException( "No text could be read, exiting..." );
+            // Not much to do
         }
     }
 }

@@ -862,11 +862,32 @@ case class LogicalPlanProducer(cardinalityModel: CardinalityModel, planningAttri
     annotate(AssertSameNode(node, left, right), solved, providedOrders.get(left.id).fromLeft, context)
   }
 
-  def planOptional(inputPlan: LogicalPlan, ids: Set[String], context: LogicalPlanningContext): LogicalPlan = {
+  def planOptional(inputPlan: LogicalPlan, ids: Set[String], context: LogicalPlanningContext, optionalQG: QueryGraph): LogicalPlan = {
+    val patternNodes =
+      optionalQG
+        .patternNodes
+        .intersect(ids)
+        .toSeq
+
+    val patternRelationships =
+      optionalQG
+        .patternRelationships
+        .filter(rel => ids(rel.name))
+        .toSeq
+
+    val optionalMatchQG =
+      solveds
+        .get(inputPlan.id)
+        .asSinglePlannerQuery
+        .queryGraph
+        .addPatternNodes(patternNodes: _*)
+        .addPatternRelationships(patternRelationships)
+
     val solved = RegularSinglePlannerQuery(queryGraph = QueryGraph.empty
-      .withAddedOptionalMatch(solveds.get(inputPlan.id).asSinglePlannerQuery.queryGraph)
+      .withAddedOptionalMatch(optionalMatchQG)
       .withArgumentIds(ids)
     )
+
     annotate(Optional(inputPlan, ids), solved, providedOrders.get(inputPlan.id).fromLeft, context)
   }
 
@@ -1675,6 +1696,18 @@ case class LogicalPlanProducer(cardinalityModel: CardinalityModel, planningAttri
     produceResult
   }
 
+  def addMissingStandaloneArgumentPatternNodes(plan: LogicalPlan, query: SinglePlannerQuery, context: LogicalPlanningContext): LogicalPlan = {
+    val solved = solveds.get(plan.id).asSinglePlannerQuery
+    val missingNodes = query.queryGraph.standaloneArgumentPatternNodes diff solved.queryGraph.patternNodes
+    if (missingNodes.isEmpty) {
+      plan
+    } else {
+      val newSolved = solved.amendQueryGraph(_.addPatternNodes(missingNodes.toSeq: _*))
+      val providedOrder = providedOrders.get(plan.id)
+      annotate(plan.copyPlanWithIdGen(idGen), newSolved, providedOrder, context)
+    }
+  }
+
   /**
    * Updates may make the current provided order invalid since the order may depend on something that gets mutated.
    * If this is the case, this method returns an empty provided order, otherwise it forwards the provided order from the left.
@@ -1726,7 +1759,7 @@ case class LogicalPlanProducer(cardinalityModel: CardinalityModel, planningAttri
   }
 
   private def invalidatesProvidedOrderRecursive(plan: LogicalPlan, executionModel: ExecutionModel): Boolean =
-    plan.treeExists { case plan: LogicalPlan if invalidatesProvidedOrder(plan, executionModel) => true}
+    plan.folder.treeExists { case plan: LogicalPlan if invalidatesProvidedOrder(plan, executionModel) => true}
 
   /**
    * Compute cardinality for a plan. Set this cardinality in the Cardinalities attribute.
@@ -1748,7 +1781,7 @@ case class LogicalPlanProducer(cardinalityModel: CardinalityModel, planningAttri
    * There probably exists some type level way of achieving this with type safety instead of manually searching through the expression tree like this
    */
   private def assertNoBadExpressionsExists(root: Any): Unit = {
-    checkOnlyWhenAssertionsAreEnabled(!new FoldableAny(root).treeExists {
+    checkOnlyWhenAssertionsAreEnabled(!root.folder.treeExists {
       case _: PatternComprehension | _: MapProjection =>
         throw new InternalException(s"This expression should not be added to a logical plan:\n$root")
       case _ =>

@@ -86,7 +86,7 @@ case class patternExpressionRewriter(planArguments: Set[String], context: Logica
   }
 
   private def computeReplacements(scopeMap: IdentityMap[Expression, Set[String]], that: AnyRef): IdentityMap[AnyRef, AnyRef] = {
-    that.treeFold(IdentityMap.empty[AnyRef, AnyRef]) {
+    that.folder.treeFold(IdentityMap.empty[AnyRef, AnyRef]) {
 
       case expr@Exists(pattern@PatternExpression(_: RelationshipsPattern)) =>
         acc =>
@@ -151,7 +151,7 @@ case class patternExpressionRewriter(planArguments: Set[String], context: Logica
     val rewriter = Rewriter.lift {
       case that => replacements.getOrElse(that, that)
     }
-    topDown(rewriter, _.isInstanceOf[NestedPlanExpression])
+    topDown(rewriter, _.isInstanceOf[NestedPlanExpression], context.cancellationChecker)
   }
 
   case class ERROR(msg: String)

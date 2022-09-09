@@ -44,6 +44,7 @@ import org.neo4j.cypher.internal.ast.ActionResource
 import org.neo4j.cypher.internal.ast.AdministrationAction
 import org.neo4j.cypher.internal.ast.AdministrationCommand
 import org.neo4j.cypher.internal.ast.AliasedReturnItem
+import org.neo4j.cypher.internal.ast.AllAliasManagementActions
 import org.neo4j.cypher.internal.ast.AllConstraintActions
 import org.neo4j.cypher.internal.ast.AllConstraints
 import org.neo4j.cypher.internal.ast.AllDatabaseAction
@@ -64,9 +65,11 @@ import org.neo4j.cypher.internal.ast.AllRoleActions
 import org.neo4j.cypher.internal.ast.AllTokenActions
 import org.neo4j.cypher.internal.ast.AllTransactionActions
 import org.neo4j.cypher.internal.ast.AllUserActions
+import org.neo4j.cypher.internal.ast.AlterAliasAction
 import org.neo4j.cypher.internal.ast.AlterDatabase
 import org.neo4j.cypher.internal.ast.AlterDatabaseAction
-import org.neo4j.cypher.internal.ast.AlterDatabaseAlias
+import org.neo4j.cypher.internal.ast.AlterLocalDatabaseAlias
+import org.neo4j.cypher.internal.ast.AlterRemoteDatabaseAlias
 import org.neo4j.cypher.internal.ast.AlterUser
 import org.neo4j.cypher.internal.ast.AlterUserAction
 import org.neo4j.cypher.internal.ast.AscSortItem
@@ -79,7 +82,7 @@ import org.neo4j.cypher.internal.ast.ConstraintVersion0
 import org.neo4j.cypher.internal.ast.ConstraintVersion1
 import org.neo4j.cypher.internal.ast.ConstraintVersion2
 import org.neo4j.cypher.internal.ast.Create
-import org.neo4j.cypher.internal.ast.CreateDatabaseAlias
+import org.neo4j.cypher.internal.ast.CreateAliasAction
 import org.neo4j.cypher.internal.ast.CreateBtreeNodeIndex
 import org.neo4j.cypher.internal.ast.CreateBtreeRelationshipIndex
 import org.neo4j.cypher.internal.ast.CreateConstraintAction
@@ -91,6 +94,7 @@ import org.neo4j.cypher.internal.ast.CreateFulltextRelationshipIndex
 import org.neo4j.cypher.internal.ast.CreateIndex
 import org.neo4j.cypher.internal.ast.CreateIndexAction
 import org.neo4j.cypher.internal.ast.CreateIndexOldSyntax
+import org.neo4j.cypher.internal.ast.CreateLocalDatabaseAlias
 import org.neo4j.cypher.internal.ast.CreateLookupIndex
 import org.neo4j.cypher.internal.ast.CreateNodeLabelAction
 import org.neo4j.cypher.internal.ast.CreatePointNodeIndex
@@ -99,6 +103,7 @@ import org.neo4j.cypher.internal.ast.CreatePropertyKeyAction
 import org.neo4j.cypher.internal.ast.CreateRangeNodeIndex
 import org.neo4j.cypher.internal.ast.CreateRangeRelationshipIndex
 import org.neo4j.cypher.internal.ast.CreateRelationshipTypeAction
+import org.neo4j.cypher.internal.ast.CreateRemoteDatabaseAlias
 import org.neo4j.cypher.internal.ast.CreateRole
 import org.neo4j.cypher.internal.ast.CreateRoleAction
 import org.neo4j.cypher.internal.ast.CreateTextNodeIndex
@@ -120,12 +125,13 @@ import org.neo4j.cypher.internal.ast.DenyPrivilege
 import org.neo4j.cypher.internal.ast.DeprecatedSyntax
 import org.neo4j.cypher.internal.ast.DescSortItem
 import org.neo4j.cypher.internal.ast.DestroyData
-import org.neo4j.cypher.internal.ast.DropDatabaseAlias
+import org.neo4j.cypher.internal.ast.DropAliasAction
 import org.neo4j.cypher.internal.ast.DropConstraintAction
 import org.neo4j.cypher.internal.ast.DropConstraintOnName
 import org.neo4j.cypher.internal.ast.DropDatabase
 import org.neo4j.cypher.internal.ast.DropDatabaseAction
 import org.neo4j.cypher.internal.ast.DropDatabaseAdditionalAction
+import org.neo4j.cypher.internal.ast.DropDatabaseAlias
 import org.neo4j.cypher.internal.ast.DropIndex
 import org.neo4j.cypher.internal.ast.DropIndexAction
 import org.neo4j.cypher.internal.ast.DropIndexOnName
@@ -234,6 +240,8 @@ import org.neo4j.cypher.internal.ast.SetPropertyAction
 import org.neo4j.cypher.internal.ast.SetPropertyItem
 import org.neo4j.cypher.internal.ast.SetUserHomeDatabaseAction
 import org.neo4j.cypher.internal.ast.SetUserStatusAction
+import org.neo4j.cypher.internal.ast.ShowAliasAction
+import org.neo4j.cypher.internal.ast.ShowAliases
 import org.neo4j.cypher.internal.ast.ShowConstraintAction
 import org.neo4j.cypher.internal.ast.ShowConstraintType
 import org.neo4j.cypher.internal.ast.ShowConstraintsClause
@@ -1038,8 +1046,11 @@ class Neo4jASTFactory(query: String, anonymousVariableNameGenerator: AnonymousVa
 
   override def existsSubQuery(p: InputPosition,
                               patterns: util.List[PatternPart],
-                              where: Expression): Expression =
-    ExistsSubClause(Pattern(patterns.asScala.toList)(p), Option(where))(p, Set.empty)
+                              where: Expression): Expression = {
+    val patternParts = patterns.asScala.toList
+    val patternPos = patternParts.head.position
+    ExistsSubClause(Pattern(patternParts)(patternPos), Option(where))(p, Set.empty)
+  }
 
   override def mapProjection(p: InputPosition,
                              v: Variable,
@@ -1523,6 +1534,11 @@ class Neo4jASTFactory(query: String, anonymousVariableNameGenerator: AnonymousVa
     case ActionType.DATABASE_DROP => DropDatabaseAction
     case ActionType.DATABASE_ALTER => AlterDatabaseAction
     case ActionType.SET_DATABASE_ACCESS => SetDatabaseAccessAction
+    case ActionType.ALIAS_MANAGEMENT => AllAliasManagementActions
+    case ActionType.ALIAS_CREATE => CreateAliasAction
+    case ActionType.ALIAS_DROP => DropAliasAction
+    case ActionType.ALIAS_ALTER => AlterAliasAction
+    case ActionType.ALIAS_SHOW => ShowAliasAction
     case ActionType.PRIVILEGE_ALL => AllPrivilegeActions
     case ActionType.PRIVILEGE_ASSIGN => AssignPrivilegeAction
     case ActionType.PRIVILEGE_REMOVE => RemovePrivilegeAction
@@ -1650,7 +1666,7 @@ class Neo4jASTFactory(query: String, anonymousVariableNameGenerator: AnonymousVa
     if (yieldExpr != null) {
       ShowDatabase(scope, Some(Left((yieldExpr, Option(returnWithoutGraph)))))(p)
     } else {
-      ShowDatabase(scope, Option(where).map(e => Right(where)))(p)
+      ShowDatabase(scope, Option(where).map(_ => Right(where)))(p)
     }
   }
 
@@ -1690,24 +1706,77 @@ class Neo4jASTFactory(query: String, anonymousVariableNameGenerator: AnonymousVa
 
   // Database commands
 
-  override def createDatabaseAlias(p: InputPosition,
-                           replace: Boolean,
-                           aliasName: SimpleEither[String, Parameter],
-                           targetName: SimpleEither[String, Parameter],
-                           ifNotExists: Boolean): CreateDatabaseAlias = {
-    CreateDatabaseAlias(aliasName.asScala, targetName.asScala, ifExistsDo(replace, ifNotExists))(p)
+  override def createLocalDatabaseAlias(p: InputPosition,
+                                   replace: Boolean,
+                                   aliasName: SimpleEither[String, Parameter],
+                                   targetName: SimpleEither[String, Parameter],
+                                   ifNotExists: Boolean): CreateLocalDatabaseAlias = {
+    CreateLocalDatabaseAlias(
+      aliasName.asScala,
+      targetName.asScala,
+      ifExistsDo(replace, ifNotExists)
+    )(p)
   }
 
-  override def alterDatabaseAlias(p: InputPosition,
-                                  aliasName: SimpleEither[String, Parameter],
-                                  targetName: SimpleEither[String, Parameter],
-                                  ifExists: Boolean): AlterDatabaseAlias = {
-    AlterDatabaseAlias(aliasName.asScala, targetName.asScala, ifExists)(p)
+  override def createRemoteDatabaseAlias(p: InputPosition,
+                                        replace: Boolean,
+                                        aliasName: SimpleEither[String, Parameter],
+                                        targetName: SimpleEither[String, Parameter],
+                                        ifNotExists: Boolean,
+                                        url: SimpleEither[String, Parameter],
+                                        username: SimpleEither[String, Parameter],
+                                        password: Expression,
+                                        driverSettings: SimpleEither[util.Map[String, Expression], Parameter]): CreateRemoteDatabaseAlias = {
+    CreateRemoteDatabaseAlias(
+      aliasName.asScala,
+      targetName.asScala,
+      ifExistsDo(replace, ifNotExists),
+      url.asScala,
+      username.asScala,
+      password,
+      Option(driverSettings).map(asDriverSettingsAst)
+    )(p)
+  }
+
+  override def alterLocalDatabaseAlias(p: InputPosition,
+                                       aliasName: SimpleEither[String, Parameter],
+                                       targetName: SimpleEither[String, Parameter],
+                                       ifExists: Boolean): AlterLocalDatabaseAlias = {
+    AlterLocalDatabaseAlias(
+      aliasName.asScala,
+      targetName.asScala,
+      ifExists,
+    )(p)
+  }
+
+  override def alterRemoteDatabaseAlias(p: InputPosition,
+                                        aliasName: SimpleEither[String, Parameter],
+                                        targetName: SimpleEither[String, Parameter],
+                                        ifExists: Boolean,
+                                        url: SimpleEither[String, Parameter],
+                                        username: SimpleEither[String, Parameter],
+                                        password: Expression,
+                                        driverSettings: SimpleEither[util.Map[String, Expression], Parameter]): AlterRemoteDatabaseAlias = {
+    AlterRemoteDatabaseAlias(
+      aliasName.asScala,
+      Option(targetName).map(_.asScala),
+      ifExists,
+      Option(url).map(_.asScala),
+      Option(username).map(_.asScala),
+      Option(password),
+      Option(driverSettings).map(asDriverSettingsAst)
+    )(p)
   }
 
   override def dropAlias(p: InputPosition, aliasName: SimpleEither[String, Parameter], ifExists: Boolean): DropDatabaseAlias = {
     DropDatabaseAlias(aliasName.asScala, ifExists)(p)
   }
+
+  override def showAliases(p: InputPosition,
+                         yieldExpr: Yield,
+                         returnWithoutGraph: Return,
+                         where: Where): ShowAliases =
+    ShowAliases(yieldOrWhere(yieldExpr, returnWithoutGraph, where))(p)
 
   private def ifExistsDo(replace: Boolean, ifNotExists: Boolean): IfExistsDo = {
     (replace, ifNotExists) match {
@@ -1737,6 +1806,12 @@ class Neo4jASTFactory(query: String, anonymousVariableNameGenerator: AnonymousVa
       case Some(Left(map)) => OptionsMap(mapAsScalaMap(map).toMap)
       case Some(Right(param)) => OptionsParam(param)
       case None => NoOptions
+    }
+
+  private def asDriverSettingsAst(driverSettings: SimpleEither[util.Map[String, Expression], Parameter]): Either[Map[String, Expression], Parameter] =
+    driverSettings.asScala match {
+      case Left(map) => Left(mapAsScalaMap(map).toMap)
+      case Right(param) => Right(param)
     }
 
   private def pretty[T <: AnyRef](ts: util.List[T]): String = {

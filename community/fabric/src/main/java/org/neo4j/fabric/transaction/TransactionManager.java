@@ -50,6 +50,7 @@ import org.neo4j.configuration.Config;
 import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.fabric.bookmark.TransactionBookmarkManager;
 import org.neo4j.fabric.config.FabricConfig;
+import org.neo4j.fabric.eval.CatalogManager;
 import org.neo4j.fabric.executor.FabricLocalExecutor;
 import org.neo4j.fabric.executor.FabricRemoteExecutor;
 import org.neo4j.graphdb.DatabaseShutdownException;
@@ -57,6 +58,7 @@ import org.neo4j.internal.kernel.api.security.AbstractSecurityLog;
 import org.neo4j.internal.kernel.api.security.LoginContext;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.availability.AvailabilityGuard;
+import org.neo4j.kernel.database.DatabaseReference;
 import org.neo4j.kernel.impl.coreapi.InternalTransaction;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 
@@ -76,17 +78,16 @@ public class TransactionManager extends LifecycleAdapter
     private final Set<FabricTransactionImpl> openTransactions = ConcurrentHashMap.newKeySet();
     private final long awaitActiveTransactionDeadlineMillis;
     private final AvailabilityGuard availabilityGuard;
+    private final CatalogManager catalogManager;
 
     public TransactionManager( FabricRemoteExecutor remoteExecutor,
             FabricLocalExecutor localExecutor,
-            ErrorReporter errorReporter,
-            FabricConfig fabricConfig,
-            FabricTransactionMonitor transactionMonitor,
-            AbstractSecurityLog securityLog,
-            Clock clock, Config config, AvailabilityGuard availabilityGuard )
+            CatalogManager CatalogManager, FabricConfig fabricConfig, FabricTransactionMonitor transactionMonitor, AbstractSecurityLog securityLog,
+            Clock clock, Config config, AvailabilityGuard availabilityGuard, ErrorReporter errorReporter )
     {
         this.remoteExecutor = remoteExecutor;
         this.localExecutor = localExecutor;
+        this.catalogManager = CatalogManager;
         this.errorReporter = errorReporter;
         this.fabricConfig = fabricConfig;
         this.transactionMonitor = transactionMonitor;
@@ -102,15 +103,23 @@ public class TransactionManager extends LifecycleAdapter
         {
             throw new DatabaseShutdownException();
         }
-        transactionInfo.getLoginContext().authorize( LoginContext.IdLookup.EMPTY, transactionInfo.getSessionDatabaseId().name(), securityLog );
+
+        var sessionDb = transactionInfo.getSessionDatabaseReference();
+        var databaseNameToAuthorizeFor = sessionDb instanceof DatabaseReference.Internal ?
+                                         ((DatabaseReference.Internal) sessionDb).databaseId().name() :
+                                         sessionDb.alias().name();
+
+        transactionInfo.getLoginContext()
+                       .authorize( LoginContext.IdLookup.EMPTY, databaseNameToAuthorizeFor, securityLog );
 
         FabricTransactionImpl fabricTransaction = new FabricTransactionImpl( transactionInfo,
-                transactionBookmarkManager,
-                remoteExecutor,
-                localExecutor,
-                errorReporter,
-                this,
-                fabricConfig );
+                                                                             transactionBookmarkManager,
+                                                                             remoteExecutor,
+                                                                             localExecutor,
+                                                                             errorReporter,
+                                                                             this,
+                                                                             fabricConfig,
+                                                                             catalogManager.currentCatalog() );
 
         openTransactions.add( fabricTransaction );
         transactionMonitor.startMonitoringTransaction( fabricTransaction, transactionInfo );

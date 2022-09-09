@@ -76,7 +76,7 @@ object ASTRewriter {
     moveWithPastMatch,
     normalizeComparisons,
     foldConstants,
-    mergeDuplicateBooleanOperators,
+    mergeDuplicateBooleanOperators(),
     normalizeExistsPatternExpressions,
     nameAllPatternElements,
     normalizeMatchPredicates,

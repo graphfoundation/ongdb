@@ -85,7 +85,7 @@ case object applyOptional extends OptionalSolver {
     val innerContext: LogicalPlanningContext = context.withFusedLabelInfo(enclosingQg.selections.labelInfo)
     val inner = context.strategy.plan(optionalQg, interestingOrderConfig, innerContext)
     (lhs: LogicalPlan) => inner.allResults.map { inner =>
-      val rhs = context.logicalPlanProducer.planOptional(inner, lhs.availableSymbols, innerContext)
+      val rhs = context.logicalPlanProducer.planOptional(inner, lhs.availableSymbols, innerContext, optionalQg)
       val applied = context.logicalPlanProducer.planApply(lhs, rhs, context)
 
       // Often the Apply can be rewritten into an OptionalExpand. We want to do that before cost estimating against the hash joins, otherwise that
@@ -102,7 +102,14 @@ case object outerHashJoin extends OptionalSolver {
                      context: LogicalPlanningContext): OptionalSolver.Solver = {
     val joinNodes = optionalQg.argumentIds
 
-    if (joinNodes.nonEmpty && joinNodes.forall(optionalQg.patternNodes)) {
+    // It is not allowed to plan a join on the RHS of an Apply if any of the nodes we are joining on comes from the LHS of the Apply.
+    // The easiest way to ensure that this doesn't happen is to check that we are in the "first part" of a query (i.e. not planning a tail).
+    // We can check this with "context.outerPlan.isEmpty".
+    if (
+      joinNodes.intersect(enclosingQg.argumentIds).isEmpty && joinNodes.nonEmpty && joinNodes.forall(
+        optionalQg.patternNodes
+      )
+    ) {
       val solvedHints = optionalQg.joinHints.filter { hint =>
         val hintVariables = hint.variables.map(_.name).toSet
         hintVariables.subsetOf(joinNodes)

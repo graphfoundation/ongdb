@@ -64,7 +64,7 @@ import static org.neo4j.scheduler.JobMonitoringParams.systemJob;
  */
 public class HttpTransactionManager
 {
-    private final TransactionHandleRegistry transactionRegistry;
+    private final TransactionRegistry transactionRegistry;
     private final DatabaseManagementService managementService;
     private final JobScheduler jobScheduler;
     private final TransactionManager transactionManager;
@@ -114,7 +114,7 @@ public class HttpTransactionManager
         return database;
     }
 
-    public TransactionHandleRegistry getTransactionHandleRegistry()
+    public TransactionRegistry getTransactionRegistry()
     {
         return transactionRegistry;
     }
@@ -127,6 +127,17 @@ public class HttpTransactionManager
         return new TransactionFacade( databaseName,
                 dependencyResolver.resolveDependency( QueryExecutionEngine.class ), transactionRegistry,
                                       transactionManager, userLogProvider, boltSPI, authManager, readByDefault );
+    }
+
+    public TransactionFacade createTransactionFacade( GraphDatabaseAPI databaseAPI, MemoryTracker memoryTracker, String databaseName,
+                                                      boolean isReadOnlyTransaction )
+    {
+        var dependencyResolver = databaseAPI.getDependencyResolver();
+
+        memoryTracker.allocateHeap( TransactionFacade.SHALLOW_SIZE );
+        return new TransactionFacade( databaseName,
+                                      dependencyResolver.resolveDependency( QueryExecutionEngine.class ), transactionRegistry,
+                                      transactionManager, userLogProvider, boltSPI, authManager, isReadOnlyTransaction );
     }
 
     private void scheduleTransactionTimeout( Duration timeout )

@@ -510,7 +510,7 @@ abstract class IndexWithProvidedOrderPlanningIntegrationTest(queryGraphSolverSet
 
       val so = sortOrder("m.prop")
       withClue(plan._2) {
-        plan._2.treeCount {
+        plan._2.folder.treeCount {
           case Sort(_, Seq(`so`)) => true
         } shouldBe 1
       }
@@ -528,7 +528,7 @@ abstract class IndexWithProvidedOrderPlanningIntegrationTest(queryGraphSolverSet
 
       val so = sortOrder("m.prop")
       withClue(plan._2) {
-        plan._2.treeCount {
+        plan._2.folder.treeCount {
           case Sort(_, Seq(`so`)) => true
         } shouldBe 1
       }

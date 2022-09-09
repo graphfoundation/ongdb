@@ -95,6 +95,11 @@ class SimplifyPredicatesTest extends CypherFunSuite {
     assertRewrittenMatches("NOT( 'P' IS NULL )", { case IsNotNull(StringLiteral("P")) => () })
   }
 
+  test("Simplify OR of identical expressions with interspersed condition") {
+    // We should be able to remove one of those redundant $n = 2.
+    assertRewrittenMatches("$n = 2 OR $n = 1 OR $n = 2", { case Ors(Seq(Equals(_, _), Equals(_,_))) => () })
+  }
+
   test("Do not simplify expressions with different auto extracted parameters") {
     val position = InputPosition(0, 0, 0)
     // AST for $n = 2 OR $n = 3
@@ -113,8 +118,8 @@ class SimplifyPredicatesTest extends CypherFunSuite {
     val original = JavaCCParser.parse("RETURN " +  originalQuery, exceptionFactory, new AnonymousVariableNameGenerator())
     val checkResult = original.semanticCheck(SemanticState.clean)
     val rewriter = flattenBooleanOperators andThen simplifyPredicates(checkResult.state)
-    val result = original.rewrite(rewriter)
-    val maybeReturnExp = result.treeFind ({
+    val result = original.endoRewrite(rewriter)
+    val maybeReturnExp = result.folder.treeFind ({
       case UnaliasedReturnItem(expression, _) => {
         assert(matcher.isDefinedAt(expression), expression)
         true

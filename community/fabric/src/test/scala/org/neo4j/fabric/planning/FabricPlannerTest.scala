@@ -77,6 +77,7 @@ import org.neo4j.exceptions.InvalidSemanticsException
 import org.neo4j.fabric.FabricTest
 import org.neo4j.fabric.FragmentTestUtils
 import org.neo4j.fabric.ProcedureSignatureResolverTestSupport
+import org.neo4j.fabric.cache.FabricQueryCache
 import org.neo4j.fabric.config.FabricConfig
 import org.neo4j.fabric.planning.FabricPlan.DebugOptions
 import org.neo4j.fabric.util.Folded.Descend
@@ -92,27 +93,34 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 
 import java.time.Duration
 import java.util.Optional
+
 import scala.collection.JavaConverters.setAsJavaSetConverter
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
 class FabricPlannerTest
-  extends FabricTest
+    extends FabricTest
     with TableDrivenPropertyChecks
     with ProcedureSignatureResolverTestSupport
     with FragmentTestUtils
     with AstConstructionTestSupport {
 
-  private def makeConfig(fabricDbName: String) = new FabricConfig( ()=>Duration.ZERO, new FabricConfig.DataStream(0, 0, 0, 0), false, true ) {
+  private def makeConfig(fabricDbName: String) =
+    new FabricConfig(() => Duration.ZERO, new FabricConfig.DataStream(0, 0, 0, 0), false, true) {
 
-    override def getFabricDatabaseName: Optional[NormalizedDatabaseName] = Optional.of(new NormalizedDatabaseName(fabricDbName))
-  }
+      override def getFabricDatabaseName: Optional[NormalizedDatabaseName] =
+        Optional.of(new NormalizedDatabaseName(fabricDbName))
+    }
 
   private val config = makeConfig("mega")
   private val planner = FabricPlanner(config, cypherConfig, monitors, cacheFactory, signatures)
 
-  private def instance(query: String, params: MapValue = params, fabricContext: Boolean = false): planner.PlannerInstance =
+  private def instance(
+    query: String,
+    params: MapValue = params,
+    fabricContext: Boolean = false
+  ): planner.PlannerInstance =
     planner.instance(query, params, defaultGraphName).withForceFabricContext(fabricContext)
 
   private def plan(query: String, params: MapValue = params, fabricContext: Boolean = false) =
@@ -121,7 +129,7 @@ class FabricPlannerTest
   private def asRemote(
     query: String,
     partSelector: Fragment => Fragment.Exec = _.as[Fragment.Exec],
-    fabricContext: Boolean = false,
+    fabricContext: Boolean = false
   ) = {
     val inst = instance(query, fabricContext = fabricContext)
     inst.asRemote(partSelector(inst.plan.query))
@@ -132,7 +140,8 @@ class FabricPlannerTest
     "single query" in {
       val remote = asRemote(
         """RETURN 1 AS x
-          |""".stripMargin)
+          |""".stripMargin
+      )
 
       parse(remote.query).as[Query].part.as[SingleQuery].clauses
         .shouldEqual(Seq(
@@ -144,7 +153,8 @@ class FabricPlannerTest
       val remote = asRemote(
         """USE foo
           |RETURN 1 AS x
-          |""".stripMargin)
+          |""".stripMargin
+      )
 
       parse(remote.query).as[Query].part.as[SingleQuery].clauses
         .shouldEqual(Seq(
@@ -156,11 +166,20 @@ class FabricPlannerTest
       val remote = asRemote(
         """USE foo
           |CREATE INDEX myIndex FOR (n:Label) ON (n.prop)
-          |""".stripMargin)
+          |""".stripMargin
+      )
 
       parse(remote.query)
         .shouldEqual(
-          CreateRangeNodeIndex(varFor("n"), labelName("Label"), List(prop("n", "prop")), Some("myIndex"), IfExistsThrowError, NoOptions, fromDefault = true)(pos)
+          CreateRangeNodeIndex(
+            varFor("n"),
+            labelName("Label"),
+            List(prop("n", "prop")),
+            Some("myIndex"),
+            IfExistsThrowError,
+            NoOptions,
+            fromDefault = true
+          )(pos)
         )
     }
 
@@ -170,23 +189,27 @@ class FabricPlannerTest
           |LOAD CSV FROM 'someurl' AS line
           |CREATE (n)
           |RETURN line
-          |""".stripMargin)
+          |""".stripMargin
+      )
 
       parse(remote.query)
         .shouldEqual(
-          Query(Some(PeriodicCommitHint(Some(literalUnsignedInt(200)))(pos)),
+          Query(
+            Some(PeriodicCommitHint(Some(literalUnsignedInt(200)))(pos)),
             singleQuery(
               LoadCSV(withHeaders = false, literal("someurl"), varFor("line"), None)(pos),
               create(nodePat("n")),
               return_(varFor("line").as("line"))
-            ))(pos)
+            )
+          )(pos)
         )
     }
 
     "single admin command" in {
       val remote = asRemote(
         """CREATE ROLE myRole
-          |""".stripMargin)
+          |""".stripMargin
+      )
 
       parse(remote.query)
         .shouldEqual(CreateRole(Left("myRole"), None, IfExistsThrowError)(pos))
@@ -195,7 +218,8 @@ class FabricPlannerTest
     "single admin command with password" in {
       val remote = asRemote(
         """CREATE USER myUser SET PASSWORD 'secret'
-          |""".stripMargin)
+          |""".stripMargin
+      )
 
       remote.query
         .should(not(include("*")))
@@ -211,13 +235,14 @@ class FabricPlannerTest
       val remote = asRemote(
         """USE system
           |CALL dbms.security.createUser('myProcedureUser', 'secret')
-          |""".stripMargin)
+          |""".stripMargin
+      )
 
       remote.query
         .should(not(include("*")))
 
       parse(remote.query).as[Query].part.as[SingleQuery].clauses
-        .should(matchPattern { case Seq(_:UnresolvedCall) => })
+        .should(matchPattern { case Seq(_: UnresolvedCall) => })
     }
 
     "inner query with imports and USE" in {
@@ -231,14 +256,14 @@ class FabricPlannerTest
           |RETURN 1 AS x
           |""".stripMargin,
         query => query.as[Fragment.Exec].input.as[Fragment.Apply].inner.as[Fragment.Exec],
-        fabricContext = true,
+        fabricContext = true
       )
 
       parse(remote.query).as[Query].part.as[SingleQuery].clauses
         .shouldEqual(Seq(
           with_(parameter("@@a", CTAny).as("a")),
           with_(varFor("a").as("a")),
-          return_(literal(1).as("y")),
+          return_(literal(1).as("y"))
         ))
     }
 
@@ -263,7 +288,8 @@ class FabricPlannerTest
           |}
           |RETURN a, b, c
           |
-          |""".stripMargin)
+          |""".stripMargin
+      )
         .withForceFabricContext(true)
 
       val inner = inst.plan
@@ -285,14 +311,16 @@ class FabricPlannerTest
             |WITH $`@@a` AS a, $`@@b` AS b
             |WITH a, b
             |RETURN b AS c
-            |""".stripMargin))
+            |""".stripMargin
+        ))
 
       parse(inst.asRemote(part2).query)
         .shouldEqual(parse(
           """WITH $`@@b` AS b
             |WITH b
             |RETURN b AS c
-            |""".stripMargin))
+            |""".stripMargin
+        ))
     }
 
     "complicated nested query" ignore {
@@ -319,7 +347,8 @@ class FabricPlannerTest
           |  RETURN b, c, d
           |}
           |RETURN a, b, c, d
-          |""".stripMargin)
+          |""".stripMargin
+      )
         .withForceFabricContext(true)
 
       val execs = inst.plan.folded(Seq.empty[Fragment.Exec])(_ ++ _) {
@@ -369,7 +398,8 @@ class FabricPlannerTest
           |}
           |WITH val, [v IN collect(val) WHERE v = 'd' | v] AS thisBreaks
           |RETURN val, thisBreaks
-      """.stripMargin)
+      """.stripMargin
+      )
 
       // Assert that getting the plan does not fail
       inst.plan
@@ -384,19 +414,22 @@ class FabricPlannerTest
         """MATCH (n)
           |WITH n AS `true`
           |RETURN `true`"""
-          .stripMargin)
+          .stripMargin
+      )
 
       val exec = inst.plan.query.as[Fragment.Exec]
 
       val local = inst.asLocal(exec).query
 
       local.state.statement().shouldEqual(
-        Query(None,
+        Query(
+          None,
           singleQuery(
             match_(NodePattern(Some(varFor("n")), Seq.empty, None, None)(pos)),
             with_(varFor("n").as("true")),
             returnVars("true")
-          ))(pos)
+          )
+        )(pos)
       )
       local.state.queryText should endWith("RETURN `true` AS `true`")
     }
@@ -406,19 +439,22 @@ class FabricPlannerTest
         """MATCH (n)
           |WITH n AS `true`
           |RETURN true"""
-          .stripMargin)
+          .stripMargin
+      )
 
       val exec = inst.plan.query.as[Fragment.Exec]
 
       val local = inst.asLocal(exec).query
 
       local.state.statement().shouldEqual(
-        Query(None,
+        Query(
+          None,
           singleQuery(
             match_(NodePattern(Some(varFor("n")), Seq.empty, None, None)(pos)),
             with_(varFor("n").as("true")),
             returnLit(true -> "true")
-          ))(pos)
+          )
+        )(pos)
       )
       local.state.queryText should endWith("RETURN true AS `true`")
     }
@@ -433,17 +469,18 @@ class FabricPlannerTest
         """
           |MATCH (a)-[r]-(b)-[q*]-(c)
           |RETURN [(d)-[s]-(t) | d] AS p
-          |""".stripMargin)
+          |""".stripMargin
+      )
       val exec = inst.plan.query.as[Fragment.Exec]
       val statement = inst.asLocal(exec).query.state.statement()
 
-      val whereAnons = statement
-        .findByClass[Where]
+      val whereAnons = statement.folder
+        .treeFindByClass[Where].get.folder
         .findAllByClass[Variable]
         .map(_.name)
         .map(NameDeduplicator.removeGeneratedNamesAndParams)
 
-      val pc = statement.findByClass[PatternComprehension]
+      val pc = statement.folder.treeFindByClass[PatternComprehension].get
       val pAnons = Seq(pc.variableToCollectName, pc.collectionName)
         .map(NameDeduplicator.removeGeneratedNamesAndParams)
 
@@ -529,7 +566,8 @@ class FabricPlannerTest
           |}
           |RETURN *
           |""".stripMargin,
-        fabricContext = true)
+        fabricContext = true
+      )
 
       val partsAsList = Stream
         .iterate(Option(pln.query)) {
@@ -553,7 +591,7 @@ class FabricPlannerTest
           QueryType.Write,
           QueryType.Write,
           QueryType.Write,
-          QueryType.Read,
+          QueryType.Read
         ))
 
       pln.queryType
@@ -667,7 +705,11 @@ class FabricPlannerTest
           |""".stripMargin
 
       newPlanner.instance(q, VirtualValues.map(Array("a"), Array(Values.of("a"))), defaultGraphName).plan
-      newPlanner.instance(q, VirtualValues.map(Array("a", "b"), Array(Values.of("a"), Values.of(1))), defaultGraphName).plan
+      newPlanner.instance(
+        q,
+        VirtualValues.map(Array("a", "b"), Array(Values.of("a"), Values.of(1))),
+        defaultGraphName
+      ).plan
 
       newPlanner.queryCache.getMisses.shouldEqual(2)
       newPlanner.queryCache.getHits.shouldEqual(0)
@@ -723,6 +765,85 @@ class FabricPlannerTest
       newPlanner.queryCache.getHits.shouldEqual(0)
     }
 
+    "cache clears a context" in {
+      val newPlanner = FabricPlanner(config, cypherConfig, monitors, cacheFactory, signatures)
+
+      val q =
+        """WITH 1 AS x
+          |RETURN x
+          |""".stripMargin
+
+      newPlanner.instance(q, params, defaultGraphName).plan
+      newPlanner.queryCache.contextSize(defaultGraphName).shouldEqual(1)
+      newPlanner.queryCache.clearByContext(defaultGraphName).shouldEqual(1)
+      newPlanner.queryCache.contextSize(defaultGraphName).shouldEqual(0)
+    }
+
+    "cache clears only the given context" in {
+      val newPlanner = FabricPlanner(config, cypherConfig, monitors, cacheFactory, signatures)
+
+      val q1 =
+        """USE foo
+          |WITH 1 AS x
+          |RETURN x
+          |""".stripMargin
+      val q2 =
+        """USE bar
+          |WITH 1 AS x
+          |RETURN x
+          |""".stripMargin
+
+      newPlanner.instance(q1, params, "foo").plan
+      newPlanner.instance(q2, params, "bar").plan
+      newPlanner.queryCache.contextSize("foo").shouldEqual(1)
+      newPlanner.queryCache.contextSize("bar").shouldEqual(1)
+      newPlanner.queryCache.clearByContext("foo").shouldEqual(1)
+      newPlanner.queryCache.contextSize("foo").shouldEqual(0)
+      newPlanner.queryCache.contextSize("bar").shouldEqual(1)
+    }
+
+    "the cache hits before being cleared, and it misses after being cleared" in {
+      val newPlanner = FabricPlanner(config, cypherConfig, monitors, cacheFactory, signatures)
+
+      val q =
+        """WITH 1 AS x
+          |RETURN x
+          |""".stripMargin
+
+      // plan query (cold miss)
+      newPlanner.instance(q, params, defaultGraphName).plan
+      newPlanner.queryCache.getHits.shouldEqual(0)
+      newPlanner.queryCache.getMisses.shouldEqual(1)
+
+      // replan query (hits)
+      newPlanner.instance(q, params, defaultGraphName).plan
+      newPlanner.queryCache.getHits.shouldEqual(1)
+      newPlanner.queryCache.getMisses.shouldEqual(1)
+
+      // clear cache and rereplan query (cold miss again)
+      newPlanner.queryCache.clearByContext(defaultGraphName)
+      newPlanner.instance(q, params, defaultGraphName).plan
+      newPlanner.queryCache.getHits.shouldEqual(1)
+      newPlanner.queryCache.getMisses.shouldEqual(2)
+    }
+
+    "clear an empty cache" in {
+      val newPlanner = FabricPlanner(config, cypherConfig, monitors, cacheFactory, signatures)
+      newPlanner.queryCache.clearByContext(defaultGraphName).shouldEqual(0)
+    }
+
+    "clearing the cache returns the number of evictions" in {
+      val newPlanner = FabricPlanner(config, cypherConfig, monitors, cacheFactory, signatures)
+
+      val q =
+        """WITH 1 AS x
+          |RETURN x
+          |""".stripMargin
+
+      newPlanner.instance(q, params, defaultGraphName).plan
+      newPlanner.queryCache.clearByContext(defaultGraphName).shouldEqual(1)
+      newPlanner.queryCache.clearByContext(defaultGraphName).shouldEqual(0)
+    }
   }
 
   "Options:" - {
@@ -753,20 +874,20 @@ class FabricPlannerTest
         ))
     }
 
-      "disallow multi graph PROFILE" in {
-        val q =
-          """PROFILE
-            |UNWIND [0, 1] AS gid
-            |CALL {
-            | USE graph(gid)
-            | RETURN 1
-            |}
-            |RETURN 1 AS x
-            |""".stripMargin
+    "disallow multi graph PROFILE" in {
+      val q =
+        """PROFILE
+          |UNWIND [0, 1] AS gid
+          |CALL {
+          | USE graph(gid)
+          | RETURN 1
+          |}
+          |RETURN 1 AS x
+          |""".stripMargin
 
-        the[InvalidSemanticsException].thrownBy(plan(q, params, fabricContext = true))
-          .check(_.getMessage.should(include("'PROFILE' not supported in Fabric context")))
-      }
+      the[InvalidSemanticsException].thrownBy(plan(q, params, fabricContext = true))
+        .check(_.getMessage.should(include("'PROFILE' not supported in Fabric context")))
+    }
 
     "allow fabric debug options" in {
       val q =
@@ -787,19 +908,22 @@ class FabricPlannerTest
           |LOAD CSV FROM 'someurl' AS line
           |CREATE (n)
           |RETURN line
-          |""".stripMargin)
+          |""".stripMargin
+      )
 
       val exec = inst.plan.query.as[Fragment.Exec]
 
       val local = inst.asLocal(exec).query
 
       local.state.statement().shouldEqual(
-        Query(Some(PeriodicCommitHint(Some(literalUnsignedInt(200)))(pos)),
+        Query(
+          Some(PeriodicCommitHint(Some(literalUnsignedInt(200)))(pos)),
           singleQuery(
             LoadCSV(withHeaders = false, literal("someurl"), varFor("line"), None)(pos),
             create(nodePat("n")),
             return_(varFor("line").as("line"))
-          ))(pos)
+          )
+        )(pos)
       )
 
       local.options.isPeriodicCommit.shouldEqual(true)
@@ -826,7 +950,8 @@ class FabricPlannerTest
           |}
           |RETURN 1 AS x
           |""".stripMargin,
-        fabricContext = true)
+        fabricContext = true
+      )
 
       val inner = inst.plan.query.as[Fragment.Exec].input.as[Fragment.Apply].inner.as[Fragment.Exec]
       val last = inst.plan.query.as[Fragment.Exec]
@@ -845,16 +970,16 @@ class FabricPlannerTest
           interpretedPipesFallback = CypherInterpretedPipesFallbackOption.disabled,
           replan = CypherReplanOption.force,
           connectComponentsPlanner = CypherConnectComponentsPlannerOption.greedy,
-          debugOptions = CypherDebugOptions(Set(CypherDebugOption.tostring)),
-        ),
+          debugOptions = CypherDebugOptions(Set(CypherDebugOption.tostring))
+        )
       )
 
       val expectedLast = QueryOptions.default.copy(
         queryOptions = QueryOptions.default.queryOptions.copy(
           runtime = CypherRuntimeOption.slotted,
-          expressionEngine = CypherExpressionEngineOption.interpreted,
+          expressionEngine = CypherExpressionEngineOption.interpreted
         ),
-        materializedEntitiesMode = true,
+        materializedEntitiesMode = true
       )
 
       preParse(inst.asRemote(inner).query).options.copy(offset = InputPosition.NONE)
@@ -880,7 +1005,8 @@ class FabricPlannerTest
           |}
           |RETURN 1 AS x
           |""".stripMargin,
-        fabricContext = true)
+        fabricContext = true
+      )
 
       val inner = inst.plan.query.as[Fragment.Exec].input.as[Fragment.Apply].inner.as[Fragment.Exec]
       val last = inst.plan.query.as[Fragment.Exec]
@@ -888,15 +1014,15 @@ class FabricPlannerTest
       val expectedInner = QueryOptions(
         offset = InputPosition.NONE,
         isPeriodicCommit = false,
-        queryOptions = CypherQueryOptions.default,
+        queryOptions = CypherQueryOptions.default
       )
 
       val expectedLast = QueryOptions.default.copy(
         queryOptions = QueryOptions.default.queryOptions.copy(
           runtime = CypherRuntimeOption.slotted,
-          expressionEngine = CypherExpressionEngineOption.interpreted,
+          expressionEngine = CypherExpressionEngineOption.interpreted
         ),
-        materializedEntitiesMode = true,
+        materializedEntitiesMode = true
       )
 
       val remote = inst.asRemote(inner).query
@@ -960,21 +1086,15 @@ class FabricPlannerTest
             .check(_.getName.shouldEqual("Union"))
             .check(_.getChildren.get(0)
               .check(_.getName.shouldEqual("Exec"))
-              .check(_.getIdentifiers.shouldEqual(Set("y").asJava))
-            )
+              .check(_.getIdentifiers.shouldEqual(Set("y").asJava)))
             .check(_.getChildren.get(1)
               .check(_.getName.shouldEqual("Exec"))
-              .check(_.getIdentifiers.shouldEqual(Set("y").asJava))
-            )
-          )
+              .check(_.getIdentifiers.shouldEqual(Set("y").asJava))))
           .check(_.getChildren.get(0)
             .check(_.getName.shouldEqual("Exec"))
             .check(_.getIdentifiers.shouldEqual(Set("x").asJava))
             .check(_.getChildren.get(0)
-              .check(_.getName.shouldEqual("Init"))
-            )
-          )
-        )
+              .check(_.getName.shouldEqual("Init")))))
     }
   }
 
@@ -982,21 +1102,18 @@ class FabricPlannerTest
 
     def defaultGraphQueries = Table(
       "query",
-
       s"""MATCH (n) RETURN n
          |""".stripMargin,
-
       s"""MATCH (n) RETURN n
          |  UNION
          |MATCH (n) RETURN n
          |""".stripMargin,
-
       s"""MATCH (n)
          |CALL {
          |  RETURN 1 AS a
          |}
          |RETURN n, a
-         |""".stripMargin,
+         |""".stripMargin
     )
 
     def singleGraphQueries(graphName: String) =
@@ -1013,31 +1130,27 @@ class FabricPlannerTest
 
     def declared(graphName: String) = Table(
       "query",
-
       s"""USE $graphName
          |MATCH (n) RETURN n
          |""".stripMargin,
-
       s"""USE $graphName
          |CREATE INDEX myIndex FOR (n:Label) ON (n.prop1, n.prop2)
-         |""".stripMargin,
+         |""".stripMargin
     )
 
     def declaredSubqueryInherited(graphName: String) = Table(
       "query",
-
       s"""USE $graphName
          |MATCH (n)
          |CALL {
          |  RETURN 1 AS a
          |}
          |RETURN n, a
-         |""".stripMargin,
+         |""".stripMargin
     )
 
     def declaredSubqueryInheritedSubqueryInherited(graphName: String) = Table(
       "query",
-
       s"""USE $graphName
          |MATCH (n)
          |CALL {
@@ -1047,39 +1160,36 @@ class FabricPlannerTest
          |  RETURN a AS b
          |}
          |RETURN n, b
-         |""".stripMargin,
+         |""".stripMargin
     )
 
     def declaredUnionDefault(graphName: String) = Table(
       "query",
-
       s"""USE $graphName
          |MATCH (n) RETURN n
          |  UNION
          |MATCH (n) RETURN n
-         |""".stripMargin,
+         |""".stripMargin
     )
 
     def defaultUnionDeclared(graphName: String) = Table(
       "query",
-
       s"""MATCH (n) RETURN n
          |  UNION
          |USE $graphName
          |MATCH (n) RETURN n
-         |""".stripMargin,
+         |""".stripMargin
     )
 
     def defaultSubqueryDeclared(graphName: String) = Table(
       "query",
-
       s"""MATCH (n)
          |CALL {
          |  USE $graphName
          |  RETURN 1 AS a
          |}
          |RETURN n, a
-         |""".stripMargin,
+         |""".stripMargin
     )
 
     def doubleGraphQueries(graphName1: String, graphName2: String) =
@@ -1089,13 +1199,12 @@ class FabricPlannerTest
 
     def declaredUnionDeclared(graphName1: String, graphName2: String) = Table(
       "query",
-
       s"""USE $graphName1
          |MATCH (n) RETURN n
          |  UNION
          |USE $graphName2
          |MATCH (n) RETURN n
-         |""".stripMargin,
+         |""".stripMargin
     )
 
     def declaredSubqueryDeclared(graphName1: String, graphName2: String) = Table(
@@ -1107,7 +1216,7 @@ class FabricPlannerTest
          |  RETURN 1 AS a
          |}
          |RETURN n, a
-         |""".stripMargin,
+         |""".stripMargin
     )
 
     def declaredSubqueryDeclaredSubqueryInherited(graphName1: String, graphName2: String) = Table(
@@ -1123,12 +1232,11 @@ class FabricPlannerTest
          |  RETURN a AS b
          |}
          |RETURN n, b
-         |""".stripMargin,
+         |""".stripMargin
     )
 
     def defaultSubqueryDeclaredUnionDeclared(graphName1: String, graphName2: String) = Table(
       "query",
-
       s"""CALL {
          |  USE $graphName1
          |  MATCH (n) RETURN n
@@ -1137,12 +1245,11 @@ class FabricPlannerTest
          |  MATCH (n) RETURN n
          |}
          |RETURN n
-         |""".stripMargin,
+         |""".stripMargin
     )
 
     def defaultSubqueryDeclaredUnionSubqueryDeclared(graphName1: String, graphName2: String) = Table(
       "query",
-
       s"""CALL {
          |  USE $graphName1
          |  MATCH (n) RETURN n
@@ -1154,7 +1261,7 @@ class FabricPlannerTest
          |  MATCH (n) RETURN n
          |}
          |RETURN n
-         |""".stripMargin,
+         |""".stripMargin
     )
 
     def tripleGraphQueries(graphName1: String, graphName2: String, graphName3: String) =
@@ -1163,7 +1270,6 @@ class FabricPlannerTest
 
     def declaredUnionDeclaredUnionDeclared(graphName1: String, graphName2: String, graphName3: String) = Table(
       "query",
-
       s"""USE $graphName1
          |MATCH (n) RETURN n
          |  UNION
@@ -1172,12 +1278,11 @@ class FabricPlannerTest
          |  UNION
          |USE $graphName3
          |MATCH (n) RETURN n
-         |""".stripMargin,
+         |""".stripMargin
     )
 
     def declaredSubqueryDeclaredSubqueryDeclared(graphName1: String, graphName2: String, graphName3: String) = Table(
       "query",
-
       s"""USE $graphName1
          |MATCH (n)
          |CALL {
@@ -1190,7 +1295,7 @@ class FabricPlannerTest
          |  RETURN a
          |}
          |RETURN n, a
-         |""".stripMargin,
+         |""".stripMargin
     )
 
     def planAndStitch(sessionGraphName: String, fabricName: String, query: String, params: MapValue = params) = {
@@ -1329,7 +1434,11 @@ class FabricPlannerTest
             .should(beFullyStitched)
         }
 
-        forAll(declaredUnionDeclaredUnionDeclared(graphName1 = fabricName, graphName2 = fabricName, graphName3 = fabricName)) { query =>
+        forAll(declaredUnionDeclaredUnionDeclared(
+          graphName1 = fabricName,
+          graphName2 = fabricName,
+          graphName3 = fabricName
+        )) { query =>
           planAndStitch(sessionGraphName, fabricName, query)
             .should(beFullyStitched)
         }
@@ -1355,9 +1464,10 @@ class FabricPlannerTest
               .should(matchPattern { case Success(_) => })
           }
 
-          forAll(declaredUnionDeclaredUnionDeclared(graphName1 = "foo", graphName2 = "bar", graphName3 = "baz")) { query =>
-            planAndStitch(fabricName, fabricName, query)
-              .should(matchPattern { case Success(_) => })
+          forAll(declaredUnionDeclaredUnionDeclared(graphName1 = "foo", graphName2 = "bar", graphName3 = "baz")) {
+            query =>
+              planAndStitch(fabricName, fabricName, query)
+                .should(matchPattern { case Success(_) => })
           }
 
           forAll(defaultSubqueryDeclaredUnionSubqueryDeclared(graphName1 = "foo", graphName2 = "bar")) { query =>
@@ -1402,9 +1512,10 @@ class FabricPlannerTest
               .should(matchPattern { case Success(_) => })
           }
 
-          forAll(declaredUnionDeclaredUnionDeclared(graphName1 = "f(1)", graphName2 = "g(2)", graphName3 = "h(3)")) { query =>
-            planAndStitch(fabricName, fabricName, query)
-              .should(matchPattern { case Success(_) => })
+          forAll(declaredUnionDeclaredUnionDeclared(graphName1 = "f(1)", graphName2 = "g(2)", graphName3 = "h(3)")) {
+            query =>
+              planAndStitch(fabricName, fabricName, query)
+                .should(matchPattern { case Success(_) => })
           }
         }
 
@@ -1444,22 +1555,35 @@ class FabricPlannerTest
               .should(matchPattern { case Failure(_) => })
           }
 
-          forAll(declaredSubqueryDeclaredSubqueryDeclared(graphName1 = fabricName, graphName2 = "foo.bar(1)", graphName3 = "foo.baz(2)")) { query =>
+          forAll(declaredSubqueryDeclaredSubqueryDeclared(
+            graphName1 = fabricName,
+            graphName2 = "foo.bar(1)",
+            graphName3 = "foo.baz(2)"
+          )) { query =>
             planAndStitch(sessionGraphName, fabricName, query)
               .should(matchPattern { case Failure(_) => })
           }
 
-          forAll(declaredSubqueryDeclaredSubqueryDeclared(graphName1 = "foo", graphName2 = "bar", graphName3 = "baz")) { query =>
-            planAndStitch(fabricName, fabricName, query)
-              .should(matchPattern { case Failure(_) => })
+          forAll(declaredSubqueryDeclaredSubqueryDeclared(graphName1 = "foo", graphName2 = "bar", graphName3 = "baz")) {
+            query =>
+              planAndStitch(fabricName, fabricName, query)
+                .should(matchPattern { case Failure(_) => })
           }
 
-          forAll(declaredSubqueryDeclaredSubqueryDeclared(graphName1 = fabricName, graphName2 = "foo.bar", graphName3 = "foo.baz")) { query =>
+          forAll(declaredSubqueryDeclaredSubqueryDeclared(
+            graphName1 = fabricName,
+            graphName2 = "foo.bar",
+            graphName3 = "foo.baz"
+          )) { query =>
             planAndStitch(sessionGraphName, fabricName, query)
               .should(matchPattern { case Failure(_) => })
           }
 
-          forAll(declaredSubqueryDeclaredSubqueryDeclared(graphName1 = "f(1)", graphName2 = "g(2)", graphName3 = "h(3)")) { query =>
+          forAll(declaredSubqueryDeclaredSubqueryDeclared(
+            graphName1 = "f(1)",
+            graphName2 = "g(2)",
+            graphName3 = "h(3)"
+          )) { query =>
             planAndStitch(fabricName, fabricName, query)
               .should(matchPattern { case Failure(_) => })
           }
@@ -1506,7 +1630,8 @@ class FabricPlannerTest
 
       val inst = instance(
         "RETURN $p AS p",
-        VirtualValues.map(Array("p"), Array(Values.of(1))))
+        VirtualValues.map(Array("p"), Array(Values.of(1)))
+      )
 
       val local = inst.asLocal(inst.plan.query.as[Fragment.Exec])
 
@@ -1532,7 +1657,7 @@ class FabricPlannerTest
       val expectedResult = init(defaultUse).exec(
         query = query(
           with_(function("range", literal(1), literal(10)) as "list"),
-          return_(length3_5(varFor("list")) as "result"),
+          return_(length3_5(varFor("list")) as "result")
         ),
         outputColumns = Seq("result")
       )
@@ -1541,7 +1666,14 @@ class FabricPlannerTest
     }
   }
 
+  implicit class FabricCacheOps(cache: FabricQueryCache) {
+
+    def contextSize(contextName: String): Int =
+      cache.getInnerCopy.collect { case ((_, _, `contextName`), _) => }.size
+  }
+
   implicit class CheckSyntax[A](a: A) {
+
     def check(f: A => Any): A = {
       f(a)
       a
@@ -1555,19 +1687,21 @@ class FabricPlannerTest
   }
 
   val beFullyStitched: Matcher[Try[FabricPlan]] = Matcher[Try[FabricPlan]] {
-    case Success(value)     =>
+    case Success(value) =>
       value.query match {
-        case frag @ Fragment.Exec(_: Fragment.Init, _, _, _, _, _) => MatchResult(matches = true,
-          s"Expectation failed, got: $frag",
-          s"Expectation failed, got: $frag")
+        case frag @ Fragment.Exec(_: Fragment.Init, _, _, _, _, _) =>
+          MatchResult(matches = true, s"Expectation failed, got: $frag", s"Expectation failed, got: $frag")
 
-        case frag => MatchResult(matches = false,
-          s"Expected fully stitched query, but got: $frag",
-          s"Expectation failed, got: $frag")
+        case frag => MatchResult(
+            matches = false,
+            s"Expected fully stitched query, but got: $frag",
+            s"Expectation failed, got: $frag"
+          )
       }
     case Failure(exception) => MatchResult(
-      matches = false,
-      s"Expected fully stitched query, but got exception: ${exception.getMessage}",
-      s"Expectation failed, got exception: ${exception.getMessage}")
+        matches = false,
+        s"Expected fully stitched query, but got exception: ${exception.getMessage}",
+        s"Expectation failed, got exception: ${exception.getMessage}"
+      )
   }
 }

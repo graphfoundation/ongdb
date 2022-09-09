@@ -47,7 +47,6 @@ import org.neo4j.collection.Dependencies;
 import org.neo4j.common.DependencyResolver;
 import org.neo4j.configuration.Config;
 import org.neo4j.configuration.connectors.ConnectorPortRegister;
-import org.neo4j.dbms.database.readonly.ReadOnlyDatabases;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.dbms.database.DatabaseContext;
 import org.neo4j.dbms.database.DatabaseInfoService;
@@ -56,6 +55,7 @@ import org.neo4j.dbms.database.DbmsRuntimeRepository;
 import org.neo4j.dbms.database.DbmsRuntimeSystemGraphComponent;
 import org.neo4j.dbms.database.SystemGraphComponents;
 import org.neo4j.dbms.database.SystemGraphInitializer;
+import org.neo4j.dbms.database.readonly.ReadOnlyDatabases;
 import org.neo4j.exceptions.KernelException;
 import org.neo4j.function.Predicates;
 import org.neo4j.graphdb.facade.DatabaseManagementServiceFactory;
@@ -70,6 +70,7 @@ import org.neo4j.kernel.api.net.NetworkConnectionTracker;
 import org.neo4j.kernel.api.procedure.GlobalProcedures;
 import org.neo4j.kernel.api.security.AuthManager;
 import org.neo4j.kernel.api.security.provider.SecurityProvider;
+import org.neo4j.kernel.database.DatabaseReferenceRepository;
 import org.neo4j.kernel.database.DatabaseStartupController;
 import org.neo4j.kernel.database.DefaultDatabaseResolver;
 import org.neo4j.kernel.database.NamedDatabaseId;
@@ -114,6 +115,7 @@ public abstract class AbstractEditionModule
     protected Function<DatabaseLayout,DatabaseLayoutWatcher> watcherServiceFactory;
     protected SecurityProvider securityProvider;
     protected DefaultDatabaseResolver defaultDatabaseResolver;
+    protected DatabaseReferenceRepository databaseReferenceRepo;
 
     public abstract EditionDatabaseComponents createDatabaseComponents( NamedDatabaseId namedDatabaseId );
 
@@ -138,7 +140,8 @@ public abstract class AbstractEditionModule
         registerEditionSpecificProcedures( globalProcedures, databaseManager );
         AbstractRoutingProcedureInstaller routingProcedureInstaller =
                 createRoutingProcedureInstaller( globalModule, databaseManager,
-                                                 globalModule.getGlobalDependencies().resolveDependency( ClientRoutingDomainChecker.class ) );
+                                                 globalModule.getGlobalDependencies().resolveDependency( ClientRoutingDomainChecker.class ),
+                                                 defaultDatabaseResolver );
         routingProcedureInstaller.install( globalProcedures );
     }
 
@@ -153,8 +156,10 @@ public abstract class AbstractEditionModule
     protected abstract void registerEditionSpecificProcedures( GlobalProcedures globalProcedures, DatabaseManager<?> databaseManager )
             throws KernelException;
 
-    protected abstract AbstractRoutingProcedureInstaller createRoutingProcedureInstaller( GlobalModule globalModule, DatabaseManager<?> databaseManager,
-                                                                                          ClientRoutingDomainChecker clientRoutingDomainChecker );
+    protected abstract AbstractRoutingProcedureInstaller createRoutingProcedureInstaller( GlobalModule globalModule,
+                                                                                          DatabaseManager<?> databaseManager,
+                                                                                          ClientRoutingDomainChecker clientRoutingDomainChecker,
+                                                                                          DefaultDatabaseResolver defaultDatabaseResolver );
 
     protected abstract AuthConfigProvider createAuthConfigProvider( GlobalModule globalModule );
 

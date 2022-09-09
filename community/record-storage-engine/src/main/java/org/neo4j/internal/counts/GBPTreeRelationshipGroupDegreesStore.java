@@ -71,8 +71,8 @@ public class GBPTreeRelationshipGroupDegreesStore extends GBPTreeGenericCountsSt
             RecoveryCleanupWorkCollector recoveryCollector, DegreesRebuilder rebuilder, DatabaseReadOnlyChecker readOnlyChecker,
             PageCacheTracer pageCacheTracer, Monitor monitor, String databaseName, int maxCacheSize, LogProvider userLogProvider ) throws IOException
     {
-        super( pageCache, file, fileSystem, recoveryCollector, new RebuilderWrapper( rebuilder ), readOnlyChecker, NAME, pageCacheTracer, monitor,
-                databaseName, maxCacheSize, userLogProvider );
+        super( pageCache, file, fileSystem, recoveryCollector, new RebuilderWrapper( rebuilder ), readOnlyChecker, NAME, pageCacheTracer, monitor, databaseName,
+                maxCacheSize, userLogProvider );
     }
 
     @Override
@@ -204,6 +204,27 @@ public class GBPTreeRelationshipGroupDegreesStore extends GBPTreeGenericCountsSt
         public long lastCommittedTxId()
         {
             return rebuilder.lastCommittedTxId();
+        }
+    }
+
+    public static class EmptyDegreesRebuilder implements DegreesRebuilder
+    {
+        private final long lastTxId;
+
+        public EmptyDegreesRebuilder( long lastTxId )
+        {
+            this.lastTxId = lastTxId;
+        }
+
+        @Override
+        public void rebuild( RelationshipGroupDegreesStore.Updater updater, CursorContext cursorContext, MemoryTracker memoryTracker )
+        {
+        }
+
+        @Override
+        public long lastCommittedTxId()
+        {
+            return lastTxId;
         }
     }
 }

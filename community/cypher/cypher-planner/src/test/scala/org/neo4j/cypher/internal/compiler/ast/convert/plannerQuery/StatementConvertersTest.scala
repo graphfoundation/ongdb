@@ -84,7 +84,6 @@ import org.neo4j.cypher.internal.logical.plans.ProcedureSignature
 import org.neo4j.cypher.internal.logical.plans.QualifiedName
 import org.neo4j.cypher.internal.util.symbols.CTInteger
 import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
-import org.neo4j.exceptions.SyntaxException
 
 class StatementConvertersTest extends CypherFunSuite with LogicalPlanningTestSupport {
 
@@ -976,7 +975,7 @@ class StatementConvertersTest extends CypherFunSuite with LogicalPlanningTestSup
 
     query.queryGraph.patternNodes should equal(Set("a", "b"))
     query.queryGraph.shortestPathPatterns should equal(Set(
-      ShortestPathPattern(Some("anon_0"), PatternRelationship("r", ("a", "b"), OUTGOING, Seq.empty, SimplePatternLength), single = true)(null)
+      ShortestPathPattern(Some("anon_0"), PatternRelationship("r", ("a", "b"), OUTGOING, Seq.empty, VarPatternLength(1, Some(1))), single = true)(null)
     ))
     query.tail should be(empty)
   }
@@ -986,7 +985,7 @@ class StatementConvertersTest extends CypherFunSuite with LogicalPlanningTestSup
 
     query.queryGraph.patternNodes should equal(Set("a", "b"))
     query.queryGraph.shortestPathPatterns should equal(Set(
-      ShortestPathPattern(Some("anon_0"), PatternRelationship("r", ("a", "b"), OUTGOING, Seq.empty, SimplePatternLength), single = false)(null)
+      ShortestPathPattern(Some("anon_0"), PatternRelationship("r", ("a", "b"), OUTGOING, Seq.empty, VarPatternLength(1, Some(1))), single = false)(null)
     ))
     query.tail should be(empty)
   }
@@ -996,7 +995,7 @@ class StatementConvertersTest extends CypherFunSuite with LogicalPlanningTestSup
 
     query.queryGraph.patternNodes should equal(Set("a", "b"))
     query.queryGraph.shortestPathPatterns should equal(Set(
-      ShortestPathPattern(Some("p"), PatternRelationship("r", ("a", "b"), OUTGOING, Seq.empty, SimplePatternLength), single = true)(null)
+      ShortestPathPattern(Some("p"), PatternRelationship("r", ("a", "b"), OUTGOING, Seq.empty, VarPatternLength(1, Some(1))), single = true)(null)
     ))
     query.tail should be(empty)
   }
@@ -1317,6 +1316,22 @@ class StatementConvertersTest extends CypherFunSuite with LogicalPlanningTestSup
     query.queryGraph.selections shouldBe Selections.from(in(prop("a", "prop"), listOfInt(123)))
     query.queryGraph.patternRelationships shouldBe Set(
       PatternRelationship("r", ("a", "b"), SemanticDirection.OUTGOING, Seq(relTypeName("REL")), SimplePatternLength)
+    )
+  }
+
+  test("should insert an extra predicate when matching on the same standalone node") {
+    val query = buildSinglePlannerQuery(
+      """
+        |MATCH (a)-[r1]->(b)
+        |WITH *, 1 AS ignore
+        |MATCH (a), (b)-[r2]->(c)
+        |RETURN a, b, c
+        |""".stripMargin
+    )
+
+    query.allPlannerQueries.map(q => q.queryGraph.patternNodes -> q.queryGraph.selections) shouldBe Seq(
+      Set("a", "b") -> Selections(),
+      Set("a", "b", "c") ->  Selections.from(assertIsNode("a"))
     )
   }
 }

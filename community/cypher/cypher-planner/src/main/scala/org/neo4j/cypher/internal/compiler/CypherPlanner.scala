@@ -61,6 +61,7 @@ import org.neo4j.cypher.internal.frontend.phases.Monitors
 import org.neo4j.cypher.internal.planner.spi.IDPPlannerName
 import org.neo4j.cypher.internal.planner.spi.PlannerNameFor
 import org.neo4j.cypher.internal.util.AnonymousVariableNameGenerator
+import org.neo4j.cypher.internal.util.CancellationChecker
 import org.neo4j.cypher.internal.util.InputPosition
 import org.neo4j.cypher.internal.util.InternalNotificationLogger
 import org.neo4j.graphdb.config.Setting
@@ -95,7 +96,8 @@ case class CypherPlanner[Context <: PlannerContext](monitors: Monitors,
                  offset: Option[InputPosition],
                  tracer: CompilationPhaseTracer,
                  params: MapValue,
-                 compatibilityMode: CypherCompatibilityVersion): BaseState = {
+                 compatibilityMode: CypherCompatibilityVersion,
+                 cancellationChecker: CancellationChecker): BaseState = {
 
     val plannerName = PlannerNameFor(plannerNameText)
     val startState = InitialState(queryText, offset, plannerName, new AnonymousVariableNameGenerator)
@@ -103,7 +105,8 @@ case class CypherPlanner[Context <: PlannerContext](monitors: Monitors,
                                  notificationLogger,
                                  rawQueryText,
                                  offset,
-                                 monitors)
+                                 monitors,
+                                 cancellationChecker)
     CompilationPhases.parsing(ParsingConfig(
       compatibilityMode,
       semanticFeatures = config.enabledSemanticFeatures,
@@ -150,4 +153,5 @@ class CypherPlannerConfiguration(config: CypherConfiguration, cfg: Config, val p
   def pipelinedBatchSizeBig: Int = config.pipelinedBatchSizeBig
   def enabledSemanticFeatures: Seq[SemanticFeature] = CompilationPhases.enabledSemanticFeatures(config.enableExtraSemanticFeatures)
   def planningTextIndexesEnabled: Boolean = config.planningTextIndexesEnabled
+  def predicatesAsUnionMaxSize: Int = config.predicatesAsUnionMaxSize
 }

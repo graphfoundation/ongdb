@@ -68,12 +68,12 @@ case class SetPropertyItem(property: LogicalProperty, expression: Expression)(va
 
     checkForExists chain
       SemanticExpressionCheck.simple(property) chain
-      SemanticPatternCheck.checkValidPropertyKeyNames(Seq(property.propertyKey), property.position) chain
+      SemanticPatternCheck.checkValidPropertyKeyNames(Seq(property.propertyKey)) chain
       SemanticExpressionCheck.simple(expression) chain
       expectType(CTNode.covariant | CTRelationship.covariant, property.map)
 
   private def checkForExists: SemanticCheck = {
-    val invalid: Option[Expression] = expression.treeFind[Expression] { case _: ExistsSubClause => true }
+    val invalid: Option[Expression] = expression.folder.treeFind[Expression] { case _: ExistsSubClause => true }
     invalid.map(exp => SemanticError("The EXISTS subclause is not valid inside a SET clause.", exp.position))
   }
 }
@@ -86,14 +86,14 @@ case class SetPropertyItems(map: Expression, items: Seq[(PropertyKeyName, Expres
     checkForExists chain
       SemanticExpressionCheck.simple(map) chain
       semanticCheckFold(properties) {property =>
-        SemanticPatternCheck.checkValidPropertyKeyNames(Seq(property), property.position)
+        SemanticPatternCheck.checkValidPropertyKeyNames(Seq(property))
       } chain
       SemanticExpressionCheck.simple(expressions) chain
       expectType(CTNode.covariant | CTRelationship.covariant, map)
   }
 
   private def checkForExists: SemanticCheck = (state: SemanticState) => {
-    val invalid = items.map(_._2).flatMap(e => e.treeFind[Expression] { case _: ExistsSubClause => true })
+    val invalid = items.map(_._2).flatMap(e => e.folder.treeFind[Expression] { case _: ExistsSubClause => true })
     val errors: Seq[SemanticError] = invalid.map(exp => SemanticError("The EXISTS subclause is not valid inside a SET clause.", exp.position))
     SemanticCheckResult(state, errors)
   }

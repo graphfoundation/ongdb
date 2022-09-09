@@ -68,8 +68,8 @@ import org.neo4j.cypher.internal.compiler.MissingParametersNotification
 import org.neo4j.cypher.internal.compiler.UpdateStrategy
 import org.neo4j.cypher.internal.compiler.defaultUpdateStrategy
 import org.neo4j.cypher.internal.compiler.eagerUpdateStrategy
+import org.neo4j.cypher.internal.compiler.phases.CachableLogicalPlanState
 import org.neo4j.cypher.internal.compiler.phases.CypherCompatibilityVersion
-import org.neo4j.cypher.internal.compiler.phases.LogicalPlanState
 import org.neo4j.cypher.internal.compiler.phases.PlannerContext
 import org.neo4j.cypher.internal.compiler.planner.logical.CachedSimpleMetricsFactory
 import org.neo4j.cypher.internal.compiler.planner.logical.idp.ComponentConnectorPlanner
@@ -105,6 +105,7 @@ import org.neo4j.cypher.internal.planning.CypherPlanner.createQueryGraphSolver
 import org.neo4j.cypher.internal.runtime.interpreted.TransactionalContextWrapper
 import org.neo4j.cypher.internal.spi.ExceptionTranslatingPlanContext
 import org.neo4j.cypher.internal.spi.TransactionBoundPlanContext
+import org.neo4j.cypher.internal.util.CancellationChecker
 import org.neo4j.cypher.internal.util.InputPosition
 import org.neo4j.cypher.internal.util.InternalNotification
 import org.neo4j.cypher.internal.util.InternalNotificationLogger
@@ -240,6 +241,7 @@ case class CypherPlanner(config: CypherPlannerConfiguration,
                          notificationLogger: InternalNotificationLogger,
                          offset: InputPosition,
                          tracer: CompilationPhaseTracer,
+                         cancellationChecker: CancellationChecker,
                         ): BaseState = {
 
     val key = ParsedQueriesCacheKey.key(preParsedQuery, params)
@@ -251,7 +253,8 @@ case class CypherPlanner(config: CypherPlannerConfiguration,
         Some(offset),
         tracer,
         params,
-        compatibilityMode)
+        compatibilityMode,
+        cancellationChecker)
       if (!config.planSystemCommands) parsedQueries.put(key, parsedQuery)
       parsedQuery
     }
@@ -272,15 +275,16 @@ case class CypherPlanner(config: CypherPlannerConfiguration,
                    params: MapValue,
                    runtime: CypherRuntime[_]
                   ): LogicalPlanResult = {
+    val transactionalContextWrapper = TransactionalContextWrapper(transactionalContext)
     val notificationLogger = new RecordingNotificationLogger(Some(preParsedQuery.options.offset))
 
-    val syntacticQuery = getOrParse(preParsedQuery, params, notificationLogger, preParsedQuery.options.offset, tracer)
+    val syntacticQuery = getOrParse(preParsedQuery, params, notificationLogger, preParsedQuery.options.offset, tracer, transactionalContextWrapper.cancellationChecker)
 
     // The parser populates the notificationLogger as a side-effect of its work, therefore
     // in the case of a cached query the notificationLogger will not be properly filled
     syntacticQuery.maybeSemantics.map(_.notifications).getOrElse(Set.empty).foreach(notificationLogger.log)
 
-    doPlan(syntacticQuery, preParsedQuery.options, tracer, transactionalContext, params, runtime, notificationLogger,
+    doPlan(syntacticQuery, preParsedQuery.options, tracer, transactionalContextWrapper, params, runtime, notificationLogger,
       preParsedQuery.rawStatement)
   }
 
@@ -300,21 +304,21 @@ case class CypherPlanner(config: CypherPlannerConfiguration,
            params: MapValue,
            runtime: CypherRuntime[_]
           ): LogicalPlanResult = {
+    val transactionalContextWrapper = TransactionalContextWrapper(transactionalContext)
     val notificationLogger = new RecordingNotificationLogger(Some(fullyParsedQuery.options.offset))
-    doPlan(fullyParsedQuery.state, fullyParsedQuery.options, tracer, transactionalContext, params, runtime, notificationLogger,
+    doPlan(fullyParsedQuery.state, fullyParsedQuery.options, tracer, transactionalContextWrapper, params, runtime, notificationLogger,
       fullyParsedQuery.state.queryText)
   }
 
   private def doPlan(syntacticQuery: BaseState,
                      options: QueryOptions,
                      tracer: CompilationPhaseTracer,
-                     transactionalContext: TransactionalContext,
+                     transactionalContextWrapper: TransactionalContextWrapper,
                      params: MapValue,
                      runtime: CypherRuntime[_],
                      notificationLogger: InternalNotificationLogger,
                      rawQueryText: String
                     ): LogicalPlanResult = {
-    val transactionalContextWrapper = TransactionalContextWrapper(transactionalContext)
     // Context used for db communication during planning
     val createPlanContext = CypherPlanner.customPlanContextCreator.getOrElse(TransactionBoundPlanContext.apply _)
     val planContext = new ExceptionTranslatingPlanContext(createPlanContext(transactionalContextWrapper, notificationLogger, log))
@@ -347,7 +351,8 @@ case class CypherPlanner(config: CypherPlannerConfiguration,
       clock,
       new SequentialIdGen(),
       simpleExpressionEvaluator,
-      params)
+      params,
+      transactionalContextWrapper.cancellationChecker)
 
     // Prepare query for caching
     val preparedQuery = planner.normalizeQuery(syntacticQuery, plannerContext)
@@ -357,7 +362,7 @@ case class CypherPlanner(config: CypherPlannerConfiguration,
 
     // Get obfuscator out ASAP to make query text available for `dbms.listQueries`, etc
     val obfuscator = CypherQueryObfuscator(preparedQuery.obfuscationMetadata())
-    transactionalContext.executingQuery.onObfuscatorReady(obfuscator)
+    transactionalContextWrapper.kernelTransactionalContext.executingQuery.onObfuscatorReady(obfuscator)
 
     checkForSchemaChanges(transactionalContextWrapper)
 
@@ -383,14 +388,14 @@ case class CypherPlanner(config: CypherPlannerConfiguration,
         val cacheKey = CacheKey(
           syntacticQuery.statement(),
           QueryCache.extractParameterTypeMap(filteredParams),
-          transactionalContext.kernelTransaction().dataRead().transactionStateHasChanges()
+          transactionalContextWrapper.kernelTransaction.dataRead().transactionStateHasChanges()
         )
 
         planCache.computeIfAbsentOrStale(cacheKey,
-          transactionalContext,
+          transactionalContextWrapper.kernelTransactionalContext,
           compilerWithExpressionCodeGenOption,
           options.queryOptions.replan,
-          transactionalContext.executingQuery().id())
+          transactionalContextWrapper.kernelTransactionalContext.executingQuery().id())
       } else if (!enoughParametersSupplied) {
         createPlan(shouldBeCached = false, missingParameterNames = queryParamNames.filterNot(filteredParams.containsKey))
       } else {
@@ -416,7 +421,7 @@ case class CypherPlanner(config: CypherPlannerConfiguration,
                            shouldBeCached: Boolean,
                            missingParameterNames: Seq[String]): CacheableLogicalPlan = {
     val logicalPlanStateOld = planner.planPreparedQuery(preparedQuery, context)
-    val hasLoadCsv = logicalPlanStateOld.logicalPlan.treeFind[LogicalPlan] {
+    val hasLoadCsv = logicalPlanStateOld.logicalPlan.folder.treeFind[LogicalPlan] {
       case _: LoadCSV => true
     }.nonEmpty
     val logicalPlanState = logicalPlanStateOld.copy(hasLoadCSV = hasLoadCsv)
@@ -428,7 +433,7 @@ case class CypherPlanner(config: CypherPlannerConfiguration,
     }
     val (reusabilityState, shouldCache) = runtime match {
       case m: AdministrationCommandRuntime =>
-        if (m.isApplicableAdministrationCommand(logicalPlanState)) {
+        if (m.isApplicableAdministrationCommand(logicalPlanState.logicalPlan)) {
           val allowQueryCaching = logicalPlanState.maybeLogicalPlan match {
             case Some(_: SystemProcedureCall) => false
             case Some(ContainsSensitiveFields()) => false
@@ -449,7 +454,7 @@ case class CypherPlanner(config: CypherPlannerConfiguration,
         val fingerprintReference = new PlanFingerprintReference(fingerprint)
         (MaybeReusable(fingerprintReference), shouldBeCached)
     }
-    CacheableLogicalPlan(logicalPlanState, reusabilityState, notificationLogger.notifications.toIndexedSeq, shouldCache)
+    CacheableLogicalPlan(logicalPlanState.asCachableLogicalPlanState(), reusabilityState, notificationLogger.notifications.toIndexedSeq, shouldCache)
   }
 
   private def checkForSchemaChanges(tcw: TransactionalContextWrapper): Unit =
@@ -459,7 +464,7 @@ case class CypherPlanner(config: CypherPlannerConfiguration,
     val names = mutable.ArrayBuffer.empty[String]
     val mapBuilder = new MapValueBuilder()
     val extractor = new ParameterLiteralExtractor
-    statement.findAllByClass[Parameter].foreach {
+    statement.folder.findAllByClass[Parameter].foreach {
       case AutoExtractedParameter(name, _, writer, _) =>
         names += name
         writer.writeTo(extractor)
@@ -473,14 +478,14 @@ case class CypherPlanner(config: CypherPlannerConfiguration,
 
 object ContainsSensitiveFields {
   def unapply(plan: LogicalPlan): Boolean = {
-    plan.treeExists {
+    plan.folder.treeExists {
       case _: SensitiveLiteral => true
       case _: SensitiveParameter => true
     }
   }
 }
 
-case class LogicalPlanResult(logicalPlanState: LogicalPlanState,
+case class LogicalPlanResult(logicalPlanState: CachableLogicalPlanState,
                              paramNames: Seq[String],
                              extractedParams: MapValue,
                              reusability: ReusabilityState,

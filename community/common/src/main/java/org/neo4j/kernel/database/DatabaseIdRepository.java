@@ -38,9 +38,7 @@
  */
 package org.neo4j.kernel.database;
 
-import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 /**
  * Implementations of this interface allow for the retrieval of {@link NamedDatabaseId}s for databases which have
@@ -77,19 +75,6 @@ public interface DatabaseIdRepository
     {
         return getByName( new NormalizedDatabaseName( databaseName ) );
     }
-
-    /**
-     * Fetch all known {@link NormalizedDatabaseName} to {@link NamedDatabaseId} mappings.
-     *
-     * Note: given {@link NamedDatabaseId} objects may appear multiple times in the returned map's value set. This is
-     * due to the fact that databases may have multiple aliases.
-     */
-    Map<NormalizedDatabaseName,NamedDatabaseId> getAllDatabaseAliases();
-
-    /**
-     * Fetch all known {@link NamedDatabaseId}s.
-     */
-    Set<NamedDatabaseId> getAllDatabaseIds();
 
     interface Caching extends DatabaseIdRepository
     {

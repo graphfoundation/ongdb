@@ -52,6 +52,7 @@ import org.neo4j.cypher.internal.ir.ordering.ProvidedOrder
 import org.neo4j.cypher.internal.logical.plans.LogicalPlan
 import org.neo4j.cypher.internal.planner.spi.IDPPlannerName
 import org.neo4j.cypher.internal.util.AnonymousVariableNameGenerator
+import org.neo4j.cypher.internal.util.CancellationChecker
 import org.neo4j.cypher.internal.util.Cardinality
 import org.neo4j.cypher.internal.util.Foldable.TraverseChildren
 import org.neo4j.cypher.internal.util.attribution.Id
@@ -90,13 +91,14 @@ class CompressPlanIDsTest extends CypherFunSuite with AstConstructionTestSupport
   }
 
   // plan.flatten does not find plans in NestedPlanExpressions
-  private def allPlans(plan: LogicalPlan): Seq[LogicalPlan] = plan.treeFold(Seq.empty[LogicalPlan]) {
+  private def allPlans(plan: LogicalPlan): Seq[LogicalPlan] = plan.folder.treeFold(Seq.empty[LogicalPlan]) {
     case plan: LogicalPlan => acc => TraverseChildren(acc :+ plan)
   }
 
   private def compress(state: LogicalPlanState): LogicalPlanState = {
     val plannerContext = mock[PlannerContext]
     when(plannerContext.tracer).thenReturn(NO_TRACING)
+    when(plannerContext.cancellationChecker).thenReturn(CancellationChecker.NeverCancelled)
     CompressPlanIDs.transform(state, plannerContext)
   }
 

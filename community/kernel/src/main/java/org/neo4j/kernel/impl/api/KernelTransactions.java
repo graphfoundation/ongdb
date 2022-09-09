@@ -51,8 +51,8 @@ import org.neo4j.collection.pool.LinkedQueuePool;
 import org.neo4j.collection.pool.Pool;
 import org.neo4j.configuration.Config;
 import org.neo4j.configuration.GraphDatabaseSettings;
-import org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker;
 import org.neo4j.dbms.database.DbmsRuntimeRepository;
+import org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker;
 import org.neo4j.function.Factory;
 import org.neo4j.graphdb.DatabaseShutdownException;
 import org.neo4j.graphdb.TransactionFailureException;
@@ -82,6 +82,7 @@ import org.neo4j.kernel.impl.util.MonotonicCounter;
 import org.neo4j.kernel.impl.util.collection.CollectionsFactorySupplier;
 import org.neo4j.kernel.internal.event.DatabaseTransactionEventListeners;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
+import org.neo4j.logging.LogProvider;
 import org.neo4j.memory.GlobalMemoryGroupTracker;
 import org.neo4j.memory.ScopedMemoryPool;
 import org.neo4j.resources.CpuClock;
@@ -113,6 +114,7 @@ public class KernelTransactions extends LifecycleAdapter implements Supplier<IdC
     private final TransactionMonitor transactionMonitor;
     private final DbmsRuntimeRepository dbmsRuntimeRepository;
     private final KernelVersionRepository kernelVersionRepository;
+    private final GlobalMemoryGroupTracker transactionsMemoryPool;
     private final TransactionExecutionMonitor transactionExecutionMonitor;
     private final AvailabilityGuard databaseAvailabilityGuard;
     private final StorageEngine storageEngine;
@@ -127,6 +129,7 @@ public class KernelTransactions extends LifecycleAdapter implements Supplier<IdC
     private final TokenHolders tokenHolders;
     private final DatabaseReadOnlyChecker readOnlyDatabaseChecker;
     private final ExternalIdReuseConditionProvider externalIdReuseConditionProvider;
+    private final LogProvider internalLogProvider;
     private final NamedDatabaseId namedDatabaseId;
     private final IndexingService indexingService;
     private final IndexStatisticsStore indexStatisticsStore;
@@ -153,8 +156,8 @@ public class KernelTransactions extends LifecycleAdapter implements Supplier<IdC
     private final ConstraintSemantics constraintSemantics;
     private final AtomicInteger activeTransactionCounter = new AtomicInteger();
     private final TokenHoldersIdLookup tokenHoldersIdLookup;
-    private final ScopedMemoryPool transactionMemoryPool;
     private final AbstractSecurityLog securityLog;
+    private ScopedMemoryPool transactionMemoryPool;
 
     /**
      * Kernel transactions component status. True when stopped, false when started.
@@ -174,7 +177,8 @@ public class KernelTransactions extends LifecycleAdapter implements Supplier<IdC
                                IndexingService indexingService,
                                IndexStatisticsStore indexStatisticsStore, Dependencies databaseDependencies, DatabaseTracers tracers, LeaseService leaseService,
                                GlobalMemoryGroupTracker transactionsMemoryPool, DatabaseReadOnlyChecker readOnlyDatabaseChecker,
-                               TransactionExecutionMonitor transactionExecutionMonitor, ExternalIdReuseConditionProvider externalIdReuseConditionProvider )
+                               TransactionExecutionMonitor transactionExecutionMonitor, ExternalIdReuseConditionProvider externalIdReuseConditionProvider,
+                               LogProvider internalLogProvider )
     {
         this.config = config;
         this.locks = locks;
@@ -182,6 +186,7 @@ public class KernelTransactions extends LifecycleAdapter implements Supplier<IdC
         this.transactionCommitProcess = transactionCommitProcess;
         this.eventListeners = eventListeners;
         this.transactionMonitor = transactionMonitor;
+        this.transactionsMemoryPool = transactionsMemoryPool;
         this.transactionExecutionMonitor = transactionExecutionMonitor;
         this.databaseAvailabilityGuard = databaseAvailabilityGuard;
         this.storageEngine = storageEngine;
@@ -194,6 +199,7 @@ public class KernelTransactions extends LifecycleAdapter implements Supplier<IdC
         this.tokenHolders = tokenHolders;
         this.readOnlyDatabaseChecker = readOnlyDatabaseChecker;
         this.externalIdReuseConditionProvider = externalIdReuseConditionProvider;
+        this.internalLogProvider = internalLogProvider;
         this.tokenHoldersIdLookup = new TokenHoldersIdLookup( tokenHolders, globalProcedures );
         this.namedDatabaseId = namedDatabaseId;
         this.indexingService = indexingService;
@@ -208,10 +214,7 @@ public class KernelTransactions extends LifecycleAdapter implements Supplier<IdC
         this.txPool = new MonitoredTransactionPool(
                 new GlobalKernelTransactionPool( allTransactions, new KernelTransactionImplementationFactory( allTransactions, tracers ) ),
                 activeTransactionCounter, config );
-        this.transactionMemoryPool = transactionsMemoryPool.newDatabasePool( namedDatabaseId.name(),
-                config.get( memory_transaction_database_max_size ), memory_transaction_database_max_size.name() );
         this.securityLog = databaseDependendies.resolveDependency( AbstractSecurityLog.class );
-        config.addListener( memory_transaction_database_max_size, ( before, after ) -> transactionMemoryPool.setSize( after ) );
         doBlockNewTransactions();
     }
 
@@ -262,17 +265,17 @@ public class KernelTransactions extends LifecycleAdapter implements Supplier<IdC
     }
 
     /**
-     * Give an approximate set of all transactions stamps currently running.
+     * Give an approximate set of all transactions stamps that are currently running and hasn't been terminated.
      * This is not guaranteed to be exact, as transactions may stop and start while this set is gathered.
      *
-     * @return the (approximate) set of open transactions stamps.
+     * @return the (approximate) set of open, non-terminated transactions stamps.
      */
-    public Set<KernelTransactionStamp> activeTransactionsStamps()
+    private Set<KernelTransactionStamp> activeAndNotTerminatedTransactionsStamps()
     {
         return allTransactions
                 .stream()
                 .map( KernelTransactionStamp::new )
-                .filter( KernelTransactionStamp::isOpen )
+                .filter( kernelTransactionStamp -> kernelTransactionStamp.isOpen() && !kernelTransactionStamp.isTerminated() )
                 .collect( toSet() );
     }
 
@@ -319,6 +322,14 @@ public class KernelTransactions extends LifecycleAdapter implements Supplier<IdC
     }
 
     @Override
+    public void init() throws Exception
+    {
+        this.transactionMemoryPool = transactionsMemoryPool.newDatabasePool( namedDatabaseId.name(),
+                config.get( memory_transaction_database_max_size ), memory_transaction_database_max_size.name() );
+        config.addListener( memory_transaction_database_max_size, ( before, after ) -> transactionMemoryPool.setSize( after ) );
+    }
+
+    @Override
     public void start()
     {
         stopped = false;
@@ -343,7 +354,7 @@ public class KernelTransactions extends LifecycleAdapter implements Supplier<IdC
     @Override
     public IdController.IdFreeCondition get()
     {
-        return externalIdReuseConditionProvider.get( new KernelTransactionsSnapshot( activeTransactionsStamps() ), transactionIdStore, clock );
+        return externalIdReuseConditionProvider.get( new KernelTransactionsSnapshot( activeAndNotTerminatedTransactionsStamps() ), transactionIdStore, clock );
     }
 
     /**
@@ -441,7 +452,7 @@ public class KernelTransactions extends LifecycleAdapter implements Supplier<IdC
                             versionContextSupplier, collectionsFactorySupplier, constraintSemantics,
                             schemaState, tokenHolders, indexingService, indexStatisticsStore,
                             databaseDependendies, namedDatabaseId, leaseService, transactionMemoryPool, readOnlyDatabaseChecker, transactionExecutionMonitor,
-                            securityLog, kernelVersionRepository, dbmsRuntimeRepository, locks.newClient(), KernelTransactions.this );
+                            securityLog, kernelVersionRepository, dbmsRuntimeRepository, locks.newClient(), KernelTransactions.this, internalLogProvider );
             this.transactions.add( tx );
             return tx;
         }

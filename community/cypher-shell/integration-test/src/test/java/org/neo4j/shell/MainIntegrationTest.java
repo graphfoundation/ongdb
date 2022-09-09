@@ -46,6 +46,7 @@ import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.nio.file.Files;
 
 import org.neo4j.driver.exceptions.ClientException;
@@ -57,6 +58,7 @@ import org.neo4j.shell.cli.Format;
 import org.neo4j.shell.exception.CommandException;
 import org.neo4j.shell.log.AnsiLogger;
 import org.neo4j.shell.prettyprint.PrettyConfig;
+import org.neo4j.shell.terminal.TestSimplePrompt;
 import org.neo4j.shell.test.AssertableMain;
 import org.neo4j.shell.util.Version;
 import org.neo4j.shell.util.Versions;
@@ -102,7 +104,7 @@ class MainIntegrationTest
             .userInputLines( "kate", "bush", "return 42 as x;", ":exit" )
             .run()
             .assertSuccess()
-            .assertThatOutput( startsWith( format( "username: kate%npassword: ****%n" ) ), returned42AndExited() );
+            .assertThatOutput( startsWith( format( "username: kate%npassword: %n" ) ), returned42AndExited() );
     }
 
     @Test
@@ -116,7 +118,7 @@ class MainIntegrationTest
             .run()
             .assertSuccess()
             .assertThatOutput(
-                startsWith( format( "username: bob%npassword: *******%nPassword change required%nnew password: *******%nconfirm password: *******%n" ) ),
+                startsWith( format( "username: bob%npassword: %nPassword change required%nnew password: %nconfirm password: %n" ) ),
                 returned42AndExited()
             );
     }
@@ -199,7 +201,7 @@ class MainIntegrationTest
             .userInputLines( "holy", "ghost" )
             .run()
             .assertSuccessAndConnected()
-            .assertOutputLines( "username: holy", "password: *****", "x", "42" );
+            .assertOutputLines( "username: holy", "password: ", "x", "42" );
     }
 
     @Test
@@ -246,7 +248,7 @@ class MainIntegrationTest
             .userInputLines( "jacob", "collier" )
             .run()
             .assertSuccessAndConnected()
-            .assertOutputLines( "username: jacob", "password: *******", "result", "42" );
+            .assertOutputLines( "username: jacob", "password: ", "result", "42" );
     }
 
     @Test
@@ -610,7 +612,7 @@ class MainIntegrationTest
             .userInputLines( "kate", "bush", "betterpassword", "betterpassword" )
             .run()
             .assertSuccess()
-            .assertOutputLines( "username: kate", "password: ****", "new password: **************", "confirm password: **************" );
+            .assertOutputLines( "username: kate", "password: ", "new password: ", "confirm password: " );
 
         assertUserCanConnectAndRunQuery( "kate", "betterpassword" );
     }
@@ -623,7 +625,7 @@ class MainIntegrationTest
             .userInputLines( "paul", "simon", "newpassword", "newpassword" )
             .run()
             .assertSuccess()
-            .assertOutputLines( "username: paul", "password: *****", "new password: ***********", "confirm password: ***********" );
+            .assertOutputLines( "username: paul", "password: ", "new password: ", "confirm password: " );
 
         assertUserCanConnectAndRunQuery( "paul", "newpassword" );
     }
@@ -636,7 +638,7 @@ class MainIntegrationTest
             .userInputLines( "oldfield", "newfield", "newfield" )
             .run()
             .assertSuccess()
-            .assertOutputLines( "password: ********", "new password: ********", "confirm password: ********" );
+            .assertOutputLines( "password: ", "new password: ", "confirm password: " );
 
         assertUserCanConnectAndRunQuery( "mike", "newfield" );
     }
@@ -650,7 +652,7 @@ class MainIntegrationTest
             .run()
             .assertFailure()
             .assertThatErrorOutput( startsWith( "Failed to change password" ) )
-            .assertOutputLines( "password: ******************", "new password: ******", "confirm password: ******" );
+            .assertOutputLines( "password: ", "new password: ", "confirm password: " );
     }
 
     @Test
@@ -1037,7 +1039,13 @@ class MainIntegrationTest
             var outPrintStream = new PrintStream( out );
             var errPrintStream = new PrintStream( err );
             var logger = new AnsiLogger( false, Format.VERBOSE, outPrintStream, errPrintStream );
-            var terminal = terminalBuilder().dumb().streams( in, outPrintStream ).interactive( !args.getNonInteractive() ).logger( logger ).build();
+            var terminal = terminalBuilder()
+                    .dumb()
+                    .streams( in, outPrintStream )
+                    .simplePromptSupplier(() -> new TestSimplePrompt( in, new PrintWriter( out ) ) )
+                    .interactive( !args.getNonInteractive() )
+                    .logger( logger )
+                    .build();
             var main = new Main( args, outPrintStream, errPrintStream, isOutputInteractive, terminal );
             var exitCode = main.startShell();
             return new AssertableMain( exitCode, out, err, main.getCypherShell() );

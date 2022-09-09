@@ -55,9 +55,13 @@ import org.neo4j.cypher.internal.util.attribution.IdGen
 import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 import org.scalatest.Assertion
 
+import scala.language.postfixOps
+
 class UnnestApplyTest extends CypherFunSuite with LogicalPlanningAttributesTestSupport with LogicalPlanConstructionTestSupport with AstConstructionTestSupport {
 
   private val po_n: ProvidedOrder = ProvidedOrder.asc(varFor("n"))
+  private val po_n_m: ProvidedOrder = ProvidedOrder.asc(varFor("n")).asc(varFor("m"))
+  private val po_m_n: ProvidedOrder = ProvidedOrder.asc(varFor("m")).asc(varFor("n"))
 
   test("should unnest apply with a single Argument on the lhs") {
     // If we tracked distinctness, we would get input plans where the RHS provided order
@@ -451,46 +455,6 @@ class UnnestApplyTest extends CypherFunSuite with LogicalPlanningAttributesTestS
     )
   }
 
-  test("should unnest LeftOuterHashJoin and multiply cardinality") {
-    val inputBuilder = new LogicalPlanBuilder()
-      .produceResults("n", "m").withCardinality(2500)
-      .apply().withCardinality(2500)
-      .|.leftOuterHashJoin("n").withCardinality(25).withProvidedOrder(po_n)
-      .|.|.expand("(m)--(n)").withCardinality(50).withProvidedOrder(po_n)
-      .|.|.nodeByLabelScan("m", "M").withCardinality(10).withProvidedOrder(po_n)
-      .|.argument("n").withCardinality(1)
-      .nodeByLabelScan("n", "N").withCardinality(100)
-
-    inputBuilder shouldRewriteToPlanWithAttributes(
-      new LogicalPlanBuilder()
-        .produceResults("n", "m").withCardinality(2500)
-        .leftOuterHashJoin("n").withCardinality(2500).withProvidedOrder(po_n)
-        .|.expand("(m)--(n)").withCardinality(50).withProvidedOrder(po_n)
-        .|.nodeByLabelScan("m", "M").withCardinality(10).withProvidedOrder(po_n)
-        .nodeByLabelScan("n", "N").withCardinality(100)
-    )
-  }
-
-  test("should unnest RightOuterHashJoin and multiply cardinality") {
-    val inputBuilder = new LogicalPlanBuilder()
-      .produceResults("n", "m").withCardinality(2500)
-      .apply().withCardinality(2500)
-      .|.rightOuterHashJoin("n").withCardinality(25).withProvidedOrder(po_n)
-      .|.|.argument("n").withCardinality(1).withProvidedOrder(po_n)
-      .|.expand("(m)--(n)").withCardinality(50)
-      .|.nodeByLabelScan("m", "M").withCardinality(10)
-      .nodeByLabelScan("n", "N").withCardinality(100).withProvidedOrder(po_n)
-
-    inputBuilder shouldRewriteToPlanWithAttributes(
-      new LogicalPlanBuilder()
-        .produceResults("n", "m").withCardinality(2500)
-        .rightOuterHashJoin("n").withCardinality(2500).withProvidedOrder(po_n) // Assuming the label-scan order was propagated to the removed Argument
-        .|.nodeByLabelScan("n", "N").withCardinality(100).withProvidedOrder(po_n)
-        .expand("(m)--(n)").withCardinality(50)
-        .nodeByLabelScan("m", "M").withCardinality(10)
-    )
-  }
-
   test("should unnest nested Apply with Expand on LHS") {
     val inputBuilder = new LogicalPlanBuilder()
       .produceResults("n", "m").withCardinality(1000).withProvidedOrder(po_n)
@@ -713,20 +677,6 @@ class UnnestApplyTest extends CypherFunSuite with LogicalPlanningAttributesTestS
     rewrite(input) should equal(expected)
   }
 
-  test("should not unnest Apply with RHS LeftOuterHashJoin when fromSubquery is true") {
-    val input = new LogicalPlanBuilder()
-      .produceResults("n", "m")
-      .apply(fromSubquery = true)
-      .|.leftOuterHashJoin("n")
-      .|.|.setProperty("m", "prop", "1")
-      .|.|.nodeByLabelScan("m", "M")
-      .|.argument("n")
-      .nodeByLabelScan("n", "N")
-      .build()
-
-    rewrite(input) should equal(input)
-  }
-
   test("should not unnest ForeachApply when fromSubquery is true") {
     val input = new LogicalPlanBuilder()
       .produceResults("n")
@@ -735,20 +685,6 @@ class UnnestApplyTest extends CypherFunSuite with LogicalPlanningAttributesTestS
       .|.|.setProperty("n", "prop", "5")
       .|.|.argument("n")
       .|.argument("n")
-      .nodeByLabelScan("n", "N")
-      .build()
-
-    rewrite(input) should equal(input)
-  }
-
-  test("should not unnest Apply with RHS RightOuterHashJoin when fromSubquery is true") {
-    val input = new LogicalPlanBuilder()
-      .produceResults("n", "m")
-      .apply(fromSubquery = true)
-      .|.rightOuterHashJoin("n")
-      .|.|.argument("n")
-      .|.setProperty("m", "prop", "1")
-      .|.nodeByLabelScan("m", "M")
       .nodeByLabelScan("n", "N")
       .build()
 
@@ -843,6 +779,12 @@ class UnnestApplyTest extends CypherFunSuite with LogicalPlanningAttributesTestS
       val resultPlan = rewrite(inputBuilder.build(), inputBuilder.cardinalities, inputBuilder.providedOrders,inputBuilder.idGen)
       (resultPlan, inputBuilder.cardinalities) should haveSameCardinalitiesAs((expectedBuilder.build(), expectedBuilder.cardinalities))
       (resultPlan, inputBuilder.providedOrders) should haveSameProvidedOrdersAs((expectedBuilder.build(), expectedBuilder.providedOrders))
+    }
+
+    def shouldNotRewritePlan: Assertion = {
+      val inputPlan = inputBuilder.build()
+      val resultPlan = rewrite(inputPlan, inputBuilder.cardinalities, inputBuilder.providedOrders,inputBuilder.idGen)
+      resultPlan shouldEqual inputPlan
     }
   }
 

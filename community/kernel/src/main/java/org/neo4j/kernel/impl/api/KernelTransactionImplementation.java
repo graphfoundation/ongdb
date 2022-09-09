@@ -53,8 +53,10 @@ import org.neo4j.collection.trackable.HeapTrackingArrayList;
 import org.neo4j.collection.trackable.HeapTrackingCollections;
 import org.neo4j.configuration.Config;
 import org.neo4j.configuration.GraphDatabaseInternalSettings;
-import org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.configuration.SettingChangeListener;
 import org.neo4j.dbms.database.DbmsRuntimeRepository;
+import org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker;
 import org.neo4j.exceptions.KernelException;
 import org.neo4j.graphdb.NotInTransactionException;
 import org.neo4j.graphdb.TransactionTerminatedException;
@@ -128,6 +130,8 @@ import org.neo4j.kernel.internal.event.DatabaseTransactionEventListeners;
 import org.neo4j.kernel.internal.event.TransactionListenersState;
 import org.neo4j.lock.ActiveLock;
 import org.neo4j.lock.LockTracer;
+import org.neo4j.logging.Log;
+import org.neo4j.logging.LogProvider;
 import org.neo4j.memory.EmptyMemoryTracker;
 import org.neo4j.memory.LimitedMemoryTracker;
 import org.neo4j.memory.LocalMemoryTracker;
@@ -239,6 +243,9 @@ public class KernelTransactionImplementation implements KernelTransaction, TxSta
     private final LimitedMemoryTracker memoryTracker;
     private final Config config;
     private volatile long transactionHeapBytesLimit;
+    private final SettingChangeListener<GraphDatabaseSettings.TransactionTracingLevel> tracingLevelListener;
+    private final SettingChangeListener<Integer> samplingPercentageListener;
+    private final SettingChangeListener<Long> txMaxSizeListener;
 
     /**
      * Lock prevents transaction {@link #markForTermination(Status)}  transaction termination} from interfering with
@@ -269,13 +276,15 @@ public class KernelTransactionImplementation implements KernelTransaction, TxSta
             NamedDatabaseId namedDatabaseId, LeaseService leaseService, ScopedMemoryPool transactionMemoryPool,
             DatabaseReadOnlyChecker readOnlyDatabaseChecker, TransactionExecutionMonitor transactionExecutionMonitor,
             AbstractSecurityLog securityLog, KernelVersionRepository kernelVersionRepository, DbmsRuntimeRepository dbmsRuntimeRepository,
-            Locks.Client lockClient, KernelTransactions kernelTransactions )
+            Locks.Client lockClient, KernelTransactions kernelTransactions, LogProvider internalLogProvider )
     {
         this.accessCapabilityFactory = accessCapabilityFactory;
         this.readOnlyDatabaseChecker = readOnlyDatabaseChecker;
         long heapGrabSize = config.get( GraphDatabaseInternalSettings.initial_transaction_heap_grab_size );
-        this.memoryTracker = config.get( memory_tracking ) ? new LocalMemoryTracker( transactionMemoryPool, 0, heapGrabSize,
-                                     memory_transaction_max_size.name() ) : EmptyMemoryTracker.INSTANCE;
+        this.memoryTracker = config.get( memory_tracking )
+                             ? new LocalMemoryTracker( transactionMemoryPool, 0, heapGrabSize,
+                                     memory_transaction_max_size.name(), () -> !closed, memoryLeakLogger( internalLogProvider.getLog( getClass() ) ) )
+                             : EmptyMemoryTracker.INSTANCE;
         this.eventListeners = eventListeners;
         this.constraintIndexCreator = constraintIndexCreator;
         this.commitProcess = commitProcess;
@@ -321,7 +330,10 @@ public class KernelTransactionImplementation implements KernelTransaction, TxSta
                 );
         traceProvider = getTraceProvider( config );
         transactionHeapBytesLimit = config.get( memory_transaction_max_size );
-        registerConfigChangeListeners( config );
+        tracingLevelListener  = ( before, after ) -> traceProvider = getTraceProvider( config );
+        samplingPercentageListener  =  ( before, after ) -> traceProvider = getTraceProvider( config );
+        txMaxSizeListener  =  ( before, after ) -> transactionHeapBytesLimit = after;
+        registerConfigChangeListeners( config, tracingLevelListener, samplingPercentageListener, txMaxSizeListener );
         this.config = config;
         this.collectionsFactory = collectionsFactorySupplier.create();
         this.lockClient = lockClient;
@@ -334,6 +346,8 @@ public class KernelTransactionImplementation implements KernelTransaction, TxSta
     public KernelTransactionImplementation initialize( long lastCommittedTx, long lastTimeStamp, Type type,
             SecurityContext frozenSecurityContext, long transactionTimeout, long userTransactionId, ClientConnectionInfo clientInfo )
     {
+        assert memoryTracker.estimatedHeapMemory() == 0;
+        assert memoryTracker.usedNativeMemory() == 0;
         this.cursorContext = new CursorContext( pageCacheTracer.createPageCursorTracer( TRANSACTION_TAG ), versionContextSupplier.createVersionContext() );
         this.transactionalCursors.reset( cursorContext );
         this.accessCapability = accessCapabilityFactory.newAccessCapability( readOnlyDatabaseChecker );
@@ -1218,6 +1232,8 @@ public class KernelTransactionImplementation implements KernelTransaction, TxSta
     public void dispose()
     {
         storageReader.close();
+        removeConfigChangeListeners( config );
+        currentStatement.dispose();
     }
 
     /**
@@ -1463,11 +1479,26 @@ public class KernelTransactionImplementation implements KernelTransaction, TxSta
         return operations.propertyCursor();
     }
 
-    private void registerConfigChangeListeners( Config config )
+    private void registerConfigChangeListeners( Config config,
+            SettingChangeListener<GraphDatabaseSettings.TransactionTracingLevel> tracingLevelListener,
+            SettingChangeListener<Integer> samplingPercentageListener, SettingChangeListener<Long> txMaxSizeListener )
     {
-        config.addListener( transaction_tracing_level, ( before, after ) -> traceProvider = getTraceProvider( config ) );
-        config.addListener( transaction_sampling_percentage, ( before, after ) -> traceProvider = getTraceProvider( config ) );
-        config.addListener( memory_transaction_max_size, ( before, after ) -> transactionHeapBytesLimit = after );
+        config.addListener( transaction_tracing_level, tracingLevelListener );
+        config.addListener( transaction_sampling_percentage, samplingPercentageListener );
+        config.addListener( memory_transaction_max_size, txMaxSizeListener );
+    }
+
+    private void removeConfigChangeListeners( Config config )
+    {
+        config.removeListener( transaction_tracing_level, tracingLevelListener );
+        config.removeListener( transaction_sampling_percentage, samplingPercentageListener );
+        config.removeListener( memory_transaction_max_size, txMaxSizeListener );
+    }
+
+    private static LocalMemoryTracker.Monitor memoryLeakLogger( Log log )
+    {
+        return leakedNativeMemoryBytes -> log.warn(
+                "Potential direct memory leak. Expecting all allocated direct memory to be released, but still has " + leakedNativeMemoryBytes );
     }
 
     /**

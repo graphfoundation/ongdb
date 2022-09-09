@@ -42,6 +42,7 @@ import org.neo4j.cypher.internal.ast.AstConstructionTestSupport
 import org.neo4j.cypher.internal.compiler.helpers.LogicalPlanBuilder
 import org.neo4j.cypher.internal.compiler.planner.LogicalPlanningAttributesTestSupport
 import org.neo4j.cypher.internal.compiler.planner.LogicalPlanningIntegrationTestSupport
+import org.neo4j.cypher.internal.ir.NoHeaders
 import org.neo4j.cypher.internal.logical.builder.AbstractLogicalPlanBuilder.createNode
 import org.neo4j.cypher.internal.logical.builder.AbstractLogicalPlanBuilder.createNodeWithProperties
 import org.neo4j.cypher.internal.logical.plans.Ascending
@@ -866,6 +867,7 @@ class SubqueryCallPlanningIntegrationTest
       .transactionForeach()
       .|.create(createNode("b"))
       .|.argument()
+      .eager()
       .allNodeScan("a")
       .build()
   }
@@ -889,6 +891,7 @@ class SubqueryCallPlanningIntegrationTest
       .transactionForeach(42)
       .|.create(createNode("b"))
       .|.argument()
+      .eager()
       .allNodeScan("a")
       .build()
   }
@@ -913,6 +916,7 @@ class SubqueryCallPlanningIntegrationTest
       .transactionForeach()
       .|.create(createNodeWithProperties("b", Seq.empty, "{prop: a.prop + 1}"))
       .|.argument("a")
+      .eager()
       .allNodeScan("a")
       .build()
   }
@@ -937,6 +941,7 @@ class SubqueryCallPlanningIntegrationTest
       .transactionApply()
       .|.create(createNode("b"))
       .|.argument()
+      .eager()
       .allNodeScan("a")
       .build()
   }
@@ -961,6 +966,7 @@ class SubqueryCallPlanningIntegrationTest
       .transactionApply(400)
       .|.create(createNode("b"))
       .|.argument()
+      .eager()
       .allNodeScan("a")
       .build()
   }
@@ -986,6 +992,7 @@ class SubqueryCallPlanningIntegrationTest
       .transactionApply()
       .|.create(createNodeWithProperties("b", Seq.empty, "{prop: a.prop + 1}"))
       .|.argument("a")
+      .eager()
       .allNodeScan("a")
       .build()
   }
@@ -1011,6 +1018,7 @@ class SubqueryCallPlanningIntegrationTest
       .|.create(createNode("c"))
       .|.eager()
       .|.allNodeScan("b")
+      .eager()
       .allNodeScan("a")
       .build()
   }
@@ -1040,6 +1048,7 @@ class SubqueryCallPlanningIntegrationTest
       .|.create(createNode("c"))
       .|.eager()
       .|.allNodeScan("b")
+      .eager()
       .allNodeScan("a")
       .build()
   }
@@ -1067,6 +1076,39 @@ class SubqueryCallPlanningIntegrationTest
       .|.setNodeProperty("a", "prop", "1")
       .|.argument("a")
       .allNodeScan("a")
+      .build()
+  }
+
+  test("consecutive call subquery in transactions with write after load csv is not eagerized") {
+    val cfg = plannerBuilder()
+      .setAllNodesCardinality(1000)
+      .build()
+
+    val query =
+      """
+        |LOAD CSV FROM 'https://neo4j.com/test.csv' AS line
+        |CALL {
+        |  CREATE (n)
+        |} IN TRANSACTIONS
+        |CALL {
+        |  MATCH (n)
+        |  SET n.prop = 1
+        |} IN TRANSACTIONS
+        |RETURN 1 AS x
+        |""".stripMargin
+
+    val plan = cfg.plan(query).stripProduceResults
+    plan shouldEqual cfg.subPlanBuilder()
+      .projection("1 AS x")
+      .transactionForeach()
+      .|.setNodeProperty("n", "prop", "1")
+      .|.allNodeScan("n")
+      .eager()
+      .transactionForeach()
+      .|.create(createNode("n"))
+      .|.argument()
+      .loadCSV("'https://neo4j.com/test.csv'", "line", NoHeaders)
+      .argument()
       .build()
   }
 
@@ -1098,6 +1140,7 @@ class SubqueryCallPlanningIntegrationTest
       .transactionForeach()
       .|.create(createNode("n"))
       .|.argument()
+      .eager()
       .allNodeScan("a")
       .build()
   }

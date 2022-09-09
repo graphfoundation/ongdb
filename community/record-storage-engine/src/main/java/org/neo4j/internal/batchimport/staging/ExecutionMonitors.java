@@ -52,6 +52,6 @@ public class ExecutionMonitors
 
     public static ExecutionMonitor defaultVisible()
     {
-        return new HumanUnderstandableExecutionMonitor( NO_MONITOR );
+        return new HumanUnderstandableExecutionMonitor( NO_MONITOR, System.out, System.err );
     }
 }

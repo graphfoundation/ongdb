@@ -103,7 +103,8 @@ case class QgWithLeafInfo(private val solvedQg: QueryGraph,
 
   def hasUnstableLeaves: Boolean = unstableLeaves.nonEmpty
 
-  lazy val unstablePatternNodes: Set[String] = queryGraph.allPatternNodesRead -- stableIdentifier.map(_.name)
+  lazy val unstablePatternNodes: Set[String] =
+    queryGraph.allPatternNodesRead -- stableIdentifier.map(_.name).filterNot(unstableLeaves.contains)
 
   lazy val unstablePatternRelationships: Set[PatternRelationship] = queryGraph.allPatternRelationshipsRead.filterNot(rel => stableIdentifier.exists(i => i.name == rel.name))
 
@@ -176,10 +177,13 @@ case class QgWithLeafInfo(private val solvedQg: QueryGraph,
   })
 
   private lazy val patternExpressionProperties: Set[PropertyKeyName] = {
-    (queryGraph.findAllByClass[PatternComprehension] ++ queryGraph.findAllByClass[PatternExpression]).flatMap {
-      _.findAllByClass[PropertyKeyName]
+    (queryGraph.folder.findAllByClass[PatternComprehension] ++ queryGraph.folder.findAllByClass[PatternExpression]).flatMap {
+      _.folder.findAllByClass[PropertyKeyName]
     }.toSet
   }
+
+  def allPossibleLabelsOnNode(node: String): Set[LabelName] =
+    solvedQg.allPossibleLabelsOnNode(node)
 
   /**
    * Checks whether the given expression could be of type `CTNode` or `CTRelationship`.

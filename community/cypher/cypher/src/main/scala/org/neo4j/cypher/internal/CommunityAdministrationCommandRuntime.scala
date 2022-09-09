@@ -39,20 +39,39 @@
 package org.neo4j.cypher.internal
 
 import org.neo4j.common.DependencyResolver
+import org.neo4j.cypher.internal.AdministrationCommandRuntime.makeRenameExecutionPlan
+import org.neo4j.cypher.internal.AdministrationCommandRuntime.runtimeStringValue
+import org.neo4j.cypher.internal.administration.AlterUserExecutionPlanner
+import org.neo4j.cypher.internal.administration.CommunityExtendedDatabaseInfoMapper
+import org.neo4j.cypher.internal.administration.CreateUserExecutionPlanner
+import org.neo4j.cypher.internal.administration.DoNothingExecutionPlanner
+import org.neo4j.cypher.internal.administration.DropUserExecutionPlanner
+import org.neo4j.cypher.internal.administration.EnsureNodeExistsExecutionPlanner
+import org.neo4j.cypher.internal.administration.SetOwnPasswordExecutionPlanner
 import org.neo4j.cypher.internal.administration.ShowDatabasesExecutionPlanner
+import org.neo4j.cypher.internal.administration.ShowUsersExecutionPlanner
+import org.neo4j.cypher.internal.administration.SystemProcedureCallPlanner
 import org.neo4j.cypher.internal.ast.AdministrationAction
+import org.neo4j.cypher.internal.ast.Clause
 import org.neo4j.cypher.internal.ast.DbmsAction
+import org.neo4j.cypher.internal.ast.Return
+import org.neo4j.cypher.internal.ast.SingleQuery
 import org.neo4j.cypher.internal.ast.StartDatabaseAction
+import org.neo4j.cypher.internal.ast.Statement
 import org.neo4j.cypher.internal.ast.StopDatabaseAction
-import org.neo4j.cypher.internal.compiler.phases.LogicalPlanState
+import org.neo4j.cypher.internal.ast.TerminateTransactionsClause
+import org.neo4j.cypher.internal.ast.Yield
 import org.neo4j.cypher.internal.expressions.Parameter
 import org.neo4j.cypher.internal.logical.plans.AllowedNonAdministrationCommands
 import org.neo4j.cypher.internal.logical.plans.AlterUser
 import org.neo4j.cypher.internal.logical.plans.AssertAllowedDatabaseAction
 import org.neo4j.cypher.internal.logical.plans.AssertAllowedDbmsActions
 import org.neo4j.cypher.internal.logical.plans.AssertAllowedDbmsActionsOrSelf
+import org.neo4j.cypher.internal.logical.plans.AssertAllowedOneOfDbmsActions
 import org.neo4j.cypher.internal.logical.plans.AssertNotCurrentUser
 import org.neo4j.cypher.internal.logical.plans.CreateUser
+import org.neo4j.cypher.internal.logical.plans.DoNothingIfDatabaseExists
+import org.neo4j.cypher.internal.logical.plans.DoNothingIfDatabaseNotExists
 import org.neo4j.cypher.internal.logical.plans.DoNothingIfExists
 import org.neo4j.cypher.internal.logical.plans.DoNothingIfNotExists
 import org.neo4j.cypher.internal.logical.plans.DropUser
@@ -60,6 +79,7 @@ import org.neo4j.cypher.internal.logical.plans.EnsureNodeExists
 import org.neo4j.cypher.internal.logical.plans.LogSystemCommand
 import org.neo4j.cypher.internal.logical.plans.LogicalPlan
 import org.neo4j.cypher.internal.logical.plans.NameValidator
+import org.neo4j.cypher.internal.logical.plans.PrivilegePlan
 import org.neo4j.cypher.internal.logical.plans.RenameUser
 import org.neo4j.cypher.internal.logical.plans.SetOwnPassword
 import org.neo4j.cypher.internal.logical.plans.ShowCurrentUser
@@ -67,13 +87,17 @@ import org.neo4j.cypher.internal.logical.plans.ShowDatabase
 import org.neo4j.cypher.internal.logical.plans.ShowUsers
 import org.neo4j.cypher.internal.logical.plans.SystemProcedureCall
 import org.neo4j.cypher.internal.procs.ActionMapper
-import org.neo4j.cypher.internal.procs.AuthorizationPredicateExecutionPlan
+import org.neo4j.cypher.internal.procs.AuthorizationAndPredicateExecutionPlan
+import org.neo4j.cypher.internal.procs.AuthorizationOrPredicateExecutionPlan
 import org.neo4j.cypher.internal.procs.PredicateExecutionPlan
 import org.neo4j.cypher.internal.procs.SystemCommandExecutionPlan
+import org.neo4j.cypher.internal.util.Rewriter
+import org.neo4j.cypher.internal.util.bottomUp
 import org.neo4j.cypher.rendering.QueryRenderer
 import org.neo4j.exceptions.CantCompileQueryException
 import org.neo4j.exceptions.InvalidArgumentException
 import org.neo4j.internal.kernel.api.security.AbstractSecurityLog
+import org.neo4j.internal.kernel.api.security.AccessMode
 import org.neo4j.internal.kernel.api.security.AdminActionOnResource
 import org.neo4j.internal.kernel.api.security.AdminActionOnResource.DatabaseScope
 import org.neo4j.internal.kernel.api.security.PermissionState
@@ -84,28 +108,6 @@ import org.neo4j.kernel.database.DefaultDatabaseResolver
 import org.neo4j.values.storable.TextValue
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.MapValue
-import AdministrationCommandRuntime.makeRenameExecutionPlan
-import AdministrationCommandRuntime.runtimeStringValue
-import org.neo4j.cypher.internal.administration.AlterUserExecutionPlanner
-import org.neo4j.cypher.internal.administration.CommunityExtendedDatabaseInfoMapper
-import org.neo4j.cypher.internal.administration.CreateUserExecutionPlanner
-import org.neo4j.cypher.internal.administration.DoNothingExecutionPlanner
-import org.neo4j.cypher.internal.administration.DropUserExecutionPlanner
-import org.neo4j.cypher.internal.administration.EnsureNodeExistsExecutionPlanner
-import org.neo4j.cypher.internal.administration.SetOwnPasswordExecutionPlanner
-import org.neo4j.cypher.internal.administration.ShowUsersExecutionPlanner
-import org.neo4j.cypher.internal.administration.SystemProcedureCallPlanner
-import org.neo4j.cypher.internal.ast.Clause
-import org.neo4j.cypher.internal.ast.Return
-import org.neo4j.cypher.internal.ast.SingleQuery
-import org.neo4j.cypher.internal.ast.Statement
-import org.neo4j.cypher.internal.ast.TerminateTransactionsClause
-import org.neo4j.cypher.internal.ast.Yield
-import org.neo4j.cypher.internal.logical.plans.DoNothingIfDatabaseExists
-import org.neo4j.cypher.internal.logical.plans.DoNothingIfDatabaseNotExists
-import org.neo4j.cypher.internal.util.Rewriter
-import org.neo4j.cypher.internal.util.bottomUp
-import org.neo4j.internal.kernel.api.security.AccessMode
 
 import scala.annotation.tailrec
 
@@ -152,29 +154,40 @@ case class CommunityAdministrationCommandRuntime(normalExecutionEngine: Executio
     case PermissionState.EXPLICIT_GRANT => ""
   }
 
-  private def checkAdminRightsForDBMSOrSelf (user: Either[String, Parameter], actions: Seq[DbmsAction]): AdministrationCommandRuntimeContext => ExecutionPlan = _ =>  {
-    def checkActions(securityContext: SecurityContext): Seq[(DbmsAction, PermissionState)] = actions.map( action =>
+  private def getSource(maybeSource: Option[PrivilegePlan], context: AdministrationCommandRuntimeContext): Option[ExecutionPlan] =
+    maybeSource match {
+      case Some(source) => Some(fullLogicalToExecutable.applyOrElse(source, throwCantCompile).apply(context))
+      case _ => None
+    }
+
+  private def checkActions(actions: Seq[DbmsAction], securityContext: SecurityContext): Seq[(DbmsAction, PermissionState)] =
+    actions.map { action =>
       (action, securityContext.allowsAdminAction(new AdminActionOnResource(ActionMapper.asKernelAction(action), DatabaseScope.ALL, Segment.ALL)))
-    )
-    AuthorizationPredicateExecutionPlan(securityAuthorizationHandler, (params, securityContext) => {
+    }
+
+  private def checkAdminRightsForDBMSOrSelf (user: Either[String, Parameter], actions: Seq[DbmsAction]): AdministrationCommandRuntimeContext => ExecutionPlan = _ =>  {
+    AuthorizationAndPredicateExecutionPlan(securityAuthorizationHandler, (params, securityContext) => {
       if (securityContext.subject().hasUsername(runtimeStringValue(user, params))) Seq((null, PermissionState.EXPLICIT_GRANT))
-      else checkActions(securityContext)
+      else checkActions(actions, securityContext)
     }, violationMessage = adminActionErrorMessage)
   }
 
   def logicalToExecutable: PartialFunction[LogicalPlan, AdministrationCommandRuntimeContext => ExecutionPlan] = {
     // Check Admin Rights for DBMS commands
     case AssertAllowedDbmsActions(maybeSource, actions) => context =>
-      AuthorizationPredicateExecutionPlan(
+      AuthorizationAndPredicateExecutionPlan(
         securityAuthorizationHandler,
-        (_, securityContext) => actions.map { action =>
-          (action, securityContext.allowsAdminAction(new AdminActionOnResource(ActionMapper.asKernelAction(action), DatabaseScope.ALL, Segment.ALL)))
-        },
+        (_, securityContext) => checkActions(actions, securityContext),
         violationMessage = adminActionErrorMessage,
-        source = maybeSource match {
-          case Some(source) => Some(fullLogicalToExecutable.applyOrElse(source, throwCantCompile).apply(context))
-          case _            => None
-        }
+        source = getSource(maybeSource, context)
+      )
+
+    case AssertAllowedOneOfDbmsActions(maybeSource, actions) => context =>
+      AuthorizationOrPredicateExecutionPlan(
+        securityAuthorizationHandler,
+        (_, securityContext) => checkActions(actions, securityContext),
+        violationMessage = adminActionErrorMessage,
+        source = getSource(maybeSource, context)
       )
 
     // Check Admin Rights for DBMS commands or self
@@ -189,14 +202,11 @@ case class CommunityAdministrationCommandRuntime(normalExecutionEngine: Executio
 
     // Check Admin Rights for some Database commands
     case AssertAllowedDatabaseAction(action, database, maybeSource) => context =>
-      AuthorizationPredicateExecutionPlan(securityAuthorizationHandler, (params, securityContext) =>
+      AuthorizationAndPredicateExecutionPlan(securityAuthorizationHandler, (params, securityContext) =>
         Seq((action, securityContext.allowsAdminAction(
           new AdminActionOnResource(ActionMapper.asKernelAction(action), new DatabaseScope(runtimeStringValue(database, params)), Segment.ALL)))),
         violationMessage = adminActionErrorMessage,
-        source = maybeSource match {
-          case Some(source) => Some(fullLogicalToExecutable.applyOrElse(source, throwCantCompile).apply(context))
-          case _ => None
-        }
+        source = getSource(maybeSource, context)
       )
 
     // SHOW USERS
@@ -313,8 +323,8 @@ case class CommunityAdministrationCommandRuntime(normalExecutionEngine: Executio
       fullLogicalToExecutable.applyOrElse(source, throwCantCompile).apply(context)
   }
 
-  override def isApplicableAdministrationCommand(logicalPlanState: LogicalPlanState): Boolean = {
-    val logicalPlan = logicalPlanState.maybeLogicalPlan.get match {
+  override def isApplicableAdministrationCommand(logicalPlanArg: LogicalPlan): Boolean = {
+    val logicalPlan = logicalPlanArg match {
       // Ignore the log command in community
       case LogSystemCommand(source, _) => source
       case plan => plan

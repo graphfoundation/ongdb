@@ -68,6 +68,7 @@ import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileUtils;
 import org.neo4j.io.fs.watcher.FileWatchEventListener;
 import org.neo4j.io.fs.watcher.FileWatcher;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.layout.recordstorage.RecordDatabaseLayout;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.SimpleTriggerInfo;
@@ -76,6 +77,7 @@ import org.neo4j.kernel.impl.util.watcher.DefaultFileDeletionEventListener;
 import org.neo4j.kernel.impl.util.watcher.FileSystemWatcherService;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.AssertableLogProvider;
+import org.neo4j.logging.LogProvider;
 import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 import org.neo4j.test.extension.Inject;
 import org.neo4j.test.extension.Neo4jLayoutExtension;
@@ -92,7 +94,7 @@ import static org.neo4j.logging.LogAssertions.assertThat;
 
 @Neo4jLayoutExtension
 @EnabledOnOs( OS.LINUX )
-class FileWatchIT
+public class FileWatchIT
 {
     @Inject
     private TestDirectory testDirectory;
@@ -107,7 +109,7 @@ class FileWatchIT
     void setUp()
     {
         logProvider = new AssertableLogProvider();
-        managementService = new TestDatabaseManagementServiceBuilder( databaseLayout ).setInternalLogProvider( logProvider ).build();
+        managementService = createDatabaseManagementService( databaseLayout, logProvider );
         database = managementService.database( DEFAULT_DATABASE_NAME );
     }
 
@@ -115,6 +117,11 @@ class FileWatchIT
     void tearDown()
     {
         shutdownDatabaseSilently( managementService );
+    }
+
+    protected DatabaseManagementService createDatabaseManagementService( DatabaseLayout databaseLayout, LogProvider logProvider )
+    {
+        return new TestDatabaseManagementServiceBuilder( databaseLayout ).setInternalLogProvider( logProvider ).build();
     }
 
     @Test

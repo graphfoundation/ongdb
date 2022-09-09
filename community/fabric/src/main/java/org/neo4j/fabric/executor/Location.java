@@ -38,11 +38,10 @@
  */
 package org.neo4j.fabric.executor;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-import org.neo4j.configuration.helpers.SocketAddress;
+import org.neo4j.configuration.helpers.RemoteUri;
 
 public class Location
 {
@@ -72,6 +71,9 @@ public class Location
         return databaseName;
     }
 
+    /**
+     * A Local location refers to a graph/database running on this instance of Neo4j.
+     */
     public static class Local extends Location
     {
         public Local( long id, UUID uuid, String databaseName )
@@ -109,6 +111,10 @@ public class Location
         }
     }
 
+    /**
+     * A Remote location refers to a graph/database running on another instance of Neo4j.
+     * This instance may or may not be part of the same DBMS.
+     */
     public abstract static class Remote extends Location
     {
         private final RemoteUri uri;
@@ -124,6 +130,10 @@ public class Location
             return uri;
         }
 
+        /**
+         * A Remote.Internal location refers to a graph/database running on another instance of Neo4j within
+         * the same DBMS.
+         */
         public static class Internal extends Remote
         {
 
@@ -163,6 +173,9 @@ public class Location
             }
         }
 
+        /**
+         * A Remote.External location refers to a graph/database running on another instance of Neo4j, in another DBMS.
+         */
         public static class External extends Remote
         {
 
@@ -178,7 +191,7 @@ public class Location
                 {
                     return true;
                 }
-                if ( o == null || getClass() != o.getClass() )
+                if ( !(o instanceof External) )
                 {
                     return false;
                 }
@@ -201,61 +214,28 @@ public class Location
                         '}';
             }
         }
-    }
 
-    public static class RemoteUri
-    {
-        private final String scheme;
-        private final List<SocketAddress> addresses;
-        private final String query;
-
-        public RemoteUri( String scheme, List<SocketAddress> addresses, String query )
+        /**
+         * When connecting to an external neo4j instance via an internal driver, we need to authenticate with that remote instance.
+         *
+         * When a location is {@link External} we will attempt to connect with the credentials of the current authenticated user on this instance.
+         * When a location is {@link ExternalWithCredentials} we will look up specific credentials for that remote instance and use those, rather
+         * than the credentials of the current authenticated user.
+         */
+        public static class ExternalWithCredentials extends External
         {
-            this.scheme = scheme;
-            this.addresses = addresses;
-            this.query = query;
-        }
+            private final String locationName;
 
-        public String getScheme()
-        {
-            return scheme;
-        }
-
-        public List<SocketAddress> getAddresses()
-        {
-            return addresses;
-        }
-
-        public String getQuery()
-        {
-            return query;
-        }
-
-        @Override
-        public boolean equals( Object o )
-        {
-            if ( this == o )
+            public ExternalWithCredentials( long id, UUID uuid, RemoteUri uri, String databaseName, String locationName )
             {
-                return true;
+                super( id, uuid, uri, databaseName );
+                this.locationName = locationName;
             }
-            if ( o == null || getClass() != o.getClass() )
+
+            public String locationName()
             {
-                return false;
+                return locationName;
             }
-            RemoteUri remoteUri = (RemoteUri) o;
-            return Objects.equals( scheme, remoteUri.scheme ) && Objects.equals( addresses, remoteUri.addresses ) && Objects.equals( query, remoteUri.query );
-        }
-
-        @Override
-        public int hashCode()
-        {
-            return Objects.hash( scheme, addresses, query );
-        }
-
-        @Override
-        public String toString()
-        {
-            return "RemoteUri{" + "scheme='" + scheme + '\'' + ", addresses=" + addresses + ", query='" + query + '\'' + '}';
         }
     }
 }

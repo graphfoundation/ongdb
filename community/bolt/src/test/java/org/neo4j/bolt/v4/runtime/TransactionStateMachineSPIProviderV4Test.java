@@ -43,6 +43,7 @@ import org.mockito.ArgumentCaptor;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.UUID;
 
 import org.neo4j.bolt.BoltChannel;
 import org.neo4j.bolt.dbapi.impl.BoltKernelDatabaseManagementServiceProvider;
@@ -58,6 +59,7 @@ import org.neo4j.dbms.api.DatabaseNotFoundException;
 import org.neo4j.kernel.GraphDatabaseQueryService;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.database.Database;
+import org.neo4j.kernel.database.DatabaseIdFactory;
 import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
 import org.neo4j.memory.MemoryTracker;
 import org.neo4j.monitoring.Monitors;
@@ -157,7 +159,9 @@ class TransactionStateMachineSPIProviderV4Test
         GraphDatabaseFacade databaseFacade = mock( GraphDatabaseFacade.class );
         final DependencyResolver dependencyResolver = mock( DependencyResolver.class );
         GraphDatabaseQueryService queryService = mock( GraphDatabaseQueryService.class );
+        var databaseId = DatabaseIdFactory.from( databaseName, UUID.randomUUID() );
 
+        when( databaseFacade.databaseId() ).thenReturn( databaseId );
         when( databaseFacade.isAvailable( anyLong() ) ).thenReturn( true );
         when( managementService.database( databaseName ) ).thenReturn( databaseFacade );
         when( databaseFacade.getDependencyResolver() ).thenReturn( dependencyResolver );

@@ -1374,11 +1374,15 @@ public class Operations implements Write, SchemaWrite
         }
         if ( indexType == IndexType.RANGE )
         {
-            assertRangePointTextIndexesSupported( "Failed to create RANGE index.");
+            assertRangePointTextIndexesSupported( "Failed to create RANGE index." );
         }
         if ( indexType == IndexType.POINT )
         {
-            assertRangePointTextIndexesSupported( "Failed to create POINT index.");
+            assertRangePointTextIndexesSupported( "Failed to create POINT index." );
+            if ( prototype.schema().getPropertyIds().length > 1 )
+            {
+                throw new UnsupportedOperationException( "Composite indexes are not supported for POINT index type." );
+            }
         }
         exclusiveSchemaLock( prototype.schema() );
         ktx.assertOpen();
@@ -1640,7 +1644,7 @@ public class Operations implements Write, SchemaWrite
         }
 
         // Create constraints
-        constraint = indexBackedConstraintCreate( constraint, prototype );
+        constraint = indexBackedConstraintCreate( constraint, prototype, ignored -> {} );
         return constraint;
     }
 
@@ -1821,11 +1825,11 @@ public class Operations implements Write, SchemaWrite
             throw e;
         }
 
-        //enforce constraints
-        enforceNodeKeyConstraint( schema );
+        // Check that node key constraints are supported before we start doing any work
+        constraintSemantics.assertNodeKeyConstraintAllowed( constraint.schema().asLabelSchemaDescriptor() );
 
-        //create constraint
-        indexBackedConstraintCreate( constraint, prototype );
+        // create constraint and enforce it after index population when we have the lock again
+        indexBackedConstraintCreate( constraint, prototype, this::enforceNodeKeyConstraint );
         return constraint;
     }
 
@@ -2134,7 +2138,8 @@ public class Operations implements Write, SchemaWrite
     }
 
     @SuppressWarnings( "unchecked" )
-    private <T extends IndexBackedConstraintDescriptor> T indexBackedConstraintCreate( T constraint, IndexPrototype prototype )
+    private <T extends IndexBackedConstraintDescriptor> T indexBackedConstraintCreate( T constraint, IndexPrototype prototype,
+            ConstraintIndexCreator.PropertyExistenceEnforcer propertyExistenceEnforcer )
             throws KernelException
     {
         try
@@ -2170,7 +2175,7 @@ public class Operations implements Write, SchemaWrite
                         "Cannot create index backed constraint using an index prototype that is not unique: " + prototype.userDescription( token ) );
             }
 
-            IndexDescriptor index = constraintIndexCreator.createUniquenessConstraintIndex( ktx, constraint, prototype );
+            IndexDescriptor index = constraintIndexCreator.createUniquenessConstraintIndex( ktx, constraint, prototype, propertyExistenceEnforcer );
             if ( !allStoreHolder.constraintExists( constraint ) )
             {
                 // This looks weird, but since we release the label lock while awaiting population of the index

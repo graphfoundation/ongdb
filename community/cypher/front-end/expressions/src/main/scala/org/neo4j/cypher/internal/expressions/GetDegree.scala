@@ -42,6 +42,6 @@ case class GetDegree(
                     )(val position: InputPosition) extends Expression {
 
   override def asCanonicalStringVal: String =
-    s"size(${nodeRelationCanonicalString(node, relType, dir)})"
+    s"getDegree(${nodeRelationCanonicalString(node, relType, dir)})"
 
 }

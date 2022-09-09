@@ -465,7 +465,7 @@ object ClauseConverters {
   private def addCallSubqueryToLogicalPlanInput(acc: PlannerQueryBuilder, clause: SubqueryCall, anonymousVariableNameGenerator: AnonymousVariableNameGenerator): PlannerQueryBuilder = {
     val subquery = clause.part
     val callSubquery = StatementConverters.toPlannerQueryPart(subquery, acc.semanticTable, anonymousVariableNameGenerator)
-    acc.withCallSubquery(callSubquery, subquery.isCorrelated, subquery.isYielding, clause.inTransactionsParameters)
+    acc.withCallSubquery(callSubquery, subquery.isCorrelated, subquery.isReturning, clause.inTransactionsParameters)
   }
 
   private def addCommandClauseToLogicalPlanInput(acc: PlannerQueryBuilder, clause: CommandClause): PlannerQueryBuilder = {
@@ -732,16 +732,10 @@ object ClauseConverters {
   private def addForeachToLogicalPlanInput(builder: PlannerQueryBuilder, clause: Foreach, anonymousVariableNameGenerator: AnonymousVariableNameGenerator): PlannerQueryBuilder = {
     val currentlyAvailableVariables = builder.currentlyAvailableVariables
 
-    val setOfNodeVariables: Set[String] =
-      if (builder.semanticTable.isNode(clause.variable.name))
-        Set(clause.variable.name)
-      else Set.empty
-
     val foreachVariable = clause.variable
 
     val innerBuilder = new PlannerQueryBuilder(SinglePlannerQuery.empty, builder.semanticTable)
-      .amendQueryGraph(_.addPatternNodes((builder.allSeenPatternNodes ++ setOfNodeVariables).toIndexedSeq:_*)
-        .addArgumentIds(foreachVariable.name +: currentlyAvailableVariables.toIndexedSeq))
+      .amendQueryGraph(_.addArgumentIds(foreachVariable.name +: currentlyAvailableVariables.toIndexedSeq))
       .withHorizon(PassthroughAllHorizon())
 
     val innerPlannerQuery = StatementConverters.addClausesToPlannerQueryBuilder(clause.updates, innerBuilder, anonymousVariableNameGenerator).build()

@@ -108,6 +108,7 @@ import org.neo4j.cypher.internal.planner.spi.PlanningAttributes.Cardinalities
 import org.neo4j.cypher.internal.planner.spi.PlanningAttributes.ProvidedOrders
 import org.neo4j.cypher.internal.rewriting.rewriters.Never
 import org.neo4j.cypher.internal.util.AnonymousVariableNameGenerator
+import org.neo4j.cypher.internal.util.CancellationChecker
 import org.neo4j.cypher.internal.util.Cardinality
 import org.neo4j.cypher.internal.util.PropertyKeyId
 import org.neo4j.cypher.internal.util.StepSequencer
@@ -298,7 +299,8 @@ trait LogicalPlanningTestSupport2 extends CypherTestSupport with AstConstruction
 
       override def canLookupNodesByLabel: Boolean = true
 
-      override def canLookupRelationshipsByType: Boolean = false
+      override def canLookupRelationshipsByType: Boolean =
+        config.lookupRelationshipsByType.canLookupRelationshipsByType
 
       override def getNodePropertiesWithExistenceConstraint(labelName: String): Set[String] = {
         config.nodeConstraints.filter(p => p._1 == labelName).flatMap(p => p._2)
@@ -392,6 +394,7 @@ trait LogicalPlanningTestSupport2 extends CypherTestSupport with AstConstruction
         metrics = metrics,
         semanticTable = semanticTable,
         strategy = queryGraphSolver,
+        predicatesAsUnionMaxSize = cypherCompilerConfig.predicatesAsUnionMaxSize,
         input = QueryGraphSolverInput.empty,
         notificationLogger = devNullLogger,
         costComparisonListener = devNullListener,
@@ -400,6 +403,7 @@ trait LogicalPlanningTestSupport2 extends CypherTestSupport with AstConstruction
         executionModel = config.executionModel,
         debugOptions = CypherDebugOptions.default,
         anonymousVariableNameGenerator = new AnonymousVariableNameGenerator(),
+        cancellationChecker = CancellationChecker.NeverCancelled,
       )
       f(config, ctx)
     }
@@ -415,6 +419,7 @@ trait LogicalPlanningTestSupport2 extends CypherTestSupport with AstConstruction
         metrics = metrics,
         semanticTable = semanticTable,
         strategy = queryGraphSolver,
+        predicatesAsUnionMaxSize = cypherCompilerConfig.predicatesAsUnionMaxSize,
         input = QueryGraphSolverInput.empty,
         notificationLogger = devNullLogger,
         costComparisonListener = devNullListener,
@@ -423,6 +428,7 @@ trait LogicalPlanningTestSupport2 extends CypherTestSupport with AstConstruction
         executionModel = config.executionModel,
         debugOptions = CypherDebugOptions.default,
         anonymousVariableNameGenerator = new AnonymousVariableNameGenerator(),
+        cancellationChecker = CancellationChecker.NeverCancelled,
       )
       f(config, ctx)
     }

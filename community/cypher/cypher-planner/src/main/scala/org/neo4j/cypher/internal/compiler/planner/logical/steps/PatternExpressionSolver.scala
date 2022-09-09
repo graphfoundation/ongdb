@@ -41,7 +41,7 @@ package org.neo4j.cypher.internal.compiler.planner.logical.steps
 import org.neo4j.cypher.internal.compiler.planner.logical.LogicalPlanningContext
 import org.neo4j.cypher.internal.compiler.planner.logical.ordering.InterestingOrderConfig
 import org.neo4j.cypher.internal.compiler.planner.logical.patternExpressionRewriter
-import org.neo4j.cypher.internal.compiler.planner.logical.steps.selectPatternPredicates.planPredicates
+import org.neo4j.cypher.internal.compiler.planner.logical.steps.SelectPatternPredicates.planPredicates
 import org.neo4j.cypher.internal.expressions.CaseExpression
 import org.neo4j.cypher.internal.expressions.ContainerIndex
 import org.neo4j.cypher.internal.expressions.EveryPath
@@ -264,7 +264,7 @@ object PatternExpressionSolver {
     }
 
     def rewriteInnerExpressions(plan: LogicalPlan, expression: Expression, context: LogicalPlanningContext): RewriteResult = {
-      val patternExpressions: Seq[T] = expression.findAllByClass[T]
+      val patternExpressions: Seq[T] = expression.folder(context.cancellationChecker).findAllByClass[T]
 
       patternExpressions.foldLeft(RewriteResult(plan, expression, Set.empty)) {
         case (RewriteResult(currentPlan, currentExpression, introducedVariables), patternExpression) =>
@@ -285,18 +285,22 @@ object PatternExpressionSolver {
            * c) inside an expression that accessed only part of the list. Otherwise we do too much work. To avoid that we inject a Limit into the
            * NestedPlanExpression.
            */
-          val rewriter = topDown(inner, stopper = {
-            case _: PatternComprehension => false
-            case _: PatternExpression => false
-            // Loops
-            case _: ScopeExpression => true
-            // Conditionals & List accesses
-            case _: CaseExpression => true
-            case _: ContainerIndex => true
-            case _: ListSlice => true
-            case f: FunctionInvocation => f.function == Exists || f.function == Coalesce || f.function == Head
-            case _ => false
-          })
+          val rewriter = topDown(
+            rewriter = inner,
+            stopper = {
+              case _: PatternComprehension => false
+              case _: PatternExpression    => false
+              // Loops
+              case _: ScopeExpression => true
+              // Conditionals & List accesses
+              case _: CaseExpression     => true
+              case _: ContainerIndex     => true
+              case _: ListSlice          => true
+              case f: FunctionInvocation => f.function == Exists || f.function == Coalesce || f.function == Head
+              case _                     => false
+            },
+            cancellation = context.cancellationChecker,
+          )
           val rewrittenExpression = currentExpression.endoRewrite(rewriter)
 
           if (rewrittenExpression == currentExpression) {
@@ -322,14 +326,14 @@ object PatternExpressionSolver {
     }
   }
 
-  private def qualifiesForRewriting(exp: AnyRef): Boolean = exp.treeExists {
+  private def qualifiesForRewriting(exp: AnyRef, context: LogicalPlanningContext): Boolean = exp.folder(context.cancellationChecker).treeExists {
     case _: PatternExpression => true
     case _: PatternComprehension => true
   }
 
   case class ForMappable[T]() {
     def solve(inner: LogicalPlan, mappable: HasMappableExpressions[T],  context: LogicalPlanningContext): (T, LogicalPlan) = {
-      if (qualifiesForRewriting(mappable)) {
+      if (qualifiesForRewriting(mappable, context)) {
         val solver = PatternExpressionSolver.solverFor(inner, context)
         val rewrittenExpression = mappable.mapExpressions(solver.solve(_))
         val rewrittenInner = solver.rewrittenPlan()
@@ -342,7 +346,7 @@ object PatternExpressionSolver {
 
   object ForMulti {
     def solve(inner: LogicalPlan, expressions: Seq[Expression],  context: LogicalPlanningContext): (Seq[Expression], LogicalPlan) = {
-      if (qualifiesForRewriting(expressions)) {
+      if (qualifiesForRewriting(expressions, context)) {
         val solver = PatternExpressionSolver.solverFor(inner, context)
         val rewrittenExpressions: Seq[Expression] = expressions.map(solver.solve(_))
         val rewrittenInner = solver.rewrittenPlan()
@@ -355,7 +359,7 @@ object PatternExpressionSolver {
 
   object ForSingle  {
     def solve(inner: LogicalPlan, expression: Expression,  context: LogicalPlanningContext): (Expression, LogicalPlan) = {
-      if (qualifiesForRewriting(expression)) {
+      if (qualifiesForRewriting(expression, context)) {
         val solver = PatternExpressionSolver.solverFor(inner, context)
         val rewrittenExpression = solver.solve(expression)
         val rewrittenInner = solver.rewrittenPlan()
@@ -373,11 +377,11 @@ object PatternExpressionSolver {
               context: LogicalPlanningContext): (Seq[Expression], LogicalPlan) = {
       expressions.foldLeft((Seq.empty[Expression], source)) {
           case ((solvedExprs, plan), e: ExistsSubClause) =>
-            val subQueryPlan = selectPatternPredicates.planInnerOfSubquery(plan, context, interestingOrderConfig, e)
+            val subQueryPlan = SelectPatternPredicates.planInnerOfSubquery(plan, context, interestingOrderConfig, e)
             val semiApplyPlan = context.logicalPlanProducer.planSemiApplyInHorizon(plan, subQueryPlan, e, context)
             (solvedExprs :+ e, semiApplyPlan)
           case ((solvedExprs, plan), not@Not(e: ExistsSubClause)) =>
-            val subQueryPlan = selectPatternPredicates.planInnerOfSubquery(plan, context, interestingOrderConfig, e)
+            val subQueryPlan = SelectPatternPredicates.planInnerOfSubquery(plan, context, interestingOrderConfig, e)
             val antiSemiApplyPlan = context.logicalPlanProducer.planAntiSemiApplyInHorizon(plan, subQueryPlan, not, context)
             (solvedExprs :+ not, antiSemiApplyPlan)
           case ((solvedExprs, plan), ors@Ors(exprs)) =>

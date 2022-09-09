@@ -39,6 +39,7 @@
 package org.neo4j.cypher.internal.runtime.interpreted
 
 import org.neo4j.cypher.internal.profiling.KernelStatisticProvider
+import org.neo4j.cypher.internal.util.CancellationChecker
 import org.neo4j.graphdb.Entity
 import org.neo4j.internal.kernel.api.CursorFactory
 import org.neo4j.internal.kernel.api.Locks
@@ -147,5 +148,7 @@ class ParallelTransactionalContextWrapper(private[this] val tc: TransactionalCon
     require(threadSafeCursors != null)
     new ParallelTransactionalContextWrapper(kernelTransactionalContext, threadSafeCursors)
   }
+
+  override def cancellationChecker: CancellationChecker = new TransactionCancellationChecker(kernelTransaction)
 }
 

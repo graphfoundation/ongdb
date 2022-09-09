@@ -39,6 +39,7 @@
 package org.neo4j.values.storable;
 
 import org.apache.commons.codec.digest.DigestUtils;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -86,11 +87,39 @@ class TimeZonesTest
         }
     }
 
+    @Test
+    void weSupportDeletedZoneIdUSPacificNew()
+    {
+        try
+        {
+            short pacificNew = TimeZones.map( "US/Pacific-New" );
+            assertThat( TimeZones.map( pacificNew ) ).as(
+                    "Our time zone table does not remap US/Pacific-New to US/Pacific" ).isEqualTo( "US/Pacific" );
+        }
+        catch ( IllegalArgumentException e )
+        {
+            fail( "Our time zone table does not support US/Pacific-New" );
+        }
+    }
+
+    @Test
+    void weSupportDeletedZoneIdUSPacificNewForDeserialization()
+    {
+        try
+        {
+            short pacificNew = 58; // Old timezone id for US/Pacific-New
+            assertThat( TimeZones.map( pacificNew ) ).as(
+                    "Our time zone table does not remap US/Pacific-New to US/Pacific" ).isEqualTo( "US/Pacific" );
+        }
+        catch ( IllegalArgumentException e )
+        {
+            fail( "Our time zone table does not support US/Pacific-New" );
+        }
+    }
+
     /**
-     * If this test fails, you have changed something in TZIDS. This is fine, as long as you only append lines to the end,
-     * or add a mapping to a deleted timezone. You are not allowed to change the order of lines or remove a line.
-     * p>
-     * If your changes were legit, please change the expected byte[] below.
+     * If this test fails, you have changed something in TZIDS. This is fine, as long as you only append lines to the end, or add a mapping to a deleted
+     * timezone. You are not allowed to change the order of lines or remove a line. p> If your changes were legit, please change the expected byte[] below.
      */
     @Test
     void tzidsOrderMustNotChange() throws URISyntaxException, IOException
@@ -99,7 +128,19 @@ class TimeZonesTest
         String timeZonesInfo = Files.readString( path ).replace( "\r\n", "\n" );
         byte[] timeZonesHash = DigestUtils.sha256( timeZonesInfo );
         assertThat( timeZonesHash ).isEqualTo(
-                new byte[]{105, -112, -62, -117, -37, -98, -57, -81, -127, 102, 73, 40, -73, -69, 63, -98, -75, 69, 87, 83, -85, -68, -101, -81, -117, -41, -42,
-                           53, -126, -114, -48, -118} );
+                new byte[]{127, -106, 4, -18, -64, -55, 95, 19, -88, 99, -90, -47, -33, 71, -15, 0, -63, 122, 83, -10, -13, -126, 110, -38, -63, -10, -86, -41,
+                           -1, -77, -3, -84} );
+    }
+
+    @Disabled( "Too restrictive as-is: Zone IDs aren't stable across JDKs, 'Pacific/Kanton' isn't currently supported by x86-ubuntu-oraclejdk-17" )
+    @Test
+    void allTimeZonesAreValidZoneIDs()
+    {
+        TimeZones.supportedTimeZones().forEach( timeZone ->
+        {
+            short zoneOffset = TimeZones.map( timeZone );
+            String timeZone2 = TimeZones.map( zoneOffset );
+            assertThat( ZoneId.of( timeZone2 ) ).isNotNull();
+        });
     }
 }

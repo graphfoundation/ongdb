@@ -38,10 +38,12 @@
  */
 package org.neo4j.cypher.internal.compiler.planner.logical
 
+import org.neo4j.cypher.internal.ast.AstConstructionTestSupport
 import org.neo4j.cypher.internal.compiler.planner.LogicalPlanningIntegrationTestSupport
+import org.neo4j.cypher.internal.logical.plans.Ascending
 import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
-class NodeHashJoinPlanningIntegrationTest extends CypherFunSuite with LogicalPlanningIntegrationTestSupport {
+class NodeHashJoinPlanningIntegrationTest extends CypherFunSuite with LogicalPlanningIntegrationTestSupport with AstConstructionTestSupport {
 
   test("should build plans containing joins") {
     val cfg = plannerBuilder()
@@ -90,6 +92,40 @@ class NodeHashJoinPlanningIntegrationTest extends CypherFunSuite with LogicalPla
       .|.nodeByLabelScan("c", "C")
       .expandAll("(a)-[r1:X]->(b)")
       .nodeByLabelScan("a", "A")
+      .build()
+  }
+
+  // TODO: This is a suggestion for a (better) plan that the planner currently isn't capable of producing.
+  ignore("Should plan sort (under hash join) if LeftOuterHashJoin can be unnested from apply") {
+    // The actual plan we get (sort on top of hash join) is correct, but sub-optimal.
+    // While leftOuterHashJoin preserves ordering for RHS we still don't consider placing the sort under hash join.
+    // That's because at the point in time when we plan a sort the hash join is in RHS of an apply, which only preserves order for the LHS.
+    // It's only when the apply has been unnested that the alternative placement of sort is feasible (and better).
+    val cfg = plannerBuilder()
+      .setAllNodesCardinality(10)
+      .setAllRelationshipsCardinality(100)
+      .build()
+
+    val array = (1 to 10).mkString("[", ",", "]")
+
+    val query =
+      s"""
+         |MATCH (n1)
+         |UNWIND $array AS a0
+         |OPTIONAL MATCH (n1)--(n2)
+         |USING JOIN ON n1
+         |RETURN n2 ORDER BY n2
+         |""".stripMargin
+
+    val plan = cfg.plan(query).stripProduceResults
+
+    plan shouldEqual cfg.subPlanBuilder()
+      .leftOuterHashJoin("n1")
+      .|.sort(Seq(Ascending("n2")))
+      .|.expandAll("(n1)-[anon_0]-(n2)")
+      .|.allNodeScan("n1")
+      .unwind(s"$array AS a0")
+      .allNodeScan("n1")
       .build()
   }
 }

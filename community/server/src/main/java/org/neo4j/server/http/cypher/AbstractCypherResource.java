@@ -62,11 +62,14 @@ import org.neo4j.memory.MemoryTracker;
 import org.neo4j.server.http.cypher.format.api.InputEventStream;
 import org.neo4j.server.http.cypher.format.api.TransactionUriScheme;
 import org.neo4j.server.rest.Neo4jError;
-import org.neo4j.server.rest.dbms.AuthorizedRequestWrapper;
+
 import org.neo4j.time.SystemNanoClock;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNullElse;
+import static org.neo4j.server.web.HttpHeaderUtils.getAccessMode;
+
+import static org.neo4j.server.rest.dbms.AuthorizedRequestWrapper.getLoginContextFromHttpServletRequest;
 import static org.neo4j.server.web.HttpHeaderUtils.getTransactionTimeout;
 
 public abstract class AbstractCypherResource
@@ -126,6 +129,10 @@ public abstract class AbstractCypherResource
                             return Response.created( transactionHandle.uri() ).entity( outputStream ).build();
                         } ).orElse( createNonExistentDatabaseResponse( inputStream.getParameters() ) );
             }
+            catch ( IllegalArgumentException ex )
+            {
+                return createInvalidAccessModeHeaderResponse( ex );
+            }
             catch ( RuntimeException ex )
             {
                 if ( ex instanceof Status.HasStatus )
@@ -140,21 +147,21 @@ public abstract class AbstractCypherResource
 
     @POST
     @Path( "/{id}" )
-    public Response executeStatements( @PathParam( "id" ) long id, InputEventStream inputEventStream )
+    public Response executeStatements( @PathParam( "id" ) long id, InputEventStream inputEventStream, @Context HttpServletRequest request )
     {
         try ( var memoryTracker = createMemoryTracker() )
         {
-            return executeInExistingTransaction( id, inputEventStream, memoryTracker, false );
+            return executeInExistingTransaction( id, inputEventStream, memoryTracker, false, getLoginContextFromHttpServletRequest( request ) );
         }
     }
 
     @POST
     @Path( "/{id}/commit" )
-    public Response commitTransaction( @PathParam( "id" ) long id, InputEventStream inputEventStream )
+    public Response commitTransaction( @PathParam( "id" ) long id, InputEventStream inputEventStream, @Context HttpServletRequest request )
     {
         try ( var memoryTracker = createMemoryTracker() )
         {
-            return executeInExistingTransaction( id, inputEventStream, memoryTracker, true );
+            return executeInExistingTransaction( id, inputEventStream, memoryTracker, true, getLoginContextFromHttpServletRequest( request ) );
         }
     }
 
@@ -189,6 +196,10 @@ public abstract class AbstractCypherResource
                             return Response.ok( outputStream ).build();
                         } ).orElse( createNonExistentDatabaseResponse( inputStream.getParameters() ) );
             }
+            catch ( IllegalArgumentException ex )
+            {
+                return createInvalidAccessModeHeaderResponse( ex );
+            }
             catch ( RuntimeException ex )
             {
                 if ( ex instanceof Status.HasStatus )
@@ -203,7 +214,7 @@ public abstract class AbstractCypherResource
 
     @DELETE
     @Path( "/{id}" )
-    public Response rollbackTransaction( @PathParam( "id" ) final long id )
+    public Response rollbackTransaction( @PathParam( "id" ) final long id, @Context HttpServletRequest request )
     {
         try ( var memoryTracker = createMemoryTracker() )
         {
@@ -223,7 +234,7 @@ public abstract class AbstractCypherResource
                         TransactionHandle transactionHandle;
                         try
                         {
-                            transactionHandle = transactionFacade.terminate( id );
+                            transactionHandle = transactionFacade.terminate( id, getLoginContextFromHttpServletRequest( request ) );
                         }
                         catch ( TransactionLifecycleException e )
                         {
@@ -260,15 +271,26 @@ public abstract class AbstractCypherResource
     private TransactionHandle createNewTransactionHandle( TransactionFacade transactionFacade, HttpServletRequest request, HttpHeaders headers,
                                                           MemoryTracker memoryTracker, boolean implicitTransaction )
     {
-        LoginContext loginContext = AuthorizedRequestWrapper.getLoginContextFromHttpServletRequest( request );
+        LoginContext loginContext = getLoginContextFromHttpServletRequest( request );
         long customTransactionTimeout = getTransactionTimeout( headers, log );
-        return transactionFacade
-                .newTransactionHandle( uriScheme, implicitTransaction, loginContext, loginContext.connectionInfo(), memoryTracker, customTransactionTimeout,
-                                       clock );
+        var isReadOnlyTransaction = getAccessMode( headers );
+
+        if ( isReadOnlyTransaction.isPresent() )
+        {
+            return transactionFacade
+                    .newTransactionHandle( uriScheme, implicitTransaction, loginContext, loginContext.connectionInfo(), memoryTracker, customTransactionTimeout,
+                                           clock, isReadOnlyTransaction.get() );
+        }
+        else
+        {
+            return transactionFacade
+                    .newTransactionHandle( uriScheme, implicitTransaction, loginContext, loginContext.connectionInfo(), memoryTracker, customTransactionTimeout,
+                                           clock );
+        }
     }
 
-    private Response executeInExistingTransaction( long transactionId, InputEventStream inputEventStream, MemoryTracker memoryTracker,
-                                                   boolean finishWithCommit )
+    private Response executeInExistingTransaction( long transactionId, InputEventStream inputEventStream, MemoryTracker memoryTracker, boolean finishWithCommit,
+                                                   LoginContext requestingUserLoginContext )
     {
         InputEventStream inputStream = ensureNotNull( inputEventStream );
 
@@ -288,15 +310,15 @@ public abstract class AbstractCypherResource
                         final TransactionFacade transactionFacade =
                                 httpTransactionManager.createTransactionFacade( databaseAPI, memoryTracker, databaseName );
 
-                        TransactionHandle transactionHandle;
-                        try
-                        {
-                            transactionHandle = transactionFacade.findTransactionHandle( transactionId );
-                        }
-                        catch ( TransactionLifecycleException e )
-                        {
-                            return invalidTransaction( e, inputStream.getParameters() );
-                        }
+                    TransactionHandle transactionHandle;
+                    try
+                    {
+                        transactionHandle = transactionFacade.findTransactionHandle( transactionId, requestingUserLoginContext );
+                    }
+                    catch ( TransactionLifecycleException e )
+                    {
+                        return invalidTransaction( e, inputStream.getParameters() );
+                    }
 
                         Invocation invocation =
                                 new Invocation( log, transactionHandle, uriScheme.txCommitUri( transactionHandle.getId() ), memoryPool, inputStream,
@@ -355,6 +377,13 @@ public abstract class AbstractCypherResource
                                                                                        databaseName ) ) );
         return Response.status( Response.Status.NOT_FOUND ).entity(
                 new OutputEventStreamImpl( parameters, uriScheme, errorInvocation::execute ) ).build();
+    }
+
+    private Response createInvalidAccessModeHeaderResponse( IllegalArgumentException ex )
+    {
+        var errorInvocation = new ErrorInvocation( new Neo4jError( Status.Request.InvalidFormat, ex.getMessage() ) );
+        return Response.status( Response.Status.OK ).entity(
+                new OutputEventStreamImpl( emptyMap(), uriScheme, errorInvocation::execute ) ).build();
     }
 
     private static class TransactionUriBuilder implements TransactionUriScheme

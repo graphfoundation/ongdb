@@ -39,9 +39,9 @@
 package org.neo4j.fabric.eval
 
 import java.util.function.Supplier
-
 import org.neo4j.cypher.internal.ast.CatalogName
 import org.neo4j.cypher.internal.ast.GraphSelection
+import org.neo4j.cypher.internal.evaluator.StaticEvaluation
 import org.neo4j.cypher.internal.expressions.Expression
 import org.neo4j.cypher.internal.expressions.FunctionInvocation
 import org.neo4j.cypher.internal.expressions.Property
@@ -58,16 +58,14 @@ import org.neo4j.values.virtual.MapValue
 import scala.collection.JavaConverters.mapAsScalaMapConverter
 
 class UseEvaluation(
-  catalogManager: CatalogManager,
   proceduresSupplier: Supplier[GlobalProcedures],
   signatureResolver: ProcedureSignatureResolver,
 ) {
 
   private val evaluator = new StaticEvaluation.StaticEvaluator(proceduresSupplier)
 
-  def instance(query: String): UseEvaluation.Instance =
-    new UseEvaluation.Instance(query, catalogManager.currentCatalog(), evaluator, signatureResolver)
-
+  def instance(query: String, catalog: Catalog): UseEvaluation.Instance =
+    new UseEvaluation.Instance(query, catalog, evaluator, signatureResolver)
 }
 
 object UseEvaluation {

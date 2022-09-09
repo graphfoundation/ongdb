@@ -38,7 +38,6 @@
  */
 package org.neo4j.shell.terminal;
 
-import org.fusesource.jansi.Ansi;
 import org.jline.reader.Expander;
 import org.jline.reader.History;
 import org.jline.reader.LineReader;
@@ -47,6 +46,7 @@ import org.jline.terminal.Terminal;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.function.Supplier;
 
 import org.neo4j.shell.Historian;
 import org.neo4j.shell.exception.NoMoreInputException;
@@ -69,13 +69,19 @@ public class JlineTerminal implements CypherShellTerminal
     private final Reader reader;
     private final Writer writer;
     private final boolean isInteractive;
+    private final Supplier<SimplePrompt> simplePromptSupplier;
 
-    public JlineTerminal( LineReader jLineReader, boolean isInteractive, Logger logger )
+    public JlineTerminal(
+            LineReader jLineReader,
+            boolean isInteractive,
+            Logger logger,
+            Supplier<SimplePrompt> simplePromptSupplier )
     {
         assert jLineReader.getParser() instanceof CypherJlineParser;
         this.jLineReader = jLineReader;
         this.logger = logger;
         this.isInteractive = isInteractive;
+        this.simplePromptSupplier = simplePromptSupplier;
         this.reader = new JLineReader();
         this.writer = new JLineWriter();
     }
@@ -88,7 +94,14 @@ public class JlineTerminal implements CypherShellTerminal
     @Override
     public Reader read()
     {
+        jLineReader.getTerminal().resume();
         return reader;
+    }
+
+    @Override
+    public SimplePrompt simplePrompt()
+    {
+        return simplePromptSupplier.get();
     }
 
     @Override

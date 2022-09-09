@@ -38,6 +38,7 @@ import org.neo4j.cypher.internal.expressions.And
 import org.neo4j.cypher.internal.expressions.AndedPropertyInequalities
 import org.neo4j.cypher.internal.expressions.Ands
 import org.neo4j.cypher.internal.expressions.AnyIterablePredicate
+import org.neo4j.cypher.internal.expressions.AssertIsNode
 import org.neo4j.cypher.internal.expressions.CachedProperty
 import org.neo4j.cypher.internal.expressions.CoerceTo
 import org.neo4j.cypher.internal.expressions.ContainerIndex
@@ -102,6 +103,7 @@ import org.neo4j.cypher.internal.expressions.RelationshipPattern
 import org.neo4j.cypher.internal.expressions.RelationshipsPattern
 import org.neo4j.cypher.internal.expressions.SemanticDirection
 import org.neo4j.cypher.internal.expressions.SemanticDirection.BOTH
+import org.neo4j.cypher.internal.expressions.SensitiveStringLiteral
 import org.neo4j.cypher.internal.expressions.SignedDecimalIntegerLiteral
 import org.neo4j.cypher.internal.expressions.SingleIterablePredicate
 import org.neo4j.cypher.internal.expressions.StartsWith
@@ -128,6 +130,7 @@ import org.neo4j.cypher.internal.util.NonEmptyList
 import org.neo4j.cypher.internal.util.symbols.CypherType
 import org.neo4j.cypher.internal.util.test_helpers.CypherTestSupport
 
+import java.nio.charset.StandardCharsets
 import scala.language.implicitConversions
 
 trait AstConstructionTestSupport extends CypherTestSupport {
@@ -211,6 +214,9 @@ trait AstConstructionTestSupport extends CypherTestSupport {
 
   def literalFloat(floatValue: Double): DecimalDoubleLiteral =
     DecimalDoubleLiteral(floatValue.toString)(pos)
+
+  def sensitiveLiteral(stringVal: String): SensitiveStringLiteral =
+    SensitiveStringLiteral(stringVal.getBytes(StandardCharsets.UTF_8))(pos)
 
   def listOf(expressions: Expression*): ListLiteral =
     ListLiteral(expressions)(pos)
@@ -520,6 +526,8 @@ trait AstConstructionTestSupport extends CypherTestSupport {
 
   def length3_5(argument: Expression): Length3_5 =
     Length3_5(argument)(pos)
+
+  def assertIsNode(v: String): AssertIsNode = AssertIsNode(varFor(v))(pos)
 
   implicit class ExpressionOps(expr: Expression) {
     def as(name: String): ReturnItem = AliasedReturnItem(expr, varFor(name))(pos, isAutoAliased = false)

@@ -38,6 +38,10 @@
  */
 package org.neo4j.procedure.impl;
 
+import static java.lang.reflect.Modifier.isPublic;
+import static java.util.Collections.emptyList;
+import static org.neo4j.configuration.GraphDatabaseSettings.procedure_unrestricted;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -46,7 +50,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
 import org.neo4j.exceptions.KernelException;
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
 import org.neo4j.internal.kernel.api.procs.FieldSignature;
@@ -72,10 +75,6 @@ import org.neo4j.procedure.UserAggregationFunction;
 import org.neo4j.procedure.UserAggregationResult;
 import org.neo4j.procedure.UserAggregationUpdate;
 import org.neo4j.procedure.UserFunction;
-
-import static java.lang.reflect.Modifier.isPublic;
-import static java.util.Collections.emptyList;
-import static org.neo4j.configuration.GraphDatabaseSettings.procedure_unrestricted;
 
 /**
  * Handles converting a class into one or more callable {@link CallableProcedure}.
@@ -328,6 +327,7 @@ class ProcedureCompiler
         TypeCheckers.TypeChecker typeChecker = typeCheckers.checkerFor( returnType );
         String description = description( method );
         UserFunction function = method.getAnnotation( UserFunction.class );
+        boolean internal = method.isAnnotationPresent(Internal.class);
         String deprecated = deprecated( method, function::deprecatedBy,
                 "Use of @UserFunction(deprecatedBy) without @Deprecated in " + procName );
 
@@ -343,14 +343,14 @@ class ProcedureCompiler
                 description = describeAndLogLoadFailure( procName );
                 UserFunctionSignature signature =
                         new UserFunctionSignature( procName, inputSignature, typeChecker.type(), deprecated,
-                                                   config.rolesFor( procName.toString() ), description, null, false );
+                                                   config.rolesFor( procName.toString() ), description, null, false, false, internal );
                 return new FailedLoadFunction( signature );
             }
         }
 
         UserFunctionSignature signature =
                 new UserFunctionSignature( procName, inputSignature, typeChecker.type(), deprecated,
-                                           config.rolesFor( procName.toString() ), description, null, false );
+                                           config.rolesFor( procName.toString() ), description, null, false, false, internal );
 
         return ProcedureCompilation.compileFunction( signature, setters, method );
     }
@@ -434,6 +434,8 @@ class ProcedureCompiler
         String deprecated = deprecated( create, function::deprecatedBy,
                                         "Use of @UserAggregationFunction(deprecatedBy) without @Deprecated in " + funcName );
 
+        boolean internal = create.isAnnotationPresent(Internal.class);
+
         List<FieldSetter> setters = allFieldInjections.setters( definition );
         if ( !config.fullAccessFor( funcName.toString() ) )
         {
@@ -446,7 +448,7 @@ class ProcedureCompiler
                 description = describeAndLogLoadFailure( funcName );
                 UserFunctionSignature signature =
                         new UserFunctionSignature( funcName, inputSignature, valueConverter.type(), deprecated,
-                                                   config.rolesFor( funcName.toString() ), description, null, false );
+                                                   config.rolesFor( funcName.toString() ), description, null, false, false, internal );
 
                 return new FailedLoadAggregatedFunction( signature );
             }
@@ -454,7 +456,7 @@ class ProcedureCompiler
 
         UserFunctionSignature signature =
                 new UserFunctionSignature( funcName, inputSignature, valueConverter.type(), deprecated,
-                                           config.rolesFor( funcName.toString() ), description, null, false );
+                                           config.rolesFor( funcName.toString() ), description, null, false, false, internal );
 
         return ProcedureCompilation.compileAggregation( signature, setters, create, update, result );
     }

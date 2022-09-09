@@ -91,4 +91,9 @@ public class KernelTransactionStamp
     {
         return Objects.hash( ktx, reuseCount );
     }
+
+    boolean isTerminated()
+    {
+        return ktx.isTerminated() && reuseCount == ktx.getReuseCount();
+    }
 }

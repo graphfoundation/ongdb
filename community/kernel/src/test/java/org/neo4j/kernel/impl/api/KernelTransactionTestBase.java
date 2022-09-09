@@ -89,6 +89,7 @@ import org.neo4j.kernel.impl.util.diffsets.MutableLongDiffSets;
 import org.neo4j.kernel.internal.event.DatabaseTransactionEventListeners;
 import org.neo4j.lock.LockTracer;
 import org.neo4j.lock.ResourceLocker;
+import org.neo4j.logging.NullLogProvider;
 import org.neo4j.memory.MemoryGroup;
 import org.neo4j.memory.MemoryPools;
 import org.neo4j.memory.MemoryTracker;
@@ -187,6 +188,11 @@ class KernelTransactionTestBase
         return newNotInitializedTransaction( LeaseService.NO_LEASES, config, from( DEFAULT_DATABASE_NAME, UUID.randomUUID() ) );
     }
 
+    KernelTransactionImplementation newNotInitializedTransaction( Config config )
+    {
+        return newNotInitializedTransaction( LeaseService.NO_LEASES, config, from( DEFAULT_DATABASE_NAME, UUID.randomUUID() ) );
+    }
+
     KernelTransactionImplementation newNotInitializedTransaction( Config config, NamedDatabaseId databaseId )
     {
         return newNotInitializedTransaction( LeaseService.NO_LEASES, config, databaseId );
@@ -212,7 +218,8 @@ class KernelTransactionTestBase
                                                     mock( IndexingService.class ), mock( IndexStatisticsStore.class ), dependencies, databaseId,
                                                     leaseService, memoryPool, readOnlyChecker.forDatabase( databaseId ),
                                                     TransactionExecutionMonitor.NO_OP, CommunitySecurityLog.NULL_LOG, () -> KernelVersion.LATEST,
-                                                    mock( DbmsRuntimeRepository.class ), locksClient, mock( KernelTransactions.class )
+                                                    mock( DbmsRuntimeRepository.class ), locksClient, mock( KernelTransactions.class ),
+                                                    NullLogProvider.getInstance()
         );
     }
 

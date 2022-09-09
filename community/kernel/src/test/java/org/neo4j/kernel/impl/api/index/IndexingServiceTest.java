@@ -1482,7 +1482,7 @@ class IndexingServiceTest
                 @Override
                 public void run( ExternalUpdatesCheck externalUpdatesCheck )
                 {
-                    if ( stop || updates.size() == 0 )
+                    if ( stop || updates.isEmpty() )
                     {
                         return;
                     }

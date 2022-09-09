@@ -38,14 +38,13 @@
  */
 package org.neo4j.internal.kernel.api.procs;
 
+import static java.util.Collections.unmodifiableList;
+
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
-
 import org.neo4j.internal.helpers.collection.Iterables;
-
-import static java.util.Collections.unmodifiableList;
 
 /**
  * This describes the signature of a function, made up of its namespace, name, and input/output description.
@@ -62,6 +61,7 @@ public final class UserFunctionSignature
     private final String category;
     private final boolean caseInsensitive;
     private final boolean isBuiltIn;
+    private final boolean internal;
 
     public UserFunctionSignature( QualifiedName name,
             List<FieldSignature> inputSignature,
@@ -72,15 +72,7 @@ public final class UserFunctionSignature
             String category,
             boolean caseInsensitive )
     {
-        this.name = name;
-        this.inputSignature = unmodifiableList( inputSignature );
-        this.type = type;
-        this.deprecated = deprecated;
-        this.description = description;
-        this.category = category;
-        this.allowed = allowed;
-        this.caseInsensitive = caseInsensitive;
-        this.isBuiltIn = false;
+        this( name, inputSignature, type, deprecated, allowed, description, category, caseInsensitive, false, false );
     }
 
     public UserFunctionSignature( QualifiedName name,
@@ -93,6 +85,20 @@ public final class UserFunctionSignature
             boolean caseInsensitive,
             boolean isBuiltIn )
     {
+        this( name, inputSignature, type, deprecated, allowed, description, category, caseInsensitive, isBuiltIn, false );
+    }
+
+    public UserFunctionSignature( QualifiedName name,
+            List<FieldSignature> inputSignature,
+            Neo4jTypes.AnyType type,
+            String deprecated,
+            String[] allowed,
+            String description,
+            String category,
+            boolean caseInsensitive,
+            boolean isBuiltIn,
+            boolean internal )
+    {
         this.name = name;
         this.inputSignature = unmodifiableList( inputSignature );
         this.type = type;
@@ -102,6 +108,7 @@ public final class UserFunctionSignature
         this.allowed = allowed;
         this.caseInsensitive = caseInsensitive;
         this.isBuiltIn = isBuiltIn;
+        this.internal = internal;
     }
 
     public QualifiedName name()
@@ -147,6 +154,11 @@ public final class UserFunctionSignature
     public boolean isBuiltIn()
     {
         return isBuiltIn;
+    }
+
+    public boolean internal()
+    {
+        return internal;
     }
 
     @Override

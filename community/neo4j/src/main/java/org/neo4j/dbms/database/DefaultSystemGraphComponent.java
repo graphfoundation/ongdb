@@ -40,32 +40,38 @@ package org.neo4j.dbms.database;
 
 import java.time.Clock;
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
 
 import org.neo4j.configuration.Config;
 import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.dbms.systemgraph.TopologyGraphDbmsModel;
 import org.neo4j.kernel.database.NormalizedDatabaseName;
 import org.neo4j.graphdb.ConstraintViolationException;
 import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
+import org.neo4j.graphdb.schema.ConstraintType;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterators;
 import org.neo4j.kernel.api.exceptions.InvalidArgumentsException;
 
 import static org.neo4j.configuration.GraphDatabaseSettings.SYSTEM_DATABASE_NAME;
-import static org.neo4j.dbms.database.TopologyGraphDbmsModel.DATABASE_CREATED_AT_PROPERTY;
-import static org.neo4j.dbms.database.TopologyGraphDbmsModel.DATABASE_NAME_LABEL;
-import static org.neo4j.dbms.database.TopologyGraphDbmsModel.DATABASE_DEFAULT_PROPERTY;
-import static org.neo4j.dbms.database.TopologyGraphDbmsModel.DATABASE_LABEL;
-import static org.neo4j.dbms.database.TopologyGraphDbmsModel.DATABASE_NAME_PROPERTY;
-import static org.neo4j.dbms.database.TopologyGraphDbmsModel.DATABASE_STARTED_AT_PROPERTY;
-import static org.neo4j.dbms.database.TopologyGraphDbmsModel.DATABASE_STATUS_PROPERTY;
-import static org.neo4j.dbms.database.TopologyGraphDbmsModel.DATABASE_UUID_PROPERTY;
-import static org.neo4j.dbms.database.TopologyGraphDbmsModel.DELETED_DATABASE_LABEL;
-import static org.neo4j.dbms.database.TopologyGraphDbmsModel.NAME_PROPERTY;
-import static org.neo4j.dbms.database.TopologyGraphDbmsModel.PRIMARY_PROPERTY;
-import static org.neo4j.dbms.database.TopologyGraphDbmsModel.TARGETS_RELATIONSHIP;
+import static org.neo4j.dbms.systemgraph.TopologyGraphDbmsModel.DATABASE_CREATED_AT_PROPERTY;
+import static org.neo4j.dbms.systemgraph.TopologyGraphDbmsModel.DATABASE_NAME_LABEL;
+import static org.neo4j.dbms.systemgraph.TopologyGraphDbmsModel.DATABASE_DEFAULT_PROPERTY;
+import static org.neo4j.dbms.systemgraph.TopologyGraphDbmsModel.DATABASE_LABEL;
+import static org.neo4j.dbms.systemgraph.TopologyGraphDbmsModel.DATABASE_NAME_PROPERTY;
+import static org.neo4j.dbms.systemgraph.TopologyGraphDbmsModel.DATABASE_STARTED_AT_PROPERTY;
+import static org.neo4j.dbms.systemgraph.TopologyGraphDbmsModel.DATABASE_STATUS_PROPERTY;
+import static org.neo4j.dbms.systemgraph.TopologyGraphDbmsModel.DATABASE_UUID_PROPERTY;
+import static org.neo4j.dbms.systemgraph.TopologyGraphDbmsModel.DELETED_DATABASE_LABEL;
+import static org.neo4j.dbms.systemgraph.TopologyGraphDbmsModel.NAME_PROPERTY;
+import static org.neo4j.dbms.systemgraph.TopologyGraphDbmsModel.PRIMARY_PROPERTY;
+import static org.neo4j.dbms.systemgraph.TopologyGraphDbmsModel.TARGETS_RELATIONSHIP;
 import static org.neo4j.kernel.database.NamedDatabaseId.NAMED_SYSTEM_DATABASE_ID;
 
 /**
@@ -96,7 +102,25 @@ public class DefaultSystemGraphComponent extends AbstractSystemGraphComponent
     @Override
     public Status detect( Transaction tx )
     {
-        return hasDatabaseNode( tx ) ? (hasSystemDatabaseNode( tx ) ? Status.CURRENT : Status.UNSUPPORTED) : Status.UNINITIALIZED;
+        boolean hasDatabaseNode = hasDatabaseNode( tx );
+        if ( !hasDatabaseNode )
+        {
+            return Status.UNINITIALIZED;
+        }
+
+        if ( hasDatabaseNode && !hasSystemDatabaseNode( tx ) )
+        {
+            return Status.UNSUPPORTED;
+        }
+
+        if ( hasUniqueConstraint( tx, DATABASE_NAME_LABEL, NAME_PROPERTY ) && hasUniqueConstraint( tx, DATABASE_LABEL, DATABASE_NAME_PROPERTY ) )
+        {
+            return Status.CURRENT;
+        }
+        else
+        {
+            return Status.REQUIRES_UPGRADE;
+        }
     }
 
     @Override
@@ -132,8 +156,9 @@ public class DefaultSystemGraphComponent extends AbstractSystemGraphComponent
     }
 
     @Override
-    public void upgradeToCurrent( GraphDatabaseService system )
+    public void upgradeToCurrent( GraphDatabaseService system ) throws Exception
     {
+        SystemGraphComponent.executeWithFullAccess( system, this::initializeSystemGraphConstraints );
     }
 
     private static boolean hasDatabaseNode( Transaction tx )

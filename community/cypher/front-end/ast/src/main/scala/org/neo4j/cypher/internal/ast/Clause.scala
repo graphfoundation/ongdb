@@ -374,7 +374,7 @@ case class Match(
 
   private[ast] def containsPropertyPredicates(variable: String, propertiesInHint: Seq[PropertyKeyName]): Boolean = {
     val propertiesInPredicates: Seq[String] = where.map(w => collectPropertiesInPredicates(variable, w.expression)).getOrElse(Seq.empty[String]) ++
-      pattern.treeFold(Seq.empty[String]) {
+      pattern.folder.treeFold(Seq.empty[String]) {
         case NodePattern(Some(Variable(id)), _, properties, predicate) if variable == id =>
           acc => SkipChildren(acc ++ collectPropertiesInPropertyMap(properties) ++ predicate.map(collectPropertiesInPredicates(variable, _)).getOrElse(Seq.empty[String]))
         case RelationshipPattern(Some(Variable(id)), _, _, properties, predicate, _) if variable == id =>
@@ -390,7 +390,7 @@ case class Match(
       case _ => Seq.empty[String]
     }
 
-  private def collectPropertiesInPredicates(variable: String, whereExpression: Expression): Seq[String] = whereExpression.treeFold(Seq.empty[String]) {
+  private def collectPropertiesInPredicates(variable: String, whereExpression: Expression): Seq[String] = whereExpression.folder.treeFold(Seq.empty[String]) {
       case Equals(Property(Variable(id), PropertyKeyName(name)), other) if id == variable && applicable(other) =>
         acc => SkipChildren(acc :+ name)
       case Equals(other, Property(Variable(id), PropertyKeyName(name))) if id == variable && applicable(other) =>
@@ -405,7 +405,8 @@ case class Match(
         acc => SkipChildren(acc :+ name)
       case Contains(Property(Variable(id), PropertyKeyName(name)), _) if id == variable =>
         acc => SkipChildren(acc :+ name)
-      case FunctionInvocation(Namespace(List("point")), FunctionName("withinBBox"), _, Seq(Property(Variable(id), PropertyKeyName(name)), _, _)) if id == variable =>
+      case FunctionInvocation(Namespace(List(namespace)), FunctionName(functionName), _, Seq(Property(Variable(id), PropertyKeyName(name)), _, _))
+        if id == variable && namespace.equalsIgnoreCase("point") && functionName.equalsIgnoreCase("withinBBox") =>
         acc => SkipChildren(acc :+ name)
       case expr: InequalityExpression =>
         acc =>
@@ -413,7 +414,8 @@ case class Match(
             expr match {
               case Property(Variable(id), PropertyKeyName(name)) if id == variable =>
                 acc :+ name
-              case FunctionInvocation(Namespace(List(point)), FunctionName("distance"), _, Seq(Property(Variable(id), PropertyKeyName(name)), _)) if id == variable && point.equalsIgnoreCase("point") =>
+              case FunctionInvocation(Namespace(List(namespace)), FunctionName(functionName), _, Seq(Property(Variable(id), PropertyKeyName(name)), _))
+                if id == variable && namespace.equalsIgnoreCase("point") && functionName.equalsIgnoreCase("distance") =>
                 acc :+ name
               case _ =>
                 acc
@@ -440,16 +442,16 @@ case class Match(
   }
 
   private[ast] def containsLabelOrRelTypePredicate(variable: String, labelOrRelType: String): Boolean = {
-    val inlinedLabels = pattern.fold(Seq.empty[String]) {
+    val inlinedLabels = pattern.folder.fold(Seq.empty[String]) {
       case NodePattern(Some(Variable(id)), nodeLabels, _, _) if variable == id =>
         list => list ++ nodeLabels.map(_.name)
     }
-    val inlinedRelTypes = pattern.fold(Seq.empty[String]) {
+    val inlinedRelTypes = pattern.folder.fold(Seq.empty[String]) {
       case RelationshipPattern(Some(Variable(id)), types, _, _, _, _) if variable == id =>
         list => list ++ types.map(_.name)
     }
     val (predicateLabels, predicateRelTypes) = where match {
-      case Some(innerWhere) => innerWhere.treeFold((Seq.empty[String], Seq.empty[String])) {
+      case Some(innerWhere) => innerWhere.folder.treeFold((Seq.empty[String], Seq.empty[String])) {
         case HasLabels(Variable(id), predicateLabels) if id == variable => {
           case (ls, rs) => SkipChildren((ls ++ predicateLabels.map(_.name), rs))
         }
@@ -471,7 +473,7 @@ case class Match(
     allLabels.contains(labelOrRelType) || allRelTypes.contains(labelOrRelType)
   }
 
-  def allExportedVariables: Set[LogicalVariable] = pattern.patternParts.findAllByClass[LogicalVariable].toSet
+  def allExportedVariables: Set[LogicalVariable] = pattern.patternParts.folder.findAllByClass[LogicalVariable].toSet
 }
 
 sealed trait CommandClause extends Clause with SemanticAnalysisTooling {
@@ -1020,7 +1022,7 @@ case class With(distinct: Boolean,
     super.semanticCheck chain
       ReturnItems.checkAmbiguousGrouping(returnItems, name) chain
       ProjectionClause.checkAliasedReturnItems(returnItems, name) chain
-      SemanticPatternCheck.checkValidPropertyKeyNamesInReturnItems(returnItems, this.position)
+      SemanticPatternCheck.checkValidPropertyKeyNamesInReturnItems(returnItems)
 
   override def withReturnItems(items: Seq[ReturnItem]): With =
     this.copy(returnItems = ReturnItems(returnItems.includeExisting, items)(returnItems.position))(this.position)
@@ -1051,7 +1053,7 @@ case class Return(distinct: Boolean,
       checkVariableScope chain
       ReturnItems.checkAmbiguousGrouping(returnItems, name) chain
       ProjectionClause.checkAliasedReturnItems(returnItems, "CALL { RETURN ... }") chain
-      SemanticPatternCheck.checkValidPropertyKeyNamesInReturnItems(returnItems, this.position)
+      SemanticPatternCheck.checkValidPropertyKeyNamesInReturnItems(returnItems)
 
   override def withReturnItems(items: Seq[ReturnItem]): Return =
     this.copy(returnItems = ReturnItems(returnItems.includeExisting, items)(returnItems.position))(this.position)
@@ -1097,7 +1099,7 @@ object SubqueryCall {
 
   def isTransactionalSubquery(clause: SubqueryCall): Boolean = clause.inTransactionsParameters.isDefined
 
-  def findTransactionalSubquery(node: ASTNode) : Option[SubqueryCall] = node.treeFind[SubqueryCall] { case s if isTransactionalSubquery(s) => true }
+  def findTransactionalSubquery(node: ASTNode) : Option[SubqueryCall] = node.folder.treeFind[SubqueryCall] { case s if isTransactionalSubquery(s) => true }
 }
 
 case class SubqueryCall(part: QueryPart, inTransactionsParameters: Option[SubqueryCall.InTransactionsParameters])(val position: InputPosition) extends HorizonClause with SemanticAnalysisTooling {
@@ -1150,8 +1152,10 @@ case class SubqueryCall(part: QueryPart, inTransactionsParameters: Option[Subque
   }
 
   private def declareOutputVariablesInOuterScope(rootScope: Scope): SemanticCheck = {
-    val scopeForDeclaringVariables = part.finalScope(rootScope)
-    declareVariables(scopeForDeclaringVariables.symbolTable.values)
+    when (part.isReturning) {
+      val scopeForDeclaringVariables = part.finalScope(rootScope)
+      declareVariables(scopeForDeclaringVariables.symbolTable.values)
+    }
   }
 
   private def checkNoNestedCallInTransactions: SemanticCheck = {

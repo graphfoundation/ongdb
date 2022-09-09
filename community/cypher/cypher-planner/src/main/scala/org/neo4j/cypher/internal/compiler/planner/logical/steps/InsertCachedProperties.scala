@@ -222,7 +222,7 @@ case class InsertCachedProperties(pushdownPropertyReads: Boolean) extends Phase[
         copy(properties = properties.mapValues(_.copy(usages = 0)))
     }
 
-    def findPropertiesInPlan(acc: Acc, logicalPlan: LogicalPlan): Acc = logicalPlan.treeFold(acc) {
+    def findPropertiesInPlan(acc: Acc, logicalPlan: LogicalPlan): Acc = logicalPlan.folder.treeFold(acc) {
       // Find properties
       case prop@Property(v: Variable, _) if isNode(v) => acc =>
         TraverseChildren(acc.addNodeProperty(prop, logicalPlan))
@@ -326,7 +326,10 @@ case class InsertCachedProperties(pushdownPropertyReads: Boolean) extends Phase[
         indexPlan.withMappedProperties { indexedProp =>
           acc.properties.get(property(indexPlan.idName, indexedProp.propertyKeyToken.name)) match {
             // Get the value since we use it later
-            case Some(PropertyUsages(true, usages, _, _)) if usages >= 1 =>
+            case Some(PropertyUsages(true, usages, _, _))
+              // If you can't get the property from the index, `canGetFromIndex` should be false inside `PropertyUsages`.
+              // However the first phase isn't entirely sound, in some cases, when there are two indexes on the same property, hence the extra check.
+              if usages >= 1 && indexedProp.getValueFromIndex != DoNotGetValue =>
               indexedProp.copy(getValueFromIndex = GetValue)
             // We could get the value but we don't need it later
             case _ =>
@@ -337,7 +340,10 @@ case class InsertCachedProperties(pushdownPropertyReads: Boolean) extends Phase[
         indexPlan.withMappedProperties { indexedProp =>
           acc.properties.get(property(indexPlan.idName, indexedProp.propertyKeyToken.name)) match {
             // Get the value since we use it later
-            case Some(PropertyUsages(true, usages, _, _)) if usages >= 1 =>
+            case Some(PropertyUsages(true, usages, _, _))
+              // If you can't get the property from the index, `canGetFromIndex` should be false inside `PropertyUsages`.
+              // However the first phase isn't entirely sound, in some cases, when there are two indexes on the same property, hence the extra check.
+              if usages >= 1 && indexedProp.getValueFromIndex != DoNotGetValue =>
               indexedProp.copy(getValueFromIndex = GetValue)
             // We could get the value but we don't need it later
             case _ =>

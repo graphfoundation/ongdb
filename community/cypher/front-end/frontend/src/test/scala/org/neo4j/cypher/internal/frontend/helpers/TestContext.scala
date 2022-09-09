@@ -35,6 +35,7 @@ package org.neo4j.cypher.internal.frontend.helpers
 import org.neo4j.cypher.internal.frontend.phases.BaseContext
 import org.neo4j.cypher.internal.frontend.phases.CompilationPhaseTracer
 import org.neo4j.cypher.internal.frontend.phases.Monitors
+import org.neo4j.cypher.internal.util.CancellationChecker
 import org.neo4j.cypher.internal.util.CypherExceptionFactory
 import org.neo4j.cypher.internal.util.InternalNotificationLogger
 import org.neo4j.cypher.internal.util.OpenCypherExceptionFactory
@@ -49,4 +50,6 @@ case class TestContext(override val notificationLogger: InternalNotificationLogg
   override def monitors = mock[Monitors]
 
   override def errorHandler = _ => ()
+
+  override def cancellationChecker: CancellationChecker = CancellationChecker.NeverCancelled
 }

@@ -263,7 +263,7 @@ class SemanticAnalysisTest extends CypherFunSuite {
       SemanticError("CALL { ... } IN TRANSACTIONS nested in a regular CALL is not supported", InputPosition(7, 1, 8))
     )
   }
-  
+
   test("CALL { ... } IN TRANSACTIONS nested in a regular CALL and nested CALL { ... } IN TRANSACTIONS") {
     val query = "CALL { CALL { CALL { CREATE (x) } IN TRANSACTIONS } IN TRANSACTIONS } RETURN 1 AS result"
 
@@ -720,6 +720,48 @@ class SemanticAnalysisTest extends CypherFunSuite {
     context.errors shouldBe Seq(
       SemanticError("It is not allowed to refer to variables in OF ... ROWS", InputPosition(40, 3, 22)),
       SemanticError("Type mismatch: expected Integer but was List<Integer>", InputPosition(40, 3, 22)),
+    )
+  }
+
+  test("UNION with missing return in first part") {
+    val query = "CALL db.labels() YIELD label UNION CALL db.labels() YIELD label RETURN label"
+
+    val startState = initStartState(query)
+    val context = new ErrorCollectingContext()
+    pipeline.transform(startState, context)
+
+
+    context.errors shouldBe Seq(
+      SemanticError("All sub queries in an UNION must have the same return column names", InputPosition(29, 1, 30)),
+    )
+  }
+
+  test("UNION with missing return in second part") {
+    val query = "CALL db.labels() YIELD label RETURN label UNION CALL db.labels() YIELD label"
+
+    val startState = initStartState(query)
+    val context = new ErrorCollectingContext()
+    pipeline.transform(startState, context)
+
+
+    context.errors shouldBe Seq(
+      SemanticError("All sub queries in an UNION must have the same return column names", InputPosition(42, 1, 43)),
+    )
+  }
+
+  test("subquery without RETURN should not declare variables from YIELD in the outer scope") {
+    val q =
+      """CALL {
+        |  CALL dbms.procedures() YIELD name
+        |}
+        |RETURN name
+        |""".stripMargin
+
+    val startState = initStartState(q)
+    val context = new ErrorCollectingContext()
+    pipeline.transform(startState, context)
+    context.errors shouldBe Seq(
+      SemanticError("Variable `name` not defined", InputPosition(52, 4, 8))
     )
   }
 

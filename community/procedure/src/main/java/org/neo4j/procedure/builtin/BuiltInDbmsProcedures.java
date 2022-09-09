@@ -64,6 +64,7 @@ import org.neo4j.dbms.database.DatabaseContext;
 import org.neo4j.dbms.database.DatabaseManager;
 import org.neo4j.dbms.database.SystemGraphComponent;
 import org.neo4j.dbms.database.SystemGraphComponents;
+import org.neo4j.fabric.executor.FabricExecutor;
 import org.neo4j.fabric.executor.FabricStatementLifecycles;
 import org.neo4j.fabric.transaction.FabricTransaction;
 import org.neo4j.fabric.transaction.TransactionManager;
@@ -296,8 +297,15 @@ public class BuiltInDbmsProcedures
     @Procedure( name = "db.clearQueryCaches", mode = DBMS )
     public Stream<StringResult> clearAllQueryCaches()
     {
-        QueryExecutionEngine queryExecutionEngine = graph.getDependencyResolver().resolveDependency( QueryExecutionEngine.class );
-        long numberOfClearedQueries = queryExecutionEngine.clearQueryCaches() - 1; // this query itself does not count
+        QueryExecutionEngine queryExecutionEngine =
+                graph.getDependencyResolver().resolveDependency(QueryExecutionEngine.class);
+        FabricExecutor fabricExecutor = graph.getDependencyResolver().resolveDependency(FabricExecutor.class);
+
+        // we subtract 1 because the query "CALL db.queryClearCaches()" is compiled and thus populates the caches by 1
+        long numberOfClearedQueries = Math.max(
+                        queryExecutionEngine.clearQueryCaches(),
+                        fabricExecutor.clearQueryCachesForDatabase(graph.databaseName()))
+                - 1;
 
         String result = numberOfClearedQueries == 0 ? "Query cache already empty."
                                                     : "Query caches successfully cleared of " + numberOfClearedQueries + " queries.";
@@ -331,7 +339,7 @@ public class BuiltInDbmsProcedures
                                           "This is an administration command and it should be executed against the system database: dbms.upgrade" );
         }
         SystemGraphComponents versions = systemGraphComponents;
-        SystemGraphComponent.Status status = versions.detect( transaction );
+        SystemGraphComponent.Status status = versions.detect( graph );
 
         // New components are not currently initialised in cluster deployment when new binaries are booted on top of an existing database.
         // This is a known shortcoming of the lifecycle and a state transfer from UNINITIALIZED to CURRENT must be supported
@@ -343,7 +351,7 @@ public class BuiltInDbmsProcedures
             ArrayList<String> failed = new ArrayList<>();
             versions.forEach( component ->
                               {
-                                  SystemGraphComponent.Status initialStatus = component.detect( transaction );
+                                  SystemGraphComponent.Status initialStatus = component.detect( graph );
                                   if ( upgradableStatuses.contains( initialStatus ) )
                                   {
                                       try

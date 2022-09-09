@@ -102,6 +102,7 @@ class LegacyTransactionServiceTest
     {
         // Given
         var userPrincipalA = mock( Principal.class );
+        var request = mock( HttpServletRequest.class );
 
         when( userPrincipalA.getName() )
                 .thenReturn( user );
@@ -115,9 +116,9 @@ class LegacyTransactionServiceTest
                 .thenReturn( "db-" + user );
 
         // When
-        var transactionService = new LegacyTransactionService( request, databaseResolver, httpTransactionManager, uriInfo, mock( MemoryPool.class ), log,
-                                                               Clocks.nanoClock() );
-        transactionService.rollbackTransaction( 42 );
+        var transactionService = new LegacyTransactionService( request, databaseResolver, httpTransactionManager,
+                                                               uriInfo, mock( MemoryPool.class ), log, Clocks.nanoClock() );
+        transactionService.rollbackTransaction( 42, request );
 
         // Verify
         verify( databaseResolver )

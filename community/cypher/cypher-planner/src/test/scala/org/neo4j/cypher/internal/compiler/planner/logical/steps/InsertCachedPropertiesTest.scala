@@ -67,6 +67,7 @@ import org.neo4j.cypher.internal.logical.plans.GetValue
 import org.neo4j.cypher.internal.logical.plans.GetValueFromIndexBehavior
 import org.neo4j.cypher.internal.logical.plans.IndexSeek
 import org.neo4j.cypher.internal.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.logical.plans.LogicalPlanToPlanBuilderString
 import org.neo4j.cypher.internal.logical.plans.NodeHashJoin
 import org.neo4j.cypher.internal.logical.plans.NodeIndexLeafPlan
 import org.neo4j.cypher.internal.logical.plans.Projection
@@ -77,6 +78,7 @@ import org.neo4j.cypher.internal.planner.spi.IDPPlannerName
 import org.neo4j.cypher.internal.planner.spi.PlanningAttributes
 import org.neo4j.cypher.internal.planner.spi.PlanningAttributes.EffectiveCardinalities
 import org.neo4j.cypher.internal.util.AnonymousVariableNameGenerator
+import org.neo4j.cypher.internal.util.CancellationChecker
 import org.neo4j.cypher.internal.util.InputPosition
 import org.neo4j.cypher.internal.util.attribution.IdGen
 import org.neo4j.cypher.internal.util.attribution.SequentialIdGen
@@ -86,6 +88,7 @@ import org.neo4j.cypher.internal.util.symbols.CTNode
 import org.neo4j.cypher.internal.util.symbols.CTRelationship
 import org.neo4j.cypher.internal.util.symbols.TypeSpec
 import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.graphdb.schema.IndexType
 
 class InsertCachedPropertiesTest extends CypherFunSuite with PlanMatchHelp with LogicalPlanConstructionTestSupport {
   // Have specific input positions to test semantic table (not DummyPosition)
@@ -961,11 +964,44 @@ class InsertCachedPropertiesTest extends CypherFunSuite with PlanMatchHelp with 
     newTable shouldBe initialTable
   }
 
-  private def replace(plan: LogicalPlan,
-                      initialTable: SemanticTable,
-                      effectiveCardinalities: EffectiveCardinalities = new EffectiveCardinalities,
-                      idGen: IdGen = new SequentialIdGen(),
-                      pushdownPropertyReads: Boolean = false): (LogicalPlan, SemanticTable) = {
+  /*
+  The insert cached properties logic doesn't handle correctly the case where you have two indexes, with different capabilities, on the same property.
+  It would attempt to get the value from both indexes, including the one that doesn't support it, leading to an exception at runtime.
+  For example, the following query would fail:
+    CREATE TEXT INDEX FOR (n:L) ON (n.p)
+    CREATE INDEX FOR (n:L) ON (n.p)
+    CREATE (:L {p: "test"})
+    MATCH (n:L) WHERE (n.p =~ "") XOR (n.p ENDS WITH "") RETURN n
+   This test ensures that it doesn't happen anymore.
+   */
+  test("Do _not_ get value from an index that doesn't support it when there are two indexes on the same property") {
+    val builder = new LogicalPlanBuilder()
+      .produceResults("n")
+      .distinct("n AS n")
+      .union()
+      .|.nodeIndexOperator("n:L(p ENDS WITH '')", getValue = Map("p" -> DoNotGetValue), indexType = IndexType.TEXT)
+      .filter("n.p =~ ''")
+      .nodeIndexOperator("n:L(p)", getValue = Map("p" -> CanGetValue), indexType = IndexType.BTREE)
+
+    val (newPlan, _) = replace(builder.build(), builder.getSemanticTable)
+
+    newPlan shouldBe new LogicalPlanBuilder()
+      .produceResults("n")
+      .distinct("n AS n")
+      .union()
+      .|.nodeIndexOperator("n:L(p ENDS WITH '')", getValue = Map("p" -> DoNotGetValue), indexType = IndexType.TEXT)
+      .filter("cacheN[n.p] =~ ''")
+      .nodeIndexOperator("n:L(p)", getValue = Map("p" -> GetValue), indexType = IndexType.BTREE)
+      .build()
+  }
+
+  private def replace(
+    plan: LogicalPlan,
+    initialTable: SemanticTable,
+    effectiveCardinalities: EffectiveCardinalities = new EffectiveCardinalities,
+    idGen: IdGen = new SequentialIdGen(),
+    pushdownPropertyReads: Boolean = false
+  ): (LogicalPlan, SemanticTable) = {
     val state = LogicalPlanState(InitialState("", None, IDPPlannerName, new AnonymousVariableNameGenerator))
       .withSemanticTable(initialTable)
       .withMaybeLogicalPlan(Some(plan))
@@ -976,13 +1012,14 @@ class InsertCachedPropertiesTest extends CypherFunSuite with PlanMatchHelp with 
       override protected[steps] def resortSelectionPredicates(from: LogicalPlanState,
                                                               context: PlannerContext,
                                                               s: Selection): Seq[Expression] = {
-        s.predicate.exprs.sortBy(_.treeCount { case _: Property => true })
+        s.predicate.exprs.sortBy(_.folder.treeCount { case _: Property => true })
       }
     }
 
     val plannerContext = mock[PlannerContext]
     when(plannerContext.logicalPlanIdGen).thenReturn(idGen)
     when(plannerContext.tracer).thenReturn(NO_TRACING)
+    when(plannerContext.cancellationChecker).thenReturn(CancellationChecker.NeverCancelled)
 
     val resultState =  icp.transform(state, plannerContext)
     (resultState.logicalPlan, resultState.semanticTable())

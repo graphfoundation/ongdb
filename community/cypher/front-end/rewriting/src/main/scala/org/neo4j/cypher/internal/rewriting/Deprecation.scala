@@ -95,7 +95,6 @@ import org.neo4j.cypher.internal.util.DeprecatedRelTypeSeparatorNotification
 import org.neo4j.cypher.internal.util.DeprecatedSelfReferenceToVariableInCreatePattern
 import org.neo4j.cypher.internal.util.DeprecatedShowExistenceConstraintSyntax
 import org.neo4j.cypher.internal.util.DeprecatedShowSchemaSyntax
-import org.neo4j.cypher.internal.util.DeprecatedVarLengthBindingNotification
 import org.neo4j.cypher.internal.util.Foldable.FoldableAny
 import org.neo4j.cypher.internal.util.Foldable.SkipChildren
 import org.neo4j.cypher.internal.util.Foldable.TraverseChildren
@@ -121,6 +120,7 @@ object Deprecations {
     f => f.copy(namespace = newNamespace, functionName = FunctionName(newName)(f.functionName.position))(f.position)
 
   case object syntacticallyDeprecatedFeaturesIn4_X extends SyntacticDeprecations {
+
     override val find: PartialFunction[Any, Deprecation] = {
 
       // old octal literal syntax
@@ -144,27 +144,20 @@ object Deprecations {
           None
         )
 
-      // var-length binding
-      case p@RelationshipPattern(Some(variable), _, Some(_), _, _, _) =>
-        Deprecation(
-          None,
-          Some(DeprecatedVarLengthBindingNotification(p.position, variable.name))
-        )
-
       case i: ast.CreateIndexOldSyntax =>
         Deprecation(
           None,
           Some(DeprecatedCreateIndexSyntax(i.position))
         )
 
-        // CREATE BTREE INDEX ...
+      // CREATE BTREE INDEX ...
       case i: ast.CreateBtreeNodeIndex =>
         Deprecation(
           None,
           Some(DeprecatedBtreeIndexSyntax(i.position))
         )
 
-        // CREATE BTREE INDEX ...
+      // CREATE BTREE INDEX ...
       case i: ast.CreateBtreeRelationshipIndex =>
         Deprecation(
           None,
@@ -368,7 +361,8 @@ object Deprecations {
         )
 
       // distance -> point.distance
-      case f@FunctionInvocation(namespace, FunctionName("distance"), _, _) if namespace.parts.isEmpty =>
+      case f@FunctionInvocation(namespace, FunctionName(functionName), _, _)
+      if namespace.parts.isEmpty && functionName.equalsIgnoreCase("distance") =>
         Deprecation(
           Some(Ref(f) -> renameFunctionTo(Namespace(List("point"))(f.position), "distance")(f)),
           Some(DeprecatedFunctionNotification(f.position, "distance", "point.distance"))
@@ -398,7 +392,7 @@ object Deprecations {
 
     override def findWithContext(statement: ast.Statement): Set[Deprecation] = {
       def findExistsToIsNotNullReplacements(astNode: ASTNode): Set[Deprecation] = {
-        astNode.treeFold[Set[Deprecation]](Set.empty) {
+        astNode.folder.treeFold[Set[Deprecation]](Set.empty) {
           case _: ast.Where | _: And | _: Ands | _: Set[_] | _: Seq[_] | _: Or | _: Ors =>
             acc => TraverseChildren(acc)
 
@@ -414,7 +408,7 @@ object Deprecations {
         }
       }
 
-      val replacementsFromExistsToIsNotNull = statement.treeFold[Set[Deprecation]](Set.empty) {
+      val replacementsFromExistsToIsNotNull = statement.folder.treeFold[Set[Deprecation]](Set.empty) {
         case w: ast.Where =>
           val deprecations = findExistsToIsNotNullReplacements(w)
           acc => SkipChildren(acc ++ deprecations)
@@ -449,10 +443,10 @@ object Deprecations {
     private def hasSelfReferenceToVariableInPattern(pattern: Pattern, semanticTable: SemanticTable): Boolean = {
       val allSymbolDefinitions = semanticTable.recordedScopes(pattern).allSymbolDefinitions
 
-      def findAllVariables(e: Any): Set[LogicalVariable] = e.findAllByClass[LogicalVariable].toSet
+      def findAllVariables(e: Any): Set[LogicalVariable] = e.folder.findAllByClass[LogicalVariable].toSet
       def isDefinition(variable: LogicalVariable): Boolean = allSymbolDefinitions(variable.name).map(_.use).contains(Ref(variable))
 
-      val (declaredVariables, referencedVariables) = pattern.treeFold[(Set[LogicalVariable], Set[LogicalVariable])]((Set.empty, Set.empty)) {
+      val (declaredVariables, referencedVariables) = pattern.folder.treeFold[(Set[LogicalVariable], Set[LogicalVariable])]((Set.empty, Set.empty)) {
         case NodePattern(maybeVariable, _, maybeProperties, _)               => acc => SkipChildren((acc._1 ++ maybeVariable.filter(isDefinition), acc._2 ++ findAllVariables(maybeProperties)))
         case RelationshipPattern(maybeVariable, _, _, maybeProperties, _, _) => acc => SkipChildren((acc._1 ++ maybeVariable.filter(isDefinition), acc._2 ++ findAllVariables(maybeProperties)))
         case NamedPatternPart(variable, _)                                   => acc => TraverseChildren((acc._1 + variable, acc._2))
@@ -462,7 +456,7 @@ object Deprecations {
     }
 
     override def find(semanticTable: SemanticTable): PartialFunction[Any, Deprecation] = {
-      case e: Expression if isListCoercedToBoolean(semanticTable, e) =>
+      case e: Expression if isListCoercedToBoolean(semanticTable, e) && !e.isInstanceOf[PatternExpression] =>
         Deprecation(
           None,
           Some(DeprecatedCoercionOfListToBoolean(e.position))
@@ -484,7 +478,7 @@ object Deprecations {
 
     override def findWithContext(statement: ast.Statement,
                                  semanticTable: SemanticTable): Set[Deprecation] = {
-      val deprecationsOfPatternExpressionsOutsideExists = statement.treeFold[Set[Deprecation]](Set.empty) {
+      val deprecationsOfPatternExpressionsOutsideExists = statement.folder.treeFold[Set[Deprecation]](Set.empty) {
         case Exists(_) =>
           // Don't look inside exists()
           deprecations => SkipChildren(deprecations)

@@ -76,7 +76,7 @@ import org.neo4j.cypher.internal.util.topDown
  */
 case object isolateAggregation extends StatementRewriter with StepSequencer.Step with PlanPipelineTransformerFactory {
 
-  override def instance(from: BaseState, context: BaseContext): Rewriter = bottomUp(rewriter(from), _.isInstanceOf[Expression])
+  override def instance(from: BaseState, context: BaseContext): Rewriter = bottomUp(rewriter(from), _.isInstanceOf[Expression], context.cancellationChecker)
 
   private def rewriter(from: BaseState) = Rewriter.lift {
     case q@SingleQuery(clauses) =>
@@ -125,11 +125,15 @@ case object isolateAggregation extends StatementRewriter with StepSequencer.Step
   private def extractExpressionsToInclude(originalExpressions: Set[Expression]): Set[Expression] = {
     val expressionsToGoToWith: Set[Expression] = fixedPoint {
       expressions: Set[Expression] => expressions.flatMap {
-        case e@ReduceExpression(_, init, coll) if hasAggregateButIsNotAggregate(e) =>
-          Seq(init, coll)
+          case e @ ReduceExpression(scope, init, coll) if hasAggregateButIsNotAggregate(e) =>
+            Seq(init, coll) ++ scope.expression.dependencies.diff(Set(e.accumulator) ++ Set(e.variable))
 
-        case e@ListComprehension(_, expr) if hasAggregateButIsNotAggregate(e) =>
-          Seq(expr)
+          case e @ ListComprehension(scope, expr) if hasAggregateButIsNotAggregate(e) =>
+            scope.extractExpression match {
+              case None => Seq(expr)
+              case Some(extract) =>
+                Seq(expr) ++ extract.dependencies.diff(Set(e.variable))
+            }
 
         case e@DesugaredMapProjection(variable, items, _) if hasAggregateButIsNotAggregate(e) =>
           items.map(_.exp) :+ variable
@@ -152,7 +156,7 @@ case object isolateAggregation extends StatementRewriter with StepSequencer.Step
     expressionsToGoToWith
   }
 
-  private def clauseNeedingWork(c: Clause): Boolean = c.treeExists {
+  private def clauseNeedingWork(c: Clause): Boolean = c.folder.treeExists {
     case e: Expression => hasAggregateButIsNotAggregate(e)
   }
 
