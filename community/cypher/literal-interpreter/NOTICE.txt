@@ -44,6 +44,7 @@ Third-party licenses
 
 Apache Software License, Version 2.0
   Apache Commons Lang
+  AssertJ fluent assertions
   Java Agent for Memory Measurements
   Java Native Access
 

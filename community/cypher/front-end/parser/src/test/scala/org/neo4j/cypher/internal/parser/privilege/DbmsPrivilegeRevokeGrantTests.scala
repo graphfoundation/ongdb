@@ -1,5 +1,5 @@
 /*
- * Copyright (c) "Graph Foundation,"
+ * Copyright (c) 2018-2022 "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");

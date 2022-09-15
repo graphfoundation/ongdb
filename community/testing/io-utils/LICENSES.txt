@@ -6,6 +6,7 @@ libraries. For an overview of the licenses see the NOTICE.txt file.
 Apache Software License, Version 2.0
   Apache Commons Codec
   Apache Commons Lang
+  Awaitility
   Byte Buddy (without dependencies)
   Byte Buddy agent
   Java Native Access
@@ -252,7 +253,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------
 Bouncy Castle License
-  Bouncy Castle ASN.1 Extension and Utility APIs
   Bouncy Castle PKIX, CMS, EAC, TSP, PKCS, OCSP, CMP, and CRMF APIs
   Bouncy Castle Provider
 ------------------------------------------------------------------------------

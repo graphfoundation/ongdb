@@ -7,6 +7,7 @@ Apache Software License, Version 2.0
   Apache Commons Lang
   Apache Log4j API
   Apache Log4j Core
+  AssertJ fluent assertions
   Java Native Access
   Jettison
 ------------------------------------------------------------------------------

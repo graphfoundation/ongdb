@@ -89,7 +89,7 @@
             <scope>compile</scope>
         </dependency>
 
-        <!-- neo4j -->
+        <!-- ongdb -->
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
@@ -107,7 +107,7 @@
             <version>${project.version}</version>
         </dependency>
 
-        <!-- neo4j testing -->
+        <!-- ongdb testing -->
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
@@ -124,7 +124,7 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- neo4j-cypher test -->
+        <!-- ongdb-cypher test -->
 
     </dependencies>
 </project>

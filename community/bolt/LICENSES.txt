@@ -9,6 +9,7 @@ Apache Software License, Version 2.0
   Apache Commons Compress
   Apache Commons IO
   Apache Commons Lang
+  Apache Commons Math
   Apache Commons Text
   Apache Log4j API
   Apache Log4j Core
@@ -21,7 +22,9 @@ Apache Software License, Version 2.0
   Apache Shiro :: Cryptography :: Hashing
   Apache Shiro :: Event
   Apache Shiro :: Lang
+  AssertJ fluent assertions
   Caffeine cache
+  IPAddress
   Java Agent for Memory Measurements
   Java Concurrency Tools Core Library
   Java Native Access
@@ -366,7 +369,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------
 Bouncy Castle License
-  Bouncy Castle ASN.1 Extension and Utility APIs
   Bouncy Castle PKIX, CMS, EAC, TSP, PKCS, OCSP, CMP, and CRMF APIs
   Bouncy Castle Provider
 ------------------------------------------------------------------------------

@@ -8,6 +8,9 @@ Apache Software License, Version 2.0
   Apache Commons Text
   Apache Log4j API
   Apache Log4j Core
+  AssertJ fluent assertions
+  Awaitility
+  IPAddress
   Java Agent for Memory Measurements
   Java Native Access
   Jettison
@@ -253,7 +256,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------
 Bouncy Castle License
-  Bouncy Castle ASN.1 Extension and Utility APIs
   Bouncy Castle PKIX, CMS, EAC, TSP, PKCS, OCSP, CMP, and CRMF APIs
   Bouncy Castle Provider
 ------------------------------------------------------------------------------

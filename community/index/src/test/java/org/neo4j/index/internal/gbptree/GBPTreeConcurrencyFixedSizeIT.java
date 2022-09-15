@@ -1,5 +1,5 @@
 /*
- * Copyright (c) "Graph Foundation,"
+ * Copyright (c) 2018-2022 "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -36,25 +36,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.procedure.builtin.routing;
+package org.neo4j.index.internal.gbptree;
 
-import org.neo4j.dbms.database.DatabaseManager;
-import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
-import org.neo4j.kernel.database.NamedDatabaseId;
+import org.apache.commons.lang3.mutable.MutableLong;
 
-public abstract class BaseRoutingTableProcedureValidator implements RoutingTableProcedureValidator
+import org.neo4j.test.RandomSupport;
+
+import static org.neo4j.index.internal.gbptree.SimpleLongLayout.longLayout;
+
+public class GBPTreeConcurrencyFixedSizeIT extends GBPTreeConcurrencyITBase<MutableLong,MutableLong>
 {
-    protected final DatabaseManager<?> databaseManager;
-
-    protected BaseRoutingTableProcedureValidator( DatabaseManager<?> databaseManager )
-    {
-        this.databaseManager = databaseManager;
-    }
-
     @Override
-    public void assertDatabaseExists( NamedDatabaseId namedDatabaseId ) throws ProcedureException
+    protected TestLayout<MutableLong,MutableLong> getLayout( RandomSupport random, int pageSize )
     {
-        databaseManager.databaseIdRepository().getById( namedDatabaseId.databaseId() )
-                       .orElseThrow( () -> RoutingTableProcedureHelpers.databaseNotFoundException( namedDatabaseId.name() ) );
+        return longLayout().withKeyPadding( random.intBetween( 0, 10 ) ).build();
     }
 }

@@ -10,6 +10,7 @@ Apache Software License, Version 2.0
   Apache Commons IO
   Apache Commons Lang
   Apache Commons Logging
+  Apache Commons Math
   Apache Commons Text
   Apache Log4j API
   Apache Log4j Core
@@ -22,14 +23,15 @@ Apache Software License, Version 2.0
   Apache Shiro :: Cryptography :: Hashing
   Apache Shiro :: Event
   Apache Shiro :: Lang
+  AssertJ fluent assertions
   Caffeine cache
-  fastinfoset
-  Jackson module: JAXB Annotations
+  IPAddress
+  Jackson module: Old JAXB Annotations (javax.xml.bind)
   Jackson-annotations
   Jackson-core
   jackson-databind
-  Jackson-JAXRS-base
-  Jackson-JAXRS-JSON
+  Jackson-JAXRS: base
+  Jackson-JAXRS: JSON
   Jakarta Bean Validation API
   Java Agent for Memory Measurements
   Java Concurrency Tools Core Library
@@ -48,6 +50,7 @@ Apache Software License, Version 2.0
   Jetty :: Server Core
   Jetty :: Servlet Handling
   Jetty :: Utilities
+  Jetty :: Utilities :: Ajax(JSON)
   Jetty :: Webapp Application Support
   Jetty :: XML utilities
   jPowerShell
@@ -391,7 +394,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------
 Bouncy Castle License
-  Bouncy Castle ASN.1 Extension and Utility APIs
   Bouncy Castle PKIX, CMS, EAC, TSP, PKCS, OCSP, CMP, and CRMF APIs
   Bouncy Castle Provider
 ------------------------------------------------------------------------------
@@ -912,10 +914,7 @@ express Statement of Purpose.
 Eclipse Distribution License - v 1.0
   Eclipse Collections API
   Eclipse Collections Main Library
-  Extended StAX API
-  fastinfoset
   istack common utility code runtime
-  JavaBeans Activation Framework API jar
   JAXB Runtime
   jersey-container-servlet
   jersey-container-servlet-core
@@ -1021,6 +1020,7 @@ This Agreement is governed by the laws of the State of New York and the intellec
 
 ------------------------------------------------------------------------------
 Eclipse Public License v2.0
+  aopalliance version 1.0 repackaged as a module
   HK2 API module
   HK2 Implementation Utilities
   Jakarta Annotations API
@@ -1033,6 +1033,7 @@ Eclipse Public License v2.0
   jersey-core-common
   jersey-core-server
   jersey-inject-hk2
+  OSGi resource locator
   ServiceLocator Default Implementation
 ------------------------------------------------------------------------------
 
@@ -1767,10 +1768,6 @@ Eclipse Collections Main Library
 Java Servlet API
   Common Development and Distribution License Version 1.1
   GNU General Public License, version 2 with the Classpath Exception
-
-fastinfoset
-  Apache Software License, Version 2.0
-  Eclipse Distribution License - v 1.0
 
 jersey-container-servlet
   Apache Software License, Version 2.0

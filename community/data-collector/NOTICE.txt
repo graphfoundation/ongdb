@@ -48,6 +48,7 @@ Apache Software License, Version 2.0
   Apache Commons Compress
   Apache Commons IO
   Apache Commons Lang
+  Apache Commons Math
   Apache Commons Text
   Apache Log4j API
   Apache Log4j Core
@@ -60,7 +61,9 @@ Apache Software License, Version 2.0
   Apache Shiro :: Cryptography :: Hashing
   Apache Shiro :: Event
   Apache Shiro :: Lang
+  AssertJ fluent assertions
   Caffeine cache
+  IPAddress
   Java Concurrency Tools Core Library
   Java Native Access
   Jettison

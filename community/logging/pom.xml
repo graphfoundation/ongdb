@@ -115,6 +115,7 @@
                     </execution>
                 </executions>
                 <configuration>
+                    <createDependencyReducedPom>false</createDependencyReducedPom>
                     <artifactSet>
                         <includes>
                             <include>org.apache.logging.log4j:*</include>

@@ -49,6 +49,7 @@ Apache Software License, Version 2.0
   Apache Commons IO
   Apache Commons Lang
   Apache Commons Logging
+  Apache Commons Math
   Apache Commons Text
   Apache Log4j API
   Apache Log4j Core
@@ -61,14 +62,15 @@ Apache Software License, Version 2.0
   Apache Shiro :: Cryptography :: Hashing
   Apache Shiro :: Event
   Apache Shiro :: Lang
+  AssertJ fluent assertions
   Caffeine cache
-  fastinfoset
-  Jackson module: JAXB Annotations
+  IPAddress
+  Jackson module: Old JAXB Annotations (javax.xml.bind)
   Jackson-annotations
   Jackson-core
   jackson-databind
-  Jackson-JAXRS-base
-  Jackson-JAXRS-JSON
+  Jackson-JAXRS: base
+  Jackson-JAXRS: JSON
   Jakarta Bean Validation API
   Java Agent for Memory Measurements
   Java Concurrency Tools Core Library
@@ -84,6 +86,7 @@ Apache Software License, Version 2.0
   Jetty :: Security
   Jetty :: Servlet Handling
   Jetty :: Utilities
+  Jetty :: Utilities :: Ajax(JSON)
   Jetty :: Webapp Application Support
   Jetty :: XML utilities
   jPowerShell
@@ -128,7 +131,6 @@ BSD License 2-clause
   zstd-jni
 
 Bouncy Castle License
-  Bouncy Castle ASN.1 Extension and Utility APIs
   Bouncy Castle PKIX, CMS, EAC, TSP, PKCS, OCSP, CMP, and CRMF APIs
   Bouncy Castle Provider
 
@@ -141,10 +143,7 @@ Creative Commons 0
 Eclipse Distribution License - v 1.0
   Eclipse Collections API
   Eclipse Collections Main Library
-  Extended StAX API
-  fastinfoset
   istack common utility code runtime
-  JavaBeans Activation Framework API jar
   JAXB Runtime
   jersey-container-servlet
   jersey-container-servlet-core
@@ -157,6 +156,7 @@ Eclipse Public License - v 1.0
   Eclipse Collections Main Library
 
 Eclipse Public License v2.0
+  aopalliance version 1.0 repackaged as a module
   HK2 API module
   HK2 Implementation Utilities
   Jakarta Annotations API
@@ -169,6 +169,7 @@ Eclipse Public License v2.0
   jersey-core-common
   jersey-core-server
   jersey-inject-hk2
+  OSGi resource locator
   ServiceLocator Default Implementation
 
 MIT License
@@ -195,10 +196,6 @@ Eclipse Collections API
 Eclipse Collections Main Library
   Eclipse Distribution License - v 1.0
   Eclipse Public License - v 1.0
-
-fastinfoset
-  Apache Software License, Version 2.0
-  Eclipse Distribution License - v 1.0
 
 jersey-container-servlet
   Apache Software License, Version 2.0

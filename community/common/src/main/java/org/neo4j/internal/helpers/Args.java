@@ -1,5 +1,5 @@
 /*
- * Copyright (c) "Graph Foundation,"
+ * Copyright (c) 2018-2022 "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -384,7 +384,7 @@ public class Args
                         ? entry.getKey() + OPTION_METADATA_DELIMITER + option.metadata()
                         : entry.getKey();
                 String value = option.value();
-                String quote = key.contains( " " ) || (value != null && value.contains( " " )) ? " " : "";
+                String quote = key.contains( " " ) || value != null && value.contains( " " ) ? " " : "";
                 list.add( quote + (key.length() > 1 ? "--" : "-") + key + (value != null ? "=" + value + quote : "") );
             }
         }
