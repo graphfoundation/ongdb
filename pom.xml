@@ -1154,6 +1154,11 @@
                 <version>${jersey.version}</version>
             </dependency>
             <dependency>
+                <groupId>org.jctools</groupId>
+                <artifactId>jctools-core</artifactId>
+                <version>3.3.0</version>
+            </dependency>
+            <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-nop</artifactId>
                 <version>1.7.25</version>
