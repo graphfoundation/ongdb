@@ -121,6 +121,7 @@
         <metrics.version>4.0.2</metrics.version>
         <scala.target.vm>1.8</scala.target.vm>
         <scala.java.arg/>
+        <jackson.version>2.13.2</jackson.version>
         <jersey.version>1.19.3</jersey.version>
         <junit.platform.version>1.6.2</junit.platform.version>
         <checkstyle.strict>true</checkstyle.strict>
@@ -1021,6 +1022,11 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-databind</artifactId>
