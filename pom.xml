@@ -1274,6 +1274,12 @@
                 <version>2.28.2</version>
                 <scope>test</scope>
             </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-junit-jupiter</artifactId>
+                <version>3.1.0</version>
+                <scope>test</scope>
+            </dependency>
 
             <dependency>
                 <groupId>commons-codec</groupId>
