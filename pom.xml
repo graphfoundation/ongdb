@@ -1349,6 +1349,13 @@
                 <artifactId>netty-all</artifactId>
                 <version>4.1.24.Final</version>
             </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>4.1.77.Final</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
 
             <dependency>
                 <groupId>log4j</groupId>
