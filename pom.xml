@@ -125,6 +125,7 @@
         <jersey.version>1.19.3</jersey.version>
         <junit.platform.version>1.6.2</junit.platform.version>
         <log4j.version>2.17.1</log4j.version>
+        <opencypher.version>1.0.0-M16</opencypher.version>
         <checkstyle.strict>true</checkstyle.strict>
 
         <cypher.compatibility.23>2.3.12</cypher.compatibility.23>
