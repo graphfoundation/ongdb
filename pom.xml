@@ -1313,6 +1313,12 @@
 
             <!-- scala test dependencies -->
             <dependency>
+                <groupId>com.lihaoyi</groupId>
+                <artifactId>pprint_${scala.binary.version}</artifactId>
+                <version>0.6.0</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
                 <groupId>org.scalatest</groupId>
                 <artifactId>scalatest_2.11</artifactId>
                 <version>2.2.5</version>
