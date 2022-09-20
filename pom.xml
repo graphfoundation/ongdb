@@ -1173,18 +1173,6 @@
 
             <!-- testing -->
             <dependency>
-                <groupId>org.graphfoundation.ongdb</groupId>
-                <artifactId>ongdb-io</artifactId>
-                <version>${project.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.graphfoundation.ongdb</groupId>
-                <artifactId>ongdb-kernel</artifactId>
-                <version>${project.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
                 <groupId>org.neo4j.driver</groupId>
                 <artifactId>neo4j-java-driver</artifactId>
                 <version>1.7.5</version>
