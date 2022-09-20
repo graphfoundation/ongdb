@@ -1367,7 +1367,7 @@
             </dependency>
             <dependency>
                 <groupId>org.scalacheck</groupId>
-                <artifactId>scalacheck_2.11</artifactId>
+                <artifactId>scalacheck_${scala.binary.version}</artifactId>
                 <version>1.12.5</version>
                 <scope>test</scope>
             </dependency>
