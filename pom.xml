@@ -1174,6 +1174,12 @@
             <!-- testing -->
             <dependency>
                 <groupId>org.graphfoundation.ongdb</groupId>
+                <artifactId>ongdb-io</artifactId>
+                <version>${project.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.graphfoundation.ongdb</groupId>
                 <artifactId>ongdb-kernel</artifactId>
                 <version>${project.version}</version>
                 <scope>test</scope>
