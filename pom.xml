@@ -123,6 +123,7 @@
         <scala.target.vm>1.8</scala.target.vm>
         <scala.java.arg/>
         <jackson.version>2.13.2</jackson.version>
+        <jamm.version>0.3.3</jamm.version>
         <jersey.version>1.19.3</jersey.version>
         <junit.platform.version>1.6.2</junit.platform.version>
         <junit.version>5.8.2</junit.version>
@@ -1129,7 +1130,7 @@
             <dependency>
                 <groupId>com.github.jbellis</groupId>
                 <artifactId>jamm</artifactId>
-                <version>0.3.3</version>
+                <version>${jamm.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.github.luben</groupId>
