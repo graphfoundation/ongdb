@@ -38,6 +38,7 @@
  */
 package org.neo4j.kernel.impl.util.collection;
 
+import org.eclipse.collections.api.LazyIterable;
 import org.eclipse.collections.api.LongIterable;
 import org.eclipse.collections.api.block.procedure.primitive.LongProcedure;
 import org.eclipse.collections.api.iterator.MutableLongIterator;
@@ -45,7 +46,9 @@ import org.eclipse.collections.api.multimap.MutableMultimap;
 import org.eclipse.collections.api.set.primitive.ImmutableLongSet;
 import org.eclipse.collections.api.set.primitive.LongSet;
 import org.eclipse.collections.api.set.primitive.MutableLongSet;
+import org.eclipse.collections.api.tuple.primitive.LongLongPair;
 import org.eclipse.collections.impl.factory.Multimaps;
+import org.eclipse.collections.impl.factory.primitive.LongSets;
 import org.eclipse.collections.impl.set.mutable.primitive.SynchronizedLongSet;
 import org.eclipse.collections.impl.set.mutable.primitive.UnmodifiableLongSet;
 
@@ -72,7 +75,7 @@ class MutableLinearProbeLongHashSet extends AbstractLinearProbeLongHashSet imple
 
     private final MemoryAllocator allocator;
     private final MemoryTracker memoryTracker;
-    private final MutableMultimap<Memory, FrozenCopy> frozenCopies = Multimaps.mutable.list.empty();
+    private final MutableMultimap<Memory,FrozenCopy> frozenCopies = Multimaps.mutable.list.empty();
 
     private int resizeOccupancyThreshold;
     private int resizeRemovalsThreshold;
@@ -202,8 +205,7 @@ class MutableLinearProbeLongHashSet extends AbstractLinearProbeLongHashSet imple
         ++modCount;
         if ( memory != null )
         {
-            frozenCopies.forEachKeyMultiValues( ( mem, copies ) ->
-            {
+            frozenCopies.forEachKeyMultiValues( ( mem, copies ) -> {
                 mem.free( memoryTracker );
                 copies.forEach( FrozenCopy::invalidate );
             } );
@@ -276,6 +278,12 @@ class MutableLinearProbeLongHashSet extends AbstractLinearProbeLongHashSet imple
     public ImmutableLongSet toImmutable()
     {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public LazyIterable<LongLongPair> cartesianProduct( LongSet set2 )
+    {
+        return LongSets.cartesianProduct( this, set2 );
     }
 
     private boolean removeFromMemory( long element )
@@ -402,6 +410,43 @@ class MutableLinearProbeLongHashSet extends AbstractLinearProbeLongHashSet imple
         public ImmutableLongSet toImmutable()
         {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public LazyIterable<LongLongPair> cartesianProduct( LongSet set2 )
+        {
+            return LongSets.cartesianProduct( this, set2 );
+        }
+
+        @Override
+        public LongSet union( LongSet longSet )
+        {
+            if ( this.size() > longSet.size() )
+            {
+                return this.toSet().withAll( longSet );
+            }
+            else
+            {
+                return longSet.toSet().withAll( this );
+            }
+        }
+
+        @Override
+        public LongSet intersect( LongSet longSet )
+        {
+            return this.select( longSet::contains );
+        }
+
+        @Override
+        public LongSet difference( LongSet longSet )
+        {
+            return this.reject( longSet::contains );
+        }
+
+        @Override
+        public LongSet symmetricDifference( LongSet longSet )
+        {
+            return longSet.reject( this::contains, this.difference( longSet ).toSet() );
         }
 
         void invalidate()

@@ -38,6 +38,7 @@
  */
 package org.neo4j.kernel.impl.util.collection;
 
+import org.eclipse.collections.api.LazyIterable;
 import org.eclipse.collections.api.block.procedure.primitive.LongProcedure;
 import org.eclipse.collections.api.iterator.LongIterator;
 import org.eclipse.collections.api.iterator.MutableLongIterator;
@@ -45,6 +46,7 @@ import org.eclipse.collections.api.list.primitive.ImmutableLongList;
 import org.eclipse.collections.api.list.primitive.MutableLongList;
 import org.eclipse.collections.api.set.primitive.LongSet;
 import org.eclipse.collections.api.set.primitive.MutableLongSet;
+import org.eclipse.collections.api.tuple.primitive.LongLongPair;
 import org.eclipse.collections.impl.factory.primitive.LongLists;
 import org.eclipse.collections.impl.factory.primitive.LongSets;
 import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
@@ -54,6 +56,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ConcurrentModificationException;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.function.Consumer;
 
@@ -438,6 +441,40 @@ class MutableLinearProbeLongHashSetTest
         }
 
         assertEquals( count - toRemove.length, set.size() );
+    }
+
+    @Test
+    void cartesianProduct()
+    {
+        set.addAll( 1, 4, 8 );
+        final MutableLinearProbeLongHashSet set2 = new MutableLinearProbeLongHashSet( memoryAllocator, EmptyMemoryTracker.INSTANCE );
+        set2.addAll( 2, 4, 7, 9 );
+        final List<LongLongPair> list = set.cartesianProduct( set2 ).toSortedList();
+        assertEquals( 1, list.get( 0 ).getOne() );
+        assertEquals( 2, list.get( 0 ).getTwo() );
+        assertEquals( 1, list.get( 1 ).getOne() );
+        assertEquals( 4, list.get( 1 ).getTwo() );
+        assertEquals( 1, list.get( 2 ).getOne() );
+        assertEquals( 7, list.get( 2 ).getTwo() );
+        assertEquals( 1, list.get( 3 ).getOne() );
+        assertEquals( 9, list.get( 3 ).getTwo() );
+        assertEquals( 4, list.get( 4 ).getOne() );
+        assertEquals( 2, list.get( 4 ).getTwo() );
+        assertEquals( 4, list.get( 5 ).getOne() );
+        assertEquals( 4, list.get( 5 ).getTwo() );
+        assertEquals( 4, list.get( 6 ).getOne() );
+        assertEquals( 7, list.get( 6 ).getTwo() );
+        assertEquals( 4, list.get( 7 ).getOne() );
+        assertEquals( 9, list.get( 7 ).getTwo() );
+        assertEquals( 8, list.get( 8 ).getOne() );
+        assertEquals( 2, list.get( 8 ).getTwo() );
+        assertEquals( 8, list.get( 9 ).getOne() );
+        assertEquals( 4, list.get( 9 ).getTwo() );
+        assertEquals( 8, list.get( 10 ).getOne() );
+        assertEquals( 7, list.get( 10 ).getTwo() );
+        assertEquals( 8, list.get( 11 ).getOne() );
+        assertEquals( 9, list.get( 11 ).getTwo() );
+
     }
 
     @Nested
