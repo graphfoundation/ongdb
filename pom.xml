@@ -124,6 +124,7 @@
         <jackson.version>2.13.2</jackson.version>
         <jersey.version>1.19.3</jersey.version>
         <junit.platform.version>1.6.2</junit.platform.version>
+        <junit.version>5.8.2</junit.version>
         <log4j.version>2.17.1</log4j.version>
         <opencypher.version>1.0.0-M16</opencypher.version>
         <checkstyle.strict>true</checkstyle.strict>
@@ -1265,7 +1266,7 @@
             <dependency>
                 <groupId>org.junit.vintage</groupId>
                 <artifactId>junit-vintage-engine</artifactId>
-                <version>5.7.2</version>
+                <version>${junit.version}</version>
                 <scope>test</scope>
             </dependency>
 
@@ -1382,7 +1383,7 @@
             <dependency>
                 <groupId>org.junit.jupiter</groupId>
                 <artifactId>junit-jupiter</artifactId>
-                <version>5.8.2</version>
+                <version>{$junit.version}</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
