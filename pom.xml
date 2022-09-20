@@ -1263,6 +1263,12 @@
                 <artifactId>junit-platform-testkit</artifactId>
                 <version>${junit.platform.version}</version>
                 <scope>test</scope>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.junit.platform</groupId>
+                        <artifactId>*</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.junit.vintage</groupId>
