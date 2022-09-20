@@ -138,7 +138,7 @@
         <module>build-resources</module>
         <module>annotations</module>
         <module>community</module>
-        <module>enterprise</module>
+<!--        <module>enterprise</module>-->
         <module>integrationtests</module>
         <module>stresstests</module>
         <module>tools</module>
