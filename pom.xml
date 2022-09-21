@@ -106,7 +106,7 @@
             -Djunit.jupiter.extensions.autodetection.enabled=true
             -XX:+UnlockExperimentalVMOptions -XX:+TrustFinalNonStaticFields ${test.runner.jvm.settings.additional}
         </test.runner.jvm.settings>
-        <jetty.version>9.4.8.v20171121</jetty.version>
+        <jetty.version>9.4.43.v20210629</jetty.version>
         <findbugs.version>3.0.1</findbugs.version>
         <git.commit>unknown-commit</git.commit>
         <forkCounts>0</forkCounts>
