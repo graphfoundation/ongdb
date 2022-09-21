@@ -124,7 +124,7 @@
         <scala.java.arg/>
         <jackson.version>2.13.2</jackson.version>
         <jamm.version>0.3.3</jamm.version>
-        <jersey.version>1.19.3</jersey.version>
+        <jersey.version>2.34</jersey.version>
         <junit.platform.version>1.6.2</junit.platform.version>
         <junit.version>5.8.2</junit.version>
         <log4j.version>2.17.1</log4j.version>
