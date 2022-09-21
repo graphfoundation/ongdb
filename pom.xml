@@ -116,7 +116,7 @@
         <currentYear>2022</currentYear>
 
         <scala-maven-plugin.version>3.3.2</scala-maven-plugin.version>
-        <scala.version>2.11.12</scala.version>
+        <scala.version>2.12.13</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <asm.version>9.2</asm.version>
         <metrics.version>4.0.2</metrics.version>
