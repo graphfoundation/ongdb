@@ -128,6 +128,7 @@
         <junit.platform.version>1.6.2</junit.platform.version>
         <junit.version>5.8.2</junit.version>
         <log4j.version>2.17.1</log4j.version>
+        <mockito.version>3.12.4</mockito.version>
         <opencypher.version>1.0.0-M16</opencypher.version>
         <checkstyle.strict>true</checkstyle.strict>
 
@@ -1281,13 +1282,13 @@
             <dependency>
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-core</artifactId>
-                <version>3.12.4</version>
+                <version>${mockito.version}</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-junit-jupiter</artifactId>
-                <version>3.1.0</version>
+                <version>${mockito.version}</version>
                 <scope>test</scope>
             </dependency>
 
