@@ -131,6 +131,7 @@
         <junit.version>5.8.2</junit.version>
         <log4j.version>2.17.1</log4j.version>
         <mockito.version>3.12.4</mockito.version>
+        <neo4j-java-driver.version>4.4.9</neo4j-java-driver.version>
         <opencypher.version>1.0.0-M16</opencypher.version>
         <checkstyle.strict>true</checkstyle.strict>
 
@@ -1187,7 +1188,7 @@
             <dependency>
                 <groupId>org.neo4j.driver</groupId>
                 <artifactId>neo4j-java-driver</artifactId>
-                <version>4.4.9</version>
+                <version>${neo4j-java-driver.version}</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
