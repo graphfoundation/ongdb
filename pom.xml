@@ -534,7 +534,7 @@
                 <plugin>
                     <groupId>org.neo4j.build.plugins</groupId>
                     <artifactId>licensing-maven-plugin</artifactId>
-                    <version>1.7.9</version>
+                    <version>1.7.10</version>
                     <configuration>
                         <failIfDisliked>false</failIfDisliked>
                         <failIfMissing>true</failIfMissing>
