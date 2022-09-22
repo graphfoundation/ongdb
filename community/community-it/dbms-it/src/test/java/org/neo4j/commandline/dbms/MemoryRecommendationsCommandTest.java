@@ -120,7 +120,7 @@ class MemoryRecommendationsCommandTest
             CommandLine.usage( command, new PrintStream( out ), CommandLine.Help.Ansi.OFF );
         }
         assertThat( baos.toString().trim() ).isEqualTo( String.format(
-                "Print Neo4j heap and pagecache memory settings recommendations.%n" +
+                "Print ONgDB heap and pagecache memory settings recommendations.%n" +
                 "%n" +
                 "USAGE%n" +
                 "%n" +
@@ -128,13 +128,13 @@ class MemoryRecommendationsCommandTest
                 "%n" +
                 "DESCRIPTION%n" +
                 "%n" +
-                "Print heuristic memory setting recommendations for the Neo4j JVM heap and%n" +
+                "Print heuristic memory setting recommendations for the ONgDB JVM heap and%n" +
                 "pagecache. The heuristic is based on the total memory of the system the command%n" +
                 "is running on, or on the amount of memory specified with the --memory argument.%n" +
-                "The heuristic assumes that the system is dedicated to running Neo4j. If this is%n" +
+                "The heuristic assumes that the system is dedicated to running ONgDB. If this is%n" +
                 "not the case, then use the --memory argument to specify how much memory can be%n" +
-                "expected to be dedicated to Neo4j. The output is formatted such that it can be%n" +
-                "copy-pasted into the neo4j.conf file.%n" +
+                "expected to be dedicated to ONgDB. The output is formatted such that it can be%n" +
+                "copy-pasted into the ongdb.conf file.%n" +
                 "%n" +
                 "OPTIONS%n" +
                 "%n" +

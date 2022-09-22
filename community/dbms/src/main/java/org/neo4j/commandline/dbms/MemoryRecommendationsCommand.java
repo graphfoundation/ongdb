@@ -84,12 +84,12 @@ import static org.neo4j.kernel.api.index.IndexDirectoryStructure.baseSchemaIndex
 
 @Command(
         name = "memrec",
-        header = "Print Neo4j heap and pagecache memory settings recommendations.",
-        description = "Print heuristic memory setting recommendations for the Neo4j JVM heap and pagecache. The " +
+        header = "Print ONgDB heap and pagecache memory settings recommendations.",
+        description = "Print heuristic memory setting recommendations for the ONgDB JVM heap and pagecache. The " +
                 "heuristic is based on the total memory of the system the command is running on, or on the amount of " +
                 "memory specified with the --memory argument. The heuristic assumes that the system is dedicated to " +
-                "running Neo4j. If this is not the case, then use the --memory argument to specify how much memory " +
-                "can be expected to be dedicated to Neo4j. The output is formatted such that it can be copy-pasted into the neo4j.conf file."
+                "running ONgDB. If this is not the case, then use the --memory argument to specify how much memory " +
+                "can be expected to be dedicated to ONgDB. The output is formatted such that it can be copy-pasted into the ongdb.conf file."
 )
 public class MemoryRecommendationsCommand extends AbstractCommand
 {
@@ -122,7 +122,7 @@ public class MemoryRecommendationsCommand extends AbstractCommand
     private Long memory;
 
     @Option( names = "--docker", arity = "0", description = "The recommended memory settings are produced in the form of environment variables " +
-            "that can be directly passed to Neo4j docker container. The recommended use is to save the generated environment variables to a file " +
+            "that can be directly passed to ONgDB docker container. The recommended use is to save the generated environment variables to a file " +
             "and pass the file to a docker container using '--env-file' docker option." )
     private boolean dockerOutput;
 
