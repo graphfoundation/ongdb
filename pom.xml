@@ -104,6 +104,7 @@
             -Dorg.neo4j.io.pagecache.impl.muninn.usePreciseCursorErrorStackTraces=true
             -Dorg.neo4j.kernel.impl.api.KernelStatement.trackStatements=true
             -Dorg.org.neo4j.kernel.impl.newapi.DefaultCursors.trackCursors=true
+            -Dorg.neo4j.internal.batchimport.Configuration.DEFAULT_BATCH_SIZE=10
             -Djunit.jupiter.extensions.autodetection.enabled=true
             -XX:+UnlockExperimentalVMOptions -XX:+TrustFinalNonStaticFields ${test.runner.jvm.settings.additional}
         </test.runner.jvm.settings>
