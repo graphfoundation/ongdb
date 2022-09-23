@@ -97,7 +97,7 @@
         <generate-config-docs-phase>prepare-package</generate-config-docs-phase>
         <test.runner.jvm/>
         <test.runner.jvm.settings.additional/>
-        <test.runner.jvm.settings>-Xmx6G -XX:+UseG1GC -XX:-OmitStackTraceInFastThrow -XX:+HeapDumpOnOutOfMemoryError
+        <test.runner.jvm.settings>-Xmx8G -XX:+UseG1GC -XX:-OmitStackTraceInFastThrow -XX:+HeapDumpOnOutOfMemoryError
             -XX:HeapDumpPath=target/test-data -Dorg.neo4j.unsafe.impl.internal.dragons.UnsafeUtil.DIRTY_MEMORY=true
             -Dorg.neo4j.unsafe.impl.internal.dragons.UnsafeUtil.CHECK_NATIVE_ACCESS=true
             -Dorg.neo4j.kernel.impl.store.cursor.AbstractCachedStoreCursors.CHECK_READ_CURSORS=true
@@ -145,9 +145,9 @@
         <module>annotations</module>
         <module>community</module>
 <!--        <module>enterprise</module>-->
-        <module>integrationtests</module>
-        <module>stresstests</module>
-        <module>tools</module>
+<!--        <module>integrationtests</module>-->
+<!--        <module>stresstests</module>-->
+<!--        <module>tools</module>-->
         <module>packaging</module>
     </modules>
 
