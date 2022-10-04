@@ -51,31 +51,31 @@ class TransactionIdTest
     @Test
     void printsTransactionIds() throws InvalidArgumentsException
     {
-        assertThat( new TransactionId( "neo4j", 12L ).toString() ).isEqualTo( "neo4j-transaction-12" );
+        assertThat( new TransactionId( "ongdb", 12L ).toString() ).isEqualTo( "ongdb-transaction-12" );
     }
 
     @Test
     void doesNotConstructNegativeTransactionIds()
     {
-        assertThrows( InvalidArgumentsException.class, () -> new TransactionId( "neo4j", -15L ) );
+        assertThrows( InvalidArgumentsException.class, () -> new TransactionId( "ongdb", -15L ) );
     }
 
     @Test
     void parsesTransactionIds() throws InvalidArgumentsException
     {
-        assertThat( TransactionId.parse( "neo4j-transaction-14" ) ).isEqualTo( new TransactionId( "neo4j", 14L ) );
+        assertThat( TransactionId.parse( "ongdb-transaction-14" ) ).isEqualTo( new TransactionId( "ongdb", 14L ) );
     }
 
     @Test
     void doesNotParseNegativeTransactionIds()
     {
-        assertThrows( InvalidArgumentsException.class, () -> TransactionId.parse( "neo4j-transaction--12" ) );
+        assertThrows( InvalidArgumentsException.class, () -> TransactionId.parse( "ongdb-transaction--12" ) );
     }
 
     @Test
     void doesNotParseWrongSeparator()
     {
-        assertThrows( InvalidArgumentsException.class, () -> TransactionId.parse( "neo4j-transactioo-12" ) );
+        assertThrows( InvalidArgumentsException.class, () -> TransactionId.parse( "ongdb-transactioo-12" ) );
     }
 
     @Test
@@ -87,7 +87,7 @@ class TransactionIdTest
     @Test
     void doesNotParseTrailingRandomText()
     {
-        assertThrows( InvalidArgumentsException.class, () -> TransactionId.parse( "neo4j-transaction-12  " ) );
+        assertThrows( InvalidArgumentsException.class, () -> TransactionId.parse( "ongdb-transaction-12  " ) );
     }
 
     @Test
@@ -99,7 +99,7 @@ class TransactionIdTest
     @Test
     void validateAndNormalizeDatabaseName() throws InvalidArgumentsException
     {
-        assertThat( TransactionId.parse( "NEO4J-transaction-14" ) ).isEqualTo( new TransactionId( "neo4j", 14L ) );
+        assertThat( TransactionId.parse( "ONGDB-transaction-14" ) ).isEqualTo( new TransactionId( "ongdb", 14L ) );
         IllegalArgumentException e = assertThrows( IllegalArgumentException.class, () ->
                 TransactionId.parse( "a".repeat( MAXIMUM_DATABASE_NAME_LENGTH + 1 ) + "-transaction-14" ) );
         assertThat( e.getMessage() ).contains( " must have a length between " );

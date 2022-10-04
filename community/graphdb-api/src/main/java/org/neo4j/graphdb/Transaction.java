@@ -115,7 +115,7 @@ public interface Transaction extends AutoCloseable
     Node createNode( Label... labels );
 
     /**
-     * Looks up a node by id. Please note: Neo4j reuses its internal ids when
+     * Looks up a node by id. Please note: ONgDB reuses its internal ids when
      * nodes and relationships are deleted, which means it's bad practice to
      * refer to them this way. Instead, use application generated ids.
      *
@@ -126,7 +126,7 @@ public interface Transaction extends AutoCloseable
     Node getNodeById( long id );
 
     /**
-     * Looks up a relationship by id. Please note: Neo4j reuses its internal ids
+     * Looks up a relationship by id. Please note: ONgDB reuses its internal ids
      * when nodes and relationships are deleted, which means it's bad practice
      * to refer to them this way. Instead, use application generated ids.
      *

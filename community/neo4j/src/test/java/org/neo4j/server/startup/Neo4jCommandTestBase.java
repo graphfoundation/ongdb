@@ -159,7 +159,7 @@ abstract class Neo4jCommandTestBase extends BootloaderCommandTestBase
     protected int execute( List<String> args, Map<String, String> env, Runtime.Version version )
     {
         HashMap<String,String> environment = new HashMap<>( env );
-        environment.putIfAbsent( Bootloader.ENV_NEO4J_START_WAIT, "0" );
+        environment.putIfAbsent( Bootloader.ENV_ONGDB_START_WAIT, "0" );
         return super.execute( args, environment, version );
     }
 
@@ -175,7 +175,7 @@ abstract class Neo4jCommandTestBase extends BootloaderCommandTestBase
 
     public static boolean isCurrentlyRunningAsWindowsAdmin()
     {
-        // The problem: windows-tests in this class want to e.g. install and start the neo4j service to test it on the highest level.
+        // The problem: windows-tests in this class want to e.g. install and start the ongdb service to test it on the highest level.
         // Now, if you're running this test as a non-admin the service util which Neo4j uses to accomplish this (prunsrv-<arch>.exe)
         // will display a GUI prompt to elevate the user (if the user is an administrator) to administrator privileges. As an automated
         // test this doesn't work because there must be a user sitting ready, clicking that button.

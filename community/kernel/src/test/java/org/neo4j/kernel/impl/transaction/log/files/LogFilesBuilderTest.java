@@ -65,7 +65,7 @@ import org.neo4j.test.utils.TestDirectory;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 import static org.neo4j.configuration.GraphDatabaseSettings.transaction_logs_root_path;
 import static org.neo4j.kernel.impl.transaction.log.TestLogEntryReader.logEntryReader;
 import static org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder.activeFilesBuilder;
@@ -178,7 +178,7 @@ class LogFilesBuilderTest
     {
         Path customLogDirectory = testDirectory.directory( "absoluteCustomLogDirectory" );
         Config config = Config.newBuilder()
-                .set( neo4j_home, testDirectory.homePath() )
+                .set( ongdb_home, testDirectory.homePath() )
                 .set( transaction_logs_root_path, customLogDirectory.toAbsolutePath() )
                 .build();
         LogFiles logFiles = builder( DatabaseLayout.of( config ), fileSystem )

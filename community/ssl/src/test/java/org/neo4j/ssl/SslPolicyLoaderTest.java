@@ -69,7 +69,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.neo4j.configuration.Config.newBuilder;
-import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 import static org.neo4j.configuration.ssl.SslPolicyScope.BOLT;
 import static org.neo4j.configuration.ssl.SslPolicyScope.TESTING;
 
@@ -168,7 +168,7 @@ class SslPolicyLoaderTest
         SslPolicyConfig policyConfig = SslPolicyConfig.forScope( TESTING );
 
         Config config = newBuilder()
-                .set( neo4j_home, home.toAbsolutePath() )
+                .set( ongdb_home, home.toAbsolutePath() )
                 .set( SslSystemInternalSettings.ignore_dotfiles, ignoreDotfiles )
                 .set( policyConfig.enabled, Boolean.TRUE )
                 .set( policyConfig.base_directory, Path.of( "certificates/default" ) )
@@ -254,7 +254,7 @@ class SslPolicyLoaderTest
         SslPolicyConfig policyConfig = SslPolicyConfig.forScope( TESTING );
 
         Config config = newBuilder()
-                .set( neo4j_home, home.toAbsolutePath() )
+                .set( ongdb_home, home.toAbsolutePath() )
                 .set( policyConfig.enabled, Boolean.TRUE )
                 .set( policyConfig.base_directory, Path.of( "certificates/default" ) )
                 .build();
@@ -272,7 +272,7 @@ class SslPolicyLoaderTest
         SslPolicyConfig policyConfig = SslPolicyConfig.forScope( TESTING );
 
         Config config = newBuilder()
-                .set( neo4j_home, home.toAbsolutePath() )
+                .set( ongdb_home, home.toAbsolutePath() )
                 .set( policyConfig.base_directory, Path.of( "certificates/default" ) )
                 .build();
 
@@ -313,7 +313,7 @@ class SslPolicyLoaderTest
         SslPolicyConfig policyConfig = SslPolicyConfig.forScope( TESTING );
 
         Config config = newBuilder()
-                .set( neo4j_home, home.toAbsolutePath() )
+                .set( ongdb_home, home.toAbsolutePath() )
                 .set( SslSystemInternalSettings.ignore_dotfiles, ignoreDotfiles )
                 .set( policyConfig.enabled, Boolean.TRUE )
                 .set( policyConfig.base_directory, Path.of( "certificates/default" ) )

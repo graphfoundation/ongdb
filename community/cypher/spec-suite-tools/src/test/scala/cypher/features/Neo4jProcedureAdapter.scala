@@ -78,7 +78,7 @@ object Neo4jValueRecords {
       row: Map[String, CypherValue] =>
         record.header.map { columnName =>
           val value = row(columnName)
-          val convertedValue = TCKValueToNeo4jValue(value)
+          val convertedValue = TCKValueToONgDBValue(value)
           convertedValue
         }.toArray
     }

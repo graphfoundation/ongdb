@@ -81,7 +81,7 @@ class WindowsBootloaderOs extends BootloaderOsAbstraction
     {
         if ( !serviceInstalled() )
         {
-            throw new BootFailureException( "Neo4j service is not installed", EXIT_CODE_NOT_RUNNING );
+            throw new BootFailureException( "ONgDB service is not installed", EXIT_CODE_NOT_RUNNING );
         }
         issueServiceCommand( "ES", behaviour().blocking() );
         return UNKNOWN_PID;
@@ -119,13 +119,13 @@ class WindowsBootloaderOs extends BootloaderOsAbstraction
                 .with( arg( "--StopMode", "jvm" ) )
                 .with( arg( "--StopMethod", "stop" ) )
                 .with( arg( "--StopPath", home.toString() ) )
-                .with( arg( "--Description", "Neo4j Graph Database - " + home ) )
-                .with( arg( "--DisplayName", "Neo4j Graph Database - " + serviceName() ) )
+                .with( arg( "--Description", "ONgDB Graph Database - " + home ) )
+                .with( arg( "--DisplayName", "ONgDB Graph Database - " + serviceName() ) )
                 .with( arg( "--Jvm", jvmDll.toString() ) )
                 .with( arg( "--LogPath", logs.toString() ) )
                 .with( arg( "--StdOutput", logs.resolve( ctx.config().get( store_user_log_path ) ).toString() ) )
                 .with( arg( "--StdError", logs.resolve( "service-error.log" ).toString() ) )
-                .with( arg( "--LogPrefix", "neo4j-service" ) )
+                .with( arg( "--LogPrefix", "ongdb-service" ) )
                 .with( arg( "--Classpath", getClassPath() ) )
                 .with( multiArg( "--JvmOptions", jvmOpts.toArray( new String[0] ) ) )
                 .with( arg( "--Startup", "auto" ) )
@@ -176,7 +176,7 @@ class WindowsBootloaderOs extends BootloaderOsAbstraction
     {
         issueServiceCommand( "DS", behaviour().blocking() );
         Stopwatch stopwatch = Stopwatch.start();
-        while ( serviceInstalled() && !stopwatch.hasTimedOut( Bootloader.DEFAULT_NEO4J_SHUTDOWN_TIMEOUT, TimeUnit.SECONDS ) )
+        while ( serviceInstalled() && !stopwatch.hasTimedOut( Bootloader.DEFAULT_ONGDB_SHUTDOWN_TIMEOUT, TimeUnit.SECONDS ) )
         {
             try
             {
@@ -232,7 +232,7 @@ class WindowsBootloaderOs extends BootloaderOsAbstraction
             // It seems plausible to interpret anything other than "Stopped" as running, at least for how the Neo4j boot loader is interacting with it
             //
             // Stderr should not be part of the stream since Get-Service will write stuff like:
-            //      Get-service : Cannot find any service with service name 'neo4j'
+            //      Get-service : Cannot find any service with service name 'ongdb'
             // to stderr and we should not interpret that as the service is running.
             //
             return stream( resultFromPowerShellCommand( "Get-Service", serviceName(), "|", "Format-Table", "-AutoSize" ) )
@@ -305,7 +305,7 @@ class WindowsBootloaderOs extends BootloaderOsAbstraction
                     break;
                 }
             }
-            while ( !stopwatch.hasTimedOut( Bootloader.DEFAULT_NEO4J_SHUTDOWN_TIMEOUT, TimeUnit.SECONDS ) );
+            while ( !stopwatch.hasTimedOut( Bootloader.DEFAULT_ONGDB_SHUTDOWN_TIMEOUT, TimeUnit.SECONDS ) );
         }
     }
 

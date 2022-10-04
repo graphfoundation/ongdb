@@ -51,7 +51,7 @@ import org.opencypher.tools.tck.values.CypherValue
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
 
-object TCKValueToNeo4jValue extends (CypherValue => Object) {
+object TCKValueToONgDBValue extends (CypherValue => Object) {
 
   def apply(value: CypherValue): Object = {
     value match {
@@ -59,11 +59,11 @@ object TCKValueToNeo4jValue extends (CypherValue => Object) {
       case CypherInteger(v) => Long.box(v)
       case CypherFloat(v) => Double.box(v)
       case CypherBoolean(v) => Boolean.box(v)
-      case CypherProperty(k, v) => (k, TCKValueToNeo4jValue(v))
-      case CypherPropertyMap(ps) => ps.map { case (k, v) => k -> TCKValueToNeo4jValue(v) }.asJava
-      case l: CypherList => l.elements.map(TCKValueToNeo4jValue).asJava
+      case CypherProperty(k, v) => (k, TCKValueToONgDBValue(v))
+      case CypherPropertyMap(ps) => ps.map { case (k, v) => k -> TCKValueToONgDBValue(v) }.asJava
+      case l: CypherList => l.elements.map(TCKValueToONgDBValue).asJava
       case CypherNull => null
-      case _ => throw new UnsupportedOperationException(s"Could not convert value $value to a Neo4j representation")
+      case _ => throw new UnsupportedOperationException(s"Could not convert value $value to an ONgDB representation")
     }
   }
 

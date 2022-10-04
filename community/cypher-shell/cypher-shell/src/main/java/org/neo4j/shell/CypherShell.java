@@ -70,7 +70,7 @@ public class CypherShell implements StatementExecuter, Connector, TransactionHan
     private final BoltStateHandler boltStateHandler;
     private final PrettyPrinter prettyPrinter;
     private CommandHelper commandHelper;
-    private String lastNeo4jErrorCode;
+    private String lastONgDBErrorCode;
 
     public CypherShell( LinePrinter linePrinter,
                         PrettyConfig prettyConfig,
@@ -125,7 +125,7 @@ public class CypherShell implements StatementExecuter, Connector, TransactionHan
         // Else it will be parsed as Cypher, but for that we need to be connected
         if ( !isConnected() )
         {
-            throw new CommandException( "Not connected to Neo4j" );
+            throw new CommandException( "Not connected to ONgDB" );
         }
 
         executeCypher( cmdString );
@@ -139,7 +139,7 @@ public class CypherShell implements StatementExecuter, Connector, TransactionHan
     @Override
     public String lastNeo4jErrorCode()
     {
-        return lastNeo4jErrorCode;
+        return lastONgDBErrorCode;
     }
 
     /**
@@ -157,11 +157,11 @@ public class CypherShell implements StatementExecuter, Connector, TransactionHan
                                   prettyPrinter.format( boltResult, linePrinter );
                                   boltStateHandler.updateActualDbName( boltResult.getSummary() );
                               } );
-            lastNeo4jErrorCode = null;
+            lastONgDBErrorCode = null;
         }
         catch ( Neo4jException e )
         {
-            lastNeo4jErrorCode = getErrorCode( e );
+            lastONgDBErrorCode = getErrorCode( e );
             throw boltStateHandler.handleException( e );
         }
     }
@@ -199,7 +199,7 @@ public class CypherShell implements StatementExecuter, Connector, TransactionHan
     }
 
     /**
-     * Open a session to Neo4j
+     * Open a session to ONgDB
      *
      * @param connectionConfig
      * @param command
@@ -236,11 +236,11 @@ public class CypherShell implements StatementExecuter, Connector, TransactionHan
         try
         {
             boltStateHandler.commitTransaction();
-            lastNeo4jErrorCode = null;
+            lastONgDBErrorCode = null;
         }
         catch ( Neo4jException e )
         {
-            lastNeo4jErrorCode = getErrorCode( e );
+            lastONgDBErrorCode = getErrorCode( e );
             throw e;
         }
     }
@@ -279,11 +279,11 @@ public class CypherShell implements StatementExecuter, Connector, TransactionHan
         try
         {
             boltStateHandler.setActiveDatabase( databaseName );
-            lastNeo4jErrorCode = null;
+            lastONgDBErrorCode = null;
         }
         catch ( Neo4jException e )
         {
-            lastNeo4jErrorCode = getErrorCode( e );
+            lastONgDBErrorCode = getErrorCode( e );
             throw e;
         }
     }

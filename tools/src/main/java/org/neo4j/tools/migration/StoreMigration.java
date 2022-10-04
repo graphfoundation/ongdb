@@ -85,7 +85,7 @@ import static org.neo4j.kernel.extension.UnsatisfiedDependencyStrategies.ignore;
 import static org.neo4j.kernel.impl.pagecache.ConfigurableStandalonePageCacheFactory.createPageCache;
 
 /**
- * Stand alone tool for migrating/upgrading a ONgDB database from one version to the next.
+ * Stand alone tool for migrating/upgrading an ONgDB database from one version to the next.
  *
  * @see StoreMigrator
  */

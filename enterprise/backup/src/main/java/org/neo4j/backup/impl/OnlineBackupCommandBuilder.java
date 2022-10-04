@@ -164,9 +164,9 @@ public class OnlineBackupCommandBuilder
         return this;
     }
 
-    public boolean backup( File neo4jHome, String backupName ) throws CommandFailed, IncorrectUsage
+    public boolean backup( File ongdbHome, String backupName ) throws CommandFailed, IncorrectUsage
     {
-        File targetLocation = new File( neo4jHome, backupName );
+        File targetLocation = new File( ongdbHome, backupName );
         String[] args;
         if ( rawArgs.isPresent() )
         {
@@ -184,8 +184,8 @@ public class OnlineBackupCommandBuilder
             }
         }
         new OnlineBackupCommandProvider()
-                .create( neo4jHome.toPath(),
-                        configDirFromTarget( neo4jHome.toPath() ),
+                .create( ongdbHome.toPath(),
+                        configDirFromTarget( ongdbHome.toPath() ),
                         resolveOutsideWorld() )
                 .execute( args );
         return true;
@@ -360,8 +360,8 @@ public class OnlineBackupCommandBuilder
                 .toArray( String[]::new );
     }
 
-    private static Path configDirFromTarget( Path neo4jHome )
+    private static Path configDirFromTarget( Path ongdbHome )
     {
-        return neo4jHome.resolve( "conf" );
+        return ongdbHome.resolve( "conf" );
     }
 }

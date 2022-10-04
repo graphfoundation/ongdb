@@ -445,13 +445,13 @@ public class PluginRealm extends AuthorizingRealm implements RealmLifecycle, Shi
         };
 
         @Override
-        public Path neo4jHome()
+        public Path ongdbHome()
         {
             return config.get( GraphDatabaseSettings.ongdb_home ).getAbsoluteFile().toPath();
         }
 
         @Override
-        public Optional<Path> neo4jConfigFile()
+        public Optional<Path> ongdbConfigFile()
         {
             return Optional.empty();
         }

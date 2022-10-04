@@ -52,7 +52,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.configuration.GraphDatabaseSettings.default_database;
-import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 
 @Neo4jLayoutExtension
 class Neo4jLayoutSupportExtensionTest
@@ -92,7 +92,7 @@ class Neo4jLayoutSupportExtensionTest
     @Test
     void shouldUseDefaultConfig()
     {
-        Config defaultConfig = Config.defaults( neo4j_home, testDirectory.homePath() );
+        Config defaultConfig = Config.defaults( ongdb_home, testDirectory.homePath() );
         Neo4jLayout defaultNeo4jLayout = Neo4jLayout.of( defaultConfig );
         DatabaseLayout defaultDatabaseLayout = defaultNeo4jLayout.databaseLayout( defaultConfig.get( default_database ) );
 

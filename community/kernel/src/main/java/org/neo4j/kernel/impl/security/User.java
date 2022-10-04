@@ -89,7 +89,7 @@ public class User
      * Thus, this method returning null indicates that
      * 1. the user was created before Neo4j 4.3-drop04 and has not been properly upgraded
      * or
-     * 2. the user was created through a neo4j-admin command and has not yet been added to the system database.
+     * 2. the user was created through a ongdb-admin command and has not yet been added to the system database.
      *
      * @return the user's id.
      */

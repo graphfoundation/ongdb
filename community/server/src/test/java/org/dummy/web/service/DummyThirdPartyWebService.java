@@ -82,7 +82,7 @@ public class DummyThirdPartyWebService
     @Produces( MediaType.TEXT_PLAIN )
     public static Response countNodes( @Context DatabaseManagementService dbms )
     {
-        GraphDatabaseService db = dbms.database( "neo4j" );
+        GraphDatabaseService db = dbms.database( "ongdb" );
         try ( Transaction transaction = db.beginTx() )
         {
             return Response.ok().entity( String.valueOf( countNodesIn( transaction ) ) ).build();

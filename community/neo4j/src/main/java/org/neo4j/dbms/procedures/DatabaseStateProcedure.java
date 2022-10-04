@@ -75,7 +75,7 @@ public abstract class DatabaseStateProcedure extends CallableProcedure.BasicProc
                 .out( "address", Neo4jTypes.NTString )
                 .out( "status", Neo4jTypes.NTString )
                 .out( "error", Neo4jTypes.NTString )
-                .description( "The actual status of the database with the provided name on this neo4j instance." )
+                .description( "The actual status of the database with the provided name on this ONgDB instance." )
                 .systemProcedure()
                 .mode( Mode.DBMS )
                 .build() );

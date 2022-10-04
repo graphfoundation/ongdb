@@ -109,7 +109,7 @@ public class DatabaseManagementServiceBuilder
 
     public DatabaseManagementService build()
     {
-        config.set( GraphDatabaseSettings.neo4j_home, homeDirectory.toAbsolutePath() );
+        config.set( GraphDatabaseSettings.ongdb_home, homeDirectory.toAbsolutePath() );
         return newDatabaseManagementService( config.build(), databaseDependencies() );
     }
 

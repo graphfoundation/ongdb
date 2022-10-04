@@ -84,7 +84,7 @@ class FileURLAccessRuleTest
     void shouldThrowWhenRelativePathIsOutsideImportDirectory()
     {
         assumeFalse( Path.of( "/" ).relativize( Path.of( "/../baz.csv" ) ).toString().equals( "baz.csv" ) );
-        Path importDir = Path.of( "/tmp/neo4jtest" ).toAbsolutePath();
+        Path importDir = Path.of( "/tmp/ongdbtest" ).toAbsolutePath();
         final Config config = Config.defaults( GraphDatabaseSettings.load_csv_file_url_root, importDir );
         var error = assertThrows( URLAccessValidationError.class, () ->
             URLAccessRules.fileAccess().validate( config, new URL( "file:///../baz.csv" ) ) );
@@ -95,9 +95,9 @@ class FileURLAccessRuleTest
     void shouldAdjustURLToWithinImportDirectory() throws Exception
     {
         final URL url = Path.of( "/bar/baz.csv" ).toUri().toURL();
-        final Config config = Config.defaults( GraphDatabaseSettings.load_csv_file_url_root, Path.of( "/var/lib/neo4j/import" ) );
+        final Config config = Config.defaults( GraphDatabaseSettings.load_csv_file_url_root, Path.of( "/var/lib/ongdb/import" ) );
         URL accessURL = URLAccessRules.fileAccess().validate( config, url );
-        URL expected = Path.of( "/var/lib/neo4j/import/bar/baz.csv" ).toUri().toURL();
+        URL expected = Path.of( "/var/lib/ongdb/import/bar/baz.csv" ).toUri().toURL();
         assertEquals( expected, accessURL );
     }
 }

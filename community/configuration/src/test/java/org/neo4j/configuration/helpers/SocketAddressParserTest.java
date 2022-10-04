@@ -332,7 +332,7 @@ class SocketAddressParserTest
     @Test
     void shouldNotAllowURIs()
     {
-        assertThrows( IllegalArgumentException.class, () -> SocketAddressParser.socketAddress( "neo4j://18.117.195.94:7687", SocketAddress::new ) );
+        assertThrows( IllegalArgumentException.class, () -> SocketAddressParser.socketAddress( "ongdb://18.117.195.94:7687", SocketAddress::new ) );
     }
 
     private static String whitespace( int numberOfWhitespaces )

@@ -60,7 +60,7 @@ public abstract class KnownCommunityTopologyComponentVersion extends KnownSystem
 {
     KnownCommunityTopologyComponentVersion( ComponentVersion componentVersion )
     {
-        // TODO we do not have access to the security log here should we send in the neo4j log instead?
+        // TODO we do not have access to the security log here should we send in the ongdb log instead?
         super( componentVersion, CommunitySecurityLog.NULL_LOG );
     }
 

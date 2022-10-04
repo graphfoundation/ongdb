@@ -232,7 +232,7 @@ class MainIntegrationTest
     }
 
     @Test
-    void wrongPortWithNeo4j() throws Exception
+    void wrongPortWithONgDB() throws Exception
     {
         testWithUser( "jackie", "leven", false )
             .args( "-u jackie -p leven -a neo4j://localhost:1234" )
@@ -330,7 +330,7 @@ class MainIntegrationTest
                 .addArgs( "-u", USER, "-p", PASSWORD, "--format", "plain" )
                 .userInputLines( ":disconnect ", "RETURN 42 AS x;", ":exit" )
                 .run()
-                .assertThatErrorOutput( containsString( "Not connected to Neo4j" ) )
+                .assertThatErrorOutput( containsString( "Not connected to ONgDB" ) )
                 .assertThatOutput( containsString( "> :disconnect " + format("%nDisconnected>")), endsWith( GOOD_BYE ) );
     }
 

@@ -61,7 +61,7 @@ import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.utils.TestDirectory;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 import static org.neo4j.kernel.database.NoOpSystemGraphInitializer.noOpSystemGraphInitializer;
 
 @TestDirectoryExtension
@@ -143,7 +143,7 @@ class CommitContentionTest
 
     private GraphDatabaseService createDb()
     {
-        Config cfg = Config.newBuilder().set( neo4j_home, testDirectory.absolutePath() ).build();
+        Config cfg = Config.newBuilder().set( ongdb_home, testDirectory.absolutePath() ).build();
         managementService = new DatabaseManagementServiceFactory( DbmsInfo.COMMUNITY, globalModule -> new CommunityEditionModule( globalModule )
         {
             @Override

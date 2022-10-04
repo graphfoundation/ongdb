@@ -86,7 +86,7 @@ public class SetInitialPasswordCommand extends AbstractCommand implements Passwo
     @Override
     public void execute() throws IOException
     {
-        Config config = loadNeo4jConfig();
+        Config config = loadONgDBConfig();
         FileSystemAbstraction fileSystem = ctx.fs();
 
         if ( realUsersExist( config ) )
@@ -132,7 +132,7 @@ public class SetInitialPasswordCommand extends AbstractCommand implements Passwo
         {
             result = true;
 
-            // Check if it only contains the default neo4j user
+            // Check if it only contains the default ongdb user
             FileUserRepository userRepository = new FileUserRepository( ctx.fs(), authFile, NullLogProvider.getInstance() );
             try ( Lifespan life = new Lifespan( userRepository ) )
             {
@@ -142,7 +142,7 @@ public class SetInitialPasswordCommand extends AbstractCommand implements Passwo
                     User user = users.values().get( 0 );
                     if ( INITIAL_USER_NAME.equals( user.name() ) && user.credentials().matchesPassword( UTF8.encode( INITIAL_PASSWORD ) ) )
                     {
-                        // We allow overwriting an unmodified default neo4j user
+                        // We allow overwriting an unmodified default ongdb user
                         result = false;
                     }
                 }
@@ -170,16 +170,16 @@ public class SetInitialPasswordCommand extends AbstractCommand implements Passwo
             files = "`auth` file";
         }
 
-        return  "the provided initial password was not set because existing Neo4j users were detected at `" +
+        return  "the provided initial password was not set because existing ONgDB users were detected at `" +
                authFile.toAbsolutePath() + "`. Please remove the existing " + files + " if you want to reset your database " +
                 "to only have a default user with the provided password.";
     }
 
     @VisibleForTesting
-    Config loadNeo4jConfig()
+    Config loadONgDBConfig()
     {
         Config cfg = Config.newBuilder()
-                           .set( GraphDatabaseSettings.neo4j_home, ctx.homeDir().toAbsolutePath() )
+                           .set( GraphDatabaseSettings.ongdb_home, ctx.homeDir().toAbsolutePath() )
                            .fromFileNoThrow( ctx.confDir().resolve( Config.DEFAULT_CONFIG_FILE_NAME ) )
                            .commandExpansion( allowCommandExpansion )
                            .build();

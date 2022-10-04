@@ -128,7 +128,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import static org.neo4j.configuration.GraphDatabaseInternalSettings.databases_root_path;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 import static org.neo4j.configuration.GraphDatabaseSettings.default_database;
-import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 import static org.neo4j.configuration.GraphDatabaseSettings.preallocate_logical_logs;
 import static org.neo4j.configuration.GraphDatabaseSettings.store_internal_log_path;
 import static org.neo4j.configuration.GraphDatabaseSettings.transaction_logs_root_path;
@@ -1885,7 +1885,7 @@ class ImportCommandTest
         runImport( "--nodes", nodeData( true, COMMAS, nodeIds(), TRUE ).toAbsolutePath().toString() );
 
         // THEN go and read the debug.log where it's expected to be and see if there's an IMPORT DONE line in it
-        Path internalLogFile = Config.defaults( neo4j_home, testDirectory.homePath() ).get( store_internal_log_path );
+        Path internalLogFile = Config.defaults( ongdb_home, testDirectory.homePath() ).get( store_internal_log_path );
         assertTrue( Files.exists( internalLogFile ) );
         List<String> lines = Files.readAllLines( internalLogFile );
         assertTrue( lines.stream().anyMatch( line -> line.contains( "Import completed successfully" ) ) );
@@ -2524,7 +2524,7 @@ class ImportCommandTest
     {
         Path dbConfig = file( "neo4j.properties" );
         store( Map.of(
-                neo4j_home.name(), testDirectory.absolutePath().toString(),
+                ongdb_home.name(), testDirectory.absolutePath().toString(),
                 preallocate_logical_logs.name(), FALSE
         ), dbConfig );
 
@@ -2565,7 +2565,7 @@ class ImportCommandTest
     {
         Path dbConfig = file( "neo4j.properties" );
         store( Map.of(
-                neo4j_home.name(), testDirectory.absolutePath().toString(),
+                ongdb_home.name(), testDirectory.absolutePath().toString(),
                 preallocate_logical_logs.name(), FALSE
         ), dbConfig );
         return dbConfig;

@@ -87,7 +87,7 @@ import static picocli.CommandLine.Command;
                 "%n" +
                 "All checks except 'check-graph' can be quite expensive so it may be useful to turn them off" +
                 " for very large databases. Increasing the heap size can also be a good idea." +
-                " See 'neo4j-admin help' for details."
+                " See 'ongdb-admin help' for details."
 
 )
 public class CheckConsistencyCommand extends AbstractCommand
@@ -229,7 +229,7 @@ public class CheckConsistencyCommand extends AbstractCommand
                            .fromFileNoThrow( configDir.resolve( Config.DEFAULT_CONFIG_FILE_NAME ) )
                            .fromFileNoThrow( additionalConfig )
                            .commandExpansion( allowCommandExpansion )
-                           .set( GraphDatabaseSettings.neo4j_home, homeDir )
+                           .set( GraphDatabaseSettings.ongdb_home, homeDir )
                            .build();
         ConfigUtils.disableAllConnectors( cfg );
         return cfg;

@@ -81,7 +81,7 @@ class UnbindCommandTest
     {
         homeDir = testDirectory.directory( "home-dir" );
         var config = Config.newBuilder()
-                .set( GraphDatabaseSettings.neo4j_home, homeDir.toAbsolutePath() )
+                .set( GraphDatabaseSettings.ongdb_home, homeDir.toAbsolutePath() )
                 .build();
         neo4jLayout = Neo4jLayout.of( config );
         configDir = testDirectory.directory( "config-dir" );

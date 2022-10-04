@@ -74,7 +74,7 @@ public class RecordStoreVersion implements StoreVersion
     }
 
     @Override
-    public String introductionNeo4jVersion()
+    public String introductionONgDBVersion()
     {
         return format.introductionVersion();
     }

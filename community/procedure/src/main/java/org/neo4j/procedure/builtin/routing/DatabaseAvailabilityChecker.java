@@ -62,7 +62,7 @@ public interface DatabaseAvailabilityChecker
 
     /**
      * @param databaseReference the database reference to check
-     * @return whether this database is present on this Neo4j instance
+     * @return whether this database is present on this ONgDB instance
      */
     boolean isPresent( DatabaseReference.Internal databaseReference );
 }

@@ -176,7 +176,7 @@ import static org.neo4j.configuration.GraphDatabaseInternalSettings.counts_store
 import static org.neo4j.configuration.GraphDatabaseInternalSettings.databases_root_path;
 import static org.neo4j.configuration.GraphDatabaseSettings.logs_directory;
 import static org.neo4j.configuration.GraphDatabaseSettings.memory_tracking;
-import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 import static org.neo4j.configuration.GraphDatabaseSettings.store_internal_log_path;
 import static org.neo4j.configuration.GraphDatabaseSettings.transaction_logs_root_path;
 import static org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker.writable;
@@ -252,7 +252,7 @@ public class BatchInserterImpl implements BatchInserter
         Neo4jLayout layout = databaseLayout.getNeo4jLayout();
         this.config = Config.newBuilder()
                 .setDefaults( getDefaultParams() )
-                .set( neo4j_home, layout.homeDirectory() )
+                .set( ongdb_home, layout.homeDirectory() )
                 .set( databases_root_path, layout.databasesDirectory() )
                 .set( transaction_logs_root_path, layout.transactionLogsRootDirectory() )
                 .set( logs_directory, Path.of( "" ) )

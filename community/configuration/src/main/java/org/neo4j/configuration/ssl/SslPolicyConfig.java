@@ -48,7 +48,7 @@ import org.neo4j.configuration.GroupSetting;
 import org.neo4j.graphdb.config.Setting;
 import org.neo4j.string.SecureString;
 
-import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 import static org.neo4j.configuration.SettingValueParsers.BOOL;
 import static org.neo4j.configuration.SettingValueParsers.PATH;
 import static org.neo4j.configuration.SettingValueParsers.SECURE_STRING;
@@ -117,7 +117,7 @@ public class SslPolicyConfig extends GroupSetting
         }
 
         client_auth = getBuilder( "client_auth", ofEnum( ClientAuth.class ), scope.authDefault ).build();
-        base_directory = getBuilder( "base_directory", PATH, Path.of( scope.baseDir ) ).setDependency( neo4j_home ).immutable().build();
+        base_directory = getBuilder( "base_directory", PATH, Path.of( scope.baseDir ) ).setDependency( ongdb_home ).immutable().build();
         revoked_dir = getBuilder( "revoked_dir", PATH, Path.of( "revoked" ) ).setDependency( base_directory ).build();
         private_key = getBuilder( "private_key", PATH, Path.of( "private.key" ) ).setDependency( base_directory ).build();
         public_certificate = getBuilder( "public_certificate", PATH, Path.of( "public.crt" ) ).setDependency( base_directory ).build();

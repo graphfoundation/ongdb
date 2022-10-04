@@ -92,7 +92,7 @@ public interface Locks
          * @param leaseClient {@link LeaseClient} of the owning transaction.
          * @param transactionId lock client owning transaction id
          * @param memoryTracker memory tracker from the transaction
-         * @param config neo4j configuration
+         * @param config ongdb configuration
          */
         void initialize( LeaseClient leaseClient, long transactionId, MemoryTracker memoryTracker, Config config );
 

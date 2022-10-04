@@ -121,7 +121,7 @@ class DatabaseLayoutTest
     @Test
     void databaseLayoutProvideCorrectDatabaseName()
     {
-        assertEquals( "neo4j", databaseLayout.getDatabaseName() );
+        assertEquals( "ongdb", databaseLayout.getDatabaseName() );
         assertEquals( "testdb", neo4jLayout.databaseLayout( "testdb" ).getDatabaseName() );
     }
 }

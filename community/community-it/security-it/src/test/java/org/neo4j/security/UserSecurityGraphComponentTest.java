@@ -177,7 +177,7 @@ class UserSecurityGraphComponentTest
     {
         initializeLatestSystem();
         initUserSecurityComponent( version );
-        LoginContext loginContext = authManager.login( AuthToken.newBasicAuthToken( "neo4j", "neo4j" ),  EMBEDDED_CONNECTION);
+        LoginContext loginContext = authManager.login( AuthToken.newBasicAuthToken( "ongdb", "ongdb" ),  EMBEDDED_CONNECTION);
         assertThat( loginContext.subject().getAuthenticationResult() ).isEqualTo( AuthenticationResult.PASSWORD_CHANGE_REQUIRED );
     }
 
@@ -245,7 +245,7 @@ class UserSecurityGraphComponentTest
 
         // Then
         HashMap<String, Object> usernameAndIdsBeforeUpgrade = getUserNamesAndIds();
-        assertThat( usernameAndIdsBeforeUpgrade.get( "neo4j" ) ).isNull();
+        assertThat( usernameAndIdsBeforeUpgrade.get( "ongdb" ) ).isNull();
         assertThat( usernameAndIdsBeforeUpgrade.get( "alice" ) ).isNull();
 
         // When running dbms.upgrade
@@ -254,7 +254,7 @@ class UserSecurityGraphComponentTest
         // Then
         HashMap<String, Object> usernameAndIdsAfterUpgrade = getUserNamesAndIds();
 
-        assertThat( usernameAndIdsAfterUpgrade.get( "neo4j" ) ).isNotNull();
+        assertThat( usernameAndIdsAfterUpgrade.get( "ongdb" ) ).isNotNull();
         assertThat( usernameAndIdsAfterUpgrade.get( "alice" ) ).isNotNull();
     }
 

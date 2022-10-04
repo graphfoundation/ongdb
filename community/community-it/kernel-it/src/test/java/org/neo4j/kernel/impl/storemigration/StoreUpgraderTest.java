@@ -112,7 +112,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.neo4j.configuration.GraphDatabaseSettings.default_database;
-import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 import static org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker.writable;
 import static org.neo4j.io.pagecache.tracing.PageCacheTracer.NULL;
 import static org.neo4j.kernel.impl.storemigration.MigrationTestUtils.verifyFilesHaveSameContent;
@@ -408,7 +408,7 @@ public class StoreUpgraderTest
         StoreVersionCheck check = getVersionCheck( pageCache );
 
         Config config = Config.newBuilder().fromConfig( allowMigrateConfig )
-                .set( neo4j_home, testDirectory.homePath() )
+                .set( ongdb_home, testDirectory.homePath() )
                 .set( GraphDatabaseSettings.transaction_logs_root_path, txRoot.toAbsolutePath() )
                 .set( default_database, databaseLayout.getDatabaseName() )
                 .build();
@@ -438,7 +438,7 @@ public class StoreUpgraderTest
         StoreVersionCheck check = getVersionCheck( pageCache );
 
         Config config = Config.newBuilder().fromConfig( allowMigrateConfig )
-                .set( neo4j_home, testDirectory.homePath() )
+                .set( ongdb_home, testDirectory.homePath() )
                 .set( GraphDatabaseSettings.transaction_logs_root_path, txRoot.toAbsolutePath() )
                 .set( default_database, databaseLayout.getDatabaseName() )
                 .build();

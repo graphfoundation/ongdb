@@ -510,7 +510,7 @@ class SettingMigratorsTest
         assertEquals( new SocketAddress( "bar", advertisedAddr.defaultValue().getPort() ), config5.get( advertisedAddr ) );
         assertEquals( new SocketAddress( "bar", 777 ), config6.get( advertisedAddr ) );
 
-        String msg = "Note that since you did not explicitly set the port in %s Neo4j automatically set it to %s to match %s." +
+        String msg = "Note that since you did not explicitly set the port in %s ONgDB automatically set it to %s to match %s." +
                 " This behavior may change in the future and we recommend you to explicitly set it.";
 
         var warnMatcher = assertThat( logProvider ).forClass( Config.class ).forLevel( WARN );

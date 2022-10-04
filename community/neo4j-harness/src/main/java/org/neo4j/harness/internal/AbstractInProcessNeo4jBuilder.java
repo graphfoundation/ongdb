@@ -78,7 +78,7 @@ import org.neo4j.test.ssl.SelfSignedCertificateFactory;
 
 import static org.neo4j.configuration.GraphDatabaseSettings.auth_enabled;
 import static org.neo4j.configuration.GraphDatabaseSettings.db_timezone;
-import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 import static org.neo4j.configuration.GraphDatabaseSettings.pagecache_memory;
 import static org.neo4j.configuration.ssl.SslPolicyScope.BOLT;
 import static org.neo4j.configuration.ssl.SslPolicyScope.HTTPS;
@@ -144,7 +144,7 @@ public abstract class AbstractInProcessNeo4jBuilder implements Neo4jBuilder
     @Override
     public InProcessNeo4j build()
     {
-        Path userLogFile = serverFolder.resolve( "neo4j.log" );
+        Path userLogFile = serverFolder.resolve( "ongdb.log" );
         Path internalLogFile = serverFolder.resolve( "debug.log" );
 
         config.set( ServerSettings.third_party_packages, unmanagedExtentions.toList() );
@@ -306,7 +306,7 @@ public abstract class AbstractInProcessNeo4jBuilder implements Neo4jBuilder
     private void setDirectory( Path dir )
     {
         this.serverFolder = dir;
-        config.set( neo4j_home, serverFolder.toAbsolutePath() );
+        config.set( ongdb_home, serverFolder.toAbsolutePath() );
     }
 
     private static String randomFolderName()

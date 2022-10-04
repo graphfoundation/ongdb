@@ -168,7 +168,7 @@ public class BuiltInDbmsProcedures
 
     @Admin
     @SystemProcedure
-    @Description( "List the currently active config of Neo4j." )
+    @Description( "List the currently active config of ONgDB." )
     @Procedure( name = "dbms.listConfig", mode = DBMS )
     public Stream<ConfigResult> listConfig( @Name( value = "searchString", defaultValue = "" ) String searchString )
     {
@@ -189,7 +189,7 @@ public class BuiltInDbmsProcedures
 
     @Internal
     @SystemProcedure
-    @Description( "Return config settings interesting to clients (e.g. Neo4j Browser)" )
+    @Description( "Return config settings interesting to clients (e.g. ONgDB Browser)" )
     @Procedure( name = "dbms.clientConfig", mode = DBMS )
     public Stream<ConfigResult> listClientConfig()
     {

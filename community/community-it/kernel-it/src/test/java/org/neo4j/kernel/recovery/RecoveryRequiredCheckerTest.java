@@ -136,7 +136,7 @@ class RecoveryRequiredCheckerTest
     {
         Path customTransactionLogsLocation = testDirectory.directory( DEFAULT_TX_LOGS_ROOT_DIR_NAME );
         Config config = Config.newBuilder()
-                .set( GraphDatabaseSettings.neo4j_home, testDirectory.homePath() )
+                .set( GraphDatabaseSettings.ongdb_home, testDirectory.homePath() )
                 .set( transaction_logs_root_path, customTransactionLogsLocation.toAbsolutePath() )
                 .build();
         recoverBrokenStoreWithConfig( config );

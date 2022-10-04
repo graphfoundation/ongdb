@@ -80,7 +80,7 @@ class DatabaseManagementServiceFactoryTest
     @Test
     void shouldThrowAppropriateExceptionIfStartFails()
     {
-        Config config = Config.defaults( GraphDatabaseSettings.neo4j_home, testDirectory.absolutePath() );
+        Config config = Config.defaults( GraphDatabaseSettings.ongdb_home, testDirectory.absolutePath() );
         RuntimeException startupError = new RuntimeException();
         DatabaseManagementServiceFactory factory = newFaultyGraphDatabaseFacadeFactory( startupError, null );
         RuntimeException startException =
@@ -91,7 +91,7 @@ class DatabaseManagementServiceFactoryTest
     @Test
     void shouldThrowAppropriateExceptionIfBothStartAndShutdownFail()
     {
-        Config config = Config.defaults( GraphDatabaseSettings.neo4j_home, testDirectory.absolutePath() );
+        Config config = Config.defaults( GraphDatabaseSettings.ongdb_home, testDirectory.absolutePath() );
         RuntimeException startupException = new RuntimeException();
         RuntimeException shutdownException = new RuntimeException();
 

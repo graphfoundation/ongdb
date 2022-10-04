@@ -52,7 +52,7 @@ import static org.neo4j.test.extension.testdirectory.TestDirectorySupportExtensi
 
 public class Neo4jWithSocketSupportExtension extends StatefulFieldExtension<Neo4jWithSocket> implements AfterEachCallback
 {
-    private static final String FIELD_KEY = "neo4jWithSocket";
+    private static final String FIELD_KEY = "ongdbWithSocket";
     private static final ExtensionContext.Namespace NAMESPACE = ExtensionContext.Namespace.create( "org", "neo4j", FIELD_KEY );
 
     @Override

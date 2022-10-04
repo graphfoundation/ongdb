@@ -52,8 +52,8 @@ import org.neo4j.util.VisibleForTesting;
 import static org.neo4j.server.startup.Bootloader.EXIT_CODE_OK;
 
 @CommandLine.Command(
-        name = "Neo4j",
-        description = "Neo4j database server CLI.",
+        name = "ONgDB",
+        description = "ONgDB database server CLI.",
         synopsisSubcommandLabel = "<COMMAND>"
 )
 class Neo4jCommand extends BootloaderCommand
@@ -67,7 +67,7 @@ class Neo4jCommand extends BootloaderCommand
     private static class Console extends BootCommand
     {
         @CommandLine.Option( names = "--dry-run", hidden = true, description = "Print (only) the command line instead of executing it" )
-        boolean dryRun; //Note that this is a hidden "unsupported" argument, not intended for usage outside official neo4j tools/scripts
+        boolean dryRun; //Note that this is a hidden "unsupported" argument, not intended for usage outside official ongdb tools/scripts
 
         @Override
         public Integer call()
@@ -122,7 +122,7 @@ class Neo4jCommand extends BootloaderCommand
         @Override
         public Integer call()
         {
-            bootloader.ctx.out.println( "neo4j " + org.neo4j.kernel.internal.Version.getNeo4jVersion() );
+            bootloader.ctx.out.println( "ongdb " + org.neo4j.kernel.internal.Version.getONgDBVersion() );
             return EXIT_CODE_OK;
         }
     }

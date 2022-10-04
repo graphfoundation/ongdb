@@ -123,7 +123,7 @@ class LabelScanStoreTxApplyRaceIT
         RecordDatabaseLayout dbLayout = (RecordDatabaseLayout) db.databaseLayout();
         managementService.shutdown();
 
-        assertTrue( new ConsistencyCheckService().runFullConsistencyCheck( dbLayout, defaults( GraphDatabaseSettings.neo4j_home, testDirectory.homePath() ),
+        assertTrue( new ConsistencyCheckService().runFullConsistencyCheck( dbLayout, defaults( GraphDatabaseSettings.ongdb_home, testDirectory.homePath() ),
                 NONE, new Log4jLogProvider( System.out ), false, new ConsistencyFlags( true, true, true ) ).isSuccessful() );
     }
 

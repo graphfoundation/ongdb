@@ -102,7 +102,7 @@ abstract class IndexProviderCompatabilityTestBase
         homePath = testDirectory.homePath( testName );
 
         Config.Builder configBuilder = Config.newBuilder();
-        configBuilder.set( GraphDatabaseSettings.neo4j_home, homePath );
+        configBuilder.set( GraphDatabaseSettings.ongdb_home, homePath );
         testSuite.additionalConfig( configBuilder );
         additionalConfig( configBuilder );
         this.config = configBuilder.build();

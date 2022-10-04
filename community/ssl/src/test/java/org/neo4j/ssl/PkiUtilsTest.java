@@ -121,7 +121,7 @@ class PkiUtilsTest
         URL resource = this.getClass().getResource( "test-certificates/encrypted/private.key" );
         copy( resource, keyFile );
 
-        PrivateKey pk = PkiUtils.loadPrivateKey( keyFile, "neo4j" );
+        PrivateKey pk = PkiUtils.loadPrivateKey( keyFile, "ongdb" );
         assertThat( pk.getAlgorithm() ).isEqualTo( "RSA" );
     }
 

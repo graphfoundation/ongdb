@@ -89,7 +89,7 @@ import static org.neo4j.configuration.GraphDatabaseInternalSettings.databases_ro
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_TX_LOGS_ROOT_DIR_NAME;
 import static org.neo4j.configuration.GraphDatabaseSettings.data_directory;
 import static org.neo4j.configuration.GraphDatabaseSettings.default_database;
-import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 import static org.neo4j.configuration.GraphDatabaseSettings.transaction_logs_root_path;
 
 @Neo4jLayoutExtension
@@ -116,7 +116,7 @@ class LoadCommandTest
     private void prepareFooDatabaseDirectory() throws IOException
     {
         Config config = Config.newBuilder()
-                .set( GraphDatabaseSettings.neo4j_home, homeDir.toAbsolutePath() )
+                .set( GraphDatabaseSettings.ongdb_home, homeDir.toAbsolutePath() )
                 .set( default_database, "foo" )
                 .build();
         Path databaseDirectory  = DatabaseLayout.of( config ).databaseDirectory();
@@ -144,7 +144,7 @@ class LoadCommandTest
                         "Load a database from an archive. <archive-path> must be an archive created with%n" +
                         "the dump command. <database> is the name of the database to create. Existing%n" +
                         "databases can be replaced by specifying --force. It is not possible to replace%n" +
-                        "a database that is mounted in a running Neo4j server. If --info is specified,%n" +
+                        "a database that is mounted in a running ONgDB server. If --info is specified,%n" +
                         "then the database is not loaded, but information (i.e. file count, byte count,%n" +
                         "and format of load file) about the archive is printed instead.%n" +
                         "%n" +
@@ -156,7 +156,7 @@ class LoadCommandTest
                         "                            to read from standard input.%n" +
                         "      --database=<database>%n" +
                         "                          Name of the database to load.%n" +
-                        "                            Default: neo4j%n" +
+                        "                            Default: ongdb%n" +
                         "      --force             If an existing database should be replaced.%n" +
                         "      --info              Print meta-data information about the archive file,%n" +
                         "                            instead of loading the contained database."
@@ -317,7 +317,7 @@ class LoadCommandTest
         doThrow( IncorrectFormat.class ).when( loader ).load( any(), any(), any() );
         CommandFailedException commandFailed = assertThrows( CommandFailedException.class, () -> execute( "foo", archive ) );
         assertThat( commandFailed.getMessage() ).contains( archive.toString() );
-        assertThat( commandFailed.getMessage() ).contains( "valid Neo4j archive" );
+        assertThat( commandFailed.getMessage() ).contains( "valid ONgDB archive" );
     }
 
     @Test
@@ -343,7 +343,7 @@ class LoadCommandTest
     private DatabaseLayout createDatabaseLayout( Path dataPath, Path storePath, String databaseName, Path transactionLogsPath )
     {
         Config config = Config.newBuilder()
-                .set( neo4j_home, homeDir.toAbsolutePath() )
+                .set( ongdb_home, homeDir.toAbsolutePath() )
                 .set( data_directory, dataPath.toAbsolutePath() )
                 .set( databases_root_path, storePath.toAbsolutePath() )
                 .set( transaction_logs_root_path, transactionLogsPath.toAbsolutePath() )

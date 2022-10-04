@@ -406,6 +406,7 @@ public class TransactionImpl extends EntityValidationTransactionImpl
     @Override
     public ResourceIterator<Node> findNodes( final Label myLabel, final String key, final Object value )
     {
+        //TODO: what does this look like stashed?
         checkLabel( myLabel );
         checkPropertyKey( key );
         KernelTransaction transaction = kernelTransaction();

@@ -97,7 +97,7 @@ class DiagnosticsReportCommandIT
         configDir = testDirectory.directory( "config-dir" );
 
         // Touch config
-        configFile = configDir.resolve( "neo4j.conf" );
+        configFile = configDir.resolve( "ongdb.conf" );
         Files.createFile( configFile );
 
         // To make sure files are resolved from the working directory
@@ -120,11 +120,11 @@ class DiagnosticsReportCommandIT
         assertThat( pid ).isNotEqualTo( 0 );
 
         // Write config file
-        Files.createFile( testDirectory.file( "neo4j.conf" ) );
+        Files.createFile( testDirectory.file( "ongdb.conf" ) );
 
-        // write neo4j.pid file
+        // write ongdb.pid file
         Path run = testDirectory.directory( "run" );
-        Files.write( run.resolve( "neo4j.pid" ), String.valueOf( pid ).getBytes() );
+        Files.write( run.resolve( "ongdb.pid" ), String.valueOf( pid ).getBytes() );
 
         // Run command, should detect running instance
         try
@@ -168,11 +168,11 @@ class DiagnosticsReportCommandIT
         assertThat( pid ).isNotEqualTo( 0 );
 
         // Write config file
-        Files.createFile( testDirectory.file( "neo4j.conf" ) );
+        Files.createFile( testDirectory.file( "ongdb.conf" ) );
 
-        // write neo4j.pid file
+        // write ongdb.pid file
         Path run = testDirectory.directory( "run" );
-        Files.write( run.resolve( "neo4j.pid" ), String.valueOf( pid ).getBytes() );
+        Files.write( run.resolve( "ongdb.pid" ), String.valueOf( pid ).getBytes() );
 
         // Run command, should detect running instance
         try
@@ -209,7 +209,7 @@ class DiagnosticsReportCommandIT
     void shouldHandleRotatedLogFiles() throws IOException
     {
         // Write config file and specify a custom name for the neo4j.log file.
-        Path confFile = testDirectory.createFile( "neo4j.conf" );
+        Path confFile = testDirectory.createFile( "ongdb.conf" );
         Files.write( confFile, singletonList( GraphDatabaseSettings.store_user_log_path.name() + "=custom.neo4j.log.name" ) );
 
         // Create some log files that should be found. debug.log has already been created during setup.

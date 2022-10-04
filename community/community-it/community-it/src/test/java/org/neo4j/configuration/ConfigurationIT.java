@@ -63,7 +63,7 @@ public class ConfigurationIT
     void shouldNotDeadlockWhenConcurrentlyAccessingSettings()
     {
         Race race = new Race();
-        race.addContestant( GraphDatabaseSettings.neo4j_home::defaultValue, 1 );
+        race.addContestant( GraphDatabaseSettings.ongdb_home::defaultValue, 1 );
         race.addContestant( HttpConnector.advertised_address::defaultValue, 1 );
         assertThatCode( () -> race.go( 1, TimeUnit.MINUTES ) ).doesNotThrowAnyException(); //throws TimeoutException on deadlock
     }

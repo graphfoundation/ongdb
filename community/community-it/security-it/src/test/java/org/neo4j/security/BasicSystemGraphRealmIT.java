@@ -148,7 +148,7 @@ class BasicSystemGraphRealmIT
     {
         // Given
         startSystemGraphRealm();
-        initialPassword.create( createUser( INITIAL_USER_NAME, "neo4j2", false ) );
+        initialPassword.create( createUser( INITIAL_USER_NAME, "ongdb2", false ) );
         systemGraphInitializer.start();
 
         // When
@@ -158,7 +158,7 @@ class BasicSystemGraphRealmIT
 
         // Then
         assertAuthenticationFails( realmHelper, INITIAL_USER_NAME, INITIAL_PASSWORD );
-        assertAuthenticationSucceeds( realmHelper, INITIAL_USER_NAME, "neo4j2" );
+        assertAuthenticationSucceeds( realmHelper, INITIAL_USER_NAME, "ongdb2" );
         assertAuthenticationFails( realmHelper, INITIAL_USER_NAME, "abc" );
     }
 

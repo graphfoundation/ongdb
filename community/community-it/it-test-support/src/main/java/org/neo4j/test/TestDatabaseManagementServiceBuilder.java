@@ -118,7 +118,7 @@ public class TestDatabaseManagementServiceBuilder extends DatabaseManagementServ
     @Override
     public DatabaseManagementService build()
     {
-        Config cfg = config.set( GraphDatabaseSettings.neo4j_home, homeDirectory.toAbsolutePath() )
+        Config cfg = config.set( GraphDatabaseSettings.ongdb_home, homeDirectory.toAbsolutePath() )
                 .fromConfig( fromConfig )
                 .build();
 

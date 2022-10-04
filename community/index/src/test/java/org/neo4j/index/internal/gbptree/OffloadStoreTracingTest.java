@@ -75,7 +75,7 @@ class OffloadStoreTracingTest
     void setUp() throws IOException
     {
         cursorContext = new CursorContext( pageCacheTracer.createPageCursorTracer( "testCursorTracer" ) );
-        pagedFile = pageCache.map( testDirectory.createFile( "file" ), pageCache.pageSize(), "neo4j" );
+        pagedFile = pageCache.map( testDirectory.createFile( "file" ), pageCache.pageSize(), "ongdb" );
         OffloadPageCursorFactory pcFactory = pagedFile::io;
         var idProvider = new FreeListIdProvider( pagedFile, 10 );
         offloadStore = new OffloadStoreImpl<>( layout, idProvider, pcFactory, ALWAYS_TRUE, pageCache.pageSize() );

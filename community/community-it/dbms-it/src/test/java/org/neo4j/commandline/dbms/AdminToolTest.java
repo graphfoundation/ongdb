@@ -71,7 +71,7 @@ public class AdminToolTest
         }
         String outString = outBuffer.toString();
         assertTrue( outString.contains( "Environment variables" ) );
-        assertTrue( outString.contains( "NEO4J_HOME" ) );
-        assertTrue( outString.contains( "NEO4J_CONF" ) );
+        assertTrue( outString.contains( "ONGDB_HOME" ) );
+        assertTrue( outString.contains( "ONGDB_CONF" ) );
     }
 }

@@ -134,7 +134,7 @@ class TransactionStatusResultTest
     {
         snapshotsMap.put( transactionHandle, Optional.empty() );
         TransactionStatusResult statusResult =
-                new TransactionStatusResult( "neo4j", transactionHandle, blockerResolver, snapshotsMap, UTC );
+                new TransactionStatusResult( "ongdb", transactionHandle, blockerResolver, snapshotsMap, UTC );
 
         checkTransactionStatusWithoutQueries( statusResult );
     }
@@ -153,7 +153,7 @@ class TransactionStatusResultTest
     void emptyInitialisationStacktraceWhenTraceNotAvailable() throws InvalidArgumentsException
     {
         snapshotsMap.put( transactionHandle, Optional.empty() );
-        TransactionStatusResult statusResult = new TransactionStatusResult( "neo4j", transactionHandle, blockerResolver, snapshotsMap, UTC );
+        TransactionStatusResult statusResult = new TransactionStatusResult( "ongdb", transactionHandle, blockerResolver, snapshotsMap, UTC );
         assertEquals( EMPTY, statusResult.initializationStackTrace );
     }
 
@@ -162,7 +162,7 @@ class TransactionStatusResultTest
     {
         transactionHandle = new TransactionHandleWithLocks( new StubKernelTransaction(), true );
         snapshotsMap.put( transactionHandle, Optional.empty() );
-        TransactionStatusResult statusResult = new TransactionStatusResult( "neo4j", transactionHandle, blockerResolver, snapshotsMap, UTC );
+        TransactionStatusResult statusResult = new TransactionStatusResult( "ongdb", transactionHandle, blockerResolver, snapshotsMap, UTC );
         assertThat( statusResult.initializationStackTrace ).contains( "Transaction initialization stacktrace." );
     }
 
@@ -171,7 +171,7 @@ class TransactionStatusResultTest
     {
         var handle = new TransactionHandleWithLocks( new StubKernelTransaction(), false, false );
         snapshotsMap.put( handle, Optional.empty() );
-        var statusResult = new TransactionStatusResult( "neo4j", handle, blockerResolver, snapshotsMap, UTC );
+        var statusResult = new TransactionStatusResult( "ongdb", handle, blockerResolver, snapshotsMap, UTC );
         assertThat( statusResult.protocol ).isEmpty();
         assertThat( statusResult.clientAddress ).isEmpty();
         assertThat( statusResult.requestUri ).isEmpty();
@@ -180,7 +180,7 @@ class TransactionStatusResultTest
 
     private static void checkTransactionStatusWithoutQueries( TransactionStatusResult statusResult )
     {
-        assertEquals( "neo4j-transaction-8", statusResult.transactionId );
+        assertEquals( "ongdb-transaction-8", statusResult.transactionId );
         assertEquals( "testUser", statusResult.username );
         assertEquals( stringObjectEmptyMap(), statusResult.metaData );
         assertEquals( "1970-01-01T00:00:01.984Z", statusResult.startTime );
@@ -201,7 +201,7 @@ class TransactionStatusResultTest
         assertEquals( Long.valueOf( 0 ), statusResult.allocatedDirectBytes );
         assertEquals( 0L, statusResult.pageHits );
         assertEquals( 0L, statusResult.pageFaults );
-        assertEquals( "neo4j", statusResult.database );
+        assertEquals( "ongdb", statusResult.database );
     }
 
     private static void checkTransactionStatus( TransactionStatusResult statusResult, String currentQuery, String currentQueryId, String startTime )

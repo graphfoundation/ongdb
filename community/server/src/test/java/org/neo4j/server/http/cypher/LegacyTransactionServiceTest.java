@@ -111,7 +111,7 @@ class LegacyTransactionServiceTest
                 .thenReturn( userPrincipalA );
 
         when( databaseResolver.defaultDatabase( anyString() ) )
-                .thenReturn( "neo4j" );
+                .thenReturn( "ongdb" );
         when( databaseResolver.defaultDatabase( user ) )
                 .thenReturn( "db-" + user );
 

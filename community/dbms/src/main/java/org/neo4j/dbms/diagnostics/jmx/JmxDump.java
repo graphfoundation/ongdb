@@ -156,7 +156,7 @@ public class JmxDump
             @Override
             public InputStream newInputStream() throws IOException
             {
-                final Path heapdumpFile = createTempFile( "neo4j-heapdump", ".hprof" ).toAbsolutePath();
+                final Path heapdumpFile = createTempFile( "ongdb-heapdump", ".hprof" ).toAbsolutePath();
                 deleteIfExists( heapdumpFile );
                 heapDump( heapdumpFile.toString() );
                 return new FileInputStream( heapdumpFile.toFile() )

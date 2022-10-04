@@ -55,7 +55,7 @@ import org.neo4j.memory.HeapEstimator;
 public class BoltStateMachineSPIImpl implements BoltStateMachineSPI
 {
     public static final long SHALLOW_SIZE = HeapEstimator.shallowSizeOfInstance( BoltStateMachineSPIImpl.class );
-    public static final String BOLT_SERVER_VERSION_PREFIX = "Neo4j/";
+    public static final String BOLT_SERVER_VERSION_PREFIX = "ONgDB/";
 
     private final ErrorReporter errorReporter;
     private final Authentication authentication;
@@ -70,7 +70,7 @@ public class BoltStateMachineSPIImpl implements BoltStateMachineSPI
         this.authentication = authentication;
         this.transactionSpiProvider = transactionSpiProvider;
         this.boltChannel = boltChannel;
-        this.version = BOLT_SERVER_VERSION_PREFIX + Version.getNeo4jVersion();
+        this.version = BOLT_SERVER_VERSION_PREFIX + Version.getONgDBVersion();
     }
 
     @Override

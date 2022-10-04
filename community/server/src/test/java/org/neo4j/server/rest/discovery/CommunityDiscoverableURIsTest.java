@@ -88,7 +88,7 @@ class CommunityDiscoverableURIsTest
 
         var map = toMap( uris );
         assertEquals( "bolt://banana.com:1234", map.get( "bolt_direct" ) );
-        assertEquals( "neo4j://localhost:7687", map.get( "bolt_routing" ) );
+        assertEquals( "ongdb://localhost:7687", map.get( "bolt_routing" ) );
     }
 
     @Test
@@ -104,7 +104,7 @@ class CommunityDiscoverableURIsTest
 
         var map = toMap( uris.update( URI.create( "https://orange.org:8080" ) ) );
         assertEquals( "bolt://orange.org:1234", map.get( "bolt_direct" ) );
-        assertEquals( "neo4j://orange.org:1234", map.get( "bolt_routing" ) );
+        assertEquals( "ongdb://orange.org:1234", map.get( "bolt_routing" ) );
     }
 
     @Test
@@ -121,7 +121,7 @@ class CommunityDiscoverableURIsTest
 
         var map = toMap( uris );
         assertEquals( "bolt://apple.com:1337", map.get( "bolt_direct" ) );
-        assertEquals( "neo4j://apple.com:1337", map.get( "bolt_routing" ) );
+        assertEquals( "ongdb://apple.com:1337", map.get( "bolt_routing" ) );
     }
 
     private static Map<String,String> toMap( DiscoverableURIs uris )

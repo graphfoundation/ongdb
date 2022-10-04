@@ -107,7 +107,7 @@ class Neo4jCommandTest
         void shouldPrintUsageWhenNoArgument()
         {
             assertThat( execute() ).isEqualTo( ExitCode.USAGE );
-            assertThat( err.toString() ).contains( "Usage: Neo4j" );
+            assertThat( err.toString() ).contains( "Usage: ONgDB" );
         }
 
         @Test
@@ -129,14 +129,14 @@ class Neo4jCommandTest
         void shouldPrintUsageWhenInvalidArgument()
         {
             assertThat( execute( "foo" ) ).isEqualTo( ExitCode.USAGE );
-            assertThat( err.toString() ).contains( "Usage: Neo4j" );
+            assertThat( err.toString() ).contains( "Usage: ONgDB" );
         }
 
         @Test
         void shouldPrintUsageOnHelp()
         {
             assertThat( execute( "help" ) ).isEqualTo( EXIT_CODE_OK );
-            assertThat( out.toString() ).contains( "Usage: Neo4j" );
+            assertThat( out.toString() ).contains( "Usage: ONgDB" );
         }
 
         @Test
@@ -145,42 +145,42 @@ class Neo4jCommandTest
             execute( "start" );
             clearOutAndErr();
             executeWithoutInjection( "start" );
-            assertThat( out.toString() ).contains( "Neo4j is already running" );
+            assertThat( out.toString() ).contains( "ONgDB is already running" );
         }
 
         @Test
-        void shouldDetectNeo4jNotRunningOnStatus()
+        void shouldDetectONgDBNotRunningOnStatus()
         {
             assertThat( execute( "status" ) ).isEqualTo( EXIT_CODE_NOT_RUNNING );
-            assertThat( out.toString() ).contains( "Neo4j is not running" );
+            assertThat( out.toString() ).contains( "ONgDB is not running" );
         }
 
         @Test
-        void shouldDetectNeo4jRunningOnStatus()
+        void shouldDetectONgDBRunningOnStatus()
         {
             execute( "start" );
             clearOutAndErr();
             assertThat( execute( "status" ) ).isEqualTo( EXIT_CODE_OK );
-            assertThat( out.toString() ).contains( "Neo4j is running" );
+            assertThat( out.toString() ).contains( "ONgDB is running" );
         }
 
         @Test
-        void shouldDoNothingWhenStoppingNonRunningNeo4j()
+        void shouldDoNothingWhenStoppingNonRunningONgDB()
         {
             assertThat( execute( "stop" ) ).isEqualTo( EXIT_CODE_OK );
-            assertThat( out.toString() ).contains( "Neo4j is not running" );
+            assertThat( out.toString() ).contains( "ONgDB is not running" );
         }
 
         @Test
-        void shouldBeAbleToStopStartedNeo4j()
+        void shouldBeAbleToStopStartedONgDB()
         {
             execute( "start" );
             assertThat( execute( "stop" ) ).isEqualTo( EXIT_CODE_OK );
-            assertThat( out.toString() ).contains( "Stopping Neo4j", "stopped" );
+            assertThat( out.toString() ).contains( "Stopping ONgDB", "stopped" );
         }
 
         @Test
-        void shouldBeAbleToRestartNeo4j()
+        void shouldBeAbleToRestartONgDB()
         {
             execute( "start" );
             Optional<ProcessHandle> firstProcess = getProcess();
@@ -192,7 +192,7 @@ class Neo4jCommandTest
 
             assertThat( secondProcess ).isPresent();
             assertThat( firstProcess.get().pid() ).isNotEqualTo( secondProcess.get().pid() );
-            assertThat( out.toString() ).containsSubsequence( "Starting Neo4j.",  "Stopping Neo4j", "stopped" , "Starting Neo4j." );
+            assertThat( out.toString() ).containsSubsequence( "Starting ONgDB.",  "Stopping ONgDB", "stopped" , "Starting ONgDB." );
         }
 
         @Test
@@ -310,11 +310,11 @@ class Neo4jCommandTest
         void shouldBeAbleToPrintCorrectVersion()
         {
             assertThat( execute( "version" ) ).isEqualTo( EXIT_CODE_OK );
-            assertThat( out.toString() ).contains( Version.getNeo4jVersion() );
+            assertThat( out.toString() ).contains( Version.getONgDBVersion() );
 
             clearOutAndErr();
             assertThat( execute( "--version" ) ).isEqualTo( EXIT_CODE_OK );
-            assertThat( out.toString() ).contains( Version.getNeo4jVersion() );
+            assertThat( out.toString() ).contains( Version.getONgDBVersion() );
         }
 
         @Test
@@ -323,7 +323,7 @@ class Neo4jCommandTest
             assertThat( execute( "start" ) ).isEqualTo( EXIT_CODE_OK );
             ProcessHandle firstHandle = getProcess().get();
             assertThat( execute( "version" ) ).isEqualTo( EXIT_CODE_OK );
-            assertThat( out.toString() ).contains( Version.getNeo4jVersion() );
+            assertThat( out.toString() ).contains( Version.getONgDBVersion() );
             ProcessHandle secondHandle = getProcess().get();
             assertThat( firstHandle.pid() ).isEqualTo( secondHandle.pid() );
             assertThat( execute( "stop" ) ).isEqualTo( EXIT_CODE_OK );
@@ -437,7 +437,7 @@ class Neo4jCommandTest
             assertThat( execute( "console" ) ).isEqualTo( EXIT_CODE_OK );
             clearOutAndErr();
             assertThat( execute( "console" ) ).isEqualTo( EXIT_CODE_RUNNING );
-            assertThat( out.toString() ).contains( "Neo4j is already running" );
+            assertThat( out.toString() ).contains( "ONgDB is already running" );
         }
 
         @Test
@@ -447,7 +447,7 @@ class Neo4jCommandTest
             clearOutAndErr();
             assertThat( execute( "console", "--dry-run" ) ).isEqualTo( EXIT_CODE_RUNNING );
             assertThat( out.toString() )
-                    .containsSubsequence( "Neo4j is already running", "java", "-cp", TestEntryPoint.class.getName() );
+                    .containsSubsequence( "ONgDB is already running", "java", "-cp", TestEntryPoint.class.getName() );
         }
 
         @Nested
@@ -458,14 +458,14 @@ class Neo4jCommandTest
             void shouldNotStartIfServiceNotInstalled()
             {
                 assertThat( executeWithoutInjection( "start" ) ).isEqualTo( EXIT_CODE_NOT_RUNNING );
-                assertThat( err.toString() ).contains( "Neo4j service is not installed" );
+                assertThat( err.toString() ).contains( "ONgDB service is not installed" );
             }
 
             @Test
             void shouldNotStopIfServiceNotInstalled()
             {
                 assertThat( executeWithoutInjection( "stop" ) ).isEqualTo( EXIT_CODE_OK );
-                assertThat( out.toString() ).contains( "Neo4j is not running" );
+                assertThat( out.toString() ).contains( "ONgDB is not running" );
             }
 
             @Test
@@ -474,14 +474,14 @@ class Neo4jCommandTest
                 assertThat( executeWithoutInjection( "install-service" ) ).isEqualTo( EXIT_CODE_OK );
                 clearOutAndErr();
                 assertThat( executeWithoutInjection( "install-service" ) ).isEqualTo( ExitCode.SOFTWARE );
-                assertThat( out.toString() ).contains( "Neo4j service is already installed" );
+                assertThat( out.toString() ).contains( "ONgDB service is already installed" );
             }
 
             @Test
             void shouldComplainIfUninstallingWhenNotInstalled()
             {
                 assertThat( executeWithoutInjection( "uninstall-service" ) ).isEqualTo( EXIT_CODE_OK );
-                assertThat( out.toString() ).contains( "Neo4j service is not installed" );
+                assertThat( out.toString() ).contains( "ONgDB service is not installed" );
             }
         }
 
@@ -567,7 +567,7 @@ class Neo4jCommandTest
         // Process.destroy()/destroyForcibly() on windows are the same and kills process instantly without invoking exit handler. Can't mimic CTRL+C in test.
         @DisabledOnOs( OS.WINDOWS )
         @Test
-        void shouldWaitForNeo4jToDieBeforeExitInConsole() throws Exception
+        void shouldWaitForONgDBToDieBeforeExitInConsole() throws Exception
         {
             if ( fork.run( () -> assertThat( execute( "console" ) ).isEqualTo( EXIT_CODE_OK ), Map.of( TestEntryPoint.ENV_TIMEOUT, "1000" ), p ->
             {
@@ -601,7 +601,7 @@ class Neo4jCommandTest
         void shouldWritePidFileOnStart()
         {
             assertThat( execute( "start" ) ).isEqualTo( EXIT_CODE_OK );
-            assertThat( out.toString() ).contains( "Starting Neo4j." );
+            assertThat( out.toString() ).contains( "Starting ONgDB." );
             assertThat( pidFile ).exists();
             assertThat( execute( "stop" ) ).isEqualTo( EXIT_CODE_OK );
             assertThat( pidFile ).doesNotExist();
@@ -631,7 +631,7 @@ class Neo4jCommandTest
 
         @DisabledOnOs( OS.WINDOWS )
         @Test
-        void shouldDetectRunningNeo4jOnConsole() throws Exception
+        void shouldDetectRunningONgDBOnConsole() throws Exception
         {
             if ( !fork.run( () ->
             {
@@ -639,7 +639,7 @@ class Neo4jCommandTest
                 assertThat( execute( "console" ) ).isEqualTo( ExitCode.SOFTWARE );
             } ) )
             {
-                assertThat( out.toString() ).contains( "Neo4j is already running" );
+                assertThat( out.toString() ).contains( "ONgDB is already running" );
             }
         }
 
@@ -719,7 +719,7 @@ class Neo4jCommandTest
         public static void main( String[] args ) throws InterruptedException
         {
             Runtime.getRuntime().addShutdownHook( new Thread( () -> System.out.println( EXIT_MSG ) ) );
-            Signal.handle( new Signal( NeoBootstrapper.SIGINT ), s -> System.exit( 0 ) ); //mimic neo4j (NeoBootstrapper.installSignalHandlers)
+            Signal.handle( new Signal( NeoBootstrapper.SIGINT ), s -> System.exit( 0 ) ); //mimic ongdb (NeoBootstrapper.installSignalHandlers)
             Signal.handle( new Signal( NeoBootstrapper.SIGTERM ), s -> System.exit( 0 ) );
 
             System.out.println( STARTUP_MSG );

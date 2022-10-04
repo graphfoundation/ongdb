@@ -53,7 +53,7 @@ public class ReadOnly implements AccessCapability
     public void assertCanWrite()
     {
         throw new WriteOperationsNotAllowedException(
-                "No write operations are allowed on this database. The database is in read-only mode on this Neo4j instance.",
+                "No write operations are allowed on this database. The database is in read-only mode on this ONgDB instance.",
                 Status.General.WriteOnReadOnlyAccessDatabase );
     }
 }

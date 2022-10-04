@@ -59,7 +59,7 @@ import org.neo4j.test.utils.TestDirectory;
 import static java.nio.file.Files.isDirectory;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.neo4j.configuration.GraphDatabaseSettings.default_database;
-import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 import static org.neo4j.configuration.GraphDatabaseSettings.transaction_logs_root_path;
 import static org.neo4j.function.Predicates.alwaysFalse;
 import static org.neo4j.internal.helpers.collection.Pair.pair;
@@ -227,7 +227,7 @@ class ArchiveTest
     private DatabaseLayout layoutWithCustomTxRoot( Path txLogsRoot, String databaseName )
     {
         Config config = Config.newBuilder()
-                .set( neo4j_home, testDirectory.homePath() )
+                .set( ongdb_home, testDirectory.homePath() )
                 .set( transaction_logs_root_path, txLogsRoot.toAbsolutePath() )
                 .set( default_database, databaseName )
                 .build();

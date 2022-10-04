@@ -84,9 +84,10 @@ public class CommunityTopologyGraphDbmsModel implements TopologyGraphDbmsModel
 
     public Map<NamedDatabaseId,TopologyGraphDbmsModel.DatabaseAccess> getAllDatabaseAccess()
     {
-        return tx.findNodes( DATABASE_LABEL ).stream()
-                 .collect( Collectors.toMap( CommunityTopologyGraphDbmsModel::getDatabaseId,
-                                             CommunityTopologyGraphDbmsModel::getDatabaseAccess ) );
+        Map<NamedDatabaseId,TopologyGraphDbmsModel.DatabaseAccess> result = tx.findNodes( DATABASE_LABEL ).stream()
+                .collect( Collectors.toMap( CommunityTopologyGraphDbmsModel::getDatabaseId,
+                        CommunityTopologyGraphDbmsModel::getDatabaseAccess ) );
+        return result;
     }
 
     private static TopologyGraphDbmsModel.DatabaseAccess getDatabaseAccess( Node databaseNode )
@@ -233,6 +234,7 @@ public class CommunityTopologyGraphDbmsModel implements TopologyGraphDbmsModel
     {
         try
         {
+            //TODO: hit this in stash?
             var node = tx.findNode( DATABASE_LABEL, propertyKey, propertyValue );
 
             if ( node == null )

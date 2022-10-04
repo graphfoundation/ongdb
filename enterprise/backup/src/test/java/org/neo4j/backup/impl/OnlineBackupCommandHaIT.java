@@ -334,15 +334,15 @@ public class OnlineBackupCommandHaIT
         createSomeData( db );
     }
 
-    private static int runBackupTool( File neo4jHome, PrintStream outputStream, PrintStream errorStream, String... args ) throws Exception
+    private static int runBackupTool( File ongdbHome, PrintStream outputStream, PrintStream errorStream, String... args ) throws Exception
     {
-        return runBackupToolFromOtherJvmToGetExitCode( neo4jHome, outputStream, errorStream, false, args );
+        return runBackupToolFromOtherJvmToGetExitCode( ongdbHome, outputStream, errorStream, false, args );
     }
 
-    private static int runBackupTool( File neo4jHome, String... args )
+    private static int runBackupTool( File ongdbHome, String... args )
             throws Exception
     {
-        return runBackupToolFromOtherJvmToGetExitCode( neo4jHome, args );
+        return runBackupToolFromOtherJvmToGetExitCode( ongdbHome, args );
     }
 
     private DbRepresentation getDbRepresentation()

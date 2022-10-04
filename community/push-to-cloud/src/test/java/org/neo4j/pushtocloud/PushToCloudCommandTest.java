@@ -86,7 +86,7 @@ import static org.neo4j.configuration.GraphDatabaseSettings.default_database;
 class PushToCloudCommandTest
 {
     private static final String SOME_EXAMPLE_BOLT_URI = "bolt+routing://database_id.databases.neo4j.io";
-    public static final String DBNAME = "neo4j";
+    public static final String DBNAME = "ongdb";
 
     @Inject
     TestDirectory directory;
@@ -99,7 +99,7 @@ class PushToCloudCommandTest
     {
         homeDir = directory.directory( "home-dir" );
         Path configDir = directory.directory( "config-dir" );
-        Path configFile = configDir.resolve( "neo4j.conf" );
+        Path configFile = configDir.resolve( "ongdb.conf" );
         Files.createFile( configFile );
         PrintStream nullOutputStream = new PrintStream( NullOutputStream.nullOutputStream() );
         ctx = new ExecutionContext( homeDir, configDir, nullOutputStream, nullOutputStream, directory.getFileSystem() );
@@ -109,7 +109,7 @@ class PushToCloudCommandTest
     private void createDbAndDump()
     {
         Config config = Config.newBuilder()
-                              .set( GraphDatabaseSettings.neo4j_home, homeDir.toAbsolutePath() )
+                              .set( GraphDatabaseSettings.ongdb_home, homeDir.toAbsolutePath() )
                               .set( default_database, DBNAME )
                               .build();
         DatabaseLayout databaseLayout = DatabaseLayout.of( config );
@@ -131,7 +131,7 @@ class PushToCloudCommandTest
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "neo4j";
+        String username = "ongdb";
         String password = "abc";
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
@@ -150,13 +150,13 @@ class PushToCloudCommandTest
     }
 
     @Test
-    public void shouldUseNeo4jAsDefaultUsernameIfUserHitsEnter() throws Exception
+    public void shouldUseONgDBAsDefaultUsernameIfUserHitsEnter() throws Exception
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
         PushToCloudConsole console = mock( PushToCloudConsole.class );
         when( console.readLine( anyString(), anyString() ) ).thenReturn( "" );
-        String defaultUsername = "neo4j";
+        String defaultUsername = "ongdb";
         String password = "super-secret-password";
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
@@ -171,19 +171,19 @@ class PushToCloudCommandTest
         new CommandLine( command ).execute( args );
 
         // then
-        verify( console ).readLine( "%s", format( "Neo4j aura username (default: %s):", defaultUsername ) );
+        verify( console ).readLine( "%s", format( "ONgDB aura username (default: %s):", defaultUsername ) );
         verify( targetCommunicator ).authenticate( anyBoolean(), any(), eq( defaultUsername ), eq( password.toCharArray() ), anyBoolean() );
         verify( targetCommunicator ).copy( anyBoolean(), any(), any(), any(), eq( false ), any() );
     }
 
     @Test
-    public void shouldUseNeo4jAsDefaultUsernameIfStdinIndicatesEndOfFile() throws Exception
+    public void shouldUseONgDBAsDefaultUsernameIfStdinIndicatesEndOfFile() throws Exception
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
         PushToCloudConsole console = mock( PushToCloudConsole.class );
         when( console.readLine( anyString(), anyString() ) ).thenReturn( null );
-        String defaultUsername = "neo4j";
+        String defaultUsername = "ongdb";
         String password = "super-secret-password";
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
@@ -316,7 +316,7 @@ class PushToCloudCommandTest
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "neo4j";
+        String username = "ongdb";
 
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
@@ -330,7 +330,7 @@ class PushToCloudCommandTest
                 "--password", "pass",
                 "--bolt-uri", SOME_EXAMPLE_BOLT_URI};
         new CommandLine( command ).execute( args );
-        verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "neo4j" ), eq( "pass".toCharArray() ), anyBoolean() );
+        verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "ongdb" ), eq( "pass".toCharArray() ), anyBoolean() );
     }
 
     @Test
@@ -338,7 +338,7 @@ class PushToCloudCommandTest
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "neo4j";
+        String username = "ongdb";
 
         PushToCloudCommand command = command().copier( targetCommunicator ).console( PushToCloudConsole.fakeConsole( username, "tomte" ) ).build();
 
@@ -348,10 +348,10 @@ class PushToCloudCommandTest
                 "--dump", dump.toString(),
                 "--bolt-uri", SOME_EXAMPLE_BOLT_URI
         };
-        var environment = Map.of( "NEO4J_USERNAME", "", "NEO4J_PASSWORD", "pass" );
+        var environment = Map.of( "ONGDB_USERNAME", "", "ONGDB_PASSWORD", "pass" );
         new CommandLine( command ).setResourceBundle( new MapResourceBundle( environment ) ).execute( args );
 
-        verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "neo4j" ), eq( "pass".toCharArray() ), anyBoolean() );
+        verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "ongdb" ), eq( "pass".toCharArray() ), anyBoolean() );
     }
 
     @Test
@@ -359,7 +359,7 @@ class PushToCloudCommandTest
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "neo4j";
+        String username = "ongdb";
         String password = "abc";
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
@@ -383,7 +383,7 @@ class PushToCloudCommandTest
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "neo4j";
+        String username = "ongdb";
         String password = "abc";
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
@@ -396,7 +396,7 @@ class PushToCloudCommandTest
                 "--dump", dump.toString(),
                 "--bolt-uri", SOME_EXAMPLE_BOLT_URI};
 
-        var environment = Map.of( "NEO4J_USERNAME", "user", "NEO4J_PASSWORD", "" );
+        var environment = Map.of( "ONGDB_USERNAME", "user", "ONGDB_PASSWORD", "" );
         new CommandLine( command ).setResourceBundle( new MapResourceBundle( environment ) ).execute( args );
         assertTrue( Files.exists( dump ) );
         verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "user" ), eq( "abc".toCharArray() ), anyBoolean() );
@@ -407,7 +407,7 @@ class PushToCloudCommandTest
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "neo4j";
+        String username = "ongdb";
         String password = "abc";
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
@@ -417,12 +417,12 @@ class PushToCloudCommandTest
         // when
         String[] args = {
                 "--dump", dump.toString(),
-                "--username", "neo4jcli",
+                "--username", "ongdbcli",
                 "--password", "passcli",
                 "--bolt-uri", SOME_EXAMPLE_BOLT_URI};
         new CommandLine( command ).execute( args );
 
-        verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "neo4jcli" ), eq( "passcli".toCharArray() ), anyBoolean() );
+        verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "ongdbcli" ), eq( "passcli".toCharArray() ), anyBoolean() );
     }
 
     @Test
@@ -430,7 +430,7 @@ class PushToCloudCommandTest
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "neo4j";
+        String username = "ongdb";
         String password = "abc";
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
@@ -441,10 +441,10 @@ class PushToCloudCommandTest
         String[] args = {
                 "--dump", dump.toString(),
                 "--bolt-uri", SOME_EXAMPLE_BOLT_URI};
-        var environment = Map.of( "NEO4J_USERNAME", "neo4jenv", "NEO4J_PASSWORD", "passenv" );
+        var environment = Map.of( "ONGDB_USERNAME", "ongdbenv", "ONGDB_PASSWORD", "passenv" );
         new CommandLine( command ).setResourceBundle( new MapResourceBundle( environment ) ).execute( args );
 
-        verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "neo4jenv" ), eq( "passenv".toCharArray() ), anyBoolean() );
+        verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "ongdbenv" ), eq( "passenv".toCharArray() ), anyBoolean() );
     }
 
     @Test

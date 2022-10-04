@@ -288,10 +288,10 @@ class SpecialisedIndexFullCheckTest
             // Lucene files are locked when the DB is running
             fixture.close();
 
-            var config = Config.newBuilder().set( GraphDatabaseSettings.neo4j_home, testDirectory.homePath() ).build();
+            var config = Config.newBuilder().set( GraphDatabaseSettings.ongdb_home, testDirectory.homePath() ).build();
 
             ConsistencyCheckService checkService = new ConsistencyCheckService();
-            return checkService.runFullConsistencyCheck( Neo4jLayout.of( config ).databaseLayout( "neo4j" ),
+            return checkService.runFullConsistencyCheck( Neo4jLayout.of( config ).databaseLayout( GraphDatabaseSettings.DEFAULT_DATABASE_NAME ),
                     config, ProgressMonitorFactory.NONE, logProvider, false, DEFAULT ).summary();
         }
 

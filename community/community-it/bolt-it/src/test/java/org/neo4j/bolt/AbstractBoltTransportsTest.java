@@ -70,7 +70,7 @@ public abstract class AbstractBoltTransportsTest
             SecureSocketConnection.class,
             SecureWebSocketConnection.class );
 
-    private static final List<Neo4jPack> NEO4J_PACK_VERSIONS = Arrays.asList(
+    private static final List<Neo4jPack> ONGDB_PACK_VERSIONS = Arrays.asList(
             new Neo4jPackV1(),
             new Neo4jPackV2() );
 
@@ -109,7 +109,7 @@ public abstract class AbstractBoltTransportsTest
 
         for ( Class<? extends TransportConnection> connectionClass : CONNECTION_CLASSES )
         {
-            for ( Neo4jPack neo4jPack : NEO4J_PACK_VERSIONS )
+            for ( Neo4jPack neo4jPack : ONGDB_PACK_VERSIONS )
             {
                 result.add( Arguments.of( connectionClass, neo4jPack, newName( connectionClass, neo4jPack ) ) );
             }

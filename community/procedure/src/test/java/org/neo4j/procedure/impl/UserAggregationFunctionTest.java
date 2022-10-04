@@ -207,7 +207,7 @@ public class UserAggregationFunctionTest
     void shouldNotAllowVoidOutput()
     {
         ProcedureException exception = assertThrows( ProcedureException.class, () -> compile( FunctionWithVoidOutput.class ) );
-        assertThat( exception.getMessage() ).startsWith( "Don't know how to map `void` to the Neo4j Type System." );
+        assertThat( exception.getMessage() ).startsWith( "Don't know how to map `void` to the ONgDB Type System." );
     }
 
     @Test
@@ -265,7 +265,7 @@ public class UserAggregationFunctionTest
     {
         ProcedureException exception = assertThrows( ProcedureException.class, () -> compile( FunctionWithInvalidOutput.class ) );
         assertThat( exception.getMessage() ).isEqualTo( String.format(
-                "Don't know how to map `char[]` to the Neo4j Type System.%n" +
+                "Don't know how to map `char[]` to the ONgDB Type System.%n" +
                         "Please refer to to the documentation for full details.%n" +
                         "For your reference, known types are: [boolean, byte[], double, java.lang.Boolean, " +
                         "java.lang.Double, java.lang.Long, java.lang.Number, java.lang.Object, " +

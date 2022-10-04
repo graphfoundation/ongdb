@@ -38,6 +38,7 @@
  */
 package org.neo4j.token;
 
+import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.eclipse.collections.api.set.primitive.IntSet;
 import org.eclipse.collections.api.set.primitive.MutableIntSet;
 import org.eclipse.collections.impl.map.mutable.primitive.IntIntHashMap;
@@ -194,5 +195,11 @@ public class DelegatingTokenHolder extends AbstractTokenHolderBase
         }
 
         return createdTokens;
+    }
+
+    @Override
+    public String toString()
+    {
+        return new ToStringBuilder( this ).append( "tokenCreator", tokenCreator ).toString();
     }
 }

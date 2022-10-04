@@ -519,7 +519,7 @@ public enum ValueRepresentation
             }
             else if ( prev != null && prev.valueRepresentation().valueGroup() != (value.valueRepresentation().valueGroup()) )
             {
-                throw new CypherTypeException( "Neo4j only supports a subset of Cypher types for storage as singleton or array properties. " +
+                throw new CypherTypeException( "ONgDB only supports a subset of Geequel types for storage as singleton or array properties. " +
                                                "Please refer to section cypher/syntax/values of the manual for more details." );
             }
             else if ( !value.valueRepresentation().canCreateArrayOfValueGroup() )

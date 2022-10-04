@@ -544,7 +544,7 @@ class FulltextIndexProviderTest
         {
             var cacheTracer = NULL;
             FileSystemAbstraction fs = builder.getFileSystem();
-            RecordDatabaseLayout databaseLayout = RecordDatabaseLayout.of( Config.defaults( GraphDatabaseSettings.neo4j_home, builder.getHomeDirectory() ) );
+            RecordDatabaseLayout databaseLayout = RecordDatabaseLayout.of( Config.defaults( GraphDatabaseSettings.ongdb_home, builder.getHomeDirectory() ) );
             DefaultIdGeneratorFactory idGenFactory =
                     new DefaultIdGeneratorFactory( fs, RecoveryCleanupWorkCollector.ignore(), databaseLayout.getDatabaseName() );
             try ( JobScheduler scheduler = JobSchedulerFactory.createInitialisedScheduler();

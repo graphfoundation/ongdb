@@ -114,7 +114,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 import static org.neo4j.configuration.GraphDatabaseSettings.dense_node_threshold;
-import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 import static org.neo4j.configuration.GraphDatabaseSettings.preallocate_logical_logs;
 import static org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker.readOnly;
 import static org.neo4j.graphdb.Label.label;
@@ -574,7 +574,7 @@ class BatchInsertTest
     {
         Config config = Config.newBuilder()
                 .set( preallocate_logical_logs, false )
-                .set( neo4j_home, testDirectory.homePath() )
+                .set( ongdb_home, testDirectory.homePath() )
                 .build();
         BatchInserter inserter = BatchInserters.inserter( databaseLayout, fs, config );
         inserter.shutdown();
@@ -1135,7 +1135,7 @@ class BatchInsertTest
     private Config.Builder configurationBuilder()
     {
         return Config.newBuilder()
-                .set( neo4j_home, testDirectory.absolutePath() )
+                .set( ongdb_home, testDirectory.absolutePath() )
                 .set( preallocate_logical_logs, false );
     }
 

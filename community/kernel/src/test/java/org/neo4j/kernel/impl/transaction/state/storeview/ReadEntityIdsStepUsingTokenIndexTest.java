@@ -76,7 +76,7 @@ import org.neo4j.test.utils.TestDirectory;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.neo4j.collection.PrimitiveLongCollections.EMPTY_LONG_ARRAY;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
-import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 import static org.neo4j.configuration.GraphDatabaseSettings.preallocate_logical_logs;
 import static org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector.immediate;
 import static org.neo4j.internal.batchimport.Configuration.DEFAULT;
@@ -226,7 +226,7 @@ class ReadEntityIdsStepUsingTokenIndexTest
     private Config config()
     {
         return Config.newBuilder()
-                     .set( neo4j_home, testDir.absolutePath() )
+                     .set( ongdb_home, testDir.absolutePath() )
                      .set( preallocate_logical_logs, false )
                      .build();
     }

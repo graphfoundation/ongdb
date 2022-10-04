@@ -79,7 +79,7 @@ import static picocli.CommandLine.Option;
         header = "Dump a database into a single-file archive.",
         description = "Dump a database into a single-file archive. The archive can be used by the load command. " +
                 "<destination-path> can be a file or directory (in which case a file called <database>.dump will " +
-                "be created), or '-' to use standard output. It is not possible to dump a database that is mounted in a running Neo4j server."
+                "be created), or '-' to use standard output. It is not possible to dump a database that is mounted in a running ONgDB server."
 )
 public class DumpCommand extends AbstractCommand
 {

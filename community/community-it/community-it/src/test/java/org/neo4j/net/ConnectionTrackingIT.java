@@ -104,7 +104,7 @@ import static org.neo4j.bolt.testing.MessageConditions.msgRecord;
 import static org.neo4j.bolt.testing.MessageConditions.msgSuccess;
 import static org.neo4j.bolt.testing.StreamConditions.eqRecord;
 import static org.neo4j.configuration.GraphDatabaseSettings.auth_enabled;
-import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 import static org.neo4j.internal.helpers.collection.Iterators.single;
 import static org.neo4j.internal.helpers.collection.MapUtil.map;
 import static org.neo4j.kernel.api.exceptions.Status.Transaction.Terminated;
@@ -126,7 +126,7 @@ import static org.neo4j.values.storable.Values.stringValue;
 @TestInstance( TestInstance.Lifecycle.PER_CLASS )
 class ConnectionTrackingIT
 {
-    private static final String NEO4J_USER_PWD = "test";
+    private static final String ONGDB_USER_PWD = "test";
     private static final String OTHER_USER = "otherUser";
     private static final String OTHER_USER_PWD = "test";
 
@@ -142,23 +142,23 @@ class ConnectionTrackingIT
     private TestDirectory dir;
 
     private GraphDatabaseAPI db;
-    private InProcessNeo4j neo4j;
+    private InProcessNeo4j ongdb;
     private long dummyNodeId;
 
     @BeforeAll
     void beforeAll()
     {
-        neo4j = (InProcessNeo4j) new InProcessNeo4jBuilder( dir.homePath() )
-                .withConfig( neo4j_home, dir.absolutePath() )
+        ongdb = (InProcessNeo4j) new InProcessNeo4jBuilder( dir.homePath() )
+                .withConfig( ongdb_home, dir.absolutePath() )
                 .withConfig( auth_enabled, true )
                 .withConfig( HttpConnector.enabled, true )
                 .withConfig( HttpsConnector.enabled, true )
                 .withConfig( webserver_max_threads, 50 ) /* higher than the amount of concurrent requests tests execute*/
                 .build();
-        neo4j.start();
-        db = (GraphDatabaseAPI) neo4j.defaultDatabaseService();
+        ongdb.start();
+        db = (GraphDatabaseAPI) ongdb.defaultDatabaseService();
 
-        changeDefaultPasswordForUserNeo4j( NEO4J_USER_PWD );
+        changeDefaultPasswordForUserNeo4j( ONGDB_USER_PWD );
         createNewUser( OTHER_USER, OTHER_USER_PWD );
         dummyNodeId = createDummyNode();
         IOUtils.closeAllSilently( acceptedConnectionsFromConnectionTracker() );
@@ -168,7 +168,7 @@ class ConnectionTrackingIT
     void afterAll()
     {
         executor.shutdownNow();
-        neo4j.close();
+        ongdb.close();
     }
 
     @AfterEach
@@ -228,7 +228,7 @@ class ConnectionTrackingIT
         {
             for ( int i = 0; i < 4; i++ )
             {
-                updateNodeViaHttp( dummyNodeId, "neo4j", NEO4J_USER_PWD );
+                updateNodeViaHttp( dummyNodeId, "ongdb", ONGDB_USER_PWD );
             }
             for ( int i = 0; i < 3; i++ )
             {
@@ -237,7 +237,7 @@ class ConnectionTrackingIT
 
         } );
         awaitNumberOfAuthenticatedConnectionsToBe( 7 );
-        verifyAuthenticatedConnectionCount( HTTP, "neo4j", 4 );
+        verifyAuthenticatedConnectionCount( HTTP, "ongdb", 4 );
         verifyAuthenticatedConnectionCount( HTTP, OTHER_USER, 3 );
     }
 
@@ -248,7 +248,7 @@ class ConnectionTrackingIT
         {
             for ( int i = 0; i < 4; i++ )
             {
-                updateNodeViaHttps( dummyNodeId, "neo4j", NEO4J_USER_PWD );
+                updateNodeViaHttps( dummyNodeId, "ongdb", ONGDB_USER_PWD );
             }
             for ( int i = 0; i < 5; i++ )
             {
@@ -257,7 +257,7 @@ class ConnectionTrackingIT
 
             awaitNumberOfAuthenticatedConnectionsToBe( 9 );
         } );
-        verifyAuthenticatedConnectionCount( HTTPS, "neo4j", 4 );
+        verifyAuthenticatedConnectionCount( HTTPS, "ongdb", 4 );
         verifyAuthenticatedConnectionCount( HTTPS, OTHER_USER, 5 );
     }
 
@@ -268,7 +268,7 @@ class ConnectionTrackingIT
         {
             for ( int i = 0; i < 2; i++ )
             {
-                updateNodeViaBolt( dummyNodeId, "neo4j", NEO4J_USER_PWD );
+                updateNodeViaBolt( dummyNodeId, "ongdb", ONGDB_USER_PWD );
             }
             for ( int i = 0; i < 5; i++ )
             {
@@ -277,7 +277,7 @@ class ConnectionTrackingIT
 
         } );
         awaitNumberOfAuthenticatedConnectionsToBe( 7 );
-        verifyAuthenticatedConnectionCount( BOLT, "neo4j", 2 );
+        verifyAuthenticatedConnectionCount( BOLT, "ongdb", 2 );
         verifyAuthenticatedConnectionCount( BOLT, OTHER_USER, 5 );
     }
 
@@ -292,53 +292,53 @@ class ConnectionTrackingIT
             }
             for ( int i = 0; i < 1; i++ )
             {
-                updateNodeViaHttp( dummyNodeId, "neo4j", NEO4J_USER_PWD );
+                updateNodeViaHttp( dummyNodeId, "ongdb", ONGDB_USER_PWD );
             }
             for ( int i = 0; i < 5; i++ )
             {
-                updateNodeViaHttps( dummyNodeId, "neo4j", NEO4J_USER_PWD );
+                updateNodeViaHttps( dummyNodeId, "ongdb", ONGDB_USER_PWD );
             }
 
             awaitNumberOfAuthenticatedConnectionsToBe( 10 );
         } );
         verifyConnectionCount( BOLT, OTHER_USER, 4 );
-        verifyConnectionCount( HTTP, "neo4j", 1 );
-        verifyConnectionCount( HTTPS, "neo4j", 5 );
+        verifyConnectionCount( HTTP, "ongdb", 1 );
+        verifyConnectionCount( HTTPS, "ongdb", 5 );
     }
 
     @Test
     void shouldKillHttpConnection() throws Exception
     {
-        testKillingOfConnections( neo4j.httpURI(), HTTP, 4 );
+        testKillingOfConnections( ongdb.httpURI(), HTTP, 4 );
     }
 
     @Test
     void shouldKillHttpsConnection() throws Exception
     {
-        testKillingOfConnections( neo4j.httpsURI(), HTTPS, 2 );
+        testKillingOfConnections( ongdb.httpsURI(), HTTPS, 2 );
     }
 
     @Test
     void shouldKillBoltConnection() throws Exception
     {
-        testKillingOfConnections( neo4j.boltURI(), BOLT, 3 );
+        testKillingOfConnections( ongdb.boltURI(), BOLT, 3 );
     }
 
     private void testListingOfUnauthenticatedConnections( int httpCount, int httpsCount, int boltCount ) throws Exception
     {
         for ( int i = 0; i < httpCount; i++ )
         {
-            connectSocketTo( neo4j.httpURI() );
+            connectSocketTo( ongdb.httpURI() );
         }
 
         for ( int i = 0; i < httpsCount; i++ )
         {
-            connectSocketTo( neo4j.httpsURI() );
+            connectSocketTo( ongdb.httpsURI() );
         }
 
         for ( int i = 0; i < boltCount; i++ )
         {
-            connectSocketTo( neo4j.boltURI() );
+            connectSocketTo( ongdb.boltURI() );
         }
 
         awaitNumberOfAcceptedConnectionsToBe( httpCount + httpsCount + boltCount );
@@ -457,22 +457,22 @@ class ConnectionTrackingIT
 
     private void changeDefaultPasswordForUserNeo4j( String newPassword )
     {
-        var uri = neo4j.httpURI().resolve( "db/system/tx/commit" ).toString();
-        Response response = withBasicAuth( "neo4j", "neo4j" )
-                .POST( uri, query( String.format( "ALTER CURRENT USER SET PASSWORD FROM 'neo4j' TO '%s'", newPassword ) ) );
+        var uri = ongdb.httpURI().resolve( "db/system/tx/commit" ).toString();
+        Response response = withBasicAuth( "ongdb", "ongdb" )
+                .POST( uri, query( String.format( "ALTER CURRENT USER SET PASSWORD FROM 'ongdb' TO '%s'", newPassword ) ) );
 
         assertEquals( 200, response.status() );
     }
 
     private void createNewUser( String username, String password )
     {
-        var uri = neo4j.httpURI().resolve( "db/system/tx/commit" ).toString();
+        var uri = ongdb.httpURI().resolve( "db/system/tx/commit" ).toString();
 
-        Response response1 = withBasicAuth( "neo4j", NEO4J_USER_PWD )
+        Response response1 = withBasicAuth( "ongdb", ONGDB_USER_PWD )
                 .POST( uri, query( "CALL dbms.security.createUser(\\\"" + username + "\\\", \\\"" + password + "\\\", false)" ) );
         assertEquals( 200, response1.status() );
 
-        Response response2 = withBasicAuth( "neo4j", NEO4J_USER_PWD )
+        Response response2 = withBasicAuth( "ongdb", ONGDB_USER_PWD )
                 .POST( uri, query( "CALL dbms.security.addRoleToUser(\\\"admin\\\", \\\"" + username + "\\\")" ) );
         assertEquals( 200, response2.status() );
     }
@@ -545,7 +545,7 @@ class ConnectionTrackingIT
     {
         return executor.submit( () ->
         {
-            connectSocketTo( neo4j.boltURI() )
+            connectSocketTo( ongdb.boltURI() )
                     .send( util.defaultAcceptedVersions() )
                     .send( auth( username, password ) )
                     .send( util.defaultRunAutoCommitTx( "MATCH (n) WHERE id(n) = " + id + " SET n.prop = 42" ) );
@@ -567,11 +567,11 @@ class ConnectionTrackingIT
         String id = trackedConnection.id();
         String user = trackedConnection.username();
 
-        TransportConnection connection = connectSocketTo( neo4j.boltURI() );
+        TransportConnection connection = connectSocketTo( ongdb.boltURI() );
         try
         {
             connection.send( util.defaultAcceptedVersions() )
-                    .send( auth( "neo4j", NEO4J_USER_PWD ) )
+                    .send( auth( "ongdb", ONGDB_USER_PWD ) )
                     .send( util.defaultRunAutoCommitTx( "CALL dbms.killConnection('" + id + "')" ) );
 
             assertThat( connection ).satisfies( TransportTestUtil.eventuallyReceivesSelectedProtocolVersion() );
@@ -625,8 +625,8 @@ class ConnectionTrackingIT
 
     private URI txCommitUri( boolean encrypted )
     {
-        URI baseUri = encrypted ? neo4j.httpsURI() : neo4j.httpURI();
-        return baseUri.resolve( "db/neo4j/tx/commit" );
+        URI baseUri = encrypted ? ongdb.httpsURI() : ongdb.httpURI();
+        return baseUri.resolve( "db/ongdb/tx/commit" );
     }
 
     private static RawPayload query( String statement )

@@ -61,7 +61,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
-import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 import static org.neo4j.configuration.GraphDatabaseSettings.transaction_logs_root_path;
 
 @TestDirectoryExtension
@@ -77,7 +77,7 @@ class TransactionLogsInSeparateLocationIT
     {
         Path txDirectory = testDirectory.directory( "transaction-logs" );
         Config config = Config.newBuilder()
-                .set( neo4j_home, testDirectory.homePath() )
+                .set( ongdb_home, testDirectory.homePath() )
                 .set( transaction_logs_root_path, txDirectory.toAbsolutePath() )
                 .build();
         DatabaseLayout layout = DatabaseLayout.of( config );

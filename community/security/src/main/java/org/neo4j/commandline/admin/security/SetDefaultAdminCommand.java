@@ -104,7 +104,7 @@ public class SetDefaultAdminCommand extends AbstractCommand
     {
         Config cfg = Config.newBuilder()
                            .fromFileNoThrow( ctx.confDir().resolve( Config.DEFAULT_CONFIG_FILE_NAME ) )
-                           .set( GraphDatabaseSettings.neo4j_home, ctx.homeDir().toAbsolutePath() )
+                           .set( GraphDatabaseSettings.ongdb_home, ctx.homeDir().toAbsolutePath() )
                            .commandExpansion( allowCommandExpansion )
                            .build();
         ConfigUtils.disableAllConnectors( cfg );

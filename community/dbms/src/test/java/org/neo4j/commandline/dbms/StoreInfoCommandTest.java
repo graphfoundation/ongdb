@@ -117,7 +117,7 @@ class StoreInfoCommandTest
             CommandLine.usage( command, new PrintStream( out ), CommandLine.Help.Ansi.OFF );
         }
         assertThat( baos.toString().trim() ).isEqualTo( String.format(
-                "Print information about a Neo4j database store.%n" +
+                "Print information about an ONgDB database store.%n" +
                         "%n" +
                         "USAGE%n" +
                         "%n" +
@@ -125,7 +125,7 @@ class StoreInfoCommandTest
                         "%n" +
                         "DESCRIPTION%n" +
                         "%n" +
-                        "Print information about a Neo4j database store, such as what version of Neo4j%n" +
+                        "Print information about an ONgDB database store, such as what version of ONgDB%n" +
                         "created it.%n" +
                         "%n" +
                         "PARAMETERS%n" +
@@ -358,7 +358,7 @@ class StoreInfoCommandTest
     }
 
     private void prepareStore( DatabaseLayout databaseLayout, String storeVersion, String introducedInVersion, String successorStoreVersion,
-            String successorNeo4jVersion, long lastCommittedTxId ) throws IOException
+            String successorONgDBVersion, long lastCommittedTxId ) throws IOException
     {
         doReturn( Optional.of( storageEngineFactory ) ).when( storageEngineSelector ).selectStorageEngine( any(),
                 argThat( dbLayout -> dbLayout.databaseDirectory().equals( databaseLayout.databaseDirectory() ) ), any() );
@@ -373,7 +373,7 @@ class StoreInfoCommandTest
         when( storageEngineFactory.versionInformation( storeVersion ) ).thenReturn( version1 );
         if ( successorStoreVersion != null )
         {
-            StoreVersion version2 = mockedStoreVersion( successorStoreVersion, successorNeo4jVersion, null );
+            StoreVersion version2 = mockedStoreVersion( successorStoreVersion, successorONgDBVersion, null );
             when( storageEngineFactory.versionInformation( successorStoreVersion ) ).thenReturn( version2 );
         }
         doReturn( storeVersionCheck ).when( storageEngineFactory ).versionCheck( any(),
@@ -388,7 +388,7 @@ class StoreInfoCommandTest
     {
         StoreVersion version = mock( StoreVersion.class );
         when( version.storeVersion() ).thenReturn( storeVersion );
-        when( version.introductionNeo4jVersion() ).thenReturn( introducedInVersion );
+        when( version.introductionONgDBVersion() ).thenReturn( introducedInVersion );
         when( version.successorStoreVersion() ).thenReturn( Optional.ofNullable( supersededByStoreVersion ) );
         return version;
     }

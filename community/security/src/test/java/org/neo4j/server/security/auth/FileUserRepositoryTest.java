@@ -146,7 +146,7 @@ class FileUserRepositoryTest
         FileUserRepository users = new FileUserRepository( fs, authFile, logProvider );
 
         // When
-        users.assertValidUsername( "neo4j" );
+        users.assertValidUsername( "ongdb" );
         users.assertValidUsername( "johnosbourne" );
         users.assertValidUsername( "john_osbourne" );
 
@@ -205,7 +205,7 @@ class FileUserRepositoryTest
         // First line is correctly formatted, second line has an extra field
         FileRepositorySerializer.writeToFile( fs, authFile, UTF8.encode(
                 "admin:SHA-256,A42E541F276CF17036DB7818F8B09B1C229AAD52A17F69F4029617F3A554640F,FB7E8AE08A6A7C741F678AD22217808F:\n" +
-                "neo4j:fc4c600b43ffe4d5857b4439c35df88f:SHA-256," +
+                "ongdb:fc4c600b43ffe4d5857b4439c35df88f:SHA-256," +
                         "A42E541F276CF17036DB7818F8B09B1C229AAD52A17F69F4029617F3A554640F,FB7E8AE08A6A7C741F678AD22217808F:\n" ) );
 
         // When

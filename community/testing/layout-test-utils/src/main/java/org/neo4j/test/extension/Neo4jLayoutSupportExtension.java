@@ -62,7 +62,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_METHOD;
 import static org.junit.platform.commons.support.AnnotationSupport.isAnnotated;
 import static org.neo4j.configuration.GraphDatabaseSettings.default_database;
-import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 
 /**
  * Be aware that all layouts regarding directory layout provided by this extension,
@@ -96,7 +96,7 @@ public class Neo4jLayoutSupportExtension implements BeforeAllCallback, BeforeEac
         TestInstances testInstances = context.getRequiredTestInstances();
         TestDirectory testDir = getTestDirectory( context );
 
-        Config config = Config.defaults( neo4j_home, testDir.homePath() );
+        Config config = Config.defaults( ongdb_home, testDir.homePath() );
         Neo4jLayout neo4jLayout = Neo4jLayout.of( config );
         DatabaseLayout databaseLayout = RecordDatabaseLayout.of( neo4jLayout, config.get( default_database ) ); //Record format is still default
 

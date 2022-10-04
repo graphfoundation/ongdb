@@ -39,6 +39,7 @@
 package org.neo4j.kernel.recovery;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -85,7 +86,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 import static org.neo4j.configuration.GraphDatabaseSettings.allow_single_automatic_upgrade;
 import static org.neo4j.configuration.GraphDatabaseSettings.allow_upgrade;
-import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 import static org.neo4j.kernel.recovery.Recovery.performRecovery;
 import static org.neo4j.memory.EmptyMemoryTracker.INSTANCE;
 
@@ -127,7 +128,7 @@ class RecoveryWithTokenIndexesIT
     @MethodSource( "arguments" )
     void recoverDatabaseWithTokenIndexes( String name, boolean checkpointIndexes ) throws Throwable
     {
-        config = Config.newBuilder().set( neo4j_home, testDirectory.homePath() ).build();
+        config = Config.newBuilder().set( ongdb_home, testDirectory.homePath() ).build();
 
         EphemeralFileSystemAbstraction fs = new EphemeralFileSystemAbstraction();
         GraphDatabaseService db = startDatabase( fs );
@@ -211,6 +212,7 @@ class RecoveryWithTokenIndexesIT
         }
     }
 
+//    @Disabled("Look into this - should not be failing...something to do with the allow_single_automatic_upgrade")
     @Test
     void recoverDatabaseWithPersistedTokenIndex() throws Throwable
     {

@@ -242,7 +242,7 @@ public class DatabaseManagementServiceFactory
         }
         catch ( Throwable throwable )
         {
-            String message = "Error starting Neo4j database server at " + globalModule.getNeo4jLayout().databasesDirectory();
+            String message = "Error starting ONgDB database server at " + globalModule.getNeo4jLayout().databasesDirectory();
             startupException = new RuntimeException( message, throwable );
             internalLog.error( message, throwable );
         }
@@ -311,8 +311,8 @@ public class DatabaseManagementServiceFactory
             Log proceduresLog = logService.getUserLog( GlobalProcedures.class );
 
             ProcedureConfig procedureConfig = new ProcedureConfig( globalConfig );
-            Edition neo4jEdition = globalModule.getDbmsInfo().edition;
-            SpecialBuiltInProcedures builtInProcedures = new SpecialBuiltInProcedures( Version.getNeo4jVersion(), neo4jEdition.toString() );
+            Edition ongdbEdition = globalModule.getDbmsInfo().edition;
+            SpecialBuiltInProcedures builtInProcedures = new SpecialBuiltInProcedures( Version.getONgDBVersion(), ongdbEdition.toString() );
             GlobalProceduresRegistry globalProcedures = new GlobalProceduresRegistry( builtInProcedures, proceduresDirectory, internalLog, procedureConfig );
 
             globalProcedures.registerType( Node.class, NTNode );

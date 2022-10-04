@@ -48,7 +48,7 @@ public interface AuthProviderOperations
      *
      * @return the path to the ONgDB home directory
      */
-    Path neo4jHome();
+    Path ongdbHome();
 
     /**
      * Returns the path to the ONgDB configuration file if one exists.
@@ -56,18 +56,18 @@ public interface AuthProviderOperations
      * @return the path to the ONgDB configuration file if one exists
      *
      * @deprecated
-     * Settings are recommended to be stored in a separate file. You can use {@link AuthProviderOperations#neo4jHome()}
-     * to resolve your configuration file, e.g. {@code neo4jHome().resolve("conf/myPlugin.conf" );}
+     * Settings are recommended to be stored in a separate file. You can use {@link AuthProviderOperations#ongdbHome()}
+     * to resolve your configuration file, e.g. {@code ongdbHome().resolve("conf/myPlugin.conf" );}
      */
     @Deprecated
-    Optional<Path> neo4jConfigFile();
+    Optional<Path> ongdbConfigFile();
 
     /**
      * Returns the ONgDB version.
      *
      * @return the ONgDB version
      */
-    String neo4jVersion();
+    String ongdbVersion();
 
     /**
      * Returns the clock that is used by the ONgDB security module within which this auth provider plugin is running.

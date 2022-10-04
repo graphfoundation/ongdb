@@ -111,8 +111,8 @@ class MethodSignatureCompilerTest
 
         ProcedureException exception = assertThrows( ProcedureException.class, () -> new MethodSignatureCompiler( new TypeCheckers() ).signatureFor( echo ) );
         assertThat( exception.getMessage() ).startsWith( String.format( "Argument `name` at position 0 in `echoWithInvalidType` with%n" +
-                "type `UnmappableRecord` cannot be converted to a Neo4j type: Don't know how to map " +
-                "`org.neo4j.procedure.impl.MethodSignatureCompilerTest$UnmappableRecord` to the Neo4j Type System.%n" +
+                "type `UnmappableRecord` cannot be converted to an ONgDB type: Don't know how to map " +
+                "`org.neo4j.procedure.impl.MethodSignatureCompilerTest$UnmappableRecord` to the ONgDB Type System.%n" +
                 "Please refer to to the documentation for full details.%n" +
                 "For your reference, known types are:" ) );
     }

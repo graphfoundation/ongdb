@@ -86,7 +86,7 @@ class Neo4jExtensionRegisterIT
                     .build();
 
     @Test
-    void neo4jAvailable( Neo4j neo4j )
+    void ongdbAvailable( Neo4j neo4j )
     {
         assertNotNull( neo4j );
         assertThat( HTTP.GET( neo4j.httpURI().toString() ).status() ).isEqualTo( 200 );
@@ -111,14 +111,14 @@ class Neo4jExtensionRegisterIT
     {
         String currentOffset = currentTimeZoneOffsetString();
 
-        assertThat( contentOf( "neo4j.log", databaseService ) ).contains( currentOffset );
+        assertThat( contentOf( "ongdb.log", databaseService ) ).contains( currentOffset );
         assertThat( contentOf( "debug.log", databaseService ) ).contains( currentOffset );
     }
 
     @Test
     void customExtensionWorkingDirectory( Neo4j neo4j )
     {
-        assertThat( neo4j.config().get( GraphDatabaseSettings.neo4j_home ).getParent().getFileName().toString() ).startsWith( REGISTERED_TEMP_PREFIX );
+        assertThat( neo4j.config().get( GraphDatabaseSettings.ongdb_home ).getParent().getFileName().toString() ).startsWith( REGISTERED_TEMP_PREFIX );
     }
 
     @Test
@@ -131,7 +131,7 @@ class Neo4jExtensionRegisterIT
     void fixturesRegistered( Neo4j neo4j ) throws Exception
     {
         // Then
-        HTTP.Response response = HTTP.POST( neo4j.httpURI() + "db/neo4j/tx/commit",
+        HTTP.Response response = HTTP.POST( neo4j.httpURI() + "db/ongdb/tx/commit",
                 quotedJson( "{'statements':[{'statement':'MATCH (n:User) RETURN n'}]}" ) );
 
         assertThat( response.get( "results" ).get( 0 ).get( "data" ).size() ).isEqualTo( 2 );
@@ -147,7 +147,7 @@ class Neo4jExtensionRegisterIT
     {
         GraphDatabaseAPI api = (GraphDatabaseAPI) databaseService;
         Config config = api.getDependencyResolver().resolveDependency( Config.class );
-        Path homeDir = config.get( GraphDatabaseSettings.neo4j_home );
+        Path homeDir = config.get( GraphDatabaseSettings.ongdb_home );
         return Files.readString( homeDir.resolve( file ) );
     }
 

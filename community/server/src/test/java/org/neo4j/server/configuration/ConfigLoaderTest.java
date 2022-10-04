@@ -68,7 +68,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.neo4j.configuration.GraphDatabaseSettings.default_advertised_address;
-import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 import static org.neo4j.configuration.SettingValueParsers.TRUE;
 
 @TestDirectoryExtension
@@ -89,7 +89,7 @@ class ConfigLoaderTest
 
         // when
         Config config =
-                Config.newBuilder().fromFile( configFile ).set( neo4j_home, testDirectory.homePath() ).build();
+                Config.newBuilder().fromFile( configFile ).set( ongdb_home, testDirectory.homePath() ).build();
 
         // then
         assertNotNull( config );
@@ -104,7 +104,7 @@ class ConfigLoaderTest
 
         // when
         Config testConf =
-                Config.newBuilder().fromFile( configFile ).set( neo4j_home, testDirectory.homePath() ).build();
+                Config.newBuilder().fromFile( configFile ).set( ongdb_home, testDirectory.homePath() ).build();
 
         // then
         final String EXPECTED_VALUE = "bar";
@@ -119,10 +119,10 @@ class ConfigLoaderTest
 
         // when
         Config testConf =
-                Config.newBuilder().fromFile( configFile ).set( neo4j_home, testDirectory.homePath() ).build();
+                Config.newBuilder().fromFile( configFile ).set( ongdb_home, testDirectory.homePath() ).build();
 
         // then
-        assertEquals( testDirectory.absolutePath().toString(), testConf.get( neo4j_home ).toString() );
+        assertEquals( testDirectory.absolutePath().toString(), testConf.get( ongdb_home ).toString() );
     }
 
     @Test
@@ -135,7 +135,7 @@ class ConfigLoaderTest
         Config testConf = Config.newBuilder().fromFile( configFile ).build();
 
         // then
-        assertEquals( Path.of( System.getProperty( "user.dir" ) ).toAbsolutePath().toString(), testConf.get( neo4j_home ).toString() );
+        assertEquals( Path.of( System.getProperty( "user.dir" ) ).toAbsolutePath().toString(), testConf.get( ongdb_home ).toString() );
     }
 
     @Test
@@ -148,7 +148,7 @@ class ConfigLoaderTest
 
         // when
         Config testConf =
-                Config.newBuilder().fromFile( configFile ).set( neo4j_home, testDirectory.homePath() ).build();
+                Config.newBuilder().fromFile( configFile ).set( ongdb_home, testDirectory.homePath() ).build();
 
         // then
         assertNotNull( testConf );
@@ -164,7 +164,7 @@ class ConfigLoaderTest
 
         // when
         Config testConf =
-                Config.newBuilder().fromFile( configFile ).set( neo4j_home, testDirectory.homePath() ).build();
+                Config.newBuilder().fromFile( configFile ).set( ongdb_home, testDirectory.homePath() ).build();
         ConfigUtils.disableAllConnectors( testConf );
 
         // then
@@ -180,7 +180,7 @@ class ConfigLoaderTest
 
         // when
         Config testConf =
-                Config.newBuilder().fromFile( configFile ).set( neo4j_home, testDirectory.homePath() ).build();
+                Config.newBuilder().fromFile( configFile ).set( ongdb_home, testDirectory.homePath() ).build();
         ConfigUtils.disableAllConnectors( testConf );
 
         // then
@@ -207,7 +207,7 @@ class ConfigLoaderTest
         // when
         Config config = Config.newBuilder()
                 .fromFile( file )
-                .set( neo4j_home, testDirectory.homePath() )
+                .set( ongdb_home, testDirectory.homePath() )
                 .build();
 
         // then
@@ -226,7 +226,7 @@ class ConfigLoaderTest
 
         // when
         Config config =
-                Config.newBuilder().fromFile( configFile ).set( neo4j_home, testDirectory.homePath() ).build();
+                Config.newBuilder().fromFile( configFile ).set( ongdb_home, testDirectory.homePath() ).build();
 
         // then
         List<ThirdPartyJaxRsPackage> thirdpartyJaxRsPackages = config.get( ServerSettings.third_party_packages );
@@ -245,7 +245,7 @@ class ConfigLoaderTest
 
         // When
         assertThrows( IllegalArgumentException.class, () -> Config.newBuilder().fromFile( nonExistentConfigFile )
-                .set( neo4j_home, testDirectory.homePath() ).build() );
+                .set( ongdb_home, testDirectory.homePath() ).build() );
    }
 
     @Test
@@ -255,7 +255,7 @@ class ConfigLoaderTest
         Path nonExistentConfigFile = Path.of( "/tmp/" + System.currentTimeMillis() );
 
         // When
-        Config config = Config.newBuilder().fromFileNoThrow( nonExistentConfigFile ).set( neo4j_home,
+        Config config = Config.newBuilder().fromFileNoThrow( nonExistentConfigFile ).set( ongdb_home,
                 testDirectory.homePath() ).build();
 
         // Then
@@ -267,7 +267,7 @@ class ConfigLoaderTest
     {
         Path configFile = ConfigFileBuilder.builder( testDirectory.homePath() ).withoutSetting( GraphDatabaseSettings.data_directory ).build();
         Config config =
-                Config.newBuilder().fromFile( configFile ).set( neo4j_home, testDirectory.homePath() ).build();
+                Config.newBuilder().fromFile( configFile ).set( ongdb_home, testDirectory.homePath() ).build();
 
         assertThat( config.get( GraphDatabaseInternalSettings.auth_store_directory ) ).isEqualTo(
                 testDirectory.homePath().resolve( "data" ).resolve( "dbms" ).toAbsolutePath() );
@@ -278,7 +278,7 @@ class ConfigLoaderTest
     {
         Path configFile = ConfigFileBuilder.builder( testDirectory.homePath() ).withSetting( GraphDatabaseSettings.data_directory, "the-data-dir" ).build();
         Config config =
-                Config.newBuilder().fromFile( configFile ).set( neo4j_home, testDirectory.homePath() ).build();
+                Config.newBuilder().fromFile( configFile ).set( ongdb_home, testDirectory.homePath() ).build();
 
         assertThat( config.get( GraphDatabaseInternalSettings.auth_store_directory ) ).isEqualTo(
                 testDirectory.homePath().resolve( "the-data-dir" ).resolve( "dbms" ).toAbsolutePath() );

@@ -80,7 +80,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 import static org.neo4j.configuration.GraphDatabaseSettings.SYSTEM_DATABASE_NAME;
-import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 import static org.neo4j.configuration.GraphDatabaseSettings.preallocate_logical_logs;
 
 @TestDirectoryExtension
@@ -113,9 +113,9 @@ class DatabaseManagementServiceFactoryIT
         void reportCorrectDatabaseNames()
         {
             GraphDatabaseService system = managementService.database( SYSTEM_DATABASE_NAME );
-            GraphDatabaseService neo4j = managementService.database( DEFAULT_DATABASE_NAME );
+            GraphDatabaseService ongdb = managementService.database( DEFAULT_DATABASE_NAME );
             assertEquals( SYSTEM_DATABASE_NAME, system.databaseName() );
-            assertEquals( DEFAULT_DATABASE_NAME, neo4j.databaseName() );
+            assertEquals( DEFAULT_DATABASE_NAME, ongdb.databaseName() );
         }
 
         @Test
@@ -162,7 +162,7 @@ class DatabaseManagementServiceFactoryIT
             DatabaseManagementServiceFactory databaseManagementServiceFactory =
                     new DatabaseManagementServiceFactory( DbmsInfo.COMMUNITY, CommunityEditionModule::new );
             Config cfg = Config.newBuilder()
-                               .set( neo4j_home, testDirectory.absolutePath() )
+                               .set( ongdb_home, testDirectory.absolutePath() )
                                .set( preallocate_logical_logs, false )
                                .build();
             return databaseManagementServiceFactory.build( cfg, GraphDatabaseDependencies.newDependencies() );
@@ -198,7 +198,7 @@ class DatabaseManagementServiceFactoryIT
 
             assertTrue( Files.isDirectory( testDirectory.directory( "certificates", "certificates", "https" ) ) );
             Config cfg = Config.newBuilder()
-                               .set( neo4j_home, testDirectory.homePath().toAbsolutePath() )
+                               .set( ongdb_home, testDirectory.homePath().toAbsolutePath() )
                                .set( preallocate_logical_logs, false )
                                .set( settings )
                                .build();

@@ -1271,7 +1271,7 @@
   },
   {
     "name": "db.schemaStatements",
-    "description": "List all statements for creating and dropping existing indexes and constraints. Note that only index types introduced before Neo4j 4.3 are included.",
+    "description": "List all statements for creating and dropping existing indexes and constraints. Note that only index types introduced before ONgDB 2.0 are included.",
     "mode": "READ",
     "worksOnSystem": true,
     "signature": "db.schemaStatements() :: (name :: STRING?, type :: STRING?, createStatement :: STRING?, dropStatement :: STRING?)",
@@ -1770,7 +1770,7 @@
   },
   {
     "name": "dbms.database.state",
-    "description": "The actual status of the database with the provided name on this neo4j instance.",
+    "description": "The actual status of the database with the provided name on this ONgDB instance.",
     "mode": "DBMS",
     "worksOnSystem": true,
     "signature": "dbms.database.state(databaseName :: STRING?) :: (role :: STRING?, address :: STRING?, status :: STRING?, error :: STRING?)",
@@ -2245,7 +2245,7 @@
   },
   {
     "name": "dbms.listConfig",
-    "description": "List the currently active config of Neo4j.",
+    "description": "List the currently active config of ONgDB.",
     "mode": "DBMS",
     "worksOnSystem": true,
     "signature": "dbms.listConfig(searchString =  :: STRING?) :: (name :: STRING?, description :: STRING?, value :: STRING?, dynamic :: BOOLEAN?)",

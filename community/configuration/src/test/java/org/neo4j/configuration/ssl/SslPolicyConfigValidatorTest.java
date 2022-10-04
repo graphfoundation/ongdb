@@ -79,7 +79,7 @@ class SslPolicyConfigValidatorTest
 
         Path homeDir = testDirectory.directory( "home" );
         Config config = Config.newBuilder()
-                .set( GraphDatabaseSettings.neo4j_home, homeDir.toAbsolutePath() )
+                .set( GraphDatabaseSettings.ongdb_home, homeDir.toAbsolutePath() )
                 .set( policyConfig.base_directory, Path.of( "certificates/testing" ) )
                 .build();
 
@@ -122,7 +122,7 @@ class SslPolicyConfigValidatorTest
 
         Path homeDir = testDirectory.directory( "home" );
 
-        builder.set( GraphDatabaseSettings.neo4j_home, homeDir.toAbsolutePath() );
+        builder.set( GraphDatabaseSettings.ongdb_home, homeDir.toAbsolutePath() );
         builder.set( policyConfig.base_directory, Path.of( "certificates/testing" ) );
 
         Path privateKey = testDirectory.directory( "path/to/my.key" );

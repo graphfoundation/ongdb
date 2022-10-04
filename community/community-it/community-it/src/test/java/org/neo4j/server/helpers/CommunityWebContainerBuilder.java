@@ -186,7 +186,7 @@ public class CommunityWebContainerBuilder
         properties.put( HttpsConnector.enabled.name(), String.valueOf( httpsEnabled ) );
         properties.put( HttpsConnector.listen_address.name(), httpsAddress.toString() );
 
-        properties.put( GraphDatabaseSettings.neo4j_home.name(), temporaryFolder.toAbsolutePath().toString() );
+        properties.put( GraphDatabaseSettings.ongdb_home.name(), temporaryFolder.toAbsolutePath().toString() );
 
         properties.put( GraphDatabaseSettings.auth_enabled.name(), FALSE );
 

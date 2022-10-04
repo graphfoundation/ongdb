@@ -87,7 +87,7 @@ class DiagnosticsReportCommandTest
                         "      --force             Ignore disk full warning%n" +
                         "      --to=<path>         Destination directory for reports. Defaults to a%n" +
                         "                            system tmp directory.%n" +
-                        "      --pid=<pid>         Specify process id of running neo4j instance"
+                        "      --pid=<pid>         Specify process id of running ongdb instance"
         ) );
     }
 }

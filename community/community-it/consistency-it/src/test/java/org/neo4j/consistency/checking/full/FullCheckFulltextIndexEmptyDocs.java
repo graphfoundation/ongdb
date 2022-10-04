@@ -67,7 +67,7 @@ import org.neo4j.time.Clocks;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.configuration.GraphDatabaseSettings.allow_upgrade;
 import static org.neo4j.configuration.GraphDatabaseSettings.memory_tracking;
-import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 import static org.neo4j.consistency.checking.full.ConsistencyFlags.DEFAULT;
 import static org.neo4j.internal.helpers.progress.ProgressMonitorFactory.NONE;
 import static org.neo4j.io.pagecache.tracing.PageCacheTracer.NULL;
@@ -92,7 +92,7 @@ public class FullCheckFulltextIndexEmptyDocs
     {
         Config config = Config.newBuilder()
                 .set( allow_upgrade, true )
-                .set( neo4j_home, testDirectory.homePath() ).build();
+                .set( ongdb_home, testDirectory.homePath() ).build();
 
         DatabaseManagementService managementService = startUp42Db( config );
         GraphDatabaseAPI db = (GraphDatabaseAPI) managementService.database( GraphDatabaseSettings.DEFAULT_DATABASE_NAME );

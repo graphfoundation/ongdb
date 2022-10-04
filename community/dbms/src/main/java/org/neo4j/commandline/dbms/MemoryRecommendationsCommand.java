@@ -254,9 +254,9 @@ public class MemoryRecommendationsCommand extends AbstractCommand
         long pageCacheSize = pageCacheSize( layouts );
         long luceneSize = luceneSize( layouts );
 
-        print( "# Memory settings recommendation from neo4j-admin memrec:" );
+        print( "# Memory settings recommendation from ongdb-admin memrec:" );
         print( "#" );
-        print( "# Assuming the system is dedicated to running Neo4j and has " + ByteUnit.bytesToString( memory ) + " of memory," );
+        print( "# Assuming the system is dedicated to running ONgDB and has " + ByteUnit.bytesToString( memory ) + " of memory," );
         print( "# we recommend a heap size of around " + heap + ", and a page cache of around " + pagecache + "," );
         print( "# and that about " + os + " is left for the operating system, and the native memory" );
         print( "# needed by Lucene and Netty." );
@@ -310,7 +310,7 @@ public class MemoryRecommendationsCommand extends AbstractCommand
         {
             var nameWithFixedUnderscores = setting.name().replaceAll( "_", "__" );
             var nameWithFixedUnderscoresAndDots = nameWithFixedUnderscores.replaceAll( "\\.", "_" );
-            print( "NEO4J_" + nameWithFixedUnderscoresAndDots + "='" + value + "'" );
+            print( "ONGDB_" + nameWithFixedUnderscoresAndDots + "='" + value + "'" );
         }
     }
 
@@ -425,7 +425,7 @@ public class MemoryRecommendationsCommand extends AbstractCommand
         }
         Config config = Config.newBuilder()
                               .fromFile( configFile )
-                              .set( GraphDatabaseSettings.neo4j_home, ctx.homeDir().toAbsolutePath() )
+                              .set( GraphDatabaseSettings.ongdb_home, ctx.homeDir().toAbsolutePath() )
                               .commandExpansion( allowCommandExpansion )
                               .build();
         ConfigUtils.disableAllConnectors( config );

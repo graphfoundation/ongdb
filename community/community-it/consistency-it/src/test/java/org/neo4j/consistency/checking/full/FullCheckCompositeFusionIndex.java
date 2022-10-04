@@ -78,14 +78,14 @@ public class FullCheckCompositeFusionIndex
         DatabaseManagementService managementService = new TestDatabaseManagementServiceBuilder()
                 .setDatabaseRootDirectory( dir.homePath() )
                 .build();
-        GraphDatabaseService neo4j = managementService.database( "neo4j" );
+        GraphDatabaseService ongdb = managementService.database( "ongdb" );
 
-        try ( Transaction tx = neo4j.beginTx() )
+        try ( Transaction tx = ongdb.beginTx() )
         {
             tx.execute( "CREATE INDEX fusionIndex FOR (n:myLabel) ON (n.prop1, n.prop2) OPTIONS {indexProvider:'lucene+native-3.0'}" );
             tx.commit();
         }
-        try ( Transaction tx = neo4j.beginTx() )
+        try ( Transaction tx = ongdb.beginTx() )
         {
             tx.schema().awaitIndexesOnline( 5, TimeUnit.MINUTES );
             Node node = tx.createNode( myLabel );
@@ -103,7 +103,7 @@ public class FullCheckCompositeFusionIndex
     private ConsistencyCheckService.Result runFullConsistencyCheck( Path path )
             throws ConsistencyCheckIncompleteException
     {
-        var config = Config.newBuilder().set( GraphDatabaseSettings.neo4j_home, path ).build();
+        var config = Config.newBuilder().set( GraphDatabaseSettings.ongdb_home, path ).build();
 
         ConsistencyCheckService checkService = new ConsistencyCheckService();
         return checkService.runFullConsistencyCheck( Neo4jLayout.of( config ).databaseLayout( "neo4j" ),

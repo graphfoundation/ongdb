@@ -129,7 +129,7 @@ public class JUnitRuleTestIT
         // When I run this test
 
         // Then
-        HTTP.Response response = HTTP.POST( neo4j.httpURI() + "db/neo4j/tx/commit",
+        HTTP.Response response = HTTP.POST( neo4j.httpURI() + "db/ongdb/tx/commit",
                 quotedJson( "{'statements':[{'statement':'MATCH (n:User) RETURN n'}]}" ) );
 
         assertThat( response.get( "results" ).get( 0 ).get( "data" ).size() ).isEqualTo( 2 );
@@ -155,7 +155,7 @@ public class JUnitRuleTestIT
     @Test
     public void shouldRuleWorkWithExistingDirectory() throws Throwable
     {
-        // given a root folder, create /databases/neo4j folders.
+        // given a root folder, create /databases/ongdb folders.
         Path oldLayout = folder.newFolder( "old").toPath();
         DatabaseManagementService managementService = new TestDatabaseManagementServiceBuilder( oldLayout ).build();
         GraphDatabaseService db = managementService.database( DEFAULT_DATABASE_NAME );
@@ -202,7 +202,7 @@ public class JUnitRuleTestIT
     {
         String currentOffset = currentTimeZoneOffsetString();
 
-        assertThat( contentOf( "neo4j.log" ) ).contains( currentOffset );
+        assertThat( contentOf( "ongdb.log" ) ).contains( currentOffset );
         assertThat( contentOf( "debug.log" ) ).contains( currentOffset );
         success = true;
     }
@@ -211,7 +211,7 @@ public class JUnitRuleTestIT
     {
         GraphDatabaseAPI api = (GraphDatabaseAPI) neo4j.defaultDatabaseService();
         Config config = api.getDependencyResolver().resolveDependency( Config.class );
-        Path homeDir = config.get( GraphDatabaseSettings.neo4j_home );
+        Path homeDir = config.get( GraphDatabaseSettings.ongdb_home );
         return Files.readString( homeDir.resolve( file ) );
     }
 

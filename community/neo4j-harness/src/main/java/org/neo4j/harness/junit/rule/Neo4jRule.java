@@ -63,10 +63,10 @@ import org.neo4j.procedure.UserAggregationFunction;
 import org.neo4j.procedure.UserFunction;
 
 /**
- * Community Neo4j JUnit {@link org.junit.Rule rule}.
- * Allows easily start neo4j instance for testing purposes with various user-provided options and configurations.
+ * Community ONgDB JUnit {@link org.junit.Rule rule}.
+ * Allows easily start ongdb instance for testing purposes with various user-provided options and configurations.
  * <p>
- * By default it will try to start neo4j with embedded web server on random ports. Therefore it is necessary
+ * By default it will try to start ONgDB with embedded web server on random ports. Therefore it is necessary
  * for the test code to use {@link #httpURI()} and then {@link java.net.URI#resolve(String)} to create the URIs to be invoked.
  * <p>
  * In case if starting embedded web server is not desirable it can be fully disabled by using {@link #withDisabledServer()} configuration option.
@@ -131,7 +131,7 @@ public class Neo4jRule implements TestRule
     }
 
     /**
-     * Configure the Neo4j instance. Configuration here can be both configuration aimed at the server as well as the
+     * Configure the ONgDB instance. Configuration here can be both configuration aimed at the server as well as the
      * database tuning options. Please refer to the Neo4j Manual for details on available configuration options.
      *
      * @param key the config key
@@ -173,7 +173,7 @@ public class Neo4jRule implements TestRule
     }
 
     /**
-     * Enhance Neo4j instance with provided extensions.
+     * Enhance ONgDB instance with provided extensions.
      * Please refer to the Neo4j Manual for details on extensions, how to write and use them.
      * @param extensionFactories extension factories
      * @return this configurator instance
@@ -185,7 +185,7 @@ public class Neo4jRule implements TestRule
     }
 
     /**
-     * Disable web server on configured Neo4j instance.
+     * Disable web server on configured ONgDB instance.
      * For cases where web server is not required to test specific functionality it can be fully disabled using this tuning option.
      * @return this configurator instance.
      */
@@ -245,7 +245,7 @@ public class Neo4jRule implements TestRule
 
     /**
      * Pre-populate the server with databases copied from the specified source directory.
-     * The source directory needs to have sub-folders `databases/neo4j` in which the source store files are located.
+     * The source directory needs to have sub-folders `databases/ongdb` in which the source store files are located.
      * @param sourceDirectory the directory to copy from
      * @return this configurator instance
      * @deprecated Use {@link #copyFrom(Path)}.
@@ -259,7 +259,7 @@ public class Neo4jRule implements TestRule
 
     /**
      * Pre-populate the server with databases copied from the specified source directory.
-     * The source directory needs to have sub-folders `databases/neo4j` in which the source store files are located.
+     * The source directory needs to have sub-folders `databases/ongdb` in which the source store files are located.
      * @param sourceDirectory the directory to copy from
      * @return this configurator instance
      */
@@ -401,7 +401,7 @@ public class Neo4jRule implements TestRule
     {
         if ( neo4j == null )
         {
-            throw new IllegalStateException( "Cannot access Neo4j before or after the test runs." );
+            throw new IllegalStateException( "Cannot access ONgDB before or after the test runs." );
         }
     }
 }

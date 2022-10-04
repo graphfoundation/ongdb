@@ -88,7 +88,7 @@ class CommunityTransactionCommandAcceptanceTest extends ExecutionEngineFunSuite 
 
       // THEN
       result should have size 1
-      assertCorrectDefaultMap(result.head, "neo4j-transaction-", "", "SHOW TRANSACTIONS")
+      assertCorrectDefaultMap(result.head, "ongdb-transaction-", "", "SHOW TRANSACTIONS")
     }
   }
 
@@ -109,8 +109,8 @@ class CommunityTransactionCommandAcceptanceTest extends ExecutionEngineFunSuite 
     // THEN
     result should have size 2
     val sortedRes = result.sortBy(m => m("transactionId").asInstanceOf[String]) // To get stable order to assert correct result
-    assertCorrectDefaultMap(sortedRes.head, "neo4j-transaction-", username, unwindQuery)
-    assertCorrectDefaultMap(sortedRes(1), "neo4j-transaction-", "", "SHOW TRANSACTIONS")
+    assertCorrectDefaultMap(sortedRes.head, "ongdb-transaction-", username, unwindQuery)
+    assertCorrectDefaultMap(sortedRes(1), "ongdb-transaction-", "", "SHOW TRANSACTIONS")
   }
 
   test("Should show system transactions") {
@@ -130,7 +130,7 @@ class CommunityTransactionCommandAcceptanceTest extends ExecutionEngineFunSuite 
     // THEN
     result should have size 2
     val sortedRes = result.sortBy(m => m("transactionId").asInstanceOf[String]) // To get stable order to assert correct result
-    assertCorrectDefaultMap(sortedRes.head, "neo4j-transaction-", "", "SHOW TRANSACTIONS")
+    assertCorrectDefaultMap(sortedRes.head, "ongdb-transaction-", "", "SHOW TRANSACTIONS")
     assertCorrectDefaultMap(sortedRes(1), "system-transaction-", username, "SHOW DATABASES", database = SYSTEM_DATABASE_NAME)
   }
 
@@ -210,7 +210,7 @@ class CommunityTransactionCommandAcceptanceTest extends ExecutionEngineFunSuite 
     // THEN
     result should have size 2
     val sortedRes = result.sortBy(m => m("transactionId").asInstanceOf[String]) // To get stable order to assert correct result
-    assertCorrectDefaultMap(sortedRes.head, "neo4j-transaction-", username, unwindQuery)
+    assertCorrectDefaultMap(sortedRes.head, "ongdb-transaction-", username, unwindQuery)
     assertCorrectDefaultMap(sortedRes(1), "system-transaction-", "", "SHOW TRANSACTIONS", database = SYSTEM_DATABASE_NAME)
   }
 
@@ -292,10 +292,10 @@ class CommunityTransactionCommandAcceptanceTest extends ExecutionEngineFunSuite 
     // THEN
     result should have size 4
     val sortedRes = result.sortBy(m => m("currentQuery").asInstanceOf[String]) // To get stable order to assert correct result
-    assertCorrectDefaultMap(sortedRes.head, "neo4j-transaction-", username2, user2Query1)
+    assertCorrectDefaultMap(sortedRes.head, "ongdb-transaction-", username2, user2Query1)
     assertCorrectDefaultMap(sortedRes(1), "system-transaction-", username2, user2Query2, database = SYSTEM_DATABASE_NAME)
-    assertCorrectDefaultMap(sortedRes(2), "neo4j-transaction-", showUser, "SHOW TRANSACTIONS")
-    assertCorrectDefaultMap(sortedRes(3), "neo4j-transaction-", username, user1Query)
+    assertCorrectDefaultMap(sortedRes(2), "ongdb-transaction-", showUser, "SHOW TRANSACTIONS")
+    assertCorrectDefaultMap(sortedRes(3), "ongdb-transaction-", username, user1Query)
   }
 
   // yield/where/return tests
@@ -312,7 +312,7 @@ class CommunityTransactionCommandAcceptanceTest extends ExecutionEngineFunSuite 
 
     // THEN
     result should have size 1
-    assertCorrectDefaultMap(result.head, "neo4j-transaction-", username2, user2Query)
+    assertCorrectDefaultMap(result.head, "ongdb-transaction-", username2, user2Query)
   }
 
   test("Should show given transactions with WHERE") {
@@ -329,7 +329,7 @@ class CommunityTransactionCommandAcceptanceTest extends ExecutionEngineFunSuite 
 
     // THEN
     result should have size 1
-    assertCorrectDefaultMap(result.head, "neo4j-transaction-", username2, user2Query)
+    assertCorrectDefaultMap(result.head, "ongdb-transaction-", username2, user2Query)
   }
 
   test("Should show given transactions filtered with WHERE on transactionId") {
@@ -369,7 +369,7 @@ class CommunityTransactionCommandAcceptanceTest extends ExecutionEngineFunSuite 
 
       // THEN
       result should have size 1
-      assertCorrectFullMap(result.head, "neo4j-transaction-", "", "SHOW TRANSACTIONS YIELD *")
+      assertCorrectFullMap(result.head, "ongdb-transaction-", "", "SHOW TRANSACTIONS YIELD *")
     }
   }
 
@@ -391,7 +391,7 @@ class CommunityTransactionCommandAcceptanceTest extends ExecutionEngineFunSuite 
     // THEN
     result should have size 2
     val sortedRes = result.sortBy(m => m("transactionId").asInstanceOf[String]) // To get stable order to assert correct result
-    assertCorrectFullMap(sortedRes.head, "neo4j-transaction-", "", "SHOW TRANSACTIONS YIELD *")
+    assertCorrectFullMap(sortedRes.head, "ongdb-transaction-", "", "SHOW TRANSACTIONS YIELD *")
     assertCorrectFullMap(sortedRes(1), "system-transaction-", username, userQuery, database = SYSTEM_DATABASE_NAME, planner = "administration", runtime = "system")
   }
 
@@ -424,7 +424,7 @@ class CommunityTransactionCommandAcceptanceTest extends ExecutionEngineFunSuite 
     latch.startAndWaitForAllToStart()
     val unwindId = getTransactionIdExecutingQuery(unwindQuery)
     val showIdNumber = unwindId.split("-")(2).toInt + 2
-    val showId = s"neo4j-transaction-$showIdNumber"
+    val showId = s"ongdb-transaction-$showIdNumber"
 
     // WHEN
     val showQuery = "SHOW TRANSACTIONS YIELD transactionId, currentQuery, runtime"
@@ -470,7 +470,7 @@ class CommunityTransactionCommandAcceptanceTest extends ExecutionEngineFunSuite 
     latch.startAndWaitForAllToStart()
     val unwindId = getTransactionIdExecutingQuery(unwindQuery)
     val showIdNumber = unwindId.split("-")(2).toInt + 2
-    val showId = s"neo4j-transaction-$showIdNumber"
+    val showId = s"ongdb-transaction-$showIdNumber"
 
     // WHEN
     val res = execute("SHOW TRANSACTIONS YIELD transactionId, runtime ORDER BY transactionId ASC").toList
@@ -494,7 +494,7 @@ class CommunityTransactionCommandAcceptanceTest extends ExecutionEngineFunSuite 
     latch.startAndWaitForAllToStart()
     val unwindId = getTransactionIdExecutingQuery(unwindQuery)
     val showIdNumber = unwindId.split("-")(2).toInt + 2
-    val showId = s"neo4j-transaction-$showIdNumber"
+    val showId = s"ongdb-transaction-$showIdNumber"
 
     // WHEN
     val res = execute("SHOW TRANSACTIONS YIELD transactionId, runtime ORDER BY transactionId DESC").toList
@@ -610,7 +610,7 @@ class CommunityTransactionCommandAcceptanceTest extends ExecutionEngineFunSuite 
     latch.startAndWaitForAllToStart()
     val unwindId = getTransactionIdExecutingQuery(unwindQuery)
     val showIdNumber = unwindId.split("-")(2).toInt + 2
-    val showId = s"neo4j-transaction-$showIdNumber"
+    val showId = s"ongdb-transaction-$showIdNumber"
 
     // WHEN (WHERE to remove random system transactions from parallel tests/set-up)
     selectDatabase(DEFAULT_DATABASE_NAME)
@@ -638,7 +638,7 @@ class CommunityTransactionCommandAcceptanceTest extends ExecutionEngineFunSuite 
     latch.startAndWaitForAllToStart()
     val unwindId = getTransactionIdExecutingQuery(unwindQuery)
     val showIdNumber = unwindId.split("-")(2).toInt + 2
-    val showId = s"neo4j-transaction-$showIdNumber"
+    val showId = s"ongdb-transaction-$showIdNumber"
 
     // WHEN (WHERE to remove random system transactions from parallel tests/set-up)
     val result = execute(s"SHOW TRANSACTIONS YIELD * ORDER BY transactionId WHERE database <> '$SYSTEM_DATABASE_NAME' RETURN collect(transactionId) AS txIds")
@@ -739,11 +739,11 @@ class CommunityTransactionCommandAcceptanceTest extends ExecutionEngineFunSuite 
   }
 
   test("Should fail when terminating the current transaction") {
-    // The first transaction gets id 'neo4j-transaction-3' so that should be the terminate command in this case
+    // The first transaction gets id 'ongdb-transaction-3' so that should be the terminate command in this case
 
     // WHEN
     val exception = the[TransientTransactionFailureException] thrownBy {
-      execute("TERMINATE TRANSACTIONS 'neo4j-transaction-3'").toList
+      execute("TERMINATE TRANSACTIONS 'ongdb-transaction-3'").toList
     }
 
     // THEN
@@ -960,8 +960,8 @@ class CommunityTransactionCommandAcceptanceTest extends ExecutionEngineFunSuite 
     resultMap("idleTime").isInstanceOf[DurationValue] should be(true)
   }
 
-  /* Sets up one query for _username_ on neo4j.
-   * Sets up one query for _username2_ on neo4j.
+  /* Sets up one query for _username_ on ongdb.
+   * Sets up one query for _username2_ on ongdb.
    *
    * Returns the two queries.
    */

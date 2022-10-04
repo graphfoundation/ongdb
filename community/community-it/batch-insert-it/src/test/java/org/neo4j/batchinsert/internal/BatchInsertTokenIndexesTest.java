@@ -75,7 +75,7 @@ import org.neo4j.test.utils.TestDirectory;
 import static java.util.Collections.emptyMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
-import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 import static org.neo4j.configuration.GraphDatabaseSettings.preallocate_logical_logs;
 import static org.neo4j.internal.kernel.api.IndexQueryConstraints.unconstrained;
 import static org.neo4j.internal.schema.IndexPrototype.forSchema;
@@ -176,7 +176,7 @@ public class BatchInsertTokenIndexesTest
     {
 
         return Config.newBuilder()
-                     .set( neo4j_home, testDirectory.absolutePath() )
+                     .set( ongdb_home, testDirectory.absolutePath() )
                      .set( preallocate_logical_logs, false )
                      .build();
     }

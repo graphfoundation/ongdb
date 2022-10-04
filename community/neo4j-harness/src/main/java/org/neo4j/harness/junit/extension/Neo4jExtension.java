@@ -107,9 +107,9 @@ import org.neo4j.harness.internal.InProcessNeo4j;
 @PublicApi
 public class Neo4jExtension implements BeforeAllCallback, AfterAllCallback, BeforeEachCallback, AfterEachCallback, ParameterResolver
 {
-    private static final String NEO4J_NAMESPACE = "neo4j-extension";
+    private static final String ONGDB_NAMESPACE = "ongdb-extension";
     private static final String PER_METHOD_KEY = "perMethod";
-    private static final Namespace NAMESPACE = Namespace.create( NEO4J_NAMESPACE );
+    private static final Namespace NAMESPACE = Namespace.create( ONGDB_NAMESPACE );
 
     private final Neo4jBuilder builder;
 

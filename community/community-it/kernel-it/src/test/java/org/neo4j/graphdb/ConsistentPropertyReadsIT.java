@@ -52,7 +52,7 @@ import org.neo4j.test.extension.Inject;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Test for how properties are read and that they should be read consistently, i.e. adhere to neo4j's
+ * Test for how properties are read and that they should be read consistently, i.e. adhere to ongdb's
  * interpretation of the ACID guarantees.
  */
 @ImpermanentDbmsExtension

@@ -174,7 +174,7 @@ class CypherShellTest
         when( mockedBoltStateHandler.isConnected() ).thenReturn( false );
 
         CommandException exception = assertThrows( CommandException.class, () -> shell.execute( "RETURN 999" ) );
-        assertThat( exception.getMessage(), containsString( "Not connected to Neo4j" ) );
+        assertThat( exception.getMessage(), containsString( "Not connected to ONgDB" ) );
     }
 
     @Test

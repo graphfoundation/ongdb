@@ -82,7 +82,7 @@ public class AbstractRestFunctionalTestBase extends SharedWebContainerTestBase i
 
     private static String defaultDatabaseUri()
     {
-        return databaseUri( "neo4j" );
+        return databaseUri( "ongdb" );
     }
 
     private static String databaseUri( String databaseName )

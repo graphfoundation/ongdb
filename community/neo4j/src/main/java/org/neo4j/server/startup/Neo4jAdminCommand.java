@@ -56,8 +56,8 @@ import org.neo4j.util.VisibleForTesting;
 import static org.neo4j.server.startup.Bootloader.ARG_EXPAND_COMMANDS;
 
 @CommandLine.Command(
-        name = "Neo4j Admin",
-        description = "Neo4j Admin CLI."
+        name = "ONgDB Admin",
+        description = "ONgDB Admin CLI."
 )
 class Neo4jAdminCommand extends BootloaderCommand implements Callable<Integer>, VerboseCommand
 {

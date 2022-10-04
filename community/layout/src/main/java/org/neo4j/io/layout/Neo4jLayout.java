@@ -109,12 +109,12 @@ public final class Neo4jLayout
 
     public static Neo4jLayout of( Path homeDirectory )
     {
-        return of( Config.defaults( GraphDatabaseSettings.neo4j_home, FileUtils.getCanonicalFile( homeDirectory ).toAbsolutePath() ) );
+        return of( Config.defaults( GraphDatabaseSettings.ongdb_home, FileUtils.getCanonicalFile( homeDirectory ).toAbsolutePath() ) );
     }
 
     public static Neo4jLayout of( Config config )
     {
-        var homeDirectory = config.get( GraphDatabaseSettings.neo4j_home );
+        var homeDirectory = config.get( GraphDatabaseSettings.ongdb_home );
         var dataDirectory = config.get( GraphDatabaseSettings.data_directory );
         var databasesRootDirectory = config.get( GraphDatabaseInternalSettings.databases_root_path );
         var txLogsRootDirectory = config.get( GraphDatabaseSettings.transaction_logs_root_path );
@@ -126,7 +126,7 @@ public final class Neo4jLayout
     {
         var home = homeDirectory.toAbsolutePath();
         var config = Config.newBuilder()
-                .set( GraphDatabaseSettings.neo4j_home, home )
+                .set( GraphDatabaseSettings.ongdb_home, home )
                 .set( GraphDatabaseSettings.data_directory, home )
                 .set( GraphDatabaseSettings.transaction_logs_root_path, home )
                 .set( GraphDatabaseInternalSettings.databases_root_path, home )

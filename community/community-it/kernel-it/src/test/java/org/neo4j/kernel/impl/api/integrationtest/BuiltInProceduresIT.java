@@ -239,7 +239,7 @@ class BuiltInProceduresIT extends CommunityProcedureITBase
 
         // Then
         assertThat( asList( stream ) ).containsExactly(
-                new AnyValue[]{stringValue( "Neo4j Kernel" ), VirtualValues.list( stringValue( Version.getNeo4jVersion() ) ), stringValue( "community" )} );
+                new AnyValue[]{stringValue( "ONgDB Kernel" ), VirtualValues.list( stringValue( Version.getONgDBVersion() ) ), stringValue( "community" )} );
 
         commit();
     }

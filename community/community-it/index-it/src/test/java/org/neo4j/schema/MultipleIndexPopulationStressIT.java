@@ -106,7 +106,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.neo4j.configuration.GraphDatabaseInternalSettings.index_population_queue_threshold;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
-import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 import static org.neo4j.internal.batchimport.AdditionalInitialIds.EMPTY;
 import static org.neo4j.internal.batchimport.Configuration.DEFAULT;
 import static org.neo4j.internal.batchimport.ImportLogic.NO_MONITOR;
@@ -203,7 +203,7 @@ class MultipleIndexPopulationStressIT
         populateDbAndIndexes( nodeCount, relCount );
         ConsistencyCheckService cc = new ConsistencyCheckService();
         Config config = Config.newBuilder()
-                              .set( neo4j_home, directory.homePath() )
+                              .set( ongdb_home, directory.homePath() )
                               .set( GraphDatabaseSettings.pagecache_memory, "8m" )
                               .set( index_population_queue_threshold, concurrentUpdatesQueueFlushThreshold )
                               .build();
@@ -413,7 +413,7 @@ class MultipleIndexPopulationStressIT
 
     private void createRandomData( long nodeCount, long relCount ) throws Exception
     {
-        Config config = Config.defaults( neo4j_home, directory.homePath() );
+        Config config = Config.defaults( ongdb_home, directory.homePath() );
         RecordFormats recordFormats = RecordFormatSelector.selectForConfig( config, NullLogProvider.getInstance() );
         try ( RandomDataInput input = new RandomDataInput( nodeCount, relCount );
               JobScheduler jobScheduler = new ThreadPoolJobScheduler() )

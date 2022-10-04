@@ -85,7 +85,7 @@ public class ExclusiveWebContainerTestBase
 
     protected static String txEndpoint()
     {
-        return txEndpoint( "neo4j" );
+        return txEndpoint( "ongdb" );
     }
 
     private static String txEndpoint( String database )
@@ -95,7 +95,7 @@ public class ExclusiveWebContainerTestBase
 
     protected static String txCommitEndpoint()
     {
-        return txCommitEndpoint( "neo4j" );
+        return txCommitEndpoint( "ongdb" );
     }
 
     protected static String txCommitEndpoint( String database )

@@ -129,7 +129,7 @@ class JavaFunctionsTestIT
         try ( Neo4j server = createServer( functionClass ).build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/neo4j/tx/commit" ).toString(),
+            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/ongdb/tx/commit" ).toString(),
                     quotedJson(
                             "{ 'statements': [ { 'statement': 'RETURN org.neo4j.harness.myFunc() AS someNumber' } ] " +
                             "}" ) );
@@ -148,7 +148,7 @@ class JavaFunctionsTestIT
         try ( Neo4j server = createServer( MyFunctions.class ).build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/neo4j/tx/commit" ).toString(),
+            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/ongdb/tx/commit" ).toString(),
                     quotedJson(
                             "{ 'statements': [ { 'statement': 'RETURN org.neo4j.harness.funcThatThrows()' } ] }" ) );
 
@@ -164,7 +164,7 @@ class JavaFunctionsTestIT
         try ( Neo4j server = createServer( MyFunctionsUsingMyService.class ).build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/neo4j/tx/commit" ).toString(),
+            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/ongdb/tx/commit" ).toString(),
                     quotedJson( "{ 'statements': [ { 'statement': 'RETURN my.hello() AS result' } ] }" ) );
 
             assertEquals( "[]", response.get( "errors" ).toString() );
@@ -180,19 +180,19 @@ class JavaFunctionsTestIT
         // When
         try ( Neo4j server = createServer( MyFunctionsUsingMyCoreAPI.class ).build() )
         {
-            HTTP.POST( server.httpURI().resolve( "db/neo4j/tx/commit" ).toString(),
+            HTTP.POST( server.httpURI().resolve( "db/ongdb/tx/commit" ).toString(),
                     quotedJson( "{ 'statements': [ { 'statement': 'CREATE (), (), ()' } ] }" ) );
 
             // Then
             assertQueryGetsValue( server, "RETURN my.countNodes() AS value", 3L );
             assertQueryGetsError( server, "RETURN my.willFail() AS value",
-                                  createNodeWithLabelsDenied( "", "neo4j", overriddenMode( authDisabled( FULL.name() ), READ.name() ) ) );
+                                  createNodeWithLabelsDenied( "", "ongdb", overriddenMode( authDisabled( FULL.name() ), READ.name() ) ) );
         }
     }
 
     private static void assertQueryGetsValue( Neo4j server, String query, long value ) throws Throwable
     {
-        HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/neo4j/tx/commit" ).toString(),
+        HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/ongdb/tx/commit" ).toString(),
                 quotedJson( "{ 'statements': [ { 'statement': '" + query + "' } ] }" ) );
 
         assertEquals( "[]", response.get( "errors" ).toString() );
@@ -203,7 +203,7 @@ class JavaFunctionsTestIT
 
     private static void assertQueryGetsError( Neo4j server, String query, String error ) throws Throwable
     {
-        HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/neo4j/tx/commit" ).toString(),
+        HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/ongdb/tx/commit" ).toString(),
                 quotedJson( "{ 'statements': [ { 'statement': '" + query + "' } ] }" ) );
 
         assertThat( response.get( "errors" ).toString() ).contains( error );

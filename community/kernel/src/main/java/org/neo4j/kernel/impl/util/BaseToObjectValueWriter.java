@@ -76,7 +76,7 @@ import static org.neo4j.internal.helpers.collection.Iterators.iteratorsEqual;
  * <p>
  * This base class takes care of converting all "normal" java types such as
  * number types, booleans, strings, arrays and lists. It leaves to the extending
- * class to handle neo4j specific types such as nodes, edges and points.
+ * class to handle ongdb specific types such as nodes, edges and points.
  *
  * @param <E> the exception thrown on error.
  */

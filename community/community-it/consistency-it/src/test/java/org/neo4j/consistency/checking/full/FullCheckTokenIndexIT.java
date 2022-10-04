@@ -94,7 +94,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.configuration.GraphDatabaseSettings.allow_single_automatic_upgrade;
 import static org.neo4j.configuration.GraphDatabaseSettings.allow_upgrade;
-import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 import static org.neo4j.consistency.ConsistencyCheckService.defaultConsistencyCheckThreadsNumber;
 import static org.neo4j.memory.EmptyMemoryTracker.INSTANCE;
 
@@ -115,7 +115,7 @@ public class FullCheckTokenIndexIT
         config = Config.newBuilder()
                 .set( allow_single_automatic_upgrade, false )
                 .set( allow_upgrade, true )
-                .set( neo4j_home, testDirectory.homePath() ).build();
+                .set( ongdb_home, testDirectory.homePath() ).build();
     }
 
     @AfterEach

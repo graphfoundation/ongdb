@@ -74,7 +74,7 @@ public abstract class KernelProxy
         if ( !KERNEL_BEAN_TYPE.equals( className ) )
         {
             throw new IllegalArgumentException(
-                    "The specified ObjectName does not represent a ONgDB Kernel bean in the specified MBean server." );
+                    "The specified ObjectName does not represent an ONgDB Kernel bean in the specified MBean server." );
         }
         this.server = server;
         this.kernel = kernel;
@@ -220,7 +220,7 @@ public abstract class KernelProxy
                 return management.name();
             }
         }
-        throw new IllegalArgumentException( beanInterface + " is not a ONgDB Management Been interface" );
+        throw new IllegalArgumentException( beanInterface + " is not an ONgDB Management Been interface" );
     }
 
     private static ObjectName createObjectName( String domain, Hashtable<String, String> properties, String beanName,

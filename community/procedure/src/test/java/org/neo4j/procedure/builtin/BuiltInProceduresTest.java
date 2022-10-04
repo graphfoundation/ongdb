@@ -371,7 +371,7 @@ class BuiltInProceduresTest
     {
         // When/Then
         assertThat( call( "dbms.components" ) ).contains(
-                record( "Neo4j Kernel", singletonList( "1.3.37" ), "community" )
+                record( "ONgDB Kernel", singletonList( "1.3.37" ), "community" )
         );
     }
 

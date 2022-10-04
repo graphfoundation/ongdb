@@ -64,7 +64,7 @@ object SyntaxExceptionCreator {
   private def createException(exceptionFactory: CypherExceptionFactory, error: SemanticErrorDef): Exception = {
     val message = error match {
 
-      // In neo4j, disabled SemanticFeature.UseGraphSelector indicates that you are trying to run a Fabric query
+      // In ongdb, disabled SemanticFeature.UseGraphSelector indicates that you are trying to run a Fabric query
       case FeatureError(_, SemanticFeature.UseGraphSelector, _) =>
         "The USE clause is not available in embedded or http sessions. Try running the query using a Neo4j driver."
 

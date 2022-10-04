@@ -67,8 +67,8 @@ import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAM
 
 @Command(
         name = "push-to-cloud",
-        description = "Push your local database to a Neo4j Aura instance. The database must be shutdown in order to take a dump to upload. " +
-                      "The target location is your Neo4j Aura Bolt URI. You will be asked your Neo4j Cloud username and password during " +
+        description = "Push your local database to an ONgDB Aura instance. The database must be shutdown in order to take a dump to upload. " +
+                      "The target location is your ONgDB Aura Bolt URI. You will be asked your ONgDB Cloud username and password during " +
                       "the push-to-cloud operation."
 )
 
@@ -84,7 +84,7 @@ public class PushToCloudCommand extends AbstractCommand
             converter = Converters.DatabaseNameConverter.class )
     private NormalizedDatabaseName database;
     @Option( names = "--dump",
-            description = "'/path/to/my-neo4j-database-dump-file' Path to an existing database dump for upload. " +
+            description = "'/path/to/my-ongdb-database-dump-file' Path to an existing database dump for upload. " +
                           "This argument cannot be used together with --database." )
     private Path dump;
     @Option( names = {"--temp-file-location", "--dump-to"},
@@ -92,16 +92,16 @@ public class PushToCloudCommand extends AbstractCommand
                           "Used in combination with the --database argument." )
     private Path tmpDumpFile;
     @Option( names = "--bolt-uri", arity = "1", required = true,
-            description = "'neo4j://mydatabaseid.databases.neo4j.io' Bolt URI of target database" )
+            description = "'ongdb://mydatabaseid.databases.ongdb.io' Bolt URI of target database" )
     private String boltURI;
-    @Option( names = "--username", defaultValue = "${NEO4J_USERNAME}",
+    @Option( names = "--username", defaultValue = "${ONGDB_USERNAME}",
             description = "Optional: Username of the target database to push this database to. Prompt will ask for username if not provided. " +
-                          "Alternatively NEO4J_USERNAME environment variable can be used." )
+                          "Alternatively ONGDB_USERNAME environment variable can be used." )
     private String username;
 
-    @Option( names = "--password", defaultValue = "${NEO4J_PASSWORD}",
+    @Option( names = "--password", defaultValue = "${ONGDB_PASSWORD}",
             description = "Optional: Password of the target database to push this database to. Prompt will ask for password if not provided. " +
-                          "Alternatively NEO4J_PASSWORD environment variable can be used." )
+                          "Alternatively ONGDB_PASSWORD environment variable can be used." )
     private String password;
     @Option( names = "--overwrite", description = "Optional: Overwrite the data in the target database." )
     private boolean overwrite;
@@ -127,18 +127,18 @@ public class PushToCloudCommand extends AbstractCommand
             }
             if ( isBlank( username ) )
             {
-                if ( isBlank( username = cons.readLine( "%s", "Neo4j aura username (default: neo4j):" ) ) )
+                if ( isBlank( username = cons.readLine( "%s", "ONgDB aura username (default: ongdb):" ) ) )
                 {
-                    username = "neo4j";
+                    username = "ongdb";
                 }
             }
             char[] pass;
             if ( isBlank( password ) )
             {
-                if ( (pass = cons.readPassword( "Neo4j aura password for %s:", username )).length == 0 )
+                if ( (pass = cons.readPassword( "ONgDB aura password for %s:", username )).length == 0 )
                 {
                     throw new CommandFailedException(
-                            "Please supply a password, either by '--password' parameter, 'NEO4J_PASSWORD' environment variable, or prompt" );
+                            "Please supply a password, either by '--password' parameter, 'ONGDB_PASSWORD' environment variable, or prompt" );
                 }
             }
             else
@@ -188,7 +188,7 @@ public class PushToCloudCommand extends AbstractCommand
         //   bolt+routing://rogue.databases.neo4j.io  --> https://console.neo4j.io/v1/databases/rogue
         //   bolt+routing://rogue-mattias.databases.neo4j.io  --> https://console-mattias.neo4j.io/v1/databases/rogue
 
-        Pattern pattern = Pattern.compile( "(?:bolt(?:\\+routing)?|neo4j(?:\\+s|\\+ssc)?)://([^-]+)(-(.+))?.databases.neo4j.io$" );
+        Pattern pattern = Pattern.compile( "(?:bolt(?:\\+routing)?|ongdb(?:\\+s|\\+ssc)?)://([^-]+)(-(.+))?.databases.neo4j.io$" );
         Matcher matcher = pattern.matcher( boltURI );
         if ( !matcher.matches() )
         {
@@ -390,7 +390,7 @@ public class PushToCloudCommand extends AbstractCommand
         {
             return Config.newBuilder()
                          .fromFile( configFile )
-                         .set( GraphDatabaseSettings.neo4j_home, ctx.homeDir().toAbsolutePath() )
+                         .set( GraphDatabaseSettings.ongdb_home, ctx.homeDir().toAbsolutePath() )
                          .commandExpansion( allowCommandExpansion )
                          .build();
         }

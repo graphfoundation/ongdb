@@ -42,9 +42,9 @@ import org.neo4j.shell.cli.Encryption;
 
 public class ConnectionConfig
 {
-    public static final String USERNAME_ENV_VAR = "NEO4J_USERNAME";
-    public static final String PASSWORD_ENV_VAR = "NEO4J_PASSWORD";
-    public static final String DATABASE_ENV_VAR = "NEO4J_DATABASE";
+    public static final String USERNAME_ENV_VAR = "ONGDB_USERNAME";
+    public static final String PASSWORD_ENV_VAR = "ONGDB_PASSWORD";
+    public static final String DATABASE_ENV_VAR = "ONGDB_DATABASE";
 
     private final String scheme;
     private final String host;

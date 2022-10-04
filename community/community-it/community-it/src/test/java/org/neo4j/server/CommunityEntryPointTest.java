@@ -64,6 +64,6 @@ class CommunityEntryPointTest
         CommunityEntryPoint.main( new String[]{ "--version" } );
 
         // then
-        assertTrue( suppressOutput.getOutputVoice().containsMessage( "neo4j " + Version.getNeo4jVersion() ) );
+        assertTrue( suppressOutput.getOutputVoice().containsMessage( "ongdb " + Version.getONgDBVersion() ) );
     }
 }

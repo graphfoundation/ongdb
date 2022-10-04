@@ -11,7 +11,7 @@ if "%OS%"=="Windows_NT" setlocal
 set DIRNAME=%~dp0
 if "%DIRNAME%" == "" set DIRNAME=.
 set APP_BASE_NAME=%~n0
-set NEO4J_HOME=%DIRNAME%..
+set ONGDB_HOME=%DIRNAME%..
 
 @rem Add default JVM options here. You can also use JAVA_OPTS and CYPHER_SHELL_OPTS to pass JVM options to this script.
 set DEFAULT_JVM_OPTS=
@@ -71,7 +71,7 @@ set CMD_LINE_ARGS=%$
 
 SETLOCAL EnableDelayedExpansion
 SET CYPHER_SHELL_JAR=
-FOR /f "delims=" %%a in ('dir "%NEO4J_HOME%\cypher-shell.jar" /s/b') do set CYPHER_SHELL_JAR=!CYPHER_SHELL_JAR!%%a
+FOR /f "delims=" %%a in ('dir "%ONGDB_HOME%\cypher-shell.jar" /s/b') do set CYPHER_SHELL_JAR=!CYPHER_SHELL_JAR!%%a
 
 @rem Execute cypher-shell
 "%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %CYPHER_SHELL_OPTS%  -jar "%CYPHER_SHELL_JAR%" %CMD_LINE_ARGS%

@@ -53,7 +53,7 @@ import org.neo4j.test.server.ExclusiveWebContainerTestBase;
 import static java.net.http.HttpClient.Redirect.NEVER;
 import static java.net.http.HttpResponse.BodyHandlers.discarding;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.neo4j.server.AbstractNeoWebServer.NEO4J_IS_STARTING_MESSAGE;
+import static org.neo4j.server.AbstractNeoWebServer.ONGDB_IS_STARTING_MESSAGE;
 import static org.neo4j.server.helpers.WebContainerHelper.createNonPersistentContainer;
 
 class NeoWebServerStartupLoggingIT extends ExclusiveWebContainerTestBase
@@ -80,7 +80,7 @@ class NeoWebServerStartupLoggingIT extends ExclusiveWebContainerTestBase
         // Check the logs
         var logContent = out.toString();
         assertThat( logContent.length() ).isGreaterThan( 0 );
-        assertThat( logContent ).contains( NEO4J_IS_STARTING_MESSAGE );
+        assertThat( logContent ).contains( ONGDB_IS_STARTING_MESSAGE );
 
         // Check the server is alive
         var request = HttpRequest.newBuilder( webContainer.getBaseUri() ).GET().build();
