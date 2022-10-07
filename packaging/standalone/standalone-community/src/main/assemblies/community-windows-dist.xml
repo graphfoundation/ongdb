@@ -125,7 +125,6 @@
       <useProjectArtifact>false</useProjectArtifact>
       <useStrictFiltering>true</useStrictFiltering>
       <excludes>
-        <exclude>org.graphfoundation.ongdb:*</exclude>
         <exclude>org.apache.lucene:*</exclude>
         <exclude>org.scala-lang:*</exclude>
         <exclude>org.parboiled:*</exclude>

@@ -136,14 +136,9 @@
       <useProjectArtifact>false</useProjectArtifact>
       <useStrictFiltering>true</useStrictFiltering>
       <excludes>
-        <exclude>org.graphfoundation.ongdb:*</exclude>
-<!--        <exclude>org.neo4j:*</exclude>-->
-<!--        <exclude>jline:jline</exclude>-->
         <exclude>org.apache.lucene:*</exclude>
         <exclude>org.scala-lang:*</exclude>
         <exclude>org.parboiled:*</exclude>
-<!--        <exclude>com.googlecode.concurrentlinkedhashmap:concurrentlinkedhashmap-lru</exclude>-->
-<!--        <exclude>net.sf.opencsv:opencsv</exclude>-->
         <exclude>org.apache.commons:commons-lang3</exclude>
         <exclude>org.ow2.asm:*</exclude>
       </excludes>
