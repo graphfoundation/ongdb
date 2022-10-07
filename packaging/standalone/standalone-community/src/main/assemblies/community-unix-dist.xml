@@ -117,20 +117,14 @@
       <useStrictFiltering>true</useStrictFiltering>
       <includes>
         <include>org.graphfoundation.ongdb:*</include>
-        <include>org.neo4j:*</include>
-        <include>jline:jline</include>
         <include>org.apache.lucene:lucene-core</include>
         <include>org.apache.lucene:lucene-analyzers-common</include>
         <include>org.apache.lucene:lucene-queryparser</include>
-        <include>org.apache.lucene:lucene-codecs</include>
         <include>org.scala-lang:*</include>
         <include>org.parboiled:*</include>
-        <include>com.googlecode.concurrentlinkedhashmap:concurrentlinkedhashmap-lru</include>
-        <include>net.sf.opencsv:opencsv</include>
         <include>org.apache.commons:commons-lang3</include>
       </includes>
       <excludes>
-        <exclude>*:pom:*</exclude>
         <exclude>org.graphfoundation.ongdb:ongdb:jar</exclude>
       </excludes>
     </dependencySet>
@@ -143,13 +137,13 @@
       <useStrictFiltering>true</useStrictFiltering>
       <excludes>
         <exclude>org.graphfoundation.ongdb:*</exclude>
-        <exclude>org.neo4j:*</exclude>
-        <exclude>jline:jline</exclude>
+<!--        <exclude>org.neo4j:*</exclude>-->
+<!--        <exclude>jline:jline</exclude>-->
         <exclude>org.apache.lucene:*</exclude>
         <exclude>org.scala-lang:*</exclude>
         <exclude>org.parboiled:*</exclude>
-        <exclude>com.googlecode.concurrentlinkedhashmap:concurrentlinkedhashmap-lru</exclude>
-        <exclude>net.sf.opencsv:opencsv</exclude>
+<!--        <exclude>com.googlecode.concurrentlinkedhashmap:concurrentlinkedhashmap-lru</exclude>-->
+<!--        <exclude>net.sf.opencsv:opencsv</exclude>-->
         <exclude>org.apache.commons:commons-lang3</exclude>
         <exclude>org.ow2.asm:*</exclude>
       </excludes>
