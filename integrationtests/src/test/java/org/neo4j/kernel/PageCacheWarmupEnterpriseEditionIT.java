@@ -41,7 +41,7 @@ import java.io.File;
 import java.nio.file.Path;
 
 import org.neo4j.backup.OnlineBackup;
-import org.neo4j.commandline.admin.AdminTool;
+import org.neo4j.cli.AdminTool;
 import org.neo4j.commandline.admin.BlockerLocator;
 import org.neo4j.commandline.admin.CommandLocator;
 import org.neo4j.commandline.admin.RealOutsideWorld;

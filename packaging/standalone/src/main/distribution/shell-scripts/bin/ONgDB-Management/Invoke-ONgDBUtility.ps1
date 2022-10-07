@@ -104,7 +104,7 @@ function Invoke-ONgDBUtility
       "admintool" {
         Write-Verbose "Admintool command specified"
         $GetJavaParams = @{
-          StartingClass = 'org.neo4j.commandline.admin.AdminTool';
+          StartingClass = 'org.neo4j.cli.AdminTool';
         }
         break
       }
