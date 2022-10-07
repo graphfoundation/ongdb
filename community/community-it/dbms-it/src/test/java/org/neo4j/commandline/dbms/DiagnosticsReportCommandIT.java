@@ -301,9 +301,9 @@ class DiagnosticsReportCommandIT
             diagnosticsReportCommand.execute();
 
             assertThat( baos.toString() ).isEqualTo( String.format(
-                    "Finding running instance of neo4j%n" +
-                            "No running instance of neo4j was found. Online reports will be omitted.%n" +
-                            "If neo4j is running but not detected, you can supply the process id of the running instance with --pid%n" +
+                    "Finding running instance of ongdb%n" +
+                            "No running instance of ongdb was found. Online reports will be omitted.%n" +
+                            "If ongdb is running but not detected, you can supply the process id of the running instance with --pid%n" +
                             "All available classifiers:%n" +
                             "  config     include configuration file%n" +
                             "  logs       include log files%n" +
@@ -311,7 +311,7 @@ class DiagnosticsReportCommandIT
                             "  ps         include a list of running processes%n" +
                             "  tree       include a view of the tree structure of the data directory%n" +
                             "  tx         include transaction logs%n" +
-                            "  version    include version of neo4j%n" ) );
+                            "  version    include version of ongdb%n" ) );
         }
     }
 
