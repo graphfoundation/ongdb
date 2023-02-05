@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -50,6 +50,8 @@ final case class QueryPagination(skip: Option[Expression] = None,
   def withSkipExpression(skip: Expression): QueryPagination = copy(skip = Some(skip))
   def withLimit(limit: Option[Limit]): QueryPagination = copy(limit = limit.map(_.expression))
   def withLimitExpression(limit: Expression): QueryPagination = copy(limit = Some(limit))
+
+  def isEmpty: Boolean = skip.isEmpty && limit.isEmpty
 
   def ++(other: QueryPagination): QueryPagination =
     copy(

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -188,7 +188,7 @@ public enum Group
      */
     public String threadName()
     {
-        return "ongdb." + groupName() + "-" + threadCounter.incrementAndGet();
+        return "neo4j." + groupName() + "-" + threadCounter.incrementAndGet();
     }
 
     public ExecutorService buildExecutorService( SchedulerThreadFactory factory, int parallelism )

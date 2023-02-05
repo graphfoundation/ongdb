@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -781,7 +781,7 @@ class ConfigTest
         Files.write( authEnabled, "true".getBytes() );
 
         // Create and populate the actual conf dir
-        Path confDir = testDirectory.directory( "ongdb.conf" );
+        Path confDir = testDirectory.directory( "neo4j.conf" );
 
         // -- Set up all the links --
         // Symbolic link to a dot file

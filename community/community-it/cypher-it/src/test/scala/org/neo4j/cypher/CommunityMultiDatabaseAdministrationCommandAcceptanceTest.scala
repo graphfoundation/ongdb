@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -428,7 +428,7 @@ class CommunityMultiDatabaseAdministrationCommandAcceptanceTest extends Communit
     // THEN
     result.toList.foreach{ map =>
       map should have size 3
-      map.get("name") should contain oneOf("ongdb", "system")
+      map.get("name") should contain oneOf("neo4j", "system")
 
       // Lookup the real store id from db.info()
       selectDatabase(map("name").asInstanceOf[String])

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -43,7 +43,7 @@ public class ShortestPathCommonEndNodesForbiddenException extends CypherExecutio
     private static final String ERROR_MSG = "The shortest path algorithm does not work when the start and end nodes are the same. This can happen if you\n" +
                                            "perform a shortestPath search after a cartesian product that might have the same start and end nodes for some\n" +
                                            "of the rows passed to shortestPath. If you would rather not experience this exception, and can accept the\n" +
-                                           "possibility of missing results for those rows, disable this in the ONgDB configuration by setting\n" +
+                                           "possibility of missing results for those rows, disable this in the Neo4j configuration by setting\n" +
                                            "`cypher.forbid_shortestpath_common_nodes` to false. If you cannot accept missing results, and really want the\n" +
                                            "shortestPath between two common nodes, then re-write the query using a standard Cypher variable length pattern\n" +
                                            "expression followed by ordering by path length and limiting to one result.";

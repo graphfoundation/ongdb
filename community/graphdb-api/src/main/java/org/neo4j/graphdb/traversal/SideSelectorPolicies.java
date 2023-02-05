@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -38,13 +38,19 @@
  */
 package org.neo4j.graphdb.traversal;
 
+import org.neo4j.annotations.api.PublicApi;
+
 /**
  * A catalogue of convenient side selector policies for use in bidirectional traversals.
- *
- * Copied from kernel package so that we can hide kernel from the public API.
  */
+@PublicApi
 public enum SideSelectorPolicies implements SideSelectorPolicy
 {
+    /**
+     * This `SideSelectorPolicy` stops traversal if the combined depth is larger than the given maximum depth. It
+     * will select branches for expansion that are on the same depth as the current branch before moving on to the
+     * next depth.
+     */
     LEVEL
     {
         @Override
@@ -53,6 +59,10 @@ public enum SideSelectorPolicies implements SideSelectorPolicy
             return new LevelSelectorOrderer( start, end, false, maxDepth );
         }
     },
+    /**
+     * This `SideSelectorPolicy` stops as soon as a result is found. It will select branches for expansion that are on
+     * the same depth as the current branch before moving on to the next depth.
+     */
     LEVEL_STOP_DESCENT_ON_RESULT
     {
         @Override
@@ -61,6 +71,9 @@ public enum SideSelectorPolicies implements SideSelectorPolicy
             return new LevelSelectorOrderer( start, end, true, maxDepth );
         }
     },
+    /**
+     * This `SideSelectorPolicy` alternates which branch continues the traversal.
+     */
     ALTERNATING
     {
         @Override

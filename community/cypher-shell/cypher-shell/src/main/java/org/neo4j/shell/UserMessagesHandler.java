@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -58,13 +58,13 @@ public class UserMessagesHandler
 
     public String getWelcomeMessage()
     {
-        String ongdb = "ONgDB";
+        String neo4j = "Neo4j";
         if ( !protocolVersion.isEmpty() )
         {
             Version version = Versions.version( protocolVersion );
-            ongdb += " using Bolt protocol version " + version.major() + "." + version.minor();
+            neo4j += " using Bolt protocol version " + version.major() + "." + version.minor();
         }
-        AnsiFormattedText welcomeMessage = AnsiFormattedText.from( "Connected to " + ongdb + " at " ).bold( connectionConfig.driverUrl() );
+        AnsiFormattedText welcomeMessage = AnsiFormattedText.from( "Connected to " + neo4j + " at " ).bold( connectionConfig.driverUrl() );
 
         if ( !connectionConfig.username().isEmpty() )
         {

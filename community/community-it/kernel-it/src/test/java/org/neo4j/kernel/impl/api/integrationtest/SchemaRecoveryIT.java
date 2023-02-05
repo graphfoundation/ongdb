@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -108,7 +108,7 @@ class SchemaRecoveryIT
         }
         try ( Transaction tx = db.beginTx() )
         {
-            tx.createNode( label ).setProperty( property, "ongdb@ongdb.com" );
+            tx.createNode( label ).setProperty( property, "neo4j@neo4j.com" );
             tx.commit();
         }
         try ( Transaction tx = db.beginTx() )

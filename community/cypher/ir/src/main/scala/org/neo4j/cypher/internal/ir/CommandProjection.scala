@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -39,6 +39,7 @@
 package org.neo4j.cypher.internal.ir
 
 import org.neo4j.cypher.internal.ast.CommandClause
+import org.neo4j.cypher.internal.ast.Hint
 import org.neo4j.cypher.internal.expressions.Expression
 
 case class CommandProjection(clause: CommandClause) extends QueryHorizon {
@@ -47,4 +48,9 @@ case class CommandProjection(clause: CommandClause) extends QueryHorizon {
 
   override def dependingExpressions: Seq[Expression] = Seq()
 
+  override def allHints: Set[Hint] = Set.empty
+
+  override def withoutHints(hintsToIgnore: Set[Hint]): QueryHorizon = this
+
+  override def isTerminatingProjection: Boolean = false
 }

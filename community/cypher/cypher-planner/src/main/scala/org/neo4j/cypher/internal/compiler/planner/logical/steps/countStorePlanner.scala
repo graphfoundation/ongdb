@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -65,8 +65,8 @@ case object countStorePlanner {
 
   def apply(query: SinglePlannerQuery, context: LogicalPlanningContext): Option[LogicalPlan] = {
     query.horizon match {
-      case AggregatingQueryProjection(groupingKeys, aggregatingExpressions, _, selections)
-        if groupingKeys.isEmpty && query.queryInput.isEmpty && aggregatingExpressions.size == 1 =>
+      case AggregatingQueryProjection(groupingKeys, aggregatingExpressions, queryPagination, selections, _)
+        if groupingKeys.isEmpty && query.queryInput.isEmpty && aggregatingExpressions.size == 1 && queryPagination.isEmpty =>
         val (columnName, exp) = aggregatingExpressions.head
         val countStorePlan = checkForValidQueryGraph(query, columnName, exp, context)
         countStorePlan.map { plan =>

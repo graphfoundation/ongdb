@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -177,7 +177,7 @@ class UserSecurityGraphComponentTest
     {
         initializeLatestSystem();
         initUserSecurityComponent( version );
-        LoginContext loginContext = authManager.login( AuthToken.newBasicAuthToken( "ongdb", "ongdb" ),  EMBEDDED_CONNECTION);
+        LoginContext loginContext = authManager.login( AuthToken.newBasicAuthToken( "neo4j", "neo4j" ),  EMBEDDED_CONNECTION);
         assertThat( loginContext.subject().getAuthenticationResult() ).isEqualTo( AuthenticationResult.PASSWORD_CHANGE_REQUIRED );
     }
 
@@ -245,7 +245,7 @@ class UserSecurityGraphComponentTest
 
         // Then
         HashMap<String, Object> usernameAndIdsBeforeUpgrade = getUserNamesAndIds();
-        assertThat( usernameAndIdsBeforeUpgrade.get( "ongdb" ) ).isNull();
+        assertThat( usernameAndIdsBeforeUpgrade.get( "neo4j" ) ).isNull();
         assertThat( usernameAndIdsBeforeUpgrade.get( "alice" ) ).isNull();
 
         // When running dbms.upgrade
@@ -254,7 +254,7 @@ class UserSecurityGraphComponentTest
         // Then
         HashMap<String, Object> usernameAndIdsAfterUpgrade = getUserNamesAndIds();
 
-        assertThat( usernameAndIdsAfterUpgrade.get( "ongdb" ) ).isNotNull();
+        assertThat( usernameAndIdsAfterUpgrade.get( "neo4j" ) ).isNotNull();
         assertThat( usernameAndIdsAfterUpgrade.get( "alice" ) ).isNotNull();
     }
 

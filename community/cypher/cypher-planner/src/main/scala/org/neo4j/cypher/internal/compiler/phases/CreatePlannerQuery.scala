@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -72,7 +72,8 @@ case object CreatePlannerQuery extends Phase[BaseContext, BaseState, LogicalPlan
 
   override def process(from: BaseState, context: BaseContext): LogicalPlanState = from.statement() match {
     case query: Query =>
-      val plannerQuery: PlannerQuery = toPlannerQuery(query, from.semanticTable(), from.anonymousVariableNameGenerator)
+      val plannerQuery: PlannerQuery =
+        toPlannerQuery(query, from.semanticTable(), from.anonymousVariableNameGenerator, context.cancellationChecker, false)
       LogicalPlanState(from).copy(maybeQuery = Some(plannerQuery))
 
     case command: AdministrationCommand => throw new DatabaseAdministrationException(

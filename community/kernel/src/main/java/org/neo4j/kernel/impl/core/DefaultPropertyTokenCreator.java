@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -40,7 +40,6 @@ package org.neo4j.kernel.impl.core;
 
 import java.util.function.Supplier;
 
-import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.neo4j.exceptions.KernelException;
 import org.neo4j.kernel.api.Kernel;
 import org.neo4j.kernel.api.KernelTransaction;
@@ -56,11 +55,5 @@ public class DefaultPropertyTokenCreator extends IsolatedTransactionTokenCreator
     protected int createKey( KernelTransaction transaction, String name, boolean internal ) throws KernelException
     {
         return transaction.tokenWrite().propertyKeyCreateForName( name, internal );
-    }
-
-    @Override
-    public String toString()
-    {
-        return new ToStringBuilder( this ).toString();
     }
 }

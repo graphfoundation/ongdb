@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -75,7 +75,9 @@ object rewriteOrderById extends Step with ASTRewriterFactory {
 
   override def postConditions: Set[StepSequencer.Condition] = Set(OrderByIdRewritten)
 
-  override def invalidatedConditions: Set[StepSequencer.Condition] = Set()
+  override def invalidatedConditions: Set[StepSequencer.Condition] = Set(
+    ProjectionClausesHaveSemanticInfo // It can invalidate this condition by rewriting things inside the RETURN.
+  )
 
   override def getRewriter(semanticState: SemanticState,
                           parameterTypeMapping: Map[String, CypherType],

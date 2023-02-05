@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -63,6 +63,8 @@ import org.neo4j.lock.LockTracer;
 import org.neo4j.lock.LockType;
 import org.neo4j.lock.ResourceTypes;
 import org.neo4j.memory.EmptyMemoryTracker;
+import org.neo4j.memory.LocalMemoryTracker;
+import org.neo4j.test.OtherThreadExecutor;
 import org.neo4j.test.Race;
 import org.neo4j.test.RandomSupport;
 import org.neo4j.test.extension.Inject;
@@ -200,6 +202,41 @@ class ForsetiLockManagerTest
             done.set( true );
         }
         async.await( 1, TimeUnit.MINUTES );
+    }
+
+    @Test
+    void shouldBeAbleToTrackMemoryCorrectlyWhenTerminatingFromDifferentThread()
+    {
+        AtomicBoolean terminated = new AtomicBoolean();
+        LocalMemoryTracker memoryTracker = new LocalMemoryTracker();
+        try ( OtherThreadExecutor executor = new OtherThreadExecutor( "test" );
+              Locks.Client client = manager.newClient() )
+        {
+            client.initialize( LeaseService.NoLeaseClient.INSTANCE, 1, memoryTracker, config );
+
+            // Take some locks to make the client track some memory
+            client.acquireExclusive( LockTracer.NONE, ResourceTypes.NODE, 1 );
+            client.acquireShared( LockTracer.NONE, ResourceTypes.RELATIONSHIP, 1 );
+
+            executor.executeDontWait(
+                    () ->
+                    { // Mimic an external transaction terminate
+                        Thread.sleep( 10 );
+                        client.stop();
+                        terminated.set( true );
+                        return null;
+                    } );
+
+            // The transaction is doing other work, tracking memory "outside" the client
+            while ( !terminated.get() )
+            {
+                int memory = random.nextInt( 10000 );
+                memoryTracker.allocateHeap( memory );
+                memoryTracker.releaseHeap( memory );
+            }
+        }
+
+        assertThat( memoryTracker.estimatedHeapMemory() ).isZero();
     }
 
     private void takeAndAssertActiveLocks( Locks.Client client )

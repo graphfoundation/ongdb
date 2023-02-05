@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -111,8 +111,8 @@ public final class TestDatabaseReferenceRepository
     {
         var normalizedAlias = new NormalizedDatabaseName( localAliasName );
         var normalizedTarget = new NormalizedDatabaseName( targetDatabaseName );
-        var addr = SocketAddressParser.socketAddress( URI.create( "my.ongdb.com" ), BoltConnector.DEFAULT_PORT, SocketAddress::new );
-        var uri = new RemoteUri( "ongdb", List.of( addr ), null );
+        var addr = SocketAddressParser.socketAddress( URI.create( "my.neo4j.com" ), BoltConnector.DEFAULT_PORT, SocketAddress::new );
+        var uri = new RemoteUri( "neo4j", List.of( addr ), null );
         var uuid = UUID.randomUUID();
         return new DatabaseReference.External( normalizedTarget, normalizedAlias, uri, uuid );
     }

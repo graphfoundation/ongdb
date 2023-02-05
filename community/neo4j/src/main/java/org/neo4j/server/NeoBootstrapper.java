@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -102,7 +102,7 @@ public abstract class NeoBootstrapper implements Bootstrapper
 
         if ( args.version() )
         {
-            System.out.println( "ongdb " + Version.getONgDBVersion() );
+            System.out.println( "neo4j " + Version.getNeo4jVersion() );
             return 0;
         }
 
@@ -170,12 +170,12 @@ public abstract class NeoBootstrapper implements Bootstrapper
         }
         catch ( TransactionFailureException tfe )
         {
-            log.error( format( "Failed to start ONgDB on %s. Another process may be using databases at location: %s", serverAddress, serverLocation ), tfe );
+            log.error( format( "Failed to start Neo4j on %s. Another process may be using databases at location: %s", serverAddress, serverLocation ), tfe );
             return GRAPH_DATABASE_STARTUP_ERROR_CODE;
         }
         catch ( Exception e )
         {
-            log.error( format( "Failed to start ONgDB on %s.", serverAddress ), e );
+            log.error( format( "Failed to start Neo4j on %s.", serverAddress ), e );
             return WEB_SERVER_STARTUP_ERROR_CODE;
         }
     }
@@ -184,7 +184,7 @@ public abstract class NeoBootstrapper implements Bootstrapper
     {
         if ( !SystemUtils.IS_OS_WINDOWS ) //Windows does not use PID-files (for somewhat mysterious reasons)
         {
-            try //The ongdb.pid should already be there, but in the case of using the `console --dry-run` functionality we need to ensure it!
+            try //The neo4j.pid should already be there, but in the case of using the `console --dry-run` functionality we need to ensure it!
             {
                 Long currentPid = ProcessHandle.current().pid();
                 Long pid = PidFileHelper.readPid( pidFile );
@@ -296,7 +296,7 @@ public abstract class NeoBootstrapper implements Bootstrapper
     private static void installSignalHandlers()
     {
         installSignalHandler( SIGTERM, false ); // SIGTERM is invoked when system service is stopped
-        installSignalHandler( SIGINT, true ); // SIGINT is invoked when user hits ctrl-c  when running `ongdb console`
+        installSignalHandler( SIGINT, true ); // SIGINT is invoked when user hits ctrl-c  when running `neo4j console`
     }
 
     private static void installSignalHandler( String sig, boolean tolerateErrors )
@@ -313,7 +313,7 @@ public abstract class NeoBootstrapper implements Bootstrapper
                 throw e;
             }
             // Errors occur on IBM JDK with IllegalArgumentException: Signal already used by VM: INT
-            // I can't find anywhere where we send a SIGINT to ongdb process so I don't think this is that important
+            // I can't find anywhere where we send a SIGINT to neo4j process so I don't think this is that important
         }
     }
 
@@ -340,7 +340,7 @@ public abstract class NeoBootstrapper implements Bootstrapper
     private void addShutdownHook()
     {
         shutdownHook = new Thread( () -> {
-            log.info( "ONgDB Server shutdown initiated by request" );
+            log.info( "Neo4j Server shutdown initiated by request" );
             doShutdown();
             closeUserLogFileStream();
         } );

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -106,6 +106,7 @@ class CypherConfiguration private (val config: Config) {
   val enableExtraSemanticFeatures: Set[String] = config.get(GraphDatabaseInternalSettings.cypher_enable_extra_semantic_features).asScala.toSet
   val planningTextIndexesEnabled: Boolean = config.get(GraphDatabaseInternalSettings.planning_text_indexes_enabled)
   val predicatesAsUnionMaxSize: Int = config.get(GraphDatabaseInternalSettings.predicates_as_union_max_size)
+  val allowSourceGeneration: Boolean = config.get(GraphDatabaseInternalSettings.cypher_allow_source_generation)
 
   //dynamic configurations
   private var _obfuscateLiterals: Boolean = config.get(GraphDatabaseSettings.log_queries_obfuscate_literals)

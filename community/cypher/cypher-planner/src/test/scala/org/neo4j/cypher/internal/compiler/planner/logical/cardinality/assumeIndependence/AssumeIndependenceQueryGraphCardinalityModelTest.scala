@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -38,6 +38,7 @@
  */
 package org.neo4j.cypher.internal.compiler.planner.logical.cardinality.assumeIndependence
 
+import org.neo4j.cypher.internal.compiler.planner.logical.PlannerDefaults.DEFAULT_STRING_LENGTH
 import org.neo4j.cypher.internal.compiler.planner.logical.cardinality.ABCDECardinalityData
 import org.neo4j.cypher.internal.compiler.planner.logical.cardinality.assumeIndependence.PatternRelationshipMultiplierCalculator.uniquenessSelectivityForNRels
 import org.neo4j.cypher.internal.logical.plans.Aggregation
@@ -113,8 +114,12 @@ class AssumeIndependenceQueryGraphCardinalityModelTest extends CypherFunSuite wi
     expectCardinality(E * EsomeExists * or(EsomeUnique, EsomeUnique))
   }
 
+  test("MATCH (e:E) WHERE e.some =~ '\\d+'") {
+    expectCardinality(E * EsomeExists * DEFAULT_RANGE_SEEK_FACTOR / DEFAULT_STRING_LENGTH)
+  }
+
   test("MATCH (a:A) WHERE a.prop STARTS WITH 'p'") {
-    expectCardinality(A * DEFAULT_RANGE_SEEK_FACTOR)
+    expectCardinality(A * ApropExists * DEFAULT_RANGE_SEEK_FACTOR)
   }
 
   test("MATCH (a:B) WHERE a.bar = 42") {

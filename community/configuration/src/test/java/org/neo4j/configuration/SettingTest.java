@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -398,7 +398,13 @@ class SettingTest
     {
         var setting = (SettingImpl<Map<String,String>>) setting( "setting", SettingValueParsers.MAP_PATTERN );
         assertEquals( Map.of( "k1", "v1", "k2", "v2" ), setting.parse( "k1=v1;k2=v2" ) );
-        assertThrows( IllegalArgumentException.class, () -> setting.parse( "k1=v1=v2" ) );
+    }
+
+    @Test
+    void testStringMapWithValuesContainingEquals()
+    {
+        var setting = (SettingImpl<Map<String,String>>) setting( "setting", SettingValueParsers.MAP_PATTERN );
+        assertEquals( Map.of( "k1", "cn=admin,dc=example,dc=com", "k2", "v2" ), setting.parse( "k1=cn=admin,dc=example,dc=com;k2=v2" ) );
     }
 
     @Test
@@ -442,8 +448,6 @@ class SettingTest
                 "\"value 4\" \"value 5\"",  // "value 4" "value 5"
                 "\"value  6\"",             // "value  6"
                 "value\"quoted\"",          // value"quoted"
-                "\"value \"\"\"",           // "value """
-                "\"\"quote",                // ""quote          Escaped start quote
                 " valuewithspace  ",        // valuewithspace
                 "strwithctrl\u000b\u0002",  // some control characters
                 " values  with   spaces ",  // values  with  spaces
@@ -460,8 +464,6 @@ class SettingTest
                 "value 5",                  // value 5
                 "value  6",                 // value  6
                 "value\"quoted\"",          // value"quoted"
-                "value \"",                 // value "
-                "\"quote",                  // "quote
                 "valuewithspace",           // valuewithspace
                 "strwithctrl",              // some control characters
                 "values",                   // values
@@ -477,6 +479,14 @@ class SettingTest
         var actualSettings = setting.parse( String.join( System.lineSeparator(), inputs ) );
         var expectedSettings = String.join( System.lineSeparator(), outputs );
         assertEquals( expectedSettings, actualSettings );
+    }
+
+    @Test
+    void testJvmAdditionalWithProperty()
+    {
+        var setting = (SettingImpl<String>) setting( "setting", JVM_ADDITIONAL );
+        // A JVM setting should not split on whitespace inside quotes
+        assertThat( setting.parse( "-Da=\"string with space\"" ) ).isEqualTo( "-Da=\"string with space\"" );
     }
 
     @Test

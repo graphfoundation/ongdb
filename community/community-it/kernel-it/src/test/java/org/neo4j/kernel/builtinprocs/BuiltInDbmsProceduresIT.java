@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -113,7 +113,7 @@ class BuiltInDbmsProceduresIT extends KernelIntegrationTest
         assertArrayEquals( new AnyValue[]{stringValue( "dbms.config.strict_validation" ),
                 stringValue(
                         "A strict configuration validation will prevent the database from starting up if unknown " +
-                        "configuration options are specified in the ongdb settings namespace (such as dbms., " +
+                        "configuration options are specified in the neo4j settings namespace (such as dbms., " +
                         "cypher., etc)." ),
                 stringValue( FALSE ), Values.FALSE}, config.get( 0 ) );
     }

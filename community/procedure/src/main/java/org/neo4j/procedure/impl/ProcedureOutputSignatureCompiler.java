@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -142,7 +142,7 @@ class ProcedureOutputSignatureCompiler
             catch ( ProcedureException e )
             {
                 throw new ProcedureException( e.status(), e,
-                        "Field `%s` in record `%s` cannot be converted to an ONgDB type: %s", field.getName(),
+                        "Field `%s` in record `%s` cannot be converted to a Neo4j type: %s", field.getName(),
                         userClass.getSimpleName(), e.getMessage() );
             }
         }

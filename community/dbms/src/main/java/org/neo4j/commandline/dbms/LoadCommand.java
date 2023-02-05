@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -77,7 +77,7 @@ import static picocli.CommandLine.Option;
         description = "Load a database from an archive. <archive-path> must be an archive created with the dump " +
                       "command. <database> is the name of the database to create. Existing databases can be replaced " +
                       "by specifying --force. It is not possible to replace a database that is mounted in a running " +
-                      "ONgDB server. If --info is specified, then the database is not loaded, but information " +
+                      "Neo4j server. If --info is specified, then the database is not loaded, but information " +
                       "(i.e. file count, byte count, and format of load file) about the archive is printed instead."
 
 )
@@ -247,7 +247,7 @@ public class LoadCommand extends AbstractCommand
         }
         catch ( IncorrectFormat incorrectFormat )
         {
-            throw new CommandFailedException( "Not a valid ONgDB archive: " + inputName , incorrectFormat );
+            throw new CommandFailedException( "Not a valid Neo4j archive: " + inputName , incorrectFormat );
         }
     }
 }

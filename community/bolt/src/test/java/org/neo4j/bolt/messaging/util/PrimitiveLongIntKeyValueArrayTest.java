@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -51,6 +51,9 @@ class PrimitiveLongIntKeyValueArrayTest
     {
         PrimitiveLongIntKeyValueArray map = new PrimitiveLongIntKeyValueArray();
         assertThat( map.capacity() ).isEqualTo( PrimitiveLongIntKeyValueArray.DEFAULT_INITIAL_CAPACITY );
+
+        map = new PrimitiveLongIntKeyValueArray( 110 );
+        assertThat( map.capacity()).isEqualTo( 110 );
 
         map.ensureCapacity( 10 );
         assertThat( map.capacity() ).isGreaterThanOrEqualTo( 10 );

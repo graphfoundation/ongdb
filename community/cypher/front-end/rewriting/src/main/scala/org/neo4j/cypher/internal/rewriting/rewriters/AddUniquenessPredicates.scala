@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -130,8 +130,8 @@ case class AddUniquenessPredicates(anonymousVariableNameGenerator: AnonymousVari
 
   def createPredicatesFor(uniqueRels: Seq[UniqueRel], pos: InputPosition): Seq[Expression] =
     for {
-      x <- uniqueRels
-      y <- uniqueRels if x.name < y.name && !x.isAlwaysDifferentFrom(y)
+      (x, i) <- uniqueRels.zipWithIndex
+      y <- uniqueRels.drop(i + 1) if !x.isAlwaysDifferentFrom(y)
     } yield {
       (x.singleLength, y.singleLength) match {
         case (true, true) =>

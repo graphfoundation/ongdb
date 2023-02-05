@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -82,4 +82,10 @@ object TailRecOption {
         b <- tailcall(f(as.head))
         bs <- tailcall(traverse(as.tail)(f))
       } yield b +: bs
+
+  def map2[A, B, C](recA: TailRecOption[A], recB: TailRecOption[B])(f: (A, B) => C): TailRecOption[C] =
+    for {
+      a <- recA
+      b <- recB
+    } yield f(a, b)
 }

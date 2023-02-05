@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -103,7 +103,9 @@ class CypherQueryObfuscatorFactory {
       null,
       null,
       null,
-      CancellationChecker.NeverCancelled)
+      CancellationChecker.NeverCancelled,
+      false
+    )
 
   private object PlanContextWithProceduresRegistry extends PlanContext {
 

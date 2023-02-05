@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -69,7 +69,7 @@ import static org.neo4j.configuration.connectors.BoltConnector.EncryptionLevel.O
 
 public class Neo4jWithSocket
 {
-    static final String ONGDB_WITH_SOCKET = "org.neo4j.bolt.transport.Neo4jWithSocket";
+    static final String NEO4J_WITH_SOCKET = "org.neo4j.bolt.transport.Neo4jWithSocket";
 
     private final Supplier<FileSystemAbstraction> fileSystemProvider;
     private Consumer<Map<Setting<?>,Object>> configure;

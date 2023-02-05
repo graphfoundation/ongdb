@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -52,7 +52,7 @@ import org.neo4j.test.extension.Inject;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Test for how properties are read and that they should be read consistently, i.e. adhere to ongdb's
+ * Test for how properties are read and that they should be read consistently, i.e. adhere to neo4j's
  * interpretation of the ACID guarantees.
  */
 @ImpermanentDbmsExtension

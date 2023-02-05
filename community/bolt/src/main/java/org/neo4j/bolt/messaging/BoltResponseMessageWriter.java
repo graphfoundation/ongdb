@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -38,14 +38,17 @@
  */
 package org.neo4j.bolt.messaging;
 
+import org.neo4j.bolt.transport.BoltPatchListener;
+
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Interface defining simple encoders for each defined
  * Bolt response message.
  */
-public interface BoltResponseMessageWriter extends BoltRecordConsumer, Closeable
+public interface BoltResponseMessageWriter extends BoltRecordConsumer, Closeable, BoltPatchListener
 {
     void write( ResponseMessage message ) throws IOException;
 
@@ -60,6 +63,11 @@ public interface BoltResponseMessageWriter extends BoltRecordConsumer, Closeable
     }
 
     default void initKeepAliveTimer()
+    {
+    }
+
+    @Override
+    default void handle( List<String> patches )
     {
     }
 }

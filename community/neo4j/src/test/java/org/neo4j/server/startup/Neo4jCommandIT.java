@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -102,7 +102,7 @@ public class Neo4jCommandIT extends Neo4jCommandTestBase
     void shouldBeAbleToStartAndStopRealServerOnWindows()
     {
         assumeThat( isCurrentlyRunningAsWindowsAdmin() ).isTrue();
-        addConf( BootloaderSettings.windows_service_name, "ongdb-" + currentTimeMillis() );
+        addConf( BootloaderSettings.windows_service_name, "neo4j-" + currentTimeMillis() );
         try
         {
             assertThat( execute( "install-service" ) ).isEqualTo( EXIT_CODE_OK );
@@ -120,7 +120,7 @@ public class Neo4jCommandIT extends Neo4jCommandTestBase
     void shouldBeAbleToUpdateRealServerOnWindows()
     {
         assumeThat( isCurrentlyRunningAsWindowsAdmin() ).isTrue();
-        addConf( BootloaderSettings.windows_service_name, "ongdb-" + currentTimeMillis() );
+        addConf( BootloaderSettings.windows_service_name, "neo4j-" + currentTimeMillis() );
         try
         {
             assertThat( execute( "install-service" ) ).isEqualTo( 0 );
@@ -145,7 +145,7 @@ public class Neo4jCommandIT extends Neo4jCommandTestBase
 
     private void shouldBeAbleToStartAndStopRealServer( int initialHeapSize )
     {
-        int startSig = execute( List.of( "start" ), Map.of( Bootloader.ENV_ONGDB_START_WAIT, "3" ) );
+        int startSig = execute( List.of( "start" ), Map.of( Bootloader.ENV_NEO4J_START_WAIT, "3" ) );
         assertThat( startSig ).isEqualTo( EXIT_CODE_OK );
         assertEventually( this::getDebugLogLines,
                           s -> s.contains( String.format( "VM Arguments: [-Xms%dk, -Xmx%dk", initialHeapSize * 1024, MAX_HEAP_MB * 1024 ) ), 5, MINUTES );

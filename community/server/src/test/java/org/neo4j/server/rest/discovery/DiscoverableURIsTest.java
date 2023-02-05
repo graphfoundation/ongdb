@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -100,7 +100,7 @@ class DiscoverableURIsTest
         discoverables.forEach( consumer );
 
         verify( consumer ).accept( "bolt_direct", "bolt://localhost:7687" );
-        verify( consumer ).accept( "bolt_routing", "ongdb://localhost:7687" );
+        verify( consumer ).accept( "bolt_routing", "neo4j://localhost:7687" );
     }
 
     @Test
@@ -120,7 +120,7 @@ class DiscoverableURIsTest
         discoverables.forEach( consumer );
 
         verify( consumer ).accept( "bolt_direct", "bolt://localhost:1337" );
-        verify( consumer ).accept( "bolt_routing", "ongdb://localhost:1337" );
+        verify( consumer ).accept( "bolt_routing", "neo4j://localhost:1337" );
     }
 
     @Test
@@ -137,7 +137,7 @@ class DiscoverableURIsTest
         discoverables.forEach( consumer );
 
         verify( consumer ).accept( "bolt_direct", "bolt://myCat.com:7687" );
-        verify( consumer ).accept( "bolt_routing", "ongdb://myCat.com:7687" );
+        verify( consumer ).accept( "bolt_routing", "neo4j://myCat.com:7687" );
     }
 
     @Test
@@ -154,7 +154,7 @@ class DiscoverableURIsTest
         discoverables.forEach( consumer );
 
         verify( consumer ).accept( "bolt_direct", "bolt://localhost:1234" );
-        verify( consumer ).accept( "bolt_routing", "ongdb://localhost:1234" );
+        verify( consumer ).accept( "bolt_routing", "neo4j://localhost:1234" );
     }
 
     @Test
@@ -171,7 +171,7 @@ class DiscoverableURIsTest
         discoverables.forEach( consumer );
 
         verify( consumer ).accept( "bolt_direct", "bolt://myCat.com:1234" );
-        verify( consumer ).accept( "bolt_routing", "ongdb://myCat.com:1234" );
+        verify( consumer ).accept( "bolt_routing", "neo4j://myCat.com:1234" );
     }
 
     @Test
@@ -189,7 +189,7 @@ class DiscoverableURIsTest
         discoverables.forEach( consumer );
 
         verify( consumer ).accept( "bolt_direct", "bolt://myCat.com:1234" );
-        verify( consumer ).accept( "bolt_routing", "ongdb://myCat.com:1234" );
+        verify( consumer ).accept( "bolt_routing", "neo4j://myCat.com:1234" );
     }
 
     @Test
@@ -233,7 +233,7 @@ class DiscoverableURIsTest
         verify( consumer ).accept( "a", "cat://myCat.com:1234/test" );
         verify( consumer ).accept( "b", "cat://myCat.com:1234/{name}/data" );
         verify( consumer ).accept( "bolt_direct", "dog://myDog.com" );
-        verify( consumer ).accept( "bolt_routing", "ongdb://myCat.com:7687" );
+        verify( consumer ).accept( "bolt_routing", "neo4j://myCat.com:7687" );
     }
 
     private static Config configWithBoltEnabled()

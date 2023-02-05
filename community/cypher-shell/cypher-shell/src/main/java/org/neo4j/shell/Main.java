@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -38,6 +38,8 @@
  */
 package org.neo4j.shell;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
@@ -62,7 +64,7 @@ import static org.neo4j.shell.ShellRunner.shouldBeInteractive;
 import static org.neo4j.shell.terminal.CypherShellTerminalBuilder.terminalBuilder;
 import static org.neo4j.shell.util.Versions.isPasswordChangeRequiredException;
 
-public class Main
+public class Main implements Closeable
 {
     public static final int EXIT_FAILURE = 1;
     public static final int EXIT_SUCCESS = 0;
@@ -121,7 +123,12 @@ public class Main
 
         setupLogging();
 
-        System.exit( new Main( cliArgs ).startShell() );
+        int exitCode;
+        try ( var main = new Main( cliArgs ) )
+        {
+            exitCode = main.startShell();
+        }
+        System.exit(exitCode);
     }
 
     public int startShell()
@@ -341,6 +348,19 @@ public class Main
         catch ( Exception e )
         {
             // Not much to do
+        }
+    }
+
+    @Override
+    public void close()
+    {
+        try
+        {
+            shell.disconnect();
+        }
+        catch ( Exception e )
+        {
+            // Ignore
         }
     }
 }

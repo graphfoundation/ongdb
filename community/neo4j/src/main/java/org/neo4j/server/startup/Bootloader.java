@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -60,10 +60,10 @@ class Bootloader
     static final int EXIT_CODE_RUNNING = 1;
     static final int EXIT_CODE_NOT_RUNNING = 3;
 
-    static final String ENV_ONGDB_HOME = "ONGDB_HOME";
-    static final String ENV_ONGDB_CONF = "ONGDB_CONF";
-    static final String ENV_ONGDB_SHUTDOWN_TIMEOUT = "ONGDB_SHUTDOWN_TIMEOUT";
-    static final String ENV_ONGDB_START_WAIT = "ONGDB_START_WAIT";
+    static final String ENV_NEO4J_HOME = "NEO4J_HOME";
+    static final String ENV_NEO4J_CONF = "NEO4J_CONF";
+    static final String ENV_NEO4J_SHUTDOWN_TIMEOUT = "NEO4J_SHUTDOWN_TIMEOUT";
+    static final String ENV_NEO4J_START_WAIT = "NEO4J_START_WAIT";
     static final String ENV_HEAP_SIZE = "HEAP_SIZE";
     static final String ENV_JAVA_OPTS = "JAVA_OPTS";
     static final String PROP_JAVA_CP = "java.class.path";
@@ -74,7 +74,7 @@ class Bootloader
     static final String ARG_EXPAND_COMMANDS = "--expand-commands";
 
     static final Path DEFAULT_CONFIG_LOCATION = Path.of( Config.DEFAULT_CONFIG_DIR_NAME );
-    static final int DEFAULT_ONGDB_SHUTDOWN_TIMEOUT = 120;
+    static final int DEFAULT_NEO4J_SHUTDOWN_TIMEOUT = 120;
 
     private final BootloaderContext ctx;
 
@@ -90,11 +90,11 @@ class Bootloader
         Long pid = os.getPidIfRunning();
         if ( pid != null )
         {
-            ctx.out.printf( "ONgDB is already running%s.%n", pidIfKnown( pid ) );
+            ctx.out.printf( "Neo4j is already running%s.%n", pidIfKnown( pid ) );
             return EXIT_CODE_RUNNING;
         }
         printDirectories();
-        ctx.out.println( "Starting ONgDB." );
+        ctx.out.println( "Starting Neo4j." );
         try
         {
             pid = os.start();
@@ -119,7 +119,7 @@ class Bootloader
         {
             serverLocation = "Both http & https are disabled.";
         }
-        ctx.out.printf( "Started ongdb%s. %s%n", pidIfKnown( pid ), serverLocation );
+        ctx.out.printf( "Started neo4j%s. %s%n", pidIfKnown( pid ), serverLocation );
         ctx.out.println( "There may be a short delay until the server is ready." );
         return EXIT_CODE_OK;
     }
@@ -149,7 +149,7 @@ class Bootloader
         boolean alreadyRunning = pid != null;
         if ( alreadyRunning )
         {
-            ctx.out.printf( "ONgDB is already running%s.%n", pidIfKnown( pid ) );
+            ctx.out.printf( "Neo4j is already running%s.%n", pidIfKnown( pid ) );
         }
 
         if ( dryRun )
@@ -166,7 +166,7 @@ class Bootloader
         }
 
         printDirectories();
-        ctx.out.println( "Starting ONgDB." );
+        ctx.out.println( "Starting Neo4j." );
         os.console();
         return EXIT_CODE_OK;
     }
@@ -182,11 +182,11 @@ class Bootloader
         Long pid = os.getPidIfRunning();
         if ( pid == null )
         {
-            ctx.out.println( "ONgDB is not running." );
+            ctx.out.println( "Neo4j is not running." );
             return EXIT_CODE_OK;
         }
-        ctx.out.print( "Stopping ONgDB." );
-        int timeout = ctx.getEnv( ENV_ONGDB_SHUTDOWN_TIMEOUT, DEFAULT_ONGDB_SHUTDOWN_TIMEOUT, INT );
+        ctx.out.print( "Stopping Neo4j." );
+        int timeout = ctx.getEnv( ENV_NEO4J_SHUTDOWN_TIMEOUT, DEFAULT_NEO4J_SHUTDOWN_TIMEOUT, INT );
         Stopwatch stopwatch = Stopwatch.start();
         os.stop( pid );
         int printCount = 0;
@@ -216,7 +216,7 @@ class Bootloader
         while ( !stopwatch.hasTimedOut( timeout, SECONDS ) );
 
         ctx.out.println( " failed to stop." );
-        ctx.out.printf( "ONgDB%s took more than %d seconds to stop.%n", pidIfKnown( pid ), stopwatch.elapsed( SECONDS ) );
+        ctx.out.printf( "Neo4j%s took more than %d seconds to stop.%n", pidIfKnown( pid ), stopwatch.elapsed( SECONDS ) );
         ctx.out.printf( "Please see %s for details.%n", ctx.config().get( GraphDatabaseSettings.store_user_log_path ) );
         return EXIT_CODE_RUNNING;
     }
@@ -236,10 +236,10 @@ class Bootloader
         Long pid = ctx.os().getPidIfRunning();
         if ( pid == null )
         {
-            ctx.out.println( "ONgDB is not running." );
+            ctx.out.println( "Neo4j is not running." );
             return EXIT_CODE_NOT_RUNNING;
         }
-        ctx.out.printf( "ONgDB is running%s%n", pid != UNKNOWN_PID ? " at pid " + pid : "" );
+        ctx.out.printf( "Neo4j is running%s%n", pid != UNKNOWN_PID ? " at pid " + pid : "" );
         return EXIT_CODE_OK;
     }
 
@@ -248,11 +248,11 @@ class Bootloader
         ctx.validateConfig();
         if ( ctx.os().serviceInstalled() )
         {
-            ctx.out.println( "ONgDB service is already installed" );
+            ctx.out.println( "Neo4j service is already installed" );
             return EXIT_CODE_RUNNING;
         }
         ctx.os().installService();
-        ctx.out.println( "ONgDB service installed." );
+        ctx.out.println( "Neo4j service installed." );
         return EXIT_CODE_OK;
     }
 
@@ -260,11 +260,11 @@ class Bootloader
     {
         if ( !ctx.os().serviceInstalled() )
         {
-            ctx.out.println( "ONgDB service is not installed" );
+            ctx.out.println( "Neo4j service is not installed" );
             return EXIT_CODE_OK;
         }
         ctx.os().uninstallService();
-        ctx.out.println( "ONgDB service uninstalled." );
+        ctx.out.println( "Neo4j service uninstalled." );
         return EXIT_CODE_OK;
     }
 
@@ -273,11 +273,11 @@ class Bootloader
         ctx.validateConfig();
         if ( !ctx.os().serviceInstalled() )
         {
-            ctx.out.println( "ONgDB service is not installed" );
+            ctx.out.println( "Neo4j service is not installed" );
             return EXIT_CODE_RUNNING;
         }
         ctx.os().updateService();
-        ctx.out.println( "ONgDB service updated." );
+        ctx.out.println( "Neo4j service updated." );
         return EXIT_CODE_OK;
     }
 

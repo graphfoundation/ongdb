@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -89,5 +89,10 @@ public class Neo4jPrincipal
     public int hashCode()
     {
         return Objects.hash( username, id );
+    }
+    @Override
+    public String toString()
+    {
+        return username;
     }
 }

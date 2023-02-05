@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -39,7 +39,6 @@
 package org.neo4j.kernel.recovery;
 
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -212,7 +211,6 @@ class RecoveryWithTokenIndexesIT
         }
     }
 
-//    @Disabled("Look into this - should not be failing...something to do with the allow_single_automatic_upgrade")
     @Test
     void recoverDatabaseWithPersistedTokenIndex() throws Throwable
     {

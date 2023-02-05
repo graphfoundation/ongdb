@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -40,6 +40,9 @@ package org.neo4j.bolt.runtime.statemachine;
 
 import java.time.Clock;
 
+import io.netty.channel.Channel;
+
+import org.neo4j.bolt.BoltChannel;
 import org.neo4j.bolt.runtime.BoltConnectionFatality;
 import org.neo4j.bolt.transaction.TransactionManager;
 import org.neo4j.bolt.v41.messaging.RoutingContext;
@@ -70,4 +73,6 @@ public interface StateMachineContext
     TransactionManager getTransactionManager();
 
     String getDefaultDatabase();
+
+    BoltChannel channel();
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -76,14 +76,14 @@ class ClientConnectionInfoTest
         // given
         ClientConnectionInfo clientConnection =
                 new HttpConnectionInfo( "http-42", "http",
-                        new InetSocketAddress( "127.0.0.1", 1337 ), null, "/db/ongdb/tx/45/commit" );
+                        new InetSocketAddress( "127.0.0.1", 1337 ), null, "/db/neo4j/tx/45/commit" );
 
         // when
         String connectionDetails = clientConnection.asConnectionDetails();
 
         // then
         assertEquals(
-                "server-session\thttp\t127.0.0.1\t/db/ongdb/tx/45/commit",
+                "server-session\thttp\t127.0.0.1\t/db/neo4j/tx/45/commit",
                 connectionDetails );
     }
 

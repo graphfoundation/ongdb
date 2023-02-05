@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -185,7 +185,7 @@ public class BasicSystemGraphRealmTest
     @Test
     void shouldFailWhenAuthTokenIsInvalid()
     {
-        assertThatThrownBy( () -> realm.login( map( AuthToken.SCHEME_KEY, "supercool", AuthToken.PRINCIPAL, "ongdb" ), EMBEDDED_CONNECTION ) )
+        assertThatThrownBy( () -> realm.login( map( AuthToken.SCHEME_KEY, "supercool", AuthToken.PRINCIPAL, "neo4j" ), EMBEDDED_CONNECTION ) )
                 .isInstanceOf( InvalidAuthTokenException.class )
                 .hasMessage( "Unsupported authentication token, scheme 'supercool' is not supported." );
 
@@ -199,7 +199,7 @@ public class BasicSystemGraphRealmTest
                 .hasMessage( "Unsupported authentication token, missing key `scheme`" );
 
         assertThatThrownBy(
-                () -> realm.login( map( AuthToken.SCHEME_KEY, "basic", AuthToken.PRINCIPAL, "ongdb" ), EMBEDDED_CONNECTION ) )
+                () -> realm.login( map( AuthToken.SCHEME_KEY, "basic", AuthToken.PRINCIPAL, "neo4j" ), EMBEDDED_CONNECTION ) )
                 .isInstanceOf( InvalidAuthTokenException.class )
                 .hasMessage( "Unsupported authentication token, missing key `credentials`" );
 

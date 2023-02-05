@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,6 +38,8 @@ interface PushToCloudConsole
 
     char[] readPassword( String fmt, Object... args );
 
+    boolean readDevMode( String devModeEnvVar );
+
     static PushToCloudConsole realConsole()
     {
         return new PushToCloudConsole()
@@ -53,10 +55,16 @@ interface PushToCloudConsole
             {
                 return System.console().readPassword( fmt, args );
             }
+
+            @Override
+            public boolean readDevMode( String devModeEnvVar )
+            {
+                return Boolean.parseBoolean(System.getenv(devModeEnvVar));
+            }
         };
     }
 
-    static PushToCloudConsole fakeConsole( String username, String password )
+    static PushToCloudConsole fakeConsole( String username, String password, boolean devMode )
     {
         return new PushToCloudConsole()
         {
@@ -70,6 +78,12 @@ interface PushToCloudConsole
             public char[] readPassword( String fmt, Object... args )
             {
                 return password.toCharArray();
+            }
+
+            @Override
+            public boolean readDevMode( String devModeEnvVar )
+            {
+                return devMode;
             }
         };
     }

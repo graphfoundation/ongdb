@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -115,7 +115,7 @@ public interface Transaction extends AutoCloseable
     Node createNode( Label... labels );
 
     /**
-     * Looks up a node by id. Please note: ONgDB reuses its internal ids when
+     * Looks up a node by id. Please note: Neo4j reuses its internal ids when
      * nodes and relationships are deleted, which means it's bad practice to
      * refer to them this way. Instead, use application generated ids.
      *
@@ -126,7 +126,7 @@ public interface Transaction extends AutoCloseable
     Node getNodeById( long id );
 
     /**
-     * Looks up a relationship by id. Please note: ONgDB reuses its internal ids
+     * Looks up a relationship by id. Please note: Neo4j reuses its internal ids
      * when nodes and relationships are deleted, which means it's bad practice
      * to refer to them this way. Instead, use application generated ids.
      *
@@ -140,18 +140,14 @@ public interface Transaction extends AutoCloseable
      * Factory method for bidirectional traversal descriptions.
      *
      * @return a new {@link BidirectionalTraversalDescription}
-     * @deprecated Not part of public API, can be removed at any moment
      */
-    @Deprecated
     BidirectionalTraversalDescription bidirectionalTraversalDescription();
 
     /**
      * Factory method for unidirectional traversal descriptions.
      *
-     * @deprecated Not part of public API, can be removed at any moment
      * @return a new {@link TraversalDescription}
      */
-    @Deprecated
     TraversalDescription traversalDescription();
 
     /**

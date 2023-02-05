@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -120,7 +120,7 @@ class MemoryRecommendationsCommandTest
             CommandLine.usage( command, new PrintStream( out ), CommandLine.Help.Ansi.OFF );
         }
         assertThat( baos.toString().trim() ).isEqualTo( String.format(
-                "Print ONgDB heap and pagecache memory settings recommendations.%n" +
+                "Print Neo4j heap and pagecache memory settings recommendations.%n" +
                 "%n" +
                 "USAGE%n" +
                 "%n" +
@@ -128,13 +128,13 @@ class MemoryRecommendationsCommandTest
                 "%n" +
                 "DESCRIPTION%n" +
                 "%n" +
-                "Print heuristic memory setting recommendations for the ONgDB JVM heap and%n" +
+                "Print heuristic memory setting recommendations for the Neo4j JVM heap and%n" +
                 "pagecache. The heuristic is based on the total memory of the system the command%n" +
                 "is running on, or on the amount of memory specified with the --memory argument.%n" +
-                "The heuristic assumes that the system is dedicated to running ONgDB. If this is%n" +
+                "The heuristic assumes that the system is dedicated to running Neo4j. If this is%n" +
                 "not the case, then use the --memory argument to specify how much memory can be%n" +
-                "expected to be dedicated to ONgDB. The output is formatted such that it can be%n" +
-                "copy-pasted into the ongdb.conf file.%n" +
+                "expected to be dedicated to Neo4j. The output is formatted such that it can be%n" +
+                "copy-pasted into the neo4j.conf file.%n" +
                 "%n" +
                 "OPTIONS%n" +
                 "%n" +
@@ -145,7 +145,7 @@ class MemoryRecommendationsCommandTest
                 "                            the system running the command.%n" +
                 "      --docker            The recommended memory settings are produced in the%n" +
                 "                            form of environment variables that can be directly%n" +
-                "                            passed to ONgDB docker container. The recommended%n" +
+                "                            passed to Neo4j docker container. The recommended%n" +
                 "                            use is to save the generated environment variables%n" +
                 "                            to a file and pass the file to a docker container%n" +
                 "                            using '--env-file' docker option."
@@ -276,11 +276,11 @@ class MemoryRecommendationsCommandTest
 
         command.execute();
 
-        verify( output ).println( "ONGDB_dbms_memory_heap_initial__size='" + heap + "'" );
-        verify( output ).println( "ONGDB_dbms_memory_heap_max__size='" + heap + "'" );
-        verify( output ).println( "ONGDB_dbms_memory_pagecache_size='" + pagecache + "'" );
-        verify( output ).println( "ONGDB_dbms_memory_off__heap_max__size='" + offHeap + "'" );
-        verify( output ).println( "ONGDB_dbms_jvm_additional='" + "-XX:+ExitOnOutOfMemoryError" + "'" );
+        verify( output ).println( "NEO4J_dbms_memory_heap_initial__size='" + heap + "'" );
+        verify( output ).println( "NEO4J_dbms_memory_heap_max__size='" + heap + "'" );
+        verify( output ).println( "NEO4J_dbms_memory_pagecache_size='" + pagecache + "'" );
+        verify( output ).println( "NEO4J_dbms_memory_off__heap_max__size='" + offHeap + "'" );
+        verify( output ).println( "NEO4J_dbms_jvm_additional='" + "-XX:+ExitOnOutOfMemoryError" + "'" );
     }
 
     @Test

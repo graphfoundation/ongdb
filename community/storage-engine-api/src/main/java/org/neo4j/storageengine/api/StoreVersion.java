@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -58,7 +58,7 @@ public interface StoreVersion
      * @return the neo4j version where this format was introduced. It is almost certainly NOT the only version of
      * neo4j where this format is used.
      */
-    String introductionONgDBVersion();
+    String introductionNeo4jVersion();
 
     /**
      * @return if this version isn't the latest version the returned optional will contain the store version of the store version superseding this version.

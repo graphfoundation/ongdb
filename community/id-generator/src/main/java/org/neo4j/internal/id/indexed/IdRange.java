@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -184,6 +184,61 @@ class IdRange
         }
     }
 
+    void visitFreeIds( long baseId, long generation, FreeIdVisitor visitor )
+    {
+        var differentGeneration = generation != this.generation;
+        var firstFreeI = -1;
+        var prevFreeI = -1;
+        var baseI = 0;
+        for ( var i = 0; i < numOfLongs; i++, baseI += BITSET_SIZE )
+        {
+            var commitBits = bitSets[BITSET_COMMIT][i];
+            var reuseBits = bitSets[BITSET_REUSE][i];
+            var reservedBits = bitSets[BITSET_RESERVED][i];
+
+            while ( commitBits != 0 )
+            {
+                var bit = Long.lowestOneBit( commitBits );
+                if ( differentGeneration || ((reuseBits & bit) != 0 && (reservedBits & bit) == 0) )
+                {
+                    var localBitIndex = Long.numberOfTrailingZeros( bit );
+                    var bitIndex = baseI + localBitIndex;
+                    if ( firstFreeI == -1 )
+                    {
+                        firstFreeI = prevFreeI = bitIndex;
+                    }
+                    else
+                    {
+                        if ( prevFreeI == bitIndex - 1 )
+                        {
+                            prevFreeI = bitIndex;
+                        }
+                        else
+                        {
+                            // Here's an ID
+                            var id = baseId + firstFreeI;
+                            var numberOfIds = prevFreeI - firstFreeI + 1;
+                            if ( !visitor.visitFreeId( id, numberOfIds ) )
+                            {
+                                return;
+                            }
+                            firstFreeI = prevFreeI = bitIndex;
+                        }
+                    }
+                }
+                commitBits ^= bit;
+            }
+        }
+
+        if ( firstFreeI != -1 )
+        {
+            // And visit the last free ID too
+            var id = baseId + firstFreeI;
+            var numberOfIds = prevFreeI - firstFreeI + 1;
+            visitor.visitFreeId( id, numberOfIds );
+        }
+    }
+
     private void verifyMerge( IdRangeKey key, IdRange other )
     {
         boolean addition = other.addition;
@@ -258,5 +313,11 @@ class IdRange
         USED,
         DELETED,
         FREE
+    }
+
+    @FunctionalInterface
+    interface FreeIdVisitor
+    {
+        boolean visitFreeId( long id, int numberOfIds );
     }
 }

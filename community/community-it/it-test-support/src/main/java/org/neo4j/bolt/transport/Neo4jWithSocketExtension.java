@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -71,7 +71,7 @@ import java.lang.annotation.Target;
 @Target( ElementType.TYPE )
 @Retention( RetentionPolicy.RUNTIME )
 @ExtendWith( Neo4jWithSocketSupportExtension.class )
-@ResourceLock( value = Neo4jWithSocket.ONGDB_WITH_SOCKET, mode = ResourceAccessMode.READ_WRITE )
+@ResourceLock( value = Neo4jWithSocket.NEO4J_WITH_SOCKET, mode = ResourceAccessMode.READ_WRITE )
 public @interface Neo4jWithSocketExtension
 {
 }

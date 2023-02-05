@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -60,7 +60,7 @@ public abstract class KnownCommunityTopologyComponentVersion extends KnownSystem
 {
     KnownCommunityTopologyComponentVersion( ComponentVersion componentVersion )
     {
-        // TODO we do not have access to the security log here should we send in the ongdb log instead?
+        // TODO we do not have access to the security log here should we send in the neo4j log instead?
         super( componentVersion, CommunitySecurityLog.NULL_LOG );
     }
 

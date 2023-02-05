@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -86,7 +86,7 @@ public class SetInitialPasswordCommand extends AbstractCommand implements Passwo
     @Override
     public void execute() throws IOException
     {
-        Config config = loadONgDBConfig();
+        Config config = loadNeo4jConfig();
         FileSystemAbstraction fileSystem = ctx.fs();
 
         if ( realUsersExist( config ) )
@@ -132,7 +132,7 @@ public class SetInitialPasswordCommand extends AbstractCommand implements Passwo
         {
             result = true;
 
-            // Check if it only contains the default ongdb user
+            // Check if it only contains the default neo4j user
             FileUserRepository userRepository = new FileUserRepository( ctx.fs(), authFile, NullLogProvider.getInstance() );
             try ( Lifespan life = new Lifespan( userRepository ) )
             {
@@ -142,7 +142,7 @@ public class SetInitialPasswordCommand extends AbstractCommand implements Passwo
                     User user = users.values().get( 0 );
                     if ( INITIAL_USER_NAME.equals( user.name() ) && user.credentials().matchesPassword( UTF8.encode( INITIAL_PASSWORD ) ) )
                     {
-                        // We allow overwriting an unmodified default ongdb user
+                        // We allow overwriting an unmodified default neo4j user
                         result = false;
                     }
                 }
@@ -170,13 +170,13 @@ public class SetInitialPasswordCommand extends AbstractCommand implements Passwo
             files = "`auth` file";
         }
 
-        return  "the provided initial password was not set because existing ONgDB users were detected at `" +
+        return  "the provided initial password was not set because existing Neo4j users were detected at `" +
                authFile.toAbsolutePath() + "`. Please remove the existing " + files + " if you want to reset your database " +
                 "to only have a default user with the provided password.";
     }
 
     @VisibleForTesting
-    Config loadONgDBConfig()
+    Config loadNeo4jConfig()
     {
         Config cfg = Config.newBuilder()
                            .set( GraphDatabaseSettings.ongdb_home, ctx.homeDir().toAbsolutePath() )

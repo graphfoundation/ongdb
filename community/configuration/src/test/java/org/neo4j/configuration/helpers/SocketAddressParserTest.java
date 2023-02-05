@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -332,7 +332,7 @@ class SocketAddressParserTest
     @Test
     void shouldNotAllowURIs()
     {
-        assertThrows( IllegalArgumentException.class, () -> SocketAddressParser.socketAddress( "ongdb://18.117.195.94:7687", SocketAddress::new ) );
+        assertThrows( IllegalArgumentException.class, () -> SocketAddressParser.socketAddress( "neo4j://18.117.195.94:7687", SocketAddress::new ) );
     }
 
     private static String whitespace( int numberOfWhitespaces )

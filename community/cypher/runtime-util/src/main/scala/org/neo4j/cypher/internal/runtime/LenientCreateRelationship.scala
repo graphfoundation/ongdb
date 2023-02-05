@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -46,5 +46,5 @@ object LenientCreateRelationship {
 
   def errorMsg(relName: String, nodeName: String): String =
     s"Failed to create relationship `$relName`, node `$nodeName` is missing. If you prefer to simply ignore rows " +
-    s"where a relationship node is missing, set '$confName = true' in ongdb.conf"
+    s"where a relationship node is missing, set '$confName = true' in neo4j.conf"
 }

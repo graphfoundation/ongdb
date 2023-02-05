@@ -92,8 +92,8 @@
         <maven.repository.snapshots>https://oss.sonatype.org/content/repositories/snapshots</maven.repository.snapshots>
         <maven.repository.releases>https://oss.sonatype.org/service/local/staging/deploy/maven2</maven.repository.releases>
         <licensing.prepend.text>licensing/notice-agpl-prefix.txt</licensing.prepend.text>
-        <lucene.version>8.9.0</lucene.version>
-        <bouncycastle.version>1.59</bouncycastle.version>
+        <lucene.version>8.11.2</lucene.version>
+        <bouncycastle.version>1.69</bouncycastle.version>
         <generate-config-docs-phase>prepare-package</generate-config-docs-phase>
         <test.runner.jvm/>
         <test.runner.jvm.settings.additional/>
@@ -108,7 +108,7 @@
             -Djunit.jupiter.extensions.autodetection.enabled=true
             -XX:+UnlockExperimentalVMOptions -XX:+TrustFinalNonStaticFields ${test.runner.jvm.settings.additional}
         </test.runner.jvm.settings>
-        <jetty.version>9.4.43.v20210629</jetty.version>
+        <jetty.version>9.4.48.v20220622</jetty.version>
         <findbugs.version>3.0.1</findbugs.version>
         <git.commit>unknown-commit</git.commit>
         <forkCounts>0</forkCounts>
@@ -124,14 +124,15 @@
         <metrics.version>4.0.2</metrics.version>
         <scala.target.vm>1.8</scala.target.vm>
         <scala.java.arg/>
-        <jackson.version>2.13.2</jackson.version>
+        <jackson.version>2.13.4</jackson.version>
+        <jackson-databind.version>2.13.4.2</jackson-databind.version>
         <jamm.version>0.3.3</jamm.version>
         <jersey.version>2.34</jersey.version>
         <junit.platform.version>1.6.2</junit.platform.version>
         <junit.version>5.8.2</junit.version>
         <log4j.version>2.17.1</log4j.version>
         <mockito.version>3.12.4</mockito.version>
-        <neo4j-java-driver.version>4.4.9</neo4j-java-driver.version>
+        <neo4j-java-driver.version>4.4.11</neo4j-java-driver.version>
         <opencypher.version>1.0.0-M16</opencypher.version>
         <checkstyle.strict>true</checkstyle.strict>
 
@@ -144,10 +145,10 @@
         <module>build-resources</module>
         <module>annotations</module>
         <module>community</module>
-<!--        <module>enterprise</module>-->
-<!--        <module>integrationtests</module>-->
-<!--        <module>stresstests</module>-->
-<!--        <module>tools</module>-->
+        <!--        <module>enterprise</module>-->
+        <!--        <module>integrationtests</module>-->
+        <!--        <module>stresstests</module>-->
+        <!--        <module>tools</module>-->
         <module>packaging</module>
     </modules>
 
@@ -762,7 +763,7 @@
                     <dependency>
                         <groupId>com.puppycrawl.tools</groupId>
                         <artifactId>checkstyle</artifactId>
-                        <version>8.8</version>
+                        <version>9.0</version>
                     </dependency>
                 </dependencies>
                 <executions>
@@ -1046,7 +1047,7 @@
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-databind</artifactId>
-                <version>${jackson.version}</version>
+                <version>${jackson-databind.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.jaxrs</groupId>
@@ -1121,7 +1122,7 @@
             <dependency>
                 <groupId>org.apache.shiro</groupId>
                 <artifactId>shiro-core</artifactId>
-                <version>1.6.0</version>
+                <version>1.11.0</version>
             </dependency>
             <dependency>
                 <groupId>org.assertj</groupId>
@@ -1196,6 +1197,12 @@
                 <artifactId>apacheds-server-integ</artifactId>
                 <version>2.0.0-M21</version>
                 <scope>test</scope>
+                <exclusions>
+                    <exclusion>
+                        <groupId>log4j</groupId>
+                        <artifactId>log4j</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>com.google.guava</groupId>
@@ -1403,7 +1410,7 @@
             <dependency>
                 <groupId>org.eclipse.collections</groupId>
                 <artifactId>eclipse-collections</artifactId>
-                <version>11.0.0</version>
+                <version>10.4.0</version>
             </dependency>
             <dependency>
                 <groupId>org.junit.jupiter</groupId>
@@ -1446,7 +1453,7 @@
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-text</artifactId>
-                <version>1.4</version>
+                <version>1.10.0</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>
@@ -1474,7 +1481,7 @@
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
-                <version>4.1.77.Final</version>
+                <version>4.1.86.Final</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -1562,7 +1569,7 @@
             <dependency>
                 <groupId>org.codehaus.jettison</groupId>
                 <artifactId>jettison</artifactId>
-                <version>1.4.1</version>
+                <version>1.5.3</version>
             </dependency>
             <dependency>
                 <groupId>org.eclipse.jetty</groupId>

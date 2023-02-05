@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -70,7 +70,7 @@ public class CypherShell implements StatementExecuter, Connector, TransactionHan
     private final BoltStateHandler boltStateHandler;
     private final PrettyPrinter prettyPrinter;
     private CommandHelper commandHelper;
-    private String lastONgDBErrorCode;
+    private String lastNeo4jErrorCode;
 
     public CypherShell( LinePrinter linePrinter,
                         PrettyConfig prettyConfig,
@@ -125,7 +125,7 @@ public class CypherShell implements StatementExecuter, Connector, TransactionHan
         // Else it will be parsed as Cypher, but for that we need to be connected
         if ( !isConnected() )
         {
-            throw new CommandException( "Not connected to ONgDB" );
+            throw new CommandException( "Not connected to Neo4j" );
         }
 
         executeCypher( cmdString );
@@ -139,7 +139,7 @@ public class CypherShell implements StatementExecuter, Connector, TransactionHan
     @Override
     public String lastNeo4jErrorCode()
     {
-        return lastONgDBErrorCode;
+        return lastNeo4jErrorCode;
     }
 
     /**
@@ -157,11 +157,11 @@ public class CypherShell implements StatementExecuter, Connector, TransactionHan
                                   prettyPrinter.format( boltResult, linePrinter );
                                   boltStateHandler.updateActualDbName( boltResult.getSummary() );
                               } );
-            lastONgDBErrorCode = null;
+            lastNeo4jErrorCode = null;
         }
         catch ( Neo4jException e )
         {
-            lastONgDBErrorCode = getErrorCode( e );
+            lastNeo4jErrorCode = getErrorCode( e );
             throw boltStateHandler.handleException( e );
         }
     }
@@ -199,7 +199,7 @@ public class CypherShell implements StatementExecuter, Connector, TransactionHan
     }
 
     /**
-     * Open a session to ONgDB
+     * Open a session to Neo4j
      *
      * @param connectionConfig
      * @param command
@@ -236,11 +236,11 @@ public class CypherShell implements StatementExecuter, Connector, TransactionHan
         try
         {
             boltStateHandler.commitTransaction();
-            lastONgDBErrorCode = null;
+            lastNeo4jErrorCode = null;
         }
         catch ( Neo4jException e )
         {
-            lastONgDBErrorCode = getErrorCode( e );
+            lastNeo4jErrorCode = getErrorCode( e );
             throw e;
         }
     }
@@ -279,11 +279,11 @@ public class CypherShell implements StatementExecuter, Connector, TransactionHan
         try
         {
             boltStateHandler.setActiveDatabase( databaseName );
-            lastONgDBErrorCode = null;
+            lastNeo4jErrorCode = null;
         }
         catch ( Neo4jException e )
         {
-            lastONgDBErrorCode = getErrorCode( e );
+            lastNeo4jErrorCode = getErrorCode( e );
             throw e;
         }
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -82,7 +82,7 @@ public class DummyThirdPartyWebService
     @Produces( MediaType.TEXT_PLAIN )
     public static Response countNodes( @Context DatabaseManagementService dbms )
     {
-        GraphDatabaseService db = dbms.database( "ongdb" );
+        GraphDatabaseService db = dbms.database( "neo4j" );
         try ( Transaction transaction = db.beginTx() )
         {
             return Response.ok().entity( String.valueOf( countNodesIn( transaction ) ) ).build();

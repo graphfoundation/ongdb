@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -78,7 +78,7 @@ class SetInitialPasswordCommandIT
     private PrintStream out;
     private PrintStream err;
 
-    private static final String successMessage = "Changed password for user 'ongdb'. " +
+    private static final String successMessage = "Changed password for user 'neo4j'. " +
                                                  "IMPORTANT: this change will only take effect if performed before the database is started for the first time.";
 
     @BeforeEach
@@ -138,10 +138,10 @@ class SetInitialPasswordCommandIT
     @Test
     void shouldWorkWithSamePassword() throws Throwable
     {
-        executeCommand( "ongdb" );
-        assertAuthIniFile( "ongdb", false );
-        executeCommand( "ongdb" );
-        assertAuthIniFile( "ongdb", false );
+        executeCommand( "neo4j" );
+        assertAuthIniFile( "neo4j", false );
+        executeCommand( "neo4j" );
+        assertAuthIniFile( "neo4j", false );
 
         verify( out, times( 2 ) ).println( successMessage );
     }
@@ -156,7 +156,7 @@ class SetInitialPasswordCommandIT
 
         // When
         var e = assertThrows( Exception.class, () -> executeCommand( "will-be-ignored" ) );
-        assertThat( e.getMessage() ).contains( "the provided initial password was not set because existing ONgDB users were detected" );
+        assertThat( e.getMessage() ).contains( "the provided initial password was not set because existing Neo4j users were detected" );
 
         // Then
         assertNoAuthIniFile();
@@ -175,7 +175,7 @@ class SetInitialPasswordCommandIT
 
         // When
         var e = assertThrows( Exception.class, () -> executeCommand( "will-be-ignored" ) );
-        assertThat( e.getMessage() ).contains( "the provided initial password was not set because existing ONgDB users were detected" );
+        assertThat( e.getMessage() ).contains( "the provided initial password was not set because existing Neo4j users were detected" );
 
         // Then
         assertNoAuthIniFile();
@@ -185,7 +185,7 @@ class SetInitialPasswordCommandIT
     void shouldErrorIfRealUsersAlreadyExistV2() throws Throwable
     {
         // Given
-        // Create an `auth` file with the default ONgDB user, but not the default password
+        // Create an `auth` file with the default neo4j user, but not the default password
         executeCommand( "not-the-default-password" );
         Path authFile = getAuthFile( "auth" );
         fileSystem.mkdirs( authFile.getParent() );
@@ -193,7 +193,7 @@ class SetInitialPasswordCommandIT
 
         // When
         var e = assertThrows( Exception.class, () -> executeCommand( "will-be-ignored" ) );
-        assertThat( e.getMessage() ).contains( "the provided initial password was not set because existing ONgDB users were detected" );
+        assertThat( e.getMessage() ).contains( "the provided initial password was not set because existing Neo4j users were detected" );
 
         // Then
         assertNoAuthIniFile();
@@ -201,10 +201,10 @@ class SetInitialPasswordCommandIT
     }
 
     @Test
-    void shouldNotErrorIfOnlyTheUnmodifiedDefaultONgDBUserAlreadyExists() throws Throwable
+    void shouldNotErrorIfOnlyTheUnmodifiedDefaultNeo4jUserAlreadyExists() throws Throwable
     {
         // Given
-        // Create an `auth` file with the default ONgDB user
+        // Create an `auth` file with the default neo4j user
         executeCommand( AuthManager.INITIAL_PASSWORD );
         Path authFile = getAuthFile( "auth" );
         fileSystem.mkdirs( authFile.getParent() );
@@ -224,10 +224,10 @@ class SetInitialPasswordCommandIT
         assertTrue( fileSystem.fileExists( authIniFile ) );
         FileUserRepository userRepository = new FileUserRepository( fileSystem, authIniFile, NullLogProvider.getInstance() );
         userRepository.start();
-        User ongdb = userRepository.getUserByName( AuthManager.INITIAL_USER_NAME );
-        assertNotNull( ongdb );
-        assertTrue( ongdb.credentials().matchesPassword( UTF8.encode( password ) ) );
-        assertThat( ongdb.hasFlag( User.PASSWORD_CHANGE_REQUIRED ) ).isEqualTo( passwordChangeRequired );
+        User neo4j = userRepository.getUserByName( AuthManager.INITIAL_USER_NAME );
+        assertNotNull( neo4j );
+        assertTrue( neo4j.credentials().matchesPassword( UTF8.encode( password ) ) );
+        assertThat( neo4j.hasFlag( User.PASSWORD_CHANGE_REQUIRED ) ).isEqualTo( passwordChangeRequired );
     }
 
     private void assertNoAuthIniFile()

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -40,19 +40,22 @@ package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import java.net.URL
 
+import inet.ipaddr.IPAddressString
 import org.neo4j.cypher.internal.runtime.ClosingIterator
 import org.neo4j.values.storable.Value
 
 trait ExternalCSVResource {
   def getCsvIterator(url: URL,
-                     fieldTerminator: Option[String],
+                     ipBlocklist: List[IPAddressString],fieldTerminator: Option[String],
                      legacyCsvQuoteEscaping: Boolean,
                      bufferSize: Int,
                      headers: Boolean = false): LoadCsvIterator
 }
 
 object ExternalCSVResource {
-  def empty: ExternalCSVResource = (_: URL, _: Option[String], _: Boolean,
+
+  def empty: ExternalCSVResource =
+    (_: URL, _: List[IPAddressString], _: Option[String], _: Boolean,
                                     _: Int, _: Boolean) => LoadCsvIterator.empty
 }
 

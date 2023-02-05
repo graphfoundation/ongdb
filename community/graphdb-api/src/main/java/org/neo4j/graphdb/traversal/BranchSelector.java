@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -38,12 +38,15 @@
  */
 package org.neo4j.graphdb.traversal;
 
+import org.neo4j.annotations.api.PublicApi;
+
 /**
  * Decides "where to go next" in a traversal. It keeps state itself, f.ex. its
  * own current position. Examples of implementations are "depth first" and
  * "breadth first". This is an interface to implement if you'd like to implement
  * f.ex. a "best first" selector based on your own criteria.
  */
+@PublicApi
 public interface BranchSelector
 {
     /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -38,6 +38,8 @@
  */
 package org.neo4j.bolt.transaction;
 
+import java.util.Objects;
+
 public class CleanUpConnectionContext
 {
     private final String connectionId;
@@ -50,5 +52,26 @@ public class CleanUpConnectionContext
     public String connectionId()
     {
         return connectionId;
+    }
+
+    @Override
+    public boolean equals( Object o )
+    {
+        if ( this == o )
+        {
+            return true;
+        }
+        if ( o == null || getClass() != o.getClass() )
+        {
+            return false;
+        }
+        CleanUpConnectionContext that = (CleanUpConnectionContext) o;
+        return Objects.equals( connectionId, that.connectionId );
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash( connectionId );
     }
 }

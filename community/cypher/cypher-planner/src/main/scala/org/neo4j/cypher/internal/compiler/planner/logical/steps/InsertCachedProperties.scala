@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -96,6 +96,12 @@ case class InsertCachedProperties(pushdownPropertyReads: Boolean) extends Phase[
   override def postConditions: Set[StepSequencer.Condition] = InsertCachedProperties.postConditions
 
   override def process(from: LogicalPlanState, context: PlannerContext): LogicalPlanState = {
+
+    if (context.materializedEntitiesMode) {
+      // When working with materialized entities only, caching properties is not useful.
+      // Moreover, the runtime implementation of CachedProperty does not work with virtual entities.
+      return from
+    }
 
     val logicalPlan =
       if (pushdownPropertyReads) {

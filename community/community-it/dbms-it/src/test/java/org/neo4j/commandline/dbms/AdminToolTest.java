@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -71,7 +71,7 @@ public class AdminToolTest
         }
         String outString = outBuffer.toString();
         assertTrue( outString.contains( "Environment variables" ) );
-        assertTrue( outString.contains( "ONGDB_HOME" ) );
-        assertTrue( outString.contains( "ONGDB_CONF" ) );
+        assertTrue( outString.contains( "NEO4J_HOME" ) );
+        assertTrue( outString.contains( "NEO4J_CONF" ) );
     }
 }

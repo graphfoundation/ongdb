@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -174,7 +174,7 @@ public class ImportCommand extends AbstractCommand
     private long bufferSize = DEFAULT_CSV_CONFIG.bufferSize();
 
     @Option( names = "--max-memory", paramLabel = "<size>", defaultValue = "90%", converter = MemoryConverter.class,
-            description = "Maximum memory that ongdb-admin can use for various data structures and caching to improve performance. " +
+            description = "Maximum memory that neo4j-admin can use for various data structures and caching to improve performance. " +
                     "Values can be plain numbers, like 10000000 or e.g. 20G for 20 gigabyte, or even e.g. 70%%." )
     private long maxMemory;
 
@@ -247,7 +247,7 @@ public class ImportCommand extends AbstractCommand
     {
         try
         {
-            final var databaseConfig = loadONgDBConfig();
+            final var databaseConfig = loadNeo4jConfig();
             Neo4jLayout neo4jLayout = Neo4jLayout.of( databaseConfig );
             final var databaseLayout = RecordDatabaseLayout.of( neo4jLayout, database.name() ); //Right now we only support Record storage for import command
             final var csvConfig = csvConfiguration();
@@ -293,7 +293,7 @@ public class ImportCommand extends AbstractCommand
     }
 
     @VisibleForTesting
-    Config loadONgDBConfig()
+    Config loadNeo4jConfig()
     {
         Config cfg = Config.newBuilder()
                            .set( GraphDatabaseSettings.ongdb_home, ctx.homeDir().toAbsolutePath() )

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -38,6 +38,7 @@
  */
 package org.neo4j.cypher.internal.compiler.planner.logical.idp
 
+import org.neo4j.cypher.internal.compiler.planner.logical.ExistsSubquerySolving
 import org.neo4j.cypher.internal.compiler.planner.logical.LogicalPlanningContext
 import org.neo4j.cypher.internal.compiler.planner.logical.PatternExpressionSolving
 import org.neo4j.cypher.internal.compiler.planner.logical.QueryGraphSolver
@@ -117,7 +118,7 @@ object IDPQueryGraphSolver {
 case class IDPQueryGraphSolver(singleComponentSolver: SingleComponentPlannerTrait,
                                componentConnector: JoinDisconnectedQueryGraphComponents)
                               (monitor: IDPQueryGraphSolverMonitor)
-  extends QueryGraphSolver with PatternExpressionSolving {
+  extends QueryGraphSolver with PatternExpressionSolving with ExistsSubquerySolving {
 
   override def plan(queryGraph: QueryGraph, interestingOrderConfig: InterestingOrderConfig, context: LogicalPlanningContext): BestPlans = {
     val kit = kitWithShortestPathSupport(context.config.toKit(interestingOrderConfig, context), context)

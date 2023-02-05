@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -150,7 +150,7 @@ public class Loader
             String bytes = "?";
             if ( StandardCompressionFormat.ZSTD.isFormat( decompressor ) )
             {
-                format = "ONgDB ZSTD Dump.";
+                format = "Neo4j ZSTD Dump.";
                 // Important: Only the ZSTD compressed archives have any archive metadata.
                 readArchiveMetadata( decompressor );
                 files = String.valueOf( progressPrinter.maxFiles );

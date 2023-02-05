@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -234,7 +234,7 @@ class ErrorMessagesTest extends ExecutionEngineFunSuite {
 
   test("trying to store mixed type array") {
     expectError("CREATE (a) SET a.value = [datetime(), time()] RETURN a.value",
-      "ONgDB only supports a subset of Geequel types for storage as singleton or array properties. " +
+      "Neo4j only supports a subset of Cypher types for storage as singleton or array properties. " +
         "Please refer to section cypher/syntax/values of the manual for more details."
     )
   }

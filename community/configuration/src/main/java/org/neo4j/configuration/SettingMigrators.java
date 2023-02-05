@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -488,7 +488,7 @@ public final class SettingMigrators
                     if ( port >= 0 ) //valid port on listen, and none on advertised, migrate!
                     {
                         SocketAddress newAdvertised = new SocketAddress( advertisedValue, port );
-                        String msg = "Note that since you did not explicitly set the port in %s ONgDB automatically set it to %s to match %s." +
+                        String msg = "Note that since you did not explicitly set the port in %s Neo4j automatically set it to %s to match %s." +
                                 " This behavior may change in the future and we recommend you to explicitly set it.";
                         if ( isNotBlank( advertisedValue ) )
                         {

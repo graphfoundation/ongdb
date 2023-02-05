@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -107,7 +107,7 @@ public abstract class AbstractCommand implements Command
     private void printVerboseHeader()
     {
         PrintStream out = ctx.out();
-        out.println( "ongdb " + Version.getONgDBVersion() );
+        out.println( "neo4j " + Version.getNeo4jVersion() );
         SystemDiagnostics.JAVA_VIRTUAL_MACHINE.dump( out::println );
     }
 }

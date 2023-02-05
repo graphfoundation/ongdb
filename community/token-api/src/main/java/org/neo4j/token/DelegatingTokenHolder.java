@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -38,7 +38,6 @@
  */
 package org.neo4j.token;
 
-import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.eclipse.collections.api.set.primitive.IntSet;
 import org.eclipse.collections.api.set.primitive.MutableIntSet;
 import org.eclipse.collections.impl.map.mutable.primitive.IntIntHashMap;
@@ -195,11 +194,5 @@ public class DelegatingTokenHolder extends AbstractTokenHolderBase
         }
 
         return createdTokens;
-    }
-
-    @Override
-    public String toString()
-    {
-        return new ToStringBuilder( this ).append( "tokenCreator", tokenCreator ).toString();
     }
 }

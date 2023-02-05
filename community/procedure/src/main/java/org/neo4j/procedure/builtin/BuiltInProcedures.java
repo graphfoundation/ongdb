@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -259,7 +259,7 @@ public class BuiltInProcedures
     @Deprecated( since = "4.2.0", forRemoval = true )
     @SystemProcedure
     @Description( "List all statements for creating and dropping existing indexes and constraints. " +
-            "Note that only index types introduced before ONgDB 2.0 are included." )
+            "Note that only index types introduced before Neo4j 4.3 are included." )
     @Procedure( name = "db.schemaStatements", mode = READ, deprecatedBy = "SHOW INDEXES YIELD * command and SHOW CONSTRAINTS YIELD * command" )
     public Stream<SchemaStatementResult> schemaStatements() throws ProcedureException
     {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -121,7 +121,7 @@ class PkiUtilsTest
         URL resource = this.getClass().getResource( "test-certificates/encrypted/private.key" );
         copy( resource, keyFile );
 
-        PrivateKey pk = PkiUtils.loadPrivateKey( keyFile, "ongdb" );
+        PrivateKey pk = PkiUtils.loadPrivateKey( keyFile, "neo4j" );
         assertThat( pk.getAlgorithm() ).isEqualTo( "RSA" );
     }
 

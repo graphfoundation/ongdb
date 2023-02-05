@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -67,13 +67,14 @@ import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAM
 
 @Command(
         name = "push-to-cloud",
-        description = "Push your local database to an ONgDB Aura instance. The database must be shutdown in order to take a dump to upload. " +
-                      "The target location is your ONgDB Aura Bolt URI. You will be asked your ONgDB Cloud username and password during " +
+        description = "Push your local database to a Neo4j Aura instance. The database must be shutdown in order to take a dump to upload. " +
+                      "The target location is your Neo4j Aura Bolt URI. You will be asked your Neo4j Cloud username and password during " +
                       "the push-to-cloud operation."
 )
 
 public class PushToCloudCommand extends AbstractCommand
 {
+    private static final String DEV_MODE_VAR_NAME = "P2C_DEV_MODE";
     private final Copier copier;
     private final DumpCreator dumpCreator;
     private final PushToCloudConsole cons;
@@ -84,7 +85,7 @@ public class PushToCloudCommand extends AbstractCommand
             converter = Converters.DatabaseNameConverter.class )
     private NormalizedDatabaseName database;
     @Option( names = "--dump",
-            description = "'/path/to/my-ongdb-database-dump-file' Path to an existing database dump for upload. " +
+            description = "'/path/to/my-neo4j-database-dump-file' Path to an existing database dump for upload. " +
                           "This argument cannot be used together with --database." )
     private Path dump;
     @Option( names = {"--temp-file-location", "--dump-to"},
@@ -92,16 +93,16 @@ public class PushToCloudCommand extends AbstractCommand
                           "Used in combination with the --database argument." )
     private Path tmpDumpFile;
     @Option( names = "--bolt-uri", arity = "1", required = true,
-            description = "'ongdb://mydatabaseid.databases.ongdb.io' Bolt URI of target database" )
+            description = "'neo4j://mydatabaseid.databases.neo4j.io' Bolt URI of target database" )
     private String boltURI;
-    @Option( names = "--username", defaultValue = "${ONGDB_USERNAME}",
+    @Option( names = "--username", defaultValue = "${NEO4J_USERNAME}",
             description = "Optional: Username of the target database to push this database to. Prompt will ask for username if not provided. " +
-                          "Alternatively ONGDB_USERNAME environment variable can be used." )
+                          "Alternatively NEO4J_USERNAME environment variable can be used." )
     private String username;
 
-    @Option( names = "--password", defaultValue = "${ONGDB_PASSWORD}",
+    @Option( names = "--password", defaultValue = "${NEO4J_PASSWORD}",
             description = "Optional: Password of the target database to push this database to. Prompt will ask for password if not provided. " +
-                          "Alternatively ONGDB_PASSWORD environment variable can be used." )
+                          "Alternatively NEO4J_PASSWORD environment variable can be used." )
     private String password;
     @Option( names = "--overwrite", description = "Optional: Overwrite the data in the target database." )
     private boolean overwrite;
@@ -127,26 +128,26 @@ public class PushToCloudCommand extends AbstractCommand
             }
             if ( isBlank( username ) )
             {
-                if ( isBlank( username = cons.readLine( "%s", "ONgDB aura username (default: ongdb):" ) ) )
+                if ( isBlank( username = cons.readLine( "%s", "Neo4j aura username (default: neo4j):" ) ) )
                 {
-                    username = "ongdb";
+                    username = "neo4j";
                 }
             }
             char[] pass;
             if ( isBlank( password ) )
             {
-                if ( (pass = cons.readPassword( "ONgDB aura password for %s:", username )).length == 0 )
+                if ( (pass = cons.readPassword( "Neo4j aura password for %s:", username )).length == 0 )
                 {
                     throw new CommandFailedException(
-                            "Please supply a password, either by '--password' parameter, 'ONGDB_PASSWORD' environment variable, or prompt" );
+                            "Please supply a password, either by '--password' parameter, 'NEO4J_PASSWORD' environment variable, or prompt" );
                 }
             }
             else
             {
                 pass = password.toCharArray();
             }
-
-            String consoleURL = buildConsoleURI( boltURI );
+            boolean devMode = cons.readDevMode(DEV_MODE_VAR_NAME);
+            String consoleURL = buildConsoleURI( boltURI, devMode);
             String bearerToken = copier.authenticate( verbose, consoleURL, username, pass, overwrite );
 
             Uploader uploader = prepareUploader( dump, database, tmpDumpFile );
@@ -170,7 +171,20 @@ public class PushToCloudCommand extends AbstractCommand
         }
     }
 
-    private String buildConsoleURI( String boltURI ) throws CommandFailedException
+    String buildConsoleURI( String boltURI, boolean devMode ) throws CommandFailedException
+    {
+        UrlMatcher[] matchers = devMode
+                ? new UrlMatcher[] {new DevMatcher(), new ProdMatcher(), new PrivMatcher()}
+                : new UrlMatcher[] {new ProdMatcher(), new PrivMatcher()};
+
+        return Arrays.stream(matchers)
+                .filter(m -> m.match(boltURI))
+                .findFirst()
+                .orElseThrow(() -> new CommandFailedException( "Invalid Bolt URI '" + boltURI + "'" ))
+                .consoleUrl();
+    }
+
+    abstract class UrlMatcher
     {
         // A boltURI looks something like this:
         //
@@ -178,7 +192,8 @@ public class PushToCloudCommand extends AbstractCommand
         //                  <─┬──><──────┬─────>
         //                    │          └──────── environment
         //                    └─────────────────── database id
-        //
+        // When running in a dev environment it can also be of the form
+        // bolt+routing://mydbid-myenv.databases.neo4j-myenv.io
         // Constructing a console URI takes elements from the bolt URI and places them inside this URI:
         //
         //   https://console<environment>.neo4j.io/v1/databases/<database id>
@@ -187,17 +202,116 @@ public class PushToCloudCommand extends AbstractCommand
         //
         //   bolt+routing://rogue.databases.neo4j.io  --> https://console.neo4j.io/v1/databases/rogue
         //   bolt+routing://rogue-mattias.databases.neo4j.io  --> https://console-mattias.neo4j.io/v1/databases/rogue
+        //  bolt+routing://mydbid-myenv.databases.neo4j-myenv.io ->
+        //  https://console-env.neo4j.env-io/v1/databases/rogue
+        //
+        // When PrivateLink is enabled, the URL scheme is a little different:
+        //
+        //   bolt+routing://mydbid.myenv-orch-0003.neo4j.io"
+        //                  <─┬──> <─┬─>
+        //                    │      └──────────── environment
+        //                    └─────────────────── database id
 
-        Pattern pattern = Pattern.compile( "(?:bolt(?:\\+routing)?|ongdb(?:\\+s|\\+ssc)?)://([^-]+)(-(.+))?.databases.neo4j.io$" );
-        Matcher matcher = pattern.matcher( boltURI );
-        if ( !matcher.matches() )
+        protected Matcher matcher;
+        protected String url;
+
+        protected abstract Pattern pattern();
+
+        public abstract String consoleUrl();
+
+        public boolean match( String url )
         {
-            throw new CommandFailedException( "Invalid Bolt URI '" + boltURI + "'" );
+            this.url = url;
+            matcher = pattern().matcher(url);
+            return matcher.matches();
+        }
+    }
+
+    class ProdMatcher extends UrlMatcher
+    {
+        @Override
+        protected Pattern pattern()
+        {
+            return Pattern.compile(
+                    "(?:bolt(?:\\+routing)?|neo4j(?:\\+s|\\+ssc)?)://([^-]+)(-(.+))?.databases.neo4j.io$");
+        }
+        @Override
+        public String consoleUrl()
+        {
+            String databaseId = matcher.group(1);
+            String environment = matcher.group(2);
+
+            return String.format(
+                    "https://console%s.neo4j.io/v1/databases/%s", environment == null ? "" : environment, databaseId);
+        }
+    }
+
+    class DevMatcher extends UrlMatcher
+    {
+        @Override
+        protected Pattern pattern()
+        {
+            return Pattern.compile(
+                    "(?:bolt(?:\\+routing)?|neo4j(?:\\+s|\\+ssc)?)://([^-]+)(-(.+))?.databases.neo4j(-(.+))?.io$");
         }
 
-        String databaseId = matcher.group( 1 );
-        String environment = matcher.group( 2 );
-        return String.format( "https://console%s.neo4j.io/v1/databases/%s", environment == null ? "" : environment, databaseId );
+        @Override
+        public String consoleUrl()
+        {
+            String databaseId = matcher.group(1);
+            String environment = matcher.group(2);
+            String domain = "";
+
+            if ( environment == null )
+            {
+                throw new CommandFailedException(
+                        "Expected to find an environment running in dev mode in bolt URI: " + url );
+            }
+            if ( matcher.groupCount() == 5 )
+            {
+                domain = matcher.group(4);
+            }
+
+            return String.format("https://console%s.neo4j%s.io/v1/databases/%s", environment, domain, databaseId);
+        }
+    }
+
+    class PrivMatcher extends UrlMatcher
+    {
+        @Override
+        protected Pattern pattern()
+        {
+            return Pattern.compile(
+                    "(?:bolt(?:\\+routing)?|neo4j(?:\\+s|\\+ssc)?)://([a-zA-Z0-9]+)\\.(\\S+)-orch-(\\d+).neo4j(-\\S+)?.io$");
+        }
+
+        @Override
+        public String consoleUrl()
+        {
+            String databaseId = matcher.group(1);
+            String environment = matcher.group(2);
+            String domain = "";
+
+            switch ( environment )
+            {
+                case "production":
+                    environment = "";
+                    break;
+                case "staging":
+                case "prestaging":
+                    environment = "-" + environment;
+                    break;
+                default:
+                    environment = "-" + environment;
+                    if ( matcher.group(4) == null )
+                    {
+                        throw new CommandFailedException( "Invalid Bolt URI '" + url + "'" );
+                    }
+                    domain = matcher.group(4);
+            }
+
+            return String.format("https://console%s.neo4j%s.io/v1/databases/%s", environment, domain, databaseId);
+        }
     }
 
     private Uploader prepareUploader( Path dump, NormalizedDatabaseName database, Path to ) throws CommandFailedException

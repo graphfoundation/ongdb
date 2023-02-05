@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -62,8 +62,8 @@ import org.neo4j.util.Preconditions;
 import static org.neo4j.configuration.SettingValueParsers.PATH;
 import static org.neo4j.server.startup.Bootloader.ARG_EXPAND_COMMANDS;
 import static org.neo4j.server.startup.Bootloader.DEFAULT_CONFIG_LOCATION;
-import static org.neo4j.server.startup.Bootloader.ENV_ONGDB_CONF;
-import static org.neo4j.server.startup.Bootloader.ENV_ONGDB_HOME;
+import static org.neo4j.server.startup.Bootloader.ENV_NEO4J_CONF;
+import static org.neo4j.server.startup.Bootloader.ENV_NEO4J_HOME;
 import static org.neo4j.server.startup.Bootloader.PROP_BASEDIR;
 
 abstract class BootloaderContext
@@ -159,7 +159,7 @@ abstract class BootloaderContext
         {
             assertInitiated();
             Path defaultHome = getProp( PROP_BASEDIR, Path.of( "" ).toAbsolutePath().getParent(), PATH ); //Basedir is provided by the app-assembler
-            home = getEnv( ENV_ONGDB_HOME, defaultHome, PATH ).toAbsolutePath(); //But an ONGDB_HOME has higher prio
+            home = getEnv( ENV_NEO4J_HOME, defaultHome, PATH ).toAbsolutePath(); //But a NEO4J_HOME has higher prio
         }
         return home;
     }
@@ -169,7 +169,7 @@ abstract class BootloaderContext
         if ( conf == null )
         {
             assertInitiated();
-            conf = getEnv( ENV_ONGDB_CONF, home().resolve( DEFAULT_CONFIG_LOCATION ), PATH );
+            conf = getEnv( ENV_NEO4J_CONF, home().resolve( DEFAULT_CONFIG_LOCATION ), PATH );
         }
         return conf;
     }

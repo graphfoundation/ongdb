@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -105,6 +105,7 @@ import org.neo4j.cypher.internal.ir.PassthroughAllHorizon
 import org.neo4j.cypher.internal.ir.PatternRelationship
 import org.neo4j.cypher.internal.ir.PlannerQueryPart
 import org.neo4j.cypher.internal.ir.QueryGraph
+import org.neo4j.cypher.internal.ir.QueryPagination
 import org.neo4j.cypher.internal.ir.QueryProjection
 import org.neo4j.cypher.internal.ir.RegularSinglePlannerQuery
 import org.neo4j.cypher.internal.ir.RemoveLabelPattern
@@ -1683,7 +1684,18 @@ case class LogicalPlanProducer(cardinalityModel: CardinalityModel, planningAttri
    */
   def planProduceResult(inner: LogicalPlan, columns: Seq[String], lastInterestingOrders: Option[InterestingOrder]): LogicalPlan = {
     val produceResult = ProduceResult(inner, columns)
-    solveds.copy(inner.id, produceResult.id)
+    if (columns.nonEmpty) {
+      val newSolved = solveds.get(inner.id) match {
+        case query: SinglePlannerQuery => query.updateTailOrSelf(
+            _.updateQueryProjection(_.withIsTerminating(true))
+          )
+        case uq @ UnionQuery(_, _, _, _) =>
+          uq
+      }
+      solveds.set(produceResult.id, newSolved)
+    } else {
+      solveds.copy(inner.id, produceResult.id)
+    }
     // Do not calculate cardinality for ProduceResult. Since the passed context does not have accurate label information
     // It will get a wrong value with some projections. Use the cardinality of inner instead
     cardinalities.copy(inner.id, produceResult.id)

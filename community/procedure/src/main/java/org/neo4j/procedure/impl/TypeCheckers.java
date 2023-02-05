@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -292,7 +292,7 @@ public class TypeCheckers
                                       .collect( Collectors.toList() );
 
         return new ProcedureException( Status.Statement.TypeError,
-                                       "Don't know how to map `%s` to the ONgDB Type System.%n" +
+                                       "Don't know how to map `%s` to the Neo4j Type System.%n" +
                                        "Please refer to to the documentation for full details.%n" +
                                        "For your reference, known types are: %s", cls.getTypeName(), types );
     }

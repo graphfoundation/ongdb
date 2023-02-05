@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -217,7 +217,7 @@ class ExecutingQueryTest
     {
         // given
         ExecutingQuery query = new ExecutingQuery( 17,
-                                                   ClientConnectionInfo.EMBEDDED_CONNECTION, from( DEFAULT_DATABASE_NAME, UUID.randomUUID() ), "ongdb", "ongdb",
+                                                   ClientConnectionInfo.EMBEDDED_CONNECTION, from( DEFAULT_DATABASE_NAME, UUID.randomUUID() ), "neo4j", "neo4j",
                                                    "hello world",
                                                    EMPTY_MAP,
                                                    Collections.emptyMap(),
@@ -242,7 +242,7 @@ class ExecutingQueryTest
         // given
         ExecutingQuery query = new ExecutingQuery( 17,
                                                    ClientConnectionInfo.EMBEDDED_CONNECTION, from( DEFAULT_DATABASE_NAME, UUID.randomUUID() ),
-                                                   "ongdb", "ongdb", "hello world",
+                                                   "neo4j", "neo4j", "hello world",
                                                    EMPTY_MAP,
                                                    Collections.emptyMap(),
                                                    () -> lockCount,
@@ -267,7 +267,7 @@ class ExecutingQueryTest
         // given
         ExecutingQuery query = new ExecutingQuery( 17,
                                                    ClientConnectionInfo.EMBEDDED_CONNECTION, from( DEFAULT_DATABASE_NAME, UUID.randomUUID() ),
-                                                   "ongdb", "ongdb", "hello world",
+                                                   "neo4j", "neo4j", "hello world",
                                                    EMPTY_MAP,
                                                    Collections.emptyMap(),
                                                    () -> lockCount,
@@ -417,7 +417,7 @@ class ExecutingQueryTest
     private ExecutingQuery createExecutingQuery( int queryId, String hello_world, PageCursorCountersStub page,
             FakeClock clock, FakeCpuClock cpuClock, NamedDatabaseId dbID, MapValue params )
     {
-        return new ExecutingQuery( queryId, ClientConnectionInfo.EMBEDDED_CONNECTION, dbID, "ongdb", "ongdb", hello_world,
+        return new ExecutingQuery( queryId, ClientConnectionInfo.EMBEDDED_CONNECTION, dbID, "neo4j", "neo4j", hello_world,
                                    params, Collections.emptyMap(), () -> lockCount, page::hits, page::faults, Thread.currentThread().getId(),
                                    Thread.currentThread().getName(), clock, cpuClock, true );
     }

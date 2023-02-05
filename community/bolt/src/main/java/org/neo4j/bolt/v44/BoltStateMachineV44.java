@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -47,8 +47,8 @@ import org.neo4j.bolt.runtime.statemachine.impl.AbstractBoltStateMachine;
 import org.neo4j.bolt.transaction.TransactionManager;
 import org.neo4j.bolt.v3.runtime.InterruptedState;
 import org.neo4j.bolt.v4.runtime.AutoCommitState;
-import org.neo4j.bolt.v4.runtime.FailedState;
 import org.neo4j.bolt.v41.runtime.ConnectedState;
+import org.neo4j.bolt.v43.runtime.FailedState;
 import org.neo4j.bolt.v44.runtime.InTransactionState;
 import org.neo4j.bolt.v44.runtime.ReadyState;
 import org.neo4j.kernel.database.DefaultDatabaseResolver;
@@ -81,7 +81,7 @@ public class BoltStateMachineV44 extends AbstractBoltStateMachine
         var connected = new ConnectedState( connectionHints ); //v4.1
         var autoCommitState = new AutoCommitState(); // v4
         var inTransaction = new InTransactionState(); // v4.4
-        var failed = new FailedState(); // v4
+        var failed = new FailedState(); // v4.3
         var ready = new ReadyState( new ProcedureRoutingTableGetter() ); // v4.4
         var interrupted = new InterruptedState(); // v3
 

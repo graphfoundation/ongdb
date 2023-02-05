@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -166,9 +166,10 @@ class UndirectedRelationshipIdSeekIterator(relIds: java.util.Iterator[AnyValue],
         flipState()
         lastRel
       } else {
-        emitSibling = true
         lastRel = _next
         storeState()
+        // For self-loops, we don't emit sibling
+        emitSibling = startNodeId() != endNodeId()
         _next = computeNext()
         lastRel
       }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -49,7 +49,7 @@ public abstract class ParameterizedTransactionEndpointsTestBase extends Abstract
 {
     protected final HTTP.Builder http = HTTP.withBaseUri( container().getBaseUri() );
     private static final String LEGACY_TX_ENDPOINT = "db/data/transaction";
-    protected static final String TX_ENDPOINT = "db/ongdb/tx";
+    protected static final String TX_ENDPOINT = "db/neo4j/tx";
 
     protected static Stream<Arguments> argumentsProvider()
     {

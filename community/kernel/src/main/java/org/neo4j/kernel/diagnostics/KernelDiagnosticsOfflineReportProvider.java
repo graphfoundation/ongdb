@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -106,8 +106,8 @@ public class KernelDiagnosticsOfflineReportProvider extends DiagnosticsOfflineRe
 
     private static void getVersion( List<DiagnosticsReportSource> sources )
     {
-        Supplier<String> ongdbVersion = () -> "ongdb " + Version.getONgDBVersion() + System.lineSeparator();
-        sources.add( DiagnosticsReportSources.newDiagnosticsString( "version.txt", ongdbVersion ) );
+        Supplier<String> neo4jVersion = () -> "neo4j " + Version.getNeo4jVersion() + System.lineSeparator();
+        sources.add( DiagnosticsReportSources.newDiagnosticsString( "version.txt", neo4jVersion ) );
     }
 
     /**
@@ -173,7 +173,7 @@ public class KernelDiagnosticsOfflineReportProvider extends DiagnosticsOfflineRe
     }
 
     /**
-     * Add {@code debug.log}, {@code ongdb.log} and {@code gc.log}. All with all available rotated files.
+     * Add {@code debug.log}, {@code neo4j.log} and {@code gc.log}. All with all available rotated files.
      *
      * @param sources destination of the sources.
      */
@@ -186,11 +186,11 @@ public class KernelDiagnosticsOfflineReportProvider extends DiagnosticsOfflineRe
             sources.addAll( DiagnosticsReportSources.newDiagnosticsRotatingFile( "logs/", fs, debugLogFile ) );
         }
 
-        // ongdb.log
-        Path ongdbLog = config.get( GraphDatabaseSettings.store_user_log_path );
-        if ( fs.fileExists( ongdbLog ) )
+        // neo4j.log
+        Path neo4jLog = config.get( GraphDatabaseSettings.store_user_log_path );
+        if ( fs.fileExists( neo4jLog ) )
         {
-            sources.addAll( DiagnosticsReportSources.newDiagnosticsRotatingFile( "logs/", fs, ongdbLog ) );
+            sources.addAll( DiagnosticsReportSources.newDiagnosticsRotatingFile( "logs/", fs, neo4jLog ) );
         }
 
         // gc.log

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -286,6 +286,7 @@ public class GlobalModule
 
         //transaction manager used for Bolt and HTTP interfaces
         transactionManager = new StatementProcessorTxManager();
+        globalDependencies.satisfyDependency( transactionManager );
 
         capabilitiesService = loadCapabilities();
         globalDependencies.satisfyDependency( capabilitiesService );
@@ -468,7 +469,7 @@ public class GlobalModule
     private CapabilitiesService loadCapabilities()
     {
         var service = CapabilitiesService.newCapabilities( globalConfig, globalDependencies );
-        service.set( DBMSCapabilities.dbms_instance_version, Version.getONgDBVersion() );
+        service.set( DBMSCapabilities.dbms_instance_version, Version.getNeo4jVersion() );
         service.set( DBMSCapabilities.dbms_instance_kernel_version, Version.getKernelVersion() );
         service.set( DBMSCapabilities.dbms_instance_edition, dbmsInfo.edition.toString() );
         service.set( DBMSCapabilities.dbms_instance_operational_mode, dbmsInfo.operationalMode.toString() );

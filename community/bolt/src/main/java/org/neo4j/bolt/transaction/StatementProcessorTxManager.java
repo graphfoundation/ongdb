@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -283,5 +283,17 @@ public class StatementProcessorTxManager implements TransactionManager
             // just rethrow
             throw new RuntimeException( ex );
         }
+    }
+
+    @VisibleForTesting
+    public int transactionCount()
+    {
+        return statementProcessors.size();
+    }
+
+    @VisibleForTesting
+    public int statementProcessorProviderCount()
+    {
+        return statementProcessorProviders.size();
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -41,6 +41,7 @@ package org.neo4j.internal.kernel.api.procs;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
 import org.neo4j.internal.helpers.collection.Iterables;
 
 import static java.util.Arrays.asList;
@@ -49,6 +50,7 @@ public class QualifiedName
 {
     private final String[] namespace;
     private final String name;
+    private final String description;
 
     public QualifiedName( List<String> namespace, String name )
     {
@@ -59,6 +61,7 @@ public class QualifiedName
     {
         this.namespace = namespace;
         this.name = name;
+        this.description = buildDescription( namespace, name );
     }
 
     public String[] namespace()
@@ -74,8 +77,7 @@ public class QualifiedName
     @Override
     public String toString()
     {
-        String strNamespace = namespace.length > 0 ? Iterables.toString( asList( namespace ), "." ) + "." : "";
-        return String.format( "%s%s", strNamespace, name );
+        return description;
     }
 
     @Override
@@ -98,5 +100,11 @@ public class QualifiedName
     public int hashCode()
     {
         return 31 * Arrays.hashCode( namespace ) + name.hashCode();
+    }
+
+    private static String buildDescription( String[] namespace, String name )
+    {
+        var strNamespace = namespace.length > 0 ? Iterables.toString( asList( namespace ), "." ) + "." : StringUtils.EMPTY;
+        return strNamespace + name;
     }
 }

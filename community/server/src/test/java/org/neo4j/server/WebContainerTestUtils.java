@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -69,7 +69,7 @@ public final class WebContainerTestUtils
 
     public static Path createTempDir() throws IOException
     {
-        return Files.createTempDirectory( "ongdb-test" );
+        return Files.createTempDirectory( "neo4j-test" );
     }
 
     public static Path getRelativePath( Path folder, Setting<Path> setting )

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2018-2022 "Graph Foundation,"
+# Copyright (c) "Graph Foundation,"
 # Graph Foundation, Inc. [https://graphfoundation.org]
 #
 # This file is part of ONgDB.
@@ -289,3 +289,18 @@ Feature: ReturnAcceptance
     Then the result should be (ignoring element order for lists):
       | actor                                                               |
       | {name: 'Actor 1', movies: [{title: 'Movie 1'}, {title: 'Movie 2'}]} |
+
+  Scenario: UNION with different RETURN order
+    Given an empty graph
+    When executing query:
+      """
+      WITH 1 AS y, 2 AS x
+      RETURN y, x
+      UNION
+      WITH 2 AS x, 1 AS y
+      RETURN *
+      """
+    Then the result should be, in any order:
+      | y | x |
+      | 1 | 2 |
+

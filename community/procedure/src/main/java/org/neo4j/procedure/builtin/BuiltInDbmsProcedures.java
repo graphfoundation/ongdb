@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -168,7 +168,7 @@ public class BuiltInDbmsProcedures
 
     @Admin
     @SystemProcedure
-    @Description( "List the currently active config of ONgDB." )
+    @Description( "List the currently active config of Neo4j." )
     @Procedure( name = "dbms.listConfig", mode = DBMS )
     public Stream<ConfigResult> listConfig( @Name( value = "searchString", defaultValue = "" ) String searchString )
     {
@@ -189,7 +189,7 @@ public class BuiltInDbmsProcedures
 
     @Internal
     @SystemProcedure
-    @Description( "Return config settings interesting to clients (e.g. ONgDB Browser)" )
+    @Description( "Return config settings interesting to clients (e.g. Neo4j Browser)" )
     @Procedure( name = "dbms.clientConfig", mode = DBMS )
     public Stream<ConfigResult> listClientConfig()
     {

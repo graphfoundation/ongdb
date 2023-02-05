@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -47,11 +47,11 @@ public class WriteOnReadOnlyAccessDbException extends KernelException
 {
     public WriteOnReadOnlyAccessDbException()
     {
-        super( Status.General.WriteOnReadOnlyAccessDatabase, "This ONgDB instance is read-only for all databases" );
+        super( Status.General.WriteOnReadOnlyAccessDatabase, "This Neo4j instance is read-only for all databases" );
     }
 
     public WriteOnReadOnlyAccessDbException( String databaseName )
     {
-        super( Status.General.WriteOnReadOnlyAccessDatabase, "The database " + databaseName + " is in read-only mode on this ONgDB instance" );
+        super( Status.General.WriteOnReadOnlyAccessDatabase, "The database " + databaseName + " is in read-only mode on this Neo4j instance" );
     }
 }

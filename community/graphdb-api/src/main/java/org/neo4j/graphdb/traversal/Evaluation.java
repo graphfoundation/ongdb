@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -38,6 +38,8 @@
  */
 package org.neo4j.graphdb.traversal;
 
+import org.neo4j.annotations.api.PublicApi;
+
 /**
  * Outcome of {@link Evaluator#evaluate(org.neo4j.graphdb.Path)}. An evaluation
  * can tell the traversal whether or not to continue down that
@@ -46,6 +48,7 @@ package org.neo4j.graphdb.traversal;
  *
  * @see Evaluator
  */
+@PublicApi
 public enum Evaluation
 {
     INCLUDE_AND_CONTINUE( true, true ),

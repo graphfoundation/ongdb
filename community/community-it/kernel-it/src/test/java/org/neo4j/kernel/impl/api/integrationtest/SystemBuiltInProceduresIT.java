@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -167,7 +167,7 @@ class SystemBuiltInProceduresIT extends CommunityProcedureITBase
 
         // Then
         assertThat( asList( stream ) ).containsExactly(
-                new AnyValue[]{stringValue( "ONgDB Kernel" ), VirtualValues.list( stringValue( Version.getONgDBVersion() ) ), stringValue( "community" )} );
+                new AnyValue[]{stringValue( "Neo4j Kernel" ), VirtualValues.list( stringValue( Version.getNeo4jVersion() ) ), stringValue( "community" )} );
 
         commit();
     }

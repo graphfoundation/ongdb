@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -44,6 +44,8 @@ import org.neo4j.cypher.internal.logical.plans.GetValue
 import org.neo4j.cypher.internal.runtime.spec.Edition
 import org.neo4j.cypher.internal.runtime.spec.LogicalQueryBuilder
 import org.neo4j.cypher.internal.runtime.spec.RuntimeTestSuite
+import org.neo4j.graphdb.RelationshipType
+import org.neo4j.graphdb.schema.IndexType
 
 abstract class RelationshipIndexContainsScanTestBase[CONTEXT <: RuntimeContext](
                                                              edition: Edition[CONTEXT],
@@ -515,5 +517,24 @@ abstract class RelationshipIndexContainsScanTestBase[CONTEXT <: RuntimeContext](
 
     //then
     runtimeResult should beColumns("value").withRows(rowCount(limit))
+  }
+
+  test("undirected scans only find loop once") {
+    val rel = given {
+      relationshipIndex(IndexType.TEXT, "R", "text")
+
+      val a = tx.createNode()
+      val r = a.createRelationshipTo(a, RelationshipType.withName("R"))
+      r.setProperty("text", "value")
+      r
+    }
+
+    // when
+    val logicalQuery = new LogicalQueryBuilder(this)
+      .produceResults("r")
+      .relationshipIndexOperator("(n)-[r:R(text CONTAINS 'alu')]-(m)", indexType = IndexType.TEXT)
+      .build() // readOnly = true
+
+    execute(logicalQuery, runtime) should beColumns("r").withSingleRow(rel)
   }
 }

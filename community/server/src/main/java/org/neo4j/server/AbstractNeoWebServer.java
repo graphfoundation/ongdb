@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -112,7 +112,7 @@ public abstract class AbstractNeoWebServer extends LifecycleAdapter implements N
      */
     private static final long ROUNDING_SECOND = 1000L;
 
-    static final String ONGDB_IS_STARTING_MESSAGE = "======== ONgDB " + Version.getONgDBVersion() + " ========";
+    static final String NEO4J_IS_STARTING_MESSAGE = "======== Neo4j " + Version.getNeo4jVersion() + " ========";
 
     protected final LogProvider userLogProvider;
     private final Log log;
@@ -162,7 +162,7 @@ public abstract class AbstractNeoWebServer extends LifecycleAdapter implements N
         this.log = userLogProvider.getLog( getClass() );
         this.dbmsInfo = dbmsInfo;
         this.clock = clock;
-        log.info( ONGDB_IS_STARTING_MESSAGE );
+        log.info( NEO4J_IS_STARTING_MESSAGE );
 
         byteBufferPool = new ArrayByteBufferPool();
         requestMemoryPool = new HttpMemoryPool( memoryPools, byteBufferPool );
@@ -227,7 +227,7 @@ public abstract class AbstractNeoWebServer extends LifecycleAdapter implements N
             // If the database has been started, attempt to cleanly shut it down to avoid unclean shutdowns.
             life.shutdown();
             var rootCause = ExceptionUtils.getRootCause( t );
-            throw new ServerStartupException( format( "Starting ONgDB failed: %s", rootCause.getMessage() ), rootCause );
+            throw new ServerStartupException( format( "Starting Neo4j failed: %s", rootCause.getMessage() ), rootCause );
         }
     }
 
@@ -334,7 +334,7 @@ public abstract class AbstractNeoWebServer extends LifecycleAdapter implements N
         catch ( Exception e )
         {
             SocketAddress address = httpListenAddress != null ? httpListenAddress : httpsListenAddress;
-            log.error( "Failed to start ONgDB on %s: %s", address, e.getMessage() );
+            log.error( "Failed to start Neo4j on %s: %s", address, e.getMessage() );
             throw e;
         }
     }
@@ -408,7 +408,7 @@ public abstract class AbstractNeoWebServer extends LifecycleAdapter implements N
         catch ( Throwable t )
         {
             // Not much we can do other than log - we're trying to shutdown anyway
-            log.error( "Failed to set the global availability guard to shutdown in the process of stopping the ONgDB server", t );
+            log.error( "Failed to set the global availability guard to shutdown in the process of stopping the Neo4j server", t );
         }
     }
 

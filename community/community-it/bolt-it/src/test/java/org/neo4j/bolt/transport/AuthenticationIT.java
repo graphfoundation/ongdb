@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -132,7 +132,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
         // When
         connection.connect( address )
                 .send( TransportTestUtil.defaultAcceptedVersions() )
-                .send( util.defaultAuth( map( "principal", "ongdb", "credentials", "ongdb", "scheme", "basic" ) ) );
+                .send( util.defaultAuth( map( "principal", "neo4j", "credentials", "neo4j", "scheme", "basic" ) ) );
 
         // Then
         assertThat( connection ).satisfies( TransportTestUtil.eventuallyReceivesSelectedProtocolVersion() );
@@ -161,7 +161,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
         // When
         connection.connect( address )
                 .send( TransportTestUtil.defaultAcceptedVersions() )
-                .send( util.defaultAuth( map( "principal", "ongdb", "credentials", "wrong", "scheme", "basic" ) ) );
+                .send( util.defaultAuth( map( "principal", "neo4j", "credentials", "wrong", "scheme", "basic" ) ) );
 
         // Then
         assertThat( connection ).satisfies( TransportTestUtil.eventuallyReceivesSelectedProtocolVersion() );
@@ -196,14 +196,14 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
         // When
         connection.connect( address )
                 .send( TransportTestUtil.defaultAcceptedVersions() )
-                .send( util.defaultAuth( map( "principal", "ongdb", "credentials", "ongdb", "scheme", "basic" ) ) );
+                .send( util.defaultAuth( map( "principal", "neo4j", "credentials", "neo4j", "scheme", "basic" ) ) );
 
         // Then
         assertThat( connection ).satisfies( TransportTestUtil.eventuallyReceivesSelectedProtocolVersion() );
         assertThat( connection ).satisfies( util.eventuallyReceives( msgSuccess() ) );
 
         // change password
-        connection.send( util.defaultRunAutoCommitTx( "ALTER CURRENT USER SET PASSWORD FROM 'ongdb' TO $password", singletonMap( "password", "secret" ),
+        connection.send( util.defaultRunAutoCommitTx( "ALTER CURRENT USER SET PASSWORD FROM 'neo4j' TO $password", singletonMap( "password", "secret" ),
                 SYSTEM_DATABASE_NAME ) );
 
         // Then
@@ -214,7 +214,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
         connection.connect( address )
                 .send( TransportTestUtil.defaultAcceptedVersions() )
                 .send( util.defaultAuth(
-                                map( "principal", "ongdb", "credentials", "secret", "scheme", "basic" ) ) );
+                                map( "principal", "neo4j", "credentials", "secret", "scheme", "basic" ) ) );
 
         // Then
         assertThat( connection ).satisfies( TransportTestUtil.eventuallyReceivesSelectedProtocolVersion() );
@@ -225,7 +225,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
         connection.connect( address )
                 .send( TransportTestUtil.defaultAcceptedVersions() )
                 .send( util.defaultAuth(
-                                map( "principal", "ongdb", "credentials", "wrong", "scheme", "basic" ) ) );
+                                map( "principal", "neo4j", "credentials", "wrong", "scheme", "basic" ) ) );
 
         // Then
         assertThat( connection ).satisfies( TransportTestUtil.eventuallyReceivesSelectedProtocolVersion() );
@@ -245,7 +245,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
         // When
         connection.connect( address )
                 .send( TransportTestUtil.defaultAcceptedVersions() )
-                .send( util.defaultAuth( map( "principal", singletonList( "ongdb" ), "credentials", "ongdb", "scheme", "basic" ) ) );
+                .send( util.defaultAuth( map( "principal", singletonList( "neo4j" ), "credentials", "neo4j", "scheme", "basic" ) ) );
 
         // Then
         assertThat( connection ).satisfies( TransportTestUtil.eventuallyReceivesSelectedProtocolVersion() );
@@ -266,7 +266,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
         // When
         connection.connect( address )
                 .send( TransportTestUtil.defaultAcceptedVersions() )
-                .send( util.defaultAuth( map( "principal", "ongdb", "this-should-have-been-credentials", "ongdb", "scheme", "basic" ) ) );
+                .send( util.defaultAuth( map( "principal", "neo4j", "this-should-have-been-credentials", "neo4j", "scheme", "basic" ) ) );
 
         // Then
         assertThat( connection ).satisfies( TransportTestUtil.eventuallyReceivesSelectedProtocolVersion() );
@@ -286,7 +286,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
         // When
         connection.connect( address )
                 .send( TransportTestUtil.defaultAcceptedVersions() )
-                .send( util.defaultAuth( map( "principal", "ongdb", "credentials", "ongdb" ) ) );
+                .send( util.defaultAuth( map( "principal", "neo4j", "credentials", "neo4j" ) ) );
 
         // Then
         assertThat( connection ).satisfies( TransportTestUtil.eventuallyReceivesSelectedProtocolVersion() );
@@ -306,7 +306,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
         // When
         connection.connect( address )
                 .send( TransportTestUtil.defaultAcceptedVersions() )
-                .send( util.defaultAuth( map( "principal", "ongdb", "credentials", "ongdb", "scheme", "unknown" ) ) );
+                .send( util.defaultAuth( map( "principal", "neo4j", "credentials", "neo4j", "scheme", "unknown" ) ) );
 
         // Then
         assertThat( connection ).satisfies( TransportTestUtil.eventuallyReceivesSelectedProtocolVersion() );
@@ -387,7 +387,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
         // When
         connection.connect( address )
                 .send( TransportTestUtil.defaultAcceptedVersions() )
-                .send( util.defaultAuth( map( "principal", "ongdb", "credentials", "ongdb", "scheme", "basic" ) ) );
+                .send( util.defaultAuth( map( "principal", "neo4j", "credentials", "neo4j", "scheme", "basic" ) ) );
 
         // Then
         assertThat( connection ).satisfies( TransportTestUtil.eventuallyReceivesSelectedProtocolVersion() );
@@ -396,7 +396,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
                 .containsKeys( "server", "connection_id" ) ) ) );
 
         // When
-        connection.send( util.defaultRunAutoCommitTx( "ALTER CURRENT USER SET PASSWORD FROM 'ongdb' TO $password", singletonMap( "password", "secret" ),
+        connection.send( util.defaultRunAutoCommitTx( "ALTER CURRENT USER SET PASSWORD FROM 'neo4j' TO $password", singletonMap( "password", "secret" ),
                 SYSTEM_DATABASE_NAME ) );
 
         // Then
@@ -406,7 +406,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
         reconnect();
         connection.connect( address )
                 .send( TransportTestUtil.defaultAcceptedVersions() )
-                .send( util.defaultAuth( map( "principal", "ongdb", "credentials", "ongdb", "scheme", "basic" ) ) );
+                .send( util.defaultAuth( map( "principal", "neo4j", "credentials", "neo4j", "scheme", "basic" ) ) );
         assertThat( connection ).satisfies( TransportTestUtil.eventuallyReceivesSelectedProtocolVersion() );
         assertThat( connection ).satisfies( util.eventuallyReceives( msgFailure( Status.Security.Unauthorized,
                 "The client is unauthorized due to authentication failure." ) ) );
@@ -415,7 +415,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
         reconnect();
         connection.connect( address )
                 .send( TransportTestUtil.defaultAcceptedVersions() )
-                .send( util.defaultAuth( map( "principal", "ongdb", "credentials", "secret", "scheme", "basic" ) ) );
+                .send( util.defaultAuth( map( "principal", "neo4j", "credentials", "secret", "scheme", "basic" ) ) );
         assertThat( connection ).satisfies( TransportTestUtil.eventuallyReceivesSelectedProtocolVersion() );
         assertThat( connection ).satisfies( util.eventuallyReceives( msgSuccess() ) );
     }
@@ -429,7 +429,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
         // When
         connection.connect( address )
                 .send( TransportTestUtil.defaultAcceptedVersions() )
-                .send( util.defaultAuth( map( "principal", "ongdb", "credentials", "ongdb", "scheme", "basic" ) ) );
+                .send( util.defaultAuth( map( "principal", "neo4j", "credentials", "neo4j", "scheme", "basic" ) ) );
 
         // Then
         assertThat( connection ).satisfies( TransportTestUtil.eventuallyReceivesSelectedProtocolVersion() );
@@ -438,7 +438,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
                                 .containsKeys( "server", "connection_id" ) ) ) );
 
         // When
-        connection.send( util.defaultRunAutoCommitTx( "ALTER CURRENT USER SET PASSWORD FROM 'ongdb' TO $password", singletonMap( "password", "ongdb" ),
+        connection.send( util.defaultRunAutoCommitTx( "ALTER CURRENT USER SET PASSWORD FROM 'neo4j' TO $password", singletonMap( "password", "neo4j" ),
                 SYSTEM_DATABASE_NAME ) );
 
         // Then
@@ -447,7 +447,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
 
         // However you should also be able to recover
         connection.send( util.defaultReset() )
-                .send( util.defaultRunAutoCommitTx( "ALTER CURRENT USER SET PASSWORD FROM 'ongdb' TO $password", singletonMap( "password", "abc" ),
+                .send( util.defaultRunAutoCommitTx( "ALTER CURRENT USER SET PASSWORD FROM 'neo4j' TO $password", singletonMap( "password", "abc" ),
                         SYSTEM_DATABASE_NAME ) );
         assertThat( connection ).satisfies( util.eventuallyReceives( msgIgnored(), msgSuccess(), msgSuccess(), msgSuccess() ) );
     }
@@ -461,7 +461,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
         // When
         connection.connect( address )
                 .send( TransportTestUtil.defaultAcceptedVersions() )
-                .send( util.defaultAuth( map( "principal", "ongdb", "credentials", "ongdb", "scheme", "basic" ) ) );
+                .send( util.defaultAuth( map( "principal", "neo4j", "credentials", "neo4j", "scheme", "basic" ) ) );
 
         // Then
         assertThat( connection ).satisfies( TransportTestUtil.eventuallyReceivesSelectedProtocolVersion() );
@@ -470,7 +470,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
                                 .containsKeys( "server", "connection_id" ) ) ) );
 
         // When
-        connection.send( util.defaultRunAutoCommitTx( "ALTER CURRENT USER SET PASSWORD FROM 'ongdb' TO $password", singletonMap( "password", "" ),
+        connection.send( util.defaultRunAutoCommitTx( "ALTER CURRENT USER SET PASSWORD FROM 'neo4j' TO $password", singletonMap( "password", "" ),
                 SYSTEM_DATABASE_NAME ) );
 
         // Then
@@ -479,7 +479,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
 
         // However you should also be able to recover
         connection.send( util.defaultReset() )
-                .send( util.defaultRunAutoCommitTx( "ALTER CURRENT USER SET PASSWORD FROM 'ongdb' TO $password", singletonMap( "password", "abc" ),
+                .send( util.defaultRunAutoCommitTx( "ALTER CURRENT USER SET PASSWORD FROM 'neo4j' TO $password", singletonMap( "password", "abc" ),
                         SYSTEM_DATABASE_NAME ) );
         assertThat( connection ).satisfies( util.eventuallyReceives( msgIgnored(), msgSuccess(), msgSuccess(), msgSuccess() ) );
     }
@@ -494,7 +494,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
         // When
         connection.connect( address )
                 .send( TransportTestUtil.defaultAcceptedVersions() )
-                .send( util.defaultAuth( map( "principal", "ongdb", "credentials", "ongdb", "scheme", "basic" ) ) );
+                .send( util.defaultAuth( map( "principal", "neo4j", "credentials", "neo4j", "scheme", "basic" ) ) );
 
         // Then
         assertThat( connection ).satisfies( TransportTestUtil.eventuallyReceivesSelectedProtocolVersion() );
@@ -552,7 +552,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
             connection = newConnection();
 
             connection.connect( address ).send( TransportTestUtil.defaultAcceptedVersions() )
-                    .send( util.defaultAuth( map( "principal", "ongdb", "credentials", "WHAT_WAS_THE_PASSWORD_AGAIN", "scheme", "basic" ) ) );
+                    .send( util.defaultAuth( map( "principal", "neo4j", "credentials", "WHAT_WAS_THE_PASSWORD_AGAIN", "scheme", "basic" ) ) );
 
             assertThat( connection ).satisfies( TransportTestUtil.eventuallyReceivesSelectedProtocolVersion() );
             assertThat( connection ).satisfies( util.eventuallyReceives( failureRecorder ) );

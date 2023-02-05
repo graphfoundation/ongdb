@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -230,6 +230,11 @@ public class AssertableMain
 
         public AssertableMain run() throws ArgumentParserException, IOException
         {
+            return run( false );
+        }
+
+        public AssertableMain run( boolean closeMain ) throws ArgumentParserException, IOException
+        {
             var outPrintStream = new PrintStream( out );
             var errPrintStream = new PrintStream( err );
             var args = parseArgs();
@@ -243,6 +248,12 @@ public class AssertableMain
                     .build();
             var main = new Main( args, logger, shell, isOutputInteractive, runnerFactory, terminal );
             var exitCode = main.startShell();
+
+            if ( closeMain )
+            {
+                main.close();
+            }
+
             return new AssertableMain( exitCode, out, err, shell );
         }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -129,7 +129,7 @@ public class JUnitRuleTestIT
         // When I run this test
 
         // Then
-        HTTP.Response response = HTTP.POST( neo4j.httpURI() + "db/ongdb/tx/commit",
+        HTTP.Response response = HTTP.POST( neo4j.httpURI() + "db/neo4j/tx/commit",
                 quotedJson( "{'statements':[{'statement':'MATCH (n:User) RETURN n'}]}" ) );
 
         assertThat( response.get( "results" ).get( 0 ).get( "data" ).size() ).isEqualTo( 2 );
@@ -155,7 +155,7 @@ public class JUnitRuleTestIT
     @Test
     public void shouldRuleWorkWithExistingDirectory() throws Throwable
     {
-        // given a root folder, create /databases/ongdb folders.
+        // given a root folder, create /databases/neo4j folders.
         Path oldLayout = folder.newFolder( "old").toPath();
         DatabaseManagementService managementService = new TestDatabaseManagementServiceBuilder( oldLayout ).build();
         GraphDatabaseService db = managementService.database( DEFAULT_DATABASE_NAME );
@@ -202,7 +202,7 @@ public class JUnitRuleTestIT
     {
         String currentOffset = currentTimeZoneOffsetString();
 
-        assertThat( contentOf( "ongdb.log" ) ).contains( currentOffset );
+        assertThat( contentOf( "neo4j.log" ) ).contains( currentOffset );
         assertThat( contentOf( "debug.log" ) ).contains( currentOffset );
         success = true;
     }

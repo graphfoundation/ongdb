@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -41,6 +41,7 @@ package org.neo4j.cypher
 import org.neo4j.cypher.internal.javacompat.NotificationTestSupport.TestProcedures
 import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 import org.neo4j.graphdb.impl.notification.NotificationCode.DEPRECATED_BTREE_INDEX_SYNTAX
+import org.neo4j.graphdb.impl.notification.NotificationCode.DEPRECATED_CASE_EXPRESSION
 import org.neo4j.graphdb.impl.notification.NotificationCode.DEPRECATED_COERCION_OF_LIST_TO_BOOLEAN
 import org.neo4j.graphdb.impl.notification.NotificationCode.DEPRECATED_CREATE_CONSTRAINT_ON_ASSERT_SYNTAX
 import org.neo4j.graphdb.impl.notification.NotificationCode.DEPRECATED_CREATE_INDEX_SYNTAX
@@ -417,6 +418,7 @@ abstract class DeprecationAcceptanceTestBase extends CypherFunSuite with BeforeA
   test("should not allow referencing elements being created by the pattern within that same pattern") {
     val badQueries = Seq(
       "CREATE (a {prop:7})-[r:R {prop: a.prop}]->(b)",
+      "CREATE (a {prop:a.prop})",
       "CREATE (a {prop:7})-[r:R]->(b {prop: a.prop})",
       "CREATE (a {prop: r.prop})-[r:R {prop:7}]->(b)",
       "CREATE (a)-[r:R {prop:7}]->(b {prop: r.prop})",
@@ -428,6 +430,11 @@ abstract class DeprecationAcceptanceTestBase extends CypherFunSuite with BeforeA
       "CREATE (a {prop:7})-[:R {prop: a.prop}]->(b)",
       "CREATE (a {prop:7})-[r:R]->({prop: a.prop})",
       "CREATE p=({prop:7})-[:R]->(b {prop: nodes(p)[0].prop})",
+      "CREATE (n {prop: true IN [a IN [false] WHERE n.prop | a]})",
+      "CREATE (n)-[r:R {prop: true IN [a IN [false] WHERE n.prop | a]}]->(m)",
+      "CREATE (n)-[r:R {prop: true IN [a IN [false] WHERE r.prop | a]}]->(m)",
+      "CREATE (n)-[r:R]->(m {prop: true IN [a IN [false] WHERE n.prop | a]})",
+      "CREATE (n)-[r:R]->(m {prop: true IN [a IN [false] WHERE r.prop | a]})",
     )
 
     assertNotificationInSupportedVersions(badQueries, DEPRECATED_SELF_REFERENCE_TO_VARIABLE_IN_CREATE_PATTERN)
@@ -440,6 +447,13 @@ abstract class DeprecationAcceptanceTestBase extends CypherFunSuite with BeforeA
       "MATCH (a {prop:7})-[r:R {prop: a.prop}]->(b) RETURN *",
       "CREATE (a {prop:7}) CREATE (a)-[:R]->(b {prop: a.prop})",
       "MATCH (a) CREATE (a)-[:R]->(b {prop: a.prop})",
+      "CREATE (n {prop: true IN [n IN [false] | true]})",
+      "CREATE (n {prop: true IN [n IN [false] | n]})",
+      "CREATE (a)-[r:R {prop: true IN [r IN [false] | true]}]->(b)",
+      "CREATE (a)-[r:R {prop: true IN [r IN [false] | r]}]->(b)",
+      "CREATE (a)-[r:R {prop: true IN [a IN [false] | a]}]->(b)",
+      "CREATE (a)-[r:R]->(b {prop: true IN [r IN [false] | r]})",
+      "CREATE (a)-[r:R]->(b {prop: true IN [a IN [false] | a]})"
     )
 
     assertNoNotificationInSupportedVersions(okQueries, DEPRECATED_SELF_REFERENCE_TO_VARIABLE_IN_CREATE_PATTERN)
@@ -488,6 +502,10 @@ abstract class DeprecationAcceptanceTestBase extends CypherFunSuite with BeforeA
     assertNotificationInSupportedVersions(deprecated, DEPRECATED_BTREE_INDEX_SYNTAX)
 
     assertNoNotificationInSupportedVersions(notDeprecated, DEPRECATED_BTREE_INDEX_SYNTAX)
+  }
+
+  test("deprecated case when null syntax") {
+    assertNotificationInSupportedVersions("MATCH (n) RETURN CASE n WHEN null THEN 1 ELSE 2 END", DEPRECATED_CASE_EXPRESSION)
   }
 
   // FUNCTIONALITY DEPRECATED IN 3.5, REMOVED IN 4.0

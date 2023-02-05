@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -83,6 +83,7 @@ import org.neo4j.cypher.internal.expressions.Ors
 import org.neo4j.cypher.internal.expressions.PartialPredicate
 import org.neo4j.cypher.internal.expressions.Property
 import org.neo4j.cypher.internal.expressions.PropertyKeyName
+import org.neo4j.cypher.internal.expressions.RegexMatch
 import org.neo4j.cypher.internal.expressions.RelTypeName
 import org.neo4j.cypher.internal.expressions.StringLiteral
 import org.neo4j.cypher.internal.expressions.Variable
@@ -141,7 +142,7 @@ case class ExpressionSelectivityCalculator(stats: GraphStatistics, combiner: Sel
       calculateSelectivityForSubstringSargable(name, labelInfo, relTypeInfo, propertyKey, Some(substring))
 
     // WHERE x.prop CONTAINS expression
-    case Contains(Property(Variable(name), propertyKey), expr) =>
+    case Contains(Property(Variable(name), propertyKey), _) =>
       calculateSelectivityForSubstringSargable(name, labelInfo, relTypeInfo, propertyKey, None)
 
     // WHERE x.prop ENDS WITH 'substring'
@@ -149,7 +150,13 @@ case class ExpressionSelectivityCalculator(stats: GraphStatistics, combiner: Sel
       calculateSelectivityForSubstringSargable(name, labelInfo, relTypeInfo, propertyKey, Some(substring))
 
     // WHERE x.prop ENDS WITH expression
-    case EndsWith(Property(Variable(name), propertyKey), expr) =>
+    case EndsWith(Property(Variable(name), propertyKey), _) =>
+      calculateSelectivityForSubstringSargable(name, labelInfo, relTypeInfo, propertyKey, None)
+
+    // WHERE x.prop =~ expression
+    case RegexMatch(Property(Variable(name), propertyKey), _) =>
+      // as we cannot reason about the regular expression that we compare with, then we should probably treat it just like
+      // a string comparison where we know nothing about the substring to compare with
       calculateSelectivityForSubstringSargable(name, labelInfo, relTypeInfo, propertyKey, None)
 
     // WHERE distance(p.prop, otherPoint) <, <= number that could benefit from an index

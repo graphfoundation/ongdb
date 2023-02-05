@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -51,6 +51,7 @@ import java.util.stream.Stream;
 import org.neo4j.bolt.packstream.Neo4jPack;
 import org.neo4j.bolt.packstream.Neo4jPackV1;
 import org.neo4j.bolt.packstream.Neo4jPackV2;
+import org.neo4j.bolt.packstream.Neo4jPackV3;
 import org.neo4j.bolt.testing.TransportTestUtil;
 import org.neo4j.bolt.testing.client.SecureSocketConnection;
 import org.neo4j.bolt.testing.client.SecureWebSocketConnection;
@@ -70,9 +71,10 @@ public abstract class AbstractBoltTransportsTest
             SecureSocketConnection.class,
             SecureWebSocketConnection.class );
 
-    private static final List<Neo4jPack> ONGDB_PACK_VERSIONS = Arrays.asList(
+    private static final List<Neo4jPack> NEO4J_PACK_VERSIONS = Arrays.asList(
             new Neo4jPackV1(),
-            new Neo4jPackV2() );
+            new Neo4jPackV2(),
+            new Neo4jPackV3() );
 
     public Class<? extends TransportConnection> connectionClass;
 
@@ -109,7 +111,7 @@ public abstract class AbstractBoltTransportsTest
 
         for ( Class<? extends TransportConnection> connectionClass : CONNECTION_CLASSES )
         {
-            for ( Neo4jPack neo4jPack : ONGDB_PACK_VERSIONS )
+            for ( Neo4jPack neo4jPack : NEO4J_PACK_VERSIONS )
             {
                 result.add( Arguments.of( connectionClass, neo4jPack, newName( connectionClass, neo4jPack ) ) );
             }

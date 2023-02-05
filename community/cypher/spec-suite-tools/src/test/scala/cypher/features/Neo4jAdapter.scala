@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -92,17 +92,17 @@ class Neo4jAdapter(var dbms: FeatureDatabaseManagementService,
   private val explainPrefix = "EXPLAIN\n"
 
   override def cypher(query: String, params: Map[String, CypherValue], meta: QueryType): Result = {
-    val ongdbParams = params.mapValues(v => TCKValueToONgDBValue(v))
+    val neo4jParams = params.mapValues(v => TCKValueToNeo4jValue(v))
 
     val queryToExecute = if (meta == ExecQuery) {
       s"$executionPrefix $query"
     } else query
-    Try(dbms.execute(queryToExecute, ongdbParams, convertResult)) match {
+    Try(dbms.execute(queryToExecute, neo4jParams, convertResult)) match {
       case Success(converted) =>
         converted
       case Failure(exception) =>
         val tx = dbms.begin()
-        val explainedResult = Try(tx.execute(explainPrefix + queryToExecute, ongdbParams).consume())
+        val explainedResult = Try(tx.execute(explainPrefix + queryToExecute, neo4jParams).consume())
         val phase = explainedResult match {
           case Failure(_) => Phase.compile
           case Success(_) => Phase.runtime

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -352,7 +352,9 @@ case class CypherPlanner(config: CypherPlannerConfiguration,
       new SequentialIdGen(),
       simpleExpressionEvaluator,
       params,
-      transactionalContextWrapper.cancellationChecker)
+      transactionalContextWrapper.cancellationChecker,
+      options.materializedEntitiesMode
+    )
 
     // Prepare query for caching
     val preparedQuery = planner.normalizeQuery(syntacticQuery, plannerContext)

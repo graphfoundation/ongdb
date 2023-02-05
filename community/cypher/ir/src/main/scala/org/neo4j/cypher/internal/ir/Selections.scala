@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -69,7 +69,7 @@ case class Selections private (predicates: Set[Predicate]) {
           buffer += p.expr
         }
     }
-    buffer
+    buffer.toVector
   }
 
   def expressionsContainingVariable: Map[String, Set[Predicate]] = {

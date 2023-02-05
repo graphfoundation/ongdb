@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -521,6 +521,38 @@ class OptionalMatchRemoverTest extends CypherFunSuite with LogicalPlanningTestSu
     )
   }
 
+  test(
+    """OPTIONAL MATCH p=shortestPath((a)-[r:REL*]->(b))
+      |RETURN DISTINCT a AS a
+      |""".stripMargin
+  ) {
+    assert_that(testName).is_not_rewritten()
+  }
+
+  test(
+    """OPTIONAL MATCH p=shortestPath((a)-[r:REL*]->(b))
+      |RETURN DISTINCT p AS p
+      |""".stripMargin
+  ) {
+    assert_that(testName).is_not_rewritten()
+  }
+
+  test(
+    """OPTIONAL MATCH p=shortestPath((a)-[r:REL*]->(b))
+      |RETURN collect(DISTINCT a) AS result
+      |""".stripMargin
+  ) {
+    assert_that(testName).is_not_rewritten()
+  }
+
+  test(
+    """OPTIONAL MATCH p=shortestPath((a)-[r:REL*]->(b))
+      |RETURN collect(DISTINCT p) AS result
+      |""".stripMargin
+  ) {
+    assert_that(testName).is_not_rewritten()
+  }
+
   val x = "x"
   val n = "n"
   val m = "m"
@@ -668,7 +700,13 @@ class OptionalMatchRemoverTest extends CypherFunSuite with LogicalPlanningTestSu
     val result = SemanticChecker.check(ast)
     onError(result.errors)
     val table = SemanticTable(types = result.state.typeTable, recordedScopes = result.state.recordedScopes.mapValues(_.scope))
-    StatementConverters.toPlannerQuery(ast.asInstanceOf[Query], table, anonymousVariableNameGenerator)
+    StatementConverters.toPlannerQuery(
+      ast.asInstanceOf[Query],
+      table,
+      anonymousVariableNameGenerator,
+      CancellationChecker.NeverCancelled,
+      nonTerminating = false
+    )
   }
 
   private def parseForRewriting(queryText: String) = parser.parse(queryText.replace("\r\n", "\n"), Neo4jCypherExceptionFactory(queryText, None), new AnonymousVariableNameGenerator)

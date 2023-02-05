@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -144,7 +144,7 @@ class LoadCommandTest
                         "Load a database from an archive. <archive-path> must be an archive created with%n" +
                         "the dump command. <database> is the name of the database to create. Existing%n" +
                         "databases can be replaced by specifying --force. It is not possible to replace%n" +
-                        "a database that is mounted in a running ONgDB server. If --info is specified,%n" +
+                        "a database that is mounted in a running Neo4j server. If --info is specified,%n" +
                         "then the database is not loaded, but information (i.e. file count, byte count,%n" +
                         "and format of load file) about the archive is printed instead.%n" +
                         "%n" +
@@ -156,7 +156,7 @@ class LoadCommandTest
                         "                            to read from standard input.%n" +
                         "      --database=<database>%n" +
                         "                          Name of the database to load.%n" +
-                        "                            Default: ongdb%n" +
+                        "                            Default: neo4j%n" +
                         "      --force             If an existing database should be replaced.%n" +
                         "      --info              Print meta-data information about the archive file,%n" +
                         "                            instead of loading the contained database."
@@ -317,7 +317,7 @@ class LoadCommandTest
         doThrow( IncorrectFormat.class ).when( loader ).load( any(), any(), any() );
         CommandFailedException commandFailed = assertThrows( CommandFailedException.class, () -> execute( "foo", archive ) );
         assertThat( commandFailed.getMessage() ).contains( archive.toString() );
-        assertThat( commandFailed.getMessage() ).contains( "valid ONgDB archive" );
+        assertThat( commandFailed.getMessage() ).contains( "valid Neo4j archive" );
     }
 
     @Test

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -83,7 +83,7 @@ class BoltConnectionAuthIT
         BoltResponseRecorder recorder = new BoltResponseRecorder();
 
         // When
-        var hello = BoltV4Messages.hello( newBasicAuthToken( "ongdb", "ongdb" ) );
+        var hello = BoltV4Messages.hello( newBasicAuthToken( "neo4j", "neo4j" ) );
 
         machine.process( hello, recorder );
         machine.process( BoltV4Messages.run( "CREATE ()" ), recorder );
@@ -100,10 +100,10 @@ class BoltConnectionAuthIT
         // identify expired credentials as the cause of not being authenticated
         BoltStateMachine machine = newStateMachine();
         BoltResponseRecorder recorder = new BoltResponseRecorder();
-        String version = "ONgDB/" + Version.getONgDBVersion();
+        String version = "Neo4j/" + Version.getNeo4jVersion();
 
         // When
-        var hello = BoltV4Messages.hello( newBasicAuthToken( "ongdb", "ongdb" ) );
+        var hello = BoltV4Messages.hello( newBasicAuthToken( "neo4j", "neo4j" ) );
 
         machine.process( hello, recorder );
         machine.process( BoltV4Messages.run( "CREATE ()" ), recorder );

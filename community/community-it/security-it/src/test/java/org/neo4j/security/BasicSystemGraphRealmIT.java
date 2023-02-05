@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -148,7 +148,7 @@ class BasicSystemGraphRealmIT
     {
         // Given
         startSystemGraphRealm();
-        initialPassword.create( createUser( INITIAL_USER_NAME, "ongdb2", false ) );
+        initialPassword.create( createUser( INITIAL_USER_NAME, "neo4j2", false ) );
         systemGraphInitializer.start();
 
         // When
@@ -158,7 +158,7 @@ class BasicSystemGraphRealmIT
 
         // Then
         assertAuthenticationFails( realmHelper, INITIAL_USER_NAME, INITIAL_PASSWORD );
-        assertAuthenticationSucceeds( realmHelper, INITIAL_USER_NAME, "ongdb2" );
+        assertAuthenticationSucceeds( realmHelper, INITIAL_USER_NAME, "neo4j2" );
         assertAuthenticationFails( realmHelper, INITIAL_USER_NAME, "abc" );
     }
 

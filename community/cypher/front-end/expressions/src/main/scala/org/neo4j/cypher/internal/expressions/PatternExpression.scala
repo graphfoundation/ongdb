@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,7 +38,7 @@ case class PatternExpression(pattern: RelationshipsPattern)
                             (override val outerScope: Set[LogicalVariable],
                              override val variableToCollectName: String,
                              override val collectionName: String)
-extends ScopeExpression with ExpressionWithOuterScope with RollupApplySolvable {
+extends ScopeExpression with ExpressionWithOuterScope with RollupApplySolvable with SubqueryExpression {
 
   override def position: InputPosition = pattern.position
 

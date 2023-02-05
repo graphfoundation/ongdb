@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -113,9 +113,9 @@ class DatabaseManagementServiceFactoryIT
         void reportCorrectDatabaseNames()
         {
             GraphDatabaseService system = managementService.database( SYSTEM_DATABASE_NAME );
-            GraphDatabaseService ongdb = managementService.database( DEFAULT_DATABASE_NAME );
+            GraphDatabaseService neo4j = managementService.database( DEFAULT_DATABASE_NAME );
             assertEquals( SYSTEM_DATABASE_NAME, system.databaseName() );
-            assertEquals( DEFAULT_DATABASE_NAME, ongdb.databaseName() );
+            assertEquals( DEFAULT_DATABASE_NAME, neo4j.databaseName() );
         }
 
         @Test

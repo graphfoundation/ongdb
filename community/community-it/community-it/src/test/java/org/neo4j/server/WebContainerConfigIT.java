@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -153,7 +153,7 @@ class WebContainerConfigIT extends ExclusiveWebContainerTestBase
                 .withRelativeDatabaseApiPath( "/" + dbUri )
                 .build();
 
-        var uri = testWebContainer.getBaseUri() + dbUri + "/ongdb/tx/commit";
+        var uri = testWebContainer.getBaseUri() + dbUri + "/neo4j/tx/commit";
         var txRequest = HttpRequest.newBuilder( URI.create( uri ) )
                 .header( ACCEPT, APPLICATION_JSON )
                 .header( CONTENT_TYPE, APPLICATION_JSON )

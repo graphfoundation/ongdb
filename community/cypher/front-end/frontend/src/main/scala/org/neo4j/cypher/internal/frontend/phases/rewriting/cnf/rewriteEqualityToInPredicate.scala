@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,10 +33,12 @@
 package org.neo4j.cypher.internal.frontend.phases.rewriting.cnf
 
 import org.neo4j.cypher.internal.ast.semantics.SemanticFeature
+import org.neo4j.cypher.internal.ast.semantics.SemanticTable
 import org.neo4j.cypher.internal.expressions.DeterministicFunctionInvocation
 import org.neo4j.cypher.internal.expressions.Equals
 import org.neo4j.cypher.internal.expressions.In
 import org.neo4j.cypher.internal.expressions.ListLiteral
+import org.neo4j.cypher.internal.expressions.LogicalVariable
 import org.neo4j.cypher.internal.expressions.Property
 import org.neo4j.cypher.internal.expressions.Variable
 import org.neo4j.cypher.internal.frontend.phases.BaseContext
@@ -46,6 +48,7 @@ import org.neo4j.cypher.internal.frontend.phases.StatementRewriter
 import org.neo4j.cypher.internal.frontend.phases.Transformer
 import org.neo4j.cypher.internal.frontend.phases.factories.PlanPipelineTransformerFactory
 import org.neo4j.cypher.internal.rewriting.conditions.SemanticInfoAvailable
+import org.neo4j.cypher.internal.rewriting.conditions.normalizedEqualsArguments
 import org.neo4j.cypher.internal.util.Rewriter
 import org.neo4j.cypher.internal.util.StepSequencer
 import org.neo4j.cypher.internal.util.bottomUp
@@ -53,28 +56,48 @@ import org.neo4j.cypher.internal.util.bottomUp
 /**
  * Normalize equality predicates into IN comparisons.
  */
-case object rewriteEqualityToInPredicate extends StatementRewriter with StepSequencer.Step with PlanPipelineTransformerFactory {
+case class rewriteEqualityToInPredicate(semanticTable: SemanticTable) extends Rewriter {
 
-  override def instance(from: BaseState, ignored: BaseContext): Rewriter = bottomUp(Rewriter.lift {
+  val instance: Rewriter = bottomUp(Rewriter.lift {
+    // if this Equals is comparing values derived from two entities, we might use it for a value hash join
+    case predicate @ Equals(lhs, rhs) if lhs.dependencies.exists(isEntity) && rhs.dependencies.exists(isEntity) =>
+      predicate
+
     // if f is deterministic: f(a) = value => f(a) IN [value]
-    case predicate@Equals(DeterministicFunctionInvocation(invocation), value) =>
+    case predicate @ Equals(DeterministicFunctionInvocation(invocation), value) =>
       In(invocation, ListLiteral(Seq(value))(value.position))(predicate.position)
 
     // Equality between two property lookups should not be rewritten
-    case predicate@Equals(_: Property, _: Property) =>
+    case predicate @ Equals(_: Property, _: Property) =>
       predicate
 
     // a.prop = value => a.prop IN [value]
-    case predicate@Equals(prop@Property(id: Variable, propKeyName), idValueExpr) =>
+    case predicate @ Equals(prop @ Property(_: Variable, _), idValueExpr) =>
       In(prop, ListLiteral(Seq(idValueExpr))(idValueExpr.position))(predicate.position)
   })
 
-  override def preConditions: Set[StepSequencer.Condition] = Set.empty
+  private def isEntity(variable: LogicalVariable) =
+    semanticTable.isNode(variable) || semanticTable.isRelationship(variable)
+
+  def apply(that: AnyRef): AnyRef = {
+    instance.apply(that)
+  }
+}
+
+case object rewriteEqualityToInPredicate extends StatementRewriter with StepSequencer.Step
+    with PlanPipelineTransformerFactory {
+
+  override def instance(from: BaseState, ignored: BaseContext): Rewriter =
+    rewriteEqualityToInPredicate(from.semanticTable())
+
+  override def preConditions: Set[StepSequencer.Condition] = SemanticInfoAvailable
 
   override def postConditions: Set[StepSequencer.Condition] = Set(EqualityRewrittenToIn)
 
   override def invalidatedConditions: Set[StepSequencer.Condition] = SemanticInfoAvailable // Introduces new AST nodes
 
-  override def getTransformer(pushdownPropertyReads: Boolean,
-                              semanticFeatures: Seq[SemanticFeature]): Transformer[BaseContext, BaseState, BaseState] = this
+  override def getTransformer(
+    pushdownPropertyReads: Boolean,
+    semanticFeatures: Seq[SemanticFeature]
+  ): Transformer[BaseContext, BaseState, BaseState] = this
 }

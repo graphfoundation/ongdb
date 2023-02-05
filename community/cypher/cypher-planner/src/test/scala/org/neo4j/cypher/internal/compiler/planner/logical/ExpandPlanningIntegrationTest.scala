@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -40,7 +40,13 @@ package org.neo4j.cypher.internal.compiler.planner.logical
 
 import org.neo4j.cypher.internal.ast.AstConstructionTestSupport
 import org.neo4j.cypher.internal.compiler.planner.LogicalPlanningIntegrationTestSupport
+import org.neo4j.cypher.internal.expressions.MultiRelationshipPathStep
+import org.neo4j.cypher.internal.expressions.NilPathStep
+import org.neo4j.cypher.internal.expressions.NodePathStep
+import org.neo4j.cypher.internal.expressions.PathExpression
+import org.neo4j.cypher.internal.expressions.SemanticDirection.OUTGOING
 import org.neo4j.cypher.internal.logical.builder.AbstractLogicalPlanBuilder.Predicate
+import org.neo4j.cypher.internal.logical.plans.IndexOrderNone
 import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
 class ExpandPlanningIntegrationTest extends CypherFunSuite with LogicalPlanningIntegrationTestSupport with AstConstructionTestSupport {
@@ -107,7 +113,7 @@ class ExpandPlanningIntegrationTest extends CypherFunSuite with LogicalPlanningI
 
     val plan = cfg.plan("MATCH (a)-[r1]->(b)<-[r2]-(a) RETURN r1, r2").stripProduceResults
     plan shouldEqual cfg.subPlanBuilder()
-      .filter("not r1 = r2")
+      .filter("not r2 = r1")
       .expandInto("(a)-[r1]->(b)")
       .expandAll("(a)-[r2]->(b)")
       .allNodeScan("a")
@@ -187,6 +193,31 @@ class ExpandPlanningIntegrationTest extends CypherFunSuite with LogicalPlanningI
       .filter("all(anon_0 IN r WHERE anon_0.bProp = b.prop)")
       .expand("(a)-[r*1..]->(b)", relationshipPredicate = Predicate("r_RELS", "r_RELS.aProp = a.prop"))
       .nodeByLabelScan("a", "A")
+      .build()
+  }
+
+  test("should consider dependency to target node when extracting inner predicates for var length expand") {
+    val planner = plannerBuilder()
+      .setAllNodesCardinality(1000)
+      .setAllRelationshipsCardinality(1000)
+      .setLabelCardinality("A", 100)
+      .setRelationshipCardinality("(:A)-[]->()", 100)
+      .build()
+
+    val plan = planner.plan("MATCH p = ((a:A)-[r*1..3]->(b)) WHERE all(x IN nodes(p) WHERE x = a OR x = b) RETURN p")
+
+    val path = PathExpression(NodePathStep(varFor("a"), MultiRelationshipPathStep(varFor("r"), OUTGOING, Some(varFor("b")), NilPathStep()(pos))(pos))(pos))(pos)
+    plan shouldEqual planner.planBuilder()
+      .produceResults("p")
+      .projection(Map("p" -> path))
+      .filterExpression(
+        allInList(varFor("x"), nodes(path), ors(
+          equals(varFor("x"), varFor("a")),
+          equals(varFor("x"), varFor("b"))
+        ))
+      )
+      .expand("(a)-[r*1..3]->(b)")
+      .nodeByLabelScan("a", "A", IndexOrderNone)
       .build()
   }
 }

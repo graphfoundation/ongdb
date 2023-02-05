@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -38,6 +38,21 @@
  */
 package org.neo4j.kernel.impl.coreapi;
 
+import static java.lang.String.format;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Arrays.stream;
+import static java.util.Collections.emptyMap;
+import static org.neo4j.internal.helpers.collection.Iterators.asList;
+import static org.neo4j.internal.helpers.collection.Iterators.emptyResourceIterator;
+import static org.neo4j.internal.helpers.collection.Iterators.filter;
+import static org.neo4j.internal.helpers.collection.Iterators.firstOrDefault;
+import static org.neo4j.internal.kernel.api.IndexQueryConstraints.unconstrained;
+import static org.neo4j.kernel.api.exceptions.Status.Transaction.Terminated;
+import static org.neo4j.kernel.impl.newapi.CursorPredicates.nodeMatchProperties;
+import static org.neo4j.kernel.impl.newapi.CursorPredicates.relationshipMatchProperties;
+import static org.neo4j.util.Preconditions.checkArgument;
+import static org.neo4j.values.storable.Values.utf8Value;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -47,7 +62,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-
 import org.neo4j.common.EntityType;
 import org.neo4j.exceptions.KernelException;
 import org.neo4j.graphdb.ConstraintViolationException;
@@ -69,6 +83,7 @@ import org.neo4j.graphdb.TransactionTerminatedException;
 import org.neo4j.graphdb.schema.Schema;
 import org.neo4j.graphdb.traversal.BidirectionalTraversalDescription;
 import org.neo4j.graphdb.traversal.TraversalDescription;
+import org.neo4j.internal.helpers.Exceptions;
 import org.neo4j.internal.kernel.api.IndexReadSession;
 import org.neo4j.internal.kernel.api.InternalIndexState;
 import org.neo4j.internal.kernel.api.NodeCursor;
@@ -126,21 +141,6 @@ import org.neo4j.token.api.TokenNotFoundException;
 import org.neo4j.values.storable.Values;
 import org.neo4j.values.virtual.MapValue;
 
-import static java.lang.String.format;
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.Arrays.stream;
-import static java.util.Collections.emptyMap;
-import static org.neo4j.internal.helpers.collection.Iterators.asList;
-import static org.neo4j.internal.helpers.collection.Iterators.emptyResourceIterator;
-import static org.neo4j.internal.helpers.collection.Iterators.filter;
-import static org.neo4j.internal.helpers.collection.Iterators.firstOrDefault;
-import static org.neo4j.internal.kernel.api.IndexQueryConstraints.unconstrained;
-import static org.neo4j.kernel.api.exceptions.Status.Transaction.Terminated;
-import static org.neo4j.kernel.impl.newapi.CursorPredicates.nodeMatchProperties;
-import static org.neo4j.kernel.impl.newapi.CursorPredicates.relationshipMatchProperties;
-import static org.neo4j.util.Preconditions.checkArgument;
-import static org.neo4j.values.storable.Values.utf8Value;
-
 /**
  * Default implementation of {@link org.neo4j.graphdb.Transaction}
  */
@@ -190,14 +190,7 @@ public class TransactionImpl extends EntityValidationTransactionImpl
 
     public void commit( KernelTransaction.KernelTransactionMonitor kernelTransactionMonitor )
     {
-        safeTerminalOperation( transaction ->
-        {
-            // this try-with-resource automatically calls transaction.close() after being done.
-            try ( transaction )
-            {
-                transaction.commit( kernelTransactionMonitor );
-            }
-        } );
+        safeTerminalOperation( tx -> tx.commit( kernelTransactionMonitor ) );
     }
 
     @Override
@@ -205,14 +198,7 @@ public class TransactionImpl extends EntityValidationTransactionImpl
     {
         if ( isOpen() )
         {
-            safeTerminalOperation( transaction ->
-            {
-                // this try-with-resource automatically calls transaction.close() after being done.
-                try ( transaction )
-                {
-                    transaction.rollback();
-                }
-            } );
+            safeTerminalOperation( KernelTransaction::rollback );
         }
     }
 
@@ -406,7 +392,6 @@ public class TransactionImpl extends EntityValidationTransactionImpl
     @Override
     public ResourceIterator<Node> findNodes( final Label myLabel, final String key, final Object value )
     {
-        //TODO: what does this look like stashed?
         checkLabel( myLabel );
         checkPropertyKey( key );
         KernelTransaction transaction = kernelTransaction();
@@ -692,7 +677,7 @@ public class TransactionImpl extends EntityValidationTransactionImpl
     {
         if ( isOpen() )
         {
-            safeTerminalOperation( KernelTransaction::close );
+            safeTerminalOperation( tx -> {} );
         }
     }
 
@@ -708,6 +693,7 @@ public class TransactionImpl extends EntityValidationTransactionImpl
 
     private void safeTerminalOperation( TransactionalOperation operation )
     {
+        Exception exception = null;
         try
         {
             if ( closed )
@@ -715,23 +701,40 @@ public class TransactionImpl extends EntityValidationTransactionImpl
                 throw new NotInTransactionException( "The transaction has been closed." );
             }
 
-            coreApiResourceTracker.closeAllCloseableResources();
-
-            operation.perform( transaction );
-
-            if ( closeCallbacks != null )
+            try
             {
-                closeCallbacks.forEach( TransactionClosedCallback::transactionClosed );
+                coreApiResourceTracker.closeAllCloseableResources();
+                operation.perform(transaction);
+
+                if ( closeCallbacks != null )
+                {
+                    closeCallbacks.forEach( TransactionClosedCallback::transactionClosed );
+                }
+            }
+            catch ( Exception e )
+            {
+                exception = e;
+            }
+            finally
+            {
+                if ( transaction != null )
+                {
+                    transaction.close();
+                }
             }
         }
         catch ( Exception e )
         {
-            throw exceptionMapper.mapException( e );
+            exception = Exceptions.chain( exception, e );
         }
         finally
         {
             closed = true;
             transaction = null;
+        }
+        if ( exception != null )
+        {
+            throw exceptionMapper.mapException( exception );
         }
     }
 

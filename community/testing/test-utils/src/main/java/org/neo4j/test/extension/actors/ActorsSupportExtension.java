@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -60,7 +60,7 @@ import static org.neo4j.test.ReflectionUtil.getAllFields;
 
 public class ActorsSupportExtension implements TestInstancePostProcessor, AfterEachCallback, AfterAllCallback
 {
-    private static final Namespace NAMESPACE = Namespace.create( "ongdb", "actors" );
+    private static final Namespace NAMESPACE = Namespace.create( "neo4j", "actors" );
     private static final String ACTOR_MANAGER = "ACTOR_MANAGER";
 
     @Override

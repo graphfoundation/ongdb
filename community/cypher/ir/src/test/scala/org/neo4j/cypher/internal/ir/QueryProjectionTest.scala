@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -36,35 +36,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package cypher.features
+package org.neo4j.cypher.internal.ir
+import org.neo4j.cypher.internal.ast.AstConstructionTestSupport
+import org.neo4j.cypher.internal.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
-import org.opencypher.tools.tck.values.CypherBoolean
-import org.opencypher.tools.tck.values.CypherFloat
-import org.opencypher.tools.tck.values.CypherInteger
-import org.opencypher.tools.tck.values.CypherList
-import org.opencypher.tools.tck.values.CypherNull
-import org.opencypher.tools.tck.values.CypherProperty
-import org.opencypher.tools.tck.values.CypherPropertyMap
-import org.opencypher.tools.tck.values.CypherString
-import org.opencypher.tools.tck.values.CypherValue
+class QueryProjectionTest extends CypherFunSuite with AstConstructionTestSupport {
+  test("should not mutate QueryProjection.empty state") {
+    val qp = QueryProjection.empty
 
-import scala.collection.JavaConverters.mapAsJavaMapConverter
-import scala.collection.JavaConverters.seqAsJavaListConverter
+    qp.allQueryGraphs.foreach(_.allKnownUnstableNodeLabels(SemanticTable()))
+    qp.allQueryGraphs.foreach(_.allKnownUnstableNodeLabels.cacheSize shouldBe 1)
 
-object TCKValueToONgDBValue extends (CypherValue => Object) {
-
-  def apply(value: CypherValue): Object = {
-    value match {
-      case CypherString(s) => s
-      case CypherInteger(v) => Long.box(v)
-      case CypherFloat(v) => Double.box(v)
-      case CypherBoolean(v) => Boolean.box(v)
-      case CypherProperty(k, v) => (k, TCKValueToONgDBValue(v))
-      case CypherPropertyMap(ps) => ps.map { case (k, v) => k -> TCKValueToONgDBValue(v) }.asJava
-      case l: CypherList => l.elements.map(TCKValueToONgDBValue).asJava
-      case CypherNull => null
-      case _ => throw new UnsupportedOperationException(s"Could not convert value $value to an ONgDB representation")
-    }
+    QueryProjection.empty.allQueryGraphs.foreach(_.allKnownUnstableNodeLabels.cacheSize shouldBe 0)
   }
-
 }

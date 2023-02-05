@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -65,7 +65,7 @@ class InterestingOrderStatementConvertersTest extends CypherFunSuite with Logica
     val expectation = RegularSinglePlannerQuery(
       queryGraph = QueryGraph(patternNodes = Set("n")),
       interestingOrder = InterestingOrder.required(RequiredOrderCandidate.asc(varFor("n.prop"), Map("n.prop" -> prop("n", "prop")))),
-      horizon = RegularQueryProjection(Map("n.prop" -> prop("n", "prop")))
+      horizon = RegularQueryProjection(Map("n.prop" -> prop("n", "prop")), isTerminating = true)
     )
 
     result should equal(expectation)
@@ -77,7 +77,7 @@ class InterestingOrderStatementConvertersTest extends CypherFunSuite with Logica
     val expectation = RegularSinglePlannerQuery(
       queryGraph = QueryGraph(patternNodes = Set("n")),
       interestingOrder = InterestingOrder.required(RequiredOrderCandidate.asc(varFor("n.prop"), Map("n.prop" -> prop("n", "prop")))),
-      horizon = DistinctQueryProjection(Map("n.prop" -> prop("n", "prop")))
+      horizon = DistinctQueryProjection(Map("n.prop" -> prop("n", "prop")), isTerminating = true)
     )
 
     result should equal(expectation)
@@ -113,7 +113,11 @@ class InterestingOrderStatementConvertersTest extends CypherFunSuite with Logica
     val expectation = RegularSinglePlannerQuery(
       queryGraph = QueryGraph(patternNodes = Set("n")),
       interestingOrder = InterestingOrder.required(RequiredOrderCandidate.asc(varFor("n.prop"), Map("n.prop" -> prop("n", "prop")))),
-      horizon = AggregatingQueryProjection(Map("n.prop" -> prop("n", "prop")), Map("count(*)" -> CountStar()(pos)))
+      horizon = AggregatingQueryProjection(
+        Map("n.prop" -> prop("n", "prop")),
+        Map("count(*)" -> CountStar()(pos)),
+        isTerminating = true
+      )
     )
 
     result should equal(expectation)
@@ -152,7 +156,7 @@ class InterestingOrderStatementConvertersTest extends CypherFunSuite with Logica
     val expectation = RegularSinglePlannerQuery(
       queryGraph = QueryGraph(patternNodes = Set("n")),
       interestingOrder = interestingOrder,
-      horizon = AggregatingQueryProjection(Map.empty, Map("min(n.prop)" -> func))
+      horizon = AggregatingQueryProjection(Map.empty, Map("min(n.prop)" -> func), isTerminating = true)
     )
 
     result should equal(expectation)
@@ -168,7 +172,7 @@ class InterestingOrderStatementConvertersTest extends CypherFunSuite with Logica
     val expectation = RegularSinglePlannerQuery(
       queryGraph = QueryGraph(patternNodes = Set("n")),
       interestingOrder = interestingOrder,
-      horizon = AggregatingQueryProjection(Map.empty, Map("max(n.prop)" -> func))
+      horizon = AggregatingQueryProjection(Map.empty, Map("max(n.prop)" -> func), isTerminating = true)
     )
 
     result should equal(expectation)
@@ -184,7 +188,7 @@ class InterestingOrderStatementConvertersTest extends CypherFunSuite with Logica
     val expectation = RegularSinglePlannerQuery(
       queryGraph = QueryGraph(patternNodes = Set("n")),
       interestingOrder = interestingOrder,
-      horizon = AggregatingQueryProjection(Map.empty, Map("min(n.prop)" -> func))
+      horizon = AggregatingQueryProjection(Map.empty, Map("min(n.prop)" -> func), isTerminating = true)
     )
 
     result should equal(expectation)
@@ -211,7 +215,7 @@ class InterestingOrderStatementConvertersTest extends CypherFunSuite with Logica
     val expectation = RegularSinglePlannerQuery(
       queryGraph = QueryGraph(patternNodes = Set("n")),
       interestingOrder = InterestingOrder.required(RequiredOrderCandidate.asc(prop("n", "prop"))),
-      horizon = RegularQueryProjection(Map("n.prop2" -> prop("n", "prop2")))
+      horizon = RegularQueryProjection(Map("n.prop2" -> prop("n", "prop2")), isTerminating = true)
     )
 
     result should equal(expectation)
@@ -223,7 +227,7 @@ class InterestingOrderStatementConvertersTest extends CypherFunSuite with Logica
     val expectation = RegularSinglePlannerQuery(
       queryGraph = QueryGraph(patternNodes = Set("n")),
       interestingOrder = InterestingOrder.required(RequiredOrderCandidate.desc(prop("n", "prop2"))),
-      horizon = RegularQueryProjection(projections = Map("n.prop" -> prop("n", "prop")))
+      horizon = RegularQueryProjection(projections = Map("n.prop" -> prop("n", "prop")), isTerminating = true)
     )
 
     result should equal(expectation)
@@ -235,7 +239,7 @@ class InterestingOrderStatementConvertersTest extends CypherFunSuite with Logica
     val expectation = RegularSinglePlannerQuery(
       queryGraph = QueryGraph(patternNodes = Set("n")),
       interestingOrder = InterestingOrder.required(RequiredOrderCandidate.desc(varFor("n.prop"), Map("n.prop" -> prop("n", "prop")))),
-      horizon = RegularQueryProjection(Map("n.prop" -> prop("n", "prop")))
+      horizon = RegularQueryProjection(Map("n.prop" -> prop("n", "prop")), isTerminating = true)
     )
 
     result should equal(expectation)
@@ -247,7 +251,7 @@ class InterestingOrderStatementConvertersTest extends CypherFunSuite with Logica
     val expectation = RegularSinglePlannerQuery(
       queryGraph = QueryGraph(patternNodes = Set("n")),
       interestingOrder = InterestingOrder.required(RequiredOrderCandidate.asc(prop("n", "prop"), Map("n" -> varFor("n")))),
-      horizon = RegularQueryProjection(Map("n" -> varFor("n")))
+      horizon = RegularQueryProjection(Map("n" -> varFor("n")), isTerminating = true)
     )
 
     result should equal(expectation)
@@ -294,7 +298,8 @@ class InterestingOrderStatementConvertersTest extends CypherFunSuite with Logica
       InterestingOrder.required(RequiredOrderCandidate
         .asc(varFor("n.foo"), Map("n.foo" -> prop("n", "foo")))
         .desc(varFor("n.prop"), Map("n.prop" -> prop("n", "prop")))),
-      horizon = RegularQueryProjection(Map("n.prop" -> prop("n", "prop"), "n.foo" -> prop("n", "foo")))
+      horizon =
+        RegularQueryProjection(Map("n.prop" -> prop("n", "prop"), "n.foo" -> prop("n", "foo")), isTerminating = true)
     )
 
     result should equal(expectation)
@@ -308,7 +313,7 @@ class InterestingOrderStatementConvertersTest extends CypherFunSuite with Logica
       interestingOrder = InterestingOrder.required(RequiredOrderCandidate
         .asc(prop("n", "foo"), Map("n" -> varFor("n")))
         .desc(prop("n", "prop"), Map("n" -> varFor("n")))),
-      horizon = RegularQueryProjection(Map("n" -> varFor("n")))
+      horizon = RegularQueryProjection(Map("n" -> varFor("n")), isTerminating = true)
     )
 
     result should equal(expectation)
@@ -322,7 +327,7 @@ class InterestingOrderStatementConvertersTest extends CypherFunSuite with Logica
       interestingOrder = InterestingOrder.required(RequiredOrderCandidate
         .asc(prop("n", "foo"), Map("n" -> varFor("n")))
         .desc(varFor("n.prop"), Map("n.prop" -> prop("n", "prop")))),
-      horizon = RegularQueryProjection(Map("n" -> varFor("n"), "n.prop" -> prop("n", "prop")))
+      horizon = RegularQueryProjection(Map("n" -> varFor("n"), "n.prop" -> prop("n", "prop")), isTerminating = true)
     )
 
     result should equal(expectation)
@@ -338,7 +343,7 @@ class InterestingOrderStatementConvertersTest extends CypherFunSuite with Logica
       tail = Some(RegularSinglePlannerQuery(
         queryGraph = QueryGraph(argumentIds = Set("foo")),
         interestingOrder = InterestingOrder.required(RequiredOrderCandidate.asc(varFor("foo.bar"), Map("foo.bar" -> prop("foo", "bar")))),
-        horizon = RegularQueryProjection(Map("foo.bar" -> prop("foo", "bar")))
+        horizon = RegularQueryProjection(Map("foo.bar" -> prop("foo", "bar")), isTerminating = true)
       ))
     )
 
@@ -355,7 +360,7 @@ class InterestingOrderStatementConvertersTest extends CypherFunSuite with Logica
       tail = Some(RegularSinglePlannerQuery(
         queryGraph = QueryGraph(argumentIds = Set("foo", "n")),
         interestingOrder = InterestingOrder.required(RequiredOrderCandidate.asc(varFor("foo"), Map("foo" -> varFor("foo")))),
-        horizon = RegularQueryProjection(Map("n.bar" -> prop("n", "bar"), "foo" -> varFor("foo")))
+        horizon = RegularQueryProjection(Map("n.bar" -> prop("n", "bar"), "foo" -> varFor("foo")), isTerminating = true)
       ))
     )
 
@@ -372,7 +377,7 @@ class InterestingOrderStatementConvertersTest extends CypherFunSuite with Logica
       tail = Some(RegularSinglePlannerQuery(
         queryGraph = QueryGraph(argumentIds = Set("foo", "n")),
         interestingOrder = InterestingOrder.required(RequiredOrderCandidate.asc(varFor("foo"))),
-        horizon = RegularQueryProjection(Map("n.bar" -> prop("n", "bar")))
+        horizon = RegularQueryProjection(Map("n.bar" -> prop("n", "bar")), isTerminating = true)
       ))
     )
 
@@ -390,7 +395,7 @@ class InterestingOrderStatementConvertersTest extends CypherFunSuite with Logica
           Map("n.prop" -> prop("n", "prop"))
         )
       ),
-      horizon = RegularQueryProjection(Map("n.prop" -> prop("n", "prop")))
+      horizon = RegularQueryProjection(Map("n.prop" -> prop("n", "prop")), isTerminating = true)
     )
 
     result should equal(expectation)
@@ -406,7 +411,8 @@ class InterestingOrderStatementConvertersTest extends CypherFunSuite with Logica
           Map("n.prop * 2" -> multiply(prop("n", "prop"), literalInt(2)))
         )
       ),
-      horizon = RegularQueryProjection(Map("n.prop * 2" -> multiply(prop("n", "prop"), literalInt(2))))
+      horizon =
+        RegularQueryProjection(Map("n.prop * 2" -> multiply(prop("n", "prop"), literalInt(2))), isTerminating = true)
     )
 
     result should equal(expectation)
@@ -421,7 +427,7 @@ class InterestingOrderStatementConvertersTest extends CypherFunSuite with Logica
         .asc(prop("n", "foo"), Map("n" -> varFor("n")))
         .desc(multiply(varFor("n.prop"), literalInt(2)), Map("n.prop" -> prop("n", "prop")))
       ),
-      horizon = RegularQueryProjection(Map("n" -> varFor("n"), "n.prop" -> prop("n", "prop")))
+      horizon = RegularQueryProjection(Map("n" -> varFor("n"), "n.prop" -> prop("n", "prop")), isTerminating = true)
     )
 
     result should equal(expectation)
@@ -445,7 +451,7 @@ class InterestingOrderStatementConvertersTest extends CypherFunSuite with Logica
     val expectedTail = Some(RegularSinglePlannerQuery(
       queryGraph = QueryGraph(argumentIds = Set("d")),
       interestingOrder = InterestingOrder.required(RequiredOrderCandidate.asc(varFor("d.year"), Map("d.year" -> prop("d", "year")))),
-      horizon = RegularQueryProjection(Map("d.year" -> prop("d", "year")))
+      horizon = RegularQueryProjection(Map("d.year" -> prop("d", "year")), isTerminating = true)
     ))
 
     result.horizon should equal(expectedHorizon)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -85,7 +85,7 @@ public class CentralJobScheduler extends LifecycleAdapter implements JobSchedule
     {
         TopLevelGroup()
         {
-            super( "ONgDB-" + INSTANCE_COUNTER.incrementAndGet() );
+            super( "Neo4j-" + INSTANCE_COUNTER.incrementAndGet() );
         }
 
         public void setName( String name ) throws Exception

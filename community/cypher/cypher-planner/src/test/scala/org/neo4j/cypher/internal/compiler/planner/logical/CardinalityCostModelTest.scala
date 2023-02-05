@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -516,5 +516,20 @@ class CardinalityCostModelTest extends CypherFunSuite with AstConstructionTestSu
         reduction shouldEqual ((incoming, WorkReduction(fraction = Selectivity(1.0/12345.0), minimum = Some(Cardinality(1)))))
       }
     }
+  }
+
+  test("shouldn't round LHS of Apply cardinality to one when calculating costs") {
+    def costWithLhsCardinality(lhsCardinality: Double): Cost = {
+      val builder = new LogicalPlanBuilder(wholePlan = false)
+      val plan = builder
+        .apply()
+        .|.allNodeScan("b", "a").withCardinality(100)
+        .filter("a.prop1 = 42").withCardinality(lhsCardinality)
+        .allNodeScan("a").withCardinality(100)
+        .build()
+      costFor(plan, QueryGraphSolverInput.empty, builder.getSemanticTable, builder.cardinalities, builder.providedOrders)
+    }
+
+    costWithLhsCardinality(0.5) should be < costWithLhsCardinality(1.0)
   }
 }

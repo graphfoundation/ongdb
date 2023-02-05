@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -46,6 +46,7 @@ import org.neo4j.cypher.internal.runtime.spec.Edition
 import org.neo4j.cypher.internal.runtime.spec.LogicalQueryBuilder
 import org.neo4j.cypher.internal.runtime.spec.RecordingRuntimeResult
 import org.neo4j.cypher.internal.runtime.spec.RuntimeTestSuite
+import org.neo4j.graphdb.RelationshipType
 
 abstract class RelationshipTypeScanTestBase[CONTEXT <: RuntimeContext](
                                                                edition: Edition[CONTEXT],
@@ -453,5 +454,20 @@ abstract class RelationshipTypeScanTestBase[CONTEXT <: RuntimeContext](
     val runtimeResult: RecordingRuntimeResult = execute(logicalQuery, runtime)
     runtimeResult should beColumns("r")
       .withRows(singleColumn(rels.flatMap(r => Seq.fill(2 * 10)(r))))
+  }
+
+  test("undirected scans only find loop once") {
+    val rel = given {
+      val a = tx.createNode()
+      a.createRelationshipTo(a, RelationshipType.withName("R"))
+    }
+
+    // when
+    val logicalQuery = new LogicalQueryBuilder(this)
+      .produceResults("r")
+      .relationshipTypeScan("(n)-[r:R]-(m)")
+      .build(readOnly = false)
+
+    execute(logicalQuery, runtime) should beColumns("r").withSingleRow(rel)
   }
 }

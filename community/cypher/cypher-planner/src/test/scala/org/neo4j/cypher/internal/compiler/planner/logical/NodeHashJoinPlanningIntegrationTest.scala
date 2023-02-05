@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -56,7 +56,7 @@ class NodeHashJoinPlanningIntegrationTest extends CypherFunSuite with LogicalPla
     val plan = cfg.plan("MATCH (a:X)<-[r1]-(b)-[r2]->(c:X) RETURN b").stripProduceResults
 
     plan shouldEqual cfg.subPlanBuilder()
-      .filter("not r1 = r2")
+      .filter("not r2 = r1")
       .nodeHashJoin("b")
       .|.expandAll("(c)<-[r2]-(b)")
       .|.nodeByLabelScan("c", "X")
@@ -86,7 +86,7 @@ class NodeHashJoinPlanningIntegrationTest extends CypherFunSuite with LogicalPla
     val plan = cfg.plan(cypherQuery).stripProduceResults
 
     plan shouldEqual cfg.subPlanBuilder()
-      .filter("a.prop = c.prop", "not r1 = r2")
+      .filter("a.prop = c.prop", "not r2 = r1")
       .nodeHashJoin("b")
       .|.expandAll("(c)<-[r2:X]-(b)")
       .|.nodeByLabelScan("c", "C")

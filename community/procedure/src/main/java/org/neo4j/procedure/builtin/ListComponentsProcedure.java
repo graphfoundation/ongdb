@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -65,7 +65,7 @@ import static org.neo4j.values.storable.Values.utf8Value;
  * get a list of which components are loaded and what versions of them.
  *
  * This way, it works as a general mechanism into which capabilities
- * a given ONgDB system has, and which version of those components
+ * a given Neo4j system has, and which version of those components
  * are in use.
  *
  * This would include things like Kernel, Storage Engine, Query Engines,
@@ -73,11 +73,11 @@ import static org.neo4j.values.storable.Values.utf8Value;
  */
 public class ListComponentsProcedure extends CallableProcedure.BasicProcedure
 {
-    private static final TextValue ONGDB_KERNEL = utf8Value( "ONgDB Kernel" );
-    private final TextValue ongdbVersion;
-    private final TextValue ongdbEdition;
+    private static final TextValue NEO4J_KERNEL = utf8Value( "Neo4j Kernel" );
+    private final TextValue neo4jVersion;
+    private final TextValue neo4jEdition;
 
-    public ListComponentsProcedure( QualifiedName name, String ongdbVersion, String ongdbEdition )
+    public ListComponentsProcedure( QualifiedName name, String neo4jVersion, String neo4jEdition )
     {
         super( procedureSignature( name )
                 .out( "name", NTString )
@@ -89,8 +89,8 @@ public class ListComponentsProcedure extends CallableProcedure.BasicProcedure
                 .description( "List DBMS components and their versions." )
                 .systemProcedure()
                 .build() );
-        this.ongdbVersion = stringValue( ongdbVersion );
-        this.ongdbEdition = stringValue( ongdbEdition );
+        this.neo4jVersion = stringValue( neo4jVersion );
+        this.neo4jEdition = stringValue( neo4jEdition );
     }
 
     @Override
@@ -98,6 +98,6 @@ public class ListComponentsProcedure extends CallableProcedure.BasicProcedure
             throws ProcedureException
     {
         return asRawIterator( singletonList(
-                new AnyValue[]{ONGDB_KERNEL, VirtualValues.list( ongdbVersion ), ongdbEdition}).iterator() );
+                new AnyValue[]{NEO4J_KERNEL, VirtualValues.list( neo4jVersion ),  neo4jEdition }).iterator() );
     }
 }

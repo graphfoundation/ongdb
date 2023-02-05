@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,6 +32,8 @@
  */
 package org.neo4j.cypher.internal.frontend
 
+import org.neo4j.cypher.internal.ast.Query
+import org.neo4j.cypher.internal.ast.SingleQuery
 import org.neo4j.cypher.internal.ast.semantics.SemanticError
 import org.neo4j.cypher.internal.ast.semantics.SemanticFeature
 import org.neo4j.cypher.internal.frontend.helpers.ErrorCollectingContext
@@ -102,6 +104,36 @@ class SemanticAnalysisTest extends CypherFunSuite {
     pipeline.transform(startState, context)
 
     context.errors.map(_.msg) should equal(List("Variable `n` already declared"))
+  }
+
+  test("Should not allow Distinct in functions that aren't aggregate") {
+    val nonAggregateFunctions = Seq(
+      ("localdatetime", "'param1'"),
+      ("duration", "'param1'"),
+      ("left", "'param1', 4"),
+      ("right", "'param1', 4"),
+      ("reverse", "'param1'"),
+      ("trim", "'param1'"),
+      ("ceil", "0.1"),
+      ("floor", "0.1"),
+      ("sign", "0.1"),
+      ("round", "0.1"),
+      ("abs", "0.1"),
+      ("asin", "0.1"),
+      ("isEmpty", "'param1'"),
+      ("toBoolean", "'param1'")
+    )
+    nonAggregateFunctions.foreach {
+      case (func, params) =>
+        val query = s"RETURN $func(DISTINCT $params)"
+
+        val startState = initStartState(query)
+        val context = new ErrorCollectingContext()
+
+        pipeline.transform(startState, context)
+
+        context.errors shouldBe Seq(SemanticError(s"Invalid use of DISTINCT with function '$func'", InputPosition(7, 1, 8)))
+    }
   }
 
   test("Should allow parameter as valid predicate in FilteringExpression") {
@@ -763,6 +795,135 @@ class SemanticAnalysisTest extends CypherFunSuite {
     context.errors shouldBe Seq(
       SemanticError("Variable `name` not defined", InputPosition(52, 4, 8))
     )
+  }
+
+  // Utilities for the following tests
+  private val returnStarNMCombinations = Seq(
+    "n",
+    "m",
+    "n, m",
+    "*",
+    "*, n",
+    "*, m",
+    "*, n, m"
+  )
+
+  private def containedVariables(returnStarNMCombination: String): Set[String] = {
+    val strings = returnStarNMCombination.split(',').map(_.trim)
+    if (strings.contains("*")) {
+      Set("n", "m")
+    } else {
+      strings.toSet
+    }
+  }
+
+  test("RETURN * in a CALL should export variables") {
+    for {
+      subqueryReturn <- returnStarNMCombinations
+      subqueryReturnVars = containedVariables(subqueryReturn)
+      finalReturn <- returnStarNMCombinations
+      finalReturnVars = containedVariables(finalReturn)
+      if finalReturnVars.subsetOf(subqueryReturnVars)
+    } {
+      val query =
+        s"""
+           |CALL {
+           |  MATCH (n), (m)
+           |  RETURN $subqueryReturn
+           |}
+           |RETURN $finalReturn
+           |""".stripMargin
+      withClue(query) {
+        val startState = initStartState(query)
+        val context = new ErrorCollectingContext()
+        val result = pipeline.transform(startState, context)
+
+        context.errors should be(empty)
+
+        val statement = result.statement().asInstanceOf[Query].part.asInstanceOf[SingleQuery]
+        val semanticState = result.semantics()
+        val finalVariables = semanticState.scope(statement.clauses.last).get.symbolNames
+        finalVariables should equal(finalReturnVars)
+      }
+    }
+  }
+
+  test("RETURN * in UNION in a CALL should export variables") {
+    for {
+      firstSubqueryReturn <- returnStarNMCombinations
+      firstSubqueryReturnVars = containedVariables(firstSubqueryReturn)
+      secondSubqueryReturn <- returnStarNMCombinations
+      secondSubqueryReturnVars = containedVariables(secondSubqueryReturn)
+      if secondSubqueryReturnVars == firstSubqueryReturnVars
+      finalReturn <- returnStarNMCombinations
+      finalReturnVars = containedVariables(finalReturn)
+      if finalReturnVars.subsetOf(firstSubqueryReturnVars)
+    } {
+      val query =
+        s"""
+           |CALL {
+           |  MATCH (n), (m)
+           |  RETURN $firstSubqueryReturn
+           |    UNION
+           |  MATCH (n), (m)
+           |  RETURN $secondSubqueryReturn
+           |}
+           |RETURN $finalReturn
+           |""".stripMargin
+      withClue(query) {
+        val startState = initStartState(query)
+        val context = new ErrorCollectingContext()
+        val result = pipeline.transform(startState, context)
+        context.errors should be(empty)
+
+        val statement = result.statement().asInstanceOf[Query].part.asInstanceOf[SingleQuery]
+        val semanticState = result.semantics()
+        val finalVariables = semanticState.scope(statement.clauses.last).get.symbolNames
+        finalVariables should equal(finalReturnVars)
+      }
+    }
+  }
+
+  test("RETURN * in 3-way-UNION in a CALL should export variables") {
+    for {
+      firstSubqueryReturn <- returnStarNMCombinations
+      firstSubqueryReturnVars = containedVariables(firstSubqueryReturn)
+      secondSubqueryReturn <- returnStarNMCombinations
+      secondSubqueryReturnVars = containedVariables(secondSubqueryReturn)
+      if secondSubqueryReturnVars == firstSubqueryReturnVars
+      thirdSubqueryReturn <- returnStarNMCombinations
+      thirdSubqueryReturnVars = containedVariables(thirdSubqueryReturn)
+      if thirdSubqueryReturnVars == firstSubqueryReturnVars
+      finalReturn <- returnStarNMCombinations
+      finalReturnVars = containedVariables(finalReturn)
+      if finalReturnVars.subsetOf(firstSubqueryReturnVars)
+    } {
+      val query =
+        s"""
+           |CALL {
+           |  MATCH (n), (m)
+           |  RETURN $firstSubqueryReturn
+           |    UNION
+           |  MATCH (n), (m)
+           |  RETURN $firstSubqueryReturn
+           |    UNION
+           |  MATCH (n), (m)
+           |  RETURN $thirdSubqueryReturn
+           |}
+           |RETURN $finalReturn
+           |""".stripMargin
+      withClue(query) {
+        val startState = initStartState(query)
+        val context = new ErrorCollectingContext()
+        val result = pipeline.transform(startState, context)
+        context.errors should be(empty)
+
+        val statement = result.statement().asInstanceOf[Query].part.asInstanceOf[SingleQuery]
+        val semanticState = result.semantics()
+        val finalVariables = semanticState.scope(statement.clauses.last).get.symbolNames
+        finalVariables should equal(finalReturnVars)
+      }
+    }
   }
 
   private def initStartState(query: String) =

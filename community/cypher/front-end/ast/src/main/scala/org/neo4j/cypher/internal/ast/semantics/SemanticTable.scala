@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -45,6 +45,7 @@ import org.neo4j.cypher.internal.util.RelTypeId
 import org.neo4j.cypher.internal.util.Rewriter
 import org.neo4j.cypher.internal.util.symbols.CTAny
 import org.neo4j.cypher.internal.util.symbols.CTList
+import org.neo4j.cypher.internal.util.symbols.CTMap
 import org.neo4j.cypher.internal.util.symbols.CTNode
 import org.neo4j.cypher.internal.util.symbols.CTRelationship
 import org.neo4j.cypher.internal.util.symbols.TypeSpec
@@ -124,6 +125,8 @@ class SemanticTable(
    * Returns true if the specified variable exists, is a relationship and has no conflicting type information.
    */
   def isRelationshipNoFail(variableName: String): Boolean = getOptionalActualTypeFor(variableName).contains(CTRelationship.invariant)
+
+  def isMapNoFail(expr: Expression): Boolean = types.get(expr).map(_.specified).contains(CTMap.invariant)
 
   def isRelationshipCollection(expr: String): Boolean = getTypeFor(expr) == CTList(CTRelationship).invariant
 

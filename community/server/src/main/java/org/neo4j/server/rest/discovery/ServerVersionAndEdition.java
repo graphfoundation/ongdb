@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -57,8 +57,8 @@ public class ServerVersionAndEdition
     public ServerVersionAndEdition( String version, String edition )
     {
         serverInfo = new HashMap<>();
-        serverInfo.put( "ongdb_version", version );
-        serverInfo.put( "ongdb_edition", edition );
+        serverInfo.put( "neo4j_version", version );
+        serverInfo.put( "neo4j_edition", edition );
     }
 
     public void forEach( BiConsumer<String,String> consumer )

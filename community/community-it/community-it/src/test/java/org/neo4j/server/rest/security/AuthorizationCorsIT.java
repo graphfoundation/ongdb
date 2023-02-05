@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -77,7 +77,7 @@ class AuthorizationCorsIT extends CommunityWebContainerTestBase
     {
         startServer( true );
 
-        HTTP.Response response = runQuery( "ongdb", "ongdb" );
+        HTTP.Response response = runQuery( "neo4j", "neo4j" );
 
         assertEquals( OK.getStatusCode(), response.status() );
         assertCorsHeaderPresent( response );
@@ -88,11 +88,11 @@ class AuthorizationCorsIT extends CommunityWebContainerTestBase
     void shouldAddCorsHeaderWhenAuthEnabledAndPasswordChangeNotRequired() throws Exception
     {
         startServer( true );
-        HTTP.Response passwordChangeResponse = changePassword( "ongdb", "ongdb", "newPassword" );
+        HTTP.Response passwordChangeResponse = changePassword( "neo4j", "neo4j", "newPassword" );
         assertEquals( OK.getStatusCode(), passwordChangeResponse.status() );
         assertCorsHeaderPresent( passwordChangeResponse );
 
-        HTTP.Response queryResponse = runQuery( "ongdb", "newPassword" );
+        HTTP.Response queryResponse = runQuery( "neo4j", "newPassword" );
 
         assertEquals( OK.getStatusCode(), queryResponse.status() );
         assertCorsHeaderPresent( queryResponse );

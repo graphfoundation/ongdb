@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -156,10 +156,10 @@ public interface SystemGraphComponent
         CURRENT( "The sub-graph is already at the current version", "nothing to do" ),
         REQUIRES_UPGRADE( "The sub-graph is supported, but is an older version and requires upgrade", "CALL dbms.upgrade()" ),
         UNSUPPORTED_BUT_CAN_UPGRADE( "The sub-graph is unsupported, this component cannot function",
-                "Restart ONgDB in single-instance mode to upgrade this component at startup" ),
+                "Restart Neo4j in single-instance mode to upgrade this component at startup" ),
         UNSUPPORTED( "The sub-graph is unsupported because it is too old, this component cannot function",
-                "Downgrade ONgDB and then upgrade this component before upgrading ONgDB again" ),
-        UNSUPPORTED_FUTURE( "The sub-graph is unsupported because it is a newer version, this component cannot function", "Upgrade ONgDB" );
+                "Downgrade Neo4j and then upgrade this component before upgrading Neo4j again" ),
+        UNSUPPORTED_FUTURE( "The sub-graph is unsupported because it is a newer version, this component cannot function", "Upgrade Neo4j" );
 
         private final String description;
         private final String resolution;

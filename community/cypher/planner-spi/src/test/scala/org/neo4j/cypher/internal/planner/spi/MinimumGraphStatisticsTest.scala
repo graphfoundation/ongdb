@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -39,6 +39,8 @@
 package org.neo4j.cypher.internal.planner.spi
 
 import org.mockito.Mockito.when
+import org.neo4j.cypher.internal.planner.spi.MinimumGraphStatistics.MIN_INDEX_PROPERTY_EXISTS_SELECTIVITY
+import org.neo4j.cypher.internal.planner.spi.MinimumGraphStatistics.MIN_NODES_WITH_LABEL
 import org.neo4j.cypher.internal.util.Cardinality
 import org.neo4j.cypher.internal.util.LabelId
 import org.neo4j.cypher.internal.util.PropertyKeyId
@@ -47,12 +49,12 @@ import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
 class MinimumGraphStatisticsTest extends CypherFunSuite {
 
-  test("should not decrease the isNotNull selectivity below what the delegate specified") {
+  test("should return the actual isNotNull selectivity when node count is above minimum") {
     // Given
     val labelId = LabelId(0)
     val indexDescriptor = IndexDescriptor.forLabel(IndexDescriptor.IndexType.Btree, labelId, Seq(PropertyKeyId(1)))
     val delegate = mock[GraphStatistics]
-    when(delegate.nodesWithLabelCardinality(Some(labelId))).thenReturn(Cardinality(1))
+    when(delegate.nodesWithLabelCardinality(Some(labelId))).thenReturn(Cardinality(MIN_NODES_WITH_LABEL + 1))
     val isNotNullSelectivity = Selectivity(0.4)
     when(delegate.indexPropertyIsNotNullSelectivity(indexDescriptor)).thenReturn(Some(isNotNullSelectivity))
     val stats = new MinimumGraphStatistics(delegate)
@@ -62,6 +64,23 @@ class MinimumGraphStatisticsTest extends CypherFunSuite {
 
     // Then
     maybeSelectivity shouldBe Some(isNotNullSelectivity)
+  }
+
+  test("should return a fixed isNotNull selectivity when node count is below minimum") {
+    // Given
+    val labelId = LabelId(0)
+    val indexDescriptor = IndexDescriptor.forLabel(IndexDescriptor.IndexType.Btree, labelId, Seq(PropertyKeyId(1)))
+    val delegate = mock[GraphStatistics]
+    when(delegate.nodesWithLabelCardinality(Some(labelId))).thenReturn(Cardinality.SINGLE)
+    val isNotNullSelectivity = Selectivity(0.4)
+    when(delegate.indexPropertyIsNotNullSelectivity(indexDescriptor)).thenReturn(Some(isNotNullSelectivity))
+    val stats = new MinimumGraphStatistics(delegate)
+
+    // When
+    val maybeSelectivity = stats.indexPropertyIsNotNullSelectivity(indexDescriptor)
+
+    // Then
+    maybeSelectivity shouldBe Some(MIN_INDEX_PROPERTY_EXISTS_SELECTIVITY)
   }
 
   test("should not decrease the isNotNull selectivity below MIN_INDEX_PROPERTY_EXISTS_SELECTIVITY") {

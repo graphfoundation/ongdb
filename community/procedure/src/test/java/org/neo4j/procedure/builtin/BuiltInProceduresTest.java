@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -371,7 +371,7 @@ class BuiltInProceduresTest
     {
         // When/Then
         assertThat( call( "dbms.components" ) ).contains(
-                record( "ONgDB Kernel", singletonList( "1.3.37" ), "community" )
+                record( "Neo4j Kernel", singletonList( "1.3.37" ), "community" )
         );
     }
 

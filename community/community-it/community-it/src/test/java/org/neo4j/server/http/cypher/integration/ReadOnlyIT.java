@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -88,7 +88,7 @@ class ReadOnlyIT extends ExclusiveWebContainerTestBase
         String message = error.get( "message" ).asText();
 
         assertEquals( "Neo.ClientError.General.WriteOnReadOnlyAccessDatabase", code );
-        assertThat( message ).contains( "The database is in read-only mode on this ONgDB instance" );
+        assertThat( message ).contains( "The database is in read-only mode on this Neo4j instance" );
     }
 
     @Test
@@ -105,7 +105,7 @@ class ReadOnlyIT extends ExclusiveWebContainerTestBase
         String message = error.get( "message" ).asText();
 
         assertEquals( "Neo.ClientError.General.WriteOnReadOnlyAccessDatabase", code );
-        assertThat( message ).contains( "The database is in read-only mode on this ONgDB instance" );
+        assertThat( message ).contains( "The database is in read-only mode on this Neo4j instance" );
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -121,7 +121,7 @@ class DatabaseLayoutTest
     @Test
     void databaseLayoutProvideCorrectDatabaseName()
     {
-        assertEquals( "ongdb", databaseLayout.getDatabaseName() );
+        assertEquals( "neo4j", databaseLayout.getDatabaseName() );
         assertEquals( "testdb", neo4jLayout.databaseLayout( "testdb" ).getDatabaseName() );
     }
 }

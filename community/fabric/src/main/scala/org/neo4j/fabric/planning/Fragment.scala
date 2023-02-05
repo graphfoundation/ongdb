@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -143,7 +143,7 @@ object Fragment {
   )(
     val pos: InputPosition
   ) extends Fragment {
-    override val outputColumns: Seq[String] = rhs.outputColumns
+    override val outputColumns: Seq[String] = lhs.outputColumns
     override val producesResults: Boolean = rhs.producesResults
     override val argumentColumns: Seq[String] = input.argumentColumns
     override val importColumns: Seq[String] = Columns.combine(lhs.importColumns, rhs.importColumns)

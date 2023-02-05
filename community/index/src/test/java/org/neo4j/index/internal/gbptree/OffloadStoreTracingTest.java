@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -75,7 +75,7 @@ class OffloadStoreTracingTest
     void setUp() throws IOException
     {
         cursorContext = new CursorContext( pageCacheTracer.createPageCursorTracer( "testCursorTracer" ) );
-        pagedFile = pageCache.map( testDirectory.createFile( "file" ), pageCache.pageSize(), "ongdb" );
+        pagedFile = pageCache.map( testDirectory.createFile( "file" ), pageCache.pageSize(), "neo4j" );
         OffloadPageCursorFactory pcFactory = pagedFile::io;
         var idProvider = new FreeListIdProvider( pagedFile, 10 );
         offloadStore = new OffloadStoreImpl<>( layout, idProvider, pcFactory, ALWAYS_TRUE, pageCache.pageSize() );

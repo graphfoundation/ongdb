@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -135,7 +135,7 @@ public class ProcedureOutputSignatureCompilerTest
     void shouldGiveHelpfulErrorOnUnmappable()
     {
         ProcedureException exception = assertThrows( ProcedureException.class, () -> signatures( UnmappableRecord.class ) );
-        assertThat( exception.getMessage() ).startsWith( "Field `wat` in record `UnmappableRecord` cannot be converted to an ONgDB type: " +
+        assertThat( exception.getMessage() ).startsWith( "Field `wat` in record `UnmappableRecord` cannot be converted to a Neo4j type: " +
                 "Don't know how to map `org.neo4j.procedure.impl.ProcedureOutputSignatureCompilerTest$UnmappableRecord`" );
     }
 
@@ -152,7 +152,7 @@ public class ProcedureOutputSignatureCompilerTest
     {
         ProcedureException exception = assertThrows( ProcedureException.class, () -> signatures( RecordWithNonStringKeyMap.class ) );
         assertThat( exception.getMessage() ).isEqualTo( "Field `wat` in record `RecordWithNonStringKeyMap` cannot be converted " +
-                "to an ONgDB type: Maps are required to have `String` keys - but this map " +
+                "to a Neo4j type: Maps are required to have `String` keys - but this map " +
                 "has `org.neo4j.procedure.impl.ProcedureOutputSignatureCompilerTest$RecordWithNonStringKeyMap` keys." );
     }
 

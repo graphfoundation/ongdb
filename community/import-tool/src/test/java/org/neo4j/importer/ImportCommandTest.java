@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -114,7 +114,7 @@ class ImportCommandTest
                         "                               exist prior to importing," + lineSeparator() +
                         "                               then it must be created subsequently using" + lineSeparator() +
                         "                               CREATE DATABASE." + lineSeparator() +
-                        "                               Default: ongdb" + lineSeparator() +
+                        "                               Default: neo4j" + lineSeparator() +
                         "      --additional-config=<path>" + lineSeparator() +
                         "                             Configuration file to supply additional" + lineSeparator() +
                         "                               configuration in." + lineSeparator() +
@@ -181,7 +181,7 @@ class ImportCommandTest
                         "                               value can be a plain number or a byte units" + lineSeparator() +
                         "                               string, e.g. 128k, 1m." + lineSeparator() +
                         "                               Default: 4194304" + lineSeparator() +
-                        "      --max-memory=<size>    Maximum memory that ongdb-admin can use for" + lineSeparator() +
+                        "      --max-memory=<size>    Maximum memory that neo4j-admin can use for" + lineSeparator() +
                         "                               various data structures and caching to improve" + lineSeparator() +
                         "                               performance. Values can be plain numbers, like" + lineSeparator() +
                         "                               10000000 or e.g. 20G for 20 gigabyte, or even e." + lineSeparator() +
@@ -268,7 +268,7 @@ class ImportCommandTest
     }
 
     @Test
-    void shouldKeepSpecifiedONgDBHomeWhenAdditionalConfigIsPresent()
+    void shouldKeepSpecifiedNeo4jHomeWhenAdditionalConfigIsPresent()
     {
         // given
         final var homeDir = testDir.directory( "other", "place" );
@@ -281,14 +281,14 @@ class ImportCommandTest
                 "--nodes=" + foo.toAbsolutePath().toString() );
 
         // when
-        Config resultingConfig = command.loadONgDBConfig();
+        Config resultingConfig = command.loadNeo4jConfig();
 
         // then
         assertEquals( homeDir, resultingConfig.get( GraphDatabaseSettings.ongdb_home ) );
     }
 
     @Test
-    void shouldKeepSpecifiedONgDBHomeWhenNoAdditionalConfigIsPresent()
+    void shouldKeepSpecifiedNeo4jHomeWhenNoAdditionalConfigIsPresent()
     {
         // given
         final var homeDir = testDir.directory( "other", "place" );
@@ -299,7 +299,7 @@ class ImportCommandTest
         CommandLine.populateCommand( command, "--nodes=" + foo.toAbsolutePath() );
 
         // when
-        Config resultingConfig = command.loadONgDBConfig();
+        Config resultingConfig = command.loadNeo4jConfig();
 
         // then
         assertEquals( homeDir, resultingConfig.get( GraphDatabaseSettings.ongdb_home ) );

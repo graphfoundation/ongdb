@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -44,6 +44,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import org.neo4j.internal.kernel.api.NodeCursor;
+import org.neo4j.internal.kernel.api.QueryContext;
 import org.neo4j.internal.kernel.api.Read;
 import org.neo4j.internal.kernel.api.RelationshipTraversalCursor;
 import org.neo4j.internal.kernel.api.helpers.CachingExpandInto;
@@ -66,6 +67,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import static org.neo4j.graphdb.Direction.BOTH;
+import static org.neo4j.graphdb.Direction.INCOMING;
 import static org.neo4j.graphdb.Direction.OUTGOING;
 
 class CachingExpandIntoTest
@@ -83,7 +86,7 @@ class CachingExpandIntoTest
     void shouldComputeDegreeOfStartAndEndNode()
     {
         // Given
-        CachingExpandInto expandInto = new CachingExpandInto( mock( Read.class ), OUTGOING, memoryTracker );
+        CachingExpandInto expandInto = new CachingExpandInto( mock( QueryContext.class, RETURNS_DEEP_STUBS ), OUTGOING, memoryTracker );
         NodeCursor cursor = mockCursor();
 
         // Then
@@ -99,10 +102,10 @@ class CachingExpandIntoTest
     }
 
     @Test
-    void shouldComputeDegreeOnceIfStartAndEndNodeAreTheSame()
+    void shouldComputeDegreeOnceIfStartAndEndNodeAreTheSameAndDirectionBoth()
     {
         // Given
-        CachingExpandInto expandInto = new CachingExpandInto( mock( Read.class ), OUTGOING, memoryTracker );
+        CachingExpandInto expandInto = new CachingExpandInto( mock( QueryContext.class, RETURNS_DEEP_STUBS ), BOTH, memoryTracker );
         NodeCursor cursor = mockCursor();
 
         // When
@@ -115,10 +118,42 @@ class CachingExpandIntoTest
     }
 
     @Test
-    void shouldComputeDegreeOfStartAndEndNodeOnlyOnce()
+    void shouldComputeDegreeOnceIfStartAndEndNodeAreTheSameAndDirectionOutgoing()
     {
         // Given
-        CachingExpandInto expandInto = new CachingExpandInto( mock( Read.class ), OUTGOING, memoryTracker );
+        CachingExpandInto expandInto = new CachingExpandInto( mock( QueryContext.class, RETURNS_DEEP_STUBS ), OUTGOING, memoryTracker );
+        NodeCursor cursor = mockCursor();
+
+        // When
+        findConnections( expandInto, cursor, 42, 42 );
+
+        // Then
+        verify( cursor, times( 2 ) ).degree( any( RelationshipSelection.class ) );
+
+        assertReleasesHeap( expandInto );
+    }
+
+    @Test
+    void shouldComputeDegreeOnceIfStartAndEndNodeAreTheSameAndDirectionIncoming()
+    {
+        // Given
+        CachingExpandInto expandInto = new CachingExpandInto( mock( QueryContext.class, RETURNS_DEEP_STUBS ), INCOMING, memoryTracker );
+        NodeCursor cursor = mockCursor();
+
+        // When
+        findConnections( expandInto, cursor, 42, 42 );
+
+        // Then
+        verify( cursor, times( 2 ) ).degree( any( RelationshipSelection.class ) );
+
+        assertReleasesHeap( expandInto );
+    }
+
+    @Test
+    void shouldComputeDegreeOfStartAndEndNodeOnlyOnceIfDirectionBoth()
+    {
+        // Given
+        CachingExpandInto expandInto = new CachingExpandInto( mock( QueryContext.class, RETURNS_DEEP_STUBS ), BOTH, memoryTracker );
         NodeCursor cursor = mockCursor();
 
         // When, calling multiple times with different types
@@ -133,10 +168,46 @@ class CachingExpandIntoTest
     }
 
     @Test
+    void shouldComputeDegreeOfStartAndEndNodeTwiceIfDirectionOutgoing()
+    {
+        // Given
+        CachingExpandInto expandInto = new CachingExpandInto( mock( QueryContext.class, RETURNS_DEEP_STUBS ), OUTGOING, memoryTracker );
+        NodeCursor cursor = mockCursor();
+
+        // When, calling multiple times with different types
+        findConnections( expandInto, cursor, 42, 43, 3 );
+        findConnections( expandInto, cursor, 43, 42, 4 );
+        findConnections( expandInto, cursor, 42, 43, 5 );
+
+        // Then, only call once for 42 and once for 43
+        verify( cursor, times( 4 ) ).degree( any( RelationshipSelection.class ) );
+
+        assertReleasesHeap( expandInto );
+    }
+
+    @Test
+    void shouldComputeDegreeOfStartAndEndNodeTwiceIfDirectionIncoming()
+    {
+        // Given
+        CachingExpandInto expandInto = new CachingExpandInto( mock( QueryContext.class, RETURNS_DEEP_STUBS ), INCOMING, memoryTracker );
+        NodeCursor cursor = mockCursor();
+
+        // When, calling multiple times with different types
+        findConnections( expandInto, cursor, 42, 43, 3 );
+        findConnections( expandInto, cursor, 43, 42, 4 );
+        findConnections( expandInto, cursor, 42, 43, 5 );
+
+        // Then, degree will be cached during expansion
+        verify( cursor, times( 4 ) ).degree( any( RelationshipSelection.class ) );
+
+        assertReleasesHeap( expandInto );
+    }
+
+    @Test
     void shouldComputeDegreeOfStartAndEndNodeEveryTimeIfCacheIsFull()
     {
         // Given
-        CachingExpandInto expandInto = new CachingExpandInto( mock( Read.class ), OUTGOING, memoryTracker, 0 );
+        CachingExpandInto expandInto = new CachingExpandInto( mock( QueryContext.class, RETURNS_DEEP_STUBS ), OUTGOING, memoryTracker, 0 );
         NodeCursor cursor = mockCursor();
 
         // When
@@ -156,7 +227,7 @@ class CachingExpandIntoTest
     void shouldNotRecomputeAnythingIfSameNodesAndTypes()
     {
         // Given
-        CachingExpandInto expandInto = new CachingExpandInto( mock( Read.class ), OUTGOING, memoryTracker );
+        CachingExpandInto expandInto = new CachingExpandInto( mock( QueryContext.class, RETURNS_DEEP_STUBS ), OUTGOING, memoryTracker );
         findConnections( expandInto, mockCursor(), 42, 43, 100, 101 );
         NodeCursor cursor = mockCursor();
 
@@ -174,7 +245,7 @@ class CachingExpandIntoTest
     void shouldRecomputeIfSameNodesAndTypesIfCacheIsFull()
     {
         // Given
-        CachingExpandInto expandInto = new CachingExpandInto( mock( Read.class ), OUTGOING, memoryTracker, 0 );
+        CachingExpandInto expandInto = new CachingExpandInto( mock( QueryContext.class, RETURNS_DEEP_STUBS ), OUTGOING, memoryTracker, 0 );
         findConnections( expandInto, mockCursor(), 42, 43, 100, 101 );
         NodeCursor cursor = mockCursor();
 
@@ -207,10 +278,9 @@ class CachingExpandIntoTest
         StubNodeCursor nodeCursor = new StubNodeCursor( false, true )
                 .withNode( fromNodeId )
                 .withNode( toNodeId );
-        StubRead read = new StubRead();
 
         // When
-        CachingExpandInto expandInto = new CachingExpandInto( read, OUTGOING, memoryTracker, 100 );
+        CachingExpandInto expandInto = new CachingExpandInto( mock( QueryContext.class, RETURNS_DEEP_STUBS ), OUTGOING, memoryTracker, 100 );
         long nativeMemoryBefore = memoryTracker.usedNativeMemory();
         long heapMemoryBefore = memoryTracker.estimatedHeapMemory();
         expandInto.connectingRelationships( nodeCursor, relationshipCursor, fromNodeId, new int[]{type}, toNodeId );
@@ -228,9 +298,11 @@ class CachingExpandIntoTest
 
     private void findConnections( CachingExpandInto expandInto, NodeCursor cursor, long from, long to, int... types )
     {
+        RelationshipTraversalCursor traversal = mock( RelationshipTraversalCursor.class );
+        //NOTE: this needs to be the same as the decree in mockCursor
+        when( traversal.next() ).thenReturn( true, true, true, true, true, true, true, false );
         RelationshipTraversalCursor relationships =
-                expandInto.connectingRelationships( cursor, mock( RelationshipTraversalCursor.class ), from,
-                       types, to );
+                expandInto.connectingRelationships( cursor, traversal, from, types, to );
 
         // While we traverse the relationships, we estimate with the cursor, which references the CachingExpandInto
         assertEstimatesCorrectly( relationships );

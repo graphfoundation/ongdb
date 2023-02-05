@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -40,7 +40,6 @@ package org.neo4j.kernel.impl.query;
 
 import java.util.function.Supplier;
 
-import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.neo4j.kernel.GraphDatabaseQueryService;
 import org.neo4j.kernel.api.query.ExecutingQuery;
 import org.neo4j.kernel.impl.api.KernelStatement;
@@ -105,11 +104,5 @@ public class Neo4jTransactionalContextFactory implements TransactionalContextFac
         KernelStatement initialStatement = (KernelStatement) tx.kernelTransaction().acquireStatement();
         initialStatement.queryRegistry().bindExecutingQuery( executingQuery );
         return contextCreator.create( tx, initialStatement, executingQuery );
-    }
-
-    @Override
-    public String toString()
-    {
-        return new ToStringBuilder( this ).append( "contextCreator", contextCreator ).toString();
     }
 }

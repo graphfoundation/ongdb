@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -48,11 +48,11 @@ public class ReadOnlyDbException extends KernelException
 {
     public ReadOnlyDbException()
     {
-        super( Status.General.ForbiddenOnReadOnlyDatabase, "This ONgDB instance is read only for all databases" );
+        super( Status.General.ForbiddenOnReadOnlyDatabase, "This Neo4j instance is read only for all databases" );
     }
 
     public ReadOnlyDbException( String databaseName )
     {
-        super( Status.General.ForbiddenOnReadOnlyDatabase, "This ONgDB instance is read only for the database " + databaseName );
+        super( Status.General.ForbiddenOnReadOnlyDatabase, "This Neo4j instance is read only for the database " + databaseName );
     }
 }

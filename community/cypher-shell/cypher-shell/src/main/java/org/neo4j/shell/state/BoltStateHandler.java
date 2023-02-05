@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -160,7 +160,7 @@ public class BoltStateHandler implements TransactionHandler, Connector, Database
     {
         if ( !isConnected() )
         {
-            throw new CommandException( "Not connected to ONgDB" );
+            throw new CommandException( "Not connected to Neo4j" );
         }
         if ( isTransactionOpen() )
         {
@@ -174,7 +174,7 @@ public class BoltStateHandler implements TransactionHandler, Connector, Database
     {
         if ( !isConnected() )
         {
-            throw new CommandException( "Not connected to ONgDB" );
+            throw new CommandException( "Not connected to Neo4j" );
         }
         if ( !isTransactionOpen() )
         {
@@ -197,7 +197,7 @@ public class BoltStateHandler implements TransactionHandler, Connector, Database
     {
         if ( !isConnected() )
         {
-            throw new CommandException( "Not connected to ONgDB" );
+            throw new CommandException( "Not connected to Neo4j" );
         }
         if ( !isTransactionOpen() )
         {
@@ -457,7 +457,7 @@ public class BoltStateHandler implements TransactionHandler, Connector, Database
     {
         if ( !isConnected() )
         {
-            throw new CommandException( "Not connected to ONgDB" );
+            throw new CommandException( "Not connected to Neo4j" );
         }
         if ( isTransactionOpen() )
         {
@@ -587,7 +587,7 @@ public class BoltStateHandler implements TransactionHandler, Connector, Database
     }
 
     /**
-     * Disconnect from ONgDB, clearing up any session resources, but don't give any output. Intended only to be used if connect fails.
+     * Disconnect from Neo4j, clearing up any session resources, but don't give any output. Intended only to be used if connect fails.
      */
     void silentDisconnect()
     {

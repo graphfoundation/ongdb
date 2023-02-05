@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -669,7 +669,7 @@ abstract class OptionalMatchPlanningIntegrationTest(queryGraphSolverSetup: Query
       .limit(0)
       .apply()
       .|.optional("n0", "n1")
-      .|.filter("not anon_0 = anon_2")
+      .|.filter("not anon_2 = anon_0")
       .|.expandInto("(n0)-[anon_0]-(anon_1)")
       .|.filterExpression(assertIsNode("n1"))
       .|.relationshipIndexOperator("(anon_1)-[anon_2:R0(prop = 42)]->(anon_3)", indexOrder = IndexOrderNone, argumentIds = Set("n0", "n1"))
@@ -684,7 +684,7 @@ abstract class OptionalMatchPlanningIntegrationTest(queryGraphSolverSetup: Query
       .limit(0)
       .apply()
       .|.optional("n0", "n1")
-      .|.filter("not anon_0 = anon_2")
+      .|.filter("not anon_2 = anon_0")
       .|.expandInto("(n0)-[anon_0]-(anon_1)")
       .|.filterExpression(propEquality("anon_2", "prop", 42), assertIsNode("n1"))
       .|.relationshipIndexOperator("(anon_1)-[anon_2:R0(prop)]->(anon_3)", indexOrder = IndexOrderNone, argumentIds = Set("n0", "n1"))
@@ -881,6 +881,41 @@ abstract class OptionalMatchPlanningIntegrationTest(queryGraphSolverSetup: Query
         .expandAll("(n0)-[r1]->(n1)")
         .allNodeScan("n0")
         .build()
+  }
+
+  test("should solve OPTIONAL MATCH containing shortestPath, followed by DISTINCT") {
+    val planner = plannerBuilder()
+      .setAllNodesCardinality(1000)
+      .setLabelCardinality("A", 200)
+      .setLabelCardinality("B", 500)
+      .build()
+
+    val query =
+      """OPTIONAL MATCH p=shortestPath((a:A)-[r:REL*1..10]->(b:B))
+        |RETURN DISTINCT p
+        |""".stripMargin
+
+    val plan = planner.plan(query).stripProduceResults
+
+    val planAB = planner.subPlanBuilder()
+      .distinct("p AS p")
+      .optional()
+      .shortestPath("(a)-[r:REL*1..10]->(b)", pathName = Some("p"))
+      .cartesianProduct()
+      .|.nodeByLabelScan("b", "B")
+      .nodeByLabelScan("a", "A")
+      .build()
+
+    val planBA = planner.subPlanBuilder()
+      .distinct("p AS p")
+      .optional()
+      .shortestPath("(a)-[r:REL*1..10]->(b)", pathName = Some("p"))
+      .cartesianProduct()
+      .|.nodeByLabelScan("a", "A")
+      .nodeByLabelScan("b", "B")
+      .build()
+
+    plan should (equal(planAB) or equal(planBA))
   }
 
   def containsOuterHashJoin(plan: LogicalPlan): Boolean = {

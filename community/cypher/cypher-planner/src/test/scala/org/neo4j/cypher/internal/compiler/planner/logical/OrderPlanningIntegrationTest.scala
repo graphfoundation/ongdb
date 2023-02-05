@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -1341,7 +1341,7 @@ abstract class OrderPlanningIntegrationTest(queryGraphSolverSetup: QueryGraphSol
       .stripProduceResults
 
     val expectedPlan = chooseLargerIndexConfig.subPlanBuilder()
-      .filter("not r1 = r2")
+      .filter("not r2 = r1")
       .expandAll("(b)-[r2]->(c)")
       .expandAll("(a)-[r1]->(b)")
       .sort(Seq(Ascending("a.prop")))
@@ -1801,7 +1801,7 @@ abstract class OrderPlanningIntegrationTest(queryGraphSolverSetup: QueryGraphSol
       .sort(Seq(Ascending("a.prop")))
       .projection("a.prop AS `a.prop`")
       .distinct("a AS a", "b AS b", "c AS c", "d AS d")
-      .filter("not r2 = r3")
+      .filter("not r3 = r2")
       .expandAll("(c)-[r3:NARROW]->(d)")
       .expandAll("(b)-[r2:NARROW]->(c)")
       .distinct("a AS a", "b AS b")

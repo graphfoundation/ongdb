@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -101,7 +101,7 @@ class AdminCommandsIT
         confDir = testDirectory.directory( "test.conf" );
         home = testDirectory.homePath( "home" );
         context = new ExecutionContext( home, confDir, out, err, testDirectory.getFileSystem() );
-        Path configFile = confDir.resolve( "ongdb.conf" );
+        Path configFile = confDir.resolve( "neo4j.conf" );
         Files.createFile( configFile, PosixFilePermissions.asFileAttribute( Set.of( OWNER_READ, OWNER_WRITE ) ) );
         GraphDatabaseSettings.strict_config_validation.name();
         Files.write( configFile, (BootloaderSettings.initial_heap_size.name() + "=$(expr 500)").getBytes() );
@@ -113,7 +113,7 @@ class AdminCommandsIT
         assertSuccess( new SetInitialPasswordCommand( context ), "--expand-commands", "pass" );
         assertSuccess( new SetDefaultAdminCommand( context ), "--expand-commands", "admin" );
         assertSuccess( new StoreInfoCommand( context ), "--expand-commands", "path" );
-        assertSuccess( new CheckConsistencyCommand( context ), "--expand-commands", "--database", "ongdb" );
+        assertSuccess( new CheckConsistencyCommand( context ), "--expand-commands", "--database", "neo4j" );
         assertSuccess( new DiagnosticsReportCommand( context ), "--expand-commands" );
         assertSuccess( new LoadCommand( context, new Loader() ), "--expand-commands", "--from", "test" );
         assertSuccess( new MemoryRecommendationsCommand( context ), "--expand-commands" );
@@ -127,7 +127,7 @@ class AdminCommandsIT
         assertExpansionError( new SetInitialPasswordCommand( context ), "pass" );
         assertExpansionError( new SetDefaultAdminCommand( context ), "user" );
         assertExpansionError( new StoreInfoCommand( context ), "path" );
-        assertExpansionError( new CheckConsistencyCommand( context ), "--database", "ongdb" );
+        assertExpansionError( new CheckConsistencyCommand( context ), "--database", "neo4j" );
         assertExpansionError( new DiagnosticsReportCommand( context ) );
         assertExpansionError( new LoadCommand( context, new Loader() ), "--from", "test" );
         assertExpansionError( new MemoryRecommendationsCommand( context ) );

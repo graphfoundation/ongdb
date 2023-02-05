@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -358,9 +358,9 @@ public class TransportTestUtil
     {
         return transportConnection ->
         {
-            ResponseMessage nextMessage = null;
+            ResponseMessage nextMessage;
 
-            while ( nextMessage instanceof SuccessMessage )
+            do
             {
                 try
                 {
@@ -371,8 +371,8 @@ public class TransportTestUtil
                     throw new RuntimeException( e );
                 }
             }
+            while ( !(nextMessage instanceof SuccessMessage) );
         };
-
     }
 
     public static Condition<TransportConnection> eventuallyDisconnects()

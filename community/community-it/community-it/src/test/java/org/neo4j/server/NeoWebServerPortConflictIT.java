@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -76,7 +76,7 @@ class NeoWebServerPortConflictIT extends ExclusiveWebContainerTestBase
             }
             catch ( Exception e )
             {
-                assertThat( e.getMessage() ).contains( "Error starting ONgDB database server" );
+                assertThat( e.getMessage() ).contains( "Error starting Neo4j database server" );
             }
             finally
             {
@@ -87,7 +87,7 @@ class NeoWebServerPortConflictIT extends ExclusiveWebContainerTestBase
             }
 
             assertThat( logProvider ).forClass( CommunityNeoWebServer.class ).forLevel( ERROR )
-                    .containsMessageWithArguments( "Failed to start ONgDB on %s: %s",
+                    .containsMessageWithArguments( "Failed to start Neo4j on %s: %s",
                             contestedAddress, format( "Address %s is already in use, cannot bind to it.", contestedAddress ) );
         }
     }
@@ -113,7 +113,7 @@ class NeoWebServerPortConflictIT extends ExclusiveWebContainerTestBase
             }
             catch ( Exception e )
             {
-                assertThat( e.getMessage() ).contains( "Error starting ONgDB database server" );
+                assertThat( e.getMessage() ).contains( "Error starting Neo4j database server" );
             }
             finally
             {
@@ -124,7 +124,7 @@ class NeoWebServerPortConflictIT extends ExclusiveWebContainerTestBase
             }
 
             assertThat( logProvider ).forClass( CommunityNeoWebServer.class ).forLevel( ERROR )
-                    .containsMessageWithArguments( "Failed to start ONgDB on %s: %s",
+                    .containsMessageWithArguments( "Failed to start Neo4j on %s: %s",
                             unContestedAddress,
                             format( "At least one of the addresses %s or %s is already in use, cannot bind to it.", unContestedAddress, httpsAddress ) );
         }

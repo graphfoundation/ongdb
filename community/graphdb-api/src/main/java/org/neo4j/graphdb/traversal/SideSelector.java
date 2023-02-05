@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -38,6 +38,7 @@
  */
 package org.neo4j.graphdb.traversal;
 
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.Direction;
 
 /**
@@ -45,6 +46,7 @@ import org.neo4j.graphdb.Direction;
  * the next step for. For example an alternating side selector will return alternating
  * start side and end side as long as each side hasn't reached it's end.
  */
+@PublicApi
 public interface SideSelector extends BranchSelector
 {
     /**

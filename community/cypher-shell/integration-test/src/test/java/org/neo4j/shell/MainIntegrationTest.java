@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -232,7 +232,7 @@ class MainIntegrationTest
     }
 
     @Test
-    void wrongPortWithONgDB() throws Exception
+    void wrongPortWithNeo4j() throws Exception
     {
         testWithUser( "jackie", "leven", false )
             .args( "-u jackie -p leven -a neo4j://localhost:1234" )
@@ -330,7 +330,7 @@ class MainIntegrationTest
                 .addArgs( "-u", USER, "-p", PASSWORD, "--format", "plain" )
                 .userInputLines( ":disconnect ", "RETURN 42 AS x;", ":exit" )
                 .run()
-                .assertThatErrorOutput( containsString( "Not connected to ONgDB" ) )
+                .assertThatErrorOutput( containsString( "Not connected to Neo4j" ) )
                 .assertThatOutput( containsString( "> :disconnect " + format("%nDisconnected>")), endsWith( GOOD_BYE ) );
     }
 
@@ -906,6 +906,16 @@ class MainIntegrationTest
                 );
     }
 
+    @Test
+    void disconnectOnClose() throws ArgumentParserException, IOException
+    {
+        buildTest()
+                .addArgs( "-u", USER, "-p", PASSWORD, "--file", fileFromResource( "empty.cypher" ) )
+                .run( true )
+                .assertSuccessAndDisconnected()
+                .assertThatOutput( emptyString() );
+    }
+
     private void assertUserCanConnectAndRunQuery( String user, String password ) throws Exception
     {
         buildTest().addArgs( "-u", user, "-p", password, "--format", "plain", "return 42 as x;" ).run().assertSuccess();
@@ -1031,7 +1041,7 @@ class MainIntegrationTest
     private static class TestBuilder extends AssertableMain.AssertableMainBuilder
     {
         @Override
-        public AssertableMain run() throws ArgumentParserException, IOException
+        public AssertableMain run( boolean closeMain ) throws ArgumentParserException, IOException
         {
             assertNull( runnerFactory );
             assertNull( shell );
@@ -1048,6 +1058,12 @@ class MainIntegrationTest
                     .build();
             var main = new Main( args, outPrintStream, errPrintStream, isOutputInteractive, terminal );
             var exitCode = main.startShell();
+
+            if ( closeMain )
+            {
+                main.close();
+            }
+
             return new AssertableMain( exitCode, out, err, main.getCypherShell() );
         }
     }

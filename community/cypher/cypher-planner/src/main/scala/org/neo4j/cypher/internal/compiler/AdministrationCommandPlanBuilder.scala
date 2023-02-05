@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -125,12 +125,17 @@ import org.neo4j.cypher.internal.ast.semantics.SemanticCheckResult
 import org.neo4j.cypher.internal.ast.semantics.SemanticState
 import org.neo4j.cypher.internal.compiler.phases.LogicalPlanState
 import org.neo4j.cypher.internal.compiler.phases.PlannerContext
+import org.neo4j.cypher.internal.expressions.ExistsSubClause
 import org.neo4j.cypher.internal.expressions.Parameter
+import org.neo4j.cypher.internal.expressions.PatternComprehension
+import org.neo4j.cypher.internal.expressions.PatternExpression
+import org.neo4j.cypher.internal.expressions.SubqueryExpression
 import org.neo4j.cypher.internal.frontend.phases.BaseState
 import org.neo4j.cypher.internal.frontend.phases.CompilationPhaseTracer.CompilationPhase
 import org.neo4j.cypher.internal.frontend.phases.CompilationPhaseTracer.CompilationPhase.PIPE_BUILDING
 import org.neo4j.cypher.internal.frontend.phases.Phase
 import org.neo4j.cypher.internal.logical.plans
+import org.neo4j.cypher.internal.logical.plans.DatabaseTypeFilter.DatabaseOrLocalAlias
 import org.neo4j.cypher.internal.logical.plans.LogicalPlan
 import org.neo4j.cypher.internal.logical.plans.ResolvedCall
 import org.neo4j.cypher.internal.planner.spi.AdministrationPlannerName
@@ -155,7 +160,7 @@ case object AdministrationCommandPlanBuilder extends Phase[PlannerContext, BaseS
 
   private val systemDbProcedureRules = "The system database supports a restricted set of Cypher clauses. " +
     "The supported clause structure for procedure calls is: CALL, YIELD, RETURN. YIELD and RETURN clauses are optional. " +
-    "The order of the clauses is fix and each can only occur once."
+    "The order of the clauses is fixed and each can only occur once."
 
   override def phase: CompilationPhase = PIPE_BUILDING
 
@@ -457,7 +462,7 @@ case object AdministrationCommandPlanBuilder extends Phase[PlannerContext, BaseS
         Some(plans.AssertAllowedDbmsActions(plans.AssertNotBlockedDatabaseManagement(DropDatabaseAction),DropDatabaseAction))
           .map(assertAllowed =>
             if (ifExists)
-              plans.DoNothingIfDatabaseNotExists(assertAllowed, dbName, "delete", s => new NormalizedDatabaseName(s).name())
+              plans.DoNothingIfDatabaseNotExists(assertAllowed, dbName, "delete", s => new NormalizedDatabaseName(s).name(), DatabaseOrLocalAlias)
             else assertAllowed)
           .map(plans.EnsureDatabaseHasNoAliases(_, dbName))
           .map(plans.EnsureValidNonSystemDatabase(_, dbName, "delete"))
@@ -468,7 +473,7 @@ case object AdministrationCommandPlanBuilder extends Phase[PlannerContext, BaseS
       // ALTER DATABASE foo [IF EXISTS] SET ACCESS {READ ONLY | READ WRITE}
       case c@AlterDatabase(dbName, ifExists, access) =>
         val assertAllowed = plans.AssertAllowedDbmsActions(plans.AssertNotBlockedDatabaseManagement(AlterDatabaseAction),SetDatabaseAccessAction)
-        val source = if (ifExists) plans.DoNothingIfDatabaseNotExists(assertAllowed, dbName, "alter", s => new NormalizedDatabaseName(s).name()) else assertAllowed
+        val source = if (ifExists) plans.DoNothingIfDatabaseNotExists(assertAllowed, dbName, "alter", s => new NormalizedDatabaseName(s).name(), DatabaseOrLocalAlias) else assertAllowed
         val plan = plans.AlterDatabase(plans.EnsureValidNonSystemDatabase(source, dbName, "alter"), dbName, access)
         Some(plans.LogSystemCommand(plan, prettifier.asString(c)))
 
@@ -562,6 +567,24 @@ case object AdministrationCommandPlanBuilder extends Phase[PlannerContext, BaseS
       // Currently doesn't allow WITH, is this a problem for rewrites?
       case q@Query(None, SingleQuery(clauses))
         if clauses.exists(_.isInstanceOf[CommandClauseAllowedOnSystem]) && clauses.forall(_.isInstanceOf[ClauseAllowedOnSystem]) =>
+        q.folder.treeExists {
+          case p: PatternExpression => throw context.cypherExceptionFactory.syntaxException(
+            "You cannot include a pattern expression on a system database",
+            p.position
+          )
+          case p: PatternComprehension => throw context.cypherExceptionFactory.syntaxException(
+            "You cannot include a pattern comprehension on a system database",
+            p.position
+          )
+          case c: ExistsSubClause => throw context.cypherExceptionFactory.syntaxException(
+            "You cannot include an EXISTS expression on a system database",
+            c.position
+          )
+          case c: SubqueryExpression => throw context.cypherExceptionFactory.syntaxException(
+            "You cannot include a subquery expression on a system database",
+            c.position
+          )
+        }
         Some(plans.AllowedNonAdministrationCommands(q))
 
       case q =>

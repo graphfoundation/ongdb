@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -87,7 +87,7 @@ class DiagnosticsReportCommandTest
                         "      --force             Ignore disk full warning%n" +
                         "      --to=<path>         Destination directory for reports. Defaults to a%n" +
                         "                            system tmp directory.%n" +
-                        "      --pid=<pid>         Specify process id of running ongdb instance"
+                        "      --pid=<pid>         Specify process id of running neo4j instance"
         ) );
     }
 }

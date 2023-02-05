@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -428,11 +428,11 @@ public class StoreUpgrader
     public static class UnexpectedUpgradingStoreVersionException extends UnableToUpgradeException
     {
         static final String MESSAGE =
-                "Not possible to upgrade a store with version '%s' to current store version `%s` (ONgDB %s).";
+                "Not possible to upgrade a store with version '%s' to current store version `%s` (Neo4j %s).";
 
         UnexpectedUpgradingStoreVersionException( String fileVersion, String currentVersion )
         {
-            super( String.format( MESSAGE, fileVersion, currentVersion, Version.getONgDBVersion() ) );
+            super( String.format( MESSAGE, fileVersion, currentVersion, Version.getNeo4jVersion() ) );
         }
     }
 

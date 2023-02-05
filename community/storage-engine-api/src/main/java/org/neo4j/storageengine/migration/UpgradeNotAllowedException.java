@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -42,7 +42,7 @@ import org.neo4j.exceptions.StoreFailureException;
 
 public class UpgradeNotAllowedException extends StoreFailureException
 {
-    private static final String BASE_MSG = "ONgDB cannot be started because the database files require upgrading and upgrades are disabled "
+    private static final String BASE_MSG = "Neo4j cannot be started because the database files require upgrading and upgrades are disabled "
                                        + "in the configuration. Please set 'dbms.allow_upgrade' to 'true' in your configuration file and try again.";
 
     public UpgradeNotAllowedException( String msg )

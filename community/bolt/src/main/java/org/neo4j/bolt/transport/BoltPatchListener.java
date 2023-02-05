@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -36,26 +36,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.bolt.packstream.utf8;
+package org.neo4j.bolt.transport;
 
-import org.junit.jupiter.api.Test;
+import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
-
-class GCFreeUTF8EncoderTest
+/**
+ * Listeners that are registered to be notified about patch configuration options sent in Hello Message
+ */
+public interface BoltPatchListener
 {
-    @Test
-    void shouldThrowErrorWhenStringIsUnpackable() throws Throwable
-    {
-        // Given
-        String invalidSurrogatePair = "\u0020\ude00";
+    String UTC_PATCH = "utc";
 
-        var encoder = UTF8Encoder.EncoderLoader.ENCODER_LOADER.fastestAvailableEncoder();
-        assumeTrue( encoder instanceof GCFreeUTF8Encoder );
-
-        var error = assertThrows( AssertionError.class, () -> encoder.encode( invalidSurrogatePair ) );
-        assertThat( error.getMessage() ).contains( "Failure when converting to UTF-8." );
-    }
+    void handle( List<String> patches );
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -57,7 +57,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
+import org.neo4j.bolt.transaction.StatementProcessorTxManager;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
@@ -86,6 +88,7 @@ import static org.neo4j.server.http.cypher.integration.TransactionConditions.has
 import static org.neo4j.server.http.cypher.integration.TransactionConditions.validRFCTimestamp;
 import static org.neo4j.server.rest.domain.JsonHelper.jsonNode;
 import static org.neo4j.server.web.HttpHeaderUtils.ACCESS_MODE_HEADER;
+import static org.neo4j.test.assertion.Assert.assertEventually;
 import static org.neo4j.test.server.HTTP.RawPayload.quotedJson;
 import static org.neo4j.test.server.HTTP.RawPayload.rawPayload;
 
@@ -94,15 +97,21 @@ public class TransactionIT extends ParameterizedTransactionEndpointsTestBase
     private ExecutorService executors;
     private String txUri;
 
+    private StatementProcessorTxManager transactionManager;
+
     @BeforeEach
     public void setUp()
     {
         executors = Executors.newFixedThreadPool( max( 3, Runtime.getRuntime().availableProcessors() ) );
+        transactionManager = resolveDependency( StatementProcessorTxManager.class );
     }
 
     @AfterEach
-    public void tearDown()
+    public void afterEach()
     {
+        //verify TransactionManager's state is reset after each
+        assertThat( transactionManager.transactionCount() ).isEqualTo( 0 );
+        assertThat( transactionManager.statementProcessorProviderCount() ).isEqualTo( 0 );
         executors.shutdown();
     }
 
@@ -667,7 +676,7 @@ public class TransactionIT extends ParameterizedTransactionEndpointsTestBase
 
     @ParameterizedTest
     @MethodSource( "argumentsProvider" )
-    @Timeout( 30 )
+    @Timeout( 90 )
     public void executing_single_statement_in_new_transaction_and_failing_to_read_the_output_should_interrupt( String txUri )
             throws Exception
     {
@@ -707,22 +716,11 @@ public class TransactionIT extends ParameterizedTransactionEndpointsTestBase
         assertEquals( initialNodes, countNodes() );
 
         // then soon the transaction should have been terminated
-        long endTime = System.currentTimeMillis() + 5000;
-        long additionalRollBacks;
-
-        while ( true )
-        {
-            additionalRollBacks = txMonitor.getNumberOfRolledBackTransactions() - initialRollBacks;
-
-            if ( additionalRollBacks > 0 || System.currentTimeMillis() > endTime )
-            {
-                break;
-            }
-
-            Thread.sleep( 100 );
-        }
-
-        assertEquals( 1, additionalRollBacks );
+        assertEventually(
+                () -> txMonitor.getNumberOfRolledBackTransactions() - initialRollBacks,
+                additionalRollBacks -> additionalRollBacks == 1,
+                1,
+                TimeUnit.MINUTES );
     }
 
     @ParameterizedTest

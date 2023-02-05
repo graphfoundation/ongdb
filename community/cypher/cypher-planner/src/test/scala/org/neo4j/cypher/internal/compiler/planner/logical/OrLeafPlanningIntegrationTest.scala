@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -1426,7 +1426,7 @@ class OrLeafPlanningIntegrationTest
       .build()
 
     val plan = cfg.plan(
-      """MATCH (n:L) WHERE n.a OR (((""=~"") AND NOT(true)) >= n.a)
+      """MATCH (n:L) WHERE n.a OR (((""=~"") AND NOT(true)) >= n.a) 
         |RETURN n
         |""".stripMargin
     )
@@ -1443,8 +1443,8 @@ class OrLeafPlanningIntegrationTest
       .build()
 
     val plan = cfg.plan(
-      """MATCH (x) WITH x SKIP 0
-        |MATCH (n:L) WHERE n.a OR (((""=~"") AND x.b > 5) >= n.a)
+      """MATCH (x) WITH x SKIP 0 
+        |MATCH (n:L) WHERE n.a OR (((""=~"") AND x.b > 5) >= n.a) 
         |RETURN n
         |""".stripMargin
     )

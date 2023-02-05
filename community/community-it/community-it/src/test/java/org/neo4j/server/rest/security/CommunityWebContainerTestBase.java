@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -96,7 +96,7 @@ public class CommunityWebContainerTestBase extends ExclusiveWebContainerTestBase
 
     protected String txCommitURL()
     {
-        return txCommitURL( "ongdb" );
+        return txCommitURL( "neo4j" );
     }
 
     protected String txCommitURL( String database )
@@ -106,7 +106,7 @@ public class CommunityWebContainerTestBase extends ExclusiveWebContainerTestBase
 
     protected static void assertPermissionErrorAtDataAccess( HTTP.Response response ) throws JsonParseException
     {
-        assertPermissionError( response, Collections.singletonList( CredentialsExpired.code().serialize() ), "ACCESS on database 'ongdb' is not allowed." );
+        assertPermissionError( response, Collections.singletonList( CredentialsExpired.code().serialize() ), "ACCESS on database 'neo4j' is not allowed." );
     }
 
     static void assertPermissionErrorAtSystemAccess( HTTP.Response response ) throws JsonParseException

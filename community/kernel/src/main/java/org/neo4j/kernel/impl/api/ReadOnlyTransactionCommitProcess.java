@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -52,6 +52,6 @@ public class ReadOnlyTransactionCommitProcess implements TransactionCommitProces
     @Override
     public long commit( TransactionToApply batch, CommitEvent commitEvent, TransactionApplicationMode mode ) throws TransactionFailureException
     {
-        throw new TransactionFailureException( Status.General.ForbiddenOnReadOnlyDatabase, "Transactions cannot be committed in a read-only ONgDB database" );
+        throw new TransactionFailureException( Status.General.ForbiddenOnReadOnlyDatabase, "Transactions cannot be committed in a read-only Neo4j database" );
     }
 }

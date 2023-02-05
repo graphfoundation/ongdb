@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -90,12 +90,13 @@ case object OptionalMatchRemover extends PlannerQueryRewriter with StepSequencer
 
   override def instance(from: LogicalPlanState, context: PlannerContext): Rewriter = topDown(
     rewriter = Rewriter.lift {
-      case RegularSinglePlannerQuery(graph, interestingOrder, proj@AggregatingQueryProjection(distinctExpressions, aggregations, _, _), tail, queryInput)
-        if validAggregations(aggregations) =>
+      case RegularSinglePlannerQuery(graph, interestingOrder, proj@AggregatingQueryProjection(distinctExpressions, aggregations, _, _, _), tail, queryInput)
+        if noOptionalShortestPath(graph) && validAggregations(aggregations) =>
         val projectionDeps: Iterable[LogicalVariable] = (distinctExpressions.values ++ aggregations.values).flatMap(_.dependencies)
         rewrite(projectionDeps, graph, interestingOrder, proj, tail, queryInput, from.anonymousVariableNameGenerator)
 
-      case RegularSinglePlannerQuery(graph, interestingOrder, proj@DistinctQueryProjection(distinctExpressions, _, _), tail, queryInput) =>
+      case RegularSinglePlannerQuery(graph, interestingOrder, proj@DistinctQueryProjection(distinctExpressions, _, _, _), tail, queryInput)
+        if noOptionalShortestPath(graph) =>
         val projectionDeps: Iterable[LogicalVariable] = distinctExpressions.values.flatMap(_.dependencies)
         rewrite(projectionDeps, graph, interestingOrder, proj, tail, queryInput, from.anonymousVariableNameGenerator)
 
@@ -252,12 +253,17 @@ case object OptionalMatchRemover extends PlannerQueryRewriter with StepSequencer
     PartitionedPredicates(predicatesForPatternExpression.toMap, predicatesToKeep.toSet)
   }
 
-  private def validAggregations(aggregations: Map[String, Expression]) =
+  private def validAggregations(aggregations: Map[String, Expression]): Boolean = {
     aggregations.isEmpty ||
       aggregations.values.forall {
         case func: FunctionInvocation => func.distinct
         case _ => false
       }
+  }
+
+  private def noOptionalShortestPath(qg: QueryGraph): Boolean = {
+    qg.optionalMatches.forall(qg => qg.shortestPathPatterns.isEmpty)
+  }
 
   private def toAst(elementsToKeep: Set[String], predicates: Map[String, Seq[LabelName]], pattern: PatternRelationship, anonymousVariableNameGenerator: AnonymousVariableNameGenerator): PatternExpression = {
     def createVariable(name: String): Variable =

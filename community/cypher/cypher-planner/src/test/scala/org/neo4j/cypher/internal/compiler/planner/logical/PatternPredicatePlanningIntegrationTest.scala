@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -63,6 +63,7 @@ import org.neo4j.cypher.internal.expressions.SemanticDirection.OUTGOING
 import org.neo4j.cypher.internal.expressions.SignedDecimalIntegerLiteral
 import org.neo4j.cypher.internal.expressions.Variable
 import org.neo4j.cypher.internal.ir.CreateNode
+import org.neo4j.cypher.internal.ir.EagernessReason
 import org.neo4j.cypher.internal.ir.QueryGraph
 import org.neo4j.cypher.internal.ir.RegularSinglePlannerQuery
 import org.neo4j.cypher.internal.logical.plans.Aggregation
@@ -1084,9 +1085,10 @@ class PatternPredicatePlanningIntegrationTest extends CypherFunSuite
       """.stripMargin
 
     planFor(q)._2 should beLike {
-      case SetNodeProperty(
+      case Eager(SetNodeProperty(
       RollUpApply(AllNodesScan("n", SetExtractor()), _/* <- This is the subQuery */, _, _),
       _, _, _
+      ), Seq(EagernessReason.Unknown)
       ) => ()
     }
   }
@@ -1098,10 +1100,10 @@ class PatternPredicatePlanningIntegrationTest extends CypherFunSuite
       """.stripMargin
 
     planFor(q)._2 should beLike {
-      case SetNodePropertiesFromMap(
+      case Eager(SetNodePropertiesFromMap(
       RollUpApply(AllNodesScan("n", SetExtractor()), _/* <- This is the subQuery */, _, _),
       _, _, _
-      ) => ()
+      ), Seq(EagernessReason.Unknown)) => ()
     }
   }
 
@@ -1112,10 +1114,10 @@ class PatternPredicatePlanningIntegrationTest extends CypherFunSuite
       """.stripMargin
 
     planFor(q)._2 should beLike {
-      case SetRelationshipProperty(
+      case Eager(SetRelationshipProperty(
       RollUpApply(Expand(AllNodesScan(_, SetExtractor()), _, _, _, _, _, _), _/* <- This is the subQuery */, _, _),
       _, _, _
-      ) => ()
+      ), Seq(EagernessReason.Unknown)) => ()
     }
   }
 
@@ -1126,10 +1128,11 @@ class PatternPredicatePlanningIntegrationTest extends CypherFunSuite
       """.stripMargin
 
     planFor(q)._2 should beLike {
-      case SetRelationshipPropertiesFromMap(
+      case Eager(SetRelationshipPropertiesFromMap(
       RollUpApply(Expand(AllNodesScan(_, SetExtractor()), _, _, _, _, _, _), _/* <- This is the subQuery */, _, _),
       _, _, _
-      ) => ()
+      ),
+      Seq(EagernessReason.Unknown))=> ()
     }
   }
 
@@ -1232,6 +1235,34 @@ class PatternPredicatePlanningIntegrationTest extends CypherFunSuite
     plan.folder.treeExists({
       case _:RollUpApply => true
     }) should be(false)
+  }
+
+  test("should plan many predicates containing pattern expressions as a single selection") {
+    val planner = plannerBuilder()
+      .setAllNodesCardinality(100)
+      .setAllRelationshipsCardinality(100)
+      .setRelationshipCardinality("()-[:REL]-()", 10)
+      .addRelationshipIndex("REL", Seq("prop"), 1.0, 0.01)
+      .build()
+
+    val q =
+      """
+        |MATCH (a)-->(b)
+        |WHERE
+        |  (a.name = 'a' AND (a)-[:REL]->(b)) OR
+        |  (b.name = 'b' AND (a)-[:REL]->(b)) OR
+        |  (a.id = 123 AND (a)-[:REL]->(b)) OR
+        |  (b.id = 321 AND (a)-[:REL]->(b)) OR
+        |  (a.prop < 321 AND (a)-[:REL]->(b)) OR
+        |  (b.prop > 321 AND (a)-[:REL]->(b)) OR
+        |  (a.otherProp <> 321 AND (a)-[:REL]->(b))
+        |RETURN *
+      """.stripMargin
+
+    val plan = planner.plan(q).stripProduceResults
+    plan should beLike {
+      case Selection(_, Expand(_: AllNodesScan, _, _, _, _, _, _))=> ()
+    }
   }
 
   private def containsArgumentOnly(queryGraph: QueryGraph): Boolean =

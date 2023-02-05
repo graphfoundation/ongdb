@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,6 +36,7 @@ import org.neo4j.cypher.internal.ast.Match
 import org.neo4j.cypher.internal.ast.Where
 import org.neo4j.cypher.internal.ast.semantics.SemanticState
 import org.neo4j.cypher.internal.expressions.And
+import org.neo4j.cypher.internal.expressions.ExistsSubClause
 import org.neo4j.cypher.internal.expressions.Expression
 import org.neo4j.cypher.internal.rewriting.conditions.noUnnamedPatternElementsInMatch
 import org.neo4j.cypher.internal.rewriting.rewriters.factories.ASTRewriterFactory
@@ -62,13 +63,34 @@ object normalizeMatchPredicates extends StepSequencer.Step with ASTRewriterFacto
   override def getRewriter(semanticState: SemanticState,
                            parameterTypeMapping: Map[String, CypherType],
                            cypherExceptionFactory: CypherExceptionFactory,
-                           anonymousVariableNameGenerator: AnonymousVariableNameGenerator): Rewriter =
-    normalizeMatchPredicates(
-      MatchPredicateNormalizerChain(
-        PropertyPredicateNormalizer(anonymousVariableNameGenerator),
-        LabelPredicateNormalizer,
-        NodePatternPredicateNormalizer,
-      )
+                           anonymousVariableNameGenerator: AnonymousVariableNameGenerator): Rewriter = {
+    normalizeMatchPredicates(normalizeInlinedWhereClauses) andThen
+    normalizeMatchPredicatesInExists(normalizeInlinedWhereClauses) andThen
+    normalizeMatchPredicates(normalizeLabelAndPropertyPredicates(anonymousVariableNameGenerator))
+  }
+
+  /**
+   * Normalizer that moves inlined node WHERE predicates to the outside WHERE clause.
+   * This needs to be the first predicate normalizer that runs, because of scoping.
+   * For example, when a node pattern has an inlined node predicate that introduces new variables, e.g. `(n WHERE EXISTS {(:A)})`, we need to avoid extracting
+   * the `:A` predicate to the outermost scope.
+   *
+   * @note Needs to run before [[normalizeLabelAndPropertyPredicates]].
+   */
+  def normalizeInlinedWhereClauses: MatchPredicateNormalizer =
+    MatchPredicateNormalizerChain(
+      NodePatternPredicateNormalizer
+    )
+
+   /**
+   * Normalizer that moves inlined node property predicates and label expression predicates to the outside WHERE clause.
+   *
+   * @note [[normalizeInlinedWhereClauses]] needs to run before this normalizer, to correctly handle scoping of nested WHERE clauses.
+   */
+  def normalizeLabelAndPropertyPredicates(anonymousVariableNameGenerator: AnonymousVariableNameGenerator): MatchPredicateNormalizer =
+    MatchPredicateNormalizerChain(
+      PropertyPredicateNormalizer(anonymousVariableNameGenerator),
+      LabelPredicateNormalizer
     )
 }
 
@@ -92,6 +114,31 @@ case class normalizeMatchPredicates(normalizer: MatchPredicateNormalizer) extend
         where = newWhere
       )(m.position)
   }
+
+  private val instance = topDown(rewriter, _.isInstanceOf[Expression])
+}
+
+// Normalize pattern predicates inside EXISTS {} to make sure that later rewriters handle them correctly
+case class normalizeMatchPredicatesInExists(normalizer: MatchPredicateNormalizer) extends Rewriter {
+  override def apply(that: AnyRef): AnyRef = instance(that)
+
+  private val rewriter = Rewriter.lift {
+    case w@Where(expression) =>
+      val newExpression = expression.endoRewrite(topDown(Rewriter.lift {
+        case e@ExistsSubClause(pattern, optionalWhereExpression) =>
+          val predicates = normalizer.extractAllFrom(pattern)
+          val rewrittenPredicates = predicates ++ optionalWhereExpression
+          val newOptionalWhereExpression: Option[Expression] = rewrittenPredicates.reduceOption(And(_, _)(e.position))
+
+          e.copy(
+            pattern = pattern.endoRewrite(topDown(Rewriter.lift(normalizer.replace))),
+            optionalWhereExpression = newOptionalWhereExpression
+          )(e.position, e.outerScope)
+      }))
+
+      w.copy(newExpression)(w.position)
+  }
+
 
   private val instance = topDown(rewriter, _.isInstanceOf[Expression])
 }

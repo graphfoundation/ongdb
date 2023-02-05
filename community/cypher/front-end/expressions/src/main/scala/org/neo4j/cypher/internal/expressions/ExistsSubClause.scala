@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,7 +35,8 @@ package org.neo4j.cypher.internal.expressions
 import org.neo4j.cypher.internal.util.InputPosition
 
 case class ExistsSubClause(pattern: Pattern, optionalWhereExpression: Option[Expression])
-                          (val position: InputPosition, override val outerScope: Set[LogicalVariable]) extends ScopeExpression with BooleanExpression with ExpressionWithOuterScope {
+                          (val position: InputPosition, override val outerScope: Set[LogicalVariable])
+  extends ScopeExpression with BooleanExpression with ExpressionWithOuterScope with SubqueryExpression {
 
   self =>
 

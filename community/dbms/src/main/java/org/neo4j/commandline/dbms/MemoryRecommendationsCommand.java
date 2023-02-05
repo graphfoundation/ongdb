@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -84,12 +84,12 @@ import static org.neo4j.kernel.api.index.IndexDirectoryStructure.baseSchemaIndex
 
 @Command(
         name = "memrec",
-        header = "Print ONgDB heap and pagecache memory settings recommendations.",
-        description = "Print heuristic memory setting recommendations for the ONgDB JVM heap and pagecache. The " +
+        header = "Print Neo4j heap and pagecache memory settings recommendations.",
+        description = "Print heuristic memory setting recommendations for the Neo4j JVM heap and pagecache. The " +
                 "heuristic is based on the total memory of the system the command is running on, or on the amount of " +
                 "memory specified with the --memory argument. The heuristic assumes that the system is dedicated to " +
-                "running ONgDB. If this is not the case, then use the --memory argument to specify how much memory " +
-                "can be expected to be dedicated to ONgDB. The output is formatted such that it can be copy-pasted into the ongdb.conf file."
+                "running Neo4j. If this is not the case, then use the --memory argument to specify how much memory " +
+                "can be expected to be dedicated to Neo4j. The output is formatted such that it can be copy-pasted into the neo4j.conf file."
 )
 public class MemoryRecommendationsCommand extends AbstractCommand
 {
@@ -122,7 +122,7 @@ public class MemoryRecommendationsCommand extends AbstractCommand
     private Long memory;
 
     @Option( names = "--docker", arity = "0", description = "The recommended memory settings are produced in the form of environment variables " +
-            "that can be directly passed to ONgDB docker container. The recommended use is to save the generated environment variables to a file " +
+            "that can be directly passed to Neo4j docker container. The recommended use is to save the generated environment variables to a file " +
             "and pass the file to a docker container using '--env-file' docker option." )
     private boolean dockerOutput;
 
@@ -254,9 +254,9 @@ public class MemoryRecommendationsCommand extends AbstractCommand
         long pageCacheSize = pageCacheSize( layouts );
         long luceneSize = luceneSize( layouts );
 
-        print( "# Memory settings recommendation from ongdb-admin memrec:" );
+        print( "# Memory settings recommendation from neo4j-admin memrec:" );
         print( "#" );
-        print( "# Assuming the system is dedicated to running ONgDB and has " + ByteUnit.bytesToString( memory ) + " of memory," );
+        print( "# Assuming the system is dedicated to running Neo4j and has " + ByteUnit.bytesToString( memory ) + " of memory," );
         print( "# we recommend a heap size of around " + heap + ", and a page cache of around " + pagecache + "," );
         print( "# and that about " + os + " is left for the operating system, and the native memory" );
         print( "# needed by Lucene and Netty." );
@@ -310,7 +310,7 @@ public class MemoryRecommendationsCommand extends AbstractCommand
         {
             var nameWithFixedUnderscores = setting.name().replaceAll( "_", "__" );
             var nameWithFixedUnderscoresAndDots = nameWithFixedUnderscores.replaceAll( "\\.", "_" );
-            print( "ONGDB_" + nameWithFixedUnderscoresAndDots + "='" + value + "'" );
+            print( "NEO4J_" + nameWithFixedUnderscoresAndDots + "='" + value + "'" );
         }
     }
 

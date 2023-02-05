@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -259,13 +259,13 @@ class ArgsTest
     void shouldHandleLastOrphanParam()
     {
         // Given
-        Args args = Args.withFlags( "recovery" ).parse( "--recovery", "/tmp/ongdb" );
+        Args args = Args.withFlags( "recovery" ).parse( "--recovery", "/tmp/neo4j" );
 
         // When
         List<String> orphans = args.orphans();
 
         // Then
-        assertEquals( Arrays.asList( "/tmp/ongdb" ), orphans );
+        assertEquals( Arrays.asList( "/tmp/neo4j" ), orphans );
     }
 
     @Test

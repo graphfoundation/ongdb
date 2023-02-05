@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -111,7 +111,7 @@ class LegacyTransactionServiceTest
                 .thenReturn( userPrincipalA );
 
         when( databaseResolver.defaultDatabase( anyString() ) )
-                .thenReturn( "ongdb" );
+                .thenReturn( "neo4j" );
         when( databaseResolver.defaultDatabase( user ) )
                 .thenReturn( "db-" + user );
 

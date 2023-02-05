@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -124,7 +124,7 @@ public class Neo4jPackV2 extends Neo4jPackV1
         return VERSION;
     }
 
-    private static class PackerV2 extends Neo4jPackV1.PackerV1
+    protected static class PackerV2 extends Neo4jPackV1.PackerV1
     {
         PackerV2( PackOutput output )
         {
@@ -234,7 +234,7 @@ public class Neo4jPackV2 extends Neo4jPackV1
         }
     }
 
-    private static class UnpackerV2 extends Neo4jPackV1.UnpackerV1
+    protected static class UnpackerV2 extends Neo4jPackV1.UnpackerV1
     {
         UnpackerV2( PackInput input )
         {
@@ -296,7 +296,7 @@ public class Neo4jPackV2 extends Neo4jPackV1
             }
         }
 
-        private PointValue unpackPoint2D() throws IOException
+        protected PointValue unpackPoint2D() throws IOException
         {
 
             int crsCode = unpackInteger();
@@ -305,7 +305,7 @@ public class Neo4jPackV2 extends Neo4jPackV1
             return pointValue( crs, coordinates );
         }
 
-        private PointValue unpackPoint3D() throws IOException
+        protected PointValue unpackPoint3D() throws IOException
         {
             int crsCode = unpackInteger();
             CoordinateReferenceSystem crs = CoordinateReferenceSystem.get( crsCode );
@@ -313,7 +313,7 @@ public class Neo4jPackV2 extends Neo4jPackV1
             return pointValue( crs, coordinates );
         }
 
-        private DurationValue unpackDuration() throws IOException
+        protected DurationValue unpackDuration() throws IOException
         {
             long months = unpackLong();
             long days = unpackLong();
@@ -322,33 +322,33 @@ public class Neo4jPackV2 extends Neo4jPackV1
             return duration( months, days, seconds, nanos );
         }
 
-        private DateValue unpackDate() throws IOException
+        protected DateValue unpackDate() throws IOException
         {
             long epochDay = unpackLong();
             return epochDate( epochDay );
         }
 
-        private LocalTimeValue unpackLocalTime() throws IOException
+        protected LocalTimeValue unpackLocalTime() throws IOException
         {
             long nanoOfDay = unpackLong();
             return localTime( nanoOfDay );
         }
 
-        private TimeValue unpackTime() throws IOException
+        protected TimeValue unpackTime() throws IOException
         {
             long nanosOfDayLocal = unpackLong();
             int offsetSeconds = unpackInteger();
             return time( TemporalUtil.nanosOfDayToUTC( nanosOfDayLocal, offsetSeconds ), ZoneOffset.ofTotalSeconds( offsetSeconds ) );
         }
 
-        private LocalDateTimeValue unpackLocalDateTime() throws IOException
+        protected LocalDateTimeValue unpackLocalDateTime() throws IOException
         {
             long epochSecond = unpackLong();
             long nano = unpackLong();
             return localDateTime( epochSecond, nano );
         }
 
-        private DateTimeValue unpackDateTimeWithZoneOffset() throws IOException
+        protected DateTimeValue unpackDateTimeWithZoneOffset() throws IOException
         {
             long epochSecondLocal = unpackLong();
             long nano = unpackLong();
@@ -356,7 +356,7 @@ public class Neo4jPackV2 extends Neo4jPackV1
             return datetime( newZonedDateTime( epochSecondLocal, nano, ZoneOffset.ofTotalSeconds( offsetSeconds ) ) );
         }
 
-        private DateTimeValue unpackDateTimeWithZoneName() throws IOException
+        protected DateTimeValue unpackDateTimeWithZoneName() throws IOException
         {
             long epochSecondLocal = unpackLong();
             long nano = unpackLong();
@@ -364,7 +364,7 @@ public class Neo4jPackV2 extends Neo4jPackV1
             return datetime( newZonedDateTime( epochSecondLocal, nano, ZoneId.of( zoneId ) ) );
         }
 
-        private static ZonedDateTime newZonedDateTime( long epochSecondLocal, long nano, ZoneId zoneId )
+        protected static ZonedDateTime newZonedDateTime( long epochSecondLocal, long nano, ZoneId zoneId )
         {
             Instant instant = Instant.ofEpochSecond( epochSecondLocal, nano );
             LocalDateTime localDateTime = LocalDateTime.ofInstant( instant, UTC );

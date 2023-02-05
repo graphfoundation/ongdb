@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -92,7 +92,7 @@ public interface Locks
          * @param leaseClient {@link LeaseClient} of the owning transaction.
          * @param transactionId lock client owning transaction id
          * @param memoryTracker memory tracker from the transaction
-         * @param config ongdb configuration
+         * @param config neo4j configuration
          */
         void initialize( LeaseClient leaseClient, long transactionId, MemoryTracker memoryTracker, Config config );
 

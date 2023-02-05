@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -44,8 +44,8 @@ public class ExhaustiveShortestPathForbiddenException extends CypherExecutionExc
                                            "case shortest path algorithms cannot be used. This might happen in case of existential predicates on the path,\n" +
                                            "e.g., when searching for the shortest path containing a node with property 'name=Emil'. The problem is that\n" +
                                            "graph algorithms work only on universal predicates, e.g., when searching for the shortest where all nodes have\n" +
-                                           "label 'Person'. In case this is an unexpected error please either disable the runtime error in the ONgDB\n" +
-                                           "configuration or please improve your query by consulting the ONgDB manual.  In order to avoid planning the\n" +
+                                           "label 'Person'. In case this is an unexpected error please either disable the runtime error in the Neo4j\n" +
+                                           "configuration or please improve your query by consulting the Neo4j manual.  In order to avoid planning the\n" +
                                            "shortest path fallback a WITH clause can be introduced to separate the MATCH describing the shortest paths and\n" +
                                            "the existential predicates on the path; note though that in this case all shortest paths are computed before\n" +
                                            "start filtering.";

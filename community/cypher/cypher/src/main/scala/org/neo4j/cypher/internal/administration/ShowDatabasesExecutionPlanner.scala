@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -122,7 +122,7 @@ case class ShowDatabasesExecutionPlanner(resolver: DependencyResolver, defaultDa
         case _ => ("", VirtualValues.EMPTY_MAP, IdentityConverter)
       }
 
-      val verboseColumns = if (verbose) ", props.databaseID as databaseID, props.serverID as serverID, props.lastCommittedTxn as lastCommittedTxn, props.replicationLag as replicationLag" else ""
+      val verboseColumns = if (verbose) ", props.databaseID as databaseID, props.lastCommittedTxn as lastCommittedTxn, props.replicationLag as replicationLag" else ""
       val verboseNames = if (verbose) ", databaseID, serverID, lastCommittedTxn, replicationLag" else ""
       val returnClause = AdministrationShowCommandUtils.generateReturnClause(symbols, yields, returns, Seq("name"))
 
@@ -152,6 +152,8 @@ case class ShowDatabasesExecutionPlanner(resolver: DependencyResolver, defaultDa
            |props.status as currentStatus,
            |props.error as error,
            |d.$DATABASE_DEFAULT_PROPERTY as default,
+           | // serverID needs to be part of the grouping key here as it is guaranteed to be different on different servers
+           |props.serverID as serverID,
            |coalesce( homeDbName in collect(aliasName) + [d.name], false ) as home
            |$verboseColumns
            |$extraFilter

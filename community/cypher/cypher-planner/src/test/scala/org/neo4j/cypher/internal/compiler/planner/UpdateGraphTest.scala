@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -40,9 +40,12 @@ package org.neo4j.cypher.internal.compiler.planner
 
 import org.neo4j.cypher.internal.ast.AstConstructionTestSupport
 import org.neo4j.cypher.internal.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.expressions.AndedPropertyInequalities
 import org.neo4j.cypher.internal.expressions.HasLabels
 import org.neo4j.cypher.internal.expressions.In
 import org.neo4j.cypher.internal.expressions.LabelName
+import org.neo4j.cypher.internal.expressions.LessThan
+import org.neo4j.cypher.internal.expressions.ListLiteral
 import org.neo4j.cypher.internal.expressions.MapExpression
 import org.neo4j.cypher.internal.expressions.Property
 import org.neo4j.cypher.internal.expressions.PropertyKeyName
@@ -62,10 +65,14 @@ import org.neo4j.cypher.internal.ir.QueryGraph
 import org.neo4j.cypher.internal.ir.Selections
 import org.neo4j.cypher.internal.ir.SetLabelPattern
 import org.neo4j.cypher.internal.ir.SimplePatternLength
+import org.neo4j.cypher.internal.ir.UpdateGraph.LeafPlansPredicatesResolver
+import org.neo4j.cypher.internal.util.NonEmptyList
 import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
 class UpdateGraphTest extends CypherFunSuite with AstConstructionTestSupport {
   private implicit val semanticTable: SemanticTable = SemanticTable()
+
+  private val noLeafPlanProvider: LeafPlansPredicatesResolver = _ => LeafPlansPredicatesResolver.NoLeafPlansFound
 
   test("should not be empty after adding label to set") {
     val original = QueryGraph()
@@ -79,7 +86,7 @@ class UpdateGraphTest extends CypherFunSuite with AstConstructionTestSupport {
     val qg = QueryGraph(patternNodes = Set("a"))
     val ug = QueryGraph(mutatingPatterns = IndexedSeq(createNode("b", "L")))
 
-    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg)) shouldBe Seq(EagernessReason.Unknown)
+    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg), noLeafPlanProvider) shouldBe Seq(EagernessReason.Unknown)
   }
 
   test("overlap when reading and creating the same label") {
@@ -88,7 +95,7 @@ class UpdateGraphTest extends CypherFunSuite with AstConstructionTestSupport {
     val qg = QueryGraph(patternNodes = Set("a"), selections = selections)
     val ug = QueryGraph(mutatingPatterns = IndexedSeq(createNode("b", "L")))
 
-    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg)) shouldBe Seq(EagernessReason.Unknown)
+    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg), noLeafPlanProvider) shouldBe Seq(EagernessReason.Unknown)
   }
 
   test("no overlap when reading and creating different labels") {
@@ -97,28 +104,49 @@ class UpdateGraphTest extends CypherFunSuite with AstConstructionTestSupport {
     val qg = QueryGraph(patternNodes = Set("a"), selections = selections)
     val ug = QueryGraph(mutatingPatterns = IndexedSeq(createNode("b", "L3")))
 
-    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg)) shouldBe Seq.empty
+    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg), noLeafPlanProvider) shouldBe Seq.empty
   }
 
   test("no overlap when properties don't overlap and no label on read GQ, but a label on write QG") {
-    //MATCH (a {foo: 42}) CREATE (a:L)
-    val selections = Selections.from(In(Variable("a")(pos),
-      Property(Variable("a")(pos), PropertyKeyName("foo")(pos))(pos))(pos))
+    // MATCH (a {foo: 42}) CREATE (b:L)
+    val selections = Selections.from(In(
+      Property(Variable("a")(pos), PropertyKeyName("foo")(pos))(pos),
+      ListLiteral(List(SignedDecimalIntegerLiteral("42")(pos)))(pos)
+    )(pos))
     val qg = QueryGraph(patternNodes = Set("a"), selections = selections)
     val ug = QueryGraph(mutatingPatterns = IndexedSeq(createNode("b", "L")))
 
-    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg)) shouldBe Seq.empty
+    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg), noLeafPlanProvider) shouldBe empty
   }
 
-  test("overlap when properties don't overlap but labels explicitly do") {
-    //MATCH (a:L {foo: 42}) CREATE (a:L) assuming `a` is unstable
+  test("Don't overlap when properties don't overlap but labels explicitly do for simple predicates") {
+    // MATCH (a:L {foo: 42}) CREATE (b:L) assuming `a` is unstable
     val selections = Selections.from(Seq(
-      In(Variable("a")(pos),Property(Variable("a")(pos), PropertyKeyName("foo")(pos))(pos))(pos),
-      HasLabels(Variable("a")(pos), Seq(LabelName("L")(pos)))(pos)))
+      In(
+        Property(Variable("a")(pos), PropertyKeyName("foo")(pos))(pos),
+        ListLiteral(List(SignedDecimalIntegerLiteral("42")(pos)))(pos)
+      )(pos),
+      HasLabels(Variable("a")(pos), Seq(LabelName("L")(pos)))(pos)
+    ))
     val qg = QueryGraph(patternNodes = Set("a"), selections = selections)
     val ug = QueryGraph(mutatingPatterns = IndexedSeq(createNode("b", "L")))
 
-    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg)) shouldBe Seq(EagernessReason.Unknown)
+    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg), noLeafPlanProvider) shouldBe empty
+  }
+
+  test("Overlap when properties don't overlap but labels explicitly do for difficult predicates") {
+    // MATCH (a:L) WHERE a.foo < 42 CREATE (b:L) assuming `a` is unstable
+    val variable = Variable("a")(pos)
+    val property = Property(variable, PropertyKeyName("foo")(pos))(pos)
+    val lessThan = LessThan(property, SignedDecimalIntegerLiteral("42")(pos))(pos)
+    val selections = Selections.from(Seq(
+      AndedPropertyInequalities(variable, property, NonEmptyList(lessThan)),
+      HasLabels(Variable("a")(pos), Seq(LabelName("L")(pos)))(pos)
+    ))
+    val qg = QueryGraph(patternNodes = Set("a"), selections = selections)
+    val ug = QueryGraph(mutatingPatterns = IndexedSeq(createNode("b", "L")))
+
+    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg), noLeafPlanProvider) shouldBe Seq(EagernessReason.Unknown)
   }
 
   test("overlap when reading all rel types and creating a specific type") {
@@ -128,7 +156,7 @@ class UpdateGraphTest extends CypherFunSuite with AstConstructionTestSupport {
         SemanticDirection.OUTGOING, Seq.empty, SimplePatternLength)))
     val ug = QueryGraph(mutatingPatterns = IndexedSeq(createRelationship("r2", "a", "T", "b")))
 
-    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg)) shouldBe Seq(EagernessReason.Unknown)
+    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg), noLeafPlanProvider) shouldBe Seq(EagernessReason.Unknown)
   }
 
   test("no overlap when reading and writing different rel types") {
@@ -138,7 +166,7 @@ class UpdateGraphTest extends CypherFunSuite with AstConstructionTestSupport {
         SemanticDirection.OUTGOING, Seq(RelTypeName("T1")(pos)), SimplePatternLength)))
     val ug = QueryGraph(mutatingPatterns = IndexedSeq(createRelationship("r2", "a", "T2", "b")))
 
-    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg)) shouldBe Seq.empty
+    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg), noLeafPlanProvider) shouldBe Seq.empty
   }
 
   test("overlap when reading and writing same rel types") {
@@ -148,30 +176,50 @@ class UpdateGraphTest extends CypherFunSuite with AstConstructionTestSupport {
         SemanticDirection.OUTGOING, Seq(RelTypeName("T1")(pos)), SimplePatternLength)))
     val ug = QueryGraph(mutatingPatterns = IndexedSeq(createRelationship("r2", "a", "T1", "b")))
 
-    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg)) shouldBe Seq(EagernessReason.Unknown)
+    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg), noLeafPlanProvider) shouldBe Seq(EagernessReason.Unknown)
   }
 
   test("no overlap when reading and writing same rel types but matching on rel property") {
-    //MATCH (a)-[r:T1 {foo: 42}]->(b)  CREATE (a)-[r2:T1]->(b)
-    val selections = Selections.from(In(Variable("a")(pos),
-      Property(Variable("r")(pos), PropertyKeyName("foo")(pos))(pos))(pos))
-    val qg = QueryGraph(patternRelationships =
-      Set(PatternRelationship("r", ("a", "b"),
-        SemanticDirection.OUTGOING, Seq(RelTypeName("T1")(pos)), SimplePatternLength)),
-      selections = selections)
+    // MATCH (a)-[r:T1 {foo: 42}]->(b)  CREATE (a)-[r2:T1]->(b)
+    val selections =
+      Selections.from(In(
+        Property(Variable("r")(pos), PropertyKeyName("foo")(pos))(pos),
+        ListLiteral(List(SignedDecimalIntegerLiteral("42")(pos)))(pos)
+      )(pos))
+    val qg = QueryGraph(
+      patternRelationships =
+        Set(PatternRelationship(
+          "r",
+          ("a", "b"),
+          SemanticDirection.OUTGOING,
+          Seq(RelTypeName("T1")(pos)),
+          SimplePatternLength
+        )),
+      selections = selections
+    )
     val ug = QueryGraph(mutatingPatterns = IndexedSeq(createRelationship("r2", "a", "T1", "b")))
 
-    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg)) shouldBe Seq.empty
+    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg), noLeafPlanProvider) shouldBe Seq.empty
   }
 
   test("overlap when reading and writing same property and rel type") {
-    //MATCH (a)-[r:T1 {foo: 42}]->(b)  CREATE (a)-[r2:T1]->(b)
-    val selections = Selections.from(In(Variable("a")(pos),
-      Property(Variable("r")(pos), PropertyKeyName("foo")(pos))(pos))(pos))
-    val qg = QueryGraph(patternRelationships =
-      Set(PatternRelationship("r", ("a", "b"),
-        SemanticDirection.OUTGOING, Seq(RelTypeName("T1")(pos)), SimplePatternLength)),
-      selections = selections)
+    // MATCH (a)-[r:T1 {foo: 42}]->(b)  CREATE (a)-[r2:T1]->(b)
+    val selections =
+      Selections.from(In(
+        Property(Variable("r")(pos), PropertyKeyName("foo")(pos))(pos),
+        ListLiteral(List(SignedDecimalIntegerLiteral("42")(pos)))(pos)
+      )(pos))
+    val qg = QueryGraph(
+      patternRelationships =
+        Set(PatternRelationship(
+          "r",
+          ("a", "b"),
+          SemanticDirection.OUTGOING,
+          Seq(RelTypeName("T1")(pos)),
+          SimplePatternLength
+        )),
+      selections = selections
+    )
     val ug = QueryGraph(mutatingPatterns =
       IndexedSeq(
         CreatePattern(
@@ -188,7 +236,7 @@ class UpdateGraphTest extends CypherFunSuite with AstConstructionTestSupport {
         )
       ))
 
-    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg)) shouldBe Seq(EagernessReason.Unknown)
+    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg), noLeafPlanProvider) shouldBe Seq(EagernessReason.Unknown)
   }
 
   test("overlap when reading, deleting and merging") {
@@ -202,7 +250,9 @@ class UpdateGraphTest extends CypherFunSuite with AstConstructionTestSupport {
         QueryGraph.empty, Seq.empty, Seq.empty)
     ))
 
-    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg)) shouldBe Seq(EagernessReason.DeleteOverlap(Seq("a")))
+    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg), noLeafPlanProvider) shouldBe Seq(
+      EagernessReason.DeleteOverlap(Seq("a")
+    ))
   }
 
   test("overlap when reading and deleting with collections") {
@@ -212,7 +262,9 @@ class UpdateGraphTest extends CypherFunSuite with AstConstructionTestSupport {
       DeleteExpression(Variable("col")(pos), forced = false)
     ))
 
-    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg)) shouldBe Seq(EagernessReason.DeleteOverlap(Seq("col")))
+    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg), noLeafPlanProvider) shouldBe Seq(
+      EagernessReason.DeleteOverlap(Seq("col")
+    ))
   }
 
   test("overlap when reading and merging on the same label and property") {
@@ -228,7 +280,7 @@ class UpdateGraphTest extends CypherFunSuite with AstConstructionTestSupport {
         QueryGraph.empty, Seq.empty, Seq.empty)
     ))
 
-    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg)) shouldBe Seq(EagernessReason.Unknown)
+    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg), noLeafPlanProvider) shouldBe Seq(EagernessReason.Unknown)
   }
 
   test("overlap when reading and merging on the same property, no label on MATCH") {
@@ -243,7 +295,7 @@ class UpdateGraphTest extends CypherFunSuite with AstConstructionTestSupport {
         QueryGraph.empty, Seq.empty, Seq.empty)
     ))
 
-    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg)) shouldBe Seq(EagernessReason.Unknown)
+    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg), noLeafPlanProvider) shouldBe Seq(EagernessReason.Unknown)
   }
 
   test("no overlap when reading and merging on the same property but different labels") {
@@ -259,7 +311,7 @@ class UpdateGraphTest extends CypherFunSuite with AstConstructionTestSupport {
         QueryGraph.empty, Seq.empty, Seq.empty)
     ))
 
-    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg)) shouldBe empty
+    ug.overlaps(qgWithNoStableIdentifierAndOnlyLeaves(qg), noLeafPlanProvider) shouldBe empty
   }
 
   private def createNode(name: String, labels: String*) =

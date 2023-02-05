@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -38,18 +38,17 @@
  */
 package org.neo4j.values.storable;
 
-import org.apache.commons.codec.digest.DigestUtils;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.ZoneId;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.fail;
+import org.apache.commons.codec.digest.DigestUtils;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 class TimeZonesTest
 {
@@ -128,8 +127,8 @@ class TimeZonesTest
         String timeZonesInfo = Files.readString( path ).replace( "\r\n", "\n" );
         byte[] timeZonesHash = DigestUtils.sha256( timeZonesInfo );
         assertThat( timeZonesHash ).isEqualTo(
-                new byte[]{-111, 13, -52, 68, 94, -58, -68, 36, 24, -114, 80, 11, -109, 59, 74, 26, -32, 49, -44, -125, 95, -25, 98, -58, -40, 31, -88, -7, 11,
-                        -15, 3, 86} );
+                new byte[]{92, 26, -114, 87, 84, -74, 57, 107, -126, -30, -111, 79, -11, 20, -3, 69, -69, -75, 72, 59, 33, 30, 21, -17,
+            -55, 2, 109, -102, 92, -128, -120, -38} );
     }
 
     @Disabled( "Too restrictive as-is: Zone IDs aren't stable across JDKs, 'Pacific/Kanton' isn't currently supported by x86-ubuntu-oraclejdk-17" )

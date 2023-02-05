@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -139,7 +139,7 @@ class FabricFragmenter(
     produced(clauses.last)
 
   private def produced(clause: ast.Clause): Seq[String] = clause match {
-    case r: ast.Return => r.returnColumns.map(_.name)
+    case r: ast.Return => r.returnVariables.explicitVariables.map(_.name)
     case c             => semantics.scope(c).getOrElse(Scope.empty).symbolNames.toSeq
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -41,6 +41,7 @@ package org.neo4j.cypher.internal.logical.plans
 import org.neo4j.cypher.internal.ast.CallClause
 import org.neo4j.cypher.internal.ast.ProcedureResult
 import org.neo4j.cypher.internal.ast.ProcedureResultItem
+import org.neo4j.cypher.internal.ast.ReturnItems.ReturnVariables
 import org.neo4j.cypher.internal.ast.UnresolvedCall
 import org.neo4j.cypher.internal.ast.semantics.SemanticCheck
 import org.neo4j.cypher.internal.ast.semantics.SemanticCheckResult.error
@@ -54,7 +55,6 @@ import org.neo4j.cypher.internal.expressions.ExplicitParameter
 import org.neo4j.cypher.internal.expressions.Expression
 import org.neo4j.cypher.internal.expressions.Expression.SemanticContext
 import org.neo4j.cypher.internal.expressions.ImplicitProcedureArgument
-import org.neo4j.cypher.internal.expressions.LogicalVariable
 import org.neo4j.cypher.internal.expressions.Namespace
 import org.neo4j.cypher.internal.expressions.Parameter
 import org.neo4j.cypher.internal.expressions.ProcedureName
@@ -132,8 +132,8 @@ case class ResolvedCall(signature: ProcedureSignature,
     copy(callArguments = coercedArguments)(position)
   }
 
-  override def returnColumns: List[LogicalVariable] =
-    callResults.map(_.variable).toList
+  override def returnVariables: ReturnVariables =
+    ReturnVariables(includeExisting = false, callResults.map(_.variable).toList)
 
   def callResultIndices: IndexedSeq[(Int, (String, String))] = {  // pos, newName, oldName
     val outputIndices: Map[String, Int] = signature.outputSignature.map { outputs => outputs.map(_.name).zip(outputs.indices).toMap }.getOrElse(Map.empty)

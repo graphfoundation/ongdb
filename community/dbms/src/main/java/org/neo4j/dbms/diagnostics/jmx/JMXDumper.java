@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -53,7 +53,7 @@ import org.neo4j.configuration.Config;
 import org.neo4j.io.fs.FileSystemAbstraction;
 
 /**
- * Facilitates JMX Dump for current running ONgDB instance.
+ * Facilitates JMX Dump for current running Neo4j instance.
  */
 public class JMXDumper
 {
@@ -74,7 +74,7 @@ public class JMXDumper
 
     public Optional<JmxDump> getJMXDump()
     {
-        out.println( "Finding running instance of ongdb" );
+        out.println( "Finding running instance of neo4j" );
 
         Optional<Long> pid = getPid();
         if ( pid.isPresent() )
@@ -83,8 +83,8 @@ public class JMXDumper
         }
         else
         {
-            out.println( "No running instance of ongdb was found. Online reports will be omitted." );
-            out.println( "If ongdb is running but not detected, you can supply the process id of the running instance with --pid" );
+            out.println( "No running instance of neo4j was found. Online reports will be omitted." );
+            out.println( "If neo4j is running but not detected, you can supply the process id of the running instance with --pid" );
             return Optional.empty();
         }
     }

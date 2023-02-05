@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -40,9 +40,11 @@ package org.neo4j.kernel.impl.query;
 
 import org.neo4j.graphdb.TransactionFailureException;
 import org.neo4j.graphdb.TransactionTerminatedException;
+import org.neo4j.internal.helpers.Exceptions;
 import org.neo4j.internal.kernel.api.ExecutionStatistics;
 import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
+import org.neo4j.io.IOUtils;
 import org.neo4j.kernel.GraphDatabaseQueryService;
 import org.neo4j.kernel.api.InnerTransactionHandler;
 import org.neo4j.kernel.api.KernelTransaction;
@@ -57,6 +59,8 @@ import org.neo4j.kernel.impl.factory.KernelTransactionFactory;
 import org.neo4j.kernel.impl.query.statistic.StatisticProvider;
 import org.neo4j.kernel.impl.util.DefaultValueMapper;
 import org.neo4j.values.ValueMapper;
+
+import java.io.Closeable;
 
 public class Neo4jTransactionalContext implements TransactionalContext
 {
@@ -74,6 +78,9 @@ public class Neo4jTransactionalContext implements TransactionalContext
     private long userTransactionId;
     private final ValueMapper<Object> valueMapper;
     private final KernelTransactionFactory transactionFactory;
+
+    private final OnCloseCallback onClose;
+
     private volatile boolean isOpen = true;
 
     // The statisticProvider behaves different depending on whether we run a "normal" query or a "PERIODIC COMMIT" query.
@@ -83,7 +90,18 @@ public class Neo4jTransactionalContext implements TransactionalContext
     private StatisticProvider statisticProvider;
 
     public Neo4jTransactionalContext( GraphDatabaseQueryService graph, InternalTransaction transaction,
-            KernelStatement initialStatement, ExecutingQuery executingQuery, KernelTransactionFactory transactionFactory )
+                                      KernelStatement initialStatement, ExecutingQuery executingQuery, KernelTransactionFactory transactionFactory )
+    {
+        this( graph, transaction, initialStatement, executingQuery, transactionFactory, null );
+    }
+
+    private Neo4jTransactionalContext(
+            GraphDatabaseQueryService graph,
+            InternalTransaction transaction,
+            KernelStatement initialStatement,
+            ExecutingQuery executingQuery,
+            KernelTransactionFactory transactionFactory,
+            OnCloseCallback onClose )
     {
         this.graph = graph;
         this.transactionType = transaction.transactionType();
@@ -100,6 +118,7 @@ public class Neo4jTransactionalContext implements TransactionalContext
         this.transactionFactory = transactionFactory;
 
         this.statisticProvider = new TransactionalContextStatisticProvider( kernelTransaction.executionStatistics() );
+        this.onClose = onClose;
     }
 
     @Override
@@ -139,6 +158,10 @@ public class Neo4jTransactionalContext implements TransactionalContext
         {
             try
             {
+                if ( onClose != null )
+                {
+                    onClose.close();
+                }
                 // Unbind the new transaction/statement from the executingQuery
                 statement.queryRegistry().unbindExecutingQuery( executingQuery, userTransactionId );
                 statement.close();
@@ -236,26 +259,40 @@ public class Neo4jTransactionalContext implements TransactionalContext
         }
 
         // Create new InternalTransaction, creates new KernelTransaction
-        InternalTransaction newTransaction = graph.beginTransaction( transactionType, securityContext, clientInfo );
-        long newTransactionId = newTransaction.kernelTransaction().getUserTransactionId();
-        InnerTransactionHandler innerTransactionHandler = kernelTransaction.getInnerTransactionHandler();
-        innerTransactionHandler.registerInnerTransaction( newTransactionId );
-        // We rely on the close callback of the inner transaction to be called on close. Otherwise, the worst thing that could happen is that the outer
-        // transaction cannot commit because of inner transactions still being open. But the close callback not being called, should be such an off scenario
-        // that we may not want to commit the outer transaction anyways.
-        newTransaction.addCloseCallback( () -> innerTransactionHandler.removeInnerTransaction( newTransactionId ) );
+        InternalTransaction newTransaction = null;
+        OnCloseCallback onClose = null;
+        try
+        {
+            newTransaction = graph.beginTransaction( transactionType, securityContext, clientInfo );
+            long newTransactionId = newTransaction.kernelTransaction().getUserTransactionId();
+            InnerTransactionHandler innerTransactionHandler = kernelTransaction.getInnerTransactionHandler();
+            onClose = () -> innerTransactionHandler.removeInnerTransaction(newTransactionId);
+            innerTransactionHandler.registerInnerTransaction( newTransactionId );
 
-        KernelStatement newStatement = (KernelStatement) newTransaction.kernelTransaction().acquireStatement();
-        // Bind the new transaction/statement to the executingQuery
-        newStatement.queryRegistry().bindExecutingQuery( executingQuery );
+            KernelStatement newStatement = (KernelStatement) newTransaction.kernelTransaction().acquireStatement();
+            // Bind the new transaction/statement to the executingQuery
+            newStatement.queryRegistry().bindExecutingQuery( executingQuery );
 
-        return new Neo4jTransactionalContext(
-                graph,
-                newTransaction,
-                newStatement,
-                executingQuery,
-                transactionFactory
-        );
+            return new Neo4jTransactionalContext(
+                    graph,
+                    newTransaction,
+                    newStatement,
+                    executingQuery,
+                    transactionFactory,
+                    onClose );
+        }
+        catch ( Throwable outer )
+        {
+            try
+            {
+                IOUtils.closeAll( onClose, newTransaction );
+            }
+            catch ( Throwable inner )
+            {
+                outer.addSuppressed( inner );
+            }
+            throw outer;
+        }
     }
 
     @Override
@@ -336,6 +373,13 @@ public class Neo4jTransactionalContext implements TransactionalContext
     private void updatePeriodicCommitStatisticProvider( KernelTransaction kernelTransaction )
     {
         statisticProvider = new PeriodicCommitTransactionalContextStatisticProvider( kernelTransaction.executionStatistics() );
+    }
+
+    @FunctionalInterface
+    private interface OnCloseCallback extends Closeable
+    {
+        @Override
+        void close();
     }
 
     @FunctionalInterface

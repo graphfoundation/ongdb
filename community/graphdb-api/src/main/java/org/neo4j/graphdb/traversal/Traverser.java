@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -40,6 +40,7 @@ package org.neo4j.graphdb.traversal;
 
 import java.util.Iterator;
 
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.Relationship;
@@ -52,6 +53,7 @@ import org.neo4j.graphdb.ResourceIterator;
  * derived from, i.e {@link Node} or {@link Relationship}. Each step
  * can also be represented in one of those representations directly.
  */
+@PublicApi
 public interface Traverser extends Iterable<Path>
 {
     /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -319,7 +319,7 @@ class CsvImporter implements Importer
     private static void printOverview( Path storeDir, Map<Set<String>, List<Path[]>> nodesFiles, Map<String, List<Path[]>> relationshipsFiles,
         Configuration configuration, PrintStream out )
     {
-        out.println( "ONgDB version: " + Version.getONgDBVersion() );
+        out.println( "Neo4j version: " + Version.getNeo4jVersion() );
         out.println( "Importing the contents of these files into " + storeDir + ":" );
         printInputFiles( "Nodes", nodesFiles, out );
         printInputFiles( "Relationships", relationshipsFiles, out );

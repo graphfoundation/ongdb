@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -38,11 +38,14 @@
  */
 package org.neo4j.graphdb.traversal;
 
+import org.neo4j.annotations.api.PublicApi;
+
 /**
  * Factory for {@link UniquenessFilter} filters, it can supply the
  * created {@link UniquenessFilter} with an optional parameter which is
  * up to the filter itself to validate and make sense of.
  */
+@PublicApi
 public interface UniquenessFactory
 {
     /**

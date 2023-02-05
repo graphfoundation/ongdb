@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -38,10 +38,13 @@
  */
 package org.neo4j.graphdb.traversal;
 
+import org.neo4j.annotations.api.PublicApi;
+
 /**
  * Interface for filters preventing the traversal from visiting already seen parts of the graph. Implementations can
  * allow for different heuristics to use to determine what may be re-visited.
  */
+@PublicApi
 public interface UniquenessFilter
 {
     /**

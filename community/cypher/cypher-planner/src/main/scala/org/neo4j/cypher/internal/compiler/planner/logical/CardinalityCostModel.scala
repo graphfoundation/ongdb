@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -191,8 +191,16 @@ case class CardinalityCostModel(executionModel: ExecutionModel) extends CostMode
       val rhsExecutions = batchSize.numBatchesFor(lhsCardinality)
       lhsCost + rhsExecutions * rhsCost
 
+    case _: AbstractSemiApply =>
+      // This was previously done in this way for all ApplyPlan:s
+      // Changing to using effectiveCardinalities.lhs directly caused regressions in cases where (Anti-)SemiApply would
+      // win against Selection (in greedy cost comparison). This represents a partial revert of that change.
+      val lhsCardinality = Cardinality.max(effectiveCardinalities.lhs, Cardinality.SINGLE)
+      // The RHS is executed for each LHS row
+      lhsCost + lhsCardinality * rhsCost
+
     case _: ApplyPlan =>
-      val lhsCardinality = Cardinality.max(Cardinality.SINGLE, effectiveCardinalities.lhs)
+      val lhsCardinality = effectiveCardinalities.lhs
       // The RHS is executed for each LHS row
       lhsCost + lhsCardinality * rhsCost
 

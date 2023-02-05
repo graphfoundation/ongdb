@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -94,7 +94,7 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration
 
     @Deprecated
     @Internal
-    @Description( "Location where ONgDB keeps the logical transaction logs." )
+    @Description( "Location where Neo4j keeps the logical transaction logs." )
     public static final Setting<Path> logical_logs_location =
             newBuilder( "dbms.directories.tx_log", PATH, Path.of( GraphDatabaseSettings.DEFAULT_DATABASE_NAME ) ).setDependency( databases_root_path ).build();
 
@@ -115,7 +115,7 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration
     public static final Setting<String> tracer = newBuilder( "unsupported.dbms.tracer", STRING, null ).build();
 
     @Internal
-    @Description( "Print out the effective ONgDB configuration after startup." )
+    @Description( "Print out the effective Neo4j configuration after startup." )
     public static final Setting<Boolean> dump_configuration = newBuilder( "unsupported.dbms.report_configuration", BOOL, false ).build();
 
     @Internal
@@ -265,6 +265,11 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration
     {
         DISABLED, DEFAULT, ALL, WHITELISTED_PLANS_ONLY
     }
+    @Internal
+    @Description( "If set to true we can force source code generation by appending debug=generate_java_source to query" )
+    public static final Setting<Boolean> cypher_allow_source_generation = newBuilder(
+            "internal.cypher.pipelined.allow_source_generation", BOOL, false )
+            .build();
 
     @Internal
     @Description( "Use interpreted pipes as a fallback for operators that do not have a specialized implementation in the pipelined runtime. " +
@@ -365,7 +370,7 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration
 
     @Internal
     @Description( "Name of file containing commands to be run during initialization of the system database. " +
-                  "The file should exists in the scripts directory in ongdb home directory." )
+                  "The file should exists in the scripts directory in neo4j home directory." )
     public static final Setting<Path> system_init_file =
             newBuilder( "dbms.init_file", PATH, null ).immutable().setDependency( scripts_dir ).build();
 
@@ -408,8 +413,8 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration
             newBuilder( "unsupported.dbms.index.skip_default_indexes_on_creation", BOOL, false ).build();
 
     @Internal
-    @Description( "If `true`, ONgDB will abort recovery if any errors are encountered in the logical log. Setting " +
-            "this to `false` will allow ONgDB to restore as much as possible from the corrupted log files and ignore " +
+    @Description( "If `true`, Neo4j will abort recovery if any errors are encountered in the logical log. Setting " +
+            "this to `false` will allow Neo4j to restore as much as possible from the corrupted log files and ignore " +
             "the rest, but, the integrity of the database might be compromised." )
     public static final Setting<Boolean> fail_on_corrupted_log_files =
             newBuilder("unsupported.dbms.tx_log.fail_on_corrupted_log_files", BOOL, true ).build();
@@ -830,6 +835,11 @@ public class GraphDatabaseInternalSettings implements SettingsDeclaration
             " As a result, in most environments, this strategy is slower and stresses the IO subsystem more than the default strategy." )
     public static final Setting<Boolean> pagecache_warmup_legacy_profile_loader =
             newBuilder( "unsupported.dbms.memory.pagecache.warmup.legacy_profile_loader", BOOL, false ).build();
+
+    @Internal
+    @Description( "Enables blocking Page Cache warmup. Database start will be blocked until warmer is completed." )
+    public static final Setting<Boolean> pagecache_warmup_blocking =
+            newBuilder( "unsupported.dbms.memory.pagecache.warmup.blocking", BOOL, false ).build();
 
     @Internal
     @Description( "Enables sketching of next transaction log file in the background during reverse recovery." )

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -54,4 +54,29 @@ class ExpressionParserTest
   test("thing ENDS WITH 'a' + 'b'") {
     yields(expressions.EndsWith(varFor("thing"), add(literalString("a"), literalString("b"))))
   }
+
+  test("[true IN [1, 2]]") {
+    yields(expressions.ListComprehension(varFor("true"), listOf(literalInt(1), literalInt(2)), None, None))
+  }
+
+  test("[(true IN [1, 2])]") {
+    yields(expressions.ListLiteral(Seq(in(trueLiteral, listOf(literalInt(1), literalInt(2))))))
+  }
+
+  test("[create IN [1, 2]]") {
+    yields(expressions.ListComprehension(varFor("create"), listOf(literalInt(1), literalInt(2)), None, None))
+  }
+
+  test("[not IN [1, 2]]") {
+    yields(expressions.ListComprehension(varFor("not"), listOf(literalInt(1), literalInt(2)), None, None))
+  }
+
+  test("[starts IN [1, 2]]") {
+    yields(expressions.ListComprehension(varFor("starts"), listOf(literalInt(1), literalInt(2)), None, None))
+  }
+
+  test("[true IN [ true, false ], false]") {
+    yields(expressions.ListLiteral(Seq(in(trueLiteral, listOf(trueLiteral, falseLiteral)), falseLiteral)))
+  }
+
 }

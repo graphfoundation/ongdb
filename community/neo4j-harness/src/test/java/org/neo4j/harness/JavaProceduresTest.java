@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -165,7 +165,7 @@ class JavaProceduresTest
         try ( Neo4j server = createServer( MyProcedures.class ).build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/ongdb/tx/commit" ).toString(),
+            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/neo4j/tx/commit" ).toString(),
                     quotedJson( "{ 'statements': [ { 'statement': 'CALL org.neo4j.harness.myProc' } ] }" ) );
 
             JsonNode result = response.get( "results" ).get( 0 );
@@ -182,7 +182,7 @@ class JavaProceduresTest
         try ( Neo4j server = createServer( MyProcedures.class ).build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/ongdb/tx/commit" ).toString(),
+            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/neo4j/tx/commit" ).toString(),
                     quotedJson( "{ 'statements': [ { 'statement': 'CALL org.neo4j.harness.procThatThrows' } ] }" ) );
 
             String error = response.get( "errors" ).get( 0 ).get( "message" ).asText();
@@ -198,7 +198,7 @@ class JavaProceduresTest
         try ( Neo4j server = createServer( MyProceduresUsingMyService.class ).build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/ongdb/tx/commit" ).toString(),
+            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/neo4j/tx/commit" ).toString(),
                     quotedJson( "{ 'statements': [ { 'statement': 'CALL hello' } ] }" ) );
 
             assertEquals( "[]", response.get( "errors" ).toString() );
@@ -220,13 +220,13 @@ class JavaProceduresTest
             assertQueryGetsValue( server, "CALL makeNode(\\'Test\\')", 2L );
             assertQueryGetsValue( server, "CALL countNodes", 3L );
             assertQueryGetsError( server, "CALL willFail",
-                                  createNodeWithLabelsDenied( "", "ongdb", overriddenMode( withUser( "", FULL.name() ), READ.name() ) ) );
+                                  createNodeWithLabelsDenied( "", "neo4j", overriddenMode( withUser( "", FULL.name() ), READ.name() ) ) );
         }
     }
 
     private static void assertQueryGetsValue( Neo4j server, String query, long value ) throws Throwable
     {
-        HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/ongdb/tx/commit" ).toString(),
+        HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/neo4j/tx/commit" ).toString(),
                 quotedJson( "{ 'statements': [ { 'statement': '" + query + "' } ] }" ) );
 
         assertEquals( "[]", response.get( "errors" ).toString() );
@@ -237,7 +237,7 @@ class JavaProceduresTest
 
     private static void assertQueryGetsError( Neo4j server, String query, String error ) throws Throwable
     {
-        HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/ongdb/tx/commit" ).toString(),
+        HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/neo4j/tx/commit" ).toString(),
                 quotedJson( "{ 'statements': [ { 'statement': '" + query + "' } ] }" ) );
 
         assertThat( response.get( "errors" ).toString() ).contains( error );

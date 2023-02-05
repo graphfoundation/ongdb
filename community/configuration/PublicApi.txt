@@ -64,7 +64,7 @@ org.neo4j.configuration.GraphDatabaseSettings.TransactionTracingLevel::valueOf(j
 org.neo4j.configuration.GraphDatabaseSettings.TransactionTracingLevel::values() org.neo4j.configuration.GraphDatabaseSettings.TransactionTracingLevel[] public static
 org.neo4j.configuration.GraphDatabaseSettings::DEFAULT_BLOCK_SIZE int public static final = 128
 org.neo4j.configuration.GraphDatabaseSettings::DEFAULT_DATABASES_ROOT_DIR_NAME java.lang.String public static final = databases
-org.neo4j.configuration.GraphDatabaseSettings::DEFAULT_DATABASE_NAME java.lang.String public static final = ongdb
+org.neo4j.configuration.GraphDatabaseSettings::DEFAULT_DATABASE_NAME java.lang.String public static final = neo4j
 org.neo4j.configuration.GraphDatabaseSettings::DEFAULT_DATA_DIR_NAME java.lang.String public static final = data
 org.neo4j.configuration.GraphDatabaseSettings::DEFAULT_DUMPS_DIR_NAME java.lang.String public static final = dumps
 org.neo4j.configuration.GraphDatabaseSettings::DEFAULT_LABEL_BLOCK_SIZE int public static final = 64

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -291,7 +291,7 @@ class SpecialisedIndexFullCheckTest
             var config = Config.newBuilder().set( GraphDatabaseSettings.ongdb_home, testDirectory.homePath() ).build();
 
             ConsistencyCheckService checkService = new ConsistencyCheckService();
-            return checkService.runFullConsistencyCheck( Neo4jLayout.of( config ).databaseLayout( GraphDatabaseSettings.DEFAULT_DATABASE_NAME ),
+            return checkService.runFullConsistencyCheck( Neo4jLayout.of( config ).databaseLayout( "neo4j" ),
                     config, ProgressMonitorFactory.NONE, logProvider, false, DEFAULT ).summary();
         }
 

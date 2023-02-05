@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -39,13 +39,6 @@
 package org.neo4j.internal.batchimport.store;
 
 import org.junit.jupiter.api.Test;
-
-import java.io.IOException;
-import java.nio.file.DirectoryNotEmptyException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Stream;
-
 import org.neo4j.configuration.Config;
 import org.neo4j.configuration.GraphDatabaseInternalSettings;
 import org.neo4j.counts.CountsAccessor;
@@ -86,6 +79,7 @@ import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
 import org.neo4j.kernel.impl.store.record.PropertyBlock;
 import org.neo4j.kernel.impl.store.record.PropertyRecord;
 import org.neo4j.kernel.impl.transaction.log.PhysicalTransactionRepresentation;
+import org.neo4j.kernel.impl.transaction.log.files.TransactionLogInitializer;
 import org.neo4j.kernel.lifecycle.Lifespan;
 import org.neo4j.lock.LockService;
 import org.neo4j.lock.LockTracer;
@@ -114,7 +108,11 @@ import org.neo4j.token.TokenCreator;
 import org.neo4j.token.TokenHolders;
 import org.neo4j.token.api.TokenHolder;
 import org.neo4j.values.storable.Values;
-
+import java.io.IOException;
+import java.nio.file.DirectoryNotEmptyException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -169,7 +167,48 @@ class BatchingNeoStoresTest
                 }
             }
         } );
-        assertThat( exception.getMessage() ).contains( "already contains" );
+
+        // THEN
+        assertThat( exception.getMessage() )
+                .contains( databaseLayout.databaseDirectory().toString() )
+                .contains( "already contains" );
+    }
+
+    @Test
+    void shouldNotOpenStoreWithTransactionLogContentsInIt() throws Throwable
+    {
+        // GIVEN
+        var config = Config.defaults();
+        someDataInTheDatabase( config );
+        fileSystem.deleteRecursively( databaseLayout.databaseDirectory() );
+
+        // WHEN
+        DirectoryNotEmptyException exception = assertThrows( DirectoryNotEmptyException.class, () ->
+        {
+            try ( JobScheduler jobScheduler = new ThreadPoolJobScheduler() )
+            {
+                RecordFormats recordFormats = selectForConfig( config, NullLogProvider.getInstance() );
+                try ( BatchingNeoStores store = batchingNeoStores(
+                        fileSystem,
+                        databaseLayout,
+                        recordFormats,
+                        Configuration.DEFAULT,
+                        NullLogService.getInstance(),
+                        EMPTY,
+                        config,
+                        jobScheduler,
+                        PageCacheTracer.NULL,
+                        INSTANCE ) )
+                {
+                    store.createNew();
+                }
+            }
+        } );
+
+        // THEN
+        assertThat( exception.getMessage() )
+                .contains( databaseLayout.getTransactionLogsDirectory().toString() )
+                .contains( "already contains" );
     }
 
     @Test
@@ -443,6 +482,9 @@ class BatchingNeoStoresTest
                 apply( txState, commandCreationContext, storageEngine, storeCursors );
                 neoStores.flush( NULL );
             }
+
+            TransactionLogInitializer.getLogFilesInitializer()
+                    .initializeLogFiles(databaseLayout, neoStores.getMetaDataStore(), fileSystem, "testing");
         }
     }
 

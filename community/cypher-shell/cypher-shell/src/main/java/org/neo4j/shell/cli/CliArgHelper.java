@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -226,7 +226,7 @@ public class CliArgHelper
         ArgumentParser parser = ArgumentParsers.newFor( "cypher-shell" ).build()
                 .defaultHelp( true )
                 .description( format(
-                        "A command line shell where you can execute Cypher against an instance of ONgDB. " +
+                        "A command line shell where you can execute Cypher against an instance of Neo4j. " +
                         "By default the shell is interactive but you can use it for scripting by passing cypher " +
                         "directly on the command line or by piping a file with cypher statements (requires Powershell on Windows)." +
                         "%n%n" +
@@ -244,7 +244,7 @@ public class CliArgHelper
                  .setDefault( "" )
                  .help( "password to connect with. Can also be specified using environment variable " + ConnectionConfig.PASSWORD_ENV_VAR );
         connGroup.addArgument( "--encryption" )
-                 .help( "whether the connection to ONgDB should be encrypted. This must be consistent with ONgDB's " +
+                 .help( "whether the connection to Neo4j should be encrypted. This must be consistent with Neo4j's " +
                         "configuration. If choosing '" + Encryption.DEFAULT.name().toLowerCase() +
                         "' the encryption setting is deduced from the specified address. " +
                         "For example the 'neo4j+ssc' protocol would use encryption." )

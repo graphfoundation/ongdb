@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -174,7 +174,7 @@ class CypherShellTest
         when( mockedBoltStateHandler.isConnected() ).thenReturn( false );
 
         CommandException exception = assertThrows( CommandException.class, () -> shell.execute( "RETURN 999" ) );
-        assertThat( exception.getMessage(), containsString( "Not connected to ONgDB" ) );
+        assertThat( exception.getMessage(), containsString( "Not connected to Neo4j" ) );
     }
 
     @Test

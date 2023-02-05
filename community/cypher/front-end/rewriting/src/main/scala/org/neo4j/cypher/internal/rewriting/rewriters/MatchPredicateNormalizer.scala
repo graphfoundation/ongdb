@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,8 +32,11 @@
  */
 package org.neo4j.cypher.internal.rewriting.rewriters
 
+import org.neo4j.cypher.internal.expressions.ExistsSubClause
 import org.neo4j.cypher.internal.expressions.Expression
 import org.neo4j.cypher.internal.util.Foldable.FoldableAny
+import org.neo4j.cypher.internal.util.Foldable.SkipChildren
+import org.neo4j.cypher.internal.util.Foldable.TraverseChildren
 
 /**
  * A helper trait used by `normalizeMatchPredicates` and `normalizePatternComprehensionPredicates`.
@@ -52,10 +55,14 @@ trait MatchPredicateNormalizer {
 
   /**
    * Traverse into pattern and extract not normalized predicates from its elements.
+   * Patterns inside EXISTS must be handled separately due to scoping.
    */
   final def extractAllFrom(pattern: Any): Seq[Expression] =
-    pattern.folder.fold(Vector.empty[Expression]) {
-      case patternElement: AnyRef if extract.isDefinedAt(patternElement) => acc => acc ++ extract(patternElement)
-      case _                                                             => identity
+    pattern.folder.treeFold(Vector.empty[Expression]) {
+      case patternElement if patternElement.isInstanceOf[ExistsSubClause] =>
+        acc => SkipChildren(acc)
+      case patternElement: AnyRef if extract.isDefinedAt(patternElement) =>
+        acc => TraverseChildren(acc ++ extract(patternElement))
+      case _ => acc => TraverseChildren(acc)
     }
 }

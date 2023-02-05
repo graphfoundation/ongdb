@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -182,9 +182,7 @@ public class TransactionStateMachine implements StatementProcessor
 
             if ( statusOpt.isPresent() && statusOpt.get().code().classification().rollbackTransaction() )
             {
-                Status pendingTerminationNotice = statusOpt.get();
-                reset();
-                return pendingTerminationNotice;
+                return statusOpt.get();
             }
         }
         return null;

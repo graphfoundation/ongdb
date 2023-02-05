@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -57,7 +57,9 @@ import org.neo4j.cypher.internal.compiler.planner.logical.LogicalPlanningContext
 import org.neo4j.cypher.internal.expressions.PropertyKeyName
 import org.neo4j.cypher.internal.expressions.SemanticDirection
 import org.neo4j.cypher.internal.expressions.SemanticDirection.BOTH
+import org.neo4j.cypher.internal.ir.CallSubqueryHorizon
 import org.neo4j.cypher.internal.ir.PatternRelationship
+import org.neo4j.cypher.internal.ir.PlannerQueryPart
 import org.neo4j.cypher.internal.ir.QueryGraph
 import org.neo4j.cypher.internal.ir.RegularSinglePlannerQuery
 import org.neo4j.cypher.internal.ir.SimplePatternLength
@@ -97,7 +99,7 @@ class VerifyBestPlanTest extends CypherFunSuite with LogicalPlanningTestSupport 
       patternNodes = Set("a", "b")
     ).addHints(Set(newJoinHint())))
 
-  private def getPlanContext(hasIndex: Boolean, hasTextIndex: Boolean = false, planningTextIndexesEnabled: Boolean = false): PlanContext = {
+  private def getPlanContext(hasIndex: Boolean, hasTextIndex: Boolean = false): PlanContext = {
     val planContext = newMockedPlanContext()
     when(planContext.btreeIndexExistsForLabelAndProperties(anyString(), any())).thenReturn(hasIndex)
     when(planContext.btreeIndexExistsForRelTypeAndProperties(anyString(), any())).thenReturn(hasIndex)
@@ -360,5 +362,34 @@ class VerifyBestPlanTest extends CypherFunSuite with LogicalPlanningTestSupport 
     a [HintException] should be thrownBy {
       VerifyBestPlan(getSimpleLogicalPlanWithAandBandR(context), newQueryWithRelationshipIndexHint(), context)
     }
+  }
+
+  test("should throw when finding unfulfillable index hint in a subquery") {
+    def plannerQueryWithSubquery(hints: Set[Hint]): PlannerQueryPart = {
+      RegularSinglePlannerQuery(
+        horizon = CallSubqueryHorizon(
+          callSubquery = RegularSinglePlannerQuery(
+            QueryGraph(
+              patternNodes = Set("a"),
+              hints = hints
+            )
+          ),
+          correlated = false,
+          yielding = true,
+          inTransactionsParameters = None
+        )
+      )
+    }
+
+    val expected = plannerQueryWithSubquery(Set(newNodeIndexHint()))
+    val solved = plannerQueryWithSubquery(Set.empty)
+
+    val context =
+      newMockedLogicalPlanningContext(planContext = getPlanContext(hasIndex = false), useErrorsOverWarnings = true)
+    val plan = newMockedLogicalPlanWithSolved(context.planningAttributes, Set("a"), solved)
+
+    the[IndexHintException] thrownBy {
+      VerifyBestPlan(plan, expected, context)
+    } should have message "No such index: INDEX FOR (`a`:`User`) ON (`a`.`name`)"
   }
 }

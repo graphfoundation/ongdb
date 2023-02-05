@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -95,7 +95,7 @@ class CrashGenerationCleanerTest
     private RandomSupport randomRule;
 
     private static final String FILE_NAME = "index";
-    private static final String DATABASE_NAME = "ongdb";
+    private static final String DATABASE_NAME = "neo4j";
     private static final int PAGE_SIZE = 256;
 
     private PagedFile pagedFile;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -85,7 +85,7 @@ public class ExclusiveWebContainerTestBase
 
     protected static String txEndpoint()
     {
-        return txEndpoint( "ongdb" );
+        return txEndpoint( "neo4j" );
     }
 
     private static String txEndpoint( String database )
@@ -95,7 +95,7 @@ public class ExclusiveWebContainerTestBase
 
     protected static String txCommitEndpoint()
     {
-        return txCommitEndpoint( "ongdb" );
+        return txCommitEndpoint( "neo4j" );
     }
 
     protected static String txCommitEndpoint( String database )

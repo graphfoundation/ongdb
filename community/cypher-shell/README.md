@@ -16,12 +16,12 @@ RPM and Debian packages are build using make from `packaging` directory, see
 
 ## How to run
 
-This clears any previously known ONgDB hosts, starts a throw-away
-instance of ONgDB using docker, and connects to it.
+This clears any previously known neo4j hosts, starts a throw-away
+instance of neo4j using docker, and connects to it.
 
 ```sh
 rm -rf ~/.neo4j/known_hosts
-docker run --rm -p 7687:7687 -e ONGDB_AUTH=none neo4j:4.1
+docker run --rm -p 7687:7687 -e NEO4J_AUTH=none neo4j:4.1
 make run
 ```
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -117,7 +117,7 @@ class ConsistencyCheckWithCorruptGBPTreeIT
     private static final Label label = Label.label( "label" );
     private static final String propKey1 = "key1";
 
-    private static final Path ongdbHome = Path.of( "ongdb_home" ).toAbsolutePath();
+    private static final Path neo4jHome = Path.of( "ongdb_home" ).toAbsolutePath();
     // Created in @BeforeAll, contain full dbms with schema index backed by native-bree-1.0 and token indexes
     private EphemeralFileSystemAbstraction sourceSnapshot;
     // Database layout for database created in @BeforeAll
@@ -129,8 +129,8 @@ class ConsistencyCheckWithCorruptGBPTreeIT
     void createIndex() throws Exception
     {
         final EphemeralFileSystemAbstraction fs = new EphemeralFileSystemAbstraction();
-        fs.mkdirs( ongdbHome );
-        dbmsAction( ongdbHome, fs, NATIVE_BTREE10,
+        fs.mkdirs( neo4jHome );
+        dbmsAction( neo4jHome, fs, NATIVE_BTREE10,
                     // Data
                     db ->
                     {
@@ -687,14 +687,14 @@ class ConsistencyCheckWithCorruptGBPTreeIT
 
         try
         {
-            final Path ongdbHome = testDirectory.homePath();
-            dbmsAction( ongdbHome, fs, NATIVE30, db ->
+            final Path neo4jHome = testDirectory.homePath();
+            dbmsAction( neo4jHome, fs, NATIVE30, db ->
             {
                 Label label = Label.label( "label2" );
                 indexWithNumberData( db, label );
             }, builder -> {} );
 
-            RecordDatabaseLayout layout = RecordDatabaseLayout.of( Config.defaults( ongdb_home, ongdbHome ) );
+            RecordDatabaseLayout layout = RecordDatabaseLayout.of( Config.defaults( ongdb_home, neo4jHome ) );
 
             final Path[] indexFiles = schemaIndexFiles( fs, layout.databaseDirectory(), NATIVE30 );
             final List<Path> files = corruptIndexes( fs, readOnly(), ( tree, inspection ) -> {
@@ -708,7 +708,7 @@ class ConsistencyCheckWithCorruptGBPTreeIT
 
             assertTrue( files.size() > 0, "Expected number of corrupted files to be more than one." );
             ConsistencyCheckService.Result result =
-                    runConsistencyCheck( fs, ongdbHome, layout, NullLogProvider.getInstance(), NONE, DEFAULT );
+                    runConsistencyCheck( fs, neo4jHome, layout, NullLogProvider.getInstance(), NONE, DEFAULT );
             for ( Path file : files )
             {
                 assertResultContainsMessage( fs, result,
@@ -755,7 +755,7 @@ class ConsistencyCheckWithCorruptGBPTreeIT
     private ConsistencyCheckService.Result runConsistencyCheck( LogProvider logProvider, Consumer<Config> adaptConfig )
             throws ConsistencyCheckIncompleteException
     {
-        return runConsistencyCheck( fs, ongdbHome, databaseLayout, logProvider, NONE, DEFAULT, adaptConfig );
+        return runConsistencyCheck( fs, neo4jHome, databaseLayout, logProvider, NONE, DEFAULT, adaptConfig );
     }
 
     private ConsistencyCheckService.Result runConsistencyCheck( LogProvider logProvider, ConsistencyFlags consistencyFlags )
@@ -774,21 +774,21 @@ class ConsistencyCheckWithCorruptGBPTreeIT
             ConsistencyFlags consistencyFlags )
             throws ConsistencyCheckIncompleteException
     {
-        return runConsistencyCheck( fs, ongdbHome, databaseLayout, logProvider, progressFactory, consistencyFlags );
+        return runConsistencyCheck( fs, neo4jHome, databaseLayout, logProvider, progressFactory, consistencyFlags );
     }
 
-    private static ConsistencyCheckService.Result runConsistencyCheck( FileSystemAbstraction fs, Path ongdbHome, DatabaseLayout databaseLayout,
+    private static ConsistencyCheckService.Result runConsistencyCheck( FileSystemAbstraction fs, Path neo4jHome, DatabaseLayout databaseLayout,
             LogProvider logProvider, ProgressMonitorFactory progressFactory, ConsistencyFlags consistencyFlags ) throws ConsistencyCheckIncompleteException
     {
-        return runConsistencyCheck( fs, ongdbHome, databaseLayout, logProvider, progressFactory, consistencyFlags, config -> {} );
+        return runConsistencyCheck( fs, neo4jHome, databaseLayout, logProvider, progressFactory, consistencyFlags, config -> {} );
     }
 
-    private static ConsistencyCheckService.Result runConsistencyCheck( FileSystemAbstraction fs, Path ongdbHome, DatabaseLayout databaseLayout,
+    private static ConsistencyCheckService.Result runConsistencyCheck( FileSystemAbstraction fs, Path neo4jHome, DatabaseLayout databaseLayout,
             LogProvider logProvider, ProgressMonitorFactory progressFactory, ConsistencyFlags consistencyFlags, Consumer<Config> adaptConfig )
             throws ConsistencyCheckIncompleteException
     {
         ConsistencyCheckService consistencyCheckService = new ConsistencyCheckService();
-        Config config = Config.defaults( ongdb_home, ongdbHome );
+        Config config = Config.defaults( ongdb_home, neo4jHome );
         adaptConfig.accept( config );
         return consistencyCheckService.runFullConsistencyCheck( databaseLayout, config, progressFactory, logProvider, fs, false, consistencyFlags );
     }
@@ -796,10 +796,10 @@ class ConsistencyCheckWithCorruptGBPTreeIT
     /**
      * Open dbms with schemaIndex as default index provider on provided file system abstraction and apply dbSetup to DEFAULT_DATABASE.
      */
-    private static void dbmsAction( Path ongdbHome, FileSystemAbstraction fs, GraphDatabaseSettings.SchemaIndex schemaIndex,
+    private static void dbmsAction( Path neo4jHome, FileSystemAbstraction fs, GraphDatabaseSettings.SchemaIndex schemaIndex,
             Consumer<GraphDatabaseService> dbSetup, Consumer<DatabaseManagementServiceBuilder> dbConfiguration )
     {
-        TestDatabaseManagementServiceBuilder builder = new TestDatabaseManagementServiceBuilder( ongdbHome )
+        TestDatabaseManagementServiceBuilder builder = new TestDatabaseManagementServiceBuilder( neo4jHome )
                 .setFileSystem( new UncloseableDelegatingFileSystemAbstraction( fs ) );
         dbConfiguration.accept( builder );
         final DatabaseManagementService dbms = builder

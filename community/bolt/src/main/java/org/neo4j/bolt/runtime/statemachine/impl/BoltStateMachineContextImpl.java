@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -40,6 +40,7 @@ package org.neo4j.bolt.runtime.statemachine.impl;
 
 import java.time.Clock;
 
+import io.netty.channel.Channel;
 import org.neo4j.bolt.BoltChannel;
 import org.neo4j.bolt.runtime.BoltConnectionFatality;
 import org.neo4j.bolt.runtime.statemachine.BoltStateMachine;
@@ -187,5 +188,11 @@ public class BoltStateMachineContextImpl implements StateMachineContext, Stateme
     {
         transactionManager.cleanUp( new CleanUpTransactionContext( transactionId ) );
         connectionState.clearCurrentTransactionId();
+    }
+
+    @Override
+    public BoltChannel channel()
+    {
+        return boltChannel;
     }
 }

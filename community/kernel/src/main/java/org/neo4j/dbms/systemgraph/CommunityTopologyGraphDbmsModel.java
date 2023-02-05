@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -84,10 +84,9 @@ public class CommunityTopologyGraphDbmsModel implements TopologyGraphDbmsModel
 
     public Map<NamedDatabaseId,TopologyGraphDbmsModel.DatabaseAccess> getAllDatabaseAccess()
     {
-        Map<NamedDatabaseId,TopologyGraphDbmsModel.DatabaseAccess> result = tx.findNodes( DATABASE_LABEL ).stream()
-                .collect( Collectors.toMap( CommunityTopologyGraphDbmsModel::getDatabaseId,
-                        CommunityTopologyGraphDbmsModel::getDatabaseAccess ) );
-        return result;
+        return tx.findNodes( DATABASE_LABEL ).stream()
+                 .collect( Collectors.toMap( CommunityTopologyGraphDbmsModel::getDatabaseId,
+                                             CommunityTopologyGraphDbmsModel::getDatabaseAccess ) );
     }
 
     private static TopologyGraphDbmsModel.DatabaseAccess getDatabaseAccess( Node databaseNode )
@@ -234,7 +233,6 @@ public class CommunityTopologyGraphDbmsModel implements TopologyGraphDbmsModel
     {
         try
         {
-            //TODO: hit this in stash?
             var node = tx.findNode( DATABASE_LABEL, propertyKey, propertyValue );
 
             if ( node == null )

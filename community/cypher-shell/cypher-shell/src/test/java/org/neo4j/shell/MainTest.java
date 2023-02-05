@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -279,6 +279,24 @@ class MainTest
 
         result.assertSuccess();
         assertTrue( result.getOutput().toString( UTF_8 ).matches( "Neo4j Driver \\d+\\.\\d+\\.\\d+.*\\R" ) );
+    }
+
+    @Test
+    void disconnectOnClose1() throws Exception
+    {
+        testWithMockUser("mr", "close").args("-u mr -p close").run(false).assertSuccess();
+
+        verify(mockShell, times(1)).connect(any(), any());
+        verify(mockShell, times(0)).disconnect();
+    }
+
+    @Test
+    void disconnectOnClose2() throws Exception
+    {
+        testWithMockUser("mr", "close").args("-u mr -p close").run(true).assertSuccess();
+
+        verify(mockShell, times(1)).connect(any(), any());
+        verify(mockShell, times(1)).disconnect();
     }
 
     private AssertableMain.AssertableMainBuilder testWithMocks()

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -45,23 +45,23 @@ import org.neo4j.kernel.api.exceptions.InvalidArgumentsException
 class TransactionCommandHelperTest extends CypherFunSuite {
 
   test("prints transaction ids") {
-    TransactionId("ongdb", 12L).toString shouldBe "ongdb-transaction-12"
+    TransactionId("neo4j", 12L).toString shouldBe "neo4j-transaction-12"
   }
 
   test("does not print negative transaction ids") {
-    assertThrows[InvalidArgumentsException]( TransactionId("ongdb", -15L))
+    assertThrows[InvalidArgumentsException]( TransactionId("neo4j", -15L))
   }
 
   test("parses transaction ids") {
-    TransactionId.parse("ongdb-transaction-14") shouldBe TransactionId("ongdb", 14L)
+    TransactionId.parse("neo4j-transaction-14") shouldBe TransactionId("neo4j", 14L)
   }
 
   test("does not parse negative transaction ids") {
-    assertThrows[InvalidArgumentsException]( TransactionId.parse("ongdb-transaction--12"))
+    assertThrows[InvalidArgumentsException]( TransactionId.parse("neo4j-transaction--12"))
   }
 
   test("does not parse wrong separator") {
-    assertThrows[InvalidArgumentsException]( TransactionId.parse("ongdb-transactioo-12"))
+    assertThrows[InvalidArgumentsException]( TransactionId.parse("neo4j-transactioo-12"))
   }
 
   test("does not parse random text") {
@@ -69,7 +69,7 @@ class TransactionCommandHelperTest extends CypherFunSuite {
   }
 
   test("does not parse trailing random text") {
-    assertThrows[InvalidArgumentsException]( TransactionId.parse("ongdb-transaction-12  "))
+    assertThrows[InvalidArgumentsException]( TransactionId.parse("neo4j-transaction-12  "))
   }
 
   test("does not parse empty text") {
@@ -77,7 +77,7 @@ class TransactionCommandHelperTest extends CypherFunSuite {
   }
 
   test("validate and normalise database name") {
-    TransactionId.parse("ONGDB-transaction-14") shouldBe TransactionId("ongdb", 14L)
+    TransactionId.parse("NEO4J-transaction-14") shouldBe TransactionId("neo4j", 14L)
     val e = the[InvalidArgumentsException] thrownBy TransactionId.parse("a".repeat(MAXIMUM_DATABASE_NAME_LENGTH + 1) + "-transaction-14")
     e.getMessage should include(" must have a length between ")
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -60,7 +60,7 @@ import static org.apache.lucene.document.Field.Store.YES;
 
 public class LuceneFulltextDocumentStructure
 {
-    public static final String FIELD_ENTITY_ID = "__ongdb__lucene__fulltext__index__internal__id__";
+    public static final String FIELD_ENTITY_ID = "__neo4j__lucene__fulltext__index__internal__id__";
 
     private static final ThreadLocal<DocWithId> perThreadDocument = ThreadLocal.withInitial( DocWithId::new );
 

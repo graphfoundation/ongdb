@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -54,6 +54,6 @@ public class FileLockException extends IOException
 
     public FileLockException( Path file )
     {
-        super( "This file is locked by another process, please ensure you don't have another ONgDB process or tool using it: '" + file + "'.'" );
+        super( "This file is locked by another process, please ensure you don't have another Neo4j process or tool using it: '" + file + "'.'" );
     }
 }

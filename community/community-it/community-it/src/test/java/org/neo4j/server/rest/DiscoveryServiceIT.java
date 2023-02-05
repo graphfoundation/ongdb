@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -102,7 +102,7 @@ public class DiscoveryServiceIT extends AbstractRestFunctionalTestBase
     {
 
         var request = HttpRequest.newBuilder( container().getBaseUri() )
-                                 .header( ACCEPT, "application/vnd.ongdb.jolt+json-seq; q=1.0" )
+                                 .header( ACCEPT, "application/vnd.neo4j.jolt+json-seq; q=1.0" )
                                  .header( ACCEPT, "application/json; q=0.9" )
                                  .header( ACCEPT, "text/html; q=0.0" )
                                  .GET().build();
@@ -145,11 +145,11 @@ public class DiscoveryServiceIT extends AbstractRestFunctionalTestBase
         assertTrue( responseBodyMap.containsKey( boltRoutingKey ) );
         assertNotNull( responseBodyMap.get( boltRoutingKey ) );
 
-        var serverVersionKey = "ongdb_version";
+        var serverVersionKey = "neo4j_version";
         assertTrue( responseBodyMap.containsKey( serverVersionKey ) );
         assertNotNull( responseBodyMap.get( serverVersionKey ) );
 
-        var serverEditionKey = "ongdb_edition";
+        var serverEditionKey = "neo4j_edition";
         assertTrue( responseBodyMap.containsKey( serverEditionKey ) );
         assertThat( responseBodyMap.get( serverEditionKey ) ).isEqualTo( "community" );
     }

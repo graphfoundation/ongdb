@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -77,7 +77,7 @@ class IndexSamplingIntegrationTest
     private final String property = "name";
     private final String schemaName = "schema_name";
     private final long entities = 1000;
-    private final String[] names = {"ONgDB", "Graph", "Apa"};
+    private final String[] names = {"Neo4j", "Neo", "Graph", "Apa"};
 
     @ParameterizedTest
     @EnumSource( Entity.class )

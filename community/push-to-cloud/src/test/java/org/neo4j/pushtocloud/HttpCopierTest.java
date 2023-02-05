@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -337,7 +337,7 @@ class HttpCopierTest
     {
         // given
         HttpCopier copier = new HttpCopier( ctx );
-        String errorBody = format( "{\"Message\":\"Store is too big for this ONgDB aura instance.\",\"Reason\":\"ImportExceedsMaxSize\"}" );
+        String errorBody = format( "{\"Message\":\"Store is too big for this neo4j aura instance.\",\"Reason\":\"ImportExceedsMaxSize\"}" );
         ResponseDefinitionBuilder response = aResponse().withStatus( HTTP_UNPROCESSABLE_ENTITY ).withBody( errorBody );
         wireMock.stubFor( initiateSizeRequest( "fakeToken", 100000000 ).willReturn( response ) );
         // when/then
@@ -499,7 +499,7 @@ class HttpCopierTest
         ObjectMapper mapper = new ObjectMapper();
         Path source = createDump();
         String token = "abc";
-        String errorMessage = "There is insufficient space in your ONgDB Aura instance to upload your data. "
+        String errorMessage = "There is insufficient space in your Neo4j Aura instance to upload your data. "
                               + "Please use the Console to increase the size of your database.";
         String errorUrl = "https://console.neo4j.io/";
         ErrorBody errorBody = new ErrorBody( errorMessage, ERROR_REASON_EXCEEDS_MAX_SIZE, errorUrl );
@@ -653,7 +653,7 @@ class HttpCopierTest
         StatusBody statusBody = new StatusBody();
         statusBody.Status = "loading failed";
         String errorMessage = "The uploaded dump file contains deprecated indexes, "
-                              + "which we are unable to import in the current version of ONgDB Aura. "
+                              + "which we are unable to import in the current version of Neo4j Aura. "
                               + "Please upgrade to the recommended index provider.";
         String errorUrl = "https://aura.support.neo4j.com/";
         statusBody.Error = new ErrorBody( errorMessage, ERROR_REASON_UNSUPPORTED_INDEXES, errorUrl );

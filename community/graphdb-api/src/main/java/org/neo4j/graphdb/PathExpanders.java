@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -41,6 +41,7 @@ package org.neo4j.graphdb;
 import java.io.PrintStream;
 import java.util.function.BiFunction;
 
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.impl.StandardExpander;
 import org.neo4j.graphdb.traversal.BranchState;
 import org.neo4j.graphdb.traversal.Paths;
@@ -50,6 +51,7 @@ import org.neo4j.graphdb.traversal.Paths;
  * <p>
  * Use {@link PathExpanderBuilder} to build specialized {@link PathExpander}s.
  */
+@PublicApi
 public abstract class PathExpanders
 {
     /**

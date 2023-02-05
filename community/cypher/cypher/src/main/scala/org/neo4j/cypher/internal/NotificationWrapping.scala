@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -85,6 +85,7 @@ import org.neo4j.cypher.internal.util.DeprecatedRepeatedRelVarInPatternExpressio
 import org.neo4j.cypher.internal.util.DeprecatedSelfReferenceToVariableInCreatePattern
 import org.neo4j.cypher.internal.util.DeprecatedShowExistenceConstraintSyntax
 import org.neo4j.cypher.internal.util.DeprecatedShowSchemaSyntax
+import org.neo4j.cypher.internal.util.DeprecatedUseOfNullInCaseExpression
 import org.neo4j.cypher.internal.util.InputPosition
 import org.neo4j.cypher.internal.util.InternalNotification
 import org.neo4j.cypher.internal.util.LengthOnNonPathNotification
@@ -213,6 +214,8 @@ object NotificationWrapping {
       NotificationCode.SUBQUERY_VARIABLE_SHADOWING.notification(pos.withOffset(offset).asInputPosition, NotificationDetail.Factory.shadowingVariable(varName))
     case MissingAliasNotification(pos) =>
       NotificationCode.MISSING_ALIAS.notification(pos.withOffset(offset).asInputPosition)
+    case DeprecatedUseOfNullInCaseExpression(pos) =>
+      NotificationCode.DEPRECATED_CASE_EXPRESSION.notification(pos.withOffset(offset).asInputPosition)
     case DeprecatedAmbiguousGroupingNotification(pos, maybeHint) =>
       maybeHint match {
         case Some(hint) => NotificationCode.DEPRECATED_AMBIGUOUS_GROUPING_NOTIFICATION

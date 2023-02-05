@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -190,9 +190,7 @@ public class GCFreeUTF8Encoder implements UTF8Encoder
                 }
                 if ( uc < 0 )
                 {
-                    // encode without replacement.
-                    throw new PackStreamException( String.format( "Failure when converting to UTF-8. " +
-                            "String: %s\n%s", new String( val, StandardCharsets.UTF_16 ), HexPrinter.hex( val ) ) );
+                    dst[dp++] = '?';
                 }
                 else
                 {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -50,6 +50,8 @@ sealed trait CreatesPropertyKeys {
 
   def overlapsWithDynamicPropertyRead: Boolean = true
 
+  def overlapsWithFunctionPropertyRead: Boolean = true
+
   def +(createsPropertyKeys: CreatesPropertyKeys): CreatesPropertyKeys
 }
 
@@ -76,6 +78,8 @@ case object CreatesNoPropertyKeys extends CreatesPropertyKeys {
   override def overlaps(propertyKeyName: PropertyKeyName) = false
 
   override def overlapsWithDynamicPropertyRead: Boolean = false
+
+  override def overlapsWithFunctionPropertyRead: Boolean = false
 
   override def +(createsPropertyKeys: CreatesPropertyKeys) = createsPropertyKeys
 }

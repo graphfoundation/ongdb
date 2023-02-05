@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -74,7 +74,7 @@ class DumpCommandTest
                 "Dump a database into a single-file archive. The archive can be used by the load%n" +
                 "command. <destination-path> can be a file or directory (in which case a file%n" +
                 "called <database>.dump will be created), or '-' to use standard output. It is%n" +
-                "not possible to dump a database that is mounted in a running ONgDB server.%n" +
+                "not possible to dump a database that is mounted in a running Neo4j server.%n" +
                 "%n" +
                 "OPTIONS%n" +
                 "%n" +
@@ -82,7 +82,7 @@ class DumpCommandTest
                 "      --expand-commands   Allow command expansion in config value evaluation.%n" +
                 "      --database=<database>%n" +
                 "                          Name of the database to dump.%n" +
-                "                            Default: ongdb%n" +
+                "                            Default: neo4j%n" +
                 "      --to=<path>         Destination (file or folder or '-' for stdout) of%n" +
                 "                            database dump."
         ) );

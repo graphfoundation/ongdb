@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -41,6 +41,7 @@ package org.neo4j.graphdb.traversal;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.Relationship;
@@ -55,6 +56,7 @@ import static org.neo4j.graphdb.traversal.Evaluation.INCLUDE_AND_CONTINUE;
  * @see Evaluator
  * @see TraversalDescription
  */
+@PublicApi
 public abstract class Evaluators
 {
     @SuppressWarnings( "rawtypes" )

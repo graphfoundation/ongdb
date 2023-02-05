@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -53,7 +53,7 @@ public class ReadOnly implements AccessCapability
     public void assertCanWrite()
     {
         throw new WriteOperationsNotAllowedException(
-                "No write operations are allowed on this database. The database is in read-only mode on this ONgDB instance.",
+                "No write operations are allowed on this database. The database is in read-only mode on this Neo4j instance.",
                 Status.General.WriteOnReadOnlyAccessDatabase );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -55,7 +55,7 @@ public class DatabaseTransactionStats implements TransactionMonitor, Transaction
     private final LongAdder rolledBackWriteTransactionCount = new LongAdder();
     private final LongAdder terminatedReadTransactionCount = new LongAdder();
     private final LongAdder terminatedWriteTransactionCount = new LongAdder();
-    private volatile long peakTransactionCount;
+    private final AtomicLong peakTransactionCount = new AtomicLong();
     private volatile TransactionSizeMonitor transactionSizeCallback = NullTransactionSizeCallback.INSTANCE;
 
     @Override
@@ -63,7 +63,7 @@ public class DatabaseTransactionStats implements TransactionMonitor, Transaction
     {
         startedTransactionCount.increment();
         long active = activeReadTransactionCount.incrementAndGet();
-        peakTransactionCount = Math.max( peakTransactionCount, active );
+        peakTransactionCount.updateAndGet( peak -> Math.max( peak, active ) );
     }
 
     @Override
@@ -103,7 +103,7 @@ public class DatabaseTransactionStats implements TransactionMonitor, Transaction
     @Override
     public long getPeakConcurrentNumberOfTransactions()
     {
-        return peakTransactionCount;
+        return peakTransactionCount.longValue();
     }
 
     @Override

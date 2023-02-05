@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -88,7 +88,7 @@ class FixturesTestIT
         try ( Neo4j server = getServerBuilder( targetFolder ).withFixture( fixture ).build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI() + "db/ongdb/tx/commit",
+            HTTP.Response response = HTTP.POST( server.httpURI() + "db/neo4j/tx/commit",
                     quotedJson( "{'statements':[{'statement':'MATCH (n:User) RETURN n'}]}" ) );
 
             assertThat( response.status() ).isEqualTo( 200 );
@@ -113,7 +113,7 @@ class FixturesTestIT
         try ( Neo4j server = getServerBuilder( targetFolder ).withFixture( targetFolder ).build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI() + "db/ongdb/tx/commit",
+            HTTP.Response response = HTTP.POST( server.httpURI() + "db/neo4j/tx/commit",
                     quotedJson( "{'statements':[{'statement':'MATCH (n:User) RETURN n'}]}" ) );
 
             assertThat( response.get( "results" ).get( 0 ).get( "data" ).size() ).as( response.toString() ).isEqualTo( 3 );
@@ -141,7 +141,7 @@ class FixturesTestIT
                 .build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI() + "db/ongdb/tx/commit",
+            HTTP.Response response = HTTP.POST( server.httpURI() + "db/neo4j/tx/commit",
                     quotedJson( "{'statements':[{'statement':'MATCH (n:User) RETURN n'}]}" ) );
 
             assertThat( response.get( "results" ).get( 0 ).get( "data" ).size() ).isEqualTo( 2 );
@@ -160,7 +160,7 @@ class FixturesTestIT
                 .build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI() + "db/ongdb/tx/commit",
+            HTTP.Response response = HTTP.POST( server.httpURI() + "db/neo4j/tx/commit",
                     quotedJson( "{'statements':[{'statement':'MATCH (n:User) RETURN n'}]}" ) );
 
             assertThat( response.get( "results" ).get( 0 ).get( "data" ).size() ).isEqualTo( 1 );
@@ -180,7 +180,7 @@ class FixturesTestIT
                 .withFixture( targetFolder ).build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI() + "db/ongdb/tx/commit",
+            HTTP.Response response = HTTP.POST( server.httpURI() + "db/neo4j/tx/commit",
                     quotedJson( "{'statements':[{'statement':'MATCH (n:User) RETURN n'}]}" ) );
 
             assertThat( response.get( "results" ).get( 0 ).get( "data" ).size() ).isEqualTo( 1 );
@@ -226,7 +226,7 @@ class FixturesTestIT
                 .build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI() + "db/ongdb/tx/commit",
+            HTTP.Response response = HTTP.POST( server.httpURI() + "db/neo4j/tx/commit",
                     quotedJson( "{'statements':[{'statement':'MATCH (n:User) RETURN n'}]}" ) );
 
             assertThat( response.get( "results" ).get( 0 ).get( "data" ).size() ).isEqualTo( 1 );

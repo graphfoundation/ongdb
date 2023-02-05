@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -38,6 +38,7 @@
  */
 package org.neo4j.graphdb.traversal;
 
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.PathExpander;
 
@@ -46,6 +47,7 @@ import org.neo4j.graphdb.PathExpander;
  * traversal context, for example parent and an iterator of relationships to go
  * next. It's a base to write a {@link BranchSelector} on top of.
  */
+@PublicApi
 public interface TraversalBranch extends Path
 {
     /**

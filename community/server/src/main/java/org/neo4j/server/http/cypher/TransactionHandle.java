@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -53,7 +53,7 @@ import org.neo4j.bolt.runtime.statemachine.impl.BoltStateMachineContextImpl;
 import org.neo4j.bolt.runtime.statemachine.impl.BoltStateMachineSPIImpl;
 import org.neo4j.bolt.runtime.statemachine.impl.StatementProcessorProvider;
 import org.neo4j.bolt.security.auth.BasicAuthentication;
-import org.neo4j.bolt.transaction.CleanUpTransactionContext;
+import org.neo4j.bolt.transaction.CleanUpConnectionContext;
 import org.neo4j.bolt.transaction.InitializeContext;
 import org.neo4j.bolt.transaction.TransactionManager;
 import org.neo4j.bolt.transaction.TransactionNotFoundException;
@@ -195,7 +195,7 @@ public class TransactionHandle implements TransactionTerminationHandle
         if ( periodicCommit )
         {
             var programResultReference = transactionManager.runProgram(
-                    UUID.randomUUID().toString(), // todo: verify the uuid sent here
+                    UUID.randomUUID().toString(),
                     loginContext, databaseName, statement.getStatement(),
                     asParameterMapValue( statement.getParameters() ), Collections.emptyList(),
                     readByDefault, Collections.emptyMap(),
@@ -211,6 +211,7 @@ public class TransactionHandle implements TransactionTerminationHandle
     void forceRollback() throws TransactionNotFoundException
     {
         transactionManager.rollback( txManagerTxId );
+        transactionManager.cleanUp( new CleanUpConnectionContext( Long.toString( id ) ) );
     }
 
     void suspendTransaction()
@@ -226,8 +227,8 @@ public class TransactionHandle implements TransactionTerminationHandle
         }
         finally
         {
-            transactionManager.cleanUp( new CleanUpTransactionContext( txManagerTxId ) );
             registry.forget( id );
+            transactionManager.cleanUp( new CleanUpConnectionContext( Long.toString( id ) ) );
         }
     }
 
@@ -244,7 +245,7 @@ public class TransactionHandle implements TransactionTerminationHandle
         finally
         {
             registry.forget( id );
-            transactionManager.cleanUp( new CleanUpTransactionContext( Long.toString( id ) ) );
+            transactionManager.cleanUp( new CleanUpConnectionContext( Long.toString( id ) ) );
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -162,7 +162,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
     }
 
     /**
-     * Use the Jackson JSON parser because ONgDB Server depends on this library already and therefore already exists in the environment. This means that this
+     * Use the Jackson JSON parser because Neo4j Server depends on this library already and therefore already exists in the environment. This means that this
      * command can parse JSON w/o any additional external dependency and doesn't even need to depend on java 8, where the Rhino script engine has built-in JSON
      * parsing support.
      */
@@ -172,7 +172,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
     }
 
     /**
-     * Do the actual transfer of the source (an ONgDB database dump) to the target.
+     * Do the actual transfer of the source (a Neo4j database dump) to the target.
      */
     @Override
     public void copy( boolean verbose, String consoleURL, String boltUri, PushToCloudCommand.Source source, boolean deleteSourceAfterImport,
@@ -422,7 +422,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
             switch ( responseCode )
             {
             case HTTP_NOT_FOUND:
-                throw errorResponse( verbose, connection, "We encountered a problem while contacting your ONgDB Aura instance, " +
+                throw errorResponse( verbose, connection, "We encountered a problem while contacting your Neo4j Aura instance, " +
                                                           "please check your Bolt URI" );
             case HTTP_MOVED_PERM:
                 throw updatePluginErrorResponse( connection );
@@ -449,7 +449,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
     }
 
     /**
-     * Communication with ONgDB's cloud console, resulting in some signed URI to do the actual upload to.
+     * Communication with Neo4j's cloud console, resulting in some signed URI to do the actual upload to.
      */
     private URL initiateCopy( boolean verbose, URL importURL, long crc32Sum, long size, String bearerToken ) throws IOException
     {
@@ -495,7 +495,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
     }
 
     /**
-     * Makes initial contact with the signed URL we got back when talking to the ONgDB cloud console. This will create yet another URL which will be used to
+     * Makes initial contact with the signed URL we got back when talking to the Neo4j cloud console. This will create yet another URL which will be used to
      * upload the source to, potentially resumed if it gets interrupted in the middle.
      */
     private URL initiateResumableUpload( boolean verbose, URL signedURL ) throws IOException
@@ -742,9 +742,9 @@ public class HttpCopier implements PushToCloudCommand.Copier
     private CommandFailedException resumePossibleErrorResponse( HttpURLConnection connection, Path dump, String boltUri ) throws IOException
     {
         debugErrorResponse( true, connection );
-        return new CommandFailedException( "We encountered a problem while communicating to the ONgDB Aura system. \n" +
+        return new CommandFailedException( "We encountered a problem while communicating to the Neo4j Aura system. \n" +
                                            "You can re-try using the existing dump by running this command: \n" +
-                                           String.format( "ongdb-admin push-to-cloud --%s=%s --%s=%s", "dump", dump.toAbsolutePath(), "bolt-uri",
+                                           String.format( "neo4j-admin push-to-cloud --%s=%s --%s=%s", "dump", dump.toAbsolutePath(), "bolt-uri",
                                                           boltUri ) );
     }
 
@@ -752,7 +752,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
     {
         debugErrorResponse( true, connection );
         return new CommandFailedException(
-                "We encountered a problem while communicating to the ONgDB Aura system. " +
+                "We encountered a problem while communicating to the Neo4j Aura system. " +
                 "Please check that you are using the latest version of the push-to-cloud plugin and upgrade if necessary. " +
                 "If this problem persists after upgrading, please contact support and attach the logs shown below to your ticket in the support portal." );
     }
@@ -807,7 +807,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
         ProgressListener create( String text, long length );
     }
 
-    // Simple structs for mapping JSON to objects, used by the jackson parser which ONgDB happens to depend on anyway
+    // Simple structs for mapping JSON to objects, used by the jackson parser which Neo4j happens to depend on anyway
     @JsonIgnoreProperties( ignoreUnknown = true )
     private static class SignedURIBody
     {

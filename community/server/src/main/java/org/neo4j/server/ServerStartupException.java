@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -58,6 +58,6 @@ public class ServerStartupException extends RuntimeException
     {
         // By default, log the full error. The intention is that sub classes can override this and
         // specify less extreme logging options.
-        log.error( format( "Failed to start ONgDB: %s", getMessage() ), this );
+        log.error( format( "Failed to start Neo4j: %s", getMessage() ), this );
     }
 }

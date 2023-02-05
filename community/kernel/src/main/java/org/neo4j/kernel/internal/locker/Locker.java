@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -141,7 +141,7 @@ public class Locker implements Closeable
                 {
                     additionalInformation = String.format(
                             "Owner of the lock file '%s' and user running this process '%s' differs, which means this could be a file permission problem. " +
-                            "Ensure that the lock file has the same owner, or at least has write access for the user running the ONgDB process " +
+                            "Ensure that the lock file has the same owner, or at least has write access for the user running the Neo4j process " +
                             "trying to lock it", lockFileOwner, processUserName );
                 }
                 // else no useful additional information can be provided
@@ -157,7 +157,7 @@ public class Locker implements Closeable
                         additionalInformation = String.format(
                                 "Owner of the directory of the lock file '%s' and user running this process '%s' differs, which means this could be a " +
                                 "file permission problem. Ensure that the lock file directory (and lock file it it exists) has the same owner, " +
-                                "or at least has write access for the user running the ONgDB process trying to lock it",
+                                "or at least has write access for the user running the Neo4j process trying to lock it",
                                 lockDirectoryOwner, processUserName );
                     }
                     // else no useful additional information can be provided

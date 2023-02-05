@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -62,22 +62,22 @@ class FromPathsIT
     @Inject
     private TestDirectory testDirectory;
 
-    private Path ongdb1Directory;
+    private Path neo4j1Directory;
     private Path mongo1Directory;
     private Path redis1Directory;
     private Path dbRoot1Directory;
-    private Path ongdb2Directory;
+    private Path neo4j2Directory;
     private Path dbRoot2Directory;
 
     @BeforeEach
     void setUp()
     {
-        this.ongdb1Directory = testDirectory.directory( "ongdb", "db1" );
+        this.neo4j1Directory = testDirectory.directory( "neo4j", "db1" );
         this.mongo1Directory = testDirectory.directory( "mongo", "db1" );
         this.redis1Directory = testDirectory.directory( "redis", "db1" );
-        this.ongdb2Directory = testDirectory.directory( "ongdb", "db2" );
-        this.dbRoot1Directory = ongdb1Directory.getParent();
-        this.dbRoot2Directory = ongdb2Directory.getParent();
+        this.neo4j2Directory = testDirectory.directory( "neo4j", "db2" );
+        this.dbRoot1Directory = neo4j1Directory.getParent();
+        this.dbRoot2Directory = neo4j2Directory.getParent();
     }
 
     @Test
@@ -92,16 +92,16 @@ class FromPathsIT
     @Test
     void shouldGetAllFoldersThatMatchIfFilterIsApplied()
     {
-        assertThat( new FromPaths( concatenateSubPath( dbRoot1Directory.toAbsolutePath().toString(), "o*" ) )
-                            .getPaths() ).containsAll( Set.of( ongdb1Directory ) );
-        assertThat( new FromPaths( concatenateSubPath( dbRoot1Directory.toAbsolutePath().toString(), "ongd?" ) )
-                            .getPaths() ).containsAll( Set.of( ongdb1Directory ) );
-        assertThat( new FromPaths( concatenateSubPath( dbRoot1Directory.toAbsolutePath().toString(), "ongdb" ) )
-                            .getPaths() ).containsAll( Set.of( ongdb1Directory ) );
-        assertThat( new FromPaths( concatenateSubPath( dbRoot1Directory.toAbsolutePath().toString(), "*ngd*" ) )
-                            .getPaths() ).containsAll( Set.of( ongdb1Directory ) );
+        assertThat( new FromPaths( concatenateSubPath( dbRoot1Directory.toAbsolutePath().toString(), "n*" ) )
+                            .getPaths() ).containsAll( Set.of( neo4j1Directory ) );
+        assertThat( new FromPaths( concatenateSubPath( dbRoot1Directory.toAbsolutePath().toString(), "neo4?" ) )
+                            .getPaths() ).containsAll( Set.of( neo4j1Directory ) );
+        assertThat( new FromPaths( concatenateSubPath( dbRoot1Directory.toAbsolutePath().toString(), "neo4j" ) )
+                            .getPaths() ).containsAll( Set.of( neo4j1Directory ) );
+        assertThat( new FromPaths( concatenateSubPath( dbRoot1Directory.toAbsolutePath().toString(), "*4*" ) )
+                            .getPaths() ).containsAll( Set.of( neo4j1Directory ) );
         assertThat( new FromPaths( concatenateSubPath( dbRoot1Directory.toAbsolutePath().toString(), "*" ) ).getPaths() ).containsAll(
-                Set.of( ongdb1Directory, mongo1Directory, redis1Directory ) );
+                Set.of( neo4j1Directory, mongo1Directory, redis1Directory ) );
     }
 
     @Test
@@ -129,10 +129,10 @@ class FromPathsIT
     @Test
     void shouldGetAllFoldersFromTheListOfPathsIfFilterIsApplied()
     {
-        final var filteredPaths = new FromPaths( concatenateSubPath( dbRoot1Directory.toAbsolutePath().toString(), "o*" ) + ", "
-                                                 + concatenateSubPath( dbRoot2Directory.toAbsolutePath().toString(), "o*" ) ).getPaths();
+        final var filteredPaths = new FromPaths( concatenateSubPath( dbRoot1Directory.toAbsolutePath().toString(), "n*" ) + ", "
+                                                 + concatenateSubPath( dbRoot2Directory.toAbsolutePath().toString(), "n*" ) ).getPaths();
 
-        final var expected = Set.of( ongdb1Directory, ongdb2Directory );
+        final var expected = Set.of( neo4j1Directory, neo4j2Directory );
         assertThat( filteredPaths ).containsAll( expected );
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -96,3 +96,5 @@ case class SubqueryVariableShadowing(position: InputPosition, varName: String) e
 case class MissingAliasNotification(pos: InputPosition) extends InternalNotification
 
 case class DeprecatedAmbiguousGroupingNotification(pos: InputPosition, hint: Option[String]) extends InternalNotification
+
+case class DeprecatedUseOfNullInCaseExpression(pos: InputPosition) extends InternalNotification

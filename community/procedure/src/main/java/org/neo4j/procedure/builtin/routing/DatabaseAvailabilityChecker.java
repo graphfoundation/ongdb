@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -62,7 +62,7 @@ public interface DatabaseAvailabilityChecker
 
     /**
      * @param databaseReference the database reference to check
-     * @return whether this database is present on this ONgDB instance
+     * @return whether this database is present on this Neo4j instance
      */
     boolean isPresent( DatabaseReference.Internal databaseReference );
 }

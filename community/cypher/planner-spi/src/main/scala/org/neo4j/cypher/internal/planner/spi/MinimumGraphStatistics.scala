@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -75,7 +75,7 @@ class MinimumGraphStatistics(delegate: GraphStatistics) extends DelegatingGraphS
       delegate.indexPropertyIsNotNullSelectivity(index).map {actualSelectivity =>
         nodesWithLabelCardinality(Some(label)) match {
           case MinimumGraphStatistics.MIN_NODES_WITH_LABEL_CARDINALITY =>
-            Seq(actualSelectivity, MinimumGraphStatistics.MIN_INDEX_PROPERTY_EXISTS_SELECTIVITY).max
+            MinimumGraphStatistics.MIN_INDEX_PROPERTY_EXISTS_SELECTIVITY
           case _ => actualSelectivity
         }
       }
@@ -84,7 +84,7 @@ class MinimumGraphStatistics(delegate: GraphStatistics) extends DelegatingGraphS
       delegate.indexPropertyIsNotNullSelectivity(index).map {actualSelectivity =>
         patternStepCardinality(None, Some(relType), None) match {
           case MinimumGraphStatistics.MIN_PATTERN_STEP_CARDINALITY =>
-            Seq(actualSelectivity, MinimumGraphStatistics.MIN_INDEX_PROPERTY_EXISTS_SELECTIVITY).max
+            MinimumGraphStatistics.MIN_INDEX_PROPERTY_EXISTS_SELECTIVITY
           case _ => actualSelectivity
         }
       }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -61,13 +61,15 @@ import org.neo4j.values.virtual.MapValue
 import org.scalatest.mockito.MockitoSugar
 
 import java.time.Clock
+import scala.reflect.ClassTag
+
 
 object ContextHelper extends MockitoSugar {
   def create(cypherExceptionFactory: CypherExceptionFactory = Neo4jCypherExceptionFactory("<QUERY>", None),
              tracer: CompilationPhaseTracer = NO_TRACING,
              notificationLogger: InternalNotificationLogger = devNullLogger,
              planContext: PlanContext = new NotImplementedPlanContext,
-             monitors: Monitors = mock[Monitors],
+             monitors: Monitors = MockedMonitors,
              metrics: Metrics = mock[Metrics],
              config: CypherPlannerConfiguration = mock[CypherPlannerConfiguration],
              queryGraphSolver: QueryGraphSolver = mock[QueryGraphSolver],
@@ -78,8 +80,17 @@ object ContextHelper extends MockitoSugar {
              params: MapValue = MapValue.EMPTY,
              executionModel: ExecutionModel = ExecutionModel.default,
              cancellationChecker: CancellationChecker = CancellationChecker.NeverCancelled,
-            ): PlannerContext = {
+            materializedEntitiesMode: Boolean = false): PlannerContext = {
     new PlannerContext(cypherExceptionFactory, tracer, notificationLogger, planContext,
-      monitors, metrics, config, queryGraphSolver, updateStrategy, debugOptions, clock, logicalPlanIdGen, params, executionModel, cancellationChecker)
+      monitors, metrics, config, queryGraphSolver, updateStrategy, debugOptions, clock, logicalPlanIdGen, params, executionModel, cancellationChecker,
+      materializedEntitiesMode
+    )
+  }
+
+  object MockedMonitors extends Monitors {
+    override def addMonitorListener[T](monitor: T, tags: String*): Unit = {}
+    override def newMonitor[T <: AnyRef : ClassTag](tags: String*): T = {
+      mock[T]
+    }
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -69,10 +69,10 @@ public class PrimitiveLongIntKeyValueArray
         {
             throw new IllegalArgumentException( "Illegal growth factor: " + growthFactor );
         }
-        naturalKeys = new long[DEFAULT_INITIAL_CAPACITY];
-        naturalValues = new int[DEFAULT_INITIAL_CAPACITY];
-        sortedKeys = new long[DEFAULT_INITIAL_CAPACITY];
-        sortedValues = new int[DEFAULT_INITIAL_CAPACITY];
+        naturalKeys = new long[initialCapacity];
+        naturalValues = new int[initialCapacity];
+        sortedKeys = new long[initialCapacity];
+        sortedValues = new int[initialCapacity];
         this.growthFactor = growthFactor;
     }
 

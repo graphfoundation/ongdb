@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -150,7 +150,7 @@ public class ConfiguringPageCacheFactory
             log.warn( "The " + pagecache_memory.name() + " setting has not been configured. It is recommended that this " +
                       "setting is always explicitly configured, to ensure the system has a balanced configuration. " +
                       "Until then, a computed heuristic value of " + heuristic + " bytes will be used instead. " +
-                      "Run `ongdb-admin memrec` for memory configuration suggestions." );
+                      "Run `neo4j-admin memrec` for memory configuration suggestions." );
             pageCacheMemorySetting = "" + heuristic;
         }
         return ByteUnit.parse( pageCacheMemorySetting );

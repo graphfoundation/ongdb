@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -114,7 +114,7 @@ public class Neo4jPackV1 implements Neo4jPack
 
     protected static class PackerV1 extends PackStream.Packer implements AnyValueWriter<IOException>, Neo4jPack.Packer
     {
-        private static final int INITIAL_PATH_CAPACITY = 500;
+        private static final int INITIAL_PATH_CAPACITY = 100;
         private static final int NO_SUCH_ID = -1;
         // Used by Path which requires a map that 1) reserves insertion order,
         // 2) contains no duplicate of keys, 3) can use long as keys without boxing and unboxing.

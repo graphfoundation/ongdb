@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -72,7 +72,8 @@ case class OptionalExpandIntoPipe(source: Pipe,
 
   protected def internalCreateResults(input: ClosingIterator[CypherRow], state: QueryState): ClosingIterator[CypherRow] = {
     val query = state.query
-    val expandInto = new CachingExpandInto(query.transactionalContext.dataRead, kernelDirection, state.memoryTrackerForOperatorProvider.memoryTrackerForOperator(id.x))
+    val expandInto = new CachingExpandInto(query.transactionalContext.kernelQueryContext, kernelDirection, state.memoryTrackerForOperatorProvider.memoryTrackerForOperator(id.x))
+
     state.query.resources.trace(expandInto)
     input.flatMap {
       row =>

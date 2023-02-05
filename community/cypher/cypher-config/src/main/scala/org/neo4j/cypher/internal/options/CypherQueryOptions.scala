@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -93,6 +93,10 @@ object CypherQueryOptions {
         throw new InvalidCypherOption(s"Unsupported options: $keys")
 
       case OptionReader.Result(_, options) =>
+        if (options.debugOptions.generateJavaSourceEnabled && !config.allowSourceGeneration) {
+          throw new InvalidCypherOption("In order to use source generation you need to enable " +
+            "`internal.cypher.pipelined.allow_source_generation`")
+        }
         options
     }
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -81,7 +81,7 @@ class DefaultStoreSnapshotFactoryTest
     {
         var database = mock( Database.class );
         fileListingBuilder = mock( StoreFileListing.Builder.class, CALLS_REAL_METHODS );
-        databaseLayout = DatabaseLayout.ofFlat( testDirectory.directory( "ongdb", "data", "databases" ) );
+        databaseLayout = DatabaseLayout.ofFlat( testDirectory.directory( "neo4j", "data", "databases" ) );
         when( database.getDatabaseLayout() ).thenReturn( databaseLayout );
         var availabilityGuard = mock( DatabaseAvailabilityGuard.class );
         when( availabilityGuard.isAvailable() ).thenReturn( true );

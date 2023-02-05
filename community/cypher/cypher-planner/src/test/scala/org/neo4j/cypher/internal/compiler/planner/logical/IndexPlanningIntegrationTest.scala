@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -39,9 +39,11 @@
 package org.neo4j.cypher.internal.compiler.planner.logical
 
 import org.neo4j.cypher.internal.ast.AstConstructionTestSupport
+import org.neo4j.cypher.internal.compiler.planner.LogicalPlanningAttributesTestSupport
 import org.neo4j.cypher.internal.compiler.planner.LogicalPlanningIntegrationTestSupport
 import org.neo4j.cypher.internal.compiler.planner.StatisticsBackedLogicalPlanningConfiguration
 import org.neo4j.cypher.internal.expressions.SemanticDirection
+import org.neo4j.cypher.internal.ir.EagernessReason
 import org.neo4j.cypher.internal.logical.builder.AbstractLogicalPlanBuilder.createNode
 import org.neo4j.cypher.internal.logical.builder.AbstractLogicalPlanBuilder.createNodeWithProperties
 import org.neo4j.cypher.internal.logical.builder.AbstractLogicalPlanBuilder.createRelationship
@@ -51,11 +53,16 @@ import org.neo4j.cypher.internal.util.symbols.CTAny
 import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 import org.neo4j.graphdb.schema.IndexType
 
+import scala.collection.immutable.ListSet
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
-class IndexPlanningIntegrationTest extends CypherFunSuite with LogicalPlanningIntegrationTestSupport with AstConstructionTestSupport {
+class IndexPlanningIntegrationTest
+  extends CypherFunSuite
+  with LogicalPlanningIntegrationTestSupport
+  with AstConstructionTestSupport
+  with LogicalPlanningAttributesTestSupport {
 
   private def plannerConfigForIndexOnLabelPropTests(): StatisticsBackedLogicalPlanningConfiguration =
     plannerBuilder()
@@ -672,6 +679,7 @@ class IndexPlanningIntegrationTest extends CypherFunSuite with LogicalPlanningIn
 
     val plan = planner.plan(query).stripProduceResults
     plan shouldEqual planner.subPlanBuilder()
+      .eager(Seq(EagernessReason.Unknown))
       .apply(fromSubquery = true)
       .|.setNodeProperty("n", "prop", "c")
       .|.eager()
@@ -803,6 +811,7 @@ class IndexPlanningIntegrationTest extends CypherFunSuite with LogicalPlanningIn
 
     val plan = planner.plan(query).stripProduceResults
     plan shouldEqual planner.subPlanBuilder()
+      .eager(Seq(EagernessReason.Unknown))
       .apply(fromSubquery = true)
       .|.setRelationshipProperty("r", "prop", "c")
       .|.eager()
@@ -1191,5 +1200,23 @@ class IndexPlanningIntegrationTest extends CypherFunSuite with LogicalPlanningIn
         .nodeIndexOperator("a:A(prop > 10)")
         .build()
     }
+  }
+
+  test("should plan a unique index seek with a single estimated row") {
+    val planner = plannerBuilder()
+      .enableMinimumGraphStatistics()
+      .setAllNodesCardinality(1)
+      .setLabelCardinality("User", 1)
+      .addNodeIndex("User", Seq("id"), 1.0, 1.0, isUnique = true)
+      .build()
+
+    val query = "MATCH (u:User {id: 123}) RETURN u"
+
+    val expected = planner.planBuilder()
+      .produceResults("u").withCardinality(1)
+      .nodeIndexOperator("u:User(id = 123)", unique = true).withCardinality(1)
+
+    val actual = planner.planState(query)
+    actual should haveSameCardinalitiesAs(expected)
   }
 }

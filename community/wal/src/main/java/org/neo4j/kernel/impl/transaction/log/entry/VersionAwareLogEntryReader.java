@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -112,7 +112,7 @@ public class VersionAwareLogEntryReader implements LogEntryReader
                     {
                         throw new UnsupportedLogVersionException( String.format(
                                 "Log file contains entries with prefix %d, and the lowest supported prefix is %s. This " +
-                                        "indicates that the log files originates from an older version of ONgDB, which we don't support " +
+                                        "indicates that the log files originates from an older version of neo4j, which we don't support " +
                                         "migrations from.",
                                 versionCode, KernelVersion.V2_3 ) );
                     }

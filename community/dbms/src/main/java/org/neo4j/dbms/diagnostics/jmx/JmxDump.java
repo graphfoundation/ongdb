@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -156,7 +156,7 @@ public class JmxDump
             @Override
             public InputStream newInputStream() throws IOException
             {
-                final Path heapdumpFile = createTempFile( "ongdb-heapdump", ".hprof" ).toAbsolutePath();
+                final Path heapdumpFile = createTempFile( "neo4j-heapdump", ".hprof" ).toAbsolutePath();
                 deleteIfExists( heapdumpFile );
                 heapDump( heapdumpFile.toString() );
                 return new FileInputStream( heapdumpFile.toFile() )

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -134,7 +134,7 @@ case class QueryGraph( // !!! If you change anything here, make sure to update t
       patternComprehensions ++
       patternExpressions ++
       patterns
-    allQgsWithLeafInfo.map(QgWithLeafInfo.qgWithNoStableIdentifierAndOnlyLeaves) ++
+    allQgsWithLeafInfo.map(qg => QgWithLeafInfo.qgWithNoStableIdentifierAndOnlyLeaves(qg)) ++
       optionalMatches.flatMap(_.allQGsWithLeafInfo)
   }
 
@@ -268,14 +268,21 @@ case class QueryGraph( // !!! If you change anything here, make sure to update t
     inlinedTypes ++ whereClauseTypes ++ whereClauseLabelOrTypes
   }
 
+  private def traverseAllQueryGraphs[A](f: QueryGraph => Set[A]): Set[A] =
+    f(this) ++
+      optionalMatches.flatMap(_.traverseAllQueryGraphs(f))
+
   def allPossibleLabelsOnNode(node: String): Set[LabelName] =
-    possibleLabelsOnNode(node) ++ optionalMatches.flatMap(_.allPossibleLabelsOnNode(node))
+    traverseAllQueryGraphs(_.possibleLabelsOnNode(node))
 
   def allPossibleTypesOnRel(rel: String): Set[RelTypeName] =
-    possibleTypesOnRel(rel) ++ optionalMatches.flatMap(_.allPossibleTypesOnRel(rel))
+    traverseAllQueryGraphs(_.possibleTypesOnRel(rel))
 
   def allKnownPropertiesOnIdentifier(idName: String): Set[PropertyKeyName] =
-    knownProperties(idName) ++ optionalMatches.flatMap(_.allKnownPropertiesOnIdentifier(idName))
+    traverseAllQueryGraphs(_.knownProperties(idName))
+
+  def allSelections: Selections =
+    Selections(traverseAllQueryGraphs(_.selections.predicates))
 
   def findRelationshipsEndingOn(id: String): Set[PatternRelationship] =
     patternRelationships.filter { r => r.left == id || r.right == id }
@@ -533,7 +540,7 @@ case class QueryGraph( // !!! If you change anything here, make sure to update t
 }
 
 object QueryGraph {
-  val empty: QueryGraph = QueryGraph()
+  def empty: QueryGraph = QueryGraph()
 
   def coveredIdsForPatterns(patternNodeIds: Set[String], patternRels: Set[PatternRelationship]): Set[String] = {
     val patternRelIds = patternRels.flatMap(_.coveredIds)

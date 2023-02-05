@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -78,7 +78,7 @@ object Neo4jValueRecords {
       row: Map[String, CypherValue] =>
         record.header.map { columnName =>
           val value = row(columnName)
-          val convertedValue = TCKValueToONgDBValue(value)
+          val convertedValue = TCKValueToNeo4jValue(value)
           convertedValue
         }.toArray
     }

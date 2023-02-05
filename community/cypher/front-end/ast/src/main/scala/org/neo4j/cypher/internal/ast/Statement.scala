@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,6 +39,9 @@ import org.neo4j.cypher.internal.util.ASTNode
 trait Statement extends ASTNode {
   def semanticCheck: SemanticCheck
 
+  /**
+   * All variables that are explicitly listed to be returned from this statement.
+   */
   def returnColumns: List[LogicalVariable]
 
   /**

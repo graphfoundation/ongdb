@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -82,7 +82,7 @@ public class AbstractRestFunctionalTestBase extends SharedWebContainerTestBase i
 
     private static String defaultDatabaseUri()
     {
-        return databaseUri( "ongdb" );
+        return databaseUri( "neo4j" );
     }
 
     private static String databaseUri( String databaseName )

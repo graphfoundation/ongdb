@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -57,7 +57,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.neo4j.configuration.SettingValueParsers.INT;
 import static org.neo4j.server.NeoBootstrapper.SIGINT;
 import static org.neo4j.server.NeoBootstrapper.SIGTERM;
-import static org.neo4j.server.startup.Bootloader.ENV_ONGDB_START_WAIT;
+import static org.neo4j.server.startup.Bootloader.ENV_NEO4J_START_WAIT;
 
 class ProcessManager
 {
@@ -169,8 +169,8 @@ class ProcessManager
         if ( behaviour.homeAndConfAsEnv )
         {
             Map<String,String> env = processBuilder.environment();
-            env.putIfAbsent( Bootloader.ENV_ONGDB_HOME, ctx.home().toString() );
-            env.putIfAbsent( Bootloader.ENV_ONGDB_CONF, ctx.confDir().toString() );
+            env.putIfAbsent( Bootloader.ENV_NEO4J_HOME, ctx.home().toString() );
+            env.putIfAbsent( Bootloader.ENV_NEO4J_CONF, ctx.confDir().toString() );
         }
 
         Process process = null;
@@ -196,7 +196,7 @@ class ProcessManager
             }
             else
             {
-                process.waitFor( ctx.getEnv( ENV_ONGDB_START_WAIT, 0, INT ), SECONDS );
+                process.waitFor( ctx.getEnv( ENV_NEO4J_START_WAIT, 0, INT ), SECONDS );
             }
 
             if ( !process.isAlive() )
@@ -244,7 +244,7 @@ class ProcessManager
             Signal.handle( new Signal( signal ), s -> onExit.run() );
         }
         catch ( Throwable ignored )
-        { //If we for some reason can't install this signal we may just return a different exit code than the actual ongdb-process. No big deal
+        { //If we for some reason can't install this signal we may just return a different exit code than the actual neo4j-process. No big deal
         }
     }
 

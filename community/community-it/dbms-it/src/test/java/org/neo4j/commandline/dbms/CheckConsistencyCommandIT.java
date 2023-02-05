@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -130,7 +130,7 @@ class CheckConsistencyCommandIT
                 "%n" +
                 "All checks except 'check-graph' can be quite expensive so it may be useful to%n" +
                 "turn them off for very large databases. Increasing the heap size can also be a%n" +
-                "good idea. See 'ongdb-admin help' for details.%n" +
+                "good idea. See 'neo4j-admin help' for details.%n" +
                 "%n" +
                 "OPTIONS%n" +
                 "%n" +

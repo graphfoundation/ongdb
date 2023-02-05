@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -74,8 +74,8 @@ import static picocli.CommandLine.Command;
 
 @Command(
         name = "store-info",
-        header = "Print information about an ONgDB database store.",
-        description = "Print information about an ONgDB database store, such as what version of ONgDB created it."
+        header = "Print information about a Neo4j database store.",
+        description = "Print information about a Neo4j database store, such as what version of Neo4j created it."
 )
 public class StoreInfoCommand extends AbstractCommand
 {
@@ -179,10 +179,10 @@ public class StoreInfoCommand extends AbstractCommand
             var txIdStore = storageEngineFactory.readOnlyTransactionIdStore( fs, databaseLayout, pageCache, CursorContext.NULL );
             var lastTxId = txIdStore.getLastCommittedTransactionId(); // Latest committed tx id found in metadata store. May be behind if recovery is required.
             var successorString = versionInformation.successorStoreVersion().map(
-                    successor -> storageEngineFactory.versionInformation( successor ).introductionONgDBVersion() ).orElse( null );
+                    successor -> storageEngineFactory.versionInformation( successor ).introductionNeo4jVersion() ).orElse( null );
             var storeInfo = StoreInfo.notInUseResult( databaseLayout.getDatabaseName(),
                     storeVersion,
-                    versionInformation.introductionONgDBVersion(),
+                    versionInformation.introductionNeo4jVersion(),
                     successorString,
                     lastTxId,
                     recoveryRequired );

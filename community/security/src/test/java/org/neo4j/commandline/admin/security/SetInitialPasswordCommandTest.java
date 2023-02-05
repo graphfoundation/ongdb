@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -82,8 +82,8 @@ class SetInitialPasswordCommandTest
                                                                        testDir.directory( "conf" ), mock( PrintStream.class ), mock( PrintStream.class ),
                                                                        fileSystem ) );
 
-        authInitFile = CommunitySecurityModule.getInitialUserRepositoryFile( command.loadONgDBConfig() );
-        CommunitySecurityModule.getUserRepositoryFile( command.loadONgDBConfig() );
+        authInitFile = CommunitySecurityModule.getInitialUserRepositoryFile( command.loadNeo4jConfig() );
+        CommunitySecurityModule.getUserRepositoryFile( command.loadNeo4jConfig() );
     }
 
     @Test
@@ -99,7 +99,7 @@ class SetInitialPasswordCommandTest
                         "set-initial-password [--expand-commands] [--require-password-change]%n" +
                         "                     [--verbose] <password>%n" +
                         "%n" + "DESCRIPTION%n" + "%n" +
-                        "Sets the initial password of the initial admin user ('ongdb'). And removes the%n" +
+                        "Sets the initial password of the initial admin user ('neo4j'). And removes the%n" +
                         "requirement to change password on first login. IMPORTANT: this change will only%n" +
                         "take effect if performed before the database is started for the first time.%n" +
                         "%n" + "PARAMETERS%n" + "%n" +
@@ -143,11 +143,11 @@ class SetInitialPasswordCommandTest
     @Test
     void shouldWorkAlsoWithSamePassword() throws Throwable
     {
-        CommandLine.populateCommand( command, "ongdb" );
+        CommandLine.populateCommand( command, "neo4j" );
         command.execute();
 
         // Then
-        assertAuthIniFile( "ongdb" );
+        assertAuthIniFile( "neo4j" );
     }
 
     private void assertAuthIniFile( String password ) throws Throwable

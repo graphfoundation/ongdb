@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -56,7 +56,7 @@ import static org.neo4j.io.pagecache.context.CursorContext.NULL;
 @PageCacheExtension
 public class FreeListIdProviderTracersTest
 {
-    private static final String DATABASE_NAME = "ongdb";
+    private static final String DATABASE_NAME = "neo4j";
     @Inject
     private PageCache pageCache;
     @Inject

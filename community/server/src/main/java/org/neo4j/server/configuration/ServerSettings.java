@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -88,8 +88,8 @@ public class ServerSettings implements SettingsDeclaration
     public static final Setting<Integer> maximum_response_header_size =
             newBuilder( "unsupported.dbms.max_http_response_header_size", INT, 20480 ).build();
 
-    @Description( "Number of ONgDB worker threads. This setting is only valid for REST, and does not influence bolt-server. " +
-            "It sets the amount of worker threads for the Jetty server used by ongdb-server. " +
+    @Description( "Number of Neo4j worker threads. This setting is only valid for REST, and does not influence bolt-server. " +
+            "It sets the amount of worker threads for the Jetty server used by neo4j-server. " +
             "This option can be tuned when you plan to execute multiple, concurrent REST requests, " +
             "with the aim of getting more throughput from the database. " +
             "Your OS might enforce a lower limit than the maximum value specified here." )
@@ -173,12 +173,12 @@ public class ServerSettings implements SettingsDeclaration
     public static final Setting<String> http_strict_transport_security = newBuilder( "dbms.security.http_strict_transport_security", STRING, null ).build();
 
     @Deprecated( since = "4.2.0", forRemoval = true )
-    @Description( "Defines a whitelist of http paths where ONgDB authentication is not required. " +
+    @Description( "Defines a whitelist of http paths where Neo4j authentication is not required. " +
                   "Deprecated, use dbms.security.http_auth_allowlist" )
     public static final Setting<List<String>> http_auth_whitelist =
             newBuilder( "dbms.security.http_auth_whitelist", listOf( STRING ), List.of( "/", "/browser.*" ) ).build();
 
-    @Description( "Defines an allowlist of http paths where ONgDB authentication is not required." )
+    @Description( "Defines an allowlist of http paths where Neo4j authentication is not required." )
     public static final Setting<List<String>> http_auth_allowlist =
             newBuilder( "dbms.security.http_auth_allowlist", listOf( STRING ), List.of( "/", "/browser.*" ) ).build();
 
@@ -187,7 +187,7 @@ public class ServerSettings implements SettingsDeclaration
     public static final Setting<List<String>> http_paths_blacklist =
             newBuilder( "unsupported.dbms.http_paths_blacklist", listOf( STRING ), emptyList() ).build();
 
-    @Description( "Defines the set of modules loaded into the ONgDB web server. " +
+    @Description( "Defines the set of modules loaded into the Neo4j web server. " +
                   "Options include TRANSACTIONAL_ENDPOINTS, BROWSER, UNMANAGED_EXTENSIONS and ENTERPRISE_MANAGEMENT_ENDPOINTS (if applicable)." )
     public static final Setting<Set<ConfigurableServerModules>> http_enabled_modules =
             newBuilder( "dbms.http_enabled_modules",
@@ -202,19 +202,19 @@ public class ServerSettings implements SettingsDeclaration
             newBuilder( "unsupported.dbms.discoverable_bolt_address", SettingValueParsers.URI, SettingValueParsers.URI.parse( "" ) ).build();
 
     @Internal
-    @Description( "Publicly discoverable ongdb:// URI to use for Neo4j Drivers wanting to access a cluster or a single instance." )
+    @Description( "Publicly discoverable neo4j:// URI to use for Neo4j Drivers wanting to access a cluster or a single instance." )
     @DocumentedDefaultValue( "Defaults to empty on any deployment that is not a causal cluster core, and a " +
-            "ongdb://-schemed URI of the advertised address of the bolt connector." )
+            "neo4j://-schemed URI of the advertised address of the bolt connector." )
     public static final Setting<URI> bolt_routing_discoverable_address =
             newBuilder( "unsupported.dbms.discoverable_bolt_routing_address", SettingValueParsers.URI, SettingValueParsers.URI.parse( "" ) ).build();
 
     @SuppressWarnings( "unused" ) // accessed from the browser
-    @Description( "Commands to be run when ONgDB Browser successfully connects to this server. Separate multiple " +
+    @Description( "Commands to be run when Neo4j Browser successfully connects to this server. Separate multiple " +
             "commands with semi-colon." )
     public static final Setting<String> browser_post_connect_cmd = newBuilder( "browser.post_connect_cmd", STRING, "" ).build();
 
     @SuppressWarnings( "unused" ) // accessed from the browser
-    @Description( "Whitelist of hosts for the ONgDB Browser to be allowed to fetch content from." )
+    @Description( "Whitelist of hosts for the Neo4j Browser to be allowed to fetch content from." )
     public static final Setting<String> browser_remote_content_hostname_whitelist =
             newBuilder( "browser.remote_content_hostname_whitelist", STRING, "guides.neo4j.com,localhost" ).build();
 

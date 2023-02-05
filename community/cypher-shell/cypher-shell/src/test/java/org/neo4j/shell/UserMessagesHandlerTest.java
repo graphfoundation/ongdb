@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -55,7 +55,7 @@ class UserMessagesHandlerTest
         when( connectionConfig.driverUrl() ).thenReturn( "bolt://some.place.com:99" );
 
         UserMessagesHandler userMessagesHandler = new UserMessagesHandler( connectionConfig, "3.0" );
-        assertEquals( "Connected to ONgDB using Bolt protocol version 3.0 at @|BOLD bolt://some.place.com:99|@ as user @|BOLD bob|@.\n" +
+        assertEquals( "Connected to Neo4j using Bolt protocol version 3.0 at @|BOLD bolt://some.place.com:99|@ as user @|BOLD bob|@.\n" +
                       "Type @|BOLD :help|@ for a list of available commands or @|BOLD :exit|@ to exit the shell.\n" +
                       "Note that Cypher queries must end with a @|BOLD semicolon.|@",
                       userMessagesHandler.getWelcomeMessage() );

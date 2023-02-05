@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -38,6 +38,7 @@
  */
 package org.neo4j.graphdb.traversal;
 
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.Path;
 
 /**
@@ -51,6 +52,7 @@ import org.neo4j.graphdb.Path;
  * @see Evaluators
  * @see TraversalDescription#evaluator(Evaluator)
  */
+@PublicApi
 public interface Evaluator
 {
     /**

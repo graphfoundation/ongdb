@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -102,6 +102,7 @@ import org.neo4j.cypher.internal.logical.plans.UndirectedRelationshipByIdSeek
 import org.neo4j.cypher.internal.logical.plans.UndirectedRelationshipTypeScan
 import org.neo4j.cypher.internal.logical.plans.Union
 import org.neo4j.cypher.internal.planner.spi.DelegatingGraphStatistics
+import org.neo4j.cypher.internal.planner.spi.IndexDescriptor
 import org.neo4j.cypher.internal.planner.spi.MinimumGraphStatistics
 import org.neo4j.cypher.internal.planner.spi.PlanningAttributes.Cardinalities
 import org.neo4j.cypher.internal.planner.spi.PlanningAttributes.ProvidedOrders
@@ -110,10 +111,10 @@ import org.neo4j.cypher.internal.util.Cost
 import org.neo4j.cypher.internal.util.LabelId
 import org.neo4j.cypher.internal.util.NonEmptyList
 import org.neo4j.cypher.internal.util.RelTypeId
+import org.neo4j.cypher.internal.util.Selectivity
 import org.neo4j.cypher.internal.util.symbols.CTAny
 import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 import org.neo4j.cypher.internal.util.test_helpers.Extractors.SetExtractor
-import org.neo4j.exceptions.HintException
 import org.neo4j.exceptions.IndexHintException
 import org.neo4j.graphdb.schema.IndexType
 
@@ -981,7 +982,7 @@ class LeafPlanningIntegrationTest extends CypherFunSuite with LogicalPlanningTes
     val expandB = Expand(scanA, "a", INCOMING, Seq.empty, "b", "rB", ExpandAll)
     val selectionB = Selection(Seq(hasLabels("b", "B")), expandB)
     val expandC = Expand(selectionB, "a", INCOMING, Seq.empty, "c", "rC", ExpandAll)
-    val selectionC = Selection(Seq(hasLabels("c", "C"), not(equals(varFor("rB"), varFor("rC")))), expandC)
+    val selectionC = Selection(Seq(hasLabels("c", "C"), not(equals(varFor("rC"), varFor("rB")))), expandC)
     val expected = selectionC
 
     plan should equal(expected)
@@ -1365,5 +1366,24 @@ class LeafPlanningIntegrationTest extends CypherFunSuite with LogicalPlanningTes
       .build()
 
     plan shouldEqual expectedPlan
+  }
+
+  test("should plan a unique index seek with a single estimated row") {
+    val query = "MATCH (u:User {id: 123}) RETURN u"
+
+    val (_, plan, _, attributes) = new given {
+      uniqueIndexOn("User", "id")
+      statistics = new MinimumGraphStatistics(
+        new DelegatingGraphStatistics(parent.graphStatistics) {
+          override def nodesWithLabelCardinality(labelId: Option[LabelId]): Cardinality = Cardinality.SINGLE
+          override def nodesAllCardinality(): Cardinality = Cardinality.SINGLE
+          override def indexPropertyIsNotNullSelectivity(index: IndexDescriptor): Option[Selectivity] = Some(Selectivity.ONE)
+          override def uniqueValueSelectivity(index: IndexDescriptor): Option[Selectivity] = Some(Selectivity.ONE)
+        }
+      )
+    } getLogicalPlanFor query
+
+    plan shouldBe a[NodeUniqueIndexSeek]
+    attributes.cardinalities.get(plan.id) shouldBe Cardinality.SINGLE
   }
 }

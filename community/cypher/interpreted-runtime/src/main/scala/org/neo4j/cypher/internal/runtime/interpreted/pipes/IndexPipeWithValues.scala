@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -132,9 +132,12 @@ trait IndexPipeWithValues extends Pipe {
           val relScanCursor = state.cursors.relationshipScanCursor
           queryContext.singleRelationship(lastRelationship.id(), relScanCursor)
           if (relScanCursor.next()) {
-            lastStart = queryContext.nodeById(relScanCursor.sourceNodeReference())
-            lastEnd = queryContext.nodeById(relScanCursor.targetNodeReference())
-            emitSibling = true
+            val start = relScanCursor.sourceNodeReference()
+            val end = relScanCursor.targetNodeReference()
+            lastStart = queryContext.nodeById(start)
+            lastEnd = queryContext.nodeById(end)
+            // For self-loops, we don't emit sibling
+            emitSibling = start != end
             ctx = rowFactory.copyWith(baseContext, ident, lastRelationship, startNode, lastStart, endNode, lastEnd)
           }
         }

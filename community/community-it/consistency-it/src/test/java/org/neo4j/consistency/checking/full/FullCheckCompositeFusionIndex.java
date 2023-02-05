@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -78,14 +78,14 @@ public class FullCheckCompositeFusionIndex
         DatabaseManagementService managementService = new TestDatabaseManagementServiceBuilder()
                 .setDatabaseRootDirectory( dir.homePath() )
                 .build();
-        GraphDatabaseService ongdb = managementService.database( "ongdb" );
+        GraphDatabaseService neo4j = managementService.database( "neo4j" );
 
-        try ( Transaction tx = ongdb.beginTx() )
+        try ( Transaction tx = neo4j.beginTx() )
         {
             tx.execute( "CREATE INDEX fusionIndex FOR (n:myLabel) ON (n.prop1, n.prop2) OPTIONS {indexProvider:'lucene+native-3.0'}" );
             tx.commit();
         }
-        try ( Transaction tx = ongdb.beginTx() )
+        try ( Transaction tx = neo4j.beginTx() )
         {
             tx.schema().awaitIndexesOnline( 5, TimeUnit.MINUTES );
             Node node = tx.createNode( myLabel );

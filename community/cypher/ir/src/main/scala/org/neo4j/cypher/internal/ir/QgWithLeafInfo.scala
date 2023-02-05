@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -59,24 +59,21 @@ object QgWithLeafInfo {
     def name: String
 
     def isStable: Boolean
-    def isIdStable: Boolean
   }
 
-  case class StableIdentifier(override val name: String,
-                              override val isIdStable: Boolean) extends Identifier {
+  case class StableIdentifier(override val name: String) extends Identifier {
     override def isStable: Boolean = true
   }
 
   case class UnstableIdentifier(override val name: String) extends Identifier {
     override def isStable: Boolean = false
-    override def isIdStable: Boolean = false
   }
 
   /**
    * @return a QgWithInfo, where there is no stable identifier. Moreover all variables are assumed to be leaves.
    */
-  def qgWithNoStableIdentifierAndOnlyLeaves(qg: QueryGraph): QgWithLeafInfo =
-    QgWithLeafInfo(qg, Set.empty, qg.allCoveredIds, None)
+  def qgWithNoStableIdentifierAndOnlyLeaves(qg: QueryGraph, isReturningProjection: Boolean = false): QgWithLeafInfo =
+    QgWithLeafInfo(qg, Set.empty, qg.allCoveredIds, None, isReturningProjection)
 
 }
 
@@ -89,11 +86,14 @@ object QgWithLeafInfo {
  * @param stablySolvedPredicates The predicates solved by the leaf plan that solves the stable identifier.
  * @param unstableLeaves         The unstable leaves of the considered plan.
  * @param stableIdentifier       The identifier of the node found in the stable iterator.
+ * @param isTerminatingProjection  whether this is the projection of the last RETURN in the query.
  */
 case class QgWithLeafInfo(private val solvedQg: QueryGraph,
                           private val stablySolvedPredicates: Set[Predicate],
                           private val unstableLeaves: Set[String],
-                          private val stableIdentifier: Option[StableIdentifier]) {
+                          private val stableIdentifier: Option[StableIdentifier],
+                          isTerminatingProjection: Boolean
+) {
 
   /**
    * We exclude all stably solved predicates from the eagerness analysis.
@@ -121,7 +121,7 @@ case class QgWithLeafInfo(private val solvedQg: QueryGraph,
     }
   }
 
-  val entityArguments: SemanticTable => Set[String] = CachedFunction((semanticTable: SemanticTable) => {
+  val entityArguments: (SemanticTable => Set[String]) with CachedFunction = CachedFunction((semanticTable: SemanticTable) => {
     val nonEntityArguments = queryGraph.selections.predicates
       .flatMap(_.expr.dependencies)
       // find expressions that we know for certain are not entities
@@ -131,15 +131,15 @@ case class QgWithLeafInfo(private val solvedQg: QueryGraph,
     queryGraph.argumentIds -- nonEntityArguments
   })
 
-  val nonArgumentPatternNodes: SemanticTable => Set[Identifier] = CachedFunction((semanticTable: SemanticTable) => {
+  val nonArgumentPatternNodes: (SemanticTable => Set[Identifier]) with CachedFunction = CachedFunction((semanticTable: SemanticTable) => {
     patternNodes.filterNot(node => entityArguments(semanticTable).contains(node.name))
   })
 
-  val patternNodesAndArguments: SemanticTable => Set[Identifier] = CachedFunction((semanticTable: SemanticTable) => {
+  val patternNodesAndArguments: (SemanticTable => Set[Identifier]) with CachedFunction = CachedFunction((semanticTable: SemanticTable) => {
     patternNodes ++ entityArguments(semanticTable).map(UnstableIdentifier)
   })
 
-  val patternRelationshipsAndArguments: SemanticTable => Set[Identifier] = CachedFunction((semanticTable: SemanticTable) => {
+  val patternRelationshipsAndArguments: (SemanticTable => Set[Identifier]) with CachedFunction = CachedFunction((semanticTable: SemanticTable) => {
     patternRelationships ++ entityArguments(semanticTable).map(UnstableIdentifier)
   })
 
@@ -149,30 +149,27 @@ case class QgWithLeafInfo(private val solvedQg: QueryGraph,
     unstableIdentifiers ++ maybeStableIdentifier
   }
 
-  val allKnownUnstableNodeLabelsFor: Identifier => Set[LabelName] = CachedFunction((identifier:Identifier) => {
-    if (identifier.isIdStable) Set.empty[LabelName]
-    else queryGraph.allPossibleLabelsOnNode(identifier.name)
+  val allKnownUnstableNodeLabelsFor: (Identifier => Set[LabelName]) with CachedFunction = CachedFunction((identifier:Identifier) => {
+    queryGraph.allPossibleLabelsOnNode(identifier.name)
   })
 
-  val allPossibleUnstableRelTypesFor: Identifier => Set[RelTypeName] = CachedFunction((identifier:Identifier) => {
-    if (identifier.isIdStable) Set.empty[RelTypeName]
-    else queryGraph.allPossibleTypesOnRel(identifier.name)
+  val allPossibleUnstableRelTypesFor: (Identifier => Set[RelTypeName]) with CachedFunction = CachedFunction((identifier:Identifier) => {
+    queryGraph.allPossibleTypesOnRel(identifier.name)
   })
 
-  val allKnownUnstablePropertiesFor: Identifier => Set[PropertyKeyName] = CachedFunction((identifier:Identifier) => {
-    if (identifier.isIdStable) Set.empty[PropertyKeyName]
-    else queryGraph.allKnownPropertiesOnIdentifier(identifier.name)
+  val allKnownUnstablePropertiesFor: (Identifier => Set[PropertyKeyName]) with CachedFunction = CachedFunction((identifier:Identifier) => {
+    queryGraph.allKnownPropertiesOnIdentifier(identifier.name)
   })
 
-  val allKnownUnstableNodeLabels: SemanticTable => Set[LabelName] = CachedFunction((semanticTable: SemanticTable) => {
+  val allKnownUnstableNodeLabels: (SemanticTable => Set[LabelName]) with CachedFunction = CachedFunction((semanticTable: SemanticTable) => {
     patternNodesAndArguments(semanticTable).flatMap(allKnownUnstableNodeLabelsFor)
   })
 
-  val allKnownUnstableNodeProperties: SemanticTable => Set[PropertyKeyName] = CachedFunction((semanticTable: SemanticTable) => {
+  val allKnownUnstableNodeProperties: (SemanticTable => Set[PropertyKeyName]) with CachedFunction = CachedFunction((semanticTable: SemanticTable) => {
     patternNodesAndArguments(semanticTable).flatMap(allKnownUnstablePropertiesFor) ++ patternExpressionProperties
   })
 
-  val allKnownUnstableRelProperties: SemanticTable => Set[PropertyKeyName] = CachedFunction((semanticTable: SemanticTable) => {
+  val allKnownUnstableRelProperties: (SemanticTable => Set[PropertyKeyName]) with CachedFunction = CachedFunction((semanticTable: SemanticTable) => {
     patternRelationshipsAndArguments(semanticTable).flatMap(allKnownUnstablePropertiesFor) ++ patternExpressionProperties
   })
 

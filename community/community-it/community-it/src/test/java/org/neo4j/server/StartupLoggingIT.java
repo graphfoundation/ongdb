@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -63,7 +63,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 import static org.neo4j.configuration.SettingValueParsers.FALSE;
 import static org.neo4j.configuration.SettingValueParsers.TRUE;
-import static org.neo4j.server.AbstractNeoWebServer.ONGDB_IS_STARTING_MESSAGE;
+import static org.neo4j.server.AbstractNeoWebServer.NEO4J_IS_STARTING_MESSAGE;
 
 class StartupLoggingIT extends ExclusiveWebContainerTestBase
 {
@@ -82,7 +82,7 @@ class StartupLoggingIT extends ExclusiveWebContainerTestBase
         assertThat( captured ).satisfies( containsAtLeastTheseLines(
                 warn( "Config file \\[nonexistent-file.conf\\] does not exist." ),
                 info( "Starting..." ),
-                info( ONGDB_IS_STARTING_MESSAGE ),
+                info( NEO4J_IS_STARTING_MESSAGE ),
                 info( "Remote interface available at " + uri ),
                 info( "id: .*" ),
                 info( "name: system" ),

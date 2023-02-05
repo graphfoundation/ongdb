@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -53,7 +53,7 @@ public class ReadReplica implements AccessCapability
     public void assertCanWrite()
     {
         throw new WriteOperationsNotAllowedException(
-                "No write operations are allowed on this database. This is a read only ONgDB instance.",
+                "No write operations are allowed on this database. This is a read only Neo4j instance.",
                 Status.General.ForbiddenOnReadOnlyDatabase );
     }
 }

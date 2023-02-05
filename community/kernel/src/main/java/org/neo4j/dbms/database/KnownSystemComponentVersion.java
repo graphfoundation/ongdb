@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -48,7 +48,7 @@ import org.neo4j.internal.kernel.api.security.AbstractSecurityLog;
  * Version of a system graph component.
  * Components that due to breaking schema changes requires migrations also needs versions.
  * Each component has its own version scheme starting at 0 and increasing each release with breaking changes.
- * The versions should be on the format [component]Version_[versionNbr]_[ongdbRelease].
+ * The versions should be on the format [component]Version_[versionNbr]_[neo4jRelease].
  * The version schemes are described in {@link ComponentVersion}.
  */
 public abstract class KnownSystemComponentVersion

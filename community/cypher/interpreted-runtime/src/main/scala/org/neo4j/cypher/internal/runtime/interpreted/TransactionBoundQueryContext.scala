@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -160,12 +160,12 @@ import org.neo4j.values.virtual.VirtualRelationshipValue
 import org.neo4j.values.virtual.VirtualValues
 
 import java.net.URL
-import java.util.NoSuchElementException
-import scala.collection.Iterator
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.asScalaIteratorConverter
 import scala.collection.JavaConverters.iterableAsScalaIterableConverter
 import scala.collection.mutable.ArrayBuffer
+import scala.util.control.NonFatal
+
 
 sealed class TransactionBoundQueryContext(transactionalContext: TransactionalContextWrapper,
                                           resources: ResourceManager,
@@ -1232,7 +1232,21 @@ private[internal] class TransactionBoundReadQueryContext(val transactionalContex
 
   override def contextWithNewTransaction(): TransactionBoundQueryContext = {
     val newTransactionalContext = transactionalContext.contextWithNewTransaction
-    val newResourceManager = new ResourceManager(resources.monitor, newTransactionalContext.memoryTracker)
+    // creating the resource manager may fail since it will allocate memory in the memory tracker
+    val newResourceManager =
+      try {
+        new ResourceManager(resources.monitor, newTransactionalContext.memoryTracker)
+      } catch {
+        case NonFatal(e) =>
+          try {
+            newTransactionalContext.rollback()
+          } catch {
+            case NonFatal(rollbackException) =>
+              e.addSuppressed(rollbackException)
+          }
+          newTransactionalContext.close()
+          throw e
+      }
 
     val statement = newTransactionalContext.kernelTransactionalContext.statement()
     statement.registerCloseableResource(newResourceManager)

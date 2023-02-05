@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -156,7 +156,7 @@ class AuthorizationFilterTest
         // Then
         verifyNoMoreInteractions( filterChain );
         verify( servletResponse ).setStatus( 401 );
-        verify( servletResponse ).addHeader( HttpHeaders.WWW_AUTHENTICATE, "Basic realm=\"ONgDB\"" );
+        verify( servletResponse ).addHeader( HttpHeaders.WWW_AUTHENTICATE, "Basic realm=\"Neo4j\"" );
         verify( servletResponse ).addHeader( HttpHeaders.CONTENT_TYPE, "application/json; charset=UTF-8" );
         assertThat( outputStream.toString( UTF_8.name() ) ).contains( "\"code\" : \"Neo" + ".ClientError.Security.Unauthorized\"" );
         assertThat( outputStream.toString( UTF_8.name() ) ).contains( "\"message\" : \"No authentication header supplied.\"" );

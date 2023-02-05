@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -68,7 +68,7 @@ public class ConfiguredSpaceFillingCurveSettingsCache
      * The space filling curve is configured up front to cover a specific region of 2D (or 3D) space,
      * and the mapping tree is configured up front to have a specific maximum depth. These settings
      * are stored in an instance of SpaceFillingCurveSettings and are determined by the Coordinate
-     * Reference System, and any ongdb.conf settings to override the CRS defaults.
+     * Reference System, and any neo4j.conf settings to override the CRS defaults.
      *
      * @return The default settings for the specified coordinate reference system
      */

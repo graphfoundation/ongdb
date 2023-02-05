@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -540,6 +540,69 @@ class ConnectComponentsPlanningIntegrationTest extends CypherFunSuite with Logic
                         .build()
   }
 
+  test("should plan value hash join for the output of two functions being compared") {
+    val planner = plannerBuilder()
+      .setAllNodesCardinality(100)
+      .setLabelCardinality("A", 20)
+      .setLabelCardinality("B", 20)
+      .build()
+
+    planner.plan(
+      """MATCH (a:A), (b:B)
+        |  WHERE toString(a.prop) = toString(b.prop)
+        |RETURN a, b""".stripMargin
+    ) should equal(
+      planner.planBuilder()
+        .produceResults("a", "b")
+        .valueHashJoin("toString(a.prop) = toString(b.prop)")
+        .|.nodeByLabelScan("b", "B")
+        .nodeByLabelScan("a", "A")
+        .build()
+    )
+  }
+
+  test("should plan value hash join for the output of a function on RHS being compared") {
+    val planner = plannerBuilder()
+      .setAllNodesCardinality(100)
+      .setLabelCardinality("A", 20)
+      .setLabelCardinality("B", 20)
+      .build()
+
+    planner.plan(
+      """MATCH (a:A), (b:B)
+        |  WHERE a.prop = toString(b.prop)
+        |RETURN a, b""".stripMargin
+    ) should equal(
+      planner.planBuilder()
+        .produceResults("a", "b")
+        .valueHashJoin("a.prop = toString(b.prop)")
+        .|.nodeByLabelScan("b", "B")
+        .nodeByLabelScan("a", "A")
+        .build()
+    )
+  }
+
+  test("should plan value hash join for the output of a function on LHS being compared") {
+    val planner = plannerBuilder()
+      .setAllNodesCardinality(100)
+      .setLabelCardinality("A", 20)
+      .setLabelCardinality("B", 20)
+      .build()
+
+    planner.plan(
+      """MATCH (a:A), (b:B)
+        |  WHERE toString(a.prop) = b.prop
+        |RETURN a, b""".stripMargin
+    ) should equal(
+      planner.planBuilder()
+        .produceResults("a", "b")
+        .valueHashJoin("b.prop = toString(a.prop)")
+        .|.nodeByLabelScan("a", "A")
+        .nodeByLabelScan("b", "B")
+        .build()
+    )
+  }
+
   test("cheap optional match that requires no components to be connected should be solved before any components are connected") {
     val cfg = plannerBuilder()
       .setAllNodesCardinality(100)
@@ -739,7 +802,7 @@ class ConnectComponentsPlanningIntegrationTest extends CypherFunSuite with Logic
                         .|.nodeByLabelScan("o", "O")
                         .apply()
                         .|.optional("n", "m")
-                        .|.filter("not r1 = r2")
+                        .|.filter("not r2 = r1")
                         .|.expandInto("(n)-[r1]-(m)")
                         .|.expandAll("(m)-[r2]-(x)")
                         .|.argument("n", "m")
@@ -755,7 +818,7 @@ class ConnectComponentsPlanningIntegrationTest extends CypherFunSuite with Logic
       .cartesianProduct()
       .|.apply()
       .|.|.optional("n", "m")
-      .|.|.filter("not r1 = r2")
+      .|.|.filter("not r2 = r1")
       .|.|.expandInto("(n)-[r1]-(m)")
       .|.|.expandAll("(m)-[r2]-(x)")
       .|.|.argument("n", "m")
@@ -771,7 +834,7 @@ class ConnectComponentsPlanningIntegrationTest extends CypherFunSuite with Logic
         .|.nodeByLabelScan("o", "O")
         .apply()
         .|.optional("n", "m")
-        .|.filter("not r1 = r2")
+        .|.filter("not r2 = r1")
         .|.expandInto("(n)-[r1]-(m)")
         .|.expandAll("(m)-[r2]-(x)")
         .|.argument("n", "m")
@@ -804,7 +867,7 @@ class ConnectComponentsPlanningIntegrationTest extends CypherFunSuite with Logic
                         .cartesianProduct()
                         .|.nodeByLabelScan("o", "O")
                         .leftOuterHashJoin("n", "m") // Keeps RHS order
-                        .|.filter("not r1 = r2")
+                        .|.filter("not r2 = r1")
                         .|.expandAll("(m)-[r1]-(n)")
                         .|.expandAll("(x)-[r2]-(m)")
                         .|.sort(Seq(Ascending("x.prop")))

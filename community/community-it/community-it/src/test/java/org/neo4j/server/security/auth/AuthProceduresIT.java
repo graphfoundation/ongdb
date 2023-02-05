@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -108,9 +108,9 @@ public class AuthProceduresIT
         systemDb = (GraphDatabaseAPI) managementService.database( SYSTEM_DATABASE_NAME );
         authManager = db.getDependencyResolver().resolveDependency( BasicSystemGraphRealm.class );
 
-        assertSuccess( login( "ongdb", "ongdb" ), "ALTER CURRENT USER SET PASSWORD FROM 'ongdb' TO 'temp'" );
-        assertSuccess( login( "ongdb", "temp" ), "ALTER CURRENT USER SET PASSWORD FROM 'temp' TO 'ongdb'" );
-        admin = login( "ongdb", "ongdb" );
+        assertSuccess( login( "neo4j", "neo4j" ), "ALTER CURRENT USER SET PASSWORD FROM 'neo4j' TO 'temp'" );
+        assertSuccess( login( "neo4j", "temp" ), "ALTER CURRENT USER SET PASSWORD FROM 'temp' TO 'neo4j'" );
+        admin = login( "neo4j", "neo4j" );
 
     }
 
@@ -140,17 +140,17 @@ public class AuthProceduresIT
     void shouldChangePassword() throws Throwable
     {
         // Given
-        assertSuccess( admin, "ALTER CURRENT USER SET PASSWORD FROM 'ongdb' TO 'abc'" );
+        assertSuccess( admin, "ALTER CURRENT USER SET PASSWORD FROM 'neo4j' TO 'abc'" );
 
-        assertThat( login( "ongdb", "ongdb" ).subject().getAuthenticationResult() ).isEqualTo( FAILURE );
-        assertThat( login( "ongdb", "abc" ).subject().getAuthenticationResult() ).isEqualTo( SUCCESS );
+        assertThat( login( "neo4j", "neo4j" ).subject().getAuthenticationResult() ).isEqualTo( FAILURE );
+        assertThat( login( "neo4j", "abc" ).subject().getAuthenticationResult() ).isEqualTo( SUCCESS );
     }
 
     @Test
     void shouldNotChangeOwnPasswordIfNewPasswordInvalid()
     {
-        assertFail( admin, "ALTER CURRENT USER SET PASSWORD FROM 'ongdb' TO ''", "A password cannot be empty." );
-        assertFail( admin, "ALTER CURRENT USER SET PASSWORD FROM 'ongdb' TO 'ongdb'", "Old password and new password cannot be the same." );
+        assertFail( admin, "ALTER CURRENT USER SET PASSWORD FROM 'neo4j' TO ''", "A password cannot be empty." );
+        assertFail( admin, "ALTER CURRENT USER SET PASSWORD FROM 'neo4j' TO 'neo4j'", "Old password and new password cannot be the same." );
     }
 
     @Test
@@ -184,7 +184,7 @@ public class AuthProceduresIT
 
         assertSuccess( admin, "SHOW USERS", r -> {
             Map<String,Object> expectedNeo4j = new HashMap<>();
-            expectedNeo4j.put( "user", "ongdb" );
+            expectedNeo4j.put( "user", "neo4j" );
             expectedNeo4j.put( "roles", null );
             expectedNeo4j.put( "passwordChangeRequired", false );
             expectedNeo4j.put( "suspended", null );
@@ -206,7 +206,7 @@ public class AuthProceduresIT
         assertSuccess( admin, "CALL dbms.security.createUser('andres', '123', false)" );
         assertSuccess( admin, "SHOW USERS", r -> {
             Map<String,Object> expectedNeo4j = new HashMap<>();
-            expectedNeo4j.put( "user", "ongdb" );
+            expectedNeo4j.put( "user", "neo4j" );
             expectedNeo4j.put( "roles", null );
             expectedNeo4j.put( "passwordChangeRequired", false );
             expectedNeo4j.put( "suspended", null );
@@ -228,7 +228,7 @@ public class AuthProceduresIT
         assertSuccess( admin, "CALL dbms.security.createUser('andres', '123')" );
         assertSuccess( admin, "SHOW USERS", r -> {
             Map<String,Object> expectedNeo4j = new HashMap<>();
-            expectedNeo4j.put( "user", "ongdb" );
+            expectedNeo4j.put( "user", "neo4j" );
             expectedNeo4j.put( "roles", null );
             expectedNeo4j.put( "passwordChangeRequired", false );
             expectedNeo4j.put( "suspended", null );
@@ -268,9 +268,9 @@ public class AuthProceduresIT
     @Test
     void shouldNotCreateExistingUser()
     {
-        assertFail( admin, "CALL dbms.security.createUser('ongdb', '1234', true)",
-                "Failed to create the specified user 'ongdb': User already exists." );
-        assertFail( admin, "CALL dbms.security.createUser('ongdb', '', true)", "A password cannot be empty." );
+        assertFail( admin, "CALL dbms.security.createUser('neo4j', '1234', true)",
+                "Failed to create the specified user 'neo4j': User already exists." );
+        assertFail( admin, "CALL dbms.security.createUser('neo4j', '', true)", "A password cannot be empty." );
     }
 
     //---------- delete user -----------
@@ -287,7 +287,7 @@ public class AuthProceduresIT
         // THEN
         assertSuccess( admin, "SHOW USERS", r -> {
             Map<String,Object> expectedNeo4j = new HashMap<>();
-            expectedNeo4j.put( "user", "ongdb" );
+            expectedNeo4j.put( "user", "neo4j" );
             expectedNeo4j.put( "roles", null );
             expectedNeo4j.put( "passwordChangeRequired", false );
             expectedNeo4j.put( "suspended", null );
@@ -319,7 +319,7 @@ public class AuthProceduresIT
         assertSuccess( admin, "CREATE USER andres SET PASSWORD '123' CHANGE NOT REQUIRED" );
         assertSuccess( admin, "CALL dbms.security.listUsers() YIELD username", r ->
         {
-            String[] items = new String[]{"ongdb", "andres"};
+            String[] items = new String[]{"neo4j", "andres"};
             List<Object> results = r.stream().map( s -> s.get( "username" ) ).collect( Collectors.toList() );
             assertEquals( Arrays.asList( items ).size(), results.size() );
             assertThat( results ).contains( items );
@@ -331,7 +331,7 @@ public class AuthProceduresIT
     {
         assertSuccess( admin, "CREATE USER andres SET PASSWORD '123'" );
         Map<String,Object> expected = map(
-                "ongdb", emptyList(),
+                "neo4j", emptyList(),
                 "andres", List.of( PWD_CHANGE )
         );
         assertSuccess( admin, "CALL dbms.security.listUsers()",
@@ -341,7 +341,7 @@ public class AuthProceduresIT
     @Test
     void shouldShowCurrentUser()
     {
-        assertThat( execute( admin, "CALL dbms.showCurrentUser()", r -> assertKeyIsMap( r, "username", "flags", map( "ongdb", emptyList() ) ) ) ).isEqualTo(
+        assertThat( execute( admin, "CALL dbms.showCurrentUser()", r -> assertKeyIsMap( r, "username", "flags", map( "neo4j", emptyList() ) ) ) ).isEqualTo(
                 "" );
     }
 

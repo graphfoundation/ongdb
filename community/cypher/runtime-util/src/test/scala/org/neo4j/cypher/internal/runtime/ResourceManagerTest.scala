@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -49,6 +49,7 @@ import org.neo4j.memory.EmptyMemoryTracker
 import org.neo4j.memory.LocalMemoryTracker
 import org.neo4j.memory.MemoryLimitExceededException
 import org.neo4j.memory.MemoryPools
+import org.neo4j.memory.MemoryTracker
 
 import scala.util.Try
 
@@ -240,17 +241,16 @@ class ResourceManagerTest extends CypherFunSuite {
     }
   }
 
-  test("Resource pool should not overflow") {
-    //given
-    val maxMemory = Int.MaxValue / 2 + 1
-    val memoryTracker = new LocalMemoryTracker(MemoryPools.NO_TRACKING, maxMemory, 0, null)
-    val pool = new SingleThreadedResourcePool(4, mock[ResourceMonitor], memoryTracker)
+  test("Resource pool new size should not overflow") {
+    // given
+    val pool = new SingleThreadedResourcePool(4, mock[ResourceMonitor], mock[MemoryTracker])
 
-    //when
-    pool.unsafeFillForTesting(maxMemory)
-
-    //then
-    a [MemoryLimitExceededException] should be thrownBy pool.add(mock[AutoCloseablePlus])
+    pool.computeNewSize(1) shouldBe 2
+    pool.computeNewSize(2) shouldBe 4
+    pool.computeNewSize(5) shouldBe 10
+    pool.computeNewSize(Int.MaxValue / 2) shouldBe Int.MaxValue - 1
+    pool.computeNewSize(Int.MaxValue / 2 + 1) shouldBe Int.MaxValue / 2 + 2
+    pool.computeNewSize(Int.MaxValue - 1) shouldBe Int.MaxValue
   }
 
   private def verifyTrace(resource: AutoCloseablePlus, monitor: ResourceMonitor, resources: ResourceManager): Unit = {

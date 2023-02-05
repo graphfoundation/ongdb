@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -76,7 +76,7 @@ public class AuthorizationDisabledFilter extends AuthorizationFilter
             JettyHttpConnection.updateUserForCurrentConnection( loginContext.subject().executingUser(), userAgent );
 
             filterChain.doFilter(
-                    new AuthorizedRequestWrapper( BASIC_AUTH, "ongdb", request, loginContext ),
+                    new AuthorizedRequestWrapper( BASIC_AUTH, "neo4j", request, loginContext ),
                     servletResponse );
         }
         catch ( AuthorizationViolationException e )

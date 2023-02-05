@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,7 +32,10 @@
  */
 package org.neo4j.cypher.internal.frontend.phases.rewriting.cnf
 
+import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
+import org.neo4j.cypher.internal.ast.AstConstructionTestSupport.patternExpression
+import org.neo4j.cypher.internal.ast.AstConstructionTestSupport.varFor
 import org.neo4j.cypher.internal.expressions.Expression
 import org.neo4j.cypher.internal.rewriting.AstRewritingMonitor
 import org.neo4j.cypher.internal.rewriting.PredicateTestSupport
@@ -81,6 +84,20 @@ class DistributeLawRewriterTest extends CypherFunSuite with PredicateTestSupport
 
     // then result should be different, or equal but aborted due to repeatWithSizeLimit
     if (result == fullOr) verify(monitor).abortedRewriting(fullOr)
+  }
+
+  test("should rewrite small expression containing pattern expressions") {
+    val pat = patternExpression(varFor("a"), varFor("b"))
+    val exp = combineUntilLimit(and(P, pat), limit = 2)
+    rewriter.apply(exp)
+    verify(monitor, never()).abortedRewritingDueToLargeDNF(exp)
+  }
+
+  test("should abort rewriting larger expression containing pattern expressions") {
+    val pat = patternExpression(varFor("a"), varFor("b"))
+    val exp = combineUntilLimit(and(P, pat), limit = 4)
+    rewriter.apply(exp)
+    verify(monitor).abortedRewritingDueToLargeDNF(exp)
   }
 
   @tailrec

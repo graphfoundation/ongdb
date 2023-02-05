@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -52,8 +52,8 @@ import org.neo4j.kernel.lifecycle.LifecycleAdapter;
  */
 public abstract class AuthManager extends LifecycleAdapter
 {
-    public static final String INITIAL_USER_NAME = "ongdb";
-    public static final String INITIAL_PASSWORD = "ongdb";
+    public static final String INITIAL_USER_NAME = "neo4j";
+    public static final String INITIAL_PASSWORD = "neo4j";
 
     /**
      * Log in using the provided authentication token

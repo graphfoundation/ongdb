@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -40,6 +40,7 @@ import org.neo4j.cypher.internal.ast.UsingBtreeIndexType
 import org.neo4j.cypher.internal.ast.semantics.SemanticTable
 import org.neo4j.cypher.internal.expressions.And
 import org.neo4j.cypher.internal.expressions.Ands
+import org.neo4j.cypher.internal.expressions.CaseExpression
 import org.neo4j.cypher.internal.expressions.ContainerIndex
 import org.neo4j.cypher.internal.expressions.Expression
 import org.neo4j.cypher.internal.expressions.ExtractExpression
@@ -56,6 +57,7 @@ import org.neo4j.cypher.internal.expressions.MapExpression
 import org.neo4j.cypher.internal.expressions.NamedPatternPart
 import org.neo4j.cypher.internal.expressions.Namespace
 import org.neo4j.cypher.internal.expressions.NodePattern
+import org.neo4j.cypher.internal.expressions.Null
 import org.neo4j.cypher.internal.expressions.Or
 import org.neo4j.cypher.internal.expressions.Ors
 import org.neo4j.cypher.internal.expressions.Parameter
@@ -95,6 +97,7 @@ import org.neo4j.cypher.internal.util.DeprecatedRelTypeSeparatorNotification
 import org.neo4j.cypher.internal.util.DeprecatedSelfReferenceToVariableInCreatePattern
 import org.neo4j.cypher.internal.util.DeprecatedShowExistenceConstraintSyntax
 import org.neo4j.cypher.internal.util.DeprecatedShowSchemaSyntax
+import org.neo4j.cypher.internal.util.DeprecatedUseOfNullInCaseExpression
 import org.neo4j.cypher.internal.util.Foldable.FoldableAny
 import org.neo4j.cypher.internal.util.Foldable.SkipChildren
 import org.neo4j.cypher.internal.util.Foldable.TraverseChildren
@@ -367,6 +370,15 @@ object Deprecations {
           Some(Ref(f) -> renameFunctionTo(Namespace(List("point"))(f.position), "distance")(f)),
           Some(DeprecatedFunctionNotification(f.position, "distance", "point.distance"))
         )
+
+
+      // CASE x WHEN NULL THEN
+      case c @ CaseExpression(_, alternatives, _)
+      if alternatives.exists(a => a._1 == Null()(a._1.position)) =>
+        Deprecation(
+          None,
+          Some(DeprecatedUseOfNullInCaseExpression(c.position))
+        )
     }
 
     private def hasBtreeOptions(options: Options): Boolean = options match {
@@ -443,7 +455,7 @@ object Deprecations {
     private def hasSelfReferenceToVariableInPattern(pattern: Pattern, semanticTable: SemanticTable): Boolean = {
       val allSymbolDefinitions = semanticTable.recordedScopes(pattern).allSymbolDefinitions
 
-      def findAllVariables(e: Any): Set[LogicalVariable] = e.folder.findAllByClass[LogicalVariable].toSet
+      def findAllVariables(e: Any): Set[LogicalVariable] = e.folder.findAllByClass[LogicalVariable].toSet.filter(v => !isDefinition(v))
       def isDefinition(variable: LogicalVariable): Boolean = allSymbolDefinitions(variable.name).map(_.use).contains(Ref(variable))
 
       val (declaredVariables, referencedVariables) = pattern.folder.treeFold[(Set[LogicalVariable], Set[LogicalVariable])]((Set.empty, Set.empty)) {

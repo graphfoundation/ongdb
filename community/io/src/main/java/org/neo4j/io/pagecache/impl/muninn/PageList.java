@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -38,9 +38,11 @@
  */
 package org.neo4j.io.pagecache.impl.muninn;
 
+import static java.lang.String.format;
+import static org.neo4j.util.FeatureToggles.flag;
+
 import java.io.IOException;
 import java.lang.invoke.VarHandle;
-
 import org.neo4j.internal.unsafe.UnsafeUtil;
 import org.neo4j.io.mem.MemoryAllocator;
 import org.neo4j.io.pagecache.PageCursor;
@@ -50,9 +52,6 @@ import org.neo4j.io.pagecache.tracing.EvictionEventOpportunity;
 import org.neo4j.io.pagecache.tracing.FlushEvent;
 import org.neo4j.io.pagecache.tracing.PageFaultEvent;
 import org.neo4j.io.pagecache.tracing.PageReferenceTranslator;
-
-import static java.lang.String.format;
-import static org.neo4j.util.FeatureToggles.flag;
 
 /**
  * The PageList maintains the off-heap meta-data for the individual memory pages.
@@ -207,6 +206,7 @@ class PageList implements PageReferenceTranslator
      */
     long deref( int pageId )
     {
+        assert pageId >= 0 && pageId < pageCount : "PageId out of range: " + pageId + ". PageCount: " + pageCount;
         //noinspection UnnecessaryLocalVariable
         long id = pageId; // convert to long to avoid int multiplication
         return baseAddress + (id * META_DATA_BYTES_PER_PAGE);
