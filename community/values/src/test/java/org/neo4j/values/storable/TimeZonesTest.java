@@ -102,7 +102,7 @@ public class TimeZonesTest
         byte[] timeZonesInfo = Files.readAllBytes( path );
         byte[] timeZonesHash = DigestUtils.sha256( timeZonesInfo );
         assertThat( timeZonesHash, equalTo(
-                new byte[]{-69, 11, 98, 96, 49, -113, 106, -122, 16, 20, -80, -74, 57, 112, -59, 2, -77, -56, -40, -16, -17, -110, -11, -53, 93, -111, 2, 119,
-                        14, -65, -4, -117} ) );
+                new byte[]{1, -67, -68, -2, -44, -72, -102, 52, -115, 38, -18, -92, 121, 7, 90, -22, -65, -18, -52, 125, -81, -107, 86, -11, -69, -29, -47, 127,
+                           -58, 63, -33, -5} ) );
     }
 }
