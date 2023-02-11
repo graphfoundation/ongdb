@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,14 +38,18 @@
  */
 package org.neo4j.values.virtual;
 
-
 import java.util.Comparator;
 
+import org.neo4j.exceptions.InvalidArgumentException;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.AnyValueWriter;
+import org.neo4j.values.Comparison;
+import org.neo4j.values.TernaryComparator;
 import org.neo4j.values.ValueMapper;
 import org.neo4j.values.VirtualValue;
-import org.neo4j.values.utils.InvalidValuesArgumentException;
+
+import static org.neo4j.memory.HeapEstimator.shallowSizeOfInstance;
+import static org.neo4j.memory.HeapEstimator.sizeOf;
 
 /**
  * The ErrorValue allow delaying errors in value creation until runtime, which is useful
@@ -53,11 +57,13 @@ import org.neo4j.values.utils.InvalidValuesArgumentException;
  */
 public final class ErrorValue extends VirtualValue
 {
-    private final InvalidValuesArgumentException e;
+    private static final long INVALID_ARGUMENT_EXCEPTION_SHALLOW_SIZE = shallowSizeOfInstance( InvalidArgumentException.class );
+    private static final long SHALLOW_SIZE = shallowSizeOfInstance( ErrorValue.class ) + INVALID_ARGUMENT_EXCEPTION_SHALLOW_SIZE;
+    private final InvalidArgumentException e;
 
     ErrorValue( Exception e )
     {
-        this.e = new InvalidValuesArgumentException( e.getMessage() );
+        this.e = new InvalidArgumentException( e.getMessage() );
     }
 
     @Override
@@ -73,13 +79,19 @@ public final class ErrorValue extends VirtualValue
     }
 
     @Override
-    public int compareTo( VirtualValue other, Comparator<AnyValue> comparator )
+    public int unsafeCompareTo( VirtualValue other, Comparator<AnyValue> comparator )
     {
         throw e;
     }
 
     @Override
-    protected int computeHash()
+    public Comparison unsafeTernaryCompareTo( VirtualValue other, TernaryComparator<AnyValue> comparator )
+    {
+        throw e;
+    }
+
+    @Override
+    protected int computeHashToMemoize()
     {
         throw e;
     }
@@ -100,5 +112,11 @@ public final class ErrorValue extends VirtualValue
     public String getTypeName()
     {
         return "Error";
+    }
+
+    @Override
+    public long estimatedHeapUsage()
+    {
+        return SHALLOW_SIZE + sizeOf( e.getMessage() ); // We ignore stacktrace for now, ideally we should get rid of this whole class
     }
 }

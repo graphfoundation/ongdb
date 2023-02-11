@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,8 +38,8 @@
  */
 package org.neo4j.graphalgo.impl.path;
 
+import org.neo4j.graphalgo.EvaluationContext;
 import org.neo4j.graphalgo.impl.util.LiteDepthFirstSelector;
-import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.PathExpander;
 import org.neo4j.graphdb.traversal.TraversalDescription;
@@ -57,19 +57,18 @@ import static org.neo4j.graphdb.traversal.Evaluators.toDepth;
  * threshold is reached such nodes are considered super nodes and are put on a
  * queue for later traversal. This makes it possible to find paths w/o having to
  * traverse heavy super nodes.
- *
- * @author Mattias Persson
- * @author Tobias Ivarsson
  */
 public class ExactDepthPathFinder extends TraversalPathFinder
 {
+    private final EvaluationContext context;
     private final PathExpander expander;
     private final int onDepth;
     private final int startThreshold;
     private final Uniqueness uniqueness;
 
-    public ExactDepthPathFinder( PathExpander expander, int onDepth, int startThreshold, boolean allowLoops )
+    public ExactDepthPathFinder( EvaluationContext context, PathExpander expander, int onDepth, int startThreshold, boolean allowLoops )
     {
+        this.context = context;
         this.expander = expander;
         this.onDepth = onDepth;
         this.startThreshold = startThreshold;
@@ -79,11 +78,11 @@ public class ExactDepthPathFinder extends TraversalPathFinder
     @Override
     protected Traverser instantiateTraverser( Node start, Node end )
     {
-        GraphDatabaseService db = start.getGraphDatabase();
+        var transaction = context.transaction();
         TraversalDescription side =
-                db.traversalDescription().breadthFirst().uniqueness( uniqueness ).order(
+                transaction.traversalDescription().breadthFirst().uniqueness( uniqueness ).order(
                         ( startSource, expander ) -> new LiteDepthFirstSelector( startSource, startThreshold, expander ) );
-        return db.bidirectionalTraversalDescription().startSide( side.expand( expander ).evaluator( toDepth( onDepth / 2 ) ) )
+        return transaction.bidirectionalTraversalDescription().startSide( side.expand( expander ).evaluator( toDepth( onDepth / 2 ) ) )
                 .endSide( side.expand( expander.reverse() ).evaluator( toDepth( onDepth - onDepth / 2 ) ) )
                 .collisionEvaluator( atDepth( onDepth ) )
                 // TODO Level side selector will make the traversal return wrong result, why?

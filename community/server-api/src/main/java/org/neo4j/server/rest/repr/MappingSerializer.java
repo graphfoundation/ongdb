@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -44,15 +44,10 @@ public class MappingSerializer extends Serializer
 {
     final MappingWriter writer;
 
-    MappingSerializer( MappingWriter writer, URI baseUri, ExtensionInjector extensions )
+    public MappingSerializer( MappingWriter writer, URI baseUri )
     {
-        super( baseUri, extensions );
+        super( baseUri );
         this.writer = writer;
-    }
-
-    void putAbsoluteUri( String key, String path )
-    {
-        writer.writeValue( RepresentationType.URI, key, path );
     }
 
     public void putRelativeUri( String key, String path )
@@ -96,5 +91,10 @@ public class MappingSerializer extends Serializer
             checkThatItIsBuiltInType( value );
             writer.writeInteger( RepresentationType.valueOf( value.getClass() ), key, value.longValue() );
         }
+    }
+
+    public MappingWriter getWriter()
+    {
+        return writer;
     }
 }

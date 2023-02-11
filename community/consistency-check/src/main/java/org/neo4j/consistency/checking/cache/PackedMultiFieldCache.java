@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,63 +38,65 @@
  */
 package org.neo4j.consistency.checking.cache;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import org.neo4j.consistency.checking.ByteArrayBitsManipulator;
+import org.neo4j.internal.batchimport.cache.ByteArray;
 import org.neo4j.kernel.impl.store.record.Record;
-import org.neo4j.unsafe.impl.batchimport.cache.LongArray;
-import org.neo4j.unsafe.impl.batchimport.cache.LongBitsManipulator;
+import org.neo4j.util.concurrent.Futures;
 
 import static org.neo4j.consistency.checking.cache.CacheSlots.ID_SLOT_SIZE;
-import static org.neo4j.unsafe.impl.batchimport.cache.NumberArrayFactory.AUTO_WITHOUT_PAGECACHE;
 
 /**
- * Simply combining a {@link LongArray} with {@link LongBitsManipulator}, so that each long can be split up into
- * slots, i.e. holding multiple values per long for space efficiency.
+ * Simply combining a {@link ByteArray} with {@link ByteArrayBitsManipulator}, so that each byte[] index can be split up into
+ * slots, i.e. holding multiple values for space efficiency and convenience.
  */
-public class PackedMultiFieldCache
+class PackedMultiFieldCache
 {
-    private final LongArray array;
-    private LongBitsManipulator slots;
+    private final ByteArray array;
+    private ByteArrayBitsManipulator slots;
     private long[] initValues;
 
-    public PackedMultiFieldCache( int... slotSizes )
-    {
-        this( AUTO_WITHOUT_PAGECACHE.newDynamicLongArray( 1_000_000, 0 ), slotSizes );
-    }
-
-    public PackedMultiFieldCache( LongArray array, int... slotSizes )
+    PackedMultiFieldCache( ByteArray array, int... slotSizes )
     {
         this.array = array;
         setSlotSizes( slotSizes );
     }
 
-    public void put( long index, long... values )
+    void put( long index, long... values )
     {
-        long field = 0;
         for ( int i = 0; i < values.length; i++ )
         {
-            field = slots.set( field, i, values[i] );
+            slots.set( array, index, i, values[i] );
         }
-        array.set( index, field );
     }
 
-    public void put( long index, int slot, long value )
+    void put( long index, int slot, long value )
     {
-        long field = array.get( index );
-        field = slots.set( field, slot, value );
-        array.set( index, field );
+        slots.set( array, index, slot, value );
     }
 
-    public long get( long index, int slot )
+    long get( long index, int slot )
     {
-        return slots.get( array.get( index ), slot );
+        if ( index < array.length() )
+        {
+            return slots.get( array, index, slot );
+        }
+        return initValues[slot];
     }
 
-    public void setSlotSizes( int... slotSizes )
+    void setSlotSizes( int... slotSizes )
     {
-        this.slots = new LongBitsManipulator( slotSizes );
+        this.slots = new ByteArrayBitsManipulator( slotSizes );
         this.initValues = getInitVals( slotSizes );
     }
 
-    public void clear()
+    void clear()
     {
         long length = array.length();
         for ( long i = 0; i < length; i++ )
@@ -103,7 +105,46 @@ public class PackedMultiFieldCache
         }
     }
 
-    public void clear( long index )
+    void clearParallel( int numThreads )
+    {
+        long length = array.length();
+        List<Callable<Void>> tasks = new ArrayList<>();
+        long numPerThread = length / numThreads;
+        long prevLowIndex = 0;
+        for ( int i = 0; i < numThreads; i++ )
+        {
+            long lowIndex = prevLowIndex;
+            long highIndex = i == numThreads - 1 ? length : lowIndex + numPerThread;
+            tasks.add( () ->
+            {
+                for ( long index = lowIndex; index < highIndex; index++ )
+                {
+                    clear( index );
+                }
+                return null;
+            } );
+            prevLowIndex = highIndex;
+        }
+        ExecutorService executor = Executors.newFixedThreadPool( numThreads );
+        try
+        {
+            Futures.getAllResults( executor.invokeAll( tasks ) );
+        }
+        catch ( ExecutionException e )
+        {
+            throw new RuntimeException( e.getCause() );
+        }
+        catch ( InterruptedException e )
+        {
+            Thread.currentThread().interrupt();
+        }
+        finally
+        {
+            executor.shutdown();
+        }
+    }
+
+    void clear( long index )
     {
         put( index, initValues );
     }

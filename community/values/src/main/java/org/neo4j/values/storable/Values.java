@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,6 +39,7 @@
 package org.neo4j.values.storable;
 
 import java.lang.reflect.Array;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -51,13 +52,11 @@ import java.time.temporal.Temporal;
 import java.time.temporal.TemporalAmount;
 import java.time.temporal.TemporalUnit;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
 import org.neo4j.graphdb.spatial.CRS;
 import org.neo4j.graphdb.spatial.Point;
-import org.neo4j.values.TernaryComparator;
 
 import static java.lang.String.format;
 import static org.neo4j.values.storable.DateTimeValue.datetime;
@@ -82,17 +81,23 @@ import static org.neo4j.values.storable.TimeValue.time;
 @SuppressWarnings( "WeakerAccess" )
 public final class Values
 {
+
+    public static final Value NO_VALUE = NoValue.NO_VALUE;
+
+    public static final Value MIN_GLOBAL = DateTimeValue.MIN_VALUE;
+    public static final Value MAX_GLOBAL = Values.NO_VALUE;
     public static final Value MIN_NUMBER = Values.doubleValue( Double.NEGATIVE_INFINITY );
     public static final Value MAX_NUMBER = Values.doubleValue( Double.NaN );
     public static final Value ZERO_FLOAT = Values.doubleValue( 0.0 );
     public static final IntegralValue ZERO_INT = Values.longValue( 0 );
-    public static final Value MIN_STRING = StringValue.EMTPY;
+    public static final Value MIN_STRING = StringValue.EMPTY;
     public static final Value MAX_STRING = Values.booleanValue( false );
     public static final BooleanValue TRUE = Values.booleanValue( true );
     public static final BooleanValue FALSE = Values.booleanValue( false );
-    public static final TextValue EMPTY_STRING = StringValue.EMTPY;
+    public static final TextValue EMPTY_STRING = StringValue.EMPTY;
     public static final DoubleValue E = Values.doubleValue( Math.E );
     public static final DoubleValue PI = Values.doubleValue( Math.PI );
+    public static final DoubleValue NaN = Values.doubleValue( Double.NaN );
     public static final ArrayValue EMPTY_SHORT_ARRAY = Values.shortArray( new short[0] );
     public static final ArrayValue EMPTY_BOOLEAN_ARRAY = Values.booleanArray( new boolean[0] );
     public static final ArrayValue EMPTY_BYTE_ARRAY = Values.byteArray( new byte[0] );
@@ -140,9 +145,19 @@ public final class Values
         return value instanceof PointValue;
     }
 
+    public static boolean isGeometryArray( Value value )
+    {
+        return value instanceof PointArray;
+    }
+
     public static boolean isTemporalValue( Value value )
     {
         return value instanceof TemporalValue || value instanceof DurationValue;
+    }
+
+    public static boolean isTemporalArray( Value value )
+    {
+        return value instanceof TemporalArray || value instanceof DurationArray;
     }
 
     public static double coerceToDouble( Value value )
@@ -160,7 +175,22 @@ public final class Values
 
     // DIRECT FACTORY METHODS
 
-    public static final Value NO_VALUE = NoValue.NO_VALUE;
+    public static TextValue utf8Value( String value )
+    {
+        return utf8Value( value.getBytes( StandardCharsets.UTF_8 ) );
+    }
+
+    public static Value ut8fOrNoValue( String value )
+    {
+        if ( value == null )
+        {
+            return NO_VALUE;
+        }
+        else
+        {
+            return utf8Value( value );
+        }
+    }
 
     public static TextValue utf8Value( byte[] bytes )
     {
@@ -230,7 +260,7 @@ public final class Values
             return shortValue( number.shortValue() );
         }
 
-        throw new UnsupportedOperationException( "Unsupported type of Number " + number.toString() );
+        throw new UnsupportedOperationException( "Unsupported type of Number " + number );
     }
 
     public static LongValue longValue( long value )
@@ -356,15 +386,43 @@ public final class Values
 
     public static PointValue minPointValue( PointValue reference )
     {
-        double[] coordinates = new double[reference.coordinate().length];
-        Arrays.fill( coordinates, -Double.MAX_VALUE );
+        int length = reference.coordinate().length;
+        double[] coordinates = new double[length];
+        if ( reference.getCoordinateReferenceSystem().isGeographic() )
+        {
+            // WGS-84 boundaries
+            coordinates[0] = -180;
+            coordinates[1] = -90;
+            if ( length > 2 )
+            {
+                coordinates[2] = -Double.MAX_VALUE;
+            }
+        }
+        else
+        {
+            Arrays.fill( coordinates, -Double.MAX_VALUE );
+        }
         return pointValue( reference.getCoordinateReferenceSystem(), coordinates );
     }
 
     public static PointValue maxPointValue( PointValue reference )
     {
-        double[] coordinates = new double[reference.coordinate().length];
-        Arrays.fill( coordinates, Double.MAX_VALUE );
+        int length = reference.coordinate().length;
+        double[] coordinates = new double[length];
+        if ( reference.getCoordinateReferenceSystem().isGeographic() )
+        {
+            // WGS-84 boundaries
+            coordinates[0] = 180;
+            coordinates[1] = 90;
+            if ( length > 2 )
+            {
+                coordinates[2] = Double.MAX_VALUE;
+            }
+        }
+        else
+        {
+            Arrays.fill( coordinates, Double.MAX_VALUE );
+        }
         return pointValue( reference.getCoordinateReferenceSystem(), coordinates );
     }
 
@@ -438,7 +496,7 @@ public final class Values
             return NO_VALUE;
         }
 
-        throw new UnsupportedOperationException( "Unsupported type of Temporal " + value.toString() );
+        throw new UnsupportedOperationException( "Unsupported type of Temporal " + value );
     }
 
     public static DurationValue durationValue( TemporalAmount value )
@@ -463,37 +521,37 @@ public final class Values
         return duration;
     }
 
-    public static ArrayValue dateTimeArray( ZonedDateTime[] values )
+    public static DateTimeArray dateTimeArray( ZonedDateTime[] values )
     {
         return new DateTimeArray( values );
     }
 
-    public static ArrayValue localDateTimeArray( LocalDateTime[] values )
+    public static LocalDateTimeArray localDateTimeArray( LocalDateTime[] values )
     {
         return new LocalDateTimeArray( values );
     }
 
-    public static ArrayValue localTimeArray( LocalTime[] values )
+    public static LocalTimeArray localTimeArray( LocalTime[] values )
     {
         return new LocalTimeArray( values );
     }
 
-    public static ArrayValue timeArray( OffsetTime[] values )
+    public static TimeArray timeArray( OffsetTime[] values )
     {
         return new TimeArray( values );
     }
 
-    public static ArrayValue dateArray( LocalDate[] values )
+    public static DateArray dateArray( LocalDate[] values )
     {
         return new DateArray( values );
     }
 
-    public static ArrayValue durationArray( DurationValue[] values )
+    public static DurationArray durationArray( DurationValue[] values )
     {
         return new DurationArray( values );
     }
 
-    public static ArrayValue durationArray( TemporalAmount[] values )
+    public static DurationArray durationArray( TemporalAmount[] values )
     {
         DurationValue[] durations = new DurationValue[values.length];
         for ( int i = 0; i < values.length; i++ )
@@ -536,9 +594,17 @@ public final class Values
 
     public static Value unsafeOf( Object value, boolean allowNull )
     {
+        if ( value == null )
+        {
+            if ( allowNull )
+            {
+                return NO_VALUE;
+            }
+            throw new IllegalArgumentException( "[null] is not a supported property value" );
+        }
         if ( value instanceof String )
         {
-            return stringValue( (String) value );
+            return utf8Value( ((String) value).getBytes( StandardCharsets.UTF_8 ) );
         }
         if ( value instanceof Object[] )
         {
@@ -566,43 +632,35 @@ public final class Values
         }
         if ( value instanceof byte[] )
         {
-            return byteArray( ((byte[]) value).clone() );
+            return byteArray( Arrays.copyOf( (byte[]) value, ((byte[]) value).length) );
         }
         if ( value instanceof long[] )
         {
-            return longArray( ((long[]) value).clone() );
+            return longArray( Arrays.copyOf( (long[]) value, ((long[]) value).length) );
         }
         if ( value instanceof int[] )
         {
-            return intArray( ((int[]) value).clone() );
+            return intArray( Arrays.copyOf( (int[]) value, ((int[]) value).length) );
         }
         if ( value instanceof double[] )
         {
-            return doubleArray( ((double[]) value).clone() );
+            return doubleArray( Arrays.copyOf( (double[]) value, ((double[]) value).length) );
         }
         if ( value instanceof float[] )
         {
-            return floatArray( ((float[]) value).clone() );
+            return floatArray( Arrays.copyOf( (float[]) value, ((float[]) value).length) );
         }
         if ( value instanceof boolean[] )
         {
-            return booleanArray( ((boolean[]) value).clone() );
+            return booleanArray( Arrays.copyOf( (boolean[]) value, ((boolean[]) value).length) );
         }
         if ( value instanceof char[] )
         {
-            return charArray( ((char[]) value).clone() );
+            return charArray( Arrays.copyOf( (char[]) value, ((char[]) value).length) );
         }
         if ( value instanceof short[] )
         {
-            return shortArray( ((short[]) value).clone() );
-        }
-        if ( value == null )
-        {
-            if ( allowNull )
-            {
-                return NoValue.NO_VALUE;
-            }
-            throw new IllegalArgumentException( "[null] is not a supported property value" );
+            return shortArray( Arrays.copyOf( (short[]) value, ((short[]) value).length) );
         }
         if ( value instanceof Point )
         {
@@ -628,12 +686,6 @@ public final class Values
         return Arrays.stream( objects )
                 .map( Values::of )
                 .toArray( Value[]::new );
-    }
-
-    @Deprecated
-    public static Object asObject( Value value )
-    {
-        return value == null ? null : value.asObject();
     }
 
     public static Object[] asObjects( Value[] propertyValues )

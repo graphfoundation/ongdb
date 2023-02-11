@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,143 +38,105 @@
  */
 package org.neo4j.commandline.admin.security;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import picocli.CommandLine;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Path;
 
-import org.neo4j.commandline.admin.CommandFailed;
-import org.neo4j.commandline.admin.CommandLocator;
-import org.neo4j.commandline.admin.IncorrectUsage;
-import org.neo4j.commandline.admin.OutsideWorld;
-import org.neo4j.commandline.admin.Usage;
-import org.neo4j.graphdb.mockfs.EphemeralFileSystemAbstraction;
+import org.neo4j.cli.ExecutionContext;
+import org.neo4j.configuration.Config;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.api.exceptions.InvalidArgumentsException;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.security.Credential;
 import org.neo4j.kernel.impl.security.User;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.server.security.auth.CommunitySecurityModule;
 import org.neo4j.server.security.auth.FileUserRepository;
+import org.neo4j.server.security.auth.LegacyCredential;
 import org.neo4j.server.security.auth.UserRepository;
-import org.neo4j.test.rule.TestDirectory;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.EphemeralTestDirectoryExtension;
+import org.neo4j.test.utils.TestDirectory;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.neo4j.test.assertion.Assert.assertException;
 
-public class SetDefaultAdminCommandTest
+@EphemeralTestDirectoryExtension
+class SetDefaultAdminCommandTest
 {
-    private SetDefaultAdminCommand setDefaultAdmin;
-    private File adminIniFile;
-    private FileSystemAbstraction fileSystem = new EphemeralFileSystemAbstraction();
-    private Config config;
+    @Inject
+    private FileSystemAbstraction fileSystem;
+    @Inject
+    private TestDirectory testDir;
 
-    @Rule
-    public ExpectedException expect = ExpectedException.none();
-    @Rule
-    public TestDirectory testDir = TestDirectory.testDirectory( fileSystem );
+    private SetDefaultAdminCommand command;
+    private Path adminIniFile;
 
-    @Before
-    public void setup() throws IOException, InvalidArgumentsException
+    @BeforeEach
+    void setup() throws IOException, InvalidArgumentsException
     {
-        OutsideWorld mock = mock( OutsideWorld.class );
-        when( mock.fileSystem() ).thenReturn( fileSystem );
-        setDefaultAdmin = new SetDefaultAdminCommand( testDir.directory( "home" ).toPath(),
-                testDir.directory( "conf" ).toPath(), mock );
-        config = setDefaultAdmin.loadNeo4jConfig();
+        command = new SetDefaultAdminCommand( new ExecutionContext( testDir.directory( "home" ),
+                                                                    testDir.directory( "conf" ), mock( PrintStream.class ), mock( PrintStream.class ),
+                                                                    fileSystem ) );
+        final Config config = command.loadNeo4jConfig();
         UserRepository users = CommunitySecurityModule.getUserRepository( config, NullLogProvider.getInstance(),
-                fileSystem );
+            fileSystem );
         users.create(
-                new User.Builder( "jake", Credential.forPassword( "123" ) )
-                        .withRequiredPasswordChange( false )
-                        .build()
-            );
-        adminIniFile = new File( CommunitySecurityModule.getUserRepositoryFile( config ).getParentFile(), "admin.ini" );
+            new User.Builder( "jake", LegacyCredential.forPassword( "123" ) )
+                .withRequiredPasswordChange( false )
+                .build()
+        );
+        adminIniFile = CommunitySecurityModule.getUserRepositoryFile( config ).resolveSibling( "admin.ini" );
     }
 
     @Test
-    public void shouldFailForNoArguments()
+    void printUsageHelp()
     {
-        assertException( () -> setDefaultAdmin.execute( new String[0] ), IncorrectUsage.class,
-                "not enough arguments" );
+        final var baos = new ByteArrayOutputStream();
+        try ( var out = new PrintStream( baos ) )
+        {
+            CommandLine.usage( command, new PrintStream( out ), CommandLine.Help.Ansi.OFF );
+        }
+        assertThat( baos.toString().trim() ).isEqualTo( String.format(
+                "USAGE%n" + "%n" +
+                        "set-default-admin [--expand-commands] [--verbose] <username>%n" +
+                        "%n" + "DESCRIPTION%n" + "%n" +
+                        "Sets the default admin user.%n" +
+                        "This user will be granted the admin role on startup if the system has no roles.%n" +
+                        "%n" +
+                        "PARAMETERS%n" + "%n" +
+                        "      <username>%n" + "%n" + "OPTIONS%n" + "%n" +
+                        "      --verbose           Enable verbose output.%n" +
+                        "      --expand-commands   Allow command expansion in config value evaluation.") );
     }
 
     @Test
-    public void shouldFailForTooManyArguments()
-    {
-        String[] arguments = {"", "123", "321"};
-        assertException( () -> setDefaultAdmin.execute( arguments ), IncorrectUsage.class, "unrecognized arguments: '123 321'" );
-    }
-
-    @Test
-    public void shouldSetDefaultAdmin() throws Throwable
+    void shouldSetDefaultAdmin() throws Throwable
     {
         // Given
         assertFalse( fileSystem.fileExists( adminIniFile ) );
 
         // When
-        String[] arguments = {"jake"};
-        setDefaultAdmin.execute( arguments );
+        CommandLine.populateCommand( command, "jake" );
+
+        command.execute();
 
         // Then
         assertAdminIniFile( "jake" );
     }
 
-    @Test
-    public void shouldNotSetDefaultAdminForNonExistentUser() throws Throwable
-    {
-        // Then
-        expect.expect( CommandFailed.class );
-        expect.expectMessage( "no such user: 'noName'" );
-
-        // When
-        String[] arguments = {"noName"};
-        setDefaultAdmin.execute( arguments );
-    }
-
-    @Test
-    public void shouldPrintNiceHelp() throws Throwable
-    {
-        try ( ByteArrayOutputStream baos = new ByteArrayOutputStream() )
-        {
-            PrintStream ps = new PrintStream( baos );
-
-            Usage usage = new Usage( "ongdb-admin", mock( CommandLocator.class ) );
-            usage.printUsageForCommand( new SetDefaultAdminCommandProvider(), ps::println );
-
-            assertEquals( String.format( "usage: ongdb-admin set-default-admin <username>%n" +
-                            "%n" +
-                            "environment variables:%n" +
-                            "    ONGDB_CONF    Path to directory which contains ongdb.conf.%n" +
-                            "    ONGDB_DEBUG   Set to anything to enable debug output.%n" +
-                            "    ONGDB_HOME    ONgDB home directory.%n" +
-                            "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
-                            "                  Takes a number and a unit, for example 512m.%n" +
-                            "%n" +
-                            "Sets the user to become admin if users but no roles are present, for example%n" +
-                            "when upgrading to neo4j 3.1 enterprise.%n" ),
-                    baos.toString() );
-        }
-    }
-
+    @SuppressWarnings( "SameParameterValue" )
     private void assertAdminIniFile( String username ) throws Throwable
     {
         assertTrue( fileSystem.fileExists( adminIniFile ) );
         FileUserRepository userRepository = new FileUserRepository( fileSystem, adminIniFile,
             NullLogProvider.getInstance() );
         userRepository.start();
-        assertThat( userRepository.getAllUsernames(), containsInAnyOrder( username ) );
+        assertThat( userRepository.getAllUsernames() ).contains( username );
     }
 }

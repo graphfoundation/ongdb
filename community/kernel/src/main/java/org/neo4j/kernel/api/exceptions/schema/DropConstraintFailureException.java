@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,37 +38,67 @@
  */
 package org.neo4j.kernel.api.exceptions.schema;
 
-import org.neo4j.internal.kernel.api.TokenNameLookup;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
+import org.neo4j.common.TokenNameLookup;
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.internal.kernel.api.exceptions.schema.SchemaKernelException;
-import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptorSupplier;
 import org.neo4j.kernel.api.exceptions.Status;
 
 public class DropConstraintFailureException extends SchemaKernelException
 {
-    private final ConstraintDescriptor constraint;
+    private final SchemaDescriptorSupplier constraint;
+    private final String nameOrSchema;
 
-    public DropConstraintFailureException( ConstraintDescriptor constraint, Throwable cause )
+    public DropConstraintFailureException( SchemaDescriptorSupplier constraint, Throwable cause )
     {
-        super( Status.Schema.ConstraintDropFailed, cause, "Unable to drop constraint %s: %s", constraint, cause.getMessage() );
+        super( Status.Schema.ConstraintDropFailed, cause, "Unable to drop constraint: " + cause.getMessage() );
         this.constraint = constraint;
+        this.nameOrSchema = null;
     }
 
-    public ConstraintDescriptor constraint()
+    public DropConstraintFailureException( SchemaDescriptor constraint, Throwable cause )
     {
-        return constraint;
+        this( () -> constraint, cause );
+    }
+
+    public DropConstraintFailureException( String nameOrSchema, Throwable cause )
+    {
+        // nameOrSchema is just 'name' or 'on schema'
+        super( Status.Schema.ConstraintDropFailed, cause, "Unable to drop constraint `" + nameOrSchema + "`: " + cause.getMessage() );
+        this.nameOrSchema = nameOrSchema;
+        this.constraint = null;
     }
 
     @Override
     public String getUserMessage( TokenNameLookup tokenNameLookup )
     {
-        String message = "Unable to drop " + constraint.userDescription( tokenNameLookup );
-        if ( getCause() instanceof KernelException )
+        String message;
+        if ( constraint != null )
         {
-            KernelException cause = (KernelException) getCause();
+            message = "Unable to drop constraint on " + constraint.userDescription( tokenNameLookup ) + ": ";
 
-            return String.format( "%s:%n%s", message, cause.getUserMessage( tokenNameLookup ) );
         }
+        else if ( nameOrSchema != null )
+        {
+            message = "Unable to drop constraint `" + nameOrSchema + "`: ";
+        }
+        else
+        {
+            return getMessage();
+        }
+
+        Throwable cause = getCause();
+        if ( cause instanceof KernelException )
+        {
+            KernelException exception = (KernelException) cause;
+            message += exception.getUserMessage( tokenNameLookup );
+        }
+        else
+        {
+            message += cause.getMessage();
+        }
+
         return message;
     }
 }

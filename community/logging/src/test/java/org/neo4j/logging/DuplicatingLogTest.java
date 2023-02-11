@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,94 +38,104 @@
  */
 package org.neo4j.logging;
 
-import org.junit.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
-public class DuplicatingLogTest
+import java.lang.reflect.Method;
+
+import org.neo4j.logging.log4j.LogExtended;
+import org.neo4j.logging.log4j.Neo4jLogMessage;
+import org.neo4j.logging.log4j.Neo4jMessageSupplier;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+
+class DuplicatingLogTest
 {
-    @Test
-    public void shouldOutputToMultipleLogs()
+    final Log log1 = mock( Log.class );
+    final Log log2 = mock( Log.class );
+
+    @ParameterizedTest
+    @ValueSource( strings = {"debug", "info", "warn", "error"} )
+    void shouldOutputToMultipleLogs( String type ) throws Exception
     {
         // Given
-        AssertableLogProvider logProvider = new AssertableLogProvider();
-        Log log1 = logProvider.getLog( "log 1" );
-        Log log2 = logProvider.getLog( "log 2" );
-
         DuplicatingLog log = new DuplicatingLog( log1, log2 );
+        Method m = Log.class.getMethod( type, String.class );
 
         // When
-        log.info( "When the going gets weird" );
+        m.invoke( log, "When the going gets weird" );
 
         // Then
-        logProvider.assertExactly(
-                AssertableLogProvider.inLog( "log 1" ).info( "When the going gets weird" ),
-                AssertableLogProvider.inLog( "log 2" ).info( "When the going gets weird" )
-        );
+        m.invoke( verify( log1 ), "When the going gets weird" );
+        m.invoke( verify( log2 ), "When the going gets weird" );
+        verifyNoMoreInteractions( log1 );
+        verifyNoMoreInteractions( log2 );
     }
 
-    @Test
-    public void shouldBulkOutputToMultipleLogs()
+    @ParameterizedTest
+    @ValueSource( strings = {"debug", "info", "warn", "error"} )
+    void shouldOutputToMultipleLogsWithStructureAwareMessage( String type ) throws Exception
     {
         // Given
-        AssertableLogProvider logProvider = new AssertableLogProvider();
-        Log log1 = logProvider.getLog( "log 1" );
-        Log log2 = logProvider.getLog( "log 2" );
-
         DuplicatingLog log = new DuplicatingLog( log1, log2 );
+        Method messageLog = LogExtended.class.getMethod( type, Neo4jLogMessage.class );
+        Method stringLog = LogExtended.class.getMethod( type, String.class );
 
         // When
-        log.bulk( bulkLog -> bulkLog.info( "When the going gets weird" ) );
+        messageLog.invoke( log, new MyMessage() );
 
         // Then
-        logProvider.assertExactly(
-                AssertableLogProvider.inLog( "log 1" ).info( "When the going gets weird" ),
-                AssertableLogProvider.inLog( "log 2" ).info( "When the going gets weird" )
-        );
+        stringLog.invoke( verify( log1 ), "When the going gets weird" );
+        stringLog.invoke( verify( log2 ), "When the going gets weird" );
+        verifyNoMoreInteractions( log1 );
+        verifyNoMoreInteractions( log2 );
     }
 
-    @Test
-    public void shouldRemoveLogFromDuplication()
+    @ParameterizedTest
+    @ValueSource( strings = {"debug", "info", "warn", "error"} )
+    void shouldOutputToMultipleLogsWithStructureAwareMessageSupplier( String type ) throws Exception
     {
         // Given
-        AssertableLogProvider logProvider = new AssertableLogProvider();
-        Log log1 = logProvider.getLog( "log 1" );
-        Log log2 = logProvider.getLog( "log 2" );
-
         DuplicatingLog log = new DuplicatingLog( log1, log2 );
+        Method messageLog = LogExtended.class.getMethod( type, Neo4jMessageSupplier.class );
+        Method stringLog = LogExtended.class.getMethod( type, String.class );
 
         // When
-        log.info( "When the going gets weird" );
-        log.remove( log1 );
-        log.info( "The weird turn pro" );
+        messageLog.invoke( log, (Neo4jMessageSupplier) MyMessage::new );
 
         // Then
-        logProvider.assertExactly(
-                AssertableLogProvider.inLog( "log 1" ).info( "When the going gets weird" ),
-                AssertableLogProvider.inLog( "log 2" ).info( "When the going gets weird" ),
-                AssertableLogProvider.inLog( "log 2" ).info( "The weird turn pro" )
-        );
+        stringLog.invoke( verify( log1 ), "When the going gets weird" );
+        stringLog.invoke( verify( log2 ), "When the going gets weird" );
+        verifyNoMoreInteractions( log1 );
+        verifyNoMoreInteractions( log2 );
     }
 
-    @Test
-    public void shouldRemoveLoggersFromDuplication()
+    private static class MyMessage implements Neo4jLogMessage
     {
-        // Given
-        AssertableLogProvider logProvider = new AssertableLogProvider();
-        Log log1 = logProvider.getLog( "log 1" );
-        Log log2 = logProvider.getLog( "log 2" );
+        @Override
+        public String getFormattedMessage()
+        {
+            return "When the going gets weird";
+        }
 
-        DuplicatingLog log = new DuplicatingLog( log1, log2 );
-        Logger logger = log.infoLogger();
+        @Override
+        public String getFormat()
+        {
+            return "";
+        }
 
-        // When
-        logger.log( "When the going gets weird" );
-        log.remove( log1 );
-        logger.log( "The weird turn pro" );
+        @Override
+        public Object[] getParameters()
+        {
+            return new Object[0];
+        }
 
-        // Then
-        logProvider.assertExactly(
-                AssertableLogProvider.inLog( "log 1" ).info( "When the going gets weird" ),
-                AssertableLogProvider.inLog( "log 2" ).info( "When the going gets weird" ),
-                AssertableLogProvider.inLog( "log 2" ).info( "The weird turn pro" )
-        );
+        @Override
+        public Throwable getThrowable()
+        {
+            return null;
+        }
     }
 }

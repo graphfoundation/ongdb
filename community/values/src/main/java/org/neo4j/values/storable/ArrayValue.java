@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -47,10 +47,15 @@ import org.neo4j.values.SequenceValue;
 /**
  * Array of one of the storable primitives
  */
-public abstract class ArrayValue extends Value implements SequenceValue
+public abstract class ArrayValue extends HashMemoizingValue implements SequenceValue
 {
     @Override
     public abstract int length();
+
+    public abstract boolean hasCompatibleType( AnyValue value );
+    public abstract ArrayValue copyWithAppended( AnyValue added );
+
+    public abstract ArrayValue copyWithPrepended( AnyValue prepended );
 
     @Override
     public IterationPreference iterationPreference()
@@ -61,7 +66,7 @@ public abstract class ArrayValue extends Value implements SequenceValue
     @Override
     public Iterator<AnyValue> iterator()
     {
-        return new Iterator<AnyValue>()
+        return new Iterator<>()
         {
             private int offset;
 
@@ -84,7 +89,7 @@ public abstract class ArrayValue extends Value implements SequenceValue
     }
 
     @Override
-    public final boolean eq( Object other )
+    public final boolean equalTo( Object other )
     {
         if ( other == null )
         {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,15 +38,21 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.mockito.Mockito._
-import org.neo4j.cypher.internal.runtime.ImplicitValueConversion._
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
-import org.neo4j.cypher.internal.runtime.{Operations, QueryContext}
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.mockito.Mockito.when
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.ImplicitValueConversion.toNodeValue
+import org.neo4j.cypher.internal.runtime.QueryContext
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
+import org.neo4j.cypher.internal.runtime.interpreted.commands.LiteralHelper.literal
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 import org.neo4j.graphdb.Node
+import org.neo4j.values.AnyValues
 import org.neo4j.values.storable.Values.stringValue
-import org.neo4j.values.virtual.NodeValue
-import org.neo4j.values.virtual.VirtualValues.{EMPTY_LIST, list}
+import org.neo4j.values.virtual.ListValue
+import org.neo4j.values.virtual.VirtualValues.EMPTY_LIST
+import org.neo4j.values.virtual.VirtualValues.list
+
+import scala.collection.mutable
 
 class KeysFunctionTest extends CypherFunSuite {
 
@@ -56,17 +62,15 @@ class KeysFunctionTest extends CypherFunSuite {
     val node = mock[Node]
 
     val queryContext = mock[QueryContext]
+    val state = QueryStateHelper.emptyWith(query = queryContext)
 
-    val ops = mock[Operations[NodeValue]]
-    when(queryContext.nodeOps).thenReturn(ops)
-    when(ops.propertyKeyIds(node.getId)).thenReturn(Iterator(11, 12, 13))
+    when(queryContext.nodePropertyIds(node.getId, state.cursors.nodeCursor, state.cursors.propertyCursor)).thenReturn(Array(11, 12, 13))
 
     when(queryContext.getPropertyKeyName(11)).thenReturn("theProp1")
     when(queryContext.getPropertyKeyName(12)).thenReturn("OtherProp")
     when(queryContext.getPropertyKeyName(13)).thenReturn("MoreProp")
 
-    val state = QueryStateHelper.emptyWith(query = queryContext)
-    val ctx = ExecutionContext() += ("n" -> node)
+    val ctx = CypherRow(mutable.Map("n" -> node))
 
     // WHEN
     val result = KeysFunction(Variable("n"))(ctx, state)
@@ -79,13 +83,10 @@ class KeysFunctionTest extends CypherFunSuite {
     // GIVEN
     val node = mock[Node]
     val queryContext = mock[QueryContext]
-    val ops = mock[Operations[NodeValue]]
-    when(queryContext.nodeOps).thenReturn(ops)
-    when(ops.propertyKeyIds(node.getId)).thenReturn(Iterator.empty)
-
-
     val state = QueryStateHelper.emptyWith(query = queryContext)
-    val ctx = ExecutionContext() += ("n" -> node)
+    when(queryContext.nodePropertyIds(node.getId, state.cursors.nodeCursor, state.cursors.propertyCursor)).thenReturn(Array.empty[Int])
+
+    val ctx = CypherRow(mutable.Map("n" -> node))
 
     // WHEN
     val result = KeysFunction(Variable("n"))(ctx, state)
@@ -98,12 +99,12 @@ class KeysFunctionTest extends CypherFunSuite {
     // GIVEN
     val queryContext = mock[QueryContext]
     val state = QueryStateHelper.emptyWith(query = queryContext)
-    val ctx = ExecutionContext.empty
+    val ctx = CypherRow.empty
 
-    val function = KeysFunction(LiteralMap(Map("foo" -> Literal(1), "bar" -> Literal(2), "baz" -> Literal(3))))
+    val function = KeysFunction(LiteralMap(Map("foo" -> literal(1), "bar" -> literal(2), "baz" -> literal(3))))
     // WHEN
-    val result = function(ctx, state)
+    val result = function(ctx, state).asInstanceOf[ListValue].asArray().sortWith((a, b) => AnyValues.COMPARATOR.compare(a, b) >= 0)
 
-    result should equal(list(stringValue("foo"), stringValue("bar"), stringValue("baz")))
+    result should equal(Array(stringValue("foo"), stringValue("baz"), stringValue("bar")))
   }
 }

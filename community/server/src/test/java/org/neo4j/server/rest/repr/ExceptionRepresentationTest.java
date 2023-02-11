@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,29 +38,25 @@
  */
 package org.neo4j.server.rest.repr;
 
-import org.codehaus.jackson.JsonNode;
-import org.junit.Test;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.server.rest.domain.JsonHelper;
 import org.neo4j.server.rest.domain.JsonParseException;
 import org.neo4j.server.rest.repr.formats.MapWrappingWriter;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.mock;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.neo4j.kernel.api.exceptions.Status.General.UnknownError;
 
-public class ExceptionRepresentationTest
+class ExceptionRepresentationTest
 {
-
     @Test
-    public void shouldIncludeCause() throws Exception
+    void shouldIncludeCause() throws Exception
     {
         // Given
         ExceptionRepresentation rep = new ExceptionRepresentation(
@@ -70,12 +66,12 @@ public class ExceptionRepresentationTest
         JsonNode out = serialize( rep );
 
         // Then
-        assertThat( out.get("cause").get("message").asText(), is( "Haha" ) );
-        assertThat( out.get( "cause" ).get("cause").get("message").asText(), is( "HAHA!") );
+        assertThat( out.get( "cause" ).get( "message" ).asText() ).isEqualTo( "Haha" );
+        assertThat( out.get( "cause" ).get( "cause" ).get( "message" ).asText() ).isEqualTo( "HAHA!" );
     }
 
     @Test
-    public void shouldRenderErrorsWithNeo4jStatusCode() throws Exception
+    void shouldRenderErrorsWithNeo4jStatusCode() throws Exception
     {
         // Given
         ExceptionRepresentation rep = new ExceptionRepresentation( new KernelException( UnknownError, "Hello" )
@@ -86,12 +82,12 @@ public class ExceptionRepresentationTest
         JsonNode out = serialize( rep );
 
         // Then
-        assertThat(out.get("errors").get(0).get("code").asText(), equalTo("Neo.DatabaseError.General.UnknownError"));
-        assertThat(out.get("errors").get(0).get("message").asText(), equalTo("Hello"));
+        assertThat( out.get( "errors" ).get( 0 ).get( "code" ).asText() ).isEqualTo( "Neo.DatabaseError.General.UnknownError" );
+        assertThat( out.get( "errors" ).get( 0 ).get( "message" ).asText() ).isEqualTo( "Hello" );
     }
 
     @Test
-    public void shoudExcludeLegacyFormatIfAsked() throws Exception
+    void shouldExcludeLegacyFormatIfAsked() throws Exception
     {
         // Given
         ExceptionRepresentation rep = new ExceptionRepresentation( new KernelException( UnknownError, "Hello" )
@@ -102,16 +98,15 @@ public class ExceptionRepresentationTest
         JsonNode out = serialize( rep );
 
         // Then
-        assertThat(out.get("errors").get(0).get("code").asText(), equalTo("Neo.DatabaseError.General.UnknownError"));
-        assertThat(out.get("errors").get(0).get("message").asText(), equalTo("Hello"));
-        assertThat(out.has( "message" ), equalTo(false));
+        assertThat( out.get( "errors" ).get( 0 ).get( "code" ).asText() ).isEqualTo( "Neo.DatabaseError.General.UnknownError" );
+        assertThat( out.get( "errors" ).get( 0 ).get( "message" ).asText() ).isEqualTo( "Hello" );
+        assertThat( out.has( "message" ) ).isEqualTo( false );
     }
 
-    private JsonNode serialize( ExceptionRepresentation rep ) throws JsonParseException
+    private static JsonNode serialize( ExceptionRepresentation rep ) throws JsonParseException
     {
         Map<String, Object> output = new HashMap<>();
-        MappingSerializer serializer = new MappingSerializer( new MapWrappingWriter( output ), URI.create( "" ),
-                mock(ExtensionInjector.class ) );
+        MappingSerializer serializer = new MappingSerializer( new MapWrappingWriter( output ), URI.create( "" ) );
 
         // When
         rep.serialize( serializer );

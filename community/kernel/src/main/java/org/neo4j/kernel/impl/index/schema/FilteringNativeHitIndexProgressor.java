@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,22 +38,17 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import java.io.IOException;
-import java.util.Collection;
-
-import org.neo4j.cursor.RawCursor;
-import org.neo4j.index.internal.gbptree.Hit;
-import org.neo4j.internal.kernel.api.IndexQuery;
+import org.neo4j.index.internal.gbptree.Seeker;
+import org.neo4j.internal.kernel.api.PropertyIndexQuery;
 import org.neo4j.values.storable.Value;
 
-class FilteringNativeHitIndexProgressor<KEY extends NativeSchemaKey<KEY>, VALUE extends NativeSchemaValue> extends NativeHitIndexProgressor<KEY,VALUE>
+class FilteringNativeHitIndexProgressor<KEY extends NativeIndexKey<KEY>> extends NativeHitIndexProgressor<KEY>
 {
-    private final IndexQuery[] filter;
+    private final PropertyIndexQuery[] filter;
 
-    FilteringNativeHitIndexProgressor( RawCursor<Hit<KEY,VALUE>,IOException> seeker, NodeValueClient client,
-            Collection<RawCursor<Hit<KEY,VALUE>,IOException>> toRemoveFromOnClose, IndexQuery[] filter )
+    FilteringNativeHitIndexProgressor( Seeker<KEY,NullValue> seeker, EntityValueClient client, PropertyIndexQuery[] filter )
     {
-        super( seeker, client, toRemoveFromOnClose );
+        super( seeker, client );
         this.filter = filter;
     }
 
@@ -68,5 +63,12 @@ class FilteringNativeHitIndexProgressor<KEY extends NativeSchemaKey<KEY>, VALUE 
             }
         }
         return true;
+    }
+
+    // We need to make sure to always deserialize, even if the client doesn't need the value, to be able to filter
+    @Override
+    Value[] extractValues( KEY key )
+    {
+        return key.asValues();
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,108 +38,117 @@
  */
 package org.neo4j.kernel.impl.constraints;
 
-import java.util.Iterator;
-import java.util.function.BiPredicate;
-
-import org.neo4j.cursor.Cursor;
+import org.neo4j.annotations.service.ServiceProvider;
+import org.neo4j.common.TokenNameLookup;
+import org.neo4j.internal.kernel.api.CursorFactory;
 import org.neo4j.internal.kernel.api.NodeCursor;
 import org.neo4j.internal.kernel.api.NodeLabelIndexCursor;
 import org.neo4j.internal.kernel.api.PropertyCursor;
+import org.neo4j.internal.kernel.api.Read;
 import org.neo4j.internal.kernel.api.RelationshipScanCursor;
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.RelationTypeSchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
-import org.neo4j.kernel.api.exceptions.schema.CreateConstraintFailureException;
-import org.neo4j.kernel.api.schema.constaints.ConstraintDescriptorFactory;
-import org.neo4j.kernel.api.schema.constaints.NodeKeyConstraintDescriptor;
-import org.neo4j.kernel.api.schema.constaints.UniquenessConstraintDescriptor;
-import org.neo4j.kernel.impl.store.record.ConstraintRule;
-import org.neo4j.storageengine.api.NodeItem;
-import org.neo4j.storageengine.api.RelationshipItem;
-import org.neo4j.storageengine.api.StoreReadLayer;
+import org.neo4j.internal.kernel.api.RelationshipTypeIndexCursor;
+import org.neo4j.internal.kernel.api.exceptions.schema.CreateConstraintFailureException;
+import org.neo4j.internal.schema.ConstraintDescriptor;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.RelationTypeSchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.constraints.ConstraintDescriptorFactory;
+import org.neo4j.internal.schema.constraints.NodeKeyConstraintDescriptor;
+import org.neo4j.internal.schema.constraints.UniquenessConstraintDescriptor;
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.memory.MemoryTracker;
+import org.neo4j.storageengine.api.StandardConstraintRuleAccessor;
+import org.neo4j.storageengine.api.StorageReader;
 import org.neo4j.storageengine.api.txstate.ReadableTransactionState;
 import org.neo4j.storageengine.api.txstate.TxStateVisitor;
 
-public class StandardConstraintSemantics implements ConstraintSemantics
+@ServiceProvider
+public class StandardConstraintSemantics extends ConstraintSemantics
 {
     public static final String ERROR_MESSAGE_EXISTS = "Property existence constraint requires ONgDB Enterprise Edition";
     public static final String ERROR_MESSAGE_NODE_KEY = "Node Key constraint requires ONgDB Enterprise Edition";
 
-    @Override
-    public void validateNodePropertyExistenceConstraint( Iterator<Cursor<NodeItem>> allNodes,
-            LabelSchemaDescriptor descriptor, BiPredicate<NodeItem,Integer> hasProperty )
-            throws CreateConstraintFailureException
+    protected final StandardConstraintRuleAccessor accessor = new StandardConstraintRuleAccessor();
+
+    public StandardConstraintSemantics()
     {
-        throw propertyExistenceConstraintsNotAllowed( descriptor );
+        this( 1 );
+    }
+
+    protected StandardConstraintSemantics( int priority )
+    {
+        super( priority );
     }
 
     @Override
-    public void validateNodeKeyConstraint( NodeLabelIndexCursor allNodes, NodeCursor nodeCursor,
-            PropertyCursor propertyCursor, LabelSchemaDescriptor descriptor ) throws CreateConstraintFailureException
+    public String getName()
     {
-        throw nodeKeyConstraintsNotAllowed( descriptor );
+        return "standardConstraints";
     }
 
     @Override
-    public void validateNodePropertyExistenceConstraint( NodeLabelIndexCursor allNodes, NodeCursor nodeCursor,
-            PropertyCursor propertyCursor, LabelSchemaDescriptor descriptor ) throws CreateConstraintFailureException
-    {
-        throw propertyExistenceConstraintsNotAllowed( descriptor );
-    }
-
-    @Override
-    public void validateRelationshipPropertyExistenceConstraint( Cursor<RelationshipItem> allRelationships,
-            RelationTypeSchemaDescriptor descriptor, BiPredicate<RelationshipItem,Integer> hasPropertyCheck )
-            throws CreateConstraintFailureException
-    {
-        throw propertyExistenceConstraintsNotAllowed( descriptor );
-    }
-
-    @Override
-    public void validateRelationshipPropertyExistenceConstraint( RelationshipScanCursor relationshipCursor,
-            PropertyCursor propertyCursor, RelationTypeSchemaDescriptor descriptor )  throws CreateConstraintFailureException
-    {
-        throw propertyExistenceConstraintsNotAllowed( descriptor );
-    }
-
-    @Override
-    public void validateNodeKeyConstraint( Iterator<Cursor<NodeItem>> allNodes,
-            LabelSchemaDescriptor descriptor, BiPredicate<NodeItem,Integer> hasProperty )
+    public void assertNodeKeyConstraintAllowed( LabelSchemaDescriptor descriptor )
             throws CreateConstraintFailureException
     {
         throw nodeKeyConstraintsNotAllowed( descriptor );
     }
 
     @Override
-    public ConstraintDescriptor readConstraint( ConstraintRule rule )
+    public void validateNodeKeyConstraint( NodeLabelIndexCursor allNodes, NodeCursor nodeCursor, PropertyCursor propertyCursor,
+            LabelSchemaDescriptor descriptor, TokenNameLookup tokenNameLookup ) throws CreateConstraintFailureException
     {
-        ConstraintDescriptor desc = rule.getConstraintDescriptor();
-        switch ( desc.type() )
+        throw nodeKeyConstraintsNotAllowed( descriptor );
+    }
+
+    @Override
+    public void validateNodePropertyExistenceConstraint( NodeLabelIndexCursor allNodes, NodeCursor nodeCursor, PropertyCursor propertyCursor,
+            LabelSchemaDescriptor descriptor, TokenNameLookup tokenNameLookup ) throws CreateConstraintFailureException
+    {
+        throw propertyExistenceConstraintsNotAllowed( descriptor );
+    }
+
+    @Override
+    public void validateRelationshipPropertyExistenceConstraint( RelationshipScanCursor relationshipCursor, PropertyCursor propertyCursor,
+            RelationTypeSchemaDescriptor descriptor, TokenNameLookup tokenNameLookup )  throws CreateConstraintFailureException
+    {
+        throw propertyExistenceConstraintsNotAllowed( descriptor );
+    }
+
+    @Override
+    public void validateRelationshipPropertyExistenceConstraint( RelationshipTypeIndexCursor allRelationships, RelationshipScanCursor relationshipCursor,
+            PropertyCursor propertyCursor, RelationTypeSchemaDescriptor descriptor, TokenNameLookup tokenNameLookup ) throws CreateConstraintFailureException
+    {
+        throw propertyExistenceConstraintsNotAllowed( descriptor );
+    }
+
+    @Override
+    public ConstraintDescriptor readConstraint( ConstraintDescriptor constraint )
+    {
+        switch ( constraint.type() )
         {
         case EXISTS:
-            return readNonStandardConstraint( rule, ERROR_MESSAGE_EXISTS );
+            return readNonStandardConstraint( constraint, ERROR_MESSAGE_EXISTS );
         case UNIQUE_EXISTS:
-            return readNonStandardConstraint( rule, ERROR_MESSAGE_NODE_KEY );
+            return readNonStandardConstraint( constraint, ERROR_MESSAGE_NODE_KEY );
         default:
-            return desc;
+            return constraint;
         }
     }
 
-    protected ConstraintDescriptor readNonStandardConstraint( ConstraintRule rule, String errorMessage )
+    protected ConstraintDescriptor readNonStandardConstraint( ConstraintDescriptor constraint, String errorMessage )
     {
         // When opening a store in Community Edition that contains a Property Existence Constraint
         throw new IllegalStateException( errorMessage );
     }
 
-    private CreateConstraintFailureException propertyExistenceConstraintsNotAllowed( SchemaDescriptor descriptor )
+    private static CreateConstraintFailureException propertyExistenceConstraintsNotAllowed( SchemaDescriptor descriptor )
     {
         // When creating a Property Existence Constraint in Community Edition
         return new CreateConstraintFailureException(
                 ConstraintDescriptorFactory.existsForSchema( descriptor ), ERROR_MESSAGE_EXISTS );
     }
 
-    private CreateConstraintFailureException nodeKeyConstraintsNotAllowed( SchemaDescriptor descriptor )
+    private static CreateConstraintFailureException nodeKeyConstraintsNotAllowed( SchemaDescriptor descriptor )
     {
         // When creating a Node Key Constraint in Community Edition
         return new CreateConstraintFailureException(
@@ -147,30 +156,44 @@ public class StandardConstraintSemantics implements ConstraintSemantics
     }
 
     @Override
-    public ConstraintRule createUniquenessConstraintRule(
+    public ConstraintDescriptor createUniquenessConstraintRule(
             long ruleId, UniquenessConstraintDescriptor descriptor, long indexId )
     {
-        return ConstraintRule.constraintRule( ruleId, descriptor, indexId );
+        return accessor.createUniquenessConstraintRule( ruleId, descriptor, indexId );
     }
 
     @Override
-    public ConstraintRule createNodeKeyConstraintRule(
+    public ConstraintDescriptor createNodeKeyConstraintRule(
             long ruleId, NodeKeyConstraintDescriptor descriptor, long indexId ) throws CreateConstraintFailureException
     {
         throw nodeKeyConstraintsNotAllowed( descriptor.schema() );
     }
 
     @Override
-    public ConstraintRule createExistenceConstraint( long ruleId, ConstraintDescriptor descriptor )
+    public ConstraintDescriptor createExistenceConstraint( long ruleId, ConstraintDescriptor descriptor )
             throws CreateConstraintFailureException
     {
         throw propertyExistenceConstraintsNotAllowed( descriptor.schema() );
     }
 
     @Override
-    public TxStateVisitor decorateTxStateVisitor( StoreReadLayer storeLayer, ReadableTransactionState txState,
-            TxStateVisitor visitor )
+    public TxStateVisitor decorateTxStateVisitor( StorageReader storageReader, Read read, CursorFactory cursorFactory, ReadableTransactionState state,
+            TxStateVisitor visitor, CursorContext cursorContext, MemoryTracker memoryTracker )
     {
         return visitor;
+    }
+
+    @Override
+    public void validateNodePropertyExistenceConstraint( NodeCursor nodeCursor, PropertyCursor propertyCursor, LabelSchemaDescriptor descriptor,
+                                                         TokenNameLookup tokenNameLookup ) throws CreateConstraintFailureException
+    {
+        throw propertyExistenceConstraintsNotAllowed( descriptor );
+    }
+
+    @Override
+    public void validateNodeKeyConstraint( NodeCursor nodeCursor, PropertyCursor propertyCursor, LabelSchemaDescriptor descriptor,
+                                           TokenNameLookup tokenNameLookup ) throws CreateConstraintFailureException
+    {
+        throw nodeKeyConstraintsNotAllowed( descriptor );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -44,17 +44,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 
-import org.neo4j.io.pagecache.IOLimiter;
+import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.index.IndexUpdater;
 import org.neo4j.kernel.impl.api.index.updater.DelegatingIndexUpdater;
+import org.neo4j.util.VisibleForTesting;
 
 /**
  * {@link IndexProxy} layer that enforces the dynamic contract of {@link IndexProxy} (cf. Test)
  *
  * @see org.neo4j.kernel.impl.api.index.IndexProxy
  */
-public class ContractCheckingIndexProxy extends DelegatingIndexProxy
+class ContractCheckingIndexProxy extends DelegatingIndexProxy
 {
     /**
      * State machine for {@link IndexProxy proxies}
@@ -66,7 +67,7 @@ public class ContractCheckingIndexProxy extends DelegatingIndexProxy
      *
      * Valid state transitions are:
      *
-     * INIT -[:start]-> STARTING -[:implicit]-> STARTED -[:close|:drop]-> CLOSED
+     * INIT -[:start]-> STARTING -[:implicit]-> STARTED -[:close|drop]-> CLOSED
      * INIT -[:close] -> CLOSED
      *
      * Additionally, {@link ContractCheckingIndexProxy} keeps track of the number of open
@@ -82,15 +83,15 @@ public class ContractCheckingIndexProxy extends DelegatingIndexProxy
     private final AtomicReference<State> state;
     private final AtomicInteger openCalls;
 
-    public ContractCheckingIndexProxy( IndexProxy delegate, boolean started )
+    ContractCheckingIndexProxy( IndexProxy delegate )
     {
         super( delegate );
-        this.state = new AtomicReference<>( started ? State.STARTED : State.INIT );
+        this.state = new AtomicReference<>( State.INIT );
         this.openCalls = new AtomicInteger( 0 );
     }
 
     @Override
-    public void start() throws IOException
+    public void start()
     {
         if ( state.compareAndSet( State.INIT, State.STARTING ) )
         {
@@ -110,49 +111,62 @@ public class ContractCheckingIndexProxy extends DelegatingIndexProxy
     }
 
     @Override
-    public IndexUpdater newUpdater( IndexUpdateMode mode )
+    public IndexUpdater newUpdater( IndexUpdateMode mode, CursorContext cursorContext )
     {
         if ( IndexUpdateMode.ONLINE == mode )
         {
-            openCall( "update" );
-            return new DelegatingIndexUpdater( super.newUpdater( mode ) )
+            if ( tryOpenCall() )
             {
-                @Override
-                public void close() throws IOException, IndexEntryConflictException
+                try
                 {
-                    try
+                    return new DelegatingIndexUpdater( super.newUpdater( mode, cursorContext ) )
                     {
-                        delegate.close();
-                    }
-                    finally
-                    {
-                        closeCall();
-                    }
+                        @Override
+                        public void close() throws IndexEntryConflictException
+                        {
+                            try
+                            {
+                                delegate.close();
+                            }
+                            finally
+                            {
+                                closeCall();
+                            }
+                        }
+                    };
                 }
-            };
+                catch ( Throwable e )
+                {
+                    closeCall();
+                    throw e;
+                }
+            }
+            throw new IllegalStateException( "Cannot create new updater when index state is " + state.get() );
         }
         else
         {
-            return super.newUpdater( mode );
+            return super.newUpdater( mode, cursorContext );
         }
     }
 
     @Override
-    public void force( IOLimiter ioLimiter ) throws IOException
+    public void force( CursorContext cursorContext ) throws IOException
     {
-        openCall( "force" );
-        try
+        if ( tryOpenCall() )
         {
-            super.force( ioLimiter );
-        }
-        finally
-        {
-            closeCall();
+            try
+            {
+                super.force( cursorContext );
+            }
+            finally
+            {
+                closeCall();
+            }
         }
     }
 
     @Override
-    public void drop() throws IOException
+    public void drop()
     {
         if ( state.compareAndSet( State.INIT, State.CLOSED ) )
         {
@@ -176,11 +190,11 @@ public class ContractCheckingIndexProxy extends DelegatingIndexProxy
     }
 
     @Override
-    public void close() throws IOException
+    public void close( CursorContext cursorContext ) throws IOException
     {
         if ( state.compareAndSet( State.INIT, State.CLOSED ) )
         {
-            super.close();
+            super.close( cursorContext );
             return;
         }
 
@@ -192,7 +206,7 @@ public class ContractCheckingIndexProxy extends DelegatingIndexProxy
         if ( state.compareAndSet( State.STARTED, State.CLOSED ) )
         {
             waitOpenCallsToClose();
-            super.close();
+            super.close( cursorContext );
             return;
         }
 
@@ -207,23 +221,26 @@ public class ContractCheckingIndexProxy extends DelegatingIndexProxy
         }
     }
 
-    private void openCall( String name )
+    @VisibleForTesting
+    int getOpenCalls()
+    {
+        return openCalls.intValue();
+    }
+
+    private boolean tryOpenCall()
     {
         // do not open call unless we are in STARTED
         if ( State.STARTED == state.get() )
         {
             // increment openCalls for closers to see
             openCalls.incrementAndGet();
-            // ensure that the previous increment actually gets seen by closers
-            if ( State.CLOSED == state.get() )
+            if ( State.STARTED == state.get() )
             {
-                throw new IllegalStateException( "Cannot call " + name + "() after index has been closed" );
+                return true;
             }
+            openCalls.decrementAndGet();
         }
-        else
-        {
-            throw new IllegalStateException( "Cannot call " + name + "() when index state is " + state.get() );
-        }
+        return false;
     }
 
     private void closeCall()

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,21 +38,26 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.collection.primitive.{Primitive, PrimitiveLongObjectMap}
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.InternalException
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection
-import org.neo4j.values.storable.{Value, Values}
-import org.neo4j.values.virtual.{RelationshipValue, NodeReference, NodeValue}
+import org.eclipse.collections.impl.map.mutable.primitive.LongObjectHashMap
+import org.neo4j.cypher.internal.expressions.SemanticDirection
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.PrimitiveLongHelper
+import org.neo4j.cypher.internal.util.attribution.Id
+import org.neo4j.exceptions.InternalException
+import org.neo4j.values.storable.Value
+import org.neo4j.values.storable.Values
+import org.neo4j.values.virtual.VirtualNodeValue
+import org.neo4j.values.virtual.VirtualRelationshipValue
+import org.neo4j.values.virtual.VirtualValues
 
 /**
-  * This implementation of pruning-var-expand is no longer used in production, but is used to testing purposes.
-  */
+ * This implementation of pruning-var-expand is no longer used in production, but is used to testing purposes.
+ */
 case class LegacyPruningVarLengthExpandPipe(source: Pipe,
                                             fromName: String,
                                             toName: String,
-                                            types: LazyTypes,
+                                            types: RelationshipTypes,
                                             dir: SemanticDirection,
                                             min: Int,
                                             max: Int,
@@ -83,7 +88,7 @@ case class LegacyPruningVarLengthExpandPipe(source: Pipe,
   sealed trait State {
     // Note that the ExecutionContext part here can be null.
     // This code is used in a hot spot, and avoiding object creation is important.
-    def next(): (State, ExecutionContext)
+    def next(): (State, CypherRow)
   }
 
   case object Empty extends State {
@@ -91,57 +96,56 @@ case class LegacyPruningVarLengthExpandPipe(source: Pipe,
   }
 
   /**
-    * Performs regular DFS for traversal of the var-length paths up to length (min-1), mapping to one node of the path.
-    *
-    * @param whenEmptied The state to return to when this node is done
-    * @param node        The current node
-    * @param path        The path so far. Only the first pathLength elements are valid.
-    * @param pathLength  Length of the path so far
-    * @param state       The QueryState
-    * @param row         The current row we are adding reachable nodes to
-    * @param expandMap   maps NodeID -> FullExpandDepths
-    */
+   * Performs regular DFS for traversal of the var-length paths up to length (min-1), mapping to one node of the path.
+   *
+   * @param whenEmptied The state to return to when this node is done
+   * @param node        The current node
+   * @param path        The path so far. Only the first pathLength elements are valid.
+   * @param pathLength  Length of the path so far
+   * @param state       The QueryState
+   * @param row         The current row we are adding reachable nodes to
+   * @param expandMap   maps NodeID -> FullExpandDepths
+   */
   class PrePruningDFS(whenEmptied: State,
-                      node: NodeValue,
+                      node: VirtualNodeValue,
                       val path: Array[Long],
                       val pathLength: Int,
                       val state: QueryState,
-                      row: ExecutionContext,
-                      expandMap: PrimitiveLongObjectMap[FullExpandDepths]
+                      row: CypherRow,
+                      expandMap: LongObjectHashMap[FullExpandDepths]
                      ) extends State with Expandable with CheckPath {
 
-    private var rels: Iterator[RelationshipValue] = _
+    private var rels: Iterator[(VirtualRelationshipValue, VirtualNodeValue)] = _
 
     /*
     Loads the relationship iterator of the nodes before min length has been reached.
      */
-    override def next(): (State, ExecutionContext) = {
+    override def next(): (State, CypherRow) = {
 
       if (rels == null)
         rels = expand(row, node)
 
       while (rels.hasNext) {
-        val r = rels.next()
+        val (r, otherNode) = rels.next()
         val relId = r.id
 
         if (!seenRelationshipInPath(relId)) {
-          val nextState: State = traverseRelationship(r, relId)
+          val nextState: State = traverseRelationship(r, relId, otherNode)
 
           return nextState.next()
         }
       }
 
       if (pathLength >= self.min)
-        (whenEmptied, executionContextFactory.copyWith(row, self.toName, node))
+        (whenEmptied, rowFactory.copyWith(row, self.toName, node))
       else
         whenEmptied.next()
     }
 
     /**
-      * Creates the appropriate state for following a relationship to the next node.
-      */
-    private def traverseRelationship(r: RelationshipValue, relId: Long): State = {
-      val nextNode = r.otherNode(node)
+     * Creates the appropriate state for following a relationship to the next node.
+     */
+    private def traverseRelationship(r: VirtualRelationshipValue, relId: Long, nextNode: VirtualNodeValue): State = {
       path(pathLength) = relId
       val nextPathLength = pathLength + 1
       if (nextPathLength >= self.min)
@@ -166,43 +170,43 @@ case class LegacyPruningVarLengthExpandPipe(source: Pipe,
 
 
   /**
-    * Performs DFS traversal, but omits traversing relationships that have been completely traversed (to the
-    * remaining depth) before.
-    *
-    * Pruning and full expand depths
-    * The full expand depth is an integer that denotes how deep a relationship has previously been explored. For
-    * example, a full expand depth of 2 would mean that all nodes that can be reached by following this relationship
-    * and maximally one more permitted relationship have already been visited. A relationship is permitted if is
-    * conforms to the var-length predicates (which is controlled at expand time), and the relationship is not already
-    * part of the current path.
-    *
-    * Before emitting a node (after relationship traversals), the PruningDFS updates the full expand depth of the
-    * incoming relationship on the previous node in the path. The full expand depth is computed as
-    * 1                 if the max path length is reached
-    * A_VERY_BIG_VALUE  if the node has no relationships except the incoming one
-    * d+1               otherwise, where d is the minimum outgoing full expand depth
-    *
-    * @param whenEmptied              The state to return to when this node is done
-    * @param node                     The current node
-    * @param path                     The path so far. Only the first pathLength elements are valid.
-    * @param pathLength               Length of the path so far
-    * @param state                    The QueryState
-    * @param row                      The current row we are adding reachable nodes to
-    * @param expandMap                maps NodeID -> FullExpandDepths
-    * @param updateMinFullExpandDepth Method that is called on node completion. Updates the FullExpandDepth for
-    *                                 incoming relationship in the previous node.
-    *
-    *                                 For this algorithm the incoming relationship is the one traversed to reach this
-    *                                 node, while outgoing relationships are all other relationships connected to this
-    *                                 node.
-    **/
+   * Performs DFS traversal, but omits traversing relationships that have been completely traversed (to the
+   * remaining depth) before.
+   *
+   * Pruning and full expand depths
+   * The full expand depth is an integer that denotes how deep a relationship has previously been explored. For
+   * example, a full expand depth of 2 would mean that all nodes that can be reached by following this relationship
+   * and maximally one more permitted relationship have already been visited. A relationship is permitted if is
+   * conforms to the var-length predicates (which is controlled at expand time), and the relationship is not already
+   * part of the current path.
+   *
+   * Before emitting a node (after relationship traversals), the PruningDFS updates the full expand depth of the
+   * incoming relationship on the previous node in the path. The full expand depth is computed as
+   * 1                 if the max path length is reached
+   * A_VERY_BIG_VALUE  if the node has no relationships except the incoming one
+   * d+1               otherwise, where d is the minimum outgoing full expand depth
+   *
+   * @param whenEmptied              The state to return to when this node is done
+   * @param node                     The current node
+   * @param path                     The path so far. Only the first pathLength elements are valid.
+   * @param pathLength               Length of the path so far
+   * @param state                    The QueryState
+   * @param row                      The current row we are adding reachable nodes to
+   * @param expandMap                maps NodeID -> FullExpandDepths
+   * @param updateMinFullExpandDepth Method that is called on node completion. Updates the FullExpandDepth for
+   *                                 incoming relationship in the previous node.
+   *
+   *                                 For this algorithm the incoming relationship is the one traversed to reach this
+   *                                 node, while outgoing relationships are all other relationships connected to this
+   *                                 node.
+   **/
   class PruningDFS(whenEmptied: State,
-                   node: NodeValue,
+                   node: VirtualNodeValue,
                    val path: Array[Long],
                    val pathLength: Int,
                    val state: QueryState,
-                   row: ExecutionContext,
-                   expandMap: PrimitiveLongObjectMap[FullExpandDepths],
+                   row: CypherRow,
+                   expandMap: LongObjectHashMap[FullExpandDepths],
                    updateMinFullExpandDepth: Int => Unit) extends State with Expandable with CheckPath {
 
     import FullExpandDepths.UNINITIALIZED
@@ -210,7 +214,7 @@ case class LegacyPruningVarLengthExpandPipe(source: Pipe,
     var idx = 0
     var fullExpandDepths: FullExpandDepths = UNINITIALIZED
 
-    override def next(): (State, ExecutionContext) = {
+    override def next(): (State, CypherRow) = {
 
       if (pathLength < self.max) {
         if (fullExpandDepths == UNINITIALIZED)
@@ -219,10 +223,9 @@ case class LegacyPruningVarLengthExpandPipe(source: Pipe,
         while (hasRelationships) {
           val currentRelIdx = nextRelationship()
           if (!haveFullyExploredTheRemainingDepthBefore(currentRelIdx)) {
-            val rel = fullExpandDepths.rels(currentRelIdx)
+            val (rel, nextNode) = fullExpandDepths.relAndNext(currentRelIdx)
             val relId = rel.id
             if (!seenRelationshipInPath(relId)) {
-              val nextNode = rel.otherNode(node)
               path(pathLength) = relId
               val nextState = new PruningDFS(whenEmptied = this,
                 node = nextNode,
@@ -242,10 +245,10 @@ case class LegacyPruningVarLengthExpandPipe(source: Pipe,
 
       updateMinFullExpandDepth(currentFullExpandDepth)
 
-      (whenEmptied, executionContextFactory.copyWith(row, self.toName, node))
+      (whenEmptied, rowFactory.copyWith(row, self.toName, node))
     }
 
-    private def hasRelationships = idx < fullExpandDepths.rels.length
+    private def hasRelationships = idx < fullExpandDepths.relAndNext.length
 
     private def nextRelationship() = {
       val i = idx
@@ -276,17 +279,17 @@ case class LegacyPruningVarLengthExpandPipe(source: Pipe,
     }
   }
 
-  class LoadNext(private val input: Iterator[ExecutionContext], val state: QueryState) extends State with Expandable {
+  class LoadNext(private val input: Iterator[CypherRow], val state: QueryState) extends State with Expandable {
 
-    override def next(): (State, ExecutionContext) = {
-      def nextState(row: ExecutionContext, node: NodeValue) = {
+    override def next(): (State, CypherRow) = {
+      def nextState(row: CypherRow, node: VirtualNodeValue) = {
         val nextState = new PrePruningDFS(whenEmptied = this,
           node = node,
           path = new Array[Long](max),
           pathLength = 0,
           state = state,
           row = row,
-          expandMap = Primitive.longObjectMap[FullExpandDepths]())
+          expandMap = new LongObjectHashMap[FullExpandDepths]())
         nextState.next()
       }
 
@@ -294,13 +297,10 @@ case class LegacyPruningVarLengthExpandPipe(source: Pipe,
         (Empty, null)
       } else {
         val row = input.next()
-        row.get(fromName) match {
-          case Some(node: NodeValue) =>
+        row.getByName(fromName) match {
+          case node: VirtualNodeValue =>
             nextState(row, node)
-          case Some(nodeRef: NodeReference) =>
-            val node = state.query.nodeOps.getById(nodeRef.id())
-            nextState(row, node)
-          case Some(x: Value) if x == Values.NO_VALUE =>
+          case x: Value if x == Values.NO_VALUE =>
             (Empty, null)
           case _ =>
             throw new InternalException(s"Expected a node on `$fromName`")
@@ -329,39 +329,40 @@ case class LegacyPruningVarLengthExpandPipe(source: Pipe,
     def state: QueryState
 
     /**
-      * List all relationships of a node, given the predicates of this pipe.
-      */
-    def expand(row: ExecutionContext, node: NodeValue): Iterator[RelationshipValue] = {
+     * List all relationships of a node, given the predicates of this pipe.
+     */
+    def expand(row: CypherRow, node: VirtualNodeValue): Iterator[(VirtualRelationshipValue, VirtualNodeValue)] = {
       val relationships = state.query.getRelationshipsForIds(node.id(), dir, types.types(state.query))
-      relationships.filter(r => {
-        filteringStep.filterRelationship(row, state)(r) &&
-          filteringStep.filterNode(row, state)(r.otherNode(node))
-      })
+      PrimitiveLongHelper.map(relationships, r => (VirtualValues.relationship(r), VirtualValues.node(relationships.otherNodeId(node.id())))).filter{
+        case (rel, other) =>  filteringStep.filterRelationship(row, state)(rel) &&
+          filteringStep.filterNode(row, state)(other)
+      }
     }
   }
 
   object FullExpandDepths {
-    def apply(rels: Array[RelationshipValue]) = new FullExpandDepths(rels)
+    def apply(rels: Array[(VirtualRelationshipValue, VirtualNodeValue)]) = new FullExpandDepths(rels)
 
     val UNINITIALIZED: FullExpandDepths = null
   }
 
   class FullExpandDepths(// all relationships that connect to this node, filtered by the var-length predicates
-                         val rels: Array[RelationshipValue]) {
+                         val relAndNext: Array[(VirtualRelationshipValue, VirtualNodeValue)]) {
     // The fully expanded depth for each relationship in rels
-    val depths = new Array[Int](rels.length)
+    val depths = new Array[Int](relAndNext.length)
 
     /**
-      * Computes the minimum outgoing full expanded depth.
-      *
-      * @param incomingRelId id of the incoming relationship, which is omitted from this computation
-      * @return the full expand depth
-      */
+     * Computes the minimum outgoing full expanded depth.
+     *
+     * @param incomingRelId id of the incoming relationship, which is omitted from this computation
+     * @return the full expand depth
+     */
     def minOutgoingDepth(incomingRelId: Long): Int = {
       var min = Integer.MAX_VALUE >> 1 // we don't want it to overflow
       var i = 0
-      while (i < rels.length) {
-        if (rels(i).id() != incomingRelId)
+      while (i < relAndNext.length) {
+        val (rel, _) = relAndNext(i)
+        if (rel.id() != incomingRelId)
           min = math.min(depths(i), min)
         i += 1
       }
@@ -369,14 +370,16 @@ case class LegacyPruningVarLengthExpandPipe(source: Pipe,
     }
   }
 
-  override protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] =
-    new Iterator[ExecutionContext] {
+  override protected def internalCreateResults(input: ClosingIterator[CypherRow], state: QueryState): ClosingIterator[CypherRow] =
+    new ClosingIterator[CypherRow] {
 
       var (stateMachine, current) = new LoadNext(input, state).next()
 
-      override def hasNext = current != null
+      override protected[this] def closeMore(): Unit = ()
 
-      override def next() = {
+      override def innerHasNext: Boolean = current != null
+
+      override def next(): CypherRow = {
         if (current == null) {
           // fail
           Iterator.empty.next()

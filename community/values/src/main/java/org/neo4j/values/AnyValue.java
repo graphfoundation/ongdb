@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,32 +38,28 @@
  */
 package org.neo4j.values;
 
-public abstract class AnyValue
-{
-    private int hash;
+import org.neo4j.memory.Measurable;
+import org.neo4j.values.storable.FloatingPointValue;
+import org.neo4j.values.storable.NumberValue;
+import org.neo4j.values.storable.ValueRepresentation;
 
+public abstract class AnyValue implements Measurable
+{
     // this should be final, but Mockito barfs if it is,
     // so we need to just manually ensure it isn't overridden
     @Override
     public boolean equals( Object other )
     {
-        return this == other || other != null && eq( other );
+        return this == other || other != null && equalTo( other );
     }
 
     @Override
     public final int hashCode()
     {
-        //We will always recompute hashcode for values
-        //where `hashCode == 0`, e.g. empty strings and empty lists
-        //however that shouldn't be shouldn't be too costly
-        if ( hash == 0 )
-        {
-            hash = computeHash();
-        }
-        return hash;
+      return computeHash();
     }
 
-    protected abstract boolean eq( Object other );
+    protected abstract boolean equalTo( Object other );
 
     protected abstract int computeHash();
 
@@ -74,9 +70,29 @@ public abstract class AnyValue
         return false; // per default Values are no SequenceValues
     }
 
-    public abstract Boolean ternaryEquals( AnyValue other );
+    public abstract Equality ternaryEquals( AnyValue other );
 
     public abstract <T> T map( ValueMapper<T> mapper );
 
     public abstract String getTypeName();
+
+    public abstract ValueRepresentation valueRepresentation();
+
+    /**
+     * @return {@code true} if at least one operand is NaN and the other is a number
+     */
+    public static boolean isNanAndNumber( AnyValue value1, AnyValue value2 )
+    {
+        return (value1 instanceof FloatingPointValue && ((FloatingPointValue) value1).isNaN() && value2 instanceof NumberValue)
+               || (value2 instanceof FloatingPointValue && ((FloatingPointValue) value2).isNaN() && value1 instanceof NumberValue);
+    }
+
+    /**
+     * @return {@code true} if at least one operand is NaN
+     */
+    public static boolean hasNaNOperand( AnyValue value1, AnyValue value2 )
+    {
+        return (value1 instanceof FloatingPointValue && ((FloatingPointValue) value1).isNaN())
+               || (value2 instanceof FloatingPointValue && ((FloatingPointValue) value2).isNaN());
+    }
 }

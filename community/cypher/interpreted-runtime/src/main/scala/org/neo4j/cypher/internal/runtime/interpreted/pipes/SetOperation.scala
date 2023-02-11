@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,21 +38,40 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import java.util.function.BiConsumer
-
-import org.neo4j.cypher.internal.runtime.interpreted._
+import org.eclipse.collections.impl.factory.primitive.IntObjectMaps
+import org.neo4j.cypher.internal.runtime
+import org.neo4j.cypher.internal.runtime.CastSupport
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.ExpressionCursors
+import org.neo4j.cypher.internal.runtime.NodeOperations
+import org.neo4j.cypher.internal.runtime.Operations
+import org.neo4j.cypher.internal.runtime.QueryContext
+import org.neo4j.cypher.internal.runtime.RelationshipOperations
+import org.neo4j.cypher.internal.runtime.WriteOperations
+import org.neo4j.cypher.internal.runtime.interpreted.IsMap
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.runtime.{Operations, QueryContext}
-import org.neo4j.cypher.internal.util.v3_4.{CypherTypeException, InvalidArgumentException}
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.SideEffect
+import org.neo4j.cypher.internal.runtime.makeValueNeoSafe
+import org.neo4j.exceptions.CypherTypeException
+import org.neo4j.exceptions.InvalidArgumentException
+import org.neo4j.internal.kernel.api.NodeCursor
+import org.neo4j.internal.kernel.api.PropertyCursor
+import org.neo4j.internal.kernel.api.RelationshipScanCursor
 import org.neo4j.values.AnyValue
+import org.neo4j.values.storable.Value
 import org.neo4j.values.storable.Values
-import org.neo4j.values.virtual._
+import org.neo4j.values.virtual.MapValue
+import org.neo4j.values.virtual.VirtualNodeValue
+import org.neo4j.values.virtual.VirtualRelationshipValue
 
-import scala.collection.Map
+import scala.collection.mutable.ArrayBuffer
 
-sealed trait SetOperation {
+trait SetOperation extends SideEffect {
 
-  def set(executionContext: ExecutionContext, state: QueryState): Unit
+  override def execute(row: CypherRow,
+                       state: QueryState): Unit = set(row, state)
+
+  def set(executionContext: CypherRow, state: QueryState): Long
 
   def name: String
 
@@ -61,96 +80,206 @@ sealed trait SetOperation {
 
 object SetOperation {
 
-  private[pipes] def toMap(executionContext: ExecutionContext, state: QueryState, expression: Expression) = {
+  def toMap(executionContext: CypherRow, state: QueryState, expression: Expression): MapValue = {
     /* Make the map expression look like a map */
-    val qtx = state.query
     expression(executionContext, state) match {
-      case IsMap(map) => propertyKeyMap(qtx, map(qtx))
+      case IsMap(map) => map(state)
       case x => throw new CypherTypeException(s"Expected $expression to be a map, but it was :`$x`")
     }
-  }
-
-  private def propertyKeyMap(qtx: QueryContext, map: MapValue): Map[Int, AnyValue] = {
-    var builder = Map.newBuilder[Int, AnyValue]
-    map.foreach(new BiConsumer[String, AnyValue] {
-      override def accept(k: String, v: AnyValue): Unit = {
-        if (v == Values.NO_VALUE) {
-          val optPropertyKeyId = qtx.getOptPropertyKeyId(k)
-          if (optPropertyKeyId.isDefined) {
-            builder += optPropertyKeyId.get -> v
-          }
-        }
-        else {
-          builder += qtx.getOrCreatePropertyKeyId(k) -> v
-        }
-      }
-    })
-
-    builder.result()
   }
 }
 
 abstract class AbstractSetPropertyOperation extends SetOperation {
 
-  protected def setProperty[T](context: ExecutionContext, state: QueryState, ops: Operations[T],
-                                                    itemId: Long, propertyKey: LazyPropertyKey,
-                                                    expression: Expression) = {
-    val queryContext = state.query
-    val maybePropertyKey = propertyKey.id(queryContext).map(_.id) // if the key was already looked up
-    val propertyId = maybePropertyKey
-      .getOrElse(queryContext.getOrCreatePropertyKeyId(propertyKey.name)) // otherwise create it
+  protected def setProperty[T](context: CypherRow,
+                               state: QueryState,
+                               ops: WriteOperations[T, _],
+                               itemId: Long,
+                               propertyKey: LazyPropertyKey,
+                               expression: Expression): Boolean = {
 
+    val queryContext = state.query
+    val maybePropertyKey = propertyKey.id(queryContext) // if the key was already looked up
     val value = makeValueNeoSafe(expression(context, state))
 
-    if (value == Values.NO_VALUE) {
-      if (ops.hasProperty(itemId, propertyId)) ops.removeProperty(itemId, propertyId)
+    if (value eq Values.NO_VALUE) {
+      val optPropertyKeyId = queryContext.getOptPropertyKeyId(propertyKey.name)
+      if (optPropertyKeyId.isDefined) {
+        ops.removeProperty(itemId, optPropertyKeyId.get)
+      } else {
+        false
+      }
+    } else {
+      val propertyId = if (maybePropertyKey == LazyPropertyKey.UNKNOWN) {
+        queryContext.getOrCreatePropertyKeyId(propertyKey.name)
+      } else {
+        maybePropertyKey
+      }
+      ops.setProperty(itemId, propertyId, value)
+      true
     }
-    else ops.setProperty(itemId, propertyId, value)
+  }
+
+  protected def setProperties[T](context: CypherRow,
+                                 state: QueryState,
+                                 ops: WriteOperations[T, _],
+                                 itemId: Long,
+                                 keys: Array[LazyPropertyKey],
+                                 values: Array[Expression]): Long = {
+
+    val queryContext = state.query
+    var i = 0
+    val propValues = IntObjectMaps.mutable.empty[Value]
+    while (i < keys.length) {
+      val propertyKey = keys(i)
+      val expression = values(i)
+      val maybePropertyKey = propertyKey.id(queryContext) // if the key was already looked up
+      val value = makeValueNeoSafe(expression(context, state))
+
+      if (value eq Values.NO_VALUE) {
+        if (maybePropertyKey != LazyPropertyKey.UNKNOWN) {
+          propValues.put(maybePropertyKey, Values.NO_VALUE)
+        }
+      } else {
+        val propertyId = if (maybePropertyKey == LazyPropertyKey.UNKNOWN) {
+          queryContext.getOrCreatePropertyKeyId(propertyKey.name)
+        } else {
+          maybePropertyKey
+        }
+        propValues.put(propertyId, value)
+      }
+      i += 1
+    }
+    ops.setProperties(itemId, propValues)
+    propValues.size()
   }
 }
 
-abstract class SetEntityPropertyOperation[T](itemName: String, propertyKey: LazyPropertyKey,
-                                                                  expression: Expression)
+abstract class SetEntityPropertyOperation[T](itemName: String,
+                                             propertyKey: LazyPropertyKey,
+                                             expression: Expression)
   extends AbstractSetPropertyOperation {
 
-  override def set(executionContext: ExecutionContext, state: QueryState) = {
-    val item = executionContext.get(itemName).get
-    if (item != Values.NO_VALUE) {
+  override def set(executionContext: CypherRow, state: QueryState): Long = {
+    val item = executionContext.getByName(itemName)
+    if (!(item eq Values.NO_VALUE)) {
       val itemId = id(item)
       val ops = operations(state.query)
       if (needsExclusiveLock) ops.acquireExclusiveLock(itemId)
 
-      try {
+      invalidateCachedProperties(executionContext, itemId)
+
+      val wasSet = try {
         setProperty[T](executionContext, state, ops, itemId, propertyKey, expression)
-      } finally if (needsExclusiveLock) ops.releaseExclusiveLock(itemId)
+      } finally {
+        if (needsExclusiveLock) ops.releaseExclusiveLock(itemId)
+      }
+      if (wasSet) 1L else 0L
+    } else {
+      0L
     }
   }
 
   protected def id(item: Any): Long
 
-  protected def operations(qtx: QueryContext): Operations[T]
+  protected def operations(qtx: QueryContext): Operations[T, _]
+
+  protected def invalidateCachedProperties(executionContext: CypherRow, id: Long): Unit
 }
 
-case class SetNodePropertyOperation(nodeName: String, propertyKey: LazyPropertyKey,
-                                    expression: Expression, needsExclusiveLock: Boolean = true)
-  extends SetEntityPropertyOperation[NodeValue](nodeName, propertyKey, expression) {
+abstract class SetEntityPropertiesOperation[T](itemName: String,
+                                               keys: Array[LazyPropertyKey],
+                                               values: Array[Expression])
+  extends AbstractSetPropertyOperation {
+
+  override def set(executionContext: CypherRow, state: QueryState): Long = {
+    val item = executionContext.getByName(itemName)
+    if (!(item eq Values.NO_VALUE)) {
+      val itemId = id(item)
+      val ops = operations(state.query)
+      if (needsExclusiveLock) ops.acquireExclusiveLock(itemId)
+
+      invalidateCachedProperties(executionContext, itemId)
+
+      try {
+        setProperties[T](executionContext, state, ops, itemId, keys, values)
+      } finally {
+        if (needsExclusiveLock) ops.releaseExclusiveLock(itemId)
+      }
+    } else {
+      0L
+    }
+  }
+
+  protected def id(item: Any): Long
+
+  protected def operations(qtx: QueryContext): Operations[T, _]
+
+  protected def invalidateCachedProperties(executionContext: CypherRow, id: Long): Unit
+}
+
+case class SetNodePropertyOperation(nodeName: String,
+                                    propertyKey: LazyPropertyKey,
+                                    expression: Expression,
+                                    needsExclusiveLock: Boolean = true)
+  extends SetEntityPropertyOperation[VirtualNodeValue](nodeName, propertyKey, expression) {
 
   override def name = "SetNodeProperty"
 
-  override protected def id(item: Any) = CastSupport.castOrFail[VirtualNodeValue](item).id()
+  override protected def id(item: Any): Long = CastSupport.castOrFail[VirtualNodeValue](item).id()
 
-  override protected def operations(qtx: QueryContext) = qtx.nodeOps
+  override protected def operations(qtx: QueryContext): NodeOperations = qtx.nodeWriteOps
+
+  override protected def invalidateCachedProperties(executionContext: CypherRow, id: Long): Unit =
+    executionContext.invalidateCachedNodeProperties(id)
 }
 
-case class SetRelationshipPropertyOperation(relName: String, propertyKey: LazyPropertyKey,
-                                            expression: Expression, needsExclusiveLock: Boolean = true)
-  extends SetEntityPropertyOperation[RelationshipValue](relName, propertyKey, expression) {
+case class SetNodePropertiesOperation(nodeName: String,
+                                      keys: Array[LazyPropertyKey],
+                                      values: Array[Expression],
+                                      needsExclusiveLock: Boolean = true)
+  extends SetEntityPropertiesOperation[VirtualNodeValue](nodeName, keys, values) {
+
+  override def name = "SetNodeProperties"
+
+  override protected def id(item: Any): Long = CastSupport.castOrFail[VirtualNodeValue](item).id()
+
+  override protected def operations(qtx: QueryContext): NodeOperations = qtx.nodeWriteOps
+
+  override protected def invalidateCachedProperties(executionContext: CypherRow, id: Long): Unit =
+    executionContext.invalidateCachedNodeProperties(id)
+}
+
+case class SetRelationshipPropertyOperation(relName: String,
+                                            propertyKey: LazyPropertyKey,
+                                            expression: Expression,
+                                            needsExclusiveLock: Boolean = true)
+  extends SetEntityPropertyOperation[VirtualRelationshipValue](relName, propertyKey, expression) {
 
   override def name = "SetRelationshipProperty"
 
-  override protected def id(item: Any) = CastSupport.castOrFail[VirtualRelationshipValue](item).id()
+  override protected def id(item: Any): Long = CastSupport.castOrFail[VirtualRelationshipValue](item).id()
 
-  override protected def operations(qtx: QueryContext) = qtx.relationshipOps
+  override protected def operations(qtx: QueryContext): RelationshipOperations = qtx.relationshipWriteOps
+
+  override protected def invalidateCachedProperties(executionContext: CypherRow, id: Long): Unit =
+    executionContext.invalidateCachedRelationshipProperties(id)
+}
+
+case class SetRelationshipPropertiesOperation(relName: String,
+                                              keys: Array[LazyPropertyKey],
+                                              values: Array[Expression],
+                                              needsExclusiveLock: Boolean = true)
+  extends SetEntityPropertiesOperation[VirtualRelationshipValue](relName, keys, values) {
+
+  override def name = "SetRelationshipProperties"
+
+  override protected def id(item: Any): Long = CastSupport.castOrFail[VirtualRelationshipValue](item).id()
+
+  override protected def operations(qtx: QueryContext): RelationshipOperations = qtx.relationshipWriteOps
+
+  override protected def invalidateCachedProperties(executionContext: CypherRow, id: Long): Unit =
+    executionContext.invalidateCachedRelationshipProperties(id)
 }
 
 case class SetPropertyOperation(entityExpr: Expression, propertyKey: LazyPropertyKey, expression: Expression)
@@ -158,100 +287,243 @@ case class SetPropertyOperation(entityExpr: Expression, propertyKey: LazyPropert
 
   override def name: String = "SetProperty"
 
-  override def set(executionContext: ExecutionContext, state: QueryState) = {
+  override def set(executionContext: CypherRow, state: QueryState): Long = {
     val resolvedEntity = entityExpr(executionContext, state)
-    if (resolvedEntity != Values.NO_VALUE) {
-      val (entityId, ops) = resolvedEntity match {
-        case node: VirtualNodeValue => (node.id(), state.query.nodeOps)
-        case rel: VirtualRelationshipValue => (rel.id(), state.query.relationshipOps)
+    if (!(resolvedEntity eq Values.NO_VALUE)) {
+      def setIt[T](entityId: Long, ops: Operations[T, _], invalidation: Long => Unit): Boolean = {
+        // better safe than sorry let's lock the entity
+        ops.acquireExclusiveLock(entityId)
+
+        invalidation(entityId)
+
+        try {
+          setProperty(executionContext, state, ops, entityId, propertyKey, expression)
+        } finally ops.releaseExclusiveLock(entityId)
+      }
+
+      val wasSet = resolvedEntity match {
+        case node: VirtualNodeValue => setIt(node.id(), state.query.nodeWriteOps, (id:Long) => executionContext.invalidateCachedNodeProperties(id))
+        case rel: VirtualRelationshipValue => setIt(rel.id(), state.query.relationshipWriteOps,
+          (id: Long) => executionContext.invalidateCachedRelationshipProperties(id))
         case _ => throw new InvalidArgumentException(
           s"The expression $entityExpr should have been a node or a relationship, but got $resolvedEntity")
       }
-      // better safe than sorry let's lock the entity
-      ops.acquireExclusiveLock(entityId)
 
-      try {
-        setProperty(executionContext, state, ops, entityId, propertyKey, expression)
-      } finally ops.releaseExclusiveLock(entityId)
+      if (wasSet) 1L else 0L
+    } else {
+      0L
     }
   }
 
   override def needsExclusiveLock = true
 }
 
-abstract class SetPropertyFromMapOperation[T](itemName: String, expression: Expression,
-                                                                   removeOtherProps: Boolean) extends SetOperation {
-  override def set(executionContext: ExecutionContext, state: QueryState) = {
-    val item = executionContext(itemName)
-    if (item != Values.NO_VALUE) {
+case class SetPropertiesOperation(entityExpr: Expression,keys: Array[LazyPropertyKey], values: Array[Expression])
+  extends AbstractSetPropertyOperation {
+
+  override def name: String = "SetProperties"
+
+  override def set(executionContext: CypherRow, state: QueryState): Long = {
+    val resolvedEntity = entityExpr(executionContext, state)
+    if (!(resolvedEntity eq Values.NO_VALUE)) {
+      def setIt[T](entityId: Long, ops: Operations[T, _], invalidation: Long => Unit): Long = {
+        // better safe than sorry let's lock the entity
+        ops.acquireExclusiveLock(entityId)
+
+        invalidation(entityId)
+
+        try {
+          setProperties[T](executionContext, state, ops, entityId, keys, values)
+        } finally ops.releaseExclusiveLock(entityId)
+      }
+
+      resolvedEntity match {
+        case node: VirtualNodeValue => setIt(node.id(), state.query.nodeWriteOps, (id:Long) => executionContext.invalidateCachedNodeProperties(id))
+        case rel: VirtualRelationshipValue => setIt(rel.id(), state.query.relationshipWriteOps,
+          (id: Long) => executionContext.invalidateCachedRelationshipProperties(id))
+        case _ => throw new InvalidArgumentException(
+          s"The expression $entityExpr should have been a node or a relationship, but got $resolvedEntity")
+      }
+    } else {
+      0L
+    }
+  }
+
+  override def needsExclusiveLock = true
+}
+
+abstract class AbstractSetPropertyFromMapOperation() extends SetOperation {
+
+  protected def setPropertiesFromMap[T, CURSOR]( propertyCursor: PropertyCursor,
+                                                 qtx: QueryContext,
+                                                 entityCursor: CURSOR,
+                                                 ops: Operations[T, CURSOR],
+                                                 itemId: Long,
+                                                 map: MapValue,
+                                                 removeOtherProps: Boolean): Long = {
+    val setKeys = new ArrayBuffer[String]()
+    val setValues = new ArrayBuffer[AnyValue]()
+    var setCount = 0L
+
+    val propValues = IntObjectMaps.mutable.empty[Value]
+
+    /*Set all map values on the property container*/
+    map.foreach((k: String, v: AnyValue) => {
+      if (v eq Values.NO_VALUE) {
+        val optPropertyKeyId = qtx.getOptPropertyKeyId(k)
+        if (optPropertyKeyId.isDefined) {
+          setCount += 1
+          propValues.put(optPropertyKeyId.get, Values.NO_VALUE)
+        }
+      }
+      else {
+        setKeys += k
+        setValues += v
+      }
+    })
+
+    // Adding property keys is O(|totalPropertyKeyIds|^2) per call, so
+    // batch creation is way faster is graphs with many propertyKeyIds
+    val propertyIds = qtx.getOrCreatePropertyKeyIds(setKeys.toArray)
+    for (i <- propertyIds.indices) {
+      propValues.put(propertyIds(i),  runtime.makeValueNeoSafe(setValues(i)))
+      setCount += 1
+    }
+
+    /*Remove all other properties from the property container ( SET n = {prop1: ...})*/
+    if (removeOtherProps) {
+      val seen = propertyIds.toSet
+      val properties = ops.propertyKeyIds(itemId, entityCursor, propertyCursor).filterNot(seen.contains).toSet
+      for (propertyKeyId <- properties) {
+        if (!propValues.containsKey(propertyKeyId)) {
+          setCount += 1
+          propValues.put(propertyKeyId, Values.NO_VALUE)
+        }
+      }
+    }
+
+    ops.setProperties(itemId, propValues)
+    setCount
+  }
+}
+
+abstract class SetNodeOrRelPropertyFromMapOperation[T, CURSOR](itemName: String,
+                                                               expression: Expression,
+                                                               removeOtherProps: Boolean) extends AbstractSetPropertyFromMapOperation() {
+  override def set(executionContext: CypherRow, state: QueryState): Long = {
+    val item = executionContext.getByName(itemName)
+    if (!(item eq Values.NO_VALUE)) {
       val ops = operations(state.query)
       val itemId = id(item)
       if (needsExclusiveLock) ops.acquireExclusiveLock(itemId)
 
+      invalidateCachedProperties(executionContext, itemId)
+
       try {
         val map = SetOperation.toMap(executionContext, state, expression)
 
-        setPropertiesFromMap(state.query, ops, itemId, map, removeOtherProps)
-      } finally if (needsExclusiveLock) ops.releaseExclusiveLock(itemId)
+        setPropertiesFromMap(state.cursors.propertyCursor, state.query, entityCursor(state.cursors), ops, itemId, map, removeOtherProps)
+      } finally {
+        if (needsExclusiveLock) ops.releaseExclusiveLock(itemId)
+      }
+    } else {
+      0L
     }
   }
 
   protected def id(item: Any): Long
 
-  protected def operations(qtx: QueryContext): Operations[T]
+  protected def operations(qtx: QueryContext): Operations[T, CURSOR]
 
-  private def setPropertiesFromMap(qtx: QueryContext, ops: Operations[T], itemId: Long,
-                                   map: Map[Int, AnyValue], removeOtherProps: Boolean) {
+  protected def invalidateCachedProperties(executionContext: CypherRow, id: Long): Unit
 
-    /*Set all map values on the property container*/
-    for ((k, v) <- map) {
-      if (v == Values.NO_VALUE)
-        ops.removeProperty(itemId, k)
-      else
-        ops.setProperty(itemId, k, makeValueNeoSafe(v))
-    }
-
-    val properties = ops.propertyKeyIds(itemId).filterNot(map.contains).toSet
-
-    /*Remove all other properties from the property container ( SET n = {prop1: ...})*/
-    if (removeOtherProps) {
-      for (propertyKeyId <- properties) {
-        ops.removeProperty(itemId, propertyKeyId)
-      }
-    }
-  }
+  protected def entityCursor(cursors: ExpressionCursors): CURSOR
 }
 
 case class SetNodePropertyFromMapOperation(nodeName: String, expression: Expression,
                                            removeOtherProps: Boolean, needsExclusiveLock: Boolean = true)
-  extends SetPropertyFromMapOperation[NodeValue](nodeName, expression, removeOtherProps) {
+  extends SetNodeOrRelPropertyFromMapOperation[VirtualNodeValue, NodeCursor](nodeName, expression, removeOtherProps) {
 
   override def name = "SetNodePropertyFromMap"
 
-  override protected def id(item: Any) = CastSupport.castOrFail[VirtualNodeValue](item).id()
+  override protected def id(item: Any): Long = CastSupport.castOrFail[VirtualNodeValue](item).id()
 
-  override protected def operations(qtx: QueryContext) = qtx.nodeOps
+  override protected def operations(qtx: QueryContext): NodeOperations = qtx.nodeWriteOps
+
+  override protected def entityCursor(cursors: ExpressionCursors): NodeCursor = cursors.nodeCursor
+
+  override protected def invalidateCachedProperties(executionContext: CypherRow, id: Long): Unit = executionContext.invalidateCachedNodeProperties(id)
 }
 
-case class SetRelationshipPropertyFromMapOperation(relName: String, expression: Expression,
-                                                   removeOtherProps: Boolean, needsExclusiveLock: Boolean = true)
-  extends SetPropertyFromMapOperation[RelationshipValue](relName, expression, removeOtherProps) {
+
+case class SetRelationshipPropertyFromMapOperation(relName: String,
+                                                   expression: Expression,
+                                                   removeOtherProps: Boolean,
+                                                   needsExclusiveLock: Boolean = true)
+  extends SetNodeOrRelPropertyFromMapOperation[VirtualRelationshipValue, RelationshipScanCursor](relName, expression, removeOtherProps) {
 
   override def name = "SetRelationshipPropertyFromMap"
 
-  override protected def id(item: Any) = CastSupport.castOrFail[VirtualRelationshipValue](item).id()
+  override protected def id(item: Any): Long = CastSupport.castOrFail[VirtualRelationshipValue](item).id()
 
-  override protected def operations(qtx: QueryContext) = qtx.relationshipOps
+  override protected def operations(qtx: QueryContext): RelationshipOperations = qtx.relationshipWriteOps
+
+  override protected def entityCursor(cursors: ExpressionCursors): RelationshipScanCursor = cursors.relationshipScanCursor
+
+  override protected def invalidateCachedProperties(executionContext: CypherRow, id: Long): Unit = executionContext.invalidateCachedRelationshipProperties(id)
+}
+
+case class SetPropertyFromMapOperation(entityExpr: Expression,
+                                       expression: Expression,
+                                       removeOtherProps: Boolean)
+  extends AbstractSetPropertyFromMapOperation() {
+
+  override def name = "SetPropertyFromMap"
+
+  override def set(executionContext: CypherRow, state: QueryState): Long = {
+    val resolvedEntity = entityExpr(executionContext, state)
+    if (resolvedEntity != Values.NO_VALUE) {
+      def setIt[T, CURSOR](entityId: Long, ops: Operations[T, CURSOR], cursor: CURSOR, invalidation: Long => Unit): Long = {
+        // better safe than sorry let's lock the entity
+        ops.acquireExclusiveLock(entityId)
+
+        invalidation(entityId)
+
+        try {
+          val map = SetOperation.toMap(executionContext, state, expression)
+
+          setPropertiesFromMap(state.cursors.propertyCursor, state.query, cursor, ops, entityId, map, removeOtherProps)
+        } finally {
+          ops.releaseExclusiveLock(entityId)
+        }
+      }
+
+      resolvedEntity match {
+        case node: VirtualNodeValue => setIt(node.id(), state.query.nodeWriteOps, state.cursors.nodeCursor,
+          (id: Long) => executionContext.invalidateCachedNodeProperties(id))
+        case rel: VirtualRelationshipValue => setIt(rel.id(), state.query.relationshipWriteOps, state.cursors.relationshipScanCursor,
+          (id: Long) => executionContext.invalidateCachedRelationshipProperties(id))
+        case _ => throw new InvalidArgumentException(
+          s"The expression $entityExpr should have been a node or a relationship, but got $resolvedEntity")
+      }
+    } else {
+      0L
+    }
+  }
+
+  override def needsExclusiveLock = true
 }
 
 case class SetLabelsOperation(nodeName: String, labels: Seq[LazyLabel]) extends SetOperation {
 
-  override def set(executionContext: ExecutionContext, state: QueryState) = {
-    val value: AnyValue = executionContext.get(nodeName).get
-    if (value != Values.NO_VALUE) {
+  override def set(executionContext: CypherRow, state: QueryState): Long = {
+    val value: AnyValue = executionContext.getByName(nodeName)
+    if (!(value eq Values.NO_VALUE)) {
       val nodeId = CastSupport.castOrFail[VirtualNodeValue](value).id()
-      val labelIds = labels.map(_.getOrCreateId(state.query).id)
-      state.query.setLabelsOnNode(nodeId, labelIds.iterator)
+      val labelIds = labels.map(_.getOrCreateId(state.query))
+      state.query.setLabelsOnNode(nodeId, labelIds.iterator).toLong
+    } else {
+      0L
     }
   }
 

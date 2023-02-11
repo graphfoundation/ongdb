@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB Enterprise Edition. The included source
@@ -152,7 +152,7 @@ class SpatialDistanceAcceptanceTest extends ExecutionEngineFunSuite with CypherC
     assert(dist == null)
   }
 
-  test("distance function should measure distance from Copenhagen train station to Neo4j in Malmö") {
+  test("distance function should measure distance from Copenhagen train station to ONgDB in Malmö") {
     val result = executeWith(pointConfig,
       """
         |WITH point({latitude: 55.672874, longitude: 12.564590}) as p1, point({latitude: 55.611784, longitude: 12.994341}) as p2

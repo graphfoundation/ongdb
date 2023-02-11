@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,30 +38,41 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.NameId
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.util.NameId
+import org.neo4j.cypher.internal.util.attribution.Id
 import org.neo4j.values.storable.Values
 
+/**
+ * Retrieves node counts from count store, for nodes with specified (optional) labels.
+ * Can also be used to compute node count for cartesian product of multiple pattern nodes.
+ * E.g.,
+ * MATCH (n:L1), (n2:L2), (n3) RETURN count(*)
+ *
+ * @param labels list of labels, of different pattern nodes
+ */
 case class NodeCountFromCountStorePipe(ident: String, labels: List[Option[LazyLabel]])
                                       (val id: Id = Id.INVALID_ID) extends Pipe {
 
-  protected def internalCreateResults(state: QueryState): Iterator[ExecutionContext] = {
+  protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
     var count = 1L
     val it = labels.iterator
     while (it.hasNext) {
       it.next() match {
-        case Some(lazyLabel) => lazyLabel.getOptId(state.query) match {
-          case Some(idOfLabel) =>
-            count = count * state.query.nodeCountByCountStore(idOfLabel)
-          case _ => count = 0
-        }
+        case Some(lazyLabel) =>
+            val idOfLabel = lazyLabel.getId(state.query)
+            if (idOfLabel == LazyLabel.UNKNOWN) {
+              count = 0
+            } else {
+              count = count * state.query.nodeCountByCountStore(idOfLabel)
+            }
         case _ =>
           count *= state.query.nodeCountByCountStore(NameId.WILDCARD)
       }
     }
 
-    val baseContext = state.createOrGetInitialContext(executionContextFactory)
-    Iterator(executionContextFactory.copyWith(baseContext, ident, Values.longValue(count)))
+    val baseContext = state.newRowWithArgument(rowFactory)
+    ClosingIterator.single(rowFactory.copyWith(baseContext, ident, Values.longValue(count)))
   }
 }

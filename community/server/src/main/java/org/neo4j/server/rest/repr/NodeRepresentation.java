@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,27 +42,20 @@ import java.util.Collection;
 
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
-import org.neo4j.helpers.collection.IterableWrapper;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.server.rest.transactional.TransactionStateChecker;
+import org.neo4j.internal.helpers.collection.IterableWrapper;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.server.http.cypher.entity.HttpNode;
 
-import static org.neo4j.helpers.collection.MapUtil.map;
+import static org.neo4j.internal.helpers.collection.MapUtil.map;
 
-public final class NodeRepresentation extends ObjectRepresentation implements ExtensibleRepresentation,
-        EntityRepresentation
+public final class NodeRepresentation extends ObjectRepresentation implements ExtensibleRepresentation, EntityRepresentation
 {
     private final Node node;
-    private TransactionStateChecker checker;
 
     public NodeRepresentation( Node node )
     {
         super( RepresentationType.NODE );
         this.node = node;
-    }
-
-    public void setTransactionStateChecker( TransactionStateChecker checker )
-    {
-        this.checker = checker;
     }
 
     @Override
@@ -90,7 +83,12 @@ public final class NodeRepresentation extends ObjectRepresentation implements Ex
 
     static String path( Node node )
     {
-        return "node/" + node.getId();
+        return path( node.getId() );
+    }
+
+    static String path( long nodeId )
+    {
+        return "node/" + nodeId;
     }
 
     @Mapping( "create_relationship" )
@@ -174,7 +172,7 @@ public final class NodeRepresentation extends ObjectRepresentation implements Ex
         }
         else
         {
-            Collection<String> labels = Iterables.asCollection( new IterableWrapper<String,Label>( node.getLabels() )
+            Collection<String> labels = Iterables.asCollection( new IterableWrapper<>( node.getLabels() )
             {
                 @Override
                 protected String underlyingObjectToObject( Label label )
@@ -188,35 +186,18 @@ public final class NodeRepresentation extends ObjectRepresentation implements Ex
 
     private boolean isDeleted()
     {
-        return checker != null && checker.isNodeDeletedInCurrentTx( node.getId() );
+        return ((HttpNode) node).isDeleted();
     }
 
     @Override
-    void extraData( MappingSerializer serializer )
+    public void extraData( MappingSerializer serializer )
     {
         if ( !isDeleted() )
         {
             MappingWriter writer = serializer.writer;
             MappingWriter properties = writer.newMapping( RepresentationType.PROPERTIES, "data" );
             new PropertiesRepresentation( node ).serialize( properties );
-            if ( writer.isInteractive() )
-            {
-                serializer.putList( "relationship_types", ListRepresentation.relationshipTypes(
-                        node.getGraphDatabase().getAllRelationshipTypes() ) );
-            }
             properties.done();
         }
-    }
-
-    public static ListRepresentation list( Iterable<Node> nodes )
-    {
-        return new ListRepresentation( RepresentationType.NODE, new IterableWrapper<Representation, Node>( nodes )
-        {
-            @Override
-            protected Representation underlyingObjectToObject( Node node )
-            {
-                return new NodeRepresentation( node );
-            }
-        } );
     }
 }

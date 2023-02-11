@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,15 +38,32 @@
  */
 package org.neo4j.kernel.info;
 
+import java.lang.Runtime.Version;
+import java.lang.management.MemoryUsage;
+import java.util.List;
+
+import static java.util.Collections.emptyList;
+
 public class CannedJvmMetadataRepository extends JvmMetadataRepository
 {
     private final String javaVmName;
     private final String javaVersion;
+    private final List<String> inputArguments;
+    private final long initialHeapSize;
+    private final long maxHeapSize;
 
-    public CannedJvmMetadataRepository( String javaVmName, String javaVersion )
+    CannedJvmMetadataRepository( String javaVmName, String javaVersion )
+    {
+        this( javaVmName, javaVersion, emptyList(), 1, 2 );
+    }
+
+    CannedJvmMetadataRepository( String javaVmName, String javaVersion, List<String> inputArguments, long initialHeapSize, long maxHeapSize )
     {
         this.javaVmName = javaVmName;
         this.javaVersion = javaVersion;
+        this.inputArguments = inputArguments;
+        this.initialHeapSize = initialHeapSize;
+        this.maxHeapSize = maxHeapSize;
     }
 
     @Override
@@ -56,8 +73,20 @@ public class CannedJvmMetadataRepository extends JvmMetadataRepository
     }
 
     @Override
-    public String getJavaVersion()
+    public Version getJavaVersion()
     {
-        return javaVersion;
+        return Runtime.Version.parse( javaVersion );
+    }
+
+    @Override
+    public List<String> getJvmInputArguments()
+    {
+        return inputArguments;
+    }
+
+    @Override
+    public MemoryUsage getHeapMemoryUsage()
+    {
+        return new MemoryUsage( initialHeapSize, 0, 0, maxHeapSize );
     }
 }

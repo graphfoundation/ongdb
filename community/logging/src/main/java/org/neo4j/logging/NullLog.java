@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,13 +39,11 @@
 package org.neo4j.logging;
 
 import java.util.function.Consumer;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 /**
  * A {@link Log} implementation that discards all messages
  */
-public final class NullLog implements Log
+public final class NullLog extends AbstractLog
 {
     private static final NullLog INSTANCE = new NullLog();
 
@@ -67,96 +65,68 @@ public final class NullLog implements Log
         return false;
     }
 
-    @Nonnull
     @Override
-    public Logger debugLogger()
-    {
-        return NullLogger.getInstance();
-    }
-
-    @Override
-    public void debug( @Nonnull String message )
+    public void debug( String message )
     {
     }
 
     @Override
-    public void debug( @Nonnull String message, @Nonnull Throwable throwable )
+    public void debug( String message, Throwable throwable )
     {
     }
 
     @Override
-    public void debug( @Nonnull String format, @Nullable Object... arguments )
-    {
-    }
-
-    @Nonnull
-    @Override
-    public Logger infoLogger()
-    {
-        return NullLogger.getInstance();
-    }
-
-    @Override
-    public void info( @Nonnull String message )
+    public void debug( String format, Object... arguments )
     {
     }
 
     @Override
-    public void info( @Nonnull String message, @Nonnull Throwable throwable )
+    public void info( String message )
     {
     }
 
     @Override
-    public void info( @Nonnull String format, @Nullable Object... arguments )
-    {
-    }
-
-    @Nonnull
-    @Override
-    public Logger warnLogger()
-    {
-        return NullLogger.getInstance();
-    }
-
-    @Override
-    public void warn( @Nonnull String message )
+    public void info( String message, Throwable throwable )
     {
     }
 
     @Override
-    public void warn( @Nonnull String message, @Nonnull Throwable throwable )
+    public void info( String format, Object... arguments )
     {
     }
 
     @Override
-    public void warn( @Nonnull String format, @Nullable Object... arguments )
-    {
-    }
-
-    @Nonnull
-    @Override
-    public Logger errorLogger()
-    {
-        return NullLogger.getInstance();
-    }
-
-    @Override
-    public void error( @Nonnull String message )
+    public void warn( String message )
     {
     }
 
     @Override
-    public void error( @Nonnull String message, @Nonnull Throwable throwable )
+    public void warn( String message, Throwable throwable )
     {
     }
 
     @Override
-    public void error( @Nonnull String format, @Nullable Object... arguments )
+    public void warn( String format, Object... arguments )
     {
     }
 
     @Override
-    public void bulk( @Nonnull Consumer<Log> consumer )
+    public void error( String message )
+    {
+    }
+
+    @Override
+    public void error( String message, Throwable throwable )
+    {
+    }
+
+    @Override
+    public void error( String format, Object... arguments )
+    {
+    }
+
+    @Override
+    public void bulk( Consumer<Log> consumer )
     {
         consumer.accept( this );
     }

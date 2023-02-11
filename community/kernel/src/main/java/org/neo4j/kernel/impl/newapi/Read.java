@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,275 +40,316 @@ package org.neo4j.kernel.impl.newapi;
 
 import java.util.Arrays;
 
-import org.neo4j.internal.kernel.api.CapableIndexReference;
-import org.neo4j.internal.kernel.api.IndexOrder;
-import org.neo4j.internal.kernel.api.IndexQuery;
-import org.neo4j.internal.kernel.api.IndexReference;
+import org.neo4j.common.EntityType;
+import org.neo4j.exceptions.KernelException;
+import org.neo4j.internal.kernel.api.Cursor;
+import org.neo4j.internal.kernel.api.CursorFactory;
+import org.neo4j.internal.kernel.api.IndexQueryConstraints;
+import org.neo4j.internal.kernel.api.IndexReadSession;
+import org.neo4j.internal.kernel.api.InternalIndexState;
 import org.neo4j.internal.kernel.api.NodeCursor;
-import org.neo4j.internal.kernel.api.NodeExplicitIndexCursor;
 import org.neo4j.internal.kernel.api.NodeLabelIndexCursor;
 import org.neo4j.internal.kernel.api.NodeValueIndexCursor;
+import org.neo4j.internal.kernel.api.PartitionedScan;
 import org.neo4j.internal.kernel.api.PropertyCursor;
-import org.neo4j.internal.kernel.api.RelationshipExplicitIndexCursor;
-import org.neo4j.internal.kernel.api.RelationshipGroupCursor;
+import org.neo4j.internal.kernel.api.PropertyIndexQuery;
+import org.neo4j.internal.kernel.api.QueryContext;
 import org.neo4j.internal.kernel.api.RelationshipScanCursor;
 import org.neo4j.internal.kernel.api.RelationshipTraversalCursor;
+import org.neo4j.internal.kernel.api.RelationshipTypeIndexCursor;
+import org.neo4j.internal.kernel.api.RelationshipValueIndexCursor;
 import org.neo4j.internal.kernel.api.Scan;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
-import org.neo4j.internal.kernel.api.exceptions.explicitindex.ExplicitIndexNotFoundKernelException;
-import org.neo4j.internal.kernel.api.security.AccessMode;
-import org.neo4j.io.pagecache.PageCursor;
-import org.neo4j.kernel.api.ExplicitIndex;
-import org.neo4j.kernel.api.ExplicitIndexHits;
-import org.neo4j.kernel.api.exceptions.index.IndexNotApplicableKernelException;
-import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
+import org.neo4j.internal.kernel.api.TokenPredicate;
+import org.neo4j.internal.kernel.api.TokenReadSession;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotApplicableKernelException;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexType;
+import org.neo4j.internal.schema.IndexValueCapability;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptorSupplier;
+import org.neo4j.internal.schema.SchemaDescriptors;
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.kernel.api.AssertOpen;
 import org.neo4j.kernel.api.exceptions.schema.IndexBrokenKernelException;
-import org.neo4j.kernel.api.txstate.ExplicitIndexTransactionState;
+import org.neo4j.kernel.api.index.ValueIndexReader;
 import org.neo4j.kernel.api.txstate.TransactionState;
 import org.neo4j.kernel.api.txstate.TxStateHolder;
 import org.neo4j.kernel.impl.api.KernelTransactionImplementation;
-import org.neo4j.kernel.impl.locking.LockTracer;
+import org.neo4j.kernel.impl.index.schema.TokenScan;
 import org.neo4j.kernel.impl.locking.Locks;
-import org.neo4j.kernel.impl.locking.ResourceTypes;
-import org.neo4j.kernel.impl.store.RecordCursor;
-import org.neo4j.kernel.impl.store.record.DynamicRecord;
-import org.neo4j.kernel.impl.store.record.NodeRecord;
-import org.neo4j.kernel.impl.store.record.PropertyRecord;
-import org.neo4j.kernel.impl.store.record.RelationshipGroupRecord;
-import org.neo4j.kernel.impl.store.record.RelationshipRecord;
-import org.neo4j.storageengine.api.lock.ResourceType;
-import org.neo4j.storageengine.api.schema.IndexProgressor;
-import org.neo4j.storageengine.api.schema.IndexReader;
-import org.neo4j.storageengine.api.schema.LabelScanReader;
-import org.neo4j.values.storable.ArrayValue;
-import org.neo4j.values.storable.TextValue;
-import org.neo4j.values.storable.Value;
-import org.neo4j.values.storable.ValueGroup;
-import org.neo4j.values.storable.Values;
+import org.neo4j.lock.LockTracer;
+import org.neo4j.lock.ResourceType;
+import org.neo4j.lock.ResourceTypes;
+import org.neo4j.storageengine.api.PropertySelection;
+import org.neo4j.storageengine.api.Reference;
+import org.neo4j.storageengine.api.RelationshipSelection;
+import org.neo4j.storageengine.api.StorageLocks;
+import org.neo4j.storageengine.api.StorageReader;
+import org.neo4j.storageengine.api.txstate.ReadableTransactionState;
 
 import static java.lang.String.format;
-import static org.neo4j.kernel.impl.locking.ResourceTypes.INDEX_ENTRY;
-import static org.neo4j.kernel.impl.locking.ResourceTypes.indexEntryResourceId;
-import static org.neo4j.kernel.impl.newapi.GroupReferenceEncoding.isRelationship;
-import static org.neo4j.kernel.impl.newapi.References.clearEncoding;
-import static org.neo4j.kernel.impl.newapi.RelationshipDirection.INCOMING;
-import static org.neo4j.kernel.impl.newapi.RelationshipDirection.LOOP;
-import static org.neo4j.kernel.impl.newapi.RelationshipDirection.OUTGOING;
-import static org.neo4j.kernel.impl.store.record.AbstractBaseRecord.NO_ID;
-import static org.neo4j.values.storable.ValueGroup.GEOMETRY;
-import static org.neo4j.values.storable.ValueGroup.NUMBER;
+import static org.neo4j.internal.kernel.api.IndexQueryConstraints.unconstrained;
 
 abstract class Read implements TxStateHolder,
         org.neo4j.internal.kernel.api.Read,
-        org.neo4j.internal.kernel.api.ExplicitIndexRead,
         org.neo4j.internal.kernel.api.SchemaRead,
         org.neo4j.internal.kernel.api.Procedures,
-        org.neo4j.internal.kernel.api.Locks
+        org.neo4j.internal.kernel.api.Locks,
+        AssertOpen,
+        LockingNodeUniqueIndexSeek.UniqueNodeIndexSeeker<DefaultNodeValueIndexCursor>,
+        QueryContext
 {
-    private final DefaultCursors cursors;
+    protected final StorageReader storageReader;
+    protected final DefaultPooledCursors cursors;
     final KernelTransactionImplementation ktx;
+    private final StorageLocks storageLocks;
 
-    Read( DefaultCursors cursors, KernelTransactionImplementation ktx )
+    Read( StorageReader storageReader, DefaultPooledCursors cursors, KernelTransactionImplementation ktx, StorageLocks storageLocks )
     {
+        this.storageReader = storageReader;
         this.cursors = cursors;
         this.ktx = ktx;
+        this.storageLocks = storageLocks;
     }
 
     @Override
-    public final void nodeIndexSeek(
-            IndexReference index,
-            NodeValueIndexCursor cursor,
-            IndexOrder indexOrder,
-            IndexQuery... query ) throws IndexNotApplicableKernelException, IndexNotFoundKernelException
+    public final void nodeIndexSeek( QueryContext queryContext, IndexReadSession index, NodeValueIndexCursor cursor, IndexQueryConstraints constraints,
+            PropertyIndexQuery... query ) throws IndexNotApplicableKernelException
     {
         ktx.assertOpen();
-        if ( hasForbiddenProperties( index ) )
+        DefaultIndexReadSession indexSession = (DefaultIndexReadSession) index;
+        validateConstraints( constraints, indexSession, query );
+
+        if ( indexSession.reference.schema().entityType() != EntityType.NODE )
         {
-            cursor.close();
-            return;
+            throw new IndexNotApplicableKernelException( "Node index seek can not be performed on index: "
+                                                         + index.reference().userDescription( ktx.tokenRead() ) );
         }
 
-        DefaultNodeValueIndexCursor cursorImpl = (DefaultNodeValueIndexCursor) cursor;
-        IndexReader reader = indexReader( index, false );
-        cursorImpl.setRead( this );
-        IndexProgressor.NodeValueClient target = withFullValuePrecision( cursorImpl, query, reader );
-        reader.query( target, indexOrder, query );
+        EntityIndexSeekClient client = (EntityIndexSeekClient) cursor;
+        client.setRead( this );
+        indexSession.reader.query( client, queryContext, ktx.securityContext().mode(), constraints, query );
     }
 
     @Override
-    public void nodeIndexDistinctValues( IndexReference index, NodeValueIndexCursor cursor ) throws IndexNotFoundKernelException
+    public PartitionedScan<NodeValueIndexCursor> nodeIndexSeek( IndexReadSession index, int desiredNumberOfPartitions,
+                                                                QueryContext queryContext, PropertyIndexQuery... query )
+            throws IndexNotApplicableKernelException
     {
         ktx.assertOpen();
-        DefaultNodeValueIndexCursor cursorImpl = (DefaultNodeValueIndexCursor) cursor;
-        IndexReader reader = indexReader( index, true );
-        cursorImpl.setRead( this );
-        try ( CursorPropertyAccessor accessor = new CursorPropertyAccessor( cursors.allocateNodeCursor(), cursors.allocatePropertyCursor(), this ) )
+        final var descriptor = index.reference();
+        if ( descriptor.schema().entityType() != EntityType.NODE )
         {
-            reader.distinctValues( cursorImpl, accessor );
+            throw new IndexNotApplicableKernelException( "Node index seek can not be performed on index: "
+                                                         + descriptor.userDescription( ktx.tokenRead() ) );
         }
-    }
-
-    private IndexProgressor.NodeValueClient withFullValuePrecision( DefaultNodeValueIndexCursor cursor,
-            IndexQuery[] query, IndexReader reader )
-    {
-        IndexProgressor.NodeValueClient target = cursor;
-        if ( !reader.hasFullValuePrecision( query ) )
-        {
-            IndexQuery[] filters = new IndexQuery[query.length];
-            int j = 0;
-            for ( IndexQuery q : query )
-            {
-                switch ( q.type() )
-                {
-                case range:
-                    ValueGroup valueGroup = q.valueGroup();
-                    if ( ( valueGroup == NUMBER || valueGroup == GEOMETRY) && !reader.hasFullValuePrecision( q ) )
-                    {
-                        filters[j++] = q;
-                    }
-                    break;
-                case exact:
-                    Value value = ((IndexQuery.ExactPredicate) q).value();
-                    if ( value.valueGroup() == ValueGroup.NUMBER || Values.isArrayValue( value ) || value.valueGroup() == ValueGroup.GEOMETRY )
-                    {
-                        if ( !reader.hasFullValuePrecision( q ) )
-                        {
-                            filters[j++] = q;
-                        }
-                    }
-                    break;
-                default:
-                    break;
-                }
-            }
-            if ( j > 0 )
-            {
-                filters = Arrays.copyOf( filters, j );
-                target = new NodeValueClientFilter( target, cursors.allocateNodeCursor(),
-                        cursors.allocatePropertyCursor(), this, filters );
-            }
-        }
-        return target;
+        return propertyIndexSeek( index, desiredNumberOfPartitions, queryContext, query );
     }
 
     @Override
-    public final long lockingNodeUniqueIndexSeek(
-            IndexReference index,
-            IndexQuery.ExactPredicate... predicates )
+    public final void relationshipIndexSeek( QueryContext queryContext, IndexReadSession index, RelationshipValueIndexCursor cursor,
+            IndexQueryConstraints constraints, PropertyIndexQuery... query ) throws IndexNotApplicableKernelException
+    {
+        ktx.assertOpen();
+        DefaultIndexReadSession indexSession = (DefaultIndexReadSession) index;
+        validateConstraints( constraints, indexSession, query );
+        if ( indexSession.reference.schema().entityType() != EntityType.RELATIONSHIP )
+        {
+            throw new IndexNotApplicableKernelException( "Relationship index seek can not be performed on index: "
+                                                         + index.reference().userDescription( ktx.tokenRead() ) );
+        }
+
+        EntityIndexSeekClient client = (EntityIndexSeekClient) cursor;
+        client.setRead( this );
+        indexSession.reader.query( client, queryContext, ktx.securityContext().mode(), constraints, query );
+    }
+
+    @Override
+    public PartitionedScan<RelationshipValueIndexCursor> relationshipIndexSeek( IndexReadSession index, int desiredNumberOfPartitions,
+                                                                                QueryContext queryContext, PropertyIndexQuery... query )
+            throws IndexNotApplicableKernelException
+    {
+        ktx.assertOpen();
+        final var descriptor = index.reference();
+        if ( descriptor.schema().entityType() != EntityType.RELATIONSHIP )
+        {
+            throw new IndexNotApplicableKernelException( "Relationship index seek can not be performed on index: "
+                                                         + descriptor.userDescription( ktx.tokenRead() ) );
+        }
+        return propertyIndexSeek( index, desiredNumberOfPartitions, queryContext, query );
+    }
+
+    @Override
+    public org.neo4j.internal.kernel.api.Read getRead()
+    {
+        return this;
+    }
+
+    @Override
+    public CursorFactory cursors()
+    {
+        return cursors;
+    }
+
+    @Override
+    public ReadableTransactionState getTransactionStateOrNull()
+    {
+        return hasTxStateWithChanges() ? txState() : null;
+    }
+
+    @Override
+    public long lockingNodeUniqueIndexSeek( IndexDescriptor index,
+                                            NodeValueIndexCursor cursor,
+                                            PropertyIndexQuery.ExactPredicate... predicates )
             throws IndexNotApplicableKernelException, IndexNotFoundKernelException, IndexBrokenKernelException
     {
         assertIndexOnline( index );
         assertPredicatesMatchSchema( index, predicates );
-        int labelId = index.label();
 
-        Locks.Client locks = ktx.statementLocks().optimistic();
+        Locks.Client locks = ktx.lockClient();
         LockTracer lockTracer = ktx.lockTracer();
-        long indexEntryId = indexEntryResourceId( labelId, predicates );
 
-        //First try to find node under a shared lock
-        //if not found upgrade to exclusive and try again
-        locks.acquireShared( lockTracer, INDEX_ENTRY, indexEntryId );
-        try ( DefaultNodeValueIndexCursor cursor = cursors.allocateNodeValueIndexCursor();
-              IndexReaders readers = new IndexReaders( index, this ) )
-        {
-            nodeIndexSeekWithFreshIndexReader( cursor, readers.createReader(), predicates );
-            if ( !cursor.next() )
-            {
-                locks.releaseShared( INDEX_ENTRY, indexEntryId );
-                locks.acquireExclusive( lockTracer, INDEX_ENTRY, indexEntryId );
-                nodeIndexSeekWithFreshIndexReader( cursor, readers.createReader(), predicates );
-                if ( cursor.next() ) // we found it under the exclusive lock
-                {
-                    // downgrade to a shared lock
-                    locks.acquireShared( lockTracer, INDEX_ENTRY, indexEntryId );
-                    locks.releaseExclusive( INDEX_ENTRY, indexEntryId );
-                }
-            }
-
-            return cursor.nodeReference();
-        }
+        return LockingNodeUniqueIndexSeek.apply( locks, lockTracer, (DefaultNodeValueIndexCursor)cursor, this, this, index, predicates );
     }
 
-    void nodeIndexSeekWithFreshIndexReader(
+    @Override // UniqueNodeIndexSeeker
+    public void nodeIndexSeekWithFreshIndexReader(
             DefaultNodeValueIndexCursor cursor,
-            IndexReader indexReader,
-            IndexQuery.ExactPredicate... query ) throws IndexNotApplicableKernelException
+            ValueIndexReader indexReader,
+            PropertyIndexQuery.ExactPredicate... query ) throws IndexNotApplicableKernelException
     {
         cursor.setRead( this );
-        IndexProgressor.NodeValueClient target = withFullValuePrecision( cursor, query, indexReader );
-        indexReader.query( target, IndexOrder.NONE, query );
+        indexReader.query( cursor, this, ktx.securityContext().mode(), unconstrained(), query );
     }
 
     @Override
-    public final void nodeIndexScan(
-            IndexReference index,
-            NodeValueIndexCursor cursor,
-            IndexOrder indexOrder ) throws KernelException
+    public final void nodeIndexScan( IndexReadSession index,
+                                     NodeValueIndexCursor cursor,
+                                     IndexQueryConstraints constraints ) throws KernelException
     {
         ktx.assertOpen();
-        if ( hasForbiddenProperties( index ) )
+        DefaultIndexReadSession indexSession = (DefaultIndexReadSession) index;
+
+        if ( indexSession.reference.schema().entityType() != EntityType.NODE )
         {
-            cursor.close();
-            return;
+            throw new IndexNotApplicableKernelException( "Node index scan can not be performed on index: "
+                                                         + index.reference().userDescription( ktx.tokenRead() ) );
         }
 
-        // for a scan, we simply query for existence of the first property, which covers all entries in an index
-        int firstProperty = index.properties()[0];
-        ((DefaultNodeValueIndexCursor) cursor).setRead( this );
-        indexReader( index, false ).query( (DefaultNodeValueIndexCursor) cursor, indexOrder, IndexQuery.exists( firstProperty ) );
+        scanIndex( indexSession, (EntityIndexSeekClient) cursor, constraints );
     }
 
-    private boolean hasForbiddenProperties( IndexReference index )
+    @Override
+    public PartitionedScan<NodeValueIndexCursor> nodeIndexScan( IndexReadSession index, int desiredNumberOfPartitions, QueryContext queryContext )
+            throws IndexNotApplicableKernelException
     {
-        AccessMode mode = ktx.securityContext().mode();
-        for ( int prop : index.properties() )
+        ktx.assertOpen();
+        final var descriptor = index.reference();
+        if ( descriptor.schema().entityType() != EntityType.NODE )
         {
-            if ( !mode.allowsPropertyReads( prop ) )
-            {
-                return true;
-            }
+            throw new IndexNotApplicableKernelException( "Node index scan can not be performed on index: "
+                                                         + descriptor.userDescription( ktx.tokenRead() ) );
         }
-        return false;
+
+        return propertyIndexScan( index, desiredNumberOfPartitions, queryContext );
     }
 
     @Override
-    public final void nodeLabelScan( int label, NodeLabelIndexCursor cursor )
+    public final void relationshipIndexScan( IndexReadSession index,
+            RelationshipValueIndexCursor cursor,
+            IndexQueryConstraints constraints ) throws KernelException
     {
         ktx.assertOpen();
+        DefaultIndexReadSession indexSession = (DefaultIndexReadSession) index;
 
-        DefaultNodeLabelIndexCursor indexCursor = (DefaultNodeLabelIndexCursor) cursor;
-        indexCursor.setRead( this );
-        labelScanReader().nodesWithLabel( indexCursor, label);
+        if ( indexSession.reference.schema().entityType() != EntityType.RELATIONSHIP )
+        {
+            throw new IndexNotApplicableKernelException( "Relationship index scan can not be performed on index: "
+                                                         + index.reference().userDescription( ktx.tokenRead() ) );
+        }
+
+        scanIndex( indexSession, (EntityIndexSeekClient) cursor, constraints );
     }
 
     @Override
-    public void nodeLabelUnionScan( NodeLabelIndexCursor cursor, int... labels )
+    public PartitionedScan<RelationshipValueIndexCursor> relationshipIndexScan( IndexReadSession index, int desiredNumberOfPartitions,
+                                                                                QueryContext queryContext )
+            throws IndexNotApplicableKernelException
     {
         ktx.assertOpen();
+        final var descriptor = index.reference();
+        if ( descriptor.schema().entityType() != EntityType.RELATIONSHIP )
+        {
+            throw new IndexNotApplicableKernelException( "Relationship index scan can not be performed on index: "
+                                                         + descriptor.userDescription( ktx.tokenRead() ) );
+        }
 
-        DefaultNodeLabelIndexCursor client = (DefaultNodeLabelIndexCursor) cursor;
-        client.setRead( this );
-        client.unionScan( new NodeLabelIndexProgressor( labelScanReader().nodesWithAnyOfLabels( labels ), client ),
-                false, labels );
+        return propertyIndexScan( index, desiredNumberOfPartitions, queryContext );
     }
 
-    @Override
-    public void nodeLabelIntersectionScan( NodeLabelIndexCursor cursor, int... labels )
+    private void scanIndex( DefaultIndexReadSession indexSession, EntityIndexSeekClient indexSeekClient, IndexQueryConstraints constraints )
+            throws KernelException
     {
-        ktx.assertOpen();
-
-        DefaultNodeLabelIndexCursor client = (DefaultNodeLabelIndexCursor) cursor;
-        client.setRead( this );
-        client.intersectionScan(
-                new NodeLabelIndexProgressor( labelScanReader().nodesWithAllLabels( labels ), client ),
-                false, labels );
+        indexSeekClient.setRead( this );
+        indexSession.reader.query( indexSeekClient, this, ktx.securityContext().mode(), constraints, PropertyIndexQuery.allEntries() );
     }
 
     @Override
     public final Scan<NodeLabelIndexCursor> nodeLabelScan( int label )
     {
         ktx.assertOpen();
-        throw new UnsupportedOperationException( "not implemented" );
+        CursorContext cursorContext = ktx.cursorContext();
+
+        TokenScan tokenScan;
+        try
+        {
+            var index = index( SchemaDescriptors.forAnyEntityTokens( EntityType.NODE ), IndexType.LOOKUP );
+            if ( index == IndexDescriptor.NO_INDEX )
+            {
+                throw new IndexNotFoundKernelException( "There is no index that can back a node label scan." );
+            }
+            DefaultTokenReadSession session = (DefaultTokenReadSession) tokenReadSession( index );
+            tokenScan = session.reader.entityTokenScan( label, cursorContext );
+        }
+        catch ( IndexNotFoundKernelException e )
+        {
+            throw new RuntimeException( e );
+        }
+        return new NodeLabelIndexCursorScan( this, label, tokenScan );
+    }
+
+    @Override
+    public final PartitionedScan<NodeLabelIndexCursor> nodeLabelScan( TokenReadSession session, int desiredNumberOfPartitions,
+                                                                      CursorContext cursorContext, TokenPredicate query )
+            throws IndexNotApplicableKernelException
+    {
+        ktx.assertOpen();
+        if ( session.reference().schema().entityType() != EntityType.NODE )
+        {
+            throw new IndexNotApplicableKernelException( "Node label index scan can not be performed on index: "
+                                                         + session.reference().userDescription( ktx.tokenRead() ) );
+        }
+        return tokenIndexScan( session, desiredNumberOfPartitions, cursorContext, query );
+    }
+
+    @Override
+    public final void nodeLabelScan( TokenReadSession session, NodeLabelIndexCursor cursor, IndexQueryConstraints constraints, TokenPredicate query,
+            CursorContext cursorContext ) throws KernelException
+    {
+        ktx.assertOpen();
+
+        if ( session.reference().schema().entityType() != EntityType.NODE )
+        {
+            throw new IndexNotApplicableKernelException( "Node label index scan can not be performed on index: "
+                                                         + session.reference().userDescription( ktx.tokenRead() ) );
+        }
+
+        var tokenSession = (DefaultTokenReadSession) session;
+
+        DefaultNodeLabelIndexCursor indexCursor = (DefaultNodeLabelIndexCursor) cursor;
+        indexCursor.setRead( this );
+        tokenSession.reader.query( indexCursor, constraints, query, cursorContext );
     }
 
     @Override
@@ -322,7 +363,7 @@ abstract class Read implements TxStateHolder,
     public final Scan<NodeCursor> allNodesScan()
     {
         ktx.assertOpen();
-        throw new UnsupportedOperationException( "not implemented" );
+        return new NodeCursorScan( storageReader.allNodeScan(), this );
     }
 
     @Override
@@ -340,312 +381,142 @@ abstract class Read implements TxStateHolder,
     }
 
     @Override
+    public void singleRelationship( long reference, long sourceNodeReference, int type, long targetNodeReference, RelationshipScanCursor cursor )
+    {
+        ktx.assertOpen();
+        ((DefaultRelationshipScanCursor) cursor).single( reference, sourceNodeReference, type, targetNodeReference, this );
+    }
+
+    @Override
     public final void allRelationshipsScan( RelationshipScanCursor cursor )
     {
         ktx.assertOpen();
-        ((DefaultRelationshipScanCursor) cursor).scan( -1/*include all labels*/, this );
+        ((DefaultRelationshipScanCursor) cursor).scan( this );
     }
 
     @Override
     public final Scan<RelationshipScanCursor> allRelationshipsScan()
     {
         ktx.assertOpen();
-        throw new UnsupportedOperationException( "not implemented" );
+        return new RelationshipCursorScan( storageReader.allRelationshipScan(), this );
     }
 
     @Override
-    public final void relationshipTypeScan( int type, RelationshipScanCursor cursor )
+    public final PartitionedScan<RelationshipTypeIndexCursor> relationshipTypeScan( TokenReadSession session, int desiredNumberOfPartitions,
+                                                                                    CursorContext cursorContext, TokenPredicate query )
+            throws IndexNotApplicableKernelException
     {
         ktx.assertOpen();
-        ((DefaultRelationshipScanCursor) cursor).scan( type, this );
-    }
-
-    @Override
-    public final Scan<RelationshipScanCursor> relationshipTypeScan( int type )
-    {
-        ktx.assertOpen();
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public final void relationshipGroups(
-            long nodeReference, long reference, RelationshipGroupCursor cursor )
-    {
-        ktx.assertOpen();
-        // the relationships for this node are not grouped in the store
-        if ( reference != NO_ID && isRelationship( reference ) )
+        if ( session.reference().schema().entityType() != EntityType.RELATIONSHIP )
         {
-            ((DefaultRelationshipGroupCursor) cursor).buffer( nodeReference, clearEncoding( reference ), this );
+            throw new IndexNotApplicableKernelException( "Relationship type index scan can not be performed on index: "
+                                                         + session.reference().userDescription( ktx.tokenRead() ) );
         }
-        else // this is a normal group reference.
-        {
-            ((DefaultRelationshipGroupCursor) cursor).direct( nodeReference, reference, this );
-        }
+        return tokenIndexScan( session, desiredNumberOfPartitions, cursorContext, query );
     }
 
     @Override
-    public final void relationships(
-            long nodeReference, long reference, RelationshipTraversalCursor cursor )
+    public final void relationshipTypeScan( TokenReadSession session, RelationshipTypeIndexCursor cursor, IndexQueryConstraints constraints,
+                                            TokenPredicate query, CursorContext cursorContext )
+            throws KernelException
     {
-        /* There are 5 different ways a relationship traversal cursor can be initialized:
-         *
-         * 1. From a batched group in a detached way. This happens when the user manually retrieves the relationships
-         *    references from the group cursor and passes it to this method and if the group cursor was based on having
-         *    batched all the different types in the single (mixed) chain of relationships.
-         *    In this case we should pass a reference marked with some flag to the first relationship in the chain that
-         *    has the type of the current group in the group cursor. The traversal cursor then needs to read the type
-         *    from that first record and use that type as a filter for when reading the rest of the chain.
-         *    - NOTE: we probably have to do the same sort of filtering for direction - so we need a flag for that too.
-         *
-         * 2. From a batched group in a DIRECT way. This happens when the traversal cursor is initialized directly from
-         *    the group cursor, in this case we can simply initialize the traversal cursor with the buffered state from
-         *    the group cursor, so this method here does not have to be involved, and things become pretty simple.
-         *
-         * 3. Traversing all relationships - regardless of type - of a node that has grouped relationships. In this case
-         *    the traversal cursor needs to traverse through the group records in order to get to the actual
-         *    relationships. The initialization of the cursor (through this here method) should be with a FLAGGED
-         *    reference to the (first) group record.
-         *
-         * 4. Traversing a single chain - this is what happens in the cases when
-         *    a) Traversing all relationships of a node without grouped relationships.
-         *    b) Traversing the relationships of a particular group of a node with grouped relationships.
-         *
-         * 5. There are no relationships - i.e. passing in NO_ID to this method.
-         *
-         * This means that we need reference encodings (flags) for cases: 1, 3, 4, 5
-         */
         ktx.assertOpen();
 
-        int relationshipType;
-        RelationshipReferenceEncoding encoding = RelationshipReferenceEncoding.parseEncoding( reference );
-        DefaultRelationshipTraversalCursor internalCursor = (DefaultRelationshipTraversalCursor)cursor;
-
-        switch ( encoding )
+        if ( session.reference().schema().entityType() != EntityType.RELATIONSHIP )
         {
-        case NONE: // this is a normal relationship reference
-            internalCursor.chain( nodeReference, reference, this );
-            break;
+            throw new IndexNotApplicableKernelException( "Relationship type index scan can not be performed on index: "
+                                                         + session.reference().userDescription( ktx.tokenRead() ) );
+        }
 
-        case FILTER: // this relationship chain needs to be filtered
-            internalCursor.filtered( nodeReference, clearEncoding( reference ), this, true );
-            break;
+        var tokenSession = (DefaultTokenReadSession) session;
 
-        case FILTER_TX_STATE: // tx-state changes should be filtered by the head of this chain
-            internalCursor.filtered( nodeReference, clearEncoding( reference ), this, false );
-            break;
+        var indexCursor = (DefaultRelationshipTypeIndexCursor) cursor;
+        indexCursor.setRead( this );
+        tokenSession.reader.query( indexCursor, constraints, query, cursorContext );
+    }
 
-        case GROUP: // this reference is actually to a group record
-            internalCursor.groups( nodeReference, clearEncoding( reference ), this );
-            break;
+    @Override
+    public void relationships( long nodeReference, long reference, RelationshipSelection selection, RelationshipTraversalCursor cursor )
+    {
+        ((DefaultRelationshipTraversalCursor) cursor).init( nodeReference, reference, selection, this );
+    }
 
-        case NO_OUTGOING_OF_TYPE: // nothing in store, but proceed to check tx-state changes
-            relationshipType = (int) clearEncoding( reference );
-            internalCursor.filteredTxState( nodeReference, this, relationshipType, OUTGOING );
-            break;
+    @Override
+    public void nodeProperties( long nodeReference, Reference reference, PropertySelection selection, PropertyCursor cursor )
+    {
+        ((DefaultPropertyCursor) cursor).initNode( nodeReference, reference, selection, this, ktx );
+    }
 
-        case NO_INCOMING_OF_TYPE: // nothing in store, but proceed to check tx-state changes
-            relationshipType = (int) clearEncoding( reference );
-            internalCursor.filteredTxState( nodeReference, this, relationshipType, INCOMING );
-            break;
+    @Override
+    public void relationshipProperties( long relationshipReference, Reference reference, PropertySelection selection, PropertyCursor cursor )
+    {
+        ((DefaultPropertyCursor) cursor).initRelationship( relationshipReference, reference, selection, this, ktx );
+    }
 
-        case NO_LOOP_OF_TYPE: // nothing in store, but proceed to check tx-state changes
-            relationshipType = (int) clearEncoding( reference );
-            internalCursor.filteredTxState( nodeReference, this, relationshipType, LOOP );
-            break;
-
-        default:
-            throw new IllegalStateException( "Unknown encoding " + encoding );
+    private void validateConstraints( IndexQueryConstraints constraints, DefaultIndexReadSession indexSession, PropertyIndexQuery[] query )
+    {
+        if ( constraints.needsValues() && !supportsValueCapability( indexSession.reference(), query ) )
+        {
+            throw new UnsupportedOperationException( format( "%s index has no value capability", indexSession.reference().getIndexType() ) );
         }
     }
 
-    @Override
-    public final void nodeProperties( long nodeReference, long reference, PropertyCursor cursor )
+    private boolean supportsValueCapability( IndexDescriptor index, PropertyIndexQuery[] query )
+    {
+        final var capability = index.getCapability();
+        return Arrays.stream( query )
+                     .map( PropertyIndexQuery::valueCategory )
+                     .map( capability::valueCapability )
+                     .noneMatch( IndexValueCapability.NO::equals );
+    }
+
+    private <C extends Cursor> PartitionedScan<C> propertyIndexScan( IndexReadSession index, int desiredNumberOfPartitions, QueryContext queryContext )
+            throws IndexNotApplicableKernelException
     {
         ktx.assertOpen();
-        ((DefaultPropertyCursor) cursor).initNode( nodeReference, reference, this, ktx );
+        return propertyIndexSeek( index, desiredNumberOfPartitions, queryContext, PropertyIndexQuery.allEntries() );
     }
 
-    @Override
-    public final void relationshipProperties( long relationshipReference, long reference,
-            PropertyCursor cursor )
+    private <C extends Cursor> PartitionedScan<C> propertyIndexSeek( IndexReadSession index, int desiredNumberOfPartitions,
+                                                                     QueryContext queryContext, PropertyIndexQuery... query )
+            throws IndexNotApplicableKernelException
     {
         ktx.assertOpen();
-        ((DefaultPropertyCursor) cursor).initRelationship( relationshipReference, reference, this, ktx );
+        final var descriptor = index.reference();
+        if ( !descriptor.getCapability().supportPartitionedScan( query ) )
+        {
+            throw new IndexNotApplicableKernelException( "This index does not support partitioned scan for this query: "
+                                                         + descriptor.userDescription( ktx.tokenRead() ) );
+        }
+
+        final var session = (DefaultIndexReadSession) index;
+        final var valueSeek = session.reader.valueSeek( desiredNumberOfPartitions, queryContext, query );
+        return new PartitionedValueIndexCursorSeek<>( this, descriptor, valueSeek, query );
     }
 
-    @Override
-    public final void graphProperties( PropertyCursor cursor )
+    private <C extends Cursor> PartitionedScan<C> tokenIndexScan( TokenReadSession session, int desiredNumberOfPartitions,
+                                                                  CursorContext cursorContext, TokenPredicate query )
+            throws IndexNotApplicableKernelException
     {
         ktx.assertOpen();
-        ((DefaultPropertyCursor) cursor).initGraph( graphPropertiesReference(), this, ktx );
+        final var descriptor = session.reference();
+        if ( !descriptor.getCapability().supportPartitionedScan( query ) )
+        {
+            throw new IndexNotApplicableKernelException( "This index does not support partitioned scan for this query: "
+                                                         + descriptor.userDescription( ktx.tokenRead() ) );
+        }
+
+        final var defaultSession = (DefaultTokenReadSession) session;
+        final var tokenScan = defaultSession.reader.entityTokenScan( desiredNumberOfPartitions, cursorContext, query );
+        return new PartitionedTokenIndexCursorScan<>( this, query, tokenScan );
     }
 
-    abstract long graphPropertiesReference();
-
-    @Override
-    public final void nodeExplicitIndexLookup(
-            NodeExplicitIndexCursor cursor, String index, String key, Object value )
-            throws ExplicitIndexNotFoundKernelException
-    {
-        ktx.assertOpen();
-        ((DefaultNodeExplicitIndexCursor) cursor).setRead( this );
-        explicitIndex( (DefaultNodeExplicitIndexCursor) cursor,
-                explicitNodeIndex( index ).get( key, value ) );
-    }
-
-    @Override
-    public final void nodeExplicitIndexQuery(
-            NodeExplicitIndexCursor cursor, String index, Object query )
-            throws ExplicitIndexNotFoundKernelException
-    {
-        ktx.assertOpen();
-        ((DefaultNodeExplicitIndexCursor) cursor).setRead( this );
-        explicitIndex( (DefaultNodeExplicitIndexCursor) cursor, explicitNodeIndex( index ).query(
-                query instanceof Value ? ((Value) query).asObject() : query ) );
-    }
-
-    @Override
-    public final void nodeExplicitIndexQuery(
-            NodeExplicitIndexCursor cursor, String index, String key, Object query )
-            throws ExplicitIndexNotFoundKernelException
-    {
-        ktx.assertOpen();
-        ((DefaultNodeExplicitIndexCursor) cursor).setRead( this );
-        explicitIndex( (DefaultNodeExplicitIndexCursor) cursor, explicitNodeIndex( index ).query(
-                key, query instanceof Value ? ((Value) query).asObject() : query ) );
-    }
-
-    @Override
-    public void relationshipExplicitIndexLookup(
-            RelationshipExplicitIndexCursor cursor,
-            String index,
-            String key,
-            Object value,
-            long source,
-            long target ) throws ExplicitIndexNotFoundKernelException
-    {
-        ktx.assertOpen();
-        ((DefaultRelationshipExplicitIndexCursor) cursor).setRead( this );
-        explicitIndex(
-                (DefaultRelationshipExplicitIndexCursor) cursor,
-                explicitRelationshipIndex( index ).get( key, value, source, target ) );
-    }
-
-    @Override
-    public void relationshipExplicitIndexQuery(
-            RelationshipExplicitIndexCursor cursor,
-            String index,
-            Object query,
-            long source,
-            long target ) throws ExplicitIndexNotFoundKernelException
-    {
-        ktx.assertOpen();
-        ((DefaultRelationshipExplicitIndexCursor) cursor).setRead( this );
-        explicitIndex(
-                (DefaultRelationshipExplicitIndexCursor) cursor,
-                explicitRelationshipIndex( index )
-                        .query( query instanceof Value ? ((Value) query).asObject() : query, source, target ) );
-    }
-
-    @Override
-    public void relationshipExplicitIndexQuery(
-            RelationshipExplicitIndexCursor cursor,
-            String index,
-            String key,
-            Object query,
-            long source,
-            long target ) throws ExplicitIndexNotFoundKernelException
-    {
-        ktx.assertOpen();
-        ((DefaultRelationshipExplicitIndexCursor) cursor).setRead( this );
-        explicitIndex(
-                (DefaultRelationshipExplicitIndexCursor) cursor,
-                explicitRelationshipIndex( index ).query(
-                        key, query instanceof Value ? ((Value) query).asObject() : query, source, target ) );
-    }
-
-    private static void explicitIndex( IndexProgressor.ExplicitClient client, ExplicitIndexHits hits )
-    {
-        client.initialize( new ExplicitIndexProgressor( hits, client ), hits.size() );
-    }
-
-    @Override
-    public final void futureNodeReferenceRead( long reference )
-    {
-        ktx.assertOpen();
-    }
-
-    @Override
-    public final void futureRelationshipsReferenceRead( long reference )
-    {
-        ktx.assertOpen();
-    }
-
-    @Override
-    public final void futureNodePropertyReferenceRead( long reference )
-    {
-        ktx.assertOpen();
-    }
-
-    @Override
-    public final void futureRelationshipPropertyReferenceRead( long reference )
-    {
-        ktx.assertOpen();
-    }
-
-    abstract IndexReader indexReader( IndexReference index, boolean fresh ) throws IndexNotFoundKernelException;
-
-    abstract LabelScanReader labelScanReader();
-
-    abstract ExplicitIndex explicitNodeIndex( String indexName ) throws ExplicitIndexNotFoundKernelException;
-
-    abstract ExplicitIndex explicitRelationshipIndex( String indexName ) throws ExplicitIndexNotFoundKernelException;
-
-    @Override
-    public abstract CapableIndexReference index( int label, int... properties );
-
-    abstract PageCursor nodePage( long reference );
-
-    abstract PageCursor relationshipPage( long reference );
-
-    abstract PageCursor groupPage( long reference );
-
-    abstract PageCursor propertyPage( long reference );
-
-    abstract PageCursor stringPage( long reference );
-
-    abstract PageCursor arrayPage( long reference );
-
-    abstract RecordCursor<DynamicRecord> labelCursor();
-
-    abstract void node( NodeRecord record, long reference, PageCursor pageCursor );
-
-    abstract void relationship( RelationshipRecord record, long reference, PageCursor pageCursor );
-
-    abstract void relationshipFull( RelationshipRecord record, long reference, PageCursor pageCursor );
-
-    abstract void property( PropertyRecord record, long reference, PageCursor pageCursor );
-
-    abstract void group( RelationshipGroupRecord record, long reference, PageCursor page );
-
-    abstract long nodeHighMark();
-
-    abstract long relationshipHighMark();
-
-    abstract TextValue string( DefaultPropertyCursor cursor, long reference, PageCursor page );
-
-    abstract ArrayValue array( DefaultPropertyCursor cursor, long reference, PageCursor page );
+    public abstract ValueIndexReader newValueIndexReader( IndexDescriptor index ) throws IndexNotFoundKernelException;
 
     @Override
     public TransactionState txState()
     {
         return ktx.txState();
-    }
-
-    @Override
-    public ExplicitIndexTransactionState explicitIndexTxState()
-    {
-        return ktx.explicitIndexTxState();
     }
 
     @Override
@@ -657,77 +528,49 @@ abstract class Read implements TxStateHolder,
     @Override
     public void acquireExclusiveNodeLock( long... ids )
     {
-        acquireExclusiveLock( ResourceTypes.NODE, ids );
+        storageLocks.acquireExclusiveNodeLock( ktx.lockTracer(), ids );
         ktx.assertOpen();
     }
 
     @Override
     public void acquireExclusiveRelationshipLock( long... ids )
     {
-        acquireExclusiveLock( ResourceTypes.RELATIONSHIP, ids );
-        ktx.assertOpen();
-    }
-
-    @Override
-    public void acquireExclusiveExplicitIndexLock( long... ids )
-    {
-        acquireExclusiveLock( ResourceTypes.EXPLICIT_INDEX, ids );
-        ktx.assertOpen();
-    }
-
-    @Override
-    public void acquireExclusiveLabelLock( long... ids )
-    {
-        acquireExclusiveLock( ResourceTypes.LABEL, ids );
+        storageLocks.acquireExclusiveRelationshipLock( ktx.lockTracer(), ids );
         ktx.assertOpen();
     }
 
     @Override
     public void releaseExclusiveNodeLock( long... ids )
     {
-        releaseExclusiveLock( ResourceTypes.NODE, ids );
+        storageLocks.releaseExclusiveNodeLock( ids );
         ktx.assertOpen();
     }
 
     @Override
     public void releaseExclusiveRelationshipLock( long... ids )
     {
-        releaseExclusiveLock( ResourceTypes.RELATIONSHIP, ids );
-        ktx.assertOpen();
-    }
-
-    @Override
-    public void releaseExclusiveExplicitIndexLock( long... ids )
-    {
-        releaseExclusiveLock( ResourceTypes.EXPLICIT_INDEX, ids );
-        ktx.assertOpen();
-    }
-
-    @Override
-    public void releaseExclusiveLabelLock( long... ids )
-    {
-        releaseExclusiveLock( ResourceTypes.LABEL, ids );
+        storageLocks.releaseExclusiveRelationshipLock( ids );
         ktx.assertOpen();
     }
 
     @Override
     public void acquireSharedNodeLock( long... ids )
     {
-        acquireSharedLock( ResourceTypes.NODE, ids );
+        storageLocks.acquireSharedNodeLock( ktx.lockTracer(), ids );
         ktx.assertOpen();
     }
 
     @Override
     public void acquireSharedRelationshipLock( long... ids )
     {
-        acquireSharedLock( ResourceTypes.RELATIONSHIP, ids );
+        storageLocks.acquireSharedRelationshipLock( ktx.lockTracer(), ids );
         ktx.assertOpen();
     }
 
     @Override
-    public void acquireSharedExplicitIndexLock( long... ids )
+    public void acquireSharedRelationshipTypeLock( long... ids )
     {
-        acquireSharedLock( ResourceTypes.EXPLICIT_INDEX, ids );
+        acquireSharedLock( ResourceTypes.RELATIONSHIP_TYPE, ids );
         ktx.assertOpen();
     }
 
@@ -741,21 +584,14 @@ abstract class Read implements TxStateHolder,
     @Override
     public void releaseSharedNodeLock( long... ids )
     {
-        releaseSharedLock( ResourceTypes.NODE, ids );
+        storageLocks.releaseSharedNodeLock( ids );
         ktx.assertOpen();
     }
 
     @Override
     public void releaseSharedRelationshipLock( long... ids )
     {
-        releaseSharedLock( ResourceTypes.RELATIONSHIP, ids );
-        ktx.assertOpen();
-    }
-
-    @Override
-    public void releaseSharedExplicitIndexLock( long... ids )
-    {
-        releaseSharedLock( ResourceTypes.EXPLICIT_INDEX, ids );
+        storageLocks.releaseSharedRelationshipLock( ids );
         ktx.assertOpen();
     }
 
@@ -766,47 +602,67 @@ abstract class Read implements TxStateHolder,
         ktx.assertOpen();
     }
 
-    void sharedOptimisticLock( ResourceType resource, long resourceId )
+    @Override
+    public void releaseSharedRelationshipTypeLock( long... ids )
     {
-        ktx.statementLocks().optimistic().acquireShared( ktx.lockTracer(), resource, resourceId );
+        releaseSharedLock( ResourceTypes.RELATIONSHIP_TYPE, ids );
+        ktx.assertOpen();
     }
 
-    private void acquireExclusiveLock( ResourceTypes types, long... ids )
+    <T extends SchemaDescriptorSupplier> T acquireSharedSchemaLock( T schemaLike )
     {
-        ktx.statementLocks().pessimistic().acquireExclusive( ktx.lockTracer(), types, ids );
+        SchemaDescriptor schema = schemaLike.schema();
+        long[] lockingKeys = schema.lockingKeys();
+        ktx.lockClient().acquireShared( ktx.lockTracer(), schema.keyType(), lockingKeys );
+        return schemaLike;
     }
 
-    private void releaseExclusiveLock( ResourceTypes types, long... ids )
+    <T extends SchemaDescriptorSupplier> void releaseSharedSchemaLock( T schemaLike )
     {
-        ktx.statementLocks().pessimistic().releaseExclusive( types, ids );
+        SchemaDescriptor schema = schemaLike.schema();
+        long[] lockingKeys = schema.lockingKeys();
+        ktx.lockClient().releaseShared( schema.keyType(), lockingKeys );
     }
 
-    private void acquireSharedLock( ResourceTypes types, long... ids )
+    void acquireSharedLock( ResourceType resource, long resourceId )
     {
-        ktx.statementLocks().pessimistic().acquireShared( ktx.lockTracer(), types, ids );
+        ktx.lockClient().acquireShared( ktx.lockTracer(), resource, resourceId );
     }
 
-    private void releaseSharedLock( ResourceTypes types, long... ids )
+    private void acquireExclusiveLock( ResourceType type, long... ids )
     {
-        ktx.statementLocks().pessimistic().releaseShared( types, ids );
+        ktx.lockClient().acquireExclusive( ktx.lockTracer(), type, ids );
     }
 
-    private void assertIndexOnline( IndexReference index )
+    private void releaseExclusiveLock( ResourceType type, long... ids )
+    {
+        ktx.lockClient().releaseExclusive( type, ids );
+    }
+
+    private void acquireSharedLock( ResourceType type, long... ids )
+    {
+        ktx.lockClient().acquireShared( ktx.lockTracer(), type, ids );
+    }
+
+    private void releaseSharedLock( ResourceType types, long... ids )
+    {
+        ktx.lockClient().releaseShared( types, ids );
+    }
+
+    private void assertIndexOnline( IndexDescriptor index )
             throws IndexNotFoundKernelException, IndexBrokenKernelException
     {
-        switch ( indexGetState( index ) )
+        if ( indexGetState( index ) == InternalIndexState.ONLINE )
         {
-        case ONLINE:
             return;
-        default:
-            throw new IndexBrokenKernelException( indexGetFailure( index ) );
         }
+        throw new IndexBrokenKernelException( indexGetFailure( index ) );
     }
 
-    private void assertPredicatesMatchSchema( IndexReference index, IndexQuery.ExactPredicate[] predicates )
+    private static void assertPredicatesMatchSchema( IndexDescriptor index, PropertyIndexQuery.ExactPredicate[] predicates )
             throws IndexNotApplicableKernelException
     {
-        int[] propertyIds = index.properties();
+        int[] propertyIds = index.schema().getPropertyIds();
         if ( propertyIds.length != predicates.length )
         {
             throw new IndexNotApplicableKernelException(
@@ -822,5 +678,25 @@ abstract class Read implements TxStateHolder,
                                 propertyIds[i], i, predicates[i].propertyKeyId() ) );
             }
         }
+    }
+
+    @Override
+    public void assertOpen()
+    {
+        ktx.assertOpen();
+    }
+
+    @Override
+    public void acquireSharedLookupLock( EntityType entityType )
+    {
+        acquireSharedSchemaLock( () -> SchemaDescriptors.forAnyEntityTokens( entityType ) );
+        ktx.assertOpen();
+    }
+
+    @Override
+    public void releaseSharedLookupLock( EntityType entityType )
+    {
+        releaseSharedSchemaLock( () -> SchemaDescriptors.forAnyEntityTokens( entityType ) );
+        ktx.assertOpen();
     }
 }

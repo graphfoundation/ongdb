@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,163 +38,164 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted
 
-import java.net.URL
-import java.util.function.Predicate
-
-import org.neo4j.collection.RawIterator
-import org.neo4j.collection.primitive.{PrimitiveLongIterator, PrimitiveLongResourceIterator}
-import org.neo4j.cypher.internal.javacompat.GraphDatabaseCypherService
-import org.neo4j.cypher.internal.planner.v3_4.spi.{IdempotentResult, IndexDescriptor}
-import org.neo4j.cypher.internal.runtime._
+import org.eclipse.collections.api.map.primitive.IntObjectMap
+import org.eclipse.collections.api.set.primitive.IntSet
+import org.eclipse.collections.impl.factory.primitive.IntSets
+import org.neo4j.common.EntityType
+import org.neo4j.configuration.Config
+import org.neo4j.configuration.GraphDatabaseSettings.SYSTEM_DATABASE_NAME
+import org.neo4j.cypher.internal.expressions.SemanticDirection
+import org.neo4j.cypher.internal.expressions.SemanticDirection.BOTH
+import org.neo4j.cypher.internal.expressions.SemanticDirection.INCOMING
+import org.neo4j.cypher.internal.expressions.SemanticDirection.OUTGOING
+import org.neo4j.cypher.internal.logical.plans.IndexOrder
+import org.neo4j.cypher.internal.runtime
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.ClosingLongIterator
+import org.neo4j.cypher.internal.runtime.ConstraintInfo
+import org.neo4j.cypher.internal.runtime.EntityTransformer
+import org.neo4j.cypher.internal.runtime.Expander
+import org.neo4j.cypher.internal.runtime.IndexInfo
+import org.neo4j.cypher.internal.runtime.IndexStatus
+import org.neo4j.cypher.internal.runtime.IsNoValue
+import org.neo4j.cypher.internal.runtime.KernelAPISupport.RANGE_SEEKABLE_VALUE_GROUPS
+import org.neo4j.cypher.internal.runtime.KernelAPISupport.asKernelIndexOrder
+import org.neo4j.cypher.internal.runtime.KernelPredicate
+import org.neo4j.cypher.internal.runtime.NodeValueHit
+import org.neo4j.cypher.internal.runtime.QueryContext
+import org.neo4j.cypher.internal.runtime.ReadQueryContext
+import org.neo4j.cypher.internal.runtime.RelationshipIterator
+import org.neo4j.cypher.internal.runtime.ResourceManager
+import org.neo4j.cypher.internal.runtime.UserDefinedAggregator
+import org.neo4j.cypher.internal.runtime.ValuedNodeIndexCursor
+import org.neo4j.cypher.internal.runtime.ValuedRelationshipIndexCursor
 import org.neo4j.cypher.internal.runtime.interpreted.TransactionBoundQueryContext.IndexSearchMonitor
+import org.neo4j.cypher.internal.runtime.interpreted.TransactionBoundQueryContext.RelationshipCursorIterator
+import org.neo4j.cypher.internal.runtime.interpreted.TransactionBoundQueryContext.RelationshipTypeCursorIterator
 import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.DirectionConverter.toGraphDb
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{OnlyDirectionExpander, TypeAndDirectionExpander}
-import org.neo4j.cypher.internal.util.v3_4.{EntityNotFoundException, FailedIndexException}
-import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection
-import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection.{BOTH, INCOMING, OUTGOING}
-import org.neo4j.cypher.internal.v3_4.logical.plans._
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.OnlyDirectionExpander
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.TypeAndDirectionExpander
+import org.neo4j.cypher.operations.CursorUtils
+import org.neo4j.dbms.api.DatabaseManagementService
+import org.neo4j.dbms.database.DatabaseContext
+import org.neo4j.dbms.database.DatabaseManager
+import org.neo4j.exceptions.EntityNotFoundException
+import org.neo4j.exceptions.FailedIndexException
+import org.neo4j.graphalgo.BasicEvaluationContext
 import org.neo4j.graphalgo.impl.path.ShortestPath
 import org.neo4j.graphalgo.impl.path.ShortestPath.ShortestPathPredicate
-import org.neo4j.graphdb._
+import org.neo4j.graphdb.Entity
+import org.neo4j.graphdb.GraphDatabaseService
+import org.neo4j.graphdb.Node
+import org.neo4j.graphdb.NotFoundException
+import org.neo4j.graphdb.Path
+import org.neo4j.graphdb.PathExpanderBuilder
+import org.neo4j.graphdb.Relationship
+import org.neo4j.graphdb.RelationshipType
 import org.neo4j.graphdb.security.URLAccessValidationError
-import org.neo4j.graphdb.traversal.{Evaluators, TraversalDescription, Uniqueness}
+import org.neo4j.internal.helpers.collection.Iterators
 import org.neo4j.internal.kernel.api
-import org.neo4j.internal.kernel.api._
-import org.neo4j.internal.kernel.api.exceptions.ProcedureException
-import org.neo4j.internal.kernel.api.helpers.RelationshipSelections.{allCursor, incomingCursor, outgoingCursor}
-import org.neo4j.internal.kernel.api.helpers._
-import org.neo4j.internal.kernel.api.procs.{UserAggregator, QualifiedName => KernelQualifiedName}
-import org.neo4j.io.IOUtils
+import org.neo4j.internal.kernel.api.IndexQueryConstraints
+import org.neo4j.internal.kernel.api.IndexQueryConstraints.ordered
+import org.neo4j.internal.kernel.api.IndexReadSession
+import org.neo4j.internal.kernel.api.InternalIndexState
+import org.neo4j.internal.kernel.api.NodeCursor
+import org.neo4j.internal.kernel.api.NodeValueIndexCursor
+import org.neo4j.internal.kernel.api.PropertyCursor
+import org.neo4j.internal.kernel.api.PropertyIndexQuery
+import org.neo4j.internal.kernel.api.PropertyIndexQuery.ExactPredicate
+import org.neo4j.internal.kernel.api.Read
+import org.neo4j.internal.kernel.api.RelationshipScanCursor
+import org.neo4j.internal.kernel.api.RelationshipTraversalCursor
+import org.neo4j.internal.kernel.api.RelationshipTypeIndexCursor
+import org.neo4j.internal.kernel.api.RelationshipValueIndexCursor
+import org.neo4j.internal.kernel.api.SchemaReadCore
+import org.neo4j.internal.kernel.api.SchemaWrite
+import org.neo4j.internal.kernel.api.TokenPredicate
+import org.neo4j.internal.kernel.api.TokenRead
+import org.neo4j.internal.kernel.api.TokenReadSession
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException
+import org.neo4j.internal.kernel.api.helpers.Nodes
+import org.neo4j.internal.kernel.api.helpers.RelationshipSelections.allCursor
+import org.neo4j.internal.kernel.api.helpers.RelationshipSelections.incomingCursor
+import org.neo4j.internal.kernel.api.helpers.RelationshipSelections.outgoingCursor
+import org.neo4j.internal.kernel.api.procs.ProcedureCallContext
+import org.neo4j.internal.schema.ConstraintDescriptor
+import org.neo4j.internal.schema.ConstraintType
+import org.neo4j.internal.schema.IndexConfig
+import org.neo4j.internal.schema.IndexDescriptor
+import org.neo4j.internal.schema.IndexPrototype
+import org.neo4j.internal.schema.IndexProviderDescriptor
+import org.neo4j.internal.schema.IndexType
+import org.neo4j.internal.schema.SchemaDescriptor
+import org.neo4j.internal.schema.SchemaDescriptors
 import org.neo4j.kernel.GraphDatabaseQueryService
-import org.neo4j.kernel.api._
-import org.neo4j.kernel.api.exceptions.schema.{AlreadyConstrainedException, AlreadyIndexedException}
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory
-import org.neo4j.kernel.api.schema.constaints.ConstraintDescriptorFactory
-import org.neo4j.kernel.guard.TerminationGuard
-import org.neo4j.kernel.impl.api.RelationshipVisitor
-import org.neo4j.kernel.impl.api.store.{DefaultIndexReference, RelationshipIterator}
-import org.neo4j.kernel.impl.core.{EmbeddedProxySPI, ThreadToStatementContextBridge}
-import org.neo4j.kernel.impl.coreapi.PropertyContainerLocker
-import org.neo4j.kernel.impl.query.Neo4jTransactionalContext
+import org.neo4j.kernel.api.StatementConstants
+import org.neo4j.kernel.api.exceptions.schema.EquivalentSchemaRuleAlreadyExistsException
+import org.neo4j.kernel.impl.core.TransactionalEntityFactory
+import org.neo4j.kernel.impl.query.FunctionInformation
+import org.neo4j.kernel.impl.query.QueryExecutionEngine
 import org.neo4j.kernel.impl.util.DefaultValueMapper
-import org.neo4j.kernel.impl.util.ValueUtils.{fromNodeProxy, fromRelationshipProxy}
-import org.neo4j.values.storable.{TextValue, Value, Values, _}
-import org.neo4j.values.virtual.{ListValue, NodeValue, RelationshipValue, VirtualValues}
-import org.neo4j.values.{AnyValue, ValueMapper}
+import org.neo4j.kernel.impl.util.NodeEntityWrappingNodeValue
+import org.neo4j.kernel.impl.util.PathWrappingPathValue
+import org.neo4j.kernel.impl.util.RelationshipEntityWrappingValue
+import org.neo4j.kernel.impl.util.ValueUtils
+import org.neo4j.logging.LogProvider
+import org.neo4j.logging.internal.LogService
+import org.neo4j.memory.MemoryTracker
+import org.neo4j.storageengine.api.RelationshipVisitor
+import org.neo4j.values.AnyValue
+import org.neo4j.values.ValueMapper
+import org.neo4j.values.storable.FloatingPointValue
+import org.neo4j.values.storable.TextValue
+import org.neo4j.values.storable.Value
+import org.neo4j.values.storable.Values
+import org.neo4j.values.virtual.ListValue
+import org.neo4j.values.virtual.ListValue.IntegralRangeListValue
+import org.neo4j.values.virtual.ListValueBuilder
+import org.neo4j.values.virtual.MapValue
+import org.neo4j.values.virtual.MapValueBuilder
+import org.neo4j.values.virtual.VirtualNodeValue
+import org.neo4j.values.virtual.VirtualRelationshipValue
+import org.neo4j.values.virtual.VirtualValues
 
-import scala.collection.Iterator
-import scala.collection.JavaConverters._
+import java.net.URL
+import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.collection.JavaConverters.asScalaIteratorConverter
+import scala.collection.JavaConverters.iterableAsScalaIterableConverter
 import scala.collection.mutable.ArrayBuffer
+import scala.util.control.NonFatal
 
-sealed class TransactionBoundQueryContext(val transactionalContext: TransactionalContextWrapper,
-                                          val resources: ResourceManager = new ResourceManager)
-                                        (implicit indexSearchMonitor: IndexSearchMonitor)
-  extends TransactionBoundTokenContext(transactionalContext.kernelTransaction) with QueryContext with
-    IndexDescriptorCompatibility {
-  override val nodeOps: NodeOperations = new NodeOperations
-  override val relationshipOps: RelationshipOperations = new RelationshipOperations
-  override lazy val entityAccessor: EmbeddedProxySPI =
-    transactionalContext.graph.getDependencyResolver.resolveDependency(classOf[EmbeddedProxySPI])
-  private lazy val valueMapper: ValueMapper[java.lang.Object] = new DefaultValueMapper(entityAccessor)
+
+sealed class TransactionBoundQueryContext(transactionalContext: TransactionalContextWrapper,
+                                          resources: ResourceManager,
+                                          closeable: Option[AutoCloseable] = None)
+                                         (implicit indexSearchMonitor: IndexSearchMonitor)
+  extends TransactionBoundReadQueryContext(transactionalContext, resources, closeable) with QueryContext {
+
+  override val nodeWriteOps: NodeWriteOperations = new NodeWriteOperations
+  override val relationshipWriteOps: RelationshipWriteOperations = new RelationshipWriteOperations
+
+  private def writes() = transactionalContext.dataWrite
+
+  private def tokenWrite = transactionalContext.tokenWrite
+
+  override def createParallelQueryContext(): QueryContext = {
+    // TODO: As an optimization, create a single-threaded copy of ResourceManager attach to the ThreadSafeResourceManager coming in
+    val parallelTransactionalContext = transactionalContext.createParallelTransactionalContext()
+    new ParallelTransactionBoundQueryContext(parallelTransactionalContext, resources, closeable)(indexSearchMonitor)
+  }
 
   override def setLabelsOnNode(node: Long, labelIds: Iterator[Int]): Int = labelIds.foldLeft(0) {
     case (count, labelId) => if (writes().nodeAddLabel(node, labelId)) count + 1 else count
   }
 
-  def createNewQueryContext(): QueryContext = {
-    val statementProvider : ThreadToStatementContextBridge = transactionalContext.
-      graph.
-      getDependencyResolver.
-      provideDependency(classOf[ThreadToStatementContextBridge]).
-      get
-    val guard = new TerminationGuard
-    val locker = new PropertyContainerLocker
-    val query = transactionalContext.tc.executingQuery()
+  override def createNodeId(labels: Array[Int]): Long = writes().nodeCreateWithLabels(labels)
 
-    val context = transactionalContext.tc.asInstanceOf[Neo4jTransactionalContext]
-    val newTx = transactionalContext.graph.beginTransaction(context.transactionType, context.securityContext)
-    val neo4jTransactionalContext = context.copyFrom(context.graph, guard, statementProvider, locker, newTx, statementProvider.get(), query)
-    new TransactionBoundQueryContext(TransactionalContextWrapper(neo4jTransactionalContext))
-  }
-
-  //We cannot assign to value because of periodic commit
-  protected def reads(): Read = transactionalContext.stableDataRead
-  private def writes() = transactionalContext.dataWrite
-  private def allocateNodeCursor() = transactionalContext.cursors.allocateNodeCursor()
-  private def allocateRelationshipScanCursor() = transactionalContext.cursors.allocateRelationshipScanCursor()
-  private def allocatePropertyCursor() = transactionalContext.cursors.allocatePropertyCursor()
-  private def tokenRead = transactionalContext.kernelTransaction.tokenRead()
-  private def tokenWrite = transactionalContext.kernelTransaction.tokenWrite()
-
-  lazy val withActiveRead: TransactionBoundQueryContext =
-    new TransactionBoundQueryContext(transactionalContext, resources)(indexSearchMonitor) {
-      override def reads(): Read = transactionalContext.dataRead
-    }
-
-  override def withAnyOpenQueryContext[T](work: (QueryContext) => T): T = {
-    if (transactionalContext.isOpen) {
-      work(this)
-    } else {
-      val context = transactionalContext.getOrBeginNewIfClosed()
-      var success = false
-      try {
-        val newContext = new TransactionBoundQueryContext(context, resources)
-        val result = work(newContext)
-        success = true
-        result
-      } finally {
-        resources.close(success)
-        context.close(success)
-      }
-    }
-  }
-
-  override def createNode(): Node = entityAccessor.newNodeProxy(writes().nodeCreate())
-
-  override def createNodeId(): Long = writes().nodeCreate()
-
-  override def createRelationship(start: Long, end: Long, relType: Int): RelationshipValue = {
-    val relId = transactionalContext.kernelTransaction.dataWrite().relationshipCreate(start, relType, end)
-    fromRelationshipProxy(entityAccessor.newRelationshipProxy(relId, start, relType, end))
-  }
+  override def createRelationshipId(start: Long, end: Long, relType: Int): Long = writes().relationshipCreate(start, relType, end)
 
   override def getOrCreateRelTypeId(relTypeName: String): Int =
-    transactionalContext.kernelTransaction.tokenWrite().relationshipTypeGetOrCreateForName(relTypeName)
-
-  override def getLabelsForNode(node: Long): ListValue = {
-    val cursor = allocateNodeCursor()
-    try {
-      reads().singleNode(node, cursor)
-      if (!cursor.next()) {
-        if (nodeOps.isDeletedInThisTx(node))
-          throw new EntityNotFoundException(s"Node with id $node has been deleted in this transaction")
-        else
-          VirtualValues.EMPTY_LIST
-      }
-      val labelSet = cursor.labels()
-      val labelArray = new Array[TextValue](labelSet.numberOfLabels())
-      var i = 0
-      while (i < labelSet.numberOfLabels()) {
-        labelArray(i) = Values.stringValue(tokenRead.nodeLabelName(labelSet.label(i)))
-        i += 1
-      }
-      VirtualValues.list(labelArray: _*)
-    } finally {
-      cursor.close()
-    }
-  }
-
-
-  override def isLabelSetOnNode(label: Int, node: Long): Boolean = {
-    val cursor = allocateNodeCursor()
-    try {
-      reads().singleNode(node, cursor)
-      if (!cursor.next()) false
-      else cursor.labels().contains(label)
-    } finally {
-      cursor.close()
-    }
-  }
+    transactionalContext.tokenWrite.relationshipTypeGetOrCreateForName(relTypeName)
 
   override def getOrCreateLabelId(labelName: String): Int = {
     val id = tokenRead.nodeLabel(labelName)
@@ -202,304 +203,207 @@ sealed class TransactionBoundQueryContext(val transactionalContext: Transactiona
     else tokenWrite.labelGetOrCreateForName(labelName)
   }
 
-  def getRelationshipsForIds(node: Long, dir: SemanticDirection,
-                             types: Option[Array[Int]]): Iterator[RelationshipValue] = {
-    val cursor = allocateNodeCursor()
-    try {
-      val read = reads()
-      read.singleNode(node, cursor)
-      if (!cursor.next())Iterator.empty
-      else {
-        val selectionCursor = dir match {
-          case OUTGOING => outgoingCursor(transactionalContext.kernelTransaction.cursors(), cursor, types.orNull)
-          case INCOMING => incomingCursor(transactionalContext.kernelTransaction.cursors(), cursor, types.orNull)
-          case BOTH => allCursor(transactionalContext.kernelTransaction.cursors(), cursor, types.orNull)
-        }
-        new CursorIterator[RelationshipValue] {
-          override protected def close(): Unit = selectionCursor.close()
-          override protected def fetchNext(): RelationshipValue =
-            if (selectionCursor.next())
-              fromRelationshipProxy(entityAccessor.newRelationshipProxy(selectionCursor.relationshipReference(),
-                                                                        selectionCursor.sourceNodeReference(),
-                                                                        selectionCursor.`type`(),
-                                                                        selectionCursor.targetNodeReference()))
-            else null
-        }
-      }
-    } finally {
-      cursor.close()
-    }
-  }
-
-  override def getRelationshipsForIdsPrimitive(node: Long, dir: SemanticDirection,
-                                               types: Option[Array[Int]]): RelationshipIterator = {
-    val cursor = allocateNodeCursor()
-    try {
-      val read = reads()
-      read.singleNode(node, cursor)
-      if (!cursor.next()) RelationshipIterator.EMPTY
-      else {
-        val selectionCursor = dir match {
-          case OUTGOING => outgoingCursor(transactionalContext.kernelTransaction.cursors(), cursor, types.orNull)
-          case INCOMING => incomingCursor(transactionalContext.kernelTransaction.cursors(), cursor, types.orNull)
-          case BOTH => allCursor(transactionalContext.kernelTransaction.cursors(), cursor, types.orNull)
-        }
-        new RelationshipCursorIterator(selectionCursor)
-      }
-    } finally {
-      cursor.close()
-    }
-  }
-
-  override def getRelationshipsCursor(node: Long, dir: SemanticDirection,
-                                      types: Option[Array[Int]]): RelationshipSelectionCursor = {
-    val cursor = allocateNodeCursor()
-    try {
-      val read = reads()
-      read.singleNode(node, cursor)
-      if (!cursor.next()) RelationshipSelectionCursor.EMPTY
-      else {
-        dir match {
-          case OUTGOING => outgoingCursor(transactionalContext.kernelTransaction.cursors(), cursor, types.orNull)
-          case INCOMING => incomingCursor(transactionalContext.kernelTransaction.cursors(), cursor, types.orNull)
-          case BOTH => allCursor(transactionalContext.kernelTransaction.cursors(), cursor, types.orNull)
-        }
-      }
-    } finally {
-      cursor.close()
-    }
-  }
-
-  override def getRelationshipFor(relationshipId: Long, typeId: Int, startNodeId: Long,
-                                  endNodeId: Long): RelationshipValue = try {
-    fromRelationshipProxy(entityAccessor.newRelationshipProxy(relationshipId, startNodeId, typeId, endNodeId))
-  } catch {
-    case e: NotFoundException => throw new EntityNotFoundException(s"Relationship with id $relationshipId", e)
-  }
-
-  val RANGE_SEEKABLE_VALUE_GROUPS = Array(ValueGroup.NUMBER,
-                                    ValueGroup.TEXT,
-                                    ValueGroup.GEOMETRY,
-                                    ValueGroup.DATE,
-                                    ValueGroup.LOCAL_DATE_TIME,
-                                    ValueGroup.ZONED_DATE_TIME,
-                                    ValueGroup.LOCAL_TIME,
-                                    ValueGroup.ZONED_TIME,
-                                    ValueGroup.DURATION)
-
-  override def indexSeek(index: IndexReference, predicates: Seq[IndexQuery]): Iterator[NodeValue] = {
-
-    val impossiblePredicate =
-      predicates.exists {
-        case p:IndexQuery.ExactPredicate => p.value() == Values.NO_VALUE
-        case p:IndexQuery =>
-          !RANGE_SEEKABLE_VALUE_GROUPS.contains(p.valueGroup())
-      }
-
-    if (impossiblePredicate) Iterator.empty
-    else seek(index, predicates:_*)
-  }
-
-  override def indexReference(label: Int,
-                              properties: Int*): IndexReference =
-    transactionalContext.kernelTransaction.schemaRead().index(label, properties:_*)
-
-  private def seek(index: IndexReference, query: IndexQuery*) = {
-    val nodeCursor = allocateAndTraceNodeValueIndexCursor()
-    reads().nodeIndexSeek(index, nodeCursor, IndexOrder.NONE, query:_*)
-    new CursorIterator[NodeValue] {
-      override protected def fetchNext(): NodeValue = {
-        if (nodeCursor.next()) fromNodeProxy(entityAccessor.newNodeProxy(nodeCursor.nodeReference()))
-        else null
-      }
-
-      override protected def close(): Unit = nodeCursor.close()
-    }
-  }
-
-  override def indexScan(index: IndexReference): Iterator[NodeValue] = {
-    val nodeCursor = allocateAndTraceNodeValueIndexCursor()
-    reads().nodeIndexScan(index, nodeCursor, IndexOrder.NONE)
-    new CursorIterator[NodeValue] {
-      override protected def fetchNext(): NodeValue = {
-        if (nodeCursor.next()) fromNodeProxy(entityAccessor.newNodeProxy(nodeCursor.nodeReference()))
-        else null
-      }
-
-      override protected def close(): Unit = nodeCursor.close()
-    }
-  }
-
-  override def indexScanPrimitive(index: IndexReference): PrimitiveLongResourceIterator = {
-    val nodeCursor = allocateAndTraceNodeValueIndexCursor()
-    reads().nodeIndexScan(index, nodeCursor, IndexOrder.NONE)
-    new PrimitiveCursorIterator {
-      override protected def fetchNext(): Long =
-        if (nodeCursor.next()) nodeCursor.nodeReference() else -1L
-
-      override protected def close(): Unit = nodeCursor.close()
-    }
-  }
-
-  override def indexScanByContains(index: IndexReference, value: String): Iterator[NodeValue] =
-    seek(index, IndexQuery.stringContains(index.properties()(0), value))
-
-  override def indexScanByEndsWith(index: IndexReference, value: String): Iterator[NodeValue] =
-    seek(index, IndexQuery.stringSuffix(index.properties()(0), value))
-
-  override def lockingUniqueIndexSeek(indexReference: IndexReference, queries: Seq[IndexQuery.ExactPredicate]): Option[NodeValue] = {
-    indexSearchMonitor.lockingUniqueIndexSeek(indexReference, queries)
-    if (queries.exists(q => q.value() == Values.NO_VALUE))
-      None
-    else {
-      val index = DefaultIndexReference.general(indexReference.label(), indexReference.properties(): _*)
-      val nodeId = reads().lockingNodeUniqueIndexSeek(index, queries: _*)
-      if (StatementConstants.NO_SUCH_NODE == nodeId) None else Some(nodeOps.getById(nodeId))
-    }
+  override def getOrCreateTypeId(relTypeName: String): Int = {
+    val id = tokenRead.relationshipType(relTypeName)
+    if (id != TokenRead.NO_TOKEN) id
+    else tokenWrite.relationshipTypeGetOrCreateForName(relTypeName)
   }
 
   override def removeLabelsFromNode(node: Long, labelIds: Iterator[Int]): Int = labelIds.foldLeft(0) {
     case (count, labelId) =>
-      if (transactionalContext.kernelTransaction.dataWrite().nodeRemoveLabel(node, labelId)) count + 1 else count
+      if (transactionalContext.dataWrite.nodeRemoveLabel(node, labelId)) count + 1 else count
   }
 
-  override def getNodesByLabel(id: Int): Iterator[NodeValue] = {
-    val cursor = allocateAndTraceNodeLabelIndexCursor()
-    reads().nodeLabelScan(id, cursor)
-    new CursorIterator[NodeValue] {
-      override protected def fetchNext(): NodeValue = {
-        if (cursor.next()) fromNodeProxy(entityAccessor.newNodeProxy(cursor.nodeReference()))
-        else null
-      }
-      override protected def close(): Unit = cursor.close()
+  override def getOrCreatePropertyKeyId(propertyKey: String): Int =
+    tokenWrite.propertyKeyGetOrCreateForName(propertyKey)
+
+  override def getOrCreatePropertyKeyIds(propertyKeys: Array[String]): Array[Int] = {
+    val ids = new Array[Int](propertyKeys.length)
+    tokenWrite.propertyKeyGetOrCreateForNames(propertyKeys, ids)
+    ids
+  }
+
+  override def addBtreeIndexRule(entityId: Int, entityType: EntityType, propertyKeyIds: Seq[Int], name: Option[String], provider: Option[String], indexConfig: IndexConfig): IndexDescriptor = {
+    val indexProvider = provider.map(p => transactionalContext.schemaWrite.indexProviderByName(p))
+    val (descriptor, prototype) = getIndexDescriptorAndPrototype(IndexType.BTREE, entityId, entityType, propertyKeyIds, name, indexProvider)
+    val prototypeWithConfig = prototype.withIndexConfig(indexConfig)
+    addIndexRule(descriptor, prototypeWithConfig)
+  }
+
+  override def addRangeIndexRule(entityId: Int, entityType: EntityType, propertyKeyIds: Seq[Int], name: Option[String], provider: Option[IndexProviderDescriptor]): IndexDescriptor = {
+    val (descriptor, prototype) = getIndexDescriptorAndPrototype(IndexType.RANGE, entityId, entityType, propertyKeyIds, name, provider)
+    addIndexRule(descriptor, prototype)
+  }
+
+  override def addLookupIndexRule(entityType: EntityType, name: Option[String], provider: Option[IndexProviderDescriptor]): IndexDescriptor = {
+    val descriptor = SchemaDescriptors.forAnyEntityTokens(entityType)
+    val prototype = provider.map(IndexPrototype.forSchema(descriptor, _)).getOrElse(IndexPrototype.forSchema(descriptor)).withIndexType(IndexType.LOOKUP)
+    val namedPrototype = name.map(n => prototype.withName(n)).getOrElse(prototype)
+    addIndexRule(descriptor, namedPrototype)
+  }
+
+  override def addFulltextIndexRule(entityIds: List[Int],
+                                    entityType: EntityType,
+                                    propertyKeyIds: Seq[Int],
+                                    name: Option[String],
+                                    provider: Option[IndexProviderDescriptor],
+                                    indexConfig: IndexConfig): IndexDescriptor = {
+    val descriptor = SchemaDescriptors.fulltext(entityType, entityIds.toArray, propertyKeyIds.toArray)
+    val prototype =
+      provider.map(p => IndexPrototype.forSchema(descriptor, p)).getOrElse(IndexPrototype.forSchema(descriptor))
+        .withIndexType(IndexType.FULLTEXT)
+        .withIndexConfig(indexConfig)
+    val namedPrototype = name.map(n => prototype.withName(n)).getOrElse(prototype)
+    addIndexRule(descriptor, namedPrototype)
+  }
+
+  override def addTextIndexRule(entityId: Int, entityType: EntityType, propertyKeyIds: Seq[Int], name: Option[String], provider: Option[IndexProviderDescriptor]): IndexDescriptor = {
+    val (descriptor, prototype) = getIndexDescriptorAndPrototype(IndexType.TEXT, entityId, entityType, propertyKeyIds, name, provider)
+    addIndexRule(descriptor, prototype)
+  }
+
+  override def addPointIndexRule(entityId: Int, entityType: EntityType, propertyKeyIds: Seq[Int], name: Option[String], provider: Option[IndexProviderDescriptor], indexConfig: IndexConfig): IndexDescriptor = {
+    val (descriptor, prototype) = getIndexDescriptorAndPrototype(IndexType.POINT, entityId, entityType, propertyKeyIds, name, provider)
+    val prototypeWithConfig = prototype.withIndexConfig(indexConfig)
+    addIndexRule(descriptor, prototypeWithConfig)
+  }
+
+  private def getIndexDescriptorAndPrototype(indexType: IndexType,
+                                             entityId: Int,
+                                             entityType: EntityType,
+                                             propertyKeyIds: Seq[Int],
+                                             name: Option[String],
+                                             provider: Option[IndexProviderDescriptor]): (SchemaDescriptor, IndexPrototype) = {
+    val descriptor = entityType match {
+      case EntityType.NODE         => SchemaDescriptors.forLabel(entityId, propertyKeyIds: _*)
+      case EntityType.RELATIONSHIP => SchemaDescriptors.forRelType(entityId, propertyKeyIds: _*)
     }
+    val prototype = provider.map(p => IndexPrototype.forSchema(descriptor, p)).getOrElse(IndexPrototype.forSchema(descriptor)).withIndexType(indexType)
+    val namedPrototype = name.map(n => prototype.withName(n)).getOrElse(prototype)
+    (descriptor, namedPrototype)
   }
 
-  override def getNodesByLabelPrimitive(id: Int): PrimitiveLongIterator = {
-    val cursor = allocateAndTraceNodeLabelIndexCursor()
-    reads().nodeLabelScan(id, cursor)
-    new PrimitiveCursorIterator {
-      override protected def fetchNext(): Long = if (cursor.next()) cursor.nodeReference() else -1L
-      override protected def close(): Unit = cursor.close()
-    }
-  }
-
-  override def nodeGetDegree(node: Long, dir: SemanticDirection): Int = {
-    val cursor = allocateNodeCursor()
+  private def addIndexRule(descriptor: SchemaDescriptor, prototype: IndexPrototype): IndexDescriptor = {
     try {
-      reads().singleNode(node, cursor)
-      if (!cursor.next()) 0
-      else {
-        dir match {
-          case OUTGOING => Nodes.countOutgoing(cursor, transactionalContext.cursors)
-          case INCOMING => Nodes.countIncoming(cursor, transactionalContext.cursors)
-          case BOTH => Nodes.countAll(cursor, transactionalContext.cursors)
+      transactionalContext.schemaWrite.indexCreate(prototype)
+    } catch {
+      case e: EquivalentSchemaRuleAlreadyExistsException =>
+        val schemaRead = transactionalContext.schemaRead
+        val indexReference = schemaRead.index(descriptor).next()
+        if (schemaRead.indexGetState(indexReference) == InternalIndexState.FAILED) {
+          val message = schemaRead.indexGetFailure(indexReference)
+          throw new FailedIndexException(indexReference.userDescription(transactionalContext.tokenRead), message)
         }
-      }
-    } finally {
-      cursor.close()
+        throw e
     }
   }
 
-  override def nodeGetDegree(node: Long, dir: SemanticDirection, relTypeId: Int): Int = {
-    val cursor = allocateNodeCursor()
-    try {
-      reads().singleNode(node, cursor)
-      if (!cursor.next()) 0
-      else {
-        dir match {
-          case OUTGOING => Nodes.countOutgoing(cursor, transactionalContext.cursors, relTypeId)
-          case INCOMING => Nodes.countIncoming(cursor, transactionalContext.cursors, relTypeId)
-          case BOTH => Nodes.countAll(cursor, transactionalContext.cursors, relTypeId)
-        }
-      }
-    } finally {
-      cursor.close()
-    }
+  override def dropIndexRule(labelId: Int, propertyKeyIds: Seq[Int]): Unit =
+    transactionalContext.schemaWrite
+      .indexDrop(SchemaDescriptors.forLabel(labelId, propertyKeyIds: _*))
+
+  override def dropIndexRule(name: String): Unit =
+    transactionalContext.schemaWrite.indexDrop(name)
+
+  override def createNodeKeyConstraint(labelId: Int,
+                                       propertyKeyIds: Seq[Int],
+                                       name: Option[String],
+                                       provider: Option[String],
+                                       indexConfig: IndexConfig): Unit = {
+    val schemaWrite = transactionalContext.schemaWrite
+    val indexPrototype = getUniqueIndexPrototype(labelId, propertyKeyIds, name, provider, indexConfig, schemaWrite)
+    schemaWrite.nodeKeyConstraintCreate(indexPrototype)
   }
 
-  override def nodeIsDense(node: Long): Boolean = {
-    val cursor = allocateNodeCursor()
-    try {
-      reads().singleNode(node, cursor)
-      if (!cursor.next()) false
-      else cursor.isDense
-    } finally {
-      cursor.close()
-    }
+  override def dropNodeKeyConstraint(labelId: Int, propertyKeyIds: Seq[Int]): Unit =
+    transactionalContext.schemaWrite
+      .constraintDrop(SchemaDescriptors.forLabel(labelId, propertyKeyIds: _*), ConstraintType.UNIQUE_EXISTS)
+
+  override def createUniqueConstraint(labelId: Int,
+                                      propertyKeyIds: Seq[Int],
+                                      name: Option[String],
+                                      provider: Option[String],
+                                      indexConfig: IndexConfig): Unit = {
+    val schemaWrite = transactionalContext.schemaWrite
+    val indexPrototype = getUniqueIndexPrototype(labelId, propertyKeyIds, name, provider, indexConfig, schemaWrite)
+    schemaWrite.uniquePropertyConstraintCreate(indexPrototype)
   }
 
-  override def asObject(value: AnyValue): Any = value.map(valueMapper)
+  private def getUniqueIndexPrototype(labelId: Int,
+                                      propertyKeyIds: Seq[Int],
+                                      name: Option[String],
+                                      provider: Option[String],
+                                      indexConfig: IndexConfig,
+                                      schemaWrite: SchemaWrite) = {
+    val descriptor = SchemaDescriptors.forLabel(labelId, propertyKeyIds: _*)
+    val providerAndType = provider.map(p => (schemaWrite.indexProviderByName(p), schemaWrite.indexTypeByProviderName(p)))
 
-  class NodeOperations extends BaseOperations[NodeValue] {
+    val indexPrototype = providerAndType.map { case (provider, indexType) => IndexPrototype.uniqueForSchema(descriptor, provider).withIndexType(indexType) }
+      .getOrElse(IndexPrototype.uniqueForSchema(descriptor))
 
-    override def delete(id: Long) {
+    indexPrototype.withName(name.orNull).withIndexConfig(indexConfig)
+  }
+
+  override def dropUniqueConstraint(labelId: Int, propertyKeyIds: Seq[Int]): Unit =
+    transactionalContext.schemaWrite
+      .constraintDrop(SchemaDescriptors.forLabel(labelId, propertyKeyIds: _*), ConstraintType.UNIQUE)
+
+  override def createNodePropertyExistenceConstraint(labelId: Int, propertyKeyId: Int, name: Option[String]): Unit =
+    transactionalContext.schemaWrite.nodePropertyExistenceConstraintCreate(
+      SchemaDescriptors.forLabel(labelId, propertyKeyId), name.orNull)
+
+  override def dropNodePropertyExistenceConstraint(labelId: Int, propertyKeyId: Int): Unit =
+    transactionalContext.schemaWrite
+      .constraintDrop(SchemaDescriptors.forLabel(labelId, propertyKeyId), ConstraintType.EXISTS)
+
+  override def createRelationshipPropertyExistenceConstraint(relTypeId: Int, propertyKeyId: Int,
+                                                             name: Option[String]): Unit =
+    transactionalContext.schemaWrite.relationshipPropertyExistenceConstraintCreate(
+      SchemaDescriptors.forRelType(relTypeId, propertyKeyId), name.orNull)
+
+  override def dropRelationshipPropertyExistenceConstraint(relTypeId: Int, propertyKeyId: Int): Unit =
+    transactionalContext.schemaWrite
+      .constraintDrop(SchemaDescriptors.forRelType(relTypeId, propertyKeyId), ConstraintType.EXISTS)
+
+  override def dropNamedConstraint(name: String): Unit =
+    transactionalContext.schemaWrite.constraintDrop(name)
+
+  override def detachDeleteNode(node: Long): Int = transactionalContext.dataWrite.nodeDetachDelete(node)
+
+  override def assertSchemaWritesAllowed(): Unit =
+    transactionalContext.schemaWrite
+
+  override def getDatabaseManager: DatabaseManager[DatabaseContext] = {
+    val dependencyResolver = transactionalContext.graph.getDependencyResolver
+    dependencyResolver.resolveDependency(classOf[DatabaseManager[_ <: DatabaseContext]]).asInstanceOf[DatabaseManager[DatabaseContext]]
+  }
+
+  override def getConfig: Config =
+    transactionalContext.graph.getDependencyResolver.resolveDependency(classOf[Config])
+
+  override def nodeApplyChanges(node: Long,
+                                addedLabels: IntSet,
+                                removedLabels: IntSet,
+                                properties: IntObjectMap[Value]): Unit = {
+    writes().nodeApplyChanges(node, addedLabels, removedLabels, properties)
+  }
+
+  override def relationshipApplyChanges(relationship: Long,
+                                        properties: IntObjectMap[Value]): Unit = {
+    writes().relationshipApplyChanges(relationship, properties)
+  }
+
+  class NodeWriteOperations extends NodeReadOperations with org.neo4j.cypher.internal.runtime.NodeOperations {
+
+    override def delete(id: Long): Boolean = {
       writes().nodeDelete(id)
     }
 
-    override def propertyKeyIds(id: Long): Iterator[Int] = {
-      val node = allocateNodeCursor()
-      val property = allocatePropertyCursor()
+    override def removeProperty(id: Long, propertyKeyId: Int): Boolean = {
       try {
-        reads().singleNode(id, node)
-        if (!node.next()) Iterator.empty
-        else {
-          val buffer = ArrayBuffer[Int]()
-          node.properties(property)
-          while (property.next()) {
-            buffer.append(property.propertyKey())
-          }
-          buffer.iterator
-        }
-      } finally {
-        IOUtils.closeAll(node, property)
-      }
-    }
-
-    override def getProperty(id: Long, propertyKeyId: Int): Value = {
-      val node = allocateNodeCursor()
-      val property = allocatePropertyCursor()
-      try {
-        reads().singleNode(id, node)
-        if (!node.next()) {
-          if (isDeletedInThisTx(id)) throw new EntityNotFoundException(
-            s"Node with id $id has been deleted in this transaction")
-          else Values.NO_VALUE
-        } else {
-          node.properties(property)
-          while (property.next()) {
-            if (property.propertyKey() == propertyKeyId) return property.propertyValue()
-          }
-          Values.NO_VALUE
-        }
-      } finally {
-        IOUtils.closeAll(node, property)
-      }
-    }
-
-    override def hasProperty(id: Long, propertyKey: Int): Boolean = {
-      val node = allocateNodeCursor()
-      val property = allocatePropertyCursor()
-      try {
-        reads().singleNode(id, node)
-        if (!node.next()) false
-        else {
-          node.properties(property)
-          while (property.next()) {
-            if (property.propertyKey() == propertyKey) return true
-          }
-          false
-        }
-      } finally {
-        IOUtils.closeAll(node, property)
-      }
-    }
-
-    override def removeProperty(id: Long, propertyKeyId: Int): Unit = {
-      try {
-        writes().nodeRemoveProperty(id, propertyKeyId)
+        !(writes().nodeRemoveProperty(id, propertyKeyId) eq Values.NO_VALUE)
       } catch {
-        case _: api.exceptions.EntityNotFoundException => //ignore
+        case _: api.exceptions.EntityNotFoundException => false
       }
     }
 
@@ -511,119 +415,26 @@ sealed class TransactionBoundQueryContext(val transactionalContext: Transactiona
       }
     }
 
-    override def getById(id: Long): NodeValue = try {
-      fromNodeProxy(entityAccessor.newNodeProxy(id))
-    } catch {
-      case e: NotFoundException => throw new EntityNotFoundException(s"Node with id $id", e)
-    }
-
-    override def all: Iterator[NodeValue] = {
-      val nodeCursor = allocateAndTraceNodeCursor()
-      reads().allNodesScan(nodeCursor)
-      new CursorIterator[NodeValue] {
-        override protected def fetchNext(): NodeValue = {
-          if (nodeCursor.next()) fromNodeProxy(entityAccessor.newNodeProxy(nodeCursor.nodeReference()))
-          else null
-        }
-
-        override protected def close(): Unit = nodeCursor.close()
+    override def setProperties(obj: Long,
+                               properties: IntObjectMap[Value]): Unit = {
+      try {
+        writes().nodeApplyChanges(obj, IntSets.immutable.empty(), IntSets.immutable.empty(), properties)
+      } catch {
+        case _: api.exceptions.EntityNotFoundException => //ignore
       }
     }
-
-    override def allPrimitive: PrimitiveLongIterator = {
-      val nodeCursor = allocateAndTraceNodeCursor()
-      reads().allNodesScan(nodeCursor)
-      new PrimitiveCursorIterator {
-        override protected def fetchNext(): Long = if (nodeCursor.next()) nodeCursor.nodeReference() else -1L
-        override protected def close(): Unit = nodeCursor.close()
-      }
-    }
-
-    override def isDeletedInThisTx(id: Long): Boolean = transactionalContext.stateView
-      .hasTxStateWithChanges && transactionalContext.stateView.txState().nodeIsDeletedInThisTx(id)
-
-    override def acquireExclusiveLock(obj: Long): Unit =
-      transactionalContext.kernelTransaction.locks().acquireExclusiveNodeLock(obj)
-
-    override def releaseExclusiveLock(obj: Long): Unit =
-      transactionalContext.kernelTransaction.locks().releaseExclusiveNodeLock(obj)
-
-    override def getByIdIfExists(id: Long): Option[NodeValue] =
-      if (id >= 0 && reads().nodeExists(id))
-        Some(fromNodeProxy(entityAccessor.newNodeProxy(id)))
-      else
-        None
   }
 
-  class RelationshipOperations extends BaseOperations[RelationshipValue] {
-
-    override def delete(id: Long) {
+  class RelationshipWriteOperations extends RelationshipReadOperations with org.neo4j.cypher.internal.runtime.RelationshipOperations {
+    override def delete(id: Long): Boolean = {
       writes().relationshipDelete(id)
     }
 
-    override def propertyKeyIds(id: Long): Iterator[Int] = {
-      val relationship = allocateRelationshipScanCursor()
-      val property = allocatePropertyCursor()
+    override def removeProperty(id: Long, propertyKeyId: Int): Boolean = {
       try {
-        reads().singleRelationship(id, relationship)
-        if (!relationship.next()) Iterator.empty
-        else {
-          val buffer = ArrayBuffer[Int]()
-          relationship.properties(property)
-          while (property.next()) {
-            buffer.append(property.propertyKey())
-          }
-          buffer.iterator
-        }
-      } finally {
-        IOUtils.closeAll(relationship, property)
-      }
-    }
-
-    override def getProperty(id: Long, propertyKeyId: Int): Value = {
-      val relationship = allocateRelationshipScanCursor()
-      val property = allocatePropertyCursor()
-      try {
-        reads().singleRelationship(id, relationship)
-        if (!relationship.next()) {
-          if (isDeletedInThisTx(id)) throw new EntityNotFoundException(
-            s"Relationship with id $id has been deleted in this transaction")
-          else Values.NO_VALUE
-        } else {
-          relationship.properties(property)
-          while (property.next()) {
-            if (property.propertyKey() == propertyKeyId) return property.propertyValue()
-          }
-          Values.NO_VALUE
-        }
-      } finally {
-        IOUtils.closeAll(relationship, property)
-      }
-    }
-
-    override def hasProperty(id: Long, propertyKey: Int): Boolean = {
-      val relationship = allocateRelationshipScanCursor()
-      val property = allocatePropertyCursor()
-      try {
-        reads().singleRelationship(id, relationship)
-        if (!relationship.next()) false
-        else {
-          relationship.properties(property)
-          while (property.next()) {
-            if (property.propertyKey() == propertyKey) return true
-          }
-          false
-        }
-      } finally {
-        IOUtils.closeAll(relationship, property)
-      }
-    }
-
-    override def removeProperty(id: Long, propertyKeyId: Int): Unit = {
-      try {
-        writes().relationshipRemoveProperty(id, propertyKeyId)
+        !(writes().relationshipRemoveProperty(id, propertyKeyId) eq Values.NO_VALUE)
       } catch {
-        case _: api.exceptions.EntityNotFoundException => //ignore
+        case _: api.exceptions.EntityNotFoundException => false
       }
     }
 
@@ -635,156 +446,666 @@ sealed class TransactionBoundQueryContext(val transactionalContext: Transactiona
       }
     }
 
-    override def getById(id: Long): RelationshipValue = try {
-      fromRelationshipProxy(entityAccessor.newRelationshipProxy(id))
+    override def setProperties(obj: Long,
+                               properties: IntObjectMap[Value]): Unit = {
+      try {
+        writes().relationshipApplyChanges(obj, properties)
+      } catch {
+        case _: api.exceptions.EntityNotFoundException => //ignore
+      }
+    }
+  }
+}
+
+private[internal] class TransactionBoundReadQueryContext(val transactionalContext: TransactionalContextWrapper,
+                                                         val resources: ResourceManager,
+                                                         private val closeable: Option[AutoCloseable] = None)
+                                                        (implicit indexSearchMonitor: IndexSearchMonitor)
+  extends TransactionBoundReadTokenContext(transactionalContext) with ReadQueryContext {
+
+  override val nodeReadOps: NodeReadOperations = new NodeReadOperations
+  override val relationshipReadOps: RelationshipReadOperations = new RelationshipReadOperations
+
+  // TODO: Make parallel transaction use safe. Entity values hold a reference to InternalTransaction, which is not thread-safe.
+  private[internal] lazy val entityAccessor: TransactionalEntityFactory = transactionalContext.kernelTransactionalContext.transaction()
+  private[internal] lazy val valueMapper: ValueMapper[java.lang.Object] = new DefaultValueMapper(transactionalContext.kernelTransactionalContext.transaction())
+
+  //We cannot assign to value because of periodic commit
+  protected def reads(): Read = transactionalContext.dataRead
+
+  private def allocateNodeCursor() = transactionalContext.cursors.allocateNodeCursor( transactionalContext.cursorContext )
+
+  protected def tokenRead: TokenRead = transactionalContext.tokenRead
+
+  override def singleNode(id: Long, cursor: NodeCursor): Unit = {
+    reads().singleNode(id, cursor)
+  }
+
+  override def singleRelationship(id: Long, cursor: RelationshipScanCursor): Unit = {
+    reads().singleRelationship(id, cursor)
+  }
+
+  override def getLabelsForNode(node: Long, nodeCursor: NodeCursor): ListValue = {
+    reads().singleNode(node, nodeCursor)
+    if (!nodeCursor.next()) {
+      if (nodeReadOps.isDeletedInThisTx(node))
+        throw new EntityNotFoundException(s"Node with id $node has been deleted in this transaction")
+      else
+        VirtualValues.EMPTY_LIST
+    }
+    val labelSet = nodeCursor.labels()
+    val labelArray = new Array[TextValue](labelSet.numberOfTokens())
+    var i = 0
+    while (i < labelSet.numberOfTokens()) {
+      labelArray(i) = Values.stringValue(tokenRead.nodeLabelName(labelSet.token(i)))
+      i += 1
+    }
+    VirtualValues.list(labelArray: _*)
+  }
+
+  override def getTypeForRelationship(id: Long, cursor: RelationshipScanCursor): TextValue = {
+    reads().singleRelationship(id, cursor)
+    if (!cursor.next() && !relationshipReadOps.isDeletedInThisTx(id)) {
+      // we are allowed to read the type of relationships we have deleted, but
+      // if we have a concurrent delete by another tx we resort to NO_VALUE
+      Values.NO_VALUE
+    }
+    Values.stringValue(tokenRead.relationshipTypeName(cursor.`type`()))
+  }
+
+  override def isLabelSetOnNode(label: Int, node: Long, nodeCursor: NodeCursor): Boolean = {
+    CursorUtils.nodeHasLabel(reads(), nodeCursor, node, label)
+  }
+
+  override def isAnyLabelSetOnNode(labels: Array[Int], id: Long, nodeCursor: NodeCursor): Boolean = {
+    CursorUtils.nodeHasAnyLabel(reads(), nodeCursor, id, labels)
+  }
+
+  override def isTypeSetOnRelationship(typ: Int, id: Long, relationshipCursor: RelationshipScanCursor): Boolean = {
+    CursorUtils.relationshipHasType(reads(), relationshipCursor, id, typ)
+  }
+
+  override def getRelationshipsForIds(node: Long, dir: SemanticDirection,
+                                      types: Array[Int]): ClosingLongIterator with RelationshipIterator = {
+    val cursor = allocateNodeCursor()
+    try {
+      val read = reads()
+      val cursors = transactionalContext.cursors
+      val cursorContext = transactionalContext.cursorContext
+      read.singleNode(node, cursor)
+      if (!cursor.next()) ClosingLongIterator.emptyClosingRelationshipIterator
+      else {
+        val selectionCursor = dir match {
+          case OUTGOING => outgoingCursor(cursors, cursor, types, cursorContext)
+          case INCOMING => incomingCursor(cursors, cursor, types, cursorContext)
+          case BOTH => allCursor(cursors, cursor, types, cursorContext)
+        }
+        resources.trace(selectionCursor)
+        new RelationshipCursorIterator(selectionCursor)
+      }
+    } finally {
+      cursor.close()
+    }
+  }
+
+  override def getRelationshipsByType(session: TokenReadSession, relType: Int, indexOrder: IndexOrder): ClosingLongIterator with RelationshipIterator = {
+    val read = reads()
+    val typeCursor = transactionalContext.cursors.allocateRelationshipTypeIndexCursor(transactionalContext.cursorContext)
+    val relCursor = transactionalContext.cursors.allocateRelationshipScanCursor(transactionalContext.cursorContext)
+    read.relationshipTypeScan(session, typeCursor, ordered(asKernelIndexOrder(indexOrder)), new TokenPredicate(relType), transactionalContext.cursorContext)
+    resources.trace(typeCursor)
+    resources.trace(relCursor)
+    new RelationshipTypeCursorIterator(read, typeCursor, relCursor)
+  }
+
+  override def nodeCursor(): NodeCursor =
+    transactionalContext.cursors.allocateNodeCursor(transactionalContext.cursorContext)
+
+  override def traversalCursor(): RelationshipTraversalCursor =
+    transactionalContext.cursors.allocateRelationshipTraversalCursor(transactionalContext.cursorContext)
+
+  override def scanCursor(): RelationshipScanCursor =
+    transactionalContext.cursors.allocateRelationshipScanCursor(transactionalContext.kernelTransaction.cursorContext)
+
+  override def relationshipById(relationshipId: Long,
+                                startNodeId: Long,
+                                endNodeId: Long,
+                                typeId: Int): VirtualRelationshipValue =
+      VirtualValues.relationship(relationshipId, startNodeId, endNodeId, typeId)
+
+  override def nodeIndexSeek(index: IndexReadSession,
+                             needsValues: Boolean,
+                             indexOrder: IndexOrder,
+                             predicates: Seq[PropertyIndexQuery]): NodeValueIndexCursor = {
+    val impossiblePredicate =
+      predicates.exists {
+        case p: PropertyIndexQuery.ExactPredicate => (p.value() eq Values.NO_VALUE) || (p.value().isInstanceOf[FloatingPointValue] && p.value().asInstanceOf[FloatingPointValue].isNaN)
+        case _: PropertyIndexQuery.ExistsPredicate => predicates.length <= 1
+        case p: PropertyIndexQuery.RangePredicate[_] =>
+          !RANGE_SEEKABLE_VALUE_GROUPS.contains(p.valueGroup())
+        case _ => false
+      }
+
+    if (impossiblePredicate) {
+      NodeValueIndexCursor.EMPTY
+    } else {
+      innerNodeIndexSeek(index, needsValues, indexOrder, predicates: _*)
+    }
+  }
+
+  override def relationshipIndexSeek(index: IndexReadSession,
+                                     needsValues: Boolean,
+                                     indexOrder: IndexOrder,
+                                     predicates: Seq[PropertyIndexQuery]): RelationshipValueIndexCursor = {
+
+    val impossiblePredicate =
+      predicates.exists {
+        case p: PropertyIndexQuery.ExactPredicate => (p.value() eq Values.NO_VALUE) || (p.value().isInstanceOf[FloatingPointValue] && p.value().asInstanceOf[FloatingPointValue].isNaN)
+        case _: PropertyIndexQuery.ExistsPredicate => predicates.length <= 1
+        case p: PropertyIndexQuery.RangePredicate[_] =>
+          !RANGE_SEEKABLE_VALUE_GROUPS.contains(p.valueGroup())
+        case _ => false
+      }
+
+    if (impossiblePredicate) {
+      RelationshipValueIndexCursor.EMPTY
+    } else {
+      innerRelationshipIndexSeek(index, needsValues, indexOrder, predicates: _*)
+    }
+  }
+
+  override def relationshipIndexSeekByContains(index: IndexReadSession,
+                                               needsValues: Boolean,
+                                               indexOrder: IndexOrder,
+                                               value: TextValue): RelationshipValueIndexCursor =
+    innerRelationshipIndexSeek(index, needsValues, indexOrder,
+      PropertyIndexQuery.stringContains(index.reference().schema().getPropertyIds()(0), value))
+
+  override def relationshipIndexSeekByEndsWith(index: IndexReadSession,
+                                               needsValues: Boolean,
+                                               indexOrder: IndexOrder,
+                                               value: TextValue): RelationshipValueIndexCursor =
+    innerRelationshipIndexSeek(index, needsValues, indexOrder,
+      PropertyIndexQuery.stringSuffix(index.reference().schema().getPropertyIds()(0), value))
+
+  override def relationshipIndexScan(index: IndexReadSession,
+                                     needsValues: Boolean,
+                                     indexOrder: IndexOrder): RelationshipValueIndexCursor = {
+    val relCursor = allocateAndTraceRelationshipValueIndexCursor()
+    reads().relationshipIndexScan(index, relCursor, IndexQueryConstraints.constrained(asKernelIndexOrder(indexOrder), needsValues))
+    relCursor
+  }
+
+  override def lookupIndexReference(entityType: EntityType): IndexDescriptor = {
+    val descriptor = SchemaDescriptors.forAnyEntityTokens(entityType)
+    Iterators.single(transactionalContext.schemaRead.index(descriptor))
+  }
+
+  override def fulltextIndexReference(entityIds: List[Int], entityType: EntityType, properties: Int*): IndexDescriptor = {
+    val descriptor = SchemaDescriptors.fulltext(entityType, entityIds.toArray, properties.toArray)
+    Iterators.single(transactionalContext.schemaRead.index(descriptor))
+  }
+
+  override def indexReference(indexType: IndexType, entityId: Int, entityType: EntityType, properties: Int*): IndexDescriptor = {
+    val descriptor = entityType match {
+      case EntityType.NODE         => SchemaDescriptors.forLabel(entityId, properties: _*)
+      case EntityType.RELATIONSHIP => SchemaDescriptors.forRelType(entityId, properties: _*)
+    }
+    // Get all indexes matching the schema
+    val indexes = transactionalContext.schemaRead.index(descriptor)
+
+    // Return the wanted index type if it exists
+    while (indexes.hasNext) {
+      val i = indexes.next()
+      if (i.getIndexType.equals(indexType)) return i
+    }
+
+    // No such index existed, throw same exception type that Iterators.single gives if no index exists
+    throw new NoSuchElementException(s"No such ${indexType.toString.toLowerCase} index exists.")
+  }
+
+  private def innerNodeIndexSeek(index: IndexReadSession,
+                                 needsValues: Boolean,
+                                 indexOrder: IndexOrder,
+                                 queries: PropertyIndexQuery*): NodeValueIndexCursor = {
+
+    val nodeCursor: NodeValueIndexCursor = allocateAndTraceNodeValueIndexCursor()
+    val actualValues =
+      if (needsValues && queries.forall(_.isInstanceOf[ExactPredicate]))
+      // We don't need property values from the index for an exact seek
+      {
+        queries.map(_.asInstanceOf[ExactPredicate].value()).toArray
+      } else {
+        null
+      }
+    val needsValuesFromIndexSeek = actualValues == null && needsValues
+    reads().nodeIndexSeek(transactionalContext.kernelQueryContext, index, nodeCursor,
+      IndexQueryConstraints.constrained(asKernelIndexOrder(indexOrder), needsValuesFromIndexSeek), queries: _*)
+    if (needsValues && actualValues != null) {
+      new ValuedNodeIndexCursor(nodeCursor, actualValues)
+    } else {
+      nodeCursor
+    }
+  }
+
+  private def innerRelationshipIndexSeek(index: IndexReadSession,
+                                         needsValues: Boolean,
+                                         indexOrder: IndexOrder,
+                                         queries: PropertyIndexQuery*): RelationshipValueIndexCursor = {
+
+    val relCursor = allocateAndTraceRelationshipValueIndexCursor()
+    val actualValues =
+      if (needsValues && queries.forall(_.isInstanceOf[ExactPredicate]))
+      // We don't need property values from the index for an exact seek
+      {
+        queries.map(_.asInstanceOf[ExactPredicate].value()).toArray
+      } else {
+        null
+      }
+    val needsValuesFromIndexSeek = actualValues == null && needsValues
+    reads().relationshipIndexSeek(transactionalContext.kernelQueryContext, index, relCursor, IndexQueryConstraints.constrained(asKernelIndexOrder(indexOrder), needsValuesFromIndexSeek), queries: _*)
+    if (needsValues && actualValues != null) {
+      new ValuedRelationshipIndexCursor(relCursor, actualValues)
+    } else {
+      relCursor
+    }
+  }
+
+  override def nodeIndexScan(index: IndexReadSession,
+                             needsValues: Boolean,
+                             indexOrder: IndexOrder): NodeValueIndexCursor = {
+    val nodeCursor = allocateAndTraceNodeValueIndexCursor()
+    reads().nodeIndexScan(index, nodeCursor, IndexQueryConstraints.constrained(asKernelIndexOrder(indexOrder), needsValues))
+    nodeCursor
+  }
+
+  override def nodeIndexSeekByContains(index: IndexReadSession,
+                                       needsValues: Boolean,
+                                       indexOrder: IndexOrder,
+                                       value: TextValue): NodeValueIndexCursor =
+    innerNodeIndexSeek(index, needsValues, indexOrder,
+      PropertyIndexQuery.stringContains(index.reference().schema().getPropertyIds()(0), value))
+
+  override def nodeIndexSeekByEndsWith(index: IndexReadSession,
+                                       needsValues: Boolean,
+                                       indexOrder: IndexOrder,
+                                       value: TextValue): NodeValueIndexCursor =
+    innerNodeIndexSeek(index, needsValues, indexOrder, PropertyIndexQuery.stringSuffix(index.reference().schema().getPropertyIds()(0), value))
+
+  override def nodeLockingUniqueIndexSeek(index: IndexDescriptor,
+                                          queries: Seq[PropertyIndexQuery.ExactPredicate]): NodeValueIndexCursor = {
+
+    val cursor = transactionalContext.cursors.allocateNodeValueIndexCursor(transactionalContext.cursorContext, transactionalContext.memoryTracker)
+    try {
+      indexSearchMonitor.lockingUniqueIndexSeek(index, queries)
+      if (queries.exists(q => q.value() eq Values.NO_VALUE)) {
+        NodeValueHit.EMPTY
+      } else {
+        val resultNodeId = reads().lockingNodeUniqueIndexSeek(index, cursor, queries: _*)
+        if (StatementConstants.NO_SUCH_NODE == resultNodeId) {
+          NodeValueHit.EMPTY
+        } else {
+          val values = queries.map(_.value()).toArray
+          new NodeValueHit(resultNodeId, values, reads())
+        }
+      }
+    } finally {
+      cursor.close()
+    }
+  }
+
+  override def nodeAsMap(id: Long, nodeCursor: NodeCursor, propertyCursor: PropertyCursor): MapValue = {
+    reads().singleNode(id, nodeCursor)
+    if (!nodeCursor.next()) VirtualValues.EMPTY_MAP
+    else {
+      val tokens = tokenRead
+      nodeCursor.properties(propertyCursor)
+      val builder = new MapValueBuilder()
+      while (propertyCursor.next()) {
+        builder.add(tokens.propertyKeyName(propertyCursor.propertyKey()), propertyCursor.propertyValue())
+      }
+      builder.build()
+    }
+  }
+
+  override def relationshipAsMap(id: Long, relationshipCursor: RelationshipScanCursor,
+                                 propertyCursor: PropertyCursor): MapValue = {
+    reads().singleRelationship(id, relationshipCursor)
+    if (!relationshipCursor.next()) VirtualValues.EMPTY_MAP
+    else {
+      val tokens = tokenRead
+      relationshipCursor.properties(propertyCursor)
+      val builder = new MapValueBuilder()
+      while (propertyCursor.next()) {
+        builder.add(tokens.propertyKeyName(propertyCursor.propertyKey()), propertyCursor.propertyValue())
+      }
+      builder.build()
+    }
+  }
+
+  override def getNodesByLabel(tokenReadSession: TokenReadSession, id: Int, indexOrder: IndexOrder): ClosingLongIterator = {
+    val cursor = allocateAndTraceNodeLabelIndexCursor()
+    reads().nodeLabelScan(tokenReadSession, cursor, ordered(asKernelIndexOrder(indexOrder)), new TokenPredicate(id),
+      transactionalContext.cursorContext)
+    new PrimitiveCursorIterator {
+      override protected def fetchNext(): Long = if (cursor.next()) cursor.nodeReference() else -1L
+
+      override def close(): Unit = {
+        cursor.close()
+      }
+    }
+  }
+
+  override def nodeGetOutgoingDegreeWithMax(maxDegree: Int, node: Long, nodeCursor: NodeCursor): Int = {
+    reads().singleNode(node, nodeCursor)
+    if (!nodeCursor.next()) 0
+    else {
+      Nodes.countWithMax(maxDegree, nodeCursor, org.neo4j.graphdb.Direction.OUTGOING)
+    }
+  }
+
+  override def nodeGetIncomingDegreeWithMax(maxDegree: Int, node: Long, nodeCursor: NodeCursor): Int = {
+    reads().singleNode(node, nodeCursor)
+    if (!nodeCursor.next()) 0
+    else {
+      Nodes.countWithMax(maxDegree, nodeCursor, org.neo4j.graphdb.Direction.INCOMING)
+    }
+  }
+
+  override def nodeGetTotalDegreeWithMax(maxDegree: Int, node: Long, nodeCursor: NodeCursor): Int = {
+    reads().singleNode(node, nodeCursor)
+    if (!nodeCursor.next()) 0
+    else {
+      Nodes.countWithMax(maxDegree, nodeCursor, org.neo4j.graphdb.Direction.BOTH)
+    }
+  }
+
+  override def nodeGetOutgoingDegree(node: Long, nodeCursor: NodeCursor): Int = {
+    reads().singleNode(node, nodeCursor)
+    if (!nodeCursor.next()) 0
+    else Nodes.countOutgoing(nodeCursor)
+  }
+
+  override def nodeGetIncomingDegree(node: Long, nodeCursor: NodeCursor): Int = {
+    reads().singleNode(node, nodeCursor)
+    if (!nodeCursor.next()) 0
+    else Nodes.countIncoming(nodeCursor)
+  }
+
+  override def nodeGetTotalDegree(node: Long, nodeCursor: NodeCursor): Int = {
+    reads().singleNode(node, nodeCursor)
+    if (!nodeCursor.next()) 0
+    else Nodes.countAll(nodeCursor)
+  }
+
+  override def nodeGetOutgoingDegreeWithMax(maxDegree: Int, node: Long, relationship: Int, nodeCursor: NodeCursor): Int = {
+    reads().singleNode(node, nodeCursor)
+    if (!nodeCursor.next()) 0
+    else {
+      Nodes.countWithMax(maxDegree, nodeCursor, relationship, org.neo4j.graphdb.Direction.OUTGOING)
+    }
+  }
+
+  override def nodeGetIncomingDegreeWithMax(maxDegree: Int, node: Long, relationship: Int, nodeCursor: NodeCursor): Int = {
+    reads().singleNode(node, nodeCursor)
+    if (!nodeCursor.next()) 0
+    else {
+      Nodes.countWithMax(maxDegree, nodeCursor, relationship, org.neo4j.graphdb.Direction.INCOMING)
+    }
+  }
+
+  override def nodeGetTotalDegreeWithMax(maxDegree: Int, node: Long, relationship: Int, nodeCursor: NodeCursor): Int = {
+    reads().singleNode(node, nodeCursor)
+    if (!nodeCursor.next()) 0
+    else {
+      Nodes.countWithMax(maxDegree, nodeCursor, relationship, org.neo4j.graphdb.Direction.BOTH)
+    }
+  }
+
+  override def nodeGetOutgoingDegree(node: Long, relationship: Int, nodeCursor: NodeCursor): Int = {
+    reads().singleNode(node, nodeCursor)
+    if (!nodeCursor.next()) 0
+    else Nodes.countOutgoing(nodeCursor, relationship)
+  }
+
+  override def nodeGetIncomingDegree(node: Long, relationship: Int, nodeCursor: NodeCursor): Int = {
+    reads().singleNode(node, nodeCursor)
+    if (!nodeCursor.next()) 0
+    else Nodes.countIncoming(nodeCursor, relationship)
+  }
+
+  override def nodeGetTotalDegree(node: Long, relationship: Int, nodeCursor: NodeCursor): Int = {
+    reads().singleNode(node, nodeCursor)
+    if (!nodeCursor.next()) 0
+    else Nodes.countAll(nodeCursor, relationship)
+  }
+
+  override def nodeHasCheapDegrees(node: Long, nodeCursor: NodeCursor): Boolean = {
+    reads().singleNode(node, nodeCursor)
+    if (!nodeCursor.next()) false
+    else nodeCursor.supportsFastDegreeLookup
+  }
+
+  override def asObject(value: AnyValue): AnyRef = value.map(valueMapper)
+
+  override def getTxStateNodePropertyOrNull(nodeId: Long,
+                                            propertyKey: Int): Value = {
+    val ops = reads()
+    if (ops.nodeDeletedInTransaction(nodeId)) {
+      throw new EntityNotFoundException(
+        s"Node with id $nodeId has been deleted in this transaction")
+    }
+
+    ops.nodePropertyChangeInTransactionOrNull(nodeId, propertyKey)
+  }
+
+  override def getTxStateRelationshipPropertyOrNull(relId: Long,
+                                                    propertyKey: Int): Value = {
+    val ops = reads()
+    if (ops.relationshipDeletedInTransaction(relId)) {
+      throw new EntityNotFoundException(
+        s"Relationship with id $relId has been deleted in this transaction")
+    }
+
+    ops.relationshipPropertyChangeInTransactionOrNull(relId, propertyKey)
+  }
+
+  class NodeReadOperations
+    extends org.neo4j.cypher.internal.runtime.NodeReadOperations {
+
+    override def propertyKeyIds(id: Long, nodeCursor: NodeCursor, propertyCursor: PropertyCursor): Array[Int] = {
+      reads().singleNode(id, nodeCursor)
+      if (!nodeCursor.next()) Array.empty
+      else {
+        val buffer = ArrayBuffer[Int]()
+        nodeCursor.properties(propertyCursor)
+        while (propertyCursor.next()) {
+          buffer.append(propertyCursor.propertyKey())
+        }
+        buffer.toArray
+      }
+    }
+
+    override def getProperty(id: Long, propertyKeyId: Int, nodeCursor: NodeCursor, propertyCursor: PropertyCursor,
+                             throwOnDeleted: Boolean): Value = {
+      CursorUtils.nodeGetProperty(reads(), nodeCursor, id, propertyCursor, propertyKeyId, throwOnDeleted)
+    }
+
+    override def getTxStateProperty(nodeId: Long, propertyKeyId: Int): Value =
+      getTxStateNodePropertyOrNull(nodeId, propertyKeyId)
+
+    override def hasProperty(id: Long, propertyKey: Int, nodeCursor: NodeCursor,
+                             propertyCursor: PropertyCursor): Boolean = {
+      CursorUtils.nodeHasProperty(reads(), nodeCursor, id, propertyCursor, propertyKey)
+    }
+
+    override def hasTxStatePropertyForCachedProperty(nodeId: Long, propertyKeyId: Int): Option[Boolean] = {
+      if (isDeletedInThisTx(nodeId)) {
+        // Node deleted in TxState
+        Some(false)
+      } else {
+        val nodePropertyInTx = reads().nodePropertyChangeInTransactionOrNull(nodeId, propertyKeyId)
+        nodePropertyInTx match {
+          case null => None // no changes in TxState.
+          case IsNoValue() => Some(false) // property removed in TxState
+          case _ => Some(true) // property changed in TxState
+        }
+      }
+    }
+
+    override def getById(id: Long): VirtualNodeValue = VirtualValues.node(id)
+
+    override def all: ClosingLongIterator = {
+      val nodeCursor = allocateAndTraceNodeCursor()
+      reads().allNodesScan(nodeCursor)
+      new PrimitiveCursorIterator {
+        override protected def fetchNext(): Long = if (nodeCursor.next()) nodeCursor.nodeReference() else -1L
+
+        override def close(): Unit = nodeCursor.close()
+      }
+    }
+
+    override def isDeletedInThisTx(id: Long): Boolean = reads().nodeDeletedInTransaction(id)
+
+    override def acquireExclusiveLock(obj: Long): Unit =
+      transactionalContext.locks.acquireExclusiveNodeLock(obj)
+
+    override def releaseExclusiveLock(obj: Long): Unit =
+      transactionalContext.locks.releaseExclusiveNodeLock(obj)
+
+    override def entityExists(id: Long): Boolean = id >= 0 && reads().nodeExists(id)
+  }
+
+  class RelationshipReadOperations extends org.neo4j.cypher.internal.runtime.RelationshipReadOperations {
+
+    override def propertyKeyIds(id: Long, relationshipScanCursor: RelationshipScanCursor,
+                                propertyCursor: PropertyCursor): Array[Int] = {
+      reads().singleRelationship(id, relationshipScanCursor)
+      if (!relationshipScanCursor.next()) Array.empty
+      else {
+        val buffer = ArrayBuffer[Int]()
+        relationshipScanCursor.properties(propertyCursor)
+        while (propertyCursor.next()) {
+          buffer.append(propertyCursor.propertyKey())
+        }
+        buffer.toArray
+      }
+    }
+
+    override def getProperty(id: Long, propertyKeyId: Int, relationshipCursor: RelationshipScanCursor,
+                             propertyCursor: PropertyCursor, throwOnDeleted: Boolean): Value = {
+      CursorUtils
+        .relationshipGetProperty(reads(), relationshipCursor, id, propertyCursor, propertyKeyId, throwOnDeleted)
+    }
+
+    override def hasProperty(id: Long, propertyKey: Int, relationshipCursor: RelationshipScanCursor,
+                             propertyCursor: PropertyCursor): Boolean = {
+      CursorUtils.relationshipHasProperty(reads(), relationshipCursor, id, propertyCursor, propertyKey)
+    }
+
+    override def getById(id: Long): VirtualRelationshipValue = try {
+      VirtualValues.relationship(id)
     } catch {
       case e: NotFoundException => throw new EntityNotFoundException(s"Relationship with id $id", e)
     }
 
-    override def getByIdIfExists(id: Long): Option[RelationshipValue] = {
-      if (id < 0)
-        None
-      else {
-        val cursor = allocateRelationshipScanCursor()
-        try {
-          reads().singleRelationship(id, cursor)
-          if (cursor.next()) {
-            val src = cursor.sourceNodeReference()
-            val dst = cursor.targetNodeReference()
-            val relProxy = entityAccessor.newRelationshipProxy(id, src, cursor.`type`(), dst)
-            Some(fromRelationshipProxy(relProxy))
-          }
-          else
-            None
-        } finally {
-          cursor.close()
-        }
-      }
-    }
+    override def entityExists(id: Long): Boolean = id >= 0 && reads().relationshipExists(id)
 
-    override def all: Iterator[RelationshipValue] = {
-      val relCursor = allocateAndTraceRelationshipScanCursor()
-      reads().allRelationshipsScan(relCursor)
-      new CursorIterator[RelationshipValue] {
-        override protected def fetchNext(): RelationshipValue = {
-          if (relCursor.next())
-            fromRelationshipProxy(entityAccessor.newRelationshipProxy(relCursor.relationshipReference(),
-                                                                      relCursor.sourceNodeReference(), relCursor.`type`(),
-                                                                      relCursor.targetNodeReference()))
-          else null
-        }
-
-        override protected def close(): Unit = relCursor.close()
-      }
-    }
-
-    override def allPrimitive: PrimitiveLongIterator = {
+    override def all: ClosingLongIterator = {
       val relCursor = allocateAndTraceRelationshipScanCursor()
       reads().allRelationshipsScan(relCursor)
       new PrimitiveCursorIterator {
         override protected def fetchNext(): Long = if (relCursor.next()) relCursor.relationshipReference() else -1L
-        override protected def close(): Unit = relCursor.close()
+
+        override def close(): Unit = relCursor.close()
       }
     }
 
     override def isDeletedInThisTx(id: Long): Boolean =
-      transactionalContext.stateView.hasTxStateWithChanges && transactionalContext.stateView.txState()
-        .relationshipIsDeletedInThisTx(id)
+      reads().relationshipDeletedInTransaction(id)
 
     override def acquireExclusiveLock(obj: Long): Unit =
-      transactionalContext.kernelTransaction.locks().acquireExclusiveRelationshipLock(obj)
+      transactionalContext.locks.acquireExclusiveRelationshipLock(obj)
 
     override def releaseExclusiveLock(obj: Long): Unit =
-      transactionalContext.kernelTransaction.locks().releaseExclusiveRelationshipLock(obj)
-  }
+      transactionalContext.locks.releaseExclusiveRelationshipLock(obj)
 
-  override def getOrCreatePropertyKeyId(propertyKey: String): Int =
-    tokenWrite.propertyKeyGetOrCreateForName(propertyKey)
+    override def getTxStateProperty(relId: Long, propertyKeyId: Int): Value =
+      getTxStateRelationshipPropertyOrNull(relId, propertyKeyId)
 
-  abstract class BaseOperations[T] extends Operations[T] {
-
-    def primitiveLongIteratorToScalaIterator(primitiveIterator: PrimitiveLongIterator): Iterator[Long] =
-      new Iterator[Long] {
-        override def hasNext: Boolean = primitiveIterator.hasNext
-
-        override def next(): Long = primitiveIterator.next
-      }
-  }
-
-  override def getOrCreateFromSchemaState[K, V](key: K, creator: => V) = {
-    val javaCreator = new java.util.function.Function[K, V]() {
-      override def apply(key: K) = creator
-    }
-    transactionalContext.schemaRead.schemaStateGetOrCreate(key, javaCreator)
-  }
-
-  override def addIndexRule(descriptor: IndexDescriptor): IdempotentResult[IndexReference] = {
-    val kernelDescriptor = cypherToKernelSchema(descriptor)
-    try {
-      IdempotentResult(transactionalContext.kernelTransaction.schemaWrite().indexCreate(kernelDescriptor))
-    } catch {
-      case _: AlreadyIndexedException =>
-        val indexReference = transactionalContext.kernelTransaction.schemaRead().index(kernelDescriptor.getLabelId, kernelDescriptor.getPropertyIds: _*)
-        if (transactionalContext.kernelTransaction.schemaRead().indexGetState(indexReference) == InternalIndexState.FAILED) {
-          val message = transactionalContext.kernelTransaction.schemaRead().indexGetFailure(indexReference)
-          throw new FailedIndexException(indexReference.userDescription(tokenNameLookup), message)
+    override def hasTxStatePropertyForCachedProperty(relId: Long, propertyKeyId: Int): Option[Boolean] = {
+      if (isDeletedInThisTx(relId)) {
+        // Relationship deleted in TxState
+        Some(false)
+      } else {
+        val relPropertyInTx = reads().relationshipPropertyChangeInTransactionOrNull(relId, propertyKeyId)
+        relPropertyInTx match {
+          case null => None // no changes in TxState.
+          case IsNoValue() => Some(false) // property removed in TxState
+          case _ => Some(true) // property changed in TxState
         }
-        IdempotentResult(indexReference, wasCreated = false)
+      }
     }
   }
 
-  override def dropIndexRule(descriptor: IndexDescriptor): Unit =
-    transactionalContext.kernelTransaction.schemaWrite().indexDrop(
-      DefaultIndexReference.general(descriptor.label, descriptor.properties.map(_.id):_*)
-    )
+  override def getAllIndexes(): Map[IndexDescriptor, IndexInfo] = {
+    val schemaRead: SchemaReadCore = transactionalContext.schemaRead.snapshot()
+    val indexes = schemaRead.indexesGetAll().asScala.toList
 
-  override def createNodeKeyConstraint(descriptor: IndexDescriptor): Boolean = try {
-    transactionalContext.kernelTransaction.schemaWrite().nodeKeyConstraintCreate(cypherToKernelSchema(descriptor))
-    true
-  } catch {
-    case _: AlreadyConstrainedException => false
+    indexes.foldLeft(Map[IndexDescriptor, IndexInfo]()) {
+      (map, index) =>
+        val indexStatus = getIndexStatus( schemaRead, index )
+        val schema = index.schema
+        val labelsOrTypes = tokenRead.entityTokensGetNames( schema.entityType(), schema.getEntityTokenIds).toList
+        val properties = schema.getPropertyIds.map( id => tokenRead.propertyKeyGetName(id)).toList
+        map + (index -> runtime.IndexInfo(indexStatus, labelsOrTypes, properties))
+    }
   }
 
-  override def dropNodeKeyConstraint(descriptor: IndexDescriptor): Unit =
-    transactionalContext.kernelTransaction.schemaWrite()
-      .constraintDrop(ConstraintDescriptorFactory.nodeKeyForSchema(cypherToKernelSchema(descriptor)))
-
-  override def createUniqueConstraint(descriptor: IndexDescriptor): Boolean = try {
-    transactionalContext.kernelTransaction.schemaWrite().uniquePropertyConstraintCreate(cypherToKernelSchema(descriptor))
-    true
-  } catch {
-    case _: AlreadyConstrainedException => false
-  }
-
-  override def dropUniqueConstraint(descriptor: IndexDescriptor): Unit =
-    transactionalContext.kernelTransaction.schemaWrite()
-      .constraintDrop(ConstraintDescriptorFactory.uniqueForSchema(cypherToKernelSchema(descriptor)))
-
-  override def createNodePropertyExistenceConstraint(labelId: Int, propertyKeyId: Int): Boolean =
+  private def getIndexStatus(schemaRead: SchemaReadCore, index: IndexDescriptor): IndexStatus = {
+    val (state: String, failureMessage: String, populationProgress: Double, maybeConstraint: Option[ConstraintDescriptor]) =
     try {
-      transactionalContext.kernelTransaction.schemaWrite().nodePropertyExistenceConstraintCreate(
-        SchemaDescriptorFactory.forLabel(labelId, propertyKeyId))
-      true
+      val internalIndexState: InternalIndexState = schemaRead.indexGetState(index)
+      val progress = schemaRead.indexGetPopulationProgress(index).toIndexPopulationProgress.getCompletedPercentage.toDouble
+      val message: String = if (internalIndexState == InternalIndexState.FAILED) schemaRead.indexGetFailure(index) else ""
+      val constraint: ConstraintDescriptor = schemaRead.constraintGetForName(index.getName)
+      (internalIndexState.toString, message,  progress, Option(constraint))
     } catch {
-      case existing: AlreadyConstrainedException => false
+      case _: IndexNotFoundKernelException =>
+        val errorMessage = "Index not found. It might have been concurrently dropped."
+        ("NOT FOUND", errorMessage, 0.0, None)
     }
+    IndexStatus(state, failureMessage, populationProgress, maybeConstraint)
+  }
 
-  override def dropNodePropertyExistenceConstraint(labelId: Int, propertyKeyId: Int): Unit =
-    transactionalContext.kernelTransaction.schemaWrite()
-      .constraintDrop(ConstraintDescriptorFactory.existsForLabel(labelId, propertyKeyId))
+  override def indexExists(name: String): Boolean =
+    transactionalContext.schemaRead.indexGetForName(name) != IndexDescriptor.NO_INDEX
 
-  override def createRelationshipPropertyExistenceConstraint(relTypeId: Int, propertyKeyId: Int): Boolean =
-    try {
-      transactionalContext.kernelTransaction.schemaWrite().relationshipPropertyExistenceConstraintCreate(
-        SchemaDescriptorFactory.forRelType(relTypeId, propertyKeyId))
-      true
-    } catch {
-      case existing: AlreadyConstrainedException => false
+  override def constraintExists(name: String): Boolean =
+    transactionalContext.schemaRead.constraintGetForName(name) != null
+
+  override def constraintExists(matchFn: ConstraintDescriptor => Boolean, entityId: Int, properties: Int*): Boolean =
+    transactionalContext.schemaRead.constraintsGetForSchema(SchemaDescriptors.forLabel(entityId, properties: _*)).asScala.exists(matchFn) ||
+      transactionalContext.schemaRead.constraintsGetForSchema(SchemaDescriptors.forRelType(entityId, properties: _*)).asScala.exists(matchFn)
+
+  override def getAllConstraints(): Map[ConstraintDescriptor, ConstraintInfo] = {
+    val schemaRead: SchemaReadCore = transactionalContext.schemaRead.snapshot()
+    val constraints = schemaRead.constraintsGetAll().asScala.toList
+
+    constraints.foldLeft(Map[ConstraintDescriptor, ConstraintInfo]()) {
+      (map, constraint) =>
+        val schema = constraint.schema
+        val labelsOrTypes = tokenRead.entityTokensGetNames(schema.entityType(), schema.getEntityTokenIds).toList
+        val properties = schema.getPropertyIds.map(id => tokenRead.propertyKeyGetName(id)).toList
+        val maybeIndex =
+          try {
+            Some(schemaRead.indexGetForName(constraint.getName))
+          } catch {
+            case _: IndexNotFoundKernelException => None
+          }
+        map + (constraint -> runtime.ConstraintInfo(labelsOrTypes, properties, maybeIndex))
     }
-
-  override def dropRelationshipPropertyExistenceConstraint(relTypeId: Int, propertyKeyId: Int) =
-    transactionalContext.kernelTransaction.schemaWrite()
-      .constraintDrop(ConstraintDescriptorFactory.existsForRelType(relTypeId, propertyKeyId))
+  }
 
   override def getImportURL(url: URL): Either[String, URL] = transactionalContext.graph match {
     case db: GraphDatabaseQueryService =>
@@ -795,46 +1116,6 @@ sealed class TransactionBoundQueryContext(val transactionalContext: Transactiona
       }
   }
 
-  override def edgeGetStartNode(edge: RelationshipValue) = edge.startNode()
-
-  override def edgeGetEndNode(edge: RelationshipValue) = edge.endNode()
-
-  private lazy val tokenNameLookup = new SilentTokenNameLookup(transactionalContext.kernelTransaction.tokenRead())
-
-  // Legacy dependency between kernel and compiler
-  override def variableLengthPathExpand(realNode: Long,
-                                        minHops: Option[Int],
-                                        maxHops: Option[Int],
-                                        direction: SemanticDirection,
-                                        relTypes: Seq[String]): Iterator[Path] = {
-    val depthEval = (minHops, maxHops) match {
-      case (None, None) => Evaluators.fromDepth(1)
-      case (Some(min), None) => Evaluators.fromDepth(min)
-      case (None, Some(max)) => Evaluators.includingDepths(1, max)
-      case (Some(min), Some(max)) => Evaluators.includingDepths(min, max)
-    }
-
-    // The RULE compiler makes use of older kernel API capabilities for variable length expanding
-    // TODO: Consider re-writing this using similar code to the COST var-length expand
-    val baseTraversalDescription: TraversalDescription = transactionalContext.graph
-      .asInstanceOf[GraphDatabaseCypherService]
-      .getGraphDatabaseService
-      .traversalDescription()
-      .evaluator(depthEval)
-      .uniqueness(Uniqueness.RELATIONSHIP_PATH)
-
-    val traversalDescription = if (relTypes.isEmpty) {
-      baseTraversalDescription.expand(PathExpanderBuilder.allTypes(toGraphDb(direction)).build())
-    } else {
-      val emptyExpander = PathExpanderBuilder.empty()
-      val expander = relTypes.foldLeft(emptyExpander) {
-        case (e, t) => e.add(RelationshipType.withName(t), toGraphDb(direction))
-      }
-      baseTraversalDescription.expand(expander.build())
-    }
-    traversalDescription.traverse(entityAccessor.newNodeProxy(realNode)).iterator().asScala
-  }
-
   override def nodeCountByCountStore(labelId: Int): Long = {
     reads().countsForNode(labelId)
   }
@@ -843,177 +1124,61 @@ sealed class TransactionBoundQueryContext(val transactionalContext: Transactiona
     reads().countsForRelationship(startLabelId, typeId, endLabelId)
   }
 
-  override def lockNodes(nodeIds: Long*) =
-    nodeIds.sorted.foreach(transactionalContext.kernelTransaction.locks().acquireExclusiveNodeLock(_))
+  override def lockNodes(nodeIds: Long*): Unit =
+    nodeIds.sorted.foreach(transactionalContext.locks.acquireExclusiveNodeLock(_))
 
-  override def lockRelationships(relIds: Long*) =
+  override def lockRelationships(relIds: Long*): Unit =
     relIds.sorted
-      .foreach(transactionalContext.kernelTransaction.locks().acquireExclusiveRelationshipLock(_))
+      .foreach(transactionalContext.locks.acquireExclusiveRelationshipLock(_))
 
   override def singleShortestPath(left: Long, right: Long, depth: Int, expander: Expander,
                                   pathPredicate: KernelPredicate[Path],
-                                  filters: Seq[KernelPredicate[PropertyContainer]]): Option[Path] = {
-    val pathFinder = buildPathFinder(depth, expander, pathPredicate, filters)
+                                  filters: Seq[KernelPredicate[Entity]],
+                                  memoryTracker: MemoryTracker): Option[Path] = {
+    val pathFinder = buildPathFinder(depth, expander, pathPredicate, filters, memoryTracker)
 
     //could probably do without node proxies here
-    Option(pathFinder.findSinglePath(entityAccessor.newNodeProxy(left), entityAccessor.newNodeProxy(right)))
+    Option(pathFinder.findSinglePath(entityAccessor.newNodeEntity(left), entityAccessor.newNodeEntity(right)))
   }
 
   override def allShortestPath(left: Long, right: Long, depth: Int, expander: Expander,
                                pathPredicate: KernelPredicate[Path],
-                               filters: Seq[KernelPredicate[PropertyContainer]]): scala.Iterator[Path] = {
-    val pathFinder = buildPathFinder(depth, expander, pathPredicate, filters)
+                               filters: Seq[KernelPredicate[Entity]], memoryTracker: MemoryTracker): ClosingIterator[Path] = {
+    val pathFinder = buildPathFinder(depth, expander, pathPredicate, filters, memoryTracker)
 
-    pathFinder.findAllPaths(entityAccessor.newNodeProxy(left), entityAccessor.newNodeProxy(right)).iterator()
-      .asScala
+    pathFinder.findAllPathsAutoCloseableIterator(entityAccessor.newNodeEntity(left), entityAccessor.newNodeEntity(right))
   }
 
-  type KernelProcedureCall = (Array[AnyRef]) => RawIterator[Array[AnyRef], ProcedureException]
+  override def callReadOnlyProcedure(id: Int, args: Array[AnyValue],
+                                     context: ProcedureCallContext): Iterator[Array[AnyValue]] =
+    CallSupport.callReadOnlyProcedure(transactionalContext.procedures, id, args, context)
 
-  private def shouldElevate(allowed: Array[String]): Boolean = {
-    // We have to be careful with elevation, since we cannot elevate permissions in a nested procedure call
-    // above the original allowed procedure mode. We enforce this by checking if mode is already an overridden mode.
-    val accessMode = transactionalContext.securityContext.mode()
-    allowed.nonEmpty && !accessMode.isOverridden && accessMode.allowsProcedureWith(allowed)
-  }
+  override def callReadWriteProcedure(id: Int, args: Array[AnyValue],
+                                      context: ProcedureCallContext): Iterator[Array[AnyValue]] =
+    CallSupport.callReadWriteProcedure(transactionalContext.procedures, id, args, context)
 
-  override def callReadOnlyProcedure(id: Int, args: Seq[Any], allowed: Array[String]) = {
-    val call: KernelProcedureCall =
-      if (shouldElevate(allowed))
-        transactionalContext.kernelTransaction.procedures().procedureCallReadOverride(id, _)
-      else
-        transactionalContext.kernelTransaction.procedures().procedureCallRead(id, _)
+  override def callSchemaWriteProcedure(id: Int, args: Array[AnyValue],
+                                        context: ProcedureCallContext): Iterator[Array[AnyValue]] =
+    CallSupport.callSchemaWriteProcedure(transactionalContext.procedures, id, args, context)
 
-    callProcedure(args, call)
-  }
+  override def callDbmsProcedure(id: Int, args: Array[AnyValue],
+                                 context: ProcedureCallContext): Iterator[Array[AnyValue]] =
+    CallSupport.callDbmsProcedure(transactionalContext.procedures, id, args, context)
 
-  override def callReadWriteProcedure(id: Int, args: Seq[Any], allowed: Array[String]) = {
-    val call: KernelProcedureCall =
-      if (shouldElevate(allowed))
-        transactionalContext.tc.kernelTransaction().procedures().procedureCallWriteOverride(id, _)
-      else
-        transactionalContext.tc.kernelTransaction().procedures().procedureCallWrite(id, _)
-    callProcedure(args, call)
-  }
+  override def callFunction(id: Int, args: Array[AnyValue]): AnyValue =
+    CallSupport.callFunction(transactionalContext.procedures, id, args)
 
-  override def callSchemaWriteProcedure(id: Int, args: Seq[Any], allowed: Array[String]) = {
-    val call: KernelProcedureCall =
-      if (shouldElevate(allowed))
-        transactionalContext.tc.kernelTransaction().procedures().procedureCallSchemaOverride(id, _)
-      else
-        transactionalContext.tc.kernelTransaction().procedures().procedureCallSchema(id, _)
-    callProcedure(args, call)
-  }
+  override def callBuiltInFunction(id: Int, args: Array[AnyValue]): AnyValue =
+    CallSupport.callBuiltInFunction(transactionalContext.procedures, id, args)
 
-  override def callDbmsProcedure(id: Int, args: Seq[Any], allowed: Array[String]) = {
-    callProcedure(args,
-                  transactionalContext.dbmsOperations.procedureCallDbms(id,
-                                                                        _,
-                                                                        transactionalContext.securityContext,
-                                                                        transactionalContext.resourceTracker))
-  }
+  override def aggregateFunction(id: Int): UserDefinedAggregator =
+    CallSupport.aggregateFunction(transactionalContext.procedures, id)
 
-  override def callReadOnlyProcedure(name: QualifiedName, args: Seq[Any], allowed: Array[String]) = {
-    val kn = new KernelQualifiedName(name.namespace.asJava, name.name)
-    val call: KernelProcedureCall =
-      if (shouldElevate(allowed))
-        transactionalContext.tc.kernelTransaction().procedures().procedureCallReadOverride(kn, _)
-      else
-        transactionalContext.tc.kernelTransaction().procedures().procedureCallRead(kn, _)
-
-    callProcedure(args, call)
-  }
-
-  override def callReadWriteProcedure(name: QualifiedName, args: Seq[Any], allowed: Array[String]) = {
-    val kn = new KernelQualifiedName(name.namespace.asJava, name.name)
-    val call: KernelProcedureCall =
-      if (shouldElevate(allowed))
-        transactionalContext.tc.kernelTransaction().procedures().procedureCallWriteOverride(kn, _)
-      else
-        transactionalContext.tc.kernelTransaction().procedures().procedureCallWrite(kn, _)
-    callProcedure(args, call)
-  }
-
-  override def callSchemaWriteProcedure(name: QualifiedName, args: Seq[Any], allowed: Array[String]) = {
-    val kn = new KernelQualifiedName(name.namespace.asJava, name.name)
-    val call: KernelProcedureCall =
-      if (shouldElevate(allowed))
-        transactionalContext.tc.kernelTransaction().procedures().procedureCallSchemaOverride(kn, _)
-      else
-        transactionalContext.tc.kernelTransaction().procedures().procedureCallSchema(kn, _)
-    callProcedure(args, call)
-  }
-
-  override def callDbmsProcedure(name: QualifiedName, args: Seq[Any], allowed: Array[String]) = {
-    val kn = new KernelQualifiedName(name.namespace.asJava, name.name)
-    callProcedure(args,
-                  transactionalContext.dbmsOperations.procedureCallDbms(kn,
-                                                                        _,
-                                                                        transactionalContext.securityContext,
-                                                                        transactionalContext.resourceTracker))
-  }
-
-  private def callProcedure(args: Seq[Any], call: KernelProcedureCall) = {
-    val toArray = args.map(_.asInstanceOf[AnyRef]).toArray
-    val read = call(toArray)
-    new scala.Iterator[Array[AnyRef]] {
-      override def hasNext: Boolean = read.hasNext
-
-      override def next(): Array[AnyRef] = read.next
-    }
-  }
-
-  override def callFunction(id: Int, args: Seq[AnyValue], allowed: Array[String]) = {
-      if (shouldElevate(allowed))
-        transactionalContext.tc.kernelTransaction().procedures().functionCallOverride(id, args.toArray)
-      else
-        transactionalContext.tc.kernelTransaction().procedures().functionCall(id, args.toArray)
-  }
-
-  override def callFunction(name: QualifiedName, args: Seq[AnyValue], allowed: Array[String]) = {
-    val kn = new KernelQualifiedName(name.namespace.asJava, name.name)
-    if (shouldElevate(allowed))
-      transactionalContext.tc.kernelTransaction().procedures().functionCallOverride(kn, args.toArray)
-    else
-      transactionalContext.tc.kernelTransaction().procedures().functionCall(kn, args.toArray)
-  }
-
-  override def aggregateFunction(id: Int, allowed: Array[String]) = {
-    val aggregator: UserAggregator =
-      if (shouldElevate(allowed))
-        transactionalContext.tc.kernelTransaction().procedures().aggregationFunctionOverride(id)
-      else
-        transactionalContext.tc.kernelTransaction().procedures().aggregationFunction(id)
-
-    userDefinedAggregator(aggregator)
-  }
-
-  override def aggregateFunction(name: QualifiedName, allowed: Array[String]) = {
-    val kn = new KernelQualifiedName(name.namespace.asJava, name.name)
-    val aggregator: UserAggregator =
-      if (shouldElevate(allowed))
-        transactionalContext.tc.kernelTransaction().procedures().aggregationFunctionOverride(kn)
-      else
-        transactionalContext.tc.kernelTransaction().procedures().aggregationFunction(kn)
-
-    userDefinedAggregator(aggregator)
-  }
-
-  private def userDefinedAggregator(aggregator: UserAggregator) = {
-    new UserDefinedAggregator {
-      override def result: AnyRef = aggregator.result()
-
-      override def update(args: IndexedSeq[Any]): Unit = {
-        val toArray = args.map(_.asInstanceOf[AnyRef]).toArray
-        aggregator.update(toArray)
-      }
-    }
-  }
-
-  override def isGraphKernelResultValue(v: Any): Boolean = v.isInstanceOf[PropertyContainer] || v.isInstanceOf[Path]
+  override def builtInAggregateFunction(id: Int): UserDefinedAggregator =
+    CallSupport.builtInAggregateFunction(transactionalContext.procedures, id)
 
   private def buildPathFinder(depth: Int, expander: Expander, pathPredicate: KernelPredicate[Path],
-                              filters: Seq[KernelPredicate[PropertyContainer]]): ShortestPath = {
+                              filters: Seq[KernelPredicate[Entity]], memoryTracker: MemoryTracker): ShortestPath = {
     val startExpander = expander match {
       case OnlyDirectionExpander(_, _, dir) =>
         PathExpanderBuilder.allTypes(toGraphDb(dir))
@@ -1024,20 +1189,17 @@ sealed class TransactionBoundQueryContext(val transactionalContext: Transactiona
     }
 
     val expanderWithNodeFilters = expander.nodeFilters.foldLeft(startExpander) {
-      case (acc, filter) => acc.addNodeFilter(new Predicate[PropertyContainer] {
-        override def test(t: PropertyContainer): Boolean = filter.test(t)
-      })
+      case (acc, filter) => acc.addNodeFilter((t: Entity) => filter.test(t))
     }
     val expanderWithAllPredicates = expander.relFilters.foldLeft(expanderWithNodeFilters) {
-      case (acc, filter) => acc.addRelationshipFilter(new Predicate[PropertyContainer] {
-        override def test(t: PropertyContainer): Boolean = filter.test(t)
-      })
+      case (acc, filter) => acc.addRelationshipFilter((t: Entity) => filter.test(t))
     }
     val shortestPathPredicate = new ShortestPathPredicate {
       override def test(path: Path): Boolean = pathPredicate.test(path)
     }
 
-    new ShortestPath(depth, expanderWithAllPredicates.build(), shortestPathPredicate) {
+    new ShortestPath(new BasicEvaluationContext(null /* ShortestPath does not need transaction */, null /* or GraphDatabaseService */),
+                     depth, expanderWithAllPredicates.build(), shortestPathPredicate, memoryTracker) {
       override protected def filterNextLevelNodes(nextNode: Node): Node =
         if (filters.isEmpty) nextNode
         else if (filters.forall(filter => filter test nextNode)) nextNode
@@ -1045,82 +1207,194 @@ sealed class TransactionBoundQueryContext(val transactionalContext: Transactiona
     }
   }
 
-  override def detachDeleteNode(node: Long): Int = transactionalContext.dataWrite.nodeDetachDelete(node)
+  override def assertShowIndexAllowed(): Unit = {
+    val ktx = transactionalContext.kernelTransaction
+    ktx.securityAuthorizationHandler().assertShowIndexAllowed(transactionalContext.securityContext)
+  }
 
-  override def assertSchemaWritesAllowed(): Unit =
-    transactionalContext.kernelTransaction.schemaWrite()
+  override def assertShowConstraintAllowed(): Unit = {
+    val ktx = transactionalContext.kernelTransaction
+    ktx.securityAuthorizationHandler().assertShowConstraintAllowed(transactionalContext.securityContext)
+  }
+
+  override def systemGraph: GraphDatabaseService = {
+    transactionalContext.graph.getDependencyResolver.resolveDependency(classOf[DatabaseManagementService]).database(SYSTEM_DATABASE_NAME)
+  }
+
+  override def logProvider: LogProvider  = {
+    transactionalContext.graph.getDependencyResolver.resolveDependency(classOf[LogService]).getInternalLogProvider
+  }
+
+  override def providedLanguageFunctions: Seq[FunctionInformation] = {
+    val dependencyResolver = transactionalContext.graph.getDependencyResolver
+    dependencyResolver.resolveDependency(classOf[QueryExecutionEngine]).getProvidedLanguageFunctions.asScala
+  }
+
+  override def contextWithNewTransaction(): TransactionBoundQueryContext = {
+    val newTransactionalContext = transactionalContext.contextWithNewTransaction
+    // creating the resource manager may fail since it will allocate memory in the memory tracker
+    val newResourceManager =
+      try {
+        new ResourceManager(resources.monitor, newTransactionalContext.memoryTracker)
+      } catch {
+        case NonFatal(e) =>
+          try {
+            newTransactionalContext.rollback()
+          } catch {
+            case NonFatal(rollbackException) =>
+              e.addSuppressed(rollbackException)
+          }
+          newTransactionalContext.close()
+          throw e
+      }
+
+    val statement = newTransactionalContext.kernelTransactionalContext.statement()
+    statement.registerCloseableResource(newResourceManager)
+    val closeable: AutoCloseable = () => statement.unregisterCloseableResource(newResourceManager)
+
+      new TransactionBoundQueryContext(
+        newTransactionalContext,
+        newResourceManager,
+        Some(closeable)
+      )(indexSearchMonitor)
+  }
+
+  def close(): Unit = {
+    closeable.foreach(_.close())
+  }
 
   private def allocateAndTraceNodeCursor() = {
-    val cursor = transactionalContext.cursors.allocateNodeCursor()
+    val cursor = transactionalContext.cursors.allocateNodeCursor(transactionalContext.cursorContext)
     resources.trace(cursor)
     cursor
   }
 
   private def allocateAndTraceRelationshipScanCursor() = {
-    val cursor = transactionalContext.cursors.allocateRelationshipScanCursor()
+    val cursor = transactionalContext.cursors.allocateRelationshipScanCursor(transactionalContext.cursorContext)
     resources.trace(cursor)
     cursor
   }
 
   private def allocateAndTraceNodeValueIndexCursor() = {
-    val cursor = transactionalContext.cursors.allocateNodeValueIndexCursor()
+    val cursor = transactionalContext.cursors.allocateNodeValueIndexCursor(transactionalContext.cursorContext, transactionalContext.memoryTracker)
+    resources.trace(cursor)
+    cursor
+  }
+
+  private def allocateAndTraceRelationshipValueIndexCursor() = {
+    val cursor = transactionalContext.cursors.allocateRelationshipValueIndexCursor(transactionalContext.cursorContext, transactionalContext.memoryTracker)
     resources.trace(cursor)
     cursor
   }
 
   private def allocateAndTraceNodeLabelIndexCursor() = {
-    val cursor = transactionalContext.cursors.allocateNodeLabelIndexCursor()
+    val cursor = transactionalContext.cursors.allocateNodeLabelIndexCursor(transactionalContext.cursorContext)
     resources.trace(cursor)
     cursor
   }
 
-  private def allocateAndTracePropertyCursor() = {
-    val cursor = transactionalContext.cursors.allocatePropertyCursor()
-    resources.trace(cursor)
-    cursor
-  }
+  abstract class PrimitiveCursorIterator extends ClosingLongIterator {
+    private var _next: Long = fetchNext()
 
+    protected def fetchNext(): Long
 
-  abstract class CursorIterator[T] extends Iterator[T] {
-    private var _next: T = fetchNext()
+    override def innerHasNext: Boolean = _next >= 0
 
-    protected def fetchNext(): T
-    protected def close(): Unit
-
-    override def hasNext: Boolean = _next != null
-
-    override def next(): T = {
+    override def next(): Long = {
       if (!hasNext) {
-        close()
         Iterator.empty.next()
       }
 
       val current = _next
       _next = fetchNext()
-      if (!hasNext) {
-        close()
-      }
       current
     }
   }
 
-  class RelationshipCursorIterator(selectionCursor: RelationshipSelectionCursor) extends RelationshipIterator {
-    import RelationshipCursorIterator.{NOT_INITIALIZED, NO_ID}
+  override def entityTransformer: EntityTransformer = new TransactionBoundEntityTransformer
+
+  class TransactionBoundEntityTransformer extends EntityTransformer {
+
+    private[this] val cache = collection.mutable.Map.empty[AnyValue, AnyValue]
+
+    override def rebindEntityWrappingValue(value: AnyValue): AnyValue = value match {
+
+      case n: NodeEntityWrappingNodeValue =>
+        rebindNode(n.getEntity)
+
+      case r: RelationshipEntityWrappingValue =>
+        rebindRelationship(r.getEntity)
+
+      case p: PathWrappingPathValue =>
+        val nodeValues = p.path().nodes().asScala.map(rebindNode).toArray
+        val relValues = p.path().relationships().asScala.map(rebindRelationship).toArray
+        VirtualValues.pathReference(nodeValues, relValues)
+
+      case m: MapValue if !m.isEmpty =>
+        val builder = new MapValueBuilder(m.size())
+        m.foreach((k, v) => builder.add(k, rebindEntityWrappingValue(v)))
+        builder.build()
+
+      case i: IntegralRangeListValue =>
+        i
+
+      case l: ListValue if !l.isEmpty => cache.getOrElseUpdate(l, {
+        val builder = ListValueBuilder.newListBuilder(l.size())
+        l.forEach(v => builder.add(rebindEntityWrappingValue(v)))
+        builder.build()
+      })
+
+      case other =>
+        other
+    }
+
+    private def rebindNode(node: Node): VirtualNodeValue =
+      ValueUtils.fromNodeEntity(entityAccessor.newNodeEntity(node.getId))
+
+    private def rebindRelationship(relationship:Relationship): VirtualRelationshipValue =
+      ValueUtils.fromRelationshipEntity(entityAccessor.newRelationshipEntity(relationship.getId))
+  }
+}
+
+object TransactionBoundQueryContext {
+
+  abstract class CursorIterator[T] extends ClosingIterator[T] {
+    private var _next: T = fetchNext()
+
+    protected def fetchNext(): T
+
+    override def innerHasNext: Boolean = _next != null
+
+    override def next(): T = {
+      if (!hasNext) {
+        Iterator.empty.next()
+      }
+
+      val current = _next
+      _next = fetchNext()
+      current
+    }
+  }
+
+  abstract class BaseRelationshipCursorIterator extends ClosingLongIterator with RelationshipIterator {
+
+    import org.neo4j.cypher.internal.runtime.interpreted.TransactionBoundQueryContext.BaseRelationshipCursorIterator.NOT_INITIALIZED
+    import org.neo4j.cypher.internal.runtime.interpreted.TransactionBoundQueryContext.BaseRelationshipCursorIterator.NO_ID
 
     private var _next = NOT_INITIALIZED
-    private var typeId: Int = NO_ID
-    private var source: Long = NO_ID
-    private var target: Long = NO_ID
+    protected var relTypeId: Int = NO_ID
+    protected var source: Long = NO_ID
+    protected var target: Long = NO_ID
 
     override def relationshipVisit[EXCEPTION <: Exception](relationshipId: Long,
                                                            visitor: RelationshipVisitor[EXCEPTION]): Boolean = {
-      visitor.visit(relationshipId, typeId, source, target)
+      visitor.visit(relationshipId, relTypeId, source, target)
       true
     }
 
-    private def fetchNext(): Long = if (selectionCursor.next()) selectionCursor.relationshipReference() else -1L
+    protected def fetchNext(): Long
 
-    override def hasNext: Boolean = {
+    override def innerHasNext: Boolean = {
       if (_next == NOT_INITIALIZED) {
         _next = fetchNext()
       }
@@ -1128,41 +1402,16 @@ sealed class TransactionBoundQueryContext(val transactionalContext: Transactiona
       _next >= 0
     }
 
-    //We store the current state in case the underlying cursor is
-    //closed when calling next.
-    private def storeState(): Unit = {
-      typeId = selectionCursor.`type`()
-      source = selectionCursor.sourceNodeReference()
-      target = selectionCursor.targetNodeReference()
-    }
+    override def startNodeId(): Long = source
 
-    override def next(): Long = {
-      if (!hasNext) {
-        selectionCursor.close()
-        Iterator.empty.next()
-      }
+    override def endNodeId(): Long = target
 
-      val current = _next
-      storeState()
-      //Note that if no more elements are found the selection cursor
-      //will be closed so no need to do a extra check after fetching.
-      _next = fetchNext()
+    override def typeId(): Int = relTypeId
 
-      current
-    }
-  }
-
-  object RelationshipCursorIterator {
-    private val NOT_INITIALIZED = -2L
-    private val NO_ID = -1
-  }
-
-  abstract class PrimitiveCursorIterator extends PrimitiveLongResourceIterator {
-    private var _next: Long = fetchNext()
-
-    protected def fetchNext(): Long
-
-    override def hasNext: Boolean = _next >= 0
+    /**
+     * Store the current state in case the underlying cursor is closed when calling next.
+     */
+    protected def storeState(): Unit
 
     override def next(): Long = {
       if (!hasNext) {
@@ -1171,21 +1420,92 @@ sealed class TransactionBoundQueryContext(val transactionalContext: Transactiona
       }
 
       val current = _next
+      storeState()
+      // Note that if no more elements are found cursors
+      // will be closed so no need to do an extra check after fetching
       _next = fetchNext()
-      if (!hasNext) close()
 
       current
     }
-  }
-}
 
-object TransactionBoundQueryContext {
+    override def close(): Unit
+  }
+
+  class RelationshipCursorIterator(selectionCursor: RelationshipTraversalCursor, traversalCursor: RelationshipTraversalCursor = null) extends BaseRelationshipCursorIterator {
+
+    override protected def fetchNext(): Long =
+      if (selectionCursor.next()) selectionCursor.relationshipReference()
+      else {
+        -1L
+      }
+
+    override protected def storeState(): Unit = {
+      relTypeId = selectionCursor.`type`()
+      source = selectionCursor.sourceNodeReference()
+      target = selectionCursor.targetNodeReference()
+    }
+
+    override def close(): Unit = {
+      if (traversalCursor != null && !(traversalCursor eq selectionCursor)) {
+        traversalCursor.close()
+      }
+      selectionCursor.close()
+    }
+  }
+
+  class RelationshipTypeCursorIterator(read: Read, typeIndexCursor: RelationshipTypeIndexCursor, scanCursor: RelationshipScanCursor) extends BaseRelationshipCursorIterator {
+
+    override def relationshipVisit[EXCEPTION <: Exception](relationshipId: Long,
+                                                           visitor: RelationshipVisitor[EXCEPTION]): Boolean = {
+      visitor.visit(relationshipId, relTypeId, source, target)
+      true
+    }
+
+    private def nextFromRelStore(): Boolean = {
+      read.singleRelationship(typeIndexCursor.relationshipReference(), scanCursor)
+      scanCursor.next()
+    }
+
+    override protected def fetchNext(): Long = {
+      while (typeIndexCursor.next()) {
+        // check that relationship was successfully retrieved from store (protect against concurrent deletes)
+        if (nextFromRelStore()) {
+          return scanCursor.relationshipReference()
+        }
+      }
+      -1L
+    }
+
+    override protected def storeState(): Unit = {
+      relTypeId = scanCursor.`type`()
+      source = scanCursor.sourceNodeReference()
+      target = scanCursor.targetNodeReference()
+    }
+
+    override def close(): Unit = {
+      typeIndexCursor.close()
+      scanCursor.close()
+    }
+  }
+
+  object BaseRelationshipCursorIterator {
+    private val NOT_INITIALIZED = -2L
+    private val NO_ID = -1
+  }
 
   trait IndexSearchMonitor {
 
-    def indexSeek(index: IndexReference, values: Seq[Any]): Unit
+    def indexSeek(index: IndexDescriptor, values: Seq[Any]): Unit
 
-    def lockingUniqueIndexSeek(index: IndexReference, values: Seq[Any]): Unit
+    def lockingUniqueIndexSeek(index: IndexDescriptor, values: Seq[Any]): Unit
   }
 
+  object IndexSearchMonitor {
+    val NOOP: IndexSearchMonitor = new IndexSearchMonitor {
+      override def indexSeek(index: IndexDescriptor, values: Seq[Any]): Unit = {}
+
+      override def lockingUniqueIndexSeek(index: IndexDescriptor,
+                                          values: Seq[Any]): Unit = {}
+    }
+  }
 }

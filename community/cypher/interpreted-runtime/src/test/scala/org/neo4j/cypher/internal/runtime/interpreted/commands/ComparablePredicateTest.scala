@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,14 +38,19 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Literal
-import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates._
+import org.neo4j.cypher.internal.runtime.CypherRow
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.runtime.interpreted.commands.LiteralHelper.literal
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.ComparablePredicate
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.GreaterThan
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.GreaterThanOrEqual
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.LessThan
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.LessThanOrEqual
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 import org.neo4j.values.AnyValues
 import org.neo4j.values.storable.Values
-import org.scalatest.matchers.{MatchResult, Matcher}
+import org.scalatest.matchers.MatchResult
+import org.scalatest.matchers.Matcher
 
 class ComparablePredicateTest extends CypherFunSuite {
 
@@ -67,7 +72,6 @@ class ComparablePredicateTest extends CypherFunSuite {
     Long.MaxValue,
     Double.MaxValue,
     Double.PositiveInfinity,
-    Double.NaN,
     null
   ).flatMap {
     case null => Seq(null)
@@ -96,25 +100,25 @@ class ComparablePredicateTest extends CypherFunSuite {
   test("should compare values using <") {
     for (left <- allValues)
       for (right <- allValues)
-        LessThan(Literal(left), Literal(right)) should compareUsingLessThan(left, right)
+        LessThan(literal(left), literal(right)) should compareUsingLessThan(left, right)
   }
 
   test("should compare values using <=") {
     for (left <- allValues)
       for (right <- allValues)
-        LessThanOrEqual(Literal(left), Literal(right)) should compareUsingLessThanOrEqual(left, right)
+        LessThanOrEqual(literal(left), literal(right)) should compareUsingLessThanOrEqual(left, right)
   }
 
   test("should compare values using >") {
     for (left <- allValues)
       for (right <- allValues)
-        GreaterThan(Literal(left), Literal(right)) should compareUsingGreaterThan(left, right)
+        GreaterThan(literal(left), literal(right)) should compareUsingGreaterThan(left, right)
   }
 
   test("should compare values using >=") {
     for (left <- allValues)
       for (right <- allValues)
-        GreaterThanOrEqual(Literal(left), Literal(right)) should compareUsingGreaterThanOrEqual(left, right)
+        GreaterThanOrEqual(literal(left), literal(right)) should compareUsingGreaterThanOrEqual(left, right)
   }
 
   private def reverse(s: String) = new StringBuilder(s).reverse.toString()
@@ -129,7 +133,7 @@ class ComparablePredicateTest extends CypherFunSuite {
 
   class compareUsing(left: Any, right: Any, operator: String) extends Matcher[ComparablePredicate] {
     def apply(predicate: ComparablePredicate): MatchResult = {
-      val actual = predicate.isMatch(ExecutionContext.empty, QueryStateHelper.empty)
+      val actual = predicate.isMatch(CypherRow.empty, QueryStateHelper.empty)
 
       if (isIncomparable(left, right))
         buildResult(actual.isEmpty, "null", actual)

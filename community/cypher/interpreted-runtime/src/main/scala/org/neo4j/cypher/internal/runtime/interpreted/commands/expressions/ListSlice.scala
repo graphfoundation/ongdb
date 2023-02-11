@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,18 +38,23 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.{CastSupport, ListSupport}
+import org.neo4j.cypher.internal.runtime.ReadableRow
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.internal.runtime.CastSupport
+import org.neo4j.cypher.internal.runtime.ListSupport
+import org.neo4j.cypher.operations.CypherFunctions
 import org.neo4j.values.AnyValue
-import org.neo4j.values.storable.{NumberValue, Values}
-import org.neo4j.values.virtual.{ListValue, VirtualValues}
+import org.neo4j.values.storable.NumberValue
+import org.neo4j.values.storable.Values
 
 case class ListSlice(collection: Expression, from: Option[Expression], to: Option[Expression])
   extends NullInNullOutExpression(collection) with ListSupport {
-  def arguments: Seq[Expression] = from.toIndexedSeq ++ to.toIndexedSeq :+ collection
+  override def arguments: Seq[Expression] = from.toIndexedSeq ++ to.toIndexedSeq :+ collection
 
-  private val function: (ListValue, ExecutionContext, QueryState) => AnyValue =
+  override def children: Seq[AstNode[_]] = arguments
+
+  private val function: (AnyValue, ReadableRow, QueryState) => AnyValue =
     (from, to) match {
       case (Some(f), Some(n)) => fullSlice(f, n)
       case (Some(f), None)    => fromSlice(f)
@@ -57,68 +62,35 @@ case class ListSlice(collection: Expression, from: Option[Expression], to: Optio
       case (None, None)       => (coll, _, _) => coll
     }
 
-  private def fullSlice(from: Expression, to: Expression)(collectionValue: ListValue, ctx: ExecutionContext, state: QueryState) = {
-    val maybeFromValue = asInt(from, ctx, state)
-    val maybeToValue = asInt(to, ctx, state)
-    (maybeFromValue, maybeToValue) match {
-      case (None, _) => Values.NO_VALUE
-      case (_, None) => Values.NO_VALUE
-      case (Some(fromValue), Some(toValue)) =>
-        val size = collectionValue.size
-        if (fromValue >= 0 && toValue >= 0)
-          VirtualValues.slice(collectionValue, fromValue, toValue)
-        else if (fromValue >= 0) {
-          val end = size + toValue
-          VirtualValues.slice(collectionValue, fromValue, end)
-        } else if (toValue >= 0) {
-          val start = size + fromValue
-          VirtualValues.slice(collectionValue, start, toValue)
-        } else {
-          val start = size + fromValue
-          val end = size + toValue
-          VirtualValues.slice(collectionValue, start, end)
-        }
-    }
+  private def fullSlice(from: Expression, to: Expression)(collectionValue: AnyValue, ctx: ReadableRow, state: QueryState) = {
+    val fromValue = from(ctx, state)
+    val toValue = to(ctx, state)
+    if ((fromValue eq Values.NO_VALUE) || (toValue eq Values.NO_VALUE)) Values.NO_VALUE
+    else CypherFunctions.fullSlice(collectionValue, fromValue, toValue)
   }
 
-  private def fromSlice(from: Expression)(collectionValue: ListValue, ctx: ExecutionContext, state: QueryState) = {
-    val fromValue = asInt(from, ctx, state)
-    fromValue match {
-      case None => Values.NO_VALUE
-      case Some(value) if value >= 0 =>
-        VirtualValues.drop(collectionValue, value)
-      case Some(value) =>
-        val end = collectionValue.size + value
-        VirtualValues.drop(collectionValue, end)
-    }
+  private def fromSlice(from: Expression)(collectionValue: AnyValue, ctx: ReadableRow, state: QueryState) = {
+    val fromValue = from(ctx, state)
+    if (fromValue eq Values.NO_VALUE) Values.NO_VALUE
+    else CypherFunctions.fromSlice(collectionValue, fromValue)
   }
 
-  private def toSlice(from: Expression)(collectionValue: ListValue, ctx: ExecutionContext, state: QueryState) = {
-    val toValue = asInt(from, ctx, state)
-    toValue match {
-      case None => Values.NO_VALUE
-      case Some(value) if value >= 0 =>
-       VirtualValues.take(collectionValue, value)
-      case Some(value) =>
-        val end = collectionValue.size + value
-        VirtualValues.take(collectionValue, end)
-    }
+  private def toSlice(from: Expression)(collectionValue: AnyValue, ctx: ReadableRow, state: QueryState) = {
+    val toValue = from(ctx, state)
+    if (toValue eq Values.NO_VALUE) Values.NO_VALUE
+    else CypherFunctions.toSlice(collectionValue, toValue)
   }
 
-
-  def asInt(e: Expression, ctx: ExecutionContext, state: QueryState): Option[Int] = {
+  def asInt(e: Expression, ctx: ReadableRow, state: QueryState): Option[Int] = {
     val index = e(ctx, state)
-    if (index == Values.NO_VALUE) None
+    if (index eq Values.NO_VALUE) None
     else Some(CastSupport.castOrFail[NumberValue](index).longValue().toInt)
   }
 
-  override def compute(value: AnyValue, ctx: ExecutionContext, state: QueryState): AnyValue = {
-    val collectionValue = makeTraversable(value)
-    function(collectionValue, ctx, state)
-  }
+  override def compute(value: AnyValue, ctx: ReadableRow, state: QueryState): AnyValue =
+    function(value, ctx, state)
 
-  def rewrite(f: (Expression) => Expression): Expression =
+  override def rewrite(f: Expression => Expression): Expression =
     f(ListSlice(collection.rewrite(f), from.map(_.rewrite(f)), to.map(_.rewrite(f))))
 
-  def symbolTableDependencies: Set[String] = arguments.flatMap(_.symbolTableDependencies).toSet
 }

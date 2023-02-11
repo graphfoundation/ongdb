@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,34 +38,38 @@
  */
 package org.neo4j.cypher.internal.parser
 
-import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.{CommunityExpressionConverter, ExpressionConverters}
-import org.neo4j.cypher.internal.runtime.interpreted.commands.{expressions => legacy}
-import org.neo4j.cypher.internal.v3_4.{expressions => ast}
-import org.neo4j.cypher.internal.frontend.v3_4.parser.{Expressions, ParserTest}
-import org.parboiled.scala._
+import org.neo4j.cypher.internal
+import org.neo4j.cypher.internal.planner.spi.ReadTokenContext
+import org.neo4j.cypher.internal.runtime.interpreted.commands
+import org.neo4j.cypher.internal.runtime.interpreted.commands.LiteralHelper.literal
+import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.CommunityExpressionConverter
+import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.ExpressionConverters
+import org.neo4j.cypher.internal.util.AnonymousVariableNameGenerator
+import org.neo4j.cypher.internal.util.attribution.Id
+import org.parboiled.scala.EOI
 
-class MapLiteralTest extends ParserTest[ast.Expression, legacy.Expression] with Expressions {
+class MapLiteralTest extends ParserTest[internal.expressions.Expression, commands.expressions.Expression] with Expressions {
   implicit val parserToTest = MapLiteral ~ EOI
 
   test("literal_maps") {
     parsing("{ name: 'Andres' }") shouldGive
-      legacy.LiteralMap(Map("name" -> legacy.Literal("Andres")))
+      commands.expressions.LiteralMap(Map("name" -> literal("Andres")))
 
     parsing("{ meta : { name: 'Andres' } }") shouldGive
-      legacy.LiteralMap(Map("meta" -> legacy.LiteralMap(Map("name" -> legacy.Literal("Andres")))))
+      commands.expressions.LiteralMap(Map("meta" -> commands.expressions.LiteralMap(Map("name" -> literal("Andres")))))
 
     parsing("{ }") shouldGive
-      legacy.LiteralMap(Map())
+      commands.expressions.LiteralMap(Map())
   }
 
   test("nested_map_support") {
     parsing("{ key: 'value' }") shouldGive
-      legacy.LiteralMap(Map("key" -> legacy.Literal("value")))
+      commands.expressions.LiteralMap(Map("key" -> literal("value")))
 
     parsing("{ inner1: { inner2: 'Value' } }") shouldGive
-      legacy.LiteralMap(Map("inner1" -> legacy.LiteralMap(Map("inner2" -> legacy.Literal("Value")))))
+      commands.expressions.LiteralMap(Map("inner1" -> commands.expressions.LiteralMap(Map("inner2" -> literal("Value")))))
   }
 
-  private val converters = new ExpressionConverters(CommunityExpressionConverter)
-  def convert(astNode: ast.Expression): legacy.Expression = converters.toCommandExpression(astNode)
+  private val converters = new ExpressionConverters(CommunityExpressionConverter(ReadTokenContext.EMPTY, new AnonymousVariableNameGenerator()))
+  def convert(astNode: internal.expressions.Expression): commands.expressions.Expression = converters.toCommandExpression(Id.INVALID_ID, astNode)
 }

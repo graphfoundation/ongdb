@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,6 +38,7 @@
  */
 package org.neo4j.graphdb.traversal;
 
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.PathExpander;
 
@@ -46,38 +47,11 @@ import org.neo4j.graphdb.PathExpander;
  *
  * @param <STATE> type of initial state to produce.
  */
+@PublicApi
 public interface InitialBranchState<STATE>
 {
-    @SuppressWarnings( "rawtypes" )
-    InitialBranchState NO_STATE = new InitialBranchState()
-    {
-        @Override
-        public Object initialState( Path path )
-        {
-            return null;
-        }
-
-        @Override
-        public InitialBranchState reverse()
-        {
-            return this;
-        }
-    };
-
-    InitialBranchState<Double> DOUBLE_ZERO = new InitialBranchState<Double>()
-    {
-        @Override
-        public Double initialState( Path path )
-        {
-            return 0d;
-        }
-
-        @Override
-        public InitialBranchState<Double> reverse()
-        {
-            return this;
-        }
-    };
+    InitialBranchState<Object> NO_STATE = path -> null;
+    InitialBranchState<Double> DOUBLE_ZERO = path -> 0d;
 
     /**
      * Returns an initial state for a {@link Path}. All paths entering this method
@@ -96,21 +70,15 @@ public interface InitialBranchState<STATE>
      * used in bidirectional traversals.
      * @return an instance which produces reversed initial state.
      */
-    InitialBranchState<STATE> reverse();
-
-    abstract class Adapter<STATE> implements InitialBranchState<STATE>
+    default InitialBranchState<STATE> reverse()
     {
-        @Override
-        public InitialBranchState<STATE> reverse()
-        {
-            return this;
-        }
+        return this;
     }
 
     /**
      * Branch state evaluator for an initial state.
      */
-    class State<STATE> extends Adapter<STATE>
+    class State<STATE> implements InitialBranchState<STATE>
     {
         private final STATE initialState;
         private final STATE reversedInitialState;

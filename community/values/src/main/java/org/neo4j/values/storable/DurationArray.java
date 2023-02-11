@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -43,8 +43,13 @@ import java.util.Arrays;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.ValueMapper;
 
+import static org.neo4j.memory.HeapEstimator.shallowSizeOfInstance;
+import static org.neo4j.memory.HeapEstimator.sizeOfObjectArray;
+
 public class DurationArray extends NonPrimitiveArray<DurationValue>
 {
+    private static final long SHALLOW_SIZE = shallowSizeOfInstance( DurationArray.class );
+
     private final DurationValue[] value;
 
     DurationArray( DurationValue[] value )
@@ -95,13 +100,13 @@ public class DurationArray extends NonPrimitiveArray<DurationValue>
     }
 
     @Override
-    public ValueGroup valueGroup()
+    public ValueRepresentation valueRepresentation()
     {
-        return ValueGroup.DURATION_ARRAY;
+        return ValueRepresentation.DURATION_ARRAY;
     }
 
     @Override
-    int unsafeCompareTo( Value otherValue )
+    protected int unsafeCompareTo( Value otherValue )
     {
         return compareToNonPrimitiveArray( (DurationArray) otherValue );
     }
@@ -110,5 +115,36 @@ public class DurationArray extends NonPrimitiveArray<DurationValue>
     public String getTypeName()
     {
         return "DurationArray";
+    }
+
+    @Override
+    public long estimatedHeapUsage()
+    {
+        return SHALLOW_SIZE + sizeOfObjectArray( DurationValue.SHALLOW_SIZE, value.length );
+    }
+
+    @Override
+    public boolean hasCompatibleType( AnyValue value )
+    {
+        return value instanceof DurationValue;
+    }
+
+    @Override
+    public ArrayValue copyWithAppended( AnyValue added )
+    {
+        assert hasCompatibleType( added ) : "Incompatible types";
+        DurationValue[] newArray = Arrays.copyOf( value, value.length + 1 );
+        newArray[value.length] = (DurationValue) added;
+        return new DurationArray( newArray );
+    }
+
+    @Override
+    public ArrayValue copyWithPrepended( AnyValue prepended )
+    {
+        assert hasCompatibleType( prepended ) : "Incompatible types";
+        DurationValue[] newArray = new DurationValue[value.length + 1];
+        System.arraycopy( value, 0, newArray, 1, value.length );
+        newArray[0] = (DurationValue) prepended;
+        return new DurationArray( newArray );
     }
 }

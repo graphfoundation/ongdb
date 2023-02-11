@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -51,8 +51,12 @@ public class LocalVariables
     private final AtomicInteger counter = new AtomicInteger( 0 );
     private final Map<String,LocalVariable> localVariables = new HashMap<>();
 
-    public LocalVariable createNew( TypeReference type, String name )
+    LocalVariable createNew( TypeReference type, String name )
     {
+        if ( localVariables.containsKey( name ) )
+        {
+           throw new IllegalStateException( String.format( "Local variable %s already in scope", name ) );
+        }
         LocalVariable localVariable = new LocalVariable( type, name, counter.getAndIncrement() );
         localVariables.put( name, localVariable );
         //if 64 bit types we need to give it one more index
@@ -68,7 +72,7 @@ public class LocalVariables
         LocalVariable localVariable = localVariables.get( name );
         if ( localVariable == null )
         {
-            throw new NoSuchElementException( "No variable " + name + " in scope" );
+            throw new NoSuchElementException( "No variable '" + name + "' in scope" );
         }
         return localVariable;
     }
@@ -77,7 +81,7 @@ public class LocalVariables
     {
         LocalVariables variables = new LocalVariables();
         variables.counter.set( original.counter.get() );
-        original.localVariables.forEach( variables.localVariables::put );
+        variables.localVariables.putAll( original.localVariables );
         return variables;
     }
 }

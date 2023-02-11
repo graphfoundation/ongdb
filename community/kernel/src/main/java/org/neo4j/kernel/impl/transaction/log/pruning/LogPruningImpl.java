@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,30 +38,38 @@
  */
 package org.neo4j.kernel.impl.transaction.log.pruning;
 
-import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Path;
 import java.time.Clock;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongConsumer;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.configuration.Config;
+import org.neo4j.internal.helpers.collection.LongRange;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.impl.transaction.log.files.LogFile;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
+
+import static org.apache.commons.lang3.ArrayUtils.isNotEmpty;
+import static org.neo4j.configuration.GraphDatabaseInternalSettings.checkpoint_logical_log_keep_threshold;
+import static org.neo4j.configuration.GraphDatabaseSettings.keep_logical_logs;
 
 /**
  * This class listens for rotations and does log pruning.
  */
 public class LogPruningImpl implements LogPruning
 {
-    private final Lock pruneLock = new ReentrantLock();
+    private final Lock pruneLock;
     private final FileSystemAbstraction fs;
     private final LogFiles logFiles;
-    private final Log msgLog;
+    private final Log log;
     private final LogPruneStrategyFactory strategyFactory;
     private final Clock clock;
+    private final LogProvider logProvider;
+    private final int checkpointFilesToKeep;
     private volatile LogPruneStrategy pruneStrategy;
 
     public LogPruningImpl( FileSystemAbstraction fs,
@@ -69,34 +77,97 @@ public class LogPruningImpl implements LogPruning
                            LogProvider logProvider,
                            LogPruneStrategyFactory strategyFactory,
                            Clock clock,
-                           Config config )
+                           Config config,
+                           Lock pruneLock )
     {
         this.fs = fs;
         this.logFiles = logFiles;
-        this.msgLog = logProvider.getLog( getClass() );
+        this.logProvider = logProvider;
+        this.log = logProvider.getLog( getClass() );
         this.strategyFactory = strategyFactory;
         this.clock = clock;
-        this.pruneStrategy = strategyFactory.strategyFromConfigValue( fs, logFiles, clock, config.get( GraphDatabaseSettings.keep_logical_logs ) );
+        this.pruneLock = pruneLock;
+        this.pruneStrategy = strategyFactory.strategyFromConfigValue( fs, logFiles, logProvider, clock, config.get( keep_logical_logs ) );
+        this.checkpointFilesToKeep = config.get( checkpoint_logical_log_keep_threshold );
 
         // Register listener for updates
-        config.registerDynamicUpdateListener( GraphDatabaseSettings.keep_logical_logs,
-                ( prev, update ) -> updateConfiguration( update ) );
+        config.addListener( keep_logical_logs, ( prev, update ) -> updateConfiguration( update ) );
+    }
+
+    private void updateConfiguration( String pruningConf )
+    {
+        LogPruneStrategy strategy = strategyFactory.strategyFromConfigValue( fs, logFiles, logProvider, clock, pruningConf );
+        this.pruneStrategy = strategy;
+        log.info( "Retention policy updated to '" + strategy + "', which will take effect next time a checkpoint completes." );
+    }
+
+    @Override
+    public void pruneLogs( long upToVersion ) throws IOException
+    {
+        pruneLock.lock();
+        try
+        {
+            LogFile logFile = logFiles.getLogFile();
+            LogPruneStrategy strategy = this.pruneStrategy;
+
+            CountingDeleter deleter = new CountingDeleter( logFile, fs );
+            LongRange versionsToDelete = strategy.findLogVersionsToDelete( upToVersion );
+            logFile.terminateExternalReaders( versionsToDelete.to() );
+            versionsToDelete.stream().forEachOrdered( deleter );
+            log.info( deleter.describeResult( strategy ) );
+
+            cleanupCheckpointLogFiles();
+        }
+        finally
+        {
+            pruneLock.unlock();
+        }
+    }
+
+    private void cleanupCheckpointLogFiles() throws IOException
+    {
+        var checkpointFile = logFiles.getCheckpointFile();
+        var checkpointFiles = checkpointFile.getDetachedCheckpointFiles();
+        if ( isNotEmpty( checkpointFiles ) && checkpointFiles.length > checkpointFilesToKeep )
+        {
+            long highestVersionToRemove = checkpointFile.getCurrentDetachedLogVersion() - checkpointFilesToKeep;
+            int filesDeleted = 0;
+            for ( Path file : checkpointFiles )
+            {
+                if ( checkpointFile.getDetachedCheckpointLogFileVersion( file ) <= highestVersionToRemove )
+                {
+                    fs.deleteFile( file );
+                    filesDeleted++;
+                }
+            }
+            log.info( "Pruned " + filesDeleted + " checkpoint log files. Lowest preserved version: " + (highestVersionToRemove + 1) );
+        }
+    }
+
+    @Override
+    public boolean mightHaveLogsToPrune( long upToVersion )
+    {
+        return !pruneStrategy.findLogVersionsToDelete( upToVersion ).isEmpty();
+    }
+
+    @Override
+    public String describeCurrentStrategy()
+    {
+        return pruneStrategy.toString();
     }
 
     private static class CountingDeleter implements LongConsumer
     {
         private static final int NO_VERSION = -1;
-        private final LogFiles logFiles;
+        private final LogFile logFile;
         private final FileSystemAbstraction fs;
-        private final long upToVersion;
         private long fromVersion;
         private long toVersion;
 
-        private CountingDeleter( LogFiles logFiles, FileSystemAbstraction fs, long upToVersion )
+        private CountingDeleter( LogFile logFile, FileSystemAbstraction fs )
         {
-            this.logFiles = logFiles;
+            this.logFile = logFile;
             this.fs = fs;
-            this.upToVersion = upToVersion;
             fromVersion = NO_VERSION;
             toVersion = NO_VERSION;
         }
@@ -106,53 +177,23 @@ public class LogPruningImpl implements LogPruning
         {
             fromVersion = fromVersion == NO_VERSION ? version : Math.min( fromVersion, version );
             toVersion = toVersion == NO_VERSION ? version : Math.max( toVersion, version );
-            File logFile = logFiles.getLogFileForVersion( version );
-            fs.deleteFile( logFile );
-        }
-
-        public String describeResult()
-        {
-            if ( fromVersion == NO_VERSION )
-            {
-                return "No log version pruned, last checkpoint was made in version " + upToVersion;
-            }
-            else
-            {
-                return "Pruned log versions " + fromVersion + "-" + toVersion +
-                       ", last checkpoint was made in version " + upToVersion;
-            }
-        }
-    }
-
-    private void updateConfiguration( String pruningConf )
-    {
-        this.pruneStrategy = strategyFactory.strategyFromConfigValue( fs, logFiles, clock, pruningConf );
-        msgLog.info( "Retention policy updated, value will take effect during the next evaluation." );
-    }
-
-    @Override
-    public void pruneLogs( long upToVersion )
-    {
-        // Only one is allowed to do pruning at any given time,
-        // and it's OK to skip pruning if another one is doing so right now.
-        if ( pruneLock.tryLock() )
-        {
+            Path logFilePath = logFile.getLogFileForVersion( version );
             try
             {
-                CountingDeleter deleter = new CountingDeleter( logFiles, fs, upToVersion );
-                pruneStrategy.findLogVersionsToDelete( upToVersion ).forEachOrdered( deleter );
-                msgLog.info( deleter.describeResult() );
+                fs.deleteFile( logFilePath );
             }
-            finally
+            catch ( IOException e )
             {
-                pruneLock.unlock();
+                throw new UncheckedIOException( e );
             }
         }
-    }
 
-    @Override
-    public boolean mightHaveLogsToPrune()
-    {
-        return pruneStrategy.findLogVersionsToDelete( logFiles.getHighestLogVersion() ).count() > 0;
+        String describeResult( LogPruneStrategy strategy )
+        {
+            String pruned = fromVersion == NO_VERSION ? "No log version pruned" :
+                            fromVersion == toVersion ? "Pruned log version " + fromVersion :
+                            "Pruned log versions " + fromVersion + " through " + toVersion;
+            return pruned + ". The strategy used was '" + strategy + "'. ";
+        }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,37 +38,65 @@
  */
 package org.neo4j.kernel.impl.transaction;
 
-import org.neo4j.kernel.impl.transaction.log.LogVersionRepository;
+import java.util.concurrent.atomic.AtomicLong;
+
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.storageengine.api.LogVersionRepository;
 
 public class SimpleLogVersionRepository implements LogVersionRepository
 {
-    private volatile long logVersion;
+    private final AtomicLong logVersion = new AtomicLong();
+    private final AtomicLong checkpointLogVersion = new AtomicLong();
 
     public SimpleLogVersionRepository()
     {
-        this( INITIAL_LOG_VERSION );
+        this( INITIAL_LOG_VERSION, INITIAL_LOG_VERSION );
     }
+
     public SimpleLogVersionRepository( long initialLogVersion )
     {
-        this.logVersion = initialLogVersion;
+        this( initialLogVersion, initialLogVersion );
+    }
+
+    public SimpleLogVersionRepository( long initialLogVersion, long initialCheckpointLogVersion )
+    {
+        this.logVersion.set( initialLogVersion );
+        this.checkpointLogVersion.set( initialCheckpointLogVersion );
     }
 
     @Override
-    public long incrementAndGetVersion()
+    public long incrementAndGetVersion( CursorContext cursorContext )
     {
-        logVersion++;
-        return logVersion;
+        return logVersion.incrementAndGet();
     }
 
     @Override
     public long getCurrentLogVersion()
     {
-        return logVersion;
+        return logVersion.get();
     }
 
     @Override
-    public void setCurrentLogVersion( long version )
+    public void setCurrentLogVersion( long version, CursorContext cursorContext )
     {
-        this.logVersion = version;
+        this.logVersion.set( version );
+    }
+
+    @Override
+    public long getCheckpointLogVersion()
+    {
+        return checkpointLogVersion.get();
+    }
+
+    @Override
+    public void setCheckpointLogVersion( long version, CursorContext cursorContext )
+    {
+        checkpointLogVersion.set( version );
+    }
+
+    @Override
+    public long incrementAndGetCheckpointLogVersion( CursorContext cursorContext )
+    {
+        return checkpointLogVersion.incrementAndGet();
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,75 +38,71 @@
  */
 package org.neo4j.bolt.security.auth;
 
-import org.hamcrest.Description;
-import org.hamcrest.TypeSafeMatcher;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.cypher.internal.security.SecureHasher;
 import org.neo4j.kernel.api.exceptions.Status;
-import org.neo4j.internal.kernel.api.security.AccessMode;
-import org.neo4j.kernel.api.security.PasswordPolicy;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.server.security.auth.BasicAuthManager;
-import org.neo4j.server.security.auth.InMemoryUserRepository;
-import org.neo4j.server.security.auth.UserRepository;
+import org.neo4j.kernel.impl.security.User;
+import org.neo4j.server.security.auth.RateLimitedAuthenticationStrategy;
+import org.neo4j.server.security.systemgraph.BasicSystemGraphRealm;
+import org.neo4j.server.security.systemgraph.SystemGraphRealmHelper;
 import org.neo4j.time.Clocks;
 
 import static java.util.Collections.singletonList;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.neo4j.helpers.collection.MapUtil.map;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
+import static org.neo4j.internal.helpers.collection.MapUtil.map;
+import static org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo.EMBEDDED_CONNECTION;
+import static org.neo4j.server.security.auth.SecurityTestUtils.credentialFor;
+import static org.neo4j.server.security.auth.SecurityTestUtils.password;
 
-public class BasicAuthenticationTest
+class BasicAuthenticationTest
 {
-    @Rule
-    public ExpectedException exception = ExpectedException.none();
 
     private Authentication authentication;
 
     @Test
-    public void shouldNotDoAnythingOnSuccess() throws Exception
+    void shouldNotDoAnythingOnSuccess() throws Exception
     {
         // When
-        AuthenticationResult result =
-                authentication.authenticate( map( "scheme", "basic", "principal", "mike", "credentials", "secret2" ) );
+        AuthenticationResult result = authentication.authenticate(
+                map( "scheme", "basic", "principal", "mike", "credentials", password( "secret2" ) ), EMBEDDED_CONNECTION );
 
         // Then
-        assertThat( result.getLoginContext().subject().username(), equalTo( "mike" ) );
+        assertThat( result.getLoginContext().subject().executingUser() ).isEqualTo( "mike" );
     }
 
     @Test
-    public void shouldThrowAndLogOnFailure() throws Exception
+    void shouldThrowAndLogOnFailure()
     {
-        // Expect
-        exception.expect( AuthenticationException.class );
-        exception.expect( hasStatus( Status.Security.Unauthorized ) );
-        exception.expectMessage( "The client is unauthorized due to authentication failure." );
-
-        // When
-        authentication.authenticate( map( "scheme", "basic", "principal", "bob", "credentials", "banana" ) );
+        var e = assertThrows( AuthenticationException.class,
+                () -> authentication.authenticate( map( "scheme", "basic", "principal", "bob", "credentials", password( "banana" ) ), EMBEDDED_CONNECTION) );
+        assertEquals( Status.Security.Unauthorized, e.status() );
+        assertEquals( "The client is unauthorized due to authentication failure.", e.getMessage() );
     }
 
     @Test
-    public void shouldIndicateThatCredentialsExpired() throws Exception
+    void shouldIndicateThatCredentialsExpired() throws Exception
     {
         // When
-        AuthenticationResult result =
-                authentication.authenticate( map( "scheme", "basic", "principal", "bob", "credentials", "secret" ) );
+        AuthenticationResult result = authentication.authenticate(
+                map( "scheme", "basic", "principal", "bob", "credentials", password( "secret" ) ), EMBEDDED_CONNECTION);
 
         // Then
         assertTrue( result.credentialsExpired() );
     }
 
     @Test
-    public void shouldFailWhenTooManyAttempts() throws Exception
+    void shouldFailWhenTooManyAttempts() throws Exception
     {
         // Given
         int maxFailedAttempts = ThreadLocalRandom.current().nextInt( 1, 10 );
@@ -116,147 +112,73 @@ public class BasicAuthenticationTest
         {
             try
             {
-                auth.authenticate( map( "scheme", "basic", "principal", "bob", "credentials", "gelato" ) );
+                auth.authenticate( map( "scheme", "basic", "principal", "bob", "credentials", password( "gelato" ) ), EMBEDDED_CONNECTION);
             }
             catch ( AuthenticationException e )
             {
-                assertThat( e.status(), equalTo( Status.Security.Unauthorized ) );
+                assertThat( e.status() ).isEqualTo( Status.Security.Unauthorized );
             }
         }
 
-        // Expect
-        exception.expect( AuthenticationException.class );
-        exception.expect( hasStatus( Status.Security.AuthenticationRateLimit ) );
-        exception.expectMessage( "The client has provided incorrect authentication details too many times in a row." );
-
-        //When
-        auth.authenticate( map( "scheme", "basic", "principal", "bob", "credentials", "gelato" ) );
+        var e = assertThrows( AuthenticationException.class,
+                () -> auth.authenticate( map( "scheme", "basic", "principal", "bob", "credentials", password( "gelato" ) ), EMBEDDED_CONNECTION) );
+        assertEquals( Status.Security.AuthenticationRateLimit, e.status() );
+        assertEquals( "The client has provided incorrect authentication details too many times in a row.", e.getMessage() );
     }
 
     @Test
-    public void shouldBeAbleToUpdateCredentials() throws Exception
+    void shouldClearCredentialsAfterUse() throws Exception
     {
         // When
-        authentication.authenticate(
-                map( "scheme", "basic", "principal", "mike", "credentials", "secret2", "new_credentials", "secret" ) );
+        byte[] password = password( "secret2" );
+
+        authentication.authenticate( map( "scheme", "basic", "principal", "mike", "credentials", password ), EMBEDDED_CONNECTION);
 
         // Then
-        authentication.authenticate( map( "scheme", "basic", "principal", "mike", "credentials", "secret" ) );
+        assertThat( password ).containsOnly( 0 );
     }
 
     @Test
-    public void shouldBeAbleToUpdateExpiredCredentials() throws Exception
+    void shouldThrowWithNoScheme()
     {
-        // When
-        AuthenticationResult result = authentication.authenticate(
-                map( "scheme", "basic", "principal", "bob", "credentials", "secret", "new_credentials", "secret2" ) );
-
-        // Then
-        assertThat(result.credentialsExpired(), equalTo( false ));
+        var e = assertThrows( AuthenticationException.class,
+                () -> authentication.authenticate( map( "principal", "bob", "credentials", password( "secret" ) ), EMBEDDED_CONNECTION) );
+        assertEquals( Status.Security.Unauthorized, e.status() );
     }
 
     @Test
-    public void shouldNotBeAbleToUpdateCredentialsIfOldCredentialsAreInvalid() throws Exception
+    void shouldFailOnInvalidAuthToken()
     {
-        // Expect
-        exception.expect( AuthenticationException.class );
-        exception.expect( hasStatus( Status.Security.Unauthorized ) );
-        exception.expectMessage( "The client is unauthorized due to authentication failure." );
-
-        // When
-        authentication.authenticate( map( "scheme", "basic", "principal", "bob", "credentials", "gelato",
-                "new_credentials", "secret2" ) );
+        var e = assertThrows( AuthenticationException.class, () -> authentication.authenticate(
+                map( "this", "does", "not", "matter", "for", "test" ), EMBEDDED_CONNECTION) );
+        assertEquals( Status.Security.Unauthorized, e.status() );
     }
 
     @Test
-    public void shouldThrowWithNoScheme() throws Exception
+    void shouldFailOnMalformedToken()
     {
-        // Expect
-        exception.expect( AuthenticationException.class );
-        exception.expect( hasStatus( Status.Security.Unauthorized ) );
-
-        // When
-        authentication.authenticate( map( "principal", "bob", "credentials", "secret" ) );
+        var e = assertThrows( AuthenticationException.class, () -> authentication
+                .authenticate( map( "scheme", "basic", "principal", singletonList( "bob" ), "credentials", password( "secret" ) ), EMBEDDED_CONNECTION) );
+        assertEquals( Status.Security.Unauthorized, e.status() );
+        assertEquals( "Unsupported authentication token, the value associated with the key `principal` " +
+                "must be a String but was: SingletonList", e.getMessage() );
     }
 
-    @Test
-    public void shouldFailOnInvalidAuthToken() throws Exception
-    {
-        // Expect
-        exception.expect( AuthenticationException.class );
-        exception.expect( hasStatus( Status.Security.Unauthorized ) );
-
-        // When
-        authentication.authenticate( map( "this", "does", "not", "matter", "for", "test" ) );
-    }
-
-    @Test
-    public void shouldFailOnMalformedToken() throws Exception
-    {
-        // Expect
-        exception.expect( AuthenticationException.class );
-        exception.expect( hasStatus( Status.Security.Unauthorized ) );
-        exception.expectMessage( "Unsupported authentication token, the value associated with the key `principal` " +
-                "must be a String but was: SingletonList" );
-
-        // When
-        authentication
-                .authenticate( map( "scheme", "basic", "principal", singletonList( "bob" ), "credentials", "secret" ) );
-    }
-
-    @Before
-    public void setup() throws Throwable
+    @BeforeEach
+    void setup() throws Throwable
     {
         authentication = createAuthentication( 3 );
     }
 
     private static Authentication createAuthentication( int maxFailedAttempts ) throws Exception
     {
-        UserRepository users = new InMemoryUserRepository();
-        PasswordPolicy policy = mock( PasswordPolicy.class );
-
-        Config config = Config.defaults( GraphDatabaseSettings.auth_max_failed_attempts, String.valueOf( maxFailedAttempts ) );
-
-        BasicAuthManager manager = new BasicAuthManager( users, policy, Clocks.systemClock(), users, config );
-        Authentication authentication = new BasicAuthentication( manager, manager );
-        manager.newUser( "bob", "secret", true );
-        manager.newUser( "mike", "secret2", false );
+        Config config = Config.defaults( GraphDatabaseSettings.auth_max_failed_attempts, maxFailedAttempts );
+        SystemGraphRealmHelper realmHelper = spy( new SystemGraphRealmHelper( null, new SecureHasher() ) );
+        BasicSystemGraphRealm realm = new BasicSystemGraphRealm( realmHelper, new RateLimitedAuthenticationStrategy( Clocks.systemClock(), config ) );
+        Authentication authentication = new BasicAuthentication( realm );
+        doReturn( new User.Builder( "bob", credentialFor( "secret" ) ).withRequiredPasswordChange( true ).build() ).when( realmHelper ).getUser( "bob" );
+        doReturn( new User.Builder( "mike", credentialFor( "secret2" ) ).build() ).when( realmHelper ).getUser( "mike" );
 
         return authentication;
-    }
-
-    private HasStatus hasStatus( Status status )
-    {
-        return new HasStatus( status );
-    }
-
-    static class HasStatus extends TypeSafeMatcher<Status.HasStatus>
-    {
-        private Status status;
-
-        HasStatus( Status status )
-        {
-            this.status = status;
-        }
-
-        @Override
-        protected boolean matchesSafely( Status.HasStatus item )
-        {
-            return item.status() == status;
-        }
-
-        @Override
-        public void describeTo( Description description )
-        {
-            description.appendText( "expects status " )
-                    .appendValue( status );
-        }
-
-        @Override
-        protected void describeMismatchSafely( Status.HasStatus item, Description mismatchDescription )
-        {
-            mismatchDescription.appendText( "was " )
-                    .appendValue( item.status() );
-        }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,8 +39,9 @@
 package org.neo4j.kernel.impl.transaction;
 
 import java.io.IOException;
+import java.util.Objects;
 
-import org.neo4j.helpers.collection.Visitor;
+import org.neo4j.internal.helpers.collection.Visitor;
 import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryCommit;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryStart;
@@ -58,8 +59,7 @@ public class CommittedTransactionRepresentation
     private final TransactionRepresentation transactionRepresentation;
     private final LogEntryCommit commitEntry;
 
-    public CommittedTransactionRepresentation( LogEntryStart startEntry, TransactionRepresentation
-            transactionRepresentation, LogEntryCommit commitEntry )
+    public CommittedTransactionRepresentation( LogEntryStart startEntry, TransactionRepresentation transactionRepresentation, LogEntryCommit commitEntry )
     {
         this.startEntry = startEntry;
         this.transactionRepresentation = transactionRepresentation;
@@ -86,11 +86,19 @@ public class CommittedTransactionRepresentation
         return commitEntry;
     }
 
+    public int getChecksum()
+    {
+        return getCommitEntry().getChecksum();
+    }
+
     @Override
     public String toString()
     {
-        return getClass().getSimpleName() +
-                "[" + startEntry + ", " + transactionRepresentation + ", " + commitEntry + "]";
+        return "CommittedTransactionRepresentation{" +
+                "startEntry=" + startEntry +
+                ", transactionRepresentation=" + transactionRepresentation +
+                ", commitEntry=" + commitEntry +
+                '}';
     }
 
     @Override
@@ -104,19 +112,15 @@ public class CommittedTransactionRepresentation
         {
             return false;
         }
-
         CommittedTransactionRepresentation that = (CommittedTransactionRepresentation) o;
-
-        return commitEntry.equals( that.commitEntry ) && startEntry.equals( that.startEntry ) &&
-               transactionRepresentation.equals( that.transactionRepresentation );
+        return Objects.equals( startEntry, that.startEntry ) &&
+                Objects.equals( transactionRepresentation, that.transactionRepresentation ) &&
+                Objects.equals( commitEntry, that.commitEntry );
     }
 
     @Override
     public int hashCode()
     {
-        int result = startEntry.hashCode();
-        result = 31 * result + transactionRepresentation.hashCode();
-        result = 31 * result + commitEntry.hashCode();
-        return result;
+        return Objects.hash( startEntry, transactionRepresentation, commitEntry );
     }
 }

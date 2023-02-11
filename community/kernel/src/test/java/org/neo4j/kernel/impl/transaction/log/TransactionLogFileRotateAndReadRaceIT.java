@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,31 +38,39 @@
  */
 package org.neo4j.kernel.impl.transaction.log;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.RuleChain;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.io.ByteUnit;
+import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.fs.ReadPastEndException;
+import org.neo4j.io.layout.DatabaseLayout;
+import org.neo4j.kernel.impl.api.TestCommandReaderFactory;
 import org.neo4j.kernel.impl.transaction.SimpleLogVersionRepository;
 import org.neo4j.kernel.impl.transaction.SimpleTransactionIdStore;
+import org.neo4j.kernel.impl.transaction.log.entry.VersionAwareLogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.files.LogFile;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
-import org.neo4j.kernel.lifecycle.LifeRule;
-import org.neo4j.storageengine.api.ReadPastEndException;
-import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.concurrent.OtherThreadRule;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
+import org.neo4j.kernel.lifecycle.LifeSupport;
+import org.neo4j.storageengine.api.LogVersionRepository;
+import org.neo4j.storageengine.api.StoreId;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.LifeExtension;
+import org.neo4j.test.extension.Neo4jLayoutExtension;
+import org.neo4j.test.extension.OtherThread;
+import org.neo4j.test.extension.OtherThreadExtension;
 
-import static java.lang.System.currentTimeMillis;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests an issue where writer would append data and sometimes rotate the log to new file. When rotating the log
@@ -71,36 +79,48 @@ import static org.junit.Assert.assertTrue;
  * jump over to new files, where the highest file is dictated by {@link LogVersionRepository#getCurrentLogVersion()}.
  * There was this race where the log version was incremented, the new log file created and reader would get
  * to this new file and try to read the header and fail before the header had been written.
- *
+ * <p>
  * This test tries to reproduce this race. It will not produce false negatives, but sometimes false positives
  * since it's non-deterministic.
  */
-public class TransactionLogFileRotateAndReadRaceIT
+@Neo4jLayoutExtension
+@ExtendWith( {LifeExtension.class, OtherThreadExtension.class} )
+class TransactionLogFileRotateAndReadRaceIT
 {
-    private final TestDirectory directory = TestDirectory.testDirectory( getClass() );
-    private final LifeRule life = new LifeRule( true );
-    private final DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
-    private final OtherThreadRule<Void> t2 = new OtherThreadRule<>( getClass().getName() + "-T2" );
-    @Rule
-    public final RuleChain rules = RuleChain.outerRule( directory ).around( life ).around( t2 ).around( fileSystemRule );
+    @Inject
+    private LifeSupport life;
+    @Inject
+    private FileSystemAbstraction fs;
+    @Inject
+    private DatabaseLayout databaseLayout;
+    @Inject
+    private OtherThread t2;
 
     // If any of these limits are reached the test ends, that or if there's a failure of course
-    private static final long LIMIT_TIME = SECONDS.toMillis( 5 );
-    private static final int LIMIT_ROTATIONS = 500;
+    private static final int LIMIT_ROTATIONS = 100;
     private static final int LIMIT_READS = 1_000;
 
     @Test
-    public void shouldNotSeeEmptyLogFileWhenReadingTransactionStream() throws Exception
+    void shouldNotSeeEmptyLogFileWhenReadingTransactionStream() throws Exception
     {
         // GIVEN
         LogVersionRepository logVersionRepository = new SimpleLogVersionRepository();
-        LogFiles logFiles = LogFilesBuilder.builder( directory.directory(), fileSystemRule.get() )
+        Config cfg = Config.newBuilder()
+                .set( GraphDatabaseSettings.ongdb_home, databaseLayout.getNeo4jLayout().homeDirectory() )
+                .set( GraphDatabaseSettings.preallocate_logical_logs, false )
+                .set( GraphDatabaseSettings.logical_log_rotation_threshold, ByteUnit.kibiBytes( 128 ) )
+                .build();
+
+        LogFiles logFiles = LogFilesBuilder.builder( databaseLayout, fs )
                 .withLogVersionRepository( logVersionRepository )
                 .withTransactionIdStore( new SimpleTransactionIdStore() )
+                .withLogEntryReader( new VersionAwareLogEntryReader( new TestCommandReaderFactory() ) )
+                .withConfig( cfg )
+                .withStoreId( StoreId.UNKNOWN )
                 .build();
         life.add( logFiles );
         LogFile logFile = logFiles.getLogFile();
-        FlushablePositionAwareChannel writer = logFile.getWriter();
+        var writer = logFile.getTransactionLogWriter();
         LogPositionMarker startPosition = new LogPositionMarker();
         writer.getCurrentPosition( startPosition );
 
@@ -108,57 +128,62 @@ public class TransactionLogFileRotateAndReadRaceIT
         AtomicBoolean end = new AtomicBoolean();
         byte[] dataChunk = new byte[100];
         // one thread constantly writing to and rotating the channel
-        AtomicInteger rotations = new AtomicInteger();
         CountDownLatch startSignal = new CountDownLatch( 1 );
-        Future<Void> writeFuture = t2.execute( ignored ->
+        Future<Void> writeFuture = t2.execute( () ->
         {
             ThreadLocalRandom random = ThreadLocalRandom.current();
             startSignal.countDown();
+            int rotations = 0;
             while ( !end.get() )
             {
-                writer.put( dataChunk, random.nextInt( 1, dataChunk.length ) );
+                int bytesToWrite = random.nextInt( 1, dataChunk.length );
+                writer.getChannel().put( dataChunk, bytesToWrite );
                 if ( logFile.rotationNeeded() )
                 {
                     logFile.rotate();
                     // Let's just close the gap to the reader so that it gets closer to the "hot zone"
                     // where the rotation happens.
                     writer.getCurrentPosition( startPosition );
-                    rotations.incrementAndGet();
+                    if ( ++rotations > LIMIT_ROTATIONS )
+                    {
+                        end.set( true );
+                    }
                 }
             }
             return null;
         } );
         assertTrue( startSignal.await( 10, SECONDS ) );
         // one thread reading through the channel
-        long maxEndTime = currentTimeMillis() + LIMIT_TIME;
-        int reads = 0;
         try
         {
-            for ( ; currentTimeMillis() < maxEndTime &&
-                    reads < LIMIT_READS &&
-                    rotations.get() < LIMIT_ROTATIONS; reads++ )
+            int reads = 0;
+            while ( !end.get() )
             {
                 try ( ReadableLogChannel reader = logFile.getReader( startPosition.newPosition() ) )
                 {
                     deplete( reader );
                 }
+                if ( ++reads > LIMIT_READS )
+                {
+                    end.set( true );
+                }
             }
         }
         finally
         {
-            end.set( true );
             writeFuture.get();
         }
 
         // THEN simply getting here means this was successful
     }
 
-    private void deplete( ReadableLogChannel reader )
+    private static void deplete( ReadableLogChannel reader )
     {
         byte[] dataChunk = new byte[100];
         try
         {
-            while ( true )
+            long maxIterations = ByteUnit.mebiBytes( 1 ) / dataChunk.length; //no need to read more
+            for ( int i = 0; i < maxIterations; i++ )
             {
                 reader.get( dataChunk, dataChunk.length );
             }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -43,6 +43,7 @@ import org.neo4j.gis.spatial.index.Envelope;
 public class StandardConfiguration implements SpaceFillingCurveConfiguration
 {
     public static final int DEFAULT_EXTRA_LEVELS = 1;
+    private static final double LOG_2 = Math.log(2);
 
     /**
      * After estimating the search ratio, we know the level at which tiles have approximately the same size as
@@ -89,7 +90,8 @@ public class StandardConfiguration implements SpaceFillingCurveConfiguration
         {
             return maxLevel;
         }
-        return Math.min( maxLevel, (int) (Math.log( searchRatio ) / Math.log( Math.pow( 2, nbrDim ) )) + extraLevels );
+        //log(2^x) = xlog(2)
+        return Math.min( maxLevel, (int) (Math.log( searchRatio ) /  (nbrDim * LOG_2)) + extraLevels );
     }
 
     @Override

@@ -61,52 +61,93 @@ Apache Software License, Version 2.0
   @firebase/storage-types
   @firebase/util
   @firebase/webchannel-wrapper
+  Apache Commons BeanUtils
+  Apache Commons Collections
   Apache Commons Compress
-  Apache Commons Configuration
   Apache Commons IO
   Apache Commons Lang
+  Apache Commons Logging
+  Apache Commons Math
   Apache Commons Text
+  Apache Log4j API
+  Apache Log4j Core
+  Apache Shiro :: Cache
+  Apache Shiro :: Configuration :: Core
+  Apache Shiro :: Configuration :: OGDL
+  Apache Shiro :: Core
+  Apache Shiro :: Cryptography :: Ciphers
+  Apache Shiro :: Cryptography :: Core
+  Apache Shiro :: Cryptography :: Hashing
+  Apache Shiro :: Event
+  Apache Shiro :: Lang
   ascli
+  AssertJ fluent assertions
   aws-sign2
   bytebuffer
   Caffeine cache
   caseless
-  Commons Lang
-  Commons Logging
-  ConcurrentLinkedHashMap
-  Data Mapper for Jackson
   detect-libc
   disposables
   firebase
   forever-agent
   grpc
-  Jackson
-  JAX-RS provider for JSON content type
+  IPAddress
+  Jackson module: Old JAXB Annotations (javax.xml.bind)
+  Jackson-annotations
+  Jackson-core
+  jackson-databind
+  Jackson-JAXRS: base
+  Jackson-JAXRS: JSON
+  Jakarta Bean Validation API
+  Java Agent for Memory Measurements
+  Java Concurrency Tools Core Library
+  Java Native Access
+  Javassist
+  jersey-container-servlet
+  jersey-container-servlet-core
+  jersey-core-client
+  jersey-core-common
+  jersey-core-server
+  jersey-inject-hk2
+  Jettison
   Jetty :: Http Utility
   Jetty :: IO Utility
   Jetty :: Security
   Jetty :: Server Core
   Jetty :: Servlet Handling
   Jetty :: Utilities
+  Jetty :: Utilities :: Ajax(JSON)
   Jetty :: Webapp Application Support
   Jetty :: XML utilities
   jPowerShell
   jProcesses
   long
-  Lucene codecs
   Lucene Common Analyzers
   Lucene Core
+  Lucene Memory
   Lucene QueryParsers
-  Neo4j - Cypher Frontend 3.3
+  magnolia
+  mercator
   neo4j-driver
-  Netty/All-in-One
+  Netty/Buffer
+  Netty/Codec
+  Netty/Codec/HTTP
+  Netty/Common
+  Netty/Handler
+  Netty/Resolver
+  Netty/Transport
+  Netty/Transport/Classes/Epoll
+  Netty/Transport/Native/Epoll
+  Netty/Transport/Native/Unix/Common
+  Non-Blocking Reactive Foundation for the JVM
   oauth-sign
-  opencsv
   parboiled-core
   parboiled-scala
+  picocli - a mighty tiny Command Line Interface
   protobufjs
   request
   rxjs
+  Scala Compiler
   tslib
   tunnel-agent
   WMI4Java
@@ -129,30 +170,63 @@ BSD License
   hoek
   hoist-non-react-statics
   ieee754
-  JLine
   json-schema
   node-pre-gyp
   qs
   react-dnd
   react-dnd-html5-backend
-  Scala Compiler
   sntp
   tough-cookie
+  Zstandard
 
 BSD License 2-clause
   tar-pack
   uri-js
+  zstd-jni
 
 Bouncy Castle License
+  Bouncy Castle ASN.1 Extension and Utility APIs
   Bouncy Castle PKIX, CMS, EAC, TSP, PKCS, OCSP, CMP, and CRMF APIs
   Bouncy Castle Provider
 
 Common Development and Distribution License Version 1.1
   Java Servlet API
-  jersey-core
-  jersey-server
-  jersey-servlet
-  jsr311-api
+  jaxb-api
+
+Creative Commons 0
+  reactive-streams
+
+Eclipse Distribution License - v 1.0
+  Eclipse Collections API
+  Eclipse Collections Main Library
+  istack common utility code runtime
+  JAXB Runtime
+  jersey-container-servlet
+  jersey-container-servlet-core
+  jersey-core-client
+  jersey-inject-hk2
+  TXW2 Runtime
+
+Eclipse Public License - v 1.0
+  Eclipse Collections API
+  Eclipse Collections Main Library
+
+Eclipse Public License v2.0
+  aopalliance version 1.0 repackaged as a module
+  HK2 API module
+  HK2 Implementation Utilities
+  Jakarta Annotations API
+  jakarta.ws.rs-api
+  javax.inject:1 as OSGi bundle
+  javax.ws.rs-api
+  jersey-container-servlet
+  jersey-container-servlet-core
+  jersey-core-client
+  jersey-core-common
+  jersey-core-server
+  jersey-inject-hk2
+  OSGi resource locator
+  ServiceLocator Default Implementation
 
 GNU General Public License, version 2 with the Classpath Exception
   Java Servlet API
@@ -260,6 +334,10 @@ MIT License
   isobject
   isomorphic-fetch
   isstream
+  jersey-container-servlet
+  jersey-container-servlet-core
+  jersey-core-client
+  jersey-inject-hk2
   js-tokens
   jsbn
   json-schema-traverse
@@ -313,6 +391,8 @@ MIT License
   safer-buffer
   save-as
   setimmediate
+  SLF4J API Module
+  SLF4J NOP Binding
   sshpk
   string-width
   string_decoder
@@ -340,21 +420,68 @@ MIT License
   xmlhttprequest
   yargs
 
-Mozilla Public License, Version 2.0
-  Mozilla Rhino
-
 SIL OFL 1.1
   Font Awesome
   Inconsolata Font
   Open Sans Font
 
 Unlicense
+  jersey-container-servlet
+  jersey-container-servlet-core
+  jersey-core-client
+  jersey-core-common
+  jersey-inject-hk2
   tweetnacl
 
 Dependencies with multiple licenses
 -----------------------------------
 
+Eclipse Collections API
+  Eclipse Distribution License - v 1.0
+  Eclipse Public License - v 1.0
+
+Eclipse Collections Main Library
+  Eclipse Distribution License - v 1.0
+  Eclipse Public License - v 1.0
+
 Java Servlet API
   Common Development and Distribution License Version 1.1
   GNU General Public License, version 2 with the Classpath Exception
+
+jersey-container-servlet
+  Apache Software License, Version 2.0
+  Eclipse Distribution License - v 1.0
+  Eclipse Public License v2.0
+  MIT License
+  Unlicense
+
+jersey-container-servlet-core
+  Apache Software License, Version 2.0
+  Eclipse Distribution License - v 1.0
+  Eclipse Public License v2.0
+  MIT License
+  Unlicense
+
+jersey-core-client
+  Apache Software License, Version 2.0
+  Eclipse Distribution License - v 1.0
+  Eclipse Public License v2.0
+  MIT License
+  Unlicense
+
+jersey-core-common
+  Apache Software License, Version 2.0
+  Eclipse Public License v2.0
+  Unlicense
+
+jersey-core-server
+  Apache Software License, Version 2.0
+  Eclipse Public License v2.0
+
+jersey-inject-hk2
+  Apache Software License, Version 2.0
+  Eclipse Distribution License - v 1.0
+  Eclipse Public License v2.0
+  MIT License
+  Unlicense
 

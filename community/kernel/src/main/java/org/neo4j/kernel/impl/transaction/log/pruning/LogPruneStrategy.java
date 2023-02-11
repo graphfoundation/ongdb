@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,7 @@
  */
 package org.neo4j.kernel.impl.transaction.log.pruning;
 
-import java.util.stream.LongStream;
+import org.neo4j.internal.helpers.collection.LongRange;
 
 /**
  * The LogPruneStrategy examines the current population of transaction logs, and decides which ones can be deleted,
@@ -46,6 +46,9 @@ import java.util.stream.LongStream;
  * <p>
  * Implementations of this class must be thread-safe, since they might experience multiple concurrent calls to
  * {@link #findLogVersionsToDelete(long)} from different threads.
+ * <p>
+ * Also note that any product implementations of this interface, should have descriptive {@link #toString()} outputs,
+ * since they will be printed to the debug log.
  */
 @FunctionalInterface
 public interface LogPruneStrategy
@@ -59,8 +62,8 @@ public interface LogPruneStrategy
      * in the middle of log pruning.
      *
      * @param upToLogVersion Never suggest deleting log files at or greater than this version.
-     * @return The, possibly empty, stream of log versions whose files can be deleted, according to this log pruning
+     * @return The, possibly empty, range of log versions whose files can be deleted, according to this log pruning
      * strategy.
      */
-    LongStream findLogVersionsToDelete( long upToLogVersion );
+    LongRange findLogVersionsToDelete( long upToLogVersion );
 }

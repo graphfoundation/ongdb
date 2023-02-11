@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -50,13 +50,11 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.neo4j.server.rest.web.InternalJettyServletRequest;
-
 /**
  * This is the log handler used for http logging.
  * This class overrides the original {@link RequestLogHandler}
  * and rewrite the {@link RequestLogHandler#handle(String, Request, HttpServletRequest, HttpServletResponse)}
- * to be able to accept {@link Request} who does not have a http channel attached with it, such as {@link InternalJettyServletRequest}.
+ * to be able to accept {@link Request} who does not have a http channel attached with it.
  */
 public class HttpChannelOptionalRequestLogHandler extends RequestLogHandler
 {

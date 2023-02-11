@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,27 +42,50 @@ import org.neo4j.kernel.impl.transaction.log.LogPosition;
 
 public class RecoveryStartInformation
 {
-    private final long firstTxIdAfterLastCheckPoint;
-    private final LogPosition recoveryPosition;
+    static final RecoveryStartInformation NO_RECOVERY_REQUIRED = new RecoveryStartInformation( LogPosition.UNSPECIFIED, LogPosition.UNSPECIFIED, -1 );
+    static final RecoveryStartInformation MISSING_LOGS = new RecoveryStartInformation( null, null, -1, true );
 
-    public RecoveryStartInformation( LogPosition recoveryPosition, long firstTxIdAfterLastCheckPoint )
+    private final long firstTxIdAfterLastCheckPoint;
+    private final LogPosition transactionLogPosition;
+    private final LogPosition checkpointPosition;
+    private final boolean missingLogs;
+
+    public RecoveryStartInformation( LogPosition transactionLogPosition, LogPosition checkpointPosition, long firstTxIdAfterLastCheckPoint )
+    {
+        this( transactionLogPosition, checkpointPosition, firstTxIdAfterLastCheckPoint, false );
+    }
+
+    private RecoveryStartInformation( LogPosition transactionLogPosition, LogPosition checkpointPosition, long firstTxIdAfterLastCheckPoint,
+            boolean missingLogs )
     {
         this.firstTxIdAfterLastCheckPoint = firstTxIdAfterLastCheckPoint;
-        this.recoveryPosition = recoveryPosition;
+        this.transactionLogPosition = transactionLogPosition;
+        this.checkpointPosition = checkpointPosition;
+        this.missingLogs = missingLogs;
     }
 
     public boolean isRecoveryRequired()
     {
-        return recoveryPosition != LogPosition.UNSPECIFIED;
+        return transactionLogPosition != LogPosition.UNSPECIFIED;
     }
 
-    public long getFirstTxIdAfterLastCheckPoint()
+    long getFirstTxIdAfterLastCheckPoint()
     {
         return firstTxIdAfterLastCheckPoint;
     }
 
-    public LogPosition getRecoveryPosition()
+    LogPosition getTransactionLogPosition()
     {
-        return recoveryPosition;
+        return transactionLogPosition;
+    }
+
+    public LogPosition getCheckpointPosition()
+    {
+        return checkpointPosition;
+    }
+
+    boolean isMissingLogs()
+    {
+        return missingLogs;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -58,5 +58,11 @@ public class ReverseTransactionCursorLoggingMonitor implements ReversedTransacti
                format( "Fail to read transaction log version %d. Last valid transaction start offset is: %d.",
                        logVersion, transactionOffsets[transactionIndex - 1] ) :
                format( "Fail to read first transaction of log version %d.", logVersion) );
+    }
+
+    @Override
+    public void presketchingTransactionLogs()
+    {
+        log.debug( "Pre-sketching transaction logs in the background." );
     }
 }

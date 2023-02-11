@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -44,12 +44,16 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 
+import org.neo4j.memory.HeapEstimator;
+
 /**
  * Translates websocket frames to bytebufs, and bytebufs to frames. Intermediary layer between our binary protocol
  * and nettys built-in websocket handlers.
  */
 public class WebSocketFrameTranslator extends ChannelDuplexHandler
 {
+    public static final long SHALLOW_SIZE = HeapEstimator.shallowSizeOfInstance( WebSocketFrameTranslator.class );
+
     @Override
     public void channelRead( ChannelHandlerContext ctx, Object msg )
     {

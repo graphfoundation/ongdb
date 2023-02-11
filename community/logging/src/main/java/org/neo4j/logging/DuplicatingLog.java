@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,203 +38,115 @@
  */
 package org.neo4j.logging;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.Consumer;
-import javax.annotation.Nonnull;
 
 /**
  * A {@link Log} implementation that duplicates all messages to other Log instances
  */
 public class DuplicatingLog extends AbstractLog
 {
-    private final CopyOnWriteArraySet<Log> logs;
-    private final DuplicatingLogger debugLogger;
-    private final DuplicatingLogger infoLogger;
-    private final DuplicatingLogger warnLogger;
-    private final DuplicatingLogger errorLogger;
+    private final Log log1;
+    private final Log log2;
 
-    /**
-     * @param logs A list of {@link Log} instances that messages should be duplicated to
-     */
-    public DuplicatingLog( Log... logs )
+    public DuplicatingLog( Log log1, Log log2 )
     {
-        this( Arrays.asList( logs ) );
-    }
-
-    /**
-     * @param logs A list of {@link Log} instances that messages should be duplicated to
-     */
-    public DuplicatingLog( List<Log> logs )
-    {
-        ArrayList<Logger> debugLoggers = new ArrayList<>( logs.size() );
-        ArrayList<Logger> infoLoggers = new ArrayList<>( logs.size() );
-        ArrayList<Logger> warnLoggers = new ArrayList<>( logs.size() );
-        ArrayList<Logger> errorLoggers = new ArrayList<>( logs.size() );
-
-        for ( Log log : logs )
-        {
-            debugLoggers.add( log.debugLogger() );
-            infoLoggers.add( log.infoLogger() );
-            warnLoggers.add( log.warnLogger() );
-            errorLoggers.add( log.errorLogger() );
-        }
-
-        this.logs = new CopyOnWriteArraySet<>( logs );
-        this.debugLogger = new DuplicatingLogger( debugLoggers );
-        this.infoLogger = new DuplicatingLogger( infoLoggers );
-        this.warnLogger = new DuplicatingLogger( warnLoggers );
-        this.errorLogger = new DuplicatingLogger( errorLoggers );
-    }
-
-    /**
-     * Remove a {@link Log} from the duplicating set
-     *
-     * @param log the Log to be removed
-     * @return true if the log was found and removed
-     */
-    public boolean remove( Log log )
-    {
-        boolean removed = this.logs.remove( log );
-        this.debugLogger.remove( log.debugLogger() );
-        this.infoLogger.remove( log.infoLogger() );
-        this.warnLogger.remove( log.warnLogger() );
-        this.errorLogger.remove( log.errorLogger() );
-        return removed;
+        this.log1 = log1;
+        this.log2 = log2;
     }
 
     @Override
     public boolean isDebugEnabled()
     {
-        for ( Log log : logs )
-        {
-            if ( log.isDebugEnabled() )
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    @Nonnull
-    @Override
-    public Logger debugLogger()
-    {
-        return this.debugLogger;
-    }
-
-    @Nonnull
-    @Override
-    public Logger infoLogger()
-    {
-        return this.infoLogger;
-    }
-
-    @Nonnull
-    @Override
-    public Logger warnLogger()
-    {
-        return this.warnLogger;
-    }
-
-    @Nonnull
-    @Override
-    public Logger errorLogger()
-    {
-        return this.errorLogger;
+        return log1.isDebugEnabled() || log2.isDebugEnabled();
     }
 
     @Override
-    public void bulk( @Nonnull Consumer<Log> consumer )
+    public void debug( String message )
     {
-        bulk( new LinkedList<>( logs ), new ArrayList<>( logs.size() ), consumer );
+        log1.debug( message );
+        log2.debug( message );
     }
 
-    private static void bulk( final LinkedList<Log> remaining, final ArrayList<Log> bulkLogs, final Consumer<Log> finalConsumer )
+    @Override
+    public void debug( String message, Throwable throwable )
     {
-        if ( !remaining.isEmpty() )
-        {
-            Log log = remaining.pop();
-            log.bulk( bulkLog ->
-            {
-                bulkLogs.add( bulkLog );
-                bulk( remaining, bulkLogs, finalConsumer );
-            } );
-        }
-        else
-        {
-            Log log = new DuplicatingLog( bulkLogs );
-            finalConsumer.accept( log );
-        }
+        log1.debug( message, throwable );
+        log2.debug( message, throwable );
     }
 
-    private static class DuplicatingLogger implements Logger
+    @Override
+    public void debug( String format, Object... arguments )
     {
-        private final CopyOnWriteArraySet<Logger> loggers;
+        log1.debug( format, arguments );
+        log2.debug( format, arguments );
+    }
 
-        DuplicatingLogger( List<Logger> loggers )
-        {
-            this.loggers = new CopyOnWriteArraySet<>( loggers );
-        }
+    @Override
+    public void info( String message )
+    {
+        log1.info( message );
+        log2.info( message );
+    }
 
-        public boolean remove( Logger logger )
-        {
-            return this.loggers.remove( logger );
-        }
+    @Override
+    public void info( String message, Throwable throwable )
+    {
+        log1.info( message, throwable );
+        log2.info( message, throwable );
+    }
 
-        @Override
-        public void log( @Nonnull String message )
-        {
-            for ( Logger logger : loggers )
-            {
-                logger.log( message );
-            }
-        }
+    @Override
+    public void info( String format, Object... arguments )
+    {
+        log1.info( format, arguments );
+        log2.info( format, arguments );
+    }
 
-        @Override
-        public void log( @Nonnull String message, @Nonnull Throwable throwable )
-        {
-            for ( Logger logger : loggers )
-            {
-                logger.log( message, throwable );
-            }
-        }
+    @Override
+    public void warn( String message )
+    {
+        log1.warn( message );
+        log2.warn( message );
+    }
 
-        @Override
-        public void log( @Nonnull String format, @Nonnull Object... arguments )
-        {
-            for ( Logger logger : loggers )
-            {
-                logger.log( format, arguments );
-            }
-        }
+    @Override
+    public void warn( String message, Throwable throwable )
+    {
+        log1.warn( message, throwable );
+        log2.warn( message, throwable );
+    }
 
-        @Override
-        public void bulk( @Nonnull Consumer<Logger> consumer )
-        {
-            bulk( new LinkedList<>( loggers ), new ArrayList<>( loggers.size() ), consumer );
-        }
+    @Override
+    public void warn( String format, Object... arguments )
+    {
+        log1.warn( format, arguments );
+        log2.warn( format, arguments );
+    }
 
-        private static void bulk( final LinkedList<Logger> remaining, final ArrayList<Logger> bulkLoggers,
-                final Consumer<Logger> finalConsumer )
-        {
-            if ( !remaining.isEmpty() )
-            {
-                Logger logger = remaining.pop();
-                logger.bulk( bulkLogger ->
-                {
-                    bulkLoggers.add( bulkLogger );
-                    bulk( remaining, bulkLoggers, finalConsumer );
-                } );
-            }
-            else
-            {
-                Logger logger = new DuplicatingLogger( bulkLoggers );
-                finalConsumer.accept( logger );
-            }
-        }
+    @Override
+    public void error( String message )
+    {
+        log1.error( message );
+        log2.error( message );
+    }
+
+    @Override
+    public void error( String message, Throwable throwable )
+    {
+        log1.error( message, throwable );
+        log2.error( message, throwable );
+    }
+
+    @Override
+    public void error( String format, Object... arguments )
+    {
+        log1.error( format, arguments );
+        log2.error( format, arguments );
+    }
+
+    @Override
+    public void bulk( Consumer<Log> consumer )
+    {
+        consumer.accept( this );
     }
 }

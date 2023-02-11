@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,25 +38,22 @@
  */
 package org.neo4j.kernel.api.exceptions.schema;
 
-import org.neo4j.internal.kernel.api.TokenNameLookup;
+import org.neo4j.common.TokenNameLookup;
 import org.neo4j.internal.kernel.api.exceptions.schema.ConstraintValidationException;
-import org.neo4j.internal.kernel.api.schema.SchemaUtil;
-import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
+import org.neo4j.internal.schema.ConstraintDescriptor;
 
 import static java.lang.String.format;
 
 /**
- * Attempting to validate constraints but the apparatus for validation was not available. For example,
+ * Attempting to validate constraints, but the apparatus for validation was not available. For example,
  * this exception is thrown when an index required to implement a uniqueness constraint is not available.
  */
 public class UnableToValidateConstraintException extends ConstraintValidationException
 {
-    public UnableToValidateConstraintException( ConstraintDescriptor constraint, Throwable cause )
+    public UnableToValidateConstraintException( ConstraintDescriptor constraint, Throwable cause, TokenNameLookup tokenNameLookup )
     {
         super( constraint, Phase.VERIFICATION,
-                format( "Unable to validate constraint %s",
-                        constraint.userDescription( SchemaUtil.idTokenNameLookup ) ),
-                cause );
+                format( "Unable to validate constraint %s", constraint.userDescription( tokenNameLookup ) ), cause, tokenNameLookup );
     }
 
     @Override

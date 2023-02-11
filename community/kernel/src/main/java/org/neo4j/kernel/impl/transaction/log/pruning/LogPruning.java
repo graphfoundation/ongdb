@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,6 +38,8 @@
  */
 package org.neo4j.kernel.impl.transaction.log.pruning;
 
+import java.io.IOException;
+
 public interface LogPruning
 {
     /**
@@ -46,7 +48,7 @@ public interface LogPruning
      *
      * @param currentVersion The lowest version expected to remain after pruning completes.
      */
-    void pruneLogs( long currentVersion );
+    void pruneLogs( long currentVersion ) throws IOException;
 
     /**
      * Check if there might be a desire to prune logs. This could be used as a hint to schedule some log pruning soon,
@@ -54,8 +56,14 @@ public interface LogPruning
      *
      * @return {@code true} if calling {@link #pruneLogs(long)} now <em>might</em> cause log files to be deleted.
      * Otherwise {@code false} if we are pretty sure that we don't need to prune any logs right now.
+     * @param upperVersion check up to this version.
      */
-    boolean mightHaveLogsToPrune();
+    boolean mightHaveLogsToPrune( long upperVersion );
+
+    /**
+     * @return A textual representation of the current log pruning strategy, for logging and debugging purposes.
+     */
+    String describeCurrentStrategy();
 
     LogPruning NO_PRUNING = new LogPruning()
     {
@@ -65,9 +73,15 @@ public interface LogPruning
         }
 
         @Override
-        public boolean mightHaveLogsToPrune()
+        public boolean mightHaveLogsToPrune( long upperVersion )
         {
             return false;
+        }
+
+        @Override
+        public String describeCurrentStrategy()
+        {
+            return LogPruneStrategyFactory.NO_PRUNING.toString();
         }
     };
 }

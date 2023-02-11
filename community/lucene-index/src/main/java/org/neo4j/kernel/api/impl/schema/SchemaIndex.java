@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -44,22 +44,16 @@ import java.util.List;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.index.DatabaseIndex;
 import org.neo4j.kernel.api.impl.schema.verification.UniquenessVerifier;
-import org.neo4j.kernel.api.impl.schema.writer.LuceneIndexWriter;
-import org.neo4j.kernel.api.index.PropertyAccessor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexReader;
+import org.neo4j.kernel.api.index.IndexReader;
+import org.neo4j.kernel.api.index.ValueIndexReader;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.values.storable.Value;
 
 /**
  * Partitioned lucene schema index.
  */
-public interface SchemaIndex extends DatabaseIndex
+public interface SchemaIndex extends DatabaseIndex<ValueIndexReader>
 {
-    LuceneIndexWriter getIndexWriter();
-
-    IndexReader getIndexReader() throws IOException;
-
-    SchemaIndexDescriptor getDescriptor();
 
     /**
      * Verifies uniqueness of property values present in this index.
@@ -68,9 +62,9 @@ public interface SchemaIndex extends DatabaseIndex
      * @param propertyKeyIds the ids of the properties to verify.
      * @throws IndexEntryConflictException if there are duplicates.
      * @throws IOException
-     * @see UniquenessVerifier#verify(PropertyAccessor, int[])
+     * @see UniquenessVerifier#verify(NodePropertyAccessor, int[])
      */
-    void verifyUniqueness( PropertyAccessor accessor, int[] propertyKeyIds )
+    void verifyUniqueness( NodePropertyAccessor accessor, int[] propertyKeyIds )
             throws IOException, IndexEntryConflictException;
 
     /**
@@ -81,31 +75,8 @@ public interface SchemaIndex extends DatabaseIndex
      * @param updatedValueTuples the values to check uniqueness for.
      * @throws IndexEntryConflictException if there are duplicates.
      * @throws IOException
-     * @see UniquenessVerifier#verify(PropertyAccessor, int[], List)
+     * @see UniquenessVerifier#verify(NodePropertyAccessor, int[], List)
      */
-    void verifyUniqueness( PropertyAccessor accessor, int[] propertyKeyIds, List<Value[]> updatedValueTuples )
+    void verifyUniqueness( NodePropertyAccessor accessor, int[] propertyKeyIds, List<Value[]> updatedValueTuples )
                     throws IOException, IndexEntryConflictException;
-
-    /**
-     * Check if this index is marked as online.
-     *
-     * @return <code>true</code> if index is online, <code>false</code> otherwise
-     * @throws IOException
-     */
-    boolean isOnline() throws IOException;
-
-    /**
-     * Marks index as online by including "status" -> "online" map into commit metadata of the first partition.
-     *
-     * @throws IOException
-     */
-    void markAsOnline() throws IOException;
-
-    /**
-     * Writes the given failure message to the failure storage.
-     *
-     * @param failure the failure message.
-     * @throws IOException
-     */
-    void markAsFailed( String failure ) throws IOException;
 }

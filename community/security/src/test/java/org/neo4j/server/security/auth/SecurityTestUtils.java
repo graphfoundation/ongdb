@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,11 @@
  */
 package org.neo4j.server.security.auth;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
+
+import org.neo4j.cypher.internal.security.SecureHasher;
+import org.neo4j.cypher.internal.security.SystemGraphCredential;
 
 import static org.neo4j.kernel.api.security.AuthToken.newBasicAuthToken;
 
@@ -51,5 +55,15 @@ public class SecurityTestUtils
     public static Map<String,Object> authToken( String username, String password )
     {
         return newBasicAuthToken( username, password );
+    }
+
+    public static byte[] password( String passwordString )
+    {
+        return passwordString != null ? passwordString.getBytes( StandardCharsets.UTF_8 ) : null;
+    }
+
+    public static SystemGraphCredential credentialFor( String passwordString )
+    {
+        return SystemGraphCredential.createCredentialForPassword( password( passwordString ), new SecureHasher() );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -63,18 +63,13 @@ public interface EvictionEvent extends AutoCloseablePageCacheTracerEvent
         }
 
         @Override
-        public FlushEventOpportunity flushEventOpportunity()
+        public FlushEvent beginFlush( long pageRef, PageSwapper swapper, PageReferenceTranslator pageReferenceTranslator )
         {
-            return FlushEventOpportunity.NULL;
+            return FlushEvent.NULL;
         }
 
         @Override
         public void threwException( IOException exception )
-        {
-        }
-
-        @Override
-        public void setCachePageId( long cachePageId )
         {
         }
 
@@ -95,18 +90,13 @@ public interface EvictionEvent extends AutoCloseablePageCacheTracerEvent
     void setSwapper( PageSwapper swapper );
 
     /**
-     * Eviction implies an opportunity to flush.
+     * Begin flushing the given page.
      */
-    FlushEventOpportunity flushEventOpportunity();
+    FlushEvent beginFlush( long pageRef, PageSwapper swapper, PageReferenceTranslator pageReferenceTranslator );
 
     /**
      * Indicates that the eviction caused an exception to be thrown.
      * This can happen if some kind of IO error occurs.
      */
     void threwException( IOException exception );
-
-    /**
-     * The cache page id of the evicted page.
-     */
-    void setCachePageId( long cachePageId );
 }

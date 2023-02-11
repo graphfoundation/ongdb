@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,191 +38,196 @@
  */
 package org.neo4j.commandline.admin.security;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import picocli.CommandLine;
 
-import java.io.File;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.nio.file.Path;
 
-import org.neo4j.commandline.admin.AdminTool;
-import org.neo4j.commandline.admin.BlockerLocator;
-import org.neo4j.commandline.admin.CommandLocator;
-import org.neo4j.commandline.admin.OutsideWorld;
-import org.neo4j.graphdb.mockfs.EphemeralFileSystemAbstraction;
+import org.neo4j.cli.ExecutionContext;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.api.security.UserManager;
+import org.neo4j.kernel.api.security.AuthManager;
 import org.neo4j.kernel.impl.security.User;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.server.security.auth.FileUserRepository;
+import org.neo4j.string.UTF8;
+import org.neo4j.test.extension.EphemeralFileSystemExtension;
+import org.neo4j.test.extension.Inject;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
 
-public class SetInitialPasswordCommandIT
+@ExtendWith( EphemeralFileSystemExtension.class )
+class SetInitialPasswordCommandIT
 {
-    private FileSystemAbstraction fileSystem = new EphemeralFileSystemAbstraction();
-    private File confDir;
-    private File homeDir;
-    private OutsideWorld out;
-    private AdminTool tool;
+    @Inject
+    private FileSystemAbstraction fileSystem;
+    private Path confDir;
+    private Path homeDir;
+    private PrintStream out;
+    private PrintStream err;
 
-    private static final String SET_PASSWORD = "set-initial-password";
+    private static final String successMessage = "Changed password for user 'neo4j'. " +
+                                                 "IMPORTANT: this change will only take effect if performed before the database is started for the first time.";
 
-    @Before
-    public void setup()
+    @BeforeEach
+    void setup()
     {
-        File graphDir = new File( "graph-db" );
-        confDir = new File( graphDir, "conf" );
-        homeDir = new File( graphDir, "home" );
-        out = mock( OutsideWorld.class );
-        resetOutsideWorldMock();
-        tool = new AdminTool( CommandLocator.fromServiceLocator(), BlockerLocator.fromServiceLocator(), out, true );
+        Path graphDir = Path.of( GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
+        confDir = graphDir.resolve( "conf" );
+        homeDir = graphDir.resolve( "home" );
+        out = mock( PrintStream.class );
+        err = mock( PrintStream.class );
     }
 
-    @After
-    public void tearDown() throws Exception
+    @AfterEach
+    void tearDown() throws Exception
     {
         fileSystem.close();
     }
 
     @Test
-    public void shouldSetPassword() throws Throwable
+    void shouldSetPassword() throws Throwable
     {
-        tool.execute( homeDir.toPath(), confDir.toPath(), SET_PASSWORD, "abc" );
-        assertAuthIniFile( "abc" );
+        executeCommand( "abc" );
+        assertAuthIniFile( "abc", false );
 
-        verify( out ).stdOutLine( "Changed password for user 'ongdb'." );
+        verify( out ).println( successMessage );
     }
 
     @Test
-    public void shouldOverwriteIfSetPasswordAgain() throws Throwable
+    void shouldSetPasswordWithRequirePasswordChange() throws Throwable
     {
-        tool.execute( homeDir.toPath(), confDir.toPath(), SET_PASSWORD, "abc" );
-        assertAuthIniFile( "abc" );
-        tool.execute( homeDir.toPath(), confDir.toPath(), SET_PASSWORD, "muchBetter" );
-        assertAuthIniFile( "muchBetter" );
+        executeCommand( "abc", "--require-password-change" );
+        assertAuthIniFile( "abc", true );
 
-        verify( out, times( 2 ) ).stdOutLine( "Changed password for user 'ongdb'." );
+        verify( out ).println( successMessage );
     }
 
     @Test
-    public void shouldWorkWithSamePassword() throws Throwable
+    void shouldSetPasswordWithRequirePasswordChangeOtherOrder() throws Throwable
     {
-        tool.execute( homeDir.toPath(), confDir.toPath(), SET_PASSWORD, "ongdb" );
-        assertAuthIniFile( "ongdb" );
-        tool.execute( homeDir.toPath(), confDir.toPath(), SET_PASSWORD, "ongdb" );
-        assertAuthIniFile( "ongdb" );
+        executeCommand( "--require-password-change", "abc" );
+        assertAuthIniFile( "abc", true );
 
-        verify( out, times( 2 ) ).stdOutLine( "Changed password for user 'ongdb'." );
+        verify( out ).println( successMessage );
     }
 
     @Test
-    public void shouldGetUsageOnWrongArguments1()
+    void shouldOverwriteIfSetPasswordAgain() throws Throwable
     {
-        tool.execute( homeDir.toPath(), confDir.toPath(), SET_PASSWORD );
-        assertNoAuthIniFile();
+        executeCommand( "abc" );
+        assertAuthIniFile( "abc", false );
+        executeCommand( "muchBetter" );
+        assertAuthIniFile( "muchBetter", false );
 
-        verify( out ).stdErrLine( "not enough arguments" );
-        verify( out, times( 3 ) ).stdErrLine( "" );
-        verify( out ).stdErrLine( "usage: ongdb-admin set-initial-password <password>" );
-        verify( out ).stdErrLine( String.format( "environment variables:" ) );
-        verify( out ).stdErrLine( String.format( "    ONGDB_CONF    Path to directory which contains ongdb.conf." ) );
-        verify( out ).stdErrLine( String.format( "    ONGDB_DEBUG   Set to anything to enable debug output." ) );
-        verify( out ).stdErrLine( String.format( "    ONGDB_HOME    ONgDB home directory." ) );
-        verify( out ).stdErrLine( String.format( "    HEAP_SIZE     Set JVM maximum heap size during command execution." ) );
-        verify( out ).stdErrLine( String.format( "                  Takes a number and a unit, for example 512m." ) );
-        verify( out ).stdErrLine( "Sets the initial password of the initial admin user ('ongdb')." );
-        verify( out ).exit( 1 );
-        verifyNoMoreInteractions( out );
-        verify( out, never() ).stdOutLine( anyString() );
+        verify( out, times( 2 ) ).println( successMessage );
     }
 
     @Test
-    public void shouldGetUsageOnWrongArguments2()
+    void shouldWorkWithSamePassword() throws Throwable
     {
-        tool.execute( homeDir.toPath(), confDir.toPath(), SET_PASSWORD, "foo", "bar" );
-        assertNoAuthIniFile();
+        executeCommand( "neo4j" );
+        assertAuthIniFile( "neo4j", false );
+        executeCommand( "neo4j" );
+        assertAuthIniFile( "neo4j", false );
 
-        verify( out ).stdErrLine( "unrecognized arguments: 'bar'" );
-        verify( out, times( 3 ) ).stdErrLine( "" );
-        verify( out ).stdErrLine( "usage: ongdb-admin set-initial-password <password>" );
-        verify( out ).stdErrLine( String.format( "environment variables:" ) );
-        verify( out ).stdErrLine( String.format( "    ONGDB_CONF    Path to directory which contains ongdb.conf." ) );
-        verify( out ).stdErrLine( String.format( "    ONGDB_DEBUG   Set to anything to enable debug output." ) );
-        verify( out ).stdErrLine( String.format( "    ONGDB_HOME    ONgDB home directory." ) );
-        verify( out ).stdErrLine( String.format( "    HEAP_SIZE     Set JVM maximum heap size during command execution." ) );
-        verify( out ).stdErrLine( String.format( "                  Takes a number and a unit, for example 512m." ) );
-
-        verify( out ).stdErrLine( "Sets the initial password of the initial admin user ('ongdb')." );
-        verify( out ).exit( 1 );
-        verifyNoMoreInteractions( out );
-        verify( out, never() ).stdOutLine( anyString() );
+        verify( out, times( 2 ) ).println( successMessage );
     }
 
     @Test
-    public void shouldErrorIfRealUsersAlreadyExistCommunity() throws Throwable
+    void shouldErrorIfRealUsersAlreadyExistCommunity() throws Throwable
     {
         // Given
-        File authFile = getAuthFile( "auth" );
-        fileSystem.mkdirs( authFile.getParentFile() );
-        fileSystem.create( authFile );
+        Path authFile = getAuthFile( "auth" );
+        fileSystem.mkdirs( authFile.getParent() );
+        fileSystem.write( authFile );
 
         // When
-        tool.execute( homeDir.toPath(), confDir.toPath(), SET_PASSWORD, "will-be-ignored" );
+        var e = assertThrows( Exception.class, () -> executeCommand( "will-be-ignored" ) );
+        assertThat( e.getMessage() ).contains( "the provided initial password was not set because existing Neo4j users were detected" );
 
         // Then
         assertNoAuthIniFile();
-        verify( out, times( 1 ) )
-                .stdErrLine( "command failed: the provided initial password was not set because existing ONgDB users were " +
-                        "detected at `" + authFile.getAbsolutePath() + "`. Please remove the existing `auth` file if you " +
-                        "want to reset your database to only have a default user with the provided password." );
-        verify( out ).exit( 1 );
-        verify( out, times( 0 ) ).stdOutLine( anyString() );
     }
 
     @Test
-    public void shouldErrorIfRealUsersAlreadyExistEnterprise() throws Throwable
+    void shouldErrorIfRealUsersAlreadyExistEnterprise() throws Throwable
     {
         // Given
-        File authFile = getAuthFile( "auth" );
-        File rolesFile = getAuthFile( "roles" );
+        Path authFile = getAuthFile( "auth" );
+        Path rolesFile = getAuthFile( "roles" );
 
-        fileSystem.mkdirs( authFile.getParentFile() );
-        fileSystem.create( authFile );
-        fileSystem.create( rolesFile );
+        fileSystem.mkdirs( authFile.getParent() );
+        fileSystem.write( authFile );
+        fileSystem.write( rolesFile );
 
         // When
-        tool.execute( homeDir.toPath(), confDir.toPath(), SET_PASSWORD, "will-be-ignored" );
+        var e = assertThrows( Exception.class, () -> executeCommand( "will-be-ignored" ) );
+        assertThat( e.getMessage() ).contains( "the provided initial password was not set because existing Neo4j users were detected" );
 
         // Then
         assertNoAuthIniFile();
-        verify( out, times( 1 ) )
-                .stdErrLine( "command failed: the provided initial password was not set because existing ONgDB users were " +
-                        "detected at `" + authFile.getAbsolutePath() + "`. Please remove the existing `auth` and `roles` files if you " +
-                        "want to reset your database to only have a default user with the provided password." );
-        verify( out ).exit( 1 );
-        verify( out, never() ).stdOutLine( anyString() );
     }
 
-    private void assertAuthIniFile( String password ) throws Throwable
+    @Test
+    void shouldErrorIfRealUsersAlreadyExistV2() throws Throwable
     {
-        File authIniFile = getAuthFile( "auth.ini" );
+        // Given
+        // Create an `auth` file with the default neo4j user, but not the default password
+        executeCommand( "not-the-default-password" );
+        Path authFile = getAuthFile( "auth" );
+        fileSystem.mkdirs( authFile.getParent() );
+        fileSystem.renameFile( getAuthFile( "auth.ini" ), authFile );
+
+        // When
+        var e = assertThrows( Exception.class, () -> executeCommand( "will-be-ignored" ) );
+        assertThat( e.getMessage() ).contains( "the provided initial password was not set because existing Neo4j users were detected" );
+
+        // Then
+        assertNoAuthIniFile();
+        verify( out ).println( successMessage ); // This is from the initial setup
+    }
+
+    @Test
+    void shouldNotErrorIfOnlyTheUnmodifiedDefaultNeo4jUserAlreadyExists() throws Throwable
+    {
+        // Given
+        // Create an `auth` file with the default neo4j user
+        executeCommand( AuthManager.INITIAL_PASSWORD );
+        Path authFile = getAuthFile( "auth" );
+        fileSystem.mkdirs( authFile.getParent() );
+        fileSystem.renameFile( getAuthFile( "auth.ini" ), authFile );
+
+        // When
+        executeCommand( "should-not-be-ignored" );
+
+        // Then
+        assertAuthIniFile( "should-not-be-ignored", false );
+        verify( out, times( 2 ) ).println( successMessage );
+    }
+
+    private void assertAuthIniFile( String password, boolean passwordChangeRequired ) throws Throwable
+    {
+        Path authIniFile = getAuthFile( "auth.ini" );
         assertTrue( fileSystem.fileExists( authIniFile ) );
         FileUserRepository userRepository = new FileUserRepository( fileSystem, authIniFile, NullLogProvider.getInstance() );
         userRepository.start();
-        User neo4j = userRepository.getUserByName( UserManager.INITIAL_USER_NAME );
+        User neo4j = userRepository.getUserByName( AuthManager.INITIAL_USER_NAME );
         assertNotNull( neo4j );
-        assertTrue( neo4j.credentials().matchesPassword( password ) );
-        assertFalse( neo4j.hasFlag( User.PASSWORD_CHANGE_REQUIRED ) );
+        assertTrue( neo4j.credentials().matchesPassword( UTF8.encode( password ) ) );
+        assertThat( neo4j.hasFlag( User.PASSWORD_CHANGE_REQUIRED ) ).isEqualTo( passwordChangeRequired );
     }
 
     private void assertNoAuthIniFile()
@@ -230,14 +235,16 @@ public class SetInitialPasswordCommandIT
         assertFalse( fileSystem.fileExists( getAuthFile( "auth.ini" ) ) );
     }
 
-    private File getAuthFile( String name )
+    private Path getAuthFile( String name )
     {
-        return new File( new File( new File( homeDir, "data" ), "dbms" ), name );
+        return homeDir.resolve( "data" ).resolve( "dbms" ).resolve( name );
     }
 
-    private void resetOutsideWorldMock()
+    private void executeCommand( String... args ) throws IOException
     {
-        reset(out);
-        when( out.fileSystem() ).thenReturn( fileSystem );
+        final var ctx = new ExecutionContext( homeDir, confDir, out, err, fileSystem );
+        final var command = new SetInitialPasswordCommand( ctx );
+        CommandLine.populateCommand( command, args );
+        command.execute();
     }
 }

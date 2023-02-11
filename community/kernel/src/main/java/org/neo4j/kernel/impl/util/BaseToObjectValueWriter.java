@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -51,16 +51,15 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
-import org.neo4j.graphdb.DatabaseShutdownException;
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.NotInTransactionException;
 import org.neo4j.graphdb.Path;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.spatial.Point;
 import org.neo4j.graphdb.traversal.Paths;
-import org.neo4j.helpers.collection.ReverseArrayIterator;
+import org.neo4j.internal.helpers.collection.ReverseArrayIterator;
 import org.neo4j.values.AnyValueWriter;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.DurationValue;
@@ -70,14 +69,14 @@ import org.neo4j.values.virtual.MapValue;
 import org.neo4j.values.virtual.NodeValue;
 import org.neo4j.values.virtual.RelationshipValue;
 
-import static org.neo4j.helpers.collection.Iterators.iteratorsEqual;
+import static org.neo4j.internal.helpers.collection.Iterators.iteratorsEqual;
 
 /**
  * Base class for converting AnyValue to normal java objects.
  * <p>
  * This base class takes care of converting all "normal" java types such as
  * number types, booleans, strings, arrays and lists. It leaves to the extending
- * class to handle ONgDB specific types such as nodes, edges and points.
+ * class to handle neo4j specific types such as nodes, edges and points.
  *
  * @param <E> the exception thrown on error.
  */
@@ -90,9 +89,9 @@ public abstract class BaseToObjectValueWriter<E extends Exception> implements An
         stack.push( new ObjectWriter() );
     }
 
-    protected abstract Node newNodeProxyById( long id );
+    protected abstract Node newNodeEntityById( long id );
 
-    protected abstract Relationship newRelationshipProxyById( long id );
+    protected abstract Relationship newRelationshipEntityById( long id );
 
     protected abstract Point newPoint( CoordinateReferenceSystem crs, double[] coordinate );
 
@@ -110,17 +109,23 @@ public abstract class BaseToObjectValueWriter<E extends Exception> implements An
     }
 
     @Override
-    public void writeNodeReference( long nodeId ) throws RuntimeException
+    public EntityMode entityMode()
+    {
+        return EntityMode.FULL;
+    }
+
+    @Override
+    public void writeNodeReference( long nodeId )
     {
         throw new UnsupportedOperationException( "Cannot write a raw node reference" );
     }
 
     @Override
-    public void writeNode( long nodeId, TextArray ignore, MapValue properties ) throws RuntimeException
+    public void writeNode( long nodeId, TextArray ignore, MapValue properties, boolean ignored )
     {
         if ( nodeId >= 0 )
         {
-            writeValue( newNodeProxyById( nodeId ) );
+            writeValue( newNodeEntityById( nodeId ) );
         }
     }
 
@@ -131,18 +136,17 @@ public abstract class BaseToObjectValueWriter<E extends Exception> implements An
     }
 
     @Override
-    public void writeRelationshipReference( long relId ) throws RuntimeException
+    public void writeRelationshipReference( long relId )
     {
-        throw new UnsupportedOperationException( "Cannot write a raw edge reference" );
+        throw new UnsupportedOperationException( "Cannot write a raw relationship reference" );
     }
 
     @Override
-    public void writeRelationship( long relId, long startNodeId, long endNodeId, TextValue type, MapValue properties )
-            throws RuntimeException
+    public void writeRelationship( long relId, long startNodeId, long endNodeId, TextValue type, MapValue properties, boolean ignored )
     {
         if ( relId >= 0 )
         {
-            writeValue( newRelationshipProxyById( relId ) );
+            writeValue( newRelationshipEntityById( relId ) );
         }
     }
 
@@ -153,33 +157,33 @@ public abstract class BaseToObjectValueWriter<E extends Exception> implements An
     }
 
     @Override
-    public void beginMap( int size ) throws RuntimeException
+    public void beginMap( int size )
     {
         stack.push( new MapWriter( size ) );
     }
 
     @Override
-    public void endMap() throws RuntimeException
+    public void endMap()
     {
         assert !stack.isEmpty();
         writeValue( stack.pop().value() );
     }
 
     @Override
-    public void beginList( int size ) throws RuntimeException
+    public void beginList( int size )
     {
         stack.push( new ListWriter( size ) );
     }
 
     @Override
-    public void endList() throws RuntimeException
+    public void endList()
     {
         assert !stack.isEmpty();
         writeValue( stack.pop().value() );
     }
 
     @Override
-    public void writePath( NodeValue[] nodes, RelationshipValue[] relationships ) throws RuntimeException
+    public void writePathReference( long[] nodes, long[] relationships ) throws E
     {
         assert nodes != null;
         assert nodes.length > 0;
@@ -189,136 +193,35 @@ public abstract class BaseToObjectValueWriter<E extends Exception> implements An
         Node[] nodeProxies = new Node[nodes.length];
         for ( int i = 0; i < nodes.length; i++ )
         {
-            nodeProxies[i] = newNodeProxyById( nodes[i].id() );
+            nodeProxies[i] = newNodeEntityById( nodes[i] );
         }
-        Relationship[] relationship = new Relationship[relationships.length];
+        Relationship[] relProxies = new Relationship[relationships.length];
         for ( int i = 0; i < relationships.length; i++ )
         {
-            relationship[i] = newRelationshipProxyById( relationships[i].id() );
+            relProxies[i] = newRelationshipEntityById( relationships[i] );
         }
-        writeValue( new Path()
+        writeValue( new PathProxy( nodeProxies, relProxies ) );
+    }
+
+    @Override
+    public void writePath( NodeValue[] nodes, RelationshipValue[] relationships )
+    {
+        assert nodes != null;
+        assert nodes.length > 0;
+        assert relationships != null;
+        assert nodes.length == relationships.length + 1;
+
+        Node[] nodeProxies = new Node[nodes.length];
+        for ( int i = 0; i < nodes.length; i++ )
         {
-            @Override
-            public Node startNode()
-            {
-                return nodeProxies[0];
-            }
-
-            @Override
-            public Node endNode()
-            {
-                return nodeProxies[nodeProxies.length - 1];
-            }
-
-            @Override
-            public Relationship lastRelationship()
-            {
-                return relationship[relationship.length - 1];
-            }
-
-            @Override
-            public Iterable<Relationship> relationships()
-            {
-                return Arrays.asList( relationship );
-            }
-
-            @Override
-            public Iterable<Relationship> reverseRelationships()
-            {
-                return () -> new ReverseArrayIterator<>( relationship );
-            }
-
-            @Override
-            public Iterable<Node> nodes()
-            {
-                return Arrays.asList( nodeProxies );
-            }
-
-            @Override
-            public Iterable<Node> reverseNodes()
-            {
-                return () -> new ReverseArrayIterator<>( nodeProxies );
-            }
-
-            @Override
-            public int length()
-            {
-                return relationship.length;
-            }
-
-            @Override
-            public int hashCode()
-            {
-                if ( relationship.length == 0 )
-                {
-                    return startNode().hashCode();
-                }
-                else
-                {
-                    return Arrays.hashCode( relationship );
-                }
-            }
-
-            @Override
-            public boolean equals( Object obj )
-            {
-                if ( this == obj )
-                {
-                    return true;
-                }
-                else if ( obj instanceof Path )
-                {
-                    Path other = (Path) obj;
-                    return startNode().equals( other.startNode() ) &&
-                           iteratorsEqual( this.relationships().iterator(), other.relationships().iterator() );
-
-                }
-                else
-                {
-                    return false;
-                }
-            }
-
-            @Override
-            public Iterator<PropertyContainer> iterator()
-            {
-                return new Iterator<PropertyContainer>()
-                {
-                    Iterator<? extends PropertyContainer> current = nodes().iterator();
-                    Iterator<? extends PropertyContainer> next = relationships().iterator();
-
-                    public boolean hasNext()
-                    {
-                        return current.hasNext();
-                    }
-
-                    public PropertyContainer next()
-                    {
-                        try
-                        {
-                            return current.next();
-                        }
-                        finally
-                        {
-                            Iterator<? extends PropertyContainer> temp = current;
-                            current = next;
-                            next = temp;
-                        }
-                    }
-
-                    public void remove()
-                    {
-                        next.remove();
-                    }
-                };
-            }
-
-            @Override
-            public String toString()
-            {
-                return Paths.defaultPathToStringWithNotInTransactionFallback( this );
-            }
-        } );
+            nodeProxies[i] = newNodeEntityById( nodes[i].id() );
+        }
+        Relationship[] relProxies = new Relationship[relationships.length];
+        for ( int i = 0; i < relationships.length; i++ )
+        {
+            relProxies[i] = newRelationshipEntityById( relationships[i].id() );
+        }
+        writeValue( new PathProxy( nodeProxies, relProxies ) );
     }
 
     @Override
@@ -328,80 +231,80 @@ public abstract class BaseToObjectValueWriter<E extends Exception> implements An
     }
 
     @Override
-    public void writeNull() throws RuntimeException
+    public void writeNull()
     {
         writeValue( null );
     }
 
     @Override
-    public void writeBoolean( boolean value ) throws RuntimeException
+    public void writeBoolean( boolean value )
     {
         writeValue( value );
     }
 
     @Override
-    public void writeInteger( byte value ) throws RuntimeException
+    public void writeInteger( byte value )
     {
         writeValue( value );
     }
 
     @Override
-    public void writeInteger( short value ) throws RuntimeException
+    public void writeInteger( short value )
     {
         writeValue( value );
     }
 
     @Override
-    public void writeInteger( int value ) throws RuntimeException
+    public void writeInteger( int value )
     {
         writeValue( value );
     }
 
     @Override
-    public void writeInteger( long value ) throws RuntimeException
+    public void writeInteger( long value )
     {
         writeValue( value );
     }
 
     @Override
-    public void writeFloatingPoint( float value ) throws RuntimeException
+    public void writeFloatingPoint( float value )
     {
         writeValue( value );
     }
 
     @Override
-    public void writeFloatingPoint( double value ) throws RuntimeException
+    public void writeFloatingPoint( double value )
     {
         writeValue( value );
     }
 
     @Override
-    public void writeString( String value ) throws RuntimeException
+    public void writeString( String value )
     {
         writeValue( value );
     }
 
     @Override
-    public void writeString( char value ) throws RuntimeException
+    public void writeString( char value )
     {
         writeValue( value );
     }
 
     @Override
-    public void beginArray( int size, ArrayType arrayType ) throws RuntimeException
+    public void beginArray( int size, ArrayType arrayType )
     {
         stack.push( new ArrayWriter( size, arrayType ) );
     }
 
     @Override
-    public void endArray() throws RuntimeException
+    public void endArray()
     {
         assert !stack.isEmpty();
         writeValue( stack.pop().value() );
     }
 
     @Override
-    public void writeByteArray( byte[] value ) throws RuntimeException
+    public void writeByteArray( byte[] value )
     {
         writeValue( value );
     }
@@ -413,35 +316,169 @@ public abstract class BaseToObjectValueWriter<E extends Exception> implements An
     }
 
     @Override
-    public void writeDate( LocalDate localDate ) throws RuntimeException
+    public void writeDate( LocalDate localDate )
     {
         writeValue( localDate );
     }
 
     @Override
-    public void writeLocalTime( LocalTime localTime ) throws RuntimeException
+    public void writeLocalTime( LocalTime localTime )
     {
         writeValue( localTime );
     }
 
     @Override
-    public void writeTime( OffsetTime offsetTime ) throws RuntimeException
+    public void writeTime( OffsetTime offsetTime )
     {
         writeValue( offsetTime );
     }
 
     @Override
-    public void writeLocalDateTime( LocalDateTime localDateTime ) throws RuntimeException
+    public void writeLocalDateTime( LocalDateTime localDateTime )
     {
         writeValue( localDateTime );
     }
 
     @Override
-    public void writeDateTime( ZonedDateTime zonedDateTime ) throws RuntimeException
+    public void writeDateTime( ZonedDateTime zonedDateTime )
     {
         writeValue( zonedDateTime );
     }
 
+    private static class PathProxy implements Path
+    {
+        private final Node[] nodes;
+        private final Relationship[] relationships;
+
+        private PathProxy( Node[] nodes, Relationship[] relationships )
+        {
+            this.nodes = nodes;
+            this.relationships = relationships;
+        }
+
+        @Override
+        public Node startNode()
+        {
+            return nodes[0];
+        }
+
+        @Override
+        public Node endNode()
+        {
+            return nodes[nodes.length - 1];
+        }
+
+        @Override
+        public Relationship lastRelationship()
+        {
+            return relationships[relationships.length - 1];
+        }
+
+        @Override
+        public Iterable<Relationship> relationships()
+        {
+            return Arrays.asList( relationships );
+        }
+
+        @Override
+        public Iterable<Relationship> reverseRelationships()
+        {
+            return () -> new ReverseArrayIterator<>( relationships );
+        }
+
+        @Override
+        public Iterable<Node> nodes()
+        {
+            return Arrays.asList( nodes );
+        }
+
+        @Override
+        public Iterable<Node> reverseNodes()
+        {
+            return () -> new ReverseArrayIterator<>( nodes );
+        }
+
+        @Override
+        public int length()
+        {
+            return relationships.length;
+        }
+
+        @Override
+        public int hashCode()
+        {
+            if ( relationships.length == 0 )
+            {
+                return startNode().hashCode();
+            }
+            else
+            {
+                return Arrays.hashCode( relationships );
+            }
+        }
+
+        @Override
+        public boolean equals( Object obj )
+        {
+            if ( this == obj )
+            {
+                return true;
+            }
+            else if ( obj instanceof Path )
+            {
+                Path other = (Path) obj;
+                return startNode().equals( other.startNode() ) &&
+                       iteratorsEqual( this.relationships().iterator(), other.relationships().iterator() );
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        @Override
+        public Iterator<Entity> iterator()
+        {
+            return new Iterator<>()
+            {
+                Iterator<? extends Entity> current = nodes().iterator();
+                Iterator<? extends Entity> next = relationships().iterator();
+
+                @Override
+                public boolean hasNext()
+                {
+                    return current.hasNext();
+                }
+
+                @Override
+                public Entity next()
+                {
+                    try
+                    {
+                        return current.next();
+                    }
+                    finally
+                    {
+                        Iterator<? extends Entity> temp = current;
+                        current = next;
+                        next = temp;
+                    }
+                }
+
+                @Override
+                public void remove()
+                {
+                    next.remove();
+                }
+            };
+        }
+
+        @Override
+        public String toString()
+        {
+            return Paths.defaultPathToStringWithNotInTransactionFallback( this );
+        }
+    }
     private interface Writer
     {
         void write( Object value );
@@ -470,7 +507,7 @@ public abstract class BaseToObjectValueWriter<E extends Exception> implements An
     {
         private String key;
         private boolean isKey = true;
-        private final HashMap<String,Object> map;
+        private final Map<String,Object> map;
 
         MapWriter( int size )
         {

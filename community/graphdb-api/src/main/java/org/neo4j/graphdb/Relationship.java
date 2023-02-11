@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,11 +38,13 @@
  */
 package org.neo4j.graphdb;
 
+import org.neo4j.annotations.api.PublicApi;
+
 /**
  * A relationship between two nodes in the graph. A relationship has a start
  * node, an end node and a {@link RelationshipType type}. You can attach
  * properties to relationships with the API specified in
- * {@link PropertyContainer}.
+ * {@link Entity}.
  * <p>
  * Relationships are created by invoking the
  * {@link Node#createRelationshipTo(Node, RelationshipType)
@@ -62,8 +64,8 @@ package org.neo4j.graphdb;
  *
  * <pre>
  * <code>
- * {@link Node} a = graphDb.{@link GraphDatabaseService#createNode() createNode}();
- * {@link Node} b = graphDb.{@link GraphDatabaseService#createNode() createNode}();
+ * {@link Node} a = tx.{@link Transaction#createNode() createNode}();
+ * {@link Node} b = tx.{@link Transaction#createNode() createNode}();
  * {@link Relationship} rel = a.{@link Node#createRelationshipTo(Node, RelationshipType)
  * createRelationshipTo}( b, {@link RelationshipType MyRels.REL_TYPE} );
  * // Now we have: (a) --- REL_TYPE ---&gt; (b)
@@ -80,29 +82,18 @@ package org.neo4j.graphdb;
  * relationships in the opposite direction (with regard to traversal or
  * performance).
  * <p>
- * Furthermore, ONgDB guarantees that a relationship is never "hanging freely,"
+ * Furthermore, Neo4j guarantees that a relationship is never "hanging freely,"
  * i.e. {@link #getStartNode()}, {@link #getEndNode()},
  * {@link #getOtherNode(Node)} and {@link #getNodes()} are guaranteed to always
  * return valid, non-null nodes.
  * <p>
- * A relationship's id is unique, but note the following: ONgDB reuses its internal ids
+ * A relationship's id is unique, but note the following: Neo4j reuses its internal ids
  * when nodes and relationships are deleted, which means it's bad practice to
  * refer to them this way. Instead, use application generated ids.
  */
+@PublicApi
 public interface Relationship extends Entity
 {
-    /**
-     * Returns the unique id of this relationship. Ids are garbage collected
-     * over time so they are only guaranteed to be unique during a specific time
-     * span: if the relationship is deleted, it's likely that a new relationship
-     * at some point will get the old id. <b>Note</b>: This makes relationship
-     * ids brittle as public APIs.
-     *
-     * @return The id of this relationship
-     */
-    @Override
-    long getId();
-
     /**
      * Deletes this relationship. Invoking any methods on this relationship
      * after <code>delete()</code> has returned is invalid and will lead to

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,8 +38,16 @@
  */
 package org.neo4j.internal.kernel.api.procs;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+
+import org.neo4j.values.ValueMapper;
+import org.neo4j.values.storable.Value;
+import org.neo4j.values.virtual.VirtualNodeValue;
+import org.neo4j.values.virtual.VirtualPathValue;
+import org.neo4j.values.virtual.VirtualRelationshipValue;
 
 public class DefaultParameterValue
 {
@@ -55,6 +63,11 @@ public class DefaultParameterValue
     public Object value()
     {
         return value;
+    }
+
+    public Object javaValue()
+    {
+        return unifyType( value );
     }
 
     public Neo4jTypes.AnyType neo4jType()
@@ -97,16 +110,26 @@ public class DefaultParameterValue
         return new DefaultParameterValue( value, Neo4jTypes.NTList( inner ) );
     }
 
+    public static DefaultParameterValue ntAny( Object value )
+    {
+        return new DefaultParameterValue( value, Neo4jTypes.NTAny );
+    }
+
     public static DefaultParameterValue nullValue( Neo4jTypes.AnyType type )
     {
         return new DefaultParameterValue( null, type );
+    }
+
+    public DefaultParameterValue castAs( Neo4jTypes.AnyType type )
+    {
+        return new DefaultParameterValue( value, type );
     }
 
     @Override
     public String toString()
     {
         return "DefaultParameterValue{" +
-               "value=" + value +
+               "value=" + javaValue() +
                ", type=" + type +
                '}';
     }
@@ -125,18 +148,55 @@ public class DefaultParameterValue
 
         DefaultParameterValue that = (DefaultParameterValue) o;
 
-        if ( value != null ? !value.equals( that.value ) : that.value != null )
+        if ( !type.equals( that.type ) )
         {
             return false;
         }
-        return type.equals( that.type );
+        if ( type.equals( Neo4jTypes.NTByteArray ) )
+        {
+            return Arrays.deepEquals( new Object[]{value}, new Object[]{that.value} );
+        }
+        return Objects.equals( value, that.value );
     }
 
     @Override
     public int hashCode()
     {
         int result = value != null ? value.hashCode() : 0;
-        result = 31 * result + type.hashCode();
-        return result;
+        return 31 * result + type.hashCode();
+    }
+
+    /**
+     * Make sure we always return plain java objects here so we get a consistent signature
+     */
+    private Object unifyType( Object obj )
+    {
+        if ( obj instanceof Value )
+        {
+            return ((Value) obj).map( new ValueMapper.JavaMapper()
+            {
+                @Override
+                public Object mapPath( VirtualPathValue value )
+                {
+                    throw new UnsupportedOperationException( "Not allowed as default values " );
+                }
+
+                @Override
+                public Object mapNode( VirtualNodeValue value )
+                {
+                    throw new UnsupportedOperationException( "Not allowed as default values " );
+                }
+
+                @Override
+                public Object mapRelationship( VirtualRelationshipValue value )
+                {
+                    throw new UnsupportedOperationException( "Not allowed as default values " );
+                }
+            } );
+        }
+        else
+        {
+            return obj;
+        }
     }
 }

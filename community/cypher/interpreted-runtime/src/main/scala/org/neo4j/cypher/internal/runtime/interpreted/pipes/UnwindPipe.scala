@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,35 +38,34 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.ListSupport
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.runtime.interpreted.ListSupport
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.util.attribution.Id
 import org.neo4j.values.AnyValue
 
 import scala.annotation.tailrec
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.asScalaIteratorConverter
 
 case class UnwindPipe(source: Pipe, collection: Expression, variable: String)
                      (val id: Id = Id.INVALID_ID)
   extends PipeWithSource(source) with ListSupport {
 
-  collection.registerOwningPipe(this)
-
-  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
-    if (input.hasNext) new UnwindIterator(input, state) else Iterator.empty
+  protected def internalCreateResults(input: ClosingIterator[CypherRow], state: QueryState): ClosingIterator[CypherRow] = {
+    if (input.hasNext) ClosingIterator(new UnwindIterator(input, state)) else ClosingIterator.empty
   }
 
-  private class UnwindIterator(input: Iterator[ExecutionContext], state: QueryState) extends Iterator[ExecutionContext] {
-    private var context: ExecutionContext = _
+  private class UnwindIterator(input: Iterator[CypherRow], state: QueryState) extends Iterator[CypherRow] {
+    private var context: CypherRow = _
     private var unwindIterator: Iterator[AnyValue] = _
-    private var nextItem: ExecutionContext = _
+    private var nextItem: CypherRow = _
 
     prefetch()
 
     override def hasNext: Boolean = nextItem != null
 
-    override def next(): ExecutionContext = {
+    override def next(): CypherRow = {
       if (hasNext) {
         val ret = nextItem
         prefetch()
@@ -78,7 +77,7 @@ case class UnwindPipe(source: Pipe, collection: Expression, variable: String)
     private def prefetch() {
       nextItem = null
       if (unwindIterator != null && unwindIterator.hasNext) {
-        nextItem = executionContextFactory.copyWith(context, variable, unwindIterator.next())
+        nextItem = rowFactory.copyWith(context, variable, unwindIterator.next())
       } else {
         if (input.hasNext) {
           context = input.next()

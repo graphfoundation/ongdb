@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,6 +38,8 @@
  */
 package org.neo4j.io.pagecache.tracing;
 
+import org.neo4j.io.pagecache.PageSwapper;
+
 /**
  * Begin a mass-flushing of pages.
  */
@@ -48,10 +50,42 @@ public interface MajorFlushEvent extends AutoCloseablePageCacheTracerEvent
      */
     MajorFlushEvent NULL = new MajorFlushEvent()
     {
+
         @Override
-        public FlushEventOpportunity flushEventOpportunity()
+        public FlushEvent beginFlush( long[] pageRefs, PageSwapper swapper, PageReferenceTranslator pageReferenceTranslator, int pagesToFlush,
+                int mergedPages )
         {
-            return FlushEventOpportunity.NULL;
+            return FlushEvent.NULL;
+        }
+
+        @Override
+        public FlushEvent beginFlush( long pageRef, PageSwapper swapper, PageReferenceTranslator pageReferenceTranslator )
+        {
+            return FlushEvent.NULL;
+        }
+
+        @Override
+        public void startFlush( int[][] translationTable )
+        {
+
+        }
+
+        @Override
+        public ChunkEvent startChunk( int[] chunk )
+        {
+            return ChunkEvent.NULL;
+        }
+
+        @Override
+        public void throttle( long millis )
+        {
+
+        }
+
+        @Override
+        public void reportIO( int completedIOs )
+        {
+
         }
 
         @Override
@@ -61,7 +95,52 @@ public interface MajorFlushEvent extends AutoCloseablePageCacheTracerEvent
     };
 
     /**
-     * Mass-flushing obviously imply flushing opportunities.
+     * Begin flushing the given pages.
      */
-    FlushEventOpportunity flushEventOpportunity();
+    FlushEvent beginFlush( long[] pageRefs, PageSwapper swapper, PageReferenceTranslator pageReferenceTranslator, int pagesToFlush, int mergedPages );
+
+    /**
+     * Begin flushing the given single page.
+     */
+    FlushEvent beginFlush( long pageRef, PageSwapper swapper, PageReferenceTranslator pageReferenceTranslator );
+
+    /**
+     * Start flushing of given translation table
+     * @param translationTable table we flush
+     */
+    void startFlush( int[][] translationTable );
+
+    /**
+     * Start flushing of given chunk
+     * @param chunk chunk we start flushing
+     */
+    ChunkEvent startChunk( int[] chunk );
+
+    /**
+     * Throttle this flush event
+     * @param millis millis to throttle this flush event
+     */
+    void throttle( long millis );
+
+    /**
+     * Report number of completed io operations by this flush event
+     * @param completedIOs number of completed io operations
+     */
+    void reportIO( int completedIOs );
+
+    /**
+     * Event generated during translation table chunk flushing from memory to backing file
+     */
+    class ChunkEvent
+    {
+        public static final ChunkEvent NULL = new ChunkEvent();
+
+        protected ChunkEvent()
+        {
+        }
+
+        public void chunkFlushed( long notModifiedPages, long flushPerChunk, long buffersPerChunk, long mergesPerChunk )
+        {
+        }
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,13 +38,14 @@
  */
 package org.neo4j.index.internal.gbptree;
 
-import org.junit.After;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.RuleChain;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -53,6 +54,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
+import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -64,21 +66,23 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
-import org.neo4j.cursor.RawCursor;
-import org.neo4j.io.pagecache.IOLimiter;
+import org.neo4j.io.IOUtils;
+import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.test.rule.PageCacheRule;
-import org.neo4j.test.rule.RandomRule;
-import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
+import org.neo4j.test.extension.pagecache.PageCacheSupportExtension;
+import org.neo4j.test.extension.testdirectory.EphemeralTestDirectoryExtension;
+import org.neo4j.test.RandomSupport;
+import org.neo4j.test.utils.TestDirectory;
 
 import static java.lang.Math.max;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.junit.rules.RuleChain.outerRule;
-import static org.neo4j.test.rule.PageCacheRule.config;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.neo4j.io.pagecache.context.CursorContext.NULL;
+import static org.neo4j.test.utils.PageCacheConfig.config;
 
 /**
  * From a range of keys two disjunct sets are generated, "toAdd" and "toRemove".
@@ -94,76 +98,103 @@ import static org.neo4j.test.rule.PageCacheRule.config;
  * toAdd and toRemove, prepare the GB+Tree with entries and serve readers and writer with information
  * about what they should do next.
  */
+
+@EphemeralTestDirectoryExtension
+@ExtendWith( RandomExtension.class )
 public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
 {
-    private final DefaultFileSystemRule fs = new DefaultFileSystemRule();
-    private final TestDirectory directory = TestDirectory.testDirectory( getClass(), fs.get() );
-    private final PageCacheRule pageCacheRule = new PageCacheRule();
-    private final RandomRule random = new RandomRule();
-
-    @Rule
-    public final RuleChain rules = outerRule( fs ).around( directory ).around( pageCacheRule ).around( random );
+    @Inject
+    private FileSystemAbstraction fileSystem;
+    @Inject
+    private TestDirectory testDirectory;
+    @Inject
+    private RandomSupport random;
+    @RegisterExtension
+    static PageCacheSupportExtension pageCacheExtension = new PageCacheSupportExtension();
 
     private TestLayout<KEY,VALUE> layout;
     private GBPTree<KEY,VALUE> index;
+    private PageCache pageCache;
     private final ExecutorService threadPool =
             Executors.newFixedThreadPool( Runtime.getRuntime().availableProcessors() );
 
-    private GBPTree<KEY,VALUE> createIndex() throws IOException
+    private GBPTree<KEY,VALUE> createIndex()
     {
         int pageSize = 512;
-        layout = getLayout( random );
-        PageCache pageCache = pageCacheRule.getPageCache( fs.get(), config().withPageSize( pageSize ).withAccessChecks( true ) );
-        return index = new GBPTreeBuilder<>( pageCache, directory.file( "index" ), layout ).build();
+        layout = getLayout( random, pageSize );
+        pageCache = PageCacheSupportExtension.getPageCache( fileSystem, config().withPageSize( pageSize ).withAccessChecks( true ) );
+        return this.index = new GBPTreeBuilder<>( pageCache, testDirectory.file( "index" ), layout ).build();
     }
 
-    protected abstract TestLayout<KEY,VALUE> getLayout( RandomRule random );
+    protected abstract TestLayout<KEY,VALUE> getLayout( RandomSupport random, int pageSize );
 
-    @After
-    public void consistencyCheckAndClose() throws IOException
+    @AfterEach
+    void consistencyCheckAndClose() throws IOException
     {
         threadPool.shutdownNow();
-        index.consistencyCheck();
+        index.consistencyCheck( NULL );
         index.close();
+        pageCache.close();
     }
 
     @Test
-    public void shouldReadForwardCorrectlyWithConcurrentInsert() throws Throwable
+    void shouldReadForwardCorrectlyWithConcurrentInsert() throws Throwable
     {
         TestCoordinator testCoordinator = new TestCoordinator( random.random(), true, 1 );
         shouldReadCorrectlyWithConcurrentUpdates( testCoordinator );
     }
 
     @Test
-    public void shouldReadBackwardCorrectlyWithConcurrentInsert() throws Throwable
+    void shouldPartitionedReadForwardCorrectlyWithConcurrentInsert() throws Throwable
+    {
+        TestCoordinator testCoordinator = new TestCoordinator( random.random(), true, 1, true );
+        shouldReadCorrectlyWithConcurrentUpdates( testCoordinator );
+    }
+
+    @Test
+    void shouldReadBackwardCorrectlyWithConcurrentInsert() throws Throwable
     {
         TestCoordinator testCoordinator = new TestCoordinator( random.random(), false, 1 );
         shouldReadCorrectlyWithConcurrentUpdates( testCoordinator );
     }
 
     @Test
-    public void shouldReadForwardCorrectlyWithConcurrentRemove() throws Throwable
+    void shouldReadForwardCorrectlyWithConcurrentRemove() throws Throwable
     {
         TestCoordinator testCoordinator = new TestCoordinator( random.random(), true, 0 );
         shouldReadCorrectlyWithConcurrentUpdates( testCoordinator );
     }
 
     @Test
-    public void shouldReadBackwardCorrectlyWithConcurrentRemove() throws Throwable
+    void shouldPartitionedReadForwardCorrectlyWithConcurrentRemove() throws Throwable
+    {
+        TestCoordinator testCoordinator = new TestCoordinator( random.random(), true, 0, true );
+        shouldReadCorrectlyWithConcurrentUpdates( testCoordinator );
+    }
+
+    @Test
+    void shouldReadBackwardCorrectlyWithConcurrentRemove() throws Throwable
     {
         TestCoordinator testCoordinator = new TestCoordinator( random.random(), false, 0 );
         shouldReadCorrectlyWithConcurrentUpdates( testCoordinator );
     }
 
     @Test
-    public void shouldReadForwardCorrectlyWithConcurrentUpdates() throws Throwable
+    void shouldReadForwardCorrectlyWithConcurrentUpdates() throws Throwable
     {
         TestCoordinator testCoordinator = new TestCoordinator( random.random(), true, 0.5 );
         shouldReadCorrectlyWithConcurrentUpdates( testCoordinator );
     }
 
     @Test
-    public void shouldReadBackwardCorrectlyWithConcurrentUpdates() throws Throwable
+    void shouldPartitionedReadForwardCorrectlyWithConcurrentUpdates() throws Throwable
+    {
+        TestCoordinator testCoordinator = new TestCoordinator( random.random(), true, 0.5, true );
+        shouldReadCorrectlyWithConcurrentUpdates( testCoordinator );
+    }
+
+    @Test
+    void shouldReadBackwardCorrectlyWithConcurrentUpdates() throws Throwable
     {
         TestCoordinator testCoordinator = new TestCoordinator( random.random(), false, 0.5 );
         shouldReadCorrectlyWithConcurrentUpdates( testCoordinator );
@@ -232,7 +263,8 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
         private final boolean forwardsSeek;
         private final double writePercentage;
         private final AtomicReference<ReaderInstruction> currentReaderInstruction;
-        TreeSet<Long> readersShouldSee;
+        private final boolean partitionedSeek;
+        SortedSet<Long> readersShouldSee;
 
         // Progress
         private final AtomicBoolean endSignal;
@@ -244,6 +276,12 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
 
         TestCoordinator( Random random, boolean forwardsSeek, double writePercentage )
         {
+            this( random, forwardsSeek, writePercentage, false );
+        }
+
+        TestCoordinator( Random random, boolean forwardsSeek, double writePercentage, boolean partitionedSeek )
+        {
+            this.partitionedSeek = partitionedSeek;
             this.endSignal = new AtomicBoolean();
             this.random = random;
             this.forwardsSeek = forwardsSeek;
@@ -267,12 +305,12 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
             iterationFinished();
         }
 
-        void prepareIndex( GBPTree<KEY,VALUE> index, TreeSet<Long> dataInIndex,
+        void prepareIndex( GBPTree<KEY,VALUE> index, Set<Long> dataInIndex,
                 Queue<Long> toRemove, Queue<Long> toAdd, Random random ) throws IOException
         {
             List<Long> fullRange = LongStream.range( minRange, maxRange ).boxed().collect( Collectors.toList() );
             List<Long> rangeOutOfOrder = shuffleToNewList( fullRange, random );
-            try ( Writer<KEY,VALUE> writer = index.writer() )
+            try ( Writer<KEY,VALUE> writer = index.writer( NULL ) )
             {
                 for ( Long key : rangeOutOfOrder )
                 {
@@ -301,22 +339,22 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
             currentReaderInstruction.set( newReaderInstruction( minRange, maxRange, readersShouldSee ) );
         }
 
-        void updateRecentlyInsertedData( TreeSet<Long> readersShouldSee, List<UpdateOperation> updateBatch )
+        void updateRecentlyInsertedData( Set<Long> readersShouldSee, List<UpdateOperation> updateBatch )
         {
             updateBatch.stream().filter( UpdateOperation::isInsert ).forEach( uo -> uo.applyToSet( readersShouldSee ) );
         }
 
-        void updateWithSoonToBeRemovedData( TreeSet<Long> readersShouldSee, List<UpdateOperation> updateBatch )
+        void updateWithSoonToBeRemovedData( Set<Long> readersShouldSee, List<UpdateOperation> updateBatch )
         {
             updateBatch.stream().filter( uo -> !uo.isInsert() ).forEach( uo -> uo.applyToSet( readersShouldSee ) );
         }
 
         private ReaderInstruction newReaderInstruction( long minRange, long maxRange,
-                TreeSet<Long> readersShouldSee )
+                Set<Long> readersShouldSee )
         {
             return forwardsSeek ?
-                   new ReaderInstruction( minRange, maxRange, readersShouldSee ) :
-                   new ReaderInstruction( maxRange - 1, minRange, readersShouldSee );
+                   new ReaderInstruction( minRange, maxRange, readersShouldSee, partitionedSeek ) :
+                   new ReaderInstruction( maxRange - 1, minRange, readersShouldSee, partitionedSeek );
         }
 
         private List<UpdateOperation> generateUpdatesForNextIteration()
@@ -410,7 +448,7 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
         }
 
         @Override
-        void apply( Writer<KEY,VALUE> writer ) throws IOException
+        void apply( Writer<KEY,VALUE> writer )
         {
             writer.put( key( key ), value( key ) );
         }
@@ -436,7 +474,7 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
         }
 
         @Override
-        void apply( Writer<KEY,VALUE> writer ) throws IOException
+        void apply( Writer<KEY,VALUE> writer )
         {
             writer.remove( key( key ) );
         }
@@ -458,7 +496,7 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
             CountDownLatch readerStartSignal,
             AtomicBoolean endSignal, AtomicBoolean failHalt ) throws InterruptedException, IOException
     {
-        assertTrue( readerReadySignal.await( 10, SECONDS ) ); // Ready, set...
+        assertTrue( readerReadySignal.await( 60, SECONDS ) ); // Ready, set...
         readerStartSignal.countDown(); // GO!
 
         while ( !failHalt.get() && !endSignal.get() )
@@ -476,7 +514,7 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
         Iterator<UpdateOperation> toWriteIterator = toWrite.iterator();
         while ( toWriteIterator.hasNext() )
         {
-            try ( Writer<KEY,VALUE> writer = index.writer() )
+            try ( Writer<KEY,VALUE> writer = index.writer( NULL ) )
             {
                 int inBatch = 0;
                 while ( toWriteIterator.hasNext() && inBatch < batchSize )
@@ -503,6 +541,7 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
         private final AtomicBoolean failHalt;
         private final AtomicReference<Throwable> readerError;
         private final TestCoordinator testCoordinator;
+        private final boolean useReusableSeeker;
 
         RunnableReader( TestCoordinator testCoordinator, CountDownLatch readerReadySignal,
                 CountDownLatch readerStartSignal, AtomicBoolean endSignal,
@@ -514,19 +553,20 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
             this.failHalt = failHalt;
             this.readerError = readerError;
             this.testCoordinator = testCoordinator;
+            this.useReusableSeeker = random.nextBoolean();
         }
 
         @Override
         public void run()
         {
-            try
+            try ( Seeker<KEY,VALUE> reusableSeeker = useReusableSeeker ? index.allocateSeeker( NULL ) : null )
             {
                 readerReadySignal.countDown(); // Ready, set...
                 readerStartSignal.await(); // GO!
 
                 while ( !endSignal.get() && !failHalt.get() )
                 {
-                    doRead();
+                    doRead( reusableSeeker );
                 }
             }
             catch ( Throwable e )
@@ -536,23 +576,25 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
             }
         }
 
-        private void doRead() throws IOException
+        private void doRead( Seeker<KEY,VALUE> reusableSeeker ) throws IOException
         {
             ReaderInstruction readerInstruction = testCoordinator.get();
             Iterator<Long> expectToSee = readerInstruction.expectToSee().iterator();
             long start = readerInstruction.start();
             long end = readerInstruction.end();
             boolean forward = start <= end;
-            try ( RawCursor<Hit<KEY,VALUE>,IOException> cursor = index.seek( key( start ), key( end ) ) )
+            Seeker<KEY,VALUE> cursor = null;
+            try
             {
+                cursor = readerInstruction.seek( index, reusableSeeker );
                 if ( expectToSee.hasNext() )
                 {
                     long nextToSee = expectToSee.next();
                     while ( cursor.next() )
                     {
                         // Actual
-                        long lastSeenKey = keySeed( cursor.get().key() );
-                        long lastSeenValue = valueSeed( cursor.get().value() );
+                        long lastSeenKey = keySeed( cursor.key() );
+                        long lastSeenValue = valueSeed( cursor.value() );
 
                         if ( lastSeenKey != lastSeenValue )
                         {
@@ -591,6 +633,12 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
                     }
                 }
             }
+            finally
+            {
+                // If we're using a reusable seeker then don't close it now (we'll reuse it for next seek),
+                // instead it will be closed when this thread is done
+                IOUtils.closeAll( useReusableSeeker ? null : cursor );
+            }
         }
     }
 
@@ -603,7 +651,7 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
             {
                 try
                 {
-                    index.checkpoint( IOLimiter.unlimited() );
+                    index.checkpoint( NULL );
                     // Sleep a little in between checkpoints
                     MILLISECONDS.sleep( 20L );
                 }
@@ -616,17 +664,19 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
         };
     }
 
-    private static class ReaderInstruction
+    private class ReaderInstruction
     {
         private final long startRange;
         private final long endRange;
-        private final TreeSet<Long> expectToSee;
+        private final Set<Long> expectToSee;
+        private final boolean partitionedSeek;
 
-        ReaderInstruction( long startRange, long endRange, TreeSet<Long> expectToSee )
+        ReaderInstruction( long startRange, long endRange, Set<Long> expectToSee, boolean partitionedSeek )
         {
             this.startRange = startRange;
             this.endRange = endRange;
             this.expectToSee = expectToSee;
+            this.partitionedSeek = partitionedSeek;
         }
 
         long start()
@@ -639,9 +689,84 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
             return endRange;
         }
 
-        TreeSet<Long> expectToSee()
+        Set<Long> expectToSee()
         {
             return expectToSee;
+        }
+
+        Seeker<KEY,VALUE> seek( GBPTree<KEY,VALUE> tree, Seeker<KEY,VALUE> reusableSeeker ) throws IOException
+        {
+            KEY from = key( start() );
+            KEY to = key( end() );
+            if ( partitionedSeek )
+            {
+                Collection<Seeker<KEY,VALUE>> partitions = new ArrayList<>();
+                for ( Seeker.WithContext<KEY,VALUE> seeker : tree.partitionedSeek( from, to, 10, NULL ) )
+                {
+                    partitions.add( seeker.with( NULL ) );
+                }
+                return new PartitionBridgingSeeker<>( partitions );
+            }
+
+            if ( reusableSeeker != null )
+            {
+                return tree.seek( reusableSeeker, from, to );
+            }
+            return tree.seek( from, to, NULL );
+        }
+    }
+
+    private static class PartitionBridgingSeeker<KEY, VALUE> implements Seeker<KEY,VALUE>
+    {
+        private final Collection<Seeker<KEY,VALUE>> partitionsToClose;
+        private final Iterator<Seeker<KEY,VALUE>> partitions;
+        private Seeker<KEY,VALUE> current;
+
+        PartitionBridgingSeeker( Collection<Seeker<KEY,VALUE>> partitions )
+        {
+            this.partitionsToClose = partitions;
+            this.partitions = partitions.iterator();
+            current = this.partitions.next();
+        }
+
+        @Override
+        public boolean next() throws IOException
+        {
+            while ( true )
+            {
+                if ( current.next() )
+                {
+                    return true;
+                }
+                if ( partitions.hasNext() )
+                {
+                    current.close();
+                    current = partitions.next();
+                }
+                else
+                {
+                    break;
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public KEY key()
+        {
+            return current.key();
+        }
+
+        @Override
+        public VALUE value()
+        {
+            return current.value();
+        }
+
+        @Override
+        public void close() throws IOException
+        {
+            IOUtils.closeAll( partitionsToClose );
         }
     }
 

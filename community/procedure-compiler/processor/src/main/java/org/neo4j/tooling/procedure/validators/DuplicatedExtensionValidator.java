@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,10 +38,6 @@
  */
 package org.neo4j.tooling.procedure.validators;
 
-import org.neo4j.tooling.procedure.messages.CompilationMessage;
-import org.neo4j.tooling.procedure.messages.DuplicatedProcedureError;
-import org.neo4j.tooling.procedure.visitors.AnnotationTypeVisitor;
-
 import java.lang.annotation.Annotation;
 import java.util.Collection;
 import java.util.List;
@@ -54,6 +50,9 @@ import javax.lang.model.element.Element;
 import javax.lang.model.util.Elements;
 
 import org.neo4j.procedure.Procedure;
+import org.neo4j.tooling.procedure.messages.CompilationMessage;
+import org.neo4j.tooling.procedure.messages.DuplicatedProcedureError;
+import org.neo4j.tooling.procedure.visitors.AnnotationTypeVisitor;
 
 import static java.util.stream.Collectors.groupingBy;
 
@@ -61,9 +60,9 @@ import static java.util.stream.Collectors.groupingBy;
  * Validates that a given extension name is not declared by multiple elements annotated with the same annotation of type
  * {@code T}.
  * This validation is done within an annotation processor. This means that the detection is detected only per
- * compilation unit, not per ONgDB instance.
+ * compilation unit, not per Neo4j instance.
  *
- * Indeed, a ONgDB instance can aggregate several extension JARs and its duplication detection cannot be entirely
+ * Indeed, a Neo4j instance can aggregate several extension JARs and its duplication detection cannot be entirely
  * replaced by this.
  *
  * @param <T> annotation type
@@ -110,7 +109,7 @@ public class DuplicatedExtensionValidator<T extends Annotation>
 
     private String defaultQualifiedName( Element procedure )
     {
-        return String.format( "%s.%s", elements.getPackageOf( procedure ).toString(), procedure.getSimpleName() );
+        return String.format( "%s.%s", elements.getPackageOf( procedure ), procedure.getSimpleName() );
     }
 
     private Stream<CompilationMessage> asErrors( Map.Entry<String,List<Element>> indexedProcedures )

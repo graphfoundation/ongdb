@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -53,7 +53,6 @@ import java.util.List;
  * KeyType parameter, all it needs is a comparator for that type. To achieve the
  * stated running times, it is needed that this comparator can do comparisons in
  * constant time (usually the case).
- * @author Patrik Larsson
  * @param <KeyType>
  *            The datatype to be stored in this heap.
  */
@@ -250,7 +249,7 @@ public class FibonacciHeap<KeyType>
         // arraySize = (int) Math.log( (double) nrNodes )+1;
         // FibonacciHeapNode[] A = (FibonacciHeapNode[]) new Object[arraySize];
         // FibonacciHeapNode[] A = new FibonacciHeapNode[arraySize];
-        ArrayList<FibonacciHeapNode> nodes = new ArrayList<>( arraySize );
+        List<FibonacciHeapNode> nodes = new ArrayList<>( arraySize );
         for ( int i = 0; i < arraySize; ++i )
         {
             nodes.add( null );
@@ -328,7 +327,7 @@ public class FibonacciHeap<KeyType>
     /**
      * Raises the priority for an entry.
      * @param node
-     *            The entry to recieve a higher priority.
+     *            The entry to receive a higher priority.
      * @param newKey
      *            The new value.
      */

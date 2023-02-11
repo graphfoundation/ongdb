@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB Enterprise Edition. The included source
@@ -40,7 +40,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.neo4j.commandline.admin.AdminTool;
+import org.neo4j.cli.AdminTool;
 import org.neo4j.helpers.HostnamePort;
 import org.neo4j.helpers.ListenSocketAddress;
 import org.neo4j.io.proc.ProcessUtil;
@@ -77,12 +77,12 @@ public class TestHelpers
         throw new AssertionError( "The code expected to fail hasn't failed" );
     }
 
-    public static int runBackupToolFromOtherJvmToGetExitCode( File neo4jHome, String... args ) throws Exception
+    public static int runBackupToolFromOtherJvmToGetExitCode( File ongdbHome, String... args ) throws Exception
     {
-        return runBackupToolFromOtherJvmToGetExitCode( neo4jHome, System.out, System.err, true, args );
+        return runBackupToolFromOtherJvmToGetExitCode( ongdbHome, System.out, System.err, true, args );
     }
 
-    public static int runBackupToolFromOtherJvmToGetExitCode( File neo4jHome, PrintStream outPrintStream, PrintStream errPrintStream,
+    public static int runBackupToolFromOtherJvmToGetExitCode( File ongdbHome, PrintStream outPrintStream, PrintStream errPrintStream,
             boolean debug, String... args ) throws Exception
     {
         List<String> allArgs =
@@ -91,7 +91,7 @@ public class TestHelpers
         allArgs.addAll( Arrays.asList( args ) );
 
         ProcessBuilder processBuilder = new ProcessBuilder().command( allArgs.toArray( new String[allArgs.size()]));
-        processBuilder.environment().put( "ONGDB_HOME", neo4jHome.getAbsolutePath() );
+        processBuilder.environment().put( "ONGDB_HOME", ongdbHome.getAbsolutePath() );
         if ( debug )
         {
             processBuilder.environment().put( "ONGDB_DEBUG", "anything_works" );

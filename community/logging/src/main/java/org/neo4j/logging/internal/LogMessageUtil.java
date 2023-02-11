@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -52,7 +52,7 @@ public final class LogMessageUtil
 
     /**
      * Replace SLF4J-style placeholders like {@code {}} with {@link String#format(String, Object...)} placeholders like {@code %s} in the given string.
-     * This is nessesary for logging adapters that redirect SLF4J loggers to neo4j {@link Log}. Former uses {@code {}} while later {@code %s}.
+     * This is necessary for logging adapters that redirect SLF4J loggers to neo4j {@link Log}. Former uses {@code {}} while later {@code %s}.
      *
      * @param template the message template to modify.
      * @return new message template which can be safely formatted using {@link String#format(String, Object...)}.

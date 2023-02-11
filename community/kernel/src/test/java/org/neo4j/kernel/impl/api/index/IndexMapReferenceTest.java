@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,29 +38,31 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
 import org.neo4j.test.Race;
 
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.neo4j.internal.schema.IndexPrototype.forSchema;
+import static org.neo4j.internal.schema.SchemaDescriptors.forLabel;
+import static org.neo4j.kernel.impl.api.index.TestIndexProviderDescriptor.PROVIDER_DESCRIPTOR;
 
-public class IndexMapReferenceTest
+class IndexMapReferenceTest
 {
     @Test
-    public void shouldSynchronizeModifications() throws Throwable
+    void shouldSynchronizeModifications() throws Throwable
     {
         // given
         IndexMapReference ref = new IndexMapReference();
         IndexProxy[] existing = mockedIndexProxies( 5, 0 );
         ref.modify( indexMap ->
         {
-            for ( int i = 0; i < existing.length; i++ )
+            for ( IndexProxy indexProxy : existing )
             {
-                indexMap.putIndexProxy( i, existing[i] );
+                indexMap.putIndexProxy( indexProxy );
             }
             return indexMap;
         } );
@@ -74,7 +76,7 @@ public class IndexMapReferenceTest
         IndexProxy[] created = mockedIndexProxies( 3, existing.length );
         for ( int i = 0; i < existing.length; i++ )
         {
-            race.addContestant( putIndexProxy( ref, existing.length + i, created[i] ), 1 );
+            race.addContestant( putIndexProxy( ref, created[i] ), 1 );
         }
         race.go();
 
@@ -89,16 +91,16 @@ public class IndexMapReferenceTest
         }
     }
 
-    private Runnable putIndexProxy( IndexMapReference ref, long indexId, IndexProxy proxy )
+    private static Runnable putIndexProxy( IndexMapReference ref, IndexProxy proxy )
     {
         return () -> ref.modify( indexMap ->
         {
-            indexMap.putIndexProxy( indexId, proxy );
+            indexMap.putIndexProxy( proxy );
             return indexMap;
         } );
     }
 
-    private Runnable removeIndexProxy( IndexMapReference ref, long indexId )
+    private static Runnable removeIndexProxy( IndexMapReference ref, long indexId )
     {
         return () -> ref.modify( indexMap ->
         {
@@ -107,13 +109,14 @@ public class IndexMapReferenceTest
         } );
     }
 
-    private IndexProxy[] mockedIndexProxies( int base, int count )
+    private static IndexProxy[] mockedIndexProxies( int base, int count )
     {
         IndexProxy[] existing = new IndexProxy[count];
         for ( int i = 0; i < count; i++ )
         {
             existing[i] = mock( IndexProxy.class );
-            when( existing[i].getDescriptor() ).thenReturn( SchemaIndexDescriptorFactory.forLabel( base + i, 1 ) );
+            when( existing[i].getDescriptor() ).thenReturn(
+                    forSchema( forLabel( base + i, 1 ), PROVIDER_DESCRIPTOR ).withName( "index_" + i ).materialise( i ) );
         }
         return existing;
     }

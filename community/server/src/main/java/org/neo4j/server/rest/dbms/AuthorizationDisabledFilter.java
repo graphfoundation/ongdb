@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -45,9 +45,13 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.core.HttpHeaders;
 
 import org.neo4j.graphdb.security.AuthorizationViolationException;
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
 import org.neo4j.internal.kernel.api.security.LoginContext;
+import org.neo4j.server.rest.web.HttpConnectionInfoFactory;
+import org.neo4j.server.web.JettyHttpConnection;
 
 import static javax.servlet.http.HttpServletRequest.BASIC_AUTH;
 
@@ -65,8 +69,14 @@ public class AuthorizationDisabledFilter extends AuthorizationFilter
 
         try
         {
+            ClientConnectionInfo connectionInfo = HttpConnectionInfoFactory.create( request );
+            LoginContext loginContext = getAuthDisabledLoginContext( connectionInfo );
+            String userAgent = request.getHeader( HttpHeaders.USER_AGENT );
+
+            JettyHttpConnection.updateUserForCurrentConnection( loginContext.subject().executingUser(), userAgent );
+
             filterChain.doFilter(
-                    new AuthorizedRequestWrapper( BASIC_AUTH, "ongdb", request, getAuthDisabledLoginContext() ),
+                    new AuthorizedRequestWrapper( BASIC_AUTH, "neo4j", request, loginContext ),
                     servletResponse );
         }
         catch ( AuthorizationViolationException e )
@@ -75,8 +85,8 @@ public class AuthorizationDisabledFilter extends AuthorizationFilter
         }
     }
 
-    protected LoginContext getAuthDisabledLoginContext()
+    protected LoginContext getAuthDisabledLoginContext( ClientConnectionInfo connectionInfo )
     {
-        return LoginContext.AUTH_DISABLED;
+        return LoginContext.fullAccess( connectionInfo );
     }
 }

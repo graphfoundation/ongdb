@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,18 +41,25 @@ package org.neo4j.kernel.api.impl.schema.reader;
 import org.apache.lucene.document.Document;
 
 import java.util.Iterator;
+import java.util.function.ToLongFunction;
 
-import org.neo4j.helpers.collection.BoundedIterable;
-
-import static org.neo4j.kernel.api.impl.schema.LuceneDocumentStructure.getNodeId;
+import org.neo4j.internal.helpers.collection.BoundedIterable;
+import org.neo4j.internal.helpers.collection.PrefetchingIterator;
 
 public class LuceneAllEntriesIndexAccessorReader implements BoundedIterable<Long>
 {
     private final BoundedIterable<Document> documents;
+    private final ToLongFunction<Document> entityIdReader;
+    private final long fromIdInclusive;
+    private final long toIdExclusive;
 
-    public LuceneAllEntriesIndexAccessorReader( BoundedIterable<Document> documents )
+    public LuceneAllEntriesIndexAccessorReader( BoundedIterable<Document> documents, ToLongFunction<Document> entityIdReader,
+            long fromIdInclusive, long toIdExclusive )
     {
         this.documents = documents;
+        this.entityIdReader = entityIdReader;
+        this.fromIdInclusive = fromIdInclusive;
+        this.toIdExclusive = toIdExclusive;
     }
 
     @Override
@@ -65,18 +72,24 @@ public class LuceneAllEntriesIndexAccessorReader implements BoundedIterable<Long
     public Iterator<Long> iterator()
     {
         Iterator<Document> iterator = documents.iterator();
-        return new Iterator<Long>()
+        return new PrefetchingIterator<Long>()
         {
             @Override
-            public boolean hasNext()
+            protected Long fetchNextOrNull()
             {
-                return iterator.hasNext();
-            }
-
-            @Override
-            public Long next()
-            {
-                return getNodeId( iterator.next() );
+                do
+                {
+                    if ( !iterator.hasNext() )
+                    {
+                        return null;
+                    }
+                    long id = entityIdReader.applyAsLong( iterator.next() );
+                    if ( id >= fromIdInclusive && id < toIdExclusive )
+                    {
+                        return id;
+                    }
+                }
+                while ( true );
             }
         };
     }

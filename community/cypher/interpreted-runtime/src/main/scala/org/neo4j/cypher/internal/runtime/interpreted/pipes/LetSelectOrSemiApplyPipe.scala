@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,28 +38,28 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Predicate
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.util.attribution.Id
 import org.neo4j.values.storable.Values
 
 case class LetSelectOrSemiApplyPipe(source: Pipe, inner: Pipe, letVarName: String, predicate: Predicate, negated: Boolean)
                                    (val id: Id = Id.INVALID_ID)
   extends PipeWithSource(source) {
 
-  predicate.registerOwningPipe(this)
-
-  def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
+  protected def internalCreateResults(input: ClosingIterator[CypherRow], state: QueryState): ClosingIterator[CypherRow] = {
     input.map {
-      (outerContext) =>
+      outerContext =>
         val holds = predicate.isTrue(outerContext, state) || {
           val innerState = state.withInitialContext(outerContext)
           val innerResults = inner.createResults(innerState)
-          if (negated) innerResults.isEmpty else innerResults.nonEmpty
+          val result = if (negated) !innerResults.hasNext else innerResults.hasNext
+          innerResults.close()
+          result
         }
-        outerContext += (letVarName -> Values.booleanValue(holds))
+        outerContext.set(letVarName, Values.booleanValue(holds))
+        outerContext
     }
   }
-
-  private def name = if (negated) "LetSelectOrAntiSemiApply" else "LetSelectOrSemiApply"
 }

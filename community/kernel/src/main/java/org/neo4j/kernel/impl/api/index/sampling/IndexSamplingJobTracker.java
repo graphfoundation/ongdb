@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,62 +40,52 @@ package org.neo4j.kernel.impl.api.index.sampling;
 
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.neo4j.common.Subject;
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobHandle;
+import org.neo4j.scheduler.JobMonitoringParams;
 import org.neo4j.scheduler.JobScheduler;
 
-public class IndexSamplingJobTracker
+class IndexSamplingJobTracker
 {
     private final JobScheduler jobScheduler;
-    private final int jobLimit;
     private final Set<Long> executingJobs;
     private final Lock lock = new ReentrantLock( true );
-    private final Condition canSchedule = lock.newCondition();
     private final Condition allJobsFinished = lock.newCondition();
+    private final String databaseName;
 
     private boolean stopped;
 
-    public IndexSamplingJobTracker( IndexSamplingConfig config, JobScheduler jobScheduler )
+    IndexSamplingJobTracker( JobScheduler jobScheduler, String databaseName )
     {
         this.jobScheduler = jobScheduler;
-        this.jobLimit = config.jobLimit();
         this.executingJobs = new HashSet<>();
+        this.databaseName = databaseName;
     }
 
-    public boolean canExecuteMoreSamplingJobs()
-    {
-        lock.lock();
-        try
-        {
-            return !stopped && executingJobs.size() < jobLimit;
-        }
-        finally
-        {
-            lock.unlock();
-        }
-    }
-
-    public void scheduleSamplingJob( final IndexSamplingJob samplingJob )
+    JobHandle scheduleSamplingJob( final IndexSamplingJob samplingJob )
     {
         lock.lock();
         try
         {
             if ( stopped )
             {
-                return;
+                return JobHandle.EMPTY;
             }
 
             long indexId = samplingJob.indexId();
             if ( executingJobs.contains( indexId ) )
             {
-                return;
+                return JobHandle.EMPTY;
             }
 
             executingJobs.add( indexId );
-            jobScheduler.schedule( JobScheduler.Groups.indexSampling, () ->
+            var monitoringParams = new JobMonitoringParams( Subject.SYSTEM, databaseName, "Sampling of index '" + samplingJob.indexName() + "'" );
+            return jobScheduler.schedule( Group.INDEX_SAMPLING, monitoringParams, () ->
             {
                 try
                 {
@@ -119,7 +109,6 @@ public class IndexSamplingJobTracker
         try
         {
             executingJobs.remove( samplingJob.indexId() );
-            canSchedule.signalAll();
             allJobsFinished.signalAll();
         }
         finally
@@ -128,49 +117,7 @@ public class IndexSamplingJobTracker
         }
     }
 
-    public void waitUntilCanExecuteMoreSamplingJobs()
-    {
-        lock.lock();
-        try
-        {
-            while ( !canExecuteMoreSamplingJobs() )
-            {
-                if ( stopped )
-                {
-                    return;
-                }
-
-                canSchedule.awaitUninterruptibly();
-            }
-        }
-        finally
-        {
-            lock.unlock();
-        }
-    }
-
-    public void awaitAllJobs( long time, TimeUnit unit ) throws InterruptedException
-    {
-        lock.lock();
-        try
-        {
-            if ( stopped )
-            {
-                return;
-            }
-
-            while ( !executingJobs.isEmpty() )
-            {
-                allJobsFinished.await( time, unit );
-            }
-        }
-        finally
-        {
-            lock.unlock();
-        }
-    }
-
-    public void stopAndAwaitAllJobs()
+    void stopAndAwaitAllJobs()
     {
         lock.lock();
         try

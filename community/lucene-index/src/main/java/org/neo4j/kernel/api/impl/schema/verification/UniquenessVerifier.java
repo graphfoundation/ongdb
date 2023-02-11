@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -43,16 +43,16 @@ import java.io.IOException;
 import java.util.List;
 
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
-import org.neo4j.kernel.api.index.PropertyAccessor;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.values.storable.Value;
 
 /**
  * A component that verifies uniqueness of values in a lucene index.
  * During uniqueness constraint creation we ensure that already existing data is unique using
- * {@link #verify(PropertyAccessor, int[])}.
+ * {@link #verify(NodePropertyAccessor, int[])}.
  * Since updates can be applied while index is being populated we need to verify them as well.
  * Verification does not handle that automatically. They need to be collected in some way and then checked by
- * {@link #verify(PropertyAccessor, int[], List)}.
+ * {@link #verify(NodePropertyAccessor, int[], List)}.
  */
 public interface UniquenessVerifier extends Closeable
 {
@@ -64,7 +64,7 @@ public interface UniquenessVerifier extends Closeable
      * @throws IndexEntryConflictException if there are duplicates.
      * @throws IOException when Lucene throws {@link IOException}.
      */
-    void verify( PropertyAccessor accessor, int[] propKeyIds ) throws IndexEntryConflictException, IOException;
+    void verify( NodePropertyAccessor accessor, int[] propKeyIds ) throws IndexEntryConflictException, IOException;
 
     /**
      * Verifies uniqueness of given values and existing data.
@@ -75,6 +75,6 @@ public interface UniquenessVerifier extends Closeable
      * @throws IndexEntryConflictException if there are duplicates.
      * @throws IOException when Lucene throws {@link IOException}.
      */
-    void verify( PropertyAccessor accessor, int[] propKeyIds, List<Value[]> updatedValueTuples )
+    void verify( NodePropertyAccessor accessor, int[] propKeyIds, List<Value[]> updatedValueTuples )
             throws IndexEntryConflictException, IOException;
 }

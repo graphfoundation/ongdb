@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,51 +41,50 @@ package org.neo4j.io.pagecache.impl.muninn;
 import java.io.IOException;
 
 import org.neo4j.io.pagecache.PageSwapper;
+import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.io.pagecache.impl.FileIsNotMappedException;
-import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracer;
-import org.neo4j.io.pagecache.tracing.cursor.context.VersionContextSupplier;
 
 final class MuninnWritePageCursor extends MuninnPageCursor
 {
-    MuninnWritePageCursor( long victimPage, PageCursorTracer pageCursorTracer,
-            VersionContextSupplier versionContextSupplier )
+    MuninnWritePageCursor( long victimPage, CursorContext cursorContext )
     {
-        super( victimPage, pageCursorTracer, versionContextSupplier );
+        super( victimPage, cursorContext );
     }
 
     @Override
     protected void unpinCurrentPage()
     {
-        if ( pinnedPageRef != 0 )
+        long pageRef = pinnedPageRef;
+        if ( pageRef != 0 )
         {
             pinEvent.done();
             // Mark the page as dirty *after* our write access, to make sure it's dirty even if it was concurrently
             // flushed. Unlocking the write-locked page will mark it as dirty for us.
             if ( eagerFlush )
             {
-                eagerlyFlushAndUnlockPage();
+                eagerlyFlushAndUnlockPage( pageRef );
             }
             else
             {
-                pagedFile.unlockWrite( pinnedPageRef );
+                PageList.unlockWrite( pageRef );
             }
         }
         clearPageCursorState();
     }
 
-    private void eagerlyFlushAndUnlockPage()
+    private void eagerlyFlushAndUnlockPage( long pageRef )
     {
-        long flushStamp = pagedFile.unlockWriteAndTryTakeFlushLock( pinnedPageRef );
+        long flushStamp = PageList.unlockWriteAndTryTakeFlushLock( pageRef );
         if ( flushStamp != 0 )
         {
             boolean success = false;
             try
             {
-                success = pagedFile.flushLockedPage( pinnedPageRef, currentPageId );
+                success = pagedFile.flushLockedPage( pageRef, loadPlainCurrentPageId() );
             }
             finally
             {
-                pagedFile.unlockFlush( pinnedPageRef, flushStamp, success );
+                PageList.unlockFlush( pageRef, flushStamp, success );
             }
         }
     }
@@ -97,12 +96,14 @@ final class MuninnWritePageCursor extends MuninnPageCursor
         long lastPageId = assertPagedFileStillMappedAndGetIdOfLastPage();
         if ( nextPageId < 0 )
         {
+            storeCurrentPageId( UNBOUND_PAGE_ID );
             return false;
         }
         if ( nextPageId > lastPageId )
         {
             if ( noGrow )
             {
+                storeCurrentPageId( UNBOUND_PAGE_ID );
                 return false;
             }
             else
@@ -110,22 +111,24 @@ final class MuninnWritePageCursor extends MuninnPageCursor
                 pagedFile.increaseLastPageIdTo( nextPageId );
             }
         }
-        currentPageId = nextPageId;
+        storeCurrentPageId( nextPageId );
         nextPageId++;
-        pin( currentPageId, true );
+        long filePageId = loadPlainCurrentPageId();
+        pinEvent = tracer.beginPin( true, filePageId, swapper );
+        pin( filePageId );
         return true;
     }
 
     @Override
     protected boolean tryLockPage( long pageRef )
     {
-        return pagedFile.tryWriteLock( pageRef );
+        return PageList.tryWriteLock( pageRef );
     }
 
     @Override
     protected void unlockPage( long pageRef )
     {
-        pagedFile.unlockWrite( pageRef );
+        PageList.unlockWrite( pageRef );
     }
 
     @Override
@@ -140,14 +143,17 @@ final class MuninnWritePageCursor extends MuninnPageCursor
         // after the reset() call, which means that if we throw, the cursor will
         // be closed and the page lock will be released.
         assertPagedFileStillMappedAndGetIdOfLastPage();
-        pagedFile.incrementUsage( pageRef );
-        pagedFile.setLastModifiedTxId( pageRef, versionContextSupplier.getVersionContext().committingTransactionId() );
+        if ( updateUsage )
+        {
+            PageList.incrementUsage( pageRef );
+        }
+        PageList.setLastModifiedTxId( pageRef, versionContext.committingTransactionId() );
     }
 
     @Override
     protected void convertPageFaultLock( long pageRef )
     {
-        pagedFile.unlockExclusiveAndTakeWriteLock( pageRef );
+        PageList.unlockExclusiveAndTakeWriteLock( pageRef );
     }
 
     @Override

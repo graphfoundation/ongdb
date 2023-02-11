@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,29 +38,24 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.PrimitiveLongHelper
+import org.neo4j.cypher.internal.util.attribution.Id
 import org.neo4j.values.virtual.VirtualValues
-
-import scala.collection.JavaConverters._
 
 case class UndirectedRelationshipByIdSeekPipe(ident: String, relIdExpr: SeekArgs, toNode: String, fromNode: String)
                                              (val id: Id = Id.INVALID_ID) extends Pipe {
 
-  relIdExpr.registerOwningPipe(this)
-
-  protected override def internalCreateResults(state: QueryState): Iterator[ExecutionContext] = {
-    val ctx = state.createOrGetInitialContext(executionContextFactory)
-    val relIds = VirtualValues.dropNoValues(relIdExpr.expressions(ctx, state))
-    new UndirectedRelationshipIdSeekIterator(
-      ident,
-      fromNode,
-      toNode,
-      ctx,
-      executionContextFactory,
-      state.query.relationshipOps,
-      relIds.iterator.asScala
-    )
+  protected override def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
+    val ctx = state.newRowWithArgument(rowFactory)
+    val relIds = relIdExpr.expressions(ctx, state)
+    val relationships = new UndirectedRelationshipIdSeekIterator(relIds.iterator(), state.query.transactionalContext.dataRead, state.query.scanCursor())
+    PrimitiveLongHelper.map(relationships, r => {
+      rowFactory.copyWith(ctx,
+        ident, VirtualValues.relationship(r, relationships.startNodeId(), relationships.endNodeId(), relationships.typeId()),
+        fromNode, VirtualValues.node(relationships.startNodeId()),
+        toNode, VirtualValues.node(relationships.endNodeId()))
+    })
   }
-
 }

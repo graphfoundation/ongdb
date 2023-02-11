@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB Enterprise Edition. The included source
@@ -85,7 +85,7 @@ import static org.neo4j.kernel.extension.UnsatisfiedDependencyStrategies.ignore;
 import static org.neo4j.kernel.impl.pagecache.ConfigurableStandalonePageCacheFactory.createPageCache;
 
 /**
- * Stand alone tool for migrating/upgrading a ONgDB database from one version to the next.
+ * Stand alone tool for migrating/upgrading an ONgDB database from one version to the next.
  *
  * @see StoreMigrator
  */

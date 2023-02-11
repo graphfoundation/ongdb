@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,48 +40,34 @@ package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import java.util.Comparator
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.values.{AnyValue, AnyValues}
+import org.neo4j.collection.trackable.HeapTrackingArrayList
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.ClosingIterator.DelegatingClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.ReadableRow
+import org.neo4j.cypher.internal.util.attribution.Id
 
-case class SortPipe(source: Pipe, orderBy: Seq[ColumnOrder])
+import scala.collection.JavaConverters.asScalaIteratorConverter
+
+case class SortPipe(source: Pipe, comparator: Comparator[ReadableRow])
                    (val id: Id = Id.INVALID_ID)
   extends PipeWithSource(source) {
-  assert(orderBy.nonEmpty)
 
-  private val comparator = ExecutionContextOrdering.asComparator(orderBy)
-
-  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
-    val array = input.toArray
-    java.util.Arrays.sort(array, comparator)
-    array.toIterator
+  protected def internalCreateResults(input: ClosingIterator[CypherRow], state: QueryState): ClosingIterator[CypherRow] = {
+    val scopedMemoryTracker = state.memoryTrackerForOperatorProvider.memoryTrackerForOperator(id.x).getScopedMemoryTracker
+    var arrayList: HeapTrackingArrayList[CypherRow] = HeapTrackingArrayList.newArrayList(256, scopedMemoryTracker)
+    while (input.hasNext) {
+      val row = input.next()
+      scopedMemoryTracker.allocateHeap(row.estimatedHeapUsage())
+      arrayList.add(row)
+    }
+    arrayList.sort(comparator)
+    new DelegatingClosingIterator[CypherRow](arrayList.iterator().asScala) {
+      override def closeMore(): Unit = {
+        arrayList = null
+        scopedMemoryTracker.close()
+        input.close()
+      }
+    }
   }
-}
-
-case class ExecutionContextOrdering(order: ColumnOrder) extends scala.Ordering[ExecutionContext] {
-  override def compare(a: ExecutionContext, b: ExecutionContext): Int = {
-    val column = order.id
-    val aVal = a(column)
-    val bVal = b(column)
-    order.compareValues(aVal, bVal)
-  }
-}
-
-object ExecutionContextOrdering {
-  def asComparator(orderBy: Seq[ColumnOrder]): Comparator[ExecutionContext] =  orderBy.map(ExecutionContextOrdering.apply)
-    .reduceLeft[Comparator[ExecutionContext]]((a, b) => a.thenComparing(b))
-}
-
-sealed trait ColumnOrder {
-  def id: String
-
-  def compareValues(a: AnyValue, b: AnyValue): Int
-}
-
-case class Ascending(id: String) extends ColumnOrder {
-  override def compareValues(a: AnyValue, b: AnyValue): Int = AnyValues.COMPARATOR.compare(a, b)
-}
-
-case class Descending(id: String) extends ColumnOrder {
-  override def compareValues(a: AnyValue, b: AnyValue): Int = AnyValues.COMPARATOR.compare(b, a)
 }

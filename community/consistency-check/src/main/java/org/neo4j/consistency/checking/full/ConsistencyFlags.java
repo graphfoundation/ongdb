@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,33 +41,21 @@ package org.neo4j.consistency.checking.full;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
-import org.neo4j.consistency.ConsistencyCheckSettings;
-import org.neo4j.kernel.configuration.Config;
-
 public class ConsistencyFlags
 {
+    public static final ConsistencyFlags DEFAULT = new ConsistencyFlags( true, true, true );
+
     private final boolean checkGraph;
     private final boolean checkIndexes;
-    private final boolean checkLabelScanStore;
-    private final boolean checkPropertyOwners;
-
-    public ConsistencyFlags( Config tuningConfiguration )
-    {
-        this( tuningConfiguration.get( ConsistencyCheckSettings.consistency_check_graph ),
-                tuningConfiguration.get( ConsistencyCheckSettings.consistency_check_indexes ),
-                tuningConfiguration.get( ConsistencyCheckSettings.consistency_check_label_scan_store ),
-                tuningConfiguration.get( ConsistencyCheckSettings.consistency_check_property_owners ) );
-    }
+    private final boolean checkIndexStructure;
 
     public ConsistencyFlags( boolean checkGraph,
-                             boolean checkIndexes,
-                             boolean checkLabelScanStore,
-                             boolean checkPropertyOwners )
+            boolean checkIndexes,
+            boolean checkIndexStructure )
     {
         this.checkGraph = checkGraph;
         this.checkIndexes = checkIndexes;
-        this.checkLabelScanStore = checkLabelScanStore;
-        this.checkPropertyOwners = checkPropertyOwners;
+        this.checkIndexStructure = checkIndexStructure;
     }
 
     public boolean isCheckGraph()
@@ -80,14 +68,9 @@ public class ConsistencyFlags
         return checkIndexes;
     }
 
-    public boolean isCheckLabelScanStore()
+    public boolean isCheckIndexStructure()
     {
-        return checkLabelScanStore;
-    }
-
-    public boolean isCheckPropertyOwners()
-    {
-        return checkPropertyOwners;
+        return checkIndexStructure;
     }
 
     @Override

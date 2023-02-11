@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,25 +38,71 @@
  */
 package org.neo4j.kernel.impl.coreapi.schema;
 
-import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 import org.neo4j.graphdb.Label;
+import org.neo4j.graphdb.schema.ConstraintCreator;
 import org.neo4j.graphdb.schema.ConstraintDefinition;
+import org.neo4j.graphdb.schema.IndexSetting;
+import org.neo4j.graphdb.schema.IndexType;
+import org.neo4j.internal.schema.IndexConfig;
+
+import static org.neo4j.graphdb.schema.IndexSettingUtil.toIndexConfigFromIndexSettingObjectMap;
+import static org.neo4j.kernel.impl.coreapi.schema.IndexCreatorImpl.copyAndAdd;
 
 public class NodePropertyUniqueConstraintCreator extends BaseNodeConstraintCreator
 {
-    protected final ArrayList<String> propertyKeys = new ArrayList<>();
+    private final List<String> propertyKeys;
 
-    NodePropertyUniqueConstraintCreator( InternalSchemaActions internalCreator, Label label, String propertyKey )
+    NodePropertyUniqueConstraintCreator( InternalSchemaActions internalCreator, String name, Label label, List<String> propertyKeys, IndexType indexType,
+            IndexConfig indexConfig )
     {
-        super( internalCreator, label );
-        this.propertyKeys.add( propertyKey );
+        super( internalCreator, name, label, indexType, indexConfig );
+        this.propertyKeys = propertyKeys;
     }
 
     @Override
     public final NodePropertyUniqueConstraintCreator assertPropertyIsUnique( String propertyKey )
     {
-        throw new UnsupportedOperationException( "You can only create one unique constraint at a time." );
+        return new NodePropertyUniqueConstraintCreator( actions, name, label, copyAndAdd( propertyKeys, propertyKey ), indexType, indexConfig );
+    }
+
+    @Override
+    public ConstraintCreator assertPropertyExists( String propertyKey )
+    {
+        List<String> keys = List.of( propertyKey );
+        if ( propertyKeys.equals( keys ) )
+        {
+            return new NodeKeyConstraintCreator( actions, name, label, propertyKeys, indexType, indexConfig );
+        }
+        throw new UnsupportedOperationException(
+                "You cannot create a constraint on two different sets of property keys: " + propertyKeys + " vs. " + keys + "." );
+    }
+
+    @Override
+    public ConstraintCreator assertPropertyIsNodeKey( String propertyKey )
+    {
+        return assertPropertyExists( propertyKey );
+    }
+
+    @Override
+    public ConstraintCreator withName( String name )
+    {
+        return new NodePropertyUniqueConstraintCreator( actions, name, label, propertyKeys, indexType, indexConfig );
+    }
+
+    @Override
+    public ConstraintCreator withIndexType( IndexType indexType )
+    {
+        return new NodePropertyUniqueConstraintCreator( actions, name, label, propertyKeys, indexType, indexConfig );
+    }
+
+    @Override
+    public ConstraintCreator withIndexConfiguration( Map<IndexSetting,Object> indexConfiguration )
+    {
+        return new NodePropertyUniqueConstraintCreator( actions, name, label, propertyKeys, indexType,
+                toIndexConfigFromIndexSettingObjectMap( indexConfiguration ) );
     }
 
     @Override
@@ -65,8 +111,7 @@ public class NodePropertyUniqueConstraintCreator extends BaseNodeConstraintCreat
         assertInUnterminatedTransaction();
 
         IndexDefinitionImpl definition =
-                new IndexDefinitionImpl( actions, label, propertyKeys.toArray( new String[propertyKeys.size()] ),
-                        true );
-        return actions.createPropertyUniquenessConstraint( definition );
+                new IndexDefinitionImpl( actions, null, new Label[]{label}, propertyKeys.toArray( new String[0] ), true );
+        return actions.createPropertyUniquenessConstraint( definition, name, indexType, indexConfig );
     }
 }

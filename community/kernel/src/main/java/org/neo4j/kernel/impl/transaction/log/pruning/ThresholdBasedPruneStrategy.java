@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,93 +38,111 @@
  */
 package org.neo4j.kernel.impl.transaction.log.pruning;
 
-import java.io.File;
-import java.util.stream.LongStream;
-
-import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
+import org.neo4j.internal.helpers.collection.LongRange;
+import org.neo4j.kernel.impl.transaction.log.files.LogFile;
 import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFileInformation;
 
-import static org.neo4j.kernel.impl.transaction.log.LogVersionRepository.INITIAL_LOG_VERSION;
-import static org.neo4j.kernel.impl.transaction.log.entry.LogHeader.LOG_HEADER_SIZE;
+import static java.lang.Math.min;
+import static org.neo4j.storageengine.api.LogVersionRepository.INITIAL_LOG_VERSION;
+import static org.neo4j.util.Preconditions.requireNonNegative;
 
 public class ThresholdBasedPruneStrategy implements LogPruneStrategy
 {
-    private final FileSystemAbstraction fileSystem;
-    private final LogFiles files;
+    private final LogFile logFile;
     private final Threshold threshold;
     private final TransactionLogFileInformation logFileInformation;
 
-    ThresholdBasedPruneStrategy( FileSystemAbstraction fileSystem, LogFiles logFiles, Threshold threshold )
+    ThresholdBasedPruneStrategy( LogFile logFile, Threshold threshold )
     {
-        this.fileSystem = fileSystem;
-        this.files = logFiles;
-        this.logFileInformation = files.getLogFileInformation();
+        this.logFile = logFile;
+        this.logFileInformation = logFile.getLogFileInformation();
         this.threshold = threshold;
     }
 
     @Override
-    public synchronized LongStream findLogVersionsToDelete( long upToVersion )
+    public String toString()
+    {
+        return threshold.toString();
+    }
+
+    @Override
+    public synchronized LongRange findLogVersionsToDelete( long upToVersion )
     {
         if ( upToVersion == INITIAL_LOG_VERSION )
         {
-            return LongStream.empty();
+            return LongRange.EMPTY_RANGE;
         }
 
         threshold.init();
-        long upper = upToVersion - 1;
-        boolean exceeded = false;
-        while ( upper >= 0 )
+        long lowestLogVersion = logFile.getLowestLogVersion();
+        ThresholdEvaluationResult thresholdResult = pruneThresholdReached( upToVersion, lowestLogVersion );
+        if ( !thresholdResult.reached() )
         {
-            File file = files.getLogFileForVersion( upper );
-            if ( !fileSystem.fileExists( file ) )
-            {
-                // There aren't logs to prune anything. Just return
-                return LongStream.empty();
-            }
-
-            if ( fileSystem.getFileSize( file ) > LOG_HEADER_SIZE &&
-                    threshold.reached( file, upper, logFileInformation ) )
-            {
-                exceeded = true;
-                break;
-            }
-            upper--;
-        }
-
-        if ( !exceeded )
-        {
-            return LongStream.empty();
-        }
-
-        // Find out which log is the earliest existing (lower bound to prune)
-        long lower = upper;
-        while ( fileSystem.fileExists( files.getLogFileForVersion( lower - 1 ) ) )
-        {
-            lower--;
+            return LongRange.EMPTY_RANGE;
         }
 
         /*
-         * Here we make sure that at least one historical log remains behind, in addition of course to the
+         * We subtract 2 from upToVersion we make sure that at least one historical log remains behind, in addition of course to the
          * current one. This is in order to make sure that at least one transaction remains always available for
          * serving to whomever asks for it.
          * To illustrate, imagine that there is a threshold in place configured so that it enforces pruning of the
-         * log file that was just rotated out (for example, a file size threshold that is misconfigured to be smaller
+         * log file that was just rotated out (for example, a file size threshold that is mis-configured to be smaller
          * than the smallest log). In such a case, until the database commits a transaction there will be no
          * transactions present on disk, making impossible to serve any to whichever client might ask, leading to
          * errors on both sides of the conversation.
          * This if statement does nothing more complicated than checking if the next-to-last log would be pruned
          * and simply skipping it if so.
          */
-        if ( upper == upToVersion - 1 )
+        return LongRange.range( lowestLogVersion, min( thresholdResult.logVersion(), upToVersion - 2 ) );
+    }
+
+    private ThresholdEvaluationResult pruneThresholdReached( long upToVersion, long lowestLogVersion )
+    {
+        for ( long version = upToVersion - 1; version >= lowestLogVersion; version-- )
         {
-            upper--;
+            if ( threshold.reached( logFile.getLogFileForVersion( version ), version, logFileInformation ) )
+            {
+                return ThresholdEvaluationResult.reached( version );
+            }
+        }
+        return ThresholdEvaluationResult.notReached();
+    }
+
+    private static class ThresholdEvaluationResult
+    {
+        private static final int NON_EXISTING_LOG_VERSION = -1;
+
+        private static ThresholdEvaluationResult notReached()
+        {
+            return new ThresholdEvaluationResult();
         }
 
-        // The reason we delete from lower to upper is that if it crashes in the middle we can be sure that no holes
-        // are created.
-        // We create a closed range because we want to include the 'upper' log version as well. The check above ensures
-        // we don't accidentally leave the database without any logs.
-        return LongStream.rangeClosed( lower, upper );
+        private static ThresholdEvaluationResult reached( long version )
+        {
+            requireNonNegative( version );
+            return new ThresholdEvaluationResult( version );
+        }
+
+        private final long logVersion;
+
+        private ThresholdEvaluationResult()
+        {
+            this( NON_EXISTING_LOG_VERSION );
+        }
+
+        private ThresholdEvaluationResult( long logVersion )
+        {
+            this.logVersion = logVersion;
+        }
+
+        boolean reached()
+        {
+            return logVersion != NON_EXISTING_LOG_VERSION;
+        }
+
+        long logVersion()
+        {
+            return logVersion;
+        }
     }
 }

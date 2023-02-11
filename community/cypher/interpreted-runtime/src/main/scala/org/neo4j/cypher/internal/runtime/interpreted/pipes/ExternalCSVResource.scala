@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,15 +40,36 @@ package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import java.net.URL
 
+import inet.ipaddr.IPAddressString
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.values.storable.Value
+
 trait ExternalCSVResource {
-  def getCsvIterator(url: URL, fieldTerminator: Option[String], legacyCsvQuoteEscaping: Boolean, bufferSize: Int,
-                     headers: Boolean = false): Iterator[Array[String]]
+  def getCsvIterator(url: URL,
+                     ipBlocklist: List[IPAddressString],fieldTerminator: Option[String],
+                     legacyCsvQuoteEscaping: Boolean,
+                     bufferSize: Int,
+                     headers: Boolean = false): LoadCsvIterator
 }
 
 object ExternalCSVResource {
-  def empty: ExternalCSVResource = new ExternalCSVResource {
-    override def getCsvIterator(url: URL, fieldTerminator: Option[String], legacyCsvQuoteEscaping: Boolean, bufferSize: Int,
-                                headers: Boolean = false): Iterator[Array[String]] =
-      Iterator.empty
+
+  def empty: ExternalCSVResource =
+    (_: URL, _: List[IPAddressString], _: Option[String], _: Boolean,
+                                    _: Int, _: Boolean) => LoadCsvIterator.empty
+}
+
+trait LoadCsvIterator extends ClosingIterator[Array[Value]] {
+  def lastProcessed: Long
+  def readAll: Boolean
+}
+
+object LoadCsvIterator {
+  def empty: LoadCsvIterator = new LoadCsvIterator {
+    override protected[this] def closeMore(): Unit = ()
+    override def lastProcessed: Long = 0L
+    override def readAll: Boolean = false
+    override def innerHasNext: Boolean = false
+    def next(): Nothing = throw new NoSuchElementException("next on empty iterator")
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -46,7 +46,7 @@ import org.neo4j.graphdb.traversal.BranchState;
 import org.neo4j.graphdb.traversal.InitialBranchState;
 import org.neo4j.graphdb.traversal.TraversalBranch;
 import org.neo4j.graphdb.traversal.TraversalContext;
-import org.neo4j.helpers.collection.Iterators;
+import org.neo4j.internal.helpers.collection.Iterators;
 
 public class TraversalBranchWithState extends TraversalBranchImpl implements BranchState
 {
@@ -87,7 +87,7 @@ public class TraversalBranchWithState extends TraversalBranchImpl implements Bra
     protected ResourceIterator<Relationship> expandRelationshipsWithoutChecks( PathExpander expander )
     {
         Iterable expandIterable = expander.expand( this, this );
-        return Iterators.asResourceIterator( expandIterable.iterator() );
+        return Iterators.asResourceIterator( expandIterable );
     }
 
     @Override

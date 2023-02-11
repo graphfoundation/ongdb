@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,38 +38,32 @@
  */
 package org.neo4j.index.internal.gbptree;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.function.Supplier;
 
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public class TripCountingRootCatchupTest
+class TripCountingRootCatchupTest
 {
     @Test
-    public void mustThrowOnConsecutiveCatchupsFromSamePage()
+    void mustThrowOnConsecutiveCatchupsFromSamePage()
     {
         // Given
         TripCountingRootCatchup tripCountingRootCatchup = getTripCounter();
 
-        // When
-        try
+        assertThrows( TreeInconsistencyException.class, () ->
         {
             for ( int i = 0; i < TripCountingRootCatchup.MAX_TRIP_COUNT; i++ )
             {
                 tripCountingRootCatchup.catchupFrom( 10 );
             }
-            fail( "Expected to throw" );
-        }
-        catch ( TreeInconsistencyException e )
-        {
-            // Then good
-        }
+        } );
     }
 
     @Test
-    public void mustNotThrowOnInterleavedCatchups()
+    void mustNotThrowOnInterleavedCatchups()
     {
         // given
         TripCountingRootCatchup tripCountingRootCatchup = getTripCounter();
@@ -84,7 +78,7 @@ public class TripCountingRootCatchupTest
     }
 
     @Test
-    public void mustReturnRootUsingProvidedSupplier()
+    void mustReturnRootUsingProvidedSupplier()
     {
         // given
         Root expectedRoot = new Root( 1, 2 );
@@ -98,7 +92,7 @@ public class TripCountingRootCatchupTest
         assertSame( expectedRoot, actualRoot );
     }
 
-    private TripCountingRootCatchup getTripCounter()
+    private static TripCountingRootCatchup getTripCounter()
     {
         Root root = new Root( 1, 2 );
         return new TripCountingRootCatchup( () -> root );

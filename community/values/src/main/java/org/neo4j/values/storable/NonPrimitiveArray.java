@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -106,26 +106,19 @@ public abstract class NonPrimitiveArray<T extends Comparable<? super T>> extends
         return NumberType.NO_NUMBER;
     }
 
-    protected final int compareToNonPrimitiveArray( NonPrimitiveArray<T> other )
+    final int compareToNonPrimitiveArray( NonPrimitiveArray<T> other )
     {
-        int i = 0;
-        int x = 0;
+        int compare = 0;
         int length = Math.min( this.length(), other.length() );
-
-        while ( x == 0 && i < length )
+        for ( int index = 0; compare == 0 && index < length; index++ )
         {
-            x = this.value()[i].compareTo( other.value()[i] );
-            i++;
+            compare = this.value()[index].compareTo( other.value()[index] );
         }
-        if ( x == 0 )
-        {
-            x = this.length() - other.length();
-        }
-        return x;
+        return compare == 0 ? Integer.compare( this.length(), other.length() ) : compare;
     }
 
     @Override
-    public final int computeHash()
+    protected int computeHashToMemoize()
     {
         return Arrays.hashCode( value() );
     }
@@ -150,7 +143,8 @@ public abstract class NonPrimitiveArray<T extends Comparable<? super T>> extends
     @Override
     public final T[] asObjectCopy()
     {
-        return value().clone();
+        T[] value = value();
+        return Arrays.copyOf( value, value.length );
     }
 
     @Override

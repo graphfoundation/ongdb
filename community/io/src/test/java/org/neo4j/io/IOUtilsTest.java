@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,35 +38,32 @@
  */
 package org.neo4j.io;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import java.io.IOException;
 
-import org.neo4j.test.matchers.NestedThrowableMatcher;
-
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.neo4j.io.IOUtils.closeAll;
 
-@RunWith( MockitoJUnitRunner.class )
-public class IOUtilsTest
+class IOUtilsTest
 {
-    @Rule
-    public ExpectedException expectedException = ExpectedException.none();
+    private final AutoCloseable faultyClosable = Mockito.mock( AutoCloseable.class );
+    private final AutoCloseable goodClosable1 = Mockito.mock( AutoCloseable.class );
+    private final AutoCloseable goodClosable2 = Mockito.mock( AutoCloseable.class );
 
-    @Mock
-    private AutoCloseable faultyClosable;
-    @Mock
-    private AutoCloseable goodClosable1;
-    @Mock
-    private AutoCloseable goodClosable2;
+    @BeforeEach
+    void setUp() throws Exception
+    {
+        doThrow( new IOException( "Faulty closable" ) ).when( faultyClosable ).close();
+    }
 
     @Test
-    public void closeAllSilently() throws Exception
+    void closeAllSilently() throws Exception
     {
         IOUtils.closeAllSilently( goodClosable1, faultyClosable, goodClosable2 );
 
@@ -76,15 +73,19 @@ public class IOUtilsTest
     }
 
     @Test
-    public void closeAllAndRethrowException() throws Exception
+    void closeAllAndRethrowException()
     {
-        doThrow( new IOException( "Faulty closable" ) ).when( faultyClosable ).close();
-
-        expectedException.expect( IOException.class );
-        expectedException.expectMessage( "Exception closing multiple resources" );
-        expectedException.expect( new NestedThrowableMatcher( IOException.class ) );
-
-        IOUtils.closeAll( goodClosable1, faultyClosable, goodClosable2 );
+        final var e = assertThrows( IOException.class, () -> closeAll( goodClosable1, faultyClosable, goodClosable2 ) );
+        assertThat( e.getMessage() ).isEqualTo( "Exception closing multiple resources." );
+        assertThat( e.getCause() ).isInstanceOf( IOException.class );
     }
 
+    @Test
+    void closeMustIgnoreNullResources() throws Exception
+    {
+        AutoCloseable a = () -> {};
+        AutoCloseable b = null;
+        AutoCloseable c = () -> {};
+        IOUtils.close( IOException::new, a, b, c );
+    }
 }

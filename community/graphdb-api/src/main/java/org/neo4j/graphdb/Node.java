@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,15 +38,17 @@
  */
 package org.neo4j.graphdb;
 
+import org.neo4j.annotations.api.PublicApi;
+
 /**
  * A node in the graph with properties and relationships to other entities.
  * Along with {@link Relationship relationships}, nodes are the core building
- * blocks of the ONgDB data representation model. Nodes are created by invoking
- * the {@link GraphDatabaseService#createNode} method.
+ * blocks of the Neo4j data representation model. Nodes are created by invoking
+ * the {@link Transaction#createNode} method.
  * <p>
  * Node has three major groups of operations: operations that deal with
  * relationships, operations that deal with properties (see
- * {@link PropertyContainer}) and operations that deal with {@link Label labels}.
+ * {@link Entity}) and operations that deal with {@link Label labels}.
  * <p>
  * The relationship operations provide a number of overloaded accessors (such as
  * <code>getRelationships(...)</code> with "filters" for type, direction, etc),
@@ -61,29 +63,19 @@ package org.neo4j.graphdb;
  * primitives (<code>int</code>, <code>byte</code>, <code>float</code>, etc),
  * <code>java.lang.String</code>s and arrays of primitives and Strings.
  * <p>
- * <b>Please note</b> that ONgDB does NOT accept arbitrary objects as property
+ * <b>Please note</b> that Neo4j does NOT accept arbitrary objects as property
  * values. {@link #setProperty(String, Object) setProperty()} takes a
  * <code>java.lang.Object</code> only to avoid an explosion of overloaded
  * <code>setProperty()</code> methods. For further documentation see
- * {@link PropertyContainer}.
+ * {@link Entity}.
  * <p>
- * A node's id is unique, but note the following: ONgDB reuses its internal ids
+ * A node's id is unique, but note the following: Neo4j reuses its internal ids
  * when nodes and relationships are deleted, which means it's bad practice to
  * refer to them this way. Instead, use application generated ids.
  */
+@PublicApi
 public interface Node extends Entity
 {
-    /**
-     * Returns the unique id of this node. Ids are garbage collected over time
-     * so they are only guaranteed to be unique during a specific time span: if
-     * the node is deleted, it's likely that a new node at some point will get
-     * the old id. <b>Note</b>: This makes node ids brittle as public APIs.
-     *
-     * @return the id of this node
-     */
-    @Override
-    long getId();
-
     /**
      * Deletes this node if it has no relationships attached to it. If
      * <code>delete()</code> is invoked on a node with relationships, an
@@ -198,44 +190,9 @@ public interface Node extends Entity
     boolean hasRelationship( Direction dir );
 
     /**
-     * Returns all relationships with the given type and direction that are
-     * attached to this node. If there are no matching relationships, an empty
-     * iterable will be returned.
-     *
-     * @param type the given type
-     * @param dir the given direction, where <code>Direction.OUTGOING</code>
-     *            means all relationships that have this node as
-     *            {@link Relationship#getStartNode() start node} and <code>
-     * Direction.INCOMING</code>
-     *            means all relationships that have this node as
-     *            {@link Relationship#getEndNode() end node}
-     * @return all relationships attached to this node that match the given type
-     *         and direction
-     */
-    Iterable<Relationship> getRelationships( RelationshipType type, Direction dir );
-
-    /**
-     * Returns <code>true</code> if there are any relationships of the given
-     * relationship type and direction attached to this node, <code>false</code>
-     * otherwise.
-     *
-     * @param type the given type
-     * @param dir the given direction, where <code>Direction.OUTGOING</code>
-     *            means all relationships that have this node as
-     *            {@link Relationship#getStartNode() start node} and <code>
-     * Direction.INCOMING</code>
-     *            means all relationships that have this node as
-     *            {@link Relationship#getEndNode() end node}
-     * @return <code>true</code> if there are any relationships of the given
-     *         relationship type and direction attached to this node,
-     *         <code>false</code> otherwise
-     */
-    boolean hasRelationship( RelationshipType type, Direction dir );
-
-    /**
      * Returns the only relationship of a given type and direction that is
      * attached to this node, or <code>null</code>. This is a convenience method
-     * that is used in the commonly occuring situation where a node has exactly
+     * that is used in the commonly occurring situation where a node has exactly
      * zero or one relationships of a given type and direction to another node.
      * Typically this invariant is maintained by the rest of the code: if at any
      * time more than one such relationships exist, it is a fatal error that

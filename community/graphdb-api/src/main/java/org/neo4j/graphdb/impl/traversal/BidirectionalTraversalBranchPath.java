@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,10 +40,11 @@ package org.neo4j.graphdb.impl.traversal;
 
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.traversal.Paths;
 import org.neo4j.graphdb.traversal.TraversalBranch;
@@ -56,7 +57,7 @@ class BidirectionalTraversalBranchPath implements Path
     private final Relationship lastRelationship;
 
     private Node cachedStartNode;
-    private LinkedList<Relationship> cachedRelationships;
+    private List<Relationship> cachedRelationships;
 
     BidirectionalTraversalBranchPath( TraversalBranch start, TraversalBranch end )
     {
@@ -64,7 +65,7 @@ class BidirectionalTraversalBranchPath implements Path
         this.end = end;
 
         // Most used properties: endNode and lastRelationship, so cache them right away (semi-expensive though).
-        Iterator<PropertyContainer> endPathEntities = end.iterator();
+        Iterator<Entity> endPathEntities = end.iterator();
         this.endNode = (Node) endPathEntities.next();
         this.lastRelationship = endPathEntities.hasNext() ?
                 (Relationship) endPathEntities.next() : start.lastRelationship();
@@ -110,7 +111,7 @@ class BidirectionalTraversalBranchPath implements Path
         return gatherRelationships( end, start );
     }
 
-    private LinkedList<Relationship> gatherRelationships( TraversalBranch first, TraversalBranch then )
+    private List<Relationship> gatherRelationships( TraversalBranch first, TraversalBranch then )
     {
         // TODO Don't loop through them all up front
         LinkedList<Relationship> relationships = new LinkedList<>();
@@ -192,10 +193,10 @@ class BidirectionalTraversalBranchPath implements Path
     }
 
     @Override
-    public Iterator<PropertyContainer> iterator()
+    public Iterator<Entity> iterator()
     {
         // TODO Don't loop through them all up front
-        LinkedList<PropertyContainer> entities = new LinkedList<>();
+        LinkedList<Entity> entities = new LinkedList<>();
         TraversalBranch branch = start;
         while ( branch.length() > 0 )
         {

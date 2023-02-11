@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,44 +38,36 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-
-import org.junit.Test;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.test.OnDemandJobScheduler;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
-public class IndexPopulationJobControllerTest
+class IndexPopulationJobControllerTest
 {
 
     private final OnDemandJobScheduler executer = new OnDemandJobScheduler();
     private final IndexPopulationJobController jobController = new IndexPopulationJobController( executer );
 
     @Test
-    public void trackPopulationJobs()
+    void trackPopulationJobs()
     {
-        assertThat( jobController.getPopulationJobs(), is( empty() ) );
+        assertThat( jobController.getPopulationJobs() ).isEmpty();
 
         IndexPopulationJob populationJob = mock( IndexPopulationJob.class );
         jobController.startIndexPopulation( populationJob );
-        assertThat( jobController.getPopulationJobs(), hasSize( 1 ) );
+        assertThat( jobController.getPopulationJobs() ).hasSize( 1 );
 
         IndexPopulationJob populationJob2 = mock( IndexPopulationJob.class );
         jobController.startIndexPopulation( populationJob2 );
-        assertThat( jobController.getPopulationJobs(), hasSize( 2 ) );
+        assertThat( jobController.getPopulationJobs() ).hasSize( 2 );
     }
 
     @Test
-    public void stopOngoingPopulationJobs() throws ExecutionException, InterruptedException
+    void stopOngoingPopulationJobs() throws InterruptedException
     {
         IndexPopulationJob populationJob = getIndexPopulationJob();
         IndexPopulationJob populationJob2 = getIndexPopulationJob();
@@ -84,28 +76,26 @@ public class IndexPopulationJobControllerTest
 
         jobController.stop();
 
-        verify( populationJob ).cancel();
-        verify( populationJob2 ).cancel();
+        verify( populationJob ).stop();
+        verify( populationJob2 ).stop();
     }
 
     @Test
-    public void untrackFinishedPopulations()
+    void untrackFinishedPopulations()
     {
         IndexPopulationJob populationJob = getIndexPopulationJob();
         jobController.startIndexPopulation( populationJob );
 
-        assertThat( jobController.getPopulationJobs(), hasSize( 1 ) );
+        assertThat( jobController.getPopulationJobs() ).hasSize( 1 );
 
         executer.runJob();
 
-        assertThat( jobController.getPopulationJobs(), hasSize( 0 ) );
+        assertThat( jobController.getPopulationJobs() ).hasSize( 0 );
         verify( populationJob ).run();
     }
 
-    private IndexPopulationJob getIndexPopulationJob()
+    private static IndexPopulationJob getIndexPopulationJob()
     {
-        IndexPopulationJob populationJob = mock( IndexPopulationJob.class );
-        when( populationJob.cancel() ).thenReturn( CompletableFuture.completedFuture( null ) );
-        return populationJob;
+        return mock( IndexPopulationJob.class );
     }
 }

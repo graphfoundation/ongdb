@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,42 +38,39 @@
  */
 package org.neo4j.kernel.impl.transaction.log;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import org.neo4j.kernel.impl.store.record.NodeRecord;
-import org.neo4j.kernel.impl.transaction.command.Command;
+import org.neo4j.kernel.impl.api.TestCommand;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryCommand;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryCommit;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryStart;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.neo4j.storageengine.api.TransactionIdStore.BASE_TX_CHECKSUM;
 
-public class TransactionPositionLocatorTest
+class TransactionPositionLocatorTest
 {
-    private final LogEntryReader<ReadableClosablePositionAwareChannel> logEntryReader = mock( LogEntryReader.class );
-    private final ReadableClosablePositionAwareChannel channel = mock( ReadableClosablePositionAwareChannel.class );
-    private final TransactionMetadataCache metadataCache = mock( TransactionMetadataCache.class );
+    private final LogEntryReader logEntryReader = mock( LogEntryReader.class );
+    private final ReadableClosablePositionAwareChecksumChannel channel = mock( ReadableClosablePositionAwareChecksumChannel.class );
 
     private final long txId = 42;
     private final LogPosition startPosition = new LogPosition( 1, 128 );
 
-    private final LogEntryStart start = new LogEntryStart( 0, 0, 0, 0, null, startPosition );
-    private final LogEntryCommand command = new LogEntryCommand(
-            new Command.NodeCommand( new NodeRecord( 42 ), new NodeRecord( 42 ) ) );
-    private final LogEntryCommit commit = new LogEntryCommit( txId, System.currentTimeMillis() );
+    private final LogEntryStart start = new LogEntryStart( 0, 0, 0, null, startPosition );
+    private final LogEntryCommand command = new LogEntryCommand( new TestCommand() );
+    private final LogEntryCommit commit = new LogEntryCommit( txId, System.currentTimeMillis(), BASE_TX_CHECKSUM );
 
     @Test
-    public void shouldFindTransactionLogPosition() throws IOException
+    void shouldFindTransactionLogPosition() throws IOException
     {
         // given
         final PhysicalLogicalTransactionStore.TransactionPositionLocator locator =
@@ -83,23 +80,15 @@ public class TransactionPositionLocatorTest
 
         // when
         final boolean result = locator.visit( channel );
-        final LogPosition position = locator.getAndCacheFoundLogPosition( metadataCache );
+        final LogPosition position = locator.getLogPosition();
 
         // then
         assertFalse( result );
         assertEquals( startPosition, position );
-        verify( metadataCache, times( 1 ) ).cacheTransactionMetadata(
-                txId,
-                startPosition,
-                start.getMasterId(),
-                start.getLocalId(),
-                LogEntryStart.checksum( start ),
-                commit.getTimeWritten()
-        );
     }
 
     @Test
-    public void shouldNotFindTransactionLogPosition() throws IOException
+    void shouldNotFindTransactionLogPosition() throws IOException
     {
         // given
         final PhysicalLogicalTransactionStore.TransactionPositionLocator locator =
@@ -112,14 +101,8 @@ public class TransactionPositionLocatorTest
 
         // then
         assertTrue( result );
-        try
-        {
-            locator.getAndCacheFoundLogPosition( metadataCache );
-            fail( "should have thrown" );
-        }
-        catch ( NoSuchTransactionException e )
-        {
-            assertEquals( "Unable to find transaction " + txId + " in any of my logical logs", e.getMessage() );
-        }
+        NoSuchTransactionException exception =
+                assertThrows( NoSuchTransactionException.class, locator::getLogPosition );
+        assertEquals( "Unable to find transaction " + txId + " in any of my logical logs", exception.getMessage() );
     }
 }

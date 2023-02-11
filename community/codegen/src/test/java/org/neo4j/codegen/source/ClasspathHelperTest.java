@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,7 @@
  */
 package org.neo4j.codegen.source;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -47,24 +47,20 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Set;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.hasItems;
-import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.neo4j.codegen.source.ClasspathHelper.fullClasspathFor;
 import static org.neo4j.codegen.source.ClasspathHelper.fullClasspathStringFor;
 
-public class ClasspathHelperTest
+class ClasspathHelperTest
 {
     @Test
-    public void shouldNotFailForNullClassLoader()
+    void shouldNotFailForNullClassLoader()
     {
-        assertThat( fullClasspathFor( null ), not( empty() ) );
+        assertThat( fullClasspathFor( null ) ).isNotEmpty();
     }
 
     @Test
-    public void shouldWorkForClassLoaderWithNoParent() throws Exception
+    void shouldWorkForClassLoaderWithNoParent() throws Exception
     {
         // Given
         ClassLoader loader = new URLClassLoader( urls( "file:///file1", "file:///file2" ), null );
@@ -73,11 +69,11 @@ public class ClasspathHelperTest
         Set<String> elements = fullClasspathFor( loader );
 
         // Then
-        assertThat( elements, hasItems( pathTo( "file1" ), pathTo( "file2" ) ) );
+        assertThat( elements ).contains( pathTo( "file1" ), pathTo( "file2" ) );
     }
 
     @Test
-    public void shouldWorkForClassLoaderWithSingleParent() throws Exception
+    void shouldWorkForClassLoaderWithSingleParent() throws Exception
     {
         // Given
         ClassLoader parent = new URLClassLoader( urls( "file:///file1", "file:///file2" ), null );
@@ -87,11 +83,11 @@ public class ClasspathHelperTest
         Set<String> elements = fullClasspathFor( child );
 
         // Then
-        assertThat( elements, hasItems( pathTo( "file1" ), pathTo( "file2" ), pathTo( "file3" ) ) );
+        assertThat( elements ).contains( pathTo( "file1" ), pathTo( "file2" ), pathTo( "file3" ) );
     }
 
     @Test
-    public void shouldWorkForClassLoaderHierarchy() throws Exception
+    void shouldWorkForClassLoaderHierarchy() throws Exception
     {
         // Given
         ClassLoader loader1 = new URLClassLoader( urls( "file:///file1" ), null );
@@ -103,11 +99,11 @@ public class ClasspathHelperTest
         Set<String> elements = fullClasspathFor( loader4 );
 
         // Then
-        assertThat( elements, hasItems( pathTo( "file1" ), pathTo( "file2" ), pathTo( "file3" ), pathTo( "file4" ) ) );
+        assertThat( elements ).contains( pathTo( "file1" ), pathTo( "file2" ), pathTo( "file3" ), pathTo( "file4" ) );
     }
 
     @Test
-    public void shouldReturnCorrectClasspathString() throws Exception
+    void shouldReturnCorrectClasspathString() throws Exception
     {
         // Given
         ClassLoader parent = new URLClassLoader( urls( "file:///foo" ), null );
@@ -117,7 +113,7 @@ public class ClasspathHelperTest
         String classpath = fullClasspathStringFor( child );
 
         // Then
-        assertThat( classpath, containsString( pathTo( "bar" ) + File.pathSeparator + pathTo( "foo" ) ) );
+        assertThat( classpath ).contains( pathTo( "bar" ) + File.pathSeparator + pathTo( "foo" ) );
     }
 
     private static URL[] urls( String... strings ) throws MalformedURLException

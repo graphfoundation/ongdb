@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,11 +38,15 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.{CoercedPredicate, Equals, Predicate}
+import org.neo4j.cypher.internal.runtime.CypherRow
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.values.storable.Values.{NO_VALUE, stringValue}
+import org.neo4j.cypher.internal.runtime.interpreted.commands.LiteralHelper.literal
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.CoercedPredicate
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Equals
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Predicate
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.values.storable.Values.NO_VALUE
+import org.neo4j.values.storable.Values.stringValue
 
 class GenericCaseTest extends CypherFunSuite {
 
@@ -53,7 +57,7 @@ class GenericCaseTest extends CypherFunSuite {
     )
 
     //WHEN
-    val result = caseExpr(ExecutionContext.empty, QueryStateHelper.empty)
+    val result = caseExpr(CypherRow.empty, QueryStateHelper.empty)
 
     //THEN
     result should equal(stringValue("one"))
@@ -67,7 +71,7 @@ class GenericCaseTest extends CypherFunSuite {
     )
 
     //WHEN
-    val result = caseExpr(ExecutionContext.empty, QueryStateHelper.empty)
+    val result = caseExpr(CypherRow.empty, QueryStateHelper.empty)
 
     //THEN
     result should equal(stringValue("two"))
@@ -81,7 +85,7 @@ class GenericCaseTest extends CypherFunSuite {
     )
 
     //WHEN
-    val result = caseExpr(ExecutionContext.empty, QueryStateHelper.empty)
+    val result = caseExpr(CypherRow.empty, QueryStateHelper.empty)
 
     //THEN
     result should equal(NO_VALUE)
@@ -95,7 +99,7 @@ class GenericCaseTest extends CypherFunSuite {
     ) defaultsTo "other"
 
     //WHEN
-    val result = caseExpr(ExecutionContext.empty, QueryStateHelper.empty)
+    val result = caseExpr(CypherRow.empty, QueryStateHelper.empty)
 
     //THEN
     result should equal(stringValue("other"))
@@ -103,10 +107,10 @@ class GenericCaseTest extends CypherFunSuite {
 
   test("case_with_a_single_null_value_uses_the_default") {
     //GIVEN CASE WHEN null THEN 42 ELSE "defaults"
-    val caseExpr = GenericCase(IndexedSeq(CoercedPredicate(Null())->Literal(42)), Some(Literal("defaults")))
+    val caseExpr = GenericCase(IndexedSeq(CoercedPredicate(Null())->literal(42)), Some(literal("defaults")))
 
     //WHEN
-    val result = caseExpr(ExecutionContext.empty, QueryStateHelper.empty)
+    val result = caseExpr(CypherRow.empty, QueryStateHelper.empty)
 
     //THEN
     assert(result === stringValue("defaults"))
@@ -114,13 +118,13 @@ class GenericCaseTest extends CypherFunSuite {
 
   private def case_(alternatives: ((Any, Any), Any)*): GenericCase = {
     val mappedAlt: IndexedSeq[(Predicate, Expression)] = alternatives.toIndexedSeq.map {
-      case ((a, b), c) => (Equals(Literal(a), Literal(b)), Literal(c))
+      case ((a, b), c) => (Equals(literal(a), literal(b)), literal(c))
     }
 
     GenericCase(mappedAlt, None)
   }
 
   implicit class SimpleCasePimp(in: GenericCase) {
-    def defaultsTo(a: Any): GenericCase = GenericCase(in.alternatives, Some(Literal(a)))
+    def defaultsTo(a: Any): GenericCase = GenericCase(in.alternatives, Some(literal(a)))
   }
 }

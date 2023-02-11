@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,15 +38,16 @@
  */
 package org.neo4j.cypher
 
+import org.neo4j.cypher.internal.ExecutionEngineQueryCacheMonitor
+import org.neo4j.cypher.internal.QueryCache.CacheKey
+
 import java.util.concurrent.atomic.AtomicLong
 
-import org.neo4j.cypher.internal.StringCacheMonitor
-
-class PlanCacheMetricsMonitor extends StringCacheMonitor {
+class PlanCacheMetricsMonitor extends ExecutionEngineQueryCacheMonitor {
   private val counter = new AtomicLong()
   private val waitTime = new AtomicLong()
 
-  override def cacheDiscard(ignored1: String, ignored2: String, secondsSinceReplan: Int): Unit = {
+  override def cacheDiscard(ignored1: CacheKey[String], ignored2: String, secondsSinceReplan: Int, maybeReason: Option[String]): Unit = {
     counter.incrementAndGet()
     waitTime.addAndGet(secondsSinceReplan)
   }

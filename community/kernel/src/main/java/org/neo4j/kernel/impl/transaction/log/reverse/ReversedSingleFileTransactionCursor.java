@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -43,13 +43,13 @@ import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Deque;
 
+import org.neo4j.io.fs.ReadAheadChannel;
 import org.neo4j.kernel.impl.transaction.CommittedTransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.LogVersionBridge;
 import org.neo4j.kernel.impl.transaction.log.PhysicalTransactionCursor;
-import org.neo4j.kernel.impl.transaction.log.ReadAheadChannel;
 import org.neo4j.kernel.impl.transaction.log.ReadAheadLogChannel;
-import org.neo4j.kernel.impl.transaction.log.ReadableClosablePositionAwareChannel;
+import org.neo4j.kernel.impl.transaction.log.SketchingTransactionCursor;
 import org.neo4j.kernel.impl.transaction.log.TransactionCursor;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.entry.UnsupportedLogVersionException;
@@ -91,6 +91,7 @@ public class ReversedSingleFileTransactionCursor implements TransactionCursor
     private final TransactionCursor transactionCursor;
     // Should be generally large enough to hold transactions in a chunk, where one chunk is the read-ahead size of ReadAheadLogChannel
     private final Deque<CommittedTransactionRepresentation> chunkTransactions = new ArrayDeque<>( 20 );
+    private final SketchingTransactionCursor sketchingCursor;
     private CommittedTransactionRepresentation currentChunkTransaction;
     // May be longer than required, offsetLength holds the actual length.
     private final long[] offsets;
@@ -98,8 +99,7 @@ public class ReversedSingleFileTransactionCursor implements TransactionCursor
     private int chunkStartOffsetIndex;
     private long totalSize;
 
-    ReversedSingleFileTransactionCursor( ReadAheadLogChannel channel,
-            LogEntryReader<ReadableClosablePositionAwareChannel> logEntryReader, boolean failOnCorruptedLogFiles,
+    ReversedSingleFileTransactionCursor( ReadAheadLogChannel channel, LogEntryReader logEntryReader, boolean failOnCorruptedLogFiles,
             ReversedTransactionCursorMonitor monitor ) throws IOException
     {
         this.channel = channel;
@@ -107,7 +107,8 @@ public class ReversedSingleFileTransactionCursor implements TransactionCursor
         this.monitor = monitor;
         // There's an assumption here: that the underlying channel can move in between calls and that the
         // transaction cursor will just happily read from the new position.
-        this.transactionCursor = new PhysicalTransactionCursor<>( channel, logEntryReader );
+        this.transactionCursor = new PhysicalTransactionCursor( channel, logEntryReader );
+        this.sketchingCursor = new SketchingTransactionCursor( channel, logEntryReader );
         this.offsets = sketchOutTransactionStartOffsets();
     }
 
@@ -122,10 +123,10 @@ public class ReversedSingleFileTransactionCursor implements TransactionCursor
         long startOffset = channel.position();
         try
         {
-            while ( transactionCursor.next() )
+            while ( sketchingCursor.next() )
             {
                 if ( offsetCursor == offsets.length )
-                {   // Grow
+                {
                     offsets = Arrays.copyOf( offsets, offsetCursor * 2 );
                 }
                 offsets[offsetCursor++] = startOffset;

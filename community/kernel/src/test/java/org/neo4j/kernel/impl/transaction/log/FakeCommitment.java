@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,6 +38,11 @@
  */
 package org.neo4j.kernel.impl.transaction.log;
 
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.storageengine.api.TransactionIdStore;
+
+import static org.neo4j.io.pagecache.context.CursorContext.NULL;
+
 public class FakeCommitment implements Commitment
 {
     public static final int CHECKSUM = 3;
@@ -45,7 +50,6 @@ public class FakeCommitment implements Commitment
     private final long id;
     private final TransactionIdStore transactionIdStore;
     private boolean committed;
-    private boolean hasExplicitIndexChanges;
 
     public FakeCommitment( long id, TransactionIdStore transactionIdStore )
     {
@@ -60,16 +64,16 @@ public class FakeCommitment implements Commitment
     }
 
     @Override
-    public void publishAsCommitted()
+    public void publishAsCommitted( CursorContext cursorContext )
     {
         committed = true;
-        transactionIdStore.transactionCommitted( id, CHECKSUM, TIMESTAMP );
+        transactionIdStore.transactionCommitted( id, CHECKSUM, TIMESTAMP, NULL );
     }
 
     @Override
-    public void publishAsClosed()
+    public void publishAsClosed( CursorContext cursorContext )
     {
-        transactionIdStore.transactionClosed( id, 1, 2 );
+        transactionIdStore.transactionClosed( id, 1, 2, cursorContext );
     }
 
     @Override
@@ -78,14 +82,4 @@ public class FakeCommitment implements Commitment
         return committed;
     }
 
-    public void setHasExplicitIndexChanges( boolean hasExplicitIndexChanges )
-    {
-        this.hasExplicitIndexChanges = hasExplicitIndexChanges;
-    }
-
-    @Override
-    public boolean hasExplicitIndexChanges()
-    {
-        return hasExplicitIndexChanges;
-    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,10 +40,14 @@ package org.neo4j.cypher
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection
-import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection.{BOTH, INCOMING, OUTGOING}
-import org.scalacheck.Gen._
-import org.scalacheck.{Gen, Shrink}
+import org.neo4j.cypher.internal.expressions.SemanticDirection
+import org.neo4j.cypher.internal.expressions.SemanticDirection.BOTH
+import org.neo4j.cypher.internal.expressions.SemanticDirection.INCOMING
+import org.neo4j.cypher.internal.expressions.SemanticDirection.OUTGOING
+import org.scalacheck.Gen
+import org.scalacheck.Gen.alphaLowerChar
+import org.scalacheck.Gen.alphaUpperChar
+import org.scalacheck.Shrink
 import org.scalatest.prop.PropertyChecks
 
 trait PatternGen extends PropertyChecks {
@@ -53,7 +57,7 @@ trait PatternGen extends PropertyChecks {
   protected def maxDiscardedInputs = 500
   protected def maxSize = 10
 
-  override implicit val generatorDrivenConfig = PropertyCheckConfig(
+  override implicit val generatorDrivenConfig: PropertyCheckConfiguration = PropertyCheckConfig(
     minSuccessful = numberOfTestRuns, maxDiscarded = maxDiscardedInputs, maxSize = maxSize
   )
 

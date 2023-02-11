@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,20 +38,20 @@
  */
 package org.neo4j.kernel.impl.transaction.log;
 
-import java.io.File;
 import java.io.IOException;
 
+import org.neo4j.configuration.Config;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.transaction.log.TransactionMetadataCache.TransactionMetadata;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.entry.VersionAwareLogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.lifecycle.Lifecycle;
-import org.neo4j.kernel.monitoring.Monitors;
+import org.neo4j.monitoring.Monitors;
+import org.neo4j.storageengine.api.CommandReaderFactory;
 
 /**
  * Used for reading transactions off of file.
@@ -61,17 +61,17 @@ public class ReadOnlyTransactionStore implements Lifecycle, LogicalTransactionSt
     private final LifeSupport life = new LifeSupport();
     private final LogicalTransactionStore physicalStore;
 
-    public ReadOnlyTransactionStore( PageCache pageCache, FileSystemAbstraction fs, File fromPath, Config config,
-            Monitors monitors ) throws IOException
+    public ReadOnlyTransactionStore( PageCache pageCache, FileSystemAbstraction fs, DatabaseLayout fromDatabaseLayout, Config config,
+            Monitors monitors, CommandReaderFactory commandReaderFactory ) throws IOException
     {
-        TransactionMetadataCache transactionMetadataCache = new TransactionMetadataCache( 100 );
-        LogEntryReader<ReadableClosablePositionAwareChannel> logEntryReader = new VersionAwareLogEntryReader<>();
+        TransactionMetadataCache transactionMetadataCache = new TransactionMetadataCache();
+        LogEntryReader logEntryReader = new VersionAwareLogEntryReader( commandReaderFactory );
         LogFiles logFiles = LogFilesBuilder
-                .activeFilesBuilder( fromPath, fs, pageCache ).withLogEntryReader( logEntryReader )
+                .activeFilesBuilder( fromDatabaseLayout, fs, pageCache ).withLogEntryReader( logEntryReader )
                 .withConfig( config )
                 .build();
         physicalStore = new PhysicalLogicalTransactionStore( logFiles, transactionMetadataCache, logEntryReader,
-                monitors, true );
+                                                             monitors, true, config );
     }
 
     @Override
@@ -91,18 +91,6 @@ public class ReadOnlyTransactionStore implements Lifecycle, LogicalTransactionSt
     public TransactionCursor getTransactionsInReverseOrder( LogPosition backToPosition ) throws IOException
     {
         return physicalStore.getTransactionsInReverseOrder( backToPosition );
-    }
-
-    @Override
-    public TransactionMetadata getMetadataFor( long transactionId ) throws IOException
-    {
-        return physicalStore.getMetadataFor( transactionId );
-    }
-
-    @Override
-    public boolean existsOnDisk( long transactionId ) throws IOException
-    {
-        return physicalStore.existsOnDisk( transactionId );
     }
 
     @Override

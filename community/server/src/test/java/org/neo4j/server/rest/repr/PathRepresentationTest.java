@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,7 @@
  */
 package org.neo4j.server.rest.repr;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
@@ -47,9 +47,9 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.Relationship;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.server.rest.repr.RepresentationTestAccess.serialize;
 import static org.neo4j.server.rest.repr.RepresentationTestBase.NODE_URI_PATTERN;
 import static org.neo4j.server.rest.repr.RepresentationTestBase.RELATIONSHIP_URI_PATTERN;
@@ -60,47 +60,47 @@ import static org.neo4j.test.mockito.mock.GraphMock.relationship;
 import static org.neo4j.test.mockito.mock.Link.link;
 import static org.neo4j.test.mockito.mock.Properties.properties;
 
-public class PathRepresentationTest
+class PathRepresentationTest
 {
 
     @Test
-    public void shouldHaveLength()
+    void shouldHaveLength()
     {
         assertNotNull( pathrep().length() );
     }
 
     @Test
-    public void shouldHaveStartNodeLink()
+    void shouldHaveStartNodeLink()
     {
         assertUriMatches( NODE_URI_PATTERN, pathrep().startNode() );
     }
 
     @Test
-    public void shouldHaveEndNodeLink()
+    void shouldHaveEndNodeLink()
     {
         assertUriMatches( NODE_URI_PATTERN, pathrep().endNode() );
     }
 
     @Test
-    public void shouldHaveNodeList()
+    void shouldHaveNodeList()
     {
         assertNotNull( pathrep().nodes() );
     }
 
     @Test
-    public void shouldHaveRelationshipList()
+    void shouldHaveRelationshipList()
     {
         assertNotNull( pathrep().relationships() );
     }
 
     @Test
-    public void shouldHaveDirectionList()
+    void shouldHaveDirectionList()
     {
         assertNotNull( pathrep().directions() );
     }
 
     @Test
-    public void shouldSerialiseToMap()
+    void shouldSerialiseToMap()
     {
         Map<String, Object> repr = serialize( pathrep() );
         assertNotNull( repr );
@@ -133,7 +133,7 @@ public class PathRepresentationTest
      * }
      *
      */
-    private PathRepresentation<Path> pathrep()
+    private static PathRepresentation<Path> pathrep()
     {
         Node a = node( 0, properties() );
         Node b = node( 1, properties() );

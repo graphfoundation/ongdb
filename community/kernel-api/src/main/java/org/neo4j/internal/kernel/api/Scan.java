@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,6 +38,9 @@
  */
 package org.neo4j.internal.kernel.api;
 
+import org.neo4j.internal.kernel.api.security.AccessMode;
+import org.neo4j.io.pagecache.context.CursorContext;
+
 /**
  * Initializer for spreading a scan operator over multiple cursors for use from different threads in parallel.
  *
@@ -46,5 +49,39 @@ package org.neo4j.internal.kernel.api;
  */
 public interface Scan<Cursor extends org.neo4j.internal.kernel.api.Cursor>
 {
-    void initialize( Cursor cursor );
+    /**
+     * Will attempt to reserve a batch to scan.
+     * <p>
+     * A <code>Scan</code> instance can be shared among threads and guarantees that each call to
+     * <code>reserveBatch</code> will
+     * reserve exclusive ranges for the scan. The basic usage pattern is that a single <code>Scan</code> scan instance
+     * is shared among several threads but where each thread maintains separate cursors. Each thread can call
+     * <code>reserveBatch</code> multiple times and then proceed to iterate the cursor as usual.
+     * <p>
+     * Example:
+     * <pre>
+     * {@code
+     *   try ( NodeCursor cursor = cursors.allocateCursor() )
+     *   {
+     *     while ( scan.reserveBatch( cursor, 42 ) )
+     *     {
+     *       while ( cursor.next() )
+     *       {
+     *         //do things with the node
+     *       }
+     *     }
+     *   }
+     * }
+     * </pre>
+     * <p>
+     * Using it this way will guarantee that each scan - regardless of the calling thread - will see different parts of
+     * the underlying data.
+     *
+     * @param cursor The cursor to be used for reading.
+     * @param sizeHint The approximate size the batch, the provided size must be greater than 0.
+     * @param cursorContext underlying page cache cursor context used for reserve batch underlying calls
+     * @param accessMode security store access mode
+     * @return <code>true</code> if there are more data to read, otherwise <code>false</code>
+     */
+    boolean reserveBatch( Cursor cursor, int sizeHint, CursorContext cursorContext, AccessMode accessMode );
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,127 +38,151 @@
  */
 package org.neo4j.kernel.impl.transaction.state.storeview;
 
-import org.apache.commons.lang3.ArrayUtils;
-
+import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.IntPredicate;
+import java.util.function.Supplier;
 
-import org.neo4j.collection.primitive.PrimitiveIntSet;
-import org.neo4j.helpers.collection.Visitor;
-import org.neo4j.internal.kernel.api.exceptions.EntityNotFoundException;
-import org.neo4j.kernel.api.labelscan.LabelScanStore;
-import org.neo4j.kernel.api.labelscan.NodeLabelUpdate;
+import org.neo4j.common.EntityType;
+import org.neo4j.configuration.Config;
+import org.neo4j.internal.kernel.api.InternalIndexState;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexType;
+import org.neo4j.internal.schema.SchemaDescriptors;
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.io.pagecache.tracing.PageCacheTracer;
+import org.neo4j.kernel.api.index.TokenIndexReader;
+import org.neo4j.kernel.impl.api.index.IndexProxy;
 import org.neo4j.kernel.impl.api.index.IndexStoreView;
-import org.neo4j.kernel.impl.api.index.NodeUpdates;
+import org.neo4j.kernel.impl.api.index.IndexingService.IndexProxyProvider;
+import org.neo4j.kernel.impl.api.index.PropertyScanConsumer;
 import org.neo4j.kernel.impl.api.index.StoreScan;
-import org.neo4j.kernel.impl.locking.LockService;
-import org.neo4j.kernel.impl.store.NeoStores;
-import org.neo4j.kernel.impl.store.NodeStore;
-import org.neo4j.kernel.impl.store.PropertyStore;
+import org.neo4j.kernel.impl.api.index.TokenScanConsumer;
+import org.neo4j.kernel.impl.locking.Locks;
+import org.neo4j.lock.LockService;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
-import org.neo4j.register.Register;
-import org.neo4j.util.FeatureToggles;
-import org.neo4j.values.storable.Value;
+import org.neo4j.memory.MemoryTracker;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
+import org.neo4j.storageengine.api.StorageReader;
+import org.neo4j.storageengine.api.cursor.StoreCursors;
 
-/**
- * Store view that will try to use label scan store {@link LabelScanStore} to produce the view unless label scan
- * store is empty or explicitly told to use store in which cases it will fallback to whole store scan.
- */
+import static org.neo4j.common.EntityType.NODE;
+import static org.neo4j.common.EntityType.RELATIONSHIP;
+
 public class DynamicIndexStoreView implements IndexStoreView
 {
-    private static boolean USE_LABEL_INDEX_FOR_SCHEMA_INDEX_POPULATION = FeatureToggles.flag(
-            DynamicIndexStoreView.class, "use.label.index", true );
-
-    private final NeoStoreIndexStoreView neoStoreIndexStoreView;
-    private final LabelScanStore labelScanStore;
-    protected final LockService locks;
+    private final FullScanStoreView fullScanStoreView;
+    private final Locks locks;
+    protected final LockService lockService;
+    private final Config config;
+    private final IndexProxyProvider indexProxies;
+    protected final Supplier<StorageReader> storageReader;
+    private final Function<CursorContext,StoreCursors> cursorFactory;
     private final Log log;
-    protected final NodeStore nodeStore;
-    protected final PropertyStore propertyStore;
 
-    public DynamicIndexStoreView( NeoStoreIndexStoreView neoStoreIndexStoreView, LabelScanStore labelScanStore, LockService locks,
-            NeoStores neoStores, LogProvider logProvider )
+    public DynamicIndexStoreView( FullScanStoreView fullScanStoreView,
+                                  Locks locks,
+                                  LockService lockService,
+                                  Config config,
+                                  IndexProxyProvider indexProxies,
+                                  Supplier<StorageReader> storageReader,
+                                  Function<CursorContext,StoreCursors> cursorFactory,
+                                  LogProvider logProvider )
     {
-        this.nodeStore = neoStores.getNodeStore();
-        this.propertyStore = neoStores.getPropertyStore();
-        this.neoStoreIndexStoreView = neoStoreIndexStoreView;
+        this.fullScanStoreView = fullScanStoreView;
         this.locks = locks;
-        this.labelScanStore = labelScanStore;
+        this.lockService = lockService;
+        this.config = config;
+        this.indexProxies = indexProxies;
+        this.storageReader = storageReader;
+        this.cursorFactory = cursorFactory;
         this.log = logProvider.getLog( getClass() );
     }
 
     @Override
-    public <FAILURE extends Exception> StoreScan<FAILURE> visitNodes( int[] labelIds,
-            IntPredicate propertyKeyIdFilter, Visitor<NodeUpdates,FAILURE> propertyUpdatesVisitor,
-            Visitor<NodeLabelUpdate,FAILURE> labelUpdateVisitor,
-            boolean forceStoreScan )
+    public StoreScan visitNodes( int[] labelIds, IntPredicate propertyKeyIdFilter,
+                                 PropertyScanConsumer propertyScanConsumer, TokenScanConsumer labelScanConsumer,
+                                 boolean forceStoreScan, boolean parallelWrite, PageCacheTracer cacheTracer, MemoryTracker memoryTracker )
     {
-        if ( forceStoreScan || !USE_LABEL_INDEX_FOR_SCHEMA_INDEX_POPULATION || useAllNodeStoreScan( labelIds ) )
+        var tokenIndex = findTokenIndex( storageReader, NODE );
+        if ( tokenIndex.isPresent() )
         {
-            return neoStoreIndexStoreView.visitNodes( labelIds, propertyKeyIdFilter, propertyUpdatesVisitor, labelUpdateVisitor,
-                    forceStoreScan );
+            var nodeStoreScan = new LabelIndexedNodeStoreScan(
+                    config, storageReader.get(), cursorFactory, lockService, tokenIndex.get().reader, labelScanConsumer, propertyScanConsumer, labelIds,
+                    propertyKeyIdFilter, parallelWrite, fullScanStoreView.scheduler, cacheTracer, memoryTracker );
+            return new IndexedStoreScan( locks, tokenIndex.get().descriptor, config, nodeStoreScan );
         }
-        return new LabelScanViewNodeStoreScan<>( nodeStore, locks, propertyStore, labelScanStore, labelUpdateVisitor,
-                propertyUpdatesVisitor, labelIds, propertyKeyIdFilter );
+
+        return fullScanStoreView.visitNodes(
+                labelIds, propertyKeyIdFilter, propertyScanConsumer, labelScanConsumer, forceStoreScan, parallelWrite, cacheTracer, memoryTracker );
     }
 
     @Override
-    public NodeUpdates nodeAsUpdates( long nodeId )
+    public StoreScan visitRelationships( int[] relationshipTypeIds, IntPredicate propertyKeyIdFilter, PropertyScanConsumer propertyScanConsumer,
+                                         TokenScanConsumer relationshipTypeScanConsumer, boolean forceStoreScan, boolean parallelWrite,
+                                         PageCacheTracer cacheTracer, MemoryTracker memoryTracker )
     {
-        return neoStoreIndexStoreView.nodeAsUpdates( nodeId );
+
+        var tokenIndex = findTokenIndex( storageReader, RELATIONSHIP );
+        if ( tokenIndex.isPresent() )
+        {
+            var relationshipStoreScan = new RelationshipIndexedRelationshipStoreScan(
+                    config, storageReader.get(), cursorFactory, lockService, tokenIndex.get().reader, relationshipTypeScanConsumer, propertyScanConsumer,
+                    relationshipTypeIds,
+                    propertyKeyIdFilter, parallelWrite, fullScanStoreView.scheduler, cacheTracer, memoryTracker );
+            return new IndexedStoreScan( locks, tokenIndex.get().descriptor, config, relationshipStoreScan );
+        }
+
+        return fullScanStoreView.visitRelationships(
+                relationshipTypeIds, propertyKeyIdFilter, propertyScanConsumer,
+                relationshipTypeScanConsumer, forceStoreScan, parallelWrite, cacheTracer, memoryTracker );
     }
 
     @Override
-    public Register.DoubleLongRegister indexUpdatesAndSize( long indexId, Register.DoubleLongRegister output )
+    public boolean isEmpty()
     {
-        return neoStoreIndexStoreView.indexUpdatesAndSize( indexId, output );
+        return fullScanStoreView.isEmpty();
     }
 
     @Override
-    public Register.DoubleLongRegister indexSample( long indexId, Register.DoubleLongRegister output )
+    public NodePropertyAccessor newPropertyAccessor( CursorContext cursorContext, MemoryTracker memoryTracker )
     {
-        return neoStoreIndexStoreView.indexSample( indexId, output );
+        return fullScanStoreView.newPropertyAccessor( cursorContext, memoryTracker );
     }
 
-    @Override
-    public void replaceIndexCounts( long indexId, long uniqueElements, long maxUniqueElements, long indexSize )
+    private Optional<TokenIndexData> findTokenIndex( Supplier<StorageReader> storageReader, EntityType entityType )
     {
-        neoStoreIndexStoreView.replaceIndexCounts( indexId, uniqueElements, maxUniqueElements, indexSize );
-    }
-
-    @Override
-    public void incrementIndexUpdates( long indexId, long updatesDelta )
-    {
-        neoStoreIndexStoreView.incrementIndexUpdates( indexId, updatesDelta );
-    }
-
-    private boolean useAllNodeStoreScan( int[] labelIds )
-    {
+        var descriptor = storageReader.get().indexGetForSchemaAndType( SchemaDescriptors.forAnyEntityTokens( entityType ), IndexType.LOOKUP );
+        if ( descriptor == null )
+        {
+            return Optional.empty();
+        }
         try
         {
-            return ArrayUtils.isEmpty( labelIds ) || isEmptyLabelScanStore();
+            IndexProxy indexProxy = indexProxies.getIndexProxy( descriptor );
+            if ( indexProxy.getState() == InternalIndexState.ONLINE )
+            {
+                return Optional.of( new TokenIndexData( indexProxy.newTokenReader(), indexProxy.getDescriptor() ) );
+            }
         }
-        catch ( Exception e )
+        catch ( IndexNotFoundKernelException e )
         {
-            log.error( "Can not determine number of labeled nodes, falling back to all nodes scan.", e );
-            return true;
+            log.warn( "Token index missing for entity: %s, switching to full scan", entityType, e );
         }
+        return Optional.empty();
     }
 
-    private boolean isEmptyLabelScanStore() throws Exception
+    private static class TokenIndexData
     {
-        return labelScanStore.isEmpty();
-    }
+        private final TokenIndexReader reader;
+        private final IndexDescriptor descriptor;
 
-    @Override
-    public Value getPropertyValue( long nodeId, int propertyKeyId ) throws EntityNotFoundException
-    {
-        return neoStoreIndexStoreView.getPropertyValue( nodeId, propertyKeyId );
-    }
-
-    @Override
-    public void loadProperties( long nodeId, PrimitiveIntSet propertyIds, PropertyLoadSink sink )
-    {
-        neoStoreIndexStoreView.loadProperties( nodeId, propertyIds, sink );
+        private TokenIndexData( TokenIndexReader reader, IndexDescriptor descriptor )
+        {
+            this.reader = reader;
+            this.descriptor = descriptor;
+        }
     }
 }

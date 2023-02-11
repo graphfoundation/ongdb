@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,40 +41,39 @@ package org.neo4j.kernel.api.impl.index;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.StoredField;
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.search.IndexSearcher;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
-import org.neo4j.helpers.collection.Iterators;
+import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.kernel.api.impl.index.partition.Neo4jIndexSearcher;
 import org.neo4j.kernel.api.impl.index.partition.PartitionSearcher;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class LuceneAllDocumentsReaderTest
+class LuceneAllDocumentsReaderTest
 {
-
     private final PartitionSearcher partitionSearcher1 = createPartitionSearcher( 1, 0, 2 );
     private final PartitionSearcher partitionSearcher2 = createPartitionSearcher( 2, 1, 2 );
 
-    public LuceneAllDocumentsReaderTest() throws IOException
+    LuceneAllDocumentsReaderTest() throws IOException
     {
     }
 
     @Test
-    public void allDocumentsMaxCount()
+    void allDocumentsMaxCount()
     {
         LuceneAllDocumentsReader allDocumentsReader = createAllDocumentsReader();
         assertEquals( 3, allDocumentsReader.maxCount());
     }
 
     @Test
-    public void closeCorrespondingSearcherOnClose() throws IOException
+    void closeCorrespondingSearcherOnClose() throws IOException
     {
         LuceneAllDocumentsReader allDocumentsReader = createAllDocumentsReader();
         allDocumentsReader.close();
@@ -84,12 +83,12 @@ public class LuceneAllDocumentsReaderTest
     }
 
     @Test
-    public void readAllDocuments()
+    void readAllDocuments()
     {
         LuceneAllDocumentsReader allDocumentsReader = createAllDocumentsReader();
         List<Document> documents = Iterators.asList( allDocumentsReader.iterator() );
 
-        assertEquals( "Should have 1 document from first partition and 2 from second one.", 3, documents.size() );
+        assertEquals( 3, documents.size(), "Should have 1 document from first partition and 2 from second one." );
         assertEquals( "1", documents.get( 0 ).getField( "value" ).stringValue() );
         assertEquals( "3", documents.get( 1 ).getField( "value" ).stringValue() );
         assertEquals( "4", documents.get( 2 ).getField( "value" ).stringValue() );
@@ -111,10 +110,10 @@ public class LuceneAllDocumentsReaderTest
             throws IOException
     {
         PartitionSearcher partitionSearcher = mock( PartitionSearcher.class );
-        IndexSearcher indexSearcher = mock( IndexSearcher.class );
+        Neo4jIndexSearcher indexSearcher = mock( Neo4jIndexSearcher.class );
         IndexReader indexReader = mock( IndexReader.class );
 
-        when(partitionSearcher.getIndexSearcher()).thenReturn( indexSearcher );
+        when( partitionSearcher.getIndexSearcher() ).thenReturn( indexSearcher );
         when( indexSearcher.getIndexReader() ).thenReturn( indexReader );
         when( indexReader.maxDoc() ).thenReturn( maxDoc );
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,17 +38,16 @@
  */
 package org.neo4j.values.storable;
 
-import org.hamcrest.CoreMatchers;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import org.neo4j.exceptions.InvalidArgumentException;
 import org.neo4j.values.Comparison;
-import org.neo4j.values.utils.InvalidValuesArgumentException;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.neo4j.values.storable.CoordinateReferenceSystem.Cartesian;
 import static org.neo4j.values.storable.CoordinateReferenceSystem.Cartesian_3D;
 import static org.neo4j.values.storable.CoordinateReferenceSystem.WGS84;
@@ -57,10 +56,10 @@ import static org.neo4j.values.storable.Values.pointValue;
 import static org.neo4j.values.utils.AnyValueTestUtil.assertEqual;
 import static org.neo4j.values.utils.AnyValueTestUtil.assertNotEqual;
 
-public class PointTest
+class PointTest
 {
     @Test
-    public void cartesianShouldEqualItself()
+    void cartesianShouldEqualItself()
     {
         assertEqual( pointValue( Cartesian, 1.0, 2.0 ), pointValue( Cartesian, 1.0, 2.0 ) );
         assertEqual( pointValue( Cartesian, -1.0, 2.0 ), pointValue( Cartesian, -1.0, 2.0 ) );
@@ -69,14 +68,14 @@ public class PointTest
     }
 
     @Test
-    public void cartesianShouldNotEqualOtherPoint()
+    void cartesianShouldNotEqualOtherPoint()
     {
         assertNotEqual( pointValue( Cartesian, 1.0, 2.0 ), pointValue( Cartesian, 3.0, 4.0 ) );
         assertNotEqual( pointValue( Cartesian, 1.0, 2.0 ), pointValue( Cartesian, -1.0, 2.0 ) );
     }
 
     @Test
-    public void geographicShouldEqualItself()
+    void geographicShouldEqualItself()
     {
         assertEqual( pointValue( WGS84, 1.0, 2.0 ), pointValue( WGS84, 1.0, 2.0 ) );
         assertEqual( pointValue( WGS84, -1.0, 2.0 ), pointValue( WGS84, -1.0, 2.0 ) );
@@ -85,23 +84,92 @@ public class PointTest
     }
 
     @Test
-    public void geographicShouldNotEqualOtherPoint()
+    void geographicShouldNotEqualOtherPoint()
     {
         assertNotEqual( pointValue( WGS84, 1.0, 2.0 ), pointValue( WGS84, 3.0, 4.0 ) );
         assertNotEqual( pointValue( WGS84, 1.0, 2.0 ), pointValue( WGS84, -1.0, 2.0 ) );
     }
 
     @Test
-    public void geographicShouldNotEqualCartesian()
+    void geographicShouldNotEqualCartesian()
     {
         assertNotEqual( pointValue( WGS84, 1.0, 2.0 ), pointValue( Cartesian, 1.0, 2.0 ) );
     }
 
     @Test
-    public void shouldHaveValueGroup()
+    void geometricInvalid2DPointsShouldBehave()
     {
-        assertTrue( pointValue( Cartesian, 1, 2 ).valueGroup() != null );
-        assertTrue( pointValue( WGS84, 1, 2 ).valueGroup() != null );
+        // we wrap around for x [-180,180]
+        // we fail on going over or under [-90,90] for y
+
+        // valid ones for x
+        assertArrayEquals( pointValue( WGS84, 0, 0 ).coordinate(), new double[]{0, 0} );
+        assertArrayEquals( pointValue( WGS84, 180, 0 ).coordinate(), new double[]{180, 0} );
+        assertArrayEquals( pointValue( WGS84, -180, 0 ).coordinate(), new double[]{-180, 0} );
+
+        // valid ones for x that should wrap around
+        assertArrayEquals( pointValue( WGS84, 190, 0 ).coordinate(), new double[]{-170, 0} );
+        assertArrayEquals( pointValue( WGS84, -190, 0 ).coordinate(), new double[]{170, 0} );
+        assertArrayEquals( pointValue( WGS84, 360, 0 ).coordinate(), new double[]{0, 0} );
+        assertArrayEquals( pointValue( WGS84, -360, 0 ).coordinate(), new double[]{0, 0} );
+        assertArrayEquals( pointValue( WGS84, 350, 0 ).coordinate(), new double[]{-10, 0} );
+        assertArrayEquals( pointValue( WGS84, -350, 0 ).coordinate(), new double[]{10, 0} );
+        assertArrayEquals( pointValue( WGS84, 370, 0 ).coordinate(), new double[]{10, 0} );
+        assertArrayEquals( pointValue( WGS84, -370, 0 ).coordinate(), new double[]{-10, 0} );
+        assertArrayEquals( pointValue( WGS84, 540, 0 ).coordinate(), new double[]{180, 0} );
+        assertArrayEquals( pointValue( WGS84, -540, 0 ).coordinate(), new double[]{-180, 0} );
+
+        // valid ones for y
+        assertArrayEquals( pointValue( WGS84, 0, 90 ).coordinate(), new double[]{0, 90} );
+        assertArrayEquals( pointValue( WGS84, 0, -90 ).coordinate(), new double[]{0, -90} );
+
+        // invalid ones for y
+        assertThrows( InvalidArgumentException.class, () -> pointValue( WGS84, 0, 91 ),
+                "Cannot create WGS84 point with invalid coordinate: [0.0, 91.0]. Valid range for Y coordinate is [-90, 90]." );
+        assertThrows( InvalidArgumentException.class, () -> pointValue( WGS84, 0, -91 ),
+                "Cannot create WGS84 point with invalid coordinate: [0.0, -91.0]. Valid range for Y coordinate is [-90, 90]." );
+    }
+
+    @Test
+    void geometricInvalid3DPointsShouldBehave()
+    {
+        // we wrap around for x [-180,180]
+        // we fail on going over or under [-90,90] for y
+        // we accept all values for z
+
+        // valid ones for x
+        assertArrayEquals( pointValue( WGS84_3D, 0, 0, 0 ).coordinate(), new double[]{0, 0, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, 180, 0, 0 ).coordinate(), new double[]{180, 0, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, -180, 0, 0 ).coordinate(), new double[]{-180, 0, 0} );
+
+        // valid ones for x that should wrap around
+        assertArrayEquals( pointValue( WGS84_3D, 190, 0, 0 ).coordinate(), new double[]{-170, 0, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, -190, 0, 0 ).coordinate(), new double[]{170, 0, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, 360, 0, 0 ).coordinate(), new double[]{0, 0, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, -360, 0, 0 ).coordinate(), new double[]{0, 0, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, 350, 0, 0 ).coordinate(), new double[]{-10, 0, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, -350, 0, 0 ).coordinate(), new double[]{10, 0, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, 370, 0, 0 ).coordinate(), new double[]{10, 0, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, -370, 0, 0 ).coordinate(), new double[]{-10, 0, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, 540, 0, 0 ).coordinate(), new double[]{180, 0, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, -540, 0, 0 ).coordinate(), new double[]{-180, 0, 0} );
+
+        // valid ones for y
+        assertArrayEquals( pointValue( WGS84_3D, 0, 90, 0 ).coordinate(), new double[]{0, 90, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, 0, -90, 0 ).coordinate(), new double[]{0, -90, 0} );
+
+        // invalid ones for y
+        assertThrows( InvalidArgumentException.class, () -> pointValue( WGS84_3D, 0, 91, 0 ),
+                "Cannot create WGS84 point with invalid coordinate: [0.0, 91.0, 0.0]. Valid range for Y coordinate is [-90, 90]." );
+        assertThrows( InvalidArgumentException.class, () -> pointValue( WGS84_3D, 0, -91, 0 ),
+                "Cannot create WGS84 point with invalid coordinate: [0.0, -91.0, 0.0]. Valid range for Y coordinate is [-90, 90]." );
+    }
+
+    @Test
+    void shouldHaveValueGroup()
+    {
+        assertNotNull( pointValue( Cartesian, 1, 2 ).valueGroup() );
+        assertNotNull( pointValue( WGS84, 1, 2 ).valueGroup() );
     }
 
     //-------------------------------------------------------------
@@ -110,129 +178,134 @@ public class PointTest
     @Test
     public void shouldCompareTwoPoints()
     {
-        assertThat( "Two identical points should be equal", pointValue( Cartesian, 1, 2 ).compareTo( pointValue( Cartesian, 1, 2 ) ), equalTo( 0 ) );
-        assertThat( "Different CRS should compare CRS codes", pointValue( Cartesian, 1, 2 ).compareTo( pointValue( WGS84, 1, 2 ) ),
-                equalTo( Cartesian.getCode() - WGS84.getCode() ) );
-        assertThat( "Point greater on both dimensions is greater", pointValue( Cartesian, 2, 3 ).compareTo( pointValue( Cartesian, 1, 2 ) ), equalTo( 1 ) );
-        assertThat( "Point greater on first dimensions is greater", pointValue( Cartesian, 2, 2 ).compareTo( pointValue( Cartesian, 1, 2 ) ), equalTo( 1 ) );
-        assertThat( "Point greater on second dimensions is greater", pointValue( Cartesian, 1, 3 ).compareTo( pointValue( Cartesian, 1, 2 ) ), equalTo( 1 ) );
-        assertThat( "Point smaller on both dimensions is smaller", pointValue( Cartesian, 0, 1 ).compareTo( pointValue( Cartesian, 1, 2 ) ), equalTo( -1 ) );
-        assertThat( "Point smaller on first dimensions is smaller", pointValue( Cartesian, 0, 2 ).compareTo( pointValue( Cartesian, 1, 2 ) ), equalTo( -1 ) );
-        assertThat( "Point smaller on second dimensions is smaller", pointValue( Cartesian, 1, 1 ).compareTo( pointValue( Cartesian, 1, 2 ) ), equalTo( -1 ) );
-        assertThat( "Point greater on first and smaller on second dimensions is greater",
-                pointValue( Cartesian, 2, 1 ).compareTo( pointValue( Cartesian, 1, 2 ) ), equalTo( 1 ) );
-        assertThat( "Point smaller on first and greater on second dimensions is smaller",
-                pointValue( Cartesian, 0, 3 ).compareTo( pointValue( Cartesian, 1, 2 ) ), equalTo( -1 ) );
+        assertThat( pointValue( Cartesian, 1, 2 ).compareTo( pointValue( Cartesian, 1, 2 ) ) ).as( "Two identical points should be equal" ).isEqualTo( 0 );
+        assertThat( pointValue( Cartesian, 1, 2 ).compareTo( pointValue( WGS84, 1, 2 ) ) ).as( "Different CRS should compare CRS codes" ).isEqualTo( 1 );
+        assertThat( pointValue( Cartesian, 2, 3 ).compareTo( pointValue( Cartesian, 1, 2 ) ) ).as( "Point greater on both dimensions is greater" ).isEqualTo(
+                1 );
+        assertThat( pointValue( Cartesian, 2, 2 ).compareTo( pointValue( Cartesian, 1, 2 ) ) ).as( "Point greater on first dimensions is greater" ).isEqualTo(
+                1 );
+        assertThat( pointValue( Cartesian, 1, 3 ).compareTo( pointValue( Cartesian, 1, 2 ) ) ).as( "Point greater on second dimensions is greater" ).isEqualTo(
+                1 );
+        assertThat( pointValue( Cartesian, 0, 1 ).compareTo( pointValue( Cartesian, 1, 2 ) ) ).as( "Point smaller on both dimensions is smaller" ).isEqualTo(
+                -1 );
+        assertThat( pointValue( Cartesian, 0, 2 ).compareTo( pointValue( Cartesian, 1, 2 ) ) ).as( "Point smaller on first dimensions is smaller" ).isEqualTo(
+                -1 );
+        assertThat( pointValue( Cartesian, 1, 1 ).compareTo( pointValue( Cartesian, 1, 2 ) ) ).as( "Point smaller on second dimensions is smaller" ).isEqualTo(
+                -1 );
+        assertThat( pointValue( Cartesian, 2, 1 ).compareTo( pointValue( Cartesian, 1, 2 ) ) ).as(
+                "Point greater on first and smaller on second dimensions is greater" ).isEqualTo( 1 );
+        assertThat( pointValue( Cartesian, 0, 3 ).compareTo( pointValue( Cartesian, 1, 2 ) ) ).as(
+                "Point smaller on first and greater on second dimensions is smaller" ).isEqualTo( -1 );
     }
 
     @Test
     public void shouldTernaryCompareTwoPoints()
     {
-        assertThat( "Two identical points should be equal", pointValue( Cartesian, 1, 2 ).unsafeTernaryCompareTo( pointValue( Cartesian, 1, 2 ) ),
-                equalTo( Comparison.EQUAL ) );
-        assertThat( "Different CRS should be incomparable", pointValue( Cartesian, 1, 2 ).unsafeTernaryCompareTo( pointValue( WGS84, 1, 2 ) ),
-                equalTo( Comparison.UNDEFINED ) );
-        assertThat( "Point greater on both dimensions is greater", pointValue( Cartesian, 2, 3 ).unsafeTernaryCompareTo( pointValue( Cartesian, 1, 2 ) ),
-                equalTo( Comparison.GREATER_THAN ) );
-        assertThat( "Point greater on first dimensions is >=", pointValue( Cartesian, 2, 2 ).unsafeTernaryCompareTo( pointValue( Cartesian, 1, 2 ) ),
-                equalTo( Comparison.GREATER_THAN_AND_EQUAL ) );
-        assertThat( "Point greater on second dimensions is >=", pointValue( Cartesian, 1, 3 ).unsafeTernaryCompareTo( pointValue( Cartesian, 1, 2 ) ),
-                equalTo( Comparison.GREATER_THAN_AND_EQUAL ) );
-        assertThat( "Point smaller on both dimensions is smaller", pointValue( Cartesian, 0, 1 ).unsafeTernaryCompareTo( pointValue( Cartesian, 1, 2 ) ),
-                equalTo( Comparison.SMALLER_THAN ) );
-        assertThat( "Point smaller on first dimensions is <=", pointValue( Cartesian, 0, 2 ).unsafeTernaryCompareTo( pointValue( Cartesian, 1, 2 ) ),
-                equalTo( Comparison.SMALLER_THAN_AND_EQUAL ) );
-        assertThat( "Point smaller on second dimensions is <=", pointValue( Cartesian, 1, 1 ).unsafeTernaryCompareTo( pointValue( Cartesian, 1, 2 ) ),
-                equalTo( Comparison.SMALLER_THAN_AND_EQUAL ) );
-        assertThat( "Point greater on first and smaller on second dimensions is UNDEFINED",
-                pointValue( Cartesian, 2, 1 ).unsafeTernaryCompareTo( pointValue( Cartesian, 1, 2 ) ), equalTo( Comparison.UNDEFINED ) );
-        assertThat( "Point smaller on first and greater on second dimensions is UNDEFINED",
-                pointValue( Cartesian, 0, 3 ).unsafeTernaryCompareTo( pointValue( Cartesian, 1, 2 ) ), equalTo( Comparison.UNDEFINED ) );
+        assertThat( pointValue( Cartesian, 1, 2 ).unsafeTernaryCompareTo( pointValue( Cartesian, 1, 2 ) ) ).as(
+                "Two identical points should be equal" ).isEqualTo( Comparison.EQUAL );
+        assertThat( pointValue( Cartesian, 1, 2 ).unsafeTernaryCompareTo( pointValue( WGS84, 1, 2 ) ) ).as( "Different CRS should be incomparable" ).isEqualTo(
+                Comparison.UNDEFINED );
+        assertThat( pointValue( Cartesian, 2, 3 ).unsafeTernaryCompareTo( pointValue( Cartesian, 1, 2 ) ) ).as(
+                "Point greater on both dimensions is greater" ).isEqualTo( Comparison.GREATER_THAN );
+        assertThat( pointValue( Cartesian, 2, 2 ).unsafeTernaryCompareTo( pointValue( Cartesian, 1, 2 ) ) ).as(
+                "Point greater on first dimensions is >=" ).isEqualTo( Comparison.GREATER_THAN_AND_EQUAL );
+        assertThat( pointValue( Cartesian, 1, 3 ).unsafeTernaryCompareTo( pointValue( Cartesian, 1, 2 ) ) ).as(
+                "Point greater on second dimensions is >=" ).isEqualTo( Comparison.GREATER_THAN_AND_EQUAL );
+        assertThat( pointValue( Cartesian, 0, 1 ).unsafeTernaryCompareTo( pointValue( Cartesian, 1, 2 ) ) ).as(
+                "Point smaller on both dimensions is smaller" ).isEqualTo( Comparison.SMALLER_THAN );
+        assertThat( pointValue( Cartesian, 0, 2 ).unsafeTernaryCompareTo( pointValue( Cartesian, 1, 2 ) ) ).as(
+                "Point smaller on first dimensions is <=" ).isEqualTo( Comparison.SMALLER_THAN_AND_EQUAL );
+        assertThat( pointValue( Cartesian, 1, 1 ).unsafeTernaryCompareTo( pointValue( Cartesian, 1, 2 ) ) ).as(
+                "Point smaller on second dimensions is <=" ).isEqualTo( Comparison.SMALLER_THAN_AND_EQUAL );
+        assertThat( pointValue( Cartesian, 2, 1 ).unsafeTernaryCompareTo( pointValue( Cartesian, 1, 2 ) ) ).as(
+                "Point greater on first and smaller on second dimensions is UNDEFINED" ).isEqualTo( Comparison.UNDEFINED );
+        assertThat( pointValue( Cartesian, 0, 3 ).unsafeTernaryCompareTo( pointValue( Cartesian, 1, 2 ) ) ).as(
+                "Point smaller on first and greater on second dimensions is UNDEFINED" ).isEqualTo( Comparison.UNDEFINED );
     }
 
     @Test
     public void shouldComparePointWithin()
     {
         // Edge cases
-        assertThat( "Always within no bounds", pointValue( Cartesian, 1, 2 ).withinRange( null, false, null, false ), equalTo( true ) );
-        assertThat( "Different CRS for lower bound should be undefined",
-                pointValue( Cartesian, 1, 2 ).withinRange( pointValue( WGS84, 1, 2 ), true, null, false ), equalTo( null ) );
-        assertThat( "Different CRS for upper bound should be undefined",
-                pointValue( Cartesian, 1, 2 ).withinRange( null, false, pointValue( WGS84, 1, 2 ), true ), equalTo( null ) );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( null, false, null, false ) ).as( "Always within no bounds" ).isEqualTo( true );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( WGS84, 1, 2 ), true, null, false ) ).as(
+                "Different CRS for lower bound should be undefined" ).isEqualTo( null );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( null, false, pointValue( WGS84, 1, 2 ), true ) ).as(
+                "Different CRS for upper bound should be undefined" ).isEqualTo( null );
 
         // Lower bound
-        assertThat( "Within same lower bound if inclusive", pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 2 ), true, null, false ),
-                equalTo( true ) );
-        assertThat( "Not within same lower bound if not inclusive",
-                pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 2 ), false, null, false ), equalTo( false ) );
-        assertThat( "Within smaller lower bound if inclusive", pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 0, 1 ), true, null, false ),
-                equalTo( true ) );
-        assertThat( "Within smaller lower bound if not inclusive",
-                pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 0, 1 ), false, null, false ), equalTo( true ) );
-        assertThat( "Within partially smaller lower bound if inclusive",
-                pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 1 ), true, null, false ), equalTo( true ) );
-        assertThat( "Not within partially smaller lower bound if not inclusive",
-                pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 1 ), false, null, false ), equalTo( false ) );
-        assertThat( "Invalid if lower bound both greater and less than",
-                pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 2, 1 ), false, null, false ), equalTo( null ) );
-        assertThat( "Invalid if lower bound both greater and less than even when inclusive",
-                pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 2, 1 ), true, null, false ), equalTo( null ) );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 2 ), true, null, false ) ).as(
+                "Within same lower bound if inclusive" ).isEqualTo( true );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 2 ), false, null, false ) ).as(
+                "Not within same lower bound if not inclusive" ).isEqualTo( false );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 0, 1 ), true, null, false ) ).as(
+                "Within smaller lower bound if inclusive" ).isEqualTo( true );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 0, 1 ), false, null, false ) ).as(
+                "Within smaller lower bound if not inclusive" ).isEqualTo( true );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 1 ), true, null, false ) ).as(
+                "Within partially smaller lower bound if inclusive" ).isEqualTo( true );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 1 ), false, null, false ) ).as(
+                "Not within partially smaller lower bound if not inclusive" ).isEqualTo( false );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 2, 1 ), false, null, false ) ).as(
+                "Invalid if lower bound both greater and less than" ).isEqualTo( null );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 2, 1 ), true, null, false ) ).as(
+                "Invalid if lower bound both greater and less than even when inclusive" ).isEqualTo( null );
 
         // Upper bound
-        assertThat( "Within same upper bound if inclusive", pointValue( Cartesian, 1, 2 ).withinRange( null, false, pointValue( Cartesian, 1, 2 ), true ),
-                equalTo( true ) );
-        assertThat( "Not within same upper bound if not inclusive",
-                pointValue( Cartesian, 1, 2 ).withinRange( null, false, pointValue( Cartesian, 1, 2 ), false ), equalTo( false ) );
-        assertThat( "Within larger upper bound if inclusive", pointValue( Cartesian, 1, 2 ).withinRange( null, false, pointValue( Cartesian, 2, 3 ), true ),
-                equalTo( true ) );
-        assertThat( "Within larger upper bound if not inclusive",
-                pointValue( Cartesian, 1, 2 ).withinRange( null, false, pointValue( Cartesian, 2, 3 ), false ), equalTo( true ) );
-        assertThat( "Within partially larger upper bound if inclusive",
-                pointValue( Cartesian, 1, 2 ).withinRange( null, false, pointValue( Cartesian, 2, 2 ), true ), equalTo( true ) );
-        assertThat( "Not within partially larger upper bound if not inclusive",
-                pointValue( Cartesian, 1, 2 ).withinRange( null, false, pointValue( Cartesian, 2, 2 ), false ), equalTo( false ) );
-        assertThat( "Invalid if upper bound both greater and less than",
-                pointValue( Cartesian, 1, 2 ).withinRange( null, false, pointValue( Cartesian, 2, 1 ), false ), equalTo( null ) );
-        assertThat( "Invalid if upper bound both greater and less than even when inclusive",
-                pointValue( Cartesian, 1, 2 ).withinRange( null, false, pointValue( Cartesian, 2, 1 ), true ), equalTo( null ) );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( null, false, pointValue( Cartesian, 1, 2 ), true ) ).as(
+                "Within same upper bound if inclusive" ).isEqualTo( true );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( null, false, pointValue( Cartesian, 1, 2 ), false ) ).as(
+                "Not within same upper bound if not inclusive" ).isEqualTo( false );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( null, false, pointValue( Cartesian, 2, 3 ), true ) ).as(
+                "Within larger upper bound if inclusive" ).isEqualTo( true );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( null, false, pointValue( Cartesian, 2, 3 ), false ) ).as(
+                "Within larger upper bound if not inclusive" ).isEqualTo( true );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( null, false, pointValue( Cartesian, 2, 2 ), true ) ).as(
+                "Within partially larger upper bound if inclusive" ).isEqualTo( true );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( null, false, pointValue( Cartesian, 2, 2 ), false ) ).as(
+                "Not within partially larger upper bound if not inclusive" ).isEqualTo( false );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( null, false, pointValue( Cartesian, 2, 1 ), false ) ).as(
+                "Invalid if upper bound both greater and less than" ).isEqualTo( null );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( null, false, pointValue( Cartesian, 2, 1 ), true ) ).as(
+                "Invalid if upper bound both greater and less than even when inclusive" ).isEqualTo( null );
 
         // Lower and upper bounds invalid
-        assertThat( "Undefined if lower bound greater than upper bound",
-                pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 2, 1 ), true, pointValue( Cartesian, 1, 2 ), true ), equalTo( null) );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 2, 1 ), true, pointValue( Cartesian, 1, 2 ), true ) ).as(
+                "Undefined if lower bound greater than upper bound" ).isEqualTo( null );
 
         // Lower and upper bounds equal
-        assertThat( "Not within same bounds if inclusive on lower",
-                pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 2 ), true, pointValue( Cartesian, 1, 2 ), false ), equalTo( false ) );
-        assertThat( "Not within same bounds if inclusive on upper",
-                pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 2 ), false, pointValue( Cartesian, 1, 2 ), true ), equalTo( false ) );
-        assertThat( "Within same bounds if inclusive on both",
-                pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 2 ), true, pointValue( Cartesian, 1, 2 ), true ), equalTo( true ) );
-        assertThat( "Not within same bounds if not inclusive",
-                pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 2 ), false, pointValue( Cartesian, 1, 2 ), false ), equalTo( false ) );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 2 ), true, pointValue( Cartesian, 1, 2 ), false ) ).as(
+                "Not within same bounds if inclusive on lower" ).isEqualTo( false );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 2 ), false, pointValue( Cartesian, 1, 2 ), true ) ).as(
+                "Not within same bounds if inclusive on upper" ).isEqualTo( false );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 2 ), true, pointValue( Cartesian, 1, 2 ), true ) ).as(
+                "Within same bounds if inclusive on both" ).isEqualTo( true );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 2 ), false, pointValue( Cartesian, 1, 2 ), false ) ).as(
+                "Not within same bounds if not inclusive" ).isEqualTo( false );
 
         // Lower and upper bounds define 0x1 range
-        assertThat( "Not within same bounds if inclusive on lower",
-                pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 2 ), true, pointValue( Cartesian, 1, 2 ), false ), equalTo( false ) );
-        assertThat( "Not within same bounds if inclusive on upper",
-                pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 2 ), false, pointValue( Cartesian, 1, 2 ), true ), equalTo( false ) );
-        assertThat( "Within same bounds if inclusive on both",
-                pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 2 ), true, pointValue( Cartesian, 1, 2 ), true ), equalTo( true ) );
-        assertThat( "Not within same bounds if not inclusive",
-                pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 2 ), false, pointValue( Cartesian, 1, 2 ), false ), equalTo( false ) );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 2 ), true, pointValue( Cartesian, 1, 2 ), false ) ).as(
+                "Not within same bounds if inclusive on lower" ).isEqualTo( false );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 2 ), false, pointValue( Cartesian, 1, 2 ), true ) ).as(
+                "Not within same bounds if inclusive on upper" ).isEqualTo( false );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 2 ), true, pointValue( Cartesian, 1, 2 ), true ) ).as(
+                "Within same bounds if inclusive on both" ).isEqualTo( true );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 2 ), false, pointValue( Cartesian, 1, 2 ), false ) ).as(
+                "Not within same bounds if not inclusive" ).isEqualTo( false );
 
         // Lower and upper bounds define 1x1 range
-        assertThat( "Within smaller lower bound if inclusive",
-                pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 0, 1 ), true, pointValue( Cartesian, 1, 2 ), true ), equalTo( true ) );
-        assertThat( "Within smaller lower bound if inclusive on upper",
-                pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 0, 1 ), false, pointValue( Cartesian, 1, 2 ), true ), equalTo( true ) );
-        assertThat( "Not within smaller lower bound if not inclusive",
-                pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 0, 1 ), false, pointValue( Cartesian, 1, 2 ), false ), equalTo( false ) );
-        assertThat( "Within partially smaller lower bound if inclusive",
-                pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 1 ), true, pointValue( Cartesian, 2, 3 ), false ), equalTo( true ) );
-        assertThat( "Not within partially smaller lower bound if not inclusive",
-                pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 1 ), false, pointValue( Cartesian, 2, 3 ), false ), equalTo( false ) );
-        assertThat( "Within wider bounds",
-                pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 0, 1 ), false, pointValue( Cartesian, 2, 3 ), false ), equalTo( true ) );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 0, 1 ), true, pointValue( Cartesian, 1, 2 ), true ) ).as(
+                "Within smaller lower bound if inclusive" ).isEqualTo( true );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 0, 1 ), false, pointValue( Cartesian, 1, 2 ), true ) ).as(
+                "Within smaller lower bound if inclusive on upper" ).isEqualTo( true );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 0, 1 ), false, pointValue( Cartesian, 1, 2 ), false ) ).as(
+                "Not within smaller lower bound if not inclusive" ).isEqualTo( false );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 1 ), true, pointValue( Cartesian, 2, 3 ), false ) ).as(
+                "Within partially smaller lower bound if inclusive" ).isEqualTo( true );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 1, 1 ), false, pointValue( Cartesian, 2, 3 ), false ) ).as(
+                "Not within partially smaller lower bound if not inclusive" ).isEqualTo( false );
+        assertThat( pointValue( Cartesian, 1, 2 ).withinRange( pointValue( Cartesian, 0, 1 ), false, pointValue( Cartesian, 2, 3 ), false ) ).as(
+                "Within wider bounds" ).isEqualTo( true );
     }
 
     @Test
@@ -261,17 +334,21 @@ public class PointTest
                                 Boolean xi = (invalidRange || undefinedMin || undefinedMax) ? null : x > minx && y > miny && x <= maxx && y <= maxy;
                                 Boolean xx = (invalidRange || undefinedMin || undefinedMax) ? null : x > minx && y > miny && x < maxx && y < maxy;
                                 // inclusive:inclusive
-                                assertThat( "{" + x + "," + y + "}.withinRange({" + minx + "," + miny + "}, true, {" + maxx + "," + maxy + "}, true",
-                                        point.withinRange( min, true, max, true ), equalTo( ii ) );
+                                assertThat( point.withinRange( min, true, max, true ) ).as(
+                                        "{" + x + "," + y + "}.withinRange({" + minx + "," + miny + "}, true, {" + maxx + "," + maxy + "}, true" ).isEqualTo(
+                                        ii );
                                 // inclusive:exclusive
-                                assertThat( "{" + x + "," + y + "}.withinRange({" + minx + "," + miny + "}, true, {" + maxx + "," + maxy + "}, false",
-                                        point.withinRange( min, true, max, false ), equalTo( ix ) );
+                                assertThat( point.withinRange( min, true, max, false ) ).as(
+                                        "{" + x + "," + y + "}.withinRange({" + minx + "," + miny + "}, true, {" + maxx + "," + maxy + "}, false" ).isEqualTo(
+                                        ix );
                                 // exclusive:inclusive
-                                assertThat( "{" + x + "," + y + "}.withinRange({" + minx + "," + miny + "}, false, {" + maxx + "," + maxy + "}, true",
-                                        point.withinRange( min, false, max, true ), equalTo( xi ) );
+                                assertThat( point.withinRange( min, false, max, true ) ).as(
+                                        "{" + x + "," + y + "}.withinRange({" + minx + "," + miny + "}, false, {" + maxx + "," + maxy + "}, true" ).isEqualTo(
+                                        xi );
                                 // exclusive:exclusive
-                                assertThat( "{" + x + "," + y + "}.withinRange({" + minx + "," + miny + "}, false, {" + maxx + "," + maxy + "}, false",
-                                        point.withinRange( min, false, max, false ), equalTo( xx ) );
+                                assertThat( point.withinRange( min, false, max, false ) ).as(
+                                        "{" + x + "," + y + "}.withinRange({" + minx + "," + miny + "}, false, {" + maxx + "," + maxy + "}, false" ).isEqualTo(
+                                        xx );
                             }
                         }
                     }
@@ -284,7 +361,7 @@ public class PointTest
     // Parser tests
 
     @Test
-    public void shouldBeAbleToParsePoints()
+    void shouldBeAbleToParsePoints()
     {
         assertEqual( pointValue( WGS84, 13.2, 56.7 ),
                 PointValue.parse( "{latitude: 56.7, longitude: 13.2}" ) );
@@ -309,14 +386,14 @@ public class PointTest
     }
 
     @Test
-    public void shouldBeAbleToParsePointWithUnquotedCrs()
+    void shouldBeAbleToParsePointWithUnquotedCrs()
     {
         assertEqual( pointValue( WGS84_3D, -74.0060, 40.7128, 567.8 ),
                 PointValue.parse( "{latitude: 40.7128, longitude: -74.0060, height: 567.8, crs:wgs-84-3D}" ) ); // - explicitly WGS84-3D, without quotes
     }
 
     @Test
-    public void shouldBeAbleToParsePointThatOverridesHeaderInformation()
+    void shouldBeAbleToParsePointThatOverridesHeaderInformation()
     {
         String headerInformation = "{crs:wgs-84}";
         String data = "{latitude: 40.7128, longitude: -74.0060, height: 567.8, crs:wgs-84-3D}";
@@ -329,28 +406,19 @@ public class PointTest
     }
 
     @Test
-    public void shouldBeAbleToParseIncompletePointWithHeaderInformation()
+    void shouldBeAbleToParseIncompletePointWithHeaderInformation()
     {
         String headerInformation = "{latitude: 40.7128}";
         String data = "{longitude: -74.0060, height: 567.8, crs:wgs-84-3D}";
 
-        try
-        {
-            PointValue.parse( data ); // this shouldn't work
-            fail( "Was able to parse point although latitude was missing" );
-        }
-        catch ( InvalidValuesArgumentException e )
-        {
-            // this is expected
-        }
+        assertThrows( InvalidArgumentException.class, () -> PointValue.parse( data ) );
 
         // this should work
         PointValue.parse( data, PointValue.parseHeaderInformation( headerInformation ) );
-
     }
 
     @Test
-    public void shouldBeAbleToParseWeirdlyFormattedPoints()
+    void shouldBeAbleToParseWeirdlyFormattedPoints()
     {
         assertEqual( pointValue( WGS84, 1.0, 2.0 ), PointValue.parse( " \t\n { latitude : 2.0  ,longitude :1.0  } \t" ) );
         // TODO: Should some/all of these fail?
@@ -361,17 +429,16 @@ public class PointTest
     }
 
     @Test
-    public void shouldNotBeAbleToParsePointsWithConflictingDuplicateFields()
+    void shouldNotBeAbleToParsePointsWithConflictingDuplicateFields()
     {
-        assertThat( assertCannotParse( "{latitude: 2.0, longitude: 1.0, latitude: 3.0}" ).getMessage(), CoreMatchers.containsString( "Duplicate field" ) );
-        assertThat( assertCannotParse( "{latitude: 2.0, longitude: 1.0, latitude: 3.0}" ).getMessage(), CoreMatchers.containsString( "Duplicate field" ) );
-        assertThat( assertCannotParse( "{crs: 'cartesian', x: 2.0, x: 1.0, y: 3}" ).getMessage(), CoreMatchers.containsString( "Duplicate field" ) );
-        assertThat( assertCannotParse( "{crs: 'invalid crs', x: 1.0, y: 3, crs: 'cartesian'}" ).getMessage(),
-                CoreMatchers.containsString( "Duplicate field" ) );
+        assertThat( assertCannotParse( "{latitude: 2.0, longitude: 1.0, latitude: 3.0}" ).getMessage() ).contains( "Duplicate field" );
+        assertThat( assertCannotParse( "{latitude: 2.0, longitude: 1.0, latitude: 3.0}" ).getMessage() ).contains( "Duplicate field" );
+        assertThat( assertCannotParse( "{crs: 'cartesian', x: 2.0, x: 1.0, y: 3}" ).getMessage() ).contains( "Duplicate field" );
+        assertThat( assertCannotParse( "{crs: 'invalid crs', x: 1.0, y: 3, crs: 'cartesian'}" ).getMessage() ).contains( "Duplicate field" );
     }
 
     @Test
-    public void shouldNotBeAbleToParseIncompletePoints()
+    void shouldNotBeAbleToParseIncompletePoints()
     {
         assertCannotParse( "{latitude: 56.7, longitude:}" );
         assertCannotParse( "{latitude: 56.7}" );
@@ -386,17 +453,8 @@ public class PointTest
         assertCannotParse( "{crs:WGS-84 , lat:1, y:2}" );
     }
 
-    private InvalidValuesArgumentException assertCannotParse( String text )
+    private static InvalidArgumentException assertCannotParse( String text )
     {
-        PointValue value;
-        try
-        {
-            value = PointValue.parse( text );
-        }
-        catch ( InvalidValuesArgumentException e )
-        {
-            return e;
-        }
-        throw new AssertionError( String.format( "'%s' parsed to %s", text, value ) );
+        return assertThrows( InvalidArgumentException.class, () -> PointValue.parse( text ) );
     }
 }

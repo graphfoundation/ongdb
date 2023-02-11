@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,7 +42,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import org.neo4j.function.ThrowingSupplier;
-import org.neo4j.helpers.collection.Iterators;
+import org.neo4j.internal.helpers.collection.Iterators;
 
 /**
  * Just like {@link Iterator}, but with the addition that {@link #hasNext()} and {@link #next()} can
@@ -72,12 +72,12 @@ public interface RawIterator<T,EXCEPTION extends Exception>
 
     static <T, EX extends Exception> RawIterator<T, EX> of( T ... values )
     {
-        return new RawIterator<T,EX>()
+        return new RawIterator<>()
         {
             private int position;
 
             @Override
-            public boolean hasNext() throws EX
+            public boolean hasNext()
             {
                 return position < values.length;
             }
@@ -100,7 +100,7 @@ public interface RawIterator<T,EXCEPTION extends Exception>
      */
     static <T, EX extends Exception> RawIterator<T, EX> from( ThrowingSupplier<T, EX> supplier )
     {
-        return new PrefetchingRawIterator<T,EX>()
+        return new AbstractPrefetchingRawIterator<>()
         {
             @Override
             protected T fetchNextOrNull() throws EX

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,39 +40,53 @@ package org.neo4j.graphalgo.impl.path;
 
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.eclipse.collections.api.map.MutableMap;
+import org.eclipse.collections.api.map.primitive.MutableIntObjectMap;
+import org.eclipse.collections.impl.map.mutable.primitive.IntObjectHashMap;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.LinkedList;
-import java.util.Map;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Set;
 
-import org.neo4j.collection.primitive.Primitive;
-import org.neo4j.collection.primitive.PrimitiveIntObjectMap;
+import org.neo4j.collection.trackable.HeapTrackingArrayList;
+import org.neo4j.collection.trackable.HeapTrackingCollections;
+import org.neo4j.collection.trackable.HeapTrackingUnifiedMap;
+import org.neo4j.cypher.internal.runtime.ClosingIterator;
+import org.neo4j.graphalgo.EvaluationContext;
 import org.neo4j.graphalgo.PathFinder;
 import org.neo4j.graphalgo.impl.util.PathImpl;
 import org.neo4j.graphalgo.impl.util.PathImpl.Builder;
 import org.neo4j.graphdb.Direction;
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.PathExpander;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.traversal.BranchState;
 import org.neo4j.graphdb.traversal.TraversalMetadata;
-import org.neo4j.helpers.collection.IterableWrapper;
-import org.neo4j.helpers.collection.Iterators;
-import org.neo4j.helpers.collection.NestingResourceIterator;
-import org.neo4j.helpers.collection.PrefetchingResourceIterator;
+import org.neo4j.internal.helpers.collection.IterableWrapper;
+import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.internal.helpers.collection.NestingResourceIterator;
+import org.neo4j.internal.helpers.collection.PrefetchingResourceIterator;
+import org.neo4j.kernel.impl.core.NodeEntity;
 import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
-import org.neo4j.kernel.monitoring.Monitors;
+import org.neo4j.memory.EmptyMemoryTracker;
+import org.neo4j.memory.HeapEstimator;
+import org.neo4j.memory.MemoryTracker;
+import org.neo4j.memory.ScopedMemoryTracker;
+import org.neo4j.monitoring.Monitors;
+
+import static org.neo4j.internal.helpers.collection.Iterators.asResourceIterator;
+import static org.neo4j.memory.HeapEstimator.shallowSizeOfInstance;
 
 /**
  * Find (all or one) simple shortest path(s) between two nodes. It starts
@@ -93,7 +107,10 @@ public class ShortestPath implements PathFinder<Path>
     private final PathExpander expander;
     private Metadata lastMetadata;
     private ShortestPathPredicate predicate;
+    private final EvaluationContext context;
     private DataMonitor dataMonitor;
+    private MemoryTracker memoryTracker;
+    private static final long DIRECTION_DATA_SHALLOW_SIZE = shallowSizeOfInstance( DirectionData.class );
 
     public interface ShortestPathPredicate
     {
@@ -107,15 +124,20 @@ public class ShortestPath implements PathFinder<Path>
      * @param expander the {@link PathExpander} to use for deciding
      * which relationships to expand for each {@link Node}.
      */
-    public ShortestPath( int maxDepth, PathExpander expander )
+    public ShortestPath( EvaluationContext context, int maxDepth, PathExpander expander )
     {
-        this( maxDepth, expander, Integer.MAX_VALUE );
+        this( context, maxDepth, expander, Integer.MAX_VALUE, EmptyMemoryTracker.INSTANCE );
     }
 
-    public ShortestPath( int maxDepth, PathExpander expander, ShortestPathPredicate predicate )
+    public ShortestPath( EvaluationContext context, int maxDepth, PathExpander expander, ShortestPathPredicate predicate, MemoryTracker memoryTracker )
     {
-        this( maxDepth, expander );
+        this( context, maxDepth, expander, Integer.MAX_VALUE, memoryTracker );
         this.predicate = predicate;
+    }
+
+    public ShortestPath( EvaluationContext context, int maxDepth, PathExpander expander, int maxResultCount )
+    {
+        this( context, maxDepth, expander, maxResultCount, EmptyMemoryTracker.INSTANCE );
     }
 
     /**
@@ -126,12 +148,15 @@ public class ShortestPath implements PathFinder<Path>
      * which relationships to expand for each {@link Node}.
      * @param maxResultCount the maximum number of hits to return. If this number
      * of hits are encountered the traversal will stop.
+     * @param memoryTracker tracks the memory used by the algorithm
      */
-    public ShortestPath( int maxDepth, PathExpander expander, int maxResultCount )
+    public ShortestPath( EvaluationContext context, int maxDepth, PathExpander expander, int maxResultCount, MemoryTracker memoryTracker )
     {
+        this.context = context;
         this.maxDepth = maxDepth;
         this.expander = expander;
         this.maxResultCount = maxResultCount;
+        this.memoryTracker = new ScopedMemoryTracker( memoryTracker );
     }
 
     @Override
@@ -140,23 +165,61 @@ public class ShortestPath implements PathFinder<Path>
         return internalPaths( start, end, false );
     }
 
+    /**
+     * Finds all shortest paths and returns an auto closeable iterator. This method should
+     * be called when a memoryTracker is used in order to keep track of the memory correctly.
+     *
+     * @param start start node
+     * @param end end node
+     * @return
+     */
+    public ClosingIterator<Path> findAllPathsAutoCloseableIterator( Node start, Node end )
+    {
+        return new ClosingIterator()
+        {
+            Iterator<Path> inner = internalPaths( start, end, false ).iterator();
+
+            @Override
+            public void closeMore()
+            {
+                inner = null;
+                memoryTracker.reset();
+            }
+
+            @Override
+            public boolean innerHasNext()
+            {
+                return this.inner.hasNext();
+            }
+
+            @Override
+            public Path next()
+            {
+                if ( inner == null )
+                {
+                    throw new NoSuchElementException();
+                }
+                return inner.next();
+            }
+        };
+    }
+
     @Override
     public Path findSinglePath( Node start, Node end )
     {
         Iterator<Path> paths = internalPaths( start, end, true ).iterator();
-        return paths.hasNext() ? paths.next() : null;
+        Path path = paths.hasNext() ? paths.next() : null;
+        memoryTracker.reset();
+        return path;
     }
 
-    private void resolveMonitor( Node node )
+    private void resolveMonitor()
     {
         if ( dataMonitor == null )
         {
-            GraphDatabaseService service = node.getGraphDatabase();
-            if ( service instanceof GraphDatabaseFacade )
-            {
-                Monitors monitors = ((GraphDatabaseFacade) service).getDependencyResolver().resolveDependency( Monitors.class );
-                dataMonitor = monitors.newMonitor( DataMonitor.class );
-            }
+            GraphDatabaseService service = context.databaseService();
+            Monitors monitors = ((GraphDatabaseFacade) service).getDependencyResolver().resolveDependency( Monitors.class );
+            dataMonitor = monitors.newMonitor( DataMonitor.class );
         }
     }
 
@@ -168,14 +231,12 @@ public class ShortestPath implements PathFinder<Path>
             return filterPaths(Collections.singletonList( PathImpl.singular( start ) ));
         }
         Hits hits = new Hits();
-        Collection<Long> sharedVisitedRels = new HashSet<>();
         MutableInt sharedFrozenDepth = new MutableInt( NULL ); // ShortestPathLengthSoFar
         MutableBoolean sharedStop = new MutableBoolean();
         MutableInt sharedCurrentDepth = new MutableInt( 0 );
-        try ( DirectionData startData = new DirectionData( start, sharedVisitedRels,
-                sharedFrozenDepth, sharedStop, sharedCurrentDepth, expander );
-              DirectionData endData = new DirectionData( end, sharedVisitedRels, sharedFrozenDepth,
-                      sharedStop, sharedCurrentDepth, expander.reverse() ) )
+        try ( DirectionData startData = new DirectionData( start, sharedFrozenDepth, sharedStop, sharedCurrentDepth, expander, memoryTracker );
+              DirectionData endData = new DirectionData( end, sharedFrozenDepth,
+                      sharedStop, sharedCurrentDepth, expander.reverse(), memoryTracker ) )
         {
             while ( startData.hasNext() || endData.hasNext() )
             {
@@ -183,7 +244,7 @@ public class ShortestPath implements PathFinder<Path>
                 goOneStep( endData, startData, hits, startData, stopAsap );
             }
             Collection<Hit> least = hits.least();
-            return least != null ? filterPaths( hitsToPaths( least, start, end, stopAsap, maxResultCount ) ) : Collections.emptyList();
+            return least != null ? filterPaths( hitsToPaths( least, start, end, stopAsap, maxResultCount, memoryTracker ) ) : Collections.emptyList();
         }
     }
 
@@ -194,7 +255,7 @@ public class ShortestPath implements PathFinder<Path>
     }
 
     // Few long-lived instances
-    private static class Hit
+    private static class Hit // TODO: Extend Measurable? Not if above comment about few is correct?
     {
         private final DirectionData start;
         private final DirectionData end;
@@ -266,10 +327,12 @@ public class ShortestPath implements PathFinder<Path>
                 Hit hit = new Hit( startSideData, endSideData, nextNode );
                 Node start = startSide.startNode;
                 Node end = (startSide == directionData) ? otherSide.startNode : directionData.startNode;
-                monitorData( startSide, (otherSide == startSide) ? directionData : otherSide, nextNode );
+                //monitorData( startSide, (otherSide == startSide) ? directionData : otherSide, nextNode ); // Disabled. Needs GraphDatabaseService in context.
+
                 // NOTE: Applying the filter-condition could give the wrong results with allShortestPaths,
                 // so only use it for singleShortestPath
-                if ( !stopAsap || filterPaths( hitToPaths( hit, start, end, stopAsap ) ).size() > 0 )
+                // TODO: We don't need to create an intermediate array list just to check if list is empty after filtering
+                if ( !stopAsap || !filterPaths( hitToPaths( hit, start, end, stopAsap ) ).isEmpty() )
                 {
                     if ( hits.add( hit, depth ) >= maxResultCount )
                     {
@@ -300,7 +363,7 @@ public class ShortestPath implements PathFinder<Path>
 
     private void monitorData( DirectionData directionData, DirectionData otherSide, Node connectingNode )
     {
-        resolveMonitor( directionData.startNode );
+        resolveMonitor();
         if ( dataMonitor != null )
         {
             dataMonitor.monitorData( directionData.visitedNodes, directionData.nextNodes, otherSide.visitedNodes,
@@ -308,7 +371,7 @@ public class ShortestPath implements PathFinder<Path>
         }
     }
 
-    private Collection<Path> filterPaths( Collection<Path> paths )
+    private <T extends Path> Collection<T> filterPaths( Collection<T> paths )
     {
         if ( predicate == null )
         {
@@ -316,8 +379,8 @@ public class ShortestPath implements PathFinder<Path>
         }
         else
         {
-            Collection<Path> filteredPaths = new ArrayList<>();
-            for ( Path path : paths )
+            Collection<T> filteredPaths = new ArrayList<>();
+            for ( T path : paths )
             {
                 if ( predicate.test( path ) )
                 {
@@ -330,8 +393,8 @@ public class ShortestPath implements PathFinder<Path>
 
     public interface DataMonitor
     {
-        void monitorData( Map<Node,LevelData> theseVisitedNodes, Collection<Node> theseNextNodes,
-                Map<Node,LevelData> thoseVisitedNodes, Collection<Node> thoseNextNodes, Node connectingNode );
+        void monitorData( MutableMap<Node,LevelData> theseVisitedNodes, Iterable<Node> theseNextNodes,
+                          MutableMap<Node,LevelData> thoseVisitedNodes, Iterable<Node> thoseNextNodes, Node connectingNode );
     }
 
     // Two long-lived instances
@@ -341,9 +404,8 @@ public class ShortestPath implements PathFinder<Path>
         private final Node startNode;
         private int currentDepth;
         private ResourceIterator<Relationship> nextRelationships;
-        private final Collection<Node> nextNodes = new ArrayList<>();
-        private final Map<Node,LevelData> visitedNodes = new HashMap<>();
-        private final Collection<Long> sharedVisitedRels;
+        private final HeapTrackingArrayList<Node> nextNodes;
+        private final HeapTrackingUnifiedMap<Node,LevelData> visitedNodes;
         private final DirectionDataPath lastPath;
         private final MutableInt sharedFrozenDepth;
         private final MutableBoolean sharedStop;
@@ -352,17 +414,23 @@ public class ShortestPath implements PathFinder<Path>
         private boolean stop;
         private final PathExpander expander;
 
-        DirectionData( Node startNode, Collection<Long> sharedVisitedRels, MutableInt sharedFrozenDepth,
-                MutableBoolean sharedStop, MutableInt sharedCurrentDepth, PathExpander expander )
+        DirectionData( Node startNode,
+                       MutableInt sharedFrozenDepth,
+                       MutableBoolean sharedStop,
+                       MutableInt sharedCurrentDepth,
+                       PathExpander expander,
+                       MemoryTracker memoryTracker )
         {
             this.startNode = startNode;
+            this.visitedNodes = HeapTrackingCollections.newMap( memoryTracker );
+            this.nextNodes = HeapTrackingArrayList.newArrayList( memoryTracker);
+            memoryTracker.allocateHeap( LevelData.SHALLOW_SIZE + NodeEntity.SHALLOW_SIZE + DIRECTION_DATA_SHALLOW_SIZE );
             this.visitedNodes.put( startNode, new LevelData( null, 0 ) );
             this.nextNodes.add( startNode );
             this.sharedFrozenDepth = sharedFrozenDepth;
             this.sharedStop = sharedStop;
             this.sharedCurrentDepth = sharedCurrentDepth;
             this.expander = expander;
-            this.sharedVisitedRels = sharedVisitedRels;
             this.lastPath = new DirectionDataPath( startNode );
             if ( sharedCurrentDepth.intValue() < maxDepth )
             {
@@ -376,17 +444,17 @@ public class ShortestPath implements PathFinder<Path>
 
         private void prepareNextLevel()
         {
-            Collection<Node> nodesToIterate = new ArrayList<>( this.nextNodes );
+            HeapTrackingArrayList<Node> nodesToIterate = this.nextNodes.clone();
             this.nextNodes.clear();
             this.lastPath.setLength( currentDepth );
             closeRelationshipsIterator();
-            this.nextRelationships = new NestingResourceIterator<Relationship,Node>( nodesToIterate.iterator() )
+            this.nextRelationships = new NestingResourceIterator<>( nodesToIterate.autoClosingIterator() )
             {
                 @Override
                 protected ResourceIterator<Relationship> createNestedIterator( Node node )
                 {
                     lastPath.setEndNode( node );
-                    return Iterators.asResourceIterator( expander.expand( lastPath, BranchState.NO_STATE ).iterator() );
+                    return asResourceIterator( expander.expand( lastPath, BranchState.NO_STATE ) );
                 }
             };
             this.currentDepth++;
@@ -404,6 +472,8 @@ public class ShortestPath implements PathFinder<Path>
         @Override
         public void close()
         {
+            nextNodes.close();
+            visitedNodes.close();
             closeRelationshipsIterator();
         }
 
@@ -427,6 +497,9 @@ public class ShortestPath implements PathFinder<Path>
                     LevelData levelData = this.visitedNodes.get( result );
                     if ( levelData == null )
                     {
+                        // Instead of passing the memoryTracker to LevelData, which would require 2 calls to allocate memory,
+                        // we make a single call to allocate memory here
+                        memoryTracker.allocateHeap( LevelData.SHALLOW_SIZE + NodeEntity.SHALLOW_SIZE + HeapEstimator.sizeOfLongArray( 1 ) );
                         levelData = new LevelData( nextRel, this.currentDepth );
                         this.visitedNodes.put( result, levelData );
                         this.nextNodes.add( result );
@@ -434,6 +507,7 @@ public class ShortestPath implements PathFinder<Path>
                     }
                     else if ( this.currentDepth == levelData.depth )
                     {
+                        memoryTracker.allocateHeap( Long.BYTES );
                         levelData.addRel( nextRel );
                     }
                 }
@@ -543,7 +617,7 @@ public class ShortestPath implements PathFinder<Path>
         }
 
         @Override
-        public Iterator<PropertyContainer> iterator()
+        public Iterator<Entity> iterator()
         {
             throw new UnsupportedOperationException();
         }
@@ -559,7 +633,8 @@ public class ShortestPath implements PathFinder<Path>
     // Many long-lived instances
     public static class LevelData
     {
-        private long[] relsToHere;
+        public static final long SHALLOW_SIZE = HeapEstimator.shallowSizeOfInstance( LevelData.class );
+        private Relationship[] relsToHere;
         public final int depth;
 
         LevelData( Relationship relToHere, int depth )
@@ -573,17 +648,17 @@ public class ShortestPath implements PathFinder<Path>
 
         void addRel( Relationship rel )
         {
-            long[] newRels = null;
+            Relationship[] newRels;
             if ( relsToHere == null )
             {
-                newRels = new long[1];
+                newRels = new Relationship[1];
             }
             else
             {
-                newRels = new long[relsToHere.length + 1];
+                newRels = new Relationship[relsToHere.length + 1];
                 System.arraycopy( relsToHere, 0, newRels, 0, relsToHere.length );
             }
-            newRels[newRels.length - 1] = rel.getId();
+            newRels[newRels.length - 1] = rel;
             relsToHere = newRels;
         }
     }
@@ -591,13 +666,13 @@ public class ShortestPath implements PathFinder<Path>
     // One long lived instance
     private static class Hits
     {
-        private final PrimitiveIntObjectMap<Collection<Hit>> hits = Primitive.intObjectMap();
+        private final MutableIntObjectMap<Collection<Hit>> hits = new IntObjectHashMap<>(); // TODO: Heap tracking collection?
         private int lowestDepth;
         private int totalHitCount;
 
         int add( Hit hit, int atDepth )
         {
-            Collection<Hit> depthHits = hits.computeIfAbsent( atDepth, k -> new HashSet<>() );
+            Collection<Hit> depthHits = hits.getIfAbsentPut( atDepth, HashSet::new );
             if ( depthHits.add( hit ) )
             {
                 totalHitCount++;
@@ -630,57 +705,56 @@ public class ShortestPath implements PathFinder<Path>
         }
     }
 
-    private static Collection<Path> hitsToPaths( Collection<Hit> depthHits, Node start, Node end, boolean stopAsap, int maxResultCount )
+    private static Collection<Path> hitsToPaths( Collection<Hit> depthHits, Node start, Node end, boolean stopAsap, int maxResultCount,
+            MemoryTracker memoryTracker )
     {
-        LinkedHashMap<String,Path> paths = new LinkedHashMap<>();
+        Set<Path> paths = HeapTrackingCollections.newSet( memoryTracker );
         for ( Hit hit : depthHits )
         {
-            for ( Path path : hitToPaths( hit, start, end, stopAsap ) )
+            for ( PathImpl path : hitToPaths( hit, start, end, stopAsap ) )
             {
-                paths.put( path.toString(), path );
+                memoryTracker.allocateHeap( path.estimatedHeapUsage() );
+                paths.add( path );
                 if ( paths.size() >= maxResultCount )
                 {
                     break;
                 }
             }
         }
-        return paths.values();
+        return paths;
     }
 
-    private static Collection<Path> hitToPaths( Hit hit, Node start, Node end, boolean stopAsap )
+    private static Collection<PathImpl> hitToPaths( Hit hit, Node start, Node end, boolean stopAsap )
     {
-        Collection<Path> paths = new ArrayList<>();
-        Iterable<LinkedList<Relationship>> startPaths = getPaths( hit.connectingNode, hit.start, stopAsap );
-        Iterable<LinkedList<Relationship>> endPaths = getPaths( hit.connectingNode, hit.end, stopAsap );
-        for ( LinkedList<Relationship> startPath : startPaths )
+        Collection<PathImpl> paths = new ArrayList<>();
+        Iterable<List<Relationship>> startPaths = getPaths( hit.connectingNode, hit.start, stopAsap );
+        Iterable<List<Relationship>> endPaths = getPaths( hit.connectingNode, hit.end, stopAsap );
+        for ( List<Relationship> startPath : startPaths )
         {
             PathImpl.Builder startBuilder = toBuilder( start, startPath );
-            for ( LinkedList<Relationship> endPath : endPaths )
+            for ( List<Relationship> endPath : endPaths )
             {
                 PathImpl.Builder endBuilder = toBuilder( end, endPath );
-                Path path = startBuilder.build( endBuilder );
+                PathImpl path = startBuilder.build( endBuilder );
                 paths.add( path );
             }
         }
         return paths;
     }
 
-    private static Iterable<LinkedList<Relationship>> getPaths( Node connectingNode, DirectionData data,
-            boolean stopAsap )
+    private static Iterable<List<Relationship>> getPaths( Node connectingNode, DirectionData data, boolean stopAsap )
     {
         LevelData levelData = data.visitedNodes.get( connectingNode );
         if ( levelData.depth == 0 )
         {
-            Collection<LinkedList<Relationship>> result = new ArrayList<>();
+            Collection<List<Relationship>> result = new ArrayList<>();
             result.add( new LinkedList<>() );
             return result;
         }
         Collection<PathData> set = new ArrayList<>();
-        GraphDatabaseService graphDb = data.startNode.getGraphDatabase();
-        for ( long rel : levelData.relsToHere )
+        for ( Relationship rel : levelData.relsToHere )
         {
-            set.add( new PathData( connectingNode, new LinkedList<>( Arrays.asList( graphDb
-                    .getRelationshipById( rel ) ) ) ) );
+            set.add( new PathData( connectingNode, new LinkedList<>( Arrays.asList( rel ) ) ) );
             if ( stopAsap )
             {
                 break;
@@ -696,7 +770,7 @@ public class ShortestPath implements PathFinder<Path>
                 Node otherNode = entry.rels.getFirst().getOtherNode( entry.node );
                 LevelData otherLevelData = data.visitedNodes.get( otherNode );
                 int counter = 0;
-                for ( long rel : otherLevelData.relsToHere )
+                for ( Relationship rel : otherLevelData.relsToHere )
                 {
                     // ...may split into several paths
                     LinkedList<Relationship> rels = ++counter == otherLevelData.relsToHere.length ?
@@ -704,7 +778,7 @@ public class ShortestPath implements PathFinder<Path>
                     // lists being copied
                             entry.rels
                             : new LinkedList<>( entry.rels );
-                    rels.addFirst( graphDb.getRelationshipById( rel ) );
+                    rels.addFirst( rel );
                     nextSet.add( new PathData( otherNode, rels ) );
                     if ( stopAsap )
                     {
@@ -714,17 +788,17 @@ public class ShortestPath implements PathFinder<Path>
             }
             set = nextSet;
         }
-        return new IterableWrapper<LinkedList<Relationship>,PathData>( set )
+        return new IterableWrapper<>( set )
         {
             @Override
-            protected LinkedList<Relationship> underlyingObjectToObject( PathData object )
+            protected List<Relationship> underlyingObjectToObject( PathData object )
             {
                 return object.rels;
             }
         };
     }
 
-    private static Builder toBuilder( Node startNode, LinkedList<Relationship> rels )
+    private static Builder toBuilder( Node startNode, List<Relationship> rels )
     {
         PathImpl.Builder builder = new PathImpl.Builder( startNode );
         for ( Relationship rel : rels )

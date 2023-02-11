@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -43,8 +43,8 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.traversal.TraversalMetadata;
 import org.neo4j.graphdb.traversal.Traverser;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.helpers.collection.LimitingResourceIterable;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.LimitingIterable;
 
 public abstract class TraversalPathFinder implements PathFinder<Path>
 {
@@ -66,7 +66,7 @@ public abstract class TraversalPathFinder implements PathFinder<Path>
     {
         lastTraverser = instantiateTraverser( start, end );
         Integer maxResultCount = maxResultCount();
-        return maxResultCount != null ? new LimitingResourceIterable<>( lastTraverser, maxResultCount ) : lastTraverser;
+        return maxResultCount != null ? new LimitingIterable<>( lastTraverser, maxResultCount ) : lastTraverser;
     }
 
     protected abstract Traverser instantiateTraverser( Node start, Node end );

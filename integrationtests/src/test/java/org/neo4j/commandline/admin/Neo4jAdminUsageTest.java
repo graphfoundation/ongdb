@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB Enterprise Edition. The included source
@@ -78,7 +78,7 @@ public class Neo4jAdminUsageTest
                         "    report\n" +
                         "        Produces a zip/tar of the most common information needed for remote assessments.\n" +
                         "    store-info\n" +
-                        "        Prints information about a ONgDB database store.\n" +
+                        "        Prints information about an ONgDB database store.\n" +
                         "\n" +
                         "Authentication\n" +
                         "    set-default-admin\n" +

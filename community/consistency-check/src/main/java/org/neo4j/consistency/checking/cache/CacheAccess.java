@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,10 +40,8 @@ package org.neo4j.consistency.checking.cache;
 
 import java.util.Collection;
 
-import org.neo4j.consistency.checking.full.CheckStage;
 import org.neo4j.consistency.statistics.Counts;
 import org.neo4j.consistency.statistics.Counts.Type;
-import org.neo4j.consistency.store.RecordAccess;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
 import org.neo4j.kernel.impl.store.record.PropertyRecord;
 
@@ -183,6 +181,20 @@ public interface CacheAccess
      */
     void setCacheSlotSizes( int... slotSize );
 
+    /**
+     * Sets the slot sizes of the cached values. Also clears the cache.
+     *
+     * @param slotSize defines how many and how big the slots are for cached values that are put after this call.
+     */
+    void setCacheSlotSizesAndClear( int... slotSize );
+
+    /**
+     * Sets the node id that is 0, such that all cache interactions uses this pivot node id to calculate the actual node id.
+     * This is because the node id is used as index into the cache and the cache may be used to run multiple iterations over
+     * a store, where only parts of the store is checked.
+     */
+    void setPivotId( long pivotId );
+
     void prepareForProcessingOfSingleStore( long recordsPerCPU );
 
     Client EMPTY_CLIENT = new Client()
@@ -262,6 +274,11 @@ public interface CacheAccess
         }
 
         @Override
+        public void setCacheSlotSizesAndClear( int... slotSizes )
+        {
+        }
+
+        @Override
         public boolean isForward()
         {
             return false;
@@ -274,6 +291,11 @@ public interface CacheAccess
 
         @Override
         public void prepareForProcessingOfSingleStore( long recordsPerCPU )
+        {
+        }
+
+        @Override
+        public void setPivotId( long pivotId )
         {
         }
     };

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,19 +38,19 @@
  */
 package org.neo4j.collection;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class RawIteratorTest
+class RawIteratorTest
 {
     @Test
-    public void shouldCreateSimpleRawIterator()
+    void shouldCreateSimpleRawIterator()
     {
         assertEquals( Collections.emptyList(), list( RawIterator.of() ) );
         assertEquals( Collections.singletonList( 1 ), list( RawIterator.of(1) ) );
@@ -58,9 +58,9 @@ public class RawIteratorTest
         assertEquals( asList(1,2,3), list( RawIterator.of( 1,2,3 ) ) );
     }
 
-    public List<Integer> list( RawIterator<Integer, RuntimeException> iter )
+    private static List<Integer> list( RawIterator<Integer, RuntimeException> iter )
     {
-        LinkedList<Integer> out = new LinkedList<>();
+        List<Integer> out = new ArrayList<>();
         while ( iter.hasNext() )
         {
             out.add( iter.next() );

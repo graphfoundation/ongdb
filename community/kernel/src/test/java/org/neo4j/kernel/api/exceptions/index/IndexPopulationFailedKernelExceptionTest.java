@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,57 +38,46 @@
  */
 package org.neo4j.kernel.api.exceptions.index;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.internal.kernel.api.TokenNameLookup;
-import org.neo4j.kernel.api.schema.LabelSchemaDescriptor;
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
+import org.neo4j.common.TokenNameLookup;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptors;
+import org.neo4j.test.InMemoryTokens;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class IndexPopulationFailedKernelExceptionTest
+class IndexPopulationFailedKernelExceptionTest
 {
+    private static final TokenNameLookup TOKEN_NAME_LOOKUP = new InMemoryTokens()
+            .label( 0, "label0" ).propertyKey( 42, "p42" ).propertyKey( 43, "p43" ).propertyKey( 44, "p44" );
 
     @Test
-    public void shouldHandleMultiplePropertiesInConstructor1()
+    void shouldHandleMultiplePropertiesInConstructor1()
     {
         // Given
-        LabelSchemaDescriptor descriptor = SchemaDescriptorFactory.forLabel( 0, 42, 43, 44 );
-        TokenNameLookup lookup = mock( TokenNameLookup.class );
-        when( lookup.labelGetName( 0 ) ).thenReturn( "L" );
-        when( lookup.propertyKeyGetName( 42 ) ).thenReturn( "FOO" );
-        when( lookup.propertyKeyGetName( 43 ) ).thenReturn( "BAR" );
-        when( lookup.propertyKeyGetName( 44 ) ).thenReturn( "BAZ" );
+        LabelSchemaDescriptor descriptor = SchemaDescriptors.forLabel( 0, 42, 43, 44 );
 
         // When
-        IndexPopulationFailedKernelException index =
-                new IndexPopulationFailedKernelException( descriptor, "INDEX", new RuntimeException() );
+        IndexPopulationFailedKernelException index = new IndexPopulationFailedKernelException(
+                descriptor.userDescription( TOKEN_NAME_LOOKUP ), new RuntimeException() );
 
         // Then
-        assertThat(index.getUserMessage( lookup ), equalTo(
-                "Failed to populate index for INDEX [labelId: 0, properties [42, 43, 44]]"));
+        assertThat( index.getUserMessage( TOKEN_NAME_LOOKUP ) ).isEqualTo( "Failed to populate index (:label0 {p42, p43, p44})" );
     }
 
     @Test
-    public void shouldHandleMultiplePropertiesInConstructor2()
+    void shouldHandleMultiplePropertiesInConstructor2()
     {
         // Given
-        LabelSchemaDescriptor descriptor = SchemaDescriptorFactory.forLabel( 0, 42, 43, 44 );
-        TokenNameLookup lookup = mock( TokenNameLookup.class );
-        when( lookup.labelGetName( 0 ) ).thenReturn( "L" );
-        when( lookup.propertyKeyGetName( 42 ) ).thenReturn( "FOO" );
-        when( lookup.propertyKeyGetName( 43 ) ).thenReturn( "BAR" );
-        when( lookup.propertyKeyGetName( 44 ) ).thenReturn( "BAZ" );
+        LabelSchemaDescriptor descriptor = SchemaDescriptors.forLabel( 0, 42, 43, 44 );
 
         // When
-        IndexPopulationFailedKernelException index =
-                new IndexPopulationFailedKernelException( descriptor, "INDEX", "an act of pure evil occurred" );
+        IndexPopulationFailedKernelException index = new IndexPopulationFailedKernelException(
+                descriptor.userDescription( TOKEN_NAME_LOOKUP ), "an act of pure evil occurred" );
 
         // Then
-        assertThat(index.getUserMessage( lookup ), equalTo(
-                "Failed to populate index for INDEX [labelId: 0, properties [42, 43, 44]], due to an act of pure evil occurred"));
+        assertThat( index.getUserMessage( TOKEN_NAME_LOOKUP ) ).isEqualTo(
+                "Failed to populate index (:label0 {p42, p43, p44}), due to an act of pure evil occurred" );
     }
 }

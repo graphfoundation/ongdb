@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,28 +38,17 @@
  */
 package org.neo4j.test;
 
-import org.junit.rules.TestRule;
-import org.junit.runner.Description;
-import org.junit.runners.model.Statement;
+import org.eclipse.collections.api.map.primitive.MutableLongLongMap;
+import org.eclipse.collections.impl.map.mutable.primitive.LongLongHashMap;
 
 import java.util.concurrent.TimeUnit;
 
-import org.neo4j.collection.primitive.Primitive;
-import org.neo4j.collection.primitive.PrimitiveLongLongMap;
-import org.neo4j.memory.GlobalMemoryTracker;
 import org.neo4j.resources.CpuClock;
 
-public class FakeCpuClock extends CpuClock implements TestRule
+public class FakeCpuClock implements CpuClock
 {
-    public static final CpuClock NOT_AVAILABLE = new CpuClock()
-    {
-        @Override
-        public long cpuTimeNanos( long threadId )
-        {
-            return -1;
-        }
-    };
-    private final PrimitiveLongLongMap cpuTimes = Primitive.offHeapLongLongMap( GlobalMemoryTracker.INSTANCE );
+    public static final CpuClock NOT_AVAILABLE = threadId -> -1;
+    private final MutableLongLongMap cpuTimes = new LongLongHashMap();
 
     @Override
     public long cpuTimeNanos( long threadId )
@@ -81,25 +70,5 @@ public class FakeCpuClock extends CpuClock implements TestRule
     {
         cpuTimes.put( threadId, cpuTimeNanos( threadId ) + nanos );
         return this;
-    }
-
-    @Override
-    public Statement apply( Statement base, Description description )
-    {
-        return new Statement()
-        {
-            @Override
-            public void evaluate() throws Throwable
-            {
-                try
-                {
-                    base.evaluate();
-                }
-                finally
-                {
-                    cpuTimes.close();
-                }
-            }
-        };
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,10 +41,17 @@ package org.neo4j.values.storable;
 import java.time.LocalTime;
 import java.util.Arrays;
 
+import org.neo4j.values.AnyValue;
 import org.neo4j.values.ValueMapper;
 
-public class LocalTimeArray extends TemporalArray<LocalTime, LocalTimeValue>
+import static org.neo4j.memory.HeapEstimator.LOCAL_TIME_SIZE;
+import static org.neo4j.memory.HeapEstimator.shallowSizeOfInstance;
+import static org.neo4j.memory.HeapEstimator.sizeOfObjectArray;
+
+public class LocalTimeArray extends TemporalArray<LocalTime>
 {
+    private static final long SHALLOW_SIZE = shallowSizeOfInstance( LocalTimeArray.class );
+
     private final LocalTime[] value;
 
     LocalTimeArray( LocalTime[] value )
@@ -84,13 +91,13 @@ public class LocalTimeArray extends TemporalArray<LocalTime, LocalTimeValue>
     }
 
     @Override
-    public ValueGroup valueGroup()
+    public ValueRepresentation valueRepresentation()
     {
-        return ValueGroup.LOCAL_TIME_ARRAY;
+        return ValueRepresentation.LOCAL_TIME_ARRAY;
     }
 
     @Override
-    int unsafeCompareTo( Value otherValue )
+    protected int unsafeCompareTo( Value otherValue )
     {
         return compareToNonPrimitiveArray( (LocalTimeArray) otherValue );
     }
@@ -99,5 +106,36 @@ public class LocalTimeArray extends TemporalArray<LocalTime, LocalTimeValue>
     public String getTypeName()
     {
         return "LocalTimeArray";
+    }
+
+    @Override
+    public long estimatedHeapUsage()
+    {
+        return SHALLOW_SIZE + sizeOfObjectArray( LOCAL_TIME_SIZE, value.length );
+    }
+
+    @Override
+    public boolean hasCompatibleType( AnyValue value )
+    {
+        return value instanceof LocalTimeValue;
+    }
+
+    @Override
+    public ArrayValue copyWithAppended( AnyValue added )
+    {
+        assert hasCompatibleType( added ) : "Incompatible types";
+        LocalTime[] newArray = Arrays.copyOf( value, value.length + 1 );
+        newArray[value.length] = ((LocalTimeValue) added).temporal();
+        return new LocalTimeArray( newArray );
+    }
+
+    @Override
+    public ArrayValue copyWithPrepended( AnyValue prepended )
+    {
+        assert hasCompatibleType( prepended ) : "Incompatible types";
+        LocalTime[] newArray = new LocalTime[value.length + 1];
+        System.arraycopy( value, 0, newArray, 1, value.length );
+        newArray[0] = ((LocalTimeValue) prepended).temporal();
+        return new LocalTimeArray( newArray );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,25 +38,24 @@
  */
 package org.neo4j.kernel.api.impl.index;
 
-import java.io.File;
 import java.io.IOException;
-import java.util.List;
+import java.nio.file.Path;
 
 import org.neo4j.graphdb.ResourceIterator;
-import org.neo4j.kernel.api.impl.index.partition.AbstractIndexPartition;
+import org.neo4j.kernel.api.impl.schema.writer.LuceneIndexWriter;
+import org.neo4j.kernel.api.index.ValueIndexReader;
 
 /**
  * Read only lucene index representation that wraps provided index implementation and
  * allow read only operations only on top of it.
- * @param <T> - particular index implementation
+ * @param <INDEX> - particular index implementation
  */
-public abstract class ReadOnlyAbstractDatabaseIndex<T extends AbstractLuceneIndex> implements DatabaseIndex
+public abstract class ReadOnlyAbstractDatabaseIndex<INDEX extends AbstractLuceneIndex<READER>, READER extends ValueIndexReader>
+        extends AbstractDatabaseIndex<INDEX, READER>
 {
-    protected T luceneIndex;
-
-    public ReadOnlyAbstractDatabaseIndex( T luceneIndex )
+    public ReadOnlyAbstractDatabaseIndex( INDEX luceneIndex )
     {
-        this.luceneIndex = luceneIndex;
+        super( luceneIndex );
     }
 
     /**
@@ -72,45 +71,9 @@ public abstract class ReadOnlyAbstractDatabaseIndex<T extends AbstractLuceneInde
      * {@inheritDoc}
      */
     @Override
-    public void open() throws IOException
-    {
-        luceneIndex.open();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean isOpen()
-    {
-        return luceneIndex.isOpen();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
     public boolean isReadOnly()
     {
         return true;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean exists() throws IOException
-    {
-        return luceneIndex.exists();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean isValid()
-    {
-        return luceneIndex.isValid();
     }
 
     /**
@@ -144,16 +107,7 @@ public abstract class ReadOnlyAbstractDatabaseIndex<T extends AbstractLuceneInde
      * {@inheritDoc}
      */
     @Override
-    public LuceneAllDocumentsReader allDocumentsReader()
-    {
-        return luceneIndex.allDocumentsReader();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public ResourceIterator<File> snapshot() throws IOException
+    public ResourceIterator<Path> snapshot() throws IOException
     {
         return luceneIndex.snapshot();
     }
@@ -167,13 +121,18 @@ public abstract class ReadOnlyAbstractDatabaseIndex<T extends AbstractLuceneInde
         //nothing to refresh in read only mode
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public List<AbstractIndexPartition> getPartitions()
+    public LuceneIndexWriter getIndexWriter()
     {
-        return luceneIndex.getPartitions();
+        throw new UnsupportedOperationException( "Can't get index writer for read only lucene index." );
     }
 
+    /**
+     * Unsupported operation in read only index.
+     */
+    @Override
+    public void markAsOnline()
+    {
+        throw new UnsupportedOperationException( "Can't mark read only index." );
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,73 +38,84 @@
  */
 package org.neo4j.kernel.api.schema.index;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptors;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.kernel.api.schema.SchemaTestUtil.SIMPLE_NAME_LOOKUP;
 import static org.neo4j.kernel.api.schema.SchemaTestUtil.assertEquality;
-import static org.neo4j.kernel.api.schema.SchemaTestUtil.simpleNameLookup;
 
-public class SchemaIndexDescriptorFactoryTest
+class SchemaIndexDescriptorFactoryTest
 {
     private static final int LABEL_ID = 0;
 
     @Test
-    public void shouldCreateIndexDescriptors()
+    void shouldCreateIndexDescriptors()
     {
-        SchemaIndexDescriptor desc;
+        IndexDescriptor desc;
 
-        desc = SchemaIndexDescriptorFactory.forLabel( LABEL_ID, 1 );
-        assertThat( desc.type(), equalTo( SchemaIndexDescriptor.Type.GENERAL ) );
-        assertThat( desc.schema(), equalTo( SchemaDescriptorFactory.forLabel( LABEL_ID, 1 ) ) );
+        desc = TestIndexDescriptorFactory.forLabel( LABEL_ID, 1 );
+        assertFalse( desc.isUnique() );
+        assertThat( desc.schema() ).isEqualTo( SchemaDescriptors.forLabel( LABEL_ID, 1 ) );
     }
 
     @Test
-    public void shouldCreateUniqueIndexDescriptors()
+    void shouldCreateUniqueIndexDescriptors()
     {
-        SchemaIndexDescriptor desc;
+        IndexDescriptor desc;
 
-        desc = SchemaIndexDescriptorFactory.uniqueForLabel( LABEL_ID, 1 );
-        assertThat( desc.type(), equalTo( SchemaIndexDescriptor.Type.UNIQUE ) );
-        assertThat( desc.schema(), equalTo( SchemaDescriptorFactory.forLabel( LABEL_ID, 1 ) ) );
+        desc = TestIndexDescriptorFactory.uniqueForLabel( LABEL_ID, 1 );
+        assertTrue( desc.isUnique() );
+        assertThat( desc.schema() ).isEqualTo( SchemaDescriptors.forLabel( LABEL_ID, 1 ) );
     }
 
     @Test
-    public void shouldCreateIndexDescriptorsFromSchema()
+    void shouldCreateIndexDescriptorsFromSchema()
     {
-        SchemaIndexDescriptor desc;
+        IndexDescriptor desc;
 
-        desc = SchemaIndexDescriptorFactory.forSchema( SchemaDescriptorFactory.forLabel( LABEL_ID, 1 ) );
-        assertThat( desc.type(), equalTo( SchemaIndexDescriptor.Type.GENERAL ) );
-        assertThat( desc.schema(), equalTo( SchemaDescriptorFactory.forLabel( LABEL_ID, 1 ) ) );
+        desc = TestIndexDescriptorFactory.forSchema( SchemaDescriptors.forLabel( LABEL_ID, 1 ) );
+        assertFalse( desc.isUnique() );
+        assertThat( desc.schema() ).isEqualTo( SchemaDescriptors.forLabel( LABEL_ID, 1 ) );
 
-        desc = SchemaIndexDescriptorFactory.uniqueForSchema( SchemaDescriptorFactory.forLabel( LABEL_ID, 1 ) );
-        assertThat( desc.type(), equalTo( SchemaIndexDescriptor.Type.UNIQUE) );
-        assertThat( desc.schema(), equalTo( SchemaDescriptorFactory.forLabel( LABEL_ID, 1 ) ) );
+        desc = TestIndexDescriptorFactory.uniqueForSchema( SchemaDescriptors.forLabel( LABEL_ID, 1 ) );
+        assertTrue( desc.isUnique() );
+        assertThat( desc.schema() ).isEqualTo( SchemaDescriptors.forLabel( LABEL_ID, 1 ) );
     }
 
     @Test
-    public void shouldCreateEqualDescriptors()
+    void shouldCreateEqualDescriptors()
     {
-        SchemaIndexDescriptor desc1;
-        SchemaIndexDescriptor desc2;
-        desc1 = SchemaIndexDescriptorFactory.forLabel( LABEL_ID, 1 );
-        desc2 = SchemaIndexDescriptorFactory.forLabel( LABEL_ID, 1 );
-        assertEquality( desc1, desc2 );
+        IndexDescriptor desc1;
+        IndexDescriptor desc2;
+        desc1 = TestIndexDescriptorFactory.forLabel( LABEL_ID, 1 );
+        desc2 = TestIndexDescriptorFactory.forLabel( LABEL_ID, 1 );
+        assertEquality( desc1.schema(), desc2.schema() );
+        assertEquality( desc1.isUnique(), desc2.isUnique() );
 
-        desc1 = SchemaIndexDescriptorFactory.uniqueForLabel( LABEL_ID, 1 );
-        desc2 = SchemaIndexDescriptorFactory.uniqueForLabel( LABEL_ID, 1 );
-        assertEquality( desc1, desc2 );
+        desc1 = TestIndexDescriptorFactory.uniqueForLabel( LABEL_ID, 1 );
+        desc2 = TestIndexDescriptorFactory.uniqueForLabel( LABEL_ID, 1 );
+        assertEquality( desc1.schema(), desc2.schema() );
+        assertEquality( desc1.isUnique(), desc2.isUnique() );
     }
 
     @Test
-    public void shouldGiveNiceUserDescriptions()
+    void shouldGiveNiceUserDescriptions()
     {
-        assertThat( SchemaIndexDescriptorFactory.forLabel( 1, 2 ).userDescription( simpleNameLookup ),
-                equalTo( "Index( GENERAL, :Label1(property2) )" ) );
-        assertThat( SchemaIndexDescriptorFactory.uniqueForLabel( 2, 4 ).userDescription( simpleNameLookup ),
-                equalTo( "Index( UNIQUE, :Label2(property4) )" ) );
+        IndexDescriptor forLabel = TestIndexDescriptorFactory.forLabel( 1, 2 );
+        long forLabelId = forLabel.getId();
+        IndexDescriptor uniqueForLabel = TestIndexDescriptorFactory.uniqueForLabel( 2, 4 );
+        String providerName = forLabel.getIndexProvider().name();
+        long uniqueForLabelId = uniqueForLabel.getId();
+        assertThat( forLabel.userDescription( SIMPLE_NAME_LOOKUP ) ).isEqualTo(
+                "Index( id=" + forLabelId + ", name='index_" + forLabelId + "', type='GENERAL BTREE', schema=(:Label1 {property2}), indexProvider='" +
+                        providerName + "' )" );
+        assertThat( uniqueForLabel.userDescription( SIMPLE_NAME_LOOKUP ) ).isEqualTo(
+                "Index( id=" + uniqueForLabelId + ", name='index_" + uniqueForLabelId +
+                        "', type='UNIQUE BTREE', schema=(:Label2 {property4}), indexProvider='" + providerName + "' )" );
     }
 }

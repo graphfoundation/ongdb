@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,17 +38,21 @@
  */
 package org.neo4j.values.virtual;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import org.neo4j.values.storable.ArrayValue;
+import org.neo4j.values.storable.Values;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.neo4j.values.storable.Values.longValue;
+import static org.neo4j.values.virtual.VirtualValues.EMPTY_LIST;
 import static org.neo4j.values.virtual.VirtualValues.list;
 import static org.neo4j.values.virtual.VirtualValues.range;
 
-public class IntegralRangeListValueTest
+class IntegralRangeListValueTest
 {
     @Test
-    public void shouldHandleRangeWithStepOne()
+    void shouldHandleRangeWithStepOne()
     {
         ListValue range = range( 5L, 11L, 1L );
 
@@ -60,7 +64,7 @@ public class IntegralRangeListValueTest
     }
 
     @Test
-    public void shouldHandleRangeWithBiggerSteps()
+    void shouldHandleRangeWithBiggerSteps()
     {
         ListValue range = range( 5L, 11L, 3L );
 
@@ -71,7 +75,7 @@ public class IntegralRangeListValueTest
     }
 
     @Test
-    public void shouldHandleNegativeStep()
+    void shouldHandleNegativeStep()
     {
         ListValue range = range( 11L, 5L, -3L );
 
@@ -79,5 +83,37 @@ public class IntegralRangeListValueTest
 
         assertEquals( range, expected );
         assertEquals( range.hashCode(), expected.hashCode() );
+    }
+
+    @Test
+    void shouldHandleNegativeStepWithPositiveRange()
+    {
+        ListValue range = range( 2L, 8L, -1L );
+
+        ListValue expected = EMPTY_LIST;
+
+        assertEquals( range, expected );
+        assertEquals( range.hashCode(), expected.hashCode() );
+    }
+
+    @Test
+    void shouldHandlePositiveStepWithNegativeRange()
+    {
+        ListValue range = range( 8L, 2L, 1L );
+
+        ListValue expected = EMPTY_LIST;
+
+        assertEquals( range, expected );
+        assertEquals( range.hashCode(), expected.hashCode() );
+    }
+
+    @Test
+    void rangeListsAreStorable()
+    {
+        ListValue range = range( 5L, 11L, 2L );
+
+        ArrayValue expected = Values.longArray( new long[] {5,  7, 9, 11});
+
+        assertEquals( expected, range.toStorableArray() );
     }
 }

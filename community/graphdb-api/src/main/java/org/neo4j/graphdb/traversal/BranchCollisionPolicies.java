@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,17 +40,21 @@ package org.neo4j.graphdb.traversal;
 
 import java.util.function.Predicate;
 
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.impl.traversal.ShortestPathsBranchCollisionDetector;
 import org.neo4j.graphdb.impl.traversal.StandardBranchCollisionDetector;
 
 /**
- * A catalogue of convenient branch collision policies
- *
- * Copied from kernel package so that we can hide kernel from the public API.
+ * A catalogue of convenient branch collision policies, see {@link BranchCollisionPolicy}
  */
+@PublicApi
 public enum BranchCollisionPolicies implements BranchCollisionPolicy
 {
+    /**
+     * This branch collision policy includes all combined paths where the traversers collide, which means that the end node of the startSide and endSide
+     * traverser paths is identical and filters the resulting paths by applying the evaluator and path predicate.
+     */
     STANDARD
     {
         @Override
@@ -59,6 +63,10 @@ public enum BranchCollisionPolicies implements BranchCollisionPolicy
             return new StandardBranchCollisionDetector( evaluator, pathPredicate );
         }
     },
+    /**
+     * This branch collision policy includes only the shortest paths where the traversers collide, which means that the end node of the
+     * startSide and endSide traverser paths is identical and filters the resulting paths by applying the evaluator and path predicate.
+     */
     SHORTEST_PATH
     {
         @Override

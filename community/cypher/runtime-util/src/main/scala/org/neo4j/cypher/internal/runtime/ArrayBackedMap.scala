@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,10 @@
  */
 package org.neo4j.cypher.internal.runtime
 
-import scala.reflect._
+import org.neo4j.memory.HeapEstimator.shallowSizeOfInstance
+import org.neo4j.memory.HeapEstimator.shallowSizeOfInstanceWithObjectReferences
+
+import scala.reflect.ClassTag
 
 /**
  * Map implementation optimized for fast writes via putValues.
@@ -46,14 +49,14 @@ import scala.reflect._
  * Stores values in an array and has a lookup table from key to array index for doing lookups.
  * @param keyToIndexMap the mapping from keys to array indexes
  */
-class ArrayBackedMap[K, V](keyToIndexMap: Map[K, Int])(implicit val tag: ClassTag[V]) extends Map[K, V] {
-  private var valueArray: Array[V] = null
+class ArrayBackedMap[K, V](keyToIndexMap: Map[K, Int], nullValue: V = null.asInstanceOf[V])(implicit val tag: ClassTag[V]) extends Map[K, V] {
+  private var valueArray: Array[V] = _
 
   /**
    * Writes values by reference straight into the map.
    * When using this make sure the order matches the order specified by keyToIndexMap.
    */
-  def putValues(array: Array[V]) = {
+  def putValues(array: Array[V]): Unit = {
     valueArray = array
   }
 
@@ -61,10 +64,10 @@ class ArrayBackedMap[K, V](keyToIndexMap: Map[K, Int])(implicit val tag: ClassTa
    * Creates a copy of the map
    * @return a copy of the map
    */
-  def copy = {
+  def copy: ArrayBackedMap[K, V] = {
     val newArray = new Array[V](valueArray.length)
     System.arraycopy(valueArray, 0, newArray, 0, valueArray.length)
-    val newMap = new ArrayBackedMap[K, V](keyToIndexMap)
+    val newMap = new ArrayBackedMap[K, V](keyToIndexMap, nullValue)
     newMap.putValues(newArray)
     newMap
   }
@@ -73,7 +76,7 @@ class ArrayBackedMap[K, V](keyToIndexMap: Map[K, Int])(implicit val tag: ClassTa
     if (valueArray != null && index < valueArray.length)
       valueArray(index)
     else
-      null.asInstanceOf[V]
+      nullValue
   }
 
   override def iterator: Iterator[(K, V)] = new Iterator[(K, V)]() {
@@ -84,7 +87,7 @@ class ArrayBackedMap[K, V](keyToIndexMap: Map[K, Int])(implicit val tag: ClassTa
     override def next(): (K, V) = {
       val (key, index) = inner.next()
       if (valueArray != null && index < valueArray.length) (key, valueArray(index))
-      else (key, null.asInstanceOf[V])
+      else (key, nullValue)
     }
   }
 
@@ -101,19 +104,18 @@ class ArrayBackedMap[K, V](keyToIndexMap: Map[K, Int])(implicit val tag: ClassTa
         val newArray = new Array[V](valueArray.length)
         System.arraycopy(valueArray, 0, newArray, 0, valueArray.length)
         newArray(i) = value.asInstanceOf[V]
-        val newMap: ArrayBackedMap[K, V] = new ArrayBackedMap[K, V](keyToIndexMap)
+        val newMap: ArrayBackedMap[K, V] = new ArrayBackedMap[K, V](keyToIndexMap, nullValue)
         newMap.putValues(newArray)
         newMap
       //key was not in map, create new map and add new key-value pair at the end of the its valueArray
-      case None => {
+      case None =>
         val newHeadersMap = keyToIndexMap.updated(key, valueArray.length)
-        val newMap = new ArrayBackedMap[K, V](newHeadersMap)
+        val newMap = new ArrayBackedMap[K, V](newHeadersMap, nullValue)
         val newArray = new Array[V](valueArray.length + 1)
         System.arraycopy(valueArray, 0, newArray, 0, valueArray.length)
         newArray(valueArray.length) = value.asInstanceOf[V]
         newMap.putValues(newArray)
         newMap
-      }
     }
   }
 
@@ -124,7 +126,7 @@ class ArrayBackedMap[K, V](keyToIndexMap: Map[K, Int])(implicit val tag: ClassTa
   override def -(key: K): Map[K, V] = {
     val index = keyToIndexMap.get(key)
     index match {
-      case Some(indexToRemove) => {
+      case Some(indexToRemove) =>
         // Create a new headerToIndex map without the key to be removed
         // Note: We need to update the indexes of the new headers map to match the smaller array
         val newHeadersMap = (keyToIndexMap - key).mapValues(i => if (i >= indexToRemove) i - 1 else i)
@@ -132,15 +134,18 @@ class ArrayBackedMap[K, V](keyToIndexMap: Map[K, Int])(implicit val tag: ClassTa
         // Create a new array by first filtering out the index to be removed
         val newArray = valueArray.indices.filterNot(_ == indexToRemove).map(valueArray).toArray
 
-        val newMap = new ArrayBackedMap[K, V](newHeadersMap)
+        val newMap = new ArrayBackedMap[K, V](newHeadersMap, nullValue)
         newMap.putValues(newArray)
         newMap
-      }
       case None => this
     }
   }
 }
 
 object ArrayBackedMap {
-  def apply[K, V](keys: K*)(implicit tag: ClassTag[V]): ArrayBackedMap[K, V] = new ArrayBackedMap[K, V](keys.zipWithIndex.toMap)
+  def apply[K, V](keys: K*)(nullValue: V = null.asInstanceOf[V])(implicit tag: ClassTag[V]): ArrayBackedMap[K, V] =
+    new ArrayBackedMap[K, V](keys.zipWithIndex.toMap, nullValue)
+
+  final val SHALLOW_SIZE = shallowSizeOfInstance(classOf[ArrayBackedMap[_,_]]) +
+    shallowSizeOfInstanceWithObjectReferences(2) // scala.collection.convert.Wrappers$MapWrapper
 }

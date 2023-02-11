@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,63 +38,57 @@
  */
 package org.neo4j.kernel.impl.util;
 
-import java.util.Iterator;
-import java.util.function.Function;
+import org.eclipse.collections.api.block.function.primitive.LongToObjectFunction;
 
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.traversal.Paths;
-import org.neo4j.kernel.impl.core.EmbeddedProxySPI;
-import org.neo4j.kernel.impl.core.NodeProxy;
-import org.neo4j.kernel.impl.core.RelationshipProxy;
+import org.neo4j.kernel.impl.core.NodeEntity;
+import org.neo4j.kernel.impl.core.RelationshipEntity;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
 import org.neo4j.values.ValueMapper;
-import org.neo4j.values.virtual.NodeReference;
-import org.neo4j.values.virtual.NodeValue;
-import org.neo4j.values.virtual.PathValue;
-import org.neo4j.values.virtual.RelationshipReference;
-import org.neo4j.values.virtual.RelationshipValue;
 import org.neo4j.values.virtual.VirtualNodeValue;
+import org.neo4j.values.virtual.VirtualPathValue;
 import org.neo4j.values.virtual.VirtualRelationshipValue;
 
-import static org.neo4j.helpers.collection.Iterators.iteratorsEqual;
+import static org.neo4j.internal.helpers.collection.Iterators.iteratorsEqual;
 
 public class DefaultValueMapper extends ValueMapper.JavaMapper
 {
-    private final EmbeddedProxySPI proxySPI;
+    private final InternalTransaction transaction;
 
-    public DefaultValueMapper( EmbeddedProxySPI proxySPI )
+    public DefaultValueMapper( InternalTransaction transaction )
     {
-        this.proxySPI = proxySPI;
+        this.transaction = transaction;
     }
 
     @Override
     public Node mapNode( VirtualNodeValue value )
     {
-        assert !(value instanceof NodeReference);
-
-        if ( value instanceof NodeProxyWrappingNodeValue )
+        if ( value instanceof NodeEntityWrappingNodeValue )
         { // this is the back door through which "virtual nodes" slip
-            return ((NodeProxyWrappingNodeValue) value).nodeProxy();
+            return ((NodeEntityWrappingNodeValue) value).getEntity();
         }
-        return new NodeProxy( proxySPI, value.id() );
+        return mapNode( value.id() );
     }
 
     @Override
     public Relationship mapRelationship( VirtualRelationshipValue value )
     {
-        assert !(value instanceof RelationshipReference);
-
-        if ( value instanceof RelationshipProxyWrappingValue )
+        if ( value instanceof RelationshipEntityWrappingValue )
         { // this is the back door through which "virtual relationships" slip
-            return ((RelationshipProxyWrappingValue) value).relationshipProxy();
+            return ((RelationshipEntityWrappingValue) value).getEntity();
         }
-        return new RelationshipProxy( proxySPI, value.id() );
+        return mapRelationship( value.id() );
     }
 
     @Override
-    public Path mapPath( PathValue value )
+    public Path mapPath( VirtualPathValue value )
     {
         if ( value instanceof PathWrappingPathValue )
         {
@@ -103,9 +97,9 @@ public class DefaultValueMapper extends ValueMapper.JavaMapper
         return new CoreAPIPath( value );
     }
 
-    private <U, V> Iterable<V> asList( U[] values, Function<U,V> mapper )
+    private static <U, V> Iterable<V> asList( long[] values, LongToObjectFunction<V> mapper )
     {
-        return () -> new Iterator<V>()
+        return () -> new Iterator<>()
         {
             private int index;
 
@@ -118,14 +112,28 @@ public class DefaultValueMapper extends ValueMapper.JavaMapper
             @Override
             public V next()
             {
+                if ( !hasNext() )
+                {
+                    throw new NoSuchElementException();
+                }
                 return mapper.apply( values[index++] );
             }
         };
     }
 
-    private <U, V> Iterable<V> asReverseList( U[] values, Function<U,V> mapper )
+    private Node mapNode( long value )
     {
-        return () -> new Iterator<V>()
+        return new NodeEntity( transaction, value );
+    }
+
+    private Relationship mapRelationship( long value )
+    {
+        return new RelationshipEntity( transaction, value );
+    }
+
+    private static <U, V> Iterable<V> asReverseList( long[] values, LongToObjectFunction<V> mapper )
+    {
+        return () -> new Iterator<>()
         {
             private int index = values.length - 1;
 
@@ -138,18 +146,27 @@ public class DefaultValueMapper extends ValueMapper.JavaMapper
             @Override
             public V next()
             {
+                if ( !hasNext() )
+                {
+                    throw new NoSuchElementException();
+                }
                 return mapper.apply( values[index--] );
             }
         };
     }
 
-    private class CoreAPIPath implements Path
+    class CoreAPIPath implements Path
     {
-        private final PathValue value;
+        private final VirtualPathValue value;
 
-        CoreAPIPath( PathValue value )
+        CoreAPIPath( VirtualPathValue value )
         {
             this.value = value;
+        }
+
+        public VirtualPathValue pathValue()
+        {
+            return value;
         }
 
         @Override
@@ -178,7 +195,7 @@ public class DefaultValueMapper extends ValueMapper.JavaMapper
             else if ( obj instanceof Path )
             {
                 Path other = (Path) obj;
-                if ( value.nodes()[0].id() != other.startNode().getId() )
+                if ( value.nodeIds()[0] != other.startNode().getId() )
                 {
                     return false;
                 }
@@ -193,13 +210,14 @@ public class DefaultValueMapper extends ValueMapper.JavaMapper
         @Override
         public Node startNode()
         {
-            return mapNode( value.startNode() );
+            return mapNode( value.nodeIds()[0] );
         }
 
         @Override
         public Node endNode()
         {
-            return mapNode( value.endNode() );
+            long[] longs = value.nodeIds();
+            return mapNode( longs[longs.length - 1] );
         }
 
         @Override
@@ -211,32 +229,33 @@ public class DefaultValueMapper extends ValueMapper.JavaMapper
             }
             else
             {
-                return mapRelationship( value.lastRelationship() );
+                long[] relationshipIds = value.relationshipIds();
+                return mapRelationship( relationshipIds[relationshipIds.length - 1] );
             }
         }
 
         @Override
         public Iterable<Relationship> relationships()
         {
-            return asList( value.relationships(), DefaultValueMapper.this::mapRelationship );
+            return asList( value.relationshipIds(), DefaultValueMapper.this::mapRelationship );
         }
 
         @Override
         public Iterable<Relationship> reverseRelationships()
         {
-            return asReverseList( value.relationships(), DefaultValueMapper.this::mapRelationship );
+            return asReverseList( value.relationshipIds(), DefaultValueMapper.this::mapRelationship );
         }
 
         @Override
         public Iterable<Node> nodes()
         {
-            return asList( value.nodes(), DefaultValueMapper.this::mapNode );
+            return asList( value.nodeIds(), DefaultValueMapper.this::mapNode );
         }
 
         @Override
         public Iterable<Node> reverseNodes()
         {
-            return asReverseList( value.nodes(), DefaultValueMapper.this::mapNode );
+            return asReverseList( value.nodeIds(), DefaultValueMapper.this::mapNode );
         }
 
         @Override
@@ -246,14 +265,14 @@ public class DefaultValueMapper extends ValueMapper.JavaMapper
         }
 
         @Override
-        public Iterator<PropertyContainer> iterator()
+        public Iterator<Entity> iterator()
         {
-            return new Iterator<PropertyContainer>()
+            return new Iterator<>()
             {
                 private final int size = 2 * value.size() + 1;
                 private int index;
-                private final NodeValue[] nodes = value.nodes();
-                private final RelationshipValue[] relationships = value.relationships();
+                private final long[] nodes = value.nodeIds();
+                private final long[] relationships = value.relationshipIds();
 
                 @Override
                 public boolean hasNext()
@@ -262,19 +281,23 @@ public class DefaultValueMapper extends ValueMapper.JavaMapper
                 }
 
                 @Override
-                public PropertyContainer next()
+                public Entity next()
                 {
-                    PropertyContainer propertyContainer;
+                    if ( !hasNext() )
+                    {
+                        throw new NoSuchElementException();
+                    }
+                    Entity entity;
                     if ( (index & 1) == 0 )
                     {
-                        propertyContainer = mapNode( nodes[index >> 1] );
+                        entity = mapNode( nodes[index >> 1] );
                     }
                     else
                     {
-                        propertyContainer = mapRelationship( relationships[index >> 1] );
+                        entity = mapRelationship( relationships[index >> 1] );
                     }
                     index++;
-                    return propertyContainer;
+                    return entity;
                 }
             };
         }

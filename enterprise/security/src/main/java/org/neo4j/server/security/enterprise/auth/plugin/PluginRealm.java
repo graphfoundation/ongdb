@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB Enterprise Edition. The included source
@@ -445,13 +445,13 @@ public class PluginRealm extends AuthorizingRealm implements RealmLifecycle, Shi
         };
 
         @Override
-        public Path neo4jHome()
+        public Path ongdbHome()
         {
             return config.get( GraphDatabaseSettings.ongdb_home ).getAbsoluteFile().toPath();
         }
 
         @Override
-        public Optional<Path> neo4jConfigFile()
+        public Optional<Path> ongdbConfigFile()
         {
             return Optional.empty();
         }

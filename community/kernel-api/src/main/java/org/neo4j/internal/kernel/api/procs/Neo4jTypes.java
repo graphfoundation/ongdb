@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -45,7 +45,7 @@ package org.neo4j.internal.kernel.api.procs;
  * This should also move to replace the specialized type handling in packstream, or be tied to it in some
  * way to ensure a strict mapping.
  */
-public class Neo4jTypes
+public final class Neo4jTypes
 {
     public static final AnyType NTAny = new AnyType();
     public static final TextType NTString = new TextType();

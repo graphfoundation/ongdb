@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,32 +38,34 @@
  */
 package org.neo4j.server.rest.repr;
 
-import org.neo4j.helpers.AdvertisedSocketAddress;
+import org.neo4j.server.rest.discovery.DiscoverableURIs;
+import org.neo4j.server.rest.discovery.ServerVersionAndEdition;
 
 public class DiscoveryRepresentation extends MappingRepresentation
 {
-
-    private static final String DATA_URI_KEY = "data";
-    private static final String MANAGEMENT_URI_KEY = "management";
-    private static final String BOLT_URI_KEY = "bolt";
     private static final String DISCOVERY_REPRESENTATION_TYPE = "discovery";
-    private final String managementUri;
-    private final String dataUri;
-    private final AdvertisedSocketAddress boltAddress;
+    private final DiscoverableURIs uris;
+    private final ServerVersionAndEdition serverInfo;
+    private final MappingRepresentation authConfigRepr;
 
-    public DiscoveryRepresentation( String managementUri, String dataUri, AdvertisedSocketAddress boltAddress )
+    /**
+     * @param uris URIs that we want to make publicly discoverable.
+     * @param serverInfo server version and edition information
+     * @param authConfigRepr authentication configuration of the server.
+     */
+    public DiscoveryRepresentation( DiscoverableURIs uris, ServerVersionAndEdition serverInfo, MappingRepresentation authConfigRepr )
     {
         super( DISCOVERY_REPRESENTATION_TYPE );
-        this.managementUri = managementUri;
-        this.dataUri = dataUri;
-        this.boltAddress = boltAddress;
+        this.uris = uris;
+        this.serverInfo = serverInfo;
+        this.authConfigRepr = authConfigRepr;
     }
 
     @Override
     protected void serialize( MappingSerializer serializer )
     {
-        serializer.putRelativeUri( MANAGEMENT_URI_KEY, managementUri );
-        serializer.putRelativeUri( DATA_URI_KEY, dataUri );
-        serializer.putAbsoluteUri( BOLT_URI_KEY, "bolt://" + boltAddress.getHostname() + ":" + boltAddress.getPort() );
+        uris.forEach( serializer::putString );
+        serverInfo.forEach( serializer::putString );
+        authConfigRepr.serialize( serializer );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,22 +40,16 @@ package org.neo4j.kernel.impl.coreapi.schema;
 
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.schema.ConstraintType;
+import org.neo4j.internal.schema.ConstraintDescriptor;
 
 import static java.lang.String.format;
 
 public class RelationshipPropertyExistenceConstraintDefinition extends RelationshipConstraintDefinition
 {
-    public RelationshipPropertyExistenceConstraintDefinition( InternalSchemaActions actions,
+    public RelationshipPropertyExistenceConstraintDefinition( InternalSchemaActions actions, ConstraintDescriptor constraint,
             RelationshipType relationshipType, String propertyKey )
     {
-        super( actions, relationshipType, propertyKey );
-    }
-
-    @Override
-    public void drop()
-    {
-        assertInUnterminatedTransaction();
-        actions.dropRelationshipPropertyExistenceConstraint( relationshipType, propertyKey );
+        super( actions, constraint, relationshipType, propertyKey );
     }
 
     @Override
@@ -67,7 +61,7 @@ public class RelationshipPropertyExistenceConstraintDefinition extends Relations
     @Override
     public String toString()
     {
-        return format( "ON ()-[%1$s:%2$s]-() ASSERT exists(%1$s.%3$s)",
+        return format( "ON ()-[%1$s:%2$s]-() ASSERT (%1$s.%3$s) IS NOT NULL",
                 relationshipType.name().toLowerCase(), relationshipType.name(), propertyKey );
     }
 }

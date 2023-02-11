@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,10 +40,11 @@ package org.neo4j.kernel.api.impl.schema.sampler;
 
 import org.apache.lucene.search.IndexSearcher;
 
-import org.neo4j.helpers.TaskControl;
-import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
-import org.neo4j.kernel.impl.api.index.sampling.UniqueIndexSampler;
-import org.neo4j.storageengine.api.schema.IndexSample;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.kernel.api.impl.schema.TaskCoordinator;
+import org.neo4j.kernel.api.index.IndexSample;
+import org.neo4j.kernel.api.index.UniqueIndexSampler;
 
 /**
  * Sampler for unique Lucene schema index.
@@ -53,18 +54,21 @@ public class UniqueLuceneIndexSampler extends LuceneIndexSampler
 {
     private final IndexSearcher indexSearcher;
 
-    public UniqueLuceneIndexSampler( IndexSearcher indexSearcher, TaskControl taskControl )
+    public UniqueLuceneIndexSampler( IndexSearcher indexSearcher, TaskCoordinator taskCoordinator )
     {
-        super( taskControl );
+        super( taskCoordinator );
         this.indexSearcher = indexSearcher;
     }
 
     @Override
-    public IndexSample sampleIndex() throws IndexNotFoundKernelException
+    public IndexSample sampleIndex( CursorContext cursorContext ) throws IndexNotFoundKernelException
     {
-        UniqueIndexSampler sampler = new UniqueIndexSampler();
-        sampler.increment( indexSearcher.getIndexReader().numDocs() );
-        checkCancellation();
-        return sampler.result();
+        try ( TaskCoordinator.Task task = newTask() )
+        {
+            UniqueIndexSampler sampler = new UniqueIndexSampler();
+            sampler.increment( indexSearcher.getIndexReader().numDocs() );
+            checkCancellation( task );
+            return sampler.result();
+        }
     }
 }

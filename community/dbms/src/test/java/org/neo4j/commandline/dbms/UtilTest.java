@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,58 +38,25 @@
  */
 package org.neo4j.commandline.dbms;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.commandline.Util;
-import org.neo4j.test.rule.TestDirectory;
+import java.nio.file.Path;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.commandline.Util.isSameOrChildFile;
-import static org.neo4j.commandline.Util.isSameOrChildPath;
-import static org.neo4j.commandline.Util.ongdbVersion;
 
-public class UtilTest
+class UtilTest
 {
-    @Rule
-    public final TestDirectory directory = TestDirectory.testDirectory();
-
     @Test
-    public void canonicalPath()
+    void correctlyIdentifySameOrChildFile()
     {
-        assertNotNull( Util.canonicalPath( "foo" ).getParent() );
-    }
+        Path home = Path.of( "." ).toAbsolutePath();
+        assertTrue( isSameOrChildFile( home, home ) );
+        assertTrue( isSameOrChildFile( home, home.resolve( "a" ) ) );
+        assertTrue( isSameOrChildFile( home.resolve( "a/./b" ), home.resolve( "a/b" ) ) );
+        assertTrue( isSameOrChildFile( home.resolve( "a/b" ), home.resolve( "a/./b" ) ) );
 
-    @Test
-    public void returnsAVersion()
-    {
-        assertNotNull( "A version should be returned", ongdbVersion() );
-    }
-
-    @Test
-    public void correctlyIdentifySameOrChildFile()
-    {
-        assertTrue( isSameOrChildFile( directory.directory(), directory.directory( "a" ) ) );
-        assertTrue( isSameOrChildFile( directory.directory(), directory.directory() ) );
-        assertTrue( isSameOrChildFile( directory.directory( "/a/./b" ), directory.directory( "a/b" ) ) );
-        assertTrue( isSameOrChildFile( directory.directory( "a/b" ), directory.directory( "/a/./b" ) ) );
-
-        assertFalse( isSameOrChildFile( directory.directory( "a" ), directory.directory( "b" ) ) );
-    }
-
-    @Test
-    public void correctlyIdentifySameOrChildPath()
-    {
-        assertTrue( isSameOrChildPath( directory.directory().toPath(), directory.directory( "a" ).toPath() ) );
-        assertTrue( isSameOrChildPath( directory.directory().toPath(), directory.directory().toPath() ) );
-        assertTrue( isSameOrChildPath( directory.directory( "/a/./b" ).toPath(),
-                directory.directory( "a/b" ).toPath() ) );
-        assertTrue( isSameOrChildPath( directory.directory( "a/b" ).toPath(),
-                directory.directory( "/a/./b" ).toPath() ) );
-
-        assertFalse( isSameOrChildPath( directory.directory( "a" ).toPath(),
-                directory.directory( "b" ).toPath() ) );
+        assertFalse( isSameOrChildFile( home.resolve( "a" ), home.resolve( "b" ) ) );
     }
 }

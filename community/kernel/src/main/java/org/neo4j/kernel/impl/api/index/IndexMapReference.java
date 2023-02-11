@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,10 +38,11 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.neo4j.collection.primitive.PrimitiveIntSet;
+import java.util.function.UnaryOperator;
+
 import org.neo4j.function.ThrowingFunction;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.values.storable.Value;
 
 public class IndexMapReference implements IndexMapSnapshotProvider
@@ -51,7 +52,7 @@ public class IndexMapReference implements IndexMapSnapshotProvider
     @Override
     public IndexMap indexMapSnapshot()
     {
-        return indexMap.clone();
+        return new IndexMap( indexMap );
     }
 
     /**
@@ -63,12 +64,21 @@ public class IndexMapReference implements IndexMapSnapshotProvider
      * This is the only way contents of the {@link IndexMap} considered the current one can be modified.
      *
      * @param modifier the function modifying the snapshot.
-     * @throws E exception thrown by the function.
      */
-    public synchronized <E extends Exception> void modify( ThrowingFunction<IndexMap,IndexMap,E> modifier ) throws E
+    public synchronized void modify( UnaryOperator<IndexMap> modifier )
     {
         IndexMap snapshot = indexMapSnapshot();
         indexMap = modifier.apply( snapshot );
+    }
+
+    public IndexProxy getIndexProxy( IndexDescriptor index ) throws IndexNotFoundKernelException
+    {
+        IndexProxy proxy = indexMap.getIndexProxy( index );
+        if ( proxy == null )
+        {
+            throw new IndexNotFoundKernelException( "No index for index " + index + " exists." );
+        }
+        return proxy;
     }
 
     public IndexProxy getIndexProxy( long indexId ) throws IndexNotFoundKernelException
@@ -81,62 +91,23 @@ public class IndexMapReference implements IndexMapSnapshotProvider
         return proxy;
     }
 
-    public IndexProxy getIndexProxy( SchemaDescriptor descriptor ) throws IndexNotFoundKernelException
-    {
-        IndexProxy proxy = indexMap.getIndexProxy( descriptor );
-        if ( proxy == null )
-        {
-            throw new IndexNotFoundKernelException( "No index for " + descriptor + " exists." );
-        }
-        return proxy;
-    }
-
-    public long getIndexId( SchemaDescriptor descriptor ) throws IndexNotFoundKernelException
-    {
-        IndexProxy proxy = indexMap.getIndexProxy( descriptor );
-        if ( proxy == null )
-        {
-            throw new IndexNotFoundKernelException( "No index for " + descriptor + " exists." );
-        }
-        return indexMap.getIndexId( descriptor );
-    }
-
-    public long getOnlineIndexId( SchemaDescriptor descriptor ) throws IndexNotFoundKernelException
-    {
-        IndexProxy proxy = getIndexProxy( descriptor );
-        switch ( proxy.getState() )
-        {
-        case ONLINE:
-            return indexMap.getIndexId( descriptor );
-
-        default:
-            throw new IndexNotFoundKernelException( "Expected index on " + descriptor + " to be online." );
-        }
-    }
-
-    public Iterable<IndexProxy> getAllIndexProxies()
+    Iterable<IndexProxy> getAllIndexProxies()
     {
         return indexMap.getAllIndexProxies();
     }
 
-    public Iterable<SchemaDescriptor> getRelatedIndexes(
-            long[] changedLabels, long[] unchangedLabels, PrimitiveIntSet properties )
-    {
-        return indexMap.getRelatedIndexes( changedLabels, unchangedLabels, properties );
-    }
-
-    public IndexUpdaterMap createIndexUpdaterMap( IndexUpdateMode mode )
+    IndexUpdaterMap createIndexUpdaterMap( IndexUpdateMode mode )
     {
         return new IndexUpdaterMap( indexMap, mode );
     }
 
-    public void validateBeforeCommit( SchemaDescriptor index, Value[] tuple )
+    public void validateBeforeCommit( IndexDescriptor index, Value[] tuple, long entityId )
     {
         IndexProxy proxy = indexMap.getIndexProxy( index );
         if ( proxy != null )
         {
             // Do this null-check since from the outside there's a best-effort matching going on between updates and actual indexes backing those.
-            proxy.validateBeforeCommit( tuple );
+            proxy.validateBeforeCommit( tuple, entityId );
         }
     }
 }

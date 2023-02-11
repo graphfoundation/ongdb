@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,29 +39,21 @@
 package org.neo4j.server.web;
 
 import org.eclipse.jetty.server.RequestLog;
-import org.eclipse.jetty.server.Server;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
-import java.util.function.Consumer;
 import javax.servlet.Filter;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
-import org.neo4j.helpers.ListenSocketAddress;
-import org.neo4j.server.database.InjectableProvider;
-import org.neo4j.server.plugins.Injectable;
+import org.neo4j.configuration.helpers.SocketAddress;
+import org.neo4j.server.bind.ComponentsBinder;
 import org.neo4j.ssl.SslPolicy;
 
 public interface WebServer
 {
-    void setAddress( ListenSocketAddress address );
+    void setHttpAddress( SocketAddress address );
 
-    void setHttpsAddress( Optional<ListenSocketAddress> address );
+    void setHttpsAddress( SocketAddress address );
 
     void setSslPolicy( SslPolicy sslPolicy );
 
@@ -76,8 +68,9 @@ public interface WebServer
     void addJAXRSPackages( List<String> packageNames, String serverMountPoint, Collection<Injectable<?>> injectables );
     void removeJAXRSPackages( List<String> packageNames, String serverMountPoint );
 
-    void addJAXRSClasses( List<String> classNames, String serverMountPoint, Collection<Injectable<?>> injectables );
-    void removeJAXRSClasses( List<String> classNames, String serverMountPoint );
+    void addJAXRSClasses( List<Class<?>> classes, String serverMountPoint, Collection<Injectable<?>> injectables );
+
+    void removeJAXRSClasses( List<Class<?>> classes, String serverMountPoint );
 
     void addFilter( Filter filter, String pathSpec );
 
@@ -86,14 +79,9 @@ public interface WebServer
     void addStaticContent( String contentLocation, String serverMountPoint );
     void removeStaticContent( String contentLocation, String serverMountPoint );
 
-    void invokeDirectly( String targetUri, HttpServletRequest request, HttpServletResponse response )
-        throws IOException, ServletException;
-
     void setWadlEnabled( boolean wadlEnabled );
 
-    void setDefaultInjectables( Collection<InjectableProvider<?>> defaultInjectables );
-
-    void setJettyCreatedCallback( Consumer<Server> callback );
+    void setComponentsBinder( ComponentsBinder binder );
 
     /**
      * @return local http connector bind port

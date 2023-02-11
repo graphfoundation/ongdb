@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,21 +38,29 @@
  */
 package org.neo4j.kernel.impl.api;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.logging.AssertableLogProvider;
 
-import static org.junit.Assert.assertEquals;
-import static org.neo4j.logging.AssertableLogProvider.inLog;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.neo4j.logging.AssertableLogProvider.Level.DEBUG;
+import static org.neo4j.logging.LogAssertions.assertThat;
 
-public class DatabaseSchemaStateTest
+class DatabaseSchemaStateTest
 {
     private final AssertableLogProvider logProvider = new AssertableLogProvider();
     private DatabaseSchemaState stateStore;
 
+    @BeforeEach
+    void before()
+    {
+        this.stateStore = new DatabaseSchemaState( logProvider );
+    }
+
     @Test
-    public void should_apply_updates_correctly()
+    void should_apply_updates_correctly()
     {
         // GIVEN
         stateStore.put( "key", "created_value" );
@@ -65,7 +73,7 @@ public class DatabaseSchemaStateTest
     }
 
     @Test
-    public void should_flush()
+    void should_flush()
     {
         // GIVEN
         stateStore.put( "key", "created_value" );
@@ -75,15 +83,10 @@ public class DatabaseSchemaStateTest
 
         // THEN
         String result = stateStore.get( "key" );
-        assertEquals( null, result );
+        assertNull( result );
 
         // AND ALSO
-        logProvider.assertExactly( inLog( DatabaseSchemaState.class ).debug( "Schema state store has been cleared." ) );
-    }
-
-    @Before
-    public void before()
-    {
-        this.stateStore = new DatabaseSchemaState( logProvider );
+        assertThat( logProvider).forClass( DatabaseSchemaState.class )
+                .forLevel( DEBUG ).containsMessages( "Schema state store has been cleared." );
     }
 }

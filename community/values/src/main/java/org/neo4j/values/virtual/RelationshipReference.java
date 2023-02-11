@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,17 +38,70 @@
  */
 package org.neo4j.values.virtual;
 
+import java.util.function.Consumer;
+
 import org.neo4j.values.AnyValueWriter;
 
 import static java.lang.String.format;
+import static org.neo4j.memory.HeapEstimator.shallowSizeOfInstance;
 
-public class RelationshipReference extends VirtualRelationshipValue
+public class RelationshipReference extends VirtualRelationshipValue implements RelationshipVisitor
 {
+    static final long NO_NODE = -1L;
+    static final int NO_TYPE = -1;
+    private static final long SHALLOW_SIZE = shallowSizeOfInstance( RelationshipReference.class );
+
     private final long id;
+    private long startNode;
+    private long endNode;
+    private int type;
 
     RelationshipReference( long id )
     {
+        this( id, NO_NODE, NO_NODE, NO_TYPE );
+    }
+
+    RelationshipReference( long id, long startNode, long endNode )
+    {
+        this( id, startNode, endNode, NO_TYPE );
+    }
+
+    RelationshipReference( long id, long startNode, long endNode, int type )
+    {
         this.id = id;
+        this.startNode = startNode;
+        this.endNode = endNode;
+        this.type = type;
+    }
+
+    @Override
+    public long startNodeId( Consumer<RelationshipVisitor> consumer )
+    {
+        if ( startNode == NO_NODE )
+        {
+            consumer.accept( this );
+        }
+        return startNode;
+    }
+
+    @Override
+    public long endNodeId( Consumer<RelationshipVisitor> consumer )
+    {
+        if ( endNode == NO_NODE )
+        {
+            consumer.accept( this );
+        }
+        return endNode;
+    }
+
+    @Override
+    public int relationshipTypeId( Consumer<RelationshipVisitor> consumer )
+    {
+        if ( type == NO_TYPE )
+        {
+            consumer.accept( this );
+        }
+        return type;
     }
 
     @Override
@@ -73,5 +126,19 @@ public class RelationshipReference extends VirtualRelationshipValue
     public long id()
     {
         return id;
+    }
+
+    @Override
+    public long estimatedHeapUsage()
+    {
+        return SHALLOW_SIZE;
+    }
+
+    @Override
+    public void visit( long startNode, long endNode, int type )
+    {
+        this.startNode = startNode;
+        this.endNode = endNode;
+        this.type = type;
     }
 }

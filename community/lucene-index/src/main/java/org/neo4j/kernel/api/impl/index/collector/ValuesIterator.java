@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,14 +38,15 @@
  */
 package org.neo4j.kernel.api.impl.index.collector;
 
-import org.neo4j.collection.primitive.PrimitiveLongCollections;
-import org.neo4j.collection.primitive.PrimitiveLongIterator;
+import org.eclipse.collections.api.iterator.LongIterator;
+
+import org.neo4j.collection.PrimitiveLongCollections;
 
 /**
  * Document values iterators that are primitive long iterators that can access value by field from document
  * and provides information about how many items remains in the underlying source.
  */
-public interface ValuesIterator extends PrimitiveLongIterator, DocValuesAccess
+public interface ValuesIterator extends DocValuesAccess, LongIterator
 {
     int remaining();
 
@@ -70,15 +71,9 @@ public interface ValuesIterator extends PrimitiveLongIterator, DocValuesAccess
         {
             return 0;
         }
-
-        @Override
-        public long getValue( String field )
-        {
-            return 0;
-        }
     };
 
-    abstract class Adapter extends PrimitiveLongCollections.PrimitiveLongBaseIterator implements ValuesIterator
+    abstract class Adapter extends PrimitiveLongCollections.AbstractPrimitiveLongBaseIterator implements ValuesIterator
     {
         protected final int size;
         protected int index;
@@ -88,6 +83,7 @@ public interface ValuesIterator extends PrimitiveLongIterator, DocValuesAccess
          *
          * @return The score of the value, or 0 if scoring is not kept or applicable.
          */
+        @Override
         public abstract float currentScore();
 
         Adapter( int size )
@@ -98,6 +94,7 @@ public interface ValuesIterator extends PrimitiveLongIterator, DocValuesAccess
         /**
          * @return the number of docs left in this iterator.
          */
+        @Override
         public int remaining()
         {
             return size - index;

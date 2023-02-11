@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,21 +38,65 @@
  */
 package org.neo4j.cypher.internal
 
-import org.neo4j.cypher.CypherExecutionMode
-import org.neo4j.cypher.internal.compiler.v3_4.CacheCheckResult
-import org.neo4j.cypher.internal.runtime.interpreted.{LastCommittedTxIdProvider, TransactionalContextWrapper}
-import org.neo4j.graphdb.Result
-import org.neo4j.kernel.api.query.PlannerInfo
+import org.neo4j.cypher.internal.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.plandescription.Argument
+import org.neo4j.cypher.internal.plandescription.rewrite.InternalPlanDescriptionRewriter
+import org.neo4j.cypher.internal.runtime.ExecutionMode
+import org.neo4j.cypher.internal.runtime.InputDataStream
+import org.neo4j.cypher.internal.runtime.QueryContext
+import org.neo4j.cypher.internal.runtime.ResourceManager
+import org.neo4j.cypher.internal.runtime.ResourceMonitor
+import org.neo4j.cypher.internal.util.InternalNotification
+import org.neo4j.cypher.internal.util.attribution.Id
+import org.neo4j.cypher.result.RuntimeResult
+import org.neo4j.internal.kernel.api.CursorFactory
+import org.neo4j.kernel.impl.query.QuerySubscriber
 import org.neo4j.values.virtual.MapValue
 
-trait ExecutionPlan {
+abstract class ExecutionPlan {
 
-  def run(transactionalContext: TransactionalContextWrapper, executionMode: CypherExecutionMode, params: MapValue): Result
+  def run(queryContext: QueryContext,
+          executionMode: ExecutionMode,
+          params: MapValue,
+          prePopulateResults: Boolean,
+          input: InputDataStream,
+          subscriber: QuerySubscriber): RuntimeResult
 
-  def isPeriodicCommit: Boolean
+  /**
+   * @return if this ExecutionPlan needs a thread safe cursor factory and resource manager factory to be used from the TransactionBoundQueryContext,
+   *         then it has to override this method and provide it here.
+   */
+  def threadSafeExecutionResources(): Option[(CursorFactory, ResourceManagerFactory)] = None
 
-  def isStale(lastCommittedTxId: LastCommittedTxIdProvider, ctx: TransactionalContextWrapper): CacheCheckResult
+  def runtimeName: RuntimeName
 
-  // This is to force eager calculation
-  val plannerInfo: PlannerInfo
+  def metadata: Seq[Argument]
+
+  def operatorMetadata: Id => Seq[Argument] = _ => Seq.empty[Argument]
+
+  def notifications: Set[InternalNotification]
+
+  def rewrittenPlan: Option[LogicalPlan] = None
+
+  def internalPlanDescriptionRewriter: Option[InternalPlanDescriptionRewriter] = None
+}
+
+trait ResourceManagerFactory {
+  def apply(monitor: ResourceMonitor): ResourceManager
+}
+
+abstract class DelegatingExecutionPlan(inner: ExecutionPlan) extends ExecutionPlan {
+  override def run(queryContext: QueryContext,
+                   executionMode: ExecutionMode,
+                   params: MapValue,
+                   prePopulateResults: Boolean,
+                   input: InputDataStream,
+                   subscriber: QuerySubscriber): RuntimeResult =
+    inner.run(queryContext, executionMode, params, prePopulateResults, input, subscriber)
+
+  override def runtimeName: RuntimeName = inner.runtimeName
+
+  override def metadata: Seq[Argument] = inner.metadata
+
+  override def notifications: Set[InternalNotification] = inner.notifications
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,29 +38,33 @@
  */
 package org.neo4j.kernel.api.impl.index;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.kernel.api.impl.index.partition.AbstractIndexPartition;
+import org.neo4j.kernel.api.impl.schema.writer.LuceneIndexWriter;
+import org.neo4j.kernel.api.index.ValueIndexReader;
 
 /**
  * Writable lucene index representation that wraps provided index implementation and
  * allow read only operations only on top of it.
- * @param <T> - particular index implementation
+ * @param <INDEX> - particular index implementation
  */
-public class WritableAbstractDatabaseIndex<T extends AbstractLuceneIndex> implements DatabaseIndex
+public class WritableAbstractDatabaseIndex<INDEX extends AbstractLuceneIndex<READER>, READER extends ValueIndexReader>
+        extends AbstractDatabaseIndex<INDEX,READER>
 {
     // lock used to guard commits and close of lucene indexes from separate threads
     protected final ReentrantLock commitCloseLock = new ReentrantLock();
+    private final DatabaseReadOnlyChecker readOnlyChecker;
 
-    protected T luceneIndex;
-
-    public WritableAbstractDatabaseIndex( T luceneIndex )
+    public WritableAbstractDatabaseIndex( INDEX luceneIndex, DatabaseReadOnlyChecker readOnlyChecker )
     {
-        this.luceneIndex = luceneIndex;
+        super( luceneIndex );
+        this.readOnlyChecker = readOnlyChecker;
     }
 
     /**
@@ -76,52 +80,16 @@ public class WritableAbstractDatabaseIndex<T extends AbstractLuceneIndex> implem
      * {@inheritDoc}
      */
     @Override
-    public void open() throws IOException
-    {
-        luceneIndex.open();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean isOpen()
-    {
-        return luceneIndex.isOpen();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
     public boolean isReadOnly()
     {
-        return false;
+        return readOnlyChecker.isReadOnly();
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public boolean exists() throws IOException
-    {
-        return luceneIndex.exists();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean isValid()
-    {
-        return luceneIndex.isValid();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void drop() throws IOException
+    public void drop()
     {
         commitCloseLock.lock();
         try
@@ -143,12 +111,17 @@ public class WritableAbstractDatabaseIndex<T extends AbstractLuceneIndex> implem
         commitCloseLock.lock();
         try
         {
-            luceneIndex.flush( false );
+            commitLockedFlush();
         }
         finally
         {
             commitCloseLock.unlock();
         }
+    }
+
+    protected void commitLockedFlush() throws IOException
+    {
+        luceneIndex.flush( false );
     }
 
     /**
@@ -160,7 +133,7 @@ public class WritableAbstractDatabaseIndex<T extends AbstractLuceneIndex> implem
         commitCloseLock.lock();
         try
         {
-            luceneIndex.close();
+            commitLockedClose();
         }
         finally
         {
@@ -168,20 +141,16 @@ public class WritableAbstractDatabaseIndex<T extends AbstractLuceneIndex> implem
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public LuceneAllDocumentsReader allDocumentsReader()
+    protected void commitLockedClose() throws IOException
     {
-        return luceneIndex.allDocumentsReader();
+        luceneIndex.close();
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public ResourceIterator<File> snapshot() throws IOException
+    public ResourceIterator<Path> snapshot() throws IOException
     {
         commitCloseLock.lock();
         try
@@ -218,18 +187,32 @@ public class WritableAbstractDatabaseIndex<T extends AbstractLuceneIndex> implem
      * {@inheritDoc}
      */
     @Override
-    public List<AbstractIndexPartition> getPartitions()
+    public void markAsOnline() throws IOException
     {
-        return luceneIndex.getPartitions();
+        commitCloseLock.lock();
+        try
+        {
+            luceneIndex.markAsOnline();
+        }
+        finally
+        {
+            commitCloseLock.unlock();
+        }
     }
 
-    public boolean hasSinglePartition( List<AbstractIndexPartition> partitions )
+    @Override
+    public LuceneIndexWriter getIndexWriter()
     {
-        return luceneIndex.hasSinglePartition( partitions );
+        return luceneIndex.getIndexWriter( this );
     }
 
-    public AbstractIndexPartition getFirstPartition( List<AbstractIndexPartition> partitions )
+    public static boolean hasSinglePartition( List<AbstractIndexPartition> partitions )
     {
-        return luceneIndex.getFirstPartition( partitions );
+        return AbstractLuceneIndex.hasSinglePartition( partitions );
+    }
+
+    public static AbstractIndexPartition getFirstPartition( List<AbstractIndexPartition> partitions )
+    {
+        return AbstractLuceneIndex.getFirstPartition( partitions );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,20 +38,26 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands
 
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{ListLiteral, Literal}
-import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.{CoercedPredicate, Not, True}
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
+import org.neo4j.cypher.internal.runtime.interpreted.commands.LiteralHelper.literal
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ListLiteral
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Literal
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.CoercedPredicate
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Not
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.True
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.values.storable.Values.NO_VALUE
 
 class CoercedPredicateTest extends CypherFunSuite {
 
-  val ctx: ExecutionContext = null
+  val ctx: CypherRow = null
   val state: QueryState = QueryStateHelper.empty
 
-  test("should_coerce_non_empty_collection_to_true") {
+  test("should coerce non empty collection to true") {
     // Given
-    val collection = ListLiteral(Literal(1))
+    val collection = ListLiteral(literal(1))
 
     // When
     val result = CoercedPredicate(collection).isTrue(ctx, state)
@@ -60,7 +66,7 @@ class CoercedPredicateTest extends CypherFunSuite {
     result should equal(true)
   }
 
-  test("should_coerce_empty_collection_to_false") {
+  test("should coerce empty collection to false") {
     // Given
     val collection = ListLiteral()
 
@@ -71,7 +77,7 @@ class CoercedPredicateTest extends CypherFunSuite {
     result should equal(false)
   }
 
-  test("should_pass_through_false") {
+  test("should pass through false") {
     // Given
     val inner = Not(True())
 
@@ -82,7 +88,7 @@ class CoercedPredicateTest extends CypherFunSuite {
     result should equal(false)
   }
 
-  test("should_pass_through_true") {
+  test("should pass through true") {
     // Given
     val inner = True()
 
@@ -93,9 +99,9 @@ class CoercedPredicateTest extends CypherFunSuite {
     result should equal(true)
   }
 
-  test("should_treat_null_as_false") {
+  test("should treat null as false") {
     // Given
-    val inner = Literal(null)
+    val inner = Literal(NO_VALUE)
 
     // When
     val result = CoercedPredicate(inner).isTrue(ctx, state)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,7 +42,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import org.neo4j.helpers.collection.Pair;
+import org.neo4j.internal.helpers.collection.Pair;
 
 import static java.lang.Math.asin;
 import static java.lang.Math.atan2;
@@ -58,6 +58,10 @@ public abstract class CRSCalculator
     public abstract double distance( PointValue p1, PointValue p2 );
 
     public abstract List<Pair<PointValue,PointValue>> boundingBox( PointValue center, double distance );
+
+    public abstract boolean withinBBox( PointValue point, PointValue lowerLeft, PointValue upperRight );
+
+    public abstract List<Pair<PointValue, PointValue>> computeBBoxes( PointValue lowerLeft, PointValue upperRight );
 
     protected static double pythagoras( double[] a, double[] b )
     {
@@ -101,6 +105,31 @@ public abstract class CRSCalculator
             }
             CoordinateReferenceSystem crs = center.getCoordinateReferenceSystem();
             return Collections.singletonList( Pair.of( Values.pointValue( crs, min ), Values.pointValue( crs, max ) ) );
+        }
+
+        @Override
+        public boolean withinBBox( PointValue point, PointValue lowerLeft, PointValue upperRight )
+        {
+            assert point.getCoordinateReferenceSystem().equals( lowerLeft.getCoordinateReferenceSystem() ) &&
+                   point.getCoordinateReferenceSystem().equals( upperRight.getCoordinateReferenceSystem() );
+
+            var check = point.coordinate();
+            var ll = lowerLeft.coordinate();
+            var ur = upperRight.coordinate();
+            for ( int i = 0; i < check.length; i++ )
+            {
+                if ( check[i] < ll[i] || check[i] > ur[i] )
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        @Override
+        public List<Pair<PointValue,PointValue>> computeBBoxes( PointValue lowerLeft, PointValue upperRight )
+        {
+            return List.of( Pair.of( lowerLeft, upperRight ) );
         }
     }
 
@@ -172,7 +201,6 @@ public abstract class CRSCalculator
             // with rounding errors taken into account
             double extendedDistance = distance * EXTENSION_FACTOR;
 
-            CoordinateReferenceSystem crs = center.getCoordinateReferenceSystem();
             double lat = center.coordinate()[1];
             double lon = center.coordinate()[0];
 
@@ -223,7 +251,85 @@ public abstract class CRSCalculator
             }
         }
 
-        private Pair<PointValue,PointValue> boundingBoxOf( double minLon, double maxLon, double minLat, double maxLat, PointValue center, double distance )
+        @Override
+        public List<Pair<PointValue,PointValue>> computeBBoxes( PointValue lowerLeft, PointValue upperRight )
+        {
+            assert lowerLeft.getCoordinateReferenceSystem().equals( upperRight.getCoordinateReferenceSystem() );
+
+            double[] ll = lowerLeft.coordinate();
+            double[] ur = upperRight.coordinate();
+            if ( ll[0] <= ur[0] )
+            {   //ll is west of ur or we cross the dateline with ll being east of ur,
+                //either way we get a simple continuous range from lower to upper
+                return List.of( Pair.of( lowerLeft, upperRight ) );
+            }
+            else
+            {
+                //ll > ur either means that we crossed the dateline, and we must
+                //scan from lower to the dateline, and then from the dateline to upper
+                if ( ll[0] >= 0 && ur[0] < 0 )
+                {
+                    return List.of( Pair.of( lowerLeft, withLongitude( 180, upperRight ) ),
+                                    Pair.of( withLongitude( -180, lowerLeft ), upperRight ) );
+                }
+                else
+                {
+                    // or that ll is "east" of ur, in which case we must scan the regions not included between the
+                    //two points.
+                    return List.of( Pair.of( withLongitude( -180, lowerLeft ), upperRight ),
+                                    Pair.of( lowerLeft, withLongitude( 180, upperRight ) ) );
+                }
+            }
+        }
+
+        @Override
+        public boolean withinBBox( PointValue point, PointValue lowerLeft, PointValue upperRight )
+        {
+            assert point.getCoordinateReferenceSystem().equals( lowerLeft.getCoordinateReferenceSystem() ) &&
+                   point.getCoordinateReferenceSystem().equals( upperRight.getCoordinateReferenceSystem() );
+            double[] check = point.coordinate();
+
+            double[] ll = lowerLeft.coordinate();
+            double[] ur = upperRight.coordinate();
+            //If lowerLeft is north of upperRight the bbox will always be empty
+            if ( isNorthOf( ll, ur ) )
+            {
+                return false;
+            }
+
+            int i = 0;
+            //first check latitude and longitude
+            for ( ; i < 2; i++ )
+            {
+                if ( ll[i] <= ur[i] )
+                {
+                    if ( check[i] < ll[i] || check[i] > ur[i] )
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    if ( check[i] > ur[i] && check[i] < ll[i] )
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            //check potential extra dimensions
+            for ( ; i < check.length; i++ )
+            {
+                if ( check[i] < ll[i] || check[i] > ur[i] )
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private static Pair<PointValue,PointValue> boundingBoxOf( double minLon, double maxLon, double minLat, double maxLat, PointValue center,
+                double distance )
         {
             CoordinateReferenceSystem crs = center.getCoordinateReferenceSystem();
             int dimension = center.getCoordinateReferenceSystem().getDimension();
@@ -243,6 +349,18 @@ public abstract class CRSCalculator
                 }
             }
             return Pair.of( Values.pointValue( crs, min ), Values.pointValue( crs, max ) );
+        }
+
+        private PointValue withLongitude( double longitude, PointValue point )
+        {
+            double[] coordinates = Arrays.copyOf( point.coordinate(), point.coordinate().length );
+            coordinates[0] = longitude;
+            return Values.pointValue( point.getCoordinateReferenceSystem(), coordinates );
+        }
+
+        private boolean isNorthOf( double[] p1, double[] p2 )
+        {
+            return p1[1] > p2[1];
         }
     }
 }

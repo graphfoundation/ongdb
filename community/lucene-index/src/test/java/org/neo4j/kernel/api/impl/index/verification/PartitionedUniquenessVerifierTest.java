@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,21 +38,19 @@
  */
 package org.neo4j.kernel.api.impl.index.verification;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 import org.mockito.Answers;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
+import org.neo4j.kernel.api.impl.index.SearcherReference;
 import org.neo4j.kernel.api.impl.index.partition.PartitionSearcher;
 import org.neo4j.kernel.api.impl.schema.LuceneDocumentStructure;
 import org.neo4j.kernel.api.impl.schema.verification.DuplicateCheckingCollector;
 import org.neo4j.kernel.api.impl.schema.verification.PartitionedUniquenessVerifier;
-import org.neo4j.kernel.api.index.PropertyAccessor;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.values.storable.Values;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -61,18 +59,14 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.neo4j.kernel.api.impl.LuceneTestUtil.valueTupleList;
 
-@RunWith( MockitoJUnitRunner.class )
-public class PartitionedUniquenessVerifierTest
+class PartitionedUniquenessVerifierTest
 {
-    @Mock( answer = Answers.RETURNS_DEEP_STUBS )
-    private PartitionSearcher searcher1;
-    @Mock( answer = Answers.RETURNS_DEEP_STUBS )
-    private PartitionSearcher searcher2;
-    @Mock( answer = Answers.RETURNS_DEEP_STUBS )
-    private PartitionSearcher searcher3;
+    private final PartitionSearcher searcher1 = mock( PartitionSearcher.class, Answers.RETURNS_DEEP_STUBS );
+    private final PartitionSearcher searcher2 = mock( PartitionSearcher .class, Answers.RETURNS_DEEP_STUBS );
+    private final PartitionSearcher searcher3 = mock( PartitionSearcher .class, Answers.RETURNS_DEEP_STUBS );
 
     @Test
-    public void partitionSearchersAreClosed() throws IOException
+    void partitionSearchersAreClosed() throws IOException
     {
         PartitionedUniquenessVerifier verifier = createPartitionedVerifier();
 
@@ -84,12 +78,12 @@ public class PartitionedUniquenessVerifierTest
     }
 
     @Test
-    public void verifyPropertyUpdates() throws Exception
+    void verifyPropertyUpdates() throws Exception
     {
         PartitionedUniquenessVerifier verifier = createPartitionedVerifier();
-        PropertyAccessor propertyAccessor = mock( PropertyAccessor.class );
+        NodePropertyAccessor nodePropertyAccessor = mock( NodePropertyAccessor.class );
 
-        verifier.verify( propertyAccessor, new int[]{42}, valueTupleList( "a", "b" ) );
+        verifier.verify( nodePropertyAccessor, new int[]{42}, valueTupleList( "a", "b" ) );
 
         verifySearchInvocations( searcher1, "a", "b" );
         verifySearchInvocations( searcher2, "a", "b" );
@@ -101,7 +95,7 @@ public class PartitionedUniquenessVerifierTest
         return new PartitionedUniquenessVerifier( getSearchers() );
     }
 
-    private List<PartitionSearcher> getSearchers()
+    private List<SearcherReference> getSearchers()
     {
         return Arrays.asList( searcher1, searcher2, searcher3 );
     }

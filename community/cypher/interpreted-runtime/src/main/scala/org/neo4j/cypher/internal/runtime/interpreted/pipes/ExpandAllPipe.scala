@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,42 +38,39 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.InternalException
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection
-import org.neo4j.values.AnyValue
-import org.neo4j.values.storable.Values
-import org.neo4j.values.virtual.{RelationshipValue, NodeValue}
+import org.neo4j.cypher.internal.expressions.SemanticDirection
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.IsNoValue
+import org.neo4j.cypher.internal.runtime.PrimitiveLongHelper
+import org.neo4j.cypher.internal.util.attribution.Id
+import org.neo4j.exceptions.ParameterWrongTypeException
+import org.neo4j.values.virtual.VirtualNodeValue
+import org.neo4j.values.virtual.VirtualValues
 
 case class ExpandAllPipe(source: Pipe,
                          fromName: String,
                          relName: String,
                          toName: String,
                          dir: SemanticDirection,
-                         types: LazyTypes)
+                         types: RelationshipTypes)
                         (val id: Id = Id.INVALID_ID) extends PipeWithSource(source) {
 
-  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
+  protected def internalCreateResults(input: ClosingIterator[CypherRow], state: QueryState): ClosingIterator[CypherRow] = {
     input.flatMap {
       row =>
-        getFromNode(row) match {
-          case n: NodeValue =>
-            val relationships: Iterator[RelationshipValue] = state.query.getRelationshipsForIds(n.id(), dir, types.types(state.query))
-            relationships.map { r =>
-                val other = r.otherNode(n)
-                executionContextFactory.copyWith(row, relName, r, toName, other)
-            }
+        row.getByName(fromName) match {
+          case n: VirtualNodeValue =>
+            val relationships = state.query.getRelationshipsForIds(n.id(), dir, types.types(state.query))
+            PrimitiveLongHelper.map(relationships, relId => {
+              val other = relationships.otherNodeId(n.id())
+              rowFactory.copyWith(row, relName, VirtualValues.relationship(relId, relationships.startNodeId(), relationships.endNodeId(), relationships.typeId()), toName, VirtualValues.node(other))
 
-          case Values.NO_VALUE => None
+            })
+          case IsNoValue() => ClosingIterator.empty
 
-          case value => throw new InternalException(s"Expected to find a node at '$fromName' but found $value instead")
+          case value => throw new ParameterWrongTypeException(s"Expected to find a node at '$fromName' but found $value instead")
         }
     }
   }
-
-  def typeNames = types.names
-
-  def getFromNode(row: ExecutionContext): AnyValue =
-    row.getOrElse(fromName, throw new InternalException(s"Expected to find a node at '$fromName' but found nothing"))
 }

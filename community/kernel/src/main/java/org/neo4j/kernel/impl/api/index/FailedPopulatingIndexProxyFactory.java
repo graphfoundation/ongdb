@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,36 +38,29 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.neo4j.kernel.api.index.IndexPopulator;
+import org.neo4j.kernel.api.index.MinimalIndexAccessor;
 import org.neo4j.logging.LogProvider;
 
 import static org.neo4j.kernel.impl.api.index.IndexPopulationFailure.failure;
 
 public class FailedPopulatingIndexProxyFactory implements FailedIndexProxyFactory
 {
-    private final IndexMeta indexMeta;
-    private final IndexPopulator populator;
-    private final String indexUserDescription;
-    private final IndexCountsRemover indexCountsRemover;
+    private final IndexProxyStrategy indexProxyStrategy;
+    private final MinimalIndexAccessor minimalIndexAccessor;
     private final LogProvider logProvider;
 
-    FailedPopulatingIndexProxyFactory( IndexMeta indexMeta,
-            IndexPopulator populator,
-            String indexUserDescription,
-            IndexCountsRemover indexCountsRemover,
+    FailedPopulatingIndexProxyFactory( IndexProxyStrategy indexProxyStrategy,
+            MinimalIndexAccessor minimalIndexAccessor,
             LogProvider logProvider )
     {
-        this.indexMeta = indexMeta;
-        this.populator = populator;
-        this.indexUserDescription = indexUserDescription;
-        this.indexCountsRemover = indexCountsRemover;
+        this.indexProxyStrategy = indexProxyStrategy;
+        this.minimalIndexAccessor = minimalIndexAccessor;
         this.logProvider = logProvider;
     }
 
     @Override
     public IndexProxy create( Throwable failure )
     {
-        return new FailedIndexProxy( indexMeta, indexUserDescription, populator, failure( failure ),
-                indexCountsRemover, logProvider );
+        return new FailedIndexProxy( indexProxyStrategy, minimalIndexAccessor, failure( failure ), logProvider );
     }
 }

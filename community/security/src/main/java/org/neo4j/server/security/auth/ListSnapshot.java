@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -44,13 +44,11 @@ public class ListSnapshot<T>
 {
     private final long timestamp;
     private final List<T> values;
-    private final boolean fromPersisted;
 
-    public ListSnapshot( long timestamp, List<T> values, boolean fromPersisted )
+    public ListSnapshot( long timestamp, List<T> values )
     {
         this.timestamp = timestamp;
         this.values = values;
-        this.fromPersisted = fromPersisted;
     }
 
     public long timestamp()
@@ -62,12 +60,4 @@ public class ListSnapshot<T>
     {
         return values;
     }
-
-    public boolean fromPersisted()
-    {
-        return fromPersisted;
-    }
-
-    public static final boolean FROM_PERSISTED = true;
-    public static final boolean FROM_MEMORY = false;
 }

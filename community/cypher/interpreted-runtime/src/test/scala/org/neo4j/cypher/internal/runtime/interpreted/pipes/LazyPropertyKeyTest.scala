@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,14 +38,16 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.mockito.Mockito._
-import org.neo4j.cypher.internal.util.v3_4.{DummyPosition, PropertyKeyId}
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.frontend.v3_4.semantics.SemanticTable
-import org.neo4j.cypher.internal.planner.v3_4.spi.TokenContext
-import org.neo4j.cypher.internal.v3_4.expressions.PropertyKeyName
-
-import scala.collection.mutable
+import org.mockito.Mockito.verify
+import org.mockito.Mockito.verifyNoInteractions
+import org.mockito.Mockito.verifyNoMoreInteractions
+import org.mockito.Mockito.when
+import org.neo4j.cypher.internal.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.expressions.PropertyKeyName
+import org.neo4j.cypher.internal.planner.spi.ReadTokenContext
+import org.neo4j.cypher.internal.util.DummyPosition
+import org.neo4j.cypher.internal.util.PropertyKeyId
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
 class LazyPropertyKeyTest extends CypherFunSuite {
   private val pos = DummyPosition(0)
@@ -55,21 +57,21 @@ class LazyPropertyKeyTest extends CypherFunSuite {
   test("if key is resolved, don't do any lookups") {
     // GIVEN
     implicit val table = mock[SemanticTable]
-    val context = mock[TokenContext]
+    val context = mock[ReadTokenContext]
     when(table.id(PROPERTY_KEY_NAME)).thenReturn(Some(PROPERTY_KEY_ID))
 
     //WHEN
     val id = LazyPropertyKey(PROPERTY_KEY_NAME).id(context)
 
     // THEN
-    id should equal(Some(PROPERTY_KEY_ID))
-    verifyZeroInteractions(context)
+    id should equal(PROPERTY_KEY_ID.id)
+    verifyNoInteractions(context)
   }
 
   test("if key is not resolved, do a lookup") {
     // GIVEN
     implicit val table = mock[SemanticTable]
-    val context = mock[TokenContext]
+    val context = mock[ReadTokenContext]
     when(context.getOptPropertyKeyId(PROPERTY_KEY_NAME.name)).thenReturn(Some(PROPERTY_KEY_ID.id))
     when(table.id(PROPERTY_KEY_NAME)).thenReturn(None)
 
@@ -77,24 +79,24 @@ class LazyPropertyKeyTest extends CypherFunSuite {
     val id = LazyPropertyKey(PROPERTY_KEY_NAME).id(context)
 
     // THEN
-    id should equal(Some(PROPERTY_KEY_ID))
-    verify(context, times(1)).getOptPropertyKeyId("foo")
+    id should equal(PROPERTY_KEY_ID.id)
+    verify(context).getOptPropertyKeyId("foo")
     verifyNoMoreInteractions(context)
   }
 
   test("multiple calls to id should result in only one lookup") {
     // GIVEN
     implicit val table = mock[SemanticTable]
-    val context = mock[TokenContext]
+    val context = mock[ReadTokenContext]
     when(context.getOptPropertyKeyId(PROPERTY_KEY_NAME.name)).thenReturn(Some(PROPERTY_KEY_ID.id))
     when(table.id(PROPERTY_KEY_NAME)).thenReturn(None)
 
     // WHEN
     val lazyPropertyKey = LazyPropertyKey(PROPERTY_KEY_NAME)
-    for (i <- 1 to 100) lazyPropertyKey.id(context)
+    for (_ <- 1 to 100) lazyPropertyKey.id(context)
 
     // THEN
-    verify(context, times(1)).getOptPropertyKeyId("foo")
+    verify(context).getOptPropertyKeyId("foo")
     verifyNoMoreInteractions(context)
   }
 }

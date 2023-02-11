@@ -87,26 +87,28 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
         <maven.repository.snapshots>https://oss.sonatype.org/content/repositories/snapshots</maven.repository.snapshots>
         <maven.repository.releases>https://oss.sonatype.org/service/local/staging/deploy/maven2</maven.repository.releases>
         <licensing.prepend.text>licensing/notice-agpl-prefix.txt</licensing.prepend.text>
-        <lucene.version>5.5.5</lucene.version>
-        <bouncycastle.version>1.59</bouncycastle.version>
+        <lucene.version>8.11.2</lucene.version>
+        <bouncycastle.version>1.69</bouncycastle.version>
         <generate-config-docs-phase>prepare-package</generate-config-docs-phase>
-        <java.exports/>
         <test.runner.jvm/>
         <test.runner.jvm.settings.additional/>
-        <test.runner.jvm.settings>-Xmx2G -XX:+UseG1GC -XX:-OmitStackTraceInFastThrow -XX:+HeapDumpOnOutOfMemoryError
+        <test.runner.jvm.settings>-Xmx8G -XX:+UseG1GC -XX:-OmitStackTraceInFastThrow -XX:+HeapDumpOnOutOfMemoryError
             -XX:HeapDumpPath=target/test-data -Dorg.neo4j.unsafe.impl.internal.dragons.UnsafeUtil.DIRTY_MEMORY=true
             -Dorg.neo4j.unsafe.impl.internal.dragons.UnsafeUtil.CHECK_NATIVE_ACCESS=true
+            -Dorg.neo4j.kernel.impl.store.cursor.AbstractCachedStoreCursors.CHECK_READ_CURSORS=true
             -Dorg.neo4j.io.pagecache.impl.muninn.usePreciseCursorErrorStackTraces=true
             -Dorg.neo4j.kernel.impl.api.KernelStatement.trackStatements=true
             -Dorg.org.neo4j.kernel.impl.newapi.DefaultCursors.trackCursors=true
-            -XX:+UnlockExperimentalVMOptions -XX:+TrustFinalNonStaticFields ${java.exports} ${test.runner.jvm.settings.additional}
+            -Dorg.neo4j.internal.batchimport.Configuration.DEFAULT_BATCH_SIZE=10
+            -Djunit.jupiter.extensions.autodetection.enabled=true
+            -XX:+UnlockExperimentalVMOptions -XX:+TrustFinalNonStaticFields ${test.runner.jvm.settings.additional}
         </test.runner.jvm.settings>
-        <jetty.version>9.4.8.v20171121</jetty.version>
+        <jetty.version>9.4.48.v20220622</jetty.version>
         <findbugs.version>3.0.1</findbugs.version>
         <git.commit>unknown-commit</git.commit>
         <forkCounts>0</forkCounts>
@@ -116,13 +118,22 @@
         <currentYear>2022</currentYear>
 
         <scala-maven-plugin.version>3.3.2</scala-maven-plugin.version>
-        <scala.version>2.11.12</scala.version>
-        <scala.binary.version>2.11</scala.binary.version>
-        <asm.version>6.2.1</asm.version>
+        <scala.version>2.12.13</scala.version>
+        <scala.binary.version>2.12</scala.binary.version>
+        <asm.version>9.2</asm.version>
         <metrics.version>4.0.2</metrics.version>
         <scala.target.vm>1.8</scala.target.vm>
         <scala.java.arg/>
-        <jersey.version>1.19.3</jersey.version>
+        <jackson.version>2.13.4</jackson.version>
+        <jackson-databind.version>2.13.4.2</jackson-databind.version>
+        <jamm.version>0.3.3</jamm.version>
+        <jersey.version>2.34</jersey.version>
+        <junit.platform.version>1.6.2</junit.platform.version>
+        <junit.version>5.8.2</junit.version>
+        <log4j.version>2.17.1</log4j.version>
+        <mockito.version>3.12.4</mockito.version>
+        <neo4j-java-driver.version>4.4.11</neo4j-java-driver.version>
+        <opencypher.version>1.0.0-M16</opencypher.version>
         <checkstyle.strict>true</checkstyle.strict>
 
         <cypher.compatibility.23>2.3.12</cypher.compatibility.23>
@@ -132,11 +143,12 @@
 
     <modules>
         <module>build-resources</module>
+        <module>annotations</module>
         <module>community</module>
-        <module>enterprise</module>
-        <module>integrationtests</module>
-        <module>stresstests</module>
-        <module>tools</module>
+        <!--        <module>enterprise</module>-->
+        <!--        <module>integrationtests</module>-->
+        <!--        <module>stresstests</module>-->
+        <!--        <module>tools</module>-->
         <module>packaging</module>
     </modules>
 
@@ -187,7 +199,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
-                    <version>3.2.0</version>
+                    <version>3.3.1</version>
                     <executions>
                         <execution>
                             <id>generate-javadocs</id>
@@ -418,6 +430,13 @@
                             <exclude>**/*IntegrationTest.class</exclude>
                         </excludes>
                     </configuration>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.junit.platform</groupId>
+                            <artifactId>junit-platform-launcher</artifactId>
+                            <version>${junit.platform.version}</version>
+                        </dependency>
+                    </dependencies>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -516,7 +535,7 @@
                 <plugin>
                     <groupId>org.neo4j.build.plugins</groupId>
                     <artifactId>licensing-maven-plugin</artifactId>
-                    <version>1.7.9</version>
+                    <version>1.7.10</version>
                     <configuration>
                         <failIfDisliked>false</failIfDisliked>
                         <failIfMissing>true</failIfMissing>
@@ -630,7 +649,9 @@
                     <configuration>
                         <showDeprecation>true</showDeprecation>
                         <showWarnings>true</showWarnings>
-                        <compilerArgument>${java.exports}</compilerArgument>
+                        <compilerArgs>
+                            <arg>-Xpkginfo:always</arg>
+                        </compilerArgs>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -742,7 +763,7 @@
                     <dependency>
                         <groupId>com.puppycrawl.tools</groupId>
                         <artifactId>checkstyle</artifactId>
-                        <version>8.8</version>
+                        <version>9.0</version>
                     </dependency>
                 </dependencies>
                 <executions>
@@ -1019,8 +1040,58 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${jackson-databind.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.jaxrs</groupId>
+                <artifactId>jackson-jaxrs-json-provider</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.auto</groupId>
+                <artifactId>auto-common</artifactId>
+                <version>1.1.2</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.auto.service</groupId>
+                <artifactId>auto-service</artifactId>
+                <version>1.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.kohlschutter.junixsocket</groupId>
+                <artifactId>junixsocket-core</artifactId>
+                <version>2.3.4</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-math3</artifactId>
+                <version>3.6.1</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-api</artifactId>
+                <version>${log4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-core</artifactId>
+                <version>${log4j.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.apache.lucene</groupId>
                 <artifactId>lucene-analyzers-common</artifactId>
+                <version>${lucene.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.lucene</groupId>
+                <artifactId>lucene-backward-codecs</artifactId>
                 <version>${lucene.version}</version>
             </dependency>
             <dependency>
@@ -1051,12 +1122,57 @@
             <dependency>
                 <groupId>org.apache.shiro</groupId>
                 <artifactId>shiro-core</artifactId>
-                <version>1.6.0</version>
+                <version>1.11.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.assertj</groupId>
+                <artifactId>assertj-core</artifactId>
+                <version>3.21.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.awaitility</groupId>
+                <artifactId>awaitility</artifactId>
+                <version>4.1.0</version>
             </dependency>
             <dependency>
                 <groupId>com.github.ben-manes.caffeine</groupId>
                 <artifactId>caffeine</artifactId>
                 <version>2.6.2</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.jbellis</groupId>
+                <artifactId>jamm</artifactId>
+                <version>${jamm.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.luben</groupId>
+                <artifactId>zstd-jni</artifactId>
+                <version>1.5.0-4</version>
+            </dependency>
+            <dependency>
+                <groupId>org.glassfish.jaxb</groupId>
+                <artifactId>jaxb-runtime</artifactId>
+                <version>2.3.6</version>
+            </dependency>
+            <dependency>
+                <groupId>org.glassfish.jersey.containers</groupId>
+                <artifactId>jersey-container-servlet</artifactId>
+                <version>${jersey.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.glassfish.jersey.core</groupId>
+                <artifactId>jersey-server</artifactId>
+                <version>${jersey.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.glassfish.jersey.inject</groupId>
+                <artifactId>jersey-hk2</artifactId>
+                <version>${jersey.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jctools</groupId>
+                <artifactId>jctools-core</artifactId>
+                <version>3.3.0</version>
             </dependency>
             <dependency>
                 <groupId>org.slf4j</groupId>
@@ -1073,7 +1189,7 @@
             <dependency>
                 <groupId>org.neo4j.driver</groupId>
                 <artifactId>neo4j-java-driver</artifactId>
-                <version>1.7.5</version>
+                <version>${neo4j-java-driver.version}</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
@@ -1081,6 +1197,12 @@
                 <artifactId>apacheds-server-integ</artifactId>
                 <version>2.0.0-M21</version>
                 <scope>test</scope>
+                <exclusions>
+                    <exclusion>
+                        <groupId>log4j</groupId>
+                        <artifactId>log4j</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>com.google.guava</groupId>
@@ -1106,6 +1228,11 @@
                 <version>4.4.5</version>
             </dependency>
             <dependency>
+                <groupId>org.graphfoundation.ongdb</groupId>
+                <artifactId>annotations</artifactId>
+                <version>2.0.0-SNAPSHOT</version>
+            </dependency>
+            <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-log4j12</artifactId>
                 <version>1.7.25</version>
@@ -1117,9 +1244,15 @@
                 <groupId>junit</groupId>
                 <artifactId>junit</artifactId>
                 <version>4.12</version>
-                <scope>test</scope>
+                <scope>provided</scope>
             </dependency>
 
+            <dependency>
+                <groupId>org.hamcrest</groupId>
+                <artifactId>hamcrest</artifactId>
+                <version>2.2</version>
+                <scope>test</scope>
+            </dependency>
             <dependency>
                 <groupId>org.hamcrest</groupId>
                 <artifactId>hamcrest-core</artifactId>
@@ -1138,11 +1271,41 @@
                 <version>1.3</version>
                 <scope>test</scope>
             </dependency>
+            <dependency>
+                <groupId>org.junit.platform</groupId>
+                <artifactId>junit-platform-launcher</artifactId>
+                <version>${junit.platform.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.platform</groupId>
+                <artifactId>junit-platform-testkit</artifactId>
+                <version>${junit.platform.version}</version>
+                <scope>test</scope>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.junit.platform</groupId>
+                        <artifactId>*</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.vintage</groupId>
+                <artifactId>junit-vintage-engine</artifactId>
+                <version>${junit.version}</version>
+                <scope>test</scope>
+            </dependency>
 
             <dependency>
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-core</artifactId>
-                <version>2.28.2</version>
+                <version>${mockito.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-junit-jupiter</artifactId>
+                <version>${mockito.version}</version>
                 <scope>test</scope>
             </dependency>
 
@@ -1152,8 +1315,19 @@
                 <version>1.11</version>
                 <scope>test</scope>
             </dependency>
+            <dependency>
+                <groupId>commons-logging</groupId>
+                <artifactId>commons-logging</artifactId>
+                <version>1.2</version>
+            </dependency>
 
             <!-- scala -->
+            <dependency>
+                <groupId>org.json4s</groupId>
+                <artifactId>json4s-native_${scala.binary.version}</artifactId>
+                <version>3.6.5</version>
+                <scope>test</scope>
+            </dependency>
             <dependency>
                 <groupId>org.scala-lang</groupId>
                 <artifactId>scala-library</artifactId>
@@ -1172,9 +1346,15 @@
 
             <!-- scala test dependencies -->
             <dependency>
+                <groupId>com.lihaoyi</groupId>
+                <artifactId>pprint_${scala.binary.version}</artifactId>
+                <version>0.6.0</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
                 <groupId>org.scalatest</groupId>
-                <artifactId>scalatest_2.11</artifactId>
-                <version>2.2.5</version>
+                <artifactId>scalatest_${scala.binary.version}</artifactId>
+                <version>3.0.5</version>
                 <scope>test</scope>
                 <exclusions>
                     <exclusion>
@@ -1205,8 +1385,8 @@
             </dependency>
             <dependency>
                 <groupId>org.scalacheck</groupId>
-                <artifactId>scalacheck_2.11</artifactId>
-                <version>1.12.5</version>
+                <artifactId>scalacheck_${scala.binary.version}</artifactId>
+                <version>1.14.0</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
@@ -1224,6 +1404,24 @@
                         <groupId>org.scala-lang</groupId>
                     </exclusion>
                 </exclusions>
+            </dependency>
+
+            <!-- annotations -->
+            <dependency>
+                <groupId>org.eclipse.collections</groupId>
+                <artifactId>eclipse-collections</artifactId>
+                <version>10.4.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter</artifactId>
+                <version>${junit.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.google.truth</groupId>
+                <artifactId>truth</artifactId>
+                <version>1.1.3</version>
             </dependency>
 
             <!-- other -->
@@ -1250,12 +1448,12 @@
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-lang3</artifactId>
-                <version>3.8.1</version>
+                <version>3.12.0</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-text</artifactId>
-                <version>1.4</version>
+                <version>1.10.0</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>
@@ -1280,11 +1478,40 @@
                 <artifactId>netty-all</artifactId>
                 <version>4.1.24.Final</version>
             </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>4.1.86.Final</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.projectreactor</groupId>
+                <artifactId>reactor-bom</artifactId>
+                <version>2020.0.16</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>javax.ws.rs</groupId>
+                <artifactId>javax.ws.rs-api</artifactId>
+                <version>2.1.1</version>
+            </dependency>
+            <dependency>
+                <groupId>javax.xml.bind</groupId>
+                <artifactId>jaxb-api</artifactId>
+                <version>2.3.0</version>
+            </dependency>
 
             <dependency>
                 <groupId>log4j</groupId>
                 <artifactId>log4j</artifactId>
                 <version>1.2.17</version>
+            </dependency>
+            <dependency>
+                <groupId>net.java.dev.jna</groupId>
+                <artifactId>jna</artifactId>
+                <version>5.9.0</version>
             </dependency>
             <dependency>
                 <groupId>net.sf.opencsv</groupId>
@@ -1338,6 +1565,11 @@
                 <groupId>org.codehaus.jackson</groupId>
                 <artifactId>jackson-mapper-asl</artifactId>
                 <version>1.9.13</version>
+            </dependency>
+            <dependency>
+                <groupId>org.codehaus.jettison</groupId>
+                <artifactId>jettison</artifactId>
+                <version>1.5.3</version>
             </dependency>
             <dependency>
                 <groupId>org.eclipse.jetty</groupId>
@@ -1410,7 +1642,7 @@
             <dependency>
                 <groupId>com.google.testing.compile</groupId>
                 <artifactId>compile-testing</artifactId>
-                <version>0.15</version>
+                <version>0.19</version>
                 <scope>test</scope>
             </dependency>
         </dependencies>

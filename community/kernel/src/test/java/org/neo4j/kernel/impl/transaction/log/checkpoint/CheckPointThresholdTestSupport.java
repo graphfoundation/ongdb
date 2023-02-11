@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,29 +38,33 @@
  */
 package org.neo4j.kernel.impl.transaction.log.checkpoint;
 
-import org.junit.Before;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.time.Duration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.configuration.SettingImpl;
+import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.pruning.LogPruning;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.time.Clocks;
 import org.neo4j.time.FakeClock;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.neo4j.helpers.collection.MapUtil.stringMap;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class CheckPointThresholdTestSupport
 {
+    public static final long ARBITRARY_LOG_VERSION = 5;
+    public static final long ARBITRARY_LOG_OFFSET = 128;
+    public static final LogPosition ARBITRARY_LOG_POSITION = new LogPosition( ARBITRARY_LOG_VERSION, ARBITRARY_LOG_OFFSET );
+
     protected Config config;
     protected FakeClock clock;
     protected LogPruning logPruning;
@@ -71,7 +75,7 @@ public class CheckPointThresholdTestSupport
     protected BlockingQueue<String> triggerConsumer;
     protected Consumer<String> triggered;
 
-    @Before
+    @BeforeEach
     public void setUp()
     {
         config = Config.defaults();
@@ -82,22 +86,24 @@ public class CheckPointThresholdTestSupport
         intervalTime = config.get( GraphDatabaseSettings.check_point_interval_time );
         triggerConsumer = new LinkedBlockingQueue<>();
         triggered = triggerConsumer::offer;
-        notTriggered = s -> fail( "Should not have triggered: " + s );
+        notTriggered = s -> Assertions.fail( "Should not have triggered: " + s );
     }
 
     protected void withPolicy( String policy )
     {
-        config.augment( stringMap( GraphDatabaseSettings.check_point_policy.name(), policy ) );
+        config.set( GraphDatabaseSettings.check_point_policy,
+                ((SettingImpl<GraphDatabaseSettings.CheckpointPolicy>) GraphDatabaseSettings.check_point_policy).parse( policy ) );
     }
 
     protected void withIntervalTime( String time )
     {
-        config.augment( stringMap( GraphDatabaseSettings.check_point_interval_time.name(), time ) );
+        config.set( GraphDatabaseSettings.check_point_interval_time ,
+                ((SettingImpl<Duration>) GraphDatabaseSettings.check_point_interval_time).parse( time ) );
     }
 
     protected void withIntervalTx( int count )
     {
-        config.augment( stringMap( GraphDatabaseSettings.check_point_interval_tx.name(), String.valueOf( count ) ) );
+        config.set( GraphDatabaseSettings.check_point_interval_tx, count );
     }
 
     protected CheckPointThreshold createThreshold()
@@ -105,9 +111,9 @@ public class CheckPointThresholdTestSupport
         return CheckPointThreshold.createThreshold( config, clock, logPruning, logProvider );
     }
 
-    protected void verifyTriggered( String reason )
+    protected void verifyTriggered( String... reason )
     {
-        assertThat( triggerConsumer.poll(), containsString( reason ) );
+        assertThat( triggerConsumer.poll() ).contains( reason );
     }
 
     protected void verifyNoMoreTriggers()

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,11 +38,11 @@
  */
 package org.neo4j.values.virtual;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.values.storable.Values.booleanValue;
 import static org.neo4j.values.storable.Values.intValue;
 import static org.neo4j.values.storable.Values.longValue;
@@ -52,10 +52,10 @@ import static org.neo4j.values.virtual.VirtualValues.EMPTY_LIST;
 import static org.neo4j.values.virtual.VirtualValues.concat;
 import static org.neo4j.values.virtual.VirtualValues.list;
 
-public class ConcatListTest
+class ConcatListTest
 {
     @Test
-    public void shouldHandleZeroListConcatenation()
+    void shouldHandleZeroListConcatenation()
     {
         // Given
         ListValue inner = EMPTY_LIST;
@@ -68,7 +68,23 @@ public class ConcatListTest
     }
 
     @Test
-    public void shouldHandleSingleListConcatenation()
+    void shouldKeepRepresentationWithEmptyListConcatenation()
+    {
+        // Given
+        ListValue list = list( stringValue( "foo" ) );
+        ListValue emptyList = EMPTY_LIST;
+
+        // When
+        ListValue concat = concat( list, emptyList );
+        ListValue concatReverse = concat( emptyList, list );
+
+        // Then
+        assertEquals( concat.itemValueRepresentation(), concatReverse.itemValueRepresentation() );
+        assertEquals( concat.itemValueRepresentation(), list.itemValueRepresentation() );
+    }
+
+    @Test
+    void shouldHandleSingleListConcatenation()
     {
         // Given
         ListValue inner = list( stringValue( "foo" ), longValue( 42 ), booleanValue( true ) );
@@ -83,7 +99,7 @@ public class ConcatListTest
     }
 
     @Test
-    public void shouldHandleMultipleListConcatenation()
+    void shouldHandleMultipleListConcatenation()
     {
         // Given
         ListValue inner1 = list( stringValue( "foo" ), longValue( 42 ), booleanValue( true ) );

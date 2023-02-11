@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,14 +38,17 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
+import org.neo4j.internal.helpers.ArrayUtil
+
 import scala.collection.immutable
 
 /**
-  * An inclusive long range that is also indexable as long as the total length of the range is less than `Int.MaxValue`
-  * @param start beginning of range (inclusive)
-  * @param end end of range (inclusive)
-  * @param step step between elements of range
-  */
+ * An inclusive long range that is also indexable as long as the total length of the range is less than `Int.MaxValue`
+ *
+ * @param start beginning of range (inclusive)
+ * @param end end of range (inclusive)
+ * @param step step between elements of range
+ */
 case class IndexedInclusiveLongRange(start: Long, end: Long, step: Long) extends immutable.IndexedSeq[Long] {
 
   private val check: (Long, Long) => Boolean = if (step.signum > 0) _ <= _ else _ >= _
@@ -67,7 +70,7 @@ case class IndexedInclusiveLongRange(start: Long, end: Long, step: Long) extends
   override def length: Int = if (len != -1) len
   else {
     val l = ((end - start) / step) + 1
-    if (l > Int.MaxValue) throw new OutOfMemoryError(s"Cannot index an collection of size $l")
+    if (l > ArrayUtil.MAX_ARRAY_SIZE) throw new OutOfMemoryError(s"Cannot index an collection of size $l")
     len = l.toInt
     len
   }

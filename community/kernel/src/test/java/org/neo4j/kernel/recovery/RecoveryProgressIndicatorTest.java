@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,31 +38,34 @@
  */
 package org.neo4j.kernel.recovery;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Answers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import org.neo4j.kernel.impl.core.StartupStatisticsProvider;
+import org.neo4j.common.ProgressReporter;
+import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.kernel.impl.transaction.CommittedTransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.TransactionCursor;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryCommit;
-import org.neo4j.kernel.impl.util.monitoring.ProgressReporter;
+import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.neo4j.kernel.impl.transaction.log.entry.LogVersions.CURRENT_FORMAT_LOG_HEADER_SIZE;
+import static org.neo4j.kernel.recovery.RecoveryStartupChecker.EMPTY_CHECKER;
+import static org.neo4j.storageengine.api.TransactionIdStore.BASE_TX_CHECKSUM;
 
-public class RecoveryProgressIndicatorTest
+class RecoveryProgressIndicatorTest
 {
 
     @Test
-    public void reportProgressOnRecovery() throws Throwable
+    void reportProgressOnRecovery() throws Throwable
     {
         RecoveryService recoveryService = mock( RecoveryService.class, Answers.RETURNS_MOCKS );
-        StartupStatisticsProvider statisticsProvider = mock( StartupStatisticsProvider.class );
         CorruptedLogsTruncator logsTruncator = mock( CorruptedLogsTruncator.class );
         RecoveryMonitor recoveryMonitor = mock( RecoveryMonitor.class );
         TransactionCursor reverseTransactionCursor = mock( TransactionCursor.class );
@@ -72,23 +75,24 @@ public class RecoveryProgressIndicatorTest
         int transactionsToRecover = 5;
         int expectedMax = transactionsToRecover * 2;
         int lastCommittedTransactionId = 14;
-        LogPosition recoveryStartPosition = LogPosition.start( 0 );
+        LogPosition transactionLogPosition = new LogPosition( 0, CURRENT_FORMAT_LOG_HEADER_SIZE );
+        LogPosition checkpointLogPosition = new LogPosition( 0, CURRENT_FORMAT_LOG_HEADER_SIZE );
         int firstTxIdAfterLastCheckPoint = 10;
-        RecoveryStartInformation startInformation = new RecoveryStartInformation( recoveryStartPosition, firstTxIdAfterLastCheckPoint );
+        RecoveryStartInformation startInformation = new RecoveryStartInformation( transactionLogPosition, checkpointLogPosition, firstTxIdAfterLastCheckPoint );
 
         when( reverseTransactionCursor.next() ).thenAnswer( new NextTransactionAnswer( transactionsToRecover ) );
         when( transactionCursor.next() ).thenAnswer( new NextTransactionAnswer( transactionsToRecover ) );
         when( reverseTransactionCursor.get() ).thenReturn( transactionRepresentation );
         when( transactionCursor.get() ).thenReturn( transactionRepresentation );
-        when( transactionRepresentation.getCommitEntry() ).thenReturn( new LogEntryCommit( lastCommittedTransactionId, 1L ) );
+        when( transactionRepresentation.getCommitEntry() ).thenReturn( new LogEntryCommit( lastCommittedTransactionId, 1L, BASE_TX_CHECKSUM ) );
 
         when( recoveryService.getRecoveryStartInformation() ).thenReturn( startInformation );
-        when( recoveryService.getTransactionsInReverseOrder( recoveryStartPosition ) ).thenReturn( reverseTransactionCursor );
-        when( recoveryService.getTransactions( recoveryStartPosition ) ).thenReturn( transactionCursor );
+        when( recoveryService.getTransactionsInReverseOrder( transactionLogPosition ) ).thenReturn( reverseTransactionCursor );
+        when( recoveryService.getTransactions( transactionLogPosition ) ).thenReturn( transactionCursor );
 
         AssertableProgressReporter progressReporter = new AssertableProgressReporter( expectedMax );
-        Recovery recovery = new Recovery( recoveryService, statisticsProvider, logsTruncator, recoveryMonitor,
-                progressReporter, true );
+        TransactionLogsRecovery recovery = new TransactionLogsRecovery( recoveryService, logsTruncator, new LifecycleAdapter(), recoveryMonitor,
+                progressReporter, true, EMPTY_CHECKER, RecoveryPredicate.ALL, PageCacheTracer.NULL );
         recovery.init();
 
         progressReporter.verify();
@@ -126,9 +130,9 @@ public class RecoveryProgressIndicatorTest
 
         public void verify()
         {
-            assertTrue( "Progress reporting was not completed.", completed );
-            assertEquals( "Number of max recovered transactions is different.", expectedMax, max );
-            assertEquals( "Number of recovered transactions is different.", expectedMax, recoveredTransactions );
+            assertTrue( completed, "Progress reporting was not completed." );
+            assertEquals( expectedMax, max, "Number of max recovered transactions is different." );
+            assertEquals( expectedMax, recoveredTransactions, "Number of recovered transactions is different." );
         }
     }
 

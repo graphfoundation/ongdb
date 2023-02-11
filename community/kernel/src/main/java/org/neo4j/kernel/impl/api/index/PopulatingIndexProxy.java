@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,33 +38,33 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import java.io.File;
+import java.nio.file.Path;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.neo4j.graphdb.ResourceIterator;
-import org.neo4j.internal.kernel.api.IndexCapability;
 import org.neo4j.internal.kernel.api.InternalIndexState;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.io.pagecache.IOLimiter;
-import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
+import org.neo4j.internal.kernel.api.PopulationProgress;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexReader;
-import org.neo4j.storageengine.api.schema.PopulationProgress;
+import org.neo4j.kernel.api.index.TokenIndexReader;
+import org.neo4j.kernel.api.index.ValueIndexReader;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.values.storable.Value;
 
-import static org.neo4j.helpers.collection.Iterators.emptyResourceIterator;
+import static org.neo4j.internal.helpers.collection.Iterators.emptyResourceIterator;
 
 public class PopulatingIndexProxy implements IndexProxy
 {
-    private final IndexMeta indexMeta;
+    private final IndexProxyStrategy indexProxyStrategy;
     private final IndexPopulationJob job;
     private final MultipleIndexPopulator.IndexPopulation indexPopulation;
 
-    PopulatingIndexProxy( IndexMeta indexMeta, IndexPopulationJob job, MultipleIndexPopulator.IndexPopulation indexPopulation )
+    PopulatingIndexProxy( IndexProxyStrategy indexProxyStrategy, IndexPopulationJob job, MultipleIndexPopulator.IndexPopulation indexPopulation )
     {
-        this.indexMeta = indexMeta;
+        this.indexProxyStrategy = indexProxyStrategy;
         this.job = job;
         this.indexPopulation = indexPopulation;
     }
@@ -75,7 +75,13 @@ public class PopulatingIndexProxy implements IndexProxy
     }
 
     @Override
-    public IndexUpdater newUpdater( final IndexUpdateMode mode )
+    public void changeIdentity( IndexDescriptor descriptor )
+    {
+        indexProxyStrategy.changeIndexDescriptor( descriptor );
+    }
+
+    @Override
+    public IndexUpdater newUpdater( final IndexUpdateMode mode, CursorContext cursorContext )
     {
         switch ( mode )
         {
@@ -104,25 +110,13 @@ public class PopulatingIndexProxy implements IndexProxy
     @Override
     public void drop()
     {
-        job.cancelPopulation( indexPopulation );
+        job.dropPopulation( indexPopulation );
     }
 
     @Override
-    public SchemaIndexDescriptor getDescriptor()
+    public IndexDescriptor getDescriptor()
     {
-        return indexMeta.indexDescriptor();
-    }
-
-    @Override
-    public SchemaDescriptor schema()
-    {
-        return indexMeta.indexDescriptor().schema();
-    }
-
-    @Override
-    public IndexProvider.Descriptor getProviderDescriptor()
-    {
-        return indexMeta.providerDescriptor();
+        return indexProxyStrategy.getIndexDescriptor();
     }
 
     @Override
@@ -132,13 +126,7 @@ public class PopulatingIndexProxy implements IndexProxy
     }
 
     @Override
-    public IndexCapability getIndexCapability()
-    {
-        return indexMeta.indexCapability();
-    }
-
-    @Override
-    public void force( IOLimiter ioLimiter )
+    public void force( CursorContext cursorContext )
     {
         // Ignored... this isn't called from the outside while we're populating the index.
     }
@@ -150,22 +138,27 @@ public class PopulatingIndexProxy implements IndexProxy
     }
 
     @Override
-    public void close()
+    public void close( CursorContext cursorContext )
     {
-        job.cancelPopulation( indexPopulation );
+        job.stop( indexPopulation, cursorContext );
     }
 
     @Override
-    public IndexReader newReader() throws IndexNotFoundKernelException
+    public ValueIndexReader newValueReader() throws IndexNotFoundKernelException
     {
         throw new IndexNotFoundKernelException( "Index is still populating: " + job );
     }
 
     @Override
-    public boolean awaitStoreScanCompleted() throws InterruptedException
+    public TokenIndexReader newTokenReader() throws IndexNotFoundKernelException
     {
-        job.awaitCompletion();
-        return true;
+        throw new IndexNotFoundKernelException( "Index is still populating: " + job );
+    }
+
+    @Override
+    public boolean awaitStoreScanCompleted( long time, TimeUnit unit ) throws InterruptedException
+    {
+        return job.awaitCompletion( time, unit );
     }
 
     @Override
@@ -181,21 +174,21 @@ public class PopulatingIndexProxy implements IndexProxy
     }
 
     @Override
-    public void validateBeforeCommit( Value[] tuple )
+    public void validateBeforeCommit( Value[] tuple, long entityId )
     {
         // It's OK to put whatever values in while populating because it will take the natural path of failing the population.
     }
 
     @Override
-    public long getIndexId()
+    public ResourceIterator<Path> snapshotFiles()
     {
-        return indexMeta.getIndexId();
+        return emptyResourceIterator();
     }
 
     @Override
-    public ResourceIterator<File> snapshotFiles()
+    public Map<String,Value> indexConfig()
     {
-        return emptyResourceIterator();
+        return indexPopulation.populator.indexConfig();
     }
 
     @Override
@@ -207,7 +200,7 @@ public class PopulatingIndexProxy implements IndexProxy
     @Override
     public PopulationProgress getIndexPopulationProgress()
     {
-        return job.getPopulationProgress();
+        return job.getPopulationProgress( indexPopulation );
     }
 
     @Override
@@ -216,7 +209,7 @@ public class PopulatingIndexProxy implements IndexProxy
         return getClass().getSimpleName() + "[job:" + job + "]";
     }
 
-    private abstract class PopulatingIndexUpdater implements IndexUpdater
+    private abstract static class PopulatingIndexUpdater implements IndexUpdater
     {
         @Override
         public void close()

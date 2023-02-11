@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,24 +39,31 @@
 package org.neo4j.kernel.impl.query.clientconnection;
 
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
+
+import static org.neo4j.configuration.helpers.SocketAddress.format;
 
 /**
  * @see ClientConnectionInfo Parent class for documentation and tests.
  */
 public class HttpConnectionInfo extends ClientConnectionInfo
 {
+    private final String connectionId;
     private final String protocol;
-    private final InetSocketAddress clientAddress;
-    private final InetSocketAddress serverAddress;
+    private final SocketAddress clientAddress;
+    private final SocketAddress serverAddress;
     private final String requestPath;
 
     public HttpConnectionInfo(
+            String connectionId,
             String protocol,
-            @SuppressWarnings( "unused" ) String userAgent, // useful for achieving parity with BoltConnectionInfo
-            InetSocketAddress clientAddress,
-            InetSocketAddress serverAddress,
+            SocketAddress clientAddress,
+            SocketAddress serverAddress,
             String requestPath )
     {
+        this.connectionId = connectionId;
         this.protocol = protocol;
         this.clientAddress = clientAddress;
         this.serverAddress = serverAddress;
@@ -66,7 +73,7 @@ public class HttpConnectionInfo extends ClientConnectionInfo
     @Override
     public String asConnectionDetails()
     {
-        return String.join( "\t", "server-session", protocol, clientAddress.getHostString(), requestPath );
+        return String.join( "\t", "server-session", protocol, getHostString( clientAddress ), requestPath );
     }
 
     @Override
@@ -76,19 +83,27 @@ public class HttpConnectionInfo extends ClientConnectionInfo
     }
 
     @Override
+    public String connectionId()
+    {
+        return connectionId;
+    }
+
+    @Override
     public String clientAddress()
     {
-        return String.format( "%s:%s", clientAddress.getHostString(), clientAddress.getPort() );
+        return format( clientAddress );
     }
 
     @Override
     public String requestURI()
     {
-        return serverAddress == null ? requestPath : String.format(
-                "%s://%s:%d%s",
-                protocol,
-                serverAddress.getHostString(),
-                serverAddress.getPort(),
-                requestPath );
+        return serverAddress == null
+               ? requestPath
+               : protocol + "://" + format( serverAddress ) + requestPath;
+    }
+
+    private static String getHostString( SocketAddress address )
+    {
+        return address instanceof InetSocketAddress ? ((InetSocketAddress) address).getHostString() : address.toString();
     }
 }

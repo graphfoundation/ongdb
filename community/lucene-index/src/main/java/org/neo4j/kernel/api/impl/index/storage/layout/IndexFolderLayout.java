@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,7 @@
  */
 package org.neo4j.kernel.api.impl.index.storage.layout;
 
-import java.io.File;
+import java.nio.file.Path;
 
 /**
  * Default implementation of {@link FolderLayout} for partitioned lucene index.
@@ -47,22 +47,22 @@ import java.io.File;
  */
 public class IndexFolderLayout implements FolderLayout
 {
-    private final File indexFolder;
+    private final Path indexFolder;
 
-    public IndexFolderLayout( File rootDirectory )
+    public IndexFolderLayout( Path rootDirectory )
     {
         this.indexFolder = rootDirectory;
     }
 
     @Override
-    public File getIndexFolder()
+    public Path getIndexFolder()
     {
         return indexFolder;
     }
 
     @Override
-    public File getPartitionFolder( int partition )
+    public Path getPartitionFolder( int partition )
     {
-        return new File( indexFolder, String.valueOf( partition ) );
+        return indexFolder.resolve( String.valueOf( partition ) );
     }
 }

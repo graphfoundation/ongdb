@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,258 +38,115 @@
  */
 package org.neo4j.server;
 
-import com.sun.jersey.api.container.ContainerException;
-import com.sun.jersey.api.core.HttpContext;
-import com.sun.jersey.api.core.ResourceConfig;
-import com.sun.jersey.api.core.ResourceContext;
-import com.sun.jersey.core.header.InBoundHeaders;
-import com.sun.jersey.core.spi.component.ioc.IoCComponentProviderFactory;
-import com.sun.jersey.core.util.FeaturesAndProperties;
-import com.sun.jersey.server.impl.inject.ServerInjectableProviderFactory;
-import com.sun.jersey.spi.MessageBodyWorkers;
-import com.sun.jersey.spi.container.ContainerRequest;
-import com.sun.jersey.spi.container.ContainerResponse;
-import com.sun.jersey.spi.container.ContainerResponseWriter;
-import com.sun.jersey.spi.container.ExceptionMapperContext;
-import com.sun.jersey.spi.container.WebApplication;
-import com.sun.jersey.spi.monitoring.DispatchingListener;
-import com.sun.jersey.spi.monitoring.RequestListener;
-import com.sun.jersey.spi.monitoring.ResponseListener;
-import org.junit.Test;
+import org.glassfish.jersey.internal.PropertiesDelegate;
+import org.glassfish.jersey.server.ContainerRequest;
+import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
-import javax.ws.rs.ext.Providers;
+import java.util.List;
+import java.util.Map;
+import javax.ws.rs.core.SecurityContext;
 
 import org.neo4j.server.web.XForwardFilter;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
-public class XForwardFilterTest
+class XForwardFilterTest
 {
     private static final String X_FORWARD_HOST_HEADER_KEY = "X-Forwarded-Host";
     private static final String X_FORWARD_PROTO_HEADER_KEY = "X-Forwarded-Proto";
 
     @Test
-    public void shouldSetTheBaseUriToTheSameValueAsTheXForwardHostHeader()
+    void shouldSetTheBaseUriToTheSameValueAsTheXForwardHostHeader()
     {
         // given
-        final String xForwardHostAndPort = "jimwebber.org:1234";
+        var xForwardHostAndPort = "jimwebber.org:1234";
 
-        XForwardFilter filter = new XForwardFilter();
+        var filter = new XForwardFilter();
 
-        InBoundHeaders headers = new InBoundHeaders();
-        headers.add( X_FORWARD_HOST_HEADER_KEY, xForwardHostAndPort );
+        var headers = Map.of( X_FORWARD_HOST_HEADER_KEY, List.of( xForwardHostAndPort ) );
 
-        ContainerRequest request = new ContainerRequest( WEB_APPLICATION, "GET",
-                URI.create( "http://iansrobinson.com" ), URI.create( "http://iansrobinson.com/foo/bar" ),
-                headers, INPUT_STREAM );
+        var request = new ContainerRequest(
+                URI.create( "http://iansrobinson.com" ), URI.create( "http://iansrobinson.com/foo/bar" ), "GET",
+                mock( SecurityContext.class ), mock( PropertiesDelegate.class ), null );
+
+        request.headers( headers );
 
         // when
-        ContainerRequest result = filter.filter( request );
+        filter.filter( request );
 
         // then
-        assertThat( result.getBaseUri().toString(), containsString( xForwardHostAndPort ) );
+        assertThat( request.getBaseUri().toString() ).contains( xForwardHostAndPort );
     }
 
     @Test
-    public void shouldSetTheRequestUriToTheSameValueAsTheXForwardHostHeader()
+    void shouldSetTheRequestUriToTheSameValueAsTheXForwardHostHeader()
     {
         // given
-        final String xForwardHostAndPort = "jimwebber.org:1234";
+        var xForwardHostAndPort = "jimwebber.org:1234";
 
-        XForwardFilter filter = new XForwardFilter();
+        var filter = new XForwardFilter();
 
-        InBoundHeaders headers = new InBoundHeaders();
-        headers.add( X_FORWARD_HOST_HEADER_KEY, xForwardHostAndPort );
+        var headers = Map.of( X_FORWARD_HOST_HEADER_KEY, List.of( xForwardHostAndPort ) );
 
-        ContainerRequest request = new ContainerRequest( WEB_APPLICATION, "GET",
-                URI.create( "http://iansrobinson.com" ), URI.create( "http://iansrobinson.com/foo/bar" ),
-                headers, INPUT_STREAM );
+        var request = new ContainerRequest(
+                URI.create( "http://iansrobinson.com" ), URI.create( "http://iansrobinson.com/foo/bar" ), "GET",
+                mock( SecurityContext.class ), mock( PropertiesDelegate.class ), null );
+
+        request.headers( headers );
 
         // when
-        ContainerRequest result = filter.filter( request );
+        filter.filter( request );
 
         // then
-        assertTrue( result.getRequestUri().toString().startsWith( "http://" + xForwardHostAndPort ) );
+        assertTrue( request.getRequestUri().toString().startsWith( "http://" + xForwardHostAndPort ) );
     }
 
     @Test
-    public void shouldSetTheBaseUriToTheSameProtocolAsTheXForwardProtoHeader()
+    void shouldSetTheBaseUriToTheSameProtocolAsTheXForwardProtoHeader()
     {
         // given
-        final String theProtocol = "https";
+        var theProtocol = "https";
 
-        XForwardFilter filter = new XForwardFilter();
+        var filter = new XForwardFilter();
 
-        InBoundHeaders headers = new InBoundHeaders();
-        headers.add( X_FORWARD_PROTO_HEADER_KEY, theProtocol );
+        var headers = Map.of( X_FORWARD_PROTO_HEADER_KEY, List.of( theProtocol ) );
 
-        ContainerRequest request = new ContainerRequest( WEB_APPLICATION, "GET",
-                URI.create( "http://jimwebber.org:1234" ), URI.create( "http://jimwebber.org:1234/foo/bar" ),
-                headers, INPUT_STREAM );
+        var request = new ContainerRequest(
+                URI.create( "http://jimwebber.org:1234" ), URI.create( "http://jimwebber.org:1234/foo/bar" ), "GET",
+                mock( SecurityContext.class ), mock( PropertiesDelegate.class ), null );
+
+        request.headers( headers );
 
         // when
-        ContainerRequest result = filter.filter( request );
+        filter.filter( request );
 
         // then
-        assertThat( result.getBaseUri().getScheme(), containsString( theProtocol ) );
+        assertThat( request.getBaseUri().getScheme() ).contains( theProtocol );
     }
 
     @Test
-    public void shouldSetTheRequestUriToTheSameProtocolAsTheXForwardProtoHeader()
+    void shouldSetTheRequestUriToTheSameProtocolAsTheXForwardProtoHeader()
     {
         // given
-        final String theProtocol = "https";
+        var theProtocol = "https";
 
-        XForwardFilter filter = new XForwardFilter();
+        var filter = new XForwardFilter();
 
-        InBoundHeaders headers = new InBoundHeaders();
-        headers.add( X_FORWARD_PROTO_HEADER_KEY, theProtocol );
+        var headers = Map.of( X_FORWARD_PROTO_HEADER_KEY, List.of( theProtocol ) );
 
-        ContainerRequest request = new ContainerRequest( WEB_APPLICATION, "GET",
-                URI.create( "http://jimwebber.org:1234" ), URI.create( "http://jimwebber.org:1234/foo/bar" ),
-                headers, INPUT_STREAM );
+        var request = new ContainerRequest(
+                URI.create( "http://jimwebber.org:1234" ), URI.create( "http://jimwebber.org:1234/foo/bar" ), "GET",
+                mock( SecurityContext.class ), mock( PropertiesDelegate.class ), null );
+
+        request.headers( headers );
 
         // when
-        ContainerRequest result = filter.filter( request );
+        filter.filter( request );
 
         // then
-        assertThat( result.getBaseUri().getScheme(), containsString( theProtocol ) );
+        assertThat( request.getBaseUri().getScheme() ).contains( theProtocol );
     }
-
-    //Mocking WebApplication leads to flakyness on ibm-jdk, hence
-    //we use a manual mock instead
-    private static final WebApplication WEB_APPLICATION = new WebApplication()
-    {
-        @Override
-        public boolean isInitiated()
-        {
-            return false;
-        }
-
-        @Override
-        public void initiate( ResourceConfig resourceConfig ) throws IllegalArgumentException, ContainerException
-        {
-
-        }
-
-        @Override
-        public void initiate( ResourceConfig resourceConfig, IoCComponentProviderFactory ioCComponentProviderFactory )
-                throws IllegalArgumentException, ContainerException
-        {
-
-        }
-
-        @SuppressWarnings( "CloneDoesntCallSuperClone" )
-        @Override
-        public WebApplication clone()
-        {
-            return null;
-        }
-
-        @Override
-        public FeaturesAndProperties getFeaturesAndProperties()
-        {
-            return null;
-        }
-
-        @Override
-        public Providers getProviders()
-        {
-            return null;
-        }
-
-        @Override
-        public ResourceContext getResourceContext()
-        {
-            return null;
-        }
-
-        @Override
-        public MessageBodyWorkers getMessageBodyWorkers()
-        {
-            return null;
-        }
-
-        @Override
-        public ExceptionMapperContext getExceptionMapperContext()
-        {
-            return null;
-        }
-
-        @Override
-        public HttpContext getThreadLocalHttpContext()
-        {
-            return null;
-        }
-
-        @Override
-        public ServerInjectableProviderFactory getServerInjectableProviderFactory()
-        {
-            return null;
-        }
-
-        @Override
-        public RequestListener getRequestListener()
-        {
-            return null;
-        }
-
-        @Override
-        public DispatchingListener getDispatchingListener()
-        {
-            return null;
-        }
-
-        @Override
-        public ResponseListener getResponseListener()
-        {
-            return null;
-        }
-
-        @Override
-        public void handleRequest( ContainerRequest containerRequest, ContainerResponseWriter containerResponseWriter )
-        {
-
-        }
-
-        @Override
-        public void handleRequest( ContainerRequest containerRequest, ContainerResponse containerResponse )
-        {
-
-        }
-
-        @Override
-        public void destroy()
-        {
-
-        }
-
-        @Override
-        public boolean isTracingEnabled()
-        {
-            return false;
-        }
-
-        @Override
-        public void trace( String s )
-        {
-
-        }
-    };
-
-    //Using mockito to mock arguments to ContainerRequest leads to flakyness
-    //on ibm jdk, hence the manual mocks
-    private static final InputStream INPUT_STREAM = new InputStream()
-    {
-        @Override
-        public int read()
-        {
-            return 0;
-        }
-    };
 }

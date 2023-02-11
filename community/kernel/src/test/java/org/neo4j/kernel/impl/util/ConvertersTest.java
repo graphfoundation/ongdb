@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,160 +38,137 @@
  */
 package org.neo4j.kernel.impl.util;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
-import java.util.Optional;
+import java.util.function.Function;
 
-import org.neo4j.helpers.collection.Pair;
-import org.neo4j.test.rule.TestDirectory;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
+import org.neo4j.test.utils.TestDirectory;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.neo4j.kernel.impl.util.Converters.regexFiles;
-import static org.neo4j.kernel.impl.util.Converters.toOptionalHostnamePortFromRawAddress;
+import static org.neo4j.kernel.impl.util.Converters.toFiles;
 
-public class ConvertersTest
+@TestDirectoryExtension
+class ConvertersTest
 {
-    @Rule
-    public final TestDirectory directory = TestDirectory.testDirectory();
+    @Inject
+    private TestDirectory directory;
 
     @Test
-    public void shouldSortFilesByNumberCleverly() throws Exception
+    void shouldSortFilesByNumberCleverly() throws Exception
     {
         // GIVEN
-        File file1 = existenceOfFile( "file1" );
-        File file123 = existenceOfFile( "file123" );
-        File file12 = existenceOfFile( "file12" );
-        File file2 = existenceOfFile( "file2" );
-        File file32 = existenceOfFile( "file32" );
+        Path file1 = existenceOfFile( "file1" );
+        Path file123 = existenceOfFile( "file123" );
+        Path file12 = existenceOfFile( "file12" );
+        Path file2 = existenceOfFile( "file2" );
+        Path file32 = existenceOfFile( "file32" );
 
         // WHEN
-        File[] files = regexFiles( true ).apply( directory.file( "file.*" ).getAbsolutePath() );
+        Path[] files = regexFiles( true ).apply( directory.file( "file" ).toAbsolutePath().toString() + ".*" );
 
         // THEN
-        assertArrayEquals( new File[]{file1, file2, file12, file32, file123}, files );
+        assertArrayEquals( new Path[]{file1, file2, file12, file32, file123}, files );
     }
 
     @Test
-    public void canProcessPortFromAGivenString()
+    void shouldParseFile() throws IOException
     {
         // given
-        String addressWithPorts = "hostname:1234";
+        Path file = existenceOfFile( "file" );
 
         // when
-        Optional<Integer> port = toOptionalHostnamePortFromRawAddress( addressWithPorts ).getPort();
+        Path[] files = regexFiles( true ).apply( file.toString() );
 
         // then
-        assertTrue( port.isPresent() );
-        assertEquals( Integer.valueOf( 1234 ), port.get() );
+        assertEquals( List.of( file ), List.of( files ) );
     }
 
     @Test
-    public void emptyOptionalWhenPortIsMissing()
+    void shouldParseRegexFileWithDashes() throws IOException
     {
-        //given
-        String addressWithoutPorts = "hostname";
+        assumeFalse( IS_OS_WINDOWS );
+        // given
+        Path file1 = existenceOfFile( "file_1" );
+        Path file3 = existenceOfFile( "file_3" );
+        Path file12 = existenceOfFile( "file_12" );
 
         // when
-        Optional<Integer> port = toOptionalHostnamePortFromRawAddress( addressWithoutPorts ).getPort();
+        Path[] files = regexFiles( true ).apply( file1.getParent() + File.separator + "file_\\d+" );
+        Path[] files2 = regexFiles( true ).apply( file1.getParent() + File.separator + "file_\\d{1,5}" );
 
         // then
-        assertFalse( port.isPresent() );
+        assertEquals( List.of( file1, file3, file12 ), List.of( files ) );
+        assertEquals( List.of( file1, file3, file12 ), List.of( files2 ) );
     }
 
     @Test
-    public void canProcessHostnameFromAGivenAddress()
+    void shouldParseRegexFileWithDoubleDashes() throws IOException
     {
         // given
-        String addressWithPorts = "hostname:1234";
+        Path file1 = existenceOfFile( "file_1" );
+        Path file3 = existenceOfFile( "file_3" );
+        Path file12 = existenceOfFile( "file_12" );
 
         // when
-        Optional<String> hostname = toOptionalHostnamePortFromRawAddress( addressWithPorts ).getHostname();
+        Path[] files = regexFiles( true ).apply( file1.getParent() + File.separator + "file_\\\\d+" );
+        Path[] files2 = regexFiles( true ).apply( file1.getParent() + File.separator + "file_\\\\d{1,5}" );
 
         // then
-        assertTrue( hostname.isPresent() );
-        assertEquals( "hostname", hostname.get() );
+        assertEquals( List.of( file1, file3, file12 ), List.of( files ) );
+        assertEquals( List.of( file1, file3, file12 ), List.of( files2 ) );
     }
 
     @Test
-    public void canProcessHostnameWithoutPort()
+    void shouldConsiderInnerQuotationWhenSplittingMultipleFiles() throws IOException
     {
         // given
-        String addressWithoutPort = "hostname";
+        Path header = existenceOfFile( "header.csv" );
+        Path file1 = existenceOfFile( "file_1.csv" );
+        Path file3 = existenceOfFile( "file_3.csv" );
+        Path file12 = existenceOfFile( "file_12.csv" );
 
         // when
-        Optional<String> hostname = toOptionalHostnamePortFromRawAddress( addressWithoutPort ).getHostname();
+        Function<String,Path[]> regexMatcher = regexFiles( true );
+        Function<String,Path[]> converter = toFiles( ",", regexMatcher );
+        Path[] files = converter.apply( header + ",'" + header.getParent() + File.separator + "file_\\\\d{1,5}.csv'" );
 
         // then
-        assertTrue( hostname.isPresent() );
-        assertEquals( "hostname", hostname.get() );
+        assertEquals( List.of( header, file1, file3, file12 ), List.of( files ) );
     }
 
     @Test
-    public void emptyOptionalWhenOnlyPort()
+    void shouldFailWithProperErrorMessageOnMissingEndQuote()
     {
         // given
-        String portOnlyAddress = ":1234";
-
-        // when
-        Optional<String> hostname = toOptionalHostnamePortFromRawAddress( portOnlyAddress ).getHostname();
-
-        // then
-        assertFalse( hostname.isPresent() );
-    }
-
-    @Test
-    public void ipv6Works()
-    {
-        // with
-        String full = "1234:5678:9abc:def0:1234:5678:9abc:def0";
-        List<Pair<String,OptionalHostnamePort>> cases = Arrays.asList(
-                Pair.of( "[::1]", new OptionalHostnamePort( "::1", null, null ) ),
-                Pair.of( "[3FFe::1]", new OptionalHostnamePort( "3FFe::1", null, null ) ),
-                Pair.of( "[::1]:2", new OptionalHostnamePort( "::1", 2, 2 ) ),
-                Pair.of( "[" + full + "]", new OptionalHostnamePort( full, null, null ) ),
-                Pair.of( "[" + full + "]" + ":5432", new OptionalHostnamePort( full, 5432, 5432 ) ),
-                Pair.of( "[1::2]:3-4", new OptionalHostnamePort( "1::2", 3, 4 ) ) );
-        for ( Pair<String,OptionalHostnamePort> useCase : cases )
+        Function<String,Path[]> regexMatcher = s ->
         {
-            // given
-            String caseInput = useCase.first();
-            OptionalHostnamePort caseOutput = useCase.other();
+            throw new UnsupportedOperationException( "Should not required" );
+        };
+        Function<String,Path[]> converter = toFiles( ",", regexMatcher );
 
-            // when
-            OptionalHostnamePort optionalHostnamePort = toOptionalHostnamePortFromRawAddress( caseInput );
-
-            // then
-            String msg = String.format( "\"%s\" -> %s", caseInput, caseOutput );
-            assertEquals( msg, caseOutput.getHostname(), optionalHostnamePort.getHostname() );
-            assertEquals( msg, caseOutput.getPort(), optionalHostnamePort.getPort() );
-            assertEquals( msg, caseOutput.getUpperRangePort(), optionalHostnamePort.getUpperRangePort() );
-        }
+        // when/then
+        IllegalStateException exception = assertThrows( IllegalStateException.class, () -> converter.apply( "thing1,'thing2,test,thing3" ) );
+        assertThat( exception.getMessage(), containsString( "no matching end quote" ) );
     }
 
-    @Test
-    public void trailingColonIgnored()
+    private Path existenceOfFile( String name ) throws IOException
     {
-        // when
-        OptionalHostnamePort optionalHostnamePort = toOptionalHostnamePortFromRawAddress( "localhost::" );
-
-        // then
-        assertEquals( "localhost", optionalHostnamePort.getHostname().get() );
-        assertFalse( optionalHostnamePort.getPort().isPresent() );
-        assertFalse( optionalHostnamePort.getUpperRangePort().isPresent() );
-    }
-
-    private File existenceOfFile( String name ) throws IOException
-    {
-        File file = directory.file( name );
-        file.createNewFile();
+        Path file = directory.file( name );
+        Files.createFile( file );
         return file;
     }
 }

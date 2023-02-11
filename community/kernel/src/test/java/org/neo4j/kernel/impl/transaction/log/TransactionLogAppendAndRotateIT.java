@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,90 +38,123 @@
  */
 package org.neo4j.kernel.impl.transaction.log;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.RuleChain;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import org.neo4j.configuration.Config;
 import org.neo4j.io.ByteUnit;
+import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.kernel.impl.api.TestCommand;
 import org.neo4j.kernel.impl.api.TransactionToApply;
-import org.neo4j.kernel.impl.core.DatabasePanicEventGenerator;
-import org.neo4j.kernel.impl.store.PropertyType;
 import org.neo4j.kernel.impl.transaction.SimpleLogVersionRepository;
 import org.neo4j.kernel.impl.transaction.SimpleTransactionIdStore;
 import org.neo4j.kernel.impl.transaction.TransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntry;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryCommand;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryCommit;
+import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryStart;
-import org.neo4j.kernel.impl.transaction.log.entry.VersionAwareLogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.files.LogFile;
-import org.neo4j.kernel.impl.transaction.log.files.LogFileCreationMonitor;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
-import org.neo4j.kernel.impl.transaction.log.rotation.LogRotation;
-import org.neo4j.kernel.impl.transaction.log.rotation.LogRotationImpl;
-import org.neo4j.kernel.internal.DatabaseHealth;
-import org.neo4j.kernel.lifecycle.LifeRule;
+import org.neo4j.kernel.impl.transaction.log.rotation.monitor.LogRotationMonitorAdapter;
+import org.neo4j.kernel.impl.transaction.tracing.LogAppendEvent;
+import org.neo4j.kernel.lifecycle.LifeSupport;
+import org.neo4j.kernel.monitoring.DatabasePanicEventGenerator;
 import org.neo4j.logging.NullLog;
+import org.neo4j.logging.NullLogProvider;
+import org.neo4j.monitoring.DatabaseHealth;
+import org.neo4j.monitoring.Health;
+import org.neo4j.monitoring.Monitors;
+import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.storageengine.api.LogVersionRepository;
 import org.neo4j.storageengine.api.StorageCommand;
+import org.neo4j.storageengine.api.StoreId;
+import org.neo4j.storageengine.api.TransactionIdStore;
+import org.neo4j.storageengine.api.cursor.StoreCursors;
 import org.neo4j.test.Race;
-import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.LifeExtension;
+import org.neo4j.test.extension.Neo4jLayoutExtension;
+import org.neo4j.test.scheduler.ThreadPoolJobScheduler;
 
 import static java.lang.System.currentTimeMillis;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.concurrent.locks.LockSupport.parkNanos;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.junit.rules.RuleChain.outerRule;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
-import static org.neo4j.kernel.impl.transaction.command.Commands.createNode;
-import static org.neo4j.kernel.impl.transaction.command.Commands.createProperty;
-import static org.neo4j.kernel.impl.transaction.log.entry.LogHeader.LOG_HEADER_SIZE;
-import static org.neo4j.kernel.impl.transaction.tracing.LogAppendEvent.NULL;
-import static org.neo4j.kernel.impl.util.IdOrderingQueue.BYPASS;
+import static org.neo4j.internal.kernel.api.security.AuthSubject.ANONYMOUS;
+import static org.neo4j.kernel.impl.transaction.log.TestLogEntryReader.logEntryReader;
+import static org.neo4j.kernel.impl.transaction.log.TransactionAppenderFactory.createTransactionAppender;
+import static org.neo4j.kernel.impl.transaction.log.entry.LogVersions.CURRENT_FORMAT_LOG_HEADER_SIZE;
 
-public class TransactionLogAppendAndRotateIT
+@Neo4jLayoutExtension
+@ExtendWith( LifeExtension.class )
+class TransactionLogAppendAndRotateIT
 {
-    private final LifeRule life = new LifeRule( true );
-    private final TestDirectory directory = TestDirectory.testDirectory();
-    private final DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
+    @Inject
+    private FileSystemAbstraction fileSystem;
+    @Inject
+    private LifeSupport life;
+    @Inject
+    private DatabaseLayout databaseLayout;
+    private ThreadPoolJobScheduler jobScheduler;
 
-    @Rule
-    public final RuleChain chain = outerRule( directory ).around( life ).around( fileSystemRule );
+    @BeforeEach
+    void setUp()
+    {
+        jobScheduler = new ThreadPoolJobScheduler();
+    }
+
+    @AfterEach
+    void tearDown()
+    {
+        life.shutdown();
+        jobScheduler.close();
+    }
 
     @Test
-    public void shouldKeepTransactionsIntactWhenConcurrentlyRotationAndAppending() throws Throwable
+    void shouldKeepTransactionsIntactWhenConcurrentlyRotationAndAppending() throws Throwable
     {
         // GIVEN
         LogVersionRepository logVersionRepository = new SimpleLogVersionRepository();
-        LogFiles logFiles = LogFilesBuilder.builder( directory.directory(), fileSystemRule.get() )
+        Monitors monitors = new Monitors();
+        LogFiles logFiles = LogFilesBuilder.builder( databaseLayout, fileSystem )
                 .withLogVersionRepository( logVersionRepository )
                 .withRotationThreshold( ByteUnit.mebiBytes( 1 ) )
-                .withTransactionIdStore( new SimpleTransactionIdStore() ).build();
+                .withMonitors( monitors )
+                .withTransactionIdStore( new SimpleTransactionIdStore() )
+                .withLogEntryReader( logEntryReader() )
+                .withStoreId( StoreId.UNKNOWN )
+                .build();
         life.add( logFiles );
         final AtomicBoolean end = new AtomicBoolean();
-        AllTheMonitoring monitoring = new AllTheMonitoring( end, 100 );
+        TestLogFileMonitor monitoring = new TestLogFileMonitor( end, 100, logFiles.getLogFile() );
+        monitors.addMonitorListener( monitoring );
+
         TransactionIdStore txIdStore = new SimpleTransactionIdStore();
-        TransactionMetadataCache metadataCache = new TransactionMetadataCache( 100 );
-        monitoring.setLogFile( logFiles.getLogFile() );
-        DatabaseHealth health = new DatabaseHealth( mock( DatabasePanicEventGenerator.class ), NullLog.getInstance() );
-        LogRotation rotation = new LogRotationImpl( monitoring, logFiles, health );
-        final TransactionAppender appender = life.add( new BatchingTransactionAppender( logFiles, rotation, metadataCache,
-                txIdStore, BYPASS, health ) );
+        TransactionMetadataCache metadataCache = new TransactionMetadataCache();
+        Health health = new DatabaseHealth( mock( DatabasePanicEventGenerator.class ), NullLog.getInstance() );
+        final TransactionAppender appender =
+                life.add( createBatchAppender( logFiles, txIdStore, metadataCache, health, jobScheduler, Config.defaults() ) );
 
         // WHEN
         Race race = new Race();
-        for ( int i = 0; i < 10; i++ )
+        for ( int i = 0; i < 4; i++ )
         {
             race.addContestant( () ->
             {
@@ -129,28 +162,37 @@ public class TransactionLogAppendAndRotateIT
                 {
                     try
                     {
-                        appender.append( new TransactionToApply( sillyTransaction( 1_000 ) ), NULL );
+                        appender.append( new TransactionToApply( sillyTransaction( 1_000 ), CursorContext.NULL, StoreCursors.NULL ), LogAppendEvent.NULL );
                     }
                     catch ( Exception e )
                     {
-                        e.printStackTrace( System.out );
                         end.set( true );
-                        fail( e.getMessage() );
+                        fail( e.getMessage(), e );
                     }
                 }
             } );
         }
-        race.addContestant( endAfterMax( 10, SECONDS, end ) );
+        race.addContestant( endAfterMax( 250, MILLISECONDS, end, monitoring ) );
         race.go();
 
         // THEN
         assertTrue( monitoring.numberOfRotations() > 0 );
     }
 
-    private Runnable endAfterMax( final int time, final TimeUnit unit, final AtomicBoolean end )
+    private TransactionAppender createBatchAppender( LogFiles logFiles, TransactionIdStore txIdStore, TransactionMetadataCache metadataCache,
+            Health health, JobScheduler jobScheduler, Config config )
+    {
+        return createTransactionAppender( logFiles, txIdStore, metadataCache, config, health, jobScheduler, NullLogProvider.getInstance() );
+    }
+
+    private static Runnable endAfterMax( final int time, final TimeUnit unit, final AtomicBoolean end, TestLogFileMonitor monitoring )
     {
         return () ->
         {
+            while ( monitoring.numberOfRotations() < 2 && !end.get() )
+            {
+                parkNanos( MILLISECONDS.toNanos( 50 ) );
+            }
             long endTime = currentTimeMillis() + unit.toMillis( time );
             while ( currentTimeMillis() < endTime && !end.get() )
             {
@@ -162,9 +204,9 @@ public class TransactionLogAppendAndRotateIT
 
     private static void assertWholeTransactionsIn( LogFile logFile, long logVersion ) throws IOException
     {
-        try ( ReadableLogChannel reader = logFile.getReader( new LogPosition( logVersion, LOG_HEADER_SIZE ) ) )
+        try ( ReadableLogChannel reader = logFile.getReader( new LogPosition( logVersion, CURRENT_FORMAT_LOG_HEADER_SIZE ) ) )
         {
-            VersionAwareLogEntryReader<ReadableLogChannel> entryReader = new VersionAwareLogEntryReader<>();
+            LogEntryReader entryReader = logEntryReader();
             LogEntry entry;
             boolean inTx = false;
             int transactions = 0;
@@ -190,50 +232,40 @@ public class TransactionLogAppendAndRotateIT
         }
     }
 
-    private TransactionRepresentation sillyTransaction( int size )
+    private static TransactionRepresentation sillyTransaction( int size )
     {
-        Collection<StorageCommand> commands = new ArrayList<>( size );
+        List<StorageCommand> commands = new ArrayList<>( size );
         for ( int i = 0; i < size; i++ )
         {
             // The actual data isn't super important
-            commands.add( createNode( i ) );
-            commands.add( createProperty( i, PropertyType.INT, 0 ) );
+            commands.add( new TestCommand( 30 ) );
+            commands.add( new TestCommand( 60 ) );
         }
         PhysicalTransactionRepresentation tx = new PhysicalTransactionRepresentation( commands );
-        tx.setHeader( new byte[0], 0, 0, 0, 0, 0, 0 );
+        tx.setHeader( new byte[0], 0, 0, 0, 0, ANONYMOUS );
         return tx;
     }
 
-    private static class AllTheMonitoring implements LogFileCreationMonitor, LogRotation.Monitor
+    private static class TestLogFileMonitor extends LogRotationMonitorAdapter
     {
         private final AtomicBoolean end;
         private final int maxNumberOfRotations;
+        private final LogFile logFile;
+        private final AtomicInteger rotations = new AtomicInteger();
 
-        private volatile LogFile logFile;
-        private volatile int rotations;
-
-        AllTheMonitoring( AtomicBoolean end, int maxNumberOfRotations )
+        TestLogFileMonitor( AtomicBoolean end, int maxNumberOfRotations, LogFile logFile )
         {
             this.end = end;
             this.maxNumberOfRotations = maxNumberOfRotations;
-        }
-
-        void setLogFile( LogFile logFile )
-        {
             this.logFile = logFile;
         }
 
         @Override
-        public void startedRotating( long currentVersion )
-        {
-        }
-
-        @Override
-        public void finishedRotating( long currentVersion )
+        public void finishLogRotation( Path logFile, long logVersion, long lastTransactionId, long rotationMillis, long millisSinceLastRotation )
         {
             try
             {
-                assertWholeTransactionsIn( logFile, currentVersion );
+                assertWholeTransactionsIn( this.logFile, logVersion );
             }
             catch ( IOException e )
             {
@@ -241,7 +273,7 @@ public class TransactionLogAppendAndRotateIT
             }
             finally
             {
-                if ( rotations++ > maxNumberOfRotations )
+                if ( rotations.getAndIncrement() > maxNumberOfRotations )
                 {
                     end.set( true );
                 }
@@ -250,12 +282,7 @@ public class TransactionLogAppendAndRotateIT
 
         int numberOfRotations()
         {
-            return rotations;
-        }
-
-        @Override
-        public void created( File logFile, long logVersion, long lastTransactionId )
-        {
+            return rotations.get();
         }
     }
 }

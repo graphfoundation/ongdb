@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,12 +39,13 @@
 package org.neo4j.server.rest.dbms;
 
 import org.apache.commons.codec.binary.Base64;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatcher;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Map;
 import java.util.regex.Pattern;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletOutputStream;
@@ -56,12 +57,15 @@ import javax.ws.rs.core.HttpHeaders;
 import org.neo4j.internal.kernel.api.security.AuthSubject;
 import org.neo4j.internal.kernel.api.security.AuthenticationResult;
 import org.neo4j.logging.AssertableLogProvider;
-import org.neo4j.server.security.auth.BasicAuthManager;
 import org.neo4j.server.security.auth.BasicLoginContext;
+import org.neo4j.server.security.systemgraph.BasicSystemGraphRealm;
+import org.neo4j.test.AuthTokenUtil;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.stream.Collectors.toList;
 import static javax.servlet.http.HttpServletRequest.BASIC_AUTH;
-import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
@@ -70,20 +74,21 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.neo4j.internal.kernel.api.security.LoginContext.AUTH_DISABLED;
-import static org.neo4j.logging.AssertableLogProvider.inLog;
+import static org.neo4j.logging.AssertableLogProvider.Level.WARN;
+import static org.neo4j.logging.LogAssertions.assertThat;
 import static org.neo4j.server.security.auth.SecurityTestUtils.authToken;
 
-public class AuthorizationFilterTest
+class AuthorizationFilterTest
 {
-    private final BasicAuthManager authManager = mock( BasicAuthManager.class );
+    private final BasicSystemGraphRealm authManager = mock( BasicSystemGraphRealm.class );
     private final AssertableLogProvider logProvider = new AssertableLogProvider();
     private final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     private final HttpServletRequest servletRequest = mock( HttpServletRequest.class );
     private final HttpServletResponse servletResponse = mock( HttpServletResponse.class );
     private final FilterChain filterChain = mock( FilterChain.class );
 
-    @Before
-    public void setUp() throws Exception
+    @BeforeEach
+    void setUp() throws Exception
     {
         when( servletResponse.getOutputStream() ).thenReturn( new ServletOutputStream()
         {
@@ -108,10 +113,10 @@ public class AuthorizationFilterTest
     }
 
     @Test
-    public void shouldAllowOptionsRequests() throws Exception
+    void shouldAllowOptionsRequests() throws Exception
     {
         // Given
-        final AuthorizationEnabledFilter filter = new AuthorizationEnabledFilter( () -> authManager, logProvider );
+        final AuthorizationEnabledFilter filter = newFilter();
         when( servletRequest.getMethod() ).thenReturn( "OPTIONS" );
 
         // When
@@ -122,11 +127,10 @@ public class AuthorizationFilterTest
     }
 
     @Test
-    public void shouldWhitelistMatchingUris() throws Exception
+    void shouldWhitelistMatchingUris() throws Exception
     {
         // Given
-        final AuthorizationEnabledFilter filter = new AuthorizationEnabledFilter( () -> authManager, logProvider,
-                Pattern.compile( "/" ), Pattern.compile( "/browser.*" ) );
+        final AuthorizationEnabledFilter filter = newFilter( "/", "/browser.*" );
         when( servletRequest.getMethod() ).thenReturn( "GET" );
         when( servletRequest.getContextPath() ).thenReturn( "/", "/browser/index.html" );
 
@@ -139,11 +143,10 @@ public class AuthorizationFilterTest
     }
 
     @Test
-    public void shouldRequireAuthorizationForNonWhitelistedUris() throws Exception
+    void shouldRequireAuthorizationForNonWhitelistedUris() throws Exception
     {
         // Given
-        final AuthorizationEnabledFilter filter = new AuthorizationEnabledFilter( () -> authManager, logProvider,
-                Pattern.compile( "/" ), Pattern.compile( "/browser.*" ) );
+        final AuthorizationEnabledFilter filter = newFilter( "/", "/browser.*" );
         when( servletRequest.getMethod() ).thenReturn( "GET" );
         when( servletRequest.getContextPath() ).thenReturn( "/db/data" );
 
@@ -153,19 +156,17 @@ public class AuthorizationFilterTest
         // Then
         verifyNoMoreInteractions( filterChain );
         verify( servletResponse ).setStatus( 401 );
-        verify( servletResponse ).addHeader( HttpHeaders.WWW_AUTHENTICATE, "Basic realm=\"ONgDB\"" );
+        verify( servletResponse ).addHeader( HttpHeaders.WWW_AUTHENTICATE, "Basic realm=\"Neo4j\"" );
         verify( servletResponse ).addHeader( HttpHeaders.CONTENT_TYPE, "application/json; charset=UTF-8" );
-        assertThat( outputStream.toString( StandardCharsets.UTF_8.name() ), containsString( "\"code\" : \"Neo" +
-                ".ClientError.Security.Unauthorized\"" ) );
-        assertThat( outputStream.toString( StandardCharsets.UTF_8.name() ),
-                containsString( "\"message\" : \"No authentication header supplied.\"" ) );
+        assertThat( outputStream.toString( UTF_8.name() ) ).contains( "\"code\" : \"Neo" + ".ClientError.Security.Unauthorized\"" );
+        assertThat( outputStream.toString( UTF_8.name() ) ).contains( "\"message\" : \"No authentication header supplied.\"" );
     }
 
     @Test
-    public void shouldRequireValidAuthorizationHeader() throws Exception
+    void shouldRequireValidAuthorizationHeader() throws Exception
     {
         // Given
-        final AuthorizationEnabledFilter filter = new AuthorizationEnabledFilter( () -> authManager, logProvider );
+        final AuthorizationEnabledFilter filter = newFilter();
         when( servletRequest.getMethod() ).thenReturn( "GET" );
         when( servletRequest.getContextPath() ).thenReturn( "/db/data" );
         when( servletRequest.getHeader( HttpHeaders.AUTHORIZATION ) ).thenReturn( "NOT A VALID VALUE" );
@@ -177,25 +178,27 @@ public class AuthorizationFilterTest
         verifyNoMoreInteractions( filterChain );
         verify( servletResponse ).setStatus( 400 );
         verify( servletResponse ).addHeader( HttpHeaders.CONTENT_TYPE, "application/json; charset=UTF-8" );
-        assertThat( outputStream.toString( StandardCharsets.UTF_8.name() ),
-                containsString( "\"code\" : \"Neo.ClientError.Request.InvalidFormat\"" ) );
-        assertThat( outputStream.toString( StandardCharsets.UTF_8.name() ),
-                containsString( "\"message\" : \"Invalid authentication header.\"" ) );
+        assertThat( outputStream.toString( UTF_8.name() ) ).contains( "\"code\" : \"Neo.ClientError.Request.InvalidFormat\"" );
+        assertThat( outputStream.toString( UTF_8.name() ) ).contains( "\"message\" : \"Invalid authentication header.\"" );
     }
 
     @Test
-    public void shouldNotAuthorizeInvalidCredentials() throws Exception
+    void shouldNotAuthorizeInvalidCredentials() throws Exception
     {
         // Given
-        final AuthorizationEnabledFilter filter = new AuthorizationEnabledFilter( () -> authManager, logProvider );
-        String credentials = Base64.encodeBase64String( "foo:bar".getBytes( StandardCharsets.UTF_8 ) );
+        final AuthorizationEnabledFilter filter = newFilter();
+        String credentials = Base64.encodeBase64String( "foo:bar".getBytes( UTF_8 ) );
         BasicLoginContext loginContext = mock( BasicLoginContext.class );
         AuthSubject authSubject = mock( AuthSubject.class );
+        when( servletRequest.getRemoteAddr() ).thenReturn( "client" );
+        when( servletRequest.getRemotePort() ).thenReturn( 1337 );
+        when( servletRequest.getServerName() ).thenReturn( "server" );
+        when( servletRequest.getServerPort() ).thenReturn( 42 );
         when( servletRequest.getMethod() ).thenReturn( "GET" );
         when( servletRequest.getContextPath() ).thenReturn( "/db/data" );
         when( servletRequest.getHeader( HttpHeaders.AUTHORIZATION ) ).thenReturn( "BASIC " + credentials );
         when( servletRequest.getRemoteAddr() ).thenReturn( "remote_ip_address" );
-        when( authManager.login( authToken( "foo", "bar" ) ) ).thenReturn( loginContext );
+        when( authManager.login( argThat( new AuthTokenMatcher( authToken( "foo", "bar" ) ) ), any() ) ).thenReturn( loginContext );
         when( loginContext.subject() ).thenReturn( authSubject );
         when( authSubject.getAuthenticationResult() ).thenReturn( AuthenticationResult.FAILURE );
 
@@ -204,28 +207,34 @@ public class AuthorizationFilterTest
 
         // Then
         verifyNoMoreInteractions( filterChain );
-        logProvider.assertExactly( inLog( AuthorizationEnabledFilter.class )
-                .warn( "Failed authentication attempt for '%s' from %s", "foo", "remote_ip_address" ) );
+        assertThat( logProvider )
+                .forClass( AuthorizationEnabledFilter.class )
+                .forLevel( WARN )
+                .containsMessages( "Failed authentication attempt for '%s' from %s", "foo", "remote_ip_address" );
         verify( servletResponse ).setStatus( 401 );
         verify( servletResponse ).addHeader( HttpHeaders.CONTENT_TYPE, "application/json; charset=UTF-8" );
-        assertThat( outputStream.toString( StandardCharsets.UTF_8.name() ),
-                containsString( "\"code\" : \"Neo.ClientError.Security.Unauthorized\"" ) );
-        assertThat( outputStream.toString( StandardCharsets.UTF_8.name() ),
-                containsString( "\"message\" : \"Invalid username or password.\"" ) );
+        assertThat( outputStream.toString( UTF_8.name() ) ).contains( "\"code\" : \"Neo.ClientError.Security.Unauthorized\"" );
+        assertThat( outputStream.toString( UTF_8.name() ) ).contains( "\"message\" : \"Invalid username or password.\"" );
     }
 
     @Test
-    public void shouldAuthorizeWhenPasswordChangeRequiredForWhitelistedPath() throws Exception
+    void shouldAuthorizeWhenPasswordChangeRequired() throws Exception
     {
         // Given
-        final AuthorizationEnabledFilter filter = new AuthorizationEnabledFilter( () -> authManager, logProvider );
-        String credentials = Base64.encodeBase64String( "foo:bar".getBytes( StandardCharsets.UTF_8 ) );
+        final AuthorizationEnabledFilter filter = newFilter();
+        String credentials = Base64.encodeBase64String( "foo:bar".getBytes( UTF_8 ) );
         BasicLoginContext loginContext = mock( BasicLoginContext.class );
         AuthSubject authSubject = mock( AuthSubject.class );
+        when( servletRequest.getRemoteAddr() ).thenReturn( "client" );
+        when( servletRequest.getRemotePort() ).thenReturn( 1337 );
+        when( servletRequest.getServerName() ).thenReturn( "server" );
+        when( servletRequest.getServerPort() ).thenReturn( 42 );
         when( servletRequest.getMethod() ).thenReturn( "GET" );
-        when( servletRequest.getContextPath() ).thenReturn( "/user/foo" );
+        when( servletRequest.getContextPath() ).thenReturn( "/db/data" );
+        when( servletRequest.getRequestURL() ).thenReturn( new StringBuffer( "http://bar.baz:7474/db/data/" ) );
+        when( servletRequest.getRequestURI() ).thenReturn( "/db/data/" );
         when( servletRequest.getHeader( HttpHeaders.AUTHORIZATION ) ).thenReturn( "BASIC " + credentials );
-        when( authManager.login( authToken( "foo", "bar" ) ) ).thenReturn( loginContext );
+        when( authManager.login( argThat( new AuthTokenMatcher( authToken( "foo", "bar" ) ) ), any() ) ).thenReturn( loginContext );
         when( loginContext.subject() ).thenReturn( authSubject );
         when( authSubject.getAuthenticationResult() ).thenReturn( AuthenticationResult.PASSWORD_CHANGE_REQUIRED );
 
@@ -238,49 +247,21 @@ public class AuthorizationFilterTest
     }
 
     @Test
-    public void shouldNotAuthorizeWhenPasswordChangeRequired() throws Exception
+    void shouldNotAuthorizeWhenTooManyAttemptsMade() throws Exception
     {
         // Given
-        final AuthorizationEnabledFilter filter = new AuthorizationEnabledFilter( () -> authManager, logProvider );
-        String credentials = Base64.encodeBase64String( "foo:bar".getBytes( StandardCharsets.UTF_8 ) );
+        final AuthorizationEnabledFilter filter = newFilter();
+        String credentials = Base64.encodeBase64String( "foo:bar".getBytes( UTF_8 ) );
         BasicLoginContext loginContext = mock( BasicLoginContext.class );
         AuthSubject authSubject = mock( AuthSubject.class );
-        when( servletRequest.getMethod() ).thenReturn( "GET" );
-        when( servletRequest.getContextPath() ).thenReturn( "/db/data" );
-        when( servletRequest.getRequestURL() ).thenReturn( new StringBuffer( "http://bar.baz:7474/db/data/" ) );
-        when( servletRequest.getRequestURI() ).thenReturn( "/db/data/" );
-        when( servletRequest.getHeader( HttpHeaders.AUTHORIZATION ) ).thenReturn( "BASIC " + credentials );
-        when( authManager.login( authToken( "foo", "bar" ) ) ).thenReturn( loginContext );
-        when( loginContext.subject() ).thenReturn( authSubject );
-        when( authSubject.getAuthenticationResult() ).thenReturn( AuthenticationResult.PASSWORD_CHANGE_REQUIRED );
-
-        // When
-        filter.doFilter( servletRequest, servletResponse, filterChain );
-
-        // Then
-        verifyNoMoreInteractions( filterChain );
-        verify( servletResponse ).setStatus( 403 );
-        verify( servletResponse ).addHeader( HttpHeaders.CONTENT_TYPE, "application/json; charset=UTF-8" );
-        assertThat( outputStream.toString( StandardCharsets.UTF_8.name() ),
-                containsString( "\"password_change\" : \"http://bar.baz:7474/user/foo/password\"" ) );
-        assertThat( outputStream.toString( StandardCharsets.UTF_8.name() ),
-                containsString( "\"code\" : \"Neo.ClientError.Security.Forbidden\"" ) );
-        assertThat( outputStream.toString( StandardCharsets.UTF_8.name() ),
-                containsString( "\"message\" : \"User is required to change their password.\"" ) );
-    }
-
-    @Test
-    public void shouldNotAuthorizeWhenTooManyAttemptsMade() throws Exception
-    {
-        // Given
-        final AuthorizationEnabledFilter filter = new AuthorizationEnabledFilter( () -> authManager, logProvider );
-        String credentials = Base64.encodeBase64String( "foo:bar".getBytes( StandardCharsets.UTF_8 ) );
-        BasicLoginContext loginContext = mock( BasicLoginContext.class );
-        AuthSubject authSubject = mock( AuthSubject.class );
+        when( servletRequest.getRemoteAddr() ).thenReturn( "client" );
+        when( servletRequest.getRemotePort() ).thenReturn( 1337 );
+        when( servletRequest.getServerName() ).thenReturn( "server" );
+        when( servletRequest.getServerPort() ).thenReturn( 42 );
         when( servletRequest.getMethod() ).thenReturn( "GET" );
         when( servletRequest.getContextPath() ).thenReturn( "/db/data" );
         when( servletRequest.getHeader( HttpHeaders.AUTHORIZATION ) ).thenReturn( "BASIC " + credentials );
-        when( authManager.login( authToken( "foo", "bar" ) ) ).thenReturn( loginContext );
+        when( authManager.login( argThat( new AuthTokenMatcher( authToken( "foo", "bar" ) ) ), any() ) ).thenReturn( loginContext );
         when( loginContext.subject() ).thenReturn( authSubject );
         when( authSubject.getAuthenticationResult() ).thenReturn( AuthenticationResult.TOO_MANY_ATTEMPTS );
 
@@ -291,25 +272,27 @@ public class AuthorizationFilterTest
         verifyNoMoreInteractions( filterChain );
         verify( servletResponse ).setStatus( 429 );
         verify( servletResponse ).addHeader( HttpHeaders.CONTENT_TYPE, "application/json; charset=UTF-8" );
-        assertThat( outputStream.toString( StandardCharsets.UTF_8.name() ),
-                containsString( "\"code\" : \"Neo.ClientError.Security.AuthenticationRateLimit\"" ) );
-        assertThat( outputStream.toString( StandardCharsets.UTF_8.name() ),
-                containsString( "\"message\" : \"Too many failed authentication requests. " +
-                        "Please wait 5 seconds and try again.\"" ) );
+        assertThat( outputStream.toString( UTF_8.name() ) ).contains( "\"code\" : \"Neo.ClientError.Security.AuthenticationRateLimit\"" );
+        assertThat( outputStream.toString( UTF_8.name() ) ).contains(
+                "\"message\" : \"Too many failed authentication requests. " + "Please wait 5 seconds and try again.\"" );
     }
 
     @Test
-    public void shouldAuthorizeWhenValidCredentialsSupplied() throws Exception
+    void shouldAuthorizeWhenValidCredentialsSupplied() throws Exception
     {
         // Given
-        final AuthorizationEnabledFilter filter = new AuthorizationEnabledFilter( () -> authManager, logProvider );
-        String credentials = Base64.encodeBase64String( "foo:bar".getBytes( StandardCharsets.UTF_8 ) );
+        final AuthorizationEnabledFilter filter = newFilter();
+        String credentials = Base64.encodeBase64String( "foo:bar".getBytes( UTF_8 ) );
         BasicLoginContext loginContext = mock( BasicLoginContext.class );
         AuthSubject authSubject = mock( AuthSubject.class );
+        when( servletRequest.getRemoteAddr() ).thenReturn( "client" );
+        when( servletRequest.getRemotePort() ).thenReturn( 1337 );
+        when( servletRequest.getServerName() ).thenReturn( "server" );
+        when( servletRequest.getServerPort() ).thenReturn( 42 );
         when( servletRequest.getMethod() ).thenReturn( "GET" );
         when( servletRequest.getContextPath() ).thenReturn( "/db/data" );
         when( servletRequest.getHeader( HttpHeaders.AUTHORIZATION ) ).thenReturn( "BASIC " + credentials );
-        when( authManager.login( authToken( "foo", "bar" ) ) ).thenReturn( loginContext );
+        when( authManager.login( argThat( new AuthTokenMatcher( authToken( "foo", "bar" ) ) ), any() ) ).thenReturn( loginContext );
         when( loginContext.subject() ).thenReturn( authSubject );
         when( authSubject.getAuthenticationResult() ).thenReturn( AuthenticationResult.SUCCESS );
 
@@ -322,11 +305,10 @@ public class AuthorizationFilterTest
     }
 
     @Test
-    public void shouldIncludeCrippledAuthHeaderIfBrowserIsTheOneCalling() throws Throwable
+    void shouldIncludeCrippledAuthHeaderIfBrowserIsTheOneCalling() throws Throwable
     {
         // Given
-        final AuthorizationEnabledFilter filter = new AuthorizationEnabledFilter( () -> authManager, logProvider,
-                Pattern.compile( "/" ), Pattern.compile( "/browser.*" ) );
+        final AuthorizationEnabledFilter filter = newFilter( "/", "/browser.*" );
         when( servletRequest.getMethod() ).thenReturn( "GET" );
         when( servletRequest.getContextPath() ).thenReturn( "/db/data" );
         when( servletRequest.getHeader( "X-Ajax-Browser-Auth" )).thenReturn( "true" );
@@ -339,9 +321,32 @@ public class AuthorizationFilterTest
         verify( servletResponse ).setStatus( 401 );
         verify( servletResponse ).addHeader( HttpHeaders.WWW_AUTHENTICATE, "None" );
         verify( servletResponse ).addHeader( HttpHeaders.CONTENT_TYPE, "application/json; charset=UTF-8" );
-        assertThat( outputStream.toString( StandardCharsets.UTF_8.name() ),
-                containsString( "\"code\" : \"Neo.ClientError.Security.Unauthorized\"" ) );
-        assertThat( outputStream.toString( StandardCharsets.UTF_8.name() ),
-                containsString( "\"message\" : \"No authentication header supplied.\"" ) );
+        assertThat( outputStream.toString( UTF_8.name() ) ).contains( "\"code\" : \"Neo.ClientError.Security.Unauthorized\"" );
+        assertThat( outputStream.toString( UTF_8.name() ) ).contains( "\"message\" : \"No authentication header supplied.\"" );
+    }
+
+    private AuthorizationEnabledFilter newFilter( String... uriWhitelist )
+    {
+        var uriWhitelistPatterns = Arrays.stream( uriWhitelist )
+                .map( Pattern::compile )
+                .collect( toList() );
+
+        return new AuthorizationEnabledFilter( () -> authManager, logProvider, uriWhitelistPatterns );
+    }
+
+    private static class AuthTokenMatcher implements ArgumentMatcher<Map<String,Object>>
+    {
+        private final Map<String,Object> expectedMap;
+
+        AuthTokenMatcher( Map<String,Object> expectedMap )
+        {
+            this.expectedMap = expectedMap;
+        }
+
+        @Override
+        public boolean matches( Map<String,Object> map )
+        {
+            return AuthTokenUtil.matches( expectedMap, map );
+        }
     }
 }

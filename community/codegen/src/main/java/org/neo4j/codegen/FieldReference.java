@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,10 @@
  */
 package org.neo4j.codegen;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+
+import static org.neo4j.codegen.TypeReference.typeReference;
 
 public class FieldReference
 {
@@ -47,9 +50,20 @@ public class FieldReference
         return new FieldReference( Modifier.PUBLIC, owner, type, name );
     }
 
+    public static FieldReference field( Field field )
+    {
+        return new FieldReference( field.getModifiers(), typeReference( field.getDeclaringClass() ),
+                typeReference( field.getType() ), field.getName() );
+    }
+
     public static FieldReference staticField( TypeReference owner, TypeReference type, String name )
     {
         return new FieldReference( Modifier.STATIC | Modifier.PRIVATE, owner, type, name );
+    }
+
+    public static FieldReference staticField( Class<?> owner, Class<?> type, String name )
+    {
+        return staticField( typeReference( owner ), typeReference( type ), name );
     }
 
     private final int modifiers;

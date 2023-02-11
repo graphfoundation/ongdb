@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,71 +38,113 @@
  */
 package org.neo4j.bolt.transport;
 
-import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
-import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslContext;
 
-import org.neo4j.bolt.logging.BoltMessageLogging;
-import org.neo4j.helpers.ListenSocketAddress;
-import org.neo4j.logging.LogProvider;
+import java.net.SocketAddress;
+import java.time.Duration;
 
+import org.neo4j.bolt.BoltChannel;
+import org.neo4j.bolt.transport.pipeline.ChannelProtector;
+import org.neo4j.bolt.transport.pipeline.UnauthenticatedChannelProtector;
+import org.neo4j.configuration.Config;
+import org.neo4j.kernel.api.net.NetworkConnectionTracker;
+import org.neo4j.logging.LogProvider;
+import org.neo4j.memory.HeapEstimator;
+import org.neo4j.memory.LocalMemoryTracker;
+import org.neo4j.memory.MemoryPool;
+import org.neo4j.memory.MemoryTracker;
+import org.neo4j.server.config.AuthConfigProvider;
 /**
- * Implements a transport for the ONgDB Messaging Protocol that uses good old regular sockets.
+ * Implements a transport for the Neo4j Messaging Protocol that uses good old regular sockets.
  */
 public class SocketTransport implements NettyServer.ProtocolInitializer
 {
     private final String connector;
-    private final ListenSocketAddress address;
+    private final SocketAddress address;
     private final SslContext sslCtx;
     private final boolean encryptionRequired;
     private final LogProvider logging;
-    private final BoltMessageLogging boltLogging;
     private final TransportThrottleGroup throttleGroup;
-    private final BoltProtocolPipelineInstallerFactory handlerFactory;
+    private final BoltProtocolFactory boltProtocolFactory;
+    private final NetworkConnectionTracker connectionTracker;
+    private final Duration channelTimeout;
+    private final long maxMessageSize;
+    private final ByteBufAllocator allocator;
+    private final MemoryPool memoryPool;
+    private final AuthConfigProvider authConfigProvider;
+    private final Config config;
 
-    public SocketTransport( String connector, ListenSocketAddress address, SslContext sslCtx, boolean encryptionRequired,
-                            LogProvider logging, BoltMessageLogging boltLogging,
-                            TransportThrottleGroup throttleGroup,
-                            BoltProtocolPipelineInstallerFactory handlerFactory )
+    public SocketTransport( String connector, SocketAddress address, SslContext sslCtx, boolean encryptionRequired, LogProvider logging,
+                            TransportThrottleGroup throttleGroup, BoltProtocolFactory boltProtocolFactory,
+                            NetworkConnectionTracker connectionTracker, Duration channelTimeout, long maxMessageSize,
+                            ByteBufAllocator allocator, MemoryPool memoryPool, AuthConfigProvider authConfigProvider, Config config )
     {
         this.connector = connector;
         this.address = address;
         this.sslCtx = sslCtx;
         this.encryptionRequired = encryptionRequired;
         this.logging = logging;
-        this.boltLogging = boltLogging;
         this.throttleGroup = throttleGroup;
-        this.handlerFactory = handlerFactory;
+        this.boltProtocolFactory = boltProtocolFactory;
+        this.connectionTracker = connectionTracker;
+        this.channelTimeout = channelTimeout;
+        this.maxMessageSize = maxMessageSize;
+        this.allocator = allocator;
+        this.memoryPool = memoryPool;
+        this.authConfigProvider = authConfigProvider;
+        this.config = config;
     }
 
     @Override
-    public ChannelInitializer<SocketChannel> channelInitializer()
+    public ChannelInitializer<Channel> channelInitializer()
     {
-        return new ChannelInitializer<SocketChannel>()
+        return new ChannelInitializer<>()
         {
             @Override
-            public void initChannel( SocketChannel ch )
+            public void initChannel( Channel ch )
             {
-                ch.config().setAllocator( PooledByteBufAllocator.DEFAULT );
+                ch.config().setAllocator( allocator );
+
+                var memoryTracker = new LocalMemoryTracker( memoryPool, 0, 64, null );
+                ch.closeFuture().addListener( future -> memoryTracker.close() );
+
+                memoryTracker.allocateHeap( HeapEstimator.sizeOf( ch ) );
+
+                memoryTracker.allocateHeap( UnauthenticatedChannelProtector.SHALLOW_SIZE + BoltChannel.SHALLOW_SIZE );
+                var channelProtector = new UnauthenticatedChannelProtector( ch, channelTimeout, maxMessageSize, memoryTracker );
+                BoltChannel boltChannel = newBoltChannel( ch, channelProtector, memoryTracker );
+                connectionTracker.add( boltChannel );
+                ch.closeFuture().addListener( future -> connectionTracker.remove( boltChannel ) );
 
                 // install throttles
-                throttleGroup.install( ch );
+                throttleGroup.install( ch, memoryTracker );
 
                 // add a close listener that will uninstall throttles
                 ch.closeFuture().addListener( future -> throttleGroup.uninstall( ch ) );
 
-                TransportSelectionHandler transportSelectionHandler = new TransportSelectionHandler( connector, sslCtx,
-                        encryptionRequired, false, logging, handlerFactory, boltLogging );
-
+                memoryTracker.allocateHeap( TransportSelectionHandler.SHALLOW_SIZE );
+                var discoveryServiceHandler = new DiscoveryResponseHandler( authConfigProvider );
+                TransportSelectionHandler transportSelectionHandler =
+                        new TransportSelectionHandler( boltChannel, sslCtx,
+                                                       encryptionRequired, false, logging, boltProtocolFactory, channelProtector, memoryTracker,
+                                                       discoveryServiceHandler );
                 ch.pipeline().addLast( transportSelectionHandler );
             }
         };
     }
 
     @Override
-    public ListenSocketAddress address()
+    public SocketAddress address()
     {
         return address;
     }
+
+    private BoltChannel newBoltChannel( Channel ch, ChannelProtector channelProtector, MemoryTracker memoryTracker )
+    {
+        return new BoltChannel( connectionTracker.newConnectionId( connector ), connector, ch, channelProtector );
+    }
+
 }

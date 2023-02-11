@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,13 +38,14 @@
  */
 package org.neo4j.graphdb.traversal;
 
-import org.neo4j.collection.primitive.Primitive;
-import org.neo4j.collection.primitive.PrimitiveLongSet;
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
+
 import org.neo4j.graphdb.Path;
 
 class GloballyUnique extends AbstractUniquenessFilter
 {
-    private final PrimitiveLongSet visited = Primitive.longSet( 1 << 12 );
+    private final MutableLongSet visited = new LongHashSet( 1 << 12 );
 
     GloballyUnique( PrimitiveTypeFetcher type )
     {

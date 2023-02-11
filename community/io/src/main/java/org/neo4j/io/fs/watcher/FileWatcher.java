@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,8 +39,8 @@
 package org.neo4j.io.fs.watcher;
 
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.WatchService;
 
 import org.neo4j.io.fs.watcher.resource.WatchedResource;
@@ -49,7 +49,7 @@ import org.neo4j.io.fs.watcher.resource.WatchedResource;
  * Watcher that allows receive notification about files modifications/removal for particular underlying file system.
  *
  * To be able to get notification users need to register resource they are interested in using
- * {@link #watch(File)} method call and add by adding {@link FileWatchEventListener listner} to be able to receive
+ * {@link #watch(Path)} method call and add by adding {@link FileWatchEventListener listener} to be able to receive
  * status updates.
  *
  * @see WatchService
@@ -62,11 +62,11 @@ public interface FileWatcher extends Closeable
     /**
      * Register provided directory in list of resources that we would like to watch and receive status modification
      * updates
-     * @param file directory to be monitored for updates
-     * @return
+     * @param path directory to be monitored for updates
+     * @return closable resource that represent watched file
      * @throws IOException
      */
-    WatchedResource watch( File file ) throws IOException;
+    WatchedResource watch( Path path ) throws IOException;
 
     /**
      * Register listener to receive updates about registered resources.

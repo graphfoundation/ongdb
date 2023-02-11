@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,36 +38,42 @@
  */
 package org.neo4j.harness;
 
-import org.codehaus.jackson.JsonNode;
-import org.junit.Rule;
-import org.junit.Test;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.parallel.Resources;
 
 import java.util.stream.Stream;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.graphdb.Transaction;
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
-import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.procedure.Context;
 import org.neo4j.procedure.Mode;
 import org.neo4j.procedure.Name;
 import org.neo4j.procedure.Procedure;
-import org.neo4j.server.configuration.ServerSettings;
-import org.neo4j.test.rule.SuppressOutput;
-import org.neo4j.test.rule.TestDirectory;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.SuppressOutputExtension;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
+import org.neo4j.test.utils.TestDirectory;
 import org.neo4j.test.server.HTTP;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.internal.kernel.api.security.AccessMode.Static.FULL;
+import static org.neo4j.internal.kernel.api.security.AccessMode.Static.READ;
+import static org.neo4j.messages.MessageUtil.createNodeWithLabelsDenied;
+import static org.neo4j.messages.MessageUtil.overriddenMode;
+import static org.neo4j.messages.MessageUtil.withUser;
 import static org.neo4j.test.server.HTTP.RawPayload.quotedJson;
 
-public class JavaProceduresTest
+@TestDirectoryExtension
+@ExtendWith( SuppressOutputExtension.class )
+@ResourceLock( Resources.SYSTEM_OUT )
+class JavaProceduresTest
 {
-    @Rule
-    public TestDirectory testDir = TestDirectory.testDirectory();
-
-    @Rule
-    public SuppressOutput suppressOutput = SuppressOutput.suppressAll();
+    @Inject
+    private TestDirectory testDir;
 
     public static class MyProcedures
     {
@@ -118,11 +124,14 @@ public class JavaProceduresTest
         @Context
         public MyCoreAPI myCoreAPI;
 
+        @Context
+        public Transaction transaction;
+
         @Procedure( value = "makeNode", mode = Mode.WRITE )
         public Stream<LongResult> makeNode( @Name( "label" ) String label ) throws ProcedureException
         {
             LongResult t = new LongResult();
-            t.value = myCoreAPI.makeNode( label );
+            t.value = myCoreAPI.makeNode( transaction, label );
             return Stream.of( t );
         }
 
@@ -130,7 +139,7 @@ public class JavaProceduresTest
         public Stream<LongResult> willFail() throws ProcedureException
         {
             LongResult t = new LongResult();
-            t.value = myCoreAPI.makeNode( "Test" );
+            t.value = myCoreAPI.makeNode( transaction, "Test" );
             return Stream.of( t );
         }
 
@@ -138,26 +147,25 @@ public class JavaProceduresTest
         public Stream<LongResult> countNodes()
         {
             LongResult t = new LongResult();
-            t.value = myCoreAPI.countNodes();
+            t.value = MyCoreAPI.countNodes( transaction );
             return Stream.of( t );
         }
     }
 
-    private TestServerBuilder createServer( Class<?> procedureClass )
+    private static Neo4jBuilder createServer( Class<?> procedureClass )
     {
-        return TestServerBuilders.newInProcessBuilder()
-                                 .withProcedure( procedureClass )
-                                 .withConfig( ServerSettings.script_enabled, Settings.TRUE );
+        return Neo4jBuilders.newInProcessBuilder()
+                                 .withProcedure( procedureClass );
     }
 
     @Test
-    public void shouldLaunchWithDeclaredProcedures() throws Exception
+    void shouldLaunchWithDeclaredProcedures() throws Exception
     {
         // When
-        try ( ServerControls server = createServer( MyProcedures.class ).newServer() )
+        try ( Neo4j server = createServer( MyProcedures.class ).build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/data/transaction/commit" ).toString(),
+            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/neo4j/tx/commit" ).toString(),
                     quotedJson( "{ 'statements': [ { 'statement': 'CALL org.neo4j.harness.myProc' } ] }" ) );
 
             JsonNode result = response.get( "results" ).get( 0 );
@@ -168,13 +176,13 @@ public class JavaProceduresTest
     }
 
     @Test
-    public void shouldGetHelpfulErrorOnProcedureThrowsException() throws Exception
+    void shouldGetHelpfulErrorOnProcedureThrowsException() throws Exception
     {
         // When
-        try ( ServerControls server = createServer( MyProcedures.class ).newServer() )
+        try ( Neo4j server = createServer( MyProcedures.class ).build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/data/transaction/commit" ).toString(),
+            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/neo4j/tx/commit" ).toString(),
                     quotedJson( "{ 'statements': [ { 'statement': 'CALL org.neo4j.harness.procThatThrows' } ] }" ) );
 
             String error = response.get( "errors" ).get( 0 ).get( "message" ).asText();
@@ -184,13 +192,13 @@ public class JavaProceduresTest
     }
 
     @Test
-    public void shouldWorkWithInjectableFromKernelExtension() throws Throwable
+    void shouldWorkWithInjectableFromExtension() throws Throwable
     {
         // When
-        try ( ServerControls server = createServer( MyProceduresUsingMyService.class ).newServer() )
+        try ( Neo4j server = createServer( MyProceduresUsingMyService.class ).build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/data/transaction/commit" ).toString(),
+            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/neo4j/tx/commit" ).toString(),
                     quotedJson( "{ 'statements': [ { 'statement': 'CALL hello' } ] }" ) );
 
             assertEquals( "[]", response.get( "errors" ).toString() );
@@ -201,25 +209,24 @@ public class JavaProceduresTest
     }
 
     @Test
-    public void shouldWorkWithInjectableFromKernelExtensionWithMorePower() throws Throwable
+    void shouldWorkWithInjectableFromExtensionWithMorePower() throws Throwable
     {
         // When
-        try ( ServerControls server = createServer( MyProceduresUsingMyCoreAPI.class )
-                .withConfig( GraphDatabaseSettings.record_id_batch_size, "1" )
-                .newServer() )
+        try ( Neo4j server = createServer( MyProceduresUsingMyCoreAPI.class ).build() )
         {
             // Then
             assertQueryGetsValue( server, "CALL makeNode(\\'Test\\')", 0L );
             assertQueryGetsValue( server, "CALL makeNode(\\'Test\\')", 1L );
             assertQueryGetsValue( server, "CALL makeNode(\\'Test\\')", 2L );
             assertQueryGetsValue( server, "CALL countNodes", 3L );
-            assertQueryGetsError( server, "CALL willFail", "Write operations are not allowed" );
+            assertQueryGetsError( server, "CALL willFail",
+                                  createNodeWithLabelsDenied( "", "neo4j", overriddenMode( withUser( "", FULL.name() ), READ.name() ) ) );
         }
     }
 
-    private void assertQueryGetsValue( ServerControls server, String query, long value ) throws Throwable
+    private static void assertQueryGetsValue( Neo4j server, String query, long value ) throws Throwable
     {
-        HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/data/transaction/commit" ).toString(),
+        HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/neo4j/tx/commit" ).toString(),
                 quotedJson( "{ 'statements': [ { 'statement': '" + query + "' } ] }" ) );
 
         assertEquals( "[]", response.get( "errors" ).toString() );
@@ -228,11 +235,11 @@ public class JavaProceduresTest
         assertEquals( value, result.get( "data" ).get( 0 ).get( "row" ).get( 0 ).asLong() );
     }
 
-    private void assertQueryGetsError( ServerControls server, String query, String error ) throws Throwable
+    private static void assertQueryGetsError( Neo4j server, String query, String error ) throws Throwable
     {
-        HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/data/transaction/commit" ).toString(),
+        HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/neo4j/tx/commit" ).toString(),
                 quotedJson( "{ 'statements': [ { 'statement': '" + query + "' } ] }" ) );
 
-        assertThat( response.get( "errors" ).toString(), containsString( error ) );
+        assertThat( response.get( "errors" ).toString() ).contains( error );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,55 +38,34 @@
  */
 package org.neo4j.io.pagecache.impl.muninn;
 
-import org.neo4j.io.pagecache.tracing.PageCacheTracer;
-import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracer;
-import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracerSupplier;
-import org.neo4j.io.pagecache.tracing.cursor.context.VersionContextSupplier;
+import org.neo4j.io.pagecache.context.CursorContext;
 
 final class CursorFactory
 {
     private final MuninnPagedFile pagedFile;
     private final long victimPage;
-    private final PageCursorTracerSupplier pageCursorTracerSupplier;
-    private final PageCacheTracer pageCacheTracer;
-    private final VersionContextSupplier versionContextSupplier;
 
     /**
      * Cursor factory construction
      * @param pagedFile paged file for which cursor is created
-     * @param pageCursorTracerSupplier supplier of thread local (transaction local) page cursor tracers that will
-     * provide thread local page cache statistics
-     * @param pageCacheTracer global page cache tracer
-     * @param versionContextSupplier version context supplier
      */
-    CursorFactory( MuninnPagedFile pagedFile, PageCursorTracerSupplier pageCursorTracerSupplier,
-            PageCacheTracer pageCacheTracer, VersionContextSupplier versionContextSupplier )
+    CursorFactory( MuninnPagedFile pagedFile )
     {
         this.pagedFile = pagedFile;
         this.victimPage = pagedFile.pageCache.victimPage;
-        this.pageCursorTracerSupplier = pageCursorTracerSupplier;
-        this.pageCacheTracer = pageCacheTracer;
-        this.versionContextSupplier = versionContextSupplier;
     }
 
-    MuninnReadPageCursor takeReadCursor( long pageId, int pf_flags )
+    MuninnReadPageCursor takeReadCursor( long pageId, int pf_flags, CursorContext cursorContext )
     {
-        MuninnReadPageCursor cursor = new MuninnReadPageCursor( victimPage, getPageCursorTracer(), versionContextSupplier );
+        MuninnReadPageCursor cursor = new MuninnReadPageCursor( victimPage, cursorContext );
         cursor.initialise( pagedFile, pageId, pf_flags );
         return cursor;
     }
 
-    MuninnWritePageCursor takeWriteCursor( long pageId, int pf_flags )
+    MuninnWritePageCursor takeWriteCursor( long pageId, int pf_flags, CursorContext cursorContext )
     {
-        MuninnWritePageCursor cursor = new MuninnWritePageCursor( victimPage, getPageCursorTracer(), versionContextSupplier );
+        MuninnWritePageCursor cursor = new MuninnWritePageCursor( victimPage, cursorContext );
         cursor.initialise( pagedFile, pageId, pf_flags );
         return cursor;
-    }
-
-    private PageCursorTracer getPageCursorTracer()
-    {
-        PageCursorTracer pageCursorTracer = pageCursorTracerSupplier.get();
-        pageCursorTracer.init( pageCacheTracer );
-        return pageCursorTracer;
     }
 }

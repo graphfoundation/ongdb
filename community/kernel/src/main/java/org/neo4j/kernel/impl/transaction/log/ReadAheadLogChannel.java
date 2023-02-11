@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,7 +40,11 @@ package org.neo4j.kernel.impl.transaction.log;
 
 import java.io.IOException;
 
+import org.neo4j.io.fs.ReadAheadChannel;
 import org.neo4j.io.fs.StoreChannel;
+import org.neo4j.io.memory.NativeScopedBuffer;
+import org.neo4j.io.memory.ScopedBuffer;
+import org.neo4j.memory.MemoryTracker;
 
 /**
  * Basically a sequence of {@link StoreChannel channels} seamlessly seen as one.
@@ -48,21 +52,31 @@ import org.neo4j.io.fs.StoreChannel;
 public class ReadAheadLogChannel extends ReadAheadChannel<LogVersionedStoreChannel> implements ReadableLogChannel
 {
     private final LogVersionBridge bridge;
+    private final boolean raw;
 
-    public ReadAheadLogChannel( LogVersionedStoreChannel startingChannel )
+    public ReadAheadLogChannel( LogVersionedStoreChannel startingChannel, MemoryTracker memoryTracker )
     {
-        this( startingChannel, LogVersionBridge.NO_MORE_CHANNELS, DEFAULT_READ_AHEAD_SIZE );
+        this( startingChannel, LogVersionBridge.NO_MORE_CHANNELS, new NativeScopedBuffer( DEFAULT_READ_AHEAD_SIZE, memoryTracker ), false );
     }
 
-    public ReadAheadLogChannel( LogVersionedStoreChannel startingChannel, LogVersionBridge bridge )
+    public ReadAheadLogChannel( LogVersionedStoreChannel startingChannel, LogVersionBridge bridge, MemoryTracker memoryTracker )
     {
-        this( startingChannel, bridge, DEFAULT_READ_AHEAD_SIZE );
+        this( startingChannel, bridge, new NativeScopedBuffer( DEFAULT_READ_AHEAD_SIZE, memoryTracker ), false );
     }
 
-    public ReadAheadLogChannel( LogVersionedStoreChannel startingChannel, LogVersionBridge bridge, int readAheadSize )
+    public ReadAheadLogChannel( LogVersionedStoreChannel startingChannel, LogVersionBridge bridge, MemoryTracker memoryTracker, boolean raw )
     {
-        super( startingChannel, readAheadSize );
+        this( startingChannel, bridge, new NativeScopedBuffer( DEFAULT_READ_AHEAD_SIZE, memoryTracker ), raw );
+    }
+
+    /**
+     * This constructor is private to ensure that the given buffer always comes form one of our own constructors.
+     */
+    private ReadAheadLogChannel( LogVersionedStoreChannel startingChannel, LogVersionBridge bridge, ScopedBuffer scopedBuffer, boolean raw )
+    {
+        super( startingChannel, scopedBuffer );
         this.bridge = bridge;
+        this.raw = raw;
     }
 
     @Override
@@ -85,8 +99,20 @@ public class ReadAheadLogChannel extends ReadAheadChannel<LogVersionedStoreChann
     }
 
     @Override
+    public LogPosition getCurrentPosition() throws IOException
+    {
+        return new LogPosition( channel.getVersion(),position() );
+    }
+
+    @Override
     protected LogVersionedStoreChannel next( LogVersionedStoreChannel channel ) throws IOException
     {
-        return bridge.next( channel );
+        return bridge.next( channel, raw );
+    }
+
+    @Override
+    public void close() throws IOException
+    {
+        super.close();
     }
 }

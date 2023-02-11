@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,23 +38,13 @@
  */
 package org.neo4j.kernel.impl.api.state;
 
-import java.util.Arrays;
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
+
 import java.util.Iterator;
 
-import org.neo4j.collection.primitive.PrimitiveIntCollections;
-import org.neo4j.collection.primitive.PrimitiveIntSet;
 import org.neo4j.cursor.Cursor;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.kernel.api.properties.PropertyKeyValue;
-import org.neo4j.kernel.impl.locking.Lock;
-import org.neo4j.storageengine.api.NodeItem;
-import org.neo4j.storageengine.api.PropertyItem;
-import org.neo4j.storageengine.api.RelationshipItem;
-import org.neo4j.values.storable.Value;
-
-import static org.neo4j.collection.primitive.PrimitiveIntCollections.emptySet;
-import static org.neo4j.helpers.collection.Iterables.map;
-import static org.neo4j.kernel.impl.locking.LockService.NO_LOCK;
+import org.neo4j.internal.helpers.collection.Iterables;
 
 /**
  * Stub cursors to be used for testing.
@@ -65,229 +55,9 @@ public class StubCursors
     {
     }
 
-    public static Cursor<NodeItem> asNodeCursor( long... nodeIds )
+    public static MutableLongSet labels( final long... labels )
     {
-        NodeItem[] nodeItems = new NodeItem[nodeIds.length];
-        for ( int i = 0; i < nodeIds.length; i++ )
-        {
-            nodeItems[i] = new StubNodeItem( nodeIds[i], -1, emptySet() );
-        }
-        return cursor( nodeItems );
-    }
-
-    public static Cursor<NodeItem> asNodeCursor( long nodeId )
-    {
-        return asNodeCursor( nodeId, -1 );
-    }
-
-    public static Cursor<NodeItem> asNodeCursor( long nodeId, long propertyId )
-    {
-        return asNodeCursor( nodeId, propertyId, emptySet() );
-    }
-
-    public static Cursor<NodeItem> asNodeCursor( long nodeId, PrimitiveIntSet labels )
-    {
-        return cursor( new StubNodeItem( nodeId, -1, labels ) );
-    }
-
-    public static Cursor<NodeItem> asNodeCursor( long nodeId, long propertyId, PrimitiveIntSet labels )
-    {
-        return cursor( new StubNodeItem( nodeId, propertyId, labels ) );
-    }
-
-    private static class StubNodeItem implements NodeItem
-    {
-        private final long nodeId;
-        private final long propertyId;
-        private final PrimitiveIntSet labels;
-
-        private StubNodeItem( long nodeId, long propertyId, PrimitiveIntSet labels )
-        {
-            this.nodeId = nodeId;
-            this.propertyId = propertyId;
-            this.labels = labels;
-        }
-
-        @Override
-        public long id()
-        {
-            return nodeId;
-        }
-
-        @Override
-        public boolean hasLabel( int labelId )
-        {
-            return labels.contains( labelId );
-        }
-
-        @Override
-        public long nextGroupId()
-        {
-            throw new UnsupportedOperationException( "not supported" );
-        }
-
-        @Override
-        public long nextRelationshipId()
-        {
-            throw new UnsupportedOperationException( "not supported" );
-        }
-
-        @Override
-        public long nextPropertyId()
-        {
-            return propertyId;
-        }
-
-        @Override
-        public Lock lock()
-        {
-            return NO_LOCK;
-        }
-
-        @Override
-        public PrimitiveIntSet labels()
-        {
-            return labels;
-        }
-
-        @Override
-        public boolean isDense()
-        {
-            throw new UnsupportedOperationException(  );
-        }
-    }
-
-    public static RelationshipItem relationship( long id, int type, long start, long end )
-    {
-        return new RelationshipItem()
-        {
-            @Override
-            public long id()
-            {
-                return id;
-            }
-
-            @Override
-            public int type()
-            {
-                return type;
-            }
-
-            @Override
-            public long startNode()
-            {
-                return start;
-            }
-
-            @Override
-            public long endNode()
-            {
-                return end;
-            }
-
-            @Override
-            public long otherNode( long nodeId )
-            {
-                if ( nodeId == start )
-                {
-                    return end;
-                }
-                else if ( nodeId == end )
-                {
-                    return start;
-                }
-                throw new IllegalStateException();
-            }
-
-            @Override
-            public long nextPropertyId()
-            {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public Lock lock()
-            {
-                throw new UnsupportedOperationException();
-            }
-        };
-    }
-
-    public static Cursor<RelationshipItem> asRelationshipCursor( final long relId, final int type,
-            final long startNode, final long endNode, long propertyId )
-    {
-        return cursor( new RelationshipItem()
-        {
-            @Override
-            public long id()
-            {
-                return relId;
-            }
-
-            @Override
-            public int type()
-            {
-                return type;
-            }
-
-            @Override
-            public long startNode()
-            {
-                return startNode;
-            }
-
-            @Override
-            public long endNode()
-            {
-                return endNode;
-            }
-
-            @Override
-            public long otherNode( long nodeId )
-            {
-                return startNode == nodeId ? endNode : startNode;
-            }
-
-            @Override
-            public long nextPropertyId()
-            {
-                return propertyId;
-            }
-
-            @Override
-            public Lock lock()
-            {
-                return NO_LOCK;
-            }
-        } );
-    }
-
-    public static PrimitiveIntSet labels( final int... labels )
-    {
-        return PrimitiveIntCollections.asSet( labels );
-    }
-
-    public static Cursor<PropertyItem> asPropertyCursor( final PropertyKeyValue... properties )
-    {
-        return cursor( map( StubCursors::asPropertyItem, Arrays.asList( properties ) ) );
-    }
-
-    private static PropertyItem asPropertyItem( final PropertyKeyValue property )
-    {
-        return new PropertyItem()
-        {
-            @Override
-            public int propertyKeyId()
-            {
-                return property.propertyKeyId();
-            }
-
-            @Override
-            public Value value()
-            {
-                return property.value();
-            }
-        };
+        return LongHashSet.newSetWith( labels );
     }
 
     @SafeVarargs

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,37 +38,45 @@
  */
 package org.neo4j.server.web;
 
+import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.parallel.Resources;
 
 import java.util.concurrent.CountDownLatch;
 
-import org.neo4j.helpers.ListenSocketAddress;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.helpers.SocketAddress;
+import org.neo4j.kernel.api.net.NetworkConnectionTracker;
 import org.neo4j.logging.NullLogProvider;
-import org.neo4j.ports.allocation.PortAuthority;
-import org.neo4j.test.rule.SuppressOutput;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.SuppressOutput;
+import org.neo4j.test.extension.SuppressOutputExtension;
 
-import static org.junit.Assert.assertEquals;
-import static org.neo4j.test.rule.SuppressOutput.suppressAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
 
-public class JettyThreadLimitIT
+@ExtendWith( SuppressOutputExtension.class )
+@ResourceLock( Resources.SYSTEM_OUT )
+class JettyThreadLimitIT
 {
-    @Rule
-    public SuppressOutput suppressOutput = suppressAll();
+    @Inject
+    private SuppressOutput suppressOutput;
 
     @Test
-    public void shouldHaveConfigurableJettyThreadPoolSize() throws Exception
+    void shouldHaveConfigurableJettyThreadPoolSize() throws Exception
     {
-        Jetty9WebServer server = new Jetty9WebServer( NullLogProvider.getInstance(), Config.defaults() );
+        Jetty9WebServer server = new Jetty9WebServer(
+                NullLogProvider.getInstance(), Config.defaults(), NetworkConnectionTracker.NO_OP, mock( ByteBufferPool.class ) );
         int numCores = 1;
         int configuredMaxThreads = 12; // 12 is the new min max Threads value, for one core
         int acceptorThreads = 1; // In this configuration, 1 thread will become an acceptor...
         int selectorThreads = 1; // ... and 1 thread will become a selector...
         int jobThreads = configuredMaxThreads - acceptorThreads - selectorThreads; // ... and the rest are job threads
         server.setMaxThreads( numCores );
-        server.setAddress( new ListenSocketAddress( "localhost", PortAuthority.allocatePort() ) );
+        server.setHttpAddress( new SocketAddress( "localhost", 0 ) );
         try
         {
             server.start();
@@ -78,7 +86,7 @@ public class JettyThreadLimitIT
             CountDownLatch endLatch = loadThreadPool( threadPool, configuredMaxThreads + 1, startLatch );
             startLatch.await(); // Wait for threadPool to create threads
             int threads = threadPool.getThreads();
-            assertEquals( "Wrong number of threads in pool", configuredMaxThreads, threads );
+            assertEquals( configuredMaxThreads, threads, "Wrong number of threads in pool" );
             endLatch.countDown();
         }
         finally
@@ -87,9 +95,7 @@ public class JettyThreadLimitIT
         }
     }
 
-    private CountDownLatch loadThreadPool( QueuedThreadPool threadPool,
-                                           int tasksToSubmit,
-                                           final CountDownLatch startLatch )
+    private static CountDownLatch loadThreadPool( QueuedThreadPool threadPool, int tasksToSubmit, final CountDownLatch startLatch )
     {
         CountDownLatch endLatch = new CountDownLatch( 1 );
         for ( int i = 0; i < tasksToSubmit; i++ )

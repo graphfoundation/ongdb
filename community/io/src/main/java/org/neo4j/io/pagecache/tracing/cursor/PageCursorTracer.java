@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,9 +38,12 @@
  */
 package org.neo4j.io.pagecache.tracing.cursor;
 
+import java.io.Closeable;
+
 import org.neo4j.io.pagecache.PageSwapper;
-import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.io.pagecache.tracing.PinEvent;
+
+import static org.apache.commons.lang3.StringUtils.EMPTY;
 
 /**
  * Event tracer for page cursors.
@@ -51,9 +54,8 @@ import org.neo4j.io.pagecache.tracing.PinEvent;
  *
  * @see PageCursorTracer
  */
-public interface PageCursorTracer extends PageCursorCounters
+public interface PageCursorTracer extends PageCursorCounters, Closeable
 {
-
     PageCursorTracer NULL = new PageCursorTracer()
     {
         @Override
@@ -111,6 +113,12 @@ public interface PageCursorTracer extends PageCursorCounters
         }
 
         @Override
+        public long merges()
+        {
+            return 0;
+        }
+
+        @Override
         public double hitRatio()
         {
             return 0d;
@@ -123,37 +131,29 @@ public interface PageCursorTracer extends PageCursorCounters
         }
 
         @Override
-        public void init( PageCacheTracer tracer )
-        {
-
-        }
-
-        @Override
         public void reportEvents()
         {
 
         }
 
         @Override
-        public long accumulatedHits()
+        public String getTag()
         {
-            return 0;
+            return EMPTY;
         }
 
         @Override
-        public long accumulatedFaults()
+        public void closeCursor()
         {
-            return 0;
+        }
+
+        @Override
+        public void merge( PageCursorTracer cursorTracer )
+        {
         }
     };
 
     PinEvent beginPin( boolean writeLock, long filePageId, PageSwapper swapper );
-
-    /**
-     * Initialize page cursor tracer with required context dependent values.
-     * @param tracer page cache tracer
-     */
-    void init( PageCacheTracer tracer );
 
     /**
      * Report to global page cache tracer events observed by current page cursor tracer.
@@ -163,17 +163,24 @@ public interface PageCursorTracer extends PageCursorCounters
     void reportEvents();
 
     /**
-     * Accumulated number of hits that tracer observed over all reporting cycles.
-     * In counterpart to hits metric that reset each time when reporting cycle is over
-     * @return accumulated number of hits
+     * @return page cursor tracer tag
      */
-    long accumulatedHits();
+    String getTag();
+
+    @Override
+    default void close()
+    {
+        reportEvents();
+    }
 
     /**
-     * Accumulated number of faults that tracer observed over all reporting cycles.
-     * In counterpart to faults metric that reset each time when reporting cycle is over
-     * @return accumulated number of faults
+     * Page cache cursor closed
      */
-    long accumulatedFaults();
+    void closeCursor();
 
+    /**
+     * Merge values collected by another tracer into current.
+     * @param cursorTracer tracer with externally collected data
+     */
+    void merge( PageCursorTracer cursorTracer );
 }

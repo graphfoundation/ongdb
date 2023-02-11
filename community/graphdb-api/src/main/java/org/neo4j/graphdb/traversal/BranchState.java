@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,6 +38,8 @@
  */
 package org.neo4j.graphdb.traversal;
 
+import org.neo4j.annotations.api.IgnoreApiCheck;
+
 /**
  * Accessor for a state associated with a {@link TraversalBranch} during a
  * traversal. A {@link TraversalBranch} can have an associated state which
@@ -50,6 +52,7 @@ package org.neo4j.graphdb.traversal;
  *
  * @param <STATE> the type of object the state is.
  */
+@IgnoreApiCheck
 public interface BranchState<STATE>
 {
     /**

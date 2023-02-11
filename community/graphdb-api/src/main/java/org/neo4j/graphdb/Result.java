@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,8 +42,10 @@ import java.io.PrintWriter;
 import java.util.List;
 import java.util.Map;
 
+import org.neo4j.annotations.api.PublicApi;
+
 /**
- * Represents the result of {@link GraphDatabaseService#execute(String, java.util.Map) executing} a query.
+ * Represents the result of {@link Transaction#execute(String, java.util.Map) executing} a query.
  * <p>
  * The result is comprised of a number of rows, potentially computed lazily, with this result object being an iterator
  * over those rows. Each row is represented as a <code>{@link Map}&lt;{@link String}, {@link Object}&gt;</code>, the
@@ -96,6 +98,7 @@ import java.util.Map;
  * distinguish between these cases the {@link QueryExecutionType} {@linkplain #getQueryExecutionType() of this result}
  * can be queried.
  */
+@PublicApi
 public interface Result extends ResourceIterator<Map<String,Object>>
 {
     /**

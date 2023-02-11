@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -48,7 +48,7 @@ import static org.neo4j.values.storable.Values.NO_VALUE;
  * Usage pattern:
  * <pre><code>
  *     int nbrOfProps = cursor.numberOfProperties();
-
+ *
  *     Value[] values = new Value[nbrOfProps];
  *     while ( cursor.next() )
  *     {
@@ -61,39 +61,24 @@ import static org.neo4j.values.storable.Values.NO_VALUE;
  *         }
  *         else
  *         {
- *             values[i] = getPropertyValueFromStore( cursor.nodeReference(), cursor.propertyKey( i ) )
+ *              for ( int i = 0; i < nbrOfProps; i++ )
+ *              {
+ *                  values[i] = getPropertyValueFromStore( cursor.nodeReference(), cursor.propertyKey( i ) )
+ *              }
  *         }
  *
  *         doWhatYouWantToDoWith( values );
  *     }
  * </code></pre>
  */
-public interface NodeValueIndexCursor extends NodeIndexCursor
+public interface NodeValueIndexCursor extends NodeIndexCursor, ValueIndexCursor
 {
-    /**
-     * @return the number of properties accessible within the index, and thus from this cursor.
-     */
-    int numberOfProperties();
-
-    int propertyKey( int offset );
-
-    /**
-     * Check before trying to access values with {@link #propertyValue(int)}. Result can change with each call to {@link #next()}.
-     *
-     * @return {@code true} if {@link #propertyValue(int)} can be used to get property value on cursor's current location,
-     * else {@code false}.
-     */
-    boolean hasValue();
-
-    Value propertyValue( int offset );
-
-    class Empty implements NodeValueIndexCursor
+    class Empty extends DoNothingCloseListenable implements NodeValueIndexCursor
     {
 
         @Override
         public void node( NodeCursor cursor )
         {
-
         }
 
         @Override
@@ -109,9 +94,9 @@ public interface NodeValueIndexCursor extends NodeIndexCursor
         }
 
         @Override
-        public void close()
+        public void closeInternal()
         {
-
+            //do nothing
         }
 
         @Override
@@ -127,21 +112,32 @@ public interface NodeValueIndexCursor extends NodeIndexCursor
         }
 
         @Override
-        public int propertyKey( int offset )
-        {
-            return -1;
-        }
-
-        @Override
         public boolean hasValue()
         {
             return false;
         }
 
         @Override
+        public float score()
+        {
+            return Float.NaN;
+        }
+
+        @Override
         public Value propertyValue( int offset )
         {
             return NO_VALUE;
+        }
+
+        @Override
+        public void setTracer( KernelReadTracer tracer )
+        {
+        }
+
+        @Override
+        public void removeTracer()
+        {
+
         }
     }
 

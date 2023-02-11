@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,21 +38,41 @@
  */
 package org.neo4j.graphdb;
 
+import org.neo4j.kernel.api.exceptions.Status;
+
 /**
  * Indicates that a transaction couldn't complete successfully due to an intermediate failure.
- *
- * A proper response to a caught exception of this type is to cancel the unit of work that produced
- * this exception and retry the unit of work again, as a whole.
+ * <p>
+ * A proper response to a caught exception of this type is to cancel the unit of work that produced this exception and retry the unit of work again, as a
+ * whole.
  */
 public class TransientTransactionFailureException extends TransientFailureException
 {
+    private static final Status DEFAULT_STATUS = Status.Transaction.TransientTransactionFailure;
+
+    private final Status status;
+
+    @Deprecated // A specific status should be provided
     public TransientTransactionFailureException( String message, Throwable cause )
     {
-        super( message, cause );
+        this( DEFAULT_STATUS, message, cause );
     }
 
-    public TransientTransactionFailureException( String message )
+    public TransientTransactionFailureException( Status status, String message, Throwable cause )
+    {
+        super( message, cause );
+        this.status = status;
+    }
+
+    public TransientTransactionFailureException( Status status, String message )
     {
         super( message );
+        this.status = status;
+    }
+
+    @Override
+    public Status status()
+    {
+        return status;
     }
 }

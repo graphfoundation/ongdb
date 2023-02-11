@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,6 +40,7 @@ package org.neo4j.kernel.impl.api.security;
 
 import org.neo4j.graphdb.security.AuthorizationViolationException;
 import org.neo4j.internal.kernel.api.security.AccessMode;
+import org.neo4j.internal.kernel.api.security.PermissionState;
 
 /**
  * Access mode that wraps an access mode with a wrapping access mode. The resulting access mode allows things based
@@ -48,18 +49,57 @@ import org.neo4j.internal.kernel.api.security.AccessMode;
 abstract class WrappedAccessMode implements AccessMode
 {
     protected final AccessMode original;
-    protected final AccessMode wrapping;
+    protected final Static wrapping;
 
-    WrappedAccessMode( AccessMode original, AccessMode wrapping )
+    WrappedAccessMode( AccessMode original, Static wrapping )
     {
         this.original = original;
-        this.wrapping = wrapping;
+        if ( original instanceof WrappedAccessMode )
+        {
+            Static originalWrapping = ((WrappedAccessMode) original).wrapping;
+            this.wrapping = originalWrapping.ordinal() < wrapping.ordinal() ?
+                            originalWrapping : wrapping;
+        }
+        else
+        {
+            this.wrapping = wrapping;
+        }
     }
 
     @Override
-    public AuthorizationViolationException onViolation( String msg )
+    public PermissionState allowsExecuteProcedure( int procedureId )
     {
-        return wrapping.onViolation( msg );
+        return original.allowsExecuteProcedure( procedureId );
+    }
+
+    @Override
+    public PermissionState shouldBoostProcedure( int procedureId )
+    {
+        return original.shouldBoostProcedure( procedureId );
+    }
+
+    @Override
+    public PermissionState allowsExecuteFunction( int id )
+    {
+        return original.allowsExecuteFunction( id );
+    }
+
+    @Override
+    public PermissionState shouldBoostFunction( int id )
+    {
+        return original.shouldBoostFunction( id );
+    }
+
+    @Override
+    public PermissionState allowsExecuteAggregatingFunction( int id )
+    {
+        return original.allowsExecuteAggregatingFunction( id );
+    }
+
+    @Override
+    public PermissionState shouldBoostAggregatingFunction( int id )
+    {
+        return original.shouldBoostFunction( id );
     }
 
     @Override

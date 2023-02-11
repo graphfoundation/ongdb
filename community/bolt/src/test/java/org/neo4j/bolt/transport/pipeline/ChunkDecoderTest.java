@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,29 +40,29 @@ package org.neo4j.bolt.transport.pipeline;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.embedded.EmbeddedChannel;
-import org.junit.After;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 import static io.netty.buffer.Unpooled.buffer;
 import static io.netty.buffer.Unpooled.copyShort;
 import static io.netty.buffer.Unpooled.wrappedBuffer;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.bolt.testing.BoltTestUtil.assertByteBufEquals;
 
 public class ChunkDecoderTest
 {
     private final EmbeddedChannel channel = new EmbeddedChannel( new ChunkDecoder() );
 
-    @After
+    @AfterEach
     public void cleanup()
     {
         channel.finishAndReleaseAll();
     }
 
     @Test
-    public void shouldDecodeFullChunk()
+    void shouldDecodeFullChunk()
     {
         // whole chunk with header and body arrives at once
         ByteBuf input = buffer();
@@ -86,7 +86,7 @@ public class ChunkDecoderTest
     }
 
     @Test
-    public void shouldDecodeSplitChunk()
+    void shouldDecodeSplitChunk()
     {
         // first part of the chunk contains size header and some bytes
         ByteBuf input1 = buffer();
@@ -127,7 +127,7 @@ public class ChunkDecoderTest
     }
 
     @Test
-    public void shouldDecodeEmptyChunk()
+    void shouldDecodeEmptyChunk()
     {
         // chunk contains just the size header which is zero
         ByteBuf input = copyShort( 0 );
@@ -141,7 +141,7 @@ public class ChunkDecoderTest
     }
 
     @Test
-    public void shouldDecodeMaxSizeChunk()
+    void shouldDecodeMaxSizeChunk()
     {
         byte[] message = new byte[0xFFFF];
 

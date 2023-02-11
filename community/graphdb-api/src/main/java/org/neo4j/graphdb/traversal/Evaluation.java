@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,15 +38,17 @@
  */
 package org.neo4j.graphdb.traversal;
 
+import org.neo4j.annotations.api.PublicApi;
+
 /**
  * Outcome of {@link Evaluator#evaluate(org.neo4j.graphdb.Path)}. An evaluation
  * can tell the traversal whether or not to continue down that
  * {@link TraversalBranch} and whether or not to include a
  * {@link TraversalBranch} in the result of a traversal.
  *
- * @author Mattias Persson
  * @see Evaluator
  */
+@PublicApi
 public enum Evaluation
 {
     INCLUDE_AND_CONTINUE( true, true ),

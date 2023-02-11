@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,73 +38,29 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.mockito.ArgumentMatchers._
-import org.mockito.Mockito._
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.when
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
-import org.neo4j.cypher.internal.runtime.interpreted.ValueComparisonHelper.beEquivalentTo
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
-import org.neo4j.cypher.internal.util.v3_4.symbols._
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.values.storable.Values
-import org.neo4j.values.storable.Values.NO_VALUE
-import org.neo4j.values.virtual.VirtualValues
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
 class RollUpApplyPipeTest extends CypherFunSuite with PipeTestSupport {
-  test("when rhs returns nothing, an empty collection should be produced") {
-    // given
-    val lhs = createLhs(1)
-    val rhs = pipeWithResults { (state) => Iterator() }
-    val pipe = RollUpApplyPipe(lhs, rhs, collectionName = "x", identifierToCollect = "y", nullableIdentifiers = Set("a"))()
-
-    // when
-    val result = pipe.createResults(QueryStateHelper.empty).toList
-
-    // then
-    result should beEquivalentTo(List(Map("a" -> 1, "x" -> Seq.empty)))
-  }
-
-  test("when rhs has null values on nullableIdentifiers, a null value should be produced") {
-    // given
-    val lhs = createLhs(null, 1)
-    val rhs = pipeWithResults { (state) => Iterator() }
-    val pipe = RollUpApplyPipe(lhs, rhs, collectionName = "x", identifierToCollect = "y", nullableIdentifiers = Set("a"))()
-
-    // when
-    val result = pipe.createResults(QueryStateHelper.empty).toList
-
-    // then
-    result should equal(List(
-      Map("a" -> NO_VALUE, "x" -> NO_VALUE),
-      Map("a" -> Values.intValue(1), "x" -> VirtualValues.EMPTY_LIST)))
-  }
-
-  test("when rhs produces multiple rows with values, they are turned into a collection") {
-    // given
-    val lhs = createLhs(1)
-    val rhs = createRhs(1, 2, 3, 4)
-    val pipe = RollUpApplyPipe(lhs, rhs, collectionName = "x", identifierToCollect = "y", nullableIdentifiers = Set("a"))()
-
-    // when
-    val result = pipe.createResults(QueryStateHelper.empty).toList
-
-    // then
-    result should beEquivalentTo(List(
-      Map("a" -> 1, "x" -> Seq(1, 2, 3, 4))))
-  }
 
   test("should set the QueryState when calling down to the RHS") {
     // given
     val lhs = createLhs(1)
     val rhs = mock[Pipe]
-    when(rhs.createResults(any())).then(new Answer[Iterator[ExecutionContext]] {
+    when(rhs.createResults(any())).thenAnswer(new Answer[Iterator[CypherRow]] {
       override def answer(invocation: InvocationOnMock) = {
         val state:QueryState = invocation.getArgument(0)
         state.initialContext should not be empty
-        Iterator.empty
+        ClosingIterator.empty
       }
     })
-    val pipe = RollUpApplyPipe(lhs, rhs, collectionName = "x", identifierToCollect = "y", nullableIdentifiers = Set("a"))()
+    val pipe = RollUpApplyPipe(lhs, rhs, collectionName = "x", identifierToCollect = "y")()
 
     // when
     pipe.createResults(QueryStateHelper.empty).toList
@@ -112,13 +68,8 @@ class RollUpApplyPipeTest extends CypherFunSuite with PipeTestSupport {
     // then should not throw exception
   }
 
-  private def createRhs(data: Any*) = {
-    val rhsData = data.map { case v => Map("y" -> v) }
-    new FakePipe(rhsData.iterator, "a" -> CTAny)
-  }
-
   private def createLhs(data: Any*) = {
-    val lhsData = data.map { case v => Map("a" -> v) }
-    new FakePipe(lhsData.iterator, "a" -> CTNumber)
+    val lhsData = data.map(v => Map("a" -> v))
+    new FakePipe(lhsData.iterator)
   }
 }

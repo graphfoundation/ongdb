@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -50,9 +50,14 @@ import org.neo4j.csv.reader.Source.Chunk;
  */
 public class ClosestNewLineChunker extends CharReadableChunker
 {
-    public ClosestNewLineChunker( CharReadable reader, int chunkSize )
+    private final HeaderSkipper headerSkip;
+    private String lastSeenSourceDescription;
+    private int fileIndex = -1;
+
+    public ClosestNewLineChunker( CharReadable reader, int chunkSize, HeaderSkipper headerSkip )
     {
         super( reader, chunkSize );
+        this.headerSkip = headerSkip;
     }
 
     /**
@@ -87,11 +92,25 @@ public class ClosestNewLineChunker extends CharReadableChunker
         }
         // else we couldn't completely fill the buffer, this means that we're at the end of a data source, we're good.
 
+        boolean newSource = crossedOverToNewSource();
         if ( read > 0 )
         {
             offset += read;
             position += read;
-            into.initialize( offset, reader.sourceDescription() );
+            int skipped = newSource && fileIndex > 0 ? headerSkip.skipHeader( into.buffer, 0, offset ) : 0;
+            into.initialize( skipped, offset - skipped, lastSeenSourceDescription );
+            return true;
+        }
+        return false;
+    }
+
+    private boolean crossedOverToNewSource()
+    {
+        String currentSourceDescription = reader.sourceDescription();
+        if ( !currentSourceDescription.equals( lastSeenSourceDescription ) )
+        {
+            fileIndex++;
+            lastSeenSourceDescription = currentSourceDescription;
             return true;
         }
         return false;

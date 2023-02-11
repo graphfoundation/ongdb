@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,18 +42,23 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.traversal.Paths;
-import org.neo4j.helpers.collection.ArrayIterator;
-import org.neo4j.helpers.collection.ReverseArrayIterator;
+import org.neo4j.internal.helpers.collection.ArrayIterator;
+import org.neo4j.internal.helpers.collection.ReverseArrayIterator;
+import org.neo4j.kernel.impl.core.RelationshipEntity;
+import org.neo4j.memory.HeapEstimator;
+import org.neo4j.memory.Measurable;
 
-import static org.neo4j.helpers.collection.Iterators.iteratorsEqual;
+import static org.neo4j.internal.helpers.collection.Iterators.iteratorsEqual;
 
-public final class PathImpl implements Path
+public final class PathImpl implements Path, Measurable
 {
+    private static final long SHALLOW_SIZE = HeapEstimator.shallowSizeOfInstance( PathImpl.class );
+
     public static final class Builder
     {
         private final Builder previous;
@@ -100,7 +105,7 @@ public final class PathImpl implements Path
             return new Builder( this, relationship );
         }
 
-        public Path build( Builder other )
+        public PathImpl build( Builder other )
         {
             return new PathImpl( this, other );
         }
@@ -114,7 +119,7 @@ public final class PathImpl implements Path
             }
             else
             {
-                return relToString( relationship ) + ":" + previous.toString();
+                return relToString( relationship ) + ":" + previous;
             }
         }
     }
@@ -202,17 +207,19 @@ public final class PathImpl implements Path
 
     private Iterable<Node> nodeIterator( final Node start, final Iterable<Relationship> relationships )
     {
-        return () -> new Iterator<Node>()
+        return () -> new Iterator<>()
         {
             Node current = start;
             int index;
             Iterator<Relationship> relationshipIterator = relationships.iterator();
 
+            @Override
             public boolean hasNext()
             {
                 return index <= path.length;
             }
 
+            @Override
             public Node next()
             {
                 if ( current == null )
@@ -224,8 +231,8 @@ public final class PathImpl implements Path
                 {
                     if ( !relationshipIterator.hasNext() )
                     {
-                        throw new IllegalStateException( String.format( "Number of relationships: %d does not" +
-                                              " match with path length: %d.", index, path.length ) );
+                        throw new IllegalStateException(
+                                String.format( "Number of relationships: %d does not" + " match with path length: %d.", index, path.length ) );
                     }
                     next = relationshipIterator.next().getOtherNode( current );
                 }
@@ -240,6 +247,7 @@ public final class PathImpl implements Path
                 }
             }
 
+            @Override
             public void remove()
             {
                 throw new UnsupportedOperationException();
@@ -260,19 +268,21 @@ public final class PathImpl implements Path
     }
 
     @Override
-    public Iterator<PropertyContainer> iterator()
+    public Iterator<Entity> iterator()
     {
-        return new Iterator<PropertyContainer>()
+        return new Iterator<>()
         {
-            Iterator<? extends PropertyContainer> current = nodes().iterator();
-            Iterator<? extends PropertyContainer> next = relationships().iterator();
+            Iterator<? extends Entity> current = nodes().iterator();
+            Iterator<? extends Entity> next = relationships().iterator();
 
+            @Override
             public boolean hasNext()
             {
                 return current.hasNext();
             }
 
-            public PropertyContainer next()
+            @Override
+            public Entity next()
             {
                 try
                 {
@@ -280,12 +290,13 @@ public final class PathImpl implements Path
                 }
                 finally
                 {
-                    Iterator<? extends PropertyContainer> temp = current;
+                    Iterator<? extends Entity> temp = current;
                     current = next;
                     next = temp;
                 }
             }
 
+            @Override
             public void remove()
             {
                 next.remove();
@@ -329,6 +340,16 @@ public final class PathImpl implements Path
         {
             return false;
         }
+    }
+
+    @Override
+    public long estimatedHeapUsage()
+    {
+        long estimate =  SHALLOW_SIZE + HeapEstimator.shallowSizeOfObjectArray( path.length );
+        int pathLength = path.length;
+        estimate += pathLength * RelationshipEntity.SHALLOW_SIZE;
+
+        return estimate;
     }
 
     @Override

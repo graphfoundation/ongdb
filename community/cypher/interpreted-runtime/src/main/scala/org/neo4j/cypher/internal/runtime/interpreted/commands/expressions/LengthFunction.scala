@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,28 +38,22 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.ListSupport
+import org.neo4j.cypher.internal.runtime.ReadableRow
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.operations.CypherFunctions
 import org.neo4j.values.AnyValue
-import org.neo4j.values.storable.{TextValue, Values}
-import org.neo4j.values.virtual.PathValue
 
-case class LengthFunction(inner: Expression)
-  extends NullInNullOutExpression(inner)
-  with ListSupport {
-  //NOTE all usage except for paths is deprecated
-  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = value match {
-    case path: PathValue => Values.longValue(path.size())
-    case s: TextValue  => Values.longValue(s.length())
-    case x          => Values.longValue(makeTraversable(x).size())
-  }
+case class LengthFunction(inner: Expression) extends NullInNullOutExpression(inner) {
 
-  def rewrite(f: (Expression) => Expression) = f(LengthFunction(inner.rewrite(f)))
+  override def compute(value: AnyValue, ctx: ReadableRow, state: QueryState): AnyValue =
+    CypherFunctions.length(value)
 
-  def arguments = Seq(inner)
+  override def rewrite(f: Expression => Expression): Expression = f(LengthFunction(inner.rewrite(f)))
 
-  def symbolTableDependencies = inner.symbolTableDependencies
+  override def arguments: Seq[Expression] = Seq(inner)
+
+  override def children: Seq[AstNode[_]] = Seq(inner)
 
   override def toString = s"length($inner)"
 }

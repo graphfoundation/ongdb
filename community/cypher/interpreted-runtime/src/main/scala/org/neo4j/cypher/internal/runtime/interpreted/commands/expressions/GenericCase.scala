@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,8 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ReadableRow
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Predicate
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.values.AnyValue
@@ -47,23 +48,25 @@ case class GenericCase(alternatives: IndexedSeq[(Predicate, Expression)], defaul
 
   require(alternatives.nonEmpty)
 
-  def apply(ctx: ExecutionContext, state: QueryState): AnyValue = {
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = {
     val thisMatch: Option[Expression] = alternatives collectFirst {
-      case (p, res) if p.isTrue(ctx, state) => res
+      case (p, res) if p.isTrue(row, state) => res
     }
 
     thisMatch match {
-      case Some(result) => result(ctx, state)
-      case None         => default.getOrElse(Null()).apply(ctx, state)
+      case Some(result) => result(row, state)
+      case None         => default.getOrElse(Null()).apply(row, state)
     }
   }
 
   private def alternativePredicates: IndexedSeq[Predicate] = alternatives.map(_._1)
   private def alternativeExpressions: IndexedSeq[Expression] = alternatives.map(_._2)
 
-  def arguments = alternatives.map(_._1) ++ alternatives.map(_._2) ++ default.toIndexedSeq
+  override def arguments: Seq[Expression] = alternativePredicates ++ alternativeExpressions ++ default
 
-  def rewrite(f: (Expression) => Expression): Expression = {
+  override def children: Seq[AstNode[_]] = arguments
+
+  override def rewrite(f: Expression => Expression): Expression = {
     val newAlternatives: IndexedSeq[(Predicate, Expression)] = alternatives map {
       case (p, e) => (p.rewriteAsPredicate(f), e.rewrite(f))
     }
@@ -73,8 +76,4 @@ case class GenericCase(alternatives: IndexedSeq[(Predicate, Expression)], defaul
     f(GenericCase(newAlternatives, newDefault))
   }
 
-  def symbolTableDependencies: Set[String] = {
-    val expressions = alternativePredicates ++ default.toIndexedSeq ++ alternativeExpressions
-    expressions.flatMap(_.symbolTableDependencies).toSet
-  }
 }

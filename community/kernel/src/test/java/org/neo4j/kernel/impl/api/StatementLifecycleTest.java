@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,65 +38,64 @@
  */
 package org.neo4j.kernel.impl.api;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
-import org.neo4j.kernel.impl.locking.LockTracer;
-import org.neo4j.storageengine.api.StorageStatement;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseInternalSettings;
+import org.neo4j.lock.LockTracer;
+import org.neo4j.resources.CpuClock;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.kernel.database.DatabaseIdFactory.from;
 
-public class StatementLifecycleTest
+class StatementLifecycleTest
 {
     @Test
-    public void shouldReleaseStoreStatementOnlyWhenReferenceCountDownToZero()
+    void shouldReleaseStoreStatementOnlyWhenReferenceCountDownToZero()
     {
         // given
         KernelTransactionImplementation transaction = mock( KernelTransactionImplementation.class );
-        StorageStatement storageStatement = mock( StorageStatement.class );
-        KernelStatement statement = getKernelStatement( transaction, storageStatement );
+        KernelStatement statement = createStatement( transaction );
         statement.acquire();
-        verify( storageStatement ).acquire();
         statement.acquire();
 
         // when
         statement.close();
-        verifyNoMoreInteractions( storageStatement );
+        verify( transaction, never() ).releaseStatementResources();
 
         // then
         statement.close();
-        verify( storageStatement ).release();
+        verify( transaction ).releaseStatementResources();
     }
 
     @Test
-    public void shouldReleaseStoreStatementWhenForceClosingStatements()
+    void shouldReleaseStoreStatementWhenForceClosingStatements()
     {
         // given
         KernelTransactionImplementation transaction = mock( KernelTransactionImplementation.class );
-        StorageStatement storageStatement = mock( StorageStatement.class );
-        KernelStatement statement = getKernelStatement( transaction, storageStatement );
+        when( transaction.isSuccess() ).thenReturn( true );
+        KernelStatement statement = createStatement( transaction );
         statement.acquire();
 
         // when
-        try
-        {
-            statement.forceClose();
-        }
-        catch ( KernelStatement.StatementNotClosedException ignored )
-        {
-            //ignored
-        }
+        assertThrows( KernelStatement.StatementNotClosedException.class, statement::forceClose );
 
         // then
-        verify( storageStatement ).release();
+        verify( transaction ).releaseStatementResources();
     }
 
-    private KernelStatement getKernelStatement( KernelTransactionImplementation transaction,
-            StorageStatement storageStatement )
+    private static KernelStatement createStatement( KernelTransactionImplementation transaction )
     {
-        return new KernelStatement( transaction, null, storageStatement,
-                LockTracer.NONE, mock( StatementOperationParts.class ), new ClockContext(), EmptyVersionContextSupplier.EMPTY );
+        return new KernelStatement( transaction, LockTracer.NONE, new ClockContext(),
+                new AtomicReference<>( CpuClock.NOT_AVAILABLE ), from( DEFAULT_DATABASE_NAME, UUID.randomUUID() ),
+                Config.defaults( GraphDatabaseInternalSettings.track_tx_statement_close, true ) );
     }
 }

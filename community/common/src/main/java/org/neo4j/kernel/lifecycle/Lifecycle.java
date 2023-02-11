@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -56,12 +56,12 @@ package org.neo4j.kernel.lifecycle;
  */
 public interface Lifecycle
 {
-    void init() throws Throwable;
+    void init() throws Exception;
 
-    void start() throws Throwable;
+    void start() throws Exception;
 
-    void stop() throws Throwable;
+    void stop() throws Exception;
 
-    void shutdown() throws Throwable;
+    void shutdown() throws Exception;
 
 }

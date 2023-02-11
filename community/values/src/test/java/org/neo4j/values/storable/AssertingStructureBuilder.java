@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,48 +38,20 @@
  */
 package org.neo4j.values.storable;
 
+import org.junit.jupiter.api.Assertions;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
-import org.hamcrest.TypeSafeMatcher;
-
 import org.neo4j.values.StructureBuilder;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public final class AssertingStructureBuilder<Input, Result> implements StructureBuilder<Input,Result>
 {
     public static <I, O> AssertingStructureBuilder<I,O> asserting( StructureBuilder<I,O> builder )
     {
         return new AssertingStructureBuilder<>( builder );
-    }
-
-    public static Matcher<Exception> exception( Class<? extends Exception> type, String message )
-    {
-        return exception( type, equalTo( message ) );
-    }
-
-    public static Matcher<Exception> exception( Class<? extends Exception> type, Matcher<String> message )
-    {
-        return new TypeSafeMatcher<Exception>( type )
-        {
-            @Override
-            protected boolean matchesSafely( Exception item )
-            {
-                return message.matches( item.getMessage() );
-            }
-
-            @Override
-            public void describeTo( Description description )
-            {
-                description.appendText( "Exception of type " ).appendValue( type.getName() )
-                        .appendText( " with message " ).appendDescriptionOf( message );
-            }
-        };
     }
 
     private final Map<String,Input> input = new LinkedHashMap<>();
@@ -92,30 +64,15 @@ public final class AssertingStructureBuilder<Input, Result> implements Structure
 
     public void assertThrows( Class<? extends Exception> type, String message )
     {
-        assertThrows( exception( type, message ) );
-    }
-
-    public void assertThrows( Class<? extends Exception> type, Matcher<String> message )
-    {
-        assertThrows( exception( type, message ) );
-    }
-
-    public void assertThrows( Matcher<Exception> matches )
-    {
-        try
+        var e = Assertions.assertThrows( Exception.class, () ->
         {
-            for ( Map.Entry<String,Input> entry : input.entrySet() )
+            for ( Map.Entry<String, Input> entry : input.entrySet() )
             {
                 builder.add( entry.getKey(), entry.getValue() );
             }
             builder.build();
-        }
-        catch ( Exception expected )
-        {
-            assertThat( expected, matches );
-            return;
-        }
-        fail( "expected exception" );
+        } );
+        assertThat( e ).isInstanceOf( type ).hasMessageContaining( message );
     }
 
     @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,6 +41,7 @@ package org.neo4j.index.internal.gbptree;
 import java.util.Comparator;
 
 import org.neo4j.io.pagecache.PageCursor;
+import org.neo4j.io.pagecache.context.CursorContext;
 
 /**
  * Methods for (binary-)searching keys in a tree node.
@@ -74,16 +75,17 @@ class KeySearch
      * @param cursor {@link PageCursor} pinned to page with node (internal or leaf does not matter)
      * @param bTreeNode {@link TreeNode} that knows how to operate on KEY and VALUE
      * @param type {@link TreeNode.Type} of this tree node being searched
-     *@param key KEY to search for
+     * @param key KEY to search for
      * @param readKey KEY to use as temporary storage during calculation.
-     * @param keyCount number of keys in node when starting search    @return search result where least significant 31 bits are first position i for which
+     * @param keyCount number of keys in node when starting search
+     * @return search result where least significant 31 bits are first position i for which
      * bTreeNode.keyComparator().compare( key, bTreeNode.keyAt( i ) <= 0, or keyCount if no such key exists.
      * highest bit (sign bit) says whether or not the exact key was found in the node, if so set to 1, otherwise 0.
      * To extract position from the returned search result, then use {@link #positionOf(int)}.
      * To extract whether or not the exact key was found, then use {@link #isHit(int)}.
      */
     static <KEY,VALUE> int search( PageCursor cursor, TreeNode<KEY,VALUE> bTreeNode, TreeNode.Type type, KEY key,
-            KEY readKey, int keyCount )
+            KEY readKey, int keyCount, CursorContext cursorContext )
     {
         if ( keyCount == 0 )
         {
@@ -100,12 +102,12 @@ class KeySearch
         int comparison;
 
         // key greater than greatest key in node
-        if ( comparator.compare( key, bTreeNode.keyAt( cursor, readKey, higher, type ) ) > 0 )
+        if ( comparator.compare( key, bTreeNode.keyAt( cursor, readKey, higher, type, cursorContext ) ) > 0 )
         {
             pos = keyCount;
         }
         // key smaller than or equal to smallest key in node
-        else if ( (comparison = comparator.compare( key, bTreeNode.keyAt( cursor, readKey, lower, type ) )) <= 0 )
+        else if ( (comparison = comparator.compare( key, bTreeNode.keyAt( cursor, readKey, lower, type, cursorContext ) )) <= 0 )
         {
             if ( comparison == 0 )
             {
@@ -122,7 +124,7 @@ class KeySearch
             while ( lower < higher )
             {
                 pos = (lower + higher) / 2;
-                comparison = comparator.compare( key, bTreeNode.keyAt( cursor, readKey, pos, type ) );
+                comparison = comparator.compare( key, bTreeNode.keyAt( cursor, readKey, pos, type, cursorContext ) );
                 if ( comparison <= 0 )
                 {
                     higher = pos;
@@ -138,7 +140,7 @@ class KeySearch
             }
             pos = lower;
 
-            hit = comparator.compare( key, bTreeNode.keyAt( cursor, readKey, pos, type ) ) == 0;
+            hit = comparator.compare( key, bTreeNode.keyAt( cursor, readKey, pos, type, cursorContext ) ) == 0;
         }
         return searchResult( pos, hit );
     }
@@ -149,9 +151,11 @@ class KeySearch
     }
 
     /**
-     * Extracts the position from a search result from {@link #search(PageCursor, TreeNode, TreeNode.Type, Object, Object, int)}.
+     * Extracts the position from a search result from {@link #search(PageCursor, TreeNode, TreeNode.Type, Object, Object, int, CursorContext)}.
      *
-     * @param searchResult search result from {@link #search(PageCursor, TreeNode, TreeNode.Type, Object, Object, int)}.
+     * Note! If position will be used as position for child pointer, use {@link #childPositionOf(int)} instead.
+     *
+     * @param searchResult search result from {@link #search(PageCursor, TreeNode, TreeNode.Type, Object, Object, int, CursorContext)}.
      * @return position of the search result.
      */
     static int positionOf( int searchResult )
@@ -160,10 +164,30 @@ class KeySearch
     }
 
     /**
-     * Extracts whether or not the searched key was found from search result from
-     * {@link #search(PageCursor, TreeNode, TreeNode.Type, Object, Object, int)}.
+     * Extracts the position from a search result from {@link #search(PageCursor, TreeNode, TreeNode.Type, Object, Object, int, CursorContext)}.
      *
-     * @param searchResult search result form {@link #search(PageCursor, TreeNode, TreeNode.Type, Object, Object, int)}.
+     * Because the extracted position will be used as position for child pointer we need
+     * to take care of the special case where we had an exact match on the key. This is why:
+     * - KeySearch find the left most pos such that keyAtPos obeys key <= keyAtPos.
+     * - We want to follow the child pointer to the left of keyAtPos unless key == keyAtPos,
+     *   in which case we want to follow the pointer to the right. This is of course because everything
+     *   larger than _or equal_ to key belongs to right subtree.
+     */
+    static int childPositionOf( int searchResult )
+    {
+        int pos = positionOf( searchResult );
+        if ( isHit( searchResult ) )
+        {
+            return pos + 1;
+        }
+        return pos;
+    }
+
+    /**
+     * Extracts whether or not the searched key was found from search result from
+     * {@link #search(PageCursor, TreeNode, TreeNode.Type, Object, Object, int, CursorContext)}.
+     *
+     * @param searchResult search result form {@link #search(PageCursor, TreeNode, TreeNode.Type, Object, Object, int, CursorContext)}.
      * @return whether or not the searched key was found.
      */
     static boolean isHit( int searchResult )

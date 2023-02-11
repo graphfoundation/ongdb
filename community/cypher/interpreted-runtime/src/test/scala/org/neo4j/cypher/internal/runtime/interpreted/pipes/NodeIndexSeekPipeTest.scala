@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,250 +38,74 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.mockito.ArgumentMatchers
-import org.mockito.ArgumentMatchers.{any, anyInt}
-import org.mockito.Mockito._
-import org.neo4j.cypher.internal.planner.v3_4.spi.IndexDescriptor
-import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{ListLiteral, Literal, Variable}
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, ImplicitDummyPos, QueryStateHelper}
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.{CypherFunSuite, WindowsStringSafe}
-import org.neo4j.cypher.internal.util.v3_4.{CypherTypeException, LabelId, PropertyKeyId}
-import org.neo4j.cypher.internal.v3_4.expressions.{LabelName, LabelToken, PropertyKeyName, PropertyKeyToken}
-import org.neo4j.cypher.internal.v3_4.logical.plans.{CompositeQueryExpression, ManyQueryExpression, SingleQueryExpression}
-import org.neo4j.internal.kernel.api.{IndexQuery, IndexReference}
-import org.neo4j.values.storable.Values.stringValue
-import org.neo4j.values.virtual.NodeValue
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.when
+import org.mockito.invocation.InvocationOnMock
+import org.neo4j.cypher.internal.expressions.LabelToken
+import org.neo4j.cypher.internal.expressions.NODE_TYPE
+import org.neo4j.cypher.internal.expressions.PropertyKeyToken
+import org.neo4j.cypher.internal.logical.plans.DoNotGetValue
+import org.neo4j.cypher.internal.logical.plans.IndexOrder
+import org.neo4j.cypher.internal.logical.plans.IndexOrderNone
+import org.neo4j.cypher.internal.logical.plans.IndexedProperty
+import org.neo4j.cypher.internal.logical.plans.SingleQueryExpression
+import org.neo4j.cypher.internal.runtime.ResourceManager
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
+import org.neo4j.cypher.internal.runtime.interpreted.commands.LiteralHelper
+import org.neo4j.cypher.internal.util.LabelId
+import org.neo4j.cypher.internal.util.PropertyKeyId
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.internal.kernel.api.IndexReadSession
+import org.neo4j.internal.kernel.api.PropertyIndexQuery
+import org.neo4j.internal.kernel.api.helpers.StubNodeValueIndexCursor
 
-class NodeIndexSeekPipeTest extends CypherFunSuite with ImplicitDummyPos {
+class NodeIndexSeekPipeTest extends CypherFunSuite {
+  test("exhaust should close cursor") {
+    val monitor = QueryStateHelper.trackClosedMonitor
+    val resourceManager = new ResourceManager(monitor)
+    val state = QueryStateHelper.emptyWithResourceManager(resourceManager)
 
-  implicit val windowsSafe = WindowsStringSafe
-
-  private val label = LabelToken(LabelName("LabelName") _, LabelId(11))
-  private val propertyKey = Seq(PropertyKeyToken(PropertyKeyName("PropertyName") _, PropertyKeyId(10)))
-  private val propertyKeys = propertyKey :+ PropertyKeyToken(PropertyKeyName("prop2") _, PropertyKeyId(11))
-  private val descriptor = IndexDescriptor(label.nameId.id, propertyKey.map(_.nameId.id))
-  private val node = nodeValue(1)
-  private val node2 = nodeValue(2)
-
-  private def nodeValue(id: Long) = {
-    val node = mock[NodeValue]
-    when(node.id()).thenReturn(id)
-    node
+    val cursor = new StubNodeValueIndexCursor().withNode(0)
+    when(state.query.nodeIndexSeek(any[IndexReadSession], any[Boolean], any[IndexOrder], any[Seq[PropertyIndexQuery]])).thenAnswer((_: InvocationOnMock) => {
+      //NOTE: this is what is done in TransactionBoundQueryContext
+      resourceManager.trace(cursor)
+      cursor
+    })
+    val pipe = NodeIndexSeekPipe(
+      "n",
+      LabelToken("Awesome", LabelId(0)),
+      Array(IndexedProperty(PropertyKeyToken("prop", PropertyKeyId(0)), DoNotGetValue, NODE_TYPE)),
+      0,
+      SingleQueryExpression(LiteralHelper.literal(42)),
+      UniqueIndexSeek,
+      IndexOrderNone)()
+    // exhaust
+    pipe.createResults(state).toList
+    monitor.closedResources.collect { case `cursor` => cursor } should have size(1)
   }
 
-  test("should return nodes found by index lookup when both labelId and property key id are solved at compile time") {
-    // given
-    val queryState = QueryStateHelper.emptyWith(
-      query = indexFor(Seq("hello") -> Iterator(node))
-    )
+  test("close should close cursor") {
+    val monitor = QueryStateHelper.trackClosedMonitor
+    val resourceManager = new ResourceManager(monitor)
+    val state = QueryStateHelper.emptyWithResourceManager(resourceManager)
 
-    // when
-    val pipe = NodeIndexSeekPipe("n", label, propertyKey, SingleQueryExpression(Literal("hello")))()
-    val result = pipe.createResults(queryState)
+    val cursor = new StubNodeValueIndexCursor().withNode(0)
+    when(state.query.nodeIndexSeek(any[IndexReadSession], any[Boolean], any[IndexOrder], any[Seq[PropertyIndexQuery]])).thenAnswer((_: InvocationOnMock) => {
+      //NOTE: this is what is done in TransactionBoundQueryContext
+      resourceManager.trace(cursor)
+      cursor
+    })
 
-    // then
-    result.map(_("n")).toList should equal(List(node))
-  }
-
-  test("should handle index lookups for multiple values") {
-    // given
-    val queryState = QueryStateHelper.emptyWith(
-      query = indexFor(
-        Seq("hello") -> Iterator(node),
-        Seq("world") -> Iterator(node2)
-      )
-    )
-
-    // when
-    val pipe = NodeIndexSeekPipe("n", label, propertyKey, ManyQueryExpression(ListLiteral(Literal("hello"), Literal("world"))))()
-    val result = pipe.createResults(queryState)
-
-    // then
-    result.map(_("n")).toList should equal(List(node, node2))
-  }
-
-  test("should handle unique index lookups for multiple values") {
-    // given
-    val queryState = QueryStateHelper.emptyWith(
-      query = indexFor(
-        Seq("hello") -> Iterator(node),
-        Seq("world") -> Iterator(node2)
-      )
-    )
-
-    // when
-    val pipe = NodeIndexSeekPipe("n", label, propertyKey, ManyQueryExpression(ListLiteral(Literal("hello"), Literal("world"))), UniqueIndexSeek)()
-    val result = pipe.createResults(queryState)
-
-    // then
-    result.map(_("n")).toList should equal(List(node, node2))
-  }
-
-  test("should handle index lookups for multiple values when some are null") {
-    // given
-    val queryState = QueryStateHelper.emptyWith(
-      query = indexFor(
-        Seq("hello") -> Iterator(node)
-      )
-    )
-
-    // when
-    val pipe = NodeIndexSeekPipe("n", label, propertyKey, ManyQueryExpression(
-      ListLiteral(
-        Literal("hello"),
-        Literal(null))))()
-    val result = pipe.createResults(queryState)
-
-    // then
-    result.map(_("n")).toList should equal(List(node))
-  }
-
-  test("should handle unique index lookups for multiple values when some are null") {
-    // given
-    val queryState = QueryStateHelper.emptyWith(
-      query = indexFor(
-        Seq("hello") -> Iterator(node)
-      )
-    )
-
-    // when
-    val pipe = NodeIndexSeekPipe("n", label, propertyKey, ManyQueryExpression(
-      ListLiteral(
-        Literal("hello"),
-        Literal(null))), UniqueIndexSeek)()
-    val result = pipe.createResults(queryState)
-
-    // then
-    result.map(_("n")).toList should equal(List(node))
-  }
-
-  test("should handle index lookups for IN an empty collection") {
-    // given
-    val queryState = QueryStateHelper.emptyWith(
-      query = indexFor(
-        Seq("hello") -> Iterator(node)
-      )
-    )
-
-    // when
-    val pipe = NodeIndexSeekPipe("n", label, propertyKey, ManyQueryExpression(ListLiteral()))()
-    val result = pipe.createResults(queryState)
-
-    // then
-    result.map(_("n")).toList should equal(List.empty)
-  }
-
-  test("should handle index lookups for IN a collection with duplicates") {
-    // given
-    val queryState = QueryStateHelper.emptyWith(// WHERE n.prop IN ['hello', 'hello']
-      query = indexFor(
-        Seq("hello") -> Iterator(node)
-      )
-    )
-
-    // when
-    val pipe = NodeIndexSeekPipe("n", label, propertyKey, ManyQueryExpression(ListLiteral(
-      Literal("hello"),
-      Literal("hello")
-    )))()
-    val result = pipe.createResults(queryState)
-
-    // then
-    result.map(_("n")).toList should equal(List(node))
-  }
-
-  test("should handle index lookups for IN a collection that returns the same nodes for multiple values") {
-    // given
-    val queryState = QueryStateHelper.emptyWith(// WHERE n.prop IN ['hello', 'hello']
-      query = indexFor(
-        Seq("hello") -> Iterator(node),
-        Seq("world") -> Iterator(node)
-      )
-    )
-
-    // when
-    val pipe = NodeIndexSeekPipe("n", label, propertyKey, ManyQueryExpression(ListLiteral(
-      Literal("hello"),
-      Literal("world")
-    )))()
-    val result = pipe.createResults(queryState)
-
-    // then
-    result.map(_("n")).toList should equal(List(node, node))
-  }
-
-  test("should handle index lookups for composite index lookups over multiple values") {
-    // given
-    val queryState = QueryStateHelper.emptyWith(// WHERE n.prop = 'hello' AND n.prop2 = 'world']
-      query = indexFor(
-        Seq("hello", "world") -> Iterator(node),
-        Seq("hello") -> Iterator(node, node2)
-      )
-    )
-
-    // when
-    val pipe = NodeIndexSeekPipe("n", label, propertyKeys,
-      CompositeQueryExpression(Seq(
-        SingleQueryExpression(Literal("hello")),
-        SingleQueryExpression(Literal("world"))
-      )))()
-    val result = pipe.createResults(queryState)
-
-    // then
-    result.map(_("n")).toList should equal(List(node))
-  }
-
-  test("should give a helpful error message") {
-    // given
-    val queryContext = mock[QueryContext]
-    when(queryContext.indexReference(anyInt(), anyInt())).thenReturn(mock[IndexReference])
-    val queryState = QueryStateHelper.emptyWith(query = queryContext)
-
-    // when
-    val pipe = NodeIndexSeekPipe("n", label, propertyKey, ManyQueryExpression(Literal("wut?")))()
-
-    // then
-    intercept[CypherTypeException](pipe.createResults(queryState))
-  }
-
-  test("should return the node found by the unique index lookup when both labelId and property key id are solved at compile time") {
-    // given
-    val queryState = QueryStateHelper.emptyWith(query = indexFor(Seq("hello") -> Iterator(node)))
-
-    // when
-    val pipe = NodeIndexSeekPipe("n", label, propertyKey, SingleQueryExpression(Literal("hello")), UniqueIndexSeek)()
-    val result = pipe.createResults(queryState)
-
-    // then
-    result.map(_("n")).toList should equal(List(node))
-  }
-
-  test("should use existing values from arguments when available") {
-    //  GIVEN "hello" as x MATCH a WHERE a.prop = x
-    val queryState: QueryState = QueryStateHelper.emptyWith(
-      query = indexFor(Seq("hello") -> Iterator(node)),
-      initialContext = Some(ExecutionContext.from("x" -> stringValue("hello")))
-    )
-
-    // when
-    val pipe = NodeIndexSeekPipe("n", label, propertyKey, SingleQueryExpression(Variable("x")))()
-    val result = pipe.createResults(queryState)
-
-    // then
-    result.map(_("n")).toList should equal(List(node))
-  }
-
-  private def indexFor(values: (Seq[AnyRef], Iterator[NodeValue])*): QueryContext = {
-    val query = mock[QueryContext]
-    when(query.indexSeek(any(), any())).thenReturn(Iterator.empty)
-
-    values.foreach {
-      case (searchTerm, result) =>
-        val indexQueries = propertyKeys.zip(searchTerm).map(t => IndexQuery.exact(t._1.nameId.id, t._2))
-        when(query.indexSeek(any(), ArgumentMatchers.eq(indexQueries))).thenReturn(result)
-    }
-
-    query
+    val pipe = NodeIndexSeekPipe(
+      "n",
+      LabelToken("Awesome", LabelId(0)),
+      Array(IndexedProperty(PropertyKeyToken("prop", PropertyKeyId(0)), DoNotGetValue, NODE_TYPE)),
+      0,
+      SingleQueryExpression(LiteralHelper.literal(42)),
+      UniqueIndexSeek,
+      IndexOrderNone)()
+    val result = pipe.createResults(state)
+    result.close()
+    monitor.closedResources.collect { case `cursor` => cursor } should have size(1)
   }
 }

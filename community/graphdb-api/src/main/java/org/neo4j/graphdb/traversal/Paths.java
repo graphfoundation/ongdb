@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,17 +42,19 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.DatabaseShutdownException;
 import org.neo4j.graphdb.Direction;
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.NotInTransactionException;
 import org.neo4j.graphdb.Path;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 
 /**
  * Utilities for {@link org.neo4j.graphdb.Path} objects.
  */
+@PublicApi
 public class Paths
 {
 
@@ -167,7 +169,7 @@ public class Paths
      */
     public static String simplePathToString( Path path )
     {
-        return pathToString( path, new DefaultPathDescriptor<Path>()
+        return pathToString( path, new DefaultPathDescriptor<>()
         {
             @Override
             public String relationshipRepresentation( Path path, Node from,
@@ -190,7 +192,7 @@ public class Paths
      */
     public static String simplePathToString( Path path, final String nodePropertyKey )
     {
-        return pathToString( path, new DefaultPathDescriptor<Path>()
+        return pathToString( path, new DefaultPathDescriptor<>()
         {
             @Override
             public String nodeRepresentation( Path path, Node node )
@@ -219,18 +221,18 @@ public class Paths
     public static <T extends Path> PathDescriptor<T> descriptorForIdAndProperties( final boolean nodeId,
     final boolean relId, final String... propertyKeys )
     {
-        return new Paths.PathDescriptor<T>()
+        return new Paths.PathDescriptor<>()
         {
             @Override
             public String nodeRepresentation( T path, Node node )
             {
                 String representation = representation( node );
-                return "(" + (nodeId ? node.getId() : "" ) +
-                       ( nodeId && !representation.equals( "" ) ? "," : "" ) +
+                return "(" + (nodeId ? node.getId() : "") +
+                       (nodeId && !representation.equals( "" ) ? "," : "") +
                        representation + ")";
             }
 
-            private String representation( PropertyContainer entity )
+            private String representation( Entity entity )
             {
                 StringBuilder builder = new StringBuilder();
                 for ( String key : propertyKeys )
@@ -240,7 +242,7 @@ public class Paths
                     {
                         if ( builder.length() > 0 )
                         {
-                            builder.append( "," );
+                            builder.append( ',' );
                         }
                         builder.append( value );
                     }
@@ -255,20 +257,20 @@ public class Paths
                 StringBuilder builder = new StringBuilder();
                 if ( direction.equals( Direction.INCOMING ) )
                 {
-                    builder.append( "<" );
+                    builder.append( '<' );
                 }
                 builder.append( "-[" + (relId ? relationship.getId() : "") );
                 String representation = representation( relationship );
                 if ( relId && !representation.equals( "" ) )
                 {
-                    builder.append( "," );
+                    builder.append( ',' );
                 }
                 builder.append( representation );
                 builder.append( "]-" );
 
                 if ( direction.equals( Direction.OUTGOING ) )
                 {
-                    builder.append( ">" );
+                    builder.append( '>' );
                 }
                 return builder.toString();
             }
@@ -338,9 +340,9 @@ public class Paths
         }
 
         @Override
-        public Iterator<PropertyContainer> iterator()
+        public Iterator<Entity> iterator()
         {
-            return Arrays.<PropertyContainer>asList( node ).iterator();
+            return Arrays.<Entity>asList( node ).iterator();
         }
     }
 

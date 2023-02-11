@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,44 +38,60 @@
  */
 package org.neo4j.kernel.impl.pagecache;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import java.io.IOException;
+import java.nio.file.Path;
+
+import org.neo4j.configuration.Config;
+import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.impl.muninn.MuninnPageCache;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
-import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracerSupplier;
-import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.logging.AssertableLogProvider;
-import org.neo4j.logging.Log;
 import org.neo4j.logging.NullLog;
-import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
+import org.neo4j.memory.MemoryPools;
+import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.EphemeralTestDirectoryExtension;
+import org.neo4j.test.scheduler.ThreadPoolJobScheduler;
+import org.neo4j.test.utils.TestDirectory;
+import org.neo4j.time.Clocks;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.pagecache_memory;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.pagecache_swapper;
-import static org.neo4j.helpers.collection.MapUtil.stringMap;
-import static org.neo4j.kernel.impl.pagecache.PageSwapperFactoryForTesting.TEST_PAGESWAPPER_NAME;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.configuration.GraphDatabaseSettings.pagecache_memory;
+import static org.neo4j.configuration.GraphDatabaseSettings.preallocate_store_files;
+import static org.neo4j.io.pagecache.PageCache.PAGE_SIZE;
+import static org.neo4j.io.pagecache.PagedFile.PF_SHARED_WRITE_LOCK;
+import static org.neo4j.io.pagecache.context.CursorContext.NULL;
 
-public class ConfiguringPageCacheFactoryTest
+@EphemeralTestDirectoryExtension
+class ConfiguringPageCacheFactoryTest
 {
-    @Rule
-    public EphemeralFileSystemRule fsRule = new EphemeralFileSystemRule();
+    @Inject
+    private FileSystemAbstraction fs;
+    @Inject
+    private TestDirectory testDirectory;
 
-    @Before
-    public void setUp()
+    private JobScheduler jobScheduler;
+
+    @BeforeEach
+    void setUp()
     {
-        PageSwapperFactoryForTesting.createdCounter.set( 0 );
-        PageSwapperFactoryForTesting.configuredCounter.set( 0 );
+        jobScheduler = new ThreadPoolJobScheduler();
+    }
+
+    @AfterEach
+    void tearDown() throws Exception
+    {
+        jobScheduler.close();
     }
 
     @Test
-    public void shouldFitAsManyPagesAsItCan()
+    void shouldFitAsManyPagesAsItCan()
     {
         // Given
         long pageCount = 60;
@@ -84,72 +100,33 @@ public class ConfiguringPageCacheFactoryTest
                 pagecache_memory, Long.toString( memory ) );
 
         // When
-        ConfiguringPageCacheFactory factory = new ConfiguringPageCacheFactory(
-                fsRule.get(), config, PageCacheTracer.NULL, PageCursorTracerSupplier.NULL,
-                NullLog.getInstance(), EmptyVersionContextSupplier.EMPTY );
+        ConfiguringPageCacheFactory factory =
+                new ConfiguringPageCacheFactory( fs, config, PageCacheTracer.NULL, NullLog.getInstance(), jobScheduler, Clocks.nanoClock(), new MemoryPools() );
 
         // Then
         try ( PageCache cache = factory.getOrCreatePageCache() )
         {
-            assertThat( cache.pageSize(), equalTo( PageCache.PAGE_SIZE ) );
-            assertThat( cache.maxCachedPages(), equalTo( pageCount ) );
+            assertThat( cache.pageSize() ).isEqualTo( PAGE_SIZE );
+            assertThat( cache.maxCachedPages() ).isEqualTo( pageCount );
         }
     }
 
     @Test
-    public void shouldWarnWhenCreatedWithConfiguredPageCache()
+    void createPageCacheWithoutPreallocationEnabled() throws IOException
     {
-        // Given
-        Config config = Config.defaults( stringMap(
-                GraphDatabaseSettings.mapped_memory_page_size.name(), "4096",
-                pagecache_swapper.name(), TEST_PAGESWAPPER_NAME ) );
-        AssertableLogProvider logProvider = new AssertableLogProvider();
-        Log log = logProvider.getLog( PageCache.class );
+        Config config = Config.defaults( preallocate_store_files, false );
 
-        // When
-        ConfiguringPageCacheFactory pageCacheFactory = new ConfiguringPageCacheFactory( fsRule.get(), config,
-                PageCacheTracer.NULL, PageCursorTracerSupplier.NULL, log, EmptyVersionContextSupplier.EMPTY );
+        ConfiguringPageCacheFactory factory =
+                new ConfiguringPageCacheFactory( fs, config, PageCacheTracer.NULL, NullLog.getInstance(), jobScheduler, Clocks.nanoClock(), new MemoryPools() );
 
-        // Then
-        try ( PageCache ignore = pageCacheFactory.getOrCreatePageCache() )
+        Path testFile = testDirectory.createFile( "a" );
+        try ( var cache = factory.getOrCreatePageCache();
+              var file = cache.map( testFile, PAGE_SIZE, "foo" );
+              var io = file.io( 1024, PF_SHARED_WRITE_LOCK, NULL ) )
         {
-            logProvider.assertContainsLogCallContaining(
-                    "The setting unsupported.dbms.memory.pagecache.pagesize does not have any effect. It is " +
-                            "deprecated and will be removed in a future version." );
+            int bigPageToExpand = 20021;
+            assertDoesNotThrow( () -> io.next( bigPageToExpand ) );
+            assertEquals( bigPageToExpand, file.getLastPageId() );
         }
-    }
-
-    @Test
-    public void mustUseAndLogConfiguredPageSwapper()
-    {
-        // Given
-        Config config = Config.defaults( stringMap(
-                pagecache_memory.name(), "8m",
-                pagecache_swapper.name(), TEST_PAGESWAPPER_NAME ) );
-        AssertableLogProvider logProvider = new AssertableLogProvider();
-        Log log = logProvider.getLog( PageCache.class );
-
-        // When
-        ConfiguringPageCacheFactory cacheFactory = new ConfiguringPageCacheFactory( fsRule.get(), config, PageCacheTracer.NULL,
-                        PageCursorTracerSupplier.NULL, log, EmptyVersionContextSupplier.EMPTY );
-        cacheFactory.getOrCreatePageCache().close();
-
-        // Then
-        assertThat( PageSwapperFactoryForTesting.countCreatedPageSwapperFactories(), is( 1 ) );
-        assertThat( PageSwapperFactoryForTesting.countConfiguredPageSwapperFactories(), is( 1 ) );
-        logProvider.assertContainsMessageContaining( TEST_PAGESWAPPER_NAME );
-    }
-
-    @Test( expected = IllegalArgumentException.class )
-    public void mustThrowIfConfiguredPageSwapperCannotBeFound()
-    {
-        // Given
-        Config config = Config.defaults( stringMap(
-                pagecache_memory.name(), "8m",
-                pagecache_swapper.name(), "non-existing" ) );
-
-        // When
-        new ConfiguringPageCacheFactory( fsRule.get(), config, PageCacheTracer.NULL, PageCursorTracerSupplier.NULL,
-                NullLog.getInstance(), EmptyVersionContextSupplier.EMPTY ).getOrCreatePageCache().close();
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,26 +40,21 @@ package org.neo4j.kernel.impl.index.schema;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.Collection;
 
-import org.neo4j.cursor.RawCursor;
-import org.neo4j.index.internal.gbptree.Hit;
-import org.neo4j.storageengine.api.schema.IndexProgressor;
+import org.neo4j.index.internal.gbptree.Seeker;
+import org.neo4j.kernel.api.index.IndexProgressor;
 import org.neo4j.values.storable.Value;
 
-abstract class NativeIndexProgressor<KEY extends NativeSchemaKey<KEY>, VALUE extends NativeSchemaValue> implements IndexProgressor
+abstract class NativeIndexProgressor<KEY extends NativeIndexKey<KEY>> implements IndexProgressor
 {
-    final RawCursor<Hit<KEY,VALUE>,IOException> seeker;
-    final NodeValueClient client;
-    private final Collection<RawCursor<Hit<KEY,VALUE>,IOException>> toRemoveFromOnClose;
+    final Seeker<KEY,NullValue> seeker;
+    final EntityValueClient client;
     private boolean closed;
 
-    NativeIndexProgressor( RawCursor<Hit<KEY,VALUE>,IOException> seeker, NodeValueClient client,
-            Collection<RawCursor<Hit<KEY,VALUE>,IOException>> toRemoveFromOnClose )
+    NativeIndexProgressor( Seeker<KEY,NullValue> seeker, EntityValueClient client )
     {
         this.seeker = seeker;
         this.client = client;
-        this.toRemoveFromOnClose = toRemoveFromOnClose;
     }
 
     @Override
@@ -71,7 +66,6 @@ abstract class NativeIndexProgressor<KEY extends NativeSchemaKey<KEY>, VALUE ext
             try
             {
                 seeker.close();
-                toRemoveFromOnClose.remove( seeker );
             }
             catch ( IOException e )
             {
@@ -82,6 +76,6 @@ abstract class NativeIndexProgressor<KEY extends NativeSchemaKey<KEY>, VALUE ext
 
     Value[] extractValues( KEY key )
     {
-        return client.needsValues() ? new Value[]{ key.asValue()} : null;
+        return client.needsValues() ? key.asValues() : null;
     }
 }

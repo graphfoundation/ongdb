@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,12 +39,11 @@
 package org.neo4j.kernel.api.impl.index.partition;
 
 import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.search.SearcherFactory;
 import org.apache.lucene.search.SearcherManager;
 import org.apache.lucene.store.Directory;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.io.IOUtils;
@@ -59,10 +58,10 @@ public class ReadOnlyIndexPartition extends AbstractIndexPartition
 {
     private final SearcherManager searcherManager;
 
-    ReadOnlyIndexPartition( File partitionFolder, Directory directory ) throws IOException
+    ReadOnlyIndexPartition( Path partitionFolder, Directory directory ) throws IOException
     {
         super( partitionFolder, directory );
-        this.searcherManager = new SearcherManager( directory, new SearcherFactory() );
+        this.searcherManager = new SearcherManager( directory, new Neo4jSearcherFactory() );
     }
 
     @Override
@@ -105,7 +104,7 @@ public class ReadOnlyIndexPartition extends AbstractIndexPartition
      * @throws IOException if any IO operation fails.
      */
     @Override
-    public ResourceIterator<File> snapshot() throws IOException
+    public ResourceIterator<Path> snapshot() throws IOException
     {
         return LuceneIndexSnapshots.forIndex( partitionFolder, directory );
     }

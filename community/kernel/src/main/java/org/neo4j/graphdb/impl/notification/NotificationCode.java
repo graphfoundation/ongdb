@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -60,29 +60,6 @@ public enum NotificationCode
        "use of this cross " +
        "product, perhaps by adding a relationship between the different parts or by using OPTIONAL MATCH"
     ),
-    LEGACY_PLANNER(
-        SeverityLevel.WARNING,
-        Status.Statement.FeatureDeprecationWarning,
-        "Using PLANNER for switching between planners has been deprecated, please use CYPHER planner=[rule,cost] instead"
-    ),
-    DEPRECATED_PLANNER(
-        SeverityLevel.WARNING,
-        Status.Statement.FeatureDeprecationWarning,
-        "The rule planner, which was used to plan this query, is deprecated and will be discontinued soon. " +
-                "If you did not explicitly choose the rule planner, you should try to change your query so that the " +
-                "rule planner is not used"
-    ),
-    PLANNER_UNSUPPORTED(
-        SeverityLevel.WARNING,
-        Status.Statement.PlannerUnsupportedWarning,
-        "Using COST planner is unsupported for this query, please use RULE planner instead"
-    ),
-    RULE_PLANNER_UNAVAILABLE_FALLBACK(
-        SeverityLevel.WARNING,
-        Status.Statement.PlannerUnavailableWarning,
-        "Using RULE planner is unsupported for current CYPHER version, the query has been executed by an older CYPHER " +
-        "version"
-    ),
     RUNTIME_UNSUPPORTED(
         SeverityLevel.WARNING,
         Status.Statement.RuntimeUnsupportedWarning,
@@ -99,11 +76,6 @@ public enum NotificationCode
         "The hinted join was not planned. This could happen because no generated plan contained the join key, " +
                 "please try using a different join key or restructure your query."
     ),
-    JOIN_HINT_UNSUPPORTED(
-        SeverityLevel.WARNING,
-        Status.Statement.JoinHintUnsupportedWarning,
-        "Using RULE planner is unsupported for queries with join hints, please use COST planner instead"
-    ),
     LENGTH_ON_NON_PATH(
         SeverityLevel.WARNING,
         Status.Statement.FeatureDeprecationWarning,
@@ -113,11 +85,6 @@ public enum NotificationCode
         SeverityLevel.WARNING,
         Status.Statement.DynamicPropertyWarning,
         "Using a dynamic property makes it impossible to use an index lookup for this query"
-    ),
-    BARE_NODE_SYNTAX_DEPRECATED( // This notification is no longer produced by current Cypher compilers
-        SeverityLevel.WARNING,   // but it is left here for backwards compatibility.
-        Status.Statement.FeatureDeprecationWarning,
-        "Use of bare node patterns has been deprecated. Please enclose the identifier in parenthesis."
     ),
     DEPRECATED_FUNCTION(
             SeverityLevel.WARNING,
@@ -139,23 +106,135 @@ public enum NotificationCode
             Status.Statement.FeatureDeprecationWarning,
             "The query used a deprecated field from a procedure."
     ),
-    DEPRECATED_BINDING_VAR_LENGTH_RELATIONSHIP(
-            SeverityLevel.WARNING,
-            Status.Statement.FeatureDeprecationWarning,
-            "Binding relationships to a list in a variable length pattern is deprecated."
-    ),
     DEPRECATED_RELATIONSHIP_TYPE_SEPARATOR(
             SeverityLevel.WARNING,
             Status.Statement.FeatureDeprecationWarning,
             "The semantics of using colon in the separation of alternative relationship types in conjunction with the " +
             "use of variable binding, inlined property predicates, or variable length will change in a future version."
     ),
+    DEPRECATED_PARAMETER_SYNTAX(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "The parameter syntax `{param}` is deprecated, please use `$param` instead"
+    ),
+    DEPRECATED_CREATE_INDEX_SYNTAX(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "The create index syntax `CREATE INDEX ON :Label(property)` is deprecated, please use `CREATE INDEX FOR (n:Label) ON (n.property)` instead"
+    ),
+    DEPRECATED_BTREE_INDEX_SYNTAX(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "B-tree indexes are deprecated, partially replaced by text indexes and will be fully replaced later on. " +
+                    "For now, b-tree indexes are still the correct alternative to use."
+    ),
+    DEPRECATED_DROP_INDEX_SYNTAX(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "The drop index syntax `DROP INDEX ON :Label(property)` is deprecated, please use `DROP INDEX index_name` instead"
+    ),
+    DEPRECATED_DROP_CONSTRAINT_SYNTAX(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "The drop constraint by schema syntax `DROP CONSTRAINT ON ...` is deprecated, please use `DROP CONSTRAINT constraint_name` instead"
+    ),
+    DEPRECATED_CREATE_PROPERTY_EXISTENCE_CONSTRAINT_SYNTAX(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "The create property existence constraint syntax `CREATE CONSTRAINT ON ... ASSERT exists(variable.property)` is deprecated, " +
+                    "please use `CREATE CONSTRAINT FOR ... REQUIRE (variable.property) IS NOT NULL` instead"
+    ),
+    DEPRECATED_CREATE_CONSTRAINT_ON_ASSERT_SYNTAX(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "The create constraint syntax `CREATE CONSTRAINT ON ... ASSERT ...` is deprecated, " +
+                    "please use `CREATE CONSTRAINT FOR ... REQUIRE ...` instead"
+    ),
+    DEPRECATED_SHOW_SCHEMA_SYNTAX(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "The `BRIEF` and `VERBOSE` keywords for `SHOW INDEXES` and `SHOW CONSTRAINTS` are deprecated, " +
+                    "please omit `BRIEF` and use `YIELD *` instead of `VERBOSE`"
+    ),
+    DEPRECATED_SHOW_EXISTENCE_CONSTRAINT_SYNTAX(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "The `EXISTS` keyword for `SHOW CONSTRAINTS` are deprecated, please use `EXIST` instead"
+    ),
+    DEPRECATED_PROPERTY_EXISTENCE_SYNTAX(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "The property existence syntax `... exists(variable.property)` is deprecated, please use `variable.property IS NOT NULL` instead"
+    ),
+    DEPRECATED_DEFAULT_DATABASE_SYNTAX(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "The `ON DEFAULT DATABASE` syntax is deprecated, use `ON HOME DATABASE` instead"
+    ),
+    DEPRECATED_DEFAULT_GRAPH_SYNTAX(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "The `ON DEFAULT GRAPH` syntax is deprecated, use `ON HOME GRAPH` instead"
+    ),
+    DEPRECATED_CATALOG_KEYWORD_FOR_ADMIN_COMMAND_SYNTAX(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "The optional `CATALOG` prefix for administration commands has been deprecated and should be omitted."
+    ),
+    DEPRECATED_PERIODIC_COMMIT(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "The usage of the PERIODIC COMMIT hint has been deprecated. Please use a transactional subquery (e.g. `CALL { ... } IN TRANSACTIONS`) instead."
+    ),
+    DEPRECATED_OCTAL_LITERAL_SYNTAX(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "The octal integer literal syntax `0123` is deprecated, please use `0o123` instead"
+    ),
+    DEPRECATED_HEX_LITERAL_SYNTAX(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "The hex integer literal syntax `0X123` is deprecated, please use `0x123` instead"
+    ),
+    DEPRECATED_USE_OF_PATTERN_EXPRESSION(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "A pattern expression should only be used in order to test the existence of a pattern. " +
+            "It should therefore only be used in contexts that evaluate to a boolean, e.g. inside the function exists() or in a WHERE-clause. " +
+            "All other uses are deprecated and should be replaced by a pattern comprehension."
+    ),
+    DEPRECATED_COERCION_OF_LIST_TO_BOOLEAN(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "Coercion of list to boolean is deprecated. Please consider using `NOT isEmpty(...)` instead."
+    ),
+    DEPRECATED_SELF_REFERENCE_TO_VARIABLE_IN_CREATE_PATTERN(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "Referencing a node or relationship variable that is created in the same CREATE clause is deprecated. " +
+            "The behaviour of using this syntax is undefined and should be avoided. Please consider only referencing variables created in earlier clauses."
+    ),
+    DEPRECATED_POINTS_COMPARE(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "The behavior when comparing spatial points with '<', '<=', '>', and '>=` will change. Please use the 'point.withinBBox' or 'point.distance'" +
+            " for seeking spatial points within a specific range."
+    ),
+    DEPRECATED_AMBIGUOUS_GROUPING_NOTIFICATION(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "Aggregation column contains implicit grouping expressions. " +
+            "Aggregation expressions with implicit grouping keys are deprecated and will be removed in a future version. " +
+            "For example, in 'RETURN n.a, n.a + n.b + count(*)' the aggregation expression 'n.a + n.b + count(*)' includes the implicit grouping key 'n.b', " +
+            "and this expression is now deprecated. " +
+            "It may be possible to rewrite the query by extracting these grouping/aggregation expressions into a preceding WITH clause."
+    ),
     EAGER_LOAD_CSV(
         SeverityLevel.WARNING,
         Status.Statement.EagerOperatorWarning,
         "Using LOAD CSV with a large data set in a query where the execution plan contains the " +
         "Eager operator could potentially consume a lot of memory and is likely to not perform well. " +
-        "See the ONgDB Manual entry on the Eager operator for more information and hints on " +
+        "See the Neo4j Manual entry on the Eager operator for more information and hints on " +
         "how problems could be avoided."
     ),
     LARGE_LABEL_LOAD_CSV(
@@ -195,24 +274,14 @@ public enum NotificationCode
             "graph algorithms might not work for this use case. It is recommended to introduce a WITH to separate the " +
             "MATCH containing the shortest path from the existential predicates on that path."
     ),
-    CREATE_UNIQUE_UNAVAILABLE_FALLBACK(
-            SeverityLevel.WARNING,
-            Status.Statement.PlannerUnavailableWarning,
-        "CREATE UNIQUE is unsupported for current CYPHER version, the query has been executed by an older CYPHER version"
-    ),
-    START_UNAVAILABLE_FALLBACK(
-            SeverityLevel.WARNING,
-            Status.Statement.PlannerUnavailableWarning,
-            "START is not supported for current CYPHER version, the query has been executed by an older CYPHER version"
-    ),
-    START_DEPRECATED(
-            SeverityLevel.WARNING,
-            Status.Statement.FeatureDeprecationWarning,
-            "START has been deprecated and will be removed in a future version." ),
     EXPERIMENTAL_FEATURE(
             SeverityLevel.WARNING,
             Status.Statement.ExperimentalFeature,
             "You are using an experimental feature" ),
+    MISSING_PARAMETERS_FOR_EXPLAIN(
+            SeverityLevel.WARNING,
+            Status.Statement.ParameterMissing,
+            "Did not supply query with enough parameters. The produced query plan will not be cached and is not executable without EXPLAIN." ),
     SUBOPTIMAL_INDEX_FOR_CONTAINS_QUERY(
             SeverityLevel.INFORMATION,
             Status.Statement.SuboptimalIndexForWildcardQuery,
@@ -222,7 +291,39 @@ public enum NotificationCode
             SeverityLevel.INFORMATION,
             Status.Statement.SuboptimalIndexForWildcardQuery,
             "If the performance of this statement using `ENDS WITH` doesn't meet your expectations check out the alternative index-providers, see " +
-                    "documentation on index configuration." );
+                    "documentation on index configuration." ),
+    CODE_GENERATION_FAILED(
+            SeverityLevel.WARNING,
+            Status.Statement.CodeGenerationFailed,
+            "The database was unable to generate code for the query. A stacktrace can be found in the debug.log." ),
+    REPEATED_REL_IN_PATTERN_EXPRESSION(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "You are using the same relationship variable for multiple patterns in a pattern expression/comprehension. " +
+            "This feature is deprecated and will be removed in a future version, " +
+            "because it does not follow Cyphers pattern matching relationship uniqueness rule. " +
+            "It can lead to the optimizer choosing bad plans for that pattern expression/comprehension. " +
+            "Please rewrite your query, using the start node and/or end node of the relationship in the pattern expression/comprehension instead."
+    ),
+    SUBQUERY_VARIABLE_SHADOWING(
+            SeverityLevel.WARNING,
+            Status.Statement.SubqueryVariableShadowingWarning,
+            "Variable in subquery is shadowing a variable with the same name from the outer scope. " +
+            "If you want to use that variable instead, it must be imported into the subquery using importing WITH clause."
+    ),
+    MISSING_ALIAS(
+            SeverityLevel.WARNING,
+            Status.Statement.MissingAlias,
+            "There is no alias for one or more complex returned items in a RETURN clause in a CALL subquery. " +
+            "All returned items except variables, e.g. 'RETURN n', and map projections, e.g. 'RETURN n { .prop, .prop2 }' " +
+            "should be aliased explicitly using 'AS'. The support for such unaliased returned items will be removed in a future version."
+    ),
+    DEPRECATED_CASE_EXPRESSION(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "Using null as an expression to be compared against in a CASE expression is deprecated and from 5.0 will no longer match on anything. " +
+                    "Try using a generic CASE with `IS NULL` instead. For example 'CASE WHEN n.prop IS NULL THEN true ELSE false END'."
+    );
 
     private final Status status;
     private final String description;

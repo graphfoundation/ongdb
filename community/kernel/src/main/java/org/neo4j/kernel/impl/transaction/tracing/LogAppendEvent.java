@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,14 +38,48 @@
  */
 package org.neo4j.kernel.impl.transaction.tracing;
 
+import org.neo4j.kernel.impl.transaction.log.LogPosition;
+
 /**
  * Represents the process of turning the state of a committing transaction into a sequence of commands, and appending
  * them to the transaction log.
  */
-public interface LogAppendEvent extends LogForceEvents, AutoCloseable
+public interface LogAppendEvent extends LogForceEvents, LogRotateEvents, AutoCloseable
 {
+    LogAppendEvent NULL = new Empty();
+
+    /**
+     * Notify about append of data into the current log file.
+     * New data is appended to the end of the log file and located between {@code logPositionBeforeAppend} and {@code logPositionAfterAppend}
+     * @param logPositionBeforeAppend start position
+     * @param logPositionAfterAppend end position
+     */
+    void appendToLogFile( LogPosition logPositionBeforeAppend, LogPosition logPositionAfterAppend );
+
+    /**
+     * Mark the end of the process of appending a transaction to the transaction log.
+     */
+    @Override
+    void close();
+
+    /**
+     * Note whether or not the log was rotated by the appending of this transaction to the log.
+     */
+    void setLogRotated( boolean logRotated );
+
+    /**
+     * Begin serializing and writing out the commands for this transaction.
+     * @param appendItems number of items we desire to append
+     */
+    AppendTransactionEvent beginAppendTransaction( int appendItems );
+
     class Empty implements LogAppendEvent
     {
+        @Override
+        public void appendToLogFile( LogPosition logPositionBeforeAppend, LogPosition logPositionAfterAppend )
+        {
+        }
+
         @Override
         public void close()
         {
@@ -64,9 +98,9 @@ public interface LogAppendEvent extends LogForceEvents, AutoCloseable
         }
 
         @Override
-        public SerializeTransactionEvent beginSerializeTransaction()
+        public AppendTransactionEvent beginAppendTransaction( int appendItems )
         {
-            return SerializeTransactionEvent.NULL;
+            return AppendTransactionEvent.NULL;
         }
 
         @Override
@@ -81,27 +115,4 @@ public interface LogAppendEvent extends LogForceEvents, AutoCloseable
             return LogForceEvent.NULL;
         }
     }
-
-    LogAppendEvent NULL = new Empty();
-
-    /**
-     * Mark the end of the process of appending a transaction to the transaction log.
-     */
-    @Override
-    void close();
-
-    /**
-     * Note whether or not the log was rotated by the appending of this transaction to the log.
-     */
-    void setLogRotated( boolean logRotated );
-
-    /**
-     * Begin a log rotation as part of this appending to the transaction log.
-     */
-    LogRotateEvent beginLogRotate();
-
-    /**
-     * Begin serializing and writing out the commands for this transaction.
-     */
-    SerializeTransactionEvent beginSerializeTransaction();
 }

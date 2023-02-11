@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,14 +38,17 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.mockito.Mockito._
-import org.neo4j.cypher.internal.runtime.ImplicitValueConversion._
+import org.mockito.Mockito.when
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.ImplicitValueConversion.toNodeValue
 import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 import org.neo4j.graphdb.Node
 import org.neo4j.values.storable.Values.stringValue
 import org.neo4j.values.virtual.VirtualValues.list
+
+import scala.collection.mutable
 
 class LabelsFunctionTest extends CypherFunSuite {
 
@@ -54,10 +57,10 @@ class LabelsFunctionTest extends CypherFunSuite {
     val node = mock[Node]
     when(node.getId).thenReturn(1337L)
     val queryContext = mock[QueryContext]
-    when(queryContext.getLabelsForNode(1337L)).thenReturn(list(stringValue("bambi")))
-
     val state = QueryStateHelper.emptyWith(query = queryContext)
-    val ctx = ExecutionContext() += ("n" -> node)
+    when(queryContext.getLabelsForNode(1337L, state.cursors.nodeCursor)).thenReturn(list(stringValue("bambi")))
+
+    val ctx = CypherRow(mutable.Map("n" -> node))
 
     // WHEN
     val result = LabelsFunction(Variable("n"))(ctx, state)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,11 +38,11 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Closure, Expression}
+import org.neo4j.cypher.internal.runtime.ReadableRow
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Predicate
-import org.neo4j.cypher.internal.runtime.interpreted.ListSupport
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.internal.runtime.ListSupport
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.ListValue
@@ -50,48 +50,51 @@ import org.neo4j.values.virtual.ListValue
 import scala.collection.Seq
 
 /**
-  * These classes solve List Predicates.
-  */
-abstract class InList(collectionExpression: Expression, id: String, predicate: Predicate)
+ * These classes solve List Predicates.
+ */
+abstract class InList(collection: Expression,
+                      innerVariableName: String,
+                      innerVariableOffset: Int,
+                      predicate: Predicate)
   extends Predicate
-  with ListSupport
-  with Closure {
+  with ListSupport {
 
-  type CollectionPredicate = ((AnyValue) => Option[Boolean]) => Option[Boolean]
+  type CollectionPredicate = (AnyValue => Option[Boolean]) => Option[Boolean]
 
   def seqMethod(f: ListValue): CollectionPredicate
 
-  def isMatch(m: ExecutionContext, state: QueryState): Option[Boolean] = {
-    val list = collectionExpression(m, state)
+  def isMatch(row: ReadableRow, state: QueryState): Option[Boolean] = {
+    val list = collection(row, state)
 
-    if (list == Values.NO_VALUE) None
+    if (list eq Values.NO_VALUE) None
     else {
       val seq = makeTraversable(list)
-      val innerContext = m.createClone()
-
-      seqMethod(seq)(item =>
-        // Since we can override an existing id here we use a method that guarantees that we do not overwrite an existing variable
-        predicate.isMatch(innerContext.set(id, item), state))
+      seqMethod(seq) { item =>
+        state.expressionVariables(innerVariableOffset) = item
+        predicate.isMatch(row, state)
+      }
     }
   }
 
   def name: String
 
-  override def toString() = name + "(" + id + " in " + collectionExpression + " where " + predicate + ")"
+  override def toString: String = s"$name($innerVariableName IN $collection WHERE $predicate)"
 
-  def containsIsNull = predicate.containsIsNull
+  def containsIsNull: Boolean = predicate.containsIsNull
 
-  override def children = Seq(collectionExpression, predicate)
+  override def children: Seq[Expression] = Seq(collection, predicate)
 
-  def arguments: scala.Seq[Expression] = Seq(collectionExpression)
+  def arguments: scala.Seq[Expression] = Seq(collection)
 
-  def symbolTableDependencies = symbolTableDependencies(collectionExpression, predicate, id)
 }
 
-case class AllInList(collection: Expression, symbolName: String, inner: Predicate)
-  extends InList(collection, symbolName, inner) {
+case class AllInList(collection: Expression,
+                     innerVariableName: String,
+                     innerVariableOffset: Int,
+                     inner: Predicate)
+  extends InList(collection, innerVariableName, innerVariableOffset, inner) {
 
-  private def forAll(collectionValue: ListValue)(predicate: (AnyValue => Option[Boolean])): Option[Boolean] = {
+  private def forAll(collectionValue: ListValue)(predicate: AnyValue => Option[Boolean]): Option[Boolean] = {
     var result: Option[Boolean] = Some(true)
 
     val iterator = collectionValue.iterator()
@@ -108,17 +111,20 @@ case class AllInList(collection: Expression, symbolName: String, inner: Predicat
   def seqMethod(value: ListValue): CollectionPredicate = forAll(value)
   def name = "all"
 
-  def rewrite(f: (Expression) => Expression) =
-    f(AllInList(
-      collection = collection.rewrite(f),
-      symbolName = symbolName,
-      inner = inner.rewriteAsPredicate(f)))
+  def rewrite(f: Expression => Expression): Expression =
+    f(AllInList(collection.rewrite(f),
+                innerVariableName,
+                innerVariableOffset,
+                inner.rewriteAsPredicate(f)))
 }
 
-case class AnyInList(collection: Expression, symbolName: String, inner: Predicate)
-  extends InList(collection, symbolName, inner) {
+case class AnyInList(collection: Expression,
+                     innerVariableName: String,
+                     innerVariableOffset: Int,
+                     inner: Predicate)
+  extends InList(collection, innerVariableName, innerVariableOffset, inner) {
 
-  private def exists(collectionValue: ListValue)(predicate: (AnyValue => Option[Boolean])): Option[Boolean] = {
+  private def exists(collectionValue: ListValue)(predicate: AnyValue => Option[Boolean]): Option[Boolean] = {
     var result: Option[Boolean] = Some(false)
     val iterator = collectionValue.iterator()
     while(iterator.hasNext) {
@@ -135,17 +141,20 @@ case class AnyInList(collection: Expression, symbolName: String, inner: Predicat
 
   def name = "any"
 
-  def rewrite(f: (Expression) => Expression) =
-    f(AnyInList(
-      collection = collection.rewrite(f),
-      symbolName = symbolName,
-      inner = inner.rewriteAsPredicate(f)))
+  def rewrite(f: Expression => Expression): Expression =
+    f(AnyInList(collection.rewrite(f),
+                innerVariableName,
+                innerVariableOffset,
+                inner.rewriteAsPredicate(f)))
 }
 
-case class NoneInList(collection: Expression, symbolName: String, inner: Predicate)
-  extends InList(collection, symbolName, inner) {
+case class NoneInList(collection: Expression,
+                      innerVariableName: String,
+                      innerVariableOffset: Int,
+                      inner: Predicate)
+  extends InList(collection, innerVariableName, innerVariableOffset, inner) {
 
-  private def none(collectionValue: ListValue)(predicate: (AnyValue => Option[Boolean])): Option[Boolean] = {
+  private def none(collectionValue: ListValue)(predicate: AnyValue => Option[Boolean]): Option[Boolean] = {
     var result: Option[Boolean] = Some(true)
 
     val iterator = collectionValue.iterator()
@@ -164,38 +173,45 @@ case class NoneInList(collection: Expression, symbolName: String, inner: Predica
 
   def name = "none"
 
-  def rewrite(f: (Expression) => Expression) =
-    f(NoneInList(
-      collection = collection.rewrite(f),
-      symbolName = symbolName,
-      inner = inner.rewriteAsPredicate(f)))
+  def rewrite(f: Expression => Expression): Expression =
+    f(NoneInList(collection.rewrite(f),
+                 innerVariableName,
+                 innerVariableOffset,
+                 inner.rewriteAsPredicate(f)))
 }
 
-case class SingleInList(collection: Expression, symbolName: String, inner: Predicate)
-  extends InList(collection, symbolName, inner) {
+case class SingleInList(collection: Expression,
+                        innerVariableName: String,
+                        innerVariableOffset: Int,
+                        inner: Predicate)
+  extends InList(collection, innerVariableName, innerVariableOffset, inner) {
 
-  private def single(collectionValue: ListValue)(predicate: (AnyValue => Option[Boolean])): Option[Boolean] = {
+  private def single(collectionValue: ListValue)(predicate: AnyValue => Option[Boolean]): Option[Boolean] = {
     var matched = false
+    var atLeastOneNull = false
     val iterator = collectionValue.iterator()
     while(iterator.hasNext) {
       predicate(iterator.next()) match {
         case Some(true) if matched => return Some(false)
         case Some(true)            => matched = true
-        case None                  => return None
+        case None                  => atLeastOneNull = true
         case _                     =>
       }
     }
 
-    Some(matched)
+    if (atLeastOneNull)
+      None
+    else
+      Some(matched)
   }
 
   def seqMethod(value: ListValue): CollectionPredicate = single(value)
 
   def name = "single"
 
-  def rewrite(f: (Expression) => Expression) =
-    f(SingleInList(
-      collection = collection.rewrite(f),
-      symbolName = symbolName,
-      inner = inner.rewriteAsPredicate(f)))
+  def rewrite(f: Expression => Expression): Expression =
+    f(SingleInList(collection.rewrite(f),
+                   innerVariableName,
+                   innerVariableOffset,
+                   inner.rewriteAsPredicate(f)))
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,17 +38,16 @@
  */
 package org.neo4j.kernel.impl.core;
 
+import java.util.function.IntPredicate;
 import java.util.function.Supplier;
 
-import org.neo4j.internal.kernel.api.Kernel;
-import org.neo4j.internal.kernel.api.Session;
-import org.neo4j.internal.kernel.api.Transaction;
-import org.neo4j.internal.kernel.api.Transaction.Type;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
-import org.neo4j.internal.kernel.api.exceptions.schema.IllegalTokenNameException;
-import org.neo4j.internal.kernel.api.exceptions.schema.TooManyLabelsException;
-import org.neo4j.internal.kernel.api.security.LoginContext;
-import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
+import org.neo4j.exceptions.KernelException;
+import org.neo4j.kernel.api.Kernel;
+import org.neo4j.kernel.api.KernelTransaction;
+import org.neo4j.kernel.api.KernelTransaction.Type;
+import org.neo4j.token.TokenCreator;
+
+import static org.neo4j.internal.kernel.api.security.LoginContext.AUTH_DISABLED;
 
 /**
  * Creates a key within its own transaction, such that the command(s) for creating the key
@@ -57,31 +56,41 @@ import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
  */
 abstract class IsolatedTransactionTokenCreator implements TokenCreator
 {
-    protected final IdGeneratorFactory idGeneratorFactory;
     private final Supplier<Kernel> kernelSupplier;
 
-    IsolatedTransactionTokenCreator( Supplier<Kernel> kernelSupplier,
-            IdGeneratorFactory idGeneratorFactory )
+    IsolatedTransactionTokenCreator( Supplier<Kernel> kernelSupplier )
     {
         this.kernelSupplier = kernelSupplier;
-        this.idGeneratorFactory = idGeneratorFactory;
     }
 
     @Override
-    public synchronized int getOrCreate( String name ) throws KernelException
+    public synchronized int createToken( String name, boolean internal ) throws KernelException
     {
         Kernel kernel = kernelSupplier.get();
-        try ( Session session = kernel.beginSession( LoginContext.AUTH_DISABLED ) )
+        try ( KernelTransaction tx = kernel.beginTransaction( Type.IMPLICIT, AUTH_DISABLED ) )
         {
-            try ( Transaction transaction = session.beginTransaction( Type.implicit ) )
-            {
-                int id = createKey( transaction, name );
-                transaction.success();
-                return id;
-            }
+            int id = createKey( tx, name, internal );
+            tx.commit();
+            return id;
         }
     }
 
-    abstract int createKey( Transaction transaction, String name )
-            throws IllegalTokenNameException, TooManyLabelsException;
+    @Override
+    public synchronized void createTokens( String[] names, int[] ids, boolean internal, IntPredicate filter ) throws KernelException
+    {
+        Kernel kernel = kernelSupplier.get();
+        try ( KernelTransaction tx = kernel.beginTransaction( Type.IMPLICIT, AUTH_DISABLED ) )
+        {
+            for ( int i = 0; i < ids.length; i++ )
+            {
+                if ( filter.test( i ) )
+                {
+                    ids[i] = createKey( tx, names[i], internal );
+                }
+            }
+            tx.commit();
+        }
+    }
+
+    abstract int createKey( KernelTransaction transaction, String name, boolean internal ) throws KernelException;
 }

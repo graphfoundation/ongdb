@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,41 +38,34 @@
  */
 package org.neo4j.logging.internal;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.neo4j.logging.internal.LogMessageUtil.slf4jToStringFormatPlaceholders;
 
-public class LogMessageUtilTest
+class LogMessageUtilTest
 {
     @Test
-    public void shouldThrowWhenStringIsNull()
+    void shouldThrowWhenStringIsNull()
     {
-        try
-        {
-            slf4jToStringFormatPlaceholders( null );
-            fail( "Exception expected" );
-        }
-        catch ( NullPointerException ignore )
-        {
-        }
+        assertThrows( NullPointerException.class, () -> slf4jToStringFormatPlaceholders( null ) );
     }
 
     @Test
-    public void shouldDoNothingForEmptyString()
+    void shouldDoNothingForEmptyString()
     {
         assertEquals( "", slf4jToStringFormatPlaceholders( "" ) );
     }
 
     @Test
-    public void shouldDoNothingForStringWithoutPlaceholders()
+    void shouldDoNothingForStringWithoutPlaceholders()
     {
         assertEquals( "Simple log message", slf4jToStringFormatPlaceholders( "Simple log message" ) );
     }
 
     @Test
-    public void shouldReplaceSlf4jPlaceholderWithStringFormatPlaceholder()
+    void shouldReplaceSlf4jPlaceholderWithStringFormatPlaceholder()
     {
         assertEquals( "Log message with %s single placeholder", slf4jToStringFormatPlaceholders( "Log message with {} single placeholder" ) );
         assertEquals( "Log message %s with two %s placeholders", slf4jToStringFormatPlaceholders( "Log message {} with two {} placeholders" ) );

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,35 +38,36 @@
  */
 package org.neo4j.kernel.impl.transaction.log.pruning;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.neo4j.configuration.SettingValueParsers.FALSE;
+import static org.neo4j.configuration.SettingValueParsers.TRUE;
 import static org.neo4j.kernel.impl.transaction.log.pruning.ThresholdConfigParser.ThresholdConfigValue;
 import static org.neo4j.kernel.impl.transaction.log.pruning.ThresholdConfigParser.ThresholdConfigValue.KEEP_LAST_FILE;
 import static org.neo4j.kernel.impl.transaction.log.pruning.ThresholdConfigParser.ThresholdConfigValue.NO_PRUNING;
 import static org.neo4j.kernel.impl.transaction.log.pruning.ThresholdConfigParser.parse;
 
-public class ThresholdConfigParserTest
+class ThresholdConfigParserTest
 {
     @Test
-    public void parseTrue()
+    void parseTrue()
     {
-        ThresholdConfigValue configValue = parse( "true" );
+        ThresholdConfigValue configValue = parse( TRUE );
         assertEquals( NO_PRUNING, configValue );
     }
 
     @Test
-    public void parseFalse()
+    void parseFalse()
     {
-        ThresholdConfigValue configValue = parse( "false" );
+        ThresholdConfigValue configValue = parse( FALSE );
         assertEquals( KEEP_LAST_FILE, configValue );
     }
 
-    @Test( expected = IllegalArgumentException.class )
-    public void parseGarbage()
+    @Test
+    void parseGarbage()
     {
-        parse( "davide" );
-        fail( "Expected IllegalArgumentException" );
+        assertThrows( IllegalArgumentException.class, () -> parse( "davide" ) );
     }
 }

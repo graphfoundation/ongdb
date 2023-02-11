@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,13 +42,17 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
 import org.neo4j.internal.kernel.api.security.AuthSubject;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.KernelTransactionHandle;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.api.query.ExecutingQuery;
-import org.neo4j.kernel.impl.locking.ActiveLock;
+import org.neo4j.kernel.impl.api.transaction.trace.TransactionInitializationTrace;
+import org.neo4j.lock.ActiveLock;
 import org.neo4j.time.SystemNanoClock;
+
+import static java.util.Optional.ofNullable;
 
 /**
  * A {@link KernelTransactionHandle} that wraps the given {@link KernelTransactionImplementation}.
@@ -58,43 +62,43 @@ import org.neo4j.time.SystemNanoClock;
  */
 class KernelTransactionImplementationHandle implements KernelTransactionHandle
 {
-    private static final String USER_TRANSACTION_NAME_PREFIX = "transaction-";
+    private static final String USER_TRANSACTION_NAME_SEPARATOR = "-transaction-";
 
-    private final long txReuseCount;
-    private final long lastTransactionIdWhenStarted;
     private final long lastTransactionTimestampWhenStarted;
     private final long startTime;
     private final long startTimeNanos;
     private final long timeoutMillis;
     private final KernelTransactionImplementation tx;
     private final SystemNanoClock clock;
+    private final ClientConnectionInfo clientInfo;
     private final AuthSubject subject;
     private final Optional<Status> terminationReason;
-    private final ExecutingQueryList executingQueries;
+    private final Optional<ExecutingQuery> executingQuery;
     private final Map<String,Object> metaData;
+    private final String statusDetails;
     private final long userTransactionId;
+    private final TransactionInitializationTrace initializationTrace;
+    private final KernelTransactionStamp transactionStamp;
+    private final String databaseName;
 
     KernelTransactionImplementationHandle( KernelTransactionImplementation tx, SystemNanoClock clock )
     {
-        this.txReuseCount = tx.getReuseCount();
-        this.lastTransactionIdWhenStarted = tx.lastTransactionIdWhenStarted();
+        this.transactionStamp = new KernelTransactionStamp( tx );
         this.lastTransactionTimestampWhenStarted = tx.lastTransactionTimestampWhenStarted();
         this.startTime = tx.startTime();
         this.startTimeNanos = tx.startTimeNanos();
         this.timeoutMillis = tx.timeout();
         this.subject = tx.subjectOrAnonymous();
         this.terminationReason = tx.getReasonIfTerminated();
-        this.executingQueries = tx.executingQueries();
+        this.executingQuery = tx.executingQuery();
         this.metaData = tx.getMetaData();
-        this.userTransactionId = tx.userTransactionId();
+        this.statusDetails = tx.statusDetails();
+        this.userTransactionId = tx.getUserTransactionId();
+        this.initializationTrace = tx.getInitializationTrace();
+        this.clientInfo = tx.clientInfo();
+        databaseName = tx.getDatabaseName();
         this.tx = tx;
         this.clock = clock;
-    }
-
-    @Override
-    public long lastTransactionIdWhenStarted()
-    {
-        return lastTransactionIdWhenStarted;
     }
 
     @Override
@@ -124,13 +128,19 @@ class KernelTransactionImplementationHandle implements KernelTransactionHandle
     @Override
     public boolean isOpen()
     {
-        return tx.isOpen() && txReuseCount == tx.getReuseCount();
+        return transactionStamp.isOpen();
+    }
+
+    @Override
+    public boolean isClosing()
+    {
+        return transactionStamp.isClosing();
     }
 
     @Override
     public boolean markForTermination( Status reason )
     {
-        return tx.markForTermination( txReuseCount, reason );
+        return tx.markForTermination( transactionStamp.getReuseCount(), reason );
     }
 
     @Override
@@ -143,6 +153,12 @@ class KernelTransactionImplementationHandle implements KernelTransactionHandle
     public Map<String,Object> getMetaData()
     {
         return metaData;
+    }
+
+    @Override
+    public String getStatusDetails()
+    {
+        return statusDetails;
     }
 
     @Override
@@ -166,17 +182,17 @@ class KernelTransactionImplementationHandle implements KernelTransactionHandle
     @Override
     public String getUserTransactionName()
     {
-        return USER_TRANSACTION_NAME_PREFIX + getUserTransactionId();
+        return databaseName + USER_TRANSACTION_NAME_SEPARATOR + getUserTransactionId();
     }
 
     @Override
-    public Stream<ExecutingQuery> executingQueries()
+    public Optional<ExecutingQuery> executingQuery()
     {
-        return executingQueries.queries();
+        return executingQuery;
     }
 
     @Override
-    public Stream<? extends ActiveLock> activeLocks()
+    public Stream<ActiveLock> activeLocks()
     {
         return tx.activeLocks();
     }
@@ -184,7 +200,7 @@ class KernelTransactionImplementationHandle implements KernelTransactionHandle
     @Override
     public TransactionExecutionStatistic transactionStatistic()
     {
-        if ( txReuseCount == tx.getReuseCount() )
+        if ( transactionStamp.isNotExpired() )
         {
             return new TransactionExecutionStatistic( tx, clock, startTime );
         }
@@ -192,6 +208,24 @@ class KernelTransactionImplementationHandle implements KernelTransactionHandle
         {
             return TransactionExecutionStatistic.NOT_AVAILABLE;
         }
+    }
+
+    @Override
+    public TransactionInitializationTrace transactionInitialisationTrace()
+    {
+        return initializationTrace;
+    }
+
+    @Override
+    public Optional<ClientConnectionInfo> clientInfo()
+    {
+        return ofNullable( clientInfo );
+    }
+
+    @Override
+    public boolean isSchemaTransaction()
+    {
+        return tx.isSchemaTransaction();
     }
 
     @Override
@@ -206,18 +240,18 @@ class KernelTransactionImplementationHandle implements KernelTransactionHandle
             return false;
         }
         KernelTransactionImplementationHandle that = (KernelTransactionImplementationHandle) o;
-        return txReuseCount == that.txReuseCount && tx.equals( that.tx );
+        return transactionStamp.equals( that.transactionStamp );
     }
 
     @Override
     public int hashCode()
     {
-        return 31 * (int) (txReuseCount ^ (txReuseCount >>> 32)) + tx.hashCode();
+        return transactionStamp.hashCode();
     }
 
     @Override
     public String toString()
     {
-        return "KernelTransactionImplementationHandle{txReuseCount=" + txReuseCount + ", tx=" + tx + "}";
+        return "KernelTransactionImplementationHandle{txReuseCount=" + transactionStamp.getReuseCount() + ", tx=" + tx + "}";
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -43,33 +43,24 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.neo4j.bolt.v1.messaging.BoltResponseMessage;
-import org.neo4j.cypher.result.QueryResult;
+import org.neo4j.bolt.messaging.BoltResponseMessage;
 import org.neo4j.values.AnyValue;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.lessThan;
-import static org.junit.Assert.assertArrayEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 public class RecordedBoltResponse
 {
-    private List<QueryResult.Record> records;
+    private final List<AnyValue[]> records = new ArrayList<>();
+    private final Map<String,AnyValue> metadata = new HashMap<>();
     private BoltResponseMessage response;
-    private Map<String, AnyValue> metadata;
 
-    public RecordedBoltResponse()
+    void addFields( AnyValue[] fields )
     {
-        records = new ArrayList<>();
-        response = null;
-        metadata = new HashMap<>();
+        records.add( fields );
     }
 
-    public void addRecord( QueryResult.Record record )
-    {
-        records.add( record );
-    }
-
-    public void addMetadata( String key, AnyValue value )
+    void addMetadata( String key, AnyValue value )
     {
         metadata.put( key, value );
     }
@@ -89,21 +80,29 @@ public class RecordedBoltResponse
         return metadata.containsKey( key );
     }
 
-    public Object metadata( String key )
+    public AnyValue metadata( String key )
     {
         return metadata.get( key );
     }
 
-    public void assertRecord( int index, Object... values )
+    public void assertRecord( int index, AnyValue... values )
     {
-        assertThat( index, lessThan( records.size() ) );
-        assertArrayEquals( records.get( index ).fields(), values );
+        assertThat( index ).isLessThan( records.size() );
+        assertArrayEquals( records.get( index ), values );
     }
 
-    public QueryResult.Record[] records()
+    public List<AnyValue[]> records()
     {
-        QueryResult.Record[] recordArray = new QueryResult.Record[records.size()];
-        return records.toArray( recordArray );
+        return new ArrayList<>( records );
+    }
+
+    public AnyValue singleValueRecord()
+    {
+        var records = records();
+        assertThat( records.size() ).isEqualTo( 1 );
+        var values = records.get( 0 );
+        assertThat( values.length ).isEqualTo( 1 );
+        return values[0];
     }
 
     @Override

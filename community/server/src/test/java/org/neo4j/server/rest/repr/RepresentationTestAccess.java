@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -83,7 +83,7 @@ public class RepresentationTestAccess
 
     public static String serialize( URI baseUri, ValueRepresentation repr )
     {
-        return repr.serialize( new StringFormat(), baseUri, null );
+        return repr.serialize( new StringFormat(), baseUri );
     }
 
     public static Map<String, Object> serialize( MappingRepresentation repr )
@@ -94,7 +94,7 @@ public class RepresentationTestAccess
     public static Map<String, Object> serialize( URI baseUri, MappingRepresentation repr )
     {
         Map<String, Object> result = new HashMap<>();
-        repr.serialize( new MappingSerializer( new MapWrappingWriter( result ), baseUri, null ) );
+        repr.serialize( new MappingSerializer( new MapWrappingWriter( result ), baseUri ) );
         return result;
     }
 
@@ -106,7 +106,7 @@ public class RepresentationTestAccess
     public static List<Object> serialize( URI baseUri, ListRepresentation repr )
     {
         List<Object> result = new ArrayList<>();
-        repr.serialize( new ListSerializer( new ListWrappingWriter( result ), baseUri, null ) );
+        repr.serialize( new ListSerializer( new ListWrappingWriter( result ), baseUri ) );
         return result;
     }
 
@@ -155,30 +155,6 @@ public class RepresentationTestAccess
         protected MappingWriter serializeMapping( String type )
         {
             throw new UnsupportedOperationException( "StringFormat.serializeMapping()" );
-        }
-
-        @Override
-        public List<Object> readList( String input )
-        {
-            throw new UnsupportedOperationException( "StringFormat.readList()" );
-        }
-
-        @Override
-        public Map<String, Object> readMap( String input, String... requiredKeys )
-        {
-            throw new UnsupportedOperationException( "StringFormat.readMap()" );
-        }
-
-        @Override
-        public Object readValue( String input )
-        {
-            throw new UnsupportedOperationException( "StringFormat.readValue()" );
-        }
-
-        @Override
-        public URI readUri( String input )
-        {
-            throw new UnsupportedOperationException( "StringFormat.readUri()" );
         }
     }
 }

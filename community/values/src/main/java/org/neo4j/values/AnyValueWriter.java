@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -50,13 +50,34 @@ import org.neo4j.values.virtual.RelationshipValue;
  */
 public interface AnyValueWriter<E extends Exception> extends ValueWriter<E>
 {
+    enum EntityMode
+    {
+        REFERENCE,
+        FULL
+    }
+
+    /**
+     * Returns the wanted {@link EntityMode} of this AnyValueWriter.
+     *
+     * A returned {@link EntityMode#REFERENCE} signals to all entity-values that they should callback using {@link #writeNodeReference(long)} or
+     * {@link #writeRelationshipReference(long)} even if the whole entity is available.
+     *
+     * A returned {@link EntityMode#FULL} signals to all entity-values that they can callback using either
+     *      {@link #writeNodeReference(long)},
+     *      {@link #writeNode(long, TextArray, MapValue, boolean)},
+     *      {@link #writeRelationshipReference(long)}
+     *   or {@link #writeRelationship(long, long, long, TextValue, MapValue, boolean)}
+     * depending on how much information is available to the value instance.
+     */
+    EntityMode entityMode();
+
     void writeNodeReference( long nodeId ) throws E;
 
-    void writeNode( long nodeId, TextArray labels, MapValue properties ) throws E;
+    void writeNode( long nodeId, TextArray labels, MapValue properties, boolean isDeleted ) throws E;
 
     void writeRelationshipReference( long relId ) throws E;
 
-    void writeRelationship( long relId, long startNodeId, long endNodeId, TextValue type, MapValue properties ) throws E;
+    void writeRelationship( long relId, long startNodeId, long endNodeId, TextValue type, MapValue properties, boolean isDeleted ) throws E;
 
     void beginMap( int size ) throws E;
 
@@ -65,6 +86,8 @@ public interface AnyValueWriter<E extends Exception> extends ValueWriter<E>
     void beginList( int size ) throws E;
 
     void endList() throws E;
+
+    void writePathReference( long[] nodes, long[] relationships ) throws E;
 
     void writePath( NodeValue[] nodes, RelationshipValue[] relationships ) throws E;
 

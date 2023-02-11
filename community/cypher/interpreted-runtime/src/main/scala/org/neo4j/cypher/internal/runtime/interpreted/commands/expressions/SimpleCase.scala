@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,23 +38,24 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ReadableRow
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.values.AnyValue
 
 case class SimpleCase(expression: Expression, alternatives: Seq[(Expression, Expression)], default: Option[Expression])
   extends Expression {
 
-  def apply(ctx: ExecutionContext, state: QueryState): AnyValue = {
-    val value = expression(ctx, state)
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = {
+    val value = expression(row, state)
 
     val matchingExpression: Option[Expression] = alternatives collectFirst {
-      case (exp, res) if exp(ctx, state) == value => res
+      case (exp, res) if exp(row, state) == value => res
     }
 
     matchingExpression match {
-      case Some(resultExpression) => resultExpression(ctx, state)
-      case None => default.getOrElse(Null()).apply(ctx, state)
+      case Some(resultExpression) => resultExpression(row, state)
+      case None => default.getOrElse(Null()).apply(row, state)
     }
   }
 
@@ -62,9 +63,11 @@ case class SimpleCase(expression: Expression, alternatives: Seq[(Expression, Exp
 
   private def alternativeExpressions = alternatives.map(_._2)
 
-  def arguments = (expression +: (alternativeComparison ++ alternativeExpressions ++ default.map(Seq(_)).getOrElse(Seq()))).distinct
+  override def arguments: Seq[Expression] = (expression +: (alternativeComparison ++ alternativeExpressions ++ default)).distinct
 
-  def rewrite(f: (Expression) => Expression): Expression = {
+  override def children: Seq[AstNode[_]] = expression +: (alternativeComparison ++ alternativeExpressions ++ default)
+
+  override def rewrite(f: Expression => Expression): Expression = {
     val newAlternatives = alternatives map {
       case (a, b) => (a.rewrite(f), b.rewrite(f))
     }
@@ -72,8 +75,4 @@ case class SimpleCase(expression: Expression, alternatives: Seq[(Expression, Exp
     f(SimpleCase(expression.rewrite(f), newAlternatives, default.map(f)))
   }
 
-  def symbolTableDependencies: Set[String] = {
-    val expressions = default.toIndexedSeq ++ alternativeComparison ++ alternativeExpressions :+ expression
-    expressions.flatMap(_.symbolTableDependencies).toSet
-  }
 }

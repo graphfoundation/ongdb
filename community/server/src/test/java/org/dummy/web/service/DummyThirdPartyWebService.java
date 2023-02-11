@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -49,6 +49,7 @@ import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
@@ -79,11 +80,12 @@ public class DummyThirdPartyWebService
     @GET
     @Path( "inject-test" )
     @Produces( MediaType.TEXT_PLAIN )
-    public Response countNodes( @Context GraphDatabaseService db )
+    public static Response countNodes( @Context DatabaseManagementService dbms )
     {
+        GraphDatabaseService db = dbms.database( "neo4j" );
         try ( Transaction transaction = db.beginTx() )
         {
-            return Response.ok().entity( String.valueOf( countNodesIn( db ) ) ).build();
+            return Response.ok().entity( String.valueOf( countNodesIn( transaction ) ) ).build();
         }
     }
 
@@ -99,7 +101,7 @@ public class DummyThirdPartyWebService
             Map.Entry<String, List<String>> header = headerIt.next();
             if ( header.getValue().size() != 1 )
             {
-                throw new IllegalArgumentException( "Mutlivalued header: " + header.getKey() );
+                throw new IllegalArgumentException( "Multivalued header: " + header.getKey() );
             }
             theEntity.append( "\"" ).append( header.getKey() ).append( "\":\"" )
                      .append( header.getValue().get( 0 ) ).append( "\"" );
@@ -108,14 +110,14 @@ public class DummyThirdPartyWebService
                 theEntity.append( ", " );
             }
         }
-        theEntity.append( "}" );
+        theEntity.append( '}' );
         return Response.ok().entity( theEntity.toString() ).build();
     }
 
-    private int countNodesIn( GraphDatabaseService db )
+    private static int countNodesIn( Transaction tx )
     {
         int count = 0;
-        for ( Node ignore : db.getAllNodes() )
+        for ( Node ignore : tx.getAllNodes() )
         {
             count++;
         }

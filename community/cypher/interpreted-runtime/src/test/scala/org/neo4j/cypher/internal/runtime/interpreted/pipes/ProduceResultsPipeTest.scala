@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,30 +38,55 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.mockito.Mockito._
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.ImplicitValueConversion._
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.values.storable.Values.{FALSE, TRUE, intValue, stringValue}
+import org.mockito.Mockito.when
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.kernel.impl.query.QuerySubscriber
+import org.neo4j.kernel.impl.query.QuerySubscriberAdapter
+import org.neo4j.values.AnyValue
+import org.neo4j.values.storable.Values.FALSE
+import org.neo4j.values.storable.Values.TRUE
+import org.neo4j.values.storable.Values.intValue
+import org.neo4j.values.storable.Values.stringValue
+
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 class ProduceResultsPipeTest extends CypherFunSuite {
 
   test("should project needed columns") {
     val sourcePipe = mock[Pipe]
+    val columns = Array("a", "b", "c")
+
+    val records = ArrayBuffer.empty[Map[String, AnyValue]]
+
+    val subscriber: QuerySubscriber = new QuerySubscriberAdapter {
+      private val record: mutable.Map[String, AnyValue] = mutable.Map.empty
+
+      override def onField(offset: Int, value: AnyValue): Unit = {
+        record.put(columns(offset), value)
+      }
+
+      override def onRecordCompleted(): Unit = {
+        records.append(record.toMap)
+      }
+    }
     val queryState = mock[QueryState]
+    when(queryState.subscriber).thenReturn(subscriber)
 
     when(queryState.decorator).thenReturn(NullPipeDecorator)
     when(sourcePipe.createResults(queryState)).thenReturn(
-      Iterator(
-        ExecutionContext.from("a" -> "foo", "b" -> 10, "c" -> true, "d" -> "d"),
-        ExecutionContext.from("a" -> "bar", "b" -> 20, "c" -> false, "d" -> "d")
-      ))
+      ClosingIterator(Iterator(
+        CypherRow.from("a" -> stringValue("foo"), "b" -> intValue(10), "c" -> TRUE, "d" -> stringValue("d")),
+        CypherRow.from("a" -> stringValue("bar"), "b" -> intValue(20), "c" -> FALSE, "d" -> stringValue("d"))
+      )))
 
-    val pipe = ProduceResultsPipe(sourcePipe, Seq("a", "b", "c"))()
+    val pipe = ProduceResultsPipe(sourcePipe, columns)()
 
-    val result = pipe.createResults(queryState).toList
+    pipe.createResults(queryState).toList
 
-    result should equal(
+    records.toList should equal(
       List(
         Map("a" -> stringValue("foo"), "b" -> intValue(10), "c" -> TRUE),
         Map("a" -> stringValue("bar"), "b" -> intValue(20), "c" -> FALSE)
@@ -73,9 +98,9 @@ class ProduceResultsPipeTest extends CypherFunSuite {
     val queryState = mock[QueryState]
 
     when(queryState.decorator).thenReturn(NullPipeDecorator)
-    when(sourcePipe.createResults(queryState)).thenReturn(Iterator.empty)
+    when(sourcePipe.createResults(queryState)).thenReturn(ClosingIterator.empty)
 
-    val pipe = ProduceResultsPipe(sourcePipe, Seq("a", "b", "c"))()
+    val pipe = ProduceResultsPipe(sourcePipe, Array("a", "b", "c"))()
 
     val result = pipe.createResults(queryState).toList
 

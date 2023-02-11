@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -81,7 +81,7 @@ class SearchEnvelope
         }
     }
 
-    SearchEnvelope quadrant( int[] quadNbrs )
+    SearchEnvelope quadrant( int npoint )
     {
         long[] newMin = new long[nbrDim];
         long[] newMax = new long[nbrDim];
@@ -89,8 +89,9 @@ class SearchEnvelope
         for ( int dim = 0; dim < nbrDim; dim++ )
         {
             long extent = (max[dim] - min[dim]) / 2;
-            newMin[dim] = this.min[dim] + quadNbrs[dim] * extent;
-            newMax[dim] = this.min[dim] + (quadNbrs[dim] + 1) * extent;
+            int v = (npoint >> nbrDim - dim - 1) & 1;
+            newMin[dim] = this.min[dim] + v * extent;
+            newMax[dim] = this.min[dim] + (v + 1) * extent;
         }
         return new SearchEnvelope( newMin, newMax );
     }

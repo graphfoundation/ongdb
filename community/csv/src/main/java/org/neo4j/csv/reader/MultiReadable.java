@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,6 +42,8 @@ import java.io.IOException;
 
 import org.neo4j.collection.RawIterator;
 
+import static org.neo4j.csv.reader.BufferedCharSeeker.isEolChar;
+
 /**
  * Joins multiple {@link CharReadable} into one. There will never be one read which reads from multiple sources.
  * If the end of one source is reached those (smaller amount of) characters are returned as one read and the next
@@ -58,6 +60,7 @@ public class MultiReadable implements CharReadable
     private CharReadable current = CharReadable.EMPTY;
     private boolean requiresNewLine;
     private long previousPosition;
+    private float previousCompressionRatio = 1f;
 
     public MultiReadable( RawIterator<CharReadable,IOException> readers )
     {
@@ -90,13 +93,22 @@ public class MultiReadable implements CharReadable
         return previousPosition + current.position();
     }
 
+    @Override
+    public float compressionRatio()
+    {
+        return previousCompressionRatio * (current.compressionRatio() * current.position() / position());
+    }
+
     private boolean goToNextSource() throws IOException
     {
         if ( actual.hasNext() )
         {
             if ( current != null )
             {
-                previousPosition += current.position();
+                long sourceLength = current.position();
+                float sourceCompressionRatio = current.compressionRatio();
+                previousPosition += sourceLength;
+                previousCompressionRatio *= sourceCompressionRatio * sourceLength / previousPosition/*which at this point is the total position*/;
             }
             closeCurrent();
             current = actual.next();
@@ -140,7 +152,7 @@ public class MultiReadable implements CharReadable
     private void checkNewLineRequirement( char[] array, int lastIndex )
     {
         char lastChar = array[lastIndex];
-        requiresNewLine = lastChar != '\n' && lastChar != '\r';
+        requiresNewLine = !isEolChar( lastChar );
     }
 
     @Override

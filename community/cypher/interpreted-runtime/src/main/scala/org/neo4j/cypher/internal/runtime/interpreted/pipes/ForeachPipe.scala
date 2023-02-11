@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,27 +38,28 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.ListSupport
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.runtime.interpreted.ListSupport
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.SideEffect
+import org.neo4j.cypher.internal.util.attribution.Id
 
-import scala.collection.JavaConverters._
-
-case class ForeachPipe(source: Pipe, inner: Pipe, variable: String, expression: Expression)
+case class ForeachPipe(source: Pipe, variable: String, expression: Expression, sideEffects: Array[SideEffect])
                       (val id: Id = Id.INVALID_ID)
   extends PipeWithSource(source) with ListSupport {
 
-  expression.registerOwningPipe(this)
-
-  override protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] =
-    input.map {
-      (outerContext) =>
-        val values = makeTraversable(expression(outerContext, state))
-        values.iterator().asScala.foreach { v =>
-          val innerState = state.withInitialContext(executionContextFactory.copyWith(outerContext, variable, v))
-          inner.createResults(innerState).length // exhaust the iterator, in case there's a merge read increasing cardinality inside the foreach
+  override protected def internalCreateResults(input: ClosingIterator[CypherRow], state: QueryState): ClosingIterator[CypherRow] =
+    input.map(row => {
+      val values = makeTraversable(expression(row, state)).iterator()
+      while (values.hasNext) {
+        val innerRow = rowFactory.copyWith(row, variable, values.next())
+        var i = 0
+        while (i < sideEffects.length) {
+          sideEffects(i).execute(innerRow, state)
+          i += 1
         }
-        outerContext
-    }
+      }
+      row
+    })
 }

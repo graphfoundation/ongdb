@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,20 +38,19 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-import org.neo4j.helpers.collection.Pair;
-import org.neo4j.helpers.collection.PrefetchingIterator;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
+import org.neo4j.exceptions.UnderlyingStorageException;
+import org.neo4j.internal.helpers.collection.Pair;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.index.IndexUpdater;
 import org.neo4j.kernel.impl.store.MultipleUnderlyingStorageExceptions;
-import org.neo4j.kernel.impl.store.UnderlyingStorageException;
 
 /**
  * Holds currently open index updaters that are created dynamically when requested for any existing index in
@@ -62,11 +61,11 @@ import org.neo4j.kernel.impl.store.UnderlyingStorageException;
  * All updaters retrieved from this map must be either closed manually or handle duplicate calls to close
  * or must all be closed indirectly by calling close on this updater map.
  */
-class IndexUpdaterMap implements AutoCloseable, Iterable<IndexUpdater>
+class IndexUpdaterMap implements AutoCloseable
 {
     private final IndexUpdateMode indexUpdateMode;
     private final IndexMap indexMap;
-    private final Map<SchemaDescriptor,IndexUpdater> updaterMap;
+    private final Map<IndexDescriptor,IndexUpdater> updaterMap;
 
     IndexUpdaterMap( IndexMap indexMap, IndexUpdateMode indexUpdateMode )
     {
@@ -75,7 +74,7 @@ class IndexUpdaterMap implements AutoCloseable, Iterable<IndexUpdater>
         this.updaterMap = new HashMap<>();
     }
 
-    IndexUpdater getUpdater( SchemaDescriptor descriptor )
+    IndexUpdater getUpdater( IndexDescriptor descriptor, CursorContext cursorContext )
     {
         IndexUpdater updater = updaterMap.get( descriptor );
         if ( null == updater )
@@ -83,7 +82,7 @@ class IndexUpdaterMap implements AutoCloseable, Iterable<IndexUpdater>
             IndexProxy indexProxy = indexMap.getIndexProxy( descriptor );
             if ( null != indexProxy )
             {
-                updater = indexProxy.newUpdater( indexUpdateMode );
+                updater = indexProxy.newUpdater( indexUpdateMode, cursorContext );
                 updaterMap.put( descriptor, updater );
             }
         }
@@ -93,23 +92,22 @@ class IndexUpdaterMap implements AutoCloseable, Iterable<IndexUpdater>
     @Override
     public void close() throws UnderlyingStorageException
     {
-        Set<Pair<SchemaDescriptor,UnderlyingStorageException>> exceptions = null;
+        Set<Pair<IndexDescriptor,UnderlyingStorageException>> exceptions = null;
 
-        for ( Map.Entry<SchemaDescriptor,IndexUpdater> updaterEntry : updaterMap.entrySet() )
+        for ( Map.Entry<IndexDescriptor,IndexUpdater> updaterEntry : updaterMap.entrySet() )
         {
             IndexUpdater updater = updaterEntry.getValue();
             try
             {
                 updater.close();
             }
-            catch ( IOException | IndexEntryConflictException e )
+            catch ( UncheckedIOException | IndexEntryConflictException e )
             {
                 if ( null == exceptions )
                 {
                     exceptions = new HashSet<>();
                 }
-                exceptions.add( Pair.of( updaterEntry.getKey(),
-                        new UnderlyingStorageException( e ) ) );
+                exceptions.add( Pair.of( updaterEntry.getKey(), new UnderlyingStorageException( e ) ) );
             }
         }
 
@@ -134,23 +132,5 @@ class IndexUpdaterMap implements AutoCloseable, Iterable<IndexUpdater>
     public int size()
     {
         return updaterMap.size();
-    }
-
-    @Override
-    public Iterator<IndexUpdater> iterator()
-    {
-        return new PrefetchingIterator<IndexUpdater>()
-        {
-            private Iterator<SchemaDescriptor> descriptors = indexMap.descriptors();
-            @Override
-            protected IndexUpdater fetchNextOrNull()
-            {
-                if ( descriptors.hasNext() )
-                {
-                    return getUpdater( descriptors.next() );
-                }
-                return null;
-            }
-        };
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,26 +41,25 @@ package org.neo4j.kernel.api.impl.index.partition;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.store.Directory;
 
-import java.io.File;
 import java.io.IOException;
-
-import org.neo4j.function.Factory;
+import java.nio.file.Path;
+import java.util.function.Supplier;
 
 /**
  * Factory to create writable partitions for partitioned index.
  */
 public class WritableIndexPartitionFactory implements IndexPartitionFactory
 {
-    private Factory<IndexWriterConfig> writerConfigFactory;
+    private final Supplier<IndexWriterConfig> writerConfigFactory;
 
-    public WritableIndexPartitionFactory( Factory<IndexWriterConfig> writerConfigFactory )
+    public WritableIndexPartitionFactory( Supplier<IndexWriterConfig> writerConfigFactory )
     {
         this.writerConfigFactory = writerConfigFactory;
     }
 
     @Override
-    public AbstractIndexPartition createPartition( File partitionFolder, Directory directory ) throws IOException
+    public AbstractIndexPartition createPartition( Path partitionFolder, Directory directory ) throws IOException
     {
-        return new WritableIndexPartition( partitionFolder, directory, writerConfigFactory.newInstance() );
+        return new WritableIndexPartition( partitionFolder, directory, writerConfigFactory.get() );
     }
 }

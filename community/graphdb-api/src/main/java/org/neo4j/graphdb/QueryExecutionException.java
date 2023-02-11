@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,10 +38,13 @@
  */
 package org.neo4j.graphdb;
 
+import org.neo4j.annotations.api.PublicApi;
+
 /**
- * This exception is thrown from the {@link GraphDatabaseService#execute(String, java.util.Map) execute method}
+ * This exception is thrown from the {@link Transaction#execute(String, java.util.Map) execute method}
  * when there is an error during the execution of a query.
  */
+@PublicApi
 public class QueryExecutionException extends RuntimeException
 {
     private final String statusCode;
@@ -53,9 +56,9 @@ public class QueryExecutionException extends RuntimeException
     }
 
     /**
-     * The ONgDB error <a href="https://graphfoundation.org/ongdb/docs/developer-manual/current/reference/status-codes/">status code</a>.
+     * The Neo4j error <a href="https://neo4j.com/docs/developer-manual/current/reference/status-codes/">status code</a>.
      *
-     * @return the ONgDB error status code.
+     * @return the Neo4j error status code.
      */
     public String getStatusCode()
     {

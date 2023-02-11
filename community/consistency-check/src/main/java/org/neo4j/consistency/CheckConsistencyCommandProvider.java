@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,61 +38,23 @@
  */
 package org.neo4j.consistency;
 
-import java.nio.file.Path;
-import javax.annotation.Nonnull;
+import org.neo4j.annotations.service.ServiceProvider;
+import org.neo4j.cli.Command.CommandType;
+import org.neo4j.cli.CommandProvider;
+import org.neo4j.cli.ExecutionContext;
 
-import org.neo4j.commandline.admin.AdminCommand;
-import org.neo4j.commandline.admin.AdminCommandSection;
-import org.neo4j.commandline.admin.OutsideWorld;
-import org.neo4j.commandline.arguments.Arguments;
-
-import static java.lang.String.format;
-
-public class CheckConsistencyCommandProvider extends AdminCommand.Provider
+@ServiceProvider
+public class CheckConsistencyCommandProvider implements CommandProvider<CheckConsistencyCommand>
 {
-    public CheckConsistencyCommandProvider()
+    @Override
+    public CheckConsistencyCommand createCommand( ExecutionContext ctx )
     {
-        super( "check-consistency" );
+        return new CheckConsistencyCommand( ctx );
     }
 
     @Override
-    @Nonnull
-    public Arguments allArguments()
+    public CommandType commandType()
     {
-        return CheckConsistencyCommand.arguments();
-    }
-
-    @Override
-    @Nonnull
-    public String description()
-    {
-        return format(
-                "This command allows for checking the consistency of a database or a backup thereof. It cannot " +
-                        "be used with a database which is currently in use.%n" +
-                        "%n" +
-                        "All checks except 'check-graph' can be quite expensive so it may be useful to turn them off" +
-                        " for very large databases. Increasing the heap size can also be a good idea." +
-                        " See 'ongdb-admin help' for details." );
-    }
-
-    @Override
-    @Nonnull
-    public String summary()
-    {
-        return "Check the consistency of a database.";
-    }
-
-    @Override
-    @Nonnull
-    public AdminCommandSection commandSection()
-    {
-        return AdminCommandSection.general();
-    }
-
-    @Override
-    @Nonnull
-    public AdminCommand create( Path homeDir, Path configDir, OutsideWorld outsideWorld )
-    {
-        return new CheckConsistencyCommand( homeDir, configDir, outsideWorld );
+        return CommandType.CHECK_CONSISTENCY;
     }
 }

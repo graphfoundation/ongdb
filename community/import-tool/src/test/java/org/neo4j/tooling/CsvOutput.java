@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,25 +39,26 @@
 package org.neo4j.tooling;
 
 import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.List;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import org.neo4j.unsafe.impl.batchimport.BatchImporter;
-import org.neo4j.unsafe.impl.batchimport.InputIterator;
-import org.neo4j.unsafe.impl.batchimport.input.Input;
-import org.neo4j.unsafe.impl.batchimport.input.InputChunk;
-import org.neo4j.unsafe.impl.batchimport.input.InputEntity;
-import org.neo4j.unsafe.impl.batchimport.input.csv.Configuration;
-import org.neo4j.unsafe.impl.batchimport.input.csv.Deserialization;
-import org.neo4j.unsafe.impl.batchimport.input.csv.Header;
-import org.neo4j.unsafe.impl.batchimport.input.csv.StringDeserialization;
+import org.neo4j.csv.reader.Configuration;
+import org.neo4j.internal.batchimport.BatchImporter;
+import org.neo4j.internal.batchimport.InputIterator;
+import org.neo4j.internal.batchimport.input.Collector;
+import org.neo4j.internal.batchimport.input.Input;
+import org.neo4j.internal.batchimport.input.InputChunk;
+import org.neo4j.internal.batchimport.input.InputEntity;
+import org.neo4j.internal.batchimport.input.RandomEntityDataGenerator;
+import org.neo4j.internal.batchimport.input.csv.Deserialization;
+import org.neo4j.internal.batchimport.input.csv.Header;
+import org.neo4j.internal.batchimport.input.csv.StringDeserialization;
 
 import static org.neo4j.io.ByteUnit.mebiBytes;
 
@@ -68,70 +69,28 @@ public class CsvOutput implements BatchImporter
         String apply( InputEntity entity, Deserialization<String> deserialization, Header header );
     }
 
-    private final File targetDirectory;
+    private final Path targetDirectory;
     private final Header nodeHeader;
     private final Header relationshipHeader;
     private Configuration config;
     private final Deserialization<String> deserialization;
 
-    public CsvOutput( File targetDirectory, Header nodeHeader, Header relationshipHeader, Configuration config )
+    public CsvOutput( Path targetDirectory, Header nodeHeader, Header relationshipHeader, Configuration config ) throws IOException
     {
         this.targetDirectory = targetDirectory;
-        assert targetDirectory.isDirectory();
+        assert Files.isDirectory( targetDirectory );
         this.nodeHeader = nodeHeader;
         this.relationshipHeader = relationshipHeader;
         this.config = config;
         this.deserialization = new StringDeserialization( config );
-        targetDirectory.mkdirs();
+        Files.createDirectories( targetDirectory );
     }
 
     @Override
     public void doImport( Input input ) throws IOException
     {
-        Deserializer deserializer = ( entity, deserialization, header ) ->
-        {
-            deserialization.clear();
-            for ( Header.Entry entry : header.entries() )
-            {
-                switch ( entry.type() )
-                {
-                case ID:
-                    deserialization.handle( entry, entity.hasLongId ? entity.longId : entity.objectId );
-                    break;
-                case PROPERTY:
-                    deserialization.handle( entry, property( entity.properties, entry.name() ) );
-                    break;
-                case LABEL:
-                    deserialization.handle( entry, entity.labels() );
-                    break;
-                case TYPE:
-                    deserialization.handle( entry, entity.hasIntType ? entity.intType : entity.stringType );
-                    break;
-                case START_ID:
-                    deserialization.handle( entry, entity.hasLongStartId ? entity.longStartId : entity.objectStartId );
-                    break;
-                case END_ID:
-                    deserialization.handle( entry, entity.hasLongEndId ? entity.longEndId : entity.objectEndId );
-                    break;
-                default: // ignore other types
-                }
-            }
-            return deserialization.materialize();
-        };
-        consume( "nodes", input.nodes().iterator(), nodeHeader, deserializer );
-        consume( "relationships", input.relationships().iterator(), relationshipHeader, deserializer );
-    }
-
-    private static Object property( List<Object> properties, String key )
-    {
-        for ( int i = 0; i < properties.size(); i += 2 )
-        {
-            if ( properties.get( i ).equals( key ) )
-            {
-                return properties.get( i + 1 );
-            }
-        }
-        return null;
+        consume( "nodes", input.nodes( Collector.EMPTY ).iterator(), nodeHeader, RandomEntityDataGenerator::convert );
+        consume( "relationships", input.relationships( Collector.EMPTY ).iterator(), relationshipHeader, RandomEntityDataGenerator::convert );
     }
 
     private void consume( String name, InputIterator entities, Header header, Deserializer deserializer ) throws IOException
@@ -187,7 +146,6 @@ public class CsvOutput implements BatchImporter
 
     private PrintStream file( String name ) throws IOException
     {
-        return new PrintStream( new BufferedOutputStream( new FileOutputStream( new File( targetDirectory, name ) ),
-                (int) mebiBytes( 1 ) ) );
+        return new PrintStream( new BufferedOutputStream( Files.newOutputStream( targetDirectory.resolve( name ) ), (int) mebiBytes( 1 ) ) );
     }
 }

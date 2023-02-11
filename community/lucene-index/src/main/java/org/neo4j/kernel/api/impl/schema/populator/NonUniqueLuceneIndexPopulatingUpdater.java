@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,50 +38,39 @@
  */
 package org.neo4j.kernel.api.impl.schema.populator;
 
-import org.neo4j.kernel.api.impl.schema.LuceneDocumentStructure;
 import org.neo4j.kernel.api.impl.schema.writer.LuceneIndexWriter;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
-import org.neo4j.kernel.impl.api.index.sampling.NonUniqueIndexSampler;
+import org.neo4j.kernel.impl.index.schema.IndexUpdateIgnoreStrategy;
+import org.neo4j.storageengine.api.ValueIndexEntryUpdate;
 
 /**
  * A {@link LuceneIndexPopulatingUpdater} used for non-unique Lucene schema indexes.
  */
 public class NonUniqueLuceneIndexPopulatingUpdater extends LuceneIndexPopulatingUpdater
 {
-    private final NonUniqueIndexSampler sampler;
 
-    public NonUniqueLuceneIndexPopulatingUpdater( LuceneIndexWriter writer, NonUniqueIndexSampler sampler )
+    public NonUniqueLuceneIndexPopulatingUpdater( LuceneIndexWriter writer, IndexUpdateIgnoreStrategy ignoreStrategy )
     {
-        super( writer );
-        this.sampler = sampler;
+        super( writer, ignoreStrategy );
     }
 
     @Override
-    protected void added( IndexEntryUpdate<?> update )
+    protected void added( ValueIndexEntryUpdate<?> update )
     {
-        String encodedValue = LuceneDocumentStructure.encodedStringValuesForSampling( update.values() );
-        sampler.include( encodedValue );
     }
 
     @Override
-    protected void changed( IndexEntryUpdate<?> update )
+    protected void changed( ValueIndexEntryUpdate<?> update )
     {
-        String encodedValueBefore = LuceneDocumentStructure.encodedStringValuesForSampling( update.beforeValues() );
-        sampler.exclude( encodedValueBefore );
-
-        String encodedValueAfter = LuceneDocumentStructure.encodedStringValuesForSampling( update.values() );
-        sampler.include( encodedValueAfter );
     }
 
     @Override
-    protected void removed( IndexEntryUpdate<?> update )
+    protected void removed( ValueIndexEntryUpdate<?> update )
     {
-        String removedValue = LuceneDocumentStructure.encodedStringValuesForSampling( update.values() );
-        sampler.exclude( removedValue );
     }
 
     @Override
     public void close()
     {
+        //writer is not closed here as it's shared with the populator
     }
 }

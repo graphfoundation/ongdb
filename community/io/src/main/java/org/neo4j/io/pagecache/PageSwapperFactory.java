@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,11 +38,11 @@
  */
 package org.neo4j.io.pagecache;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 
-import org.neo4j.graphdb.config.Configuration;
-import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.annotations.service.Service;
+import org.neo4j.io.pagecache.impl.muninn.SwapperSet;
 
 /**
  * Creates PageSwappers for the given files.
@@ -55,38 +55,13 @@ import org.neo4j.io.fs.FileSystemAbstraction;
  * Note that this API is <em>only</em> intended to be used by a {@link PageCache} implementation.
  * It should never be used directly by user code.
  */
+@Service
 public interface PageSwapperFactory
 {
     /**
-     * Open page swapper factory with provided filesystem and config
-     * @param fs file system to use in page swappers
-     * @param config custom page swapper configuration
-     */
-    void open( FileSystemAbstraction fs, Configuration config );
-
-    /**
-     * Get the {@link FileSystemAbstraction} that represents the underlying storage for the page swapper.
-     */
-    FileSystemAbstraction getFileSystemAbstraction();
-
-    /**
-     * Get the name of this PageSwapperFactory implementation, for configuration purpose.
-     */
-    String implementationName();
-
-    /**
-     * Get the unit of alignment that the swappers require of the memory buffers. For instance, if page alignment is
-     * required for doing direct IO, then {@link org.neo4j.unsafe.impl.internal.dragons.UnsafeUtil#pageSize()} can be
-     * returned.
-     *
-     * @return The required buffer alignment byte multiple.
-     */
-    long getRequiredBufferAlignment();
-
-    /**
      * Create a PageSwapper for the given file.
      *
-     * @param file The file that the PageSwapper will move file pages in and
+     * @param path The file that the PageSwapper will move file pages in and
      * out of.
      * @param filePageSize The size of the pages in the file. Presumably a
      * multiple of some record size.
@@ -94,34 +69,17 @@ public interface PageSwapperFactory
      * the responsibility of informing the PagedFile via this callback.
      * @param createIfNotExist When true, creates the given file if it does not exist, instead of throwing an
      * exception.
+     * @param useDirectIO When true, direct io open open will gonna be used for underlying channel.
+     * Option supported only on Linux with certain limitations.
+     * @param preallocateStoreFiles when true, page cache swapper will try to preallocate requested store file on a set of supported platforms
+     * @param ioController controller to report swapper io's
+     * @param swappers set of already registered swappers
      * @return A working PageSwapper instance for the given file.
      * @throws IOException If the PageSwapper could not be created, for
      * instance if the underlying file could not be opened, or the given file does not exist and createIfNotExist is
      * false.
      */
-    PageSwapper createPageSwapper(
-            File file,
-            int filePageSize,
-            PageEvictionCallback onEviction,
-            boolean createIfNotExist ) throws IOException;
+    PageSwapper createPageSwapper( Path path, int filePageSize, PageEvictionCallback onEviction, boolean createIfNotExist, boolean useDirectIO,
+            boolean preallocateStoreFiles, IOController ioController, SwapperSet swappers ) throws IOException;
 
-    /**
-     * Forces all prior writes made through all non-closed PageSwappers that this factory has created, to all the
-     * relevant devices, such that the writes are durable when this call returns.
-     * <p>
-     * This method has no effect if the {@link PageSwapper#force()} method forces the writes for the individual file.
-     * The {@link PageCache#flushAndForce()} method will first call <code>force</code> on the PageSwappers for all
-     * mapped files, then call <code>syncDevice</code> on the PageSwapperFactory. This way, the writes are always made
-     * durable regardless of which method that does the forcing.
-     */
-    void syncDevice();
-
-    /**
-     * Close and release any resources associated with this PageSwapperFactory, that it may have opened or acquired
-     * during its construction or use.
-     * <p>
-     * This method cannot be called before all of the opened {@link PageSwapper PageSwappers} have been closed,
-     * and it is guaranteed that no new page swappers will be created after this method has been called.
-     */
-    void close();
 }

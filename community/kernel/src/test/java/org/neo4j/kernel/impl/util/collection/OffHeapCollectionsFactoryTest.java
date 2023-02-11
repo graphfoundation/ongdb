@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,98 +38,28 @@
  */
 package org.neo4j.kernel.impl.util.collection;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.collection.primitive.PrimitiveIntObjectMap;
-import org.neo4j.collection.primitive.PrimitiveLongObjectMap;
-import org.neo4j.collection.primitive.PrimitiveLongSet;
-import org.neo4j.kernel.impl.util.diffsets.PrimitiveLongDiffSets;
+import org.neo4j.io.ByteUnit;
 import org.neo4j.memory.LocalMemoryTracker;
-import org.neo4j.memory.MemoryAllocationTracker;
+import org.neo4j.memory.MemoryLimitExceededException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-
-public class OffHeapCollectionsFactoryTest
+class OffHeapCollectionsFactoryTest
 {
-    private MemoryAllocationTracker memoryTracker;
-    private OffHeapCollectionsFactory factory;
-
-    @Before
-    public void setUp() throws Exception
-    {
-        memoryTracker = spy( new LocalMemoryTracker() );
-        factory = new OffHeapCollectionsFactory( memoryTracker );
-    }
 
     @Test
-    public void longSetAllocationAndRelease()
+    void shouldNotLeakNativeMemoryWhenAllocatingCloseToLimit()
     {
-        final long mem0 = memoryTracker.usedDirectMemory();
+        var memoryTracker = new LocalMemoryTracker();
+        var factory = new OffHeapCollectionsFactory( new CachingOffHeapBlockAllocator() );
+        memoryTracker.setLimit( ByteUnit.kibiBytes( 512 ) + 1 );
+        // when
+        Assertions.assertThatThrownBy( () -> factory.newValuesMap( memoryTracker ) ).isInstanceOf( MemoryLimitExceededException.class );
+        factory.release();
 
-        final PrimitiveLongSet set = factory.newLongSet();
-
-        final long mem1 = memoryTracker.usedDirectMemory();
-
-        assertNotEquals( mem0, mem1 );
-
-        set.close();
-
-        assertEquals( 0, memoryTracker.usedDirectMemory() );
-
-        verify( memoryTracker ).allocated( anyLong() );
-        verify( memoryTracker ).deallocated( anyLong() );
+        // then
+        Assertions.assertThat( memoryTracker.usedNativeMemory() ).isZero();
     }
 
-    @Test
-    public void longDiffSetsAllocationAndRelease()
-    {
-        final long mem0 = memoryTracker.usedDirectMemory();
-
-        final PrimitiveLongDiffSets diffSets = factory.newLongDiffSets();
-        diffSets.add( 1 );
-        diffSets.remove( 2 );
-
-        final long mem1 = memoryTracker.usedDirectMemory();
-
-        assertNotEquals( mem0, mem1 );
-
-        diffSets.close();
-
-        assertEquals( 0, memoryTracker.usedDirectMemory() );
-
-        verify( memoryTracker, times( 2 ) ).allocated( anyLong() );
-        verify( memoryTracker, times( 2 ) ).deallocated( anyLong() );
-    }
-
-    @Test
-    public void longObjectMapAllocationAndRelease()
-    {
-        final long mem0 = memoryTracker.usedDirectMemory();
-
-        final PrimitiveLongObjectMap<Object> map = factory.newLongObjectMap();
-        map.put( 1L, "foo" );
-
-        final long mem1 = memoryTracker.usedDirectMemory();
-
-        assertEquals( "update the test after switching to off-heap map", mem0, mem1 );
-    }
-
-    @Test
-    public void intObjectMapAllocationAndRelease()
-    {
-        final long mem0 = memoryTracker.usedDirectMemory();
-
-        final PrimitiveIntObjectMap<Object> map = factory.newIntObjectMap();
-        map.put( 1, "foo" );
-
-        final long mem1 = memoryTracker.usedDirectMemory();
-
-        assertEquals( "update the test after switching to off-heap map", mem0, mem1 );
-    }
 }

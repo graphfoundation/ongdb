@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,35 +38,41 @@
  */
 package org.neo4j.kernel.impl.api.index.sampling;
 
-import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.io.pagecache.tracing.PageCacheTracer;
+import org.neo4j.kernel.api.index.IndexSample;
+import org.neo4j.kernel.api.index.IndexSampler;
 import org.neo4j.kernel.impl.api.index.IndexProxy;
-import org.neo4j.kernel.impl.api.index.IndexStoreView;
+import org.neo4j.kernel.impl.api.index.stats.IndexStatisticsStore;
 import org.neo4j.kernel.impl.util.DurationLogger;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
-import org.neo4j.storageengine.api.schema.IndexReader;
-import org.neo4j.storageengine.api.schema.IndexSample;
-import org.neo4j.storageengine.api.schema.IndexSampler;
 
 import static java.lang.String.format;
 import static org.neo4j.internal.kernel.api.InternalIndexState.ONLINE;
 
 class OnlineIndexSamplingJob implements IndexSamplingJob
 {
+    private static final String INDEX_SAMPLER_TAG = "indexSampler";
     private final long indexId;
     private final IndexProxy indexProxy;
-    private final IndexStoreView storeView;
+    private final IndexStatisticsStore indexStatisticsStore;
     private final Log log;
     private final String indexUserDescription;
+    private final String indexName;
+    private final PageCacheTracer pageCacheTracer;
 
-    OnlineIndexSamplingJob( long indexId, IndexProxy indexProxy, IndexStoreView storeView, String indexUserDescription,
-            LogProvider logProvider )
+    OnlineIndexSamplingJob( long indexId, IndexProxy indexProxy, IndexStatisticsStore indexStatisticsStore, String indexUserDescription, String indexName,
+            LogProvider logProvider, PageCacheTracer pageCacheTracer )
     {
         this.indexId = indexId;
         this.indexProxy = indexProxy;
-        this.storeView = storeView;
+        this.indexStatisticsStore = indexStatisticsStore;
         this.log = logProvider.getLog( getClass() );
         this.indexUserDescription = indexUserDescription;
+        this.indexName = indexName;
+        this.pageCacheTracer = pageCacheTracer;
     }
 
     @Override
@@ -76,22 +82,28 @@ class OnlineIndexSamplingJob implements IndexSamplingJob
     }
 
     @Override
+    public String indexName()
+    {
+        return indexName;
+    }
+
+    @Override
     public void run()
     {
         try ( DurationLogger durationLogger = new DurationLogger( log, "Sampling index " + indexUserDescription ) )
         {
             try
             {
-                try ( IndexReader reader = indexProxy.newReader();
+                try ( var reader = indexProxy.newValueReader();
+                      var cursorContext = new CursorContext( pageCacheTracer.createPageCursorTracer( INDEX_SAMPLER_TAG ) );
                       IndexSampler sampler = reader.createSampler() )
                 {
-                    IndexSample sample = sampler.sampleIndex();
+                    IndexSample sample = sampler.sampleIndex( cursorContext );
 
                     // check again if the index is online before saving the counts in the store
                     if ( indexProxy.getState() == ONLINE )
                     {
-                        storeView.replaceIndexCounts( indexId, sample.uniqueValues(), sample.sampleSize(),
-                                sample.indexSize() );
+                        indexStatisticsStore.replaceStats( indexId, sample );
                         durationLogger.markAsFinished();
                         log.debug(
                                 format( "Sampled index %s with %d unique values in sample of avg size %d taken from " +
@@ -112,5 +124,4 @@ class OnlineIndexSamplingJob implements IndexSamplingJob
             }
         }
     }
-
 }

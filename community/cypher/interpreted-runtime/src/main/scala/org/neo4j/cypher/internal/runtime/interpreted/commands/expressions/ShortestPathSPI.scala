@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,36 +38,39 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.{Expander, KernelPredicate}
-import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection
-import org.neo4j.graphdb.{Node, Path, PropertyContainer}
+import org.neo4j.cypher.internal.expressions.SemanticDirection
+import org.neo4j.cypher.internal.runtime.Expander
+import org.neo4j.cypher.internal.runtime.KernelPredicate
+import org.neo4j.graphdb.Entity
+import org.neo4j.graphdb.Node
+import org.neo4j.graphdb.Path
 
 abstract class BaseExpander() extends Expander {
-  def addRelationshipFilter(newFilter: KernelPredicate[PropertyContainer]): Expander =
+  override def addRelationshipFilter(newFilter: KernelPredicate[Entity]): Expander =
     newWith(newRelFilters = relFilters :+ newFilter)
 
-  def addNodeFilter(newFilter: KernelPredicate[PropertyContainer]): Expander =
+  override def addNodeFilter(newFilter: KernelPredicate[Entity]): Expander =
     newWith(newNodeFilters = nodeFilters :+ newFilter)
 
-  protected def newWith(newNodeFilters: Seq[KernelPredicate[PropertyContainer]] = nodeFilters,
-                        newRelFilters: Seq[KernelPredicate[PropertyContainer]] = relFilters): Expander
+  protected def newWith(newNodeFilters: Seq[KernelPredicate[Entity]] = nodeFilters,
+                        newRelFilters: Seq[KernelPredicate[Entity]] = relFilters): Expander
 }
 
-case class OnlyDirectionExpander(nodeFilters: Seq[KernelPredicate[PropertyContainer]],
-                                 relFilters: Seq[KernelPredicate[PropertyContainer]],
+case class OnlyDirectionExpander(override val nodeFilters: Seq[KernelPredicate[Entity]],
+                                 override val relFilters: Seq[KernelPredicate[Entity]],
                                  direction: SemanticDirection) extends BaseExpander {
 
-  override protected def newWith(newNodeFilters: Seq[KernelPredicate[PropertyContainer]],
-                                 newRelFilters: Seq[KernelPredicate[PropertyContainer]]): OnlyDirectionExpander =
+  override protected def newWith(newNodeFilters: Seq[KernelPredicate[Entity]],
+                                 newRelFilters: Seq[KernelPredicate[Entity]]): OnlyDirectionExpander =
     copy(nodeFilters = newNodeFilters, relFilters = newRelFilters)
 }
 
-case class TypeAndDirectionExpander(nodeFilters: Seq[KernelPredicate[PropertyContainer]],
-                                    relFilters: Seq[KernelPredicate[PropertyContainer]],
+case class TypeAndDirectionExpander(override val nodeFilters: Seq[KernelPredicate[Entity]],
+                                    override val relFilters: Seq[KernelPredicate[Entity]],
                                     typDirs: Seq[(String, SemanticDirection)]) extends BaseExpander {
 
-  override protected def newWith(newNodeFilters: Seq[KernelPredicate[PropertyContainer]],
-                                 newRelFilters: Seq[KernelPredicate[PropertyContainer]]): TypeAndDirectionExpander =
+  override protected def newWith(newNodeFilters: Seq[KernelPredicate[Entity]],
+                                 newRelFilters: Seq[KernelPredicate[Entity]]): TypeAndDirectionExpander =
     copy(nodeFilters = newNodeFilters, relFilters = newRelFilters)
 
   def add(typ: String, dir: SemanticDirection): TypeAndDirectionExpander =

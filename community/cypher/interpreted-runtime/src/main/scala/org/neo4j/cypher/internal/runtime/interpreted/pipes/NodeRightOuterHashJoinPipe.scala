@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,34 +38,47 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.util.attribution.Id
 
-case class NodeRightOuterHashJoinPipe(nodeVariables: Set[String], lhs: Pipe, rhs: Pipe, nullableVariables: Set[String])
+import scala.collection.JavaConverters.asScalaIteratorConverter
+
+case class NodeRightOuterHashJoinPipe(nodeVariables: Set[String],
+                                      lhs: Pipe,
+                                      rhs: Pipe,
+                                      nullableVariables: Set[String])
                                      (val id: Id = Id.INVALID_ID)
-  extends NodeOuterHashJoinPipe(nodeVariables, lhs, rhs, nullableVariables) {
+  extends NodeOuterHashJoinPipe(nodeVariables, lhs, nullableVariables) {
 
-  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
+  protected def internalCreateResults(input: ClosingIterator[CypherRow], state: QueryState): ClosingIterator[CypherRow] = {
 
     val rhsResult = rhs.createResults(state)
     if (rhsResult.isEmpty)
-      return Iterator.empty
+      return ClosingIterator.empty
 
-    val probeTable = buildProbeTableAndFindNullRows(input, withNulls = false)
-    (
-      for {rhsRow <- rhsResult}
-        yield {
-          computeKey(rhsRow) match {
-            case Some(joinKey) =>
-              val seq = probeTable(joinKey)
-              if(seq.nonEmpty) {
-                seq.map(lhsRow => executionContextFactory.copyWith(rhsRow).mergeWith(lhsRow))
-              } else {
-                Seq(addNulls(rhsRow))
-              }
-            case None =>
-              Seq(addNulls(rhsRow))
+    val probeTable = buildProbeTableAndFindNullRows(input, state.memoryTrackerForOperatorProvider.memoryTrackerForOperator(id.x), withNulls = false)
+    state.query.resources.trace(probeTable)
+    val result = for {
+      rhsRow <- rhsResult
+      outputRow <- computeKey(rhsRow) match {
+        case Some(joinKey) =>
+          val lhsRows = probeTable(joinKey)
+          if (lhsRows.hasNext) {
+            lhsRows.asScala.map { lhsRow =>
+              val outputRow = rowFactory.copyWith(rhsRow)
+              // lhs and rhs might have different nullability - should use nullability on rhs
+              outputRow.mergeWith(lhsRow, state.query, false)
+              outputRow
+            }
+          } else {
+            Seq(addNulls(rhsRow))
           }
-        }).flatten
+        case None =>
+          Seq(addNulls(rhsRow))
+      }
+    } yield outputRow
+
+    result.closing(probeTable)
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -48,9 +48,10 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.timeout.ReadTimeoutException;
 import io.netty.util.concurrent.EventExecutor;
-import org.junit.After;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -60,20 +61,20 @@ import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.logging.NullLog;
 
 import static io.netty.buffer.ByteBufUtil.writeUtf8;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.neo4j.logging.AssertableLogProvider.inLog;
+import static org.neo4j.logging.AssertableLogProvider.Level.ERROR;
+import static org.neo4j.logging.AssertableLogProvider.Level.WARN;
+import static org.neo4j.logging.LogAssertions.assertThat;
 
 public class HouseKeeperTest
 {
     private EmbeddedChannel channel;
 
-    @After
+    @AfterEach
     public void cleanup()
     {
         if ( channel != null )
@@ -83,7 +84,7 @@ public class HouseKeeperTest
     }
 
     @Test
-    public void shouldStopConnectionOnChannelInactive()
+    void shouldStopConnectionOnChannelInactive()
     {
         BoltConnection connection = mock( BoltConnection.class );
         channel = new EmbeddedChannel( new HouseKeeper( connection, NullLog.getInstance() ) );
@@ -94,7 +95,7 @@ public class HouseKeeperTest
     }
 
     @Test
-    public void shouldNotPropagateChannelInactive() throws Exception
+    void shouldNotPropagateChannelInactive() throws Exception
     {
         ChannelInboundHandler next = mock( ChannelInboundHandler.class );
         BoltConnection connection = mock( BoltConnection.class );
@@ -106,7 +107,7 @@ public class HouseKeeperTest
     }
 
     @Test
-    public void shouldStopConnectionOnExceptionCaught()
+    void shouldStopConnectionOnExceptionCaught()
     {
         BoltConnection connection = mock( BoltConnection.class );
         channel = new EmbeddedChannel( new HouseKeeper( connection, NullLog.getInstance() ) );
@@ -117,7 +118,7 @@ public class HouseKeeperTest
     }
 
     @Test
-    public void shouldLogExceptionOnExceptionCaught()
+    void shouldLogExceptionOnExceptionCaught()
     {
         AssertableLogProvider logProvider = new AssertableLogProvider();
         BoltConnection connection = mock( BoltConnection.class );
@@ -127,12 +128,12 @@ public class HouseKeeperTest
         channel.pipeline().fireExceptionCaught( exception );
 
         verify( connection ).stop();
-        logProvider.assertExactly(
-                inLog( HouseKeeper.class ).error( startsWith( "Fatal error occurred when handling a client connection" ), equalTo( exception ) ) );
+        assertThat( logProvider ).forClass( HouseKeeper.class ).forLevel( ERROR )
+                .containsMessageWithException( "Fatal error occurred when handling a client connection", exception );
     }
 
     @Test
-    public void shouldNotPropagateExceptionCaught() throws Exception
+    void shouldNotPropagateExceptionCaught() throws Exception
     {
         ChannelInboundHandler next = mock( ChannelInboundHandler.class );
         BoltConnection connection = mock( BoltConnection.class );
@@ -144,7 +145,7 @@ public class HouseKeeperTest
     }
 
     @Test
-    public void shouldNotLogExceptionsWhenEvenLoopIsShuttingDown() throws Exception
+    void shouldNotLogExceptionsWhenEvenLoopIsShuttingDown() throws Exception
     {
         AssertableLogProvider logProvider = new AssertableLogProvider();
         BoltConnection connection = mock( BoltConnection.class );
@@ -174,11 +175,11 @@ public class HouseKeeperTest
             bootstrap.config().group().shutdownGracefully().sync();
         }
 
-        logProvider.assertNoLoggingOccurred();
+        assertThat( logProvider ).doesNotHaveAnyLogs();
     }
 
     @Test
-    public void shouldLogOnlyTheFirstCaughtException() throws Exception
+    void shouldLogOnlyTheFirstCaughtException() throws Exception
     {
         AssertableLogProvider logProvider = new AssertableLogProvider();
         BoltConnection connection = mock( BoltConnection.class );
@@ -208,12 +209,12 @@ public class HouseKeeperTest
             bootstrap.config().group().shutdownGracefully().sync();
         }
 
-        logProvider.assertExactly(
-                inLog( HouseKeeper.class ).error( startsWith( "Fatal error occurred when handling a client connection" ), equalTo( error1 ) ) );
+        assertThat( logProvider ).forClass( HouseKeeper.class ).forLevel( ERROR )
+                .containsMessageWithException( "Fatal error occurred when handling a client connection", error1 );
     }
 
     @Test
-    public void shouldNotLogConnectionResetErrors() throws Exception
+    void shouldNotLogConnectionResetErrors()
     {
         // Given
         AssertableLogProvider logProvider = new AssertableLogProvider();
@@ -229,23 +230,39 @@ public class HouseKeeperTest
         keeper.exceptionCaught( ctx, connResetError );
 
         // Then
-        logProvider.assertExactly( AssertableLogProvider.inLog( HouseKeeper.class ).warn(
-                "Fatal error occurred when handling a client connection, " +
-                        "remote peer unexpectedly closed connection: %s", channel ) );
+        assertThat( logProvider ).forClass( HouseKeeper.class ).forLevel( WARN ).containsMessageWithArguments(
+                "Fatal error occurred when handling a client connection, " + "remote peer unexpectedly closed connection: %s", channel );
+    }
+
+    @Test
+    void shouldHandleExceptionsWithNullMessages()
+    {
+        // Given
+        AssertableLogProvider logProvider = new AssertableLogProvider();
+        HouseKeeper keeper = new HouseKeeper( null, logProvider.getLog( HouseKeeper.class ) );
+        Channel channel = mock( Channel.class );
+        when( channel.toString() ).thenReturn( "[some channel info]" );
+        ChannelHandlerContext ctx = mock( ChannelHandlerContext.class );
+        when( ctx.channel() ).thenReturn( channel );
+        when( ctx.executor() ).thenReturn( mock( EventExecutor.class ) );
+
+        // When
+        keeper.exceptionCaught( ctx, ReadTimeoutException.INSTANCE );
+
+        // Then
+        assertThat( logProvider ).forClass( HouseKeeper.class ).forLevel( ERROR ).containsMessageWithException(
+                "Fatal error occurred when handling a client connection: " + ctx.channel(), ReadTimeoutException.INSTANCE );
     }
 
     private static Bootstrap newBootstrap( HouseKeeper houseKeeper )
     {
-        return new Bootstrap()
-                .group( new NioEventLoopGroup( 1 ) )
-                .channel( NioSocketChannel.class )
-                .handler( new ChannelInitializer<SocketChannel>()
-                {
-                    @Override
-                    protected void initChannel( SocketChannel ch ) throws Exception
-                    {
-                        ch.pipeline().addLast( houseKeeper );
-                    }
-                } );
+        return new Bootstrap().group( new NioEventLoopGroup( 1 ) ).channel( NioSocketChannel.class ).handler( new ChannelInitializer<SocketChannel>()
+        {
+            @Override
+            protected void initChannel( SocketChannel ch ) throws Exception
+            {
+                ch.pipeline().addLast( houseKeeper );
+            }
+        } );
     }
 }

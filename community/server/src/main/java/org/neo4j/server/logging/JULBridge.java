@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -50,7 +50,6 @@ import java.util.logging.LogRecord;
 
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
-import org.neo4j.logging.Logger;
 
 public class JULBridge extends Handler
 {
@@ -95,37 +94,54 @@ public class JULBridge extends Handler
 
         String context = record.getLoggerName();
         Log log = getLog( ( context != null ) ? context : UNKNOWN_LOGGER_NAME );
-        Logger logger = getLogger( record, log );
-
-        Throwable throwable = record.getThrown();
-        if ( throwable == null )
-        {
-            logger.log( message );
-        }
-        else
-        {
-            logger.log( message, throwable );
-        }
+        log( log, record.getLevel().intValue(), message, record.getThrown() );
     }
 
-    private Logger getLogger( LogRecord record, Log log )
+    private static void log( Log log, int level, String message, Throwable throwable )
     {
-        int level = record.getLevel().intValue();
         if ( level <= Level.FINE.intValue() )
         {
-            return log.debugLogger();
+            if ( throwable == null )
+            {
+                log.debug( message );
+            }
+            else
+            {
+                log.debug( message, throwable );
+            }
         }
         else if ( level <= Level.INFO.intValue() )
         {
-            return log.infoLogger();
+            if ( throwable == null )
+            {
+                log.info( message );
+            }
+            else
+            {
+                log.info( message, throwable );
+            }
         }
         else if ( level <= Level.WARNING.intValue() )
         {
-            return log.warnLogger();
+            if ( throwable == null )
+            {
+                log.warn( message );
+            }
+            else
+            {
+                log.warn( message, throwable );
+            }
         }
         else
         {
-            return log.errorLogger();
+            if ( throwable == null )
+            {
+                log.error( message );
+            }
+            else
+            {
+                log.error( message, throwable );
+            }
         }
     }
 
@@ -144,7 +160,7 @@ public class JULBridge extends Handler
         return log;
     }
 
-    private String getMessage( LogRecord record )
+    private static String getMessage( LogRecord record )
     {
         String message = record.getMessage();
         if ( message == null )

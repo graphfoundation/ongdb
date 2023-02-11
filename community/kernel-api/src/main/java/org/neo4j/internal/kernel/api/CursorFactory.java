@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,6 +38,9 @@
  */
 package org.neo4j.internal.kernel.api;
 
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.memory.MemoryTracker;
+
 /**
  * Allocates Cursors. To read data from the Kernel, Cursors are needed. A Cursor factory let's the Kernel consumer
  * allocate all types of cursors, which can then be reused for multiple read operations.
@@ -46,29 +49,40 @@ public interface CursorFactory
 {
     // entities
 
-    NodeCursor allocateNodeCursor();
+    NodeCursor allocateNodeCursor( CursorContext cursorContext );
 
-    RelationshipScanCursor allocateRelationshipScanCursor();
+    NodeCursor allocateFullAccessNodeCursor( CursorContext cursorContext );
 
-    RelationshipTraversalCursor allocateRelationshipTraversalCursor();
+    RelationshipScanCursor allocateRelationshipScanCursor( CursorContext cursorContext );
 
-    // properties
-
-    PropertyCursor allocatePropertyCursor();
+    RelationshipScanCursor allocateFullAccessRelationshipScanCursor( CursorContext cursorContext );
 
     // traversal
 
-    RelationshipGroupCursor allocateRelationshipGroupCursor();
+    RelationshipTraversalCursor allocateRelationshipTraversalCursor( CursorContext cursorContext );
+
+    RelationshipTraversalCursor allocateFullAccessRelationshipTraversalCursor( CursorContext cursorContext );
+
+    // properties
+
+    PropertyCursor allocatePropertyCursor( CursorContext cursorContext, MemoryTracker memoryTracker );
+
+    PropertyCursor allocateFullAccessPropertyCursor( CursorContext cursorContext, MemoryTracker memoryTracker );
 
     // schema indexes
 
-    NodeValueIndexCursor allocateNodeValueIndexCursor();
+    NodeValueIndexCursor allocateNodeValueIndexCursor( CursorContext cursorContext, MemoryTracker memoryTracker );
 
-    NodeLabelIndexCursor allocateNodeLabelIndexCursor();
+    NodeValueIndexCursor allocateFullAccessNodeValueIndexCursor( CursorContext cursorContext, MemoryTracker memoryTracker );
 
-    // explicit indexes
+    NodeLabelIndexCursor allocateNodeLabelIndexCursor( CursorContext cursorContext );
 
-    NodeExplicitIndexCursor allocateNodeExplicitIndexCursor();
+    NodeLabelIndexCursor allocateFullAccessNodeLabelIndexCursor( CursorContext cursorContext );
 
-    RelationshipExplicitIndexCursor allocateRelationshipExplicitIndexCursor();
+    RelationshipValueIndexCursor allocateRelationshipValueIndexCursor( CursorContext cursorContext, MemoryTracker memoryTracker );
+
+    RelationshipTypeIndexCursor allocateRelationshipTypeIndexCursor( CursorContext cursorContext );
+
+    RelationshipTypeIndexCursor allocateFullAccessRelationshipTypeIndexCursor();
+
 }

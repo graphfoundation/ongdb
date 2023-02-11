@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,21 +38,20 @@
  */
 package org.neo4j.kernel.impl.api;
 
-import org.neo4j.kernel.api.exceptions.ReadOnlyDbException;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
+import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.impl.transaction.tracing.CommitEvent;
 import org.neo4j.storageengine.api.TransactionApplicationMode;
 
 /**
- * For databases in dbms.read_only mode, the implementation of {@link org.neo4j.kernel.impl.api.TransactionCommitProcess}
+ * For databases in read only mode, the implementation of {@link org.neo4j.kernel.impl.api.TransactionCommitProcess}
  * will simply always throw an exception on commit, to ensure that no changes are made.
  */
 public class ReadOnlyTransactionCommitProcess implements TransactionCommitProcess
 {
     @Override
-    public long commit( TransactionToApply batch, CommitEvent commitEvent,
-                        TransactionApplicationMode mode ) throws TransactionFailureException
+    public long commit( TransactionToApply batch, CommitEvent commitEvent, TransactionApplicationMode mode ) throws TransactionFailureException
     {
-        throw new ReadOnlyDbException();
+        throw new TransactionFailureException( Status.General.ForbiddenOnReadOnlyDatabase, "Transactions cannot be committed in a read-only Neo4j database" );
     }
 }

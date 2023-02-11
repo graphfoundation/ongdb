@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,48 +38,60 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import java.io.File;
-import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.internal.kernel.api.InternalIndexState;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.kernel.api.exceptions.index.IndexPopulationFailedKernelException;
-import org.neo4j.kernel.api.index.IndexPopulator;
+import org.neo4j.kernel.api.index.MinimalIndexAccessor;
+import org.neo4j.kernel.api.index.TokenIndexReader;
+import org.neo4j.kernel.api.index.ValueIndexReader;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.values.storable.Value;
 
-import static org.neo4j.helpers.collection.Iterators.emptyResourceIterator;
+import static org.neo4j.internal.helpers.collection.Iterators.emptyResourceIterator;
 
 public class FailedIndexProxy extends AbstractSwallowingIndexProxy
 {
-    protected final IndexPopulator populator;
-    private final String indexUserDescription;
-    private final IndexCountsRemover indexCountsRemover;
+    private final IndexProxyStrategy indexProxyStrategy;
+    private final MinimalIndexAccessor minimalIndexAccessor;
     private final Log log;
 
-    FailedIndexProxy( IndexMeta indexMeta,
-            String indexUserDescription,
-            IndexPopulator populator,
+    FailedIndexProxy( IndexProxyStrategy indexProxyStrategy,
+            MinimalIndexAccessor minimalIndexAccessor,
             IndexPopulationFailure populationFailure,
-            IndexCountsRemover indexCountsRemover,
             LogProvider logProvider )
     {
-        super( indexMeta, populationFailure );
-        this.populator = populator;
-        this.indexUserDescription = indexUserDescription;
-        this.indexCountsRemover = indexCountsRemover;
+        super( indexProxyStrategy, populationFailure );
+        this.indexProxyStrategy = indexProxyStrategy;
+        this.minimalIndexAccessor = minimalIndexAccessor;
         this.log = logProvider.getLog( getClass() );
     }
 
     @Override
-    public void drop() throws IOException
+    public void start()
     {
-        indexCountsRemover.remove();
-        String message = "FailedIndexProxy#drop index on " + indexUserDescription + " dropped due to:\n" +
+        // nothing to start
+    }
+
+    @Override
+    public void changeIdentity( IndexDescriptor descriptor )
+    {
+        indexProxyStrategy.changeIndexDescriptor( descriptor );
+    }
+
+    @Override
+    public void drop()
+    {
+        indexProxyStrategy.removeStatisticsForIndex();
+        String message = "FailedIndexProxy#drop index on " + indexProxyStrategy.getIndexUserDescription() + " dropped due to:\n" +
                      getPopulationFailure().asString();
         log.info( message );
-        populator.drop();
+        minimalIndexAccessor.drop();
     }
 
     @Override
@@ -89,14 +101,14 @@ public class FailedIndexProxy extends AbstractSwallowingIndexProxy
     }
 
     @Override
-    public boolean awaitStoreScanCompleted() throws IndexPopulationFailedKernelException
+    public boolean awaitStoreScanCompleted( long time, TimeUnit unit ) throws IndexPopulationFailedKernelException
     {
         throw failureCause();
     }
 
     private IndexPopulationFailedKernelException failureCause()
     {
-        return getPopulationFailure().asIndexPopulationFailure( getDescriptor().schema(), indexUserDescription );
+        return getPopulationFailure().asIndexPopulationFailure( getDescriptor().schema(), indexProxyStrategy.getIndexUserDescription() );
     }
 
     @Override
@@ -112,13 +124,31 @@ public class FailedIndexProxy extends AbstractSwallowingIndexProxy
     }
 
     @Override
-    public void validateBeforeCommit( Value[] tuple )
+    public void validateBeforeCommit( Value[] tuple, long entityId )
     {
     }
 
     @Override
-    public ResourceIterator<File> snapshotFiles()
+    public ResourceIterator<Path> snapshotFiles()
     {
         return emptyResourceIterator();
+    }
+
+    @Override
+    public Map<String,Value> indexConfig()
+    {
+        return minimalIndexAccessor.indexConfig();
+    }
+
+    @Override
+    public ValueIndexReader newValueReader()
+    {
+        throw new UnsupportedOperationException( "Can not get a reader for an index in FAILED state" );
+    }
+
+    @Override
+    public TokenIndexReader newTokenReader()
+    {
+        throw new UnsupportedOperationException( "Can not get a reader for an index in FAILED state" );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,9 +41,21 @@ package org.neo4j.kernel.impl.factory;
 public enum OperationalMode
 {
     // Note, these are sent verbatim via UDC if UDC is enabled
-    unknown,
-    single,
-    ha,
-    core,
-    read_replica
+    UNKNOWN( "unknown" ),
+    SINGLE( "single" ),
+    CORE( "core" ),
+    READ_REPLICA( "read_replica" );
+
+    private final String description;
+
+    OperationalMode( String description )
+    {
+        this.description = description;
+    }
+
+    @Override
+    public String toString()
+    {
+        return description;
+    }
 }

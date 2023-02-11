@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,30 +38,34 @@
  */
 package org.neo4j.kernel.impl.locking;
 
-import org.junit.Assert;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import org.neo4j.configuration.Config;
+import org.neo4j.kernel.impl.api.LeaseService.NoLeaseClient;
 import org.neo4j.kernel.impl.locking.Locks.Client;
+import org.neo4j.lock.LockTracer;
+import org.neo4j.lock.ResourceTypes;
+import org.neo4j.memory.EmptyMemoryTracker;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.neo4j.kernel.impl.locking.ResourceTypes.NODE;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.lock.ResourceTypes.NODE;
 
-@Ignore( "Not a test. This is a compatibility suite, run from LockingCompatibilityTestSuite." )
-public class CloseCompatibility extends LockingCompatibilityTestSuite.Compatibility
+abstract class CloseCompatibility extends LockCompatibilityTestSupport
 {
-    public CloseCompatibility( LockingCompatibilityTestSuite suite )
+    CloseCompatibility( LockingCompatibilityTestSuite suite )
     {
         super( suite );
     }
 
     @Test
-    public void shouldNotBeAbleToHandOutClientsIfClosed()
+    void shouldNotBeAbleToHandOutClientsIfClosed()
     {
         // GIVEN a lock manager and working clients
         try ( Client client = locks.newClient() )
         {
+            client.initialize( NoLeaseClient.INSTANCE, 1, EmptyMemoryTracker.INSTANCE, Config.defaults() );
             client.acquireExclusive( LockTracer.NONE, ResourceTypes.NODE, 0 );
         }
 
@@ -69,19 +73,11 @@ public class CloseCompatibility extends LockingCompatibilityTestSuite.Compatibil
         locks.close();
 
         // THEN
-        try
-        {
-            locks.newClient();
-            fail( "Should fail" );
-        }
-        catch ( IllegalStateException e )
-        {
-            // Good
-        }
+        assertThrows( IllegalStateException.class, locks::newClient );
     }
 
     @Test
-    public void closeShouldWaitAllOperationToFinish()
+    void closeShouldWaitAllOperationToFinish()
     {
         // given
         clientA.acquireShared( LockTracer.NONE, NODE, 1L );
@@ -102,40 +98,40 @@ public class CloseCompatibility extends LockingCompatibilityTestSuite.Compatibil
 
         LockCountVisitor lockCountVisitor = new LockCountVisitor();
         locks.accept( lockCountVisitor );
-        Assert.assertEquals( 0, lockCountVisitor.getLockCount() );
+        assertEquals( 0, lockCountVisitor.getLockCount() );
 
-    }
-
-    @Test( expected = LockClientStoppedException.class )
-    public void shouldNotBeAbleToAcquireSharedLockFromClosedClient()
-    {
-        clientA.close();
-        clientA.acquireShared( LockTracer.NONE, NODE, 1L );
-    }
-
-    @Test( expected = LockClientStoppedException.class )
-    public void shouldNotBeAbleToAcquireExclusiveLockFromClosedClient()
-    {
-        clientA.close();
-        clientA.acquireExclusive( LockTracer.NONE, NODE, 1L );
-    }
-
-    @Test( expected = LockClientStoppedException.class )
-    public void shouldNotBeAbleToTryAcquireSharedLockFromClosedClient()
-    {
-        clientA.close();
-        clientA.trySharedLock( NODE, 1L );
-    }
-
-    @Test( expected = LockClientStoppedException.class )
-    public void shouldNotBeAbleToTryAcquireExclusiveLockFromClosedClient()
-    {
-        clientA.close();
-        clientA.tryExclusiveLock( NODE, 1L );
     }
 
     @Test
-    public void releaseTryLocksOnClose()
+    void shouldNotBeAbleToAcquireSharedLockFromClosedClient()
+    {
+        clientA.close();
+        assertThrows( LockClientStoppedException.class, () -> clientA.acquireShared( LockTracer.NONE, NODE, 1L ) );
+    }
+
+    @Test
+    void shouldNotBeAbleToAcquireExclusiveLockFromClosedClient()
+    {
+        clientA.close();
+        assertThrows( LockClientStoppedException.class, () -> clientA.acquireExclusive( LockTracer.NONE, NODE, 1L ) );
+    }
+
+    @Test
+    void shouldNotBeAbleToTryAcquireSharedLockFromClosedClient()
+    {
+        clientA.close();
+        assertThrows( LockClientStoppedException.class, () -> clientA.trySharedLock( NODE, 1L ) );
+    }
+
+    @Test
+    void shouldNotBeAbleToTryAcquireExclusiveLockFromClosedClient()
+    {
+        clientA.close();
+        assertThrows( LockClientStoppedException.class, () -> clientA.tryExclusiveLock( NODE, 1L ) );
+    }
+
+    @Test
+    void releaseTryLocksOnClose()
     {
         assertTrue( clientA.trySharedLock( ResourceTypes.NODE, 1L ) );
         assertTrue( clientB.tryExclusiveLock( ResourceTypes.NODE, 2L ) );
@@ -145,6 +141,6 @@ public class CloseCompatibility extends LockingCompatibilityTestSuite.Compatibil
 
         LockCountVisitor lockCountVisitor = new LockCountVisitor();
         locks.accept( lockCountVisitor );
-        Assert.assertEquals( 0, lockCountVisitor.getLockCount() );
+        assertEquals( 0, lockCountVisitor.getLockCount() );
     }
 }

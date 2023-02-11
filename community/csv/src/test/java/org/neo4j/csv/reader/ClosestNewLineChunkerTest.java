@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,28 +38,27 @@
  */
 package org.neo4j.csv.reader;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import org.neo4j.csv.reader.Source.Chunk;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 import static java.util.Arrays.copyOfRange;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.csv.reader.HeaderSkipper.NO_SKIP;
 
-public class ClosestNewLineChunkerTest
+class ClosestNewLineChunkerTest
 {
     @Test
-    public void shouldBackUpChunkToClosestNewline() throws Exception
+    void shouldBackUpChunkToClosestNewline() throws Exception
     {
         // GIVEN
         CharReadable reader = Readables.wrap( "1234567\n8901234\n5678901234" );
         // (next chunks):                                   ^            ^
         // (actual chunks):                             ^        ^
-        try ( ClosestNewLineChunker source = new ClosestNewLineChunker( reader, 12 ) )
+        try ( ClosestNewLineChunker source = new ClosestNewLineChunker( reader, 12, NO_SKIP ) )
         {
             // WHEN
             Chunk chunk = source.newChunk();
@@ -76,72 +75,23 @@ public class ClosestNewLineChunkerTest
     }
 
     @Test
-    public void shouldFailIfNoNewlineInChunk() throws Exception
+    void shouldFailIfNoNewlineInChunk() throws Exception
     {
         // GIVEN
         CharReadable reader = Readables.wrap( "1234567\n89012345678901234" );
         // (next chunks):                                   ^
         // (actual chunks):                             ^
-        try ( ClosestNewLineChunker source = new ClosestNewLineChunker( reader, 12 ) )
+        try ( ClosestNewLineChunker source = new ClosestNewLineChunker( reader, 12, NO_SKIP ) )
         {
             // WHEN
             Chunk chunk = source.newChunk();
             assertTrue( source.nextChunk( chunk ) );
             assertArrayEquals( "1234567\n".toCharArray(), charactersOf( chunk ) );
-            try
-            {
-                assertFalse( source.nextChunk( chunk ) );
-                fail( "Should have failed here" );
-            }
-            catch ( IllegalStateException e )
-            {
-                // THEN good
-            }
+            assertThrows( IllegalStateException.class, () -> assertFalse( source.nextChunk( chunk ) ) );
         }
     }
 
-    private CharReadable dataWithLines( int lineCount )
-    {
-        return new CharReadable.Adapter()
-        {
-            private int line;
-
-            @Override
-            public String sourceDescription()
-            {
-                return "test";
-            }
-
-            @Override
-            public int read( char[] into, int offset, int length )
-            {
-                assert offset == 0 : "This test assumes offset is 0, "
-                        + "which it always was for this use case at the time of writing";
-                if ( line++ == lineCount )
-                {
-                    return -1;
-                }
-
-                // We cheat here and simply say that we read the requested amount of characters
-                into[length - 1] = '\n';
-                return length;
-            }
-
-            @Override
-            public SectionedCharBuffer read( SectionedCharBuffer buffer, int from )
-            {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public long length()
-            {
-                return 0;
-            }
-        };
-    }
-
-    static char[] charactersOf( Chunk chunk )
+    private static char[] charactersOf( Chunk chunk )
     {
         return copyOfRange( chunk.data(), chunk.startPosition(), chunk.startPosition() + chunk.length() );
     }

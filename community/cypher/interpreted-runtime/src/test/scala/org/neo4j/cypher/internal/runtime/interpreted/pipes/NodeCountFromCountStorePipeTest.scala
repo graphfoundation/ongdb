@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,13 +38,15 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.mockito.Mockito._
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.frontend.v3_4.semantics.SemanticTable
+import org.mockito.Mockito.when
+import org.neo4j.cypher.internal.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.expressions.LabelName
 import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.runtime.interpreted.{ImplicitDummyPos, QueryStateHelper}
-import org.neo4j.cypher.internal.util.v3_4.{InputPosition, LabelId, NameId}
-import org.neo4j.cypher.internal.v3_4.expressions.LabelName
+import org.neo4j.cypher.internal.runtime.interpreted.ImplicitDummyPos
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.util.LabelId
+import org.neo4j.cypher.internal.util.NameId
 import org.neo4j.values.storable.Values.longValue
 
 class NodeCountFromCountStorePipeTest extends CypherFunSuite with ImplicitDummyPos {
@@ -58,7 +60,7 @@ class NodeCountFromCountStorePipeTest extends CypherFunSuite with ImplicitDummyP
     val queryContext = mock[QueryContext]
     when(queryContext.nodeCountByCountStore(12)).thenReturn(42L)
     val queryState = QueryStateHelper.emptyWith(query = queryContext)
-    pipe.createResults(queryState).map(_("count(n)")).toSet should equal(Set(longValue(42L)))
+    pipe.createResults(queryState).map(_.getByName("count(n)")).toSet should equal(Set(longValue(42L)))
   }
 
   test("should return zero if label is missing") {
@@ -71,7 +73,7 @@ class NodeCountFromCountStorePipeTest extends CypherFunSuite with ImplicitDummyP
     when(mockedContext.getOptLabelId("A")).thenReturn(None)
     val queryState = QueryStateHelper.emptyWith(query = mockedContext)
 
-    pipe.createResults(queryState).map(_("count(n)")).toSet should equal(Set(longValue(0L)))
+    pipe.createResults(queryState).map(_.getByName("count(n)")).toSet should equal(Set(longValue(0L)))
   }
 
   test("should return a count for nodes without a label") {
@@ -80,7 +82,7 @@ class NodeCountFromCountStorePipeTest extends CypherFunSuite with ImplicitDummyP
     val queryContext = mock[QueryContext]
     when(queryContext.nodeCountByCountStore(NameId.WILDCARD)).thenReturn(42L)
     val queryState = QueryStateHelper.emptyWith(query = queryContext)
-    pipe.createResults(queryState).map(_("count(n)")).toSet should equal(Set(longValue(42L)))
+    pipe.createResults(queryState).map(_.getByName("count(n)")).toSet should equal(Set(longValue(42L)))
   }
 
 }

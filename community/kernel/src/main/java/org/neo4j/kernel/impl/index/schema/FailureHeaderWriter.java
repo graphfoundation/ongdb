@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -55,17 +55,24 @@ class FailureHeaderWriter implements Consumer<PageCursor>
     private static final int HEADER_LENGTH_FIELD_LENGTH = 2;
 
     private final byte[] failureBytes;
+    private final byte byteFailed;
 
     FailureHeaderWriter( byte[] failureBytes )
     {
+        this( failureBytes, NativeIndexPopulator.BYTE_FAILED );
+    }
+
+    FailureHeaderWriter( byte[] failureBytes, byte headerFailureByte )
+    {
         this.failureBytes = failureBytes;
+        this.byteFailed = headerFailureByte;
     }
 
     @Override
     public void accept( PageCursor cursor )
     {
         byte[] bytesToWrite = failureBytes;
-        cursor.putByte( NativeSchemaIndexPopulator.BYTE_FAILED );
+        cursor.putByte( byteFailed );
         int availableSpace = cursor.getCurrentPageSize() - cursor.getOffset();
         if ( bytesToWrite.length + HEADER_LENGTH_FIELD_LENGTH > availableSpace )
         {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -45,9 +45,16 @@ import org.neo4j.values.AnyValue;
 import org.neo4j.values.ValueMapper;
 
 import static java.lang.String.format;
+import static org.neo4j.memory.HeapEstimator.shallowSizeOfInstance;
+import static org.neo4j.memory.HeapEstimator.sizeOf;
+import static org.neo4j.memory.HeapEstimator.sizeOfObjectArray;
+import static org.neo4j.values.storable.NoValue.NO_VALUE;
+import static org.neo4j.values.utils.ValueMath.HASH_CONSTANT;
 
 public class StringArray extends TextArray
 {
+    private static final long SHALLOW_SIZE = shallowSizeOfInstance( StringArray.class );
+
     private final String[] value;
 
     StringArray( String[] value )
@@ -87,9 +94,14 @@ public class StringArray extends TextArray
     }
 
     @Override
-    public int computeHash()
+    protected int computeHashToMemoize()
     {
-        return Arrays.hashCode( value );
+        int result = 1;
+        for ( String element : value )
+        {
+            result = HASH_CONSTANT * result + (element == null ? NO_VALUE.hashCode() : Values.stringValue( element ).hashCode());
+        }
+        return result;
     }
 
     @Override
@@ -112,7 +124,7 @@ public class StringArray extends TextArray
     @Override
     public String[] asObjectCopy()
     {
-        return value.clone();
+        return Arrays.copyOf( value, value.length );
     }
 
     @Override
@@ -150,5 +162,37 @@ public class StringArray extends TextArray
     public String getTypeName()
     {
         return "StringArray";
+    }
+
+    @Override
+    public long estimatedHeapUsage()
+    {
+        int length = value.length;
+        return SHALLOW_SIZE + (length == 0 ? 0 : sizeOfObjectArray( sizeOf( value[0] ), length ) ); // Use first element as probe
+    }
+
+    @Override
+    public boolean hasCompatibleType( AnyValue value )
+    {
+        return value instanceof TextValue;
+    }
+
+    @Override
+    public ArrayValue copyWithAppended( AnyValue added )
+    {
+        assert hasCompatibleType( added ) : "Incompatible types";
+        String[] newArray = Arrays.copyOf( value, value.length + 1 );
+        newArray[value.length] = ((TextValue) added).stringValue();
+        return new StringArray( newArray );
+    }
+
+    @Override
+    public ArrayValue copyWithPrepended( AnyValue prepended )
+    {
+        assert hasCompatibleType( prepended ) : "Incompatible types";
+        String[] newArray = new String[value.length + 1];
+        System.arraycopy( value, 0, newArray, 1, value.length );
+        newArray[0] = ((TextValue) prepended).stringValue();
+        return new StringArray( newArray );
     }
 }

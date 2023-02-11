@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,15 +38,30 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.convert
 
-import org.neo4j.cypher.internal.util.v3_4.{DummyPosition, InputPosition}
+import org.neo4j.cypher.internal.expressions.MultiRelationshipPathStep
+import org.neo4j.cypher.internal.expressions.NilPathStep
+import org.neo4j.cypher.internal.expressions.NodePathStep
+import org.neo4j.cypher.internal.expressions.PathExpression
+import org.neo4j.cypher.internal.expressions.SemanticDirection
+import org.neo4j.cypher.internal.expressions.SingleRelationshipPathStep
+import org.neo4j.cypher.internal.expressions.Variable
+import org.neo4j.cypher.internal.planner.spi.ReadTokenContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ProjectedPath
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ProjectedPath._
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_4.expressions._
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ProjectedPath.multiIncomingRelationshipProjector
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ProjectedPath.multiOutgoingRelationshipProjector
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ProjectedPath.nilProjector
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ProjectedPath.singleNodeProjector
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ProjectedPath.singleRelationshipWithKnownTargetProjector
+import org.neo4j.cypher.internal.util.AnonymousVariableNameGenerator
+import org.neo4j.cypher.internal.util.DummyPosition
+import org.neo4j.cypher.internal.util.InputPosition
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+
+import scala.language.implicitConversions
 
 class PathExpressionConversionTest extends CypherFunSuite {
 
-  val converters = new ExpressionConverters(CommunityExpressionConverter)
+  val converters = new ExpressionConverters(CommunityExpressionConverter(ReadTokenContext.EMPTY, new AnonymousVariableNameGenerator()))
 
   val pos = DummyPosition(0)
 
@@ -54,105 +69,84 @@ class PathExpressionConversionTest extends CypherFunSuite {
 
 
   test("p = (a)") {
-    val expr = PathExpression(NodePathStep(Variable("a")_, NilPathStep))_
+    val expr = PathExpression(NodePathStep(Variable("a")_, NilPathStep()(pos))(pos))_
 
     converters.toCommandProjectedPath(expr) should equal(
-      ProjectedPath(
-        Set("a"),
-        singleNodeProjector("a", nilProjector)
-      )
+      ProjectedPath(singleNodeProjector("a", nilProjector))
     )
   }
 
   test("p = (b)<-[r]-(a)") {
-    val expr = PathExpression(NodePathStep(Variable("b")_, SingleRelationshipPathStep(Variable("r")_, SemanticDirection.INCOMING, NilPathStep)))_
+    val expr = PathExpression(NodePathStep(Variable("b")_, SingleRelationshipPathStep(Variable("r")_, SemanticDirection.INCOMING, Some(Variable("a")_), NilPathStep()(pos))(pos))(pos))_
 
     converters.toCommandProjectedPath(expr) should equal(
-      ProjectedPath(
-        Set("r", "b"),
-        singleNodeProjector("b",
-          singleIncomingRelationshipProjector("r", nilProjector)
-        )
-      )
+      ProjectedPath(singleNodeProjector("b",
+        singleRelationshipWithKnownTargetProjector("r", "a", nilProjector)
+      ))
     )
   }
 
   test("p = (a)-[r]->(b)") {
-    val expr = PathExpression(NodePathStep(Variable("a")_, SingleRelationshipPathStep(Variable("r")_, SemanticDirection.OUTGOING, NilPathStep)))_
+    val expr = PathExpression(NodePathStep(Variable("a")_, SingleRelationshipPathStep(Variable("r")_, SemanticDirection.OUTGOING, Some(Variable("b")_), NilPathStep()(pos))(pos))(pos))_
 
     converters.toCommandProjectedPath(expr) should equal(
-      ProjectedPath(
-        Set("r", "a"),
-        singleNodeProjector("a",
-          singleOutgoingRelationshipProjector("r", nilProjector)
-        )
-      )
+      ProjectedPath(singleNodeProjector("a",
+        singleRelationshipWithKnownTargetProjector("r", "b", nilProjector)
+      ))
     )
   }
 
   test("p = (b)<-[r*1..]-(a)") {
-    val expr = PathExpression(NodePathStep(Variable("b")_, MultiRelationshipPathStep(Variable("r")_, SemanticDirection.INCOMING, NilPathStep)))_
+    val expr = PathExpression(NodePathStep(Variable("b")_, MultiRelationshipPathStep(Variable("r")_, SemanticDirection.INCOMING, Some(Variable("a")_), NilPathStep()(pos))(pos))(pos))_
 
     converters.toCommandProjectedPath(expr) should equal(
-      ProjectedPath(
-        Set("r", "b"),
-        singleNodeProjector("b",
-          multiIncomingRelationshipProjector("r", nilProjector)
-        )
-      )
+      ProjectedPath(singleNodeProjector("b",
+        multiIncomingRelationshipProjector("r", nilProjector)
+      ))
     )
   }
 
   test("p = (a)-[r*1..]->(b)") {
-    val expr = PathExpression(NodePathStep(Variable("a")_, MultiRelationshipPathStep(Variable("r")_, SemanticDirection.OUTGOING, NilPathStep)))_
+    val expr = PathExpression(NodePathStep(Variable("a")_, MultiRelationshipPathStep(Variable("r")_, SemanticDirection.OUTGOING, Some(Variable("b")_), NilPathStep()(pos))(pos))(pos))_
 
     converters.toCommandProjectedPath(expr) should equal(
-      ProjectedPath(
-        Set("r", "a"),
-        singleNodeProjector("a",
-          multiOutgoingRelationshipProjector("r", nilProjector)
-        )
-      )
+      ProjectedPath(singleNodeProjector("a",
+        multiOutgoingRelationshipProjector("r", nilProjector)
+      ))
     )
   }
 
   test("p = (a)-[r1*1..2]->(b)<-[r2]-c") {
     val expr = PathExpression(
       NodePathStep(Variable("a")_,
-      MultiRelationshipPathStep(Variable("r1")_, SemanticDirection.OUTGOING,
-      SingleRelationshipPathStep(Variable("r2")_, SemanticDirection.INCOMING,
-      NilPathStep
-    ))))_
+        MultiRelationshipPathStep(Variable("r1")_, SemanticDirection.OUTGOING, Some(Variable("b")_),
+          SingleRelationshipPathStep(Variable("r2")_, SemanticDirection.INCOMING, Some(Variable("c")_),
+            NilPathStep()(pos)
+          )(pos))(pos))(pos))_
 
     converters.toCommandProjectedPath(expr) should equal(
-      ProjectedPath(
-        Set("a", "r1", "r2"),
-        singleNodeProjector("a",
-          multiOutgoingRelationshipProjector("r1",
-            singleIncomingRelationshipProjector("r2", nilProjector)
-          )
+      ProjectedPath(singleNodeProjector("a",
+        multiOutgoingRelationshipProjector("r1",
+          singleRelationshipWithKnownTargetProjector("r2", "c", nilProjector)
         )
-      )
+      ))
     )
   }
 
   test("p = (a)-[r1]->(b)<-[r2*1..2]-c") {
     val expr = PathExpression(
       NodePathStep(Variable("a")_,
-      MultiRelationshipPathStep(Variable("r1")_, SemanticDirection.OUTGOING,
-      SingleRelationshipPathStep(Variable("r2")_, SemanticDirection.INCOMING,
-      NilPathStep
-    ))))_
+        MultiRelationshipPathStep(Variable("r1")_, SemanticDirection.OUTGOING, Some(Variable("b")_),
+          SingleRelationshipPathStep(Variable("r2")_, SemanticDirection.INCOMING, Some(Variable("c")_),
+            NilPathStep()(pos)
+          )(pos))(pos))(pos))_
 
     converters.toCommandProjectedPath(expr) should equal(
-      ProjectedPath(
-        Set("a", "r1", "r2"),
-        singleNodeProjector("a",
-          multiOutgoingRelationshipProjector("r1",
-            singleIncomingRelationshipProjector("r2", nilProjector)
-          )
+      ProjectedPath(singleNodeProjector("a",
+        multiOutgoingRelationshipProjector("r1",
+          singleRelationshipWithKnownTargetProjector("r2", "c", nilProjector)
         )
-      )
+      ))
     )
   }
 }

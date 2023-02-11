@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,27 +38,30 @@
  */
 package org.neo4j.server.security.auth;
 
-import java.util.function.Function;
-
+import org.neo4j.graphdb.security.AuthorizationViolationException;
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
+import org.neo4j.internal.kernel.api.security.AbstractSecurityLog;
 import org.neo4j.internal.kernel.api.security.AccessMode;
 import org.neo4j.internal.kernel.api.security.AuthSubject;
 import org.neo4j.internal.kernel.api.security.AuthenticationResult;
 import org.neo4j.internal.kernel.api.security.LoginContext;
+import org.neo4j.internal.kernel.api.security.SecurityAuthorizationHandler;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
+import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.impl.security.User;
 
+import static org.neo4j.configuration.GraphDatabaseSettings.SYSTEM_DATABASE_NAME;
 import static org.neo4j.internal.kernel.api.security.AuthenticationResult.FAILURE;
 import static org.neo4j.internal.kernel.api.security.AuthenticationResult.PASSWORD_CHANGE_REQUIRED;
-import static org.neo4j.internal.kernel.api.security.AuthenticationResult.SUCCESS;
+import static org.neo4j.internal.kernel.api.security.AuthenticationResult.TOO_MANY_ATTEMPTS;
 
-public class BasicLoginContext implements LoginContext
+public class BasicLoginContext extends LoginContext
 {
-    private final BasicAuthSubject authSubject;
-    private AccessMode accessMode;
+    private final AccessMode accessMode;
 
-    public BasicLoginContext( User user, AuthenticationResult authenticationResult )
+    public BasicLoginContext( User user, AuthenticationResult authenticationResult, ClientConnectionInfo connectionInfo )
     {
-        this.authSubject = new BasicAuthSubject( user, authenticationResult );
+        super( new BasicAuthSubject( user, authenticationResult ), connectionInfo );
 
         switch ( authenticationResult )
         {
@@ -69,26 +72,19 @@ public class BasicLoginContext implements LoginContext
             accessMode = AccessMode.Static.CREDENTIALS_EXPIRED;
             break;
         default:
-            accessMode = AccessMode.Static.NONE;
+            accessMode = AccessMode.Static.ACCESS;
         }
     }
 
-    private class BasicAuthSubject implements AuthSubject
+    private static class BasicAuthSubject implements AuthSubject
     {
-        private User user;
-        private AuthenticationResult authenticationResult;
+        private final User user;
+        private final AuthenticationResult authenticationResult;
 
         BasicAuthSubject( User user, AuthenticationResult authenticationResult )
         {
             this.user = user;
             this.authenticationResult = authenticationResult;
-        }
-
-        @Override
-        public void logout()
-        {
-            user = null;
-            authenticationResult = FAILURE;
         }
 
         @Override
@@ -98,37 +94,38 @@ public class BasicLoginContext implements LoginContext
         }
 
         @Override
-        public void setPasswordChangeNoLongerRequired()
+        public String executingUser()
         {
-            if ( authenticationResult == PASSWORD_CHANGE_REQUIRED )
+            if ( user != null )
             {
-                authenticationResult = SUCCESS;
-                accessMode = AccessMode.Static.FULL;
+                return user.name();
             }
-        }
-
-        @Override
-        public String username()
-        {
-            return user.name();
+            return ""; // could be the case if user not exists
         }
 
         @Override
         public boolean hasUsername( String username )
         {
-            return username().equals( username );
+            return executingUser().equals( username );
         }
     }
 
     @Override
-    public AuthSubject subject()
+    public SecurityContext authorize( IdLookup idLookup, String dbName, AbstractSecurityLog securityLog )
     {
-        return authSubject;
-    }
-
-    @Override
-    public SecurityContext authorize( Function<String, Integer> propertyIdLookup )
-    {
-        return new SecurityContext( authSubject, accessMode );
+        SecurityContext securityContext = new SecurityContext( subject(), accessMode, connectionInfo(), dbName );
+        if ( subject().getAuthenticationResult().equals( FAILURE ) || subject().getAuthenticationResult().equals( TOO_MANY_ATTEMPTS ) )
+        {
+            securityLog.error( securityContext, String.format( "Authentication failed for database '%s'.", dbName ) );
+            throw new AuthorizationViolationException( AuthorizationViolationException.PERMISSION_DENIED, Status.Security.Unauthorized );
+        }
+        else if ( !dbName.equals( SYSTEM_DATABASE_NAME ) && subject().getAuthenticationResult().equals( PASSWORD_CHANGE_REQUIRED ) )
+        {
+            String message =
+                    SecurityAuthorizationHandler.generateCredentialsExpiredMessage( String.format( "ACCESS on database '%s' is not allowed.", dbName ) );
+            securityLog.error( securityContext, message );
+            throw new AuthorizationViolationException( message, Status.Security.CredentialsExpired );
+        }
+        return securityContext;
     }
 }

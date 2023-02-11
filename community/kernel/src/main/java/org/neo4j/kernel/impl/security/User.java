@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -51,20 +51,29 @@ public class User
       locks. Correctness depends on write-time assertions and this class remaining immutable. Please do not introduce
       mutable fields here.
      */
-    /** User name */
+    /**
+     * User name
+     */
     private final String name;
 
-    /** Authentication credentials used by the built in username/password authentication scheme */
+    private final String id;
+
+    /**
+     * Authentication credentials used by the built in username/password authentication scheme
+     */
     private final Credential credential;
 
-    /** Set of flags, eg. password_change_required */
+    /**
+     * Set of flags, eg. password_change_required
+     */
     private final SortedSet<String> flags;
 
     public static final String PASSWORD_CHANGE_REQUIRED = "password_change_required";
 
-    private User( String name, Credential credential, SortedSet<String> flags )
+    private User( String name, String id, Credential credential, SortedSet<String> flags )
     {
         this.name = name;
+        this.id = id;
         this.credential = credential;
         this.flags = flags;
     }
@@ -72,6 +81,21 @@ public class User
     public String name()
     {
         return name;
+    }
+
+    /**
+     * User ids were introduced in Neo4j 4.3-drop04.
+     * The id is added when the user is added to the system database or on a system database upgrade from a previous version.
+     * Thus, this method returning null indicates that
+     * 1. the user was created before Neo4j 4.3-drop04 and has not been properly upgraded
+     * or
+     * 2. the user was created through a neo4j-admin command and has not yet been added to the system database.
+     *
+     * @return the user's id.
+     */
+    public String id()
+    {
+        return id;
     }
 
     public Credential credentials()
@@ -94,7 +118,9 @@ public class User
         return flags.contains( PASSWORD_CHANGE_REQUIRED );
     }
 
-    /** Use this user as a base for a new user object */
+    /**
+     * Use this user as a base for a new user object
+     */
     public Builder augment()
     {
         return new Builder( this );
@@ -115,6 +141,10 @@ public class User
         User user = (User) o;
 
         if ( !flags.equals( user.flags ) )
+        {
+            return false;
+        }
+        if ( id != null ? !id.equals( user.id ) : user.id != null )
         {
             return false;
         }
@@ -139,6 +169,7 @@ public class User
     {
         return "User{" +
                 "name='" + name + '\'' +
+                ", id='" + id + '\'' +
                 ", credentials=" + credential +
                 ", flags=" + flags +
                 '}';
@@ -146,13 +177,10 @@ public class User
 
     public static class Builder
     {
-        private String name;
-        private Credential credential = Credential.INACCESSIBLE;
-        private TreeSet<String> flags = new TreeSet<>();
-
-        public Builder()
-        {
-        }
+        private final String name;
+        private String id;
+        private Credential credential;
+        private final SortedSet<String> flags = new TreeSet<>();
 
         public Builder( String name, Credential credential )
         {
@@ -163,14 +191,9 @@ public class User
         public Builder( User base )
         {
             name = base.name;
+            id = base.id;
             credential = base.credential;
             flags.addAll( base.flags );
-        }
-
-        public Builder withName( String name )
-        {
-            this.name = name;
-            return this;
         }
 
         public Builder withCredentials( Credential creds )
@@ -204,9 +227,15 @@ public class User
             return this;
         }
 
+        public Builder withId( String id )
+        {
+            this.id = id;
+            return this;
+        }
+
         public User build()
         {
-            return new User( name, credential, flags );
+            return new User( name, id, credential, flags );
         }
     }
 }

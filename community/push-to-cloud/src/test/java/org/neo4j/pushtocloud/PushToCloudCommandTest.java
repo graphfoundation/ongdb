@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,151 +32,347 @@
  */
 package org.neo4j.pushtocloud;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.contrib.java.lang.system.EnvironmentVariables;
+import org.apache.commons.io.output.NullOutputStream;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;
+import picocli.CommandLine;
 
-import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.ResourceBundle;
 
-import org.neo4j.commandline.admin.CommandFailed;
-import org.neo4j.commandline.admin.IncorrectUsage;
-import org.neo4j.commandline.admin.OutsideWorld;
-import org.neo4j.commandline.arguments.common.Database;
+import org.neo4j.cli.CommandFailedException;
+import org.neo4j.cli.ExecutionContext;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.config.Setting;
-import org.neo4j.io.fs.DefaultFileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
+import org.neo4j.io.layout.Neo4jLayout;
 import org.neo4j.pushtocloud.PushToCloudCommand.Copier;
 import org.neo4j.pushtocloud.PushToCloudCommand.DumpCreator;
-import org.neo4j.test.rule.TestDirectory;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.TestDirectorySupportExtension;
+import org.neo4j.test.utils.TestDirectory;
 
+import static java.util.Objects.requireNonNull;
 import static java.lang.String.format;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.neo4j.helpers.collection.Iterators.array;
-import static org.neo4j.pushtocloud.PushToCloudCommand.ARG_BOLT_URI;
-import static org.neo4j.pushtocloud.PushToCloudCommand.ARG_DATABASE;
-import static org.neo4j.pushtocloud.PushToCloudCommand.ARG_DUMP;
-import static org.neo4j.pushtocloud.PushToCloudCommand.ARG_DUMP_TO;
-import static org.neo4j.pushtocloud.PushToCloudCommand.ARG_PASSWORD;
-import static org.neo4j.pushtocloud.PushToCloudCommand.ARG_USERNAME;
-import static org.neo4j.pushtocloud.PushToCloudCommand.ARG_OVERWRITE;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.configuration.GraphDatabaseSettings.default_database;
 
-public class PushToCloudCommandTest
+@TestInstance( TestInstance.Lifecycle.PER_CLASS )
+@ExtendWith( TestDirectorySupportExtension.class )
+class PushToCloudCommandTest
 {
     private static final String SOME_EXAMPLE_BOLT_URI = "bolt+routing://database_id.databases.neo4j.io";
+    public static final String DBNAME = "neo4j";
 
-    @Rule
-    public final TestDirectory directory = TestDirectory.testDirectory();
-    @Rule
-    public final EnvironmentVariables environmentVariables = new EnvironmentVariables();
+    @Inject
+    TestDirectory directory;
+    private Path homeDir;
+    private Path dump;
+    private ExecutionContext ctx;
+
+    @BeforeAll
+    void setUp() throws IOException
+    {
+        homeDir = directory.directory( "home-dir" );
+        Path configDir = directory.directory( "config-dir" );
+        Path configFile = configDir.resolve( "neo4j.conf" );
+        Files.createFile( configFile );
+        PrintStream nullOutputStream = new PrintStream( NullOutputStream.nullOutputStream() );
+        ctx = new ExecutionContext( homeDir, configDir, nullOutputStream, nullOutputStream, directory.getFileSystem() );
+        createDbAndDump();
+    }
+
+    private void createDbAndDump()
+    {
+        Config config = Config.newBuilder()
+                              .set( GraphDatabaseSettings.ongdb_home, homeDir.toAbsolutePath() )
+                              .set( default_database, DBNAME )
+                              .build();
+        DatabaseLayout databaseLayout = DatabaseLayout.of( config );
+
+        Neo4jLayout neo4jLayout = databaseLayout.getNeo4jLayout();
+        DatabaseManagementService managementService =
+                new TestDatabaseManagementServiceBuilder( neo4jLayout.homeDirectory() )
+                        .setConfig( config )
+                        .build();
+        managementService.database( databaseLayout.getDatabaseName() );
+        managementService.shutdown();
+
+        dump = directory.file( "some-archive.dump" );
+        new RealDumpCreator( ctx ).dumpDatabase( DBNAME, dump );
+    }
+
+    @Test
+    public void testBuildConsoleURLWithInvalidURI() throws IOException
+    {
+        // given
+        boolean devMode = false;
+        Copier targetCommunicator = mockedTargetCommunicator();
+        PushToCloudCommand command = command()
+                .copier(targetCommunicator)
+                .console(PushToCloudConsole.fakeConsole("username", "password", devMode))
+                .build();
+
+        // when
+        CommandFailedException exception =
+                assertThrows(CommandFailedException.class, () -> command.buildConsoleURI("hello.local", devMode));
+
+        // then
+        assertEquals("Invalid Bolt URI 'hello.local'", exception.getMessage());
+    }
+
+    @Test
+    public void testBuildConsoleURInNonDevMode() throws IOException
+    {
+        // given
+        boolean devMode = false;
+        Copier targetCommunicator = mockedTargetCommunicator();
+        PushToCloudCommand command = command()
+                .copier(targetCommunicator)
+                .console(PushToCloudConsole.fakeConsole("username", "password", devMode))
+                .build();
+
+        // when
+        CommandFailedException exception = assertThrows(
+                CommandFailedException.class,
+                () -> command.buildConsoleURI("neo4j+s://rogue-env.databases.neo4j-abc.io", devMode));
+
+        // then
+        assertEquals("Invalid Bolt URI 'neo4j+s://rogue-env.databases.neo4j-abc.io'", exception.getMessage());
+    }
+
+    @Test
+    public void testBuildConsoleURLWithValidProdURI() throws IOException
+    {
+        // given
+        boolean devMode = false;
+        Copier targetCommunicator = mockedTargetCommunicator();
+        PushToCloudCommand command = command()
+                .copier(targetCommunicator)
+                .console(PushToCloudConsole.fakeConsole("username", "password", devMode))
+                .build();
+
+        // when
+        String consoleUrl = command.buildConsoleURI("neo4j+s://rogue.databases.neo4j.io", devMode);
+
+        // then
+        assertEquals("https://console.neo4j.io/v1/databases/rogue", consoleUrl);
+    }
+
+    @Test
+    public void testBuildValidConsoleURInDevMode() throws IOException
+    {
+        // given
+        boolean devMode = true;
+        Copier targetCommunicator = mockedTargetCommunicator();
+        PushToCloudCommand command = command()
+                .copier(targetCommunicator)
+                .console(PushToCloudConsole.fakeConsole("username", "password", devMode))
+                .build();
+
+        // when
+        String consoleUrl = command.buildConsoleURI("neo4j+s://rogue-env.databases.neo4j-abc.io", devMode);
+
+        // then
+        assertEquals("https://console-env.neo4j-abc.io/v1/databases/rogue", consoleUrl);
+    }
+
+    @Test
+    public void testBuildValidConsoleURInPrivMode() throws IOException
+    {
+        // given
+        boolean devMode = false;
+        Copier targetCommunicator = mockedTargetCommunicator();
+        PushToCloudCommand command = command()
+                .copier(targetCommunicator)
+                .console(PushToCloudConsole.fakeConsole("username", "password", devMode))
+                .build();
+
+        // when
+        String consoleUrl = command.buildConsoleURI("neo4j+s://rogue.production-orch-0001.neo4j.io", devMode);
+
+        // then
+        assertEquals("https://console.neo4j.io/v1/databases/rogue", consoleUrl);
+    }
+
+    @Test
+    public void testBuildValidConsoleURInPrivModeInNonProd() throws IOException
+    {
+        // given
+        boolean devMode = false;
+        Copier targetCommunicator = mockedTargetCommunicator();
+        PushToCloudCommand command = command()
+                .copier(targetCommunicator)
+                .console(PushToCloudConsole.fakeConsole("username", "password", devMode))
+                .build();
+
+        // when
+        String consoleUrl = command.buildConsoleURI("neo4j+s://rogue.env-orch-0001.neo4j-abc.io", devMode);
+
+        // then
+        assertEquals("https://console-env.neo4j-abc.io/v1/databases/rogue", consoleUrl);
+
+        // when
+        consoleUrl = command.buildConsoleURI("neo4j+s://rogue.staging-orch-0001.neo4j.io", devMode);
+
+        // then
+        assertEquals("https://console-staging.neo4j.io/v1/databases/rogue", consoleUrl);
+
+        // when
+        consoleUrl = command.buildConsoleURI("neo4j+s://rogue.prestaging-orch-0001.neo4j.io", devMode);
+
+        // then
+        assertEquals("https://console-prestaging.neo4j.io/v1/databases/rogue", consoleUrl);
+
+        // when
+        CommandFailedException exception = assertThrows(
+                CommandFailedException.class,
+                () -> command.buildConsoleURI("neo4j+s://rogue.env-orch-0001.neo4j.io", devMode));
+
+        // then
+        assertEquals("Invalid Bolt URI 'neo4j+s://rogue.env-orch-0001.neo4j.io'", exception.getMessage());
+    }
+
+    @Test
+    public void testExceptionWithDevModeOnRealURI() throws IOException
+    {
+        // given
+        boolean devMode = true;
+        Copier targetCommunicator = mockedTargetCommunicator();
+        PushToCloudCommand command = command()
+                .copier(targetCommunicator)
+                .console(PushToCloudConsole.fakeConsole("username", "password", devMode))
+                .build();
+
+        // when
+        CommandFailedException exception = assertThrows(
+                CommandFailedException.class,
+                () -> command.buildConsoleURI("neo4j+s://rogue.databases.neo4j.io", devMode));
+
+        // then
+        assertEquals(
+                "Expected to find an environment running in dev mode in bolt URI: neo4j+s://rogue.databases.neo4j.io",
+                exception.getMessage());
+    }
 
     @Test
     public void shouldReadUsernameAndPasswordFromUserInput() throws Exception
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "ongdb";
-        char[] password = {'a', 'b', 'c'};
-        OutsideWorld outsideWorld = new ControlledOutsideWorld( new DefaultFileSystemAbstraction() )
-                .withPromptResponse( username )
-                .withPasswordResponse( password );
+        String username = "neo4j";
+        String password = "abc";
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
-                .outsideWorld( outsideWorld )
+                .console( PushToCloudConsole.fakeConsole( username, password, false ) )
                 .build();
 
         // when
-        command.execute( array(
-                arg( ARG_DUMP, createSimpleDatabaseDump().toString() ),
-                arg( ARG_BOLT_URI, SOME_EXAMPLE_BOLT_URI ) ) );
+        String[] args = {
+                "--dump", dump.toString(),
+                "--bolt-uri", SOME_EXAMPLE_BOLT_URI};
+        new CommandLine( command ).execute( args );
 
         // then
-        verify( targetCommunicator ).authenticate( anyBoolean(), any(), eq( username ), eq( password ), anyBoolean() );
+        verify( targetCommunicator ).authenticate( anyBoolean(), any(), eq( username ), eq( password.toCharArray() ), anyBoolean() );
         verify( targetCommunicator ).copy( anyBoolean(), any(), any(), any(), eq( false ), any() );
     }
 
     @Test
-    public void shouldAcceptConfirmationViaCommandLine() throws Exception
+    public void shouldUseNeo4jAsDefaultUsernameIfUserHitsEnter() throws Exception
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "ongdb";
-        char[] password = {'a', 'b', 'c'};
-        OutsideWorld outsideWorld = new ControlledOutsideWorld( new DefaultFileSystemAbstraction() )
-                .withPromptResponse( username )
-                .withPasswordResponse( password );
+        PushToCloudConsole console = mock( PushToCloudConsole.class );
+        when( console.readLine( anyString(), anyString() ) ).thenReturn( "" );
+        String defaultUsername = "neo4j";
+        String password = "super-secret-password";
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
-                .outsideWorld( outsideWorld )
+                .console( console )
                 .build();
 
         // when
-        command.execute( array(
-                arg( ARG_DUMP, createSimpleDatabaseDump().toString() ),
-                arg( ARG_BOLT_URI, SOME_EXAMPLE_BOLT_URI ),
-                arg( ARG_OVERWRITE, "true" ) ) );
+        String[] args = {
+                "--dump", dump.toString(),
+                "--bolt-uri", SOME_EXAMPLE_BOLT_URI,
+                "--password", password.toString() };
+        new CommandLine( command ).execute( args );
 
         // then
-        verify( targetCommunicator ).authenticate( anyBoolean(), any(), eq( username ), eq( password ), eq( true  ) );
+        verify( console ).readLine( "%s", format( "Neo4j aura username (default: %s):", defaultUsername ) );
+        verify( targetCommunicator ).authenticate( anyBoolean(), any(), eq( defaultUsername ), eq( password.toCharArray() ), anyBoolean() );
         verify( targetCommunicator ).copy( anyBoolean(), any(), any(), any(), eq( false ), any() );
     }
 
     @Test
-    public void shouldAcceptEmptyConfirmationViaCommandLine() throws Exception
+    public void shouldUseNeo4jAsDefaultUsernameIfStdinIndicatesEndOfFile() throws Exception
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "ongdb";
-        char[] password = {'a', 'b', 'c'};
-        OutsideWorld outsideWorld = new ControlledOutsideWorld( new DefaultFileSystemAbstraction() )
-                .withPromptResponse( username )
-                .withPasswordResponse( password );
+        PushToCloudConsole console = mock( PushToCloudConsole.class );
+        when( console.readLine( anyString(), anyString() ) ).thenReturn( null );
+        String defaultUsername = "neo4j";
+        String password = "super-secret-password";
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
-                .outsideWorld( outsideWorld )
+                .console( console )
                 .build();
 
         // when
-        command.execute( array(
-                arg( ARG_DUMP, createSimpleDatabaseDump().toString() ),
-                arg( ARG_BOLT_URI, SOME_EXAMPLE_BOLT_URI ),
-                format( "--%s", ARG_OVERWRITE ) ) ); // add --overwrite
+        String[] args = {
+                "--dump", dump.toString(),
+                "--bolt-uri", SOME_EXAMPLE_BOLT_URI,
+                "--password", password.toString() };
+        new CommandLine( command ).execute( args );
 
         // then
-        verify( targetCommunicator ).authenticate( anyBoolean(), any(), eq( username ), eq( password ), eq( true  ) );
+        verify( targetCommunicator ).authenticate( anyBoolean(), any(), eq( defaultUsername ), eq( password.toCharArray() ), anyBoolean() );
         verify( targetCommunicator ).copy( anyBoolean(), any(), any(), any(), eq( false ), any() );
     }
 
     @Test
-    public void shouldAcceptDumpAsSource() throws Exception
+    void shouldAcceptDumpAsSource() throws Exception
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
         PushToCloudCommand command = command().copier( targetCommunicator ).build();
 
         // when
-        Path dump = createSimpleDatabaseDump();
-        command.execute( array(
-                arg( ARG_DUMP, dump.toString() ),
-                arg( ARG_BOLT_URI, SOME_EXAMPLE_BOLT_URI ) ) );
+        PushToCloudCommand.Uploader uploader = command.makeDumpUploader( this.dump );
+        String[] args = {"--dump", dump.toString(),
+                         "--bolt-uri", SOME_EXAMPLE_BOLT_URI};
+        new CommandLine( command ).execute( args );
 
         // then
-        verify( targetCommunicator ).copy( anyBoolean(), any(), any(), eq( dump ), eq( false ), any() );
+        verify( targetCommunicator ).checkSize( anyBoolean(), any(), anyLong(), any() );
+        verify( targetCommunicator ).copy( anyBoolean(), any(), any(), eq( uploader.source ), eq( false ), any() );
     }
 
     @Test
@@ -184,20 +380,24 @@ public class PushToCloudCommandTest
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        DumpCreator dumpCreator = mock( DumpCreator.class );
+        DumpCreator dumpCreator = mockedDumpCreator();
+
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
                 .dumpCreator( dumpCreator )
                 .build();
 
         // when
-        String databaseName = "ongdb";
-        command.execute( array(
-                arg( ARG_DATABASE, databaseName ),
-                arg( ARG_BOLT_URI, SOME_EXAMPLE_BOLT_URI ) ) );
+        String databaseName = DBNAME;
+        String[] args = {
+                "--database", databaseName,
+                "--bolt-uri", SOME_EXAMPLE_BOLT_URI
+        };
+        new CommandLine( command ).execute( args );
 
         // then
         verify( dumpCreator ).dumpDatabase( eq( databaseName ), any() );
+        verify( targetCommunicator ).checkSize( anyBoolean(), any(), anyLong(), any() );
         verify( targetCommunicator ).copy( anyBoolean(), any(), any(), any(), eq( true ), any() );
     }
 
@@ -206,19 +406,21 @@ public class PushToCloudCommandTest
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        DumpCreator dumpCreator = mock( DumpCreator.class );
+        DumpCreator dumpCreator = mockedDumpCreator();
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
                 .dumpCreator( dumpCreator )
                 .build();
 
         // when
-        String databaseName = "ongdb";
-        Path dumpFile = directory.file( "some-dump-file" ).toPath();
-        command.execute( array(
-                arg( ARG_DATABASE, databaseName ),
-                arg( ARG_DUMP_TO, dumpFile.toString() ),
-                arg( ARG_BOLT_URI, SOME_EXAMPLE_BOLT_URI ) ) );
+        String databaseName = DBNAME;
+        Path dumpFile = directory.file( "some-dump-file" );
+        String[] args =
+                {"--database", databaseName,
+                 "--dump-to", dumpFile.toString(),
+                 "--bolt-uri", SOME_EXAMPLE_BOLT_URI};
+
+        new CommandLine( command ).execute( args );
 
         // then
         verify( dumpCreator ).dumpDatabase( databaseName, dumpFile );
@@ -226,273 +428,334 @@ public class PushToCloudCommandTest
     }
 
     @Test
-    public void shouldFailOnDatabaseNameAsSourceUsingExistingDumpTarget() throws IOException, IncorrectUsage, CommandFailed
+    public void shouldFailOnDatabaseNameAsSourceUsingExistingDumpTarget() throws IOException, CommandFailedException
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        DumpCreator dumpCreator = mock( DumpCreator.class );
+        DumpCreator dumpCreator = mockedDumpCreator();
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
                 .dumpCreator( dumpCreator )
                 .build();
 
         // when
-        String databaseName = "ongdb";
-        Path dumpFile = directory.file( "some-dump-file" ).toPath();
+        String databaseName = DBNAME;
+        Path dumpFile = directory.file( "some-dump-file-that-exists" );
         Files.write( dumpFile, "some data".getBytes() );
-        try
-        {
-            command.execute( array(
-                    arg( ARG_DATABASE, databaseName ),
-                    arg( ARG_DUMP_TO, dumpFile.toString() ),
-                    arg( ARG_BOLT_URI, SOME_EXAMPLE_BOLT_URI ) ) );
-            fail( "Should have failed" );
-        }
-        catch ( CommandFailed commandFailed )
-        {
-            // then
-            assertThat( commandFailed.getMessage(), containsString( "already exists" ) );
-        }
+        String[] args =
+                {"--database", databaseName,
+                 "--dump-to", dumpFile.toString(),
+                 "--bolt-uri", SOME_EXAMPLE_BOLT_URI};
+        int returnValue = new CommandLine( command ).execute( args );
+
+        assertNotEquals( 0, returnValue, "Expected command to fail" );
     }
 
     @Test
-    public void shouldNotAcceptBothDumpAndDatabaseNameAsSource() throws IOException, CommandFailed
+    public void shouldNotAcceptBothDumpAndDatabaseNameAsSource() throws IOException, CommandFailedException
     {
         // given
         PushToCloudCommand command = command().copier( mockedTargetCommunicator() ).build();
 
         // when
-        try
-        {
-            command.execute( array(
-                    arg( ARG_DUMP, directory.file( "some-dump-file" ).toPath().toString() ),
-                    arg( ARG_DATABASE, "ongdb" ),
-                    arg( ARG_BOLT_URI, SOME_EXAMPLE_BOLT_URI ) ) );
-            fail( "Should have failed" );
-        }
-        catch ( IncorrectUsage incorrectUsage )
-        {
-            // then good
-        }
+        String[] args = {
+                "--dump", directory.file( "some-dump-file" ).toString(),
+                "--database", DBNAME,
+                "--bolt-uri", SOME_EXAMPLE_BOLT_URI};
+        int returnValue = new CommandLine( command ).execute( args );
+        assertNotEquals( 0, returnValue, "Expected command to fail" );
     }
 
     @Test
-    public void shouldAcceptPasswordViaArgAndEnvAndPromptForUsername() throws IOException, CommandFailed, IncorrectUsage
+    public void shouldAcceptPasswordViaArgAndPromptForUsername() throws IOException, CommandFailedException
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "ongdb";
-        char[] password = {'a', 'b', 'c'};
-        OutsideWorld outsideWorld = new ControlledOutsideWorld( new DefaultFileSystemAbstraction() )
-                .withPromptResponse( username );
+        String username = "neo4j";
+
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
-                .outsideWorld( outsideWorld )
+                .console( PushToCloudConsole.fakeConsole( username, "tomte", false ) )
                 .build();
 
+        Path dump = this.dump;
         // when
-
-        command.execute( array(
-                arg( ARG_DUMP, createSimpleDatabaseDump().toString() ),
-                arg( ARG_PASSWORD, "pass" ),
-                arg( ARG_BOLT_URI, SOME_EXAMPLE_BOLT_URI ) ) );
-
-        environmentVariables.set("ONGDB_USERNAME", null);
-        environmentVariables.set("ONGDB_PASSWORD", "pass");
-        command.execute( array(
-                arg( ARG_DUMP, createSimpleDatabaseDump().toString() ),
-                arg( ARG_BOLT_URI, SOME_EXAMPLE_BOLT_URI ) ) );
-
+        String[] args = {
+                "--dump", dump.toString(),
+                "--password", "pass",
+                "--bolt-uri", SOME_EXAMPLE_BOLT_URI};
+        new CommandLine( command ).execute( args );
+        verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "neo4j" ), eq( "pass".toCharArray() ), anyBoolean() );
     }
 
     @Test
-    public void shouldAcceptUsernameViaArgAndEnvAndPromptForPassword() throws IOException, CommandFailed, IncorrectUsage
+    public void shouldAcceptPasswordViaEnvAndPromptForUsername() throws Exception
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "ongdb";
-        char[] password = {'a', 'b', 'c'};
-        OutsideWorld outsideWorld = new ControlledOutsideWorld( new DefaultFileSystemAbstraction() )
-                .withPasswordResponse( password );
-        PushToCloudCommand command = command()
-                .copier( targetCommunicator )
-                .outsideWorld( outsideWorld )
-                .build();
+        String username = "neo4j";
 
-        Path dump = createSimpleDatabaseDump();
+        PushToCloudCommand command = command().copier( targetCommunicator ).console( PushToCloudConsole.fakeConsole( username, "tomte", false ) ).build();
+
+        Path dump = this.dump;
         // when
-        command.execute( array(
-                arg( ARG_DUMP, dump.toString() ),
-                arg( ARG_USERNAME, "user" ),
-                arg( ARG_BOLT_URI, SOME_EXAMPLE_BOLT_URI ) ) );
+        String[] args = {
+                "--dump", dump.toString(),
+                "--bolt-uri", SOME_EXAMPLE_BOLT_URI
+        };
+        var environment = Map.of( "NEO4J_USERNAME", "", "NEO4J_PASSWORD", "pass" );
+        new CommandLine( command ).setResourceBundle( new MapResourceBundle( environment ) ).execute( args );
 
-        assertTrue( dump.toFile().exists() );
-
-        environmentVariables.set("ONGDB_USERNAME", "ongdb");
-        environmentVariables.set("ONGDB_PASSWORD", null);
-        command.execute( array(
-                arg( ARG_DUMP, dump.toString() ),
-                arg( ARG_BOLT_URI, SOME_EXAMPLE_BOLT_URI ) ) );
-
-        assertTrue( dump.toFile().exists() );
-
+        verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "neo4j" ), eq( "pass".toCharArray() ), anyBoolean() );
     }
 
     @Test
-    public void shouldAcceptOnlyUsernameAndPasswordFromEnvAndCli() throws IOException, CommandFailed, IncorrectUsage
+    public void shouldAcceptUsernameViaArgAndPromptForPassword() throws IOException, CommandFailedException
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "ongdb";
-        char[] password = {'a', 'b', 'c'};
-        OutsideWorld outsideWorld = new ControlledOutsideWorld( new DefaultFileSystemAbstraction() )
-                .withPromptResponse( username )
-                .withPasswordResponse( password );
+        String username = "neo4j";
+        String password = "abc";
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
-                .outsideWorld( outsideWorld )
+                .console( PushToCloudConsole.fakeConsole( username, password, false ) )
+                .build();
+
+        Path dump = this.dump;
+        // when
+        String[] args = {
+                "--dump", dump.toString(),
+                "--username", "user",
+                "--bolt-uri", SOME_EXAMPLE_BOLT_URI};
+
+        new CommandLine( command ).execute( args );
+        assertTrue( Files.exists( dump ) );
+        verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "user" ), eq( "abc".toCharArray() ), anyBoolean() );
+    }
+
+    @Test
+    public void shouldAcceptUsernameViaEnvAndPromptForPassword() throws Exception
+    {
+        // given
+        Copier targetCommunicator = mockedTargetCommunicator();
+        String username = "neo4j";
+        String password = "abc";
+        PushToCloudCommand command = command()
+                .copier( targetCommunicator )
+                .console( PushToCloudConsole.fakeConsole( username, password, false ) )
+                .build();
+
+        Path dump = this.dump;
+        // when
+        String[] args = {
+                "--dump", dump.toString(),
+                "--bolt-uri", SOME_EXAMPLE_BOLT_URI};
+
+        var environment = Map.of( "NEO4J_USERNAME", "user", "NEO4J_PASSWORD", "" );
+        new CommandLine( command ).setResourceBundle( new MapResourceBundle( environment ) ).execute( args );
+        assertTrue( Files.exists( dump ) );
+        verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "user" ), eq( "abc".toCharArray() ), anyBoolean() );
+    }
+
+    @Test
+    public void shouldAcceptOnlyUsernameAndPasswordFromCli() throws IOException, CommandFailedException
+    {
+        // given
+        Copier targetCommunicator = mockedTargetCommunicator();
+        String username = "neo4j";
+        String password = "abc";
+        PushToCloudCommand command = command()
+                .copier( targetCommunicator )
+                .console( PushToCloudConsole.fakeConsole( username, password, false ) )
                 .build();
 
         // when
-        environmentVariables.set("ONGDB_USERNAME", "neo4jenv");
-        environmentVariables.set("ONGDB_PASSWORD", "passenv");
-        command.execute( array(
-                arg( ARG_DUMP, createSimpleDatabaseDump().toString() ),
-                arg( ARG_USERNAME, "neo4jcli" ),
-                arg( ARG_PASSWORD, "passcli" ),
-                arg( ARG_BOLT_URI, SOME_EXAMPLE_BOLT_URI ) ) );
+        String[] args = {
+                "--dump", dump.toString(),
+                "--username", "neo4jcli",
+                "--password", "passcli",
+                "--bolt-uri", SOME_EXAMPLE_BOLT_URI};
+        new CommandLine( command ).execute( args );
 
         verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "neo4jcli" ), eq( "passcli".toCharArray() ), anyBoolean() );
     }
 
     @Test
-    public void shouldChooseToDumpDefaultDatabaseIfNeitherDumpNorDatabaseIsGiven() throws IOException, CommandFailed, IncorrectUsage
+    public void shouldAcceptOnlyUsernameAndPasswordFromEnv() throws Exception
     {
         // given
-        DumpCreator dumpCreator = mock( DumpCreator.class );
-        Copier copier = mock( Copier.class );
-        PushToCloudCommand command = command().dumpCreator( dumpCreator ).copier( copier ).build();
+        Copier targetCommunicator = mockedTargetCommunicator();
+        String username = "neo4j";
+        String password = "abc";
+        PushToCloudCommand command = command()
+                .copier( targetCommunicator )
+                .console( PushToCloudConsole.fakeConsole( username, password, false ) )
+                .build();
 
         // when
-        command.execute( array(
-                arg( ARG_BOLT_URI, SOME_EXAMPLE_BOLT_URI ) ) );
+        String[] args = {
+                "--dump", dump.toString(),
+                "--bolt-uri", SOME_EXAMPLE_BOLT_URI};
+        var environment = Map.of( "NEO4J_USERNAME", "neo4jenv", "NEO4J_PASSWORD", "passenv" );
+        new CommandLine( command ).setResourceBundle( new MapResourceBundle( environment ) ).execute( args );
+
+        verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "neo4jenv" ), eq( "passenv".toCharArray() ), anyBoolean() );
+    }
+
+    @Test
+    public void shouldChooseToDumpDefaultDatabaseIfNeitherDumpNorDatabaseIsGiven() throws IOException, CommandFailedException
+    {
+        // given
+        DumpCreator dumpCreator = mockedDumpCreator();
+        Copier copier = mock( Copier.class );
+        PushToCloudCommand command = command()
+                .dumpCreator( dumpCreator )
+                .copier( copier )
+                .build();
+
+        // when
+        String[] args = {"--bolt-uri", SOME_EXAMPLE_BOLT_URI};
+        new CommandLine( command ).execute( args );
 
         // then
-        String defaultDatabase = new Database().defaultValue();
-        verify( dumpCreator ).dumpDatabase( eq( defaultDatabase ), any() );
+        verify( dumpCreator ).dumpDatabase( eq( DEFAULT_DATABASE_NAME ), any() );
         verify( copier ).copy( anyBoolean(), any(), any(), any(), eq( true ), any() );
     }
 
     @Test
-    public void shouldFailOnDumpPointingToMissingFile() throws IOException, IncorrectUsage, CommandFailed
+    public void shouldFailOnDumpPointingToMissingFile() throws IOException, CommandFailedException
     {
         // given
         PushToCloudCommand command = command().copier( mockedTargetCommunicator() ).build();
 
         // when
-        try
-        {
-            File dumpFile = directory.file( "some-dump-file" );
-            command.execute( array(
-                    arg( ARG_DUMP, dumpFile.getAbsolutePath() ),
-                    arg( ARG_BOLT_URI, SOME_EXAMPLE_BOLT_URI ) ) );
-            fail( "Should have failed" );
-        }
-        catch ( CommandFailed commandFailed )
-        {
-            // then good
-        }
+        Path dumpFile = directory.file( "some-dump-file" );
+        String[] args = {
+                "--dump", dumpFile.toAbsolutePath().toString(),
+                "--bolt-uri", SOME_EXAMPLE_BOLT_URI};
+        int returnValue = new CommandLine( command ).execute( args );
+        assertNotEquals( 0, returnValue, "Expected command to fail" );
     }
 
     // TODO: 2019-08-07 shouldFailOnDumpPointingToInvalidDumpFile
 
     @Test
-    public void shouldRecognizeBothEnvironmentAndDatabaseIdFromBoltURI() throws IOException, CommandFailed, IncorrectUsage
+    public void shouldRecognizeBothEnvironmentAndDatabaseIdFromBoltURI() throws IOException, CommandFailedException
     {
         // given
         Copier copier = mock( Copier.class );
         PushToCloudCommand command = command().copier( copier ).build();
 
         // when
-        command.execute( array(
-                arg( ARG_DUMP, createSimpleDatabaseDump().toString() ),
-                arg( ARG_BOLT_URI, "bolt+routing://mydbid-testenvironment.databases.neo4j.io" ) ) );
-
+        String[] args = {
+                "--dump", dump.toString(),
+                "--bolt-uri", "bolt+routing://mydbid-testenvironment.databases.neo4j.io"
+        };
+        new CommandLine( command ).execute( args );
         // then
         verify( copier ).copy( anyBoolean(), eq( "https://console-testenvironment.neo4j.io/v1/databases/mydbid" ),
-                eq( "bolt+routing://mydbid-testenvironment.databases.neo4j.io" ), any(), eq( false ), any() );
+                               eq( "bolt+routing://mydbid-testenvironment.databases.neo4j.io" ), any(), eq( false ), any() );
     }
 
     @Test
-    public void shouldRecognizeDatabaseIdFromBoltURI() throws IOException, CommandFailed, IncorrectUsage
+    public void shouldRecognizeDatabaseIdFromBoltURI() throws IOException, CommandFailedException
     {
         // given
         Copier copier = mock( Copier.class );
         PushToCloudCommand command = command().copier( copier ).build();
 
         // when
-        command.execute( array(
-                arg( ARG_DUMP, createSimpleDatabaseDump().toString() ),
-                arg( ARG_BOLT_URI, "bolt+routing://mydbid.databases.neo4j.io" ) ) );
-
+        String[] args = {
+                "--dump", dump.toString(),
+                "--bolt-uri", "bolt+routing://mydbid.databases.neo4j.io"};
+        new CommandLine( command ).execute( args );
         // then
         verify( copier ).copy( anyBoolean(), eq( "https://console.neo4j.io/v1/databases/mydbid" ),
-                eq( "bolt+routing://mydbid.databases.neo4j.io" ), any(), eq( false ), any() );
+                               eq( "bolt+routing://mydbid.databases.neo4j.io" ), any(), eq( false ), any() );
     }
 
     @Test
-    public void shouldRecognizeDatabaseIdFromNeo4jBoltURI() throws IOException, CommandFailed, IncorrectUsage
+    public void shouldPassWithNonProductionUrlInDevMode() throws IOException, CommandFailedException
     {
         // given
         Copier copier = mock( Copier.class );
-        PushToCloudCommand command = command().copier( copier ).build();
+        PushToCloudCommand command = command().copier( copier ).console(PushToCloudConsole.fakeConsole("username", "password", true)).build();
 
         // when
-        command.execute( array(
-                arg( ARG_DUMP, createSimpleDatabaseDump().toString() ),
-                arg( ARG_BOLT_URI, "neo4j://mydbid.databases.neo4j.io" ) ) );
-
+        String[] args = {
+                "--dump", dump.toString(),
+                "--bolt-uri", "bolt+routing://mydbid-env.databases.neo4j-env.io"};
+        new CommandLine( command ).execute( args );
         // then
-        verify( copier ).copy( anyBoolean(), eq( "https://console.neo4j.io/v1/databases/mydbid" ),
-                eq( "neo4j://mydbid.databases.neo4j.io" ), any(), eq( false ), any() );
+
+        verify(copier).checkSize(anyBoolean(), any(), anyLong(), any());
+        verify(copier)
+                .copy(
+                        anyBoolean(),
+                        eq("https://console-env.neo4j-env.io/v1/databases/mydbid"),
+                        any(),
+                        any(),
+                        eq(false),
+                        any());
     }
 
     @Test
-    public void shouldAuthenticateBeforeDumping() throws CommandFailed, IOException, IncorrectUsage
+    public void shouldPassWithRealUrl() throws IOException, CommandFailedException
+    {
+        // given
+        Copier copier = mock( Copier.class );
+        PushToCloudCommand command = command().copier( copier ).console(PushToCloudConsole.fakeConsole("username", "password", false)).build();
+
+        // when
+        String[] args = {
+                "--dump", dump.toString(),
+                "--bolt-uri", "bolt+routing://mydbid.databases.neo4j.io"};
+        new CommandLine( command ).execute( args );
+        // then
+
+        verify(copier).checkSize(anyBoolean(), any(), anyLong(), any());
+        verify(copier)
+                .copy(
+                        anyBoolean(),
+                        eq("https://console.neo4j.io/v1/databases/mydbid"),
+                        any(),
+                        any(),
+                        eq(false),
+                        any());
+    }
+
+    @Test
+    public void shouldAuthenticateBeforeDumping() throws CommandFailedException, IOException
     {
         // given
         Copier copier = mockedTargetCommunicator();
-        DumpCreator dumper = mock( DumpCreator.class );
+        DumpCreator dumper = mockedDumpCreator();
         PushToCloudCommand command = command().copier( copier ).dumpCreator( dumper ).build();
 
         // when
-        command.execute( array( arg( ARG_BOLT_URI, "bolt+routing://mydbid.databases.neo4j.io" ) ) );
+        String[] args = {"--bolt-uri", "bolt+routing://mydbid.databases.neo4j.io"};
+        new CommandLine( command ).execute( args );
 
         // then
         InOrder inOrder = inOrder( copier, dumper );
         inOrder.verify( copier ).authenticate( anyBoolean(), anyString(), anyString(), any(), eq( false ) );
         inOrder.verify( dumper ).dumpDatabase( anyString(), any() );
         inOrder.verify( copier ).copy( anyBoolean(), anyString(), eq( "bolt+routing://mydbid.databases.neo4j.io" ), any(),
-                eq( true ), anyString() );
+                                       eq( true ), anyString() );
     }
 
-    private Copier mockedTargetCommunicator() throws CommandFailed
+    private Copier mockedTargetCommunicator() throws CommandFailedException
     {
         Copier copier = mock( Copier.class );
         when( copier.authenticate( anyBoolean(), any(), any(), any(), anyBoolean() ) ).thenReturn( "abc" );
         return copier;
     }
 
-    private Path createSimpleDatabaseDump() throws IOException
+    private DumpCreator mockedDumpCreator() throws CommandFailedException
     {
-        Path dump = directory.file( "dump" ).toPath();
-        Files.write( dump, "some data".getBytes() );
-        return dump;
-    }
-
-    private String arg( String key, String value )
-    {
-        return format( "--%s=%s", key, value );
+        DumpCreator dumpCreator = mock( DumpCreator.class );
+        when( dumpCreator.dumpDatabase( anyString(), any() ) ).thenReturn( dump );
+        return dumpCreator;
     }
 
     private Builder command()
@@ -500,30 +763,41 @@ public class PushToCloudCommandTest
         return new Builder();
     }
 
+    private static class MapResourceBundle extends ResourceBundle
+    {
+        private final Map<String,String> entries;
+
+        MapResourceBundle( Map<String,String> entries )
+        {
+            requireNonNull( entries );
+            this.entries = entries;
+        }
+
+        @Override
+        protected Object handleGetObject( String key )
+        {
+            requireNonNull( key );
+            return entries.get( key );
+        }
+
+        @Override
+        public Enumeration<String> getKeys()
+        {
+            return Collections.enumeration( entries.keySet() );
+        }
+    }
+
     private class Builder
     {
-        private Path homeDir = directory.directory().toPath();
-        private Path configDir = directory.directory( "conf" ).toPath();
-        private OutsideWorld outsideWorld = new ControlledOutsideWorld( new DefaultFileSystemAbstraction() );
-        private DumpCreator dumpCreator = mock( DumpCreator.class );
-        private Copier targetCommunicator;
         private final Map<Setting<?>,String> settings = new HashMap<>();
-
-        Builder config( Setting<?> setting, String value )
-        {
-            settings.put( setting, value );
-            return this;
-        }
+        private ExecutionContext executionContext = ctx;
+        private DumpCreator dumpCreator = mockedDumpCreator();
+        private Copier targetCommunicator;
+        private PushToCloudConsole console = PushToCloudConsole.fakeConsole( "tomte", "tomtar", false);
 
         Builder copier( Copier targetCommunicator )
         {
             this.targetCommunicator = targetCommunicator;
-            return this;
-        }
-
-        Builder outsideWorld( OutsideWorld outsideWorld )
-        {
-            this.outsideWorld = outsideWorld;
             return this;
         }
 
@@ -533,18 +807,15 @@ public class PushToCloudCommandTest
             return this;
         }
 
-        PushToCloudCommand build() throws IOException
+        Builder console( PushToCloudConsole console )
         {
-            return new PushToCloudCommand( homeDir, buildConfig(), outsideWorld, targetCommunicator, dumpCreator );
+            this.console = console;
+            return this;
         }
 
-        private Path buildConfig() throws IOException
+        PushToCloudCommand build() throws IOException
         {
-            StringBuilder configFileContents = new StringBuilder();
-            settings.forEach( ( key, value ) -> configFileContents.append( format( "%s=%s%n", key.name(), value ) ) );
-            Path configFile = configDir.resolve( "ongdb.conf" );
-            Files.write( configFile, configFileContents.toString().getBytes() );
-            return configFile;
+            return new PushToCloudCommand( executionContext, targetCommunicator, dumpCreator, console );
         }
     }
 }

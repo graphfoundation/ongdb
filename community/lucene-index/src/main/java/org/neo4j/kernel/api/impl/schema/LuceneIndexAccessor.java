@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,197 +38,140 @@
  */
 package org.neo4j.kernel.api.impl.schema;
 
-import java.io.File;
-import java.io.IOException;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.index.Term;
 
-import org.neo4j.graphdb.ResourceIterator;
-import org.neo4j.helpers.collection.BoundedIterable;
-import org.neo4j.io.pagecache.IOLimiter;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.function.ToLongFunction;
+
+import org.neo4j.common.TokenNameLookup;
+import org.neo4j.internal.helpers.collection.BoundedIterable;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
-import org.neo4j.kernel.api.impl.schema.reader.LuceneAllEntriesIndexAccessorReader;
-import org.neo4j.kernel.api.impl.schema.writer.LuceneIndexWriter;
-import org.neo4j.kernel.api.index.IndexAccessor;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
+import org.neo4j.kernel.api.impl.index.AbstractLuceneIndexAccessor;
+import org.neo4j.kernel.api.index.IndexEntriesReader;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.index.PropertyAccessor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
+import org.neo4j.kernel.api.index.ValueIndexReader;
 import org.neo4j.kernel.impl.api.LuceneIndexValueValidator;
 import org.neo4j.kernel.impl.api.index.IndexUpdateMode;
-import org.neo4j.storageengine.api.schema.IndexReader;
+import org.neo4j.kernel.impl.index.schema.IndexUpdateIgnoreStrategy;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.values.storable.Value;
 
-public class LuceneIndexAccessor implements IndexAccessor
+public class LuceneIndexAccessor extends AbstractLuceneIndexAccessor<ValueIndexReader,SchemaIndex>
 {
-    private final LuceneIndexWriter writer;
-    private final SchemaIndex luceneIndex;
-    private final SchemaIndexDescriptor descriptor;
 
-    public LuceneIndexAccessor( SchemaIndex luceneIndex, SchemaIndexDescriptor descriptor )
+    private final LuceneIndexValueValidator valueValidator;
+
+    public LuceneIndexAccessor( SchemaIndex luceneIndex, IndexDescriptor descriptor, TokenNameLookup tokenNameLookup, IndexUpdateIgnoreStrategy ignoreStrategy )
     {
-        this.luceneIndex = luceneIndex;
-        this.descriptor = descriptor;
-        this.writer = luceneIndex.isReadOnly() ? null : luceneIndex.getIndexWriter();
+        super( luceneIndex, descriptor, ignoreStrategy );
+        this.valueValidator = new LuceneIndexValueValidator( descriptor, tokenNameLookup );
     }
 
     @Override
-    public IndexUpdater newUpdater( IndexUpdateMode mode )
+    protected IndexUpdater getIndexUpdater( IndexUpdateMode mode )
     {
-        if ( luceneIndex.isReadOnly() )
-        {
-            throw new UnsupportedOperationException( "Can't create updater for read only index." );
-        }
-        return new LuceneIndexUpdater( mode.requiresIdempotency(), mode.requiresRefresh() );
+        return new LuceneSchemaIndexUpdater( mode.requiresIdempotency(), mode.requiresRefresh() );
     }
 
     @Override
-    public void drop() throws IOException
+    public BoundedIterable<Long> newAllEntriesValueReader( long fromIdInclusive, long toIdExclusive, CursorContext cursorContext )
     {
-        luceneIndex.drop();
+        return super.newAllEntriesReader( LuceneDocumentStructure::getNodeId, fromIdInclusive, toIdExclusive );
     }
 
     @Override
-    public void force( IOLimiter ioLimiter ) throws IOException
+    public IndexEntriesReader[] newAllEntriesValueReader( ToLongFunction<Document> entityIdReader, int numPartitions )
     {
-        // We never change status of read-only indexes.
-        if ( !luceneIndex.isReadOnly() )
-        {
-            luceneIndex.markAsOnline();
-        }
-        luceneIndex.maybeRefreshBlocking();
+        return super.newAllEntriesValueReader( LuceneDocumentStructure::getNodeId, numPartitions );
     }
 
     @Override
-    public void refresh() throws IOException
-    {
-        luceneIndex.maybeRefreshBlocking();
-    }
-
-    @Override
-    public void close() throws IOException
-    {
-        luceneIndex.close();
-    }
-
-    @Override
-    public IndexReader newReader()
+    public void verifyDeferredConstraints( NodePropertyAccessor nodePropertyAccessor )
+            throws IndexEntryConflictException
     {
         try
         {
-            return luceneIndex.getIndexReader();
+            luceneIndex.verifyUniqueness( nodePropertyAccessor, descriptor.schema().getPropertyIds() );
         }
         catch ( IOException e )
         {
-            throw new LuceneIndexReaderAcquisitionException( "Can't acquire index reader", e );
+            throw new UncheckedIOException( e );
         }
     }
 
     @Override
-    public BoundedIterable<Long> newAllEntriesReader()
+    public void validateBeforeCommit( long entityId, Value[] tuple )
     {
-        return new LuceneAllEntriesIndexAccessorReader( luceneIndex.allDocumentsReader() );
+        valueValidator.validate( entityId, tuple );
     }
 
-    @Override
-    public ResourceIterator<File> snapshotFiles() throws IOException
+    private class LuceneSchemaIndexUpdater extends AbstractLuceneIndexUpdater
     {
-        return luceneIndex.snapshot();
-    }
 
-    @Override
-    public void verifyDeferredConstraints( PropertyAccessor propertyAccessor )
-            throws IndexEntryConflictException, IOException
-    {
-        luceneIndex.verifyUniqueness( propertyAccessor, descriptor.schema().getPropertyIds() );
-    }
-
-    @Override
-    public boolean isDirty()
-    {
-        return !luceneIndex.isValid();
-    }
-
-    @Override
-    public void validateBeforeCommit( Value[] tuple )
-    {
-        // In Lucene all values in a tuple (composite index) will be placed in a separate field, so validate their fields individually.
-        for ( Value value : tuple )
+        LuceneSchemaIndexUpdater( boolean idempotent, boolean refresh )
         {
-            LuceneIndexValueValidator.INSTANCE.validate( value );
-        }
-    }
-
-    private class LuceneIndexUpdater implements IndexUpdater
-    {
-        private final boolean idempotent;
-        private final boolean refresh;
-
-        private boolean hasChanges;
-
-        private LuceneIndexUpdater( boolean idempotent, boolean refresh )
-        {
-            this.idempotent = idempotent;
-            this.refresh = refresh;
+            super( idempotent, refresh );
         }
 
         @Override
-        public void process( IndexEntryUpdate<?> update ) throws IOException
+        protected void addIdempotent( long entityId, Value[] values )
         {
-            // we do not support adding partial entries
-            assert update.indexKey().schema().equals( descriptor.schema() );
-
-            switch ( update.updateMode() )
+            try
             {
-            case ADDED:
-                if ( idempotent )
-                {
-                    addIdempotent( update.getEntityId(), update.values() );
-                }
-                else
-                {
-                    add( update.getEntityId(), update.values() );
-                }
-                break;
-            case CHANGED:
-                change( update.getEntityId(), update.values() );
-                break;
-            case REMOVED:
-                remove( update.getEntityId() );
-                break;
-            default:
-                throw new UnsupportedOperationException();
+                Document document = LuceneDocumentStructure.documentRepresentingProperties( entityId, values );
+                writer.updateOrDeleteDocument( LuceneDocumentStructure.newTermForChangeOrRemove( entityId ), document );
             }
-            hasChanges = true;
+            catch ( IOException e )
+            {
+                throw new UncheckedIOException( e );
+            }
         }
 
         @Override
-        public void close() throws IOException
+        protected void add( long entityId, Value[] values )
         {
-            if ( hasChanges && refresh )
+            try
             {
-                luceneIndex.maybeRefreshBlocking();
+                Document document = LuceneDocumentStructure.documentRepresentingProperties( entityId, values );
+                writer.nullableAddDocument( document );
+            }
+            catch ( IOException e )
+            {
+                throw new UncheckedIOException( e );
             }
         }
 
-        private void addIdempotent( long nodeId, Value[] values ) throws IOException
+        @Override
+        protected void change( long entityId, Value[] values )
         {
-            writer.updateDocument( LuceneDocumentStructure.newTermForChangeOrRemove( nodeId ),
-                    LuceneDocumentStructure.documentRepresentingProperties( nodeId, values ) );
+            try
+            {
+                Term term = LuceneDocumentStructure.newTermForChangeOrRemove( entityId );
+                Document document = LuceneDocumentStructure.documentRepresentingProperties( entityId, values );
+                writer.updateOrDeleteDocument( term, document );
+            }
+            catch ( IOException e )
+            {
+                throw new UncheckedIOException( e );
+            }
         }
 
-        private void add( long nodeId, Value[] values ) throws IOException
+        @Override
+        protected void remove( long entityId )
         {
-            writer.addDocument( LuceneDocumentStructure.documentRepresentingProperties( nodeId, values ) );
-        }
-
-        private void change( long nodeId, Value[] values ) throws IOException
-        {
-            writer.updateDocument( LuceneDocumentStructure.newTermForChangeOrRemove( nodeId ),
-                    LuceneDocumentStructure.documentRepresentingProperties( nodeId, values ) );
-        }
-
-        protected void remove( long nodeId ) throws IOException
-        {
-            writer.deleteDocuments( LuceneDocumentStructure.newTermForChangeOrRemove( nodeId ) );
+            try
+            {
+                Term term = LuceneDocumentStructure.newTermForChangeOrRemove( entityId );
+                writer.deleteDocuments( term );
+            }
+            catch ( IOException e )
+            {
+                throw new UncheckedIOException( e );
+            }
         }
     }
 }

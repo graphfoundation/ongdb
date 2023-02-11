@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,38 +38,42 @@
  */
 package org.neo4j.kernel.impl.transaction.log.pruning;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
 
 import org.neo4j.kernel.impl.transaction.log.LogFileInformation;
+import org.neo4j.logging.AssertableLogProvider;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.neo4j.logging.LogAssertions.assertThat;
 
-public class EntryCountThresholdTest
+class EntryCountThresholdTest
 {
-    private LogFileInformation info = mock( LogFileInformation.class );
-    private File file = mock( File.class );
+    private final LogFileInformation info = mock( LogFileInformation.class );
+    private final Path file = mock( Path.class );
+    private final AssertableLogProvider logProvider = new AssertableLogProvider();
 
     @Test
-    public void shouldReportThresholdReachedWhenThresholdIsReached() throws Exception
+    void shouldReportThresholdReachedWhenThresholdIsReached() throws Exception
     {
         long version = 10L;
 
         when( info.getFirstEntryId( version + 1 ) ).thenReturn( 1L );
         when( info.getLastEntryId() ).thenReturn( 2L );
 
-        EntryCountThreshold threshold = new EntryCountThreshold( 1 );
+        EntryCountThreshold threshold = createThreshold( 1 );
         boolean reached = threshold.reached( file, version, info );
 
         assertTrue( reached );
     }
 
     @Test
-    public void shouldReportThresholdNotReachedWhenThresholdIsNotReached() throws Exception
+    void shouldReportThresholdNotReachedWhenThresholdIsNotReached() throws Exception
     {
         long version = 10L;
 
@@ -78,13 +82,13 @@ public class EntryCountThresholdTest
 
         when( info.getLastEntryId() ).thenReturn( 1L );
 
-        EntryCountThreshold threshold = new EntryCountThreshold( 1 );
+        EntryCountThreshold threshold = createThreshold( 1 );
 
         assertFalse( threshold.reached( file, version, info ) );
     }
 
     @Test
-    public void shouldProperlyHandleCaseWithOneEntryPerLogFile() throws Exception
+    void shouldProperlyHandleCaseWithOneEntryPerLogFile() throws Exception
     {
         // Given 2 files with one entry each
         when( info.getFirstEntryId( 1L ) ).thenReturn( 1L );
@@ -94,7 +98,7 @@ public class EntryCountThresholdTest
         when( info.getLastEntryId() ).thenReturn( 3L );
 
         // When the threshold is 1 entries
-        EntryCountThreshold threshold = new EntryCountThreshold( 1 );
+        EntryCountThreshold threshold = createThreshold( 1 );
 
         // Then the last file should be kept around
         assertFalse( threshold.reached( file, 2L, info ) );
@@ -102,7 +106,7 @@ public class EntryCountThresholdTest
     }
 
     @Test
-    public void shouldWorkWhenCalledMultipleTimesKeeping2Files() throws Exception
+    void shouldWorkWhenCalledMultipleTimesKeeping2Files() throws Exception
     {
         when( info.getFirstEntryId( 1L ) ).thenReturn( 1L );
         when( info.getFirstEntryId( 2L ) ).thenReturn( 5L );
@@ -110,7 +114,7 @@ public class EntryCountThresholdTest
         when( info.getFirstEntryId( 4L ) ).thenReturn( 18L );
         when( info.getLastEntryId() ).thenReturn( 18L );
 
-        EntryCountThreshold threshold = new EntryCountThreshold( 8 );
+        EntryCountThreshold threshold = createThreshold( 8 );
 
         assertTrue( threshold.reached( file, 1L, info ) );
 
@@ -120,7 +124,7 @@ public class EntryCountThresholdTest
     }
 
     @Test
-    public void shouldWorkWhenCalledMultipleTimesKeeping3Files() throws Exception
+    void shouldWorkWhenCalledMultipleTimesKeeping3Files() throws Exception
     {
         when( info.getFirstEntryId( 1L ) ).thenReturn( 1L );
         when( info.getFirstEntryId( 2L ) ).thenReturn( 5L );
@@ -128,7 +132,7 @@ public class EntryCountThresholdTest
         when( info.getFirstEntryId( 4L ) ).thenReturn( 18L );
         when( info.getLastEntryId() ).thenReturn( 18L );
 
-        EntryCountThreshold threshold = new EntryCountThreshold( 15 );
+        EntryCountThreshold threshold = createThreshold( 15 );
 
         assertFalse( threshold.reached( file, 1L, info ) );
 
@@ -138,7 +142,7 @@ public class EntryCountThresholdTest
     }
 
     @Test
-    public void shouldWorkWhenCalledMultipleTimesKeeping1FileOnBoundary() throws Exception
+    void shouldWorkWhenCalledMultipleTimesKeeping1FileOnBoundary() throws Exception
     {
         when( info.getFirstEntryId( 1L ) ).thenReturn( 1L );
         when( info.getFirstEntryId( 2L ) ).thenReturn( 5L );
@@ -146,7 +150,7 @@ public class EntryCountThresholdTest
         when( info.getFirstEntryId( 4L ) ).thenReturn( 18L );
         when( info.getLastEntryId() ).thenReturn( 18L );
 
-        EntryCountThreshold threshold = new EntryCountThreshold( 3 );
+        EntryCountThreshold threshold = createThreshold( 3 );
 
         assertTrue( threshold.reached( file, 1L, info ) );
         assertTrue( threshold.reached( file, 2L, info ) );
@@ -154,7 +158,7 @@ public class EntryCountThresholdTest
     }
 
     @Test
-    public void shouldSkipEmptyLogsBetweenLogsThatWillBeKept() throws Exception
+    void shouldSkipEmptyLogsBetweenLogsThatWillBeKept() throws Exception
     {
         // Given
         // 1, 3 and 4 are empty. 2 has 5 transactions, 5 has 8, 6 is the current version
@@ -167,7 +171,7 @@ public class EntryCountThresholdTest
         when( info.getLastEntryId() ).thenReturn( 13L );
 
         // The threshold is 9, which is one more than what version 5 has, which means 2 should be kept
-        EntryCountThreshold threshold = new EntryCountThreshold( 9 );
+        EntryCountThreshold threshold = createThreshold( 9 );
 
         assertFalse( threshold.reached( file, 5L, info ) );
         assertFalse( threshold.reached( file, 4L, info ) );
@@ -177,7 +181,7 @@ public class EntryCountThresholdTest
     }
 
     @Test
-    public void shouldDeleteNonEmptyLogThatIsAfterASeriesOfEmptyLogs() throws Exception
+    void shouldDeleteNonEmptyLogThatIsAfterASeriesOfEmptyLogs() throws Exception
     {
         // Given
         // 1, 3 and 4 are empty. 2 has 5 transactions, 5 has 8, 6 is the current version
@@ -190,12 +194,37 @@ public class EntryCountThresholdTest
         when( info.getLastEntryId() ).thenReturn( 13L );
 
         // The threshold is 8, which is exactly what version 5 has, which means 2 should be deleted
-        EntryCountThreshold threshold = new EntryCountThreshold( 8 );
+        EntryCountThreshold threshold = createThreshold( 8 );
 
         assertFalse( threshold.reached( file, 5L, info ) );
         assertTrue( threshold.reached( file, 4L, info ) );
         assertTrue( threshold.reached( file, 3L, info ) );
         assertTrue( threshold.reached( file, 2L, info ) );
         assertTrue( threshold.reached( file, 1L, info ) );
+    }
+
+    @Test
+    void thresholdNotReachedWhenNextEntryIdNotFound() throws IOException
+    {
+        when( info.getFirstEntryId( 2L ) ).thenReturn( -1L );
+        EntryCountThreshold threshold = createThreshold( 0 );
+
+        assertFalse( threshold.reached( file, 1, info ) );
+        assertThat( logProvider ).containsMessages( "Fail to get id of the first entry in the next transaction log file. Requested version: 2" );
+    }
+
+    @Test
+    void thresholdNotReachedWhenFailToGetNextEntryId() throws IOException
+    {
+        when( info.getFirstEntryId( 2L ) ).thenThrow( new IOException( "Exception." ) );
+        EntryCountThreshold threshold = createThreshold( 0 );
+
+        assertFalse( threshold.reached( file, 1, info ) );
+        assertThat( logProvider ).containsMessages( "Error on attempt to get entry ids from transaction log files. Checked version: 1" );
+    }
+
+    private EntryCountThreshold createThreshold( int maxTxCount )
+    {
+        return new EntryCountThreshold( logProvider, maxTxCount );
     }
 }

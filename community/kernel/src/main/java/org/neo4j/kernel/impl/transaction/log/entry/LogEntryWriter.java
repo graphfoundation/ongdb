@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,62 +41,67 @@ package org.neo4j.kernel.impl.transaction.log.entry;
 import java.io.IOException;
 import java.util.Collection;
 
-import org.neo4j.helpers.collection.Visitor;
+import org.neo4j.internal.helpers.collection.Visitor;
+import org.neo4j.io.fs.WritableChannel;
+import org.neo4j.io.fs.WritableChecksumChannel;
+import org.neo4j.kernel.KernelVersion;
 import org.neo4j.kernel.impl.transaction.CommittedTransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.TransactionRepresentation;
-import org.neo4j.kernel.impl.transaction.log.FlushableChannel;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.storageengine.api.StorageCommand;
 
-import static org.neo4j.kernel.impl.transaction.log.entry.LogEntryByteCodes.CHECK_POINT;
-import static org.neo4j.kernel.impl.transaction.log.entry.LogEntryByteCodes.COMMAND;
-import static org.neo4j.kernel.impl.transaction.log.entry.LogEntryByteCodes.TX_COMMIT;
-import static org.neo4j.kernel.impl.transaction.log.entry.LogEntryByteCodes.TX_START;
-import static org.neo4j.kernel.impl.transaction.log.entry.LogEntryVersion.CURRENT;
+import static org.neo4j.kernel.impl.transaction.log.entry.LogEntryTypeCodes.COMMAND;
+import static org.neo4j.kernel.impl.transaction.log.entry.LogEntryTypeCodes.LEGACY_CHECK_POINT;
+import static org.neo4j.kernel.impl.transaction.log.entry.LogEntryTypeCodes.TX_COMMIT;
+import static org.neo4j.kernel.impl.transaction.log.entry.LogEntryTypeCodes.TX_START;
 
-public class LogEntryWriter
+public class LogEntryWriter<T extends WritableChecksumChannel>
 {
-    private final FlushableChannel channel;
     private final Visitor<StorageCommand,IOException> serializer;
+    protected final T channel;
+    private final byte parserSetVersion;
 
-    /**
-     * Create a writer that uses {@link LogEntryVersion#CURRENT} for versioning.
-     * @param channel underlying channel
-     */
-    public LogEntryWriter( FlushableChannel channel )
+    public LogEntryWriter( T channel, KernelVersion version )
     {
         this.channel = channel;
-        this.serializer = new StorageCommandSerializer( channel );
+        this.parserSetVersion = version.version();
+        this.serializer = new StorageCommandSerializer( channel, this );
     }
 
-    protected void writeLogEntryHeader( byte type ) throws IOException
+    public void writeLogEntryHeader( byte type, WritableChannel channel ) throws IOException
     {
-        channel.put( CURRENT.byteCode() ).put( type );
+        channel.put( parserSetVersion ).put( type );
     }
 
-    public void writeStartEntry( LogEntryStart entry ) throws IOException
+    private void writeStartEntry( LogEntryStart entry ) throws IOException
     {
-        writeStartEntry( entry.getMasterId(), entry.getLocalId(), entry.getTimeWritten(), entry.getLastCommittedTxWhenTransactionStarted(),
-                entry.getAdditionalHeader() );
+        writeStartEntry( entry.getTimeWritten(), entry.getLastCommittedTxWhenTransactionStarted(),
+                entry.getPreviousChecksum(), entry.getAdditionalHeader() );
     }
 
-    public void writeStartEntry( int masterId, int authorId, long timeWritten, long latestCommittedTxWhenStarted,
-                                 byte[] additionalHeaderData ) throws IOException
+    public void writeStartEntry( long timeWritten, long latestCommittedTxWhenStarted,
+            int previousChecksum, byte[] additionalHeaderData ) throws IOException
     {
-        writeLogEntryHeader( TX_START );
-        channel.putInt( masterId ).putInt( authorId ).putLong( timeWritten ).putLong( latestCommittedTxWhenStarted )
-               .putInt( additionalHeaderData.length ).put( additionalHeaderData, additionalHeaderData.length );
+        channel.beginChecksum();
+        writeLogEntryHeader( TX_START, channel );
+        channel.putLong( timeWritten )
+                .putLong( latestCommittedTxWhenStarted )
+                .putInt( previousChecksum )
+                .putInt( additionalHeaderData.length )
+                .put( additionalHeaderData, additionalHeaderData.length );
     }
 
-    public void writeCommitEntry( LogEntryCommit entry ) throws IOException
+    private void writeCommitEntry( LogEntryCommit entry ) throws IOException
     {
         writeCommitEntry( entry.getTxId(), entry.getTimeWritten() );
     }
 
-    public void writeCommitEntry( long transactionId, long timeWritten ) throws IOException
+    public int writeCommitEntry( long transactionId, long timeWritten ) throws IOException
     {
-        writeLogEntryHeader( TX_COMMIT );
-        channel.putLong( transactionId ).putLong( timeWritten );
+        writeLogEntryHeader( TX_COMMIT, channel );
+        channel.putLong( transactionId )
+                .putLong( timeWritten );
+        return channel.putChecksum();
     }
 
     public void serialize( TransactionRepresentation tx ) throws IOException
@@ -119,26 +124,40 @@ public class LogEntryWriter
         }
     }
 
-    public void writeCheckPointEntry( LogPosition logPosition ) throws IOException
+    public void serialize( StorageCommand command ) throws IOException
     {
-        writeLogEntryHeader( CHECK_POINT );
-        channel.putLong( logPosition.getLogVersion() ).
-                putLong( logPosition.getByteOffset() );
+        serializer.visit( command );
     }
 
-    private class StorageCommandSerializer implements Visitor<StorageCommand,IOException>
+    public void writeLegacyCheckPointEntry( LogPosition logPosition ) throws IOException
     {
-        private final FlushableChannel channel;
+        channel.beginChecksum();
+        writeLogEntryHeader( LEGACY_CHECK_POINT, channel );
+        channel.putLong( logPosition.getLogVersion() )
+                .putLong( logPosition.getByteOffset() );
+        channel.putChecksum();
+    }
 
-        StorageCommandSerializer( FlushableChannel channel )
+    public T getChannel()
+    {
+        return channel;
+    }
+
+    private static class StorageCommandSerializer implements Visitor<StorageCommand,IOException>
+    {
+        private final WritableChannel channel;
+        private final LogEntryWriter entryWriter;
+
+        StorageCommandSerializer( WritableChannel channel, LogEntryWriter entryWriter )
         {
             this.channel = channel;
+            this.entryWriter = entryWriter;
         }
 
         @Override
         public boolean visit( StorageCommand command ) throws IOException
         {
-            writeLogEntryHeader( COMMAND );
+            entryWriter.writeLogEntryHeader( COMMAND, channel );
             command.serialize( channel );
             return false;
         }

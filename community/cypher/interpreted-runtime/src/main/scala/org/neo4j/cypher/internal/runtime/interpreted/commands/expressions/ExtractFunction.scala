@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,36 +38,38 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.ListSupport
+import org.neo4j.cypher.internal.runtime.ReadableRow
+import org.neo4j.cypher.internal.runtime.ListSupport
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.values.AnyValue
-import org.neo4j.values.virtual.{ListValue, VirtualValues}
+import org.neo4j.values.virtual.ListValue
+import org.neo4j.values.virtual.VirtualValues
 
-case class ExtractFunction(collection: Expression, id: String, expression: Expression)
+case class ExtractFunction(collection: Expression,
+                           innerVariableName: String,
+                           innerVariableOffset: Int,
+                           expression: Expression)
   extends NullInNullOutExpression(collection)
-  with ListSupport
-  with Closure {
-  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): ListValue = {
+  with ListSupport {
+  override def compute(value: AnyValue, row: ReadableRow, state: QueryState): ListValue = {
     val list = makeTraversable(value)
-    val innerContext = m.createClone()
     val extracted = new Array[AnyValue](list.size())
     val values = list.iterator()
     var i = 0
     while (values.hasNext) {
       val value = values.next()
-      extracted(i) = expression(innerContext.set(id, value), state)
+      state.expressionVariables(innerVariableOffset) = value
+      extracted(i) = expression(row, state)
       i += 1
     }
     VirtualValues.list(extracted:_*)
   }
 
-  def rewrite(f: (Expression) => Expression) = f(ExtractFunction(collection.rewrite(f), id, expression.rewrite(f)))
+  def rewrite(f: Expression => Expression): Expression =
+    f(ExtractFunction(collection.rewrite(f), innerVariableName, innerVariableOffset, expression.rewrite(f)))
 
-  override def children = Seq(collection, expression)
-
+  override def children: Seq[Expression] = Seq(collection, expression)
 
   def arguments: Seq[Expression] = Seq(collection)
 
-  def symbolTableDependencies = symbolTableDependencies(collection, expression, id)
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,25 +38,22 @@
  */
 package org.neo4j.kernel.impl.factory;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker;
+import org.neo4j.kernel.database.NamedDatabaseId;
 import org.neo4j.kernel.impl.api.CommitProcessFactory;
-import org.neo4j.kernel.impl.api.ReadOnlyTransactionCommitProcess;
+import org.neo4j.kernel.impl.api.DatabaseTransactionCommitProcess;
+import org.neo4j.kernel.impl.api.InternalTransactionCommitProcess;
 import org.neo4j.kernel.impl.api.TransactionCommitProcess;
-import org.neo4j.kernel.impl.api.TransactionRepresentationCommitProcess;
 import org.neo4j.kernel.impl.transaction.log.TransactionAppender;
+import org.neo4j.monitoring.DatabaseHealth;
 import org.neo4j.storageengine.api.StorageEngine;
 
 public class CommunityCommitProcessFactory implements CommitProcessFactory
 {
     @Override
-    public TransactionCommitProcess create( TransactionAppender appender, StorageEngine storageEngine,
-            Config config )
+    public TransactionCommitProcess create( TransactionAppender appender, StorageEngine storageEngine, NamedDatabaseId databaseId,
+            DatabaseReadOnlyChecker readOnlyChecker, DatabaseHealth health )
     {
-        if ( config.get( GraphDatabaseSettings.read_only ) )
-        {
-            return new ReadOnlyTransactionCommitProcess();
-        }
-        return new TransactionRepresentationCommitProcess( appender, storageEngine );
+        return new DatabaseTransactionCommitProcess( new InternalTransactionCommitProcess( appender, storageEngine, health ), readOnlyChecker );
     }
 }

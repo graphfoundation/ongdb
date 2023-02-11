@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,10 +38,11 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes.aggregation
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Expression, NumericHelper, Variable}
+import org.neo4j.cypher.internal.runtime.CypherRow
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Variable
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 import org.neo4j.kernel.impl.util.ValueUtils
 import org.neo4j.values.storable.DoubleValue
 
@@ -53,7 +54,7 @@ trait StdevTest {
   def getStdev(values: List[Any]): Double = {
     val func = createAggregator(Variable("x"))
     values.foreach(value => {
-      func(ExecutionContext.from("x" -> ValueUtils.of(value)), QueryStateHelper.empty)
+      func(CypherRow.from("x" -> ValueUtils.of(value)), QueryStateHelper.empty)
     })
     func.result(state) match {
       case x: DoubleValue => x.doubleValue()
@@ -101,7 +102,7 @@ class StdevSampleTest extends CypherFunSuite with StdevTest {
   }
 }
 
-class StdevPopulationTest extends CypherFunSuite with StdevTest with NumericHelper {
+class StdevPopulationTest extends CypherFunSuite with StdevTest {
   def createAggregator(inner: Expression) = new StdevFunction(inner, true)
 
   test("singleOne") {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,40 +38,139 @@
  */
 package org.neo4j.internal.kernel.api.security;
 
-import java.util.function.Function;
+import java.util.Objects;
+
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
+
+import static org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo.EMBEDDED_CONNECTION;
 
 /**
  * The LoginContext hold the executing authenticated user (subject).
- * By calling {@link #authorize(Function<String,Integer>)} the user is also authorized, and a full SecurityContext is returned,
+ * By calling {@link #authorize(IdLookup, String, AbstractSecurityLog)} the user is also authorized, and a full SecurityContext is returned,
  * which can be used to assert user permissions during query execution.
  */
-public interface LoginContext
+public abstract class LoginContext
 {
+    protected final AuthSubject subject;
+    private final ClientConnectionInfo connectionInfo;
+
+    public LoginContext( AuthSubject subject, ClientConnectionInfo connectionInfo )
+    {
+        this.subject = subject;
+        this.connectionInfo = connectionInfo;
+    }
+
     /**
      * Get the authenticated user.
      */
-    AuthSubject subject();
+    public AuthSubject subject()
+    {
+        return subject;
+    }
+
+    public ClientConnectionInfo connectionInfo()
+    {
+        return connectionInfo;
+    }
+
+    public boolean impersonating()
+    {
+        return !Objects.equals( subject.executingUser(), subject.authenticatedUser() );
+    }
 
     /**
      * Authorize the user and return a SecurityContext.
      *
-     * @param propertyIdLookup token lookup, used to compile property level security verification
+     * @param idLookup token lookup, used to compile fine grained security verification
+     * @param dbName the name of the database the user should be authorized against
+     * @param securityLog where to log security related messages
      * @return the security context
      */
-    SecurityContext authorize( Function<String, Integer> propertyIdLookup );
+    public abstract SecurityContext authorize( IdLookup idLookup, String dbName, AbstractSecurityLog securityLog );
 
-    LoginContext AUTH_DISABLED = new LoginContext()
+    /**
+     * Get a login context with full privileges.
+     *
+     * @param connectionInfo information about the clients connection.
+     */
+    public static LoginContext fullAccess( ClientConnectionInfo connectionInfo )
     {
-        @Override
-        public AuthSubject subject()
+        return new LoginContext( AuthSubject.AUTH_DISABLED, connectionInfo )
         {
-            return AuthSubject.AUTH_DISABLED;
-        }
+            @Override
+            public SecurityContext authorize( IdLookup idLookup, String dbName, AbstractSecurityLog securityLog )
+            {
+                return SecurityContext.authDisabled( AccessMode.Static.FULL, connectionInfo(), dbName );
+            }
+        };
+    }
 
-        @Override
-        public SecurityContext authorize( Function<String, Integer> propertyIdLookup )
+    /**
+     * A login context with full privileges, should only be used for transactions without external connection.
+     */
+    public static final LoginContext AUTH_DISABLED = fullAccess( EMBEDDED_CONNECTION );
+
+    public interface IdLookup
+    {
+        int[] NO_SUCH_PROCEDURE = new int[0];
+
+        int getPropertyKeyId( String name );
+
+        int getLabelId( String name );
+
+        int getRelTypeId( String name );
+
+        int[] getProcedureIds( String procedureGlobbing );
+
+        int[] getAdminProcedureIds();
+
+        int[] getFunctionIds( String functionGlobbing );
+
+        int[] getAggregatingFunctionIds( String functionGlobbing );
+
+        IdLookup EMPTY = new IdLookup()
         {
-            return SecurityContext.AUTH_DISABLED;
-        }
-    };
+            @Override
+            public int getPropertyKeyId( String name )
+            {
+                return -1;
+            }
+
+            @Override
+            public int getLabelId( String name )
+            {
+                return -1;
+            }
+
+            @Override
+            public int getRelTypeId( String name )
+            {
+                return -1;
+            }
+
+            @Override
+            public int[] getProcedureIds( String procedureGlobbing )
+            {
+                return NO_SUCH_PROCEDURE;
+            }
+
+            @Override
+            public int[] getAdminProcedureIds()
+            {
+                return NO_SUCH_PROCEDURE;
+            }
+
+            @Override
+            public int[] getFunctionIds( String functionGlobbing )
+            {
+                return NO_SUCH_PROCEDURE;
+            }
+
+            @Override
+            public int[] getAggregatingFunctionIds( String functionGlobbing )
+            {
+                return NO_SUCH_PROCEDURE;
+            }
+        };
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,35 +38,56 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.storageengine.api.schema.IndexProgressor;
+import org.neo4j.kernel.api.index.IndexProgressor;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class IndexCursorTest
+class IndexCursorTest
 {
     @Test
-    public void shouldClosePreviousBeforeReinitialize()
+    void shouldClosePreviousBeforeReinitialize()
     {
         // given
         StubIndexCursor cursor = new StubIndexCursor();
         StubProgressor progressor = new StubProgressor();
         cursor.initialize( progressor );
-        assertFalse( "open before re-initialize", progressor.isClosed );
+        assertFalse( progressor.isClosed, "open before re-initialize" );
 
         // when
         StubProgressor otherProgressor = new StubProgressor();
         cursor.initialize( otherProgressor );
 
         // then
-        assertTrue( "closed after re-initialize", progressor.isClosed );
-        assertFalse( "new still open", otherProgressor.isClosed );
+        assertTrue( progressor.isClosed, "closed after re-initialize" );
+        assertFalse( otherProgressor.isClosed, "new still open" );
     }
 
-    private static class StubIndexCursor extends IndexCursor<StubProgressor>
+    private static class StubIndexCursor extends IndexCursor<StubProgressor,StubIndexCursor>
     {
+        StubIndexCursor()
+        {
+            super( c -> {} );
+        }
+
+        @Override
+        public boolean next()
+        {
+            return false;
+        }
+
+        @Override
+        public void closeInternal()
+        {
+        }
+
+        @Override
+        public boolean isClosed()
+        {
+            return false;
+        }
     }
 
     private static class StubProgressor implements IndexProgressor

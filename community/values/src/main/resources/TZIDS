@@ -57,7 +57,7 @@ Australia/Tasmania
 Libya
 Europe/Guernsey
 America/Grand_Turk
-US/Pacific-New
+US/Pacific-New US/Pacific
 Asia/Samarkand
 America/Argentina/Cordoba
 Asia/Phnom_Penh
@@ -613,6 +613,10 @@ America/Punta_Arenas
 # tzdata2018h
 Asia/Qostanay
 # tzdata2018i
-Factory
+Factory Etc/UTC
 # tzdata2020a
 America/Nuuk
+# tzdata2021b
+Pacific/Kanton
+# tzdata2022b
+Europe/Kyiv

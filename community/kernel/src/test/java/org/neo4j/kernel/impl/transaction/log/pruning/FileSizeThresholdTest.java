@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,28 +38,29 @@
  */
 package org.neo4j.kernel.impl.transaction.log.pruning;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
 
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.impl.transaction.log.LogFileInformation;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class FileSizeThresholdTest
+class FileSizeThresholdTest
 {
 
     private FileSystemAbstraction fs = mock( FileSystemAbstraction.class );
     private final LogFileInformation source = mock( LogFileInformation.class );
-    private final File file = mock( File.class );
+    private final Path file = mock( Path.class );
     private final long version = 1;
 
     @Test
-    public void shouldReturnFalseWhenFileSizeIsLowerThanMaxSize()
+    void shouldReturnFalseWhenFileSizeIsLowerThanMaxSize() throws IOException
     {
         // given
         final long maxSize = 10;
@@ -76,7 +77,7 @@ public class FileSizeThresholdTest
     }
 
     @Test
-    public void shouldReturnTrueWhenASingleFileSizeIsGreaterOrEqualThanMaxSize()
+    void shouldReturnTrueWhenASingleFileSizeIsGreaterOrEqualThanMaxSize() throws IOException
     {
         // given
         long sixteenGigabytes = 16L * 1024 * 1024 * 1024;
@@ -94,7 +95,7 @@ public class FileSizeThresholdTest
     }
 
     @Test
-    public void shouldSumSizeWhenCalledMultipleTimes()
+    void shouldSumSizeWhenCalledMultipleTimes() throws IOException
     {
         // given
         final long maxSize = 10;
@@ -112,7 +113,7 @@ public class FileSizeThresholdTest
     }
 
     @Test
-    public void shouldForgetPreviousValuesAfterAInitCall()
+    void shouldForgetPreviousValuesAfterAInitCall() throws IOException
     {
         // given
         final long maxSize = 10;

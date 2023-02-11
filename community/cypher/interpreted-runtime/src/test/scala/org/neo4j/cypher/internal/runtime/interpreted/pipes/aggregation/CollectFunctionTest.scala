@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,13 +39,16 @@
 package org.neo4j.cypher.internal.runtime.interpreted.pipes.aggregation
 
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.values.storable.Values.{NO_VALUE, intValue}
-import org.neo4j.values.virtual.VirtualValues.{EMPTY_LIST, list}
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.memory.EmptyMemoryTracker
+import org.neo4j.values.storable.Values.NO_VALUE
+import org.neo4j.values.storable.Values.intValue
+import org.neo4j.values.virtual.VirtualValues.EMPTY_LIST
+import org.neo4j.values.virtual.VirtualValues.list
 
 class CollectFunctionTest extends CypherFunSuite with AggregateTest {
 
-  def createAggregator(inner: Expression) = new CollectFunction(inner)
+  def createAggregator(inner: Expression) = new CollectFunction(inner, EmptyMemoryTracker.INSTANCE)
 
   test("singleOne") {
     aggregateOn(intValue(1)) should equal(list(intValue(1)))

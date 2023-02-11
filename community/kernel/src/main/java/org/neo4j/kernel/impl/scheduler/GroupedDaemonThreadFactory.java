@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,44 +40,49 @@ package org.neo4j.kernel.impl.scheduler;
 
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinWorkerThread;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.SchedulerThreadFactory;
 
-final class GroupedDaemonThreadFactory implements ThreadFactory, ForkJoinPool.ForkJoinWorkerThreadFactory
+public class GroupedDaemonThreadFactory implements SchedulerThreadFactory
 {
-    private final JobScheduler.Group group;
-    private final ThreadGroup threadGroup;
+    protected final Group group;
+    protected final ThreadGroup threadGroup;
 
-    GroupedDaemonThreadFactory( JobScheduler.Group group, ThreadGroup parentThreadGroup )
+    protected GroupedDaemonThreadFactory( Group group, ThreadGroup parentThreadGroup )
     {
         this.group = group;
-        threadGroup = new ThreadGroup( parentThreadGroup, group.name() );
+        threadGroup = new ThreadGroup( parentThreadGroup, group.groupName() );
     }
 
     @Override
-    public Thread newThread( @SuppressWarnings( "NullableProblems" ) Runnable job )
+    public Thread newThread( Runnable job )
     {
         Thread thread = new Thread( threadGroup, job, group.threadName() )
         {
             @Override
             public String toString()
             {
-                StringBuilder sb = new StringBuilder( "Thread[" ).append( getName() );
-                ThreadGroup group = getThreadGroup();
-                String sep = ", in ";
-                while ( group != null )
-                {
-                    sb.append( sep ).append( group.getName() );
-                    group = group.getParent();
-                    sep = "/";
-                }
-                return sb.append( ']' ).toString();
+                return threadToString( this );
             }
         };
         thread.setDaemon( true );
         return thread;
+    }
+
+    protected static String threadToString( Thread thread )
+    {
+        StringBuilder sb = new StringBuilder( "Thread[" ).append( thread.getName() );
+        ThreadGroup group = thread.getThreadGroup();
+        String sep = ", in ";
+        while ( group != null )
+        {
+            sb.append( sep ).append( group.getName() );
+            group = group.getParent();
+            sep = "/";
+        }
+        return sb.append( ']' ).toString();
     }
 
     @Override
@@ -104,5 +109,11 @@ final class GroupedDaemonThreadFactory implements ThreadFactory, ForkJoinPool.Fo
         ForkJoinWorkerThread worker = reference.get();
         worker.setName( group.threadName() );
         return worker;
+    }
+
+    @Override
+    public ThreadGroup getThreadGroup()
+    {
+        return threadGroup;
     }
 }

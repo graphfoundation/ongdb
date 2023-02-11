@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,29 +38,26 @@
  */
 package org.neo4j.kernel.impl.query;
 
-import java.util.Map;
+import java.util.List;
 
 import org.neo4j.graphdb.Result;
 import org.neo4j.values.virtual.MapValue;
 
 public interface QueryExecutionEngine
 {
-    Result executeQuery( String query, MapValue parameters, TransactionalContext context )
+    Result executeQuery( String query, MapValue parameters, TransactionalContext context, boolean prePopulate )
             throws QueryExecutionKernelException;
 
-    Result executeQuery( String query, Map<String,Object> parameters, TransactionalContext context )
-            throws QueryExecutionKernelException;
-
-    Result profileQuery( String query, Map<String,Object> parameters, TransactionalContext context )
-            throws QueryExecutionKernelException;
+    QueryExecution executeQuery( String query, MapValue parameters, TransactionalContext context, boolean prePopulate,
+            QuerySubscriber subscriber ) throws QueryExecutionKernelException;
 
     /**
      * @return {@code true} if the query is a PERIODIC COMMIT query and not an EXPLAIN query
      */
     boolean isPeriodicCommit( String query );
 
-    String prettify( String query );
-
     long clearQueryCaches();
+
+    List<FunctionInformation> getProvidedLanguageFunctions();
 }
 

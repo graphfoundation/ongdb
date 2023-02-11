@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,44 +38,45 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.collection.primitive.{Primitive, PrimitiveLongSet}
-import org.neo4j.cypher.internal.util.v3_4.CypherTypeException
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.values.storable.Values
+import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.IsNoValue
+import org.neo4j.cypher.internal.util.attribution.Id
+import org.neo4j.exceptions.CypherTypeException
+import org.neo4j.values.AnyValue
 import org.neo4j.values.virtual.VirtualNodeValue
 
+import scala.collection.AbstractIterator
+import scala.collection.Iterator
 import scala.collection.mutable.ListBuffer
-import scala.collection.{AbstractIterator, Iterator}
 
 case class TriadicSelectionPipe(positivePredicate: Boolean, left: Pipe, source: String, seen: String, target: String, right: Pipe)
                                (val id: Id = Id.INVALID_ID)
 extends PipeWithSource(left) {
 
-  override protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState) = {
-    var triadicState: PrimitiveLongSet = null
+  override protected def internalCreateResults(input: ClosingIterator[CypherRow], state: QueryState): ClosingIterator[CypherRow] = {
+    var triadicState: LongHashSet = null
     // 1. Build
-    new LazyGroupingIterator[ExecutionContext](input) {
-      override def getKey(row: ExecutionContext) = row(source)
+    ClosingIterator(new LazyGroupingIterator[CypherRow](input) {
+      override def getKey(row: CypherRow): AnyValue = row.getByName(source)
 
-      override def getValue(row: ExecutionContext) = row(seen) match {
+      override def getValue(row: CypherRow): Option[Long] = row.getByName(seen) match {
         case n: VirtualNodeValue => Some(n.id())
-        case Values.NO_VALUE => None
+        case IsNoValue() => None
         case x => throw new CypherTypeException(s"Expected a node at `$seen` but got $x")
       }
 
-      override def setState(triadicSet: PrimitiveLongSet) = triadicState = triadicSet
+      override def setState(triadicSet: LongHashSet): Unit = triadicState = triadicSet
 
     // 2. pass through 'right'
-    }.flatMap { (outerContext) =>
-      val original = outerContext.createClone()
+    }).flatMap { outerContext =>
       val innerState = state.withInitialContext(outerContext)
-      val innerResults = right.createResults(innerState)
-      innerResults.map { context => context mergeWith original }
+      right.createResults(innerState)
 
     // 3. Probe
     }.filter { ctx =>
-      ctx(target) match {
+      ctx.getByName(target) match {
         case n: VirtualNodeValue => if(positivePredicate) triadicState.contains(n.id()) else !triadicState.contains(n.id())
         case _ => false
       }
@@ -84,14 +85,14 @@ extends PipeWithSource(left) {
 }
 
 abstract class LazyGroupingIterator[ROW >: Null <: AnyRef](val input: Iterator[ROW]) extends AbstractIterator[ROW] {
-  def setState(state: PrimitiveLongSet)
+  def setState(state: LongHashSet)
   def getKey(row: ROW): Any
   def getValue(row: ROW): Option[Long]
 
-  var current: Iterator[ROW] = null
-  var nextRow: ROW = null
+  var current: Iterator[ROW] = _
+  var nextRow: ROW = _
 
-  override def next() = if(hasNext) current.next() else Iterator.empty.next()
+  override def next(): ROW = if(hasNext) current.next() else Iterator.empty.next()
 
   override def hasNext: Boolean = {
     if (current != null && current.hasNext)
@@ -111,7 +112,7 @@ abstract class LazyGroupingIterator[ROW >: Null <: AnyRef](val input: Iterator[R
       }
       else {
         val buffer = new ListBuffer[ROW]
-        val valueSet = Primitive.longSet()
+        val valueSet = new LongHashSet()
         setState(valueSet)
         buffer += firstRow
         update(valueSet, firstRow)
@@ -133,7 +134,7 @@ abstract class LazyGroupingIterator[ROW >: Null <: AnyRef](val input: Iterator[R
     }
   }
 
-  def update(triadicSet: PrimitiveLongSet, row: ROW): AnyVal = {
+  def update(triadicSet: LongHashSet, row: ROW): AnyVal = {
     for (value <- getValue(row))
       triadicSet.add(value)
   }

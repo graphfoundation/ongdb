@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,29 +38,29 @@
  */
 package org.neo4j.kernel.impl.locking;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
-import org.neo4j.logging.FormattedLogProvider;
 import org.neo4j.logging.Log;
+import org.neo4j.logging.LogProvider;
+import org.neo4j.logging.log4j.Log4jLogProvider;
 
 public class LockWorkFailureDump
 {
-    private final File file;
+    private final Path file;
 
-    public LockWorkFailureDump( File file )
+    public LockWorkFailureDump( Path file )
     {
         this.file = file;
     }
 
-    public File dumpState( Locks lm, LockWorker... workers ) throws IOException
+    public Path dumpState( Locks lm, LockWorker... workers ) throws IOException
     {
-        FileOutputStream out = new FileOutputStream( file, false );
-        FormattedLogProvider logProvider = FormattedLogProvider.withoutAutoFlush().toOutputStream( out );
-
-        try
+        try ( OutputStream out = Files.newOutputStream( file ) )
         {
+            LogProvider logProvider = new Log4jLogProvider( out );
             //  * locks held by the lock manager
             lm.accept( new DumpLocksVisitor( logProvider.getLog( LockWorkFailureDump.class ) ) );
             //  * rag manager state;
@@ -72,11 +72,6 @@ public class LockWorkFailureDump
                 log.info( "Worker %s", worker );
             }
             return file;
-        }
-        finally
-        {
-            out.flush();
-            out.close();
         }
     }
 }

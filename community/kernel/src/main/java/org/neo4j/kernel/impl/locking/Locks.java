@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,15 +38,12 @@
  */
 package org.neo4j.kernel.impl.locking;
 
-import java.time.Clock;
-import java.util.stream.Stream;
-
-import org.neo4j.helpers.Service;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.storageengine.api.lock.AcquireLockTimeoutException;
-import org.neo4j.storageengine.api.lock.ResourceLocker;
-import org.neo4j.storageengine.api.lock.ResourceType;
-import org.neo4j.storageengine.api.lock.WaitStrategy;
+import org.neo4j.configuration.Config;
+import org.neo4j.kernel.impl.api.LeaseClient;
+import org.neo4j.lock.LockType;
+import org.neo4j.lock.ResourceLocker;
+import org.neo4j.lock.ResourceType;
+import org.neo4j.memory.MemoryTracker;
 
 /**
  * API for managing locks.
@@ -69,59 +66,38 @@ import org.neo4j.storageengine.api.lock.WaitStrategy;
  */
 public interface Locks
 {
-    abstract class Factory extends Service
-    {
-        public Factory( String key, String... altKeys )
-        {
-            super( key, altKeys );
-        }
-
-        public abstract Locks newInstance( Config config, Clock clocks, ResourceType[] resourceTypes );
-    }
-
     /** For introspection and debugging. */
     interface Visitor
     {
         /** Visit the description of a lock held by at least one client. */
-        void visit( ResourceType resourceType, long resourceId, String description, long estimatedWaitTime,
-                long lockIdentityHashCode );
+        void visit( LockType lockType, ResourceType resourceType, long transactionId, long resourceId,
+                String description, long estimatedWaitTime, long lockIdentityHashCode );
     }
 
     interface Client extends ResourceLocker, AutoCloseable
     {
+        /**
+         * Invalid transaction id that lock clients using before they are initialised or after close
+         */
+        long INVALID_TRANSACTION_ID = -1;
+
         /**
          * Represents the fact that no lock session is used because no locks are taken.
          */
         int NO_LOCK_SESSION_ID = -1;
 
         /**
-         * Can be grabbed when there are no locks or only share locks on a resource. If the lock cannot be acquired,
-         * behavior is specified by the {@link WaitStrategy} for the given {@link ResourceType}.
-         *
-         * @param tracer a tracer for listening on lock events.
-         * @param resourceType type or resource(s) to lock.
-         * @param resourceIds id(s) of resources to lock. Multiple ids should be ordered consistently by all callers
+         * Initializes this locks client with a {@link LeaseClient} for the owning transaction. Must be called before any lock can be acquired.
+         * An lease that has become invalid can abort a transaction midway.
+         * @param leaseClient {@link LeaseClient} of the owning transaction.
+         * @param transactionId lock client owning transaction id
+         * @param memoryTracker memory tracker from the transaction
+         * @param config neo4j configuration
          */
-        void acquireShared( LockTracer tracer, ResourceType resourceType, long... resourceIds ) throws AcquireLockTimeoutException;
-
-        @Override
-        void acquireExclusive( LockTracer tracer, ResourceType resourceType, long... resourceIds ) throws AcquireLockTimeoutException;
-
-        /** Try grabbing exclusive lock, not waiting and returning a boolean indicating if we got the lock. */
-        boolean tryExclusiveLock( ResourceType resourceType, long resourceId );
+        void initialize( LeaseClient leaseClient, long transactionId, MemoryTracker memoryTracker, Config config );
 
         /** Try grabbing shared lock, not waiting and returning a boolean indicating if we got the lock. */
         boolean trySharedLock( ResourceType resourceType, long resourceId );
-
-        boolean reEnterShared( ResourceType resourceType, long resourceId );
-
-        boolean reEnterExclusive( ResourceType resourceType, long resourceId );
-
-        /** Release a set of shared locks */
-        void releaseShared( ResourceType resourceType, long... resourceIds );
-
-        /** Release a set of exclusive locks */
-        void releaseExclusive( ResourceType resourceType, long... resourceIds );
 
         /**
          * Start preparing this transaction for committing. In two-phase locking palace, we will in principle no longer
@@ -131,13 +107,13 @@ public interface Locks
          * transaction lives or dies, and in either case, the lock client will end up releasing all locks via the
          * {@link #close()} method.
          */
-        void prepare();
+        void prepareForCommit();
 
         /**
          * Stop all active lock waiters and release them.
          * All new attempts to acquire any locks will cause exceptions.
          * This client can and should only be {@link #close() closed} afterwards.
-         * If this client has been {@link #prepare() prepared}, then all currently acquired locks will remain held,
+         * If this client has been {@link #prepareForCommit() prepared}, then all currently acquired locks will remain held,
          * otherwise they will be released immediately.
          */
         void stop();
@@ -146,10 +122,7 @@ public interface Locks
         @Override
         void close();
 
-        /** For slave transactions, this tracks an identifier for the lock session running on the master */
-        int getLockSessionId();
-
-        Stream<? extends ActiveLock> activeLocks();
+        long getTransactionId();
 
         long activeLockCount();
     }
@@ -166,4 +139,26 @@ public interface Locks
     void accept( Visitor visitor );
 
     void close();
+
+    /** An implementation that doesn't do any locking **/
+    Locks NO_LOCKS = new Locks()
+    {
+        @Override
+        public Client newClient()
+        {
+            return new NoOpClient();
+        }
+
+        @Override
+        public void accept( Visitor visitor )
+        {
+
+        }
+
+        @Override
+        public void close()
+        {
+
+        }
+    };
 }

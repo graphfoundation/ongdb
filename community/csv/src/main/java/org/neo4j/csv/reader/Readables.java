@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,19 +38,21 @@
  */
 package org.neo4j.csv.reader;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PushbackInputStream;
 import java.io.Reader;
 import java.io.StringReader;
+import java.io.UncheckedIOException;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.function.LongSupplier;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -59,10 +61,13 @@ import org.neo4j.collection.RawIterator;
 import org.neo4j.function.IOFunction;
 import org.neo4j.function.ThrowingFunction;
 
+import static org.neo4j.csv.reader.BufferedCharSeeker.isEolChar;
+import static org.neo4j.csv.reader.CharReadable.EMPTY;
+
 /**
  * Means of instantiating common {@link CharReadable} instances.
  *
- * There are support for compressed files as well for those methods accepting a {@link File} argument.
+ * There are support for compressed files as well for those methods accepting a {@link Path} argument.
  * <ol>
  * <li>ZIP: is both an archive and a compression format. In many cases the order of files
  * is important and for a ZIP archive with multiple files, the order of the files are whatever the order
@@ -77,38 +82,6 @@ public class Readables
     {
         throw new AssertionError( "No instances allowed" );
     }
-
-    public static final CharReadable EMPTY = new CharReadable.Adapter()
-    {
-        @Override
-        public SectionedCharBuffer read( SectionedCharBuffer buffer, int from )
-        {
-            return buffer;
-        }
-
-        @Override
-        public void close()
-        {   // Nothing to close
-        }
-
-        @Override
-        public String sourceDescription()
-        {
-            return "EMPTY";
-        }
-
-        @Override
-        public int read( char[] into, int offset, int length )
-        {
-            return -1;
-        }
-
-        @Override
-        public long length()
-        {
-            return 0;
-        }
-    };
 
     public static CharReadable wrap( final InputStream stream, final String sourceName, Charset charset )
             throws IOException
@@ -156,9 +129,28 @@ public class Readables
         }, length );
     }
 
+    public static CharReadable wrap( String sourceDescription, String data )
+    {
+        return wrap( sourceDescription, new StringReader( data ), data.length() );
+    }
+
     public static CharReadable wrap( String data )
     {
         return wrap( new StringReader( data ), data.length() );
+    }
+
+    /**
+     * Wraps a {@link Reader} in a {@link CharReadable}.
+     * Remember that the {@link Reader#toString()} must provide a description of the data source.
+     * Uses {@link Reader#toString()} as the source description.
+     *
+     * @param reader {@link Reader} to wrap.
+     * @param length total number of bytes provided by the reader.
+     * @return a {@link CharReadable} for the {@link Reader}.
+     */
+    public static CharReadable wrap( Reader reader, long length )
+    {
+        return wrap( reader.toString(), reader, length );
     }
 
     /**
@@ -169,12 +161,12 @@ public class Readables
      * @param length total number of bytes provided by the reader.
      * @return a {@link CharReadable} for the {@link Reader}.
      */
-    public static CharReadable wrap( final Reader reader, long length )
+    public static CharReadable wrap( String sourceDescription, Reader reader, long length )
     {
-        return new WrappedCharReadable( length, reader );
+        return new WrappedCharReadable( length, reader, sourceDescription );
     }
 
-    private static class FromFile implements IOFunction<File,CharReadable>
+    private static class FromFile implements IOFunction<Path,CharReadable>
     {
         private final Charset charset;
 
@@ -184,21 +176,21 @@ public class Readables
         }
 
         @Override
-        public CharReadable apply( final File file ) throws IOException
+        public CharReadable apply( final Path path ) throws IOException
         {
-            Magic magic = Magic.of( file );
+            Magic magic = Magic.of( path );
             if ( magic == Magic.ZIP )
             {   // ZIP file
-                ZipFile zipFile = new ZipFile( file );
+                ZipFile zipFile = new ZipFile( path.toFile() );
                 ZipEntry entry = getSingleSuitableEntry( zipFile );
                 return wrap( new InputStreamReader( zipFile.getInputStream( entry ), charset )
                 {
                     @Override
                     public String toString()
                     {
-                        return file.getPath();
+                        return path.toAbsolutePath().toString();
                     }
-                }, file.length() );
+                }, entry.getSize() );
             }
             else if ( magic == Magic.GZIP )
             {   // GZIP file. GZIP isn't an archive like ZIP, so this is purely data that is compressed.
@@ -206,24 +198,50 @@ public class Readables
                 // files into one blob, which is then compressed. If that's the case then
                 // the data will look like garbage and the reader will fail for whatever it will be used for.
                 // TODO add tar support
-                GZIPInputStream zipStream = new GZIPInputStream( new FileInputStream( file ) );
-                return wrap( new InputStreamReader( zipStream, charset )
+                LongSupplier[] bytesReadFromCompressedSource = new LongSupplier[1];
+                GZIPInputStream zipStream = new GZIPInputStream( Files.newInputStream( path ) )
+                {
+                    {
+                        // Access GZIPInputStream's internal Inflater instance and make number of bytes read available
+                        // to the returned CharReadable below.
+                        bytesReadFromCompressedSource[0] = inf::getBytesRead;
+                    }
+                };
+                InputStreamReader reader = new InputStreamReader( zipStream, charset )
                 {
                     @Override
                     public String toString()
                     {
-                        return file.getPath();
+                        return path.toAbsolutePath().toString();
                     }
-                }, file.length() );
+                };
+                // For GZIP there's no reliable way of getting the decompressed file size w/o decompressing the whole file,
+                // therefore this compression ratio estimation mechanic is put in place such that at any given time the reader
+                // can be queried about its observed compression ratio and the longer the reader goes the more accurate it gets.
+                long compressedFileLength = Files.size( path );
+                return new WrappedCharReadable( compressedFileLength, reader, path.toAbsolutePath().toString() )
+                {
+                    @Override
+                    public float compressionRatio()
+                    {
+                        long decompressedPosition = position();
+                        long compressedPosition = bytesReadFromCompressedSource[0].getAsLong();
+                        return (float) ((double) compressedPosition / decompressedPosition);
+                    }
+                };
             }
             else
             {
-                InputStream in = new FileInputStream( file );
+                InputStream in = Files.newInputStream( path );
                 Charset usedCharset = this.charset;
                 if ( magic.impliesEncoding() )
                 {
                     // Read (and skip) the magic (BOM in this case) from the file we're returning out
-                    in.skip( magic.length() );
+                    long skip = in.skip( magic.length() );
+                    if ( skip != magic.length() )
+                    {
+                        throw new IOException( "Unable to skip " + magic.length() + " bytes, only able to skip " + skip + " bytes." );
+                    }
                     usedCharset = magic.encoding();
                 }
                 return wrap( new InputStreamReader( in, usedCharset )
@@ -231,13 +249,13 @@ public class Readables
                     @Override
                     public String toString()
                     {
-                        return file.getPath();
+                        return path.toAbsolutePath().toString();
                     }
-                }, file.length() );
+                }, Files.size( path ) );
             }
         }
 
-        private ZipEntry getSingleSuitableEntry( ZipFile zipFile ) throws IOException
+        private static ZipEntry getSingleSuitableEntry( ZipFile zipFile ) throws IOException
         {
             List<String> unsuitableEntries = new ArrayList<>();
             Enumeration<? extends ZipEntry> enumeration = zipFile.entries();
@@ -277,14 +295,14 @@ public class Readables
                name.contains( "/." );
     }
 
-    public static RawIterator<CharReadable,IOException> individualFiles( Charset charset, File... files )
+    public static RawIterator<CharReadable,IOException> individualFiles( Charset charset, Path... files )
     {
         return iterator( new FromFile( charset ), files );
     }
 
-    public static CharReadable files( Charset charset, File... files ) throws IOException
+    public static CharReadable files( Charset charset, Path... files ) throws IOException
     {
-        IOFunction<File,CharReadable> opener = new FromFile( charset );
+        IOFunction<Path,CharReadable> opener = new FromFile( charset );
         switch ( files.length )
         {
         case 0:  return EMPTY;
@@ -301,7 +319,7 @@ public class Readables
             throw new IllegalStateException( "No source items specified" );
         }
 
-        return new RawIterator<OUT,IOException>()
+        return new RawIterator<>()
         {
             private int cursor;
 
@@ -329,6 +347,32 @@ public class Readables
         };
     }
 
+    public static char[] extractFirstLineFrom( CharReadable source ) throws IOException
+    {
+        return extractFirstLineFrom( ( into, offset ) -> source.read( into, offset, 1 ) > 0 );
+    }
+
+    public static char[] extractFirstLineFrom( char[] data, int offset, int length )
+    {
+        try
+        {
+            return extractFirstLineFrom( ( into, intoOffset ) ->
+            {
+                if ( intoOffset < length )
+                {
+                    into[intoOffset] = data[offset + intoOffset];
+                    return true;
+                }
+                return false;
+            } );
+        }
+        catch ( IOException e )
+        {
+            // Will not happen because we're reading from an array
+            throw new UncheckedIOException( e );
+        }
+    }
+
     /**
      * Extracts the first line, i.e characters until the first newline or end of stream.
      * Reads one character at a time to be sure not to read too far ahead. The stream is left
@@ -338,12 +382,11 @@ public class Readables
      * @return char[] containing characters until the first newline character or end of stream.
      * @throws IOException on I/O reading error.
      */
-    public static char[] extractFirstLineFrom( CharReadable source ) throws IOException
+    public static char[] extractFirstLineFrom( CharSupplier source ) throws IOException
     {
         char[] result = new char[100];
         int cursor = 0;
-        int read;
-        boolean foundEol = false;
+        boolean foundEol;
         do
         {
             // Grow on demand
@@ -353,17 +396,22 @@ public class Readables
             }
 
             // Read one character
-            read = source.read( result, cursor, 1 );
-            if ( read > 0 )
+            if ( !source.next( result, cursor ) )
             {
-                foundEol = BufferedCharSeeker.isEolChar( result[cursor] );
-                if ( !foundEol )
-                {
-                    cursor++;
-                }
+                break;
+            }
+            foundEol = isEolChar( result[cursor] );
+            if ( !foundEol )
+            {
+                cursor++;
             }
         }
-        while ( read > 0 && !foundEol );
+        while ( !foundEol );
         return Arrays.copyOf( result, cursor );
+    }
+
+    interface CharSupplier
+    {
+        boolean next( char[] into, int offset ) throws IOException;
     }
 }

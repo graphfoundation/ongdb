@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,30 +38,31 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.mockito.Mockito._
-import org.mockito.invocation.InvocationOnMock
-import org.mockito.stubbing.Answer
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
-import org.neo4j.cypher.internal.runtime.{Operations, QueryContext}
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.util.v3_4.{CypherTypeException, InvalidArgumentException}
-import org.neo4j.graphdb.{Node, Relationship}
+import org.mockito.Mockito.when
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.QueryContext
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
+import org.neo4j.cypher.internal.runtime.interpreted.commands.LiteralHelper.literal
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.exceptions.CypherTypeException
+import org.neo4j.exceptions.InvalidArgumentException
+import org.neo4j.graphdb.Node
+import org.neo4j.graphdb.Relationship
 import org.neo4j.values.AnyValue
+import org.neo4j.values.storable.Values
 import org.neo4j.values.storable.Values.longValue
-import org.neo4j.values.storable.{Value, Values}
-import org.neo4j.values.virtual.{RelationshipValue, NodeValue}
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 class ContainerIndexTest extends CypherFunSuite {
 
   val qtx = mock[QueryContext]
   implicit val state = QueryStateHelper.empty.withQueryContext(qtx)
-  val ctx = ExecutionContext.empty
+  val ctx = CypherRow.empty
   val expectedNull: AnyValue = Values.NO_VALUE
 
   test("handles collection lookup") {
-    implicit val collection = Literal(Seq(1, 2, 3, 4))
+    implicit val collection = literal(Seq(1, 2, 3, 4))
 
     idx(0) should equal(longValue(1))
     idx(1) should equal(longValue(2))
@@ -80,13 +81,13 @@ class ContainerIndexTest extends CypherFunSuite {
   }
 
   test("handles nulls") {
-    implicit val collection = Literal(null)
+    implicit val collection = Literal(Values.NO_VALUE)
 
     idx(0) should equal(expectedNull)
   }
 
   test("handles scala map lookup") {
-    implicit val expression = Literal(Map("a" -> 1, "b" -> "foo"))
+    implicit val expression = literal(Map("a" -> 1, "b" -> "foo"))
 
     idx("a") should equal(longValue(1))
     idx("b") should equal(Values.stringValue("foo"))
@@ -94,7 +95,7 @@ class ContainerIndexTest extends CypherFunSuite {
   }
 
   test("handles java map lookup") {
-    implicit val expression = Literal(Map("a" -> 1, "b" -> "foo").asJava)
+    implicit val expression = literal(Map("a" -> 1, "b" -> "foo").asJava)
 
     idx("a") should equal(longValue(1))
     idx("b") should equal(Values.stringValue("foo"))
@@ -104,18 +105,15 @@ class ContainerIndexTest extends CypherFunSuite {
   test("handles node lookup") {
     val node = mock[Node]
     when(node.getId).thenReturn(0)
-    implicit val expression = Literal(node)
-    when(qtx.getOptPropertyKeyId("v")).thenReturn(Some(0))
-    when(qtx.getOptPropertyKeyId("c")).thenReturn(Some(1))
-    val nodeOps = mock[Operations[NodeValue]]
-    when(nodeOps.getProperty(0, 0)).thenAnswer(new Answer[Value] {
-      override def answer(invocation: InvocationOnMock): Value = Values.longValue(1)
-    })
-    when(nodeOps.getProperty(0, 1)).thenAnswer(new Answer[Value] {
-      override def answer(invocation: InvocationOnMock): Value = Values.NO_VALUE
-    })
-    when(qtx.nodeOps).thenReturn(nodeOps)
+    implicit val expression = literal(node)
+    val nodeCursor = state.cursors.nodeCursor
+    val propertyCursor = state.cursors.propertyCursor
 
+    when(qtx.propertyKey("v")).thenReturn(42)
+    when(qtx.propertyKey("c")).thenReturn(43)
+
+    when(qtx.nodeProperty(0, 42, nodeCursor, propertyCursor, throwOnDeleted = true)).thenReturn(longValue(1))
+    when(qtx.nodeProperty(0, 43, nodeCursor, propertyCursor, throwOnDeleted = true)).thenReturn(Values.NO_VALUE)
     idx("v") should equal(longValue(1))
     idx("c") should equal(expectedNull)
   }
@@ -123,24 +121,20 @@ class ContainerIndexTest extends CypherFunSuite {
   test("handles relationship lookup") {
     val rel = mock[Relationship]
     when(rel.getId).thenReturn(0)
-    implicit val expression = Literal(rel)
-    when(qtx.getOptPropertyKeyId("v")).thenReturn(Some(0))
-    when(qtx.getOptPropertyKeyId("c")).thenReturn(Some(1))
-    val relOps = mock[Operations[RelationshipValue]]
-    when(relOps.getProperty(0, 0)).thenAnswer(new Answer[Value] {
-      override def answer(invocation: InvocationOnMock): Value = Values.longValue(1)
-    })
-    when(relOps.getProperty(0, 1)).thenAnswer(new Answer[Value] {
-      override def answer(invocation: InvocationOnMock): Value = Values.NO_VALUE
-    })
-    when(qtx.relationshipOps).thenReturn(relOps)
+    implicit val expression = literal(rel)
+    val relationshipScanCursor = state.cursors.relationshipScanCursor
+    val propertyCursor = state.cursors.propertyCursor
 
+    when(qtx.propertyKey("v")).thenReturn(42)
+    when(qtx.propertyKey("c")).thenReturn(43)
+    when(qtx.relationshipProperty(0, 42, relationshipScanCursor, propertyCursor, throwOnDeleted = true)).thenReturn(longValue(1))
+    when(qtx.relationshipProperty(0, 43, relationshipScanCursor, propertyCursor, throwOnDeleted = true)).thenReturn(Values.NO_VALUE)
     idx("v") should equal(longValue(1))
     idx("c") should equal(expectedNull)
   }
 
   test("should fail when not integer values are passed") {
-    implicit val collection = Literal(Seq(1, 2, 3, 4))
+    implicit val collection = literal(Seq(1, 2, 3, 4))
 
     a[CypherTypeException] should be thrownBy idx(1.0f)
     a[CypherTypeException] should be thrownBy idx(1.0d)
@@ -148,7 +142,7 @@ class ContainerIndexTest extends CypherFunSuite {
   }
 
   test("should fail when too big values are used to access the array") {
-    implicit val collection = Literal(Seq(1, 2, 3, 4))
+    implicit val collection = literal(Seq(1, 2, 3, 4))
 
     val index = Int.MaxValue + 1L
 
@@ -156,5 +150,5 @@ class ContainerIndexTest extends CypherFunSuite {
   }
 
   private def idx(value: Any)(implicit collection: Expression) =
-    ContainerIndex(collection, Literal(value))(ctx, state)
+    ContainerIndex(collection, literal(value))(ctx, state)
 }

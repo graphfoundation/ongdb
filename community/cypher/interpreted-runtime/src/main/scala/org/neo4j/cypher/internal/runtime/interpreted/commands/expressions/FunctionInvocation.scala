@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,52 +38,45 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
+import org.neo4j.cypher.internal.logical.plans.UserFunctionSignature
 import org.neo4j.cypher.internal.runtime.QueryContext
+import org.neo4j.cypher.internal.runtime.ReadableRow
+import org.neo4j.cypher.internal.runtime.interpreted.GraphElementPropertyFunctions
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, GraphElementPropertyFunctions}
-import org.neo4j.cypher.internal.v3_4.logical.plans.UserFunctionSignature
-import org.neo4j.values._
+import org.neo4j.values.AnyValue
 
-abstract class FunctionInvocation(signature: UserFunctionSignature, arguments: IndexedSeq[Expression])
+abstract class FunctionInvocation(signature: UserFunctionSignature, input: Array[Expression])
   extends Expression with GraphElementPropertyFunctions {
 
-  override def apply(ctx: ExecutionContext, state: QueryState): AnyValue = {
+  override def arguments: Seq[Expression] = input
+
+  override def children: Seq[AstNode[_]] = input
+
+  override def apply(row: ReadableRow, state: QueryState): AnyValue = {
     val query = state.query
-    val argValues = arguments.map(arg => {
-      arg(ctx, state)
+    val argValues = input.map(arg => {
+      arg(row, state)
     })
     call(query, argValues)
   }
 
-  protected def call(query: QueryContext,
-                   argValues: IndexedSeq[AnyValue]): AnyValue
+  protected def call(query: QueryContext, argValues: Array[AnyValue]): AnyValue
 
-
-  override def symbolTableDependencies = arguments.flatMap(_.symbolTableDependencies).toSet
-
-  override def toString = s"${signature.name}(${arguments.mkString(",")})"
+  override def toString = s"${signature.name}(${input.mkString(",")})"
 }
 
-case class FunctionInvocationById(signature: UserFunctionSignature, arguments: IndexedSeq[Expression])
-  extends FunctionInvocation(signature, arguments) {
+case class BuiltInFunctionInvocation(signature: UserFunctionSignature, input: Array[Expression]) extends FunctionInvocation(signature, input) {
+  override protected def call(query: QueryContext, argValues: Array[AnyValue]): AnyValue = query.callBuiltInFunction(signature.id, argValues)
 
-  protected def call(query: QueryContext,
-                   argValues: IndexedSeq[AnyValue]): AnyValue = {
-    query.callFunction(signature.id.get, argValues, signature.allowed)
-  }
-
-  override def rewrite(f: (Expression) => Expression) =
-    f(FunctionInvocationById(signature, arguments.map(a => a.rewrite(f))))
+  override def rewrite(f: Expression => Expression): Expression =
+    f(BuiltInFunctionInvocation(signature, input.map(a => a.rewrite(f))))
 }
 
-case class FunctionInvocationByName(signature: UserFunctionSignature, arguments: IndexedSeq[Expression])
-  extends FunctionInvocation(signature, arguments) {
+case class UserFunctionInvocation(signature: UserFunctionSignature, input: Array[Expression]) extends FunctionInvocation(signature, input) {
+  override protected def call(query: QueryContext, argValues: Array[AnyValue]): AnyValue = query.callFunction(signature.id, argValues)
 
-  protected def call(query: QueryContext,
-                     argValues: IndexedSeq[AnyValue]): AnyValue = {
-    query.callFunction(signature.name, argValues, signature.allowed)
-  }
-
-  override def rewrite(f: (Expression) => Expression) =
-    f(FunctionInvocationByName(signature, arguments.map(a => a.rewrite(f))))
+  override def rewrite(f: Expression => Expression): Expression =
+    f(UserFunctionInvocation(signature, input.map(a => a.rewrite(f))))
 }
+

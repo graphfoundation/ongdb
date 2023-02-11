@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -49,23 +49,10 @@ import org.neo4j.server.rest.repr.MappingWriter;
 public class MapWrappingWriter extends MappingWriter
 {
     final Map<String, Object> data;
-    final boolean interactive;
 
     public MapWrappingWriter( Map<String, Object> data )
     {
-        this( data, false );
-    }
-
-    public MapWrappingWriter( Map<String, Object> data, boolean interactive )
-    {
         this.data = data;
-        this.interactive = interactive;
-    }
-
-    @Override
-    protected final boolean isInteractive()
-    {
-        return interactive;
     }
 
     @Override
@@ -73,7 +60,7 @@ public class MapWrappingWriter extends MappingWriter
     {
         List<Object> list = new ArrayList<>();
         data.put( key, list );
-        return new ListWrappingWriter( list, interactive );
+        return new ListWrappingWriter( list );
     }
 
     @Override
@@ -81,7 +68,7 @@ public class MapWrappingWriter extends MappingWriter
     {
         Map<String, Object> map = new HashMap<>();
         data.put( key, map );
-        return new MapWrappingWriter( map, interactive );
+        return new MapWrappingWriter( map );
     }
 
     @Override
@@ -91,7 +78,7 @@ public class MapWrappingWriter extends MappingWriter
     }
 
     @Override
-    protected void done()
+    public void done()
     {
     }
 }

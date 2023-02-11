@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,26 +38,26 @@
  */
 package org.neo4j.values.virtual;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.neo4j.helpers.collection.Pair;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.storable.ArrayValue;
 import org.neo4j.values.storable.TextArray;
 import org.neo4j.values.storable.TextValue;
+import org.neo4j.values.storable.ValueRepresentation;
 import org.neo4j.values.virtual.PathValue.DirectPathValue;
+
+import static org.neo4j.memory.HeapEstimator.sizeOf;
 
 /**
  * Entry point to the virtual values library.
  */
-@SuppressWarnings( "WeakerAccess" )
 public final class VirtualValues
 {
-    public static final MapValue EMPTY_MAP = new MapValue( Collections.emptyMap() );
-    public static final ListValue EMPTY_LIST = new ListValue.ArrayListValue( new AnyValue[0] );
+    public static final MapValue EMPTY_MAP = MapValue.EMPTY;
+    public static final ListValue EMPTY_LIST = new ListValue.ArrayListValue( new AnyValue[0], 0, ValueRepresentation.UNKNOWN );
 
     private VirtualValues()
     {
@@ -67,12 +67,29 @@ public final class VirtualValues
 
     public static ListValue list( AnyValue... values )
     {
-        return new ListValue.ArrayListValue( values );
+        long payloadSize = 0;
+        ValueRepresentation representation = null;
+        for ( AnyValue value : values )
+        {
+            payloadSize += value.estimatedHeapUsage();
+            if ( value.valueRepresentation() != representation )
+            {
+                representation = representation == null ? value.valueRepresentation() : representation.coerce( value.valueRepresentation() );
+            }
+        }
+        return new ListValue.ArrayListValue( values, payloadSize, representation == null ? ValueRepresentation.UNKNOWN : representation );
     }
 
     public static ListValue fromList( List<AnyValue> values )
     {
-        return new ListValue.JavaListListValue( values );
+        long payloadSize = 0;
+        ValueRepresentation representation = null;
+        for ( AnyValue value : values )
+        {
+            payloadSize += value.estimatedHeapUsage();
+            representation = representation == null ? value.valueRepresentation() : representation.coerce( value.valueRepresentation() );
+        }
+        return new ListValue.JavaListListValue( values, payloadSize, representation == null ? ValueRepresentation.UNKNOWN : representation );
     }
 
     public static ListValue range( long start, long end, long step )
@@ -83,37 +100,6 @@ public final class VirtualValues
     public static ListValue fromArray( ArrayValue arrayValue )
     {
         return new ListValue.ArrayValueListValue( arrayValue );
-    }
-
-    public static ListValue dropNoValues( ListValue list )
-    {
-        return new ListValue.DropNoValuesListValue( list );
-    }
-
-    public static ListValue slice( ListValue list, int from, int to )
-    {
-        int f = Math.max( from, 0 );
-        int t = Math.min( to, list.size() );
-        if ( f > t )
-        {
-            return EMPTY_LIST;
-        }
-        else
-        {
-            return new ListValue.ListSlice( list, f, t );
-        }
-    }
-
-    public static ListValue drop( ListValue list, int n )
-    {
-        int start = Math.max( 0, Math.min( n, list.size() ) );
-        return new ListValue.ListSlice( list, start, list.size() );
-    }
-
-    public static ListValue take( ListValue list, int n )
-    {
-        int end = Math.max( 0, Math.min( n, list.size() ) );
-        return new ListValue.ListSlice( list, 0, end );
     }
 
     /*
@@ -128,79 +114,34 @@ public final class VirtualValues
 
     */
 
-    public static ListValue reverse( ListValue list )
-    {
-        return new ListValue.ReversedList( list );
-    }
-
     public static ListValue concat( ListValue... lists )
     {
         return new ListValue.ConcatList( lists );
     }
 
-    public static ListValue appendToList( ListValue list, AnyValue value )
-    {
-        AnyValue[] newValues = new AnyValue[list.size() + 1];
-        System.arraycopy( list.asArray(), 0, newValues, 0, list.size() );
-        newValues[list.size()] = value;
-        return VirtualValues.list( newValues );
-    }
-
-    public static ListValue prependToList( ListValue list, AnyValue value )
-    {
-        AnyValue[] newValues = new AnyValue[list.size() + 1];
-        newValues[0] = value;
-        System.arraycopy( list.asArray(), 0, newValues, 1, list.size() );
-        return VirtualValues.list( newValues );
-    }
-
-    public static MapValue emptyMap()
-    {
-        return EMPTY_MAP;
-    }
-
     public static MapValue map( String[] keys, AnyValue[] values )
     {
         assert keys.length == values.length;
-        HashMap<String,AnyValue> map = new HashMap<>( keys.length );
+        long payloadSize = 0;
+        Map<String,AnyValue> map = new HashMap<>( (int) ((float) keys.length / 0.75f + 1.0f) );
         for ( int i = 0; i < keys.length; i++ )
         {
-            map.put( keys[i], values[i] );
+            String key = keys[i];
+            AnyValue value = values[i];
+            map.put( key, value );
+            payloadSize += sizeOf( key ) + value.estimatedHeapUsage();
         }
-        return new MapValue( map );
+        return new MapValue.MapWrappingMapValue( map, payloadSize );
     }
 
-    public static MapValue combine( MapValue a, MapValue b )
+    public static MapValue fromMap( Map<String,AnyValue> map, long mapSize, long payloadSize )
     {
-        HashMap<String,AnyValue> map = new HashMap<>( a.size() + b.size() );
-        a.foreach( map::put );
-        b.foreach( map::put );
-        return VirtualValues.map( map );
-    }
-
-    public static MapValue map( Map<String,AnyValue> map )
-    {
-        return new MapValue( map );
+        return new MapValue.MapWrappingMapValue( map, mapSize, payloadSize );
     }
 
     public static ErrorValue error( Exception e )
     {
         return new ErrorValue( e );
-    }
-
-    @SafeVarargs
-    public static MapValue copy( MapValue map, Pair<String,AnyValue>... moreEntries )
-    {
-        HashMap<String,AnyValue> hashMap = new HashMap<>( map.size() );
-        for ( Map.Entry<String,AnyValue> entry : map.entrySet() )
-        {
-            hashMap.put( entry.getKey(), entry.getValue() );
-        }
-        for ( Pair<String,AnyValue> entry : moreEntries )
-        {
-            hashMap.put( entry.first(), entry.other() );
-        }
-        return new MapValue( hashMap );
     }
 
     public static NodeReference node( long id )
@@ -213,16 +154,80 @@ public final class VirtualValues
         return new RelationshipReference( id );
     }
 
+    public static RelationshipReference relationship( long id, long startNode, long endNode )
+    {
+        return new RelationshipReference( id, startNode, endNode );
+    }
+
+    public static RelationshipReference relationship( long id, long startNode, long endNode, int type )
+    {
+        return new RelationshipReference( id, startNode, endNode, type );
+    }
+
+    public static PathReference pathReference( long[] nodes, long[] relationships )
+    {
+        assert nodes != null;
+        assert relationships != null;
+        if ( (nodes.length + relationships.length) % 2 == 0 )
+        {
+            throw new IllegalArgumentException( "Tried to construct a path that is not built like a path: even number of elements" );
+        }
+        assert nodes.length == relationships.length + 1;
+
+        return new PathReference( nodes, relationships );
+    }
+
+    public static PathReference pathReference( VirtualNodeValue[] nodes, VirtualRelationshipValue[] relationships )
+    {
+        assert nodes != null;
+        assert relationships != null;
+        assert nodes.length == relationships.length + 1;
+        if ( (nodes.length + relationships.length) % 2 == 0 )
+        {
+            throw new IllegalArgumentException( "Tried to construct a path that is not built like a path: even number of elements" );
+        }
+        long[] nodeIds = new long[nodes.length];
+        long[] relIds = new long[relationships.length];
+        for ( int i = 0; i < nodeIds.length; i++ )
+        {
+            nodeIds[i] = nodes[i].id();
+        }
+        for ( int i = 0; i < relationships.length; i++ )
+        {
+            relIds[i] = relationships[i].id();
+        }
+        return new PathReference( nodeIds, relIds );
+    }
+
     public static PathValue path( NodeValue[] nodes, RelationshipValue[] relationships )
     {
         assert nodes != null;
         assert relationships != null;
         if ( (nodes.length + relationships.length) % 2 == 0 )
         {
-            throw new IllegalArgumentException(
-                    "Tried to construct a path that is not built like a path: even number of elements" );
+            throw new IllegalArgumentException( "Tried to construct a path that is not built like a path: even number of elements" );
         }
-        return new DirectPathValue( nodes, relationships );
+        long payloadSize = 0;
+        assert nodes.length == relationships.length + 1;
+        int i = 0;
+        for ( ;  i < relationships.length; i++ )
+        {
+            payloadSize += nodes[i].estimatedHeapUsage() + relationships[i].estimatedHeapUsage();
+        }
+        payloadSize += nodes[i].estimatedHeapUsage();
+
+        return new DirectPathValue( nodes, relationships, payloadSize );
+    }
+
+    public static PathValue path( NodeValue[] nodes, RelationshipValue[] relationships, long payloadSize )
+    {
+        assert nodes != null;
+        assert relationships != null;
+        if ( (nodes.length + relationships.length) % 2 == 0 )
+        {
+            throw new IllegalArgumentException( "Tried to construct a path that is not built like a path: even number of elements" );
+        }
+        return new DirectPathValue( nodes, relationships, payloadSize );
     }
 
     public static NodeValue nodeValue( long id, TextArray labels, MapValue properties )
@@ -230,9 +235,20 @@ public final class VirtualValues
         return new NodeValue.DirectNodeValue( id, labels, properties );
     }
 
-    public static RelationshipValue relationshipValue( long id, NodeValue startNode, NodeValue endNode, TextValue type,
+    public static NodeValue nodeValue( long id, TextArray labels, MapValue properties, boolean isDeleted )
+    {
+        return new NodeValue.DirectNodeValue( id, labels, properties, isDeleted );
+    }
+
+    public static RelationshipValue relationshipValue( long id, VirtualNodeValue startNode, VirtualNodeValue endNode, TextValue type,
             MapValue properties )
     {
         return new RelationshipValue.DirectRelationshipValue( id, startNode, endNode, type, properties );
+    }
+
+    public static RelationshipValue relationshipValue( long id, VirtualNodeValue startNode, VirtualNodeValue endNode, TextValue type,
+                                                       MapValue properties, boolean isDeleted )
+    {
+        return new RelationshipValue.DirectRelationshipValue( id, startNode, endNode, type, properties, isDeleted );
     }
 }

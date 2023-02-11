@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,7 +42,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import org.neo4j.kernel.impl.locking.ActiveLock;
+import org.neo4j.lock.ActiveLock;
 
 /**
  * Internal representation of the status of an executing query.
@@ -53,7 +53,9 @@ import org.neo4j.kernel.impl.locking.ActiveLock;
  */
 abstract class ExecutingQueryStatus
 {
+    static final String PARSING_STATE = "parsing";
     static final String PLANNING_STATE = "planning";
+    static final String PLANNED_STATE = "planned";
     static final String RUNNING_STATE = "running";
     static final String WAITING_STATE = "waiting";
     /**
@@ -70,7 +72,7 @@ abstract class ExecutingQueryStatus
 
     abstract String name();
 
-    boolean isPlanning()
+    boolean isParsingOrPlanning()
     {
         return false;
     }

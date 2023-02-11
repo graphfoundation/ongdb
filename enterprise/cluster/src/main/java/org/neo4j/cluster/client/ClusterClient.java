@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB Enterprise Edition. The included source
@@ -60,7 +60,7 @@ import org.neo4j.cluster.timeout.Timeouts;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 
 /**
- * These are used as clients for a ONgDB cluster. From here you can perform cluster management operations, like joining
+ * These are used as clients for an ONgDB cluster. From here you can perform cluster management operations, like joining
  * and leaving clusters, as well as adding listeners for cluster events such as elections and heartbeart failures.
  * <p/>
  * Instances of this class mainly acts as a facade for the internal distributed state machines, represented by the

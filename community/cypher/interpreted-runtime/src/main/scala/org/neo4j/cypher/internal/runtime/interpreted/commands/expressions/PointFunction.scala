@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,51 +38,22 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import java.util.function.BiConsumer
-
-import org.neo4j.cypher.internal.util.v3_4.CypherTypeException
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.IsMap
+import org.neo4j.cypher.internal.runtime.ReadableRow
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.operations.CypherFunctions
 import org.neo4j.values.AnyValue
-import org.neo4j.values.storable.{PointValue, Values}
-import org.neo4j.values.virtual.{MapValue, VirtualNodeValue, VirtualRelationshipValue, VirtualValues}
-
-import scala.collection.JavaConverters._
 
 case class PointFunction(data: Expression) extends NullInNullOutExpression(data) {
-  override def compute(value: AnyValue, ctx: ExecutionContext, state: QueryState): AnyValue = value match {
-    case IsMap(mapCreator) =>
-      val map = mapCreator(state.query)
-      if (containsNull(map)) {
-        Values.NO_VALUE
-      } else {
-        //TODO: We might consider removing this code if the PointBuilder.allowOpenMaps=true remains default
-        if (value.isInstanceOf[VirtualNodeValue] || value.isInstanceOf[VirtualRelationshipValue]) {
-          // We need to filter out any non-spatial properties from the map, otherwise PointValue.fromMap will throw
-          val allowedKeys = PointValue.ALLOWED_KEYS
-          val filteredMap = VirtualValues.map(map.getMapCopy.asScala.filterKeys( k => allowedKeys.exists( _.equalsIgnoreCase(k) )).asJava)
-          PointValue.fromMap(filteredMap)
-        }
-        else {
-          PointValue.fromMap(map)
-        }
-      }
-    case x => throw new CypherTypeException(s"Expected a map but got $x")
-  }
 
-  private def containsNull(map: MapValue) = {
-    var hasNull = false
-    map.foreach(new BiConsumer[String, AnyValue] {
-      override def accept(t: String, u: AnyValue): Unit = if (u == Values.NO_VALUE) hasNull = true
-    })
-    hasNull
-  }
-  override def rewrite(f: (Expression) => Expression) = f(PointFunction(data.rewrite(f)))
+  override def compute(value: AnyValue, ctx: ReadableRow, state: QueryState): AnyValue =
+    CypherFunctions.point(value, state.query, state.cursors)
 
-  override def arguments = data.arguments
+  override def rewrite(f: Expression => Expression): Expression = f(PointFunction(data.rewrite(f)))
 
-  override def symbolTableDependencies = data.symbolTableDependencies
+  override def arguments: Seq[Expression] = data.arguments
 
-  override def toString = "Point(" + data + ")"
+  override def children: Seq[AstNode[_]] = Seq(data)
+
+  override def toString: String = "Point(" + data + ")"
 }

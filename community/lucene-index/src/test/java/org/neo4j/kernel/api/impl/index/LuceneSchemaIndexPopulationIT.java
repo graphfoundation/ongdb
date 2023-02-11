@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,83 +38,76 @@
  */
 package org.neo4j.kernel.api.impl.index;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
+import java.nio.file.Path;
 
-import org.neo4j.collection.primitive.PrimitiveLongCollections;
-import org.neo4j.internal.kernel.api.IndexQuery;
-import org.neo4j.io.pagecache.IOLimiter;
+import org.neo4j.collection.PrimitiveLongCollections;
+import org.neo4j.configuration.Config;
+import org.neo4j.internal.kernel.api.PropertyIndexQuery;
+import org.neo4j.internal.kernel.api.security.AccessMode;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.SchemaDescriptors;
+import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.schema.LuceneIndexAccessor;
 import org.neo4j.kernel.api.impl.schema.LuceneSchemaIndexBuilder;
 import org.neo4j.kernel.api.impl.schema.SchemaIndex;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
+import org.neo4j.kernel.api.index.IndexSample;
+import org.neo4j.kernel.api.index.IndexSampler;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.api.index.IndexUpdateMode;
-import org.neo4j.storageengine.api.schema.IndexReader;
-import org.neo4j.storageengine.api.schema.IndexSample;
-import org.neo4j.storageengine.api.schema.IndexSampler;
-import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
+import org.neo4j.kernel.impl.index.schema.NodeValueIterator;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
+import org.neo4j.test.utils.TestDirectory;
 import org.neo4j.values.storable.Values;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.dbms.database.readonly.DatabaseReadOnlyChecker.writable;
+import static org.neo4j.internal.kernel.api.IndexQueryConstraints.unconstrained;
+import static org.neo4j.internal.kernel.api.QueryContext.NULL_CONTEXT;
+import static org.neo4j.io.pagecache.context.CursorContext.NULL;
+import static org.neo4j.kernel.api.impl.schema.AbstractLuceneIndexProvider.UPDATE_IGNORE_STRATEGY;
+import static org.neo4j.kernel.api.impl.schema.LuceneTestTokenNameLookup.SIMPLE_TOKEN_LOOKUP;
 
-@RunWith( Parameterized.class )
-public class LuceneSchemaIndexPopulationIT
+@TestDirectoryExtension
+class LuceneSchemaIndexPopulationIT
 {
-    @Rule
-    public TestDirectory testDir = TestDirectory.testDirectory();
-    @Rule
-    public final DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
+    private final IndexDescriptor descriptor = IndexPrototype.uniqueForSchema( SchemaDescriptors.forLabel( 0, 0 ) ).withName( "a" ).materialise( 1 );
 
-    private final int affectedNodes;
-    private final SchemaIndexDescriptor descriptor = SchemaIndexDescriptorFactory.uniqueForLabel( 0, 0 );
+    @Inject
+    private TestDirectory testDir;
+    @Inject
+    private DefaultFileSystemAbstraction fileSystem;
 
-    @Before
-    public void before()
+    @BeforeEach
+    void before()
     {
         System.setProperty( "luceneSchemaIndex.maxPartitionSize", "10" );
     }
 
-    @After
-    public void after()
+    @AfterEach
+    void after()
     {
         System.setProperty( "luceneSchemaIndex.maxPartitionSize", "" );
     }
 
-    @Parameterized.Parameters( name = "{0}" )
-    public static List<Integer> affectedNodes()
+    @ParameterizedTest
+    @ValueSource( ints = {7, 11, 14, 20, 35, 58} )
+    void partitionedIndexPopulation( int affectedNodes ) throws Exception
     {
-        return Arrays.asList( 7, 11, 14, 20, 35, 58 );
-    }
-
-    public LuceneSchemaIndexPopulationIT( int affectedNodes )
-    {
-        this.affectedNodes = affectedNodes;
-    }
-
-    @Test
-    public void partitionedIndexPopulation() throws Exception
-    {
-        try ( SchemaIndex uniqueIndex = LuceneSchemaIndexBuilder.create( descriptor, Config.defaults() )
-                .withFileSystem( fileSystemRule.get() )
-                .withIndexRootFolder( new File( testDir.directory( "partitionIndex" + affectedNodes ), "uniqueIndex" + affectedNodes ) )
-                .build() )
+        Path rootFolder = testDir.directory( "partitionIndex" + affectedNodes ).resolve( "uniqueIndex" + affectedNodes );
+        try ( SchemaIndex uniqueIndex = LuceneSchemaIndexBuilder.create( descriptor, writable(), Config.defaults() )
+                .withFileSystem( fileSystem )
+                .withIndexRootFolder( rootFolder ).build() )
         {
             uniqueIndex.open();
 
@@ -122,21 +115,23 @@ public class LuceneSchemaIndexPopulationIT
             assertEquals( 0, uniqueIndex.allDocumentsReader().maxCount() );
             assertFalse( uniqueIndex.exists() );
 
-            try ( LuceneIndexAccessor indexAccessor = new LuceneIndexAccessor( uniqueIndex, descriptor ) )
+            try ( LuceneIndexAccessor indexAccessor = new LuceneIndexAccessor( uniqueIndex, descriptor, SIMPLE_TOKEN_LOOKUP, UPDATE_IGNORE_STRATEGY ) )
             {
                 generateUpdates( indexAccessor, affectedNodes );
-                indexAccessor.force( IOLimiter.unlimited() );
+                indexAccessor.force( NULL );
 
                 // now index is online and should contain updates data
                 assertTrue( uniqueIndex.isOnline() );
 
-                try ( IndexReader indexReader = indexAccessor.newReader();
+                try ( var indexReader = indexAccessor.newValueReader();
+                      NodeValueIterator results = new NodeValueIterator();
                       IndexSampler indexSampler = indexReader.createSampler() )
                 {
-                    long[] nodes = PrimitiveLongCollections.asArray( indexReader.query( IndexQuery.exists( 1 )) );
+                    indexReader.query( results, NULL_CONTEXT, AccessMode.Static.READ, unconstrained(), PropertyIndexQuery.exists( 1 ) );
+                    long[] nodes = PrimitiveLongCollections.asArray( results );
                     assertEquals( affectedNodes, nodes.length );
 
-                    IndexSample sample = indexSampler.sampleIndex();
+                    IndexSample sample = indexSampler.sampleIndex( NULL );
                     assertEquals( affectedNodes, sample.indexSize() );
                     assertEquals( affectedNodes, sample.uniqueValues() );
                     assertEquals( affectedNodes, sample.sampleSize() );
@@ -145,20 +140,19 @@ public class LuceneSchemaIndexPopulationIT
         }
     }
 
-    private void generateUpdates( LuceneIndexAccessor indexAccessor, int nodesToUpdate )
-            throws IOException, IndexEntryConflictException
+    private void generateUpdates( LuceneIndexAccessor indexAccessor, int nodesToUpdate ) throws IndexEntryConflictException
     {
-        try ( IndexUpdater updater = indexAccessor.newUpdater( IndexUpdateMode.ONLINE ) )
+        try ( IndexUpdater updater = indexAccessor.newUpdater( IndexUpdateMode.ONLINE, NULL ) )
         {
             for ( int nodeId = 0; nodeId < nodesToUpdate; nodeId++ )
             {
-                updater.process( add( nodeId, nodeId ) );
+                updater.process( add( nodeId, "node " + nodeId ) );
             }
         }
     }
 
     private IndexEntryUpdate<?> add( long nodeId, Object value )
     {
-        return IndexEntryUpdate.add( nodeId, descriptor.schema(), Values.of( value ) );
+        return IndexEntryUpdate.add( nodeId, descriptor, Values.of( value ) );
     }
 }

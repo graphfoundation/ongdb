@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,15 +38,14 @@
  */
 package org.neo4j.tooling.procedure.visitors.examples;
 
-import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.common.DependencyResolver;
 import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.kernel.api.KernelTransaction;
+import org.neo4j.graphdb.Transaction;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
-import org.neo4j.kernel.api.security.UserManager;
+import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.Log;
 import org.neo4j.procedure.Context;
-import org.neo4j.procedure.ProcedureTransaction;
 import org.neo4j.procedure.TerminationGuard;
 
 public class RestrictedContextTypes
@@ -67,7 +66,7 @@ public class RestrictedContextTypes
     public SecurityContext securityContext;
 
     @Context
-    public ProcedureTransaction procedureTransaction;
+    public Transaction transaction;
 
     // BELOW ARE RESTRICTED TYPES, THESE ARE UNSUPPORTED AND SUBJECT TO CHANGE
 
@@ -79,7 +78,4 @@ public class RestrictedContextTypes
 
     @Context
     public DependencyResolver dependencyResolver;
-
-    @Context
-    public UserManager userManager;
 }

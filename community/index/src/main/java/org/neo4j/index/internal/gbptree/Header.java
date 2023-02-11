@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,7 +41,9 @@ package org.neo4j.index.internal.gbptree;
 import java.nio.ByteBuffer;
 import java.util.function.Consumer;
 
+import org.neo4j.io.pagecache.IOController;
 import org.neo4j.io.pagecache.PageCursor;
+import org.neo4j.io.pagecache.context.CursorContext;
 
 /**
  * Defines interfaces and common implementations of header reader/writer for {@link GBPTree}.
@@ -49,8 +51,16 @@ import org.neo4j.io.pagecache.PageCursor;
 public class Header
 {
     /**
+     * The total overhead of other things written into the page that the additional header is written into.
+     * Therefore the max size of an additional header cannot exceed page size minus this overhead.
+     */
+    public static final int OVERHEAD =
+            TreeState.SIZE +   // size of the tree state
+            Integer.BYTES;     // size of the field storing the length of the additional header data
+
+    /**
      * Writes a header into a {@link GBPTree} state page during
-     * {@link GBPTree#checkpoint(org.neo4j.io.pagecache.IOLimiter)}.
+     * {@link GBPTree#checkpoint(IOController, CursorContext)}.
      */
     public interface Writer
     {

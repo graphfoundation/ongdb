@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,6 +40,7 @@ package org.neo4j.kernel.impl.util.watcher;
 
 import org.neo4j.io.fs.watcher.FileWatcher;
 import org.neo4j.kernel.lifecycle.Lifecycle;
+import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 
 /**
  * Interface to be able to recognise file system watcher service in the set of discoverable services,
@@ -48,35 +49,16 @@ import org.neo4j.kernel.lifecycle.Lifecycle;
  */
 public interface FileSystemWatcherService extends Lifecycle
 {
-    FileSystemWatcherService EMPTY_WATCHER = new FileSystemWatcherService()
+    FileSystemWatcherService EMPTY_WATCHER = new EmptyWatcherService();
+
+    FileWatcher getFileWatcher();
+
+    class EmptyWatcherService extends LifecycleAdapter implements FileSystemWatcherService
     {
         @Override
         public FileWatcher getFileWatcher()
         {
             return FileWatcher.SILENT_WATCHER;
         }
-
-        @Override
-        public void init()
-        {
-        }
-
-        @Override
-        public void start()
-        {
-        }
-
-        @Override
-        public void stop()
-        {
-        }
-
-        @Override
-        public void shutdown()
-        {
-        }
-    };
-
-    FileWatcher getFileWatcher();
-
+    }
 }

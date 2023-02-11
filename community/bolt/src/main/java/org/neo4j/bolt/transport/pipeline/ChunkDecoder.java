@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,8 +40,12 @@ package org.neo4j.bolt.transport.pipeline;
 
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 
+import org.neo4j.memory.HeapEstimator;
+
 public class ChunkDecoder extends LengthFieldBasedFrameDecoder
 {
+    public static final long SHALLOW_SIZE = HeapEstimator.shallowSizeOfInstance( ChunkDecoder.class );
+
     private static final int MAX_CHUNK_LENGTH = 0xFFFF;
     private static final int LENGTH_FIELD_OFFSET = 0;
     private static final int LENGTH_FIELD_SIZE = 2;

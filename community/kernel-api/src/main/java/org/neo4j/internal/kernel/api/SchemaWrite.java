@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,11 +38,17 @@
  */
 package org.neo4j.internal.kernel.api;
 
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.internal.kernel.api.exceptions.schema.SchemaKernelException;
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.RelationTypeSchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
+import org.neo4j.internal.schema.ConstraintDescriptor;
+import org.neo4j.internal.schema.ConstraintType;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.IndexProviderDescriptor;
+import org.neo4j.internal.schema.IndexType;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.RelationTypeSchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
 
 /**
  * Surface for creating and dropping indexes and constraints.
@@ -50,88 +56,113 @@ import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
 public interface SchemaWrite
 {
     /**
-     * Create index from schema descriptor. Default configured index provider will be used.
+     * Translate an index provider name, into an {@link IndexProviderDescriptor}.
      *
-     * @param descriptor description of the index
+     * This method is only used when creating indexes using custom or specific index providers.
+     * Normally, {@link IndexType} would be used instead, but this is not always accurate enough.
+     *
+     * @param providerName The name of the index provider to resolve the descriptor for.
+     * @return The provider descriptor with the given provider name.
+     * @throws RuntimeException if there is no index provider by the given name.
      */
-    default IndexReference indexCreate( SchemaDescriptor descriptor ) throws SchemaKernelException
-    {
-        return indexCreate( descriptor, null );
-    }
+    IndexProviderDescriptor indexProviderByName( String providerName );
 
     /**
-     * Create index from schema descriptor. Optionally a specific provider name can be specified.
+     * Translate an index provider name, into an {@link IndexType}.
      *
-     * @param descriptor description of the index
-     * @param providerName specific index provider this index will be created for. If {@code null} then the default configured will be used.
-     * @return the newly created index
+     * This method is only used when creating constraints using custom or specific index providers.
+     *
+     * @param providerName The name of the index provider to resolve the type for.
+     * @return The index type that the given provider corresponds to.
+     * @throws RuntimeException if there is no index provider by the given name.
      */
-    IndexReference indexCreate( SchemaDescriptor descriptor, String providerName ) throws SchemaKernelException;
+    IndexType indexTypeByProviderName( String providerName );
+
+    /**
+     * Create index using the given {@link IndexPrototype}.
+     *
+     * @param prototype the prototype specifying the relevant schema and configuration of the index to create.
+     * @return the {@link IndexDescriptor} for the created index.
+     * @throws KernelException if the index cannot be created for some reason.
+     */
+    IndexDescriptor indexCreate( IndexPrototype prototype ) throws KernelException;
 
     /**
      * Drop the given index
      *
      * @param index the index to drop
      */
-    void indexDrop( IndexReference index ) throws SchemaKernelException;
+    void indexDrop( IndexDescriptor index ) throws SchemaKernelException;
 
     /**
-     * Create unique property constraint. Default configured index provider will be used.
+     * Drop an index that matches the given schema.
      *
-     * @param descriptor description of the constraint
+     * @param schema the schema matching the index to drop
+     * @deprecated this method only exists to support deprecated cypher syntax. to be removed in 5.0.
      */
-    default ConstraintDescriptor uniquePropertyConstraintCreate( SchemaDescriptor descriptor ) throws SchemaKernelException
-    {
-        return uniquePropertyConstraintCreate( descriptor, null );
-    }
+    @Deprecated
+    void indexDrop( SchemaDescriptor schema ) throws SchemaKernelException;
 
     /**
-     * Create unique property constraint. Optionally a specific provider name can be specified.
-     *
-     * @param descriptor description of the constraint
-     * @param providerName specific index provider this index will be created for. If {@code null} then the default configured will be used.
-     * @return the newly created index
+     * Drop the index by the given name.
+     * @param indexName the name of the index to drop.
      */
-    ConstraintDescriptor uniquePropertyConstraintCreate( SchemaDescriptor descriptor, String providerName ) throws SchemaKernelException;
+    void indexDrop( String indexName ) throws SchemaKernelException;
 
     /**
-     * Create node key constraint. Default configured index provider will be used.
+     * Create a unique property constraint based on the given uniqueness index prototype.
+     * The given index prototype will be used for creating the uniqueness index backing the constraint.
      *
-     * @param descriptor description of the constraint
+     * @param prototype a prototype that describes the constraint index, and includes the schema of the constraint.
+     * @return The {@link ConstraintDescriptor} of the created constraint.
+     * @throws KernelException if the constraint cannot be created for some reason.
      */
-    default ConstraintDescriptor nodeKeyConstraintCreate( LabelSchemaDescriptor descriptor ) throws SchemaKernelException
-    {
-        return nodeKeyConstraintCreate( descriptor, null );
-    }
+    ConstraintDescriptor uniquePropertyConstraintCreate( IndexPrototype prototype ) throws KernelException;
 
     /**
-     * Create node key constraint. Optionally a specific provider name can be specified.
+     * Create node key constraint based on the given uniqueness index prototype.
+     * The given index prototype will be used for creating the uniqueness index backing the constraint.
      *
-     * @param descriptor description of the constraint
-     * @param providerName specific index provider this index will be created for. If {@code null} then the default configured will be used.
-     * @return the newly created index
+     * @param prototype the index prototype for which to create a node key constraint.
+     * @return the created constraint.
+     * @throws KernelException if the constraint cannot be created for some reason.
      */
-    ConstraintDescriptor nodeKeyConstraintCreate( LabelSchemaDescriptor descriptor, String providerName ) throws SchemaKernelException;
+    ConstraintDescriptor nodeKeyConstraintCreate( IndexPrototype prototype ) throws KernelException;
 
     /**
      * Create node property existence constraint
      *
-     * @param descriptor description of the constraint
+     * @param schema description of the constraint
      */
-    ConstraintDescriptor nodePropertyExistenceConstraintCreate( LabelSchemaDescriptor descriptor ) throws SchemaKernelException;
+    ConstraintDescriptor nodePropertyExistenceConstraintCreate( LabelSchemaDescriptor schema, String name ) throws KernelException;
 
     /**
      * Create relationship property existence constraint
      *
-     * @param descriptor description of the constraint
+     * @param schema description of the constraint
      */
-    ConstraintDescriptor relationshipPropertyExistenceConstraintCreate( RelationTypeSchemaDescriptor descriptor )
-            throws SchemaKernelException;
+    ConstraintDescriptor relationshipPropertyExistenceConstraintCreate( RelationTypeSchemaDescriptor schema, String name ) throws KernelException;
 
     /**
-     * Drop constraint
+     * Drop a constraint with the given schema.
      *
-     * @param descriptor description of the constraint
+     * @param schema The schema of the constraint to be dropped.
+     * @deprecated this method only exists to support deprecated cypher syntax. to be removed in 5.0.
      */
-    void constraintDrop( ConstraintDescriptor descriptor ) throws SchemaKernelException;
+    @Deprecated
+    void constraintDrop( SchemaDescriptor schema, ConstraintType type ) throws SchemaKernelException;
+
+    /**
+     * Drop the constraint with the given name.
+     *
+     * @param name The name of the constraint to be dropped.
+     */
+    void constraintDrop( String name ) throws SchemaKernelException;
+
+    /**
+     * Drop the specific constraint.
+     *
+     * @param constraint description of the constraint
+     */
+    void constraintDrop( ConstraintDescriptor constraint ) throws SchemaKernelException;
 }

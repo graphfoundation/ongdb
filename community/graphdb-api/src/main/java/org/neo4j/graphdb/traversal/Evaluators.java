@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,13 +41,13 @@ package org.neo4j.graphdb.traversal;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 
 import static java.util.Arrays.asList;
-
 import static org.neo4j.graphdb.traversal.Evaluation.INCLUDE_AND_CONTINUE;
 
 /**
@@ -56,6 +56,7 @@ import static org.neo4j.graphdb.traversal.Evaluation.INCLUDE_AND_CONTINUE;
  * @see Evaluator
  * @see TraversalDescription
  */
+@PublicApi
 public abstract class Evaluators
 {
     @SuppressWarnings( "rawtypes" )
@@ -101,7 +102,7 @@ public abstract class Evaluators
      */
     public static <STATE> PathEvaluator<STATE> toDepth( final int depth )
     {
-        return new PathEvaluator.Adapter<STATE>()
+        return new PathEvaluator.Adapter<>()
         {
             @Override
             public Evaluation evaluate( Path path, BranchState state )
@@ -123,7 +124,7 @@ public abstract class Evaluators
      */
     public static <STATE> PathEvaluator<STATE> fromDepth( final int depth )
     {
-        return new PathEvaluator.Adapter<STATE>()
+        return new PathEvaluator.Adapter<>()
         {
             @Override
             public Evaluation evaluate( Path path, BranchState state )
@@ -144,7 +145,7 @@ public abstract class Evaluators
      */
     public static <STATE> PathEvaluator<STATE> atDepth( final int depth )
     {
-        return new PathEvaluator.Adapter<STATE>()
+        return new PathEvaluator.Adapter<>()
         {
             @Override
             public Evaluation evaluate( Path path, BranchState state )
@@ -168,7 +169,7 @@ public abstract class Evaluators
      */
     public static <STATE> PathEvaluator<STATE> includingDepths( final int minDepth, final int maxDepth )
     {
-        return new PathEvaluator.Adapter<STATE>()
+        return new PathEvaluator.Adapter<>()
         {
             @Override
             public Evaluation evaluate( Path path, BranchState state )
@@ -203,7 +204,7 @@ public abstract class Evaluators
     {
         if ( orAnyOfTheseTypes.length == 0 )
         {
-            return new PathEvaluator.Adapter<STATE>()
+            return new PathEvaluator.Adapter<>()
             {
                 @Override
                 public Evaluation evaluate( Path path, BranchState state )
@@ -221,7 +222,7 @@ public abstract class Evaluators
             expectedTypes.add( otherType.name() );
         }
 
-        return new PathEvaluator.Adapter<STATE>()
+        return new PathEvaluator.Adapter<>()
         {
             @Override
             public Evaluation evaluate( Path path, BranchState state )
@@ -233,7 +234,7 @@ public abstract class Evaluators
                 }
 
                 return expectedTypes.contains( lastRelationship.getType().name() ) ?
-                        evaluationIfMatch : evaluationIfNoMatch;
+                       evaluationIfMatch : evaluationIfNoMatch;
             }
         };
     }
@@ -297,7 +298,7 @@ public abstract class Evaluators
         if ( possibleEndNodes.length == 1 )
         {
             final Node target = possibleEndNodes[0];
-            return new PathEvaluator.Adapter<STATE>()
+            return new PathEvaluator.Adapter<>()
             {
                 @Override
                 public Evaluation evaluate( Path path, BranchState state )
@@ -308,7 +309,7 @@ public abstract class Evaluators
         }
 
         final Set<Node> endNodes = new HashSet<>( asList( possibleEndNodes ) );
-        return new PathEvaluator.Adapter<STATE>()
+        return new PathEvaluator.Adapter<>()
         {
             @Override
             public Evaluation evaluate( Path path, BranchState state )
@@ -354,7 +355,7 @@ public abstract class Evaluators
     {
         if ( nodes.length == 1 )
         {
-            return new PathEvaluator.Adapter<STATE>()
+            return new PathEvaluator.Adapter<>()
             {
                 @Override
                 public Evaluation evaluate( Path path, BranchState state )
@@ -372,7 +373,7 @@ public abstract class Evaluators
         }
 
         final Set<Node> fullSet = new HashSet<>( asList( nodes ) );
-        return new PathEvaluator.Adapter<STATE>()
+        return new PathEvaluator.Adapter<>()
         {
             @Override
             public Evaluation evaluate( Path path, BranchState state )
@@ -402,7 +403,7 @@ public abstract class Evaluators
      */
     public static <STATE> PathEvaluator<STATE> includeIfAcceptedByAny( final PathEvaluator... evaluators )
     {
-        return new PathEvaluator.Adapter<STATE>()
+        return new PathEvaluator.Adapter<>()
         {
             @SuppressWarnings( "unchecked" )
             @Override
@@ -432,7 +433,7 @@ public abstract class Evaluators
      */
     public static <STATE> PathEvaluator<STATE> includeIfAcceptedByAny( final Evaluator... evaluators )
     {
-        return new PathEvaluator.Adapter<STATE>()
+        return new PathEvaluator.Adapter<>()
         {
             @Override
             public Evaluation evaluate( Path path, BranchState state )
@@ -463,7 +464,7 @@ public abstract class Evaluators
         if ( possibleEndNodes.length == 1 )
         {
             final Node target = possibleEndNodes[0];
-            return new PathEvaluator.Adapter<STATE>()
+            return new PathEvaluator.Adapter<>()
             {
                 @Override
                 public Evaluation evaluate( Path path, BranchState state )
@@ -478,7 +479,7 @@ public abstract class Evaluators
         }
 
         final Set<Node> endNodes = new HashSet<>( asList( possibleEndNodes ) );
-        return new PathEvaluator.Adapter<STATE>()
+        return new PathEvaluator.Adapter<>()
         {
             @Override
             public Evaluation evaluate( Path path, BranchState state )

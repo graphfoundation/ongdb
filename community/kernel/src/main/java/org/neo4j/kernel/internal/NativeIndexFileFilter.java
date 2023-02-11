@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,32 +38,30 @@
  */
 package org.neo4j.kernel.internal;
 
-import java.io.File;
-import java.io.FileFilter;
 import java.nio.file.Path;
+import java.util.function.Predicate;
 
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
 
 /**
- * A {@link FileFilter} which only {@link #accept(File) accepts} native index files.
+ * A filter which only matches native index files.
  * This class contains logic that is really index provider specific, but to ask index providers becomes tricky since
  * they aren't always available and this filter is also expected to be used in offline scenarios.
  *
  * The basic idea is to include everything except known lucene files (or directories known to include lucene files).
  */
-public class NativeIndexFileFilter implements FileFilter
+public class NativeIndexFileFilter implements Predicate<Path>
 {
     private final Path indexRoot;
 
-    public NativeIndexFileFilter( File storeDir )
+    public NativeIndexFileFilter( Path storeDir )
     {
-        indexRoot = IndexDirectoryStructure.baseSchemaIndexFolder( storeDir ).toPath().toAbsolutePath();
+        indexRoot = IndexDirectoryStructure.baseSchemaIndexFolder( storeDir ).toAbsolutePath();
     }
 
     @Override
-    public boolean accept( File file )
+    public boolean test( Path path )
     {
-        Path path = file.toPath();
         if ( !path.toAbsolutePath().startsWith( indexRoot ) )
         {
             // This file isn't even under the schema/index root directory
@@ -73,11 +71,16 @@ public class NativeIndexFileFilter implements FileFilter
         Path schemaPath = indexRoot.relativize( path );
         int nameCount = schemaPath.getNameCount();
 
-        // - schema/index/lucene/.....
-        boolean isPureLuceneProviderFile = nameCount >= 1 && schemaPath.getName( 0 ).toString().equals( "lucene" );
+        // - schema/index/lucene
+        // - schema/index/lucene_native-1.0
+        // - schema/index/lucene_native-2.0
+        boolean isDeprecatedProviderFile = nameCount >= 1 && (
+                schemaPath.getName( 0 ).toString().equals( "lucene" ) ||
+                        schemaPath.getName( 0 ).toString().equals( "lucene_native-1.0" ) ||
+                        schemaPath.getName( 0 ).toString().equals( "lucene_native-2.0" ));
         // - schema/index/lucene_native-x.y/<indexId>/lucene-x.y/x/.....
         boolean isFusionLuceneProviderFile = nameCount >= 3 && schemaPath.getName( 2 ).toString().startsWith( "lucene-" );
 
-        return !isPureLuceneProviderFile && !isFusionLuceneProviderFile;
+        return !isDeprecatedProviderFile && !isFusionLuceneProviderFile;
     }
 }

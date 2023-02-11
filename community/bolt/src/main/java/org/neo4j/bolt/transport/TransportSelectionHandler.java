@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -52,41 +52,57 @@ import io.netty.handler.ssl.SslHandler;
 import java.util.List;
 
 import org.neo4j.bolt.BoltChannel;
-import org.neo4j.bolt.logging.BoltMessageLogging;
+import org.neo4j.bolt.transport.pipeline.ChannelProtector;
 import org.neo4j.bolt.transport.pipeline.ProtocolHandshaker;
 import org.neo4j.bolt.transport.pipeline.WebSocketFrameTranslator;
-import org.neo4j.helpers.Exceptions;
+import org.neo4j.internal.helpers.Exceptions;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.memory.HeapEstimator;
+import org.neo4j.memory.MemoryTracker;
 
 import static org.neo4j.bolt.transport.pipeline.ProtocolHandshaker.BOLT_MAGIC_PREAMBLE;
+import static org.neo4j.memory.HeapEstimator.shallowSizeOfInstance;
 
 public class TransportSelectionHandler extends ByteToMessageDecoder
 {
+    public static final long SHALLOW_SIZE = HeapEstimator.shallowSizeOfInstance( TransportSelectionHandler.class );
+
+    public static final long SSL_HANDLER_SHALLOW_SIZE = shallowSizeOfInstance( SslHandler.class );
+    public static final long HTTP_SERVER_CODEC_SHALLOW_SIZE = shallowSizeOfInstance( HttpServerCodec.class );
+    public static final long HTTP_OBJECT_AGGREGATOR_SHALLOW_SIZE = shallowSizeOfInstance( HttpObjectAggregator.class );
+    public static final long WEB_SOCKET_SERVER_PROTOCOL_HANDLER_SHALLOW_SIZE = shallowSizeOfInstance( WebSocketServerProtocolHandler.class );
+    public static final long WEB_SOCKET_FRAME_AGGREGATOR_SHALLOW_SIZE = shallowSizeOfInstance( WebSocketFrameAggregator.class );
+
     private static final String WEBSOCKET_MAGIC = "GET ";
     private static final int MAX_WEBSOCKET_HANDSHAKE_SIZE = 65536;
     private static final int MAX_WEBSOCKET_FRAME_SIZE = 65536;
 
-    private final String connector;
+    private final BoltChannel boltChannel;
     private final SslContext sslCtx;
     private final boolean encryptionRequired;
     private final boolean isEncrypted;
     private final LogProvider logging;
-    private final BoltMessageLogging boltLogging;
-    private final BoltProtocolPipelineInstallerFactory handlerFactory;
+    private final BoltProtocolFactory boltProtocolFactory;
     private final Log log;
+    private final ChannelProtector channelProtector;
+    private final MemoryTracker memoryTracker;
+    private final DiscoveryResponseHandler discoveryResponseHandler;
 
-    TransportSelectionHandler( String connector, SslContext sslCtx, boolean encryptionRequired, boolean isEncrypted, LogProvider logging,
-            BoltProtocolPipelineInstallerFactory handlerFactory, BoltMessageLogging boltLogging )
+    TransportSelectionHandler( BoltChannel boltChannel, SslContext sslCtx, boolean encryptionRequired, boolean isEncrypted, LogProvider logging,
+                               BoltProtocolFactory boltProtocolFactory, ChannelProtector channelProtector, MemoryTracker memoryTracker,
+                               DiscoveryResponseHandler discoveryResponseHandler )
     {
-        this.connector = connector;
+        this.boltChannel = boltChannel;
         this.sslCtx = sslCtx;
         this.encryptionRequired = encryptionRequired;
         this.isEncrypted = isEncrypted;
         this.logging = logging;
-        this.boltLogging = boltLogging;
-        this.handlerFactory = handlerFactory;
+        this.boltProtocolFactory = boltProtocolFactory;
         this.log = logging.getLog( TransportSelectionHandler.class );
+        this.channelProtector = channelProtector;
+        this.memoryTracker = memoryTracker;
+        this.discoveryResponseHandler = discoveryResponseHandler;
     }
 
     @Override
@@ -100,6 +116,7 @@ public class TransportSelectionHandler extends ByteToMessageDecoder
 
         if ( detectSsl( in ) )
         {
+            assertSslNotAlreadyConfigured( ctx );
             enableSsl( ctx );
         }
         else if ( isHttp( in ) )
@@ -116,6 +133,23 @@ public class TransportSelectionHandler extends ByteToMessageDecoder
             in.clear();
             ctx.close();
         }
+    }
+
+    private void assertSslNotAlreadyConfigured( ChannelHandlerContext ctx )
+    {
+        ChannelPipeline p = ctx.pipeline();
+        if ( p.get( SslHandler.class ) != null )
+        {
+            log.error( "Fatal error: multiple levels of SSL encryption detected." +
+                       " Terminating connection: %s", ctx.channel() );
+            ctx.close();
+        }
+    }
+
+    @Override
+    protected void handlerRemoved0( ChannelHandlerContext ctx )
+    {
+        memoryTracker.releaseHeap( SHALLOW_SIZE );
     }
 
     @Override
@@ -142,7 +176,7 @@ public class TransportSelectionHandler extends ByteToMessageDecoder
         }
     }
 
-    private boolean isBoltPreamble( ByteBuf in )
+    private static boolean isBoltPreamble( ByteBuf in )
     {
         return in.getInt( 0 ) == BOLT_MAGIC_PREAMBLE;
     }
@@ -152,7 +186,7 @@ public class TransportSelectionHandler extends ByteToMessageDecoder
         return sslCtx != null && SslHandler.isEncrypted( buf );
     }
 
-    private boolean isHttp( ByteBuf buf )
+    private static boolean isHttp( ByteBuf buf )
     {
         for ( int i = 0; i < WEBSOCKET_MAGIC.length(); ++i )
         {
@@ -166,35 +200,49 @@ public class TransportSelectionHandler extends ByteToMessageDecoder
 
     private void enableSsl( ChannelHandlerContext ctx )
     {
+        // allocate sufficient space for another transport selection handlers as this instance will be freed upon pipeline removal
+        memoryTracker.allocateHeap( SSL_HANDLER_SHALLOW_SIZE + SHALLOW_SIZE );
+
         ChannelPipeline p = ctx.pipeline();
         p.addLast( sslCtx.newHandler( ctx.alloc() ) );
-        p.addLast( new TransportSelectionHandler( connector, null, encryptionRequired, true, logging, handlerFactory, boltLogging ) );
+        p.addLast(
+                new TransportSelectionHandler( boltChannel, null, encryptionRequired, true, logging, boltProtocolFactory,
+                                               channelProtector, memoryTracker, discoveryResponseHandler ) );
         p.remove( this );
     }
 
     private void switchToSocket( ChannelHandlerContext ctx )
     {
+        memoryTracker.allocateHeap( ProtocolHandshaker.SHALLOW_SIZE );
+
         ChannelPipeline p = ctx.pipeline();
-        p.addLast( newHandshaker( ctx ) );
+        p.addLast( newHandshaker() );
         p.remove( this );
     }
 
     private void switchToWebsocket( ChannelHandlerContext ctx )
     {
         ChannelPipeline p = ctx.pipeline();
+
+        memoryTracker.allocateHeap(
+                HTTP_SERVER_CODEC_SHALLOW_SIZE + HTTP_OBJECT_AGGREGATOR_SHALLOW_SIZE +
+                WEB_SOCKET_SERVER_PROTOCOL_HANDLER_SHALLOW_SIZE + WEB_SOCKET_FRAME_AGGREGATOR_SHALLOW_SIZE + WebSocketFrameTranslator.SHALLOW_SIZE +
+                ProtocolHandshaker.SHALLOW_SIZE );
+
         p.addLast(
                 new HttpServerCodec(),
                 new HttpObjectAggregator( MAX_WEBSOCKET_HANDSHAKE_SIZE ),
+                discoveryResponseHandler,
                 new WebSocketServerProtocolHandler( "/", null, false, MAX_WEBSOCKET_FRAME_SIZE ),
                 new WebSocketFrameAggregator( MAX_WEBSOCKET_FRAME_SIZE ),
                 new WebSocketFrameTranslator(),
-                newHandshaker( ctx ) );
+                newHandshaker() );
+
         p.remove( this );
     }
 
-    private ProtocolHandshaker newHandshaker( ChannelHandlerContext ctx )
+    private ProtocolHandshaker newHandshaker()
     {
-        return new ProtocolHandshaker( handlerFactory, BoltChannel.open( connector, ctx.channel(), boltLogging.newLogger( ctx.channel() ) ), logging,
-                encryptionRequired, isEncrypted );
+        return new ProtocolHandshaker( boltProtocolFactory, boltChannel, logging, encryptionRequired, isEncrypted, channelProtector, memoryTracker );
     }
 }

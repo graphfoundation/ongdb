@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,16 +41,16 @@ package org.neo4j.server.rest.repr;
 import java.time.temporal.Temporal;
 import java.time.temporal.TemporalAmount;
 
-import org.neo4j.graphdb.PropertyContainer;
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.spatial.CRS;
 import org.neo4j.graphdb.spatial.Point;
 import org.neo4j.server.helpers.PropertyTypeDispatcher;
 
 public final class PropertiesRepresentation extends MappingRepresentation
 {
-    private final PropertyContainer entity;
+    private final Entity entity;
 
-    public PropertiesRepresentation( PropertyContainer entity )
+    PropertiesRepresentation( Entity entity )
     {
         super( RepresentationType.PROPERTIES );
         this.entity = entity;
@@ -70,7 +70,7 @@ public final class PropertiesRepresentation extends MappingRepresentation
         serialize( serializer.writer );
     }
 
-    void serialize( MappingWriter writer )
+    public void serialize( MappingWriter writer )
     {
         PropertyTypeDispatcher.consumeProperties( new Consumer( writer ), entity );
     }
@@ -222,7 +222,7 @@ public final class PropertiesRepresentation extends MappingRepresentation
 
         @Override
         @SuppressWarnings( "boxing" )
-        protected Void dispatchByteArrayProperty( PropertyArray<byte[], Byte> array, String param )
+        protected Void dispatchByteArrayProperty( PropertyArray<Byte> array, String param )
         {
             ListWriter list = writer.newList( RepresentationType.BYTE, param );
             for ( Byte b : array )
@@ -235,7 +235,7 @@ public final class PropertiesRepresentation extends MappingRepresentation
 
         @Override
         @SuppressWarnings( "boxing" )
-        protected Void dispatchShortArrayProperty( PropertyArray<short[], Short> array, String param )
+        protected Void dispatchShortArrayProperty( PropertyArray<Short> array, String param )
         {
             ListWriter list = writer.newList( RepresentationType.SHORT, param );
             for ( Short s : array )
@@ -248,7 +248,7 @@ public final class PropertiesRepresentation extends MappingRepresentation
 
         @Override
         @SuppressWarnings( "boxing" )
-        protected Void dispatchCharacterArrayProperty( PropertyArray<char[], Character> array, String param )
+        protected Void dispatchCharacterArrayProperty( PropertyArray<Character> array, String param )
         {
             ListWriter list = writer.newList( RepresentationType.CHAR, param );
             for ( Character c : array )
@@ -261,7 +261,7 @@ public final class PropertiesRepresentation extends MappingRepresentation
 
         @Override
         @SuppressWarnings( "boxing" )
-        protected Void dispatchIntegerArrayProperty( PropertyArray<int[], Integer> array, String param )
+        protected Void dispatchIntegerArrayProperty( PropertyArray<Integer> array, String param )
         {
             ListWriter list = writer.newList( RepresentationType.INTEGER, param );
             for ( Integer i : array )
@@ -274,7 +274,7 @@ public final class PropertiesRepresentation extends MappingRepresentation
 
         @Override
         @SuppressWarnings( "boxing" )
-        protected Void dispatchLongArrayProperty( PropertyArray<long[], Long> array, String param )
+        protected Void dispatchLongArrayProperty( PropertyArray<Long> array, String param )
         {
             ListWriter list = writer.newList( RepresentationType.LONG, param );
             for ( Long j : array )
@@ -287,7 +287,7 @@ public final class PropertiesRepresentation extends MappingRepresentation
 
         @Override
         @SuppressWarnings( "boxing" )
-        protected Void dispatchFloatArrayProperty( PropertyArray<float[], Float> array, String param )
+        protected Void dispatchFloatArrayProperty( PropertyArray<Float> array, String param )
         {
             ListWriter list = writer.newList( RepresentationType.FLOAT, param );
             for ( Float f : array )
@@ -300,7 +300,7 @@ public final class PropertiesRepresentation extends MappingRepresentation
 
         @Override
         @SuppressWarnings( "boxing" )
-        protected Void dispatchDoubleArrayProperty( PropertyArray<double[], Double> array, String param )
+        protected Void dispatchDoubleArrayProperty( PropertyArray<Double> array, String param )
         {
             ListWriter list = writer.newList( RepresentationType.DOUBLE, param );
             for ( Double d : array )
@@ -313,7 +313,7 @@ public final class PropertiesRepresentation extends MappingRepresentation
 
         @Override
         @SuppressWarnings( "boxing" )
-        protected Void dispatchBooleanArrayProperty( PropertyArray<boolean[], Boolean> array, String param )
+        protected Void dispatchBooleanArrayProperty( PropertyArray<Boolean> array, String param )
         {
             ListWriter list = writer.newList( RepresentationType.BOOLEAN, param );
             for ( Boolean z : array )
@@ -324,7 +324,7 @@ public final class PropertiesRepresentation extends MappingRepresentation
             return null;
         }
 
-        private void writePoint( MappingWriter pointWriter, Point property )
+        private static void writePoint( MappingWriter pointWriter, Point property )
         {
             pointWriter.writeString( "type", property.getGeometryType() );
             //write coordinates

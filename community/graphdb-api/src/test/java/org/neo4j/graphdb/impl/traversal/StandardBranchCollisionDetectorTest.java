@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,9 +38,7 @@
  */
 package org.neo4j.graphdb.impl.traversal;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -49,28 +47,25 @@ import java.util.Arrays;
 import java.util.Collection;
 
 import org.neo4j.graphdb.Direction;
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.traversal.Evaluation;
 import org.neo4j.graphdb.traversal.Evaluator;
 import org.neo4j.graphdb.traversal.TraversalBranch;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class StandardBranchCollisionDetectorTest
+class StandardBranchCollisionDetectorTest
 {
-    @Rule
-    public ExpectedException expectedException = ExpectedException.none();
-
     @Test
-    public void testFilteredPathEvaluation()
+    void testFilteredPathEvaluation()
     {
-        final PropertyContainer endNode = mock( Node.class );
-        final PropertyContainer alternativeEndNode = mock( Node.class );
+        final Entity endNode = mock( Node.class );
+        final Entity alternativeEndNode = mock( Node.class );
         final Node startNode = mock( Node.class );
         Evaluator evaluator = mock( Evaluator.class );
         TraversalBranch branch = mock( TraversalBranch.class );
@@ -96,9 +91,9 @@ public class StandardBranchCollisionDetectorTest
 
     private static class IteratorAnswer implements Answer<Object>
     {
-        private final PropertyContainer endNode;
+        private final Entity endNode;
 
-        IteratorAnswer( PropertyContainer endNode )
+        IteratorAnswer( Entity endNode )
         {
             this.endNode = endNode;
         }

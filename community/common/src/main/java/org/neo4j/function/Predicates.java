@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,29 +40,31 @@ package org.neo4j.function;
 
 import java.time.Clock;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.BooleanSupplier;
 import java.util.function.IntPredicate;
+import java.util.function.LongPredicate;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import javax.annotation.Nonnull;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.neo4j.function.ThrowingPredicate.throwingPredicate;
 import static org.neo4j.function.ThrowingSupplier.throwingSupplier;
 
 /**
  * Constructors for basic {@link Predicate} types
  */
-public class Predicates
+public final class Predicates
 {
     public static final IntPredicate ALWAYS_TRUE_INT = v -> true;
+    public static final IntPredicate ALWAYS_FALSE_INT = v -> false;
+    public static final LongPredicate ALWAYS_FALSE_LONG = v -> false;
 
     private static final int DEFAULT_POLL_INTERVAL = 20;
+    private static final int DEFAULT_TIMEOUT_MS = 20_000;
 
     private Predicates()
     {
@@ -125,7 +127,7 @@ public class Predicates
         };
     }
 
-    public static <T> Predicate<T> instanceOf( @Nonnull final Class<?> clazz )
+    public static <T> Predicate<T> instanceOf( final Class<?> clazz )
     {
         return clazz::isInstance;
     }
@@ -145,20 +147,6 @@ public class Predicates
                 }
             }
             return false;
-        };
-    }
-
-    public static <T> Predicate<T> noDuplicates()
-    {
-        return new Predicate<T>()
-        {
-            private final Set<T> visitedItems = new HashSet<>();
-
-            @Override
-            public boolean test( T item )
-            {
-                return visitedItems.add( item );
-            }
         };
     }
 
@@ -192,6 +180,11 @@ public class Predicates
         return composed.lastInput();
     }
 
+    public static void await( BooleanSupplier condition ) throws TimeoutException
+    {
+        awaitEx( condition::getAsBoolean, DEFAULT_TIMEOUT_MS, MILLISECONDS );
+    }
+
     public static void await( BooleanSupplier condition, long timeout, TimeUnit unit ) throws TimeoutException
     {
         awaitEx( condition::getAsBoolean, timeout, unit );
@@ -200,7 +193,7 @@ public class Predicates
     public static <EXCEPTION extends Exception> void awaitEx( ThrowingSupplier<Boolean,EXCEPTION> condition,
             long timeout, TimeUnit unit ) throws TimeoutException, EXCEPTION
     {
-        awaitEx( condition, timeout, unit, DEFAULT_POLL_INTERVAL, TimeUnit.MILLISECONDS );
+        awaitEx( condition, timeout, unit, DEFAULT_POLL_INTERVAL, MILLISECONDS );
     }
 
     public static void await( BooleanSupplier condition, long timeout, TimeUnit timeoutUnit, long pollInterval,
@@ -261,11 +254,6 @@ public class Predicates
     public static <T> Predicate<T> in( final T... allowed )
     {
         return in( Arrays.asList( allowed ) );
-    }
-
-    public static <T> Predicate<T> not( Predicate<T> predicate )
-    {
-        return t -> !predicate.test( t );
     }
 
     public static <T> Predicate<T> in( final Iterable<T> allowed )

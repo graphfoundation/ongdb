@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,36 +39,85 @@
 package org.neo4j.kernel.impl.scheduler;
 
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
+import java.util.function.BiConsumer;
+import java.util.function.LongSupplier;
 
-import org.neo4j.helpers.Exceptions;
-import org.neo4j.scheduler.JobScheduler.Group;
-import org.neo4j.scheduler.JobScheduler.JobHandle;
+import org.neo4j.internal.helpers.Exceptions;
+import org.neo4j.scheduler.Group;
+import org.neo4j.time.SystemNanoClock;
+
+import static java.util.Objects.requireNonNullElseGet;
 
 final class ThreadPoolManager
 {
     private final ConcurrentHashMap<Group,ThreadPool> pools;
-    private final Function<Group,ThreadPool> poolBuilder;
+    private final ThreadGroup topLevelGroup;
+    private final SystemNanoClock clock;
+    private final FailedJobRunsStore failedJobRunsStore;
+    private final LongSupplier jobIdSupplier;
+    private boolean shutdown;
 
-    ThreadPoolManager( ThreadGroup topLevelGroup )
+    ThreadPoolManager( ThreadGroup topLevelGroup, SystemNanoClock clock, FailedJobRunsStore failedJobRunsStore, LongSupplier jobIdSupplier )
     {
+        this.topLevelGroup = topLevelGroup;
         pools = new ConcurrentHashMap<>();
-        poolBuilder = group -> new ThreadPool( group, topLevelGroup );
+        this.clock = clock;
+        this.failedJobRunsStore = failedJobRunsStore;
+        this.jobIdSupplier = jobIdSupplier;
     }
 
     ThreadPool getThreadPool( Group group )
     {
-        return pools.computeIfAbsent( group, poolBuilder );
+        return getThreadPool( group, null );
     }
 
-    JobHandle submit( Group group, Runnable job )
+    ThreadPool getThreadPool( Group group, ThreadPool.ThreadPoolParameters parameters )
     {
-        ThreadPool threadPool = getThreadPool( group );
-        return threadPool.submit( job );
+        return pools.computeIfAbsent( group, g -> createThreadPool( g, parameters ) );
     }
 
-    public InterruptedException shutDownAll()
+    boolean isStarted( Group group )
     {
+        return pools.containsKey( group );
+    }
+
+    void assumeNotStarted( Group group )
+    {
+        if ( isStarted( group ) )
+        {
+            throw new IllegalStateException( group.groupName() + " is already been started. " );
+        }
+    }
+
+    synchronized void forEachStarted( BiConsumer<Group, ThreadPool> consumer )
+    {
+        assertNotShutDown();
+        pools.forEach( consumer );
+    }
+
+    private synchronized ThreadPool createThreadPool( Group group, ThreadPool.ThreadPoolParameters parameters )
+    {
+        assertNotShutDown();
+        ThreadPool.ThreadPoolParameters effectiveParameters = requireNonNullElseGet( parameters, () ->
+        {
+            ThreadPool.ThreadPoolParameters newParameters = new ThreadPool.ThreadPoolParameters();
+            group.defaultParallelism().ifPresent( parallelism -> newParameters.desiredParallelism = parallelism  );
+            return newParameters;
+        } );
+        return new ThreadPool( group, topLevelGroup, effectiveParameters, clock, failedJobRunsStore, jobIdSupplier );
+    }
+
+    private void assertNotShutDown()
+    {
+        if ( shutdown )
+        {
+            throw new IllegalStateException( "ThreadPoolManager is shutdown." );
+        }
+    }
+
+    synchronized InterruptedException shutDownAll()
+    {
+        shutdown = true;
         pools.forEach( ( group, pool ) -> pool.cancelAllJobs() );
         pools.forEach( ( group, pool ) -> pool.shutDown() );
         return pools.values().stream()

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,76 +38,101 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.mockito.ArgumentMatchers._
-import org.mockito.Mockito._
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper, TestableIterator}
-import org.neo4j.cypher.internal.runtime.ImplicitValueConversion._
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.graphdb.Node
-import org.neo4j.kernel.impl.util.ValueUtils.fromNodeProxy
-import org.neo4j.values.AnyValue
-import org.neo4j.values.storable.Values.{NO_VALUE, intValue}
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.when
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.ImplicitValueConversion.toNodeValue
+import org.neo4j.cypher.internal.runtime.ResourceManager
+import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContextHelper.RichExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
+import org.neo4j.cypher.internal.runtime.interpreted.TestableIterator
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.kernel.impl.util.ValueUtils.fromNodeEntity
+import org.neo4j.values.storable.Values.NO_VALUE
+import org.neo4j.values.storable.Values.intValue
 
-class NodeLeftOuterHashJoinPipeTest extends CypherFunSuite {
-
-  val node1 = newMockedNode(1)
-  val node2 = newMockedNode(2)
-  val node3 = newMockedNode(3)
+class NodeLeftOuterHashJoinPipeTest extends CypherFunSuite with NodeHashJoinPipeTestSupport {
 
   test("should support simple hash join over nodes") {
     // given
-    val queryState = QueryStateHelper.empty
+    val queryState = QueryStateHelper.emptyWithValueSerialization
 
     val left = newMockedPipe(
-                             row("b" -> fromNodeProxy(node1)),
-                             row("b" -> fromNodeProxy(node2)))
+      row("b" -> fromNodeEntity(node1)),
+      row("b" -> fromNodeEntity(node2)))
 
     val right = newMockedPipe(
-      row("b" -> fromNodeProxy(node2), "a" -> intValue(2)),
-      row("b" -> fromNodeProxy(node3), "a" -> intValue(3)))
+      row("b" -> fromNodeEntity(node2), "a" -> intValue(2)),
+      row("b" -> fromNodeEntity(node3), "a" -> intValue(3)))
 
     // when
     val result = NodeLeftOuterHashJoinPipe(Set("b"), left, right, Set("a"))().createResults(queryState)
 
     // then
-    result.toSet should equal(Set(
-      Map("b" -> fromNodeProxy(node1), "a" -> NO_VALUE),
-      Map("b" -> fromNodeProxy(node2), "a" -> intValue(2))
+    result.map(_.toMap).toSeq should equal(Seq(
+      Map("b" -> fromNodeEntity(node2), "a" -> intValue(2)),
+      Map("b" -> fromNodeEntity(node1), "a" -> NO_VALUE)
     ))
+  }
+
+  test("should support cached node properties") {
+    // given
+    val queryState = QueryStateHelper.emptyWithValueSerialization
+
+    val bPropLeft = prop("b", "prop1")
+    val left = newMockedPipe(
+      rowWith("b" -> fromNodeEntity(node1)).cached(bPropLeft -> intValue(-1)),
+      rowWith("b" -> fromNodeEntity(node2)).cached(bPropLeft -> intValue(-2)))
+
+    val bPropRight = prop("b", "prop2")
+    val right = newMockedPipe(
+      rowWith("b" -> fromNodeEntity(node2)).cached(bPropRight -> intValue(12)),
+      rowWith("b" -> fromNodeEntity(node3)).cached(bPropRight -> intValue(13)))
+
+    // when
+    val result = NodeLeftOuterHashJoinPipe(Set("b"), left, right, Set.empty)().createResults(queryState).toSeq
+
+    // then
+    result.map(_.toMap) should equal(Seq(
+      Map("b" -> fromNodeEntity(node2)),
+      Map("b" -> fromNodeEntity(node1))
+    ))
+    result.map(_.getCachedProperty(bPropLeft.runtimeKey)) should be(Seq(intValue(-2), intValue(-1)))
+    result.map(_.getCachedProperty(bPropRight.runtimeKey)) should be(Seq(intValue(12), null))
   }
 
   test("should work when the inner pipe produces multiple rows with the same join key") {
     // given
-    val queryState = QueryStateHelper.empty
+    val queryState = QueryStateHelper.emptyWithValueSerialization
 
     val left = newMockedPipe(
-      row("b" -> fromNodeProxy(node1), "a" -> intValue(10)),
-      row("b" -> fromNodeProxy(node2), "a" -> intValue(20)))
+      row("b" -> fromNodeEntity(node1), "a" -> intValue(10)),
+      row("b" -> fromNodeEntity(node2), "a" -> intValue(20)))
 
     val right = newMockedPipe(
-      row("b" -> fromNodeProxy(node2), "c" -> intValue(30)),
-      row("b" -> fromNodeProxy(node2), "c" -> intValue(40)))
+      row("b" -> fromNodeEntity(node2), "c" -> intValue(30)),
+      row("b" -> fromNodeEntity(node2), "c" -> intValue(40)))
 
     // when
     val result = NodeLeftOuterHashJoinPipe(Set("b"), left, right, Set("c"))().createResults(queryState)
 
     // then
-    result.toSet should equal(Set(
-      Map("a" -> intValue(10), "b" -> fromNodeProxy(node1), "c" -> NO_VALUE),
-      Map("a" -> intValue(20), "b" -> fromNodeProxy(node2), "c" -> intValue(30)),
-      Map("a" -> intValue(20), "b" -> fromNodeProxy(node2), "c" -> intValue(40))
+    result.map(_.toMap).toSeq should equal(Seq(
+      Map("a" -> intValue(20), "b" -> fromNodeEntity(node2), "c" -> intValue(30)),
+      Map("a" -> intValue(20), "b" -> fromNodeEntity(node2), "c" -> intValue(40)),
+      Map("a" -> intValue(10), "b" -> fromNodeEntity(node1), "c" -> NO_VALUE)
     ))
   }
 
   test("empty lhs should give empty results and not fetch anything from the rhs") {
     // given
-    val queryState = QueryStateHelper.empty
+    val queryState = QueryStateHelper.emptyWithValueSerialization
 
     val left = newMockedPipe()
 
     val right = mock[Pipe]
     val rhsIterator = new TestableIterator(Iterator(row("b" -> newMockedNode(0))))
-    when(right.createResults(any())).thenReturn(rhsIterator)
+    when(right.createResults(any())).thenReturn(ClosingIterator(rhsIterator))
 
     // when
     val result = NodeLeftOuterHashJoinPipe(Set("b"), left, right, Set("c"))().createResults(queryState)
@@ -119,12 +144,12 @@ class NodeLeftOuterHashJoinPipeTest extends CypherFunSuite {
 
   test("empty rhs should give null results") {
     // given
-    val queryState = QueryStateHelper.empty
+    val queryState = QueryStateHelper.emptyWithValueSerialization
 
     val left = newMockedPipe(
-      row("b" -> fromNodeProxy(node1), "a" -> intValue(10)),
-      row("b" -> fromNodeProxy(node2), "a" -> intValue(20)),
-      row("b" -> fromNodeProxy(node3), "a" -> intValue(30)))
+      row("b" -> fromNodeEntity(node1), "a" -> intValue(10)),
+      row("b" -> fromNodeEntity(node2), "a" -> intValue(20)),
+      row("b" -> fromNodeEntity(node3), "a" -> intValue(30)))
 
     val right = newMockedPipe()
 
@@ -132,66 +157,66 @@ class NodeLeftOuterHashJoinPipeTest extends CypherFunSuite {
     val result = NodeLeftOuterHashJoinPipe(Set("b"), left, right, Set("c"))().createResults(queryState)
 
     // then
-    result.toSet should equal(Set(
-      Map("a" -> intValue(10), "b" -> fromNodeProxy(node1), "c" -> NO_VALUE),
-      Map("a" -> intValue(20), "b" -> fromNodeProxy(node2), "c" -> NO_VALUE),
-      Map("a" -> intValue(30), "b" -> fromNodeProxy(node3), "c" -> NO_VALUE)
+    result.map(_.toMap).toSet should equal(Set(
+      Map("a" -> intValue(10), "b" -> fromNodeEntity(node1), "c" -> NO_VALUE),
+      Map("a" -> intValue(20), "b" -> fromNodeEntity(node2), "c" -> NO_VALUE),
+      Map("a" -> intValue(30), "b" -> fromNodeEntity(node3), "c" -> NO_VALUE)
     ))
   }
 
   test("lhs with null in the join key should not match anything on rhs") {
     // given
-    val queryState = QueryStateHelper.empty
+    val queryState = QueryStateHelper.emptyWithValueSerialization
 
     val left = newMockedPipe(
-      row("b" -> fromNodeProxy(node1), "a" -> intValue(10)),
+      row("b" -> fromNodeEntity(node1), "a" -> intValue(10)),
       row("b" -> NO_VALUE,  "a" -> intValue(20)),
-      row("b" -> fromNodeProxy(node3), "a" -> intValue(30)))
+      row("b" -> fromNodeEntity(node3), "a" -> intValue(30)))
 
     val right = newMockedPipe(
-      row("b" -> fromNodeProxy(node1), "c" -> intValue(10)),
-      row("b" -> fromNodeProxy(node2), "c" -> intValue(20)),
-      row("b" -> fromNodeProxy(node3), "c" -> intValue(30)))
+      row("b" -> fromNodeEntity(node1), "c" -> intValue(10)),
+      row("b" -> fromNodeEntity(node2), "c" -> intValue(20)),
+      row("b" -> fromNodeEntity(node3), "c" -> intValue(30)))
 
     // when
     val result = NodeLeftOuterHashJoinPipe(Set("b"), left, right, Set("c"))().createResults(queryState)
 
     // then
-    result.toSet should equal(Set(
-      Map("a" -> intValue(10), "b" -> fromNodeProxy(node1), "c" -> intValue(10)),
-      Map("a" -> intValue(20), "b" -> NO_VALUE , "c" -> NO_VALUE),
-      Map("a" -> intValue(30), "b" -> fromNodeProxy(node3), "c" -> intValue(30))
+    result.map(_.toMap).toSeq should equal(Seq(
+      Map("a" -> intValue(10), "b" -> fromNodeEntity(node1), "c" -> intValue(10)),
+      Map("a" -> intValue(30), "b" -> fromNodeEntity(node3), "c" -> intValue(30)),
+      Map("a" -> intValue(20), "b" -> NO_VALUE, "c" -> NO_VALUE)
     ))
   }
 
   test("rhs with null in the join key should not match anything") {
     // given
-    val queryState = QueryStateHelper.empty
+    val queryState = QueryStateHelper.emptyWithValueSerialization
 
     val left = newMockedPipe(
-      row("b" -> fromNodeProxy(node1), "a" -> intValue(10)),
-      row("b" -> fromNodeProxy(node2), "a" -> intValue(20)),
-      row("b" -> fromNodeProxy(node3), "a" -> intValue(30)))
+      row("b" -> fromNodeEntity(node1), "a" -> intValue(10)),
+      row("b" -> fromNodeEntity(node2), "a" -> intValue(20)),
+      row("b" -> fromNodeEntity(node3), "a" -> intValue(30)))
 
     val right = newMockedPipe(
-      row("b" -> NO_VALUE,  "c" -> intValue(10)),
-      row("b" -> fromNodeProxy(node2), "c" -> intValue(20)),
-      row("b" -> fromNodeProxy(node3), "c" -> intValue(30)))
+      row("b" -> fromNodeEntity(node2), "c" -> intValue(20)),
+      row("b" -> fromNodeEntity(node3), "c" -> intValue(30)),
+      row("b" -> NO_VALUE, "c" -> intValue(10)))
 
     // when
     val result = NodeLeftOuterHashJoinPipe(Set("b"), left, right, Set("c"))().createResults(queryState)
 
     // then
-    result.toSet should equal(Set(
-      Map("a" -> intValue(10), "b" -> fromNodeProxy(node1), "c" -> NO_VALUE),
-      Map("a" -> intValue(20), "b" -> fromNodeProxy(node2), "c" -> intValue(20)),
-      Map("a" -> intValue(30), "b" -> fromNodeProxy(node3), "c" -> intValue(30))
+    result.map(_.toMap).toSeq should equal(Seq(
+      Map("a" -> intValue(20), "b" -> fromNodeEntity(node2), "c" -> intValue(20)),
+      Map("a" -> intValue(30), "b" -> fromNodeEntity(node3), "c" -> intValue(30)),
+      Map("a" -> intValue(10), "b" -> fromNodeEntity(node1), "c" -> NO_VALUE)
     ))
   }
 
   test("null in both sides should still not match anything") {
     // given
-    val queryState = QueryStateHelper.empty
+    val queryState = QueryStateHelper.emptyWithValueSerialization
 
     val left = newMockedPipe(
       row("b" -> NO_VALUE,  "a" -> intValue(20)))
@@ -203,55 +228,79 @@ class NodeLeftOuterHashJoinPipeTest extends CypherFunSuite {
     val result = NodeLeftOuterHashJoinPipe(Set("b"), left, right, Set("c"))().createResults(queryState)
 
     // then
-    result.toSet should equal(Set(
+    result.map(_.toMap).toSeq should equal(Seq(
       Map("a" -> intValue(20), "b" -> NO_VALUE , "c" -> NO_VALUE)
     ))
   }
 
   test("should support joining on two different variables") {
     // given
-    val queryState = QueryStateHelper.empty
+    val queryState = QueryStateHelper.emptyWithValueSerialization
 
     val left = newMockedPipe(
-      row("a" -> fromNodeProxy(node1), "b" -> fromNodeProxy(node2), "c" -> intValue(1)),
-      row("a" -> fromNodeProxy(node1), "b" -> fromNodeProxy(node3), "c" -> intValue(2)),
-      row("a" -> fromNodeProxy(node1), "b" -> fromNodeProxy(node3), "c" -> intValue(3)),
-      row("a" -> fromNodeProxy(node2), "b" -> fromNodeProxy(node3), "c" -> intValue(4)),
-      row("a" -> fromNodeProxy(node1), "b" -> NO_VALUE,  "c" -> intValue(5)))
+      row("a" -> fromNodeEntity(node1), "b" -> fromNodeEntity(node2), "c" -> intValue(1)),
+      row("a" -> fromNodeEntity(node1), "b" -> fromNodeEntity(node3), "c" -> intValue(2)),
+      row("a" -> fromNodeEntity(node1), "b" -> fromNodeEntity(node3), "c" -> intValue(3)),
+      row("a" -> fromNodeEntity(node2), "b" -> fromNodeEntity(node3), "c" -> intValue(4)),
+      row("a" -> fromNodeEntity(node1), "b" -> NO_VALUE,  "c" -> intValue(5)))
 
 
     val right = newMockedPipe(
-      row("a" -> fromNodeProxy(node1), "b" -> fromNodeProxy(node2), "d" -> intValue(1)),
-      row("a" -> fromNodeProxy(node1), "b" -> fromNodeProxy(node3), "d" -> intValue(2)),
-      row("a" -> fromNodeProxy(node3), "b" -> fromNodeProxy(node3), "d" -> intValue(3)),
-      row("a" -> NO_VALUE, "b" -> fromNodeProxy(node3),  "d" -> intValue(4)))
+      row("a" -> fromNodeEntity(node1), "b" -> fromNodeEntity(node2), "d" -> intValue(1)),
+      row("a" -> fromNodeEntity(node1), "b" -> fromNodeEntity(node3), "d" -> intValue(2)),
+      row("a" -> fromNodeEntity(node3), "b" -> fromNodeEntity(node3), "d" -> intValue(3)),
+      row("a" -> NO_VALUE, "b" -> fromNodeEntity(node3),  "d" -> intValue(4)))
 
     // when
-    val result = NodeLeftOuterHashJoinPipe(Set("a","b"), left, right, Set("d"))().createResults(queryState)
+    val result = NodeLeftOuterHashJoinPipe(Set("a","b"), left, right, Set("d"))().createResults(queryState).toSeq
 
     // then
-    result.toSet should equal(Set(
-      Map("a" -> fromNodeProxy(node1), "b" -> fromNodeProxy(node2), "c" -> intValue(1), "d" -> intValue(1)),
-      Map("a" -> fromNodeProxy(node1), "b" -> fromNodeProxy(node3), "c" -> intValue(2), "d" -> intValue(2)),
-      Map("a" -> fromNodeProxy(node1), "b" -> fromNodeProxy(node3), "c" -> intValue(3), "d" -> intValue(2)),
-      Map("a" -> fromNodeProxy(node2), "b" -> fromNodeProxy(node3), "c" -> intValue(4), "d" -> NO_VALUE),
-      Map("a" -> fromNodeProxy(node1), "b" -> NO_VALUE, "c" -> intValue(5), "d" -> NO_VALUE)
+    result.take(3).map(_.toMap) should equal(Seq(
+      Map("a" -> fromNodeEntity(node1), "b" -> fromNodeEntity(node2), "c" -> intValue(1), "d" -> intValue(1)),
+      Map("a" -> fromNodeEntity(node1), "b" -> fromNodeEntity(node3), "c" -> intValue(2), "d" -> intValue(2)),
+      Map("a" -> fromNodeEntity(node1), "b" -> fromNodeEntity(node3), "c" -> intValue(3), "d" -> intValue(2))
+    ))
+    // Can't know order of lhs outer rows
+    result.drop(3).map(_.toMap).toSet should equal(Set(
+      Map("a" -> fromNodeEntity(node2), "b" -> fromNodeEntity(node3), "c" -> intValue(4), "d" -> NO_VALUE),
+      Map("a" -> fromNodeEntity(node1), "b" -> NO_VALUE, "c" -> intValue(5), "d" -> NO_VALUE)
     ))
   }
 
-  private def row(values: (String, AnyValue)*) = ExecutionContext.from(values: _*)
+  test("exhaust should close table") {
+    // given
+    val monitor = QueryStateHelper.trackClosedMonitor
+    val queryState = QueryStateHelper.emptyWithResourceManager(new ResourceManager(monitor))
 
-  private def newMockedNode(id: Int) = {
-    val node = mock[Node]
-    when(node.getId).thenReturn(id)
-    when(node.toString).thenReturn(s"MockedNode($id)")
-    node
+    val node1 = newMockedNode(1)
+    val node2 = newMockedNode(2)
+
+    val left = new FakePipe(Seq(Map("n"->node1),Map("n"->node2)))
+    val right = new FakePipe(Seq(Map("n"->node1),Map("n"->node2)))
+
+    // when
+    NodeLeftOuterHashJoinPipe(Set("n"), left, right, Set())().createResults(queryState).toList
+
+    // then
+    monitor.closedResources.collect { case t: ProbeTable => t } should have size(1)
   }
 
-  private def newMockedPipe(rows: ExecutionContext*): Pipe = {
-    val pipe = mock[Pipe]
-    when(pipe.createResults(any())).thenReturn(rows.iterator)
+  test("close should close table") {
+    // given
+    val monitor = QueryStateHelper.trackClosedMonitor
+    val queryState = QueryStateHelper.emptyWithResourceManager(new ResourceManager(monitor))
 
-    pipe
+    val node1 = newMockedNode(1)
+    val node2 = newMockedNode(2)
+
+    val left = new FakePipe(Seq(Map("n"->node1),Map("n"->node2)))
+    val right = new FakePipe(Seq(Map("n"->node1),Map("n"->node2)))
+
+    // when
+    val result = NodeLeftOuterHashJoinPipe(Set("n"), left, right, Set())().createResults(queryState)
+    result.close()
+
+    // then
+    monitor.closedResources.collect { case t: ProbeTable => t } should have size(1)
   }
 }

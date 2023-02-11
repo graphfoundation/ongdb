@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,17 +38,17 @@
  */
 package org.neo4j.io.pagecache.impl.muninn;
 
-import java.io.File;
+import java.nio.file.Path;
 
 final class FileMapping
 {
     public volatile FileMapping next;
-    public final File file;
+    public final Path path;
     public final MuninnPagedFile pagedFile;
 
-    FileMapping( File file, MuninnPagedFile pagedFile )
+    FileMapping( Path path, MuninnPagedFile pagedFile )
     {
-        this.file = file;
+        this.path = path;
         this.pagedFile = pagedFile;
     }
 
@@ -56,6 +56,6 @@ final class FileMapping
     public String toString()
     {
         return String.format( "FileMapping[fname = %s, refCount = %s] :: %s",
-                file, pagedFile.getRefCount(), next );
+                path, pagedFile.getRefCount(), next );
     }
 }

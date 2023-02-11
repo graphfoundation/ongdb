@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,17 +38,56 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
-import org.neo4j.storageengine.api.schema.PopulationProgress;
+import org.neo4j.internal.kernel.api.PopulationProgress;
 
-public interface StoreScan<FAILURE extends Exception>
+public interface StoreScan
 {
-    void run() throws FAILURE;
+    void run( ExternalUpdatesCheck externalUpdatesCheck );
 
     void stop();
 
-    void acceptUpdate( MultipleIndexPopulator.MultipleIndexUpdater updater, IndexEntryUpdate<?> update,
-            long currentlyIndexedNodeId );
-
     PopulationProgress getProgress();
+
+    /**
+     * Give this {@link StoreScan} a {@link PhaseTracker} to report to.
+     * Must not be called once scan has already started.
+     * @param phaseTracker {@link PhaseTracker} this store scan shall report to.
+     */
+    default void setPhaseTracker( PhaseTracker phaseTracker )
+    {   // no-op
+    }
+
+    /**
+     * Interaction point from the store scan with the index population to synchronize store scan with applying external concurrent updates
+     * that happens while the store scan is running.
+     */
+    interface ExternalUpdatesCheck
+    {
+        /**
+         * Called by the thread running the store scan from within the scan now and then to check whether or not there are external
+         * updates to apply.
+         */
+        boolean needToApplyExternalUpdates();
+
+        /**
+         * Called after {@link #needToApplyExternalUpdates()} has returned {@code true} and preparations have been made so that external updates
+         * can be applied w/o concurrent scan updates.
+         * @param currentlyIndexedNodeId the highest entity id which has been processed by the store scan.
+         */
+        void applyExternalUpdates( long currentlyIndexedNodeId );
+    }
+
+    ExternalUpdatesCheck NO_EXTERNAL_UPDATES = new ExternalUpdatesCheck()
+    {
+        @Override
+        public boolean needToApplyExternalUpdates()
+        {
+            return false;
+        }
+
+        @Override
+        public void applyExternalUpdates( long currentlyIndexedNodeId )
+        {
+        }
+    };
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -44,12 +44,16 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
 import org.neo4j.internal.kernel.api.security.AuthSubject;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.KernelTransactionHandle;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.api.query.ExecutingQuery;
-import org.neo4j.kernel.impl.locking.ActiveLock;
+import org.neo4j.kernel.impl.api.transaction.trace.TransactionInitializationTrace;
+import org.neo4j.lock.ActiveLock;
+
+import static java.util.Optional.ofNullable;
 
 /**
  * A test implementation of {@link KernelTransactionHandle} that simply wraps a given {@link KernelTransaction}.
@@ -62,12 +66,6 @@ public class TestKernelTransactionHandle implements KernelTransactionHandle
     public TestKernelTransactionHandle( KernelTransaction tx )
     {
         this.tx = Objects.requireNonNull( tx );
-    }
-
-    @Override
-    public long lastTransactionIdWhenStarted()
-    {
-        return tx.lastTransactionIdWhenStarted();
     }
 
     @Override
@@ -98,6 +96,12 @@ public class TestKernelTransactionHandle implements KernelTransactionHandle
     public boolean isOpen()
     {
         return tx.isOpen();
+    }
+
+    @Override
+    public boolean isClosing()
+    {
+        return tx.isClosing();
     }
 
     @Override
@@ -134,7 +138,7 @@ public class TestKernelTransactionHandle implements KernelTransactionHandle
     @Override
     public long getUserTransactionId()
     {
-        return tx.getTransactionId();
+        return tx.getUserTransactionId();
     }
 
     @Override
@@ -144,7 +148,7 @@ public class TestKernelTransactionHandle implements KernelTransactionHandle
     }
 
     @Override
-    public Stream<ExecutingQuery> executingQueries()
+    public Optional<ExecutingQuery> executingQuery()
     {
         throw new UnsupportedOperationException();
     }
@@ -159,6 +163,30 @@ public class TestKernelTransactionHandle implements KernelTransactionHandle
     public TransactionExecutionStatistic transactionStatistic()
     {
         return TransactionExecutionStatistic.NOT_AVAILABLE;
+    }
+
+    @Override
+    public TransactionInitializationTrace transactionInitialisationTrace()
+    {
+        return TransactionInitializationTrace.NONE;
+    }
+
+    @Override
+    public Optional<ClientConnectionInfo> clientInfo()
+    {
+        return ofNullable( tx.clientInfo() );
+    }
+
+    @Override
+    public boolean isSchemaTransaction()
+    {
+        return tx.isSchemaTransaction();
+    }
+
+    @Override
+    public String getStatusDetails()
+    {
+        return tx.statusDetails();
     }
 
     @Override

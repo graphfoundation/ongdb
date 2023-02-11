@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,10 +38,7 @@
  */
 package org.neo4j.io.fs;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.file.FileVisitor;
@@ -50,21 +47,19 @@ import java.nio.file.Paths;
 
 import org.neo4j.function.ThrowingConsumer;
 
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.neo4j.io.fs.FileVisitors.onFile;
 
-@RunWith( MockitoJUnitRunner.class )
-public class OnFileTest
+@SuppressWarnings( "unchecked" )
+class OnFileTest
 {
-    @Mock
-    public ThrowingConsumer<Path, IOException> operation;
-
-    @Mock
-    public FileVisitor<Path> wrapped;
+    private final ThrowingConsumer<Path, IOException> operation = mock( ThrowingConsumer.class );
+    private final FileVisitor<Path> wrapped = mock( FileVisitor.class );
 
     @Test
-    public void shouldNotOperateOnDirectories() throws IOException
+    void shouldNotOperateOnDirectories() throws IOException
     {
         Path dir = Paths.get( "/some/path" );
         onFile( operation, wrapped ).preVisitDirectory( dir, null );
@@ -72,7 +67,7 @@ public class OnFileTest
     }
 
     @Test
-    public void shouldOperateOnFiles() throws IOException
+    void shouldOperateOnFiles() throws IOException
     {
         Path file = Paths.get( "/some/path" );
         onFile( operation, wrapped ).visitFile( file, null );

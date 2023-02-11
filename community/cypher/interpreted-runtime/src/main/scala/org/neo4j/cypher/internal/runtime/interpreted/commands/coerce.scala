@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,38 +38,71 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands
 
-import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.runtime.interpreted.{IsList, IsMap}
-import org.neo4j.cypher.internal.util.v3_4.CypherTypeException
-import org.neo4j.cypher.internal.util.v3_4.symbols._
-import org.neo4j.values._
-import org.neo4j.values.storable._
-import org.neo4j.values.virtual._
+import org.neo4j.cypher.internal.runtime.IsList
+import org.neo4j.cypher.internal.runtime.interpreted.IsMap
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.internal.util.symbols.CTAny
+import org.neo4j.cypher.internal.util.symbols.CTBoolean
+import org.neo4j.cypher.internal.util.symbols.CTDate
+import org.neo4j.cypher.internal.util.symbols.CTDateTime
+import org.neo4j.cypher.internal.util.symbols.CTDuration
+import org.neo4j.cypher.internal.util.symbols.CTFloat
+import org.neo4j.cypher.internal.util.symbols.CTGeometry
+import org.neo4j.cypher.internal.util.symbols.CTInteger
+import org.neo4j.cypher.internal.util.symbols.CTLocalDateTime
+import org.neo4j.cypher.internal.util.symbols.CTLocalTime
+import org.neo4j.cypher.internal.util.symbols.CTMap
+import org.neo4j.cypher.internal.util.symbols.CTNode
+import org.neo4j.cypher.internal.util.symbols.CTNumber
+import org.neo4j.cypher.internal.util.symbols.CTPath
+import org.neo4j.cypher.internal.util.symbols.CTPoint
+import org.neo4j.cypher.internal.util.symbols.CTRelationship
+import org.neo4j.cypher.internal.util.symbols.CTString
+import org.neo4j.cypher.internal.util.symbols.CTTime
+import org.neo4j.cypher.internal.util.symbols.CypherType
+import org.neo4j.cypher.internal.util.symbols.ListType
+import org.neo4j.exceptions.CypherTypeException
+import org.neo4j.values.AnyValue
+import org.neo4j.values.storable.BooleanValue
+import org.neo4j.values.storable.DateTimeValue
+import org.neo4j.values.storable.DateValue
+import org.neo4j.values.storable.DurationValue
+import org.neo4j.values.storable.LocalDateTimeValue
+import org.neo4j.values.storable.LocalTimeValue
+import org.neo4j.values.storable.NumberValue
+import org.neo4j.values.storable.PointValue
+import org.neo4j.values.storable.TextValue
+import org.neo4j.values.storable.TimeValue
+import org.neo4j.values.storable.Values
+import org.neo4j.values.virtual.VirtualNodeValue
+import org.neo4j.values.virtual.VirtualPathValue
+import org.neo4j.values.virtual.VirtualRelationshipValue
+import org.neo4j.values.virtual.VirtualValues
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.asScalaIteratorConverter
 
 object coerce {
 
-  def apply(value: AnyValue, typ: CypherType)(implicit context: QueryContext): AnyValue = {
-    val result = if (value == Values.NO_VALUE) Values.NO_VALUE else try {
+  def apply(value: AnyValue, state: QueryState, typ: CypherType): AnyValue = {
+    val result = if (value eq Values.NO_VALUE) Values.NO_VALUE else try {
       typ match {
         case CTAny => value
         case CTString => value.asInstanceOf[TextValue]
-        case CTNode => value.asInstanceOf[NodeValue]
-        case CTRelationship => value.asInstanceOf[RelationshipValue]
-        case CTPath => value.asInstanceOf[PathValue]
+        case CTNode => value.asInstanceOf[VirtualNodeValue]
+        case CTRelationship => value.asInstanceOf[VirtualRelationshipValue]
+        case CTPath => value.asInstanceOf[VirtualPathValue]
         case CTInteger => Values.longValue(value.asInstanceOf[NumberValue].longValue())
         case CTFloat => Values.doubleValue(value.asInstanceOf[NumberValue].doubleValue())
         case CTMap => value match {
-          case IsMap(m) => m(context)
+          case IsMap(m) => m(state)
           case _ => throw cantCoerce(value, typ)
         }
         case t: ListType => value match {
-          case p: PathValue if t.innerType == CTNode => throw cantCoerce(value, typ)
-          case p: PathValue if t.innerType == CTRelationship => throw cantCoerce(value, typ)
-          case p: PathValue => p.asList
+          case _: VirtualPathValue if t.innerType == CTNode => throw cantCoerce(value, typ)
+          case _: VirtualPathValue if t.innerType == CTRelationship => throw cantCoerce(value, typ)
+          case p: VirtualPathValue => p.asList
           case IsList(coll) if t.innerType == CTAny => coll
-          case IsList(coll) => VirtualValues.list(coll.iterator().asScala.map(coerce(_, t.innerType)).toArray:_*)
+          case IsList(coll) => VirtualValues.list(coll.iterator().asScala.map(coerce(_, state, t.innerType)).toArray:_*)
           case _ => throw cantCoerce(value, typ)
         }
         case CTBoolean => value.asInstanceOf[BooleanValue]
@@ -92,5 +125,5 @@ object coerce {
   }
 
   private def cantCoerce(value: Any, typ: CypherType, cause: Option[Throwable] = None) =
-    new CypherTypeException(s"Can't coerce `$value` to $typ", cause.orNull)
+    new CypherTypeException(s"Wrong argument type: Can't coerce `$value` to $typ", cause.orNull)
 }

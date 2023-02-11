@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,15 +38,17 @@
  */
 package org.neo4j.io.pagecache.impl;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
 
-import org.neo4j.graphdb.config.Configuration;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.pagecache.IOController;
 import org.neo4j.io.pagecache.PageEvictionCallback;
 import org.neo4j.io.pagecache.PageSwapper;
 import org.neo4j.io.pagecache.PageSwapperFactory;
+import org.neo4j.io.pagecache.impl.muninn.SwapperSet;
+import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 
 /**
  * A factory for SingleFilePageSwapper instances.
@@ -55,62 +57,24 @@ import org.neo4j.io.pagecache.PageSwapperFactory;
  */
 public class SingleFilePageSwapperFactory implements PageSwapperFactory
 {
-    private FileSystemAbstraction fs;
+    private final FileSystemAbstraction fs;
+    private final PageCacheTracer pageCacheTracer;
 
-    @Override
-    public void open( FileSystemAbstraction fs, Configuration config )
+    public SingleFilePageSwapperFactory( FileSystemAbstraction fs, PageCacheTracer pageCacheTracer )
     {
         this.fs = fs;
+        this.pageCacheTracer = pageCacheTracer;
     }
 
     @Override
-    public FileSystemAbstraction getFileSystemAbstraction()
+    public PageSwapper createPageSwapper( Path file, int filePageSize, PageEvictionCallback onEviction, boolean createIfNotExist, boolean useDirectIO,
+            boolean preallocateStoreFiles, IOController ioController, SwapperSet swappers ) throws IOException
     {
-        return fs;
-    }
-
-    @Override
-    public PageSwapper createPageSwapper(
-            File file,
-            int filePageSize,
-            PageEvictionCallback onEviction,
-            boolean createIfNotExist ) throws IOException
-    {
-        if ( !fs.fileExists( file ) )
+        if ( !createIfNotExist && !fs.fileExists( file ) )
         {
-            if ( createIfNotExist )
-            {
-                fs.create( file ).close();
-            }
-            else
-            {
-                throw new NoSuchFileException( file.getPath(), null, "Cannot map non-existing file" );
-            }
+            throw new NoSuchFileException( file.toString(), null, "Cannot map non-existing file" );
         }
-        return new SingleFilePageSwapper( file, fs, filePageSize, onEviction );
-    }
-
-    @Override
-    public void syncDevice()
-    {
-        // Nothing do to, since we `fsync` files individually in `force()`.
-    }
-
-    @Override
-    public void close()
-    {
-        // We have nothing to close
-    }
-
-    @Override
-    public String implementationName()
-    {
-        return "single";
-    }
-
-    @Override
-    public long getRequiredBufferAlignment()
-    {
-        return 1;
+        return new SingleFilePageSwapper( file, fs, filePageSize, onEviction, useDirectIO, preallocateStoreFiles, ioController, swappers,
+                pageCacheTracer.createFileSwapperTracer() );
     }
 }

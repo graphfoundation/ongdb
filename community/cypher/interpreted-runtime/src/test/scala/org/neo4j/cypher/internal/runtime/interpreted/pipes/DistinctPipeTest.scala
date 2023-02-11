@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,68 +38,44 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
+import org.neo4j.cypher.internal.runtime.ResourceManager
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.runtime.interpreted.ValueComparisonHelper._
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Expression, Literal, Multiply, Variable}
-import org.neo4j.cypher.internal.util.v3_4.symbols._
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.values.storable.Values.stringArray
-import org.neo4j.values.virtual.MapValue
-
-import scala.collection.JavaConverters._
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Variable
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.kernel.impl.util.collection.DistinctSet
 
 class DistinctPipeTest extends CypherFunSuite {
-
-  test("distinct input passes through") {
-    //GIVEN
-    val pipe = createDistinctPipe(List(Map("x" -> 1), Map("x" -> 2)))
-
-    //WHEN
-    val result = pipe.createResults(QueryStateHelper.empty)
-
-    //THEN
-    result.toList should beEquivalentTo(List(Map("x" -> 1), Map("x" -> 2)))
+  test("should be lazy") {
+    val input = new FakePipe(Seq(Map("a"->10), Map("a"->11), Map("a"->12), Map("a"->13)))
+    val pipe = DistinctPipe(input, Array(DistinctPipe.GroupingCol("a", Variable("a"))))()
+    // when
+    val res = pipe.createResults(QueryStateHelper.emptyWithValueSerialization)
+    res.next()
+    // then
+    input.numberOfPulledRows should be <= 2 // We use a prefetching iterator, so we fetch one extra row
   }
 
-  test("distinct executes expressions") {
-    //GIVEN
-    val expressions = Map("doubled" -> Multiply(Variable("x"), Literal(2)))
-    val pipe = createDistinctPipe(List(Map("x" -> 1), Map("x" -> 2)), expressions)
+  test("exhaust should close seen set") {
+    val monitor = QueryStateHelper.trackClosedMonitor
+    val resourceManager = new ResourceManager(monitor)
 
-    //WHEN
-    val result = pipe.createResults(QueryStateHelper.empty)
-
-    //THEN
-    result.toList should beEquivalentTo(List(Map("doubled" -> 2), Map("doubled" -> 4)))
+    val input = new FakePipe(Seq(Map("a"->10), Map("a"->11), Map("a"->12), Map("a"->13)))
+    val pipe = DistinctPipe(input, Array(DistinctPipe.GroupingCol("a", Variable("a"))))()
+    // exhaust
+    pipe.createResults(QueryStateHelper.emptyWithResourceManager(resourceManager)).toList
+    input.wasClosed shouldBe true
+    monitor.closedResources.collect { case t: DistinctSet[_] => t } should have size(1)
   }
 
-  test("undistinct input passes through") {
-    //GIVEN
-    val pipe = createDistinctPipe(List(Map("x" -> 1), Map("x" -> 1)))
+  test("close should close seen set") {
+    val monitor = QueryStateHelper.trackClosedMonitor
+    val resourceManager = new ResourceManager(monitor)
 
-    //WHEN
-    val result = pipe.createResults(QueryStateHelper.empty)
-
-    //THEN
-    result.toList should beEquivalentTo(List(Map("x" -> 1)))
-  }
-
-  test("distinct deals with maps containing java arrays") {
-    //GIVEN
-    val pipe = createDistinctPipe(List(
-      Map("x" -> Map("prop" -> Array[String]("a", "b")).asJava),
-      Map("x" -> Map("prop" -> Array[String]("a", "b")).asJava)))
-
-    //WHEN
-    val result = pipe.createResults(QueryStateHelper.empty).toList
-
-    //THEN
-    result should have size 1
-    result.head("x").asInstanceOf[MapValue].get("prop") should equal(stringArray("a", "b"))
-  }
-
-  def createDistinctPipe(input: List[Map[String, Any]], expressions: Map[String, Expression] = Map("x" -> Variable("x"))) = {
-    val source = new FakePipe(input, "x" -> CTNumber)
-    DistinctPipe(source, expressions)()
+    val input = new FakePipe(Seq(Map("a"->10), Map("a"->11), Map("a"->12), Map("a"->13)))
+    val pipe = DistinctPipe(input, Array(DistinctPipe.GroupingCol("a", Variable("a"))))()
+    val result = pipe.createResults(QueryStateHelper.emptyWithResourceManager(resourceManager))
+    result.close()
+    input.wasClosed shouldBe true
+    monitor.closedResources.collect { case t: DistinctSet[_] => t } should have size(1)
   }
 }

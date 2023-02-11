@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,36 +38,42 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.ImplicitValueConversion._
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions._
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.ImplicitValueConversion.toListValue
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.values.storable.Values
+import org.neo4j.cypher.internal.runtime.interpreted.commands.LiteralHelper.literal
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Add
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ExpressionVariable
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.LengthFunction
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ReduceFunction
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.SizeFunction
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Variable
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.values.storable.Values.NO_VALUE
 import org.neo4j.values.storable.Values.longValue
 
 class ReduceTest extends CypherFunSuite {
 
   test("canReturnSomethingFromAnIterable") {
     val l = Seq("x", "xxx", "xx")
-    val expression = Add(Variable("acc"), LengthFunction(Variable("n")))
+    val expression = Add(ExpressionVariable(0, "acc"), SizeFunction(ExpressionVariable(1, "n")))
     val collection = Variable("l")
-    val m = ExecutionContext.from("l" -> l)
-    val s = QueryStateHelper.empty
+    val m = CypherRow.from("l" -> l)
+    val s = QueryStateHelper.emptyWith(expressionVariables = new Array(2))
 
-    val reduce = ReduceFunction(collection, "n", expression, "acc", Literal(0))
+    val reduce = ReduceFunction(collection, "n", 1, expression, "acc", 0, literal(0))
 
     reduce.apply(m, s) should equal(longValue(6))
   }
 
   test("returns_null_from_null_collection") {
-    val expression = Add(Variable("acc"), LengthFunction(Variable("n")))
-    val collection = Literal(null)
-    val m = ExecutionContext.empty
-    val s = QueryStateHelper.empty
+    val expression = Add(ExpressionVariable(0, "acc"), LengthFunction(ExpressionVariable(1, "n")))
+    val collection = literal(NO_VALUE)
+    val m = CypherRow.empty
+    val s = QueryStateHelper.emptyWith(expressionVariables = new Array(2))
 
-    val reduce = ReduceFunction(collection, "n", expression, "acc", Literal(0))
+    val reduce = ReduceFunction(collection, "n", 1, expression, "acc", 0, literal(0))
 
-    reduce(m, s) should equal(Values.NO_VALUE)
+    reduce(m, s) should equal(NO_VALUE)
   }
 }

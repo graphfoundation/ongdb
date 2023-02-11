@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB Enterprise Edition. The included source
@@ -90,8 +90,8 @@ public class OnlineBackupContextBuilderTest
         homeDir = testDirectory.directory( "home" ).toPath();
         configDir = testDirectory.directory( "config" ).toPath();
         configFile = configDir.resolve( "ongdb.conf" );
-        String neo4jConfContents = "dbms.backup.address = localhost:1234";
-        Files.write( configFile, singletonList( neo4jConfContents ) );
+        String ongdbConfContents = "dbms.backup.address = localhost:1234";
+        Files.write( configFile, singletonList( ongdbConfContents ) );
     }
 
     @Test

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,20 +38,13 @@
  */
 package org.neo4j.bolt.security.auth;
 
-import java.io.IOException;
 import java.util.Map;
 
-import org.neo4j.graphdb.security.AuthorizationViolationException;
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
 import org.neo4j.internal.kernel.api.security.LoginContext;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.api.security.AuthManager;
-import org.neo4j.kernel.api.security.AuthToken;
-import org.neo4j.kernel.api.exceptions.InvalidArgumentsException;
-import org.neo4j.kernel.api.security.UserManagerSupplier;
 import org.neo4j.kernel.api.security.exception.InvalidAuthTokenException;
-
-import static org.neo4j.kernel.api.security.AuthToken.NEW_CREDENTIALS;
-import static org.neo4j.kernel.api.security.AuthToken.PRINCIPAL;
 
 /**
  * Performs basic authentication with user name and password.
@@ -59,32 +52,18 @@ import static org.neo4j.kernel.api.security.AuthToken.PRINCIPAL;
 public class BasicAuthentication implements Authentication
 {
     private final AuthManager authManager;
-    private final UserManagerSupplier userManagerSupplier;
 
-    public BasicAuthentication( AuthManager authManager, UserManagerSupplier userManagerSupplier )
+    public BasicAuthentication( AuthManager authManager )
     {
         this.authManager = authManager;
-        this.userManagerSupplier = userManagerSupplier;
     }
 
     @Override
-    public AuthenticationResult authenticate( Map<String,Object> authToken ) throws AuthenticationException
-    {
-        if ( authToken.containsKey( NEW_CREDENTIALS ) )
-        {
-            return update( authToken );
-        }
-        else
-        {
-            return doAuthenticate( authToken );
-        }
-    }
-
-    private AuthenticationResult doAuthenticate( Map<String,Object> authToken ) throws AuthenticationException
+    public AuthenticationResult authenticate( Map<String,Object> authToken, ClientConnectionInfo connectionInfo ) throws AuthenticationException
     {
         try
         {
-            LoginContext loginContext = authManager.login( authToken );
+            LoginContext loginContext = authManager.login( authToken, connectionInfo );
 
             switch ( loginContext.subject().getAuthenticationResult() )
             {
@@ -105,36 +84,9 @@ public class BasicAuthentication implements Authentication
         }
     }
 
-    private AuthenticationResult update( Map<String,Object> authToken )
-            throws AuthenticationException
+    @Override
+    public LoginContext impersonate( LoginContext context, String userToImpersonate ) throws AuthenticationException
     {
-        try
-        {
-            LoginContext loginContext = authManager.login( authToken );
-
-            switch ( loginContext.subject().getAuthenticationResult() )
-            {
-            case SUCCESS:
-            case PASSWORD_CHANGE_REQUIRED:
-                String newPassword = AuthToken.safeCast( NEW_CREDENTIALS, authToken );
-                String username = AuthToken.safeCast( PRINCIPAL, authToken );
-                userManagerSupplier.getUserManager( loginContext.subject(), false )
-                        .setUserPassword( username, newPassword, false );
-                loginContext.subject().setPasswordChangeNoLongerRequired();
-                break;
-            default:
-                throw new AuthenticationException( Status.Security.Unauthorized );
-            }
-
-            return new BasicAuthenticationResult( loginContext );
-        }
-        catch ( AuthorizationViolationException | InvalidArgumentsException | InvalidAuthTokenException e )
-        {
-            throw new AuthenticationException( e.status(), e.getMessage(), e );
-        }
-        catch ( IOException e )
-        {
-            throw new AuthenticationException( Status.Security.Unauthorized, e.getMessage(), e );
-        }
+        return this.authManager.impersonate( context, userToImpersonate );
     }
 }

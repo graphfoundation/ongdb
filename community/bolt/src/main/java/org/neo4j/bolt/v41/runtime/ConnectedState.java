@@ -1,0 +1,142 @@
+/*
+ * Copyright (c) "Graph Foundation,"
+ * Graph Foundation, Inc. [https://graphfoundation.org]
+ *
+ * This file is part of ONgDB.
+ *
+ * ONgDB is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+/*
+ * Copyright (c) "Neo4j"
+ * Neo4j Sweden AB [http://neo4j.com]
+ *
+ * This file is part of Neo4j.
+ *
+ * Neo4j is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+package org.neo4j.bolt.v41.runtime;
+
+import java.util.List;
+import java.util.Map;
+
+import io.netty.channel.Channel;
+import org.neo4j.bolt.messaging.RequestMessage;
+import org.neo4j.bolt.runtime.BoltConnectionFatality;
+import org.neo4j.bolt.runtime.statemachine.BoltStateMachineState;
+import org.neo4j.bolt.runtime.statemachine.StateMachineContext;
+import org.neo4j.bolt.v41.messaging.RoutingContext;
+import org.neo4j.bolt.v41.messaging.request.HelloMessage;
+import org.neo4j.memory.HeapEstimator;
+import org.neo4j.values.storable.Values;
+import org.neo4j.values.virtual.MapValue;
+
+import static org.neo4j.bolt.BoltChannel.BOLT_PATCH_LISTENERS;
+import static org.neo4j.bolt.transport.BoltPatchListener.UTC_PATCH;
+import static org.neo4j.bolt.v3.messaging.BoltAuthenticationHelper.processAuthentication;
+import static org.neo4j.bolt.v3.messaging.request.HelloMessage.PATCH_BOLT;
+import static org.neo4j.util.Preconditions.checkState;
+
+/**
+ * Following the socket connection and a small handshake exchange to
+ * establish protocol version, the machine begins in the CONNECTED
+ * state. The <em>only</em> valid transition from here is through a
+ * correctly authorised HELLO into the READY state. Any other action
+ * results in disconnection.
+ */
+public class ConnectedState implements BoltStateMachineState
+{
+    public static final long SHALLOW_SIZE = HeapEstimator.shallowSizeOfInstance( ConnectedState.class );
+
+    private static final String CONNECTION_ID_KEY = "connection_id";
+
+    private final MapValue hints;
+    private BoltStateMachineState readyState;
+
+    public ConnectedState( MapValue hints )
+    {
+        this.hints = hints;
+    }
+
+    @Override
+    public BoltStateMachineState process( RequestMessage message, StateMachineContext context ) throws BoltConnectionFatality
+    {
+        assertInitialized();
+        if ( message instanceof HelloMessage )
+        {
+            HelloMessage helloMessage = (HelloMessage) message;
+            String userAgent = helloMessage.userAgent();
+            Map<String,Object> authToken = helloMessage.authToken();
+            RoutingContext routingContext = helloMessage.routingContext();
+            List<String> patchSettings = helloMessage.patchSettings();
+            notifyListeners( context.channel().rawChannel(), patchSettings );
+
+            if ( patchSettings.contains( UTC_PATCH ) )
+            {
+                context.connectionState().onMetadata( PATCH_BOLT, Values.stringArray( UTC_PATCH ) );
+            }
+
+            if ( processAuthentication( userAgent, authToken, context ) )
+            {
+                context.initStatementProcessorProvider( routingContext );
+
+                context.connectionState().onMetadata( CONNECTION_ID_KEY, Values.utf8Value( context.connectionId() ) );
+                context.connectionState().onMetadata( "hints", hints );
+                return readyState;
+            }
+            else
+            {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public String name()
+    {
+        return "CONNECTED";
+    }
+
+    public void setReadyState( BoltStateMachineState readyState )
+    {
+        this.readyState = readyState;
+    }
+
+    private void assertInitialized()
+    {
+        checkState( readyState != null, "Ready state not set" );
+    }
+
+    private void notifyListeners( Channel channel, List<String> patchSettings )
+    {
+        if ( !patchSettings.isEmpty() )
+        {
+            var patchListeners = channel
+                    .attr(BOLT_PATCH_LISTENERS)
+                    .get();
+            patchListeners.forEach(l -> l.handle( patchSettings ) );
+        }
+    }
+}

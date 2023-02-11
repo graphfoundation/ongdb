@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,6 +38,7 @@
  */
 package org.neo4j.values.storable;
 
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -47,9 +48,9 @@ import org.neo4j.values.virtual.ListValue;
 import static org.neo4j.values.storable.Values.stringArray;
 import static org.neo4j.values.virtual.VirtualValues.fromArray;
 
-public abstract class TextValue extends ScalarValue
+public abstract class TextValue extends HashMemoizingScalarValue
 {
-    protected static final ListValue EMPTY_SPLIT = fromArray( stringArray( "", "" ) );
+    static final ListValue EMPTY_SPLIT = fromArray( stringArray( "", "" ) );
 
     TextValue()
     {
@@ -63,6 +64,8 @@ public abstract class TextValue extends ScalarValue
      * @return The number of Unicode code points.
      */
     public abstract int length();
+
+    public abstract boolean isEmpty();
 
     public abstract TextValue substring( int start, int length );
 
@@ -83,14 +86,24 @@ public abstract class TextValue extends ScalarValue
 
     public abstract ListValue split( String separator );
 
+    public abstract ListValue split( List<String> separators );
+
     public abstract TextValue replace( String find, String replace );
 
     public abstract TextValue reverse();
 
+    public abstract TextValue plus( TextValue other );
+
+    public abstract boolean startsWith( TextValue other );
+
+    public abstract boolean endsWith( TextValue other );
+
+    public abstract boolean contains( TextValue other );
+
     public abstract int compareTo( TextValue other );
 
     @Override
-    int unsafeCompareTo( Value otherValue )
+    protected int unsafeCompareTo( Value otherValue )
     {
         return compareTo( (TextValue) otherValue );
     }
@@ -111,11 +124,6 @@ public abstract class TextValue extends ScalarValue
     public final boolean equals( double x )
     {
         return false;
-    }
-
-    public ValueGroup valueGroup()
-    {
-        return ValueGroup.TEXT;
     }
 
     @Override

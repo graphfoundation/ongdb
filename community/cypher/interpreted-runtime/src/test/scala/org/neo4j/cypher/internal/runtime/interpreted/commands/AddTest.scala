@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,63 +40,66 @@ package org.neo4j.cypher.internal.runtime.interpreted.commands
 
 import java.nio.charset.StandardCharsets
 
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Add, Literal, ParameterExpression}
-import org.neo4j.cypher.internal.util.v3_4.CypherTypeException
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.values.AnyValue
-import org.neo4j.values.storable.Values.{longValue, stringValue, utf8Value}
-import org.neo4j.values.storable.{UTF8StringValue, Values}
-import org.neo4j.values.virtual.VirtualValues
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
+import org.neo4j.cypher.internal.runtime.interpreted.commands.LiteralHelper.literal
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Add
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ParameterFromSlot
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.exceptions.CypherTypeException
+import org.neo4j.values.storable.UTF8StringValue
+import org.neo4j.values.storable.Values
+import org.neo4j.values.storable.Values.NO_VALUE
+import org.neo4j.values.storable.Values.longValue
+import org.neo4j.values.storable.Values.stringValue
+import org.neo4j.values.storable.Values.utf8Value
 
 class AddTest extends CypherFunSuite {
 
-  val m = ExecutionContext.empty
+  val m = CypherRow.empty
   val s = QueryStateHelper.empty
 
   test("numbers") {
-    val expr = Add(Literal(1), Literal(1))
+    val expr = Add(literal(1), literal(1))
     expr(m, s) should equal(longValue(2))
   }
 
   test("with_null") {
-    val nullPlusOne = Add(Literal(null), Literal(1))
-    val twoPlusNull = Add(Literal(2), Literal(null))
+    val nullPlusOne = Add(literal(NO_VALUE), literal(1))
+    val twoPlusNull = Add(literal(2), literal(NO_VALUE))
 
-    nullPlusOne(m, s) should equal(Values.NO_VALUE)
-    twoPlusNull(m, s) should equal(Values.NO_VALUE)
+    nullPlusOne(m, s) should equal(NO_VALUE)
+    twoPlusNull(m, s) should equal(NO_VALUE)
   }
 
   test("strings") {
-    val expr = Add(Literal("hello"), Literal("world"))
+    val expr = Add(literal("hello"), literal("world"))
     expr(m, s) should equal(stringValue("helloworld"))
   }
 
   test("stringPlusNumber") {
-    val expr = Add(Literal("hello"), Literal(1))
+    val expr = Add(literal("hello"), literal(1))
     expr(m, s) should equal(stringValue("hello1"))
   }
 
   test("numberPlusString") {
-    val expr = Add(Literal(1), Literal("world"))
+    val expr = Add(literal(1), literal("world"))
     expr(m, s) should equal(stringValue("1world"))
   }
 
   test("numberPlusBool") {
-    val expr = Add(Literal("1"), Literal(true))
+    val expr = Add(literal(1), literal(true))
     intercept[CypherTypeException](expr(m, s))
   }
 
   test("UTF8 value addition") {
-    import scala.collection.JavaConverters._
     // Given
     val hello = "hello".getBytes(StandardCharsets.UTF_8)
     val world = "world".getBytes(StandardCharsets.UTF_8)
-    val params: Map[String, AnyValue] = Map("p1" -> utf8Value(hello), "p2" -> utf8Value(world))
-    val state = QueryStateHelper.emptyWith(params = VirtualValues.map(params.asJava))
+    val state = QueryStateHelper.emptyWith(params = Array( utf8Value(hello), utf8Value(world)))
 
     // When
-    val result = Add(ParameterExpression("p1"), ParameterExpression("p2"))(m,state)
+    val result = Add(ParameterFromSlot(0, "p1"), ParameterFromSlot(1, "p2"))(m, state)
 
     // Then
     result shouldBe a[UTF8StringValue]

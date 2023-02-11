@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,8 +41,6 @@ package org.neo4j.index.internal.gbptree;
 import org.neo4j.io.pagecache.PageCursor;
 
 import static java.lang.String.format;
-import static org.neo4j.index.internal.gbptree.PageCursorUtil.getUnsignedShort;
-import static org.neo4j.index.internal.gbptree.PageCursorUtil.putUnsignedShort;
 
 /**
  * Gather utility methods for reading and writing individual dynamic sized
@@ -58,15 +56,22 @@ import static org.neo4j.index.internal.gbptree.PageCursorUtil.putUnsignedShort;
  * If {@code T} is set key is dead.
  * If {@code K} is set the next byte contains the higher order bits of the key size.
  * If {@code V} is set there is a value size to be read directly after key size.
- * This first byte can fit key size < 32 and we only need the second byte if key size is larger.
- * Together with the second byte we can fit key size < 8192.
+ * This first byte can fit key size <= 31 (0x1F) and we only need the second byte if key size is larger.
+ *
+ * The second key byte is:
+ * <pre>
+ * [O,k,k,k,k,k,k,k]
+ * </pre>
+ * If {@code O} is set there is either an offload id to be read after after keyValueSize or it is the most significant bit of the key size, depending on
+ * context. Together with the second byte we can fit key size <= 4095 (0xFFF) if {@code O} denotes offload or size <= 8191 (0x1FFF) if denotes most
+ * significant bit.
  *
  * Byte following key size bytes (second or third byte depending on how many bytes needed for key size):
  * <pre>
  * [V,v,v,v,v,v,v,v]
  * </pre>
  * If {@code V} is set the next byte contains the higher order bits of the value size.
- * This first value size byte can fit value size < 128 and with the second byte we can fit value size < 32768.
+ * This first value size byte can fit value size <= 127 (0x7F) and with the second byte we can fit value size <= 32767 (0x7FFF).
  *
  * So in total key/value size has six different looks (not including tombstone being set or not set):
  * <pre>
@@ -87,6 +92,13 @@ import static org.neo4j.index.internal.gbptree.PageCursorUtil.putUnsignedShort;
  *
  * Two byte key, two byte value
  * [0,1,1,k,k,k,k,k][0,k,k,k,k,k,k,k][1,v,v,v,v,v,v,v][v,v,v,v,v,v,v,v]
+ *
+ * Offload entry
+ * [0,1,0,_,_,_,_,_][1,_,_,_,_,_,_,_][offloadId 8B]
+ *
+ * Two byte key (no offload)
+ * [0,1,0,k,k,k,k,k][k,k,k,k,k,k,k,k]
+ *
  * </pre>
  * This key/value size format is used, both for leaves and internal nodes even though internal nodes can never have values.
  *
@@ -102,46 +114,48 @@ import static org.neo4j.index.internal.gbptree.PageCursorUtil.putUnsignedShort;
  * Tombstone
  * First bit in keyValueSize is used as a tombstone, set to 1 if key is dead.
  */
-class DynamicSizeUtil
+public class DynamicSizeUtil
 {
-    static final int SIZE_OFFSET = 2;
-    static final int SIZE_KEY_SIZE = 2;
-    static final int SIZE_VALUE_SIZE = 2;
-    static final int SIZE_TOTAL_OVERHEAD = SIZE_OFFSET + SIZE_KEY_SIZE + SIZE_VALUE_SIZE;
+    static final int MIN_SIZE_KEY_VALUE_SIZE = 1 /*key*/ /*0B value*/;
+    static final int MAX_SIZE_KEY_VALUE_SIZE = 2 /*key*/ + 2 /*value*/;
+    static final int SIZE_OFFLOAD_ID = Long.BYTES;
 
     private static final int FLAG_FIRST_BYTE_TOMBSTONE = 0x80;
+    private static final int FLAG_SECOND_BYTE_OFFLOAD = 0x80;
     private static final long FLAG_READ_TOMBSTONE = 0x80000000_00000000L;
+    private static final long FLAG_READ_OFFLOAD = 0x40000000_00000000L;
     // mask for one-byte key size to map to the k's in [_,_,_,k,k,k,k,k]
     static final int MASK_ONE_BYTE_KEY_SIZE = 0x1F;
     // max two-byte key size to map to the k's in [_,_,_,k,k,k,k,k][_,k,k,k,k,k,k,k]
     static final int MAX_TWO_BYTE_KEY_SIZE = 0xFFF;
+    // max two-byte key size to map to the k's in [_,_,_,k,k,k,k,k][k,k,k,k,k,k,k,k]
+    static final int MAX_TWO_BYTE_KEY_SIZE_NO_OFFLOAD = 0x1FFF;
     // mask for one-byte value size to map to the v's in [_,v,v,v,v,v,v,v]
     static final int MASK_ONE_BYTE_VALUE_SIZE = 0x7F;
     // max two-byte value size to map to the v's in [_,v,v,v,v,v,v,v][v,v,v,v,v,v,v,v]
-    private static final int MAX_TWO_BYTE_VALUE_SIZE = 0x7FFF;
+    static final int MAX_TWO_BYTE_VALUE_SIZE = 0x7FFF;
     private static final int FLAG_HAS_VALUE_SIZE = 0x20;
     private static final int FLAG_ADDITIONAL_KEY_SIZE = 0x40;
     private static final int FLAG_ADDITIONAL_VALUE_SIZE = 0x80;
     private static final int SHIFT_LSB_KEY_SIZE = 5;
     private static final int SHIFT_LSB_VALUE_SIZE = 7;
 
-    static void putKeyOffset( PageCursor cursor, int keyOffset )
+    static boolean putKeySize( PageCursor cursor, int keySize, boolean offload )
     {
-        putUnsignedShort( cursor, keyOffset );
+        return putKeyValueSize( cursor, keySize, 0, offload );
     }
 
-    static int readKeyOffset( PageCursor cursor )
+    public static boolean putKeyValueSize( PageCursor cursor, int keySize, int valueSize, boolean offload )
     {
-        return getUnsignedShort( cursor );
-    }
+        if ( offload )
+        {
+            byte firstByte = FLAG_ADDITIONAL_KEY_SIZE;
+            byte secondByte = (byte) FLAG_SECOND_BYTE_OFFLOAD;
+            cursor.putByte( firstByte );
+            cursor.putByte( secondByte );
+            return false;
+        }
 
-    static void putKeySize( PageCursor cursor, int keySize )
-    {
-        putKeyValueSize( cursor, keySize, 0 );
-    }
-
-    static void putKeyValueSize( PageCursor cursor, int keySize, int valueSize )
-    {
         boolean hasAdditionalKeySize = keySize > MASK_ONE_BYTE_KEY_SIZE;
         boolean hasValueSize = valueSize > 0;
 
@@ -151,10 +165,11 @@ class DynamicSizeUtil
             if ( hasAdditionalKeySize )
             {
                 firstByte |= FLAG_ADDITIONAL_KEY_SIZE;
-                if ( keySize > MAX_TWO_BYTE_KEY_SIZE )
+                if ( keySize > MAX_TWO_BYTE_KEY_SIZE_NO_OFFLOAD )
                 {
                     throw new IllegalArgumentException(
-                            format( "Max supported key size is %d, but tried to store key of size %d", MAX_TWO_BYTE_KEY_SIZE, keySize ) );
+                            format( "Max supported key size is %d, but tried to store key of size %d. Please see index documentation for limitations.",
+                                    MAX_TWO_BYTE_KEY_SIZE_NO_OFFLOAD, keySize ) );
                 }
             }
             if ( hasValueSize )
@@ -165,7 +180,7 @@ class DynamicSizeUtil
 
             if ( hasAdditionalKeySize )
             {
-                // Assuming no key size larger than 4k
+                // Assuming no key size larger than maxKeySize limit
                 cursor.putByte( (byte) (keySize >> SHIFT_LSB_KEY_SIZE) );
             }
         }
@@ -181,7 +196,8 @@ class DynamicSizeUtil
                     if ( valueSize > MAX_TWO_BYTE_VALUE_SIZE )
                     {
                         throw new IllegalArgumentException(
-                                format( "Max supported value size is %d, but tried to store value of size %d", MAX_TWO_BYTE_VALUE_SIZE, valueSize ) );
+                                format( "Max supported value size is %d, but tried to store value of size %d. Please see index documentation for limitations.",
+                                        MAX_TWO_BYTE_VALUE_SIZE, valueSize ) );
                     }
                     firstByte |= FLAG_ADDITIONAL_VALUE_SIZE;
                 }
@@ -194,9 +210,10 @@ class DynamicSizeUtil
                 }
             }
         }
+        return true;
     }
 
-    static long readKeyValueSize( PageCursor cursor )
+    public static long readKeyValueSize( PageCursor cursor, boolean msbIsOffload )
     {
         byte firstByte = cursor.getByte();
         boolean hasTombstone = hasTombstone( firstByte );
@@ -206,7 +223,12 @@ class DynamicSizeUtil
         long keySize;
         if ( hasAdditionalKeySize )
         {
-            int keySizeMsb = cursor.getByte() & 0xFF;
+            byte secondByte = cursor.getByte();
+            if ( msbIsOffload && hasOffload( secondByte ) )
+            {
+                return (hasTombstone ? FLAG_READ_TOMBSTONE : 0) | FLAG_READ_OFFLOAD;
+            }
+            int keySizeMsb = secondByte & 0xFF;
             keySize = (keySizeMsb << SHIFT_LSB_KEY_SIZE) | keySizeLsb;
         }
         else
@@ -238,24 +260,33 @@ class DynamicSizeUtil
         return (hasTombstone ? FLAG_READ_TOMBSTONE : 0) | (keySize << Integer.SIZE) | valueSize;
     }
 
-    static int extractValueSize( long keyValueSize )
+    public static int extractValueSize( long keyValueSize )
     {
         return (int) keyValueSize;
     }
 
-    static int extractKeySize( long keyValueSize )
+    public static int extractKeySize( long keyValueSize )
     {
-        return (int) ((keyValueSize & ~FLAG_READ_TOMBSTONE) >>> Integer.SIZE);
+        return (int) ((keyValueSize & ~(FLAG_READ_TOMBSTONE | FLAG_READ_OFFLOAD)) >>> Integer.SIZE);
     }
 
-    static int getOverhead( int keySize, int valueSize )
+    public static int getOverhead( int keySize, int valueSize, boolean offload )
     {
+        if ( offload )
+        {
+            return 2 + SIZE_OFFLOAD_ID;
+        }
         return 1 + (keySize > MASK_ONE_BYTE_KEY_SIZE ? 1 : 0) + (valueSize > 0 ? 1 : 0) + (valueSize > MASK_ONE_BYTE_VALUE_SIZE ? 1 : 0);
     }
 
     static boolean extractTombstone( long keyValueSize )
     {
         return (keyValueSize & FLAG_READ_TOMBSTONE) != 0;
+    }
+
+    static boolean extractOffload( long keyValueSize )
+    {
+        return (keyValueSize & FLAG_READ_OFFLOAD) != 0;
     }
 
     /**
@@ -284,5 +315,20 @@ class DynamicSizeUtil
     {
         assert (firstByte & FLAG_FIRST_BYTE_TOMBSTONE) == 0 : "First key size byte " + firstByte + " is too large to fit tombstone.";
         return (byte) (firstByte | FLAG_FIRST_BYTE_TOMBSTONE);
+    }
+
+    private static boolean hasOffload( long secondByte )
+    {
+        return (secondByte & FLAG_SECOND_BYTE_OFFLOAD) != 0;
+    }
+
+    static long readOffloadId( PageCursor cursor )
+    {
+        return cursor.getLong();
+    }
+
+    static void putOffloadId( PageCursor cursor, long offloadId )
+    {
+        cursor.putLong( offloadId );
     }
 }

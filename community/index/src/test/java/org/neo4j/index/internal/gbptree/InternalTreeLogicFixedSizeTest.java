@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,9 +42,9 @@ import org.apache.commons.lang3.mutable.MutableLong;
 
 import static org.neo4j.index.internal.gbptree.SimpleLongLayout.longLayout;
 
-public class InternalTreeLogicFixedSizeTest extends InternalTreeLogicTestBase<MutableLong,MutableLong>
+class InternalTreeLogicFixedSizeTest extends InternalTreeLogicTestBase<MutableLong,MutableLong>
 {
-    SimpleLongLayout layout = longLayout().build();
+    private SimpleLongLayout layout = longLayout().build();
 
     @Override
     protected ValueMerger<MutableLong,MutableLong> getAdder()
@@ -52,12 +52,13 @@ public class InternalTreeLogicFixedSizeTest extends InternalTreeLogicTestBase<Mu
         return ( existingKey, newKey, base, add ) ->
         {
             base.add( add.longValue() );
-            return base;
+            return ValueMerger.MergeResult.MERGED;
         };
     }
 
     @Override
-    protected TreeNode<MutableLong,MutableLong> getTreeNode( int pageSize, Layout<MutableLong,MutableLong> layout )
+    protected TreeNode<MutableLong,MutableLong> getTreeNode( int pageSize, Layout<MutableLong,MutableLong> layout,
+            OffloadStore<MutableLong,MutableLong> offloadStore )
     {
         return new TreeNodeFixedSize<>( pageSize, layout );
     }

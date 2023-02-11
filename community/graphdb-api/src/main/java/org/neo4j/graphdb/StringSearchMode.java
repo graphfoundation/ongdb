@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,6 +38,8 @@
  */
 package org.neo4j.graphdb;
 
+import org.neo4j.annotations.api.PublicApi;
+
 /**
  * The string search mode is used together with a value template to find nodes of interest.
  * The search mode can be one of:
@@ -48,6 +50,7 @@ package org.neo4j.graphdb;
  *   <li>CONTAINS: The value must contain the template. Only exact matches are supported.</li>
  * </ul>
  */
+@PublicApi
 public enum StringSearchMode
 {
     /**
@@ -65,5 +68,5 @@ public enum StringSearchMode
     /**
      * The value must contain the template exactly. Regular expressions are not supported.
      */
-    CONTAINS;
+    CONTAINS
 }

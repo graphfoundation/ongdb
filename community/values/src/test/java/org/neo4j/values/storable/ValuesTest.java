@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,9 +38,20 @@
  */
 package org.neo4j.values.storable;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.fail;
+import java.util.Arrays;
+import java.util.List;
+
+import org.neo4j.string.UTF8;
+
+import static java.time.ZoneOffset.UTC;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.values.storable.DurationValue.duration;
+import static org.neo4j.values.storable.LocalTimeValue.localTime;
+import static org.neo4j.values.storable.TimeValue.time;
 import static org.neo4j.values.storable.Values.booleanArray;
 import static org.neo4j.values.storable.Values.booleanValue;
 import static org.neo4j.values.storable.Values.byteArray;
@@ -59,16 +70,18 @@ import static org.neo4j.values.storable.Values.shortArray;
 import static org.neo4j.values.storable.Values.shortValue;
 import static org.neo4j.values.storable.Values.stringArray;
 import static org.neo4j.values.storable.Values.stringValue;
+import static org.neo4j.values.storable.Values.utf8Value;
 import static org.neo4j.values.utils.AnyValueTestUtil.assertEqual;
+import static org.neo4j.values.utils.AnyValueTestUtil.assertNotEqual;
 
-public class ValuesTest
+class ValuesTest
 {
     @Test
-    public void shouldBeEqualToItself()
+    void shouldBeEqualToItself()
     {
         assertEqual( booleanValue( false ), booleanValue( false ) );
-        assertEqual( byteValue( (byte)0 ), byteValue( (byte)0 ) );
-        assertEqual( shortValue( (short)0 ), shortValue( (short)0 ) );
+        assertEqual( byteValue( (byte) 0 ), byteValue( (byte) 0 ) );
+        assertEqual( shortValue( (short) 0 ), shortValue( (short) 0 ) );
         assertEqual( intValue( 0 ), intValue( 0 ) );
         assertEqual( longValue( 0 ), longValue( 0 ) );
         assertEqual( floatValue( 0.0f ), floatValue( 0.0f ) );
@@ -76,8 +89,8 @@ public class ValuesTest
         assertEqual( stringValue( "" ), stringValue( "" ) );
 
         assertEqual( booleanValue( true ), booleanValue( true ) );
-        assertEqual( byteValue( (byte)1 ), byteValue( (byte)1 ) );
-        assertEqual( shortValue( (short)1 ), shortValue( (short)1 ) );
+        assertEqual( byteValue( (byte) 1 ), byteValue( (byte) 1 ) );
+        assertEqual( shortValue( (short) 1 ), shortValue( (short) 1 ) );
         assertEqual( intValue( 1 ), intValue( 1 ) );
         assertEqual( longValue( 1 ), longValue( 1 ) );
         assertEqual( floatValue( 1.0f ), floatValue( 1.0f ) );
@@ -107,24 +120,53 @@ public class ValuesTest
     }
 
     @Test
-    public void pointValueShouldRequireConsistentInput()
+    void pointValueShouldRequireConsistentInput()
     {
-        assertThrowsIllegalArgument( CoordinateReferenceSystem.Cartesian, 1, 2, 3 );
-        assertThrowsIllegalArgument( CoordinateReferenceSystem.Cartesian_3D, 1, 2 );
-        assertThrowsIllegalArgument( CoordinateReferenceSystem.WGS84, 1, 2, 3 );
-        assertThrowsIllegalArgument( CoordinateReferenceSystem.WGS84_3D, 1, 2 );
+        assertThrows( IllegalArgumentException.class, () -> Values.pointValue( CoordinateReferenceSystem.Cartesian, 1, 2, 3 ) );
+        assertThrows( IllegalArgumentException.class, () -> Values.pointValue( CoordinateReferenceSystem.Cartesian_3D, 1, 2 ) );
+        assertThrows( IllegalArgumentException.class, () -> Values.pointValue( CoordinateReferenceSystem.WGS84, 1, 2, 3 ) );
+        assertThrows( IllegalArgumentException.class, () -> Values.pointValue( CoordinateReferenceSystem.WGS84_3D, 1, 2 ) );
     }
 
-    private void assertThrowsIllegalArgument( CoordinateReferenceSystem crs, double... coordinates )
+    @Test
+    void differentStringSubClassesShouldBeSeenAsOfSameValueType()
     {
-        try
+        // given
+        TextValue stringValue = stringValue( "abc" );
+        TextValue utf8Value = utf8Value( UTF8.encode( "def" ) );
+
+        // when
+        boolean areOfSameClasses = stringValue.getClass().equals( utf8Value );
+        boolean areOfSameValueType = stringValue.isSameValueTypeAs( utf8Value );
+
+        // then
+        assertFalse( areOfSameClasses );
+        assertTrue( areOfSameValueType );
+    }
+
+    @Test
+    void differentTypesShouldNotBeEqual()
+    {
+        // This includes NaN
+        List<Value> items = Arrays.asList(
+                stringValue( "foo" ),
+                intValue( 42 ),
+                booleanValue( false ),
+                doubleValue( Double.NaN ),
+                time( 14, 0, 0, 0, UTC ),
+                localTime( 14, 0, 0, 0 ),
+                duration( 0, 0, 0, 1_000_000_000 ),
+                byteArray( new byte[]{} ),
+                charArray( new char[]{'x'} ) );
+        for ( int i = 0; i < items.size(); i++ )
         {
-            Values.pointValue( crs, coordinates );
-            fail( "exception expected" );
-        }
-        catch ( IllegalArgumentException e )
-        {
-            // this is what we want
+            for ( int j = 0; j < items.size(); j++ )
+            {
+                if ( i != j )
+                {
+                    assertNotEqual( items.get( i ), items.get( j ) );
+                }
+            }
         }
     }
 }

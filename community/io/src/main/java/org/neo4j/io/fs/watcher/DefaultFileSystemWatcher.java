@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,14 +41,18 @@ package org.neo4j.io.fs.watcher;
 import com.sun.nio.file.SensitivityWatchEventModifier;
 import org.apache.commons.lang3.StringUtils;
 
-import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.neo4j.io.fs.watcher.resource.WatchedFile;
@@ -67,6 +71,7 @@ public class DefaultFileSystemWatcher implements FileWatcher
             new WatchEvent.Kind[]{StandardWatchEventKinds.ENTRY_DELETE, StandardWatchEventKinds.ENTRY_MODIFY};
     private final WatchService watchService;
     private final List<FileWatchEventListener> listeners = new CopyOnWriteArrayList<>();
+    private final Map<Path,SharedWatchedFile> watchedFiles = new ConcurrentHashMap<>();
     private volatile boolean watch;
 
     public DefaultFileSystemWatcher( WatchService watchService )
@@ -75,15 +80,16 @@ public class DefaultFileSystemWatcher implements FileWatcher
     }
 
     @Override
-    public WatchedResource watch( File file ) throws IOException
+    public WatchedResource watch( Path path ) throws IOException
     {
-        if ( !file.isDirectory() )
+        if ( !Files.isDirectory( path ) )
         {
             throw new IllegalArgumentException( format( "File `%s` is not a directory. Only directories can be " +
-                    "registered to be monitored.", file.getCanonicalPath() ) );
+                    "registered to be monitored.", path.toAbsolutePath().normalize() ) );
         }
-        WatchKey watchKey = file.toPath().register( watchService, OBSERVED_EVENTS, SensitivityWatchEventModifier.HIGH );
-        return new WatchedFile( watchKey );
+        return watchedFiles.compute( path.toAbsolutePath(), ( key, watchedFile ) ->
+                watchedFile != null && watchedFile.share() ? watchedFile
+                                                           : new SharedWatchedFile( uncheckedRegister( key ), key, () -> watchedFiles.remove( key ) ) );
     }
 
     @Override
@@ -101,11 +107,11 @@ public class DefaultFileSystemWatcher implements FileWatcher
                     WatchEvent.Kind<?> kind = watchEvent.kind();
                     if ( StandardWatchEventKinds.ENTRY_MODIFY == kind )
                     {
-                        notifyAboutModification( watchEvent );
+                        notifyAboutModification( key, watchEvent );
                     }
                     if ( StandardWatchEventKinds.ENTRY_DELETE == kind )
                     {
-                        notifyAboutDeletion( watchEvent );
+                        notifyAboutDeletion( key, watchEvent );
                     }
                 }
                 key.reset();
@@ -138,32 +144,77 @@ public class DefaultFileSystemWatcher implements FileWatcher
         watchService.close();
     }
 
-    private void notifyAboutModification( WatchEvent<?> watchEvent )
+    private void notifyAboutModification( WatchKey key, WatchEvent<?> watchEvent )
     {
         String context = getContext( watchEvent );
         if ( StringUtils.isNotEmpty( context ) )
         {
             for ( FileWatchEventListener listener : listeners )
             {
-                listener.fileModified( context );
+                listener.fileModified( key, context );
             }
         }
     }
 
-    private void notifyAboutDeletion( WatchEvent<?> watchEvent )
+    private void notifyAboutDeletion( WatchKey key, WatchEvent<?> watchEvent )
     {
         String context = getContext( watchEvent );
         if ( StringUtils.isNotEmpty( context ) )
         {
             for ( FileWatchEventListener listener : listeners )
             {
-                listener.fileDeleted( context );
+                listener.fileDeleted( key, context );
             }
         }
     }
 
-    private String getContext( WatchEvent<?> watchEvent )
+    private WatchKey uncheckedRegister( Path path )
+    {
+        try
+        {
+            return path.register( watchService, OBSERVED_EVENTS, SensitivityWatchEventModifier.HIGH );
+        }
+        catch ( IOException e )
+        {
+            throw new UncheckedIOException( e );
+        }
+    }
+
+    private static String getContext( WatchEvent<?> watchEvent )
     {
         return Objects.toString( watchEvent.context(), StringUtils.EMPTY );
+    }
+
+    private static class SharedWatchedFile extends WatchedFile
+    {
+        private final Runnable closeAction;
+        private int refCount = 1;
+        private boolean closed;
+
+        private SharedWatchedFile( WatchKey watchKey, Path path, Runnable closeAction )
+        {
+            super( watchKey, path );
+            this.closeAction = closeAction;
+        }
+
+        @Override
+        public synchronized void close()
+        {
+            if ( --refCount == 0 )
+            {
+                super.close();
+                closeAction.run();
+                closed = true;
+            }
+        }
+
+        synchronized boolean share()
+        {
+            if ( !closed )
+            {
+                refCount++;
+            }
+            return !closed;
+        }
     }
 }

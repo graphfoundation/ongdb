@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,85 +38,100 @@
  */
 package org.neo4j.consistency.report;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.consistency.RecordType;
-import org.neo4j.helpers.Strings;
+import org.neo4j.consistency.store.synthetic.TokenScanDocument;
+import org.neo4j.internal.helpers.Strings;
+import org.neo4j.kernel.impl.index.schema.EntityTokenRangeImpl;
 import org.neo4j.kernel.impl.store.record.NeoStoreRecord;
+import org.neo4j.kernel.impl.store.record.NodeRecord;
+import org.neo4j.kernel.impl.store.record.RelationshipRecord;
 import org.neo4j.logging.AssertableLogProvider;
+import org.neo4j.logging.LogAssert;
 
-public class MessageConsistencyLoggerTest
+import static org.neo4j.common.EntityType.NODE;
+import static org.neo4j.common.EntityType.RELATIONSHIP;
+import static org.neo4j.logging.AssertableLogProvider.Level.ERROR;
+import static org.neo4j.logging.AssertableLogProvider.Level.WARN;
+import static org.neo4j.logging.LogAssertions.assertThat;
+
+class MessageConsistencyLoggerTest
 {
-    private static final AssertableLogProvider.LogMatcherBuilder INLOG = AssertableLogProvider.inLog( MessageConsistencyLoggerTest.class );
-    // given
-    private final InconsistencyMessageLogger logger;
-    private final AssertableLogProvider logProvider;
-
-    {
-        logProvider = new AssertableLogProvider();
-        logger = new InconsistencyMessageLogger( logProvider.getLog( getClass() ) );
-    }
+    private final AssertableLogProvider logProvider = new AssertableLogProvider();
+    private final InconsistencyMessageLogger logger = new InconsistencyMessageLogger( logProvider.getLog( getClass() ) );
+    private final LogAssert logMatcher = assertThat( logProvider ).forClass( MessageConsistencyLoggerTest.class );
 
     @Test
-    public void shouldFormatErrorForRecord()
+    void shouldFormatErrorForRecord()
     {
         // when
         logger.error( RecordType.NEO_STORE, new NeoStoreRecord(), "sample message", 1, 2 );
 
         // then
-        logProvider.assertExactly(
-                INLOG.error( join( "sample message", neoStoreRecord( true, -1 ), "Inconsistent with: 1 2" ) )
-        );
-    }
-
-    private String neoStoreRecord( boolean used, long nextProp )
-    {
-        NeoStoreRecord record = new NeoStoreRecord();
-        record.setInUse( used );
-        record.setNextProp( nextProp );
-        return record.toString();
+        logMatcher.forLevel( ERROR )
+                .containsMessages( join( "sample message", neoStoreRecord( true, -1 ), "Inconsistent with: 1 2" ) );
     }
 
     @Test
-    public void shouldFlattenAMultiLineMessageToASingleLine()
+    void shouldFlattenAMultiLineMessageToASingleLine()
     {
         // when
         logger.error( RecordType.NEO_STORE, new NeoStoreRecord(), "multiple\n line\r\n message", 1, 2 );
 
         // then
-        logProvider.assertExactly(
-                INLOG.error( join( "multiple line message", neoStoreRecord( true, -1 ), "Inconsistent with: 1 2" ) )
-        );
+        logMatcher.forLevel( ERROR )
+                .containsMessages( join( "multiple line message", neoStoreRecord( true, -1 ), "Inconsistent with: 1 2" ) );
     }
 
     @Test
-    public void shouldFormatWarningForRecord()
+    void shouldFormatWarningForRecord()
     {
         // when
         logger.warning( RecordType.NEO_STORE, new NeoStoreRecord(), "sample message", 1, 2 );
 
         // then
-        logProvider.assertExactly(
-                INLOG.warn( join( "sample message", neoStoreRecord( true, -1 ), "Inconsistent with: 1 2" ) )
-        );
+        logMatcher.forLevel( WARN )
+                .containsMessages( join( "sample message", neoStoreRecord( true, -1 ), "Inconsistent with: 1 2" ) );
     }
 
     @Test
-    public void shouldFormatLogForChangedRecord()
+    void shouldFormatLogForChangedRecord()
     {
         // when
         logger.error( RecordType.NEO_STORE, new NeoStoreRecord(), new NeoStoreRecord(), "sample message", 1, 2 );
 
         // then
-        logProvider.assertExactly(
-                INLOG.error( join( "sample message",
+        logMatcher.forLevel( ERROR )
+                .containsMessages( join( "sample message",
                         "- " + neoStoreRecord( true, -1 ),
                         "+ " + neoStoreRecord( true, -1 ),
-                        "Inconsistent with: 1 2" ) )
-        );
+                        "Inconsistent with: 1 2" ) );
     }
 
-    private String join( String firstLine, String... lines )
+    @Test
+    void shouldAdaptLogMessageToEntityTokenRangeTypeNode()
+    {
+        // when
+        logger.error( RecordType.LABEL_SCAN_DOCUMENT, new TokenScanDocument( new EntityTokenRangeImpl( 0, new long[0][], NODE ) ),
+                "Some label index error", new NodeRecord( 1 ) );
+
+        // then
+        logMatcher.containsMessages( "NodeLabelRange" );
+    }
+
+    @Test
+    void shouldAdaptLogMessageToEntityTokenRangeTypeRelationship()
+    {
+        // when
+        logger.error( RecordType.RELATIONSHIP_TYPE_SCAN_DOCUMENT, new TokenScanDocument( new EntityTokenRangeImpl( 0, new long[0][], RELATIONSHIP ) ),
+                "Some relationship type error", new RelationshipRecord( 1 ) );
+
+        // then
+        logMatcher.containsMessages( "RelationshipTypeRange" );
+    }
+
+    private static String join( String firstLine, String... lines )
     {
         StringBuilder expected = new StringBuilder( firstLine );
         for ( String line : lines )
@@ -124,5 +139,13 @@ public class MessageConsistencyLoggerTest
             expected.append( System.lineSeparator() ).append( Strings.TAB ).append( line );
         }
         return expected.toString();
+    }
+
+    private static String neoStoreRecord( boolean used, long nextProp )
+    {
+        NeoStoreRecord record = new NeoStoreRecord();
+        record.setInUse( used );
+        record.setNextProp( nextProp );
+        return record.toString();
     }
 }

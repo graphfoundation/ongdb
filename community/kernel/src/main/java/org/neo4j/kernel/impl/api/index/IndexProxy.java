@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,28 +38,27 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.util.concurrent.TimeUnit;
 
 import org.neo4j.graphdb.ResourceIterator;
-import org.neo4j.internal.kernel.api.IndexCapability;
 import org.neo4j.internal.kernel.api.InternalIndexState;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptorSupplier;
-import org.neo4j.io.pagecache.IOLimiter;
+import org.neo4j.internal.kernel.api.PopulationProgress;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.kernel.api.exceptions.index.IndexActivationFailedKernelException;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
-import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
 import org.neo4j.kernel.api.exceptions.index.IndexPopulationFailedKernelException;
 import org.neo4j.kernel.api.exceptions.schema.UniquePropertyValueValidationException;
 import org.neo4j.kernel.api.index.IndexAccessor;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.index.PropertyAccessor;
-import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexReader;
-import org.neo4j.storageengine.api.schema.PopulationProgress;
+import org.neo4j.kernel.api.index.MinimalIndexAccessor;
+import org.neo4j.kernel.api.index.TokenIndexReader;
+import org.neo4j.kernel.api.index.ValueIndexReader;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.values.storable.Value;
 
 /**
@@ -80,33 +79,29 @@ import org.neo4j.values.storable.Value;
  *
  * @see ContractCheckingIndexProxy
  */
-public interface IndexProxy extends SchemaDescriptorSupplier
+public interface IndexProxy extends MinimalIndexAccessor
 {
-    void start() throws IOException;
+    void start();
 
-    IndexUpdater newUpdater( IndexUpdateMode mode );
-
-    /**
-     * Drop index.
-     * Must close the context as well.
-     */
-    void drop() throws IOException;
+    IndexUpdater newUpdater( IndexUpdateMode mode, CursorContext cursorContext );
 
     /**
      * Close this index context.
      */
-    void close() throws IOException;
+    void close( CursorContext cursorContext ) throws IOException;
 
-    SchemaIndexDescriptor getDescriptor();
+    IndexDescriptor getDescriptor();
 
-    @Override
-    SchemaDescriptor schema();
-
-    IndexProvider.Descriptor getProviderDescriptor();
+    /**
+     * Change the index descriptor connected to this proxy.
+     * This should only be done if the index descriptors describe the same physical index.
+     */
+    default void changeIdentity( IndexDescriptor descriptor )
+    {
+        throw new UnsupportedOperationException( "Identity of this proxy is immutable" );
+    }
 
     InternalIndexState getState();
-
-    IndexCapability getIndexCapability();
 
     /**
      * @return failure message. Expect a call to it if {@link #getState()} returns {@link InternalIndexState#FAILED}.
@@ -115,19 +110,28 @@ public interface IndexProxy extends SchemaDescriptorSupplier
 
     PopulationProgress getIndexPopulationProgress();
 
-    void force( IOLimiter ioLimiter ) throws IOException;
+    void force( CursorContext cursorContext ) throws IOException;
 
     void refresh() throws IOException;
 
     /**
      * @throws IndexNotFoundKernelException if the index isn't online yet.
+     * @throws UnsupportedOperationException if underlying index is not Value Index
      */
-    IndexReader newReader() throws IndexNotFoundKernelException;
+    ValueIndexReader newValueReader() throws IndexNotFoundKernelException;
 
     /**
+     * @throws IndexNotFoundKernelException if the index isn't online yet.
+     * @throws UnsupportedOperationException if underlying index is not Token Index
+     */
+    TokenIndexReader newTokenReader() throws IndexNotFoundKernelException;
+
+    /**
+     * @param time time to wait maximum. A value of 0 means indefinite wait.
+     * @param unit unit of time to wait.
      * @return {@code true} if the call waited, {@code false} if the condition was already reached.
      */
-    boolean awaitStoreScanCompleted() throws IndexPopulationFailedKernelException, InterruptedException;
+    boolean awaitStoreScanCompleted( long time, TimeUnit unit ) throws IndexPopulationFailedKernelException, InterruptedException;
 
     void activate() throws IndexActivationFailedKernelException;
 
@@ -138,14 +142,13 @@ public interface IndexProxy extends SchemaDescriptorSupplier
      * called before committing a transaction as to prevent exception during applying that transaction.
      *
      * @param tuple {@link Value value tuple} to validate.
+     * @param entityId id of the entity being validated
      */
-    void validateBeforeCommit( Value[] tuple );
+    void validateBeforeCommit( Value[] tuple, long entityId );
 
-    long getIndexId();
+    ResourceIterator<Path> snapshotFiles() throws IOException;
 
-    ResourceIterator<File> snapshotFiles() throws IOException;
-
-    default void verifyDeferredConstraints( PropertyAccessor accessor )  throws IndexEntryConflictException, IOException
+    default void verifyDeferredConstraints( NodePropertyAccessor accessor )  throws IndexEntryConflictException, IOException
     {
         throw new IllegalStateException( this.toString() );
     }

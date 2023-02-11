@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,9 +38,9 @@
  */
 package org.neo4j.io.pagecache.impl;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
 
 import org.neo4j.io.pagecache.CursorException;
 import org.neo4j.io.pagecache.PageCursor;
@@ -49,7 +49,7 @@ import org.neo4j.io.pagecache.PageCursor;
  * A CompositePageCursor is a seamless view over parts of two other PageCursors.
  * @see #compose(PageCursor, int, PageCursor, int)
  */
-public class CompositePageCursor extends PageCursor
+public final class CompositePageCursor extends PageCursor
 {
     private final PageCursor first;
     private final int firstBaseOffset;
@@ -58,7 +58,7 @@ public class CompositePageCursor extends PageCursor
     private final int secondBaseOffset;
     private final int secondLength;
     private int offset;
-    private PageCursor byteAccessCursor;
+    private final PageCursor byteAccessCursor;
     private boolean outOfBounds;
 
     // Constructed with static factory methods.
@@ -400,6 +400,20 @@ public class CompositePageCursor extends PageCursor
     }
 
     @Override
+    public void mark()
+    {
+        first.mark();
+        second.mark();
+    }
+
+    @Override
+    public void setOffsetToMark()
+    {
+        first.setOffsetToMark();
+        second.setOffsetToMark();
+    }
+
+    @Override
     public long getCurrentPageId()
     {
         return cursor( 0 ).getCurrentPageId();
@@ -412,7 +426,13 @@ public class CompositePageCursor extends PageCursor
     }
 
     @Override
-    public File getCurrentFile()
+    public Path getCurrentFile()
+    {
+        return null;
+    }
+
+    @Override
+    public Path getRawCurrentFile()
     {
         return null;
     }
@@ -431,7 +451,7 @@ public class CompositePageCursor extends PageCursor
         throw unsupportedNext();
     }
 
-    private UnsupportedOperationException unsupportedNext()
+    private static UnsupportedOperationException unsupportedNext()
     {
         return new UnsupportedOperationException(
                 "Composite cursor does not support next operation. Please operate directly on underlying cursors." );
@@ -453,13 +473,13 @@ public class CompositePageCursor extends PageCursor
     @Override
     public boolean shouldRetry() throws IOException
     {
-        boolean needsRetry = first.shouldRetry() | second.shouldRetry();
-        if ( needsRetry )
+        if ( first.shouldRetry() || second.shouldRetry() )
         {
             rewind();
             checkAndClearBoundsFlag();
+            return true;
         }
-        return needsRetry;
+        return false;
     }
 
     @Override
@@ -483,7 +503,9 @@ public class CompositePageCursor extends PageCursor
     @Override
     public boolean checkAndClearBoundsFlag()
     {
-        boolean bounds = outOfBounds | first.checkAndClearBoundsFlag() | second.checkAndClearBoundsFlag();
+        boolean firstOOB = first.checkAndClearBoundsFlag();
+        boolean secondOOB = second.checkAndClearBoundsFlag();
+        boolean bounds = outOfBounds || firstOOB || secondOOB;
         outOfBounds = false;
         return bounds;
     }

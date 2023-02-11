@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,7 +40,7 @@ package org.neo4j.kernel.api.impl.index;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.MultiFields;
+import org.apache.lucene.index.MultiBits;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.FilteredDocIdSetIterator;
 import org.apache.lucene.search.IndexSearcher;
@@ -49,23 +49,22 @@ import org.apache.lucene.util.Bits;
 import java.io.IOException;
 import java.util.Iterator;
 
-import org.neo4j.helpers.collection.BoundedIterable;
-import org.neo4j.helpers.collection.PrefetchingIterator;
-import org.neo4j.kernel.api.impl.index.partition.PartitionSearcher;
+import org.neo4j.internal.helpers.collection.BoundedIterable;
+import org.neo4j.internal.helpers.collection.PrefetchingIterator;
 
 /**
  * Provides a view of all {@link Document}s in a single partition.
  */
 public class LucenePartitionAllDocumentsReader implements BoundedIterable<Document>
 {
-    private final PartitionSearcher partitionSearcher;
+    private final SearcherReference searcherReference;
     private final IndexSearcher searcher;
     private final IndexReader reader;
 
-    public LucenePartitionAllDocumentsReader( PartitionSearcher partitionSearcher )
+    public LucenePartitionAllDocumentsReader( SearcherReference searcherReference )
     {
-        this.partitionSearcher = partitionSearcher;
-        this.searcher = partitionSearcher.getIndexSearcher();
+        this.searcherReference = searcherReference;
+        this.searcher = searcherReference.getIndexSearcher();
         this.reader = searcher.getIndexReader();
     }
 
@@ -78,10 +77,18 @@ public class LucenePartitionAllDocumentsReader implements BoundedIterable<Docume
     @Override
     public Iterator<Document> iterator()
     {
-        return new PrefetchingIterator<Document>()
-        {
-            DocIdSetIterator idIterator = iterateAllDocs();
+        return documentIterator( iterateAllDocs() );
+    }
 
+    public Iterator<Document> iterator( int from, int to )
+    {
+        return documentIterator( iterateDocs( from, to ) );
+    }
+
+    private Iterator<Document> documentIterator( DocIdSetIterator idIterator )
+    {
+        return new PrefetchingIterator<>()
+        {
             @Override
             protected Document fetchNextOrNull()
             {
@@ -105,7 +112,7 @@ public class LucenePartitionAllDocumentsReader implements BoundedIterable<Docume
     @Override
     public void close() throws IOException
     {
-        partitionSearcher.close();
+        searcherReference.close();
     }
 
     private Document getDocument( int docId )
@@ -122,15 +129,25 @@ public class LucenePartitionAllDocumentsReader implements BoundedIterable<Docume
 
     private DocIdSetIterator iterateAllDocs()
     {
-        Bits liveDocs = MultiFields.getLiveDocs( reader );
-        DocIdSetIterator allDocs = DocIdSetIterator.all( reader.maxDoc() );
-        if ( liveDocs == null )
+        return filterRemovals( DocIdSetIterator.all( reader.maxDoc() ) );
+    }
+
+    private DocIdSetIterator iterateDocs( int from, int to )
+    {
+        return from == to ? DocIdSetIterator.empty() : filterRemovals( DocIdSetIterator.range( from, to ) );
+    }
+
+    private DocIdSetIterator filterRemovals( DocIdSetIterator docs )
+    {
+        if ( !reader.hasDeletions() )
         {
-            return allDocs;
+            return docs;
         }
 
-        return new FilteredDocIdSetIterator( allDocs )
+        return new FilteredDocIdSetIterator( docs )
         {
+            private final Bits liveDocs = MultiBits.getLiveDocs( reader );
+
             @Override
             protected boolean match( int doc )
             {

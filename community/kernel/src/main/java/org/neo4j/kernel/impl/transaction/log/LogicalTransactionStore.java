@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,8 +41,7 @@ package org.neo4j.kernel.impl.transaction.log;
 import java.io.IOException;
 
 import org.neo4j.kernel.impl.transaction.CommittedTransactionRepresentation;
-import org.neo4j.kernel.impl.transaction.log.TransactionMetadataCache.TransactionMetadata;
-import org.neo4j.kernel.impl.transaction.log.entry.CheckPoint;
+import org.neo4j.kernel.impl.transaction.log.files.checkpoint.CheckpointInfo;
 
 /**
  * Accessor of transactions and meta data information about transactions.
@@ -61,13 +60,12 @@ public interface LogicalTransactionStore
      * or if the transaction has been committed, but information about it is no longer available for some reason.
      * @throws IOException if there was an I/O related error looking for the start transaction.
      */
-    TransactionCursor getTransactions( long transactionIdToStartFrom )
-            throws IOException;
+    TransactionCursor getTransactions( long transactionIdToStartFrom ) throws IOException;
 
     /**
      * Acquires a {@link TransactionCursor cursor} which will provide {@link CommittedTransactionRepresentation}
      * instances for committed transactions, starting from the specified {@link LogPosition}.
-     * This is useful for placing a cursor at a position referred to by a {@link CheckPoint}.
+     * This is useful for placing a cursor at a position referred to by a {@link CheckpointInfo}.
      * Transactions will be returned from the cursor in transaction-id-sequential order.
      *
      * @param position {@link LogPosition} of the first transaction that the cursor will return.
@@ -91,27 +89,5 @@ public interface LogicalTransactionStore
      * for committed transactions in the given range in reverse order.
      * @throws IOException if there was an I/O related error looking for the start transaction.
      */
-    TransactionCursor getTransactionsInReverseOrder( LogPosition backToPosition )
-            throws IOException;
-
-    /**
-     * Looks up meta data about a committed transaction.
-     *
-     * @param transactionId id of the transaction to look up meta data for.
-     * @return {@link TransactionMetadata} containing meta data about the specified transaction.
-     * @throws NoSuchTransactionException if the requested transaction hasn't been committed,
-     * or if the transaction has been committed, but information about it is no longer available for some reason.
-     * @throws IOException if there was an I/O related error during reading the meta data.
-     */
-    TransactionMetadataCache.TransactionMetadata getMetadataFor( long transactionId )
-            throws IOException;
-
-    /**
-     * Checks if a transaction with a given transaction id exists on disk. This is to ensure that a transaction's
-     * metadata is not found because it is cached, even if the tx has itself been pruned.
-     * @param transactionId The id of the transaction to check.
-     * @return true if there is currently a transaction log file containing this transaction, false otherwise.
-     * @throws IOException If there was an I/O error during the lookup.
-     */
-    boolean existsOnDisk( long transactionId ) throws IOException;
+    TransactionCursor getTransactionsInReverseOrder( LogPosition backToPosition ) throws IOException;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,7 @@
  */
 package org.neo4j.server.web;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.servlet.FilterChain;
 import javax.servlet.http.HttpServletRequest;
@@ -46,13 +46,13 @@ import javax.servlet.http.HttpServletResponse;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-public class StaticContentFilterTest
+class StaticContentFilterTest
 {
     @Test
-    public void shouldAddStaticContentHeadersToHtmlResponses() throws Exception
+    void shouldAddStaticContentHeadersToHtmlResponses() throws Exception
     {
         // given
         HttpServletRequest request = mock(HttpServletRequest.class);
@@ -74,7 +74,7 @@ public class StaticContentFilterTest
     }
 
     @Test
-    public void shouldPassThroughRequestsForNonHtmlResources() throws Exception
+    void shouldPassThroughRequestsForNonHtmlResources() throws Exception
     {
         // given
         HttpServletRequest request = mock(HttpServletRequest.class);
@@ -86,12 +86,12 @@ public class StaticContentFilterTest
         new StaticContentFilter().doFilter( request, response, filterChain );
 
         // then
-        verifyZeroInteractions( response );
+        verifyNoInteractions( response );
         verify( filterChain ).doFilter( request, response );
     }
 
     @Test
-    public void shouldPassThroughRequestsWithNullServletPath() throws Exception
+    void shouldPassThroughRequestsWithNullServletPath() throws Exception
     {
         // given
         HttpServletRequest request = mock(HttpServletRequest.class);
@@ -103,7 +103,7 @@ public class StaticContentFilterTest
         new StaticContentFilter().doFilter( request, response, filterChain );
 
         // then
-        verifyZeroInteractions( response );
+        verifyNoInteractions( response );
         verify( filterChain ).doFilter( request, response );
     }
 }

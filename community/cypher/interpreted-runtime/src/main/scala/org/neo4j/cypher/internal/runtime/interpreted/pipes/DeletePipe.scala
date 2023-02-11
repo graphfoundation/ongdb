@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,55 +38,63 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.util.v3_4.CypherTypeException
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.IsNoValue
 import org.neo4j.cypher.internal.runtime.interpreted.GraphElementPropertyFunctions
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.values.storable.Values
-import org.neo4j.values.virtual.{RelationshipValue, NodeValue, PathValue}
-
-import scala.collection.JavaConverters._
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
+import org.neo4j.cypher.internal.util.attribution.Id
+import org.neo4j.exceptions.CypherTypeException
+import org.neo4j.values.AnyValue
+import org.neo4j.values.virtual.VirtualNodeValue
+import org.neo4j.values.virtual.VirtualPathValue
+import org.neo4j.values.virtual.VirtualRelationshipValue
 
 case class DeletePipe(src: Pipe, expression: Expression, forced: Boolean)
                      (val id: Id = Id.INVALID_ID)
   extends PipeWithSource(src) with GraphElementPropertyFunctions {
 
-  expression.registerOwningPipe(this)
-
-
-  override protected def internalCreateResults(input: Iterator[ExecutionContext],
-                                               state: QueryState): Iterator[ExecutionContext] = {
+  override protected def internalCreateResults(input: ClosingIterator[CypherRow], state: QueryState): ClosingIterator[CypherRow] = {
     input.map { row =>
-      expression(row, state) match {
-        case Values.NO_VALUE => // do nothing
-        case r: RelationshipValue =>
-          deleteRelationship(r, state)
-        case n: NodeValue =>
-          deleteNode(n, state)
-        case p: PathValue =>
-          deletePath(p, state)
-        case other =>
-          throw new CypherTypeException(s"Expected a Node, Relationship or Path, but got a ${other.getClass.getSimpleName}")
-      }
+      DeletePipe.delete(expression(row, state), state, forced)
       row
     }
   }
+}
 
-  private def deleteNode(n: NodeValue, state: QueryState) = if (!state.query.nodeOps.isDeletedInThisTx(n.id())) {
-    if (forced) state.query.detachDeleteNode(n.id())
-    else state.query.nodeOps.delete(n.id())
+object DeletePipe {
+
+  def delete(toDelete: AnyValue,state:  QueryState,  forced: Boolean): Unit = toDelete match {
+    case IsNoValue() => // do nothing
+    case r: VirtualRelationshipValue =>
+      deleteRelationship(r, state)
+    case n: VirtualNodeValue =>
+      deleteNode(n, state, forced)
+    case p: VirtualPathValue =>
+      deletePath(p, state, forced)
+    case other =>
+      throw new CypherTypeException(s"Expected a Node, Relationship or Path, but got a ${other.getClass.getSimpleName}")
   }
 
-  private def deleteRelationship(r: RelationshipValue, state: QueryState) =
-    if (!state.query.relationshipOps.isDeletedInThisTx(r.id())) state.query.relationshipOps.delete(r.id())
+  private def deleteNode(n: VirtualNodeValue, state: QueryState, forced: Boolean) = if (!state.query.nodeReadOps.isDeletedInThisTx(n.id())) {
+    if (forced) state.query.detachDeleteNode(n.id())
+    else state.query.nodeWriteOps.delete(n.id())
+  }
 
-  private def deletePath(p: PathValue, state: QueryState) = p.asList().iterator().asScala.foreach {
-    case n: NodeValue =>
-      deleteNode(n, state)
-    case r: RelationshipValue =>
-      deleteRelationship(r, state)
-    case other =>
-      throw new CypherTypeException(s"Expected a Node or Relationship, but got a ${other.getClass.getSimpleName}")
+  private def deleteRelationship(r: VirtualRelationshipValue, state: QueryState): Unit =
+    if (!state.query.relationshipReadOps.isDeletedInThisTx(r.id())) state.query.relationshipWriteOps.delete(r.id())
+
+  private def deletePath(p: VirtualPathValue, state: QueryState, forced: Boolean): Unit = {
+    val entities = p.asList().iterator()
+    while (entities.hasNext) {
+      entities.next() match {
+        case n: VirtualNodeValue =>
+          deleteNode(n, state, forced)
+        case r: VirtualRelationshipValue =>
+          deleteRelationship(r, state)
+        case other =>
+          throw new CypherTypeException(s"Expected a Node or Relationship, but got a ${other.getClass.getSimpleName}")
+      }
+    }
   }
 }

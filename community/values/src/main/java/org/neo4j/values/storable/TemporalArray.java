@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -43,7 +43,7 @@ import java.time.temporal.Temporal;
 import org.neo4j.graphdb.spatial.Geometry;
 import org.neo4j.values.AnyValue;
 
-public abstract class TemporalArray<T extends Temporal & Comparable<? super T>, V extends TemporalValue<T,V>> extends NonPrimitiveArray<T>
+public abstract class TemporalArray<T extends Temporal & Comparable<? super T>> extends NonPrimitiveArray<T>
 {
 
     @Override
@@ -52,7 +52,7 @@ public abstract class TemporalArray<T extends Temporal & Comparable<? super T>, 
         return false;
     }
 
-    protected final <E extends Exception> void writeTo( ValueWriter<E> writer, ValueWriter.ArrayType type, Temporal[] values ) throws E
+    protected static <E extends Exception> void writeTo( ValueWriter<E> writer, ValueWriter.ArrayType type, Temporal[] values ) throws E
     {
         writer.beginArray( values.length, type );
         for ( Temporal x : values )

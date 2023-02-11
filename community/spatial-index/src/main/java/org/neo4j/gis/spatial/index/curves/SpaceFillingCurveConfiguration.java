@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,7 +42,7 @@ import org.neo4j.gis.spatial.index.Envelope;
 
 /**
  * These settings define how to optimize the 2D (or 3D) to 1D mapping of the space filling curve.
- * They will affect the number of 1D ranges produced as well as the number of false positives expcted from the 1D index.
+ * They will affect the number of 1D ranges produced as well as the number of false positives expected from the 1D index.
  * The ideal performance depends on the behaviour of the underlying 1D index, whether it costs more to have more 1D searches,
  * or have more false positives for post filtering.
  */

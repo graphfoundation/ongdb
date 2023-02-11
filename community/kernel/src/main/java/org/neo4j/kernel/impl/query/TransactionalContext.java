@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,65 +38,91 @@
  */
 package org.neo4j.kernel.impl.query;
 
-import org.neo4j.graphdb.Lock;
-import org.neo4j.graphdb.PropertyContainer;
+import org.neo4j.graphdb.TransactionTerminatedException;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
 import org.neo4j.kernel.GraphDatabaseQueryService;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.ResourceTracker;
 import org.neo4j.kernel.api.Statement;
-import org.neo4j.kernel.api.dbms.DbmsOperations;
 import org.neo4j.kernel.api.query.ExecutingQuery;
-import org.neo4j.kernel.api.txstate.TxStateHolder;
+import org.neo4j.kernel.database.NamedDatabaseId;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
 import org.neo4j.kernel.impl.query.statistic.StatisticProvider;
+import org.neo4j.values.ValueMapper;
 
 public interface TransactionalContext
 {
+    ValueMapper<Object> valueMapper();
+
     ExecutingQuery executingQuery();
 
-    DbmsOperations dbmsOperations();
-
     KernelTransaction kernelTransaction();
+
+    InternalTransaction transaction();
 
     boolean isTopLevelTx();
 
     /**
      * This should be called once the query is finished, either successfully or not.
      * Should be called from the same thread the query was executing in.
-     * @param success signals if the underlying transaction should be committed or rolled back.
+     *
+     * This does not close the underlying transaction.
      */
-    void close( boolean success );
+    void close();
 
     /**
-     * This is used to terminate a currently running query. Can be called from any thread. Will roll back the current
-     * transaction if it is still open.
+     * Close and rollback this context. This will propagate the rollback call to the underlying transaction.
+     */
+    void rollback();
+
+    /**
+     * This is used to terminate a currently running query. Can be called from any thread.
+     * Will mark the current transaction for termination if it is still open.
      */
     void terminate();
 
-    void commitAndRestartTx();
+    /**
+     * Commit the underlying {@link KernelTransaction} and open a new {@link KernelTransaction}.
+     * The new {@link KernelTransaction} will be integrated both in the same {@link InternalTransaction}
+     * and in this context.
+     *
+     * @return id of the committed transaction
+     */
+    long commitAndRestartTx();
 
-    void cleanForReuse();
+    /**
+     * Open a new {@link InternalTransaction} with a new {@link KernelTransaction} and a new {@link Statement}.
+     * Return a new {@link TransactionalContext} that is bound to the new transaction and statement.
+     * The new transaction is called an inner transaction that is connected to the transaction of this context, which we will call the outer transaction.
+     * The connection is as follows:
+     * <ul>
+     *   <li>An outer transaction cannot commit if it is connected to an open inner transaction.</li>
+     *   <li>A termination or rollback of an outer transaction propagates to any open inner transactions.</li>
+     *   <li>The outer transaction and all connected inner transactions are connected to the same {@link ExecutingQuery}.</li>
+     * </ul>
+     * <p/>
+     * This context is still open and can continue to be used.
+     *
+     * @return the new context.
+     */
+    TransactionalContext contextWithNewTransaction();
 
-    boolean twoLayerTransactionState();
-
+    /**
+     * Make sure this context is open. If it is currently closed, acquire the {@link Statement} from the already open transaction,
+     * otherwise do nothing.
+     *
+     * @throws TransactionTerminatedException if the context is closed or if the transaction is marked for termination.
+     * @return the same instance.
+     */
     TransactionalContext getOrBeginNewIfClosed();
 
     boolean isOpen();
 
     GraphDatabaseQueryService graph();
 
+    NamedDatabaseId databaseId();
+
     Statement statement();
-
-    /**
-     * Check that current context satisfy current execution guard.
-     * In case if guard criteria is not satisfied {@link org.neo4j.graphdb.TransactionGuardException} will be
-     * thrown.
-     */
-    void check();
-
-    TxStateHolder stateView();
-
-    Lock acquireWriteLock( PropertyContainer p );
 
     SecurityContext securityContext();
 

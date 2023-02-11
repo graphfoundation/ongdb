@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,7 @@
  */
 package org.neo4j.server.rest.repr;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -46,19 +46,19 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.neo4j.graphdb.PropertyContainer;
+import org.neo4j.graphdb.Entity;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.neo4j.server.rest.repr.RepresentationTestAccess.serialize;
 
-public class PropertiesRepresentationTest
+class PropertiesRepresentationTest
 {
     @Test
-    public void shouldContainAddedPropertiesWhenCreatedFromPropertyContainer()
+    void shouldContainAddedPropertiesWhenCreatedFromEntity()
     {
         Map<String, Object> values = new HashMap<>();
         values.put( "foo", "bar" );
@@ -67,7 +67,7 @@ public class PropertiesRepresentationTest
     }
 
     @Test
-    public void shouldSerializeToMapWithSamePropertiesWhenCreatedFromPropertyContainer()
+    void shouldSerializeToMapWithSamePropertiesWhenCreatedFromEntity()
     {
         Map<String, Object> values = new HashMap<>();
         values.put( "foo", "bar" );
@@ -77,7 +77,7 @@ public class PropertiesRepresentationTest
     }
 
     @Test
-    public void shouldSerializeToMap()
+    void shouldSerializeToMap()
     {
         Map<String, Object> values = new HashMap<>();
         values.put( "string", "value" );
@@ -103,7 +103,7 @@ public class PropertiesRepresentationTest
     }
 
     @Test
-    public void shouldBeAbleToSignalEmptiness()
+    void shouldBeAbleToSignalEmptiness()
     {
         PropertiesRepresentation properties = new PropertiesRepresentation( container( new HashMap<>() ) );
         Map<String, Object> values = new HashMap<>();
@@ -113,7 +113,7 @@ public class PropertiesRepresentationTest
         assertFalse( properties.isEmpty() );
     }
 
-    private void assertEqualContent( List<?> expected, List<?> actual )
+    private static void assertEqualContent( List<?> expected, List<?> actual )
     {
         assertEquals( expected.size(), actual.size() );
         for ( Iterator<?> ex = expected.iterator(), ac = actual.iterator(); ex.hasNext() && ac.hasNext(); )
@@ -122,9 +122,9 @@ public class PropertiesRepresentationTest
         }
     }
 
-    static PropertyContainer container( Map<String, Object> values )
+    static Entity container( Map<String, Object> values )
     {
-        PropertyContainer container = mock( PropertyContainer.class );
+        Entity container = mock( Entity.class );
         when( container.getPropertyKeys() ).thenReturn( values.keySet() );
         when( container.getAllProperties() ).thenReturn( values );
         for ( Map.Entry<String, Object> entry : values.entrySet() )

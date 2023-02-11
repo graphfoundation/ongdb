@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -111,7 +111,7 @@ public class UserFunctionProcessorTest extends ExtensionTestBase
 
         UnsuccessfulCompilationClause compilation =
                 assert_().about( javaSource() ).that( function ).processedWith( processor() ).failsToCompile()
-                        .withErrorCount( 3 );
+                        .withErrorCount( 4 );
 
         compilation.withErrorContaining( "Unsupported parameter type " +
                 "<java.util.List<java.util.List<java.util.Map<java.lang.String,java.lang.Thread>>>>" +
@@ -124,6 +124,10 @@ public class UserFunctionProcessorTest extends ExtensionTestBase
         compilation.withErrorContaining(
                 "Unsupported parameter type <java.util.Map> of procedure|function BadGenericInputUserFunction#doSomething3" )
                 .in( function ).onLine( 67 );
+
+        compilation.withErrorContaining(
+                "Unsupported parameter type <java.lang.String[]> of procedure|function BadGenericInputUserFunction#doSomething4" )
+                   .in( function ).onLine( 73 );
     }
 
     @Test

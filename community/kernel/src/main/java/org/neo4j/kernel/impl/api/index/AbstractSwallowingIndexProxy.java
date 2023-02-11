@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,24 +38,22 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.neo4j.internal.kernel.api.IndexCapability;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.io.pagecache.IOLimiter;
+import org.neo4j.internal.kernel.api.PopulationProgress;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.kernel.impl.api.index.updater.SwallowingIndexUpdater;
-import org.neo4j.storageengine.api.schema.IndexReader;
-import org.neo4j.storageengine.api.schema.PopulationProgress;
+import org.neo4j.kernel.api.index.TokenIndexReader;
+import org.neo4j.kernel.api.index.ValueIndexReader;
 
 public abstract class AbstractSwallowingIndexProxy implements IndexProxy
 {
-    private final IndexMeta indexMeta;
+    private final IndexProxyStrategy indexProxyStrategy;
     private final IndexPopulationFailure populationFailure;
 
-    AbstractSwallowingIndexProxy( IndexMeta indexMeta, IndexPopulationFailure populationFailure )
+    AbstractSwallowingIndexProxy( IndexProxyStrategy indexProxyStrategy, IndexPopulationFailure populationFailure )
     {
-        this.indexMeta = indexMeta;
+        this.indexProxyStrategy = indexProxyStrategy;
         this.populationFailure = populationFailure;
     }
 
@@ -79,20 +77,14 @@ public abstract class AbstractSwallowingIndexProxy implements IndexProxy
     }
 
     @Override
-    public IndexUpdater newUpdater( IndexUpdateMode mode )
+    public IndexUpdater newUpdater( IndexUpdateMode mode, CursorContext cursorContext )
     {
         return SwallowingIndexUpdater.INSTANCE;
     }
 
     @Override
-    public void force( IOLimiter ioLimiter )
+    public void force( CursorContext cursorContext )
     {
-    }
-
-    @Override
-    public IndexCapability getIndexCapability()
-    {
-        return indexMeta.indexCapability();
     }
 
     @Override
@@ -101,37 +93,25 @@ public abstract class AbstractSwallowingIndexProxy implements IndexProxy
     }
 
     @Override
-    public SchemaIndexDescriptor getDescriptor()
+    public IndexDescriptor getDescriptor()
     {
-        return indexMeta.indexDescriptor();
+        return indexProxyStrategy.getIndexDescriptor();
     }
 
     @Override
-    public SchemaDescriptor schema()
-    {
-        return indexMeta.indexDescriptor().schema();
-    }
-
-    @Override
-    public IndexProvider.Descriptor getProviderDescriptor()
-    {
-        return indexMeta.providerDescriptor();
-    }
-
-    @Override
-    public void close()
+    public void close( CursorContext cursorContext )
     {
     }
 
     @Override
-    public IndexReader newReader()
+    public ValueIndexReader newValueReader()
     {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public long getIndexId()
+    public TokenIndexReader newTokenReader() throws IndexNotFoundKernelException
     {
-        return indexMeta.getIndexId();
+        throw new UnsupportedOperationException();
     }
 }

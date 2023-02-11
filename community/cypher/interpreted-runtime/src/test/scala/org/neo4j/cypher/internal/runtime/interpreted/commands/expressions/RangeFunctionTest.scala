@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,9 +38,10 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.CypherRow
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.runtime.interpreted.commands.LiteralHelper.literal
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.ListValue
 import org.neo4j.values.virtual.VirtualValues.list
@@ -70,7 +71,7 @@ class RangeFunctionTest extends CypherFunSuite {
   private def seq(vals: Long*) = list(vals.map(Values.longValue):_*)
 
   private def range(start: Long, end: Long, step: Long): ListValue = {
-    val expr = RangeFunction(Literal(start), Literal(end), Literal(step))
-    expr(ExecutionContext.empty, QueryStateHelper.empty).asInstanceOf[ListValue]
+    val expr = RangeFunction(literal(start), literal(end), literal(step))
+    expr(CypherRow.empty, QueryStateHelper.empty).asInstanceOf[ListValue]
   }
 }

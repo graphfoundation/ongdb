@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,259 +38,228 @@
  */
 package org.neo4j.values.storable;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.Arrays;
+import java.util.stream.Stream;
 
+import static org.junit.jupiter.params.provider.Arguments.of;
 import static org.neo4j.values.utils.AnyValueTestUtil.assertEqual;
 import static org.neo4j.values.utils.AnyValueTestUtil.assertNotEqual;
 
 /**
  * This test was faithfully converted (including personal remarks) from PropertyEqualityTest.
  */
-@RunWith( value = Parameterized.class )
 public class ValueEqualityTest
 {
-    @Parameterized.Parameters( name = "{0}" )
-    public static Iterable<Test> data()
+    public static Stream<Arguments> parameters()
     {
-        return Arrays.asList(
-                // boolean properties
-                shouldMatch( true, true ),
-                shouldMatch( false, false ),
-                shouldNotMatch( true, false ),
-                shouldNotMatch( false, true ),
-                shouldNotMatch( true, 0 ),
-                shouldNotMatch( false, 0 ),
-                shouldNotMatch( true, 1 ),
-                shouldNotMatch( false, 1 ),
-                shouldNotMatch( false, "false" ),
-                shouldNotMatch( true, "true" ),
+        return Stream.of(
+            of( shouldMatch( true, true ) ),
+            of( shouldMatch( false, false ) ),
+            of( shouldNotMatch( true, false ) ),
+            of( shouldNotMatch( false, true ) ),
+            of( shouldNotMatch( true, 0 ) ),
+            of( shouldNotMatch( false, 0 ) ),
+            of( shouldNotMatch( true, 1 ) ),
+            of( shouldNotMatch( false, 1 ) ),
+            of( shouldNotMatch( false, "false" ) ),
+            of( shouldNotMatch( true, "true" ) ),
 
-                //byte properties
-                shouldMatch( (byte) 42, (byte) 42 ),
-                shouldMatch( (byte) 42, (short) 42 ),
-                shouldNotMatch( (byte) 42, 42 + 256 ),
-                shouldMatch( (byte) 43, 43 ),
-                shouldMatch( (byte) 43, 43L ),
-                shouldMatch( (byte) 23, 23.0d ),
-                shouldMatch( (byte) 23, 23.0f ),
-                shouldNotMatch( (byte) 23, 23.5 ),
-                shouldNotMatch( (byte) 23, 23.5f ),
+            of( shouldMatch( (byte) 42, (byte) 42 ) ),
+            of( shouldMatch( (byte) 42, (short) 42 ) ),
+            of( shouldNotMatch( (byte) 42, 42 + 256 ) ),
+            of( shouldMatch( (byte) 43, 43 ) ),
+            of( shouldMatch( (byte) 43, 43L ) ),
+            of( shouldMatch( (byte) 23, 23.0d ) ),
+            of( shouldMatch( (byte) 23, 23.0f ) ),
+            of( shouldNotMatch( (byte) 23, 23.5 ) ),
+            of( shouldNotMatch( (byte) 23, 23.5f ) ),
 
-                //short properties
-                shouldMatch( (short) 11, (byte) 11 ),
-                shouldMatch( (short) 42, (short) 42 ),
-                shouldNotMatch( (short) 42, 42 + 65536 ),
-                shouldMatch( (short) 43, 43 ),
-                shouldMatch( (short) 43, 43L ),
-                shouldMatch( (short) 23, 23.0f ),
-                shouldMatch( (short) 23, 23.0d ),
-                shouldNotMatch( (short) 23, 23.5 ),
-                shouldNotMatch( (short) 23, 23.5f ),
+            of( shouldMatch( (short) 11, (byte) 11 ) ),
+            of( shouldMatch( (short) 42, (short) 42 ) ),
+            of( shouldNotMatch( (short) 42, 42 + 65536 ) ),
+            of( shouldMatch( (short) 43, 43 ) ),
+            of( shouldMatch( (short) 43, 43L ) ),
+            of( shouldMatch( (short) 23, 23.0f ) ),
+            of( shouldMatch( (short) 23, 23.0d ) ),
+            of( shouldNotMatch( (short) 23, 23.5 ) ),
+            of( shouldNotMatch( (short) 23, 23.5f ) ),
 
-                //int properties
-                shouldMatch( 11, (byte) 11 ),
-                shouldMatch( 42, (short) 42 ),
-                shouldNotMatch( 42, 42 + 4294967296L ),
-                shouldMatch( 43, 43 ),
-                shouldMatch( Integer.MAX_VALUE, Integer.MAX_VALUE ),
-                shouldMatch( 43, (long) 43 ),
-                shouldMatch( 23, 23.0 ),
-                shouldNotMatch( 23, 23.5 ),
-                shouldNotMatch( 23, 23.5f ),
+            of( shouldMatch( 11, (byte) 11 ) ),
+            of( shouldMatch( 42, (short) 42 ) ),
+            of( shouldNotMatch( 42, 42 + 4294967296L ) ),
+            of( shouldMatch( 43, 43 ) ),
+            of( shouldMatch( Integer.MAX_VALUE, Integer.MAX_VALUE ) ),
+            of( shouldMatch( 43, (long) 43 ) ),
+            of( shouldMatch( 23, 23.0 ) ),
+            of( shouldNotMatch( 23, 23.5 ) ),
+            of( shouldNotMatch( 23, 23.5f ) ),
 
-                //long properties
-                shouldMatch( 11L, (byte) 11 ),
-                shouldMatch( 42L, (short) 42 ),
-                shouldMatch( 43L, 43 ),
-                shouldMatch( 43L, 43L ),
-                shouldMatch( 87L, 87L ),
-                shouldMatch( Long.MAX_VALUE, Long.MAX_VALUE ),
-                shouldMatch( 23L, 23.0 ),
-                shouldNotMatch( 23L, 23.5 ),
-                shouldNotMatch( 23L, 23.5f ),
-                shouldMatch(9007199254740992L, 9007199254740992D),
-                // shouldMatch(9007199254740993L, 9007199254740992D), // is stupid, m'kay?!
+            of( shouldMatch( 11L, (byte) 11 ) ),
+            of( shouldMatch( 42L, (short) 42 ) ),
+            of( shouldMatch( 43L, 43 ) ),
+            of( shouldMatch( 43L, 43L ) ),
+            of( shouldMatch( 87L, 87L ) ),
+            of( shouldMatch( Long.MAX_VALUE, Long.MAX_VALUE ) ),
+            of( shouldMatch( 23L, 23.0 ) ),
+            of( shouldNotMatch( 23L, 23.5 ) ),
+            of( shouldNotMatch( 23L, 23.5f ) ),
+            of( shouldMatch( 9007199254740992L, 9007199254740992D ) ),
 
-                // floats goddamnit
-                shouldMatch( 11f, (byte) 11 ),
-                shouldMatch( 42f, (short) 42 ),
-                shouldMatch( 43f, 43 ),
-                shouldMatch( 43f, 43L ),
-                shouldMatch( 23f, 23.0 ),
-                shouldNotMatch( 23f, 23.5 ),
-                shouldNotMatch( 23f, 23.5f ),
-                shouldMatch( 3.14f, 3.14f ),
-                shouldNotMatch( 3.14f, 3.14d ),   // Would be nice if they matched, but they don't
+            of( shouldMatch( 11f, (byte) 11 ) ),
+            of( shouldMatch( 42f, (short) 42 ) ),
+            of( shouldMatch( 43f, 43 ) ),
+            of( shouldMatch( 43f, 43L ) ),
+            of( shouldMatch( 23f, 23.0 ) ),
+            of( shouldNotMatch( 23f, 23.5 ) ),
+            of( shouldNotMatch( 23f, 23.5f ) ),
+            of( shouldMatch( 3.14f, 3.14f ) ),
+            of( shouldNotMatch( 3.14f, 3.14d ) ),
 
-                // doubles
-                shouldMatch( 11d, (byte) 11 ),
-                shouldMatch( 42d, (short) 42 ),
-                shouldMatch( 43d, 43 ),
-                shouldMatch( 43d, 43d ),
-                shouldMatch( 23d, 23.0 ),
-                shouldNotMatch( 23d, 23.5 ),
-                shouldNotMatch( 23d, 23.5f ),
-                shouldNotMatch( 3.14d, 3.14f ),   // this really is sheeeet
-                shouldMatch( 3.14d, 3.14d ),
+            of( shouldMatch( 11d, (byte) 11 ) ),
+            of( shouldMatch( 42d, (short) 42 ) ),
+            of( shouldMatch( 43d, 43 ) ),
+            of( shouldMatch( 43d, 43d ) ),
+            of( shouldMatch( 23d, 23.0 ) ),
+            of( shouldNotMatch( 23d, 23.5 ) ),
+            of( shouldNotMatch( 23d, 23.5f ) ),
+            of( shouldNotMatch( 3.14d, 3.14f ) ),
+            of( shouldMatch( 3.14d, 3.14d ) ),
 
-                // strings
-                shouldMatch( "A", "A" ),
-                shouldMatch( 'A', 'A' ),
-                shouldMatch( 'A', "A" ),
-                shouldMatch( "A", 'A' ),
-                shouldNotMatch( "AA", 'A' ),
-                shouldNotMatch( "a", "A" ),
-                shouldNotMatch( "A", "a" ),
-                shouldNotMatch( "0", 0 ),
-                shouldNotMatch( '0', 0 ),
+            of( shouldMatch( "A", "A" ) ),
+            of( shouldMatch( 'A', 'A' ) ),
+            of( shouldMatch( 'A', "A" ) ),
+            of( shouldMatch( "A", 'A' ) ),
+            of( shouldNotMatch( "AA", 'A' ) ),
+            of( shouldNotMatch( "a", "A" ) ),
+            of( shouldNotMatch( "A", "a" ) ),
+            of( shouldNotMatch( "0", 0 ) ),
+            of( shouldNotMatch( '0', 0 ) ),
 
-                // arrays
-                shouldMatch( new int[]{1, 2, 3}, new int[]{1, 2, 3} ),
-                shouldMatch( new int[]{1, 2, 3}, new long[]{1, 2, 3} ),
-                shouldMatch( new int[]{1, 2, 3}, new double[]{1.0, 2.0, 3.0} ),
-                shouldMatch( new String[]{"A", "B", "C"}, new String[]{"A", "B", "C"} ),
-                shouldMatch( new String[]{"A", "B", "C"}, new char[]{'A', 'B', 'C'} ),
-                shouldMatch( new char[]{'A', 'B', 'C'},  new String[]{"A", "B", "C"} ),
+            of( shouldMatch( new int[]{1, 2, 3}, new int[]{1, 2, 3} ) ),
+            of( shouldMatch( new int[]{1, 2, 3}, new long[]{1, 2, 3} ) ),
+            of( shouldMatch( new int[]{1, 2, 3}, new double[]{1.0, 2.0, 3.0} ) ),
+            of( shouldMatch( new String[]{"A", "B", "C"}, new String[]{"A", "B", "C"} ) ),
+            of( shouldMatch( new String[]{"A", "B", "C"}, new char[]{'A', 'B', 'C'} ) ),
+            of( shouldMatch( new char[]{'A', 'B', 'C'}, new String[]{"A", "B", "C"} ) ),
 
-                shouldNotMatch( false, new boolean[]{false} ),
-                shouldNotMatch( 1, new int[]{1} ),
-                shouldNotMatch( "apa", new String[]{"apa"} )
+            of( shouldNotMatch( false, new boolean[]{false} ) ),
+            of( shouldNotMatch( 1, new int[]{1} ) ),
+            of( shouldNotMatch( "apa", new String[]{"apa"} ) )
         );
     }
 
-    private Test currentTest;
-
-    public ValueEqualityTest( Test currentTest )
+    @ParameterizedTest
+    @MethodSource( "parameters" )
+    void runTest( Testcase testcase )
     {
-        this.currentTest = currentTest;
+        testcase.checkAssertion();
     }
 
-    @org.junit.Test
-    public void runTest()
+    private static Testcase shouldMatch( boolean propertyValue, Object value )
     {
-        currentTest.checkAssertion();
+        return new Testcase( Values.booleanValue( propertyValue ), value, true );
     }
 
-    public static Test shouldMatch( boolean propertyValue, Object value )
+    private static Testcase shouldNotMatch( boolean propertyValue, Object value )
     {
-        return new Test( Values.booleanValue( propertyValue ), value, true );
+        return new Testcase( Values.booleanValue( propertyValue ), value, false );
     }
 
-    public static Test shouldNotMatch( boolean propertyValue, Object value )
+    private static Testcase shouldMatch( byte propertyValue, Object value )
     {
-        return new Test( Values.booleanValue( propertyValue ), value, false );
+        return new Testcase( Values.byteValue( propertyValue ), value, true );
     }
 
-    public static Test shouldMatch( byte propertyValue, Object value )
+    private static Testcase shouldNotMatch( byte propertyValue, Object value )
     {
-        return new Test( Values.byteValue( propertyValue ), value, true );
+        return new Testcase( Values.byteValue( propertyValue ), value, false );
     }
 
-    public static Test shouldNotMatch( byte propertyValue, Object value )
+    private static Testcase shouldMatch( short propertyValue, Object value )
     {
-        return new Test( Values.byteValue( propertyValue ), value, false );
+        return new Testcase( Values.shortValue( propertyValue ), value, true );
     }
 
-    public static Test shouldMatch( short propertyValue, Object value )
+    private static Testcase shouldNotMatch( short propertyValue, Object value )
     {
-        return new Test( Values.shortValue( propertyValue ), value, true );
+        return new Testcase( Values.shortValue( propertyValue ), value, false );
     }
 
-    public static Test shouldNotMatch( short propertyValue, Object value )
+    private static Testcase shouldMatch( float propertyValue, Object value )
     {
-        return new Test( Values.shortValue( propertyValue ), value, false );
+        return new Testcase( Values.floatValue( propertyValue ), value, true );
     }
 
-    public static Test shouldMatch( float propertyValue, Object value )
+    private static Testcase shouldNotMatch( float propertyValue, Object value )
     {
-        return new Test( Values.floatValue( propertyValue ), value, true );
+        return new Testcase( Values.floatValue( propertyValue ), value, false );
     }
 
-    public static Test shouldNotMatch( float propertyValue, Object value )
+    private static Testcase shouldMatch( long propertyValue, Object value )
     {
-        return new Test( Values.floatValue( propertyValue ), value, false );
+        return new Testcase( Values.longValue( propertyValue ), value, true );
     }
 
-    public static Test shouldMatch( long propertyValue, Object value )
+    private static Testcase shouldNotMatch( long propertyValue, Object value )
     {
-        return new Test( Values.longValue( propertyValue ), value, true );
+        return new Testcase( Values.longValue( propertyValue ), value, false );
     }
 
-    public static Test shouldNotMatch( long propertyValue, Object value )
+    private static Testcase shouldMatch( double propertyValue, Object value )
     {
-        return new Test( Values.longValue( propertyValue ), value, false );
+        return new Testcase( Values.doubleValue( propertyValue ), value, true );
     }
 
-    public static Test shouldMatch( double propertyValue, Object value )
+    private static Testcase shouldNotMatch( double propertyValue, Object value )
     {
-        return new Test( Values.doubleValue( propertyValue ), value, true );
+        return new Testcase( Values.doubleValue( propertyValue ), value, false );
     }
 
-    public static Test shouldNotMatch( double propertyValue, Object value )
+    private static Testcase shouldMatch( String propertyValue, Object value )
     {
-        return new Test( Values.doubleValue( propertyValue ), value, false );
+        return new Testcase( Values.stringValue( propertyValue ), value, true );
     }
 
-    public static Test shouldMatch( String propertyValue, Object value )
+    private static Testcase shouldNotMatch( String propertyValue, Object value )
     {
-        return new Test( Values.stringValue( propertyValue ), value, true );
+        return new Testcase( Values.stringValue( propertyValue ), value, false );
     }
 
-    public static Test shouldNotMatch( String propertyValue, Object value )
+    private static Testcase shouldMatch( char propertyValue, Object value )
     {
-        return new Test( Values.stringValue( propertyValue ), value, false );
+        return new Testcase( Values.charValue( propertyValue ), value, true );
     }
 
-    public static Test shouldMatch( char propertyValue, Object value )
+    private static Testcase shouldNotMatch( char propertyValue, Object value )
     {
-        return new Test( Values.charValue( propertyValue ), value, true );
+        return new Testcase( Values.charValue( propertyValue ), value, false );
     }
 
-    public static Test shouldNotMatch( char propertyValue, Object value )
+    private static Testcase shouldMatch( int[] propertyValue, Object value )
     {
-        return new Test( Values.charValue( propertyValue ), value, false );
+        return new Testcase( Values.intArray( propertyValue ), value, true );
     }
 
-    public static Test shouldMatch( int[] propertyValue, Object value )
+    private static Testcase shouldMatch( char[] propertyValue, Object value )
     {
-        return new Test( Values.intArray( propertyValue ), value, true );
+        return new Testcase( Values.charArray( propertyValue ), value, true );
     }
 
-    public static Test shouldNotMatch( int[] propertyValue, Object value )
+    private static Testcase shouldMatch( String[] propertyValue, Object value )
     {
-        return new Test( Values.intArray( propertyValue ), value, false );
+        return new Testcase( Values.stringArray( propertyValue ), value, true );
     }
 
-    public static Test shouldMatch( char[] propertyValue, Object value )
-    {
-        return new Test( Values.charArray( propertyValue ), value, true );
-    }
-
-    public static Test shouldNotMatch( char[] propertyValue, Object value )
-    {
-        return new Test( Values.charArray( propertyValue ), value, false );
-    }
-
-    public static Test shouldMatch( String[] propertyValue, Object value )
-    {
-        return new Test( Values.stringArray( propertyValue ), value, true );
-    }
-
-    public static Test shouldNotMatch( String[] propertyValue, Object value )
-    {
-        return new Test( Values.stringArray( propertyValue ), value, false );
-    }
-
-    private static class Test
+    private static class Testcase
     {
         final Value a;
         final Value b;
         final boolean shouldMatch;
 
-        private Test( Value a, Object b, boolean shouldMatch )
+        private Testcase( Value a, Object b, boolean shouldMatch )
         {
             this.a = a;
             this.b = Values.of( b );

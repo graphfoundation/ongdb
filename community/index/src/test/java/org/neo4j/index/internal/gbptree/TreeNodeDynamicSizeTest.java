@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,15 +38,21 @@
  */
 package org.neo4j.index.internal.gbptree;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
 
 import org.neo4j.io.pagecache.PageCursor;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.io.pagecache.context.CursorContext.NULL;
 
 public class TreeNodeDynamicSizeTest extends TreeNodeTestBase<RawBytes,RawBytes>
 {
-    private SimpleByteArrayLayout layout = new SimpleByteArrayLayout();
+    private static final long STABLE_GENERATION = 3;
+    private static final long UNSTABLE_GENERATION = 4;
+
+    private final SimpleByteArrayLayout layout = new SimpleByteArrayLayout();
 
     @Override
     protected TestLayout<RawBytes,RawBytes> getLayout()
@@ -55,28 +61,29 @@ public class TreeNodeDynamicSizeTest extends TreeNodeTestBase<RawBytes,RawBytes>
     }
 
     @Override
-    protected TreeNodeDynamicSize<RawBytes,RawBytes> getNode( int pageSize, Layout<RawBytes,RawBytes> layout )
+    protected TreeNodeDynamicSize<RawBytes,RawBytes> getNode( int pageSize, Layout<RawBytes,RawBytes> layout,
+            OffloadStore<RawBytes,RawBytes> offloadStore )
     {
-        return new TreeNodeDynamicSize<>( pageSize, layout );
+        return new TreeNodeDynamicSize<>( pageSize, layout, offloadStore );
     }
 
     @Override
     void assertAdditionalHeader( PageCursor cursor, TreeNode<RawBytes,RawBytes> node, int pageSize )
     {
         // When
-        int currentAllocSpace = ((TreeNodeDynamicSize) node).getAllocOffset( cursor );
+        int currentAllocSpace = ((TreeNodeDynamicSize<RawBytes,RawBytes>) node).getAllocOffset( cursor );
 
         // Then
-        assertEquals("allocSpace point to end of page", pageSize, currentAllocSpace );
+        assertEquals( pageSize, currentAllocSpace, "allocSpace point to end of page" );
     }
 
     @Test
-    public void mustCompactKeyValueSizeHeader() throws Exception
+    void mustCompactKeyValueSizeHeader() throws IOException
     {
         int oneByteKeyMax = DynamicSizeUtil.MASK_ONE_BYTE_KEY_SIZE;
         int oneByteValueMax = DynamicSizeUtil.MASK_ONE_BYTE_VALUE_SIZE;
 
-        TreeNodeDynamicSize<RawBytes,RawBytes> node = getNode( PAGE_SIZE, layout );
+        TreeNodeDynamicSize<RawBytes,RawBytes> node = getNode( PAGE_SIZE, layout, createOffloadStore() );
 
         verifyOverhead( node, oneByteKeyMax, 0, 1 );
         verifyOverhead( node, oneByteKeyMax, 1, 2 );
@@ -88,7 +95,7 @@ public class TreeNodeDynamicSizeTest extends TreeNodeTestBase<RawBytes,RawBytes>
         verifyOverhead( node, oneByteKeyMax + 1, oneByteValueMax +  1, 4 );
     }
 
-    private void verifyOverhead( TreeNodeDynamicSize<RawBytes,RawBytes> node, int keySize, int valueSize, int expectedOverhead )
+    private void verifyOverhead( TreeNodeDynamicSize<RawBytes,RawBytes> node, int keySize, int valueSize, int expectedOverhead ) throws IOException
     {
         cursor.zapPage();
         node.initializeLeaf( cursor, STABLE_GENERATION, UNSTABLE_GENERATION );
@@ -99,7 +106,7 @@ public class TreeNodeDynamicSizeTest extends TreeNodeTestBase<RawBytes,RawBytes>
         value.bytes = new byte[valueSize];
 
         int allocOffsetBefore = node.getAllocOffset( cursor );
-        node.insertKeyValueAt( cursor, key, value, 0, 0 );
+        node.insertKeyValueAt( cursor, key, value, 0, 0, STABLE_GENERATION, UNSTABLE_GENERATION, NULL );
         int allocOffsetAfter = node.getAllocOffset( cursor );
         assertEquals( allocOffsetBefore - keySize - valueSize - expectedOverhead, allocOffsetAfter );
     }

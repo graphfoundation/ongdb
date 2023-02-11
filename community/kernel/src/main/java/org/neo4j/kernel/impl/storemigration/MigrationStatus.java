@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,15 +38,16 @@
  */
 package org.neo4j.kernel.impl.storemigration;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Writer;
-import java.nio.charset.StandardCharsets;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
 
-import org.neo4j.helpers.collection.Pair;
+import org.neo4j.internal.helpers.collection.Pair;
 import org.neo4j.io.fs.FileSystemAbstraction;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.commons.io.IOUtils.lineIterator;
 
 enum MigrationStatus
 {
@@ -59,7 +60,7 @@ enum MigrationStatus
         return current == null || this.ordinal() >= current.ordinal();
     }
 
-    public String maybeReadInfo( FileSystemAbstraction fs, File stateFile, String currentInfo )
+    public String maybeReadInfo( FileSystemAbstraction fs, Path stateFile, String currentInfo )
     {
         if ( currentInfo != null )
         {
@@ -70,7 +71,7 @@ enum MigrationStatus
         return data == null ? null : data.other();
     }
 
-    public static MigrationStatus readMigrationStatus( FileSystemAbstraction fs, File stateFile )
+    public static MigrationStatus readMigrationStatus( FileSystemAbstraction fs, Path stateFile )
     {
         Pair<String,String> data = readFromFile( fs, stateFile, null );
         if ( data == null )
@@ -81,20 +82,21 @@ enum MigrationStatus
         return MigrationStatus.valueOf( data.first() );
     }
 
-    private static Pair<String, String> readFromFile( FileSystemAbstraction fs, File file, MigrationStatus expectedSate )
+    private static Pair<String, String> readFromFile( FileSystemAbstraction fs, Path path, MigrationStatus expectedSate )
     {
-        try ( BufferedReader reader = new BufferedReader( fs.openAsReader( file, StandardCharsets.UTF_8 ) ) )
+        try ( var reader = fs.openAsReader( path, UTF_8 ) )
         {
-            String state = reader.readLine().trim();
+            var lineIterator = lineIterator( reader );
+            String state = lineIterator.next().trim();
             if ( expectedSate != null && !expectedSate.name().equals( state ) )
             {
                 throw new IllegalStateException(
                         "Not in the expected state, expected=" + expectedSate.name() + ", actual=" + state );
             }
-            String info = reader.readLine().trim();
+            String info = lineIterator.next().trim();
             return Pair.of( state, info );
         }
-        catch ( FileNotFoundException e )
+        catch ( NoSuchFileException e )
         {
             return null;
         }
@@ -104,7 +106,7 @@ enum MigrationStatus
         }
     }
 
-    public void setMigrationStatus( FileSystemAbstraction fs, File stateFile, String info )
+    public void setMigrationStatus( FileSystemAbstraction fs, Path stateFile, String info )
     {
         if ( fs.fileExists( stateFile ) )
         {
@@ -118,7 +120,7 @@ enum MigrationStatus
             }
         }
 
-        try ( Writer writer = fs.openAsWriter( stateFile, StandardCharsets.UTF_8, false ) )
+        try ( Writer writer = fs.openAsWriter( stateFile, UTF_8, false ) )
         {
             writer.write( name() );
             writer.write( '\n' );

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -37,9 +37,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- * <h1>The ONgDB PageCache API</h1>
+ * <h1>The Neo4j PageCache API</h1>
  * <p>
- * This package contains the API for the page caching mechanism used in ONgDB. How to acquire a concrete implementation
+ * This package contains the API for the page caching mechanism used in Neo4j. How to acquire a concrete implementation
  * of the API depends on the implementation in question. The Kernel implements its own mechanism to seek out and
  * instantiate implementations of this API, based on the database configuration.
  * <h2>Page Caching Concepts</h2>
@@ -52,8 +52,8 @@
  * <p>
  * A file must first be "mapped" into the page cache, before the page cache can cache the contents of the files. When
  * you no longer have an immediate use for the contents of the file, it can be "unmapped." Mapping a file using the
- * {@link org.neo4j.io.pagecache.PageCache#map(java.io.File, int, java.nio.file.OpenOption...) map} method gives you a
- * {@link org.neo4j.io.pagecache.PagedFile} object, through which the contents of the file can be accessed. Once a file
+ * {@link org.neo4j.io.pagecache.PageCache#map(java.nio.file.Path, int, java.lang.String, org.eclipse.collections.api.set.ImmutableSet)} ) map}
+ * method gives you a {@link org.neo4j.io.pagecache.PagedFile} object, through which the contents of the file can be accessed. Once a file
  * has been mapped with the page cache, it should no longer be accessed directly through the file system, because the
  * page cache will keep changes in memory, thinking it is managing the only authoritative copy.
  * <p>
@@ -97,7 +97,8 @@
  * instantiated for the given file by the {@link org.neo4j.io.pagecache.PageSwapperFactory}.
  * <p>
  * Once a file has been mapped, and a {@code PagedFile} object made available, the
- * {@link org.neo4j.io.pagecache.PagedFile#io(long, int) io method} can be used to interact with the contents of the
+ * {@link org.neo4j.io.pagecache.PagedFile#io(long, int, CursorContext)
+ * io method} can be used to interact with the contents of the
  * file. It takes in an initial file page id and a bitmap of intentions, such as what locking behaviour to use, and
  * returns a {@link org.neo4j.io.pagecache.PageCursor} object. The {@code PageCursor} is the window into the data
  * managed by the page cache.

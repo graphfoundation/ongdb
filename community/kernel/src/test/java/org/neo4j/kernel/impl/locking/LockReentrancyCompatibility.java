@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,33 +38,33 @@
  */
 package org.neo4j.kernel.impl.locking;
 
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.Future;
 
-import org.neo4j.storageengine.api.lock.ResourceType;
+import org.neo4j.lock.LockTracer;
+import org.neo4j.lock.LockType;
+import org.neo4j.lock.ResourceType;
 
-import static org.junit.Assert.assertEquals;
-import static org.neo4j.kernel.impl.locking.ResourceTypes.NODE;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.lock.ResourceTypes.NODE;
 
-@Ignore( "Not a test. This is a compatibility suite, run from LockingCompatibilityTestSuite." )
-public class LockReentrancyCompatibility extends LockingCompatibilityTestSuite.Compatibility
+abstract class LockReentrancyCompatibility extends LockCompatibilityTestSupport
 {
-    public LockReentrancyCompatibility( LockingCompatibilityTestSuite suite )
+    LockReentrancyCompatibility( LockingCompatibilityTestSuite suite )
     {
         super( suite );
     }
 
     @Test
-    public void shouldAcquireExclusiveIfClientIsOnlyOneHoldingShared()
+    void shouldAcquireExclusiveIfClientIsOnlyOneHoldingShared()
     {
         // When
         clientA.acquireShared( LockTracer.NONE, NODE, 1L );
         clientA.acquireExclusive( LockTracer.NONE, NODE, 1L );
 
         // Then shared locks should wait
-        Future<Object> clientBLock = acquireExclusive( clientB, LockTracer.NONE, NODE, 1L ).callAndAssertWaiting();
+        Future<Void> clientBLock = acquireExclusive( clientB, LockTracer.NONE, NODE, 1L ).callAndAssertWaiting();
 
         // And when
         clientA.releaseExclusive( NODE, 1L );
@@ -76,18 +76,18 @@ public class LockReentrancyCompatibility extends LockingCompatibilityTestSuite.C
         clientA.releaseShared( NODE, 1L );
 
         // Then
-        assertNotWaiting( clientB, clientBLock );
+        assertNotWaiting( clientBLock );
     }
 
     @Test
-    public void shouldRetainExclusiveLockAfterReleasingSharedLock()
+    void shouldRetainExclusiveLockAfterReleasingSharedLock()
     {
         // When
         clientA.acquireShared( LockTracer.NONE, NODE, 1L );
         clientA.acquireExclusive( LockTracer.NONE, NODE, 1L );
 
         // Then shared locks should wait
-        Future<Object> clientBLock = acquireShared( clientB, LockTracer.NONE, NODE, 1L ).callAndAssertWaiting();
+        Future<Void> clientBLock = acquireShared( clientB, LockTracer.NONE, NODE, 1L ).callAndAssertWaiting();
 
         // And when
         clientA.releaseShared( NODE, 1L );
@@ -99,18 +99,18 @@ public class LockReentrancyCompatibility extends LockingCompatibilityTestSuite.C
         clientA.releaseExclusive( NODE, 1L );
 
         // Then
-        assertNotWaiting( clientB, clientBLock );
+        assertNotWaiting( clientBLock );
     }
 
     @Test
-    public void shouldRetainSharedLockWhenAcquiredAfterExclusiveLock()
+    void shouldRetainSharedLockWhenAcquiredAfterExclusiveLock()
     {
         // When
         clientA.acquireExclusive( LockTracer.NONE, NODE, 1L );
         clientA.acquireShared( LockTracer.NONE, NODE, 1L );
 
         // Then this should wait
-        Future<Object> clientBLock = acquireExclusive( clientB, LockTracer.NONE, NODE, 1L ).callAndAssertWaiting();
+        Future<Void> clientBLock = acquireExclusive( clientB, LockTracer.NONE, NODE, 1L ).callAndAssertWaiting();
 
         // And when
         clientA.releaseExclusive( NODE, 1L );
@@ -122,11 +122,11 @@ public class LockReentrancyCompatibility extends LockingCompatibilityTestSuite.C
         clientA.releaseShared( NODE, 1L );
 
         // Then
-        assertNotWaiting( clientB, clientBLock );
+        assertNotWaiting( clientBLock );
     }
 
     @Test
-    public void sharedLocksShouldStack()
+    void sharedLocksShouldStack()
     {
         // When
         clientA.acquireShared( LockTracer.NONE, NODE, 1L );
@@ -134,7 +134,7 @@ public class LockReentrancyCompatibility extends LockingCompatibilityTestSuite.C
         clientA.acquireShared( LockTracer.NONE, NODE, 1L );
 
         // Then exclusive locks should wait
-        Future<Object> clientBLock = acquireExclusive( clientB, LockTracer.NONE, NODE, 1L ).callAndAssertWaiting();
+        Future<Void> clientBLock = acquireExclusive( clientB, LockTracer.NONE, NODE, 1L ).callAndAssertWaiting();
 
         // And when
         clientA.releaseShared( NODE, 1L );
@@ -147,11 +147,11 @@ public class LockReentrancyCompatibility extends LockingCompatibilityTestSuite.C
         clientA.releaseShared( NODE, 1L );
 
         // Then
-        assertNotWaiting( clientB, clientBLock );
+        assertNotWaiting( clientBLock );
     }
 
     @Test
-    public void exclusiveLocksShouldBeReentrantAndBlockOtherExclusiveLocks()
+    void exclusiveLocksShouldBeReentrantAndBlockOtherExclusiveLocks()
     {
         // When
         clientA.acquireExclusive( LockTracer.NONE, NODE, 1L );
@@ -159,7 +159,7 @@ public class LockReentrancyCompatibility extends LockingCompatibilityTestSuite.C
         clientA.acquireExclusive( LockTracer.NONE, NODE, 1L );
 
         // Then exclusive locks should wait
-        Future<Object> clientBLock = acquireExclusive( clientB, LockTracer.NONE, NODE, 1L ).callAndAssertWaiting();
+        Future<Void> clientBLock = acquireExclusive( clientB, LockTracer.NONE, NODE, 1L ).callAndAssertWaiting();
 
         // And when
         clientA.releaseExclusive( NODE, 1L );
@@ -172,11 +172,11 @@ public class LockReentrancyCompatibility extends LockingCompatibilityTestSuite.C
         clientA.releaseExclusive( NODE, 1L );
 
         // Then
-        assertNotWaiting( clientB, clientBLock );
+        assertNotWaiting( clientBLock );
     }
 
     @Test
-    public void exclusiveLocksShouldBeReentrantAndBlockOtherSharedLocks()
+    void exclusiveLocksShouldBeReentrantAndBlockOtherSharedLocks()
     {
         // When
         clientA.acquireExclusive( LockTracer.NONE, NODE, 1L );
@@ -184,7 +184,7 @@ public class LockReentrancyCompatibility extends LockingCompatibilityTestSuite.C
         clientA.tryExclusiveLock( NODE, 1L );
 
         // Then exclusive locks should wait
-        Future<Object> clientBLock = acquireShared( clientB, LockTracer.NONE, NODE, 1L ).callAndAssertWaiting();
+        Future<Void> clientBLock = acquireShared( clientB, LockTracer.NONE, NODE, 1L ).callAndAssertWaiting();
 
         // And when
         clientA.releaseExclusive( NODE, 1L );
@@ -197,18 +197,18 @@ public class LockReentrancyCompatibility extends LockingCompatibilityTestSuite.C
         clientA.releaseExclusive( NODE, 1L );
 
         // Then
-        assertNotWaiting( clientB, clientBLock );
+        assertNotWaiting( clientBLock );
     }
 
     @Test
-    public void sharedLocksShouldNotReplaceExclusiveLocks()
+    void sharedLocksShouldNotReplaceExclusiveLocks()
     {
         // When
         clientA.acquireExclusive( LockTracer.NONE, NODE, 1L );
         clientA.acquireShared( LockTracer.NONE, NODE, 1L );
 
         // Then shared locks should wait
-        Future<Object> clientBLock = acquireShared( clientB, LockTracer.NONE, NODE, 1L ).callAndAssertWaiting();
+        Future<Void> clientBLock = acquireShared( clientB, LockTracer.NONE, NODE, 1L ).callAndAssertWaiting();
 
         // And when
         clientA.releaseShared( NODE, 1L );
@@ -220,11 +220,11 @@ public class LockReentrancyCompatibility extends LockingCompatibilityTestSuite.C
         clientA.releaseExclusive( NODE, 1L );
 
         // Then
-        assertNotWaiting( clientB, clientBLock );
+        assertNotWaiting( clientBLock );
     }
 
     @Test
-    public void shouldUpgradeAndDowngradeSameSharedLock()
+    void shouldUpgradeAndDowngradeSameSharedLock()
     {
         // when
         clientA.acquireShared( LockTracer.NONE, NODE, 1L );
@@ -234,13 +234,13 @@ public class LockReentrancyCompatibility extends LockingCompatibilityTestSuite.C
         locks.accept( sharedLockExplorer );
 
         // then xclusive should wait for shared from other client to be released
-        Future<Object> exclusiveLockFuture = acquireExclusive( clientB, LockTracer.NONE, NODE, 1L ).callAndAssertWaiting();
+        Future<Void> exclusiveLockFuture = acquireExclusive( clientB, LockTracer.NONE, NODE, 1L ).callAndAssertWaiting();
 
         // and when
         clientA.releaseShared( NODE, 1L );
 
         // exclusive lock should be received
-        assertNotWaiting( clientB, exclusiveLockFuture );
+        assertNotWaiting( exclusiveLockFuture );
 
         // and when releasing exclusive
         clientB.releaseExclusive( NODE, 1L );
@@ -267,8 +267,7 @@ public class LockReentrancyCompatibility extends LockingCompatibilityTestSuite.C
         }
 
         @Override
-        public void visit( ResourceType resourceType, long resourceId, String description,
-                long estimatedWaitTime,
+        public void visit( LockType lockType, ResourceType resourceType, long transactionId, long resourceId, String description, long estimatedWaitTime,
                 long lockIdentityHashCode )
         {
             if ( this.resourceType.equals( resourceType ) && this.resourceId == resourceId )

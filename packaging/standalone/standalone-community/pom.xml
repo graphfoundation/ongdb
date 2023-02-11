@@ -143,6 +143,11 @@
             <artifactId>ongdb-server</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb.client</groupId>
+            <artifactId>ongdb-browser</artifactId>
+            <version>4.1.2</version>
+        </dependency>
     </dependencies>
 
 </project>

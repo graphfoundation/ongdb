@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,131 +38,74 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.collection.primitive.Primitive;
-import org.neo4j.collection.primitive.PrimitiveIntCollections;
-import org.neo4j.collection.primitive.PrimitiveIntSet;
-import org.neo4j.collection.primitive.PrimitiveLongObjectMap;
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptors;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.emptyIterableOf;
-import static org.neo4j.collection.primitive.PrimitiveIntCollections.emptySet;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.common.EntityType.NODE;
+import static org.neo4j.common.EntityType.RELATIONSHIP;
+import static org.neo4j.internal.schema.IndexPrototype.forSchema;
 
-public class IndexMapTest
+class IndexMapTest
 {
-
-    private static final long[] noLabel = {};
     private IndexMap indexMap;
 
-    private LabelSchemaDescriptor schema3_4 = SchemaDescriptorFactory.forLabel( 3, 4 );
-    private LabelSchemaDescriptor schema5_6_7 = SchemaDescriptorFactory.forLabel( 5, 6, 7 );
-    private LabelSchemaDescriptor schema5_8 = SchemaDescriptorFactory.forLabel( 5, 8 );
+    private final LabelSchemaDescriptor schema3_4 = SchemaDescriptors.forLabel( 3, 4 );
+    private final IndexDescriptor index3_4 = forSchema( schema3_4 ).withName( "index_1" ).materialise( 1 );
+    private final LabelSchemaDescriptor schema5_6_7 = SchemaDescriptors.forLabel( 5, 6, 7 );
+    private final IndexDescriptor index5_6_7 = forSchema( schema5_6_7 ).withName( "index_2" ).materialise( 2 );
+    private final LabelSchemaDescriptor schema5_8 = SchemaDescriptors.forLabel( 5, 8 );
+    private final IndexDescriptor index5_8 = forSchema( schema5_8 ).withName( "index_3" ).materialise( 3 );
+    private final SchemaDescriptor node35_8 = SchemaDescriptors.fulltext( NODE, new int[]{3, 5}, new int[]{8} );
+    private final IndexDescriptor index_node35_8 = forSchema( node35_8 ).withName( "index_4" ).materialise( 4 );
+    private final SchemaDescriptor rel35_8 = SchemaDescriptors.fulltext( RELATIONSHIP, new int[]{3, 5}, new int[]{8} );
+    private final IndexDescriptor index_rel35_8 = forSchema( rel35_8 ).withName( "index_5" ).materialise( 5 );
 
-    @Before
-    public void setup()
+    @BeforeEach
+    void setup()
     {
-        PrimitiveLongObjectMap<IndexProxy> map = Primitive.longObjectMap();
-        map.put( 1L, new TestIndexProxy( schema3_4 ) );
-        map.put( 2L, new TestIndexProxy( schema5_6_7 ) );
-        map.put( 3L, new TestIndexProxy( schema5_8 ) );
-        indexMap = new IndexMap( map );
+        indexMap = new IndexMap();
+        indexMap.putIndexProxy( new TestIndexProxy( index3_4 ) );
+        indexMap.putIndexProxy( new TestIndexProxy( index5_6_7 ) );
+        indexMap.putIndexProxy( new TestIndexProxy( index5_8 ) );
+        indexMap.putIndexProxy( new TestIndexProxy( index_node35_8 ) );
+        indexMap.putIndexProxy( new TestIndexProxy( index_rel35_8 ) );
     }
 
     @Test
-    public void shouldGetRelatedIndexForLabel()
+    void shouldGetById()
     {
-        assertThat(
-                indexMap.getRelatedIndexes( label( 3 ), noLabel, emptySet() ),
-                containsInAnyOrder( schema3_4 ) );
+        assertEquals( schema3_4, indexMap.getIndexProxy( 1L ).getDescriptor().schema() );
+        assertEquals( schema5_6_7, indexMap.getIndexProxy( 2L ).getDescriptor().schema() );
     }
 
     @Test
-    public void shouldGetRelatedIndexForProperty()
+    void shouldGetByDescriptor()
     {
-        assertThat(
-                indexMap.getRelatedIndexes( noLabel, label( 3, 4, 5 ), properties( 4 ) ),
-                containsInAnyOrder( schema3_4 ) );
-    }
-
-    @Test
-    public void shouldGetRelatedIndexesForLabel()
-    {
-        assertThat(
-                indexMap.getRelatedIndexes( label( 5 ), label( 3, 4 ), emptySet() ),
-                containsInAnyOrder( schema5_6_7, schema5_8 ) );
-    }
-
-    @Test
-    public void shouldGetRelatedIndexes()
-    {
-        assertThat(
-                indexMap.getRelatedIndexes( label( 3 ), label( 4, 5 ), properties( 7 ) ),
-                containsInAnyOrder( schema3_4, schema5_6_7 ) );
-    }
-
-    @Test
-    public void shouldGetRelatedIndexOnce()
-    {
-        assertThat(
-                indexMap.getRelatedIndexes( label( 3 ), noLabel, properties( 4 ) ),
-                containsInAnyOrder( schema3_4 ) );
-
-        assertThat(
-                indexMap.getRelatedIndexes( noLabel, label( 5 ), properties( 6, 7 ) ),
-                containsInAnyOrder( schema5_6_7 ) );
-    }
-
-    @Test
-    public void shouldHandleUnrelated()
-    {
-        assertThat(
-                indexMap.getRelatedIndexes( noLabel, noLabel, emptySet() ),
-                emptyIterableOf( SchemaDescriptor.class ) );
-
-        assertThat(
-                indexMap.getRelatedIndexes( label( 2 ), noLabel, emptySet() ),
-                emptyIterableOf( SchemaDescriptor.class ) );
-
-        assertThat(
-                indexMap.getRelatedIndexes( noLabel, label( 2 ), properties( 1 ) ),
-                emptyIterableOf( SchemaDescriptor.class ) );
-
-        assertThat(
-                indexMap.getRelatedIndexes( label( 2 ), label( 2 ), properties( 1 ) ),
-                emptyIterableOf( SchemaDescriptor.class ) );
+        assertEquals( schema5_8, indexMap.getIndexProxy( index5_8 ).getDescriptor().schema() );
+        assertEquals( node35_8, indexMap.getIndexProxy( index_node35_8 ).getDescriptor().schema() );
     }
 
     // HELPERS
 
-    private long[] label( long... labels )
+    private static class TestIndexProxy extends IndexProxyAdapter
     {
-        return labels;
-    }
+        private final IndexDescriptor descriptor;
 
-    private PrimitiveIntSet properties( int... propertyIds )
-    {
-        return PrimitiveIntCollections.asSet( propertyIds );
-    }
-
-    private class TestIndexProxy extends IndexProxyAdapter
-    {
-        private final LabelSchemaDescriptor schema;
-
-        private TestIndexProxy( LabelSchemaDescriptor schema )
+        private TestIndexProxy( IndexDescriptor descriptor )
         {
-            this.schema = schema;
+            this.descriptor = descriptor;
         }
 
         @Override
-        public LabelSchemaDescriptor schema()
+        public IndexDescriptor getDescriptor()
         {
-            return schema;
+            return descriptor;
         }
     }
 }

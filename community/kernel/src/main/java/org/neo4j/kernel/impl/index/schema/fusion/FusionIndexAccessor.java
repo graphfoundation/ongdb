@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,119 +38,109 @@
  */
 package org.neo4j.kernel.impl.index.schema.fusion;
 
-import java.io.File;
-import java.io.IOException;
+import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
+import org.neo4j.annotations.documented.ReporterFactory;
 import org.neo4j.graphdb.ResourceIterator;
-import org.neo4j.helpers.collection.BoundedIterable;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.io.pagecache.IOLimiter;
+import org.neo4j.internal.helpers.collection.BoundedIterable;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.index.IndexAccessor;
+import org.neo4j.kernel.api.index.IndexConfigProvider;
+import org.neo4j.kernel.api.index.IndexEntriesReader;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.index.PropertyAccessor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
+import org.neo4j.kernel.api.index.ValueIndexReader;
 import org.neo4j.kernel.impl.api.index.IndexUpdateMode;
-import org.neo4j.kernel.impl.index.schema.fusion.FusionIndexProvider.DropAction;
-import org.neo4j.storageengine.api.schema.IndexReader;
+import org.neo4j.kernel.impl.index.schema.IndexFiles;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.values.storable.Value;
 
-import static org.neo4j.helpers.collection.Iterators.concatResourceIterators;
-import static org.neo4j.helpers.collection.Iterators.iterator;
-import static org.neo4j.kernel.impl.index.schema.fusion.SlotSelector.INSTANCE_COUNT;
+import static org.neo4j.internal.helpers.collection.Iterators.concatResourceIterators;
 
 class FusionIndexAccessor extends FusionIndexBase<IndexAccessor> implements IndexAccessor
 {
-    private final long indexId;
-    private final SchemaIndexDescriptor descriptor;
-    private final DropAction dropAction;
+    private final IndexDescriptor descriptor;
+    private final IndexFiles indexFiles;
 
     FusionIndexAccessor( SlotSelector slotSelector,
             InstanceSelector<IndexAccessor> instanceSelector,
-            long indexId,
-            SchemaIndexDescriptor descriptor,
-            DropAction dropAction )
+            IndexDescriptor descriptor,
+            IndexFiles indexFiles )
     {
         super( slotSelector, instanceSelector );
-        this.indexId = indexId;
         this.descriptor = descriptor;
-        this.dropAction = dropAction;
+        this.indexFiles = indexFiles;
     }
 
     @Override
-    public void drop() throws IOException
+    public void drop()
     {
         instanceSelector.forAll( IndexAccessor::drop );
-        dropAction.drop( indexId );
+        indexFiles.clear();
     }
 
     @Override
-    public IndexUpdater newUpdater( IndexUpdateMode mode )
+    public IndexUpdater newUpdater( IndexUpdateMode mode, CursorContext cursorContext )
     {
-        LazyInstanceSelector<IndexUpdater> updaterSelector = new LazyInstanceSelector<>( new IndexUpdater[INSTANCE_COUNT],
-                slot -> instanceSelector.select( slot ).newUpdater( mode ) );
+        LazyInstanceSelector<IndexUpdater> updaterSelector = new LazyInstanceSelector<>( slot ->
+                instanceSelector.select( slot ).newUpdater( mode, cursorContext ) );
         return new FusionIndexUpdater( slotSelector, updaterSelector );
     }
 
     @Override
-    public void force( IOLimiter ioLimiter ) throws IOException
+    public void force( CursorContext cursorContext )
     {
-        instanceSelector.forAll( accessor -> accessor.force( ioLimiter ) );
+        instanceSelector.forAll( accessor -> accessor.force( cursorContext ) );
     }
 
     @Override
-    public void refresh() throws IOException
+    public void refresh()
     {
         instanceSelector.forAll( IndexAccessor::refresh );
     }
 
     @Override
-    public void close() throws IOException
+    public void close()
     {
         instanceSelector.close( IndexAccessor::close );
     }
 
     @Override
-    public IndexReader newReader()
+    public ValueIndexReader newValueReader()
     {
-        LazyInstanceSelector<IndexReader> readerSelector = new LazyInstanceSelector<>( new IndexReader[INSTANCE_COUNT],
-                slot -> instanceSelector.select( slot ).newReader() );
+        var readerSelector = new LazyInstanceSelector<>( slot -> instanceSelector.select( slot ).newValueReader() );
         return new FusionIndexReader( slotSelector, readerSelector, descriptor );
     }
 
     @Override
-    public BoundedIterable<Long> newAllEntriesReader()
+    public BoundedIterable<Long> newAllEntriesValueReader( long fromIdInclusive, long toIdExclusive, CursorContext cursorContext )
     {
-        BoundedIterable<Long>[] entries = instanceSelector.instancesAs( new BoundedIterable[INSTANCE_COUNT], IndexAccessor::newAllEntriesReader );
-        return new BoundedIterable<Long>()
+        Iterable<BoundedIterable<Long>> entries =
+                instanceSelector.transform( indexAccessor -> indexAccessor.newAllEntriesValueReader( fromIdInclusive, toIdExclusive, cursorContext ) );
+        return new BoundedIterable<>()
         {
             @Override
             public long maxCount()
             {
-                long[] maxCounts = new long[entries.length];
                 long sum = 0;
-                for ( int i = 0; i < entries.length; i++ )
+                for ( BoundedIterable entry : entries )
                 {
-                    maxCounts[i] = entries[i].maxCount();
-                    sum += maxCounts[i];
-                }
-                return existsUnknownMaxCount( maxCounts ) ? UNKNOWN_MAX_COUNT : sum;
-            }
-
-            private boolean existsUnknownMaxCount( long... maxCounts )
-            {
-                for ( long maxCount : maxCounts )
-                {
+                    long maxCount = entry.maxCount();
                     if ( maxCount == UNKNOWN_MAX_COUNT )
                     {
-                        return true;
+                        return UNKNOWN_MAX_COUNT;
                     }
+                    sum += maxCount;
                 }
-                return false;
+                return sum;
             }
 
-            @SuppressWarnings( "unchecked" )
             @Override
             public void close() throws Exception
             {
@@ -166,36 +156,59 @@ class FusionIndexAccessor extends FusionIndexBase<IndexAccessor> implements Inde
     }
 
     @Override
-    public ResourceIterator<File> snapshotFiles() throws IOException
+    public IndexEntriesReader[] newAllEntriesValueReader( int partitions, CursorContext cursorContext )
     {
-        return concatResourceIterators(
-                iterator( instanceSelector.instancesAs( new ResourceIterator[INSTANCE_COUNT], accessor -> accessor.snapshotFiles() ) ) );
+        if ( descriptor.schema().getPropertyIds().length == 1 )
+        {
+            return IndexAccessor.super.newAllEntriesValueReader( partitions, cursorContext );
+        }
+        // For composite fusion index it is just a plain btree index being used.
+        // So we get the accessor for that slot and use its reader.
+        IndexAccessor accessor = instanceSelector.select( IndexSlot.GENERIC );
+        return accessor.newAllEntriesValueReader( partitions, cursorContext );
     }
 
     @Override
-    public void verifyDeferredConstraints( PropertyAccessor propertyAccessor )
-            throws IndexEntryConflictException, IOException
+    public ResourceIterator<Path> snapshotFiles()
     {
-        for ( int slot = 0; slot < INSTANCE_COUNT; slot++ )
+        return concatResourceIterators( instanceSelector.transform( IndexAccessor::snapshotFiles ).iterator() );
+    }
+
+    @Override
+    public Map<String,Value> indexConfig()
+    {
+        Map<String,Value> indexConfig = new HashMap<>();
+        instanceSelector.transform( IndexAccessor::indexConfig ).forEach( source -> IndexConfigProvider.putAllNoOverwrite( indexConfig, source ) );
+        return indexConfig;
+    }
+
+    @Override
+    public void verifyDeferredConstraints( NodePropertyAccessor nodePropertyAccessor ) throws IndexEntryConflictException
+    {
+        for ( IndexSlot slot : IndexSlot.values() )
         {
-            instanceSelector.select( slot ).verifyDeferredConstraints( propertyAccessor );
+            instanceSelector.select( slot ).verifyDeferredConstraints( nodePropertyAccessor );
         }
     }
 
     @Override
-    public boolean isDirty()
+    public void validateBeforeCommit( long entityId, Value[] tuple )
     {
-        boolean isDirty = false;
-        for ( int slot = 0; slot < INSTANCE_COUNT; slot++ )
-        {
-            isDirty |= instanceSelector.select( slot ).isDirty();
-        }
-        return isDirty;
+        instanceSelector.select( slotSelector.selectSlot( tuple, CATEGORY_OF ) ).validateBeforeCommit( entityId, tuple );
     }
 
     @Override
-    public void validateBeforeCommit( Value[] tuple )
+    public boolean consistencyCheck( ReporterFactory reporterFactory, CursorContext cursorContext )
     {
-        instanceSelector.select( slotSelector.selectSlot( tuple, GROUP_OF ) ).validateBeforeCommit( tuple );
+        return FusionIndexBase.consistencyCheck( instanceSelector.instances.values(), reporterFactory, cursorContext );
+    }
+
+    @Override
+    public long estimateNumberOfEntries( CursorContext cursorContext )
+    {
+        List<Long> counts = instanceSelector.transform( accessor -> accessor.estimateNumberOfEntries( cursorContext ) );
+        return counts.stream().anyMatch( count -> count == UNKNOWN_NUMBER_OF_ENTRIES )
+               ? UNKNOWN_NUMBER_OF_ENTRIES
+               : counts.stream().mapToLong( Long::longValue ).sum();
     }
 }

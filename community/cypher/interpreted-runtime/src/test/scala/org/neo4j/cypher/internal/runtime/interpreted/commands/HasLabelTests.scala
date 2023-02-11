@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,20 +38,22 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Literal
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.HasLabel
-import org.neo4j.cypher.internal.runtime.interpreted.commands.values.{KeyToken, TokenType}
-import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.runtime.interpreted.commands.values.KeyToken
+import org.neo4j.cypher.internal.runtime.interpreted.commands.values.TokenType
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.values.storable.Values.NO_VALUE
 
 class HasLabelTests extends CypherFunSuite {
   test("should_handle_null_values") {
     //given match n-[?]-m
-    val predicate = HasLabel(Literal(null), KeyToken.Unresolved("Person", TokenType.Label))
+    val predicate = HasLabel(Literal(NO_VALUE), KeyToken.Unresolved("Person", TokenType.Label))
 
     //when
-    val ctx = ExecutionContext.empty
+    val ctx = CypherRow.empty
     val state = QueryStateHelper.empty
 
     //then

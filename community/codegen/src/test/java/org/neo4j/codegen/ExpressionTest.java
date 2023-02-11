@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,9 +38,10 @@
  */
 package org.neo4j.codegen;
 
-import org.junit.Test;
 
-import static org.junit.Assert.assertSame;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
@@ -62,21 +63,21 @@ import static org.neo4j.codegen.MethodReference.methodReference;
 public class ExpressionTest
 {
     @Test
-    public void shouldNegateTrueToFalse()
+    void shouldNegateTrueToFalse()
     {
         assertSame( FALSE, not( TRUE ) );
         assertSame( TRUE, not( FALSE ) );
     }
 
     @Test
-    public void shouldRemoveDoubleNegation()
+    void shouldRemoveDoubleNegation()
     {
         Expression expression = invoke( methodReference( getClass(), boolean.class, "TRUE" ) );
         assertSame( expression, not( not( expression ) ) );
     }
 
     @Test
-    public void shouldOptimizeNullChecks()
+    void shouldOptimizeNullChecks()
     {
         // given
         ExpressionVisitor visitor = mock( ExpressionVisitor.class );
@@ -114,7 +115,7 @@ public class ExpressionTest
     }
 
     @Test
-    public void shouldOptimizeNegatedInequalities()
+    void shouldOptimizeNegatedInequalities()
     {
         // given
         ExpressionVisitor visitor = mock( ExpressionVisitor.class );
@@ -168,7 +169,7 @@ public class ExpressionTest
     }
 
     @Test
-    public void shouldOptimizeBooleanCombinationsWithConstants()
+    void shouldOptimizeBooleanCombinationsWithConstants()
     {
         // given
         Expression expression = invoke( methodReference( getClass(), boolean.class, "TRUE" ) );

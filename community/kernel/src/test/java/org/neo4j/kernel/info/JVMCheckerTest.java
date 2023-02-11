@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,103 +38,85 @@
  */
 package org.neo4j.kernel.info;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.logging.BufferingLog;
+import org.neo4j.logging.AssertableLogProvider;
+import org.neo4j.logging.Log;
 
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
 import static org.neo4j.kernel.info.JvmChecker.INCOMPATIBLE_JVM_VERSION_WARNING;
-import static org.neo4j.kernel.info.JvmChecker.INCOMPATIBLE_JVM_WARNING;
+import static org.neo4j.kernel.info.JvmChecker.initialMemorySettingWarning;
+import static org.neo4j.kernel.info.JvmChecker.maxMemorySettingWarning;
+import static org.neo4j.logging.LogAssertions.assertThat;
 
-public class JVMCheckerTest
+class JVMCheckerTest
 {
+    private final AssertableLogProvider logProvider = new AssertableLogProvider();
+    private final Log log = logProvider.getLog( "test" );
+
     @Test
-    public void shouldIssueWarningWhenUsingHotspotServerVmVersion7()
+    void shouldIssueWarningWhenUsingHotspotServerVmVersion12()
     {
-        BufferingLog bufferingLogger = new BufferingLog();
+        new JvmChecker( log, new CannedJvmMetadataRepository( "Java HotSpot(TM) 64-Bit Server VM",
+                                                              "12" ) ).checkJvmCompatibilityAndIssueWarning();
 
-        new JvmChecker( bufferingLogger, new CannedJvmMetadataRepository( "Java HotSpot(TM) 64-Bit Server VM",
-                "1.7.0-b147" ) ).checkJvmCompatibilityAndIssueWarning();
-
-        assertThat( bufferingLogger.toString().trim(), is( INCOMPATIBLE_JVM_VERSION_WARNING ) );
+        assertThat( logProvider ).containsMessages( INCOMPATIBLE_JVM_VERSION_WARNING );
     }
 
     @Test
-    public void shouldNotIssueWarningWhenUsingHotspotServerVmVersion8()
+    void shouldNotIssueWarningWhenUsingHotspotServerVmVersion11()
     {
-        BufferingLog bufferingLogger = new BufferingLog();
+        new JvmChecker( log, new CannedJvmMetadataRepository( "Java HotSpot(TM) 64-Bit Server VM",
+                "11" ) ).checkJvmCompatibilityAndIssueWarning();
 
-        new JvmChecker( bufferingLogger, new CannedJvmMetadataRepository( "Java HotSpot(TM) 64-Bit Server VM",
-                "1.8.0_45" ) ).checkJvmCompatibilityAndIssueWarning();
-
-        assertTrue( bufferingLogger.toString().isEmpty() );
+        assertThat( logProvider ).doesNotContainMessage( INCOMPATIBLE_JVM_VERSION_WARNING );
     }
 
     @Test
-    public void shouldNotIssueWarningWhenUsingIbmJ9Vm()
+    void shouldIssueWarningWhenUsingUnsupportedJvmVersion()
     {
-        BufferingLog bufferingLogger = new BufferingLog();
+        new JvmChecker( log, new CannedJvmMetadataRepository( "Java HotSpot(TM) 64-Bit Server VM",
+                "22.33.44.55" ) ).checkJvmCompatibilityAndIssueWarning();
 
-        new JvmChecker( bufferingLogger, new CannedJvmMetadataRepository( "IBM J9 VM", "1.8" ) )
-                .checkJvmCompatibilityAndIssueWarning();
-
-        assertTrue( bufferingLogger.toString().isEmpty() );
+        assertThat( logProvider ).containsMessages( INCOMPATIBLE_JVM_VERSION_WARNING );
     }
 
     @Test
-    public void shouldIssueWarningWhenUsingHotspotServerVmVersion7InThe32BitVersion()
+    void warnAboutMissingInitialHeapSize()
     {
-        BufferingLog bufferingLogger = new BufferingLog();
+        new JvmChecker( log, new CannedJvmMetadataRepository( "Java HotSpot(TM) 64-Bit Server VM",
+                "11.0.2+9", singletonList( "-XMx" ), 12, 23 ) ).checkJvmCompatibilityAndIssueWarning();
 
-        new JvmChecker( bufferingLogger, new CannedJvmMetadataRepository( "Java HotSpot(TM) Server VM",
-                "1.7.0_25-b15" ) ).checkJvmCompatibilityAndIssueWarning();
-
-        assertThat( bufferingLogger.toString().trim(), is( INCOMPATIBLE_JVM_VERSION_WARNING ) );
+        assertThat( logProvider ).containsMessages( initialMemorySettingWarning( 12 ) );
     }
 
     @Test
-    public void shouldIssueWarningWhenUsingOpenJDKServerVmVersion7()
+    void warnAboutMissingMaximumHeapSize()
     {
-        BufferingLog bufferingLogger = new BufferingLog();
+        new JvmChecker( log, new CannedJvmMetadataRepository( "Java HotSpot(TM) 64-Bit Server VM",
+                "11", singletonList( "-XMs" ), 12, 23 ) ).checkJvmCompatibilityAndIssueWarning();
 
-        new JvmChecker( bufferingLogger, new CannedJvmMetadataRepository( "OpenJDK 64-Bit Server VM",
-                "1.7.0-b147" ) ).checkJvmCompatibilityAndIssueWarning();
-
-        assertThat( bufferingLogger.toString().trim(), is( INCOMPATIBLE_JVM_VERSION_WARNING ) );
+        assertThat( logProvider ).containsMessages( maxMemorySettingWarning( 23 ) );
     }
 
     @Test
-    public void shouldIssueWarningWhenUsingOpenJDKClientVmVersion7()
+    void warnAboutMissingHeapSizes()
     {
-        BufferingLog bufferingLogger = new BufferingLog();
+        new JvmChecker( log, new CannedJvmMetadataRepository( "Java HotSpot(TM) 64-Bit Server VM",
+                "11.0.1" ) ).checkJvmCompatibilityAndIssueWarning();
 
-        new JvmChecker( bufferingLogger, new CannedJvmMetadataRepository( "OpenJDK Client VM",
-                "1.7.0-b147" ) ).checkJvmCompatibilityAndIssueWarning();
-
-        assertThat( bufferingLogger.toString().trim(), is( INCOMPATIBLE_JVM_VERSION_WARNING ) );
+        assertThat( logProvider ).containsMessages( initialMemorySettingWarning( 1 ) );
+        assertThat( logProvider ).containsMessages( maxMemorySettingWarning( 2 ) );
     }
 
     @Test
-    public void shouldIssueWarningWhenUsingUnsupportedJvm()
+    void doNotWarnAboutMissingHeapSizesWhenOptionsSpecified()
     {
-        BufferingLog bufferingLogger = new BufferingLog();
+        new JvmChecker( log, new CannedJvmMetadataRepository( "Java HotSpot(TM) 64-Bit Server VM", "11.0.2",
+                asList( "-xMx", "-xmS" ), 1, 2 ) ).checkJvmCompatibilityAndIssueWarning();
 
-        new JvmChecker( bufferingLogger, new CannedJvmMetadataRepository( "MyOwnJDK 64-Bit Awesome VM",
-                "1.7" ) ).checkJvmCompatibilityAndIssueWarning();
-
-        assertThat( bufferingLogger.toString().trim(), is( INCOMPATIBLE_JVM_WARNING ) );
-    }
-
-    @Test
-    public void shouldIssueWarningWhenUsingUnsupportedJvmVersion()
-    {
-        BufferingLog bufferingLogger = new BufferingLog();
-
-        new JvmChecker( bufferingLogger, new CannedJvmMetadataRepository( "Java HotSpot(TM) 64-Bit Server VM",
-                "1.6.42_87" ) ).checkJvmCompatibilityAndIssueWarning();
-
-        assertThat( bufferingLogger.toString().trim(), is( INCOMPATIBLE_JVM_VERSION_WARNING ) );
+        assertThat( logProvider ).doesNotContainMessage( initialMemorySettingWarning( 1 ) );
+        assertThat( logProvider ).doesNotContainMessage( maxMemorySettingWarning( 2 ) );
     }
 }

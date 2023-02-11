@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,11 +41,11 @@ package org.neo4j.kernel;
 import java.net.URL;
 import java.util.concurrent.TimeUnit;
 
-import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.common.DependencyResolver;
 import org.neo4j.graphdb.security.URLAccessValidationError;
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
 import org.neo4j.internal.kernel.api.security.LoginContext;
 import org.neo4j.kernel.api.KernelTransaction;
-import org.neo4j.kernel.api.dbms.DbmsOperations;
 import org.neo4j.kernel.impl.coreapi.InternalTransaction;
 
 /*
@@ -66,18 +66,27 @@ public interface GraphDatabaseQueryService
     InternalTransaction beginTransaction( KernelTransaction.Type type, LoginContext loginContext );
 
     /**
+     * Begin new internal transaction with with default timeout.
+     *
+     * @param type transaction type
+     * @param loginContext transaction login context
+     * @param connectionInfo transaction connection info
+     * @return internal transaction
+     */
+    InternalTransaction beginTransaction( KernelTransaction.Type type, LoginContext loginContext, ClientConnectionInfo connectionInfo );
+
+    /**
      * Begin new internal transaction with specified timeout in milliseconds.
      *
      * @param type transaction type
      * @param loginContext transaction login context
+     * @param connectionInfo transaction connection info
      * @param timeout transaction timeout
      * @param unit time unit of timeout argument
      * @return internal transaction
      */
-    InternalTransaction beginTransaction( KernelTransaction.Type type, LoginContext loginContext, long timeout,
+    InternalTransaction beginTransaction( KernelTransaction.Type type, LoginContext loginContext, ClientConnectionInfo connectionInfo, long timeout,
             TimeUnit unit );
 
     URL validateURLAccess( URL url ) throws URLAccessValidationError;
-
-    DbmsOperations getDbmsOperations();
 }

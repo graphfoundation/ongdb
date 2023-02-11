@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -43,7 +43,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import static java.lang.System.currentTimeMillis;
+import static java.lang.System.nanoTime;
 
 /**
  * Constructors for basic {@link Supplier} types
@@ -75,14 +75,14 @@ public final class Suppliers
      */
     public static <T> Lazy<T> lazySingleton( final Supplier<T> supplier )
     {
-        return new Lazy<T>()
+        return new Lazy<>()
         {
             volatile T instance;
 
             @Override
             public T get()
             {
-                if ( instance != null )
+                if ( isInitialised() )
                 {
                     return instance;
                 }
@@ -95,6 +95,24 @@ public final class Suppliers
                     }
                 }
                 return instance;
+            }
+
+            @Override
+            public T getIfPresent()
+            {
+                return instance;
+            }
+
+            @Override
+            public boolean isInitialised()
+            {
+                return instance != null;
+            }
+
+            @Override
+            public String toString()
+            {
+                return isInitialised() ? get().toString() : "null";
             }
         };
     }
@@ -112,7 +130,7 @@ public final class Suppliers
      */
     public static <T, V> Supplier<T> adapted( final Supplier<V> supplier, final Function<V,T> adaptor )
     {
-        return new Supplier<T>()
+        return new Supplier<>()
         {
             volatile V lastValue;
             T instance;
@@ -149,8 +167,8 @@ public final class Suppliers
 
     public static BooleanSupplier untilTimeExpired( long duration, TimeUnit unit )
     {
-        final long endTimeInMilliseconds = currentTimeMillis() + unit.toMillis( duration );
-        return () -> currentTimeMillis() <= endTimeInMilliseconds;
+        final long endTimeInNanos = nanoTime() + unit.toNanos( duration );
+        return () -> nanoTime() <= endTimeInNanos;
     }
 
     static class ThrowingCapturingSupplier<T, E extends Exception> implements ThrowingSupplier<Boolean,E>
@@ -187,5 +205,7 @@ public final class Suppliers
 
     public interface Lazy<T> extends Supplier<T>
     {
+        T getIfPresent();
+        boolean isInitialised();
     }
 }

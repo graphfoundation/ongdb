@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,9 +38,6 @@
  */
 package org.neo4j.function;
 
-import java.util.Optional;
-import java.util.function.Function;
-
 /**
  * Represents a function that accepts one argument and produces a result, or throws an exception.
  *
@@ -58,53 +55,4 @@ public interface ThrowingFunction<T, R, E extends Exception>
      * @throws E an exception if the function fails
      */
     R apply( T t ) throws E;
-
-    /**
-     * Construct a regular function that calls a throwing function and catches all checked exceptions
-     * declared and thrown by the throwing function and rethrows them as {@link UncaughtCheckedException}
-     * for handling further up the stack.
-     *
-     * @see UncaughtCheckedException
-     *
-     * @param throwing the throwing function to wtap
-     * @param <T> type of arguments
-     * @param <R> type of results
-     * @param <E> type of checked exceptions thrown by the throwing function
-     * @return a new, non-throwing function
-     * @throws IllegalStateException if an unexpected exception is caught (ie. neither of type E or a runtime exception)
-     */
-    static <T, R, E extends Exception> Function<T, R> catchThrown( Class<E> clazz, ThrowingFunction<T, R, E> throwing )
-    {
-        return input ->
-        {
-            try
-            {
-                return throwing.apply( input );
-            }
-            catch ( Exception e )
-            {
-                if ( clazz.isInstance( e ) )
-                {
-                    throw new UncaughtCheckedException( throwing, clazz.cast( e ) );
-                }
-                else if ( e instanceof RuntimeException )
-                {
-                    throw (RuntimeException) e;
-                }
-                else
-                {
-                    throw new IllegalStateException( "Unexpected exception", e );
-                }
-            }
-        };
-    }
-
-    @SuppressWarnings( "OptionalUsedAsFieldOrParameterType" )
-    static <E extends Exception> void throwIfPresent( Optional<E> exception ) throws E
-    {
-        if ( exception.isPresent() )
-        {
-            throw exception.get();
-        }
-    }
 }

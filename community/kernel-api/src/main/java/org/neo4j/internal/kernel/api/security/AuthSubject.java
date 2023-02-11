@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,49 +40,41 @@ package org.neo4j.internal.kernel.api.security;
 
 public interface AuthSubject
 {
-    void logout();
-
     // TODO: Refine this API into something more polished
     AuthenticationResult getAuthenticationResult();
 
     /**
-     * Changes the {@link AuthenticationResult} status to {@link AuthenticationResult#SUCCESS SUCCESS}
-     * if it was {@link AuthenticationResult#PASSWORD_CHANGE_REQUIRED PASSWORD_CHANGE_REQUIRED}.
-     * This allows users that changed their password to become authorized for continued processing.
-     */
-    void setPasswordChangeNoLongerRequired();
-
-    /**
      * @param username a username
-     * @return true if the provided username is the underlying user name of this subject
+     * @return true if the provided username is the same as the executing username of this subject
      */
     boolean hasUsername( String username );
 
     /**
-     * Get the username associated with the auth subject
+     * Get the name of the user associated with the current transaction.
+     * This might be the same as the authenticated user or a different when using impersonation
      * @return the username
      */
-    String username();
+    String executingUser();
+
+    /**
+     * Get the name of the authenticated user
+     * @return the username
+     */
+    default String authenticatedUser()
+    {
+        return executingUser();
+    }
 
     /**
      * Implementation to use when authentication has not yet been performed. Allows nothing.
      */
     AuthSubject ANONYMOUS = new AuthSubject()
     {
-        @Override
-        public void logout()
-        {
-        }
 
         @Override
         public AuthenticationResult getAuthenticationResult()
         {
             return AuthenticationResult.FAILURE;
-        }
-
-        @Override
-        public void setPasswordChangeNoLongerRequired()
-        {
         }
 
         @Override
@@ -92,7 +84,7 @@ public interface AuthSubject
         }
 
         @Override
-        public String username()
+        public String executingUser()
         {
             return ""; // Should never clash with a valid username
         }
@@ -105,25 +97,15 @@ public interface AuthSubject
     AuthSubject AUTH_DISABLED = new AuthSubject()
     {
         @Override
-        public String username()
+        public String executingUser()
         {
             return ""; // Should never clash with a valid username
-        }
-
-        @Override
-        public void logout()
-        {
         }
 
         @Override
         public AuthenticationResult getAuthenticationResult()
         {
             return AuthenticationResult.SUCCESS;
-        }
-
-        @Override
-        public void setPasswordChangeNoLongerRequired()
-        {
         }
 
         @Override

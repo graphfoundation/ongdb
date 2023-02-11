@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,25 +38,30 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.interpreted.CommandProjection
+import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.InterpretedCommandProjection
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.util.attribution.Id
 
-case class ProjectionPipe(source: Pipe, expressions: Map[String, Expression])
+case class ProjectionPipe(source: Pipe, projection: CommandProjection)
                          (val id: Id = Id.INVALID_ID) extends PipeWithSource(source) {
 
-  expressions.values.foreach(_.registerOwningPipe(this))
-
-  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState) = {
-    input.map {
-      ctx =>
-        expressions.foreach {
-          case (name, expression) =>
-            val result = expression(ctx, state)
-            ctx.put(name, result)
-        }
-
-        ctx
+  protected def internalCreateResults(input: ClosingIterator[CypherRow], state: QueryState): ClosingIterator[CypherRow] = {
+    if (projection.isEmpty)
+      input
+    else {
+      input.map {
+        ctx =>
+          projection.project(ctx, state)
+          ctx
+      }
     }
   }
+}
+
+object ProjectionPipe {
+  def apply(source: Pipe, projections: Map[String, Expression]): ProjectionPipe =
+    ProjectionPipe(source, InterpretedCommandProjection(projections))()
 }

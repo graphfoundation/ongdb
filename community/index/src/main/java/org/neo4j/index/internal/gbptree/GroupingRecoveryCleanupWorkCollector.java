@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,16 +38,17 @@
  */
 package org.neo4j.index.internal.gbptree;
 
-import java.util.StringJoiner;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobHandle;
+import org.neo4j.scheduler.JobMonitoringParams;
 import org.neo4j.scheduler.JobScheduler;
-
-import static org.neo4j.scheduler.JobScheduler.Groups.recoveryCleanup;
+import org.neo4j.util.Preconditions;
 
 /**
  * Runs cleanup work as they're added in {@link #add(CleanupJob)}, but the thread that calls {@link #add(CleanupJob)} will not execute them itself.
@@ -56,50 +57,51 @@ public class GroupingRecoveryCleanupWorkCollector extends RecoveryCleanupWorkCol
 {
     private final BlockingQueue<CleanupJob> jobs = new LinkedBlockingQueue<>();
     private final JobScheduler jobScheduler;
-    private volatile boolean started;
-    private JobScheduler.JobHandle handle;
+    private final Group group;
+    private final Group workerGroup;
+    private final String databaseName;
+    private volatile boolean moreJobsAllowed = true;
+    private JobHandle handle;
 
     /**
      * @param jobScheduler {@link JobScheduler} to queue {@link CleanupJob} into.
+     * @param group {@link Group} to which all cleanup jobs should be scheduled.
+     * @param workerGroup {@link Group} to which all sub-tasks of cleanup jobs should be scheduled.
+     * @param databaseName name of the database that is being recovered. This is currently used only for monitoring
+     * purposes to link this unit of work with a database it belongs to.
      */
-    public GroupingRecoveryCleanupWorkCollector( JobScheduler jobScheduler )
+    public GroupingRecoveryCleanupWorkCollector( JobScheduler jobScheduler, Group group, Group workerGroup, String databaseName )
     {
         this.jobScheduler = jobScheduler;
+        this.group = group;
+        this.workerGroup = workerGroup;
+        this.databaseName = databaseName;
     }
 
     @Override
     public void init()
     {
-        started = false;
-        if ( !jobs.isEmpty() )
-        {
-            StringJoiner joiner = new StringJoiner( String.format( "%n  " ), "Did not expect there to be any cleanup jobs still here. Jobs[", "]" );
-            consumeAndCloseJobs( cj -> joiner.add( cj.toString() ) );
-            throw new IllegalStateException( joiner.toString() );
-        }
         scheduleJobs();
     }
 
     @Override
     public void add( CleanupJob job )
     {
-        if ( started )
-        {
-            throw new IllegalStateException( "Index clean jobs can't be added after collector start." );
-        }
+        Preconditions.checkState( moreJobsAllowed, "Index clean jobs can't be added after collector start." );
         jobs.add( job );
     }
 
     @Override
     public void start()
     {
-        started = true;
+        Preconditions.checkState( moreJobsAllowed, "Already started" );
+        moreJobsAllowed = false;
     }
 
     @Override
     public void shutdown() throws ExecutionException, InterruptedException
     {
-        started = true;
+        moreJobsAllowed = false;
         if ( handle != null )
         {
             // Also set the started flag which acts as a signal to exit the scheduled job on empty queue,
@@ -107,55 +109,57 @@ public class GroupingRecoveryCleanupWorkCollector extends RecoveryCleanupWorkCol
             // before reaching that phase in the lifecycle.
             handle.waitTermination();
         }
-        consumeAndCloseJobs( cj -> {} );
+        CleanupJob job;
+        while ( (job = jobs.poll()) != null )
+        {
+            job.close();
+        }
     }
 
     private void scheduleJobs()
     {
-        handle = jobScheduler.schedule( recoveryCleanup, allJobs() );
+        handle = jobScheduler.schedule( group, JobMonitoringParams.systemJob( databaseName, "Index recovery clean up" ), allJobs() );
     }
 
     private Runnable allJobs()
     {
         return () ->
-                executeWithExecutor( executor ->
-                {
-                    CleanupJob job = null;
-                    do
-                    {
-                        try
-                        {
-                            job = jobs.poll( 100, TimeUnit.MILLISECONDS );
-                            if ( job != null )
-                            {
-                                job.run( executor );
-                            }
-                        }
-                        catch ( Exception e )
-                        {
-                            // There's no audience for these exceptions. The jobs themselves know if they've failed and communicates
-                            // that to its tree. The scheduled job is just a vessel for running these cleanup jobs.
-                        }
-                        finally
-                        {
-                            if ( job != null )
-                            {
-                                job.close();
-                            }
-                        }
-                    }
-                    // Even if there are no jobs in the queue then continue looping until we go to started state
-                    while ( !jobs.isEmpty() || !started );
-                } );
-    }
-
-    private void consumeAndCloseJobs( Consumer<CleanupJob> consumer )
-    {
-        CleanupJob job;
-        while ( (job = jobs.poll()) != null )
         {
-            consumer.accept( job );
-            job.close();
-        }
+            CleanupJob job = null;
+            do
+            {
+                try
+                {
+                    job = jobs.poll( 100, TimeUnit.MILLISECONDS );
+                    if ( job != null )
+                    {
+                        job.run( new CleanupJob.Executor()
+                        {
+                            @Override
+                            public <T> CleanupJob.JobResult<T> submit( String jobDescription, Callable<T> job )
+                            {
+                                var jobMonitoringParams = JobMonitoringParams.systemJob( databaseName, jobDescription );
+                                var jobHandle = jobScheduler.schedule( workerGroup, jobMonitoringParams, job );
+                                return jobHandle::get;
+                            }
+                        } );
+                    }
+                }
+                catch ( Exception e )
+                {
+                    // There's no audience for these exceptions. The jobs themselves know if they've failed and communicates
+                    // that to its tree. The scheduled job is just a vessel for running these cleanup jobs.
+                }
+                finally
+                {
+                    if ( job != null )
+                    {
+                        job.close();
+                    }
+                }
+            }
+            // Even if there are no jobs in the queue then continue looping until we go to started state
+            while ( !jobs.isEmpty() || moreJobsAllowed );
+        };
     }
 }

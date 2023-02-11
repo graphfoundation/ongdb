@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,20 +38,23 @@
  */
 package org.neo4j.consistency.checking.cache;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.neo4j.consistency.checking.cache.CacheSlots.ID_SLOT_SIZE;
+import static org.neo4j.consistency.checking.cache.DefaultCacheAccess.defaultByteArray;
+import static org.neo4j.memory.EmptyMemoryTracker.INSTANCE;
 
-public class PackedMultiFieldCacheTest
+class PackedMultiFieldCacheTest
 {
     @Test
-    public void shouldPutValuesIntoSlots()
+    void shouldPutValuesIntoSlots()
     {
         // GIVEN
-        PackedMultiFieldCache cache = new PackedMultiFieldCache( 5, 10, 25, 24 );
+        PackedMultiFieldCache cache = new PackedMultiFieldCache( defaultByteArray( 20, INSTANCE ), 8, 16, 24, 32, 1 );
         int index = 10;
-        long[] values = new long[] {3, 100, 12345, 67890};
+        long[] values = new long[] {3, 100, 12345, 67890, 0};
 
         // WHEN
         cache.put( index, values );
@@ -64,42 +67,55 @@ public class PackedMultiFieldCacheTest
     }
 
     @Test
-    public void shouldHaveCorrectDefaultValues()
+    void shouldHaveCorrectDefaultValues()
     {
         // GIVEN
-        PackedMultiFieldCache cache = new PackedMultiFieldCache( 1, 34, 35 );
+        PackedMultiFieldCache cache = new PackedMultiFieldCache( defaultByteArray( 10, INSTANCE ), ID_SLOT_SIZE, 5, 1 );
         int index = 0;
 
         // WHEN
         cache.clear( index );
 
         // THEN
-        assertEquals( 0, cache.get( index, 0 ) );
+        assertEquals( -1, cache.get( index, 0 ) );
         assertEquals( 0, cache.get( index, 1 ) );
-        assertEquals( -1, cache.get( index, 2 ) );
+        assertEquals( 0, cache.get( index, 2 ) );
     }
 
     @Test
-    public void shouldBeAbleToChangeSlotSize()
+    void shouldBeAbleToChangeSlotSize()
     {
         // GIVEN
-        PackedMultiFieldCache cache = new PackedMultiFieldCache( 1, 5 );
+        PackedMultiFieldCache cache = new PackedMultiFieldCache( defaultByteArray( 20, INSTANCE ), 5, 1 );
         int index = 10;
-        try
-        {
-            cache.put( index, 0, 10 );
-            fail( "Shouldn't fit" );
-        }
-        catch ( IllegalStateException e )
-        {
-            // Good
-        }
+        assertThrows( IllegalArgumentException.class, () -> cache.put( index, 2, 0 ) );
 
         // WHEN
-        cache.setSlotSizes( 5, 20 );
+        cache.setSlotSizes( 8, 8, 10 );
 
         // THEN
-        cache.put( index, 0, 10 );
-        assertEquals( 10, cache.get( index, 0 ) );
+        cache.put( index, 2, 10 );
+        assertEquals( 10, cache.get( index, 2 ) );
+    }
+
+    @Test
+    void shouldHandleTwoIdsAndFourBooleans()
+    {
+        // given
+        PackedMultiFieldCache cache = new PackedMultiFieldCache( defaultByteArray( 10, INSTANCE ), ID_SLOT_SIZE, ID_SLOT_SIZE, 1, 1, 1, 1 );
+        int index = 3;
+
+        // when
+        long v1 = (1L << ID_SLOT_SIZE) - 10;
+        long v2 = (1L << ID_SLOT_SIZE) - 100;
+        cache.put( index, v1, v2, 0, 1, 0, 1 );
+
+        // then
+        assertEquals( v1, cache.get( index, 0 ) );
+        assertEquals( v2, cache.get( index, 1 ) );
+        assertEquals( 0, cache.get( index, 2 ) );
+        assertEquals( -1, cache.get( index, 3 ) );
+        assertEquals( 0, cache.get( index, 4 ) );
+        assertEquals( -1, cache.get( index, 5 ) );
     }
 }

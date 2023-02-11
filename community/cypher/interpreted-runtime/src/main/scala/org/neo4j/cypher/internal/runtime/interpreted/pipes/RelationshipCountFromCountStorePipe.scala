@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,42 +38,53 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.NameId
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.util.NameId
+import org.neo4j.cypher.internal.util.attribution.Id
 import org.neo4j.values.storable.Values
 
 case class RelationshipCountFromCountStorePipe(ident: String, startLabel: Option[LazyLabel],
-                                               typeNames: LazyTypes, endLabel: Option[LazyLabel])
+                                               types: RelationshipTypes, endLabel: Option[LazyLabel])
                                               (val id: Id = Id.INVALID_ID) extends Pipe {
 
-  protected def internalCreateResults(state: QueryState): Iterator[ExecutionContext] = {
+  protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = {
     val maybeStartLabelId = getLabelId(startLabel, state)
     val maybeEndLabelId = getLabelId(endLabel, state)
 
     val count = (maybeStartLabelId, maybeEndLabelId) match {
       case (Some(startLabelId), Some(endLabelId)) =>
-        countOneDirection(state, typeNames, startLabelId, endLabelId)
+        countOneDirection(state, startLabelId, endLabelId)
 
       // If any of the specified labels does not exist the count is zero
       case _ =>
         0
     }
 
-    val baseContext = state.createOrGetInitialContext(executionContextFactory)
-    Seq(baseContext.set(ident, Values.longValue(count))).iterator
+    val baseContext = state.newRowWithArgument(rowFactory)
+    baseContext.set(ident, Values.longValue(count))
+    ClosingIterator.single(baseContext)
   }
 
   private def getLabelId(lazyLabel: Option[LazyLabel], state: QueryState): Option[Int] = lazyLabel match {
-      case Some(label) => label.getOptId(state.query).map(_.id)
-      case _ => Some(NameId.WILDCARD)
-    }
+    case Some(label) =>
+      val id = label.getId(state.query)
+      if (id == LazyLabel.UNKNOWN) None
+      else Some(id)
+    case _ => Some(NameId.WILDCARD)
+  }
 
-  private def countOneDirection(state: QueryState, typeNames: LazyTypes, startLabelId: Int, endLabelId: Int) =
-    typeNames.types(state.query) match {
-      case None => state.query.relationshipCountByCountStore(startLabelId, NameId.WILDCARD, endLabelId)
-      case Some(types) => types.foldLeft(0L) { (count, typeId) =>
-        count + state.query.relationshipCountByCountStore(startLabelId, typeId, endLabelId)
+  private def countOneDirection(state: QueryState, startLabelId: Int, endLabelId: Int) = {
+    val ts = types.types(state.query)
+    if (ts == null) state.query.relationshipCountByCountStore(startLabelId, NameId.WILDCARD, endLabelId)
+    else {
+      var i = 0
+      var count = 0L
+      while (i < ts.length) {
+        count +=  state.query.relationshipCountByCountStore(startLabelId, ts(i), endLabelId)
+        i += 1
       }
+      count
     }
+  }
 }

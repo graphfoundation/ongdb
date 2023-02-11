@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,76 +38,57 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
+import org.eclipse.collections.api.set.primitive.LongSet;
+
 import java.util.Arrays;
-import java.util.Collection;
 
-import org.neo4j.collection.primitive.PrimitiveIntIterator;
-import org.neo4j.collection.primitive.PrimitiveIntSet;
-import org.neo4j.internal.kernel.api.LabelSet;
+import org.neo4j.internal.kernel.api.TokenSet;
 
-public class Labels implements LabelSet
+public class Labels implements TokenSet
 {
     /**
      * This really only needs to be {@code int[]}, but the underlying implementation uses {@code long[]} for some
      * reason.
      */
-    private final long[] labels;
+    private final long[] labelIds;
 
-    private Labels( long[] labels )
+    private Labels( long[] labelIds )
     {
-        this.labels = labels;
+        this.labelIds = labelIds;
     }
 
-    public static Labels from( long[] labels )
+    public static Labels from( long... labels )
     {
         return new Labels( labels );
     }
 
-    static Labels from( Collection<Integer> integers )
+    static Labels from( LongSet set )
     {
-        int size = integers.size();
-        long[] tokens = new long[size];
-        int i = 0;
-        for ( Integer token : integers )
-        {
-            tokens[i++] = token;
-        }
-        return new Labels( tokens );
-    }
-
-    static Labels from( PrimitiveIntSet set )
-    {
-        long[] labelArray = new long[set.size()];
-        int index = 0;
-        PrimitiveIntIterator iterator = set.iterator();
-        while ( iterator.hasNext() )
-        {
-            labelArray[index++] = iterator.next();
-        }
-        return new Labels( labelArray );
+        return new Labels( set.toArray() );
     }
 
     @Override
-    public int numberOfLabels()
+    public int numberOfTokens()
     {
-        return labels.length;
+        return labelIds.length;
     }
 
     @Override
-    public int label( int offset )
+    public int token( int offset )
     {
-        return (int) labels[offset];
+        return (int) labelIds[offset];
     }
 
     @Override
-    public boolean contains( int labelToken )
+    public boolean contains( int token )
     {
         //It may look tempting to use binary search
         //however doing a linear search is actually faster for reasonable
         //label sizes (≤100 labels)
-        for ( long label : labels )
+        for ( long label : labelIds )
         {
-            if ( label == labelToken )
+            assert (int) label == label : "value too big to be represented as and int";
+            if ( label == token )
             {
                 return true;
             }
@@ -118,11 +99,12 @@ public class Labels implements LabelSet
     @Override
     public String toString()
     {
-        return "Labels" + Arrays.toString( labels );
+        return "Labels" + Arrays.toString( labelIds );
     }
 
+    @Override
     public long[] all()
     {
-        return labels;
+        return labelIds;
     }
 }

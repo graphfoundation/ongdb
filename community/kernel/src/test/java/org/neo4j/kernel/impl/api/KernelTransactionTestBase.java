@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,62 +38,77 @@
  */
 package org.neo4j.kernel.impl.api;
 
-import org.junit.Before;
+import org.eclipse.collections.api.map.primitive.MutableLongObjectMap;
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+import org.eclipse.collections.impl.map.mutable.primitive.LongObjectHashMap;
+import org.junit.jupiter.api.BeforeEach;
 import org.mockito.Mockito;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 
+import org.neo4j.collection.Dependencies;
 import org.neo4j.collection.pool.Pool;
-import org.neo4j.collection.primitive.PrimitiveIntObjectMap;
-import org.neo4j.collection.primitive.PrimitiveLongObjectMap;
-import org.neo4j.collection.primitive.PrimitiveLongSet;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.internal.kernel.api.Transaction.Type;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.configuration.database.readonly.ConfigBasedLookupFactory;
+import org.neo4j.dbms.database.DbmsRuntimeRepository;
+import org.neo4j.dbms.database.readonly.ReadOnlyDatabases;
+import org.neo4j.internal.kernel.api.security.CommunitySecurityLog;
 import org.neo4j.internal.kernel.api.security.LoginContext;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
-import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracerSupplier;
-import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
-import org.neo4j.kernel.api.explicitindex.AutoIndexing;
-import org.neo4j.kernel.api.txstate.ExplicitIndexTransactionState;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.api.index.IndexProviderMap;
+import org.neo4j.internal.schema.SchemaState;
+import org.neo4j.io.ByteUnit;
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.io.pagecache.context.EmptyVersionContextSupplier;
+import org.neo4j.io.pagecache.tracing.DefaultPageCacheTracer;
+import org.neo4j.kernel.KernelVersion;
+import org.neo4j.kernel.api.KernelTransaction;
+import org.neo4j.kernel.availability.AvailabilityGuard;
+import org.neo4j.kernel.database.DatabaseIdRepository;
+import org.neo4j.kernel.database.DatabaseTracers;
+import org.neo4j.kernel.database.NamedDatabaseId;
 import org.neo4j.kernel.impl.api.index.IndexingService;
+import org.neo4j.kernel.impl.api.index.stats.IndexStatisticsStore;
+import org.neo4j.kernel.impl.api.tracer.DefaultTracer;
 import org.neo4j.kernel.impl.constraints.StandardConstraintSemantics;
 import org.neo4j.kernel.impl.factory.CanWrite;
-import org.neo4j.kernel.impl.index.ExplicitIndexStore;
-import org.neo4j.kernel.impl.locking.LockTracer;
+import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
 import org.neo4j.kernel.impl.locking.Locks;
-import org.neo4j.kernel.impl.locking.NoOpClient;
-import org.neo4j.kernel.impl.locking.SimpleStatementLocks;
-import org.neo4j.kernel.impl.locking.StatementLocks;
-import org.neo4j.kernel.impl.newapi.DefaultCursors;
-import org.neo4j.kernel.impl.storageengine.impl.recordstorage.StoreStatement;
-import org.neo4j.kernel.impl.store.MetaDataStore;
-import org.neo4j.kernel.impl.store.NeoStores;
-import org.neo4j.kernel.impl.transaction.TransactionHeaderInformationFactory;
+import org.neo4j.kernel.impl.query.TransactionExecutionMonitor;
 import org.neo4j.kernel.impl.transaction.TransactionMonitor;
 import org.neo4j.kernel.impl.transaction.TransactionRepresentation;
-import org.neo4j.kernel.impl.transaction.command.Command;
-import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
 import org.neo4j.kernel.impl.transaction.tracing.CommitEvent;
-import org.neo4j.kernel.impl.transaction.tracing.TransactionTracer;
 import org.neo4j.kernel.impl.util.collection.CollectionsFactory;
 import org.neo4j.kernel.impl.util.collection.OnHeapCollectionsFactory;
-import org.neo4j.kernel.impl.util.diffsets.PrimitiveLongDiffSets;
+import org.neo4j.kernel.impl.util.diffsets.MutableLongDiffSets;
+import org.neo4j.kernel.internal.event.DatabaseTransactionEventListeners;
+import org.neo4j.lock.LockTracer;
+import org.neo4j.lock.ResourceLocker;
+import org.neo4j.logging.NullLogProvider;
+import org.neo4j.memory.MemoryGroup;
+import org.neo4j.memory.MemoryPools;
 import org.neo4j.memory.MemoryTracker;
 import org.neo4j.resources.CpuClock;
-import org.neo4j.resources.HeapAllocation;
+import org.neo4j.storageengine.api.CommandCreationContext;
+import org.neo4j.storageengine.api.MetadataProvider;
 import org.neo4j.storageengine.api.StorageCommand;
 import org.neo4j.storageengine.api.StorageEngine;
-import org.neo4j.storageengine.api.StorageStatement;
-import org.neo4j.storageengine.api.StoreReadLayer;
+import org.neo4j.storageengine.api.StorageReader;
 import org.neo4j.storageengine.api.TransactionApplicationMode;
-import org.neo4j.storageengine.api.lock.ResourceLocker;
+import org.neo4j.storageengine.api.TransactionIdStore;
+import org.neo4j.storageengine.api.cursor.StoreCursors;
 import org.neo4j.storageengine.api.txstate.ReadableTransactionState;
+import org.neo4j.storageengine.api.txstate.TxStateVisitor;
 import org.neo4j.time.Clocks;
 import org.neo4j.time.FakeClock;
+import org.neo4j.token.TokenHolders;
+import org.neo4j.token.api.TokenHolder;
+import org.neo4j.values.storable.Value;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
@@ -101,47 +116,46 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo.EMBEDDED_CONNECTION;
 import static org.neo4j.internal.kernel.api.security.LoginContext.AUTH_DISABLED;
-import static org.neo4j.kernel.impl.transaction.log.TransactionIdStore.BASE_TX_COMMIT_TIMESTAMP;
+import static org.neo4j.kernel.database.DatabaseIdFactory.from;
+import static org.neo4j.storageengine.api.TransactionIdStore.BASE_TX_COMMIT_TIMESTAMP;
 
-public class KernelTransactionTestBase
+class KernelTransactionTestBase
 {
     protected final StorageEngine storageEngine = mock( StorageEngine.class );
-    protected final NeoStores neoStores = mock( NeoStores.class );
-    protected final MetaDataStore metaDataStore = mock( MetaDataStore.class );
-    protected final StoreReadLayer readLayer = mock( StoreReadLayer.class );
-    protected final TransactionHooks hooks = new TransactionHooks();
-    protected final ExplicitIndexTransactionState explicitIndexState = mock( ExplicitIndexTransactionState.class );
-    protected final Supplier<ExplicitIndexTransactionState> explicitIndexStateSupplier = () -> explicitIndexState;
+    protected final StorageReader storageReader = mock( StorageReader.class );
+    protected final MetadataProvider metadataProvider = mock( MetadataProvider.class );
+    protected final CommandCreationContext commandCreationContext = mock( CommandCreationContext.class );
     protected final TransactionMonitor transactionMonitor = mock( TransactionMonitor.class );
     protected final CapturingCommitProcess commitProcess = new CapturingCommitProcess();
-    protected final TransactionHeaderInformation headerInformation = mock( TransactionHeaderInformation.class );
-    protected final TransactionHeaderInformationFactory headerInformationFactory =  mock( TransactionHeaderInformationFactory.class );
-    protected final SchemaWriteGuard schemaWriteGuard = mock( SchemaWriteGuard.class );
+    protected final AvailabilityGuard availabilityGuard = mock( AvailabilityGuard.class );
     protected final FakeClock clock = Clocks.fakeClock();
     protected final Pool<KernelTransactionImplementation> txPool = mock( Pool.class );
-    protected final StatementOperationParts statementOperations = mock( StatementOperationParts.class );
     protected CollectionsFactory collectionsFactory;
 
-    private final long defaultTransactionTimeoutMillis = Config.defaults().get( GraphDatabaseSettings.transaction_timeout ).toMillis();
+    protected final Config config = Config.defaults();
+    private final long defaultTransactionTimeoutMillis = config.get( GraphDatabaseSettings.transaction_timeout ).toMillis();
 
-    @Before
+    @BeforeEach
     public void before() throws Exception
     {
         collectionsFactory = Mockito.spy( new TestCollectionsFactory() );
-        when( headerInformation.getAdditionalHeader() ).thenReturn( new byte[0] );
-        when( headerInformationFactory.create() ).thenReturn( headerInformation );
-        StoreStatement statement = mock( StoreStatement.class );
-        when( readLayer.newStatement() ).thenReturn( statement );
-        when( neoStores.getMetaDataStore() ).thenReturn( metaDataStore );
-        when( storageEngine.storeReadLayer() ).thenReturn( readLayer );
-        doAnswer( invocation -> ((Collection<StorageCommand>) invocation.getArgument(0) ).add( new Command
-                .RelationshipCountsCommand( 1, 2,3, 4L ) ) )
+        when( storageEngine.newReader() ).thenReturn( storageReader );
+        when( storageEngine.newCommandCreationContext( any() ) ).thenReturn( commandCreationContext );
+        when( storageEngine.metadataProvider() ).thenReturn( metadataProvider );
+        when( storageEngine.createStorageCursors( any() ) ).thenReturn( StoreCursors.NULL );
+        doAnswer( invocation -> ((Collection<StorageCommand>) invocation.getArgument(0) ).add( new TestCommand() ) )
             .when( storageEngine ).createCommands(
                     anyCollection(),
                     any( ReadableTransactionState.class ),
-                    any( StorageStatement.class ), any( ResourceLocker.class ),
-                    anyLong() );
+                    any( StorageReader.class ),
+                    any( CommandCreationContext.class ),
+                    any( ResourceLocker.class ),
+                    any( LockTracer.class ),
+                    anyLong(),
+                    any( TxStateVisitor.Decorator.class ), any( CursorContext.class ), any( StoreCursors.class ), any( MemoryTracker.class ) );
     }
 
     public KernelTransactionImplementation newTransaction( long transactionTimeoutMillis )
@@ -151,12 +165,7 @@ public class KernelTransactionTestBase
 
     public KernelTransactionImplementation newTransaction( LoginContext loginContext )
     {
-        return newTransaction( 0, loginContext );
-    }
-
-    public KernelTransactionImplementation newTransaction( LoginContext loginContext, Locks.Client locks )
-    {
-        return newTransaction( 0, loginContext, locks, defaultTransactionTimeoutMillis );
+        return newTransaction( 0, loginContext, defaultTransactionTimeoutMillis );
     }
 
     public KernelTransactionImplementation newTransaction( long lastTransactionIdWhenStarted, LoginContext loginContext )
@@ -165,86 +174,107 @@ public class KernelTransactionTestBase
     }
 
     public KernelTransactionImplementation newTransaction( long lastTransactionIdWhenStarted, LoginContext loginContext,
-            long transactionTimeoutMillis )
-    {
-        return newTransaction( lastTransactionIdWhenStarted, loginContext, new NoOpClient(), transactionTimeoutMillis );
-    }
-
-    public KernelTransactionImplementation newTransaction( long lastTransactionIdWhenStarted, LoginContext loginContext,
-            Locks.Client locks, long transactionTimeout )
+            long transactionTimeout )
     {
         KernelTransactionImplementation tx = newNotInitializedTransaction();
-        StatementLocks statementLocks = new SimpleStatementLocks( locks );
-        SecurityContext securityContext = loginContext.authorize( s -> -1 );
-        tx.initialize( lastTransactionIdWhenStarted, BASE_TX_COMMIT_TIMESTAMP,statementLocks, Type.implicit,
-                securityContext, transactionTimeout, 1L );
+        SecurityContext securityContext = loginContext.authorize( LoginContext.IdLookup.EMPTY, DEFAULT_DATABASE_NAME, CommunitySecurityLog.NULL_LOG );
+        tx.initialize( lastTransactionIdWhenStarted, BASE_TX_COMMIT_TIMESTAMP, KernelTransaction.Type.EXPLICIT,
+                securityContext, transactionTimeout, 1L, EMBEDDED_CONNECTION );
         return tx;
     }
 
-    public KernelTransactionImplementation newNotInitializedTransaction()
+    KernelTransactionImplementation newNotInitializedTransaction()
     {
-        return new KernelTransactionImplementation( statementOperations, schemaWriteGuard, hooks, null, null, headerInformationFactory, commitProcess,
-                transactionMonitor, explicitIndexStateSupplier, txPool, clock, new AtomicReference<>( CpuClock.NOT_AVAILABLE ),
-                new AtomicReference<>( HeapAllocation.NOT_AVAILABLE ), TransactionTracer.NULL, LockTracer.NONE, PageCursorTracerSupplier.NULL, storageEngine,
-                new CanWrite(), new DefaultCursors(), AutoIndexing.UNSUPPORTED,
-                mock( ExplicitIndexStore.class ), EmptyVersionContextSupplier.EMPTY, () -> collectionsFactory,
-                new StandardConstraintSemantics(), mock( SchemaState.class),
-                mock( IndexingService.class ), mock( IndexProviderMap.class ) );
+        return newNotInitializedTransaction( LeaseService.NO_LEASES, config, from( DEFAULT_DATABASE_NAME, UUID.randomUUID() ) );
     }
 
-    public class CapturingCommitProcess implements TransactionCommitProcess
+    KernelTransactionImplementation newNotInitializedTransaction( Config config )
+    {
+        return newNotInitializedTransaction( LeaseService.NO_LEASES, config, from( DEFAULT_DATABASE_NAME, UUID.randomUUID() ) );
+    }
+
+    KernelTransactionImplementation newNotInitializedTransaction( Config config, NamedDatabaseId databaseId )
+    {
+        return newNotInitializedTransaction( LeaseService.NO_LEASES, config, databaseId );
+    }
+
+    KernelTransactionImplementation newNotInitializedTransaction( LeaseService leaseService, Config config, NamedDatabaseId databaseId )
+    {
+        Dependencies dependencies = new Dependencies();
+        Locks.Client locksClient = mock( Locks.Client.class );
+        dependencies.satisfyDependency( mock( GraphDatabaseFacade.class ) );
+        var memoryPool = new MemoryPools().pool( MemoryGroup.TRANSACTION, ByteUnit.mebiBytes( 4 ), null );
+
+        DatabaseIdRepository databaseIdRepository = mock( DatabaseIdRepository.class );
+        Mockito.when( databaseIdRepository.getByName( databaseId.name() ) ).thenReturn( Optional.of( databaseId ) );
+        var readOnlyLookup = new ConfigBasedLookupFactory( config, databaseIdRepository );
+        var readOnlyChecker = new ReadOnlyDatabases( readOnlyLookup );
+        return new KernelTransactionImplementation( config, mock( DatabaseTransactionEventListeners.class ),
+                                                    null, null,
+                                                    commitProcess, transactionMonitor, txPool, clock, new AtomicReference<>( CpuClock.NOT_AVAILABLE ),
+                                                    new DatabaseTracers( new DefaultTracer(), LockTracer.NONE, new DefaultPageCacheTracer() ), storageEngine,
+                                                    any -> CanWrite.INSTANCE, EmptyVersionContextSupplier.EMPTY, () -> collectionsFactory,
+                                                    new StandardConstraintSemantics(), mock( SchemaState.class ), mockedTokenHolders(),
+                                                    mock( IndexingService.class ), mock( IndexStatisticsStore.class ), dependencies, databaseId,
+                                                    leaseService, memoryPool, readOnlyChecker.forDatabase( databaseId ),
+                                                    TransactionExecutionMonitor.NO_OP, CommunitySecurityLog.NULL_LOG, () -> KernelVersion.LATEST,
+                                                    mock( DbmsRuntimeRepository.class ), locksClient, mock( KernelTransactions.class ),
+                                                    NullLogProvider.getInstance()
+        );
+    }
+
+    KernelTransactionImplementation newNotInitializedTransaction( LeaseService leaseService )
+    {
+        return newNotInitializedTransaction( leaseService, config, from( DEFAULT_DATABASE_NAME, UUID.randomUUID() ) );
+    }
+
+    public static class CapturingCommitProcess implements TransactionCommitProcess
     {
         private long txId = TransactionIdStore.BASE_TX_ID;
-        public TransactionRepresentation transaction;
+        public List<TransactionRepresentation> transactions = new ArrayList<>();
 
         @Override
         public long commit( TransactionToApply batch, CommitEvent commitEvent,
                             TransactionApplicationMode mode )
         {
-            assert transaction == null : "Designed to only allow one transaction";
-            assert batch.next() == null : "Designed to only allow one transaction";
-            transaction = batch.transactionRepresentation();
+            transactions.add( batch.transactionRepresentation() );
             return ++txId;
         }
     }
 
-    private class TestCollectionsFactory implements CollectionsFactory
+    private static TokenHolders mockedTokenHolders()
+    {
+        return new TokenHolders(
+                mock( TokenHolder.class ),
+                mock( TokenHolder.class ),
+                mock( TokenHolder.class ) );
+    }
+
+    private static class TestCollectionsFactory implements CollectionsFactory
     {
 
         @Override
-        public PrimitiveLongSet newLongSet()
+        public MutableLongSet newLongSet( MemoryTracker memoryTracker )
         {
-            return OnHeapCollectionsFactory.INSTANCE.newLongSet();
+            return OnHeapCollectionsFactory.INSTANCE.newLongSet( memoryTracker );
         }
 
         @Override
-        public <V> PrimitiveLongObjectMap<V> newLongObjectMap()
+        public MutableLongDiffSets newLongDiffSets( MemoryTracker memoryTracker )
         {
-            return OnHeapCollectionsFactory.INSTANCE.newLongObjectMap();
+            return OnHeapCollectionsFactory.INSTANCE.newLongDiffSets( memoryTracker );
         }
 
         @Override
-        public <V> PrimitiveIntObjectMap<V> newIntObjectMap()
+        public MutableLongObjectMap<Value> newValuesMap( MemoryTracker memoryTracker )
         {
-            return OnHeapCollectionsFactory.INSTANCE.newIntObjectMap();
+            return new LongObjectHashMap<>();
         }
 
         @Override
-        public PrimitiveLongDiffSets newLongDiffSets()
+        public void release()
         {
-            return OnHeapCollectionsFactory.INSTANCE.newLongDiffSets();
-        }
-
-        @Override
-        public MemoryTracker getMemoryTracker()
-        {
-            return OnHeapCollectionsFactory.INSTANCE.getMemoryTracker();
-        }
-
-        @Override
-        public boolean collectionsMustBeReleased()
-        {
-            return false;
+            // nop
         }
     }
 }

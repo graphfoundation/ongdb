@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,37 +38,31 @@
  */
 package org.neo4j.graphalgo.impl.util;
 
+import java.util.Iterator;
+
 import org.neo4j.graphalgo.CostEvaluator;
 import org.neo4j.graphalgo.WeightedPath;
 import org.neo4j.graphdb.Path;
-import org.neo4j.graphdb.ResourceIterator;
-import org.neo4j.helpers.collection.PrefetchingResourceIterator;
-import org.neo4j.kernel.impl.util.NoneStrictMath;
+import org.neo4j.internal.helpers.MathUtil;
+import org.neo4j.internal.helpers.collection.PrefetchingIterator;
 
-public class WeightedPathIterator extends PrefetchingResourceIterator<WeightedPath>
+public class WeightedPathIterator extends PrefetchingIterator<WeightedPath>
 {
-    private final ResourceIterator<Path> paths;
+    private final Iterator<Path> paths;
     private final CostEvaluator<Double> costEvaluator;
     private Double foundWeight;
     private int foundTotal;
     private final double epsilon;
-    private final PathInterest interest;
+    private final PathInterest<?> interest;
 
-    public WeightedPathIterator( ResourceIterator<Path> paths, CostEvaluator<Double> costEvaluator,
-            boolean stopAfterLowestWeight )
-    {
-        this( paths, costEvaluator, NoneStrictMath.EPSILON, stopAfterLowestWeight );
-    }
-
-    public WeightedPathIterator( ResourceIterator<Path> paths, CostEvaluator<Double> costEvaluator,
+    public WeightedPathIterator( Iterator<Path> paths, CostEvaluator<Double> costEvaluator,
             double epsilon, boolean stopAfterLowestWeight )
     {
         this( paths, costEvaluator, epsilon, stopAfterLowestWeight ? PathInterestFactory.allShortest( epsilon ) :
                                                                      PathInterestFactory.all( epsilon ) );
     }
 
-    public WeightedPathIterator( ResourceIterator<Path> paths, CostEvaluator<Double> costEvaluator,
-            double epsilon, PathInterest interest )
+    public WeightedPathIterator( Iterator<Path> paths, CostEvaluator<Double> costEvaluator, double epsilon, PathInterest<?> interest )
     {
         this.paths = paths;
         this.costEvaluator = costEvaluator;
@@ -88,18 +82,11 @@ public class WeightedPathIterator extends PrefetchingResourceIterator<WeightedPa
             return null;
         }
         WeightedPath path = new WeightedPathImpl( costEvaluator, paths.next() );
-        if ( interest.stopAfterLowestCost() && foundWeight != null &&
-             NoneStrictMath.compare( path.weight(), foundWeight, epsilon ) > 0 )
+        if ( interest.stopAfterLowestCost() && foundWeight != null && MathUtil.compare( path.weight(), foundWeight, epsilon ) > 0 )
         {
             return null;
         }
         foundWeight = path.weight();
         return path;
-    }
-
-    @Override
-    public void close()
-    {
-        paths.close();
     }
 }

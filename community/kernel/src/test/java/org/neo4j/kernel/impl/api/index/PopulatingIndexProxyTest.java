@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,44 +38,48 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.SchemaDescriptors;
+import org.neo4j.kernel.api.schema.SchemaTestUtil;
+import org.neo4j.kernel.impl.api.index.MultipleIndexPopulator.IndexPopulation;
+import org.neo4j.kernel.impl.api.index.stats.IndexStatisticsStore;
+
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.neo4j.io.pagecache.context.CursorContext.NULL;
 
-@RunWith( MockitoJUnitRunner.class )
-public class PopulatingIndexProxyTest
+class PopulatingIndexProxyTest
 {
-    @Mock
-    private IndexMeta indexMeta;
-    @Mock
-    private IndexPopulationJob indexPopulationJob;
-    @Mock
-    private MultipleIndexPopulator.IndexPopulation indexPopulation;
+    private final IndexDescriptor index = IndexPrototype.forSchema( SchemaDescriptors.forLabel( 1, 2 ) ).withName( "index" ).materialise( 13 );
+    private final IndexProxyStrategy indexProxyStrategy =
+            new ValueIndexProxyStrategy( index, mock( IndexStatisticsStore.class ), SchemaTestUtil.SIMPLE_NAME_LOOKUP );
+    private final IndexPopulationJob indexPopulationJob = mock( IndexPopulationJob.class );
+    private final IndexPopulation indexPopulation = mock( IndexPopulation.class );
     private PopulatingIndexProxy populatingIndexProxy;
 
-    @Before
-    public void setUp()
+    @BeforeEach
+    void setUp()
     {
-        populatingIndexProxy = new PopulatingIndexProxy( indexMeta, indexPopulationJob, indexPopulation );
+        populatingIndexProxy = new PopulatingIndexProxy( indexProxyStrategy, indexPopulationJob, indexPopulation );
     }
 
     @Test
-    public void cancelPopulationJobOnClose()
+    void stopPopulationJobOnClose()
     {
-        populatingIndexProxy.close();
+        populatingIndexProxy.close( NULL );
 
-        verify( indexPopulationJob ).cancelPopulation( indexPopulation );
+        verify( indexPopulationJob ).stop( indexPopulation, NULL );
     }
 
     @Test
-    public void cancelPopulationJobOnDrop()
+    void cancelPopulationJobOnDrop()
     {
         populatingIndexProxy.drop();
 
-        verify( indexPopulationJob ).cancelPopulation( indexPopulation );
+        verify( indexPopulationJob ).dropPopulation( indexPopulation );
     }
 }

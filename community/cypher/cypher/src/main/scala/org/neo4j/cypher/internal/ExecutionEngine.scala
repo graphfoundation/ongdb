@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,338 +38,341 @@
  */
 package org.neo4j.cypher.internal
 
-import java.util.{Map => JavaMap}
-
-import org.neo4j.cypher._
-import org.neo4j.cypher.internal.compatibility._
-import org.neo4j.cypher.internal.compiler.v3_4.prettifier.Prettifier
-import org.neo4j.cypher.internal.frontend.v3_4.phases.CompilationPhaseTracer
-import org.neo4j.cypher.internal.runtime.interpreted.{LastCommittedTxIdProvider, TransactionalContextWrapper, ValueConversion}
-import org.neo4j.cypher.internal.runtime.{ExplainMode, RuntimeJavaValueConverter, RuntimeScalaValueConverter, isGraphKernelResultValue}
-import org.neo4j.cypher.internal.tracing.{CompilationTracer, TimingCompilationTracer}
-import org.neo4j.graphdb.Result
-import org.neo4j.graphdb.config.Setting
-import org.neo4j.graphdb.factory.GraphDatabaseSettings
-import org.neo4j.internal.kernel.api.SchemaRead
+import org.neo4j.cypher.internal.QueryCache.CacheKey
+import org.neo4j.cypher.internal.cache.CaffeineCacheFactory
+import org.neo4j.cypher.internal.compiler.StatsDivergenceCalculator
+import org.neo4j.cypher.internal.config.CypherConfiguration
+import org.neo4j.cypher.internal.expressions.FunctionTypeSignature
+import org.neo4j.cypher.internal.options.CypherExecutionMode
+import org.neo4j.cypher.internal.options.CypherReplanOption
+import org.neo4j.cypher.internal.planning.CypherCacheMonitor
+import org.neo4j.cypher.internal.runtime.InputDataStream
+import org.neo4j.cypher.internal.runtime.NoInput
+import org.neo4j.cypher.internal.tracing.CompilationTracer
+import org.neo4j.cypher.internal.tracing.CompilationTracer.QueryCompilationEvent
+import org.neo4j.exceptions.ParameterNotFoundException
 import org.neo4j.internal.kernel.api.security.AccessMode
-import org.neo4j.kernel.api.query.SchemaIndexUsage
-import org.neo4j.kernel.configuration.Config
-import org.neo4j.kernel.impl.query.{QueryExecutionMonitor, TransactionalContext}
-import org.neo4j.kernel.monitoring.{Monitors => KernelMonitors}
-import org.neo4j.kernel.{GraphDatabaseQueryService, api}
-import org.neo4j.logging.{LogProvider, NullLogProvider}
+import org.neo4j.kernel.GraphDatabaseQueryService
+import org.neo4j.kernel.impl.query.FunctionInformation
+import org.neo4j.kernel.impl.query.QueryExecution
+import org.neo4j.kernel.impl.query.QueryExecutionMonitor
+import org.neo4j.kernel.impl.query.QuerySubscriber
+import org.neo4j.kernel.impl.query.TransactionalContext
+import org.neo4j.logging.LogProvider
+import org.neo4j.monitoring.Monitors
 import org.neo4j.values.virtual.MapValue
 
-trait StringCacheMonitor extends CypherCacheMonitor[String, api.Statement]
+import java.lang
+import java.time.Clock
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.JavaConverters.seqAsJavaListConverter
 
 /**
-  * This class construct and initialize both the cypher compiler and the cypher runtime, which is a very expensive
-  * operation so please make sure this will be constructed only once and properly reused.
-  */
+ * See comment in MonitoringCacheTracer for justification of the existence of this type.
+ */
+trait ExecutionEngineQueryCacheMonitor extends CypherCacheMonitor[CacheKey[String]]
+
+/**
+ * This class constructs and initializes both the cypher compilers and runtimes, which are very expensive
+ * operation. Please make sure this will be constructed only once and properly reused.
+ */
 class ExecutionEngine(val queryService: GraphDatabaseQueryService,
-                      logProvider: LogProvider = NullLogProvider.getInstance(),
-                      compatibilityFactory: CompatibilityFactory) {
+                      val kernelMonitors: Monitors,
+                      val tracer: CompilationTracer,
+                      val cacheTracer: CacheTracer[CacheKey[String]],
+                      val config: CypherConfiguration,
+                      val compilerLibrary: CompilerLibrary,
+                      val cacheFactory: CaffeineCacheFactory,
+                      val logProvider: LogProvider,
+                      val clock: Clock = Clock.systemUTC() ) {
 
   require(queryService != null, "Can't work with a null graph database")
 
-  // true means we run inside REST server
-  protected val isServer = false
-  private val resolver = queryService.getDependencyResolver
-  private val lastCommittedTxId = LastCommittedTxIdProvider(queryService)
-  private val kernelMonitors: KernelMonitors = resolver.resolveDependency(classOf[KernelMonitors])
-  private val compilationTracer: CompilationTracer =
-    new TimingCompilationTracer(kernelMonitors.newMonitor(classOf[TimingCompilationTracer.EventListener]))
-  private val queryDispatcher: CompilerEngineDelegator = createCompilerDelegator()
+  // HELPER OBJECTS
+  private val defaultQueryExecutionMonitor = kernelMonitors.newMonitor(classOf[QueryExecutionMonitor])
 
+  private val preParser = new PreParser(config, cacheFactory)
+  private val lastCommittedTxIdProvider = LastCommittedTxIdProvider(queryService)
+  private def planReusabilitiy(executableQuery: ExecutableQuery,
+                               transactionalContext: TransactionalContext): ReusabilityState =
+    executableQuery.reusabilityState(lastCommittedTxIdProvider, transactionalContext)
+
+  // Log on stale query discard from query cache
   private val log = logProvider.getLog( getClass )
-  private val cacheMonitor = kernelMonitors.newMonitor(classOf[StringCacheMonitor])
-  kernelMonitors.addMonitorListener( new StringCacheMonitor {
-    override def cacheDiscard(ignored: String, query: String, secondsSinceReplan: Int) {
-      log.info(s"Discarded stale query from the query cache after ${secondsSinceReplan} seconds: $query")
+  kernelMonitors.addMonitorListener( new ExecutionEngineQueryCacheMonitor {
+    override def cacheDiscard(ignored: CacheKey[String], queryId: String, secondsSinceReplan: Int, maybeReason: Option[String]) {
+      log.info(s"Discarded stale query from the query cache after $secondsSinceReplan seconds${maybeReason.fold("")(r => s". Reason: $r")}. Query id: $queryId")
     }
   })
 
-  private val executionMonitor = kernelMonitors.newMonitor(classOf[QueryExecutionMonitor])
+  private val planStalenessCaller =
+    new DefaultPlanStalenessCaller[ExecutableQuery](clock,
+      StatsDivergenceCalculator.divergenceCalculatorFor(config.statsDivergenceCalculator),
+      lastCommittedTxIdProvider,
+      planReusabilitiy,
+      log)
 
-  private val cacheAccessor = new MonitoringCacheAccessor[String, (ExecutionPlan, Map[String, Any], Seq[String])](cacheMonitor)
+  private val queryCache: QueryCache[CacheKey[String], ExecutableQuery] =
+    new QueryCache[CacheKey[String], ExecutableQuery](cacheFactory, config.queryCacheSize, planStalenessCaller, cacheTracer)
 
-  private val preParsedQueries = new LFUCache[String, PreParsedQuery](getPlanCacheSize)
-  private val parsedQueries = new LFUCache[String, ParsedQuery](getPlanCacheSize)
+  private val masterCompiler: MasterCompiler = new MasterCompiler(compilerLibrary)
 
-  private val javaValues = new RuntimeJavaValueConverter(isGraphKernelResultValue)
-  private val scalaValues = new RuntimeScalaValueConverter(isGraphKernelResultValue)
+  private val schemaHelper = new SchemaHelper(queryCache, masterCompiler)
 
-  def profile(query: String, scalaParams: Map[String, Any], context: TransactionalContext): Result = {
-    // we got deep scala parameters => convert to deep java parameters
-    val javaParams = javaValues.asDeepJavaMap(scalaParams).asInstanceOf[JavaMap[String, AnyRef]]
-    profile(query, javaParams, context)
-  }
-
-  def profile(query: String, javaParams: JavaMap[String, AnyRef], context: TransactionalContext): Result = {
-    // we got deep java parameters => convert to shallow scala parameters for passing into the engine
-    val scalaParams: Map[String, Any] = scalaValues.asShallowScalaMap(javaParams)
-    profile(query, ValueConversion.asValues(scalaParams), context)
-  }
-
-  def profile(query: String, mapParams: MapValue, context: TransactionalContext): Result = {
-    val (preparedPlanExecution, wrappedContext, queryParamNames) = planQuery(context)
-    checkParameters(queryParamNames, mapParams, preparedPlanExecution.extractedParams)
-    preparedPlanExecution.profile(wrappedContext, mapParams)
-  }
-
-  def execute(query: String, scalaParams: Map[String, Any], context: TransactionalContext): Result = {
-    // we got deep scala parameters => convert to deep java parameters
-    val javaParams = javaValues.asDeepJavaMap(scalaParams).asInstanceOf[JavaMap[String, AnyRef]]
-    execute(query, javaParams, context)
-  }
-
-  def execute(query: String, javaParams: JavaMap[String, AnyRef], context: TransactionalContext): Result = {
-    // we got deep java parameters => convert to shallow scala parameters for passing into the engine
-    // TODO: Should we use ValueUtils.asMapValue here like in GraphDatabaseFacade
-    val scalaParams = scalaValues.asShallowScalaMap(javaParams)
-   execute(query, ValueConversion.asValues(scalaParams), context)
-  }
-
-  def execute(query: String, mapParams: MapValue, context: TransactionalContext): Result = {
-    val (preparedPlanExecution, wrappedContext, queryParamNames) = planQuery(context)
-    if (preparedPlanExecution.executionMode.name != "explain") {
-      checkParameters(queryParamNames, mapParams, preparedPlanExecution.extractedParams)
-    }
-    preparedPlanExecution.execute(wrappedContext, mapParams)
-  }
-
-  @throws(classOf[SyntaxException])
-  private def parsePreParsedQuery(preParsedQuery: PreParsedQuery, tracer: CompilationPhaseTracer): ParsedQuery = {
-    parsedQueries.get(preParsedQuery.statementWithVersionAndPlanner).getOrElse {
-      val parsedQuery = queryDispatcher.parseQuery(preParsedQuery, tracer)
-      //don't cache failed queries
-      if (!parsedQuery.hasErrors) parsedQueries.put(preParsedQuery.statementWithVersionAndPlanner, parsedQuery)
-      parsedQuery
-    }
-  }
-
-  @throws(classOf[SyntaxException])
-  private def preParseQuery(queryText: String): PreParsedQuery =
-    preParsedQueries.getOrElseUpdate(queryText, queryDispatcher.preParseQuery(queryText))
-
-  def clearQueryCaches(): Long = {
-    Math.max(parsedQueries.clear(),
-      preParsedQueries.clear())
-  }
-
-  @throws(classOf[SyntaxException])
-  protected def planQuery(transactionalContext: TransactionalContext): (PreparedPlanExecution, TransactionalContextWrapper, Seq[String]) = {
-    val executingQuery = transactionalContext.executingQuery()
-    val queryText = executingQuery.queryText()
-    executionMonitor.startQueryExecution(executingQuery)
-    val phaseTracer = compilationTracer.compileQuery(queryText)
-    try {
-
-      val externalTransactionalContext = TransactionalContextWrapper(transactionalContext)
-      val preParsedQuery = try {
-        preParseQuery(queryText)
-      } catch {
-        case e: SyntaxException =>
-          externalTransactionalContext.close(success = false)
-          throw e
-      }
-      val executionMode = preParsedQuery.executionMode
-      val cacheKey = preParsedQuery.statementWithVersionAndPlanner
-
-      var n = 0
-      while (n < ExecutionEngine.PLAN_BUILDING_TRIES) {
-        // create transaction and query context
-        val tc = externalTransactionalContext.getOrBeginNewIfClosed()
-
-        // Temporarily change access mode during query planning
-        // NOTE: This will force read access mode if the current transaction did not have it
-        val revertable = tc.restrictCurrentTransaction(tc.securityContext.withMode(AccessMode.Static.READ))
-
-        val ((plan: ExecutionPlan, extractedParameters, queryParamNames), touched) = try {
-          // fetch plan cache
-          val cache: QueryCache[String, (ExecutionPlan, Map[String, Any], Seq[String])] = getOrCreateFromSchemaState(tc.schemaRead, {
-            cacheMonitor.cacheFlushDetected(tc.statement)
-            val lruCache = new LFUCache[String, (ExecutionPlan, Map[String, Any], Seq[String])](getPlanCacheSize)
-            new QueryCache(cacheAccessor, lruCache)
-          })
-
-          def isStale(plan: ExecutionPlan, ignored1: Map[String, Any], ignored2: Seq[String]) = plan.isStale(lastCommittedTxId, tc)
-
-          val producePlan = new PlanProducer[(ExecutionPlan, Map[String, Any], Seq[String])] {
-            override def produceWithExistingTX: (ExecutionPlan, Map[String, Any], Seq[String]) = {
-              val parsedQuery = parsePreParsedQuery(preParsedQuery, phaseTracer)
-              parsedQuery.plan(tc, phaseTracer)
-            }
-          }
-
-          val stateBefore = schemaState(tc)
-          var (plan: (ExecutionPlan, Map[String, Any], Seq[String]), touched: Boolean) = cache.getOrElseUpdate(cacheKey, queryText, (isStale _).tupled, producePlan)
-          if (!touched) {
-            val labelIds: Seq[Long] = extractPlanLabels(plan, preParsedQuery.version, tc)
-            if (labelIds.nonEmpty) {
-              lockPlanLabels(tc, labelIds)
-              val stateAfter = schemaState(tc)
-              // check if schema state was cleared while we where trying to take all locks and if it was we will force
-              // another query re-plan
-              if (stateBefore ne stateAfter) {
-                releasePlanLabels(tc, labelIds)
-                touched = true
-              }
-            }
-          }
-          (plan, touched)
-        }
-        catch {
-          case (t: Throwable) =>
-            tc.close(success = false)
-            throw t
-        } finally {
-          revertable.close()
-        }
-
-        if (touched) {
-          tc.close(success = true)
-        } else {
-          tc.cleanForReuse()
-          tc.notifyPlanningCompleted(plan.plannerInfo)
-          return (PreparedPlanExecution(plan, executionMode, extractedParameters), tc, queryParamNames)
-        }
-
-        n += 1
-      }
-    } finally phaseTracer.close()
-
-    throw new IllegalStateException("Could not execute query due to insanely frequent schema changes")
-  }
-
-  @throws(classOf[ParameterNotFoundException])
-  private def checkParameters(queryParams: Seq[String], givenParams: MapValue, extractedParams: Map[String, Any]) {
-    exceptionHandler.runSafely {
-      val missingKeys = queryParams.filter(key => !(givenParams.containsKey(key) || extractedParams.contains(key)))
-      if (missingKeys.nonEmpty) {
-        throw new ParameterNotFoundException("Expected parameter(s): " + missingKeys.mkString(", "))
-      }
-    }
-  }
-
-  private def releasePlanLabels(tc: TransactionalContextWrapper, labelIds: Seq[Long]) = {
-    tc.kernelTransaction.locks().releaseSharedLabelLock(labelIds.toArray[Long]:_*)
-  }
-
-  private def lockPlanLabels(tc: TransactionalContextWrapper, labelIds: Seq[Long]) = {
-    tc.kernelTransaction.locks().acquireSharedLabelLock(labelIds.toArray[Long]:_*)
-  }
-
-  private def extractPlanLabels(plan: (ExecutionPlan, Map[String, Any], Seq[String]), version: CypherVersion, tc:
-  TransactionalContextWrapper): Seq[Long] = {
-    import scala.collection.JavaConverters._
-
-    def planLabels = {
-      plan._1.plannerInfo.indexes().asScala.collect { case item: SchemaIndexUsage => item.getLabelId.toLong }
-    }
-
-    def allLabels: Seq[Long] = {
-      tc.kernelTransaction.tokenRead().labelsGetAllTokens().asScala.map(t => t.id().toLong).toSeq
-    }
-
-    version match {
-      // old cypher versions plans do not contain information about indexes used in query
-      // and since we do not know what labels are actually used by the query we assume that all of them are
-      case CypherVersion.v2_3 => allLabels
-      case CypherVersion.v3_1 => allLabels
-      case _ => planLabels
-    }
-  }
-
-  private def schemaState(tc: TransactionalContextWrapper): QueryCache[MonitoringCacheAccessor[String,
-    (ExecutionPlan, Map[String, Any], Seq[String])], LFUCache[String, (ExecutionPlan, Map[String, Any], Seq[String])]] = {
-    tc.schemaRead.schemaStateGet(this)
-  }
-
-  private def getOrCreateFromSchemaState[V](operations: SchemaRead, creator: => V) = {
-    val javaCreator = new java.util.function.Function[ExecutionEngine, V]() {
-      def apply(key: ExecutionEngine) = creator
-    }
-    operations.schemaStateGetOrCreate(this, javaCreator)
-  }
-
-  def prettify(query: String): String = Prettifier(query)
+  // ACTUAL FUNCTIONALITY
 
   /**
-    * @return { @code true} if the query is a PERIODIC COMMIT query and not an EXPLAIN query
-    */
-  def isPeriodicCommit(query: String): Boolean = {
-    val preParsedQuery = preParseQuery(query)
-    preParsedQuery.executionMode != CypherExecutionMode.explain && parsePreParsedQuery(preParsedQuery, CompilationPhaseTracer.NO_TRACING).isPeriodicCommit
+   * Executes query returns a `QueryExecution` that can be used to control demand to the provided `QuerySubscriber`.
+   * This method assumes this is the only query running within the transaction, and therefor will register transaction closing
+   * with the TaskCloser
+   *
+   * @param query the query to execute
+   * @param params the parameters of the query
+   * @param context the transactional context in which to run the query
+   * @param profile if `true` run with profiling enabled
+   * @param prePopulate if `true` pre populate all results
+   * @param subscriber the subscriber where results will be streamed
+   * @return a `QueryExecution` that controls the demand to the subscriber
+   */
+  def execute(query: String,
+              params: MapValue,
+              context: TransactionalContext,
+              profile: Boolean,
+              prePopulate: Boolean,
+              subscriber: QuerySubscriber): QueryExecution = {
+    defaultQueryExecutionMonitor.startProcessing(context.executingQuery())
+    executeSubquery(query, params, context, isOutermostQuery = true, profile, prePopulate, subscriber)
   }
 
-  private def createCompilerDelegator(): CompilerEngineDelegator = {
-    val version: CypherVersion = CypherVersion(optGraphSetting[String](
-      queryService, GraphDatabaseSettings.cypher_parser_version, CypherVersion.default.name))
-    val planner: CypherPlanner = CypherPlanner(optGraphSetting[String](
-      queryService, GraphDatabaseSettings.cypher_planner, CypherPlanner.default.name))
-    val runtime: CypherRuntime = CypherRuntime(optGraphSetting[String](
-      queryService, GraphDatabaseSettings.cypher_runtime, CypherRuntime.default.name))
-    val useErrorsOverWarnings = optGraphSetting[java.lang.Boolean](
-      queryService, GraphDatabaseSettings.cypher_hints_error,
-      GraphDatabaseSettings.cypher_hints_error.getDefaultValue.toBoolean)
-    val idpMaxTableSize: Int = optGraphSetting[java.lang.Integer](
-      queryService, GraphDatabaseSettings.cypher_idp_solver_table_threshold,
-      GraphDatabaseSettings.cypher_idp_solver_table_threshold.getDefaultValue.toInt)
-    val idpIterationDuration: Long = optGraphSetting[java.lang.Long](
-      queryService, GraphDatabaseSettings.cypher_idp_solver_duration_threshold,
-      GraphDatabaseSettings.cypher_idp_solver_duration_threshold.getDefaultValue.toLong)
+  /**
+   * Executes query returns a `QueryExecution` that can be used to control demand to the provided `QuerySubscriber`
+   * Note. This method will monitor the query start after it has been parsed. The caller is responsible for monitoring any query failing before this point.
+   *
+   * @param query       the query to execute
+   * @param params      the parameters of the query
+   * @param context     the context in which to run the query
+   * @param prePopulate if `true` pre populate all results
+   * @param subscriber  the subscriber where results will be streamed
+   * @return a `QueryExecution` that controls the demand to the subscriber
+   */
+  def execute(query: FullyParsedQuery,
+              params: MapValue,
+              context: TransactionalContext,
+              prePopulate: Boolean,
+              input: InputDataStream,
+              queryMonitor: QueryExecutionMonitor,
+              subscriber: QuerySubscriber): QueryExecution = {
+    queryMonitor.startProcessing(context.executingQuery())
+    val queryTracer = tracer.compileQuery(query.description)
+    closing(context, queryTracer) {
+      doExecute(query, params, context, isOutermostQuery = true, prePopulate, input, queryMonitor, queryTracer, subscriber)
+    }
+  }
 
-    val errorIfShortestPathFallbackUsedAtRuntime = optGraphSetting[java.lang.Boolean](
-      queryService, GraphDatabaseSettings.forbid_exhaustive_shortestpath,
-      GraphDatabaseSettings.forbid_exhaustive_shortestpath.getDefaultValue.toBoolean
-    )
-    val errorIfShortestPathHasCommonNodesAtRuntime = optGraphSetting[java.lang.Boolean](
-      queryService, GraphDatabaseSettings.forbid_shortestpath_common_nodes,
-      GraphDatabaseSettings.forbid_shortestpath_common_nodes.getDefaultValue.toBoolean
-    )
-    val legacyCsvQuoteEscaping = optGraphSetting[java.lang.Boolean](
-      queryService, GraphDatabaseSettings.csv_legacy_quote_escaping,
-      GraphDatabaseSettings.csv_legacy_quote_escaping.getDefaultValue.toBoolean
-    )
-    val csvBufferSize = optGraphSetting[java.lang.Integer](
-      queryService, GraphDatabaseSettings.csv_buffer_size,
-      GraphDatabaseSettings.csv_buffer_size.getDefaultValue.toInt
-    )
-    val planWithMinimumCardinalityEstimates = optGraphSetting[java.lang.Boolean](
-      queryService, GraphDatabaseSettings.cypher_plan_with_minimum_cardinality_estimates,
-      GraphDatabaseSettings.cypher_plan_with_minimum_cardinality_estimates.getDefaultValue.toBoolean
-    )
-    val lenientCreateRelationship = optGraphSetting[java.lang.Boolean](
-      queryService, GraphDatabaseSettings.cypher_lenient_create_relationship,
-      GraphDatabaseSettings.cypher_lenient_create_relationship.getDefaultValue.toBoolean
-    )
+  /**
+   * Executes query returns a `QueryExecution` that can be used to control demand to the provided `QuerySubscriber`.
+   * This method assumes the query is running as one of many queries within a single transaction and therefor needs
+   * to be told using the shouldCloseTransaction field if the TaskCloser needs to have a transaction close registered.
+   *
+   * @param query the query to execute
+   * @param params the parameters of the query
+   * @param context the transactional context in which to run the query
+   * @param isOutermostQuery provide `true` if this is the outer-most query and should close the transaction when finished or error
+   * @param profile if `true` run with profiling enabled
+   * @param prePopulate if `true` pre populate all results
+   * @param subscriber the subscriber where results will be streamed
+   * @return a `QueryExecution` that controls the demand to the subscriber
+   */
+  def executeSubquery(query: String,
+                      params: MapValue,
+                      context: TransactionalContext,
+                      isOutermostQuery: Boolean,
+                      profile: Boolean,
+                      prePopulate: Boolean,
+                      subscriber: QuerySubscriber): QueryExecution = {
+    val queryTracer = tracer.compileQuery(query)
+    closing(context, queryTracer) {
+      val couldContainSensitiveFields = isOutermostQuery && compilerLibrary.supportsAdministrativeCommands()
+      val preParsedQuery = preParser.preParseQuery(query, profile, couldContainSensitiveFields)
+      doExecute(preParsedQuery, params, context, isOutermostQuery, prePopulate, NoInput, defaultQueryExecutionMonitor, queryTracer, subscriber)
+    }
+  }
 
-    if (((version != CypherVersion.v2_3) || (version != CypherVersion.v3_1) || (version != CypherVersion.v3_4) || (version != CypherVersion.v3_3)) &&
-      (planner == CypherPlanner.greedy || planner == CypherPlanner.idp || planner == CypherPlanner.dp)) {
-      val message = s"Cannot combine configurations: ${GraphDatabaseSettings.cypher_parser_version.name}=${version.name} " +
-        s"with ${GraphDatabaseSettings.cypher_planner.name} = ${planner.name}"
-      log.error(message)
-      throw new IllegalStateException(message)
+  private def closing[T](context: TransactionalContext, traceEvent: QueryCompilationEvent)(code: => T): T =
+    try code catch {
+      case t: Throwable =>
+        context.rollback()
+        throw t
+    } finally traceEvent.close()
+
+  private def doExecute(query: InputQuery,
+                        params: MapValue,
+                        context: TransactionalContext,
+                        isOutermostQuery: Boolean,
+                        prePopulate: Boolean,
+                        input: InputDataStream,
+                        queryMonitor: QueryExecutionMonitor,
+                        tracer: QueryCompilationEvent,
+                        subscriber: QuerySubscriber): QueryExecution = {
+
+    val executableQuery = try {
+      getOrCompile(context, query, tracer, params)
+    } catch {
+      case up: Throwable =>
+        if (isOutermostQuery)
+          queryMonitor.endFailure(context.executingQuery(), up.getMessage)
+        throw up
+    }
+    if (query.options.queryOptions.executionMode.name != "explain") {
+      checkParameters(executableQuery.paramNames, params, executableQuery.extractedParams)
+    }
+    val combinedParams = params.updatedWith(executableQuery.extractedParams)
+
+    if (isOutermostQuery) {
+      context.executingQuery().onObfuscatorReady(executableQuery.queryObfuscator)
+      context.executingQuery().onCompilationCompleted(executableQuery.compilerInfo, executableQuery.planDescriptionSupplier)
     }
 
-    val compatibilityCache = new CompatibilityCache(compatibilityFactory)
-    new CompilerEngineDelegator(queryService, kernelMonitors, version, planner, runtime,
-      useErrorsOverWarnings, idpMaxTableSize, idpIterationDuration, errorIfShortestPathFallbackUsedAtRuntime,
-      errorIfShortestPathHasCommonNodesAtRuntime, legacyCsvQuoteEscaping, csvBufferSize, planWithMinimumCardinalityEstimates,
-      lenientCreateRelationship, logProvider, compatibilityCache)
+    executableQuery.execute(context, isOutermostQuery, query.options, combinedParams, prePopulate, input, queryMonitor, subscriber)
   }
 
-  private def getPlanCacheSize: Int =
-    optGraphSetting[java.lang.Integer](
-      queryService, GraphDatabaseSettings.query_cache_size,
-      GraphDatabaseSettings.query_cache_size.getDefaultValue.toInt
+  /*
+   * Return the CompilerWithExpressionCodeGenOption to be used.
+   */
+  private def compilerWithExpressionCodeGenOption(inputQuery: InputQuery,
+                                                  tracer: QueryCompilationEvent,
+                                                  transactionalContext: TransactionalContext,
+                                                  params: MapValue): CompilerWithExpressionCodeGenOption[ExecutableQuery] = {
+    val compiledExpressionCompiler = () => masterCompiler.compile(inputQuery.withRecompilationLimitReached,
+      tracer, transactionalContext, params)
+    val interpretedExpressionCompiler = () => masterCompiler.compile(inputQuery, tracer, transactionalContext, params)
+
+    new CompilerWithExpressionCodeGenOption[ExecutableQuery] {
+      override def compile(): ExecutableQuery = {
+        if (inputQuery.options.compileWhenHot && config.recompilationLimit == 0) {
+          //We have recompilationLimit == 0, go to compiled directly
+          compiledExpressionCompiler()
+        } else {
+          interpretedExpressionCompiler()
+        }
+      }
+
+      override def compileWithExpressionCodeGen(): ExecutableQuery = compiledExpressionCompiler()
+
+      override def maybeCompileWithExpressionCodeGen(hitCount: Int): Option[ExecutableQuery] = {
+        //check if we need to do jit compiling of queries and if hot enough
+        if (inputQuery.options.compileWhenHot && config.recompilationLimit > 0 && hitCount >= config.recompilationLimit) {
+          Some(compiledExpressionCompiler())
+        } else {
+          //In the other case we have no recompilation step
+          None
+        }
+      }
+    }
+  }
+
+  private def getOrCompile(context: TransactionalContext,
+                           initialInputQuery: InputQuery,
+                           tracer: QueryCompilationEvent,
+                           params: MapValue,
+                          ): ExecutableQuery = {
+
+    // create transaction and query context
+    val tc = context.getOrBeginNewIfClosed()
+    val compilerAuthorization = tc.restrictCurrentTransaction(tc.securityContext.withMode(AccessMode.Static.READ))
+    var forceReplan = false
+    var inputQuery = initialInputQuery
+
+    val cacheKey = CacheKey(
+      initialInputQuery.cacheKey,
+      QueryCache.extractParameterTypeMap(params),
+      tc.kernelTransaction().dataRead().transactionStateHasChanges()
     )
 
-  private def optGraphSetting[V](graph: GraphDatabaseQueryService, setting: Setting[V], defaultValue: V): V = {
-    val config = graph.getDependencyResolver.resolveDependency(classOf[Config])
-    Option(config.get(setting)).getOrElse(defaultValue)
+    try {
+      var n = 0
+      while (n < ExecutionEngine.PLAN_BUILDING_TRIES) {
+
+        val schemaToken = schemaHelper.readSchemaToken(tc)
+        if (forceReplan) {
+          forceReplan = false
+          inputQuery = inputQuery.withReplanOption(CypherReplanOption.force)
+        }
+        val compiler = compilerWithExpressionCodeGenOption(inputQuery, tracer, tc, params)
+        val executableQuery = queryCache.computeIfAbsentOrStale(cacheKey,
+          tc,
+          compiler,
+          inputQuery.options.queryOptions.replan,
+          context.executingQuery().id())
+
+        val lockedEntities = schemaHelper.lockEntities(schemaToken, executableQuery, tc)
+
+        if (lockedEntities.successful) {
+          return executableQuery
+        }
+        forceReplan = lockedEntities.needsReplan
+
+        // if the schema has changed while taking all locks we need to try again.
+        n += 1
+      }
+    } finally {
+      compilerAuthorization.close()
+    }
+
+    throw new IllegalStateException("Could not compile query due to insanely frequent schema changes")
   }
+
+  def clearQueryCaches(): Long =
+    List(masterCompiler.clearCaches(), queryCache.clear(), preParser.clearCache()).max
+
+  /**
+   * @return { @code true} if the query is a PERIODIC COMMIT query and not an EXPLAIN query
+   */
+  def isPeriodicCommit(query: String): Boolean = {
+    val preParsedQuery = preParser.preParseQuery(query)
+    preParsedQuery.options.queryOptions.executionMode != CypherExecutionMode.explain && preParsedQuery.options.isPeriodicCommit
+  }
+
+  def getCypherFunctions: java.util.List[FunctionInformation] = {
+    val informations: Seq[FunctionInformation] = org.neo4j.cypher.internal.expressions.functions.Function.functionInfo.map(FunctionWithInformation)
+    val predicateInformations: Seq[FunctionInformation] = org.neo4j.cypher.internal.expressions.IterablePredicateExpression.functionInfo.map(FunctionWithInformation)
+    (informations ++ predicateInformations).asJava
+  }
+
+  // HELPERS
+
+  @throws(classOf[ParameterNotFoundException])
+  private def checkParameters(queryParams: Array[String], givenParams: MapValue, extractedParams: MapValue) {
+    var i = 0
+    while (i < queryParams.length) {
+      val key = queryParams(i)
+      if (!(givenParams.containsKey(key) || extractedParams.containsKey(key))) {
+        val missingKeys = queryParams.filter(key => !(givenParams.containsKey(key) || extractedParams.containsKey(key))).distinct
+        throw new ParameterNotFoundException("Expected parameter(s): " + missingKeys.mkString(", "))
+      }
+      i += 1
+    }
+  }
+}
+
+case class FunctionWithInformation(f: FunctionTypeSignature) extends FunctionInformation {
+
+  override def getFunctionName: String = f.function.name
+
+  override def getDescription: String = f.description
+
+  override def getCategory: String = f.category
+
+  override def getSignature: String = f.getSignatureAsString
+
+  override def isAggregationFunction: lang.Boolean = f.isAggregationFunction
+
+  override def returnType: String = f.outputType.toNeoTypeString
+
+  override def inputSignature: java.util.List[java.util.Map[String, String]] = f.names.zip(f.argumentTypes ++ f.optionalTypes).map { case (name, cType) =>
+    val typeString = cType.toNeoTypeString
+    Map("name" -> name, "type" -> typeString, "description" -> s"$name :: $typeString").asJava
+  }.asJava
 }
 
 object ExecutionEngine {

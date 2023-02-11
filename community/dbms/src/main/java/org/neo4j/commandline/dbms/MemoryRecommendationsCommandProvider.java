@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,62 +38,25 @@
  */
 package org.neo4j.commandline.dbms;
 
-import java.nio.file.Path;
-import javax.annotation.Nonnull;
+import org.neo4j.annotations.service.ServiceProvider;
+import org.neo4j.cli.Command.CommandType;
+import org.neo4j.cli.CommandProvider;
+import org.neo4j.cli.ExecutionContext;
 
-import org.neo4j.commandline.admin.AdminCommand;
-import org.neo4j.commandline.admin.AdminCommandSection;
-import org.neo4j.commandline.admin.OutsideWorld;
-import org.neo4j.commandline.arguments.Arguments;
+import static org.neo4j.cli.Command.CommandType.MEMORY_RECOMMENDATION;
 
-import static java.lang.String.format;
-
-public class MemoryRecommendationsCommandProvider extends AdminCommand.Provider
+@ServiceProvider
+public class MemoryRecommendationsCommandProvider implements CommandProvider<MemoryRecommendationsCommand>
 {
-    public MemoryRecommendationsCommandProvider()
+    @Override
+    public MemoryRecommendationsCommand createCommand( ExecutionContext ctx )
     {
-        super( "memrec" );
+        return new MemoryRecommendationsCommand( ctx );
     }
 
-    @Nonnull
     @Override
-    public Arguments allArguments()
+    public CommandType commandType()
     {
-        return MemoryRecommendationsCommand.buildArgs();
-    }
-
-    @Nonnull
-    @Override
-    public String summary()
-    {
-        return "Print ONgDB heap and pagecache memory settings recommendations.";
-    }
-
-    @Nonnull
-    @Override
-    public AdminCommandSection commandSection()
-    {
-        return AdminCommandSection.general();
-    }
-
-    @Nonnull
-    @Override
-    public String description()
-    {
-        return format(
-                "Print heuristic memory setting recommendations for the ONgDB JVM heap and pagecache. The " +
-                "heuristic is based on the total memory of the system the command is running on, or on the amount of " +
-                "memory specified with the --memory argument. The heuristic assumes that the system is dedicated to " +
-                "running ONgDB. If this is not the case, then use the --memory argument to specify how much memory " +
-                "can be expected to be dedicated to ONgDB.%n" +
-                "%n" +
-                "The output is formatted such that it can be copy-posted into the ongdb.conf file." );
-    }
-
-    @Nonnull
-    @Override
-    public AdminCommand create( Path homeDir, Path configDir, OutsideWorld outsideWorld )
-    {
-        return new MemoryRecommendationsCommand( homeDir, configDir, outsideWorld );
+        return MEMORY_RECOMMENDATION;
     }
 }

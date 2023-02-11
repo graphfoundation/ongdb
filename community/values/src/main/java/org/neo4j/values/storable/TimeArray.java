@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,10 +41,17 @@ package org.neo4j.values.storable;
 import java.time.OffsetTime;
 import java.util.Arrays;
 
+import org.neo4j.values.AnyValue;
 import org.neo4j.values.ValueMapper;
 
-public class TimeArray extends TemporalArray<OffsetTime, TimeValue>
+import static org.neo4j.memory.HeapEstimator.OFFSET_TIME_SIZE;
+import static org.neo4j.memory.HeapEstimator.shallowSizeOfInstance;
+import static org.neo4j.memory.HeapEstimator.sizeOfObjectArray;
+
+public class TimeArray extends TemporalArray<OffsetTime>
 {
+    private static final long SHALLOW_SIZE = shallowSizeOfInstance( TimeArray.class );
+
     private final OffsetTime[] value;
 
     TimeArray( OffsetTime[] value )
@@ -84,13 +91,13 @@ public class TimeArray extends TemporalArray<OffsetTime, TimeValue>
     }
 
     @Override
-    public ValueGroup valueGroup()
+    public ValueRepresentation valueRepresentation()
     {
-        return ValueGroup.ZONED_TIME_ARRAY;
+        return ValueRepresentation.ZONED_TIME_ARRAY;
     }
 
     @Override
-    int unsafeCompareTo( Value otherValue )
+    protected int unsafeCompareTo( Value otherValue )
     {
         return compareToNonPrimitiveArray( (TimeArray) otherValue );
     }
@@ -99,5 +106,36 @@ public class TimeArray extends TemporalArray<OffsetTime, TimeValue>
     public String getTypeName()
     {
         return "TimeArray";
+    }
+
+    @Override
+    public long estimatedHeapUsage()
+    {
+        return SHALLOW_SIZE + sizeOfObjectArray( OFFSET_TIME_SIZE, value.length );
+    }
+
+    @Override
+    public boolean hasCompatibleType( AnyValue value )
+    {
+        return value instanceof TimeValue;
+    }
+
+    @Override
+    public ArrayValue copyWithAppended( AnyValue added )
+    {
+        assert hasCompatibleType( added ) : "Incompatible types";
+        OffsetTime[] newArray = Arrays.copyOf( value, value.length + 1 );
+        newArray[value.length] = ((TimeValue) added).temporal();
+        return new TimeArray( newArray );
+    }
+
+    @Override
+    public ArrayValue copyWithPrepended( AnyValue prepended )
+    {
+        assert hasCompatibleType( prepended ) : "Incompatible types";
+        OffsetTime[] newArray = new OffsetTime[value.length + 1];
+        System.arraycopy( value, 0, newArray, 1, value.length );
+        newArray[0] = ((TimeValue) prepended).temporal();
+        return new TimeArray( newArray );
     }
 }

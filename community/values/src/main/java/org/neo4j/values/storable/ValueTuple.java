@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,34 +40,40 @@ package org.neo4j.values.storable;
 
 import java.util.Comparator;
 
+import static org.neo4j.memory.HeapEstimator.shallowSizeOf;
+import static org.neo4j.memory.HeapEstimator.shallowSizeOfInstance;
+import static org.neo4j.util.Preconditions.requireNoNullElements;
+import static org.neo4j.util.Preconditions.requireNonEmpty;
+import static org.neo4j.values.utils.ValueMath.HASH_CONSTANT;
+
 /**
  * A tuple of n values.
  */
 public class ValueTuple
 {
+    private static final long SHALLOW_SIZE = shallowSizeOfInstance( ValueTuple.class );
+
     public static ValueTuple of( Value... values )
     {
-        assert values.length > 0 : "Empty ValueTuple is not allowed";
-        assert noNulls( values );
         return new ValueTuple( values );
     }
 
     public static ValueTuple of( Object... objects )
     {
-        assert objects.length > 0 : "Empty ValueTuple is not allowed";
-        assert noNulls( objects );
         Value[] values = new Value[objects.length];
         for ( int i = 0; i < values.length; i++ )
         {
-            values[i] = Values.of( objects[i] );
+            values[i] = Values.of( objects[i], false );
         }
         return new ValueTuple( values );
     }
 
     private final Value[] values;
 
-    private ValueTuple( Value[] values )
+    protected ValueTuple( Value[] values )
     {
+        requireNonEmpty( values );
+        requireNoNullElements( values );
         this.values = values;
     }
 
@@ -79,6 +85,22 @@ public class ValueTuple
     public Value valueAt( int offset )
     {
         return values[offset];
+    }
+
+    /**
+     * WARNING: this method does not create a defensive copy. Do not modify the returned array.
+     */
+    public Value[] getValues()
+    {
+        return values;
+    }
+
+    /**
+     * Get the "shallow" size of the tuple, this includes the object overhead and the backing array, but not the retained values.
+     */
+    public long getShallowSize()
+    {
+        return SHALLOW_SIZE + shallowSizeOf( values );
     }
 
     @Override
@@ -116,7 +138,7 @@ public class ValueTuple
         int result = 1;
         for ( Object value : values )
         {
-            result = 31 * result + value.hashCode();
+            result = HASH_CONSTANT * result + value.hashCode();
         }
         return result;
     }
@@ -140,18 +162,6 @@ public class ValueTuple
         }
         sb.append( " )" );
         return sb.toString();
-    }
-
-    private static boolean noNulls( Object[] values )
-    {
-        for ( Object v : values )
-        {
-            if ( v == null )
-            {
-                return false;
-            }
-        }
-        return true;
     }
 
     public static final Comparator<ValueTuple> COMPARATOR = ( left, right ) ->

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,23 +42,20 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
 import org.neo4j.internal.kernel.api.security.AuthSubject;
+import org.neo4j.internal.kernel.api.security.LoginContext;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.api.query.ExecutingQuery;
 import org.neo4j.kernel.impl.api.TransactionExecutionStatistic;
-import org.neo4j.kernel.impl.locking.ActiveLock;
+import org.neo4j.kernel.impl.api.transaction.trace.TransactionInitializationTrace;
+import org.neo4j.lock.ActiveLock;
 
 /**
  * View of a {@link KernelTransaction} that provides a limited set of actions against the transaction.
  */
 public interface KernelTransactionHandle
 {
-    /**
-     * The id of the last transaction that was committed to the store when the underlying transaction started.
-     *
-     * @return the committed transaction id.
-     */
-    long lastTransactionIdWhenStarted();
 
     /**
      * The timestamp of the last transaction that was committed to the store when the underlying transaction started.
@@ -69,15 +66,14 @@ public interface KernelTransactionHandle
 
     /**
      * The start time of the underlying transaction. I.e. basically {@link System#currentTimeMillis()} when user
-     * called {@link org.neo4j.internal.kernel.api.Session#beginTransaction(KernelTransaction.Type)}.
+     * called {@link Kernel#beginTransaction(KernelTransaction.Type, LoginContext)}.
      *
      * @return the transaction start time.
      */
     long startTime();
 
     /**
-     * The start time of the underlying transaction. I.e. basically {@link System#nanoTime()} ()} when user
-     * called {@link org.neo4j.internal.kernel.api.Session#beginTransaction(KernelTransaction.Type)}.
+     * The start time of the underlying transaction.
      *
      * This can be used to measure elapsed time in a safe way that is not affected by system time changes.
      *
@@ -94,10 +90,16 @@ public interface KernelTransactionHandle
     /**
      * Check if the underlying transaction is open.
      *
-     * @return {@code true} if the underlying transaction ({@link KernelTransaction#close()} was not called),
-     * {@code false} otherwise.
+     * @return {@code true} if the underlying transaction {@link KernelTransaction#close()} was not called, {@code false} otherwise.
      */
     boolean isOpen();
+
+    /**
+     * Check if the underlying transaction is closing. Closing means that the transaction is closed by the user and currently doing commit or rollback.
+     *
+     * @return {@code true} if the underlying transaction ({@link KernelTransaction#close()} is called, but not finished, {@code false} otherwise.
+     */
+    boolean isClosing();
 
     /**
      * Mark the underlying transaction for termination.
@@ -152,18 +154,42 @@ public interface KernelTransactionHandle
     String getUserTransactionName();
 
     /**
-     * @return a list of all queries currently executing that use the underlying transaction
+     * Query currently executing, if any, that use the underlying transaction
      */
-    Stream<ExecutingQuery> executingQueries();
+    Optional<ExecutingQuery> executingQuery();
 
     /**
      * @return the lock requests granted for this transaction.
      */
-    Stream<? extends ActiveLock> activeLocks();
+    Stream<ActiveLock> activeLocks();
 
     /**
      * Provide underlying transaction execution statistics. For example: elapsed time, allocated bytes etc
      * @return transaction statistics projection
      */
     TransactionExecutionStatistic transactionStatistic();
+
+    /**
+     * Provide stack trace of particular transaction initialisation call if that is available, empty record otherwise
+     * @return transaction initialization trace
+     */
+    TransactionInitializationTrace transactionInitialisationTrace();
+
+    /**
+     * Provide underlying transaction originator details
+     * @return transaction originator details
+     */
+    Optional<ClientConnectionInfo> clientInfo();
+
+    /**
+     * @return whether or not this transaction is a schema transaction. Type of transaction is decided
+     * on first write operation, be it data or schema operation.
+     */
+    boolean isSchemaTransaction();
+
+    /**
+     * Provide additional status details from underlying transaction
+     * @return additional status or empty string if not available.
+     */
+    String getStatusDetails();
 }

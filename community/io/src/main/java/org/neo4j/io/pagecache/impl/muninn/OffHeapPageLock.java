@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,9 @@
  */
 package org.neo4j.io.pagecache.impl.muninn;
 
-import org.neo4j.unsafe.impl.internal.dragons.UnsafeUtil;
+import java.lang.invoke.VarHandle;
+
+import org.neo4j.internal.unsafe.UnsafeUtil;
 
 /**
  * OffHeapPageLock is a sequence-based lock like StampedLock, but entirely non-blocking, and with special lock modes
@@ -169,7 +171,7 @@ public final class OffHeapPageLock
      */
     public static boolean validateReadLock( long address, long stamp )
     {
-        UnsafeUtil.loadFence();
+        VarHandle.acquireFence();
         return (getState( address ) & CHK_MASK) == stamp;
     }
 
@@ -202,8 +204,7 @@ public final class OffHeapPageLock
             boolean unwritablyLocked = (s & EXL_MASK) != 0;
             boolean writeCountOverflow = (s & CNT_MASK) == CNT_MASK;
 
-            // bitwise-OR to reduce branching and allow more ILP
-            if ( unwritablyLocked | writeCountOverflow )
+            if ( unwritablyLocked || writeCountOverflow )
             {
                 return failWriteLock( s, writeCountOverflow );
             }
@@ -211,7 +212,7 @@ public final class OffHeapPageLock
             n = s + CNT_UNIT | MOD_MASK;
             if ( compareAndSetState( address, s, n ) )
             {
-                UnsafeUtil.storeFence();
+                VarHandle.releaseFence();
                 return true;
             }
         }
@@ -282,7 +283,7 @@ public final class OffHeapPageLock
             }
         }
         while ( !compareAndSetState( address, s, n ) );
-        UnsafeUtil.storeFence();
+        VarHandle.releaseFence();
         return r;
     }
 
@@ -299,7 +300,7 @@ public final class OffHeapPageLock
     {
         long s = getState( address );
         boolean res = ((s & UNL_MASK) == 0) && compareAndSetState( address, s, s + EXL_MASK );
-        UnsafeUtil.storeFence();
+        VarHandle.releaseFence();
         return res;
     }
 
@@ -382,7 +383,7 @@ public final class OffHeapPageLock
         {
             long n = s + FLS_MASK;
             boolean res = compareAndSetState( address, s, n );
-            UnsafeUtil.storeFence();
+            VarHandle.releaseFence();
             return res ? n : 0;
         }
         return 0;

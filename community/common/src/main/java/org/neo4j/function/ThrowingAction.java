@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -37,6 +37,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.neo4j.function;
+
+import org.neo4j.internal.helpers.Exceptions;
 
 /**
  * An action that takes no parameters and returns no values, but may have a side-effect and may throw an exception.
@@ -57,5 +59,25 @@ public interface ThrowingAction<E extends Exception>
         return () ->
         {
         };
+    }
+
+    static void executeAll( ThrowingAction<?>... actions ) throws Exception
+    {
+        Exception error = null;
+        for ( final ThrowingAction<?> action : actions )
+        {
+            try
+            {
+                action.apply();
+            }
+            catch ( Exception e )
+            {
+                error = Exceptions.chain( error, e );
+            }
+        }
+        if ( error != null )
+        {
+            throw error;
+        }
     }
 }

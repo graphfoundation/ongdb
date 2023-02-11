@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,8 +38,9 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.collection.primitive.{PrimitiveLongIterable, PrimitiveLongSet}
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.eclipse.collections.api.LongIterable
+import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
 class LazyGroupingIteratorTest extends CypherFunSuite {
 
@@ -90,7 +91,7 @@ class LazyGroupingIteratorTest extends CypherFunSuite {
 
   test("should let null through, but not include it in the state") {
     // given
-    val iterator = new LazyGroupingRowIterator(new Row("a", 1), new Row("a", None), new Row("a", 2))
+    val iterator = new LazyGroupingRowIterator(new Row("a", 1), Row("a", None), new Row("a", 2))
 
     iterator.next() should equal(new Row("a", 1))
     val state = iterator.state
@@ -107,9 +108,9 @@ class LazyGroupingIteratorTest extends CypherFunSuite {
   }
 
   class LazyGroupingRowIterator(rows: Row*) extends LazyGroupingIterator[Row](rows.iterator) {
-    var state: PrimitiveLongSet = null
+    var state: LongHashSet = _
 
-    override def setState(state: PrimitiveLongSet) = {
+    override def setState(state: LongHashSet) = {
       this.state = state
     }
 
@@ -118,9 +119,9 @@ class LazyGroupingIteratorTest extends CypherFunSuite {
     override def getKey(row: Row) = row.key
   }
 
-  def asScalaSet(in: PrimitiveLongIterable): Set[Long] = {
+  def asScalaSet(in: LongIterable): Set[Long] = {
     val builder = Set.newBuilder[Long]
-    val iter = in.iterator()
+    val iter = in.longIterator()
     while (iter.hasNext) {
       builder += iter.next()
     }

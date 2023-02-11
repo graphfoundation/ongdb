@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,7 @@
  */
 package org.neo4j.graphdb;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -46,15 +46,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.neo4j.helpers.collection.Iterators.iterator;
-import static org.neo4j.helpers.collection.ResourceClosingIterator.newResourceIterator;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.internal.helpers.collection.Iterators.iterator;
+import static org.neo4j.internal.helpers.collection.ResourceClosingIterator.newResourceIterator;
 
-public class ResourceIterableTest
+class ResourceIterableTest
 {
     @Test
-    public void streamShouldCloseSingleOnCompleted()
+    void streamShouldCloseSingleOnCompleted()
     {
         // Given
         AtomicBoolean closed = new AtomicBoolean( false );
@@ -71,7 +71,7 @@ public class ResourceIterableTest
     }
 
     @Test
-    public void streamShouldCloseMultipleOnCompleted()
+    void streamShouldCloseMultipleOnCompleted()
     {
         // Given
         AtomicInteger closed = new AtomicInteger();
@@ -86,6 +86,6 @@ public class ResourceIterableTest
 
         // Then
         assertEquals( asList(1,2,3), result );
-        assertEquals( "two calls to close", 2, closed.get() );
+        assertEquals( 2, closed.get(), "two calls to close" );
     }
 }

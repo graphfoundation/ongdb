@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -58,6 +58,25 @@ import org.neo4j.io.pagecache.PageCursor;
  */
 class TreeState
 {
+    /**
+     * Size of one set of tree-state fields.
+     */
+    private static final int TREE_STATE_FIELDS_SIZE =
+            Integer.BYTES * 2 + // stable/unstable gen
+            Long.BYTES +        // rootId
+            Long.BYTES +        // rootGeneration
+            Long.BYTES +        // lastId
+            Long.BYTES +        // freeListWritePageId
+            Long.BYTES +        // freeListReadPageId
+            Long.BYTES +        // freeListWritePos
+            Long.BYTES +        // freeListReadPos
+            Byte.BYTES;         // clean
+
+    /**
+     * Size of a tree-state altogether, which consists of two sets of tree-state fields.
+     */
+    static final int SIZE = TREE_STATE_FIELDS_SIZE * 2;
+
     private static final byte CLEAN_BYTE = 0x01;
     private static final byte DIRTY_BYTE = 0x00;
 

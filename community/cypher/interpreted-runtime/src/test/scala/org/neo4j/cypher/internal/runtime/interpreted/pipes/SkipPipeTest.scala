@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,24 +38,27 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.mockito.Mockito.{never, verify, when}
+import org.mockito.Mockito.never
+import org.mockito.Mockito.verify
+import org.mockito.Mockito.when
 import org.mockito.internal.stubbing.defaultanswers.ReturnsMocks
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Literal
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
+import org.neo4j.cypher.internal.runtime.interpreted.commands.LiteralHelper.literal
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 
 class SkipPipeTest extends CypherFunSuite {
   test("skip 0 should not actually pull from the input") {
     // Given
-    val inputIterator = mock[Iterator[ExecutionContext]](new ReturnsMocks)
+    val inputIterator = mock[Iterator[CypherRow]](new ReturnsMocks)
 
     when(inputIterator.isEmpty).thenReturn(false)
 
     val src: Pipe = new DummyPipe(inputIterator)
-    val limitPipe = SkipPipe(src, Literal(0))()
+    val skipPipe = SkipPipe(src, literal(0))()
 
     // When
-    val result = limitPipe.createResults(QueryStateHelper.empty)
+    skipPipe.createResults(QueryStateHelper.empty)
 
     // Then
     verify(inputIterator, never()).next()

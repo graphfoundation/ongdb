@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,15 +38,16 @@
  */
 package org.neo4j.io.fs;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.CopyOption;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.function.Consumer;
 
 /**
  * A handle to a file as seen by the page cache. The file may or may not be mapped.
- * @see FileSystemAbstraction#streamFilesRecursive(File)
+ * @see FileSystemAbstraction#streamFilesRecursive(Path)
  */
 public interface FileHandle
 {
@@ -77,13 +78,13 @@ public interface FileHandle
      * @param to Directory to move file to.
      * @return A new Consumer that moves the file wrapped by the file handle.
      */
-    static Consumer<FileHandle> handleRenameBetweenDirectories( File from, File to )
+    static Consumer<FileHandle> handleRenameBetweenDirectories( Path from, Path to )
     {
         return fileHandle ->
         {
             try
             {
-                fileHandle.rename( FileUtils.pathToFileAfterMove( from, to, fileHandle.getFile() ) );
+                fileHandle.rename( FileUtils.pathToFileAfterMove( from, to, fileHandle.getPath() ) );
             }
             catch ( IOException e )
             {
@@ -92,7 +93,7 @@ public interface FileHandle
         };
     }
 
-    static Consumer<FileHandle> handleRename( File to )
+    static Consumer<FileHandle> handleRename( Path to )
     {
         return fileHandle ->
         {
@@ -108,25 +109,25 @@ public interface FileHandle
     }
 
     /**
-     * Get a {@link File} object for the abstract path name that this file handle represents.
+     * Get a {@link Path} object for the abstract path name that this file handle represents.
      *
      * Note that the File is not guaranteed to support any operations other than querying the path name.
      * For instance, to delete the file you have to use the {@link #delete()} method of this file handle, instead of
-     * {@link File#delete()}.
-     * @return A {@link File} for this file handle.
+     * {@link Files#delete(Path)}.
+     * @return A {@link Path} for this file handle.
      */
-    File getFile();
+    Path getPath();
 
     /**
-     * Get a {@link File} object for the abstract path name that this file handle represents, and that is
+     * Get a {@link Path} object for the abstract path name that this file handle represents, and that is
      * <em>relative</em> to the base path that was passed into the
-     * {@link FileSystemAbstraction#streamFilesRecursive(File)} method.
+     * {@link FileSystemAbstraction#streamFilesRecursive(Path)} method.
      * <p>
-     * This method is otherwise behaviourally the same as {@link #getFile()}.
+     * This method is otherwise behaviourally the same as {@link #getPath()}.
      *
-     * @return A {@link File} for this file handle.
+     * @return A {@link Path} for this file handle.
      */
-    File getRelativeFile();
+    Path getRelativePath();
 
     /**
      * Rename source file to the given target file, effectively moving the file from source to target.
@@ -145,18 +146,15 @@ public interface FileHandle
      * @param options Options to modify the behaviour of the move in possibly platform specific ways. In particular,
      * {@link java.nio.file.StandardCopyOption#REPLACE_EXISTING} may be used to overwrite any existing file at the
      * target path name, instead of throwing an exception.
-     * @throws org.neo4j.io.pagecache.impl.FileIsMappedException if either the file represented by this file handle is
-     * mapped, or the target file is mapped.
      * @throws java.nio.file.FileAlreadyExistsException if the target file already exists, and the
      * {@link java.nio.file.StandardCopyOption#REPLACE_EXISTING} open option was not specified.
      * @throws IOException if an I/O error occurs, for instance when canonicalising the {@code to} path.
      */
-    void rename( File to, CopyOption... options ) throws IOException;
+    void rename( Path to, CopyOption... options ) throws IOException;
 
     /**
      * Delete the file that this file handle represents.
      *
-     * @throws org.neo4j.io.pagecache.impl.FileIsMappedException if this file is mapped by the page cache.
      * @throws java.nio.file.NoSuchFileException if the underlying file was deleted after this handle was created.
      * @throws IOException if an I/O error occurs.
      */

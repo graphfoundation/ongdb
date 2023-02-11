@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,28 +38,35 @@
  */
 package org.neo4j.server.modules;
 
+import java.util.List;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import javax.servlet.Filter;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.kernel.api.security.AuthManager;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.server.rest.dbms.AuthorizationDisabledFilter;
 import org.neo4j.server.rest.dbms.AuthorizationEnabledFilter;
 import org.neo4j.server.web.WebServer;
 
+/**
+ * The authorization module applies a {@link org.neo4j.server.rest.dbms.AuthorizationFilter AuthorizationFilter} to all paths except those configured in {@link
+ * org.neo4j.server.configuration.ServerSettings#http_auth_allowlist ServerSettings#http_auth_allowlist}.
+ * <p>
+ * It must be enabled as soon as any other module is enabled.
+ */
 public class AuthorizationModule implements ServerModule
 {
     private final WebServer webServer;
     private final Config config;
     private final Supplier<AuthManager> authManagerSupplier;
     private final LogProvider logProvider;
-    private final Pattern[] uriWhitelist;
+    private final List<Pattern> uriWhitelist;
 
     public AuthorizationModule( WebServer webServer, Supplier<AuthManager> authManager, LogProvider logProvider,
-            Config config, Pattern[] uriWhitelist )
+            Config config, List<Pattern> uriWhitelist )
     {
         this.webServer = webServer;
         this.config = config;

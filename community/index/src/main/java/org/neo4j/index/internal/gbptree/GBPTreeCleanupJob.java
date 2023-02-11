@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,16 +38,15 @@
  */
 package org.neo4j.index.internal.gbptree;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.StringJoiner;
-import java.util.concurrent.ExecutorService;
 
 class GBPTreeCleanupJob implements CleanupJob
 {
     private final CrashGenerationCleaner crashGenerationCleaner;
     private final GBPTreeLock gbpTreeLock;
     private final GBPTree.Monitor monitor;
-    private final File indexFile;
+    private final Path indexFile;
     private volatile boolean needed;
     private volatile Throwable failure;
 
@@ -57,7 +56,7 @@ class GBPTreeCleanupJob implements CleanupJob
      * @param monitor {@link GBPTree.Monitor} to report to
      * @param indexFile Target file
      */
-    GBPTreeCleanupJob( CrashGenerationCleaner crashGenerationCleaner, GBPTreeLock gbpTreeLock, GBPTree.Monitor monitor, File indexFile )
+    GBPTreeCleanupJob( CrashGenerationCleaner crashGenerationCleaner, GBPTreeLock gbpTreeLock, GBPTree.Monitor monitor, Path indexFile )
     {
         this.crashGenerationCleaner = crashGenerationCleaner;
         this.gbpTreeLock = gbpTreeLock;
@@ -93,7 +92,7 @@ class GBPTreeCleanupJob implements CleanupJob
     }
 
     @Override
-    public void run( ExecutorService executor )
+    public void run( Executor executor )
     {
         try
         {
@@ -111,9 +110,9 @@ class GBPTreeCleanupJob implements CleanupJob
     public String toString()
     {
         StringJoiner joiner = new StringJoiner( ", ", "CleanupJob(", ")" );
-        joiner.add( "file=" + indexFile.getAbsolutePath() );
+        joiner.add( "file=" + indexFile.toAbsolutePath() );
         joiner.add( "needed=" + needed );
-        joiner.add( "failure=" + (failure == null ? null : failure.toString()) );
+        joiner.add( "failure=" + failure );
         return joiner.toString();
     }
 }

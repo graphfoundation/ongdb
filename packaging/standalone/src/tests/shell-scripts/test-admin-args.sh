@@ -7,17 +7,17 @@ fake_install
 
 test_expect_success "should delegate help to the Java tool" "
   ongdb-home/bin/ongdb-admin help &&
-  test_expect_java_arg 'org.neo4j.commandline.admin.AdminTool'
+  test_expect_java_arg 'org.neo4j.cli.AdminTool'
 "
 
 test_expect_success "should delegate missing commands to the Java tool" "
   ongdb-home/bin/ongdb-admin &&
-  test_expect_java_arg 'org.neo4j.commandline.admin.AdminTool'
+  test_expect_java_arg 'org.neo4j.cli.AdminTool'
 "
 
 test_expect_success "should delegate unknown commands to the Java tool" "
   ongdb-home/bin/ongdb-admin unknown &&
-  test_expect_java_arg 'org.neo4j.commandline.admin.AdminTool'
+  test_expect_java_arg 'org.neo4j.cli.AdminTool'
 "
 
 test_expect_success "should specify heap size when given" "

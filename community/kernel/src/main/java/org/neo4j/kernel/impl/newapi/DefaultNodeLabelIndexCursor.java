@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,146 +38,90 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
-import java.util.HashSet;
-import java.util.Set;
+import org.eclipse.collections.api.set.primitive.LongSet;
 
-import org.neo4j.collection.primitive.PrimitiveLongCollections;
-import org.neo4j.collection.primitive.PrimitiveLongIterator;
-import org.neo4j.internal.kernel.api.LabelSet;
+import org.neo4j.internal.kernel.api.KernelReadTracer;
 import org.neo4j.internal.kernel.api.NodeCursor;
 import org.neo4j.internal.kernel.api.NodeLabelIndexCursor;
-import org.neo4j.kernel.impl.index.labelscan.LabelScanValueIndexProgressor;
-import org.neo4j.storageengine.api.schema.IndexProgressor;
-import org.neo4j.storageengine.api.schema.IndexProgressor.NodeLabelClient;
-import org.neo4j.storageengine.api.txstate.ReadableDiffSets;
+import org.neo4j.internal.kernel.api.TokenSet;
+import org.neo4j.internal.kernel.api.security.AccessMode;
+import org.neo4j.kernel.api.txstate.TransactionState;
 
-import static org.neo4j.kernel.impl.store.record.AbstractBaseRecord.NO_ID;
+import static org.neo4j.collection.PrimitiveLongCollections.mergeToSet;
 
-class DefaultNodeLabelIndexCursor extends IndexCursor<LabelScanValueIndexProgressor>
-        implements NodeLabelIndexCursor, NodeLabelClient
+class DefaultNodeLabelIndexCursor extends DefaultEntityTokenIndexCursor<DefaultNodeLabelIndexCursor> implements NodeLabelIndexCursor
 {
-    private Read read;
-    private long node;
-    private LabelSet labels;
-    private PrimitiveLongIterator added;
-    private Set<Long> removed;
+    private final DefaultNodeCursor securityNodeCursor;
 
-    private final DefaultCursors pool;
-
-    DefaultNodeLabelIndexCursor( DefaultCursors pool )
+    DefaultNodeLabelIndexCursor( CursorPool<DefaultNodeLabelIndexCursor> pool, DefaultNodeCursor securityNodeCursor )
     {
-        this.pool = pool;
-        node = NO_ID;
+        super( pool );
+        this.securityNodeCursor = securityNodeCursor;
     }
 
     @Override
-    public void scan( LabelScanValueIndexProgressor progressor, boolean providesLabels, int label )
+    LongSet createAddedInTxState( TransactionState txState, int token )
     {
-        super.initialize( progressor );
-        if ( read.hasTxStateWithChanges() )
-        {
-            ReadableDiffSets<Long> changes =
-                    read.txState().nodesWithLabelChanged( label );
-            added = changes.augment( PrimitiveLongCollections.emptyIterator() );
-            removed = new HashSet<>( read.txState().addedAndRemovedNodes().getRemoved() );
-            removed.addAll( changes.getRemoved() );
-        }
+        return txState.nodesWithLabelChanged( token ).getAdded().freeze();
     }
 
     @Override
-    public void unionScan( IndexProgressor progressor, boolean providesLabels, int... labels )
+    LongSet createDeletedInTxState( TransactionState txState, int token )
     {
-        //TODO: Currently we don't have a good way of handling this in the tx state
-        //The problem is this case:
-        //Given a node with label :A
-        //we remove label A in a transaction and follow that by
-        //a scan of `:A and :B`. In order to figure this out we need
-        //to check both tx state and disk, which we currently don't.
-        throw new UnsupportedOperationException(  );
+        return mergeToSet( txState.addedAndRemovedNodes().getRemoved(), txState.nodesWithLabelChanged( token ).getRemoved() );
     }
 
     @Override
-    public void intersectionScan( IndexProgressor progressor, boolean providesLabels, int... labels )
+    void traceScan( KernelReadTracer tracer, int token )
     {
-        //TODO: Currently we don't have a good way of handling this in the tx state
-        //The problem is for the nodes where some - but not all of the labels - are
-        //added in the transaction. For these we need to go to disk and check if they
-        //have the missing labels and hence return them or if not discard them.
-        throw new UnsupportedOperationException(  );
+        tracer.onLabelScan( token );
     }
 
     @Override
-    public boolean acceptNode( long reference, LabelSet labels )
+    void traceNext( KernelReadTracer tracer, long entity )
     {
-        if ( isRemoved( reference ) )
-        {
-            return false;
-        }
-        else
-        {
-            this.node = reference;
-            this.labels = labels;
-
-            return true;
-        }
+        tracer.onNode( entity );
     }
 
     @Override
-    public boolean next()
+    boolean allowedToSeeAllEntitiesWithToken( AccessMode accessMode, int token )
     {
-        if ( added != null && added.hasNext() )
-        {
-            this.node = added.next();
-            return true;
-        }
-        else
-        {
-            return innerNext();
-        }
+        return accessMode.allowsTraverseAllNodesWithLabel( token );
     }
 
-    public void setRead( Read read )
+    @Override
+    boolean allowedToSeeEntity( AccessMode accessMode, long entityReference, TokenSet tokens )
     {
-        this.read = read;
+        if ( tokens == null )
+        {
+            readEntity( read -> read.singleNode( entityReference, securityNodeCursor ) );
+            return securityNodeCursor.next();
+        }
+        return accessMode.allowsTraverseNode( tokens.all() );
     }
 
     @Override
     public void node( NodeCursor cursor )
     {
-        read.singleNode( node, cursor );
+        readEntity( read -> read.singleNode( entityReference(), cursor ) );
     }
 
     @Override
     public long nodeReference()
     {
-        return node;
+        return entityReference();
     }
 
     @Override
-    public LabelSet labels()
+    public float score()
     {
-        return labels;
+        return Float.NaN;
     }
 
     @Override
-    public void close()
+    public TokenSet labels()
     {
-        if ( !isClosed() )
-        {
-            super.close();
-            node = NO_ID;
-            labels = null;
-            read = null;
-            removed = null;
-
-            pool.accept( this );
-        }
-    }
-
-    @Override
-    public boolean isClosed()
-    {
-        return super.isClosed();
+        return tokens();
     }
 
     @Override
@@ -189,18 +133,16 @@ class DefaultNodeLabelIndexCursor extends IndexCursor<LabelScanValueIndexProgres
         }
         else
         {
-            return "NodeLabelIndexCursor[node=" + node + ", labels= " + labels +
-                    ", underlying record=" + super.toString() + " ]";
+            return "NodeLabelIndexCursor[node=" + entityReference() + ", labels= " + tokens() + "]";
         }
-    }
-
-    private boolean isRemoved( long reference )
-    {
-        return removed != null && removed.contains( reference );
     }
 
     public void release()
     {
-        // nothing to do
+        if ( securityNodeCursor != null )
+        {
+            securityNodeCursor.close();
+            securityNodeCursor.release();
+        }
     }
 }

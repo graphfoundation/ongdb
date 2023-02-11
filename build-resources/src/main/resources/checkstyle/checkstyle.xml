@@ -11,7 +11,7 @@
   <!-- Require license headers (GPL, AGPL or Apache 2.0) -->
   <module name="RegexpSingleline">
     <property name="format"
-              value="^(\s|\*)*Copyright \(c\) 2018-[0-9]{4} &quot;Graph Foundation,&quot;*$"/>
+              value="^(\s|\*)*Copyright \(c\) &quot;Graph Foundation,&quot;"/>
     <property name="minimum" value="1"/>
     <property name="maximum" value="1"/>
     <property name="message" value="Missing, wrong or duplicated license header"/>
@@ -41,6 +41,12 @@
     <property name="message" value="Two or more consecutive empty lines"/>
   </module>
 
+  <module name="LineLength">
+    <property name="fileExtensions" value="java" />
+    <property name="max" value="160"/>
+    <property name="ignorePattern" value="a href|href|http://|https://"/>
+  </module>
+
   <module name="TreeWalker">
 
     <module name="PackageDeclaration"/>
@@ -64,7 +70,10 @@
       <property name="allowSamelineSingleParameterlessAnnotation" value="false"/>
       <property name="allowSamelineParameterizedAnnotation" value="false"/>
     </module>
-    <module name="UnnecessaryParentheses"/>
+    <module name="UnnecessaryParentheses">
+      <property name="tokens" value="EXPR , IDENT , NUM_DOUBLE , NUM_FLOAT , NUM_INT , NUM_LONG , STRING_LITERAL , LITERAL_NULL , LITERAL_FALSE , LITERAL_TRUE , ASSIGN , BAND_ASSIGN , BOR_ASSIGN , BSR_ASSIGN , BXOR_ASSIGN , DIV_ASSIGN , MINUS_ASSIGN , MOD_ASSIGN , PLUS_ASSIGN , SL_ASSIGN , SR_ASSIGN , STAR_ASSIGN , LAMBDA , TEXT_BLOCK_LITERAL_BEGIN , LITERAL_INSTANCEOF , UNARY_MINUS , UNARY_PLUS , BNOT , POST_INC , POST_DEC"/>
+    </module>
+
     <module name="LeftCurly">
       <property name="option" value="nl"/>
       <property name="tokens" value="INTERFACE_DEF, CLASS_DEF, ANNOTATION_DEF, ENUM_DEF, CTOR_DEF, METHOD_DEF, ENUM_CONSTANT_DEF, LITERAL_WHILE, LITERAL_TRY, LITERAL_CATCH, LITERAL_FINALLY, LITERAL_SYNCHRONIZED, LITERAL_SWITCH, LITERAL_DO, LITERAL_IF, LITERAL_ELSE, LITERAL_FOR, STATIC_INIT, OBJBLOCK"/>
@@ -79,7 +88,9 @@
       <property name="allowEmptyLambdas" value="true"/>
       <property name="allowEmptyMethods" value="true"/>
     </module>
-    <module name="OneStatementPerLine"/>
+    <module name="OneStatementPerLine">
+      <property name="treatTryResourcesAsStatement" value="true"/>
+    </module>
     <module name="ParenPad">
       <property name="tokens"
                 value="ANNOTATION, ANNOTATION_FIELD_DEF, CTOR_CALL, CTOR_DEF, ENUM_CONSTANT_DEF, LITERAL_CATCH, LITERAL_DO, LITERAL_FOR, LITERAL_IF, LITERAL_NEW, LITERAL_SWITCH, LITERAL_SYNCHRONIZED, LITERAL_WHILE, RESOURCE_SPECIFICATION, SUPER_CTOR_CALL, LAMBDA, METHOD_DEF"/>
@@ -88,10 +99,6 @@
     <module name="AvoidStarImport"/>
     <module name="GenericWhitespace"/>
     <module name="ExplicitInitialization"/>
-    <module name="LineLength">
-      <property name="max" value="160"/>
-      <property name="ignorePattern" value="a href|href|http://|https://"/>
-    </module>
 
     <module name="IllegalImport">
       <property name="illegalPkgs" value="junit.framework"/>

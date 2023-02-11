@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,120 +38,451 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReferenceArray;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Function;
 
+import org.neo4j.common.TokenNameLookup;
+import org.neo4j.internal.kernel.api.IndexQueryConstraints;
+import org.neo4j.internal.kernel.api.PropertyIndexQuery;
+import org.neo4j.internal.kernel.api.exceptions.EntityNotFoundException;
+import org.neo4j.internal.kernel.api.security.AccessMode;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexProviderDescriptor;
+import org.neo4j.internal.schema.IndexType;
+import org.neo4j.internal.unsafe.UnsafeUtil;
+import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.pagecache.PageCache;
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
+import org.neo4j.kernel.api.index.IndexAccessor;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexPopulator;
+import org.neo4j.kernel.api.index.IndexProgressor;
 import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
+import org.neo4j.kernel.api.index.IndexUpdater;
+import org.neo4j.kernel.impl.api.index.IndexSamplingConfig;
+import org.neo4j.kernel.impl.scheduler.JobSchedulerFactory;
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobHandle;
+import org.neo4j.scheduler.JobMonitoringParams;
+import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
+import org.neo4j.storageengine.api.ValueIndexEntryUpdate;
+import org.neo4j.storageengine.api.schema.SimpleEntityClient;
 import org.neo4j.test.Race;
-import org.neo4j.test.rule.PageCacheAndDependenciesRule;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
+import org.neo4j.test.extension.pagecache.PageCacheExtension;
+import org.neo4j.test.RandomSupport;
+import org.neo4j.test.utils.TestDirectory;
+import org.neo4j.values.storable.RandomValues;
 import org.neo4j.values.storable.Value;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.junit.Assert.fail;
+import static org.apache.commons.lang3.ArrayUtils.toArray;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.neo4j.internal.kernel.api.IndexQueryConstraints.unordered;
+import static org.neo4j.internal.kernel.api.PropertyIndexQuery.allEntries;
+import static org.neo4j.internal.kernel.api.QueryContext.NULL_CONTEXT;
+import static org.neo4j.internal.schema.IndexPrototype.forSchema;
+import static org.neo4j.internal.schema.SchemaDescriptors.forLabel;
+import static org.neo4j.io.ByteUnit.kibiBytes;
+import static org.neo4j.io.memory.ByteBufferFactory.heapBufferFactory;
+import static org.neo4j.io.pagecache.context.CursorContext.NULL;
 import static org.neo4j.kernel.api.index.IndexDirectoryStructure.directoriesByProvider;
 import static org.neo4j.kernel.api.index.IndexDirectoryStructure.directoriesBySubProvider;
+import static org.neo4j.kernel.api.schema.SchemaTestUtil.SIMPLE_NAME_LOOKUP;
+import static org.neo4j.kernel.impl.api.index.PhaseTracker.nullInstance;
+import static org.neo4j.memory.EmptyMemoryTracker.INSTANCE;
+import static org.neo4j.storageengine.api.IndexEntryUpdate.add;
+import static org.neo4j.storageengine.api.IndexEntryUpdate.change;
+import static org.neo4j.storageengine.api.IndexEntryUpdate.remove;
+import static org.neo4j.test.Race.throwing;
 
-public abstract class IndexPopulationStressTest
+@PageCacheExtension
+@ExtendWith( RandomExtension.class )
+abstract class IndexPopulationStressTest
 {
-    @Rule
-    public PageCacheAndDependenciesRule rules =
-            new PageCacheAndDependenciesRule( DefaultFileSystemRule::new, this.getClass() );
+    private static final IndexProviderDescriptor PROVIDER = new IndexProviderDescriptor( "provider", "1.0" );
+    private static final int THREADS = 50;
+    private static final int MAX_BATCH_SIZE = 100;
+    private static final int BATCHES_PER_THREAD = 100;
 
-    protected final SchemaIndexDescriptor descriptor = SchemaIndexDescriptorFactory.forLabel( 0, 0 );
+    @Inject
+    private RandomSupport random;
+    @Inject
+    PageCache pageCache;
+    @Inject
+    FileSystemAbstraction fs;
+    @Inject
+    private TestDirectory testDirectory;
 
+    private final Scheduler scheduler = new Scheduler();
+    private final boolean hasValues;
+    private final Function<RandomValues,Value> valueGenerator;
+    private final Function<IndexPopulationStressTest,IndexProvider> providerCreator;
+    private IndexDescriptor descriptor;
+    private IndexDescriptor descriptor2;
+    private final IndexSamplingConfig samplingConfig = new IndexSamplingConfig( 1000, 0.2, true );
+    private final NodePropertyAccessor nodePropertyAccessor = mock( NodePropertyAccessor.class );
     private IndexPopulator populator;
+    private IndexProvider indexProvider;
+    private TokenNameLookup tokenNameLookup;
+    private boolean prevAccessCheck;
 
-    /**
-     * Create the provider to stress.
-     */
-    abstract IndexProvider newProvider( IndexDirectoryStructure.Factory directory );
+    abstract IndexType indexType();
 
-    /**
-     * Generate a random value to populate the index with.
-     */
-    abstract Value randomValue( Random random );
-
-    @Before
-    public void setup() throws IOException
+    IndexPopulationStressTest(
+            boolean hasValues, Function<RandomValues,Value> valueGenerator, Function<IndexPopulationStressTest,IndexProvider> providerCreator )
     {
-        File storeDir = rules.directory().graphDbDir();
-        IndexDirectoryStructure.Factory directory =
-                directoriesBySubProvider( directoriesByProvider( storeDir ).forProvider( new IndexProvider.Descriptor( "provider", "1.0" ) ) );
-
-        IndexProvider indexProvider = newProvider( directory );
-
-        rules.fileSystem().mkdirs( indexProvider.directoryStructure().rootDirectory() );
-
-        populator = indexProvider.getPopulator( 0, descriptor, new IndexSamplingConfig( 1000, 0.2, true ) );
+        this.hasValues = hasValues;
+        this.valueGenerator = valueGenerator;
+        this.providerCreator = providerCreator;
     }
 
-    @After
-    public void teardown() throws IOException
+    IndexDirectoryStructure.Factory directory()
     {
-        populator.close( true );
+        return directoriesBySubProvider( directoriesByProvider( testDirectory.homePath() ).forProvider( PROVIDER ) );
+    }
+
+    @BeforeEach
+    void setup() throws IOException, EntityNotFoundException
+    {
+        indexProvider = providerCreator.apply( this );
+        tokenNameLookup = SIMPLE_NAME_LOOKUP;
+        descriptor = indexProvider
+                .completeConfiguration( forSchema( forLabel( 0, 0 ), PROVIDER ).withIndexType( indexType() ).withName( "index_0" ).materialise( 0 ) );
+        descriptor2 = indexProvider
+                .completeConfiguration( forSchema( forLabel( 1, 0 ), PROVIDER ).withIndexType( indexType() ).withName( "index_1" ).materialise( 1 ) );
+        fs.mkdirs( indexProvider.directoryStructure().rootDirectory() );
+        populator = indexProvider.getPopulator( descriptor, samplingConfig, heapBufferFactory( (int) kibiBytes( 40 ) ), INSTANCE, tokenNameLookup );
+        when( nodePropertyAccessor.getNodePropertyValue( anyLong(), anyInt(), any( CursorContext.class ) ) ).thenThrow(
+                UnsupportedOperationException.class );
+        prevAccessCheck = UnsafeUtil.exchangeNativeAccessCheckEnabled( false );
+    }
+
+    @AfterEach
+    void tearDown() throws Exception
+    {
+        UnsafeUtil.exchangeNativeAccessCheckEnabled( prevAccessCheck );
+        if ( populator != null )
+        {
+            populator.close( true, NULL );
+        }
+
+        scheduler.shutdown();
     }
 
     @Test
-    public void stressIt() throws Throwable
+    void stressIt() throws Throwable
     {
         Race race = new Race();
-        final int threads = 50;
-        final AtomicBoolean end = new AtomicBoolean();
+        AtomicReferenceArray<List<ValueIndexEntryUpdate<?>>> lastBatches = new AtomicReferenceArray<>( THREADS );
+        Generator[] generators = new Generator[THREADS];
 
         populator.create();
-
-        for ( int i = 0; i < threads; i++ )
+        CountDownLatch insertersDone = new CountDownLatch( THREADS );
+        ReadWriteLock updateLock = new ReentrantReadWriteLock( true );
+        for ( int i = 0; i < THREADS; i++ )
         {
-            race.addContestant( Race.throwing( () ->
-            {
-                ThreadLocalRandom random = ThreadLocalRandom.current();
-                while ( !end.get() )
-                {
-                    populator.add( randomAdds( random ) );
-                }
-            } ) );
+            race.addContestant( inserter( lastBatches, generators, insertersDone, updateLock, i ), 1 );
         }
+        Collection<ValueIndexEntryUpdate<?>> updates = new ArrayList<>();
+        race.addContestant( updater( lastBatches, insertersDone, updateLock, updates ) );
 
-        try
+        race.go();
+        populator.scanCompleted( nullInstance, scheduler, NULL);
+        populator.close( true, NULL );
+        populator = null; // to let the after-method know that we've closed it ourselves
+
+        // then assert that a tree built by a single thread ends up exactly the same
+        buildReferencePopulatorSingleThreaded( generators, updates );
+        try ( IndexAccessor accessor = indexProvider.getOnlineAccessor( descriptor, samplingConfig, tokenNameLookup );
+                IndexAccessor referenceAccessor = indexProvider.getOnlineAccessor( descriptor2, samplingConfig, tokenNameLookup );
+                var reader = accessor.newValueReader();
+                var referenceReader = referenceAccessor.newValueReader() )
         {
-            race.go( 5, SECONDS );
-            fail( "Race should have timed out." );
-        }
-        catch ( TimeoutException t )
-        {
-            // great, nothing else failed!
-            end.set( true );
+            RecordingClient entries = new RecordingClient();
+            RecordingClient referenceEntries = new RecordingClient();
+            reader.query( entries, NULL_CONTEXT, AccessMode.Static.READ, unordered( hasValues ), allEntries() );
+            referenceReader.query( referenceEntries, NULL_CONTEXT, AccessMode.Static.READ, unordered( hasValues ), allEntries() );
+
+            exhaustAndSort( referenceEntries );
+            exhaustAndSort( entries );
+
+            // a sanity check that we actually collected something
+            assertFalse( entries.records.isEmpty() );
+
+            assertThat( entries.records ).isEqualTo( referenceEntries.records );
         }
     }
 
-    private Collection<? extends IndexEntryUpdate<?>> randomAdds( Random random )
+    private void exhaustAndSort( RecordingClient client )
     {
-        int n = random.nextInt( 100 ) + 1;
-        List<IndexEntryUpdate<?>> updates = new ArrayList<>( n );
-        for ( int i = 0; i < n; i++ )
+        while ( client.next() )
         {
-            Value value = randomValue( random );
-            updates.add( IndexEntryUpdate.add( i, descriptor, value ) );
+
         }
-        return updates;
+
+        client.records.sort( Comparator.comparingLong( o -> o.entityId ) );
+    }
+
+    private Runnable updater( AtomicReferenceArray<List<ValueIndexEntryUpdate<?>>> lastBatches, CountDownLatch insertersDone, ReadWriteLock updateLock,
+            Collection<ValueIndexEntryUpdate<?>> updates )
+    {
+        return throwing( () ->
+        {
+            // Entity ids that have been removed, so that additions can reuse them
+            List<Long> removed = new ArrayList<>();
+            RandomValues randomValues = RandomValues.create( new Random( random.seed() + THREADS ) );
+            while ( insertersDone.getCount() > 0 )
+            {
+                // Do updates now and then
+                Thread.sleep( 10 );
+                updateLock.writeLock().lock();
+                try ( IndexUpdater updater = populator.newPopulatingUpdater( nodePropertyAccessor, NULL ) )
+                {
+                    for ( int i = 0; i < THREADS; i++ )
+                    {
+                        List<ValueIndexEntryUpdate<?>> batch = lastBatches.get( i );
+                        if ( batch != null )
+                        {
+                            ValueIndexEntryUpdate<?> update = null;
+                            switch ( randomValues.nextInt( 3 ) )
+                            {
+                            case 0: // add
+                                if ( !removed.isEmpty() )
+                                {
+                                    Long id = removed.remove( randomValues.nextInt( removed.size() ) );
+                                    update = add( id, descriptor, valueGenerator.apply( randomValues ) );
+                                }
+                                break;
+                            case 1: // remove
+                                ValueIndexEntryUpdate<?> removal = batch.get( randomValues.nextInt( batch.size() ) );
+                                update = remove( removal.getEntityId(), descriptor, removal.values() );
+                                removed.add( removal.getEntityId() );
+                                break;
+                            case 2: // change
+                                removal = batch.get( randomValues.nextInt( batch.size() ) );
+                                change( removal.getEntityId(), descriptor, removal.values(), toArray( valueGenerator.apply( randomValues ) ) );
+                                break;
+                            default:
+                                throw new IllegalArgumentException();
+                            }
+                            if ( update != null )
+                            {
+                                updater.process( update );
+                                updates.add( update );
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    updateLock.writeLock().unlock();
+                }
+            }
+        } );
+    }
+
+    private Runnable inserter( AtomicReferenceArray<List<ValueIndexEntryUpdate<?>>> lastBatches, Generator[] generators, CountDownLatch insertersDone,
+        ReadWriteLock updateLock, int slot )
+    {
+        int worstCaseEntriesPerThread = BATCHES_PER_THREAD * MAX_BATCH_SIZE;
+        return throwing( () ->
+        {
+            try
+            {
+                Generator generator = generators[slot] = new Generator( MAX_BATCH_SIZE, random.seed() + slot, slot * worstCaseEntriesPerThread );
+                for ( int j = 0; j < BATCHES_PER_THREAD; j++ )
+                {
+                    List<ValueIndexEntryUpdate<?>> batch = generator.batch( descriptor );
+                    updateLock.readLock().lock();
+                    try
+                    {
+                        populator.add( batch, NULL );
+                    }
+                    finally
+                    {
+                        updateLock.readLock().unlock();
+                    }
+                    lastBatches.set( slot, batch );
+                }
+            }
+            finally
+            {
+                // This helps the updater know when to stop updating
+                insertersDone.countDown();
+            }
+        } );
+    }
+
+    private void buildReferencePopulatorSingleThreaded( Generator[] generators, Collection<ValueIndexEntryUpdate<?>> updates )
+            throws IndexEntryConflictException, IOException
+    {
+        IndexPopulator referencePopulator = indexProvider.getPopulator( descriptor2, samplingConfig, heapBufferFactory( (int) kibiBytes( 40 ) ),
+                INSTANCE, tokenNameLookup );
+        referencePopulator.create();
+        boolean referenceSuccess = false;
+        try
+        {
+            for ( Generator generator : generators )
+            {
+                generator.reset();
+                for ( int i = 0; i < BATCHES_PER_THREAD; i++ )
+                {
+                    referencePopulator.add( generator.batch( descriptor2 ), NULL );
+                }
+            }
+            try ( IndexUpdater updater = referencePopulator.newPopulatingUpdater( nodePropertyAccessor, NULL ) )
+            {
+                for ( ValueIndexEntryUpdate<?> update : updates )
+                {
+                    updater.process( update );
+                }
+            }
+            referenceSuccess = true;
+            referencePopulator.scanCompleted( nullInstance, scheduler, NULL );
+        }
+        finally
+        {
+            referencePopulator.close( referenceSuccess, NULL );
+        }
+    }
+
+    private class Generator
+    {
+        private final int maxBatchSize;
+        private final long seed;
+        private final long startEntityId;
+
+        private RandomValues randomValues;
+        private long nextEntityId;
+
+        Generator( int maxBatchSize, long seed, long startEntityId )
+        {
+            this.startEntityId = startEntityId;
+            this.nextEntityId = startEntityId;
+            this.maxBatchSize = maxBatchSize;
+            this.seed = seed;
+            reset();
+        }
+
+        private void reset()
+        {
+            randomValues = RandomValues.create( new Random( seed ) );
+            nextEntityId = startEntityId;
+        }
+
+        List<ValueIndexEntryUpdate<?>> batch( IndexDescriptor descriptor )
+        {
+            int n = randomValues.nextInt( maxBatchSize ) + 1;
+            List<ValueIndexEntryUpdate<?>> updates = new ArrayList<>( n );
+            for ( int i = 0; i < n; i++ )
+            {
+                updates.add( add( nextEntityId++, descriptor, valueGenerator.apply( randomValues ) ) );
+            }
+            return updates;
+        }
+    }
+
+    private static class Scheduler implements IndexPopulator.PopulationWorkScheduler
+    {
+        private final JobScheduler jobScheduler = JobSchedulerFactory.createInitialisedScheduler();
+
+        @Override
+        public <T> JobHandle<T> schedule( IndexPopulator.JobDescriptionSupplier descriptionSupplier, Callable<T> job )
+        {
+            return jobScheduler.schedule( Group.INDEX_POPULATION_WORK, new JobMonitoringParams( null, null, null ), job );
+        }
+
+        void shutdown() throws Exception
+        {
+            jobScheduler.shutdown();
+        }
+    }
+
+    private static class RecordingClient extends SimpleEntityClient implements IndexProgressor.EntityValueClient
+    {
+        final List<IndexRecord> records = new ArrayList<>();
+
+        @Override
+        public void initialize( IndexDescriptor descriptor, IndexProgressor progressor, AccessMode accessMode,
+                boolean indexIncludesTransactionState, IndexQueryConstraints constraints, PropertyIndexQuery... query )
+        {
+            initialize( progressor );
+        }
+
+        @Override
+        public boolean acceptEntity( long reference, float score, Value... values )
+        {
+            acceptEntity( reference );
+            records.add( new IndexRecord( reference, values ) );
+            return true;
+        }
+
+        @Override
+        public boolean needsValues()
+        {
+            return true;
+        }
+    }
+
+    private static class IndexRecord
+    {
+        private final long entityId;
+        private final Value[] values;
+
+        IndexRecord( long entityId, Value[] values )
+        {
+            this.entityId = entityId;
+            this.values = values;
+        }
+
+        @Override
+        public boolean equals( Object o )
+        {
+            if ( this == o )
+            {
+                return true;
+            }
+            if ( o == null || getClass() != o.getClass() )
+            {
+                return false;
+            }
+            IndexRecord that = (IndexRecord) o;
+            return entityId == that.entityId &&
+                    Arrays.equals( values, that.values );
+        }
+
+        @Override
+        public int hashCode()
+        {
+            int result = Objects.hash( entityId );
+            result = 31 * result + Arrays.hashCode( values );
+            return result;
+        }
     }
 }

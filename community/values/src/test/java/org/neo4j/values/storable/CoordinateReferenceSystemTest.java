@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,97 +38,95 @@
  */
 package org.neo4j.values.storable;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.values.utils.InvalidValuesArgumentException;
+import org.neo4j.exceptions.InvalidArgumentException;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.closeTo;
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.data.Offset.offset;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.neo4j.values.storable.CoordinateReferenceSystem.Cartesian;
 import static org.neo4j.values.storable.CoordinateReferenceSystem.WGS84;
 
-public class CoordinateReferenceSystemTest
+class CoordinateReferenceSystemTest
 {
     @Test
-    public void shouldGetCrsByCode()
+    void shouldGetCrsByCode()
     {
         assertEquals( Cartesian, CoordinateReferenceSystem.get( Cartesian.getCode() ) );
         assertEquals( WGS84, CoordinateReferenceSystem.get( WGS84.getCode() ) );
     }
 
     @Test
-    public void shouldFailToGetWithIncorrectCode()
+    void shouldFailToGetWithIncorrectCode()
     {
-        try
-        {
-            CoordinateReferenceSystem.get( 42 );
-            fail( "Exception expected" );
-        }
-        catch ( InvalidValuesArgumentException e )
-        {
-            assertEquals( "Unknown coordinate reference system code: 42", e.getMessage() );
-        }
+        InvalidArgumentException exception = assertThrows( InvalidArgumentException.class, () -> CoordinateReferenceSystem.get( 42 ) );
+        assertEquals( "Unknown coordinate reference system code: 42", exception.getMessage() );
     }
 
     @Test
-    public void shouldFindByTableAndCode()
+    void shouldFindByTableAndCode()
     {
-        assertThat( CoordinateReferenceSystem.get( 1, 4326 ), equalTo( CoordinateReferenceSystem.WGS84 ) );
-        assertThat( CoordinateReferenceSystem.get( 1, 4979 ), equalTo( CoordinateReferenceSystem.WGS84_3D ) );
-        assertThat( CoordinateReferenceSystem.get( 2, 7203 ), equalTo( CoordinateReferenceSystem.Cartesian ) );
-        assertThat( CoordinateReferenceSystem.get( 2, 9157 ), equalTo( CoordinateReferenceSystem.Cartesian_3D ) );
+        assertThat( CoordinateReferenceSystem.get( 1, 4326 ) ).isEqualTo( CoordinateReferenceSystem.WGS84 );
+        assertThat( CoordinateReferenceSystem.get( 1, 4979 ) ).isEqualTo( CoordinateReferenceSystem.WGS84_3D );
+        assertThat( CoordinateReferenceSystem.get( 2, 7203 ) ).isEqualTo( CoordinateReferenceSystem.Cartesian );
+        assertThat( CoordinateReferenceSystem.get( 2, 9157 ) ).isEqualTo( CoordinateReferenceSystem.Cartesian_3D );
     }
 
     @Test
-    public void shouldCalculateCartesianDistance()
+    void shouldCalculateCartesianDistance()
     {
         CoordinateReferenceSystem crs = CoordinateReferenceSystem.Cartesian;
-        assertThat( "", crs.getCalculator().distance( cart( 0.0, 0.0 ), cart( 0.0, 1.0 ) ), equalTo( 1.0 ) );
-        assertThat( "", crs.getCalculator().distance( cart( 0.0, 0.0 ), cart( 1.0, 0.0 ) ), equalTo( 1.0 ) );
-        assertThat( "", crs.getCalculator().distance( cart( 0.0, 0.0 ), cart( 1.0, 1.0 ) ), closeTo( 1.4, 0.02 ) );
-        assertThat( "", crs.getCalculator().distance( cart( 0.0, 0.0 ), cart( 0.0, -1.0 ) ), equalTo( 1.0 ) );
-        assertThat( "", crs.getCalculator().distance( cart( 0.0, 0.0 ), cart( -1.0, 0.0 ) ), equalTo( 1.0 ) );
-        assertThat( "", crs.getCalculator().distance( cart( 0.0, 0.0 ), cart( -1.0, -1.0 ) ), closeTo( 1.4, 0.02 ) );
-        assertThat( "", crs.getCalculator().distance( cart( 1.0, 0.0 ), cart( 0.0, -1.0 ) ), closeTo( 1.4, 0.02 ) );
-        assertThat( "", crs.getCalculator().distance( cart( 1.0, 0.0 ), cart( -1.0, 0.0 ) ), equalTo( 2.0 ) );
-        assertThat( "", crs.getCalculator().distance( cart( 1.0, 0.0 ), cart( -1.0, -1.0 ) ), closeTo( 2.24, 0.01 ) );
-        assertThat( "", crs.getCalculator().distance( cart( -1000000.0, -1000000.0 ), cart( 1000000.0, 1000000.0 ) ), closeTo( 2828427.0, 1.0 ) );
+        assertThat( crs.getCalculator().distance( cart( 0.0, 0.0 ), cart( 0.0, 1.0 ) ) ).isEqualTo( 1.0 );
+        assertThat( crs.getCalculator().distance( cart( 0.0, 0.0 ), cart( 1.0, 0.0 ) ) ).isEqualTo( 1.0 );
+        assertThat( crs.getCalculator().distance( cart( 0.0, 0.0 ), cart( 1.0, 1.0 ) ) ).isCloseTo( 1.4, offset( 0.02 ) );
+        assertThat( crs.getCalculator().distance( cart( 0.0, 0.0 ), cart( 0.0, -1.0 ) ) ).isEqualTo( 1.0 );
+        assertThat( crs.getCalculator().distance( cart( 0.0, 0.0 ), cart( -1.0, 0.0 ) ) ).isEqualTo( 1.0 );
+        assertThat( crs.getCalculator().distance( cart( 0.0, 0.0 ), cart( -1.0, -1.0 ) ) ).isCloseTo( 1.4, offset( 0.02 ) );
+        assertThat( crs.getCalculator().distance( cart( 1.0, 0.0 ), cart( 0.0, -1.0 ) ) ).isCloseTo( 1.4, offset( 0.02 ) );
+        assertThat( crs.getCalculator().distance( cart( 1.0, 0.0 ), cart( -1.0, 0.0 ) ) ).isEqualTo( 2.0 );
+        assertThat( crs.getCalculator().distance( cart( 1.0, 0.0 ), cart( -1.0, -1.0 ) ) ).isCloseTo( 2.24, offset( 0.01 ) );
+        assertThat( crs.getCalculator().distance( cart( -1000000.0, -1000000.0 ), cart( 1000000.0, 1000000.0 ) ) ).isCloseTo( 2828427.0,
+                offset( 1.0 ) );
     }
 
     @Test
-    public void shouldCalculateCartesianDistance3D()
+    void shouldCalculateCartesianDistance3D()
     {
         CoordinateReferenceSystem crs = CoordinateReferenceSystem.Cartesian_3D;
-        assertThat( "", crs.getCalculator().distance( cart( 0.0, 0.0, 0.0 ), cart( 1.0, 0.0, 0.0 ) ), equalTo( 1.0 ) );
-        assertThat( "", crs.getCalculator().distance( cart( 0.0, 0.0, 0.0 ), cart( 0.0, 1.0, 0.0 ) ), equalTo( 1.0 ) );
-        assertThat( "", crs.getCalculator().distance( cart( 0.0, 0.0, 0.0 ), cart( 0.0, 0.0, 1.0 ) ), equalTo( 1.0 ) );
-        assertThat( "", crs.getCalculator().distance( cart( 0.0, 0.0, 0.0 ), cart( 0.0, 1.0, 1.0 ) ), closeTo( 1.41, 0.01 ) );
-        assertThat( "", crs.getCalculator().distance( cart( 0.0, 0.0, 0.0 ), cart( 1.0, 1.0, 1.0 ) ), closeTo( 1.73, 0.01 ) );
-        assertThat( "", crs.getCalculator().distance( cart( -1000000.0, -1000000.0, -1000000.0 ), cart( 1000000.0, 1000000.0, 1000000.0 ) ),
-                closeTo( 3464102.0, 1.0 ) );
+        assertThat( crs.getCalculator().distance( cart( 0.0, 0.0, 0.0 ), cart( 1.0, 0.0, 0.0 ) ) ).isEqualTo( 1.0 );
+        assertThat( crs.getCalculator().distance( cart( 0.0, 0.0, 0.0 ), cart( 0.0, 1.0, 0.0 ) ) ).isEqualTo( 1.0 );
+        assertThat( crs.getCalculator().distance( cart( 0.0, 0.0, 0.0 ), cart( 0.0, 0.0, 1.0 ) ) ).isEqualTo( 1.0 );
+        assertThat( crs.getCalculator().distance( cart( 0.0, 0.0, 0.0 ), cart( 0.0, 1.0, 1.0 ) ) ).isCloseTo( 1.41, offset( 0.01 ) );
+        assertThat( crs.getCalculator().distance( cart( 0.0, 0.0, 0.0 ), cart( 1.0, 1.0, 1.0 ) ) ).isCloseTo( 1.73, offset( 0.01 ) );
+        assertThat( crs.getCalculator().distance( cart( -1000000.0, -1000000.0, -1000000.0 ), cart( 1000000.0, 1000000.0, 1000000.0 ) ) )
+                .isCloseTo( 3464102.0, offset( 1.0 ) );
     }
 
     @Test
-    public void shouldCalculateGeographicDistance()
+    void shouldCalculateGeographicDistance()
     {
         CoordinateReferenceSystem crs = CoordinateReferenceSystem.WGS84;
-        assertThat( "2D distance should match", crs.getCalculator().distance( geo( 0.0, 0.0 ), geo( 0.0, 90.0 ) ), closeTo( 10000000.0, 20000.0 ) );
-        assertThat( "2D distance should match", crs.getCalculator().distance( geo( 0.0, 0.0 ), geo( 0.0, -90.0 ) ), closeTo( 10000000.0, 20000.0 ) );
-        assertThat( "2D distance should match", crs.getCalculator().distance( geo( 0.0, -45.0 ), geo( 0.0, 45.0 ) ), closeTo( 10000000.0, 20000.0 ) );
-        assertThat( "2D distance should match", crs.getCalculator().distance( geo( -45.0, 0.0 ), geo( 45.0, 0.0 ) ), closeTo( 10000000.0, 20000.0 ) );
-        assertThat( "2D distance should match", crs.getCalculator().distance( geo( -45.0, 0.0 ), geo( 45.0, 0.0 ) ), closeTo( 10000000.0, 20000.0 ) );
+        assertThat( crs.getCalculator().distance( geo( 0.0, 0.0 ), geo( 0.0, 90.0 ) ) ).as( "2D distance should match" ).isCloseTo( 10000000.0,
+                offset( 20000.0 ) );
+        assertThat( crs.getCalculator().distance( geo( 0.0, 0.0 ), geo( 0.0, -90.0 ) ) ).as( "2D distance should match" ).isCloseTo( 10000000.0,
+                offset( 20000.0 ) );
+        assertThat( crs.getCalculator().distance( geo( 0.0, -45.0 ), geo( 0.0, 45.0 ) ) ).as( "2D distance should match" ).isCloseTo( 10000000.0,
+                offset( 20000.0 ) );
+        assertThat( crs.getCalculator().distance( geo( -45.0, 0.0 ), geo( 45.0, 0.0 ) ) ).as( "2D distance should match" ).isCloseTo( 10000000.0,
+                offset( 20000.0 ) );
+        assertThat( crs.getCalculator().distance( geo( -45.0, 0.0 ), geo( 45.0, 0.0 ) ) ).as( "2D distance should match" ).isCloseTo( 10000000.0,
+                offset( 20000.0 ) );
         //"distance function should measure distance from Copenhagen train station to Neo4j in Malmö"
         PointValue cph = geo( 12.564590, 55.672874 );
         PointValue malmo = geo( 12.994341, 55.611784 );
         double expected = 27842.0;
-        assertThat( "2D distance should match", crs.getCalculator().distance( cph, malmo ), closeTo( expected, 0.1 ) );
+        assertThat( crs.getCalculator().distance( cph, malmo ) ).as( "2D distance should match" ).isCloseTo( expected, offset( 0.1 ) );
     }
 
     @Test
-    public void shouldCalculateGeographicDistance3D()
+    void shouldCalculateGeographicDistance3D()
     {
         CoordinateReferenceSystem crs = CoordinateReferenceSystem.WGS84_3D;
         //"distance function should measure distance from Copenhagen train station to Neo4j in Malmö"
@@ -138,18 +136,18 @@ public class CoordinateReferenceSystemTest
         PointValue malmoHigh = geo( 12.994341, 55.611784, 1000.0 );
         double expected = 27842.0;
         double expectedHigh = 27862.0;
-        assertThat( "3D distance should match", crs.getCalculator().distance( cph, malmo ), closeTo( expected, 0.1 ) );
-        assertThat( "3D distance should match", crs.getCalculator().distance( cph, malmoHigh ), closeTo( expectedHigh, 0.2 ) );
-        assertThat( "3D distance should match", crs.getCalculator().distance( cphHigh, malmo ), closeTo( expectedHigh, 0.2 ) );
+        assertThat( crs.getCalculator().distance( cph, malmo ) ).as( "3D distance should match" ).isCloseTo( expected, offset( 0.1 ) );
+        assertThat( crs.getCalculator().distance( cph, malmoHigh ) ).as( "3D distance should match" ).isCloseTo( expectedHigh, offset( 0.2 ) );
+        assertThat( crs.getCalculator().distance( cphHigh, malmo ) ).as( "3D distance should match" ).isCloseTo( expectedHigh, offset( 0.2 ) );
     }
 
-    private PointValue cart( double... coords )
+    private static PointValue cart( double... coords )
     {
         CoordinateReferenceSystem crs = coords.length == 3 ? CoordinateReferenceSystem.Cartesian_3D : CoordinateReferenceSystem.Cartesian;
         return Values.pointValue( crs, coords );
     }
 
-    private PointValue geo( double... coords )
+    private static PointValue geo( double... coords )
     {
         CoordinateReferenceSystem crs = coords.length == 3 ? CoordinateReferenceSystem.Cartesian_3D : CoordinateReferenceSystem.Cartesian;
         return Values.pointValue( crs, coords );

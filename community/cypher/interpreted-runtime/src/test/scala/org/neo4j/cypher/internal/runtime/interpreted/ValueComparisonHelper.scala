@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,28 +38,43 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted
 
-import org.neo4j.graphdb.{Node, Relationship}
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.graphdb.Node
+import org.neo4j.graphdb.Relationship
 import org.neo4j.values.AnyValue
+import org.neo4j.values.storable.ArrayValue
+import org.neo4j.values.storable.DoubleValue
+import org.neo4j.values.storable.IntValue
+import org.neo4j.values.storable.LongValue
+import org.neo4j.values.storable.TextValue
+import org.neo4j.values.storable.Values
 import org.neo4j.values.storable.Values.stringValue
-import org.neo4j.values.storable._
+import org.neo4j.values.virtual.ListValue
+import org.neo4j.values.virtual.MapValue
+import org.neo4j.values.virtual.NodeValue
+import org.neo4j.values.virtual.RelationshipValue
 import org.neo4j.values.virtual.VirtualValues.list
-import org.neo4j.values.virtual._
-import org.scalatest.matchers.{MatchResult, Matcher}
+import org.scalatest.matchers.MatchResult
+import org.scalatest.matchers.Matcher
 
 object ValueComparisonHelper {
 
-  def beEquivalentTo(result: Seq[Map[String, Any]]) = new Matcher[Seq[ExecutionContext]] {
-    override def apply(left: Seq[ExecutionContext]): MatchResult = MatchResult(
-      matches = left.indices.forall(i =>
-                                      left(i).keySet == result(i).keySet &&
-                                        left(i).forall{
-                                          case (k,v) => check(v, result(i)(k))
-                                        }),
+  def beEquivalentTo(result: Seq[Map[String, Any]]): Matcher[Seq[CypherRow]] = new Matcher[Seq[CypherRow]] {
+    override def apply(left: Seq[CypherRow]): MatchResult = MatchResult(
+      matches = result.size == left.size && left.indices.forall(i => {
+        val res = result(i)
+        val row = left(i)
+        res.size == row.numberOfColumns &&
+          res.keySet.forall(row.containsName) &&
+          res.forall {
+            case (k,v) => check(row.getByName(k), v)
+          }
+      }),
       rawFailureMessage = s"$left != $result",
       rawNegatedFailureMessage = s"$left == $result")
   }
 
-  def beEquivalentTo(value: Any) = new Matcher[AnyValue] {
+  def beEquivalentTo(value: Any): Matcher[AnyValue] = new Matcher[AnyValue] {
     override def apply(left: AnyValue): MatchResult = MatchResult(
       matches = check(left, value),
       rawFailureMessage = s"$left != $value",

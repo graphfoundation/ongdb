@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,12 +39,13 @@
 package org.neo4j.logging;
 
 import java.util.function.Consumer;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+
+import org.neo4j.annotations.api.PublicApi;
 
 /**
  * A log into which various levels of messages can be written
  */
+@PublicApi
 public interface Log
 {
     /**
@@ -54,119 +55,99 @@ public interface Log
 
     /**
      * @return a {@link Logger} instance for writing debug messages
+     * @deprecated Use {@link #debug(String)} directly.
      */
-    @Nonnull
+    @Deprecated( forRemoval = true, since = "4.2" )
     Logger debugLogger();
 
     /**
-     * Shorthand for {@code debugLogger().log( message )}
-     *
      * @param message The message to be written
      */
-    void debug( @Nonnull String message );
+    void debug( String message );
 
     /**
-     * Shorthand for {@code debugLogger().log( message, throwable )}
-     *
      * @param message   The message to be written
      * @param throwable An exception that will also be written
      */
-    void debug( @Nonnull String message, @Nonnull Throwable throwable );
+    void debug( String message, Throwable throwable );
 
     /**
-     * Shorthand for {@code debugLogger().log( format, arguments )}
-     *
      * @param format    A string format for writing a message
      * @param arguments Arguments to substitute into the message according to the format
      */
-    void debug( @Nonnull String format, @Nullable Object... arguments );
+    void debug( String format, Object... arguments );
 
     /**
      * @return a {@link Logger} instance for writing info messages
+     * @deprecated Use {@link #info(String)}} directly.
      */
-    @Nonnull
+    @Deprecated( forRemoval = true, since = "4.2" )
     Logger infoLogger();
 
     /**
-     * Shorthand for {@code infoLogger().log( message )}
-     *
      * @param message The message to be written
      */
-    void info( @Nonnull String message );
+    void info( String message );
 
     /**
-     * Shorthand for {@code infoLogger().log( message, throwable )}
-     *
      * @param message   The message to be written
      * @param throwable An exception that will also be written
      */
-    void info( @Nonnull String message, @Nonnull Throwable throwable );
+    void info( String message, Throwable throwable );
 
     /**
-     * Shorthand for {@code infoLogger().log( format, arguments )}
-     *
      * @param format    A string format for writing a message
      * @param arguments Arguments to substitute into the message according to the format
      */
-    void info( @Nonnull String format, @Nullable Object... arguments );
+    void info( String format, Object... arguments );
 
     /**
      * @return a {@link Logger} instance for writing warn messages
+     * @deprecated Use {@link #warn(String)} directly.
      */
-    @Nonnull
+    @Deprecated( forRemoval = true, since = "4.2" )
     Logger warnLogger();
 
     /**
-     * Shorthand for {@code warnLogger().log( message )}
-     *
      * @param message The message to be written
      */
-    void warn( @Nonnull String message );
+    void warn( String message );
 
     /**
-     * Shorthand for {@code warnLogger().log( message, throwable )}
-     *
      * @param message   The message to be written
      * @param throwable An exception that will also be written
      */
-    void warn( @Nonnull String message, @Nonnull Throwable throwable );
+    void warn( String message, Throwable throwable );
 
     /**
-     * Shorthand for {@code warnLogger().log( format, arguments )}
-     *
      * @param format    A string format for writing a message
      * @param arguments Arguments to substitute into the message according to the format
      */
-    void warn( @Nonnull String format, @Nullable Object... arguments );
+    void warn( String format, Object... arguments );
 
     /**
      * @return a {@link Logger} instance for writing error messages
+     * @deprecated Use {@link #error(String)} directly.
      */
-    @Nonnull
+    @Deprecated( forRemoval = true, since = "4.2" )
     Logger errorLogger();
 
     /**
-     * Shorthand for {@code errorLogger().log( message )}
-     *
      * @param message The message to be written
      */
-    void error( @Nonnull String message );
+    void error( String message );
 
     /**
-     * Shorthand for {@code errorLogger().log( message, throwable )}
-     *
      * @param message   The message to be written
      * @param throwable An exception that will also be written
      */
-    void error( @Nonnull String message, @Nonnull Throwable throwable );
+    void error( String message, Throwable throwable );
 
     /**
-     * Shorthand for {@code errorLogger().log( format, arguments )}
-     *
      * @param format    A string format for writing a message
      * @param arguments Arguments to substitute into the message according to the {@code format}
      */
-    void error( @Nonnull String format, @Nullable Object... arguments );
+    void error( String format, Object... arguments );
 
     /**
      * Used to temporarily log several messages in bulk. The implementation may choose to
@@ -174,5 +155,6 @@ public interface Log
      *
      * @param consumer A consumer for the bulk {@link Log}
      */
-    void bulk( @Nonnull Consumer<Log> consumer );
+    @Deprecated( forRemoval = true, since = "4.2" )
+    void bulk( Consumer<Log> consumer );
 }

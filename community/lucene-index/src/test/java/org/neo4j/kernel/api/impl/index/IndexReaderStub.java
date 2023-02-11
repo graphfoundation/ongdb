@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -46,61 +46,45 @@ import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.Fields;
 import org.apache.lucene.index.IndexOptions;
+import org.apache.lucene.index.LeafMetaData;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.NumericDocValues;
+import org.apache.lucene.index.PointValues;
 import org.apache.lucene.index.SortedDocValues;
 import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.index.SortedSetDocValues;
 import org.apache.lucene.index.StoredFieldVisitor;
+import org.apache.lucene.index.Terms;
 import org.apache.lucene.util.Bits;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Map;
+import java.util.List;
 import java.util.function.Function;
+
+import org.neo4j.internal.helpers.collection.MapUtil;
 
 public class IndexReaderStub extends LeafReader
 {
-
     private Fields fields;
-    private boolean allDeleted;
     private String[] elements = new String[0];
-    private Function<String,NumericDocValues> ndvs = s -> DocValues.emptyNumeric();
+    private Function<String,NumericDocValues> ndvs;
 
-    private IOException throwOnFields;
-    private static FieldInfo DummyFieldInfo =
+    private static final FieldInfo DUMMY_FIELD_INFO =
             new FieldInfo( "id", 0, false, true, false, IndexOptions.DOCS,
-                    DocValuesType.NONE, -1, Collections.emptyMap() );
-
-    public IndexReaderStub( boolean allDeleted, final String... elements )
-    {
-        this.allDeleted = allDeleted;
-        this.elements = elements;
-    }
-
-    public IndexReaderStub( Fields fields )
-    {
-        this.fields = fields;
-    }
+                    DocValuesType.NONE, -1, Collections.emptyMap(), 1, 1, 8, true );
 
     public IndexReaderStub( final NumericDocValues ndv )
     {
         this.ndvs = s -> ndv;
     }
 
-    public IndexReaderStub( final Map<String,NumericDocValues> ndvs )
+    public IndexReaderStub( Fields fields )
     {
-        this.ndvs = s ->
-        {
-            NumericDocValues dv = ndvs.get( s );
-            if ( dv == null )
-            {
-                return DocValues.emptyNumeric();
-            }
-            return dv;
-        };
+        this.fields = fields;
     }
 
     public void setElements( String[] elements )
@@ -109,27 +93,26 @@ public class IndexReaderStub extends LeafReader
     }
 
     @Override
-    public void addCoreClosedListener( CoreClosedListener listener )
+    public CacheHelper getCoreCacheHelper()
     {
-
+        throw new UnsupportedOperationException();
     }
 
     @Override
-    public void removeCoreClosedListener( CoreClosedListener listener )
+    public Terms terms( String field )
     {
-
-    }
-
-    @Override
-    public Fields fields() throws IOException
-    {
-        if ( throwOnFields != null )
+        if ( fields != null )
         {
-            IOException exception = this.throwOnFields;
-            throwOnFields = null;
-            throw exception;
+            try
+            {
+                return fields.terms( field );
+            }
+            catch ( IOException e )
+            {
+                throw new RuntimeException( e );
+            }
         }
-        return fields;
+        return null;
     }
 
     @Override
@@ -153,19 +136,13 @@ public class IndexReaderStub extends LeafReader
     @Override
     public SortedNumericDocValues getSortedNumericDocValues( String field )
     {
-        return DocValues.emptySortedNumeric( elements.length );
+        return DocValues.emptySortedNumeric();
     }
 
     @Override
     public SortedSetDocValues getSortedSetDocValues( String field )
     {
         return DocValues.emptySortedSet();
-    }
-
-    @Override
-    public Bits getDocsWithField( String field )
-    {
-        throw new RuntimeException( "Not yet implemented." );
     }
 
     @Override
@@ -177,7 +154,13 @@ public class IndexReaderStub extends LeafReader
     @Override
     public FieldInfos getFieldInfos()
     {
-        throw new RuntimeException( "Not yet implemented." );
+        List<FieldInfo> infos = new ArrayList<>();
+        int id = 0;
+        for ( String field : fields )
+        {
+            infos.add( new FieldInfo( field, id++, true, false, false, IndexOptions.DOCS, DocValuesType.SORTED, 1, MapUtil.stringMap(), 1, 1, 8, false ) );
+        }
+        return new FieldInfos( infos.toArray( new FieldInfo[0] ) );
     }
 
     @Override
@@ -192,7 +175,7 @@ public class IndexReaderStub extends LeafReader
                 {
                     throw new IllegalArgumentException( "Doc id out of range" );
                 }
-                return !allDeleted;
+                return true;
             }
 
             @Override
@@ -204,8 +187,20 @@ public class IndexReaderStub extends LeafReader
     }
 
     @Override
+    public PointValues getPointValues( String field )
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void checkIntegrity()
     {
+    }
+
+    @Override
+    public LeafMetaData getMetaData()
+    {
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -217,7 +212,7 @@ public class IndexReaderStub extends LeafReader
     @Override
     public int numDocs()
     {
-        return allDeleted ? 0 : elements.length;
+        return elements.length;
     }
 
     @Override
@@ -229,7 +224,7 @@ public class IndexReaderStub extends LeafReader
     @Override
     public void document( int docID, StoredFieldVisitor visitor ) throws IOException
     {
-        visitor.stringField( DummyFieldInfo, String.valueOf( docID ).getBytes( StandardCharsets.UTF_8 ) );
+        visitor.stringField( DUMMY_FIELD_INFO, String.valueOf( docID ).getBytes( StandardCharsets.UTF_8 ) );
     }
 
     @Override
@@ -237,9 +232,15 @@ public class IndexReaderStub extends LeafReader
     {
     }
 
+    @Override
+    public CacheHelper getReaderCacheHelper()
+    {
+        throw new UnsupportedOperationException();
+    }
+
     private int maxValue()
     {
         return Arrays.stream( elements )
-                .mapToInt( value ->  NumberUtils.toInt( value, 0 )).max().getAsInt();
+                .mapToInt( value ->  NumberUtils.toInt( value, 0 )).max().orElse( 0 );
     }
 }

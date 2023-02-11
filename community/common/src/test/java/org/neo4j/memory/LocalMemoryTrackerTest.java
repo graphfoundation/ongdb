@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,50 +38,145 @@
  */
 package org.neo4j.memory;
 
-import org.junit.Test;
+import org.apache.commons.lang3.mutable.MutableLong;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.memory.MemoryPools.NO_TRACKING;
 
-public class LocalMemoryTrackerTest
+class LocalMemoryTrackerTest
 {
     @Test
-    public void trackMemoryAllocations()
+    void trackDirectMemoryAllocations()
     {
         LocalMemoryTracker memoryTracker = new LocalMemoryTracker();
-        memoryTracker.allocated( 10 );
-        memoryTracker.allocated( 20 );
-        memoryTracker.allocated( 40 );
-        assertEquals( 70, memoryTracker.usedDirectMemory());
+        memoryTracker.allocateNative( 10 );
+        memoryTracker.allocateNative( 20 );
+        memoryTracker.allocateNative( 40 );
+        assertEquals( 70, memoryTracker.usedNativeMemory());
     }
 
     @Test
-    public void trackMemoryDeallocations()
+    void trackDirectMemoryDeallocations()
     {
         LocalMemoryTracker memoryTracker = new LocalMemoryTracker();
-        memoryTracker.allocated( 100 );
-        assertEquals( 100, memoryTracker.usedDirectMemory() );
+        memoryTracker.allocateNative( 100 );
+        assertEquals( 100, memoryTracker.usedNativeMemory() );
 
-        memoryTracker.deallocated( 20 );
-        assertEquals( 80, memoryTracker.usedDirectMemory() );
+        memoryTracker.releaseNative( 20 );
+        assertEquals( 80, memoryTracker.usedNativeMemory() );
 
-        memoryTracker.deallocated( 40 );
-        assertEquals( 40, memoryTracker.usedDirectMemory() );
+        memoryTracker.releaseNative( 40 );
+        assertEquals( 40, memoryTracker.usedNativeMemory() );
     }
 
     @Test
-    public void localMemoryTrackerPropagatesAllocationsToGlobalTracker()
+    void trackHeapMemoryAllocations()
     {
-        GlobalMemoryTracker globalMemoryTracker = GlobalMemoryTracker.INSTANCE;
-        long initialGlobalUsage = globalMemoryTracker.usedDirectMemory();
         LocalMemoryTracker memoryTracker = new LocalMemoryTracker();
-
-        memoryTracker.allocated( 100 );
-        assertEquals( 100, memoryTracker.usedDirectMemory() );
-        assertEquals( 100, globalMemoryTracker.usedDirectMemory() - initialGlobalUsage );
-
-        memoryTracker.deallocated( 50 );
-        assertEquals( 50, memoryTracker.usedDirectMemory() );
-        assertEquals( 50, globalMemoryTracker.usedDirectMemory() - initialGlobalUsage );
+        memoryTracker.allocateHeap( 10 );
+        memoryTracker.allocateHeap( 20 );
+        memoryTracker.allocateHeap( 40 );
+        assertEquals( 70, memoryTracker.estimatedHeapMemory() );
     }
 
+    @Test
+    void trackHeapMemoryDeallocations()
+    {
+        LocalMemoryTracker memoryTracker = new LocalMemoryTracker();
+        memoryTracker.allocateHeap( 100 );
+        assertEquals( 100, memoryTracker.estimatedHeapMemory() );
+
+        memoryTracker.releaseHeap( 20 );
+        assertEquals( 80, memoryTracker.estimatedHeapMemory() );
+
+        memoryTracker.releaseHeap( 40 );
+        assertEquals( 40, memoryTracker.estimatedHeapMemory() );
+    }
+
+    @Test
+    void throwsOnLimitHeap()
+    {
+        var memoryTracker = new LocalMemoryTracker( NO_TRACKING, 10, 0, "settingName" );
+        assertThatThrownBy( () -> memoryTracker.allocateHeap( 100 ) )
+                .isInstanceOf( MemoryLimitExceededException.class )
+                .hasMessageContaining( "settingName" );
+        assertThat( memoryTracker.estimatedHeapMemory() ).isEqualTo( 0 );
+    }
+
+    @Test
+    void throwsOnLimitNative()
+    {
+        var memoryTracker = new LocalMemoryTracker( NO_TRACKING, 10, 0, "settingName" );
+        assertThatThrownBy( () -> memoryTracker.allocateNative( 100 ) )
+                .isInstanceOf( MemoryLimitExceededException.class )
+                .hasMessageContaining( "settingName" );
+        assertThat( memoryTracker.usedNativeMemory() ).isEqualTo( 0 );
+    }
+
+    @Test
+    void throwsOnPoolLimitHeap()
+    {
+        var pool = new MemoryPoolImpl( 5, true, "poolSetting" );
+        var tracker = new LocalMemoryTracker( pool, 10, 0, "localSetting" );
+
+        assertThatThrownBy( () -> tracker.allocateHeap( 10 ) )
+                .isInstanceOf( MemoryLimitExceededException.class )
+                .hasMessageContaining( "poolSetting" );
+
+        assertThat( tracker.estimatedHeapMemory() ).isEqualTo( 0 );
+    }
+
+    @Test
+    void throwsOnPoolLimitNative()
+    {
+        var pool = new MemoryPoolImpl( 5, true, "poolSetting" );
+        var tracker = new LocalMemoryTracker( pool, 10, 0, "localSetting" );
+
+        assertThatThrownBy( () -> tracker.allocateNative( 10 ) )
+                .isInstanceOf( MemoryLimitExceededException.class )
+                .hasMessageContaining( "poolSetting" );
+
+        assertThat( tracker.usedNativeMemory() ).isEqualTo( 0 );
+    }
+
+    @Test
+    void reuseAfterReportedDirectMemoryLeak()
+    {
+        var tracker = new LocalMemoryTracker( NO_TRACKING, 10, 0, "localSetting" );
+        tracker.allocateNative( 10 );
+        assertThatThrownBy( tracker::reset )
+                .isInstanceOf( AssertionError.class )
+                .hasMessageContaining( "Potential direct memory leak" );
+
+        // can be reused after reset
+        tracker.allocateNative( 10 );
+        tracker.releaseNative( 10 );
+        tracker.reset();
+    }
+
+    @Test
+    void shouldTellMonitorOnNativeMemoryLeak()
+    {
+        // given
+        var leakedMemory = new MutableLong( -1 );
+        var tracker = new LocalMemoryTracker( NO_TRACKING, Long.MAX_VALUE, 100, "setting", () -> true, leakedNativeMemoryBytes ->
+        {
+            assertThat( leakedMemory.longValue() ).isEqualTo( -1 );
+            leakedMemory.setValue( leakedNativeMemoryBytes );
+        } );
+
+        // when
+        var leakedAmount = 123;
+        tracker.allocateNative( leakedAmount );
+        tracker.allocateNative( 5 );
+        tracker.releaseNative( 5 );
+        // There's still an assertion on memory leak in reset(), so when testing this an exception will be thrown.
+        assertThatThrownBy( tracker::reset ).isInstanceOf( AssertionError.class );
+
+        // then
+        assertThat( leakedMemory.longValue() ).isEqualTo( leakedAmount );
+    }
 }

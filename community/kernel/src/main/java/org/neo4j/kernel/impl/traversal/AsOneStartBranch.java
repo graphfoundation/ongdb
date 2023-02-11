@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -43,9 +43,9 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.PathExpander;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.traversal.BranchSelector;
 import org.neo4j.graphdb.traversal.Evaluation;
@@ -62,8 +62,6 @@ import org.neo4j.graphdb.traversal.UniquenessFactory;
  * one starting {@link Node} and for implementation simplicity a
  * {@link BranchSelector} starts from one {@link TraversalBranch}.
  * This class bridges that gap.
- *
- * @author Mattias Persson
  */
 class AsOneStartBranch implements TraversalBranch
 {
@@ -193,7 +191,7 @@ class AsOneStartBranch implements TraversalBranch
     }
 
     @Override
-    public Iterator<PropertyContainer> iterator()
+    public Iterator<Entity> iterator()
     {
         throw new UnsupportedOperationException();
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,6 +40,10 @@ package org.neo4j.bolt.security.auth;
 
 import java.util.Map;
 
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
+import org.neo4j.internal.kernel.api.security.LoginContext;
+import org.neo4j.kernel.api.exceptions.Status;
+
 /**
  * Authenticate a given token.
  * <p>
@@ -52,15 +56,20 @@ import java.util.Map;
  *      value depends on the authentication scheme.</li>
  * </ul>
  * <p>
- *
- * For updating the credentials the new credentials is supplied with the key <code>new_credentials</code>.
  */
 public interface Authentication
 {
     /**
      * Authenticate the provided token.
-     * @param authToken The token to be authenticated.
+     *
+     * @param authToken      The token to be authenticated.
+     * @param connectionInfo Information about the client connection.
      * @throws AuthenticationException If authentication failed.
      */
-    AuthenticationResult authenticate( Map<String,Object> authToken ) throws AuthenticationException;
+    AuthenticationResult authenticate( Map<String,Object> authToken, ClientConnectionInfo connectionInfo ) throws AuthenticationException;
+
+    default LoginContext impersonate( LoginContext context, String userToImpersonate ) throws AuthenticationException
+    {
+        throw new AuthenticationException( Status.Security.AuthProviderFailed, "Unsupported operation" );
+    }
 }

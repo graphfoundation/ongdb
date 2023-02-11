@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,23 +38,64 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, MutableMaps}
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
+import org.neo4j.cypher.internal.runtime.ExpressionCursors
+import org.neo4j.cypher.internal.runtime.QueryContext
+import org.neo4j.cypher.internal.runtime.ValuePopulation.populate
+import org.neo4j.cypher.internal.util.attribution.Id
+import org.neo4j.kernel.impl.query.QuerySubscriber
 
-case class ProduceResultsPipe(source: Pipe, columns: Seq[String])
+case class ProduceResultsPipe(source: Pipe, columns: Array[String])
                              (val id: Id = Id.INVALID_ID) extends PipeWithSource(source) {
-  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState) = {
+  override def isRootPipe: Boolean = true
+
+  protected def internalCreateResults(input: ClosingIterator[CypherRow], state: QueryState): ClosingIterator[CypherRow] = {
     // do not register this pipe as parent as it does not do anything except filtering of already fetched
     // key-value pairs and thus should not have any stats
+    val subscriber = state.subscriber
+    if (state.prePopulateResults) {
 
-    input.map {
-      original =>
-        val m = MutableMaps.create(columns.size)
-        columns.foreach {
-          case (name) => m.put(name, original(name))
-        }
-
-        ExecutionContext(m)
+      val query = state.query
+      val cursors = query.createExpressionCursors() // NOTE: We need to create these through the QueryContext so that they get a profiling tracer if profiling is enabled
+      input.map {
+        original =>
+          produceAndPopulate(original, subscriber, query, cursors)
+          original
+      }
+    } else {
+      input.map {
+        original =>
+          produce(original, subscriber)
+          original
+      }
     }
+  }
+
+  private def produceAndPopulate(original: CypherRow,
+                                 subscriber: QuerySubscriber,
+                                 query: QueryContext,
+                                 cursors: ExpressionCursors): Unit = {
+
+    val nodeCursor = cursors.nodeCursor
+    val relCursor = cursors.relationshipScanCursor
+    val propertyCursor = cursors.propertyCursor
+    var i = 0
+    subscriber.onRecord()
+    while (i < columns.length) {
+      subscriber.onField(i, populate(original.getByName(columns(i)), query, nodeCursor, relCursor, propertyCursor))
+      i += 1
+    }
+    subscriber.onRecordCompleted()
+  }
+
+  private def produce(original: CypherRow, subscriber: QuerySubscriber): Unit = {
+    var i = 0
+    subscriber.onRecord()
+    while (i < columns.length) {
+      subscriber.onField(i, original.getByName(columns(i)))
+      i += 1
+    }
+    subscriber.onRecordCompleted()
   }
 }

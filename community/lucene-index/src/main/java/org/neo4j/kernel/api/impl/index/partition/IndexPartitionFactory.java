@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,16 +38,15 @@
  */
 package org.neo4j.kernel.api.impl.index.partition;
 
-
 import org.apache.lucene.store.Directory;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 
 /**
  * Factory to create particular partition of partitioned index in specified folder and represented by {@link Directory}
  */
 public interface IndexPartitionFactory
 {
-    AbstractIndexPartition createPartition( File partitionFolder, Directory directory ) throws IOException;
+    AbstractIndexPartition createPartition( Path partitionFolder, Directory directory ) throws IOException;
 }

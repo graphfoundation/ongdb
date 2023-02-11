@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -42,8 +42,9 @@ import java.io.IOException;
 import java.util.Comparator;
 
 import org.neo4j.io.pagecache.PageCursor;
+import org.neo4j.io.pagecache.context.CursorContext;
 
-import static org.neo4j.index.internal.gbptree.GenerationSafePointerPair.NO_LOGICAL_POS;
+import static org.neo4j.index.internal.gbptree.GBPTreeGenerationTarget.NO_GENERATION_TARGET;
 import static org.neo4j.index.internal.gbptree.GenerationSafePointerPair.read;
 
 /**
@@ -69,6 +70,7 @@ abstract class TreeNode<KEY,VALUE>
     static final int BYTE_POS_NODE_TYPE = 0;
     static final byte NODE_TYPE_TREE_NODE = 1;
     static final byte NODE_TYPE_FREE_LIST_NODE = 2;
+    static final byte NODE_TYPE_OFFLOAD = 3;
 
     static final int SIZE_PAGE_REFERENCE = GenerationSafePointerPair.SIZE;
     static final int BYTE_POS_TYPE = BYTE_POS_NODE_TYPE + Byte.BYTES;
@@ -82,6 +84,7 @@ abstract class TreeNode<KEY,VALUE>
     static final byte LEAF_FLAG = 1;
     static final byte INTERNAL_FLAG = 0;
     static final long NO_NODE_FLAG = 0;
+    static final long NO_OFFLOAD_ID = -1;
 
     static final int NO_KEY_VALUE_SIZE_CAP = -1;
 
@@ -130,14 +133,19 @@ abstract class TreeNode<KEY,VALUE>
 
     // HEADER METHODS
 
+    static byte treeNodeType( PageCursor cursor )
+    {
+        return cursor.getByte( BYTE_POS_TYPE );
+    }
+
     static boolean isLeaf( PageCursor cursor )
     {
-        return cursor.getByte( BYTE_POS_TYPE ) == LEAF_FLAG;
+        return treeNodeType( cursor ) == LEAF_FLAG;
     }
 
     static boolean isInternal( PageCursor cursor )
     {
-        return cursor.getByte( BYTE_POS_TYPE ) == INTERNAL_FLAG;
+        return treeNodeType( cursor ) == INTERNAL_FLAG;
     }
 
     static long generation( PageCursor cursor )
@@ -152,20 +160,35 @@ abstract class TreeNode<KEY,VALUE>
 
     static long rightSibling( PageCursor cursor, long stableGeneration, long unstableGeneration )
     {
+        return rightSibling( cursor, stableGeneration, unstableGeneration, NO_GENERATION_TARGET );
+    }
+
+    static long rightSibling( PageCursor cursor, long stableGeneration, long unstableGeneration, GBPTreeGenerationTarget generationTarget )
+    {
         cursor.setOffset( BYTE_POS_RIGHTSIBLING );
-        return read( cursor, stableGeneration, unstableGeneration, NO_LOGICAL_POS );
+        return read( cursor, stableGeneration, unstableGeneration, generationTarget );
     }
 
     static long leftSibling( PageCursor cursor, long stableGeneration, long unstableGeneration )
     {
+        return leftSibling( cursor, stableGeneration, unstableGeneration, NO_GENERATION_TARGET );
+    }
+
+    static long leftSibling( PageCursor cursor, long stableGeneration, long unstableGeneration, GBPTreeGenerationTarget generationTarget )
+    {
         cursor.setOffset( BYTE_POS_LEFTSIBLING );
-        return read( cursor, stableGeneration, unstableGeneration, NO_LOGICAL_POS );
+        return read( cursor, stableGeneration, unstableGeneration, generationTarget );
     }
 
     static long successor( PageCursor cursor, long stableGeneration, long unstableGeneration )
     {
+        return successor( cursor, stableGeneration, unstableGeneration, NO_GENERATION_TARGET );
+    }
+
+    static long successor( PageCursor cursor, long stableGeneration, long unstableGeneration, GBPTreeGenerationTarget generationTarget )
+    {
         cursor.setOffset( BYTE_POS_SUCCESSOR );
-        return read( cursor, stableGeneration, unstableGeneration, NO_LOGICAL_POS );
+        return read( cursor, stableGeneration, unstableGeneration, generationTarget );
     }
 
     static void setGeneration( PageCursor cursor, long generation )
@@ -188,35 +211,24 @@ abstract class TreeNode<KEY,VALUE>
     {
         cursor.setOffset( BYTE_POS_RIGHTSIBLING );
         long result = GenerationSafePointerPair.write( cursor, rightSiblingId, stableGeneration, unstableGeneration );
-        GenerationSafePointerPair.assertSuccess( result );
+        GenerationSafePointerPair.assertSuccess( result, cursor.getCurrentPageId(), GBPPointerType.RIGHT_SIBLING, stableGeneration, unstableGeneration, cursor,
+                BYTE_POS_RIGHTSIBLING );
     }
 
     static void setLeftSibling( PageCursor cursor, long leftSiblingId, long stableGeneration, long unstableGeneration )
     {
         cursor.setOffset( BYTE_POS_LEFTSIBLING );
         long result = GenerationSafePointerPair.write( cursor, leftSiblingId, stableGeneration, unstableGeneration );
-        GenerationSafePointerPair.assertSuccess( result );
+        GenerationSafePointerPair.assertSuccess( result, cursor.getCurrentPageId(), GBPPointerType.LEFT_SIBLING, stableGeneration, unstableGeneration, cursor,
+                BYTE_POS_LEFTSIBLING );
     }
 
     static void setSuccessor( PageCursor cursor, long successorId, long stableGeneration, long unstableGeneration )
     {
         cursor.setOffset( BYTE_POS_SUCCESSOR );
         long result = GenerationSafePointerPair.write( cursor, successorId, stableGeneration, unstableGeneration );
-        GenerationSafePointerPair.assertSuccess( result );
-    }
-
-    long pointerGeneration( PageCursor cursor, long readResult )
-    {
-        if ( !GenerationSafePointerPair.isRead( readResult ) )
-        {
-            throw new IllegalArgumentException( "Expected read result, but got " + readResult );
-        }
-        int offset = GenerationSafePointerPair.generationOffset( readResult );
-        int gsppOffset = GenerationSafePointerPair.isLogicalPos( readResult ) ? childOffset( offset ) : offset;
-        int gspOffset = GenerationSafePointerPair.resultIsFromSlotA( readResult ) ?
-                        gsppOffset : gsppOffset + GenerationSafePointer.SIZE;
-        cursor.setOffset( gspOffset );
-        return GenerationSafePointer.readGeneration( cursor );
+        GenerationSafePointerPair
+                .assertSuccess( result, cursor.getCurrentPageId(), GBPPointerType.SUCCESSOR, stableGeneration, unstableGeneration, cursor, BYTE_POS_SUCCESSOR );
     }
 
     // BODY METHODS
@@ -253,20 +265,26 @@ abstract class TreeNode<KEY,VALUE>
         cursor.shiftBytes( baseOffset + (pos + 1) * slotSize, (totalSlotCount - (pos + 1)) * slotSize, -slotSize );
     }
 
-    abstract KEY keyAt( PageCursor cursor, KEY into, int pos, Type type );
+    abstract long offloadIdAt( PageCursor cursor, int pos, Type type );
 
-    abstract void keyValueAt( PageCursor cursor, KEY intoKey, VALUE intoValue, int pos );
+    abstract KEY keyAt( PageCursor cursor, KEY into, int pos, Type type, CursorContext cursorContext );
+
+    abstract void keyValueAt( PageCursor cursor, KEY intoKey, VALUE intoValue, int pos, CursorContext cursorContext );
 
     abstract void insertKeyAndRightChildAt( PageCursor cursor, KEY key, long child, int pos, int keyCount,
-            long stableGeneration, long unstableGeneration );
+            long stableGeneration, long unstableGeneration, CursorContext cursorContext ) throws IOException;
 
-    abstract void insertKeyValueAt( PageCursor cursor, KEY key, VALUE value, int pos, int keyCount );
+    abstract void insertKeyValueAt( PageCursor cursor, KEY key, VALUE value, int pos, int keyCount, long stableGeneration, long unstableGeneration,
+            CursorContext cursorContext ) throws IOException;
 
-    abstract void removeKeyValueAt( PageCursor cursor, int pos, int keyCount );
+    abstract void removeKeyValueAt( PageCursor cursor, int pos, int keyCount, long stableGeneration, long unstableGeneration,
+            CursorContext cursorContext ) throws IOException;
 
-    abstract void removeKeyAndRightChildAt( PageCursor cursor, int keyPos, int keyCount );
+    abstract void removeKeyAndRightChildAt( PageCursor cursor, int keyPos, int keyCount, long stableGeneration, long unstableGeneration,
+            CursorContext cursorContext ) throws IOException;
 
-    abstract void removeKeyAndLeftChildAt( PageCursor cursor, int keyPos, int keyCount );
+    abstract void removeKeyAndLeftChildAt( PageCursor cursor, int keyPos, int keyCount, long stableGeneration, long unstableGeneration,
+            CursorContext cursorContext ) throws IOException;
 
     /**
      * Overwrite key at position with given key.
@@ -274,7 +292,7 @@ abstract class TreeNode<KEY,VALUE>
      */
     abstract boolean setKeyAtInternal( PageCursor cursor, KEY key, int pos );
 
-    abstract VALUE valueAt( PageCursor cursor, VALUE value, int pos );
+    abstract VALUE valueAt( PageCursor cursor, VALUE value, int pos, CursorContext cursorContext );
 
     /**
      * Overwrite value at position with given value.
@@ -282,19 +300,31 @@ abstract class TreeNode<KEY,VALUE>
      */
     abstract boolean setValueAt( PageCursor cursor, VALUE value, int pos );
 
-    abstract long childAt( PageCursor cursor, int pos, long stableGeneration, long unstableGeneration );
+    long childAt( PageCursor cursor, int pos, long stableGeneration, long unstableGeneration )
+    {
+        return childAt( cursor, pos, stableGeneration, unstableGeneration, NO_GENERATION_TARGET );
+    }
+
+    long childAt( PageCursor cursor, int pos, long stableGeneration, long unstableGeneration, GBPTreeGenerationTarget generationTarget )
+    {
+        cursor.setOffset( childOffset( pos ) );
+        return read( cursor, stableGeneration, unstableGeneration, generationTarget );
+    }
 
     abstract void setChildAt( PageCursor cursor, long child, int pos, long stableGeneration, long unstableGeneration );
 
-    static void writeChild( PageCursor cursor, long child, long stableGeneration, long unstableGeneration )
+    static void writeChild( PageCursor cursor, long child, long stableGeneration, long unstableGeneration, int childPos, int childOffset )
     {
         long write = GenerationSafePointerPair.write( cursor, child, stableGeneration, unstableGeneration );
-        GenerationSafePointerPair.assertSuccess( write );
+        GenerationSafePointerPair
+                .assertSuccess( write, cursor.getCurrentPageId(), GBPPointerType.child( childPos ), stableGeneration, unstableGeneration, cursor, childOffset );
     }
 
     // HELPERS
 
     abstract int keyValueSizeCap();
+
+    abstract int inlineKeyValueSizeCap();
 
     /**
      * This method can throw and should not be used on read path.
@@ -362,12 +392,12 @@ abstract class TreeNode<KEY,VALUE>
     /**
      * Calculate where split should be done and move entries between leaves participating in split.
      *
-     * Keys and values from left are divide between left and right and the new key and value is inserted where it belongs.
+     * Keys and values from left are divided between left and right and the new key and value is inserted where it belongs.
      *
      * Key count is updated.
      */
-    abstract void doSplitLeaf( PageCursor leftCursor, int leftKeyCount, PageCursor rightCursor, int insertPos, KEY newKey, VALUE newValue,
-            KEY newSplitter );
+    abstract void doSplitLeaf( PageCursor leftCursor, int leftKeyCount, PageCursor rightCursor, int insertPos, KEY newKey, VALUE newValue, KEY newSplitter,
+            double ratioToKeepInLeftOnSplit, long stableGeneration, long unstableGeneration, CursorContext cursorContext ) throws IOException;
 
     /**
      * Performs the entry moving part of split in internal.
@@ -377,8 +407,8 @@ abstract class TreeNode<KEY,VALUE>
      * Key count is updated.
      */
     abstract void doSplitInternal( PageCursor leftCursor, int leftKeyCount, PageCursor rightCursor, int insertPos,
-            KEY newKey,
-            long newRightChild, long stableGeneration, long unstableGeneration, KEY newSplitter );
+            KEY newKey, long newRightChild, long stableGeneration, long unstableGeneration, KEY newSplitter, double ratioToKeepInLeftOnSplit,
+            CursorContext cursorContext ) throws IOException;
 
     /**
      * Move all rightmost keys and values in left leaf from given position to right leaf.
@@ -401,7 +431,11 @@ abstract class TreeNode<KEY,VALUE>
 
     // Useful for debugging
     @SuppressWarnings( "unused" )
-    void printNode( PageCursor cursor, boolean includeValue, boolean includeAllocSpace, long stableGeneration, long unstableGeneration )
-    {   // default no-op
-    }
+    abstract void printNode( PageCursor cursor, boolean includeValue, boolean includeAllocSpace, long stableGeneration, long unstableGeneration,
+            CursorContext cursorContext );
+
+    /**
+     * @return {@link String} describing inconsistency of empty string "" if no inconsistencies.
+     */
+    abstract String checkMetaConsistency( PageCursor cursor, int keyCount, Type type, GBPTreeConsistencyCheckVisitor<KEY> visitor );
 }

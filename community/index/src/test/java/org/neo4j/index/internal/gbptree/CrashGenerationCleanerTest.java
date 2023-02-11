@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,93 +40,121 @@ package org.neo4j.index.internal.gbptree;
 
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.mutable.MutableLong;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.RuleChain;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.io.pagecache.PagedFile;
-import org.neo4j.test.rule.PageCacheRule;
-import org.neo4j.test.rule.RandomRule;
-import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
-import org.neo4j.test.rule.fs.FileSystemRule;
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.io.pagecache.tracing.DefaultPageCacheTracer;
+import org.neo4j.io.pagecache.tracing.PageCacheTracer;
+import org.neo4j.test.RandomSupport;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
+import org.neo4j.test.extension.pagecache.PageCacheSupportExtension;
+import org.neo4j.test.extension.testdirectory.EphemeralTestDirectoryExtension;
+import org.neo4j.test.utils.TestDirectory;
 
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.DELETE_ON_CLOSE;
-import static org.junit.Assert.assertEquals;
-
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.eclipse.collections.impl.factory.Sets.immutable;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.index.internal.gbptree.GBPTree.NO_MONITOR;
 import static org.neo4j.index.internal.gbptree.SimpleLongLayout.longLayout;
-import static org.neo4j.index.internal.gbptree.TreeNode.BYTE_POS_LEFTSIBLING;
-import static org.neo4j.index.internal.gbptree.TreeNode.BYTE_POS_RIGHTSIBLING;
-import static org.neo4j.index.internal.gbptree.TreeNode.BYTE_POS_SUCCESSOR;
 import static org.neo4j.index.internal.gbptree.TreeNode.Overflow;
-import static org.neo4j.index.internal.gbptree.TreeNode.keyCount;
 import static org.neo4j.index.internal.gbptree.TreeNode.setKeyCount;
-import static org.neo4j.test.rule.PageCacheRule.config;
+import static org.neo4j.test.utils.PageCacheConfig.config;
 
-public class CrashGenerationCleanerTest
+@EphemeralTestDirectoryExtension
+@ExtendWith( RandomExtension.class )
+class CrashGenerationCleanerTest
 {
-    private final FileSystemRule fileSystemRule = new DefaultFileSystemRule();
-    private final PageCacheRule pageCacheRule = new PageCacheRule();
-    private final TestDirectory testDirectory = TestDirectory.testDirectory( this.getClass(), fileSystemRule.get() );
-    private final RandomRule randomRule = new RandomRule();
-    @Rule
-    public RuleChain ruleChain = RuleChain
-            .outerRule( fileSystemRule ).around( testDirectory ).around( pageCacheRule ).around( randomRule );
+    @RegisterExtension
+    static PageCacheSupportExtension pageCacheExtension = new PageCacheSupportExtension();
+    @Inject
+    private FileSystemAbstraction fileSystem;
+    @Inject
+    private TestDirectory testDirectory;
+    @Inject
+    private RandomSupport randomRule;
 
     private static final String FILE_NAME = "index";
+    private static final String DATABASE_NAME = "neo4j";
     private static final int PAGE_SIZE = 256;
 
     private PagedFile pagedFile;
+    private PageCache pageCache;
     private final Layout<MutableLong,MutableLong> layout = longLayout().build();
-    private final CorruptibleTreeNode corruptibleTreeNode = new CorruptibleTreeNode( PAGE_SIZE, layout );
-    private final ExecutorService executor = Executors.newFixedThreadPool( Runtime.getRuntime().availableProcessors() );
-    private final int oldStableGeneration = 9;
-    private final int stableGeneration = 10;
-    private final int unstableGeneration = 12;
-    private final int crashGeneration = 11;
-    private final List<PageCorruption> possibleCorruptionsInInternal = Arrays.asList(
-            crashed( leftSibling() ),
-            crashed( rightSibling() ),
-            crashed( successor() ),
-            crashed( firstChild() ),
-            crashed( middleChild() ),
-            crashed( lastChild() )
+    private final TreeNode<MutableLong,MutableLong> treeNode = new TreeNodeFixedSize<>( PAGE_SIZE, layout );
+    private static ExecutorService executorService;
+    private static CleanupJob.Executor executor;
+    private final TreeState checkpointedTreeState = new TreeState( 0, 9, 10, 0, 0, 0, 0, 0, 0, 0, true, true );
+    private final TreeState unstableTreeState = new TreeState( 0, 10, 12, 0, 0, 0, 0, 0, 0, 0, true, true );
+    private final List<GBPTreeCorruption.PageCorruption> possibleCorruptionsInInternal = Arrays.asList(
+            GBPTreeCorruption.crashed( GBPTreePointerType.leftSibling() ),
+            GBPTreeCorruption.crashed( GBPTreePointerType.rightSibling() ),
+            GBPTreeCorruption.crashed( GBPTreePointerType.successor() ),
+            GBPTreeCorruption.crashed( GBPTreePointerType.child( 0 ) )
     );
-    private final List<PageCorruption> possibleCorruptionsInLeaf = Arrays.asList(
-            crashed( leftSibling() ),
-            crashed( rightSibling() ),
-            crashed( successor() )
+    private final List<GBPTreeCorruption.PageCorruption> possibleCorruptionsInLeaf = Arrays.asList(
+            GBPTreeCorruption.crashed( GBPTreePointerType.leftSibling() ),
+            GBPTreeCorruption.crashed( GBPTreePointerType.rightSibling() ),
+            GBPTreeCorruption.crashed( GBPTreePointerType.successor() )
     );
 
-    @Before
-    public void setupPagedFile() throws IOException
+    @BeforeAll
+    static void setUp()
     {
-        PageCache pageCache = pageCacheRule
-                .getPageCache( fileSystemRule.get(), config().withPageSize( PAGE_SIZE ).withAccessChecks( true ) );
-        pagedFile = pageCache
-                .map( testDirectory.file( FILE_NAME ), PAGE_SIZE, CREATE, DELETE_ON_CLOSE );
+        executorService = Executors.newFixedThreadPool( Runtime.getRuntime().availableProcessors() );
+        executor = new CleanupJob.Executor()
+        {
+            @Override
+            public <T> CleanupJob.JobResult<T> submit( String jobDescription, Callable<T> job )
+            {
+                var future = executorService.submit( job );
+                return future::get;
+            }
+        };
     }
 
-    @After
-    public void teardownPagedFile() throws IOException
+    @AfterAll
+    static void tearDown()
+    {
+        executorService.shutdown();
+    }
+
+    @BeforeEach
+    void setupPagedFile() throws IOException
+    {
+        pageCache = PageCacheSupportExtension.getPageCache( fileSystem, config().withPageSize( PAGE_SIZE ).withAccessChecks( true ) );
+        pagedFile = pageCache.map( testDirectory.file( FILE_NAME ), PAGE_SIZE, DATABASE_NAME, immutable.of( CREATE, DELETE_ON_CLOSE ) );
+    }
+
+    @AfterEach
+    void teardownPagedFile()
     {
         pagedFile.close();
+        pageCache.close();
     }
 
     @Test
-    public void shouldNotCrashOnEmptyFile() throws Exception
+    void shouldNotCrashOnEmptyFile() throws Exception
     {
         // GIVEN
         Page[] pages = with();
@@ -137,12 +165,13 @@ public class CrashGenerationCleanerTest
         crashGenerationCleaner( pagedFile, 0, pages.length, monitor ).clean( executor );
 
         // THEN
-        assertPagesVisisted( monitor, pages.length );
+        assertPagesVisited( monitor, pages.length );
+        assertTreeNodes( monitor, pages.length );
         assertCleanedCrashPointers( monitor, 0 );
     }
 
     @Test
-    public void shouldNotReportErrorsOnCleanPages() throws Exception
+    void shouldNotReportErrorsOnCleanPages() throws Exception
     {
         // GIVEN
         Page[] pages = with(
@@ -156,31 +185,30 @@ public class CrashGenerationCleanerTest
         crashGenerationCleaner( pagedFile, 0, pages.length, monitor ).clean( executor );
 
         // THEN
-        assertPagesVisisted( monitor, 2 );
+        assertPagesVisited( monitor, pages.length );
+        assertTreeNodes( monitor, pages.length );
         assertCleanedCrashPointers( monitor, 0 );
     }
 
     @Test
-    public void shouldCleanOneCrashPerPage() throws Exception
+    void shouldCleanOneCrashPerPage() throws Exception
     {
         // GIVEN
         Page[] pages = with(
                 /* left sibling */
-                leafWith( crashed( leftSibling() ) ),
-                internalWith( crashed( leftSibling() ) ),
+                leafWith( GBPTreeCorruption.crashed( GBPTreePointerType.leftSibling() ) ),
+                internalWith( GBPTreeCorruption.crashed( GBPTreePointerType.leftSibling() ) ),
 
                 /* right sibling */
-                leafWith( crashed( rightSibling() ) ),
-                internalWith( crashed( rightSibling() ) ),
+                leafWith( GBPTreeCorruption.crashed( GBPTreePointerType.rightSibling() ) ),
+                internalWith( GBPTreeCorruption.crashed( GBPTreePointerType.rightSibling() ) ),
 
                 /* successor */
-                leafWith( crashed( successor() ) ),
-                internalWith( crashed( successor() ) ),
+                leafWith( GBPTreeCorruption.crashed( GBPTreePointerType.successor() ) ),
+                internalWith( GBPTreeCorruption.crashed( GBPTreePointerType.successor() ) ),
 
                 /* child */
-                internalWith( crashed( firstChild() ) ),
-                internalWith( crashed( middleChild() ) ),
-                internalWith( crashed( lastChild() ) )
+                internalWith( GBPTreeCorruption.crashed( GBPTreePointerType.child( 0 ) ) )
         );
         initializeFile( pagedFile, pages );
 
@@ -189,26 +217,25 @@ public class CrashGenerationCleanerTest
         crashGenerationCleaner( pagedFile, 0, pages.length, monitor ).clean( executor );
 
         // THEN
-        assertPagesVisisted( monitor, pages.length );
-        assertCleanedCrashPointers( monitor, 9 );
+        assertPagesVisited( monitor, pages.length );
+        assertTreeNodes( monitor, pages.length );
+        assertCleanedCrashPointers( monitor, 7 );
     }
 
     @Test
-    public void shouldCleanMultipleCrashPerPage() throws Exception
+    void shouldCleanMultipleCrashPerPage() throws Exception
     {
         // GIVEN
         Page[] pages = with(
                 leafWith(
-                        crashed( leftSibling() ),
-                        crashed( rightSibling() ),
-                        crashed( successor() ) ),
+                        GBPTreeCorruption.crashed( GBPTreePointerType.leftSibling() ),
+                        GBPTreeCorruption.crashed( GBPTreePointerType.rightSibling() ),
+                        GBPTreeCorruption.crashed( GBPTreePointerType.successor() ) ),
                 internalWith(
-                        crashed( leftSibling() ),
-                        crashed( rightSibling() ),
-                        crashed( successor() ),
-                        crashed( firstChild() ),
-                        crashed( middleChild() ),
-                        crashed( lastChild() ) )
+                        GBPTreeCorruption.crashed( GBPTreePointerType.leftSibling() ),
+                        GBPTreeCorruption.crashed( GBPTreePointerType.rightSibling() ),
+                        GBPTreeCorruption.crashed( GBPTreePointerType.successor() ),
+                        GBPTreeCorruption.crashed( GBPTreePointerType.child( 0 ) ) )
         );
         initializeFile( pagedFile, pages );
 
@@ -217,12 +244,33 @@ public class CrashGenerationCleanerTest
         crashGenerationCleaner( pagedFile, 0, pages.length, monitor ).clean( executor );
 
         // THEN
-        assertPagesVisisted( monitor, pages.length );
-        assertCleanedCrashPointers( monitor, 9 );
+        assertPagesVisited( monitor, pages.length );
+        assertTreeNodes( monitor, pages.length );
+        assertCleanedCrashPointers( monitor, 7 );
     }
 
     @Test
-    public void shouldCleanLargeFile() throws Exception
+    void shouldNotCleanOffloadOrFreelistPages() throws IOException
+    {
+        // GIVEN
+        Page[] pages = with(
+                offload(),
+                freelist()
+        );
+        initializeFile( pagedFile, pages );
+
+        // WHEN
+        SimpleCleanupMonitor monitor = new SimpleCleanupMonitor();
+        crashGenerationCleaner( pagedFile, 0, pages.length, monitor ).clean( executor );
+
+        // THEN
+        assertPagesVisited( monitor, 2 );
+        assertTreeNodes( monitor, 0 );
+        assertCleanedCrashPointers( monitor, 0 );
+    }
+
+    @Test
+    void shouldCleanLargeFile() throws Exception
     {
         // GIVEN
         int numberOfPages = randomRule.intBetween( 1_000, 10_000 );
@@ -242,43 +290,75 @@ public class CrashGenerationCleanerTest
         crashGenerationCleaner( pagedFile, 0, numberOfPages, monitor ).clean( executor );
 
         // THEN
-        assertPagesVisisted( monitor, numberOfPages );
+        assertPagesVisited( monitor, numberOfPages );
+        assertTreeNodes( monitor, numberOfPages );
         assertCleanedCrashPointers( monitor, totalNumberOfCorruptions.getValue() );
     }
 
-    private CrashGenerationCleaner crashGenerationCleaner( PagedFile pagedFile, int lowTreeNodeId, int highTreeNodeId,
-            SimpleCleanupMonitor monitor )
+    @Test
+    void tracePageCacheAccessInCleaners() throws IOException
     {
-        return new CrashGenerationCleaner( pagedFile, corruptibleTreeNode, lowTreeNodeId, highTreeNodeId,
-                stableGeneration, unstableGeneration, monitor );
+        int numberOfPages = randomRule.intBetween( 100, 1000 );
+        Page[] pages = new Page[numberOfPages];
+        for ( int i = 0; i < numberOfPages; i++ )
+        {
+            Page page = randomPage( 0, new MutableInt() );
+            pages[i] = page;
+        }
+        initializeFile( pagedFile, pages );
+        var cacheTracer = new DefaultPageCacheTracer();
+
+        assertThat( cacheTracer.pins() ).isZero();
+        assertThat( cacheTracer.unpins() ).isZero();
+        assertThat( cacheTracer.hits() ).isZero();
+
+        var cleaner = new CrashGenerationCleaner( pagedFile, treeNode, 0, pages.length,
+                unstableTreeState.stableGeneration(), unstableTreeState.unstableGeneration(), NO_MONITOR, cacheTracer, "test tree" );
+        cleaner.clean( executor );
+
+        assertThat( cacheTracer.pins() ).isEqualTo( pages.length );
+        assertThat( cacheTracer.unpins() ).isEqualTo( pages.length );
+        assertThat( cacheTracer.hits() ).isEqualTo( pages.length );
+    }
+
+    private CrashGenerationCleaner crashGenerationCleaner( PagedFile pagedFile, int lowTreeNodeId, int highTreeNodeId, SimpleCleanupMonitor monitor )
+    {
+        return new CrashGenerationCleaner( pagedFile, treeNode, lowTreeNodeId, highTreeNodeId,
+                unstableTreeState.stableGeneration(), unstableTreeState.unstableGeneration(), monitor, PageCacheTracer.NULL, "test tree" );
     }
 
     private void initializeFile( PagedFile pagedFile, Page... pages ) throws IOException
     {
-        try ( PageCursor cursor = pagedFile.io( 0, PagedFile.PF_SHARED_WRITE_LOCK ) )
+        try ( PageCursor cursor = pagedFile.io( 0, PagedFile.PF_SHARED_WRITE_LOCK, CursorContext.NULL ) )
         {
             for ( Page page : pages )
             {
                 cursor.next();
-                page.write( cursor, corruptibleTreeNode, layout, stableGeneration, unstableGeneration, crashGeneration );
+                page.write( cursor, treeNode, layout, checkpointedTreeState, unstableTreeState );
             }
         }
     }
 
     /* Assertions */
-    private void assertCleanedCrashPointers( SimpleCleanupMonitor monitor,
-            int expectedNumberOfCleanedCrashPointers )
+    private static void assertCleanedCrashPointers( SimpleCleanupMonitor monitor, int expectedNumberOfCleanedCrashPointers )
     {
-        assertEquals( "Expected number of cleaned crash pointers to be " +
-                        expectedNumberOfCleanedCrashPointers + " but was " + monitor.numberOfCleanedCrashPointers,
-                expectedNumberOfCleanedCrashPointers, monitor.numberOfCleanedCrashPointers );
+        assertEquals( expectedNumberOfCleanedCrashPointers, monitor.numberOfCleanedCrashPointers,
+                "Expected number of cleaned crash pointers to be " +
+                        expectedNumberOfCleanedCrashPointers + " but was " + monitor.numberOfCleanedCrashPointers );
     }
 
-    private void assertPagesVisisted( SimpleCleanupMonitor monitor, int expectedNumberOfPagesVisited )
+    private static void assertPagesVisited( SimpleCleanupMonitor monitor, int expectedNumberOfPagesVisited )
     {
-        assertEquals( "Expected number of visited pages to be " + expectedNumberOfPagesVisited +
-                        " but was " + monitor.numberOfPagesVisited,
-                expectedNumberOfPagesVisited, monitor.numberOfPagesVisited );
+        assertEquals( expectedNumberOfPagesVisited, monitor.numberOfPagesVisited,
+                "Expected number of visited pages to be " + expectedNumberOfPagesVisited +
+                        " but was " + monitor.numberOfPagesVisited );
+    }
+
+    private static void assertTreeNodes( SimpleCleanupMonitor monitor, int expectedNumberOfTreeNodes )
+    {
+        assertEquals( expectedNumberOfTreeNodes, monitor.numberOfTreeNodes,
+                "Expected number of TreeNodes to be " + expectedNumberOfTreeNodes +
+                        " but was " + monitor.numberOfTreeNodes );
     }
 
     /* Random page */
@@ -298,7 +378,7 @@ public class CrashGenerationCleanerTest
     private Page randomLeaf( int numberOfCorruptions )
     {
         Collections.shuffle( possibleCorruptionsInLeaf );
-        PageCorruption[] corruptions = new PageCorruption[numberOfCorruptions];
+        GBPTreeCorruption.PageCorruption[] corruptions = new GBPTreeCorruption.PageCorruption[numberOfCorruptions];
         for ( int i = 0; i < numberOfCorruptions; i++ )
         {
             corruptions[i] = possibleCorruptionsInLeaf.get( i );
@@ -309,7 +389,7 @@ public class CrashGenerationCleanerTest
     private Page randomInternal( int numberOfCorruptions )
     {
         Collections.shuffle( possibleCorruptionsInInternal );
-        PageCorruption[] corruptions = new PageCorruption[numberOfCorruptions];
+        GBPTreeCorruption.PageCorruption[] corruptions = new GBPTreeCorruption.PageCorruption[numberOfCorruptions];
         for ( int i = 0; i < numberOfCorruptions; i++ )
         {
             corruptions[i] = possibleCorruptionsInInternal.get( i );
@@ -318,38 +398,50 @@ public class CrashGenerationCleanerTest
     }
 
     /* Page */
-    private Page[] with( Page... pages )
+    private static Page[] with( Page... pages )
     {
         return pages;
     }
 
-    private Page leafWith( PageCorruption... pageCorruptions )
+    private static Page leafWith( GBPTreeCorruption.PageCorruption<MutableLong,MutableLong>... pageCorruptions )
     {
         return new Page( PageType.LEAF, pageCorruptions );
     }
 
-    private Page internalWith( PageCorruption... pageCorruptions )
+    private static Page internalWith( GBPTreeCorruption.PageCorruption<MutableLong,MutableLong>... pageCorruptions )
     {
         return new Page( PageType.INTERNAL, pageCorruptions );
     }
 
-    private class Page
+    private static Page offload()
+    {
+        return new Page( PageType.OFFLOAD );
+    }
+
+    private static Page freelist()
+    {
+        return new Page( PageType.FREELIST );
+    }
+
+    private static class Page
     {
         private final PageType type;
-        private final PageCorruption[] pageCorruptions;
+        private final GBPTreeCorruption.PageCorruption<MutableLong,MutableLong>[] pageCorruptions;
 
-        private Page( PageType type, PageCorruption... pageCorruptions )
+        private Page( PageType type, GBPTreeCorruption.PageCorruption<MutableLong,MutableLong>... pageCorruptions )
         {
             this.type = type;
             this.pageCorruptions = pageCorruptions;
         }
 
-        private void write( PageCursor cursor, CorruptibleTreeNode node, Layout<MutableLong,MutableLong> layout, int stableGeneration, int unstableGeneration,
-                int crashGeneration )
+        private void write( PageCursor cursor, TreeNode<MutableLong,MutableLong> node, Layout<MutableLong,MutableLong> layout, TreeState checkpointedTreeState,
+                TreeState unstableTreeState ) throws IOException
         {
-            type.write( cursor, node, layout, oldStableGeneration, stableGeneration );
-            Arrays.stream( pageCorruptions )
-                    .forEach( pc -> pc.corrupt( cursor, node, stableGeneration, unstableGeneration, crashGeneration ) );
+            type.write( cursor, node, layout, checkpointedTreeState );
+            for ( GBPTreeCorruption.PageCorruption<MutableLong,MutableLong> pc : pageCorruptions )
+            {
+                pc.corrupt( cursor, layout, node, unstableTreeState );
+            }
         }
     }
 
@@ -358,131 +450,50 @@ public class CrashGenerationCleanerTest
         LEAF
                 {
                     @Override
-                    void write( PageCursor cursor, CorruptibleTreeNode corruptibleTreeNode, Layout<MutableLong,MutableLong> layout,
-                            int stableGeneration, int unstableGeneration )
+                    void write( PageCursor cursor, TreeNode<MutableLong,MutableLong> treeNode, Layout<MutableLong,MutableLong> layout,
+                            TreeState treeState )
                     {
-                        corruptibleTreeNode.initializeLeaf( cursor, stableGeneration, unstableGeneration );
+                        treeNode.initializeLeaf( cursor, treeState.stableGeneration(), treeState.unstableGeneration() );
                     }
                 },
         INTERNAL
                 {
                     @Override
-                    void write( PageCursor cursor, CorruptibleTreeNode corruptibleTreeNode, Layout<MutableLong,MutableLong> layout,
-                            int stableGeneration, int unstableGeneration )
+                    void write( PageCursor cursor, TreeNode<MutableLong,MutableLong> treeNode, Layout<MutableLong,MutableLong> layout,
+                            TreeState treeState )
                     {
-                        corruptibleTreeNode.initializeInternal( cursor, stableGeneration, unstableGeneration );
+                        treeNode.initializeInternal( cursor, treeState.stableGeneration(), treeState.unstableGeneration() );
                         long base = IdSpace.MIN_TREE_NODE_ID;
                         int keyCount;
-                        for ( keyCount = 0; corruptibleTreeNode.internalOverflow( cursor, keyCount, layout.newKey() ) == Overflow.NO;
+                        for ( keyCount = 0; treeNode.internalOverflow( cursor, keyCount, layout.newKey() ) == Overflow.NO;
                               keyCount++ )
                         {
                             long child = base + keyCount;
-                            corruptibleTreeNode.setChildAt( cursor, child, keyCount, stableGeneration, unstableGeneration );
+                            treeNode.setChildAt( cursor, child, keyCount, treeState.stableGeneration(), treeState.unstableGeneration() );
                         }
                         setKeyCount( cursor, keyCount );
                     }
+                },
+        OFFLOAD
+                {
+                    @Override
+                    void write( PageCursor cursor, TreeNode<MutableLong,MutableLong> treeNode, Layout<MutableLong,MutableLong> layout,
+                            TreeState treeState )
+                    {
+                        OffloadStoreImpl.writeHeader( cursor );
+                    }
+                },
+        FREELIST
+                {
+                    @Override
+                    void write( PageCursor cursor, TreeNode<MutableLong,MutableLong> treeNode, Layout<MutableLong,MutableLong> layout,
+                            TreeState treeState )
+                    {
+                        FreelistNode.initialize( cursor );
+                    }
                 };
 
-        abstract void write( PageCursor cursor, CorruptibleTreeNode corruptibleTreeNode,
-                Layout<MutableLong,MutableLong> layout, int stableGeneration, int unstableGeneration );
-    }
-
-    /* GSPPType */
-    private GSPPType leftSibling()
-    {
-        return SimpleGSPPType.LEFT_SIBLING;
-    }
-
-    private GSPPType rightSibling()
-    {
-        return SimpleGSPPType.RIGHT_SIBLING;
-    }
-
-    private GSPPType successor()
-    {
-        return SimpleGSPPType.SUCCESSOR;
-    }
-
-    interface GSPPType
-    {
-        int offset( PageCursor cursor, TreeNode node );
-    }
-
-    enum SimpleGSPPType implements GSPPType
-    {
-        LEFT_SIBLING
-                {
-                    @Override
-                    public int offset( PageCursor cursor, TreeNode node )
-                    {
-                        return BYTE_POS_LEFTSIBLING;
-                    }
-                },
-        RIGHT_SIBLING
-                {
-                    @Override
-                    public int offset( PageCursor cursor, TreeNode node )
-                    {
-                        return BYTE_POS_RIGHTSIBLING;
-                    }
-                },
-        SUCCESSOR
-                {
-                    @Override
-                    public int offset( PageCursor cursor, TreeNode node )
-                    {
-                        return BYTE_POS_SUCCESSOR;
-                    }
-                }
-    }
-
-    private GSPPType firstChild()
-    {
-        return ( cursor, node ) -> node.childOffset( 0 );
-    }
-
-    private GSPPType middleChild()
-    {
-        return ( cursor, node ) ->
-        {
-            int keyCount = keyCount( cursor );
-            return node.childOffset( keyCount / 2 );
-        };
-    }
-
-    private GSPPType lastChild()
-    {
-        return ( cursor, node ) ->
-        {
-            int keyCount = keyCount( cursor );
-            return node.childOffset( keyCount );
-        };
-    }
-
-    /* PageCorruption */
-    private PageCorruption crashed( GSPPType gsppType )
-    {
-        return ( pageCursor, node, stableGeneration, unstableGeneration, crashGeneration ) ->
-                node.crashGSPP( pageCursor, gsppType.offset( pageCursor, node ), crashGeneration );
-    }
-
-    private interface PageCorruption
-    {
-        void corrupt( PageCursor pageCursor, CorruptibleTreeNode node, int stableGeneration,
-                int unstableGeneration, int crashGeneration );
-    }
-
-    class CorruptibleTreeNode extends TreeNodeFixedSize<MutableLong,MutableLong>
-    {
-        CorruptibleTreeNode( int pageSize, Layout<MutableLong,MutableLong> layout )
-        {
-            super( pageSize, layout );
-        }
-
-        void crashGSPP( PageCursor pageCursor, int offset, int crashGeneration )
-        {
-            pageCursor.setOffset( offset );
-            GenerationSafePointerPair.write( pageCursor, 42, stableGeneration, crashGeneration );
-        }
+        abstract void write( PageCursor cursor, TreeNode<MutableLong,MutableLong> treeNode,
+                Layout<MutableLong,MutableLong> layout, TreeState treeState );
     }
 }

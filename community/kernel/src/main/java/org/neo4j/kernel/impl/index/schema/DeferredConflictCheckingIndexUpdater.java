@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,23 +38,26 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Supplier;
 
-import org.neo4j.collection.primitive.PrimitiveLongResourceIterator;
-import org.neo4j.internal.kernel.api.IndexQuery;
+import org.neo4j.internal.kernel.api.PropertyIndexQuery;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotApplicableKernelException;
+import org.neo4j.internal.kernel.api.security.AccessMode;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
-import org.neo4j.kernel.api.exceptions.index.IndexNotApplicableKernelException;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexReader;
+import org.neo4j.kernel.api.index.ValueIndexReader;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
+import org.neo4j.storageengine.api.ValueIndexEntryUpdate;
 import org.neo4j.values.storable.ValueTuple;
 
-import static org.neo4j.internal.kernel.api.IndexQuery.exact;
-import static org.neo4j.kernel.impl.api.index.UpdateMode.REMOVED;
+import static org.neo4j.internal.kernel.api.IndexQueryConstraints.unconstrained;
+import static org.neo4j.internal.kernel.api.PropertyIndexQuery.exact;
+import static org.neo4j.internal.kernel.api.QueryContext.NULL_CONTEXT;
+import static org.neo4j.storageengine.api.UpdateMode.REMOVED;
 
 /**
  * This deferring conflict checker solves e.g. a problem of applying updates to an index that is aware of,
@@ -80,43 +83,48 @@ import static org.neo4j.kernel.impl.api.index.UpdateMode.REMOVED;
 public class DeferredConflictCheckingIndexUpdater implements IndexUpdater
 {
     private final IndexUpdater actual;
-    private final Supplier<IndexReader> readerSupplier;
-    private final SchemaIndexDescriptor schemaIndexDescriptor;
+    private final Supplier<ValueIndexReader> readerSupplier;
+    private final IndexDescriptor indexDescriptor;
+    private final CursorContext cursorContext;
     private final Set<ValueTuple> touchedTuples = new HashSet<>();
 
-    public DeferredConflictCheckingIndexUpdater( IndexUpdater actual, Supplier<IndexReader> readerSupplier, SchemaIndexDescriptor schemaIndexDescriptor )
+    public DeferredConflictCheckingIndexUpdater( IndexUpdater actual, Supplier<ValueIndexReader> readerSupplier, IndexDescriptor indexDescriptor,
+            CursorContext cursorContext )
     {
         this.actual = actual;
         this.readerSupplier = readerSupplier;
-        this.schemaIndexDescriptor = schemaIndexDescriptor;
+        this.indexDescriptor = indexDescriptor;
+        this.cursorContext = cursorContext;
     }
 
     @Override
-    public void process( IndexEntryUpdate<?> update ) throws IOException, IndexEntryConflictException
+    public void process( IndexEntryUpdate<?> update ) throws IndexEntryConflictException
     {
-        actual.process( update );
-        if ( update.updateMode() != REMOVED )
+        ValueIndexEntryUpdate<?> valueUpdate = asValueUpdate( update );
+        actual.process( valueUpdate );
+        if ( valueUpdate.updateMode() != REMOVED )
         {
-            touchedTuples.add( ValueTuple.of( update.values() ) );
+            touchedTuples.add( ValueTuple.of( valueUpdate.values() ) );
         }
     }
 
     @Override
-    public void close() throws IOException, IndexEntryConflictException
+    public void close() throws IndexEntryConflictException
     {
         actual.close();
-        try ( IndexReader reader = readerSupplier.get() )
+        try ( ValueIndexReader reader = readerSupplier.get() )
         {
             for ( ValueTuple tuple : touchedTuples )
             {
-                try ( PrimitiveLongResourceIterator results = reader.query( queryOf( tuple ) ) )
+                try ( NodeValueIterator client = new NodeValueIterator() )
                 {
-                    if ( results.hasNext() )
+                    reader.query( client, NULL_CONTEXT, AccessMode.Static.READ, unconstrained(), queryOf( tuple ) );
+                    if ( client.hasNext() )
                     {
-                        long firstEntityId = results.next();
-                        if ( results.hasNext() )
+                        long firstEntityId = client.next();
+                        if ( client.hasNext() )
                         {
-                            long secondEntityId = results.next();
+                            long secondEntityId = client.next();
                             throw new IndexEntryConflictException( firstEntityId, secondEntityId, tuple );
                         }
                     }
@@ -129,10 +137,10 @@ public class DeferredConflictCheckingIndexUpdater implements IndexUpdater
         }
     }
 
-    private IndexQuery[] queryOf( ValueTuple tuple )
+    private PropertyIndexQuery[] queryOf( ValueTuple tuple )
     {
-        IndexQuery[] predicates = new IndexQuery[tuple.size()];
-        int[] propertyIds = schemaIndexDescriptor.schema().getPropertyIds();
+        PropertyIndexQuery[] predicates = new PropertyIndexQuery[tuple.size()];
+        int[] propertyIds = indexDescriptor.schema().getPropertyIds();
         for ( int i = 0; i < predicates.length; i++ )
         {
             predicates[i] = exact( propertyIds[i], tuple.valueAt( i ) );

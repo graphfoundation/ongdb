@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,9 @@
  */
 package org.neo4j.kernel.impl.transaction.log.pruning;
 
-import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Path;
 
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.impl.transaction.log.LogFileInformation;
@@ -63,9 +65,22 @@ public final class FileSizeThreshold implements Threshold
     }
 
     @Override
-    public boolean reached( File file, long version, LogFileInformation source )
+    public boolean reached( Path file, long version, LogFileInformation source )
     {
-        currentSize += fileSystem.getFileSize( file );
+        try
+        {
+            currentSize += fileSystem.getFileSize( file );
+        }
+        catch ( IOException e )
+        {
+            throw new UncheckedIOException( e );
+        }
         return currentSize >= maxSize;
+    }
+
+    @Override
+    public String toString()
+    {
+        return maxSize + " size";
     }
 }

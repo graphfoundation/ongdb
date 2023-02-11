@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,52 +41,64 @@ package org.neo4j.kernel.impl.index.schema;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
-import org.neo4j.cursor.RawCursor;
 import org.neo4j.index.internal.gbptree.GBPTree;
-import org.neo4j.index.internal.gbptree.Hit;
-import org.neo4j.index.internal.gbptree.Layout;
-import org.neo4j.kernel.impl.api.index.sampling.DefaultNonUniqueIndexSampler;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.kernel.impl.api.index.sampling.NonUniqueIndexSampler;
-import org.neo4j.storageengine.api.schema.IndexSample;
+import org.neo4j.index.internal.gbptree.Seeker;
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.kernel.api.index.IndexSample;
+import org.neo4j.kernel.api.index.NonUniqueIndexSampler;
 
 /**
- * {@link NonUniqueIndexSampler} which performs a full scans of a {@link GBPTree} in {@link #result()}.
+ * {@link NonUniqueIndexSampler} which performs a full scans of a {@link GBPTree} in {@link #sample(CursorContext)}.
  *
  * @param <KEY> type of keys in tree.
- * @param <VALUE> type of values in tree.
  */
-class FullScanNonUniqueIndexSampler<KEY extends NativeSchemaKey<KEY>, VALUE extends NativeSchemaValue>
+class FullScanNonUniqueIndexSampler<KEY extends NativeIndexKey<KEY>>
         extends NonUniqueIndexSampler.Adapter
 {
-    private final GBPTree<KEY,VALUE> gbpTree;
-    private final Layout<KEY,VALUE> layout;
-    private final IndexSamplingConfig samplingConfig;
+    private final GBPTree<KEY,NullValue> gbpTree;
+    private final IndexLayout<KEY> layout;
 
-    FullScanNonUniqueIndexSampler( GBPTree<KEY,VALUE> gbpTree, Layout<KEY,VALUE> layout,
-            IndexSamplingConfig samplingConfig )
+    FullScanNonUniqueIndexSampler( GBPTree<KEY,NullValue> gbpTree, IndexLayout<KEY> layout )
     {
         this.gbpTree = gbpTree;
         this.layout = layout;
-        this.samplingConfig = samplingConfig;
     }
 
     @Override
-    public IndexSample result()
+    public IndexSample sample( CursorContext cursorContext )
     {
         KEY lowest = layout.newKey();
-        lowest.initAsLowest();
+        lowest.initialize( Long.MIN_VALUE );
+        lowest.initValuesAsLowest();
         KEY highest = layout.newKey();
-        highest.initAsHighest();
-        try ( RawCursor<Hit<KEY,VALUE>,IOException> seek = gbpTree.seek( lowest, highest ) )
+        highest.initialize( Long.MAX_VALUE );
+        highest.initValuesAsHighest();
+        KEY prev = layout.newKey();
+        try ( Seeker<KEY,NullValue> seek = gbpTree.seek( lowest, highest, cursorContext ) )
         {
-            NonUniqueIndexSampler sampler = new DefaultNonUniqueIndexSampler( samplingConfig.sampleSizeLimit() );
-            while ( seek.next() )
+            long sampledValues = 0;
+            long uniqueValues = 0;
+
+            // Get the first one so that prev gets initialized
+            if ( seek.next() )
             {
-                Hit<KEY,VALUE> hit = seek.get();
-                sampler.include( hit.key().propertiesAsString() );
+                prev = layout.copyKey( seek.key(), prev );
+                sampledValues++;
+                uniqueValues++;
+
+                // Then do the rest
+                while ( seek.next() )
+                {
+                    if ( layout.compareValue( prev, seek.key() ) != 0 )
+                    {
+                        uniqueValues++;
+                        layout.copyKey( seek.key(), prev );
+                    }
+                    // else this is a duplicate of the previous one
+                    sampledValues++;
+                }
             }
-            return sampler.result();
+            return new IndexSample( sampledValues, uniqueValues, sampledValues );
         }
         catch ( IOException e )
         {
@@ -95,7 +107,7 @@ class FullScanNonUniqueIndexSampler<KEY extends NativeSchemaKey<KEY>, VALUE exte
     }
 
     @Override
-    public IndexSample result( int numDocs )
+    public IndexSample sample( int numDocs, CursorContext cursorContext )
     {
         throw new UnsupportedOperationException();
     }

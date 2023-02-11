@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,6 +39,7 @@
 package org.neo4j.server.security.ssl;
 
 import org.eclipse.jetty.http.HttpVersion;
+import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConfiguration.Customizer;
 import org.eclipse.jetty.server.Server;
@@ -49,20 +50,22 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 import java.util.List;
 import java.util.UUID;
 
-import org.neo4j.helpers.ListenSocketAddress;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.helpers.SocketAddress;
+import org.neo4j.kernel.api.net.NetworkConnectionTracker;
 import org.neo4j.server.web.HttpConnectorFactory;
 import org.neo4j.server.web.JettyThreadCalculator;
 import org.neo4j.ssl.SslPolicy;
 
-
 public class SslSocketConnectorFactory extends HttpConnectorFactory
 {
+    private static final String NAME = "https";
+
     private final Customizer requestCustomizer;
 
-    public SslSocketConnectorFactory( Config config )
+    public SslSocketConnectorFactory( NetworkConnectionTracker connectionTracker, Config config, ByteBufferPool byteBufferPool )
     {
-        super( config );
+        super( NAME, connectionTracker, config, byteBufferPool );
         requestCustomizer = new HttpsRequestCustomizer( config );
     }
 
@@ -74,16 +77,16 @@ public class SslSocketConnectorFactory extends HttpConnectorFactory
         return httpConfig;
     }
 
-    public ServerConnector createConnector( Server server, SslPolicy sslPolicy, ListenSocketAddress address,
+    public ServerConnector createConnector( Server server, SslPolicy sslPolicy, SocketAddress address,
             JettyThreadCalculator jettyThreadCalculator )
     {
         SslConnectionFactory sslConnectionFactory = createSslConnectionFactory( sslPolicy );
-        return super.createConnector( server, address, jettyThreadCalculator, sslConnectionFactory, createHttpConnectionFactory() );
+        return createConnector( server, address, jettyThreadCalculator, sslConnectionFactory, createHttpConnectionFactory() );
     }
 
-    private SslConnectionFactory createSslConnectionFactory( SslPolicy sslPolicy )
+    private static SslConnectionFactory createSslConnectionFactory( SslPolicy sslPolicy )
     {
-        SslContextFactory sslContextFactory = new SslContextFactory();
+        SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
 
         String password = UUID.randomUUID().toString();
         sslContextFactory.setKeyStore( sslPolicy.getKeyStore( password.toCharArray(), password.toCharArray() ) );
@@ -93,7 +96,7 @@ public class SslSocketConnectorFactory extends HttpConnectorFactory
         List<String> ciphers = sslPolicy.getCipherSuites();
         if ( ciphers != null )
         {
-            sslContextFactory.setIncludeCipherSuites( ciphers.toArray( new String[ciphers.size()] ) );
+            sslContextFactory.setIncludeCipherSuites( ciphers.toArray( new String[0] ) );
             sslContextFactory.setExcludeCipherSuites();
         }
 

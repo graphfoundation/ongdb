@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,14 +38,16 @@
  */
 package org.neo4j.index.internal.gbptree;
 
-import org.hamcrest.CoreMatchers;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.neo4j.index.internal.gbptree.TreeNode.Type.INTERNAL;
 
-public class InternalTreeLogicDynamicSizeTest extends InternalTreeLogicTestBase<RawBytes,RawBytes>
+class InternalTreeLogicDynamicSizeTest extends InternalTreeLogicTestBase<RawBytes,RawBytes>
 {
     @Override
     protected ValueMerger<RawBytes,RawBytes> getAdder()
@@ -54,14 +56,16 @@ public class InternalTreeLogicDynamicSizeTest extends InternalTreeLogicTestBase<
         {
             long baseSeed = layout.keySeed( base );
             long addSeed = layout.keySeed( add );
-            return layout.value( baseSeed + addSeed );
+            RawBytes merged = layout.value( baseSeed + addSeed );
+            base.copyFrom( merged );
+            return ValueMerger.MergeResult.MERGED;
         };
     }
 
     @Override
-    protected TreeNode<RawBytes,RawBytes> getTreeNode( int pageSize, Layout<RawBytes,RawBytes> layout )
+    protected TreeNode<RawBytes,RawBytes> getTreeNode( int pageSize, Layout<RawBytes,RawBytes> layout, OffloadStore<RawBytes,RawBytes> offloadStore )
     {
-        return new TreeNodeDynamicSize<>( pageSize, layout );
+        return new TreeNodeDynamicSize<>( pageSize, layout, offloadStore );
     }
 
     @Override
@@ -71,7 +75,7 @@ public class InternalTreeLogicDynamicSizeTest extends InternalTreeLogicTestBase<
     }
 
     @Test
-    public void shouldFailToInsertTooLargeKeys() throws IOException
+    void shouldFailToInsertTooLargeKeys()
     {
         RawBytes key = layout.newKey();
         RawBytes value = layout.newValue();
@@ -82,7 +86,7 @@ public class InternalTreeLogicDynamicSizeTest extends InternalTreeLogicTestBase<
     }
 
     @Test
-    public void shouldFailToInsertTooLargeKeyAndValueLargeKey() throws IOException
+    void shouldFailToInsertTooLargeKeyAndValueLargeKey()
     {
         RawBytes key = layout.newKey();
         RawBytes value = layout.newValue();
@@ -93,7 +97,7 @@ public class InternalTreeLogicDynamicSizeTest extends InternalTreeLogicTestBase<
     }
 
     @Test
-    public void shouldFailToInsertTooLargeKeyAndValueLargeValue() throws IOException
+    void shouldFailToInsertTooLargeKeyAndValueLargeValue()
     {
         RawBytes key = layout.newKey();
         RawBytes value = layout.newValue();
@@ -103,16 +107,29 @@ public class InternalTreeLogicDynamicSizeTest extends InternalTreeLogicTestBase<
         shouldFailToInsertTooLargeKeyAndValue( key, value );
     }
 
-    private void shouldFailToInsertTooLargeKeyAndValue( RawBytes key, RawBytes value ) throws IOException
+    private void shouldFailToInsertTooLargeKeyAndValue( RawBytes key, RawBytes value )
     {
         initialize();
-        try
+        var e = assertThrows( IllegalArgumentException.class, () -> insert( key, value ) );
+        assertThat( e.getMessage() ).contains( "Index key-value size it too large. Please see index documentation for limitations." );
+    }
+
+    @Test
+    void storeOnlyMinimalKeyDividerInInternal() throws IOException
+    {
+        // given
+        initialize();
+        long key = 0;
+        while ( numberOfRootSplits == 0 )
         {
-            insert( key, value );
+            insert( key( key ), value( key ) );
+            key++;
         }
-        catch ( IllegalArgumentException e )
-        {
-            assertThat( e.getMessage(), CoreMatchers.containsString( "Index key-value size it to large. Please see index documentation for limitations." ) );
-        }
+
+        // when
+        RawBytes rawBytes = keyAt( root.id(), 0, INTERNAL );
+
+        // then
+        assertEquals( Long.BYTES, rawBytes.bytes.length, "expected no tail on internal key but was " + rawBytes );
     }
 }

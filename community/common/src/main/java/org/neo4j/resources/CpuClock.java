@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -44,9 +44,9 @@ import java.lang.management.ThreadMXBean;
 /**
  * Measures CPU time by thread.
  */
-public abstract class CpuClock
+public interface CpuClock
 {
-    public static final CpuClock CPU_CLOCK = new CpuClock()
+    CpuClock CPU_CLOCK = new CpuClock()
     {
         private final ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
 
@@ -64,26 +64,7 @@ public abstract class CpuClock
             return threadMXBean.getThreadCpuTime( threadId );
         }
     };
-    public static final CpuClock NOT_AVAILABLE = new CpuClock()
-    {
-        @Override
-        public long cpuTimeNanos( long threadId )
-        {
-            return -1;
-        }
-    };
-
-    /**
-     * Returns the current CPU time used by the thread, in nanoseconds.
-     *
-     * @param thread
-     *         the thread to get the used CPU time for.
-     * @return the current CPU time used by the thread, in nanoseconds.
-     */
-    public final long cpuTimeNanos( Thread thread )
-    {
-        return cpuTimeNanos( thread.getId() );
-    }
+    CpuClock NOT_AVAILABLE = threadId -> -1;
 
     /**
      * Returns the current CPU time used by the thread, in nanoseconds.
@@ -93,5 +74,5 @@ public abstract class CpuClock
      * @return the current CPU time used by the thread, in nanoseconds, or {@code -1} if getting the CPU time is not
      * supported.
      */
-    public abstract long cpuTimeNanos( long threadId );
+    long cpuTimeNanos( long threadId );
 }

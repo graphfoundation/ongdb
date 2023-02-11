@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,33 +38,42 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.util.v3_4.{CypherTypeException, InvalidArgumentException}
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.commands.values.KeyToken
 import org.neo4j.cypher.internal.runtime.interpreted.IsMap
+import org.neo4j.cypher.internal.runtime.interpreted.commands.values.KeyToken
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.internal.runtime.ReadableRow
+import org.neo4j.cypher.internal.runtime.IsNoValue
+import org.neo4j.exceptions.CypherTypeException
+import org.neo4j.exceptions.InvalidArgumentException
 import org.neo4j.values.AnyValue
-import org.neo4j.values.storable.{DurationValue, PointValue, TemporalValue, Values}
-import org.neo4j.values.virtual.{VirtualNodeValue, VirtualRelationshipValue}
+import org.neo4j.values.storable.DurationValue
+import org.neo4j.values.storable.PointValue
+import org.neo4j.values.storable.TemporalValue
+import org.neo4j.values.storable.Values
+import org.neo4j.values.virtual.VirtualNodeValue
+import org.neo4j.values.virtual.VirtualRelationshipValue
 
-import scala.util.{Failure, Success, Try}
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
 case class Property(mapExpr: Expression, propertyKey: KeyToken)
   extends Expression with Product with Serializable
 {
-  def apply(ctx: ExecutionContext, state: QueryState): AnyValue = mapExpr(ctx, state) match {
-    case n if n == Values.NO_VALUE => Values.NO_VALUE
+  def apply(row: ReadableRow, state: QueryState): AnyValue = mapExpr(row, state) match {
+    case IsNoValue() => Values.NO_VALUE
     case n: VirtualNodeValue =>
       propertyKey.getOptId(state.query) match {
         case None => Values.NO_VALUE
-        case Some(propId) => state.query.nodeOps.getProperty(n.id(), propId)
+        case Some(propId) => state.query.nodeReadOps.getProperty(n.id(), propId, state.cursors.nodeCursor, state.cursors.propertyCursor, throwOnDeleted = true)
       }
     case r: VirtualRelationshipValue =>
       propertyKey.getOptId(state.query) match {
         case None => Values.NO_VALUE
-        case Some(propId) => state.query.relationshipOps.getProperty(r.id(), propId)
+        case Some(propId) =>
+          state.query.relationshipReadOps.getProperty(r.id(), propId, state.cursors.relationshipScanCursor, state.cursors.propertyCursor, throwOnDeleted = true)
       }
-    case IsMap(mapFunc) => mapFunc(state.query).get(propertyKey.name)
+    case IsMap(mapFunc) => mapFunc(state).get(propertyKey.name)
     case t: TemporalValue[_,_] => t.get(propertyKey.name)
     case d: DurationValue => d.get(propertyKey.name)
     case p: PointValue => Try(p.get(propertyKey.name)) match {
@@ -74,13 +83,11 @@ case class Property(mapExpr: Expression, propertyKey: KeyToken)
     case other => throw new CypherTypeException(s"Type mismatch: expected a map but was $other")
   }
 
-  def rewrite(f: (Expression) => Expression) = f(Property(mapExpr.rewrite(f), propertyKey.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(Property(mapExpr.rewrite(f), propertyKey.rewrite(f)))
 
   override def children = Seq(mapExpr, propertyKey)
 
-  def arguments = Seq(mapExpr)
-
-  def symbolTableDependencies = mapExpr.symbolTableDependencies
+  override def arguments: Seq[Expression] = Seq(mapExpr)
 
   override def toString = s"$mapExpr.${propertyKey.name}"
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,15 +38,14 @@
  */
 package org.neo4j.graphdb.schema;
 
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.RelationshipType;
 
 /**
  * Definition of a constraint.
- *
- * <b>Note:</b> This interface is going to be changed/removed in next major release to better cope with node and
- * relationship constraints which are quite different concepts.
  */
+@PublicApi
 public interface ConstraintDefinition
 {
     /**
@@ -91,4 +90,11 @@ public interface ConstraintDefinition
      * @return true if this constraint definition's type is equal to the provided type
      */
     boolean isConstraintType( ConstraintType type );
+
+    /**
+     * Get the name given to this constraint when it was created.
+     * Constraints that were not explicitly given a name at creation, will have an auto-generated name.
+     * @return the unique name of the constraint.
+     */
+    String getName();
 }

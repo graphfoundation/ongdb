@@ -57,8 +57,13 @@ Apache Software License, Version 2.0
   @firebase/storage-types
   @firebase/util
   @firebase/webchannel-wrapper
+  Apache Commons IO
   Apache Commons Lang
+  Apache Commons Text
+  Apache Log4j API
+  Apache Log4j Core
   ascli
+  AssertJ fluent assertions
   aws-sign2
   bytebuffer
   caseless
@@ -67,14 +72,19 @@ Apache Software License, Version 2.0
   firebase
   forever-agent
   grpc
+  IPAddress
+  Java Agent for Memory Measurements
+  Java Concurrency Tools Core Library
+  Java Native Access
+  Jettison
   long
-  Lucene codecs
   Lucene Common Analyzers
   Lucene Core
+  Lucene Memory
   Lucene QueryParsers
   neo4j-driver
-  Netty/All-in-One
   oauth-sign
+  picocli - a mighty tiny Command Line Interface
   protobufjs
   request
   rxjs
@@ -104,9 +114,13 @@ BSD License 2-clause
   tar-pack
   uri-js
 
-Bouncy Castle License
-  Bouncy Castle PKIX, CMS, EAC, TSP, PKCS, OCSP, CMP, and CRMF APIs
-  Bouncy Castle Provider
+Eclipse Distribution License - v 1.0
+  Eclipse Collections API
+  Eclipse Collections Main Library
+
+Eclipse Public License - v 1.0
+  Eclipse Collections API
+  Eclipse Collections Main Library
 
 ISC
   abbrev
@@ -298,4 +312,15 @@ SIL OFL 1.1
 
 Unlicense
   tweetnacl
+
+Dependencies with multiple licenses
+-----------------------------------
+
+Eclipse Collections API
+  Eclipse Distribution License - v 1.0
+  Eclipse Public License - v 1.0
+
+Eclipse Collections Main Library
+  Eclipse Distribution License - v 1.0
+  Eclipse Public License - v 1.0
 

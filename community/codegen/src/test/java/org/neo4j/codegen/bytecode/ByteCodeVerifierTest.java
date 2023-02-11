@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,8 @@
  */
 package org.neo4j.codegen.bytecode;
 
-import org.junit.Test;
+
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.codegen.ClassGenerator;
 import org.neo4j.codegen.ClassHandle;
@@ -46,19 +47,18 @@ import org.neo4j.codegen.CodeBlock;
 import org.neo4j.codegen.CodeGenerator;
 import org.neo4j.codegen.CompilationFailureException;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.neo4j.codegen.CodeGenerationTest.PACKAGE;
 import static org.neo4j.codegen.CodeGenerator.generateCode;
 import static org.neo4j.codegen.Parameter.param;
 import static org.neo4j.codegen.bytecode.ByteCode.BYTECODE;
 import static org.neo4j.codegen.bytecode.ByteCode.VERIFY_GENERATED_BYTECODE;
 
-public class ByteCodeVerifierTest
+class ByteCodeVerifierTest
 {
     @Test
-    public void shouldVerifyBytecode() throws Throwable
+    void shouldVerifyBytecode() throws Throwable
     {
         // given
         CodeGenerator generator = generateCode( BYTECODE, VERIFY_GENERATED_BYTECODE );
@@ -71,16 +71,8 @@ public class ByteCodeVerifierTest
             code.returns( code.load( "value" ) );
         }
 
-        // when
-        try
-        {
-            handle.loadClass();
-            fail( "Should have thrown exception" );
-        }
-        // then
-        catch ( CompilationFailureException expected )
-        {
-            assertThat( expected.toString(), containsString( "box(I)" ) );
-        }
+        CompilationFailureException exception =
+                assertThrows( CompilationFailureException.class, handle::loadClass );
+        assertThat( exception.toString() ).contains( "box(I)" );
     }
 }

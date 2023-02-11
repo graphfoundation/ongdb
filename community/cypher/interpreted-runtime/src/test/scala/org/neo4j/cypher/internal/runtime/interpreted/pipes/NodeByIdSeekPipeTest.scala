@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,70 +38,64 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
+import org.mockito.ArgumentMatchers
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
-import org.mockito.{ArgumentMatchers, Mockito}
+import org.neo4j.cypher.internal.runtime.NodeReadOperations
+import org.neo4j.cypher.internal.runtime.NodeReadOperations
+import org.neo4j.cypher.internal.runtime.NodeOperations
+import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{ListLiteral, Literal}
-import org.neo4j.cypher.internal.runtime.{Operations, QueryContext}
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.runtime.interpreted.commands.LiteralHelper.literal
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ListLiteral
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
 import org.neo4j.graphdb.Node
-import org.neo4j.kernel.impl.util.ValueUtils.fromNodeProxy
-import org.neo4j.values.virtual.NodeValue
+import org.neo4j.kernel.impl.util.ValueUtils.fromNodeEntity
 
 class NodeByIdSeekPipeTest extends CypherFunSuite {
 
-  import Mockito.when
+  import org.mockito.Mockito.when
 
   test("should seek node by id") {
     // given
     val id = 17
-    val node = nodeProxy(17)
-    val nodeOps = mock[Operations[NodeValue]]
-    when(nodeOps.getByIdIfExists(17)).thenAnswer(new Answer[Option[NodeValue]] {
-      override def answer(invocation: InvocationOnMock): Option[NodeValue] = Some(fromNodeProxy(node))
-    })
+    val node = nodeMock(17)
+    val nodeOps = mock[NodeReadOperations]
+    when(nodeOps.entityExists(17)).thenReturn(true)
 
     val queryContext = mock[QueryContext]
-    when(queryContext.nodeOps).thenReturn(nodeOps)
+    when(queryContext.nodeReadOps).thenReturn(nodeOps)
     val queryState = QueryStateHelper.emptyWith(query = queryContext)
 
     // when
-    val result = NodeByIdSeekPipe("a", SingleSeekArg(Literal(id)))().createResults(queryState)
+    val result = NodeByIdSeekPipe("a", SingleSeekArg(literal(id)))().createResults(queryState)
 
     // then
-    result.map(_("a")).toList should equal(List(fromNodeProxy(node)))
+    result.map(_.getByName("a")).toList should equal(List(fromNodeEntity(node)))
   }
 
   test("should seek nodes by multiple ids") {
     // given
-    val node1 = nodeProxy(42)
-    val node2 = nodeProxy(21)
-    val node3 = nodeProxy(11)
-    val nodeOps = mock[Operations[NodeValue]]
+    val node1 = nodeMock(42)
+    val node2 = nodeMock(21)
+    val node3 = nodeMock(11)
+    val nodeOps = mock[NodeReadOperations]
 
-    when(nodeOps.getByIdIfExists(ArgumentMatchers.anyLong())).thenAnswer(new Answer[Option[NodeValue]] {
-      override def answer(invocation: InvocationOnMock): Option[NodeValue] = invocation.getArgument[Long](0) match {
-        case 42 => Some(fromNodeProxy(node1))
-        case 21 => Some(fromNodeProxy(node2))
-        case 11 => Some(fromNodeProxy(node3))
-        case _ => fail()
-      }
-    })
+    when(nodeOps.entityExists(ArgumentMatchers.anyLong())).thenReturn(true)
 
 
     val queryContext = mock[QueryContext]
-    when(queryContext.nodeOps).thenReturn(nodeOps)
+    when(queryContext.nodeReadOps).thenReturn(nodeOps)
     val queryState = QueryStateHelper.emptyWith(query = queryContext)
 
     // whens
-    val result = NodeByIdSeekPipe("a", ManySeekArgs(ListLiteral(Literal(42), Literal(21), Literal(11))))().createResults(queryState)
+    val result = NodeByIdSeekPipe("a", ManySeekArgs(ListLiteral(literal(42), literal(21), literal(11))))().createResults(queryState)
 
     // then
-    result.map(_("a")).toList should equal(List(fromNodeProxy(node1), fromNodeProxy(node2), fromNodeProxy(node3)))
+    result.map(_.getByName("a")).toList should equal(List(fromNodeEntity(node1), fromNodeEntity(node2), fromNodeEntity(node3)))
   }
 
-  private def nodeProxy(id: Long) = {
+  private def nodeMock(id: Long) = {
     val node = mock[Node]
     when(node.getId).thenReturn(id)
     node

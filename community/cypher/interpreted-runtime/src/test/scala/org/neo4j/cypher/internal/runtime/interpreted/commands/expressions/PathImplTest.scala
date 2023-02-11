@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,10 +39,9 @@
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
 import org.neo4j.cypher.internal.runtime.PathImpl
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.graphdb._
-
-import scala.collection.JavaConverters._
+import org.neo4j.cypher.internal.util.test_helpers.CypherFunSuite
+import org.neo4j.graphdb.RelationshipType
+import scala.collection.JavaConverters.iterableAsScalaIterableConverter
 
 class PathImplTest extends CypherFunSuite with FakeEntityTestSupport {
 
@@ -50,7 +49,7 @@ class PathImplTest extends CypherFunSuite with FakeEntityTestSupport {
 
   test("singleNodeTests") {
     val node = new FakeNode
-    val path = new PathImpl(node)
+    val path = PathImpl(node)
 
     path.length() should equal(0)
     path.startNode() should equal(node)
@@ -64,7 +63,7 @@ class PathImplTest extends CypherFunSuite with FakeEntityTestSupport {
     val nodA = new FakeNode
     val nodB = new FakeNode
     val rel = new FakeRel(nodA, nodB, typ)
-    val path = new PathImpl(nodA, rel, nodB)
+    val path = PathImpl(nodA, rel, nodB)
 
     path.length() should equal(1)
     path.startNode() should equal(nodA)
@@ -86,7 +85,7 @@ class PathImplTest extends CypherFunSuite with FakeEntityTestSupport {
       Seq(rel1)
     )
 
-    badPaths.foreach(p => intercept[IllegalArgumentException](new PathImpl(p:_*)))
+    badPaths.foreach(p => intercept[IllegalArgumentException](PathImpl(p: _*)))
   }
 
   test("retrieveLastRelationshipOnLongPath") {
@@ -95,7 +94,7 @@ class PathImplTest extends CypherFunSuite with FakeEntityTestSupport {
     val nodC = new FakeNode
     val rel1 = new FakeRel(nodA, nodB, typ)
     val rel2 = new FakeRel(nodB, nodC, typ)
-    val path = new PathImpl(nodA, rel1, nodB, rel2, nodC)
+    val path = PathImpl(nodA, rel1, nodB, rel2, nodC)
 
     path.lastRelationship() should equal(rel2)
   }

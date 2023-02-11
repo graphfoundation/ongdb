@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,29 +38,32 @@
  */
 package org.neo4j.index.internal.gbptree;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import org.neo4j.io.pagecache.ByteArrayPageCursor;
 import org.neo4j.io.pagecache.PageCursor;
-import org.neo4j.test.rule.RandomRule;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
+import org.neo4j.test.RandomSupport;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class GenerationSafePointerTest
+@ExtendWith( RandomExtension.class )
+class GenerationSafePointerTest
 {
     private static final int PAGE_SIZE = GenerationSafePointer.SIZE * 2;
     private final PageCursor cursor = ByteArrayPageCursor.wrap( new byte[PAGE_SIZE] );
     private final GSP read = new GSP();
 
-    @Rule
-    public final RandomRule random = new RandomRule();
+    @Inject
+    private RandomSupport random;
 
     @Test
-    public void shouldWriteAndReadGsp()
+    void shouldWriteAndReadGsp()
     {
         // GIVEN
         int offset = 3;
@@ -76,7 +79,7 @@ public class GenerationSafePointerTest
     }
 
     @Test
-    public void shouldReadGspWithZeroValues()
+    void shouldReadGspWithZeroValues()
     {
         // GIVEN
         int offset = 3;
@@ -89,7 +92,7 @@ public class GenerationSafePointerTest
     }
 
     @Test
-    public void shouldDetectInvalidChecksumOnReadDueToChangedGeneration()
+    void shouldDetectInvalidChecksumOnReadDueToChangedGeneration()
     {
         // GIVEN
         int offset = 0;
@@ -105,7 +108,7 @@ public class GenerationSafePointerTest
     }
 
     @Test
-    public void shouldDetectInvalidChecksumOnReadDueToChangedChecksum()
+    void shouldDetectInvalidChecksumOnReadDueToChangedChecksum()
     {
         // GIVEN
         int offset = 0;
@@ -122,7 +125,7 @@ public class GenerationSafePointerTest
     }
 
     @Test
-    public void shouldWriteAndReadGspCloseToGenerationMax()
+    void shouldWriteAndReadGspCloseToGenerationMax()
     {
         // GIVEN
         long generation = GenerationSafePointer.MAX_GENERATION;
@@ -140,7 +143,7 @@ public class GenerationSafePointerTest
     }
 
     @Test
-    public void shouldWriteAndReadGspCloseToPointerMax()
+    void shouldWriteAndReadGspCloseToPointerMax()
     {
         // GIVEN
         long pointer = GenerationSafePointer.MAX_POINTER;
@@ -158,7 +161,7 @@ public class GenerationSafePointerTest
     }
 
     @Test
-    public void shouldWriteAndReadGspCloseToGenerationAndPointerMax()
+    void shouldWriteAndReadGspCloseToGenerationAndPointerMax()
     {
         // GIVEN
         long generation = GenerationSafePointer.MAX_GENERATION;
@@ -178,91 +181,47 @@ public class GenerationSafePointerTest
     }
 
     @Test
-    public void shouldThrowIfPointerToLarge()
+    void shouldThrowIfPointerToLarge()
     {
-        // GIVEN
         long generation = GenerationSafePointer.MIN_GENERATION;
         long pointer = GenerationSafePointer.MAX_POINTER + 1;
         GSP broken = gsp( generation, pointer );
 
-        // WHEN
-        try
-        {
-            write( cursor, 0, broken );
-            fail( "Expected to throw" );
-        }
-        catch ( IllegalArgumentException e )
-        {
-            // THEN
-            // good
-        }
+        assertThrows( IllegalArgumentException.class, () -> write( cursor, 0, broken ) );
     }
 
     @Test
-    public void shouldThrowIfPointerToSmall()
+    void shouldThrowIfPointerToSmall()
     {
-        // GIVEN
         long generation = GenerationSafePointer.MIN_GENERATION;
         long pointer = GenerationSafePointer.MIN_POINTER - 1;
         GSP broken = gsp( generation, pointer );
 
-        // WHEN
-        try
-        {
-            write( cursor, 0, broken );
-            fail( "Expected to throw" );
-        }
-        catch ( IllegalArgumentException e )
-        {
-            // THEN
-            // good
-        }
+        assertThrows( IllegalArgumentException.class, () -> write( cursor, 0, broken ) );
     }
 
     @Test
-    public void shouldThrowIfGenerationToLarge()
+    void shouldThrowIfGenerationToLarge()
     {
-        // GIVEN
         long generation = GenerationSafePointer.MAX_GENERATION + 1;
         long pointer = GenerationSafePointer.MIN_POINTER;
         GSP broken = gsp( generation, pointer );
 
-        // WHEN
-        try
-        {
-            write( cursor, 0, broken );
-            fail( "Expected to throw" );
-        }
-        catch ( IllegalArgumentException e )
-        {
-            // THEN
-            // good
-        }
+        assertThrows( IllegalArgumentException.class, () -> write( cursor, 0, broken ) );
     }
 
     @Test
-    public void shouldThrowIfGenerationToSmall()
+    void shouldThrowIfGenerationToSmall()
     {
-        // GIVEN
         long generation = GenerationSafePointer.MIN_GENERATION - 1;
         long pointer = GenerationSafePointer.MIN_POINTER;
         GSP broken = gsp( generation, pointer );
 
-        // WHEN
-        try
-        {
-            write( cursor, 0, broken );
-            fail( "Expected to throw" );
-        }
-        catch ( IllegalArgumentException e )
-        {
-            // THEN
-            // good
-        }
+        assertThrows( IllegalArgumentException.class, () -> write( cursor, 0, broken ) );
     }
 
     @Test
-    public void shouldHaveLowAccidentalChecksumCollision()
+    void shouldHaveLowAccidentalChecksumCollision()
     {
         // GIVEN
         int count = 100_000;
@@ -291,7 +250,7 @@ public class GenerationSafePointerTest
         assertTrue( (double) collisions / count < 0.0001 );
     }
 
-    private GSP gsp( long generation, long pointer )
+    private static GSP gsp( long generation, long pointer )
     {
         GSP gsp = new GSP();
         gsp.generation = generation;
@@ -299,7 +258,7 @@ public class GenerationSafePointerTest
         return gsp;
     }
 
-    private boolean read( PageCursor cursor, int offset, GSP into )
+    private static boolean read( PageCursor cursor, int offset, GSP into )
     {
         cursor.setOffset( offset );
         into.generation = GenerationSafePointer.readGeneration( cursor );
@@ -307,7 +266,7 @@ public class GenerationSafePointerTest
         return GenerationSafePointer.verifyChecksum( cursor, into.generation, into.pointer );
     }
 
-    private void write( PageCursor cursor, int offset, GSP gsp )
+    private static void write( PageCursor cursor, int offset, GSP gsp )
     {
         cursor.setOffset( offset );
         GenerationSafePointer.write( cursor, gsp.generation, gsp.pointer );

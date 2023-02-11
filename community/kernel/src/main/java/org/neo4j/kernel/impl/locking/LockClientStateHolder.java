@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -61,7 +61,7 @@ public final class LockClientStateHolder
     private static final int PREPARE = 1 << CLIENT_BITS - 1;
     private static final int STATE_BIT_MASK = STOPPED | PREPARE;
     private static final int INITIAL_STATE = 0;
-    private AtomicInteger clientState = new AtomicInteger( INITIAL_STATE );
+    private final AtomicInteger clientState = new AtomicInteger( INITIAL_STATE );
 
     /**
      * Check if we still have any active client
@@ -71,6 +71,16 @@ public final class LockClientStateHolder
     public boolean hasActiveClients()
     {
         return getActiveClients( clientState.get() ) > 0;
+    }
+
+    /**
+     * Check if we still have one active client
+     *
+     * @return true if have one open client, false otherwise.
+     */
+    public boolean isSingleClient()
+    {
+        return getActiveClients( clientState.get() ) == 1;
     }
 
     /**
@@ -93,7 +103,7 @@ public final class LockClientStateHolder
     }
 
     /**
-     * Move the client to STOPPED, unless it is already in PREPARE.
+     * Move the client to STOPPED, unless it is already in PREPARE or STOPPED
      */
     public boolean stopClient()
     {
@@ -105,6 +115,10 @@ public final class LockClientStateHolder
             if ( isPrepare( currentValue ) )
             {
                 return false; // Can't stop clients that are in PREPARE
+            }
+            if ( isStopped( currentValue ) )
+            {
+                return false;
             }
             newValue = stateWithNewStatus( currentValue, STOPPED );
         }
@@ -179,37 +193,37 @@ public final class LockClientStateHolder
         clientState.set( INITIAL_STATE );
     }
 
-    private boolean isPrepare( int clientState )
+    private static boolean isPrepare( int clientState )
     {
         return getStatus( clientState ) == PREPARE;
     }
 
-    private boolean isStopped( int clientState )
+    private static boolean isStopped( int clientState )
     {
         return getStatus( clientState ) == STOPPED;
     }
 
-    private int getStatus( int clientState )
+    private static int getStatus( int clientState )
     {
         return clientState & STATE_BIT_MASK;
     }
 
-    private int getActiveClients( int clientState )
+    private static int getActiveClients( int clientState )
     {
         return clientState & ~STATE_BIT_MASK;
     }
 
-    private int stateWithNewStatus( int clientState, int newStatus )
+    private static int stateWithNewStatus( int clientState, int newStatus )
     {
         return newStatus | getActiveClients( clientState );
     }
 
-    private int incrementActiveClients( int clientState )
+    private static int incrementActiveClients( int clientState )
     {
         return getStatus( clientState ) | Math.incrementExact( getActiveClients( clientState ) );
     }
 
-    private int decrementActiveClients( int clientState )
+    private static int decrementActiveClients( int clientState )
     {
         return getStatus( clientState ) | Math.decrementExact( getActiveClients( clientState ) );
     }

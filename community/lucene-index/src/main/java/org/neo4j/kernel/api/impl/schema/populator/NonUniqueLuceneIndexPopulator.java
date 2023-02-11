@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -40,59 +40,59 @@ package org.neo4j.kernel.api.impl.schema.populator;
 
 import java.io.IOException;
 
-import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
-import org.neo4j.kernel.api.impl.schema.LuceneDocumentStructure;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
+import org.neo4j.io.pagecache.context.CursorContext;
 import org.neo4j.kernel.api.impl.schema.SchemaIndex;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
+import org.neo4j.kernel.api.index.IndexSample;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.index.PropertyAccessor;
-import org.neo4j.kernel.impl.api.index.sampling.DefaultNonUniqueIndexSampler;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.kernel.impl.api.index.sampling.NonUniqueIndexSampler;
-import org.neo4j.storageengine.api.schema.IndexSample;
+import org.neo4j.kernel.impl.index.schema.IndexUpdateIgnoreStrategy;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 
 /**
- * A {@link LuceneIndexPopulator} used for non-unique Lucene schema indexes.
- * Performs sampling using {@link DefaultNonUniqueIndexSampler}.
+ * A {@link LuceneIndexPopulator} used for non-unique Lucene schema indexes, Performs index sampling.
  */
-public class NonUniqueLuceneIndexPopulator extends LuceneIndexPopulator
+public class NonUniqueLuceneIndexPopulator extends LuceneIndexPopulator<SchemaIndex>
 {
-    private final IndexSamplingConfig samplingConfig;
-    private NonUniqueIndexSampler sampler;
 
-    public NonUniqueLuceneIndexPopulator( SchemaIndex luceneIndex, IndexSamplingConfig samplingConfig )
+    public NonUniqueLuceneIndexPopulator( SchemaIndex luceneIndex, IndexUpdateIgnoreStrategy ignoreStrategy )
     {
-        super( luceneIndex );
-        this.samplingConfig = samplingConfig;
-        this.sampler = createDefaultSampler();
+        super( luceneIndex, ignoreStrategy );
     }
 
     @Override
-    public void verifyDeferredConstraints( PropertyAccessor accessor )
+    public void verifyDeferredConstraints( NodePropertyAccessor accessor )
     {
         // no constraints to verify so do nothing
     }
 
     @Override
-    public IndexUpdater newPopulatingUpdater( PropertyAccessor propertyAccessor )
+    public IndexUpdater newPopulatingUpdater( NodePropertyAccessor nodePropertyAccessor, CursorContext cursorContext )
     {
-        return new NonUniqueLuceneIndexPopulatingUpdater( writer, sampler );
+        return new NonUniqueLuceneIndexPopulatingUpdater( writer, ignoreStrategy );
     }
 
     @Override
     public void includeSample( IndexEntryUpdate<?> update )
     {
-        sampler.include( LuceneDocumentStructure.encodedStringValuesForSampling( update.values() ) );
+        // Samples are built by scanning the index
     }
 
     @Override
-    public IndexSample sampleResult()
+    public IndexSample sample( CursorContext cursorContext )
     {
-        return sampler.result();
-    }
-
-    private DefaultNonUniqueIndexSampler createDefaultSampler()
-    {
-        return new DefaultNonUniqueIndexSampler( samplingConfig.sampleSizeLimit() );
+        try
+        {
+            luceneIndex.maybeRefreshBlocking();
+            try ( var reader = luceneIndex.getIndexReader();
+                  var sampler = reader.createSampler() )
+            {
+                return sampler.sampleIndex( cursorContext );
+            }
+        }
+        catch ( IOException | IndexNotFoundKernelException e )
+        {
+            throw new RuntimeException( e );
+        }
     }
 }

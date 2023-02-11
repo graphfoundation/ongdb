@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,6 @@
  */
 package org.neo4j.kernel.api.impl.schema.verification;
 
-import org.apache.lucene.index.Fields;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.MultiTerms;
@@ -57,12 +56,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.neo4j.helpers.collection.Iterables;
 import org.neo4j.io.IOUtils;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
+import org.neo4j.kernel.api.impl.index.SearcherReference;
 import org.neo4j.kernel.api.impl.index.partition.PartitionSearcher;
 import org.neo4j.kernel.api.impl.schema.LuceneDocumentStructure;
-import org.neo4j.kernel.api.index.PropertyAccessor;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.values.storable.Value;
 
 import static java.util.stream.Collectors.toList;
@@ -80,21 +79,21 @@ import static java.util.stream.Collectors.toList;
  */
 public class PartitionedUniquenessVerifier implements UniquenessVerifier
 {
-    private final List<PartitionSearcher> searchers;
+    private final List<SearcherReference> searchers;
 
-    public PartitionedUniquenessVerifier( List<PartitionSearcher> searchers )
+    public PartitionedUniquenessVerifier( List<SearcherReference> searchers )
     {
         this.searchers = searchers;
     }
 
     @Override
-    public void verify( PropertyAccessor accessor, int[] propKeyIds ) throws IndexEntryConflictException, IOException
+    public void verify( NodePropertyAccessor accessor, int[] propKeyIds ) throws IndexEntryConflictException, IOException
     {
         for ( String field : allFields() )
         {
             if ( LuceneDocumentStructure.useFieldForUniquenessVerification( field ) )
             {
-                TermsEnum terms = LuceneDocumentStructure.originalTerms( termsForField( field ), field );
+                TermsEnum terms = termsForField( field ).iterator();
                 BytesRef termsRef;
                 while ( (termsRef = terms.next()) != null )
                 {
@@ -109,7 +108,7 @@ public class PartitionedUniquenessVerifier implements UniquenessVerifier
     }
 
     @Override
-    public void verify( PropertyAccessor accessor, int[] propKeyIds, List<Value[]> updatedValueTuples )
+    public void verify( NodePropertyAccessor accessor, int[] propKeyIds, List<Value[]> updatedValueTuples )
             throws IndexEntryConflictException, IOException
     {
         for ( Value[] valueTuple : updatedValueTuples )
@@ -130,11 +129,10 @@ public class PartitionedUniquenessVerifier implements UniquenessVerifier
         List<Terms> terms = new ArrayList<>();
         List<ReaderSlice> readerSlices = new ArrayList<>();
 
-        for ( LeafReader leafReader : allLeafReaders() )
+        List<LeafReader> leafReaders = allLeafReaders();
+        for ( LeafReader leafReader : leafReaders )
         {
-            Fields fields = leafReader.fields();
-
-            Terms leafTerms = fields.terms( fieldName );
+            Terms leafTerms = leafReader.terms( fieldName );
             if ( leafTerms != null )
             {
                 ReaderSlice readerSlice = new ReaderSlice( 0, Math.toIntExact( leafTerms.size() ), 0 );
@@ -143,8 +141,8 @@ public class PartitionedUniquenessVerifier implements UniquenessVerifier
             }
         }
 
-        Terms[] termsArray = terms.toArray( new Terms[terms.size()] );
-        ReaderSlice[] readerSlicesArray = readerSlices.toArray( new ReaderSlice[readerSlices.size()] );
+        Terms[] termsArray = terms.toArray( new Terms[0] );
+        ReaderSlice[] readerSlicesArray = readerSlices.toArray( new ReaderSlice[0] );
 
         return new MultiTerms( termsArray, readerSlicesArray );
     }
@@ -158,7 +156,7 @@ public class PartitionedUniquenessVerifier implements UniquenessVerifier
      * @throws IOException
      * @throws IndexEntryConflictException
      */
-    private void searchForDuplicates( Query query, PropertyAccessor accessor, int[] propertyKeyIds )
+    private void searchForDuplicates( Query query, NodePropertyAccessor accessor, int[] propertyKeyIds )
             throws IOException, IndexEntryConflictException
     {
         DuplicateCheckingCollector collector = getDuplicateCollector( accessor, propertyKeyIds );
@@ -176,7 +174,7 @@ public class PartitionedUniquenessVerifier implements UniquenessVerifier
      * @throws IOException
      * @throws IndexEntryConflictException
      */
-    private void searchForDuplicates( Query query, PropertyAccessor accessor, int[] propertyKeyIds,
+    private void searchForDuplicates( Query query, NodePropertyAccessor accessor, int[] propertyKeyIds,
             int expectedNumberOfEntries ) throws IOException, IndexEntryConflictException
     {
         DuplicateCheckingCollector collector = getDuplicateCollector( accessor, propertyKeyIds );
@@ -184,7 +182,7 @@ public class PartitionedUniquenessVerifier implements UniquenessVerifier
         searchForDuplicates( query, collector );
     }
 
-    private DuplicateCheckingCollector getDuplicateCollector( PropertyAccessor accessor, int[] propertyKeyIds )
+    private static DuplicateCheckingCollector getDuplicateCollector( NodePropertyAccessor accessor, int[] propertyKeyIds )
     {
         return DuplicateCheckingCollector.forProperties( accessor, propertyKeyIds );
     }
@@ -193,7 +191,7 @@ public class PartitionedUniquenessVerifier implements UniquenessVerifier
     {
         try
         {
-            for ( PartitionSearcher searcher : searchers )
+            for ( SearcherReference searcher : searchers )
             {
                     /*
                      * Here {@link DuplicateCheckingCollector#init()} is deliberately not called to preserve accumulated
@@ -213,12 +211,12 @@ public class PartitionedUniquenessVerifier implements UniquenessVerifier
         }
     }
 
-    private Set<String> allFields() throws IOException
+    private Set<String> allFields()
     {
         Set<String> allFields = new HashSet<>();
         for ( LeafReader leafReader : allLeafReaders() )
         {
-            Iterables.addAll( allFields, leafReader.fields() );
+            leafReader.getFieldInfos().forEach( info -> allFields.add( info.name ) );
         }
         return allFields;
     }
@@ -226,7 +224,7 @@ public class PartitionedUniquenessVerifier implements UniquenessVerifier
     private List<LeafReader> allLeafReaders()
     {
         return searchers.stream()
-                .map( PartitionSearcher::getIndexSearcher )
+                .map( SearcherReference::getIndexSearcher )
                 .map( IndexSearcher::getIndexReader )
                 .flatMap( indexReader -> indexReader.leaves().stream() )
                 .map( LeafReaderContext::reader )

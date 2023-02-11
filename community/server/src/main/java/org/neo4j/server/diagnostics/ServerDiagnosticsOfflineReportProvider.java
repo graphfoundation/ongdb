@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,19 +38,21 @@
  */
 package org.neo4j.server.diagnostics;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import org.neo4j.diagnostics.DiagnosticsOfflineReportProvider;
-import org.neo4j.diagnostics.DiagnosticsReportSource;
+import org.neo4j.annotations.service.ServiceProvider;
+import org.neo4j.configuration.Config;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.diagnostics.DiagnosticsOfflineReportProvider;
+import org.neo4j.kernel.diagnostics.DiagnosticsReportSource;
 import org.neo4j.server.configuration.ServerSettings;
 
-import static org.neo4j.diagnostics.DiagnosticsReportSources.newDiagnosticsRotatingFile;
+import static org.neo4j.kernel.diagnostics.DiagnosticsReportSources.newDiagnosticsRotatingFile;
 
+@ServiceProvider
 public class ServerDiagnosticsOfflineReportProvider extends DiagnosticsOfflineReportProvider
 {
     private FileSystemAbstraction fs;
@@ -58,10 +60,11 @@ public class ServerDiagnosticsOfflineReportProvider extends DiagnosticsOfflineRe
 
     public ServerDiagnosticsOfflineReportProvider()
     {
-        super( "server", "logs" );
+        super( "logs" );
     }
+
     @Override
-    public void init( FileSystemAbstraction fs, Config config, File storeDirectory )
+    public void init( FileSystemAbstraction fs, String defaultDatabaseName, Config config, Path storeDirectory )
     {
         this.fs = fs;
         this.config = config;
@@ -72,10 +75,10 @@ public class ServerDiagnosticsOfflineReportProvider extends DiagnosticsOfflineRe
     {
         if ( classifiers.contains( "logs" ) )
         {
-            File httpLog = config.get( ServerSettings.http_log_path );
+            Path httpLog = config.get( ServerSettings.http_log_path );
             if ( fs.fileExists( httpLog ) )
             {
-                return newDiagnosticsRotatingFile( "logs/http.log", fs, httpLog );
+                return newDiagnosticsRotatingFile( "logs/", fs, httpLog );
             }
         }
         return Collections.emptyList();

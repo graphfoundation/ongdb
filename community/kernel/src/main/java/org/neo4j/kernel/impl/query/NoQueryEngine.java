@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,7 +38,7 @@
  */
 package org.neo4j.kernel.impl.query;
 
-import java.util.Map;
+import java.util.List;
 
 import org.neo4j.graphdb.Result;
 import org.neo4j.values.virtual.MapValue;
@@ -48,25 +48,14 @@ enum NoQueryEngine implements QueryExecutionEngine
     INSTANCE;
 
     @Override
-    public Result executeQuery( String query, MapValue parameters, TransactionalContext context )
+    public Result executeQuery( String query, MapValue parameters, TransactionalContext context, boolean prePopulate )
     {
         throw noQueryEngine();
     }
 
     @Override
-    public Result executeQuery( String query, Map<String,Object> parameters, TransactionalContext context )
-    {
-        throw noQueryEngine();
-    }
-
-    @Override
-    public String prettify( String query )
-    {
-        throw noQueryEngine();
-    }
-
-    @Override
-    public Result profileQuery( String query, Map<String,Object> parameter, TransactionalContext context )
+    public QueryExecution executeQuery( String query, MapValue parameters, TransactionalContext context,
+            boolean prePopulate, QuerySubscriber subscriber )
     {
         throw noQueryEngine();
     }
@@ -83,7 +72,13 @@ enum NoQueryEngine implements QueryExecutionEngine
         throw noQueryEngine();
     }
 
-    private RuntimeException noQueryEngine()
+    @Override
+    public List<FunctionInformation> getProvidedLanguageFunctions()
+    {
+        throw noQueryEngine();
+    }
+
+    private static RuntimeException noQueryEngine()
     {
         return new UnsupportedOperationException( "No query engine installed." );
     }

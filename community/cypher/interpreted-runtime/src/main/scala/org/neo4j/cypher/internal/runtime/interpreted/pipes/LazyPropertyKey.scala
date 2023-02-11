@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,23 +38,24 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.frontend.v3_4.semantics.SemanticTable
-import org.neo4j.cypher.internal.planner.v3_4.spi.TokenContext
-import org.neo4j.cypher.internal.util.v3_4.PropertyKeyId
-import org.neo4j.cypher.internal.v3_4.expressions.PropertyKeyName
+import org.neo4j.cypher.internal.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.expressions.PropertyKeyName
+import org.neo4j.cypher.internal.planner.spi.ReadTokenContext
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.LazyPropertyKey.UNKNOWN
 
 case class LazyPropertyKey(name: String) {
-  private var id: Option[PropertyKeyId] = None
+  private var id: Int = UNKNOWN
 
-  def id(context: TokenContext): Option[PropertyKeyId] = id match {
-    case None =>
-      id = context.getOptPropertyKeyId(name).map(PropertyKeyId)
-      id
-    case x => x
+  def id(context: ReadTokenContext): Int = {
+    if (id == UNKNOWN) {
+      id = context.getOptPropertyKeyId(name).getOrElse(UNKNOWN)
+    }
+    id
   }
 }
 
 object LazyPropertyKey {
+  val UNKNOWN: Int = -1
 
   def apply(name: PropertyKeyName)(implicit table: SemanticTable): LazyPropertyKey = {
     val property = new LazyPropertyKey(name.name)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -41,7 +41,10 @@ package org.neo4j.graphdb.impl.notification;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
+
+import org.neo4j.common.EntityType;
+import org.neo4j.exceptions.IndexHintException;
+import org.neo4j.exceptions.IndexHintException.IndexHintIndexType;
 
 public interface NotificationDetail
 {
@@ -60,18 +63,65 @@ public interface NotificationDetail
             return createDeprecationNotificationDetail( oldName, newName );
         }
 
-        public static NotificationDetail index( final String labelName, final String... propertyKeyNames )
+        public static NotificationDetail nodeAnyIndex( final String variableName, final String labelName, final String... propertyKeyNames )
         {
-            return createNotificationDetail( "hinted index",
-                    String.format( "index on :%s(%s)", labelName,
-                            Arrays.stream( propertyKeyNames ).collect( Collectors.joining( "," ) ) ), true );
+            String indexFormatString = IndexHintException.indexFormatString( variableName,
+                                                                             labelName,
+                                                                             Arrays.asList( propertyKeyNames ),
+                                                                             EntityType.NODE,
+                                                                             IndexHintIndexType.ANY );
+            return createNotificationDetail( "index", indexFormatString, true );
         }
 
-        public static NotificationDetail suboptimalIndex( final String labelName, final String... propertyKeyNames )
+        public static NotificationDetail nodeBtreeIndex( final String variableName, final String labelName, final String... propertyKeyNames )
         {
-            return createNotificationDetail( "index",
-                    String.format( "index on :%s(%s)", labelName,
-                            Arrays.stream( propertyKeyNames ).collect( Collectors.joining( "," ) ) ), true );
+            String indexFormatString = IndexHintException.indexFormatString( variableName,
+                                                                             labelName,
+                                                                             Arrays.asList( propertyKeyNames ),
+                                                                             EntityType.NODE,
+                                                                             IndexHintIndexType.BTREE );
+            return createNotificationDetail( "index", indexFormatString, true );
+        }
+
+        public static NotificationDetail nodeTextIndex( final String variableName, final String labelName, final String... propertyKeyNames )
+        {
+            String indexFormatString = IndexHintException.indexFormatString( variableName,
+                                                                             labelName,
+                                                                             Arrays.asList( propertyKeyNames ),
+                                                                             EntityType.NODE,
+                                                                             IndexHintIndexType.TEXT );
+            return createNotificationDetail( "index", indexFormatString, true );
+        }
+
+        public static NotificationDetail relationshipAnyIndex( final String variableName, final String relationshipTypeName, final String... propertyKeyNames )
+        {
+            String indexFormatString = IndexHintException.indexFormatString( variableName,
+                                                                             relationshipTypeName,
+                                                                             Arrays.asList( propertyKeyNames ),
+                                                                             EntityType.RELATIONSHIP,
+                                                                             IndexHintIndexType.ANY );
+            return createNotificationDetail( "index", indexFormatString, true );
+        }
+
+        public static NotificationDetail relationshipBtreeIndex( final String variableName, final String relationshipTypeName,
+                                                                 final String... propertyKeyNames )
+        {
+            String indexFormatString = IndexHintException.indexFormatString( variableName,
+                                                                             relationshipTypeName,
+                                                                             Arrays.asList( propertyKeyNames ),
+                                                                             EntityType.RELATIONSHIP,
+                                                                             IndexHintIndexType.BTREE );
+            return createNotificationDetail( "index", indexFormatString, true );
+        }
+
+        public static NotificationDetail relationshipTextIndex( final String variableName, final String relationshipTypeName, final String... propertyKeyNames )
+        {
+            String indexFormatString = IndexHintException.indexFormatString( variableName,
+                                                                             relationshipTypeName,
+                                                                             Arrays.asList( propertyKeyNames ),
+                                                                             EntityType.RELATIONSHIP,
+                                                                             IndexHintIndexType.TEXT );
+            return createNotificationDetail( "index", indexFormatString, true );
         }
 
         public static NotificationDetail label( final String labelName )
@@ -94,6 +144,16 @@ public interface NotificationDetail
             return createNotificationDetail( "the missing property name", name, true );
         }
 
+        public static NotificationDetail repeatedRel( final String name )
+        {
+            return createNotificationDetail( "the repeated relationship", name, true );
+        }
+
+        public static NotificationDetail shadowingVariable( final String name )
+        {
+            return createNotificationDetail( "the shadowing variable", name, true );
+        }
+
         public static NotificationDetail joinKey( List<String> identifiers )
         {
             boolean singular = identifiers.size() == 1;
@@ -112,9 +172,9 @@ public interface NotificationDetail
                 builder.append( identifier );
             }
             return createNotificationDetail(
-                singular ? "hinted join key identifier" : "hinted join key identifiers",
-                builder.toString(),
-                singular
+                    singular ? "hinted join key identifier" : "hinted join key identifiers",
+                    builder.toString(),
+                    singular
             );
         }
 
@@ -191,10 +251,10 @@ public interface NotificationDetail
                 {
                     return String.format(
                             "Binding a variable length relationship pattern to a variable ('%s') is deprecated and "
-                                    + "will be unsupported in a future version. The recommended way is to bind the "
-                                    + "whole path to a variable, then extract the relationships:%n"
-                                    + "\tMATCH p = (...)-[...]-(...)%n"
-                                    + "\tWITH *, relationships(p) AS %s",
+                            + "will be unsupported in a future version. The recommended way is to bind the "
+                            + "whole path to a variable, then extract the relationships:%n"
+                            + "\tMATCH p = (...)-[...]-(...)%n"
+                            + "\tWITH *, relationships(p) AS %s",
                             element, element );
                 }
 
@@ -207,7 +267,7 @@ public interface NotificationDetail
         }
 
         private static NotificationDetail createNotificationDetail( Set<String> elements, String singularTerm,
-                String pluralTerm )
+                                                                    String pluralTerm )
         {
             StringBuilder builder = new StringBuilder();
             builder.append( '(' );
@@ -224,7 +284,7 @@ public interface NotificationDetail
         }
 
         private static NotificationDetail createNotificationDetail( final String name, final String value,
-                final boolean singular )
+                                                                    final boolean singular )
         {
             return new NotificationDetail()
             {

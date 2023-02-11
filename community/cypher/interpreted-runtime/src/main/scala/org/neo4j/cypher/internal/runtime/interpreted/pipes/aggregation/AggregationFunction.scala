@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,24 +38,24 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes.aggregation
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ReadableRow
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.values.AnyValue
 
 /**
-  * Base class for aggregation functions. The function is stateful
-  * and aggregates by having it's apply method called once for every
-  * row that matches the key.
-  */
+ * Base class for aggregation functions. The function is stateful
+ * and aggregates by having it's apply method called once for every
+ * row that matches the key.
+ */
 abstract class AggregationFunction {
   /**
-    * Adds this data to the aggregated total.
-    */
-  def apply(data: ExecutionContext, state: QueryState): Unit
+   * Adds this data to the aggregated total.
+   */
+  def apply(data: ReadableRow, state: QueryState): Unit
 
   /**
-    * The aggregated result.
-    */
+   * The aggregated result.
+   */
   def result(state: QueryState): AnyValue
 }
 

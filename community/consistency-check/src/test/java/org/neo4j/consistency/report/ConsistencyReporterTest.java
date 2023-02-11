@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,46 +38,32 @@
  */
 package org.neo4j.consistency.report;
 
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
-import org.hamcrest.TypeSafeMatcher;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestName;
-import org.junit.rules.TestRule;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Suite;
-import org.junit.runners.model.Statement;
-import org.mockito.ArgumentCaptor;
-import org.mockito.ArgumentMatchers;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.ArgumentMatcher;
 
 import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
 
+import org.neo4j.annotations.documented.Warning;
+import org.neo4j.common.TokenNameLookup;
 import org.neo4j.consistency.RecordType;
-import org.neo4j.consistency.checking.CheckerEngine;
-import org.neo4j.consistency.checking.ComparativeRecordChecker;
-import org.neo4j.consistency.checking.RecordCheck;
-import org.neo4j.consistency.report.ConsistencyReport.NodeConsistencyReport;
-import org.neo4j.consistency.store.RecordAccess;
-import org.neo4j.consistency.store.RecordReference;
 import org.neo4j.consistency.store.synthetic.CountsEntry;
 import org.neo4j.consistency.store.synthetic.IndexEntry;
-import org.neo4j.consistency.store.synthetic.LabelScanDocument;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.api.labelscan.NodeLabelRange;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
+import org.neo4j.consistency.store.synthetic.TokenScanDocument;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.IndexProviderDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptors;
+import org.neo4j.internal.schema.SchemaRule;
+import org.neo4j.io.pagecache.context.CursorContext;
+import org.neo4j.kernel.impl.index.schema.EntityTokenRangeImpl;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
 import org.neo4j.kernel.impl.store.record.DynamicRecord;
-import org.neo4j.kernel.impl.store.record.IndexRule;
 import org.neo4j.kernel.impl.store.record.LabelTokenRecord;
 import org.neo4j.kernel.impl.store.record.NeoStoreRecord;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
@@ -87,261 +73,86 @@ import org.neo4j.kernel.impl.store.record.PropertyRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipGroupRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
-import org.neo4j.storageengine.api.schema.SchemaRule;
+import org.neo4j.kernel.impl.store.record.SchemaRecord;
+import org.neo4j.test.InMemoryTokens;
 
 import static java.lang.String.format;
-import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doThrow;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.verifyZeroInteractions;
-import static org.mockito.hamcrest.MockitoHamcrest.argThat;
+import static org.neo4j.common.EntityType.NODE;
 import static org.neo4j.consistency.report.ConsistencyReporter.NO_MONITOR;
-import static org.neo4j.kernel.impl.store.counts.keys.CountsKeyFactory.nodeKey;
+import static org.neo4j.internal.counts.GBPTreeCountsStore.nodeKey;
+import static org.neo4j.internal.schema.SchemaDescriptors.forLabel;
+import static org.neo4j.io.pagecache.context.CursorContext.NULL;
+import static org.neo4j.kernel.impl.store.record.Record.NULL_REFERENCE;
 
-@RunWith( Suite.class )
-@Suite.SuiteClasses( {ConsistencyReporterTest.TestAllReportMessages.class,
-                      ConsistencyReporterTest.TestReportLifecycle.class} )
-public class ConsistencyReporterTest
+class ConsistencyReporterTest
 {
-    public static class TestReportLifecycle
+    @Nested
+    class TestReportLifecycle
     {
-        @Rule
-        public final TestName testName = new TestName();
-
         @Test
-        public void shouldSummarizeStatisticsAfterCheck()
+        void shouldSummarizeStatisticsAfterCheck()
         {
             // given
             ConsistencySummaryStatistics summary = mock( ConsistencySummaryStatistics.class );
-            @SuppressWarnings( "unchecked" )
-            RecordAccess records = mock( RecordAccess.class );
             ConsistencyReporter.ReportHandler handler = new ConsistencyReporter.ReportHandler(
                     new InconsistencyReport( mock( InconsistencyLogger.class ), summary ),
-                    mock( ConsistencyReporter.ProxyFactory.class ), RecordType.PROPERTY, records,
+                    mock( ConsistencyReporter.ProxyFactory.class ), RecordType.PROPERTY,
                     new PropertyRecord( 0 ), NO_MONITOR );
 
-            // when
-            handler.updateSummary();
-
             // then
-            verify( summary ).update( RecordType.PROPERTY, 0, 0 );
             verifyNoMoreInteractions( summary );
-        }
-
-        @Test
-        @SuppressWarnings( "unchecked" )
-        public void shouldOnlySummarizeStatisticsWhenAllReferencesAreChecked()
-        {
-            // given
-            ConsistencySummaryStatistics summary = mock( ConsistencySummaryStatistics.class );
-            RecordAccess records = mock( RecordAccess.class );
-            ConsistencyReporter.ReportHandler handler = new ConsistencyReporter.ReportHandler(
-                    new InconsistencyReport( mock( InconsistencyLogger.class ), summary ),
-                    mock( ConsistencyReporter.ProxyFactory.class ), RecordType.PROPERTY, records,
-                    new PropertyRecord( 0 ), NO_MONITOR );
-
-            RecordReference<PropertyRecord> reference = mock( RecordReference.class );
-            ComparativeRecordChecker<PropertyRecord, PropertyRecord, ConsistencyReport.PropertyConsistencyReport>
-                    checker = mock( ComparativeRecordChecker.class );
-
-            handler.comparativeCheck( reference, checker );
-            ArgumentCaptor<PendingReferenceCheck<PropertyRecord>> captor =
-                    (ArgumentCaptor) ArgumentCaptor.forClass( PendingReferenceCheck.class );
-            verify( reference ).dispatch( captor.capture() );
-            PendingReferenceCheck pendingRefCheck = captor.getValue();
-
-            // when
-            handler.updateSummary();
-
-            // then
-            verifyZeroInteractions( summary );
-
-            // when
-            pendingRefCheck.skip();
-
-            // then
-            verify( summary ).update( RecordType.PROPERTY, 0, 0 );
-            verifyNoMoreInteractions( summary );
-        }
-
-        @Test
-        public void shouldIncludeStackTraceInUnexpectedCheckException()
-        {
-            // GIVEN
-            ConsistencySummaryStatistics summary = mock( ConsistencySummaryStatistics.class );
-            RecordAccess records = mock( RecordAccess.class );
-            final AtomicReference<String> loggedError = new AtomicReference<>();
-            InconsistencyLogger logger = new InconsistencyLogger()
-            {
-                @Override
-                public void error( RecordType recordType, AbstractBaseRecord record, String message, Object[] args )
-                {
-                    assertTrue( loggedError.compareAndSet( null, message ) );
-                }
-
-                @Override
-                public void error( RecordType recordType, AbstractBaseRecord oldRecord, AbstractBaseRecord newRecord,
-                        String message, Object[] args )
-                {
-                    assertTrue( loggedError.compareAndSet( null, message ) );
-                }
-
-                @Override
-                public void warning( RecordType recordType, AbstractBaseRecord record, String message, Object[] args )
-                {
-                }
-
-                @Override
-                public void warning( RecordType recordType, AbstractBaseRecord oldRecord, AbstractBaseRecord newRecord,
-                        String message, Object[] args )
-                {
-                }
-            };
-            InconsistencyReport inconsistencyReport = new InconsistencyReport( logger, summary );
-            ConsistencyReporter reporter = new ConsistencyReporter( records, inconsistencyReport );
-            NodeRecord node = new NodeRecord( 10 );
-            RecordCheck<NodeRecord,NodeConsistencyReport> checker = mock( RecordCheck.class );
-            RuntimeException exception = new RuntimeException( "My specific exception" );
-            doThrow( exception ).when( checker )
-                    .check( any( NodeRecord.class ), any( CheckerEngine.class ), any( RecordAccess.class ) );
-
-            // WHEN
-            reporter.forNode( node, checker );
-
-            // THEN
-            assertNotNull( loggedError.get() );
-            String error = loggedError.get();
-            assertThat( error, containsString( "at " ) );
-            assertThat( error, containsString( testName.getMethodName() ) );
         }
     }
 
-    @RunWith( Parameterized.class )
-    public static class TestAllReportMessages implements Answer
+    @Nested
+    class TestAllReportMessages
     {
-        @Test
-        @SuppressWarnings( "unchecked" )
-        public void shouldLogInconsistency() throws Exception
+        @ParameterizedTest( name = "{0}" )
+        @MethodSource( value = "org.neo4j.consistency.report.ConsistencyReporterTest#methods" )
+        void shouldLogInconsistency( ReportMethods methods ) throws Exception
         {
             // given
+            Method reportMethod = methods.reportedMethod;
+            Method method = methods.method;
             InconsistencyReport report = mock( InconsistencyReport.class );
-            ConsistencyReport.Reporter reporter = new ConsistencyReporter(
-                    mock( RecordAccess.class ), report );
+            ConsistencyReport.Reporter reporter = new ConsistencyReporter( report );
 
             // when
-            reportMethod.invoke( reporter, parameters( reportMethod ) );
+            ConsistencyReport section = (ConsistencyReport) reportMethod.invoke( reporter, parameters( reportMethod ) );
+            method.invoke( section, parameters( method ) );
 
             // then
-            if ( method.getAnnotation( ConsistencyReport.Warning.class ) == null )
+            if ( method.getAnnotation( Warning.class ) == null )
             {
-                if ( reportMethod.getName().endsWith( "Change" ) )
-                {
-                    verify( report ).error( any( RecordType.class ),
-                                            any( AbstractBaseRecord.class ), any( AbstractBaseRecord.class ),
-                                            argThat( hasExpectedFormat() ), any( Object[].class ) );
-                }
-                else
-                {
-                    verify( report ).error( any( RecordType.class ),
-                                            any( AbstractBaseRecord.class ), argThat( hasExpectedFormat() ), nullSafeAny() );
-                }
+                verify( report ).error( any( RecordType.class ), any( AbstractBaseRecord.class ), argThat( expectedFormat() ), any() );
             }
             else
             {
-                if ( reportMethod.getName().endsWith( "Change" ) )
-                {
-                    verify( report ).warning( any( RecordType.class ),
-                                              any( AbstractBaseRecord.class ), any( AbstractBaseRecord.class ),
-                                              argThat( hasExpectedFormat() ), any( Object[].class ) );
-                }
-                else
-                {
-                    verify( report ).warning( any( RecordType.class ),
-                                              any( AbstractBaseRecord.class ),
-                                              argThat( hasExpectedFormat() ), nullSafeAny() );
-                }
-            }
-        }
-
-        private final Method reportMethod;
-        private final Method method;
-
-        public TestAllReportMessages( Method reportMethod, Method method )
-        {
-            this.reportMethod = reportMethod;
-            this.method = method;
-        }
-
-        @Parameterized.Parameters( name = "{1}" )
-        public static List<Object[]> methods()
-        {
-            ArrayList<Object[]> methods = new ArrayList<>();
-            for ( Method reporterMethod : ConsistencyReport.Reporter.class.getMethods() )
-            {
-                Type[] parameterTypes = reporterMethod.getGenericParameterTypes();
-                ParameterizedType checkerParameter = (ParameterizedType) parameterTypes[parameterTypes.length - 1];
-                Class reportType = (Class) checkerParameter.getActualTypeArguments()[1];
-                for ( Method method : reportType.getMethods() )
-                {
-                    methods.add( new Object[]{reporterMethod, method} );
-                }
-            }
-            return methods;
-        }
-
-        @Rule
-        public final TestRule logFailure = ( base, description ) -> new Statement()
-        {
-            @Override
-            public void evaluate() throws Throwable
-            {
-                try
-                {
-                    base.evaluate();
-                }
-                catch ( Throwable failure )
-                {
-                    System.err.println( "Failure in " + TestAllReportMessages.this + ": " + failure );
-                    throw failure;
-                }
-            }
-        };
-
-        @Override
-        public String toString()
-        {
-            return format( "report.%s( %s{ reporter.%s(); } )",
-                           reportMethod.getName(), signatureOf( reportMethod ), method.getName() );
-        }
-
-        private static String signatureOf( Method reportMethod )
-        {
-            if ( reportMethod.getParameterTypes().length == 2 )
-            {
-                return "record, RecordCheck( reporter )";
-            }
-            else
-            {
-                return "oldRecord, newRecord, RecordCheck( reporter )";
+                verify( report ).warning( any( RecordType.class ), any( AbstractBaseRecord.class ), argThat( expectedFormat() ), any() );
             }
         }
 
         private Object[] parameters( Method method )
         {
-            Class<?>[] parameterTypes = method.getParameterTypes();
-            Object[] parameters = new Object[parameterTypes.length];
-            for ( int i = 0; i < parameters.length; i++ )
+            try
             {
-                parameters[i] = parameter( parameterTypes[i] );
+                Class<?>[] parameterTypes = method.getParameterTypes();
+                Object[] parameters = new Object[parameterTypes.length];
+                for ( int i = 0; i < parameters.length; i++ )
+                {
+                    parameters[i] = parameter( parameterTypes[i] );
+                }
+                return parameters;
             }
-            return parameters;
+            catch ( Exception e )
+            {
+                throw e;
+            }
         }
 
         private Object parameter( Class<?> type )
@@ -350,17 +161,15 @@ public class ConsistencyReporterTest
             {
                 return RecordType.STRING_PROPERTY;
             }
-            if ( type == RecordCheck.class )
-            {
-                return mockChecker();
-            }
             if ( type == NodeRecord.class )
             {
-                return new NodeRecord( 0, false, 1, 2 );
+                return new NodeRecord( 0 ).initialize( false, 2, false, 1, 0 );
             }
             if ( type == RelationshipRecord.class )
             {
-                return new RelationshipRecord( 0, 1, 2, 3 );
+                RelationshipRecord relationship = new RelationshipRecord( 0 );
+                relationship.setLinks( 1, 2, 3 );
+                return relationship;
             }
             if ( type == PropertyRecord.class )
             {
@@ -390,54 +199,89 @@ public class ConsistencyReporterTest
             {
                 return new NeoStoreRecord();
             }
-            if ( type == LabelScanDocument.class )
+            if ( type == TokenScanDocument.class )
             {
-                return new LabelScanDocument( new NodeLabelRange( 0, new long[][] {} ) );
+                return new TokenScanDocument( new EntityTokenRangeImpl( 0, new long[][] {}, NODE ) );
             }
             if ( type == IndexEntry.class )
             {
-                return new IndexEntry( 0 );
+                return new IndexEntry( IndexPrototype.forSchema( SchemaDescriptors.forLabel( 1, 1 ) )
+                        .withName( "index" ).materialise( 1L ), new InMemoryTokens(), 0 );
             }
             if ( type == CountsEntry.class )
             {
                 return new CountsEntry( nodeKey( 7 ), 42 );
             }
-            if ( type == SchemaRule.Kind.class )
+            if ( type == IndexDescriptor.class )
             {
-                return SchemaRule.Kind.INDEX_RULE;
-            }
-            if ( type == IndexRule.class )
-            {
-                return IndexRule.indexRule( 1, SchemaIndexDescriptorFactory.forLabel( 2, 3 ),
-                        new IndexProvider.Descriptor( "provider", "version" ) );
+                return IndexPrototype.forSchema( forLabel( 2, 3 ), IndexProviderDescriptor.UNDECIDED )
+                        .withName( "index" ).materialise( 1 );
             }
             if ( type == SchemaRule.class )
             {
                 return simpleSchemaRule();
             }
+            if ( type == SchemaRecord.class )
+            {
+                return new SchemaRecord( 42 );
+            }
             if ( type == RelationshipGroupRecord.class )
             {
-                return new RelationshipGroupRecord( 0, 1 );
+                return new RelationshipGroupRecord( 0 )
+                        .initialize( false, 1, NULL_REFERENCE.longValue(), NULL_REFERENCE.longValue(), NULL_REFERENCE.longValue(), NULL_REFERENCE.longValue(),
+                                NULL_REFERENCE.longValue() );
             }
             if ( type == long.class )
             {
                 return 12L;
             }
+            if ( type == CursorContext.class )
+            {
+                return NULL;
+            }
             if ( type == Object.class )
             {
                 return "object";
+            }
+            if ( type == int.class )
+            {
+                return 2;
+            }
+            if ( type == String.class )
+            {
+                return "abc";
+            }
+            if ( type == Object[].class )
+            {
+                return new Object[]{1, 2};
+            }
+            if ( type == Class.class )
+            {
+                return SchemaRule.class;
             }
             throw new IllegalArgumentException( format( "Don't know how to provide parameter of type %s", type.getName() ) );
         }
 
         private SchemaRule simpleSchemaRule()
         {
-            return new SchemaRule( 0 )
+            return new SchemaRule()
             {
                 @Override
-                public byte[] serialize()
+                public long getId()
                 {
-                    return new byte[0];
+                    return 0;
+                }
+
+                @Override
+                public String getName()
+                {
+                    return null;
+                }
+
+                @Override
+                public SchemaRule withName( String name )
+                {
+                    return null;
                 }
 
                 @Override
@@ -445,57 +289,50 @@ public class ConsistencyReporterTest
                 {
                     return null;
                 }
+
+                @Override
+                public String userDescription( TokenNameLookup tokenNameLookup )
+                {
+                    return null;
+                }
             };
         }
+    }
 
-        @SuppressWarnings( "unchecked" )
-        private RecordCheck mockChecker()
+    private static ArgumentMatcher<String> expectedFormat()
+    {
+        return argument -> argument.trim().split( " " ).length > 1;
+    }
+
+    public static List<ReportMethods> methods()
+    {
+        List<ReportMethods> methods = new ArrayList<>();
+        for ( Method reporterMethod : ConsistencyReport.Reporter.class.getMethods() )
         {
-            RecordCheck checker = mock( RecordCheck.class );
-            doAnswer( this ).when( checker ).check( any( AbstractBaseRecord.class ),
-                                                    any( CheckerEngine.class ),
-                                                    any( RecordAccess.class ) );
-            return checker;
+            Class<?> reportType = reporterMethod.getReturnType();
+            for ( Method method : reportType.getMethods() )
+            {
+                methods.add( new ReportMethods( reporterMethod, method ) );
+            }
+        }
+        return methods;
+    }
+
+    public static class ReportMethods
+    {
+        final Method reportedMethod;
+        final Method method;
+
+        ReportMethods( Method reportedMethod, Method method )
+        {
+            this.reportedMethod = reportedMethod;
+            this.method = method;
         }
 
         @Override
-        public Object answer( InvocationOnMock invocation ) throws Throwable
+        public String toString()
         {
-            Object[] arguments = invocation.getArguments();
-            ConsistencyReport report = ((CheckerEngine)arguments[arguments.length - 2]).report();
-            try
-            {
-                return method.invoke( report, parameters( method ) );
-            }
-            catch ( IllegalArgumentException ex )
-            {
-                throw new IllegalArgumentException(
-                        format( "%s.%s#%s(...)", report, method.getDeclaringClass().getSimpleName(), method.getName() ),
-                        ex );
-            }
+            return reportedMethod.getReturnType().getSimpleName() + "#" + method.getName();
         }
-    }
-
-    private static <T> T[] nullSafeAny()
-    {
-        return ArgumentMatchers.argThat( argument -> true );
-    }
-
-    private static Matcher<String> hasExpectedFormat()
-    {
-        return new TypeSafeMatcher<String>()
-        {
-            @Override
-            public boolean matchesSafely( String item )
-            {
-                return item.trim().split( " " ).length > 1;
-            }
-
-            @Override
-            public void describeTo( Description description )
-            {
-                description.appendText( "message of valid format" );
-            }
-        };
     }
 }

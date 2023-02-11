@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,29 +38,29 @@
  */
 package org.neo4j.string;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class HexStringTest
+class HexStringTest
 {
     @Test
-    public void shouldEncodeBytesToString()
+    void shouldEncodeBytesToString()
     {
         String result = HexString.encodeHexString( new byte[]{(byte) 0xFF, (byte) 0x94, (byte) 0x5C, (byte) 0x00, (byte) 0x3D} );
         assertEquals( "FF945C003D", result );
     }
 
     @Test
-    public void shouldEncodeEmptyBytesToEmptyString()
+    void shouldEncodeEmptyBytesToEmptyString()
     {
         String result = HexString.encodeHexString( new byte[]{} );
         assertEquals( "", result );
     }
 
     @Test
-    public void shouldDecodeStringToBytes()
+    void shouldDecodeStringToBytes()
     {
         byte[] result = HexString.decodeHexString( "00f34CEFFF3e02" );
         byte[] expected = new byte[] {(byte) 0x00, (byte) 0xF3, (byte) 0x4C, (byte) 0xEF, (byte) 0xFF, (byte) 0x3E, (byte) 0x02 };
@@ -68,7 +68,7 @@ public class HexStringTest
     }
 
     @Test
-    public void shouldDecodeEmptyStringToEmptyBytes()
+    void shouldDecodeEmptyStringToEmptyBytes()
     {
         byte[] result = HexString.decodeHexString( "" );
         assertArrayEquals( new byte[]{}, result );

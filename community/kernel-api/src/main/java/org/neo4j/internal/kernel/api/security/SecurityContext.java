@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,24 +38,31 @@
  */
 package org.neo4j.internal.kernel.api.security;
 
-import java.util.function.Function;
+import java.util.Collections;
+import java.util.Set;
+
+import org.neo4j.messages.MessageUtil;
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
+import org.neo4j.kernel.api.exceptions.Status;
 
 import static org.neo4j.graphdb.security.AuthorizationViolationException.PERMISSION_DENIED;
+import static org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo.EMBEDDED_CONNECTION;
 
 /**
  * Controls the capabilities of a KernelTransaction, including the authenticated user and authorization data.
  *
  * Must extend LoginContext to handle procedures creating internal transactions, periodic commit and the parallel cypher prototype.
  */
-public class SecurityContext implements LoginContext
+public class SecurityContext extends LoginContext
 {
-    protected final AuthSubject subject;
     protected final AccessMode mode;
+    private final String database;
 
-    public SecurityContext( AuthSubject subject, AccessMode mode )
+    public SecurityContext( AuthSubject subject, AccessMode mode, ClientConnectionInfo connectionInfo, String database )
     {
-        this.subject = subject;
+        super( subject, connectionInfo );
         this.mode = mode;
+        this.database = database;
     }
 
     /**
@@ -66,22 +73,36 @@ public class SecurityContext implements LoginContext
         return mode;
     }
 
+    public String database()
+    {
+        return database;
+    }
+
     /**
-     * Check whether the user is an admin.
+     * Check whether the user is allowed to execute procedure annotated with @Admin.
+     * @return
      */
-    public boolean isAdmin()
+    public PermissionState allowExecuteAdminProcedure( int procedureId )
     {
-        return true;
+        return PermissionState.EXPLICIT_GRANT;
+    }
+
+    /**
+     * Check whether the user has a specific level of admin rights.
+     * @return
+     */
+    public PermissionState allowsAdminAction( AdminActionOnResource action )
+    {
+        return PermissionState.EXPLICIT_GRANT;
+    }
+
+    public Set<String> roles()
+    {
+        return Collections.emptySet();
     }
 
     @Override
-    public AuthSubject subject()
-    {
-        return subject;
-    }
-
-    @Override
-    public SecurityContext authorize( Function<String, Integer> propertyIdLookup )
+    public SecurityContext authorize( IdLookup idLookup, String dbName, AbstractSecurityLog securityLog )
     {
         return this;
     }
@@ -91,54 +112,61 @@ public class SecurityContext implements LoginContext
      */
     public SecurityContext withMode( AccessMode mode )
     {
-        return new SecurityContext( subject, mode );
+        return new SecurityContext( subject, mode, connectionInfo(), database() );
     }
 
-    public void assertCredentialsNotExpired()
+    /**
+     * Create a copy of this SecurityContext with the provided admin access mode.
+     */
+    public SecurityContext withMode( AdminAccessMode adminAccessMode )
     {
-        if ( subject().getAuthenticationResult().equals( AuthenticationResult.PASSWORD_CHANGE_REQUIRED ) )
+        return new SecurityContext( subject, mode, connectionInfo(), database() );
+    }
+
+    public void assertCredentialsNotExpired( SecurityAuthorizationHandler handler )
+    {
+        if ( AuthenticationResult.PASSWORD_CHANGE_REQUIRED.equals( subject().getAuthenticationResult() ) )
         {
-            throw mode().onViolation( PERMISSION_DENIED );
+            throw handler.logAndGetAuthorizationException(this,
+                                                          SecurityAuthorizationHandler.generateCredentialsExpiredMessage( PERMISSION_DENIED ),
+                                                          Status.Security.CredentialsExpired );
         }
     }
 
     public String description()
     {
-        return String.format( "user '%s' with %s", subject().username(), mode().name() );
+        return MessageUtil.withUser( subject().executingUser(), mode().name() );
     }
 
     protected String defaultString( String name )
     {
-        return String.format( "%s{ username=%s, accessMode=%s }", name, subject().username(), mode() );
+        return String.format( "%s{ username=%s, accessMode=%s }", name, subject().executingUser(), mode() );
     }
 
     /** Allows all operations. */
-    @SuppressWarnings( "StaticInitializerReferencesSubClass" )
-    public static final SecurityContext AUTH_DISABLED = new AuthDisabled( AccessMode.Static.FULL );
+    public static final SecurityContext AUTH_DISABLED = authDisabled( AccessMode.Static.FULL, EMBEDDED_CONNECTION, null );
 
-    private static class AuthDisabled extends SecurityContext
+    public static SecurityContext authDisabled( AccessMode mode, ClientConnectionInfo connectionInfo, String database )
     {
-        private AuthDisabled( AccessMode mode )
+        return new SecurityContext( AuthSubject.AUTH_DISABLED, mode, connectionInfo, database )
         {
-            super( AuthSubject.AUTH_DISABLED, mode );
-        }
+            @Override
+            public SecurityContext withMode( AccessMode mode )
+            {
+                return authDisabled( mode, connectionInfo(), database() );
+            }
 
-        @Override
-        public SecurityContext withMode( AccessMode mode )
-        {
-            return new AuthDisabled( mode );
-        }
+            @Override
+            public String description()
+            {
+                return "AUTH_DISABLED with " + mode().name();
+            }
 
-        @Override
-        public String description()
-        {
-            return "AUTH_DISABLED with " + mode().name();
-        }
-
-        @Override
-        public String toString()
-        {
-            return defaultString( "auth-disabled" );
-        }
+            @Override
+            public String toString()
+            {
+                return defaultString( "auth-disabled" );
+            }
+        };
     }
 }

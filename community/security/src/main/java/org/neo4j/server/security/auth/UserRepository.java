@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -44,7 +44,6 @@ import java.util.Set;
 import org.neo4j.kernel.api.exceptions.InvalidArgumentsException;
 import org.neo4j.kernel.impl.security.User;
 import org.neo4j.kernel.lifecycle.Lifecycle;
-import org.neo4j.server.security.auth.exception.ConcurrentModificationException;
 
 /**
  * A component that can store and retrieve users. Implementations must be thread safe.
@@ -79,25 +78,6 @@ public interface UserRepository extends Lifecycle
      */
     void setUsers( ListSnapshot<User> users ) throws InvalidArgumentsException;
 
-    /**
-     * Update a user, given that the users token is unique.
-     * @param existingUser the existing user object, which must match the current state in this repository
-     * @param updatedUser the updated user object
-     * @throws ConcurrentModificationException if the existingUser does not match the current state in the repository
-     * @throws IOException if the underlying storage for users fails
-     * @throws InvalidArgumentsException if the existing and updated users have different names
-     */
-    void update( User existingUser, User updatedUser )
-            throws ConcurrentModificationException, IOException;
-
-    /**
-     * Deletes a user.
-     * @param user the user to delete
-     * @throws IOException if the underlying storage for users fails
-     * @return true if the user was found and deleted
-     */
-    boolean delete( User user ) throws IOException;
-
     int numberOfUsers();
 
     /**
@@ -111,9 +91,9 @@ public interface UserRepository extends Lifecycle
     Set<String> getAllUsernames();
 
     /**
-     * Returns a snapshot of the current persisted user repository
-     * @return a snapshot of the current persisted user repository
+     * Returns a snapshot of the current user repository
+     * @return a snapshot of the current user repository
      * @throws IOException
      */
-    ListSnapshot<User> getPersistedSnapshot() throws IOException;
+    ListSnapshot<User> getSnapshot() throws IOException;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,6 +39,9 @@
 package org.neo4j.index.internal.gbptree;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.eclipse.collections.api.iterator.LongIterator;
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
 
 import java.io.IOException;
 import java.util.LinkedList;
@@ -46,6 +49,7 @@ import java.util.Queue;
 import java.util.function.Supplier;
 
 import org.neo4j.io.pagecache.PageCursor;
+import org.neo4j.io.pagecache.context.CursorContext;
 
 class SimpleIdProvider implements IdProvider
 {
@@ -60,7 +64,7 @@ class SimpleIdProvider implements IdProvider
     }
 
     @Override
-    public long acquireNewId( long stableGeneration, long unstableGeneration )
+    public long acquireNewId( long stableGeneration, long unstableGeneration, CursorContext cursorContext )
     {
         if ( !releasedIds.isEmpty() )
         {
@@ -78,12 +82,32 @@ class SimpleIdProvider implements IdProvider
     }
 
     @Override
-    public void releaseId( long stableGeneration, long unstableGeneration, long id )
+    public void releaseId( long stableGeneration, long unstableGeneration, long id, CursorContext cursorContext )
     {
         releasedIds.add( Pair.of( unstableGeneration, id ) );
     }
 
-    long lastId()
+    LongIterator unacquiredIds()
+    {
+        final MutableLongSet unacquiredIds = new LongHashSet();
+        releasedIds.forEach( pair -> unacquiredIds.add( pair.getValue() ) );
+        return unacquiredIds.longIterator();
+    }
+
+    @Override
+    public void visitFreelist( IdProviderVisitor visitor, CursorContext cursorContext )
+    {
+        int pos = 0;
+        visitor.beginFreelistPage( 0 );
+        for ( Pair<Long,Long> releasedId : releasedIds )
+        {
+            visitor.freelistEntry( releasedId.getRight(), releasedId.getLeft(), pos++ );
+        }
+        visitor.endFreelistPage( 0 );
+    }
+
+    @Override
+    public long lastId()
     {
         return lastId;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,8 +38,9 @@
  */
 package org.neo4j.kernel.impl.transaction.log.checkpoint;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
@@ -53,42 +54,51 @@ import org.neo4j.function.ThrowingAction;
 import org.neo4j.graphdb.Resource;
 import org.neo4j.test.Barrier;
 import org.neo4j.test.Race;
-import org.neo4j.test.rule.concurrent.OtherThreadRule;
+import org.neo4j.test.extension.OtherThread;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.lessThan;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.neo4j.function.ThrowingAction.noop;
 import static org.neo4j.test.Race.throwing;
 
-public class StoreCopyCheckPointMutexTest
+class StoreCopyCheckPointMutexTest
 {
     private static final ThrowingAction<IOException> ASSERT_NOT_CALLED = () -> fail( "Should not be called" );
 
-    @Rule
-    public final OtherThreadRule<Void> t2 = new OtherThreadRule<>( "T2" );
-    @Rule
-    public final OtherThreadRule<Void> t3 = new OtherThreadRule<>( "T3" );
+    private final OtherThread t2 = new OtherThread();
+    private final OtherThread t3 = new OtherThread();
 
     private final StoreCopyCheckPointMutex mutex = new StoreCopyCheckPointMutex();
 
+    @BeforeEach
+    void setUp()
+    {
+        t2.init( "T2" );
+        t3.init( "T3" );
+    }
+
+    @AfterEach
+    void tearDown()
+    {
+        t2.close();
+        t3.close();
+    }
+
     @Test
-    public void checkPointShouldBlockStoreCopy() throws Exception
+    void checkPointShouldBlockStoreCopy() throws Exception
     {
         // GIVEN
         try ( Resource lock = mutex.checkPoint() )
         {
             // WHEN
-            t2.execute( state -> mutex.storeCopy( noop() ) );
+            t2.execute( () -> mutex.storeCopy( noop() ) );
 
             // THEN
             t2.get().waitUntilWaiting( details -> details.isAt( StoreCopyCheckPointMutex.class, "storeCopy" ) );
@@ -96,13 +106,13 @@ public class StoreCopyCheckPointMutexTest
     }
 
     @Test
-    public void checkPointShouldBlockAnotherCheckPoint() throws Exception
+    void checkPointShouldBlockAnotherCheckPoint() throws Exception
     {
         // GIVEN
         try ( Resource lock = mutex.checkPoint() )
         {
             // WHEN
-            t2.execute( state -> mutex.checkPoint() );
+            t2.execute( mutex::checkPoint );
 
             // THEN
             t2.get().waitUntilWaiting( details -> details.isAt( StoreCopyCheckPointMutex.class, "checkPoint" ) );
@@ -110,13 +120,13 @@ public class StoreCopyCheckPointMutexTest
     }
 
     @Test
-    public void storeCopyShouldBlockCheckPoint() throws Exception
+    void storeCopyShouldBlockCheckPoint() throws Exception
     {
         // GIVEN
         try ( Resource lock = mutex.storeCopy( noop() ) )
         {
             // WHEN
-            t2.execute( state -> mutex.checkPoint() );
+            t2.execute( mutex::checkPoint );
 
             // THEN
             t2.get().waitUntilWaiting( details -> details.isAt( StoreCopyCheckPointMutex.class, "checkPoint" ) );
@@ -124,7 +134,7 @@ public class StoreCopyCheckPointMutexTest
     }
 
     @Test
-    public void storeCopyShouldHaveTryCheckPointBackOff() throws Exception
+    void storeCopyShouldHaveTryCheckPointBackOff() throws Exception
     {
         // GIVEN
         try ( Resource lock = mutex.storeCopy( noop() ) )
@@ -135,7 +145,7 @@ public class StoreCopyCheckPointMutexTest
     }
 
     @Test
-    public void storeCopyShouldAllowAnotherStoreCopy() throws Exception
+    void storeCopyShouldAllowAnotherStoreCopy() throws Exception
     {
         // GIVEN
         try ( Resource lock = mutex.storeCopy( noop() ) )
@@ -149,26 +159,26 @@ public class StoreCopyCheckPointMutexTest
     }
 
     @Test
-    public void storeCopyShouldAllowAnotherStoreCopyButOnlyFirstShouldPerformBeforeAction() throws Exception
+    void storeCopyShouldAllowAnotherStoreCopyButOnlyFirstShouldPerformBeforeAction() throws Exception
     {
         // GIVEN
         @SuppressWarnings( "unchecked" )
         ThrowingAction<IOException> action = mock( ThrowingAction.class );
         try ( Resource lock = mutex.storeCopy( action ) )
         {
-            verify( action, times( 1 ) ).apply();
+            verify( action ).apply();
 
             // WHEN
             try ( Resource otherLock = mutex.storeCopy( action ) )
             {
                 // THEN good
-                verify( action, times( 1 ) ).apply();
+                verify( action ).apply();
             }
         }
     }
 
     @Test
-    public void shouldHandleMultipleConcurrentStoreCopyWhenBeforeActionPerformsCheckPoint() throws Throwable
+    void shouldHandleMultipleConcurrentStoreCopyWhenBeforeActionPerformsCheckPoint() throws Throwable
     {
         // GIVEN a check-point action which asserts calls to it along the way
         CheckPointingAction checkPointingAction = new CheckPointingAction( mutex );
@@ -198,7 +208,7 @@ public class StoreCopyCheckPointMutexTest
     }
 
     @Test
-    public void shouldHandleMultipleConcurrentStoreCopyRequests() throws Throwable
+    void shouldHandleMultipleConcurrentStoreCopyRequests() throws Throwable
     {
         // GIVEN
         Race race = new Race();
@@ -217,11 +227,11 @@ public class StoreCopyCheckPointMutexTest
         // THEN
         // It's hard to make predictions about what should have been seen. Most importantly is that
         // The lock doesn't hang any requests and that number of calls to the action less than number of threads
-        assertThat( action.count(), lessThan( threads ) );
+        assertThat( action.count() ).isLessThan( threads );
     }
 
     @Test
-    public void shouldPropagateStoreCopyActionFailureToOtherStoreCopyRequests() throws Exception
+    void shouldPropagateStoreCopyActionFailureToOtherStoreCopyRequests() throws Exception
     {
         // GIVEN
         Barrier.Control barrier = new Barrier.Control();
@@ -230,7 +240,7 @@ public class StoreCopyCheckPointMutexTest
         ThrowingAction<IOException> controllableAndFailingAction = () ->
         {
             // Now that we know we're first, start the second request...
-            secondRequest.set( t3.execute( state -> mutex.storeCopy( ASSERT_NOT_CALLED ) ) );
+            secondRequest.set( t3.execute( () -> mutex.storeCopy( ASSERT_NOT_CALLED ) ) );
             // ...and wait for it to reach its destination
             barrier.awaitUninterruptibly();
             try
@@ -244,7 +254,7 @@ public class StoreCopyCheckPointMutexTest
             }
         };
 
-        Future<Object> firstRequest = t2.execute( state -> mutex.storeCopy( controllableAndFailingAction ) );
+        Future<Object> firstRequest = t2.execute( () -> mutex.storeCopy( controllableAndFailingAction ) );
         while ( secondRequest.get() == null )
         {
             parkARandomWhile();
@@ -271,7 +281,7 @@ public class StoreCopyCheckPointMutexTest
         catch ( ExecutionException e )
         {
             Throwable cooperativeActionFailure = e.getCause();
-            assertThat( cooperativeActionFailure.getMessage(), containsString( "Co-operative" ) );
+            assertThat( cooperativeActionFailure.getMessage() ).contains( "Co-operative" );
             assertSame( controlledFailure, cooperativeActionFailure.getCause() );
         }
 

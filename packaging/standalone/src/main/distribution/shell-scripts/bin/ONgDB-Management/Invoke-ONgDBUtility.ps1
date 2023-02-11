@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022 "Graph Foundation,"
+# Copyright (c) "Graph Foundation,"
 # Graph Foundation, Inc. [https://graphfoundation.org]
 #
 # This file is part of ONgDB.
@@ -104,7 +104,7 @@ function Invoke-ONgDBUtility
       "admintool" {
         Write-Verbose "Admintool command specified"
         $GetJavaParams = @{
-          StartingClass = 'org.neo4j.commandline.admin.AdminTool';
+          StartingClass = 'org.neo4j.cli.AdminTool';
         }
         break
       }

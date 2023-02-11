@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -65,6 +65,11 @@ public interface SequenceValue extends Iterable<AnyValue>
 
     int length();
 
+    default boolean isEmpty()
+    {
+        return length() == 0;
+    }
+
     AnyValue value( int offset );
 
     @Override
@@ -104,26 +109,25 @@ public interface SequenceValue extends Iterable<AnyValue>
         return areEqual;
     }
 
-    static Boolean ternaryEqualsUsingRandomAccess( SequenceValue a, SequenceValue b )
+    static Equality ternaryEqualsUsingRandomAccess( SequenceValue a, SequenceValue b )
     {
-        if ( a.length() != b.length() )
+        int length = a.length();
+        if ( length != b.length() )
         {
-            return Boolean.FALSE;
+            return Equality.FALSE;
         }
-
         int i = 0;
-        Boolean equivalenceResult = Boolean.TRUE;
-
-        while ( i < a.length() )
+        Equality equivalenceResult = Equality.TRUE;
+        while ( i < length )
         {
-            Boolean areEqual = a.value( i ).ternaryEquals( b.value( i ) );
-            if ( areEqual == null )
+            Equality areEqual = a.value( i ).ternaryEquals( b.value( i ) );
+            if ( areEqual == Equality.UNDEFINED )
             {
-                equivalenceResult = null;
+                equivalenceResult = Equality.UNDEFINED;
             }
-            else if ( !areEqual )
+            else if ( areEqual == Equality.FALSE )
             {
-                return Boolean.FALSE;
+                return Equality.FALSE;
             }
             i++;
         }
@@ -145,26 +149,25 @@ public interface SequenceValue extends Iterable<AnyValue>
         return areEqual && aIterator.hasNext() == bIterator.hasNext();
     }
 
-    static Boolean ternaryEqualsUsingIterators( SequenceValue a, SequenceValue b )
+    static Equality ternaryEqualsUsingIterators( SequenceValue a, SequenceValue b )
     {
-        Boolean equivalenceResult = Boolean.TRUE;
+        Equality equivalenceResult = Equality.TRUE;
         Iterator<AnyValue> aIterator = a.iterator();
         Iterator<AnyValue> bIterator = b.iterator();
-
         while ( aIterator.hasNext() && bIterator.hasNext() )
         {
-            Boolean areEqual = aIterator.next().ternaryEquals( bIterator.next() );
-            if ( areEqual == null )
+            Equality areEqual = aIterator.next().ternaryEquals( bIterator.next() );
+            if ( areEqual == Equality.UNDEFINED )
             {
-                equivalenceResult = null;
+                equivalenceResult = Equality.UNDEFINED;
             }
-            else if ( !areEqual )
+            else if ( areEqual == Equality.FALSE )
             {
-                return Boolean.FALSE;
+                return Equality.FALSE;
             }
         }
 
-        return aIterator.hasNext() == bIterator.hasNext() ? equivalenceResult : Boolean.FALSE;
+        return !aIterator.hasNext() && !bIterator.hasNext() ? equivalenceResult : Equality.FALSE;
     }
 
     default int compareToSequence( SequenceValue other, Comparator<AnyValue> comparator )
@@ -178,6 +181,20 @@ public interface SequenceValue extends Iterable<AnyValue>
         else
         {
             return compareUsingIterators( this, other, comparator );
+        }
+    }
+
+    default Comparison ternaryCompareToSequence( SequenceValue other, TernaryComparator<AnyValue> comparator )
+    {
+        IterationPreference pref = iterationPreference();
+        IterationPreference otherPref = other.iterationPreference();
+        if ( pref == RANDOM_ACCESS && otherPref == RANDOM_ACCESS )
+        {
+            return ternaryCompareUsingRandomAccess( this, other, comparator );
+        }
+        else
+        {
+            return ternaryCompareUsingIterators( this, other, comparator );
         }
     }
 
@@ -207,7 +224,7 @@ public interface SequenceValue extends Iterable<AnyValue>
         Iterator<AnyValue> aIterator = a.iterator();
         Iterator<AnyValue> bIterator = b.iterator();
 
-        while ( aIterator.hasNext() && bIterator.hasNext() )
+        while ( x == 0 && aIterator.hasNext() && bIterator.hasNext() )
         {
             x = comparator.compare( aIterator.next(), bIterator.next() );
         }
@@ -220,7 +237,44 @@ public interface SequenceValue extends Iterable<AnyValue>
         return x;
     }
 
-    default Boolean ternaryEquality( SequenceValue other )
+    static Comparison ternaryCompareUsingRandomAccess( SequenceValue a, SequenceValue b, TernaryComparator<AnyValue> comparator )
+    {
+        Comparison cmp = Comparison.EQUAL;
+        int i = 0;
+        int length = Math.min( a.length(), b.length() );
+        while ( cmp == Comparison.EQUAL && i < length )
+        {
+            cmp = comparator.ternaryCompare( a.value( i ), b.value( i ) );
+            i++;
+        }
+        if ( cmp == Comparison.EQUAL )
+        {
+            cmp = Comparison.from( a.length() - b.length() );
+        }
+
+        return cmp;
+    }
+
+    static Comparison ternaryCompareUsingIterators( SequenceValue a, SequenceValue b, TernaryComparator<AnyValue> comparator )
+    {
+        Comparison cmp = Comparison.EQUAL;
+        Iterator<AnyValue> aIterator = a.iterator();
+        Iterator<AnyValue> bIterator = b.iterator();
+
+        while ( cmp == Comparison.EQUAL && aIterator.hasNext() && bIterator.hasNext() )
+        {
+            cmp = comparator.ternaryCompare( aIterator.next(), bIterator.next() );
+        }
+
+        if ( cmp == Comparison.EQUAL )
+        {
+            cmp = Comparison.from( Boolean.compare( aIterator.hasNext(), bIterator.hasNext() ) );
+        }
+
+        return cmp;
+    }
+
+    default Equality ternaryEquality( SequenceValue other )
     {
         IterationPreference pref = iterationPreference();
         IterationPreference otherPref = other.iterationPreference();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,33 +38,33 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.mockito.ArgumentMatchers._
-import org.mockito.Mockito._
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.when
 import org.mockito.invocation.InvocationOnMock
-import org.mockito.stubbing.Answer
+import org.neo4j.cypher.internal.runtime.ClosingIterator
+import org.neo4j.cypher.internal.runtime.CypherRow
 import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.cypher.internal.util.v3_4.symbols.{CypherType, _}
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherTestSupport
-import org.neo4j.graphdb.{Node, Relationship}
+import org.neo4j.cypher.internal.util.attribution.Id
+import org.neo4j.cypher.internal.util.test_helpers.CypherTestSupport
+import org.neo4j.graphdb.Node
+import org.neo4j.graphdb.Relationship
 import org.neo4j.kernel.impl.util.ValueUtils
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 
 trait PipeTestSupport extends CypherTestSupport with MockitoSugar {
 
-  val query = mock[QueryContext]
+  val query: QueryContext = mock[QueryContext]
 
-  def pipeWithResults(f: QueryState => Iterator[ExecutionContext]): Pipe = new Pipe {
-    protected def internalCreateResults(state: QueryState) = f(state)
+  def pipeWithResults(f: QueryState => Iterator[CypherRow]): Pipe = new Pipe {
+    protected def internalCreateResults(state: QueryState): ClosingIterator[CypherRow] = ClosingIterator(f(state))
 
     // Used by profiling to identify where to report dbhits and rows
-    override def id(): Id = Id.INVALID_ID
+    override def id: Id = Id.INVALID_ID
   }
 
-  def row(values: (String, Any)*) = ExecutionContext.from(values.map(v => (v._1, ValueUtils.of(v._2))): _*)
+  def row(values: (String, Any)*): CypherRow = CypherRow.from(values.map(v => (v._1, ValueUtils.of(v._2))): _*)
 
-  def newMockedNode(id: Int) = {
+  def newMockedNode(id: Int): Node = {
     val node = mock[Node]
     when(node.getId).thenReturn(id)
     node
@@ -85,16 +85,9 @@ trait PipeTestSupport extends CypherTestSupport with MockitoSugar {
     relationship
   }
 
-  def newMockedPipe(node: String, rows: ExecutionContext*): Pipe = {
-    newMockedPipe(Map(node -> CTNode), rows: _*)
-  }
-
-  def newMockedPipe(symbols: Map[String, CypherType], rows: ExecutionContext*): Pipe = {
+  def newMockedPipe(rows: CypherRow*): Pipe = {
     val pipe = mock[Pipe]
-    when(pipe.createResults(any())).thenAnswer(new Answer[Iterator[ExecutionContext]] {
-      def answer(invocation: InvocationOnMock) = rows.iterator
-    })
-
+    when(pipe.createResults(any())).thenAnswer((_: InvocationOnMock) => ClosingIterator(rows.iterator))
     pipe
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 "Graph Foundation,"
+ * Copyright (c) "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
  * This file is part of ONgDB.
@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -38,14 +38,16 @@
  */
 package org.neo4j.kernel.impl.util.collection;
 
-import org.neo4j.collection.primitive.Primitive;
-import org.neo4j.collection.primitive.PrimitiveIntObjectMap;
-import org.neo4j.collection.primitive.PrimitiveLongObjectMap;
-import org.neo4j.collection.primitive.PrimitiveLongSet;
-import org.neo4j.kernel.impl.util.diffsets.PrimitiveLongDiffSets;
-import org.neo4j.memory.MemoryTracker;
+import org.eclipse.collections.api.map.primitive.MutableLongObjectMap;
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
 
-import static org.neo4j.collection.primitive.PrimitiveLongCollections.emptySet;
+import org.neo4j.collection.trackable.HeapTrackingCollections;
+import org.neo4j.kernel.impl.util.diffsets.MutableLongDiffSets;
+import org.neo4j.kernel.impl.util.diffsets.TrackableDiffSets;
+import org.neo4j.memory.MemoryTracker;
+import org.neo4j.values.storable.Value;
+
+import static org.neo4j.kernel.impl.util.collection.HeapTrackingValuesMap.createValuesMap;
 
 public class OnHeapCollectionsFactory implements CollectionsFactory
 {
@@ -57,38 +59,26 @@ public class OnHeapCollectionsFactory implements CollectionsFactory
     }
 
     @Override
-    public PrimitiveLongSet newLongSet()
+    public MutableLongSet newLongSet( MemoryTracker memoryTracker )
     {
-        return Primitive.longSet();
+        return HeapTrackingCollections.newLongSet( memoryTracker );
     }
 
     @Override
-    public <V> PrimitiveLongObjectMap<V> newLongObjectMap()
+    public MutableLongDiffSets newLongDiffSets( MemoryTracker memoryTracker )
     {
-        return Primitive.longObjectMap();
+        return TrackableDiffSets.newMutableLongDiffSets( this, memoryTracker );
     }
 
     @Override
-    public <V> PrimitiveIntObjectMap<V> newIntObjectMap()
+    public MutableLongObjectMap<Value> newValuesMap( MemoryTracker memoryTracker )
     {
-        return Primitive.intObjectMap();
+        return createValuesMap( memoryTracker );
     }
 
     @Override
-    public PrimitiveLongDiffSets newLongDiffSets()
+    public void release()
     {
-        return new PrimitiveLongDiffSets( emptySet(), emptySet(), this );
-    }
-
-    @Override
-    public MemoryTracker getMemoryTracker()
-    {
-        return MemoryTracker.NONE;
-    }
-
-    @Override
-    public boolean collectionsMustBeReleased()
-    {
-        return false;
+        // nop
     }
 }
