@@ -107,7 +107,7 @@ public abstract class AbstractCommand implements Command
     private void printVerboseHeader()
     {
         PrintStream out = ctx.out();
-        out.println( "neo4j " + Version.getNeo4jVersion() );
+        out.println( "ongdb " + Version.getONgDBVersion() );
         SystemDiagnostics.JAVA_VIRTUAL_MACHINE.dump( out::println );
     }
 }

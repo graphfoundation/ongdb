@@ -203,8 +203,8 @@ class ShowPrivilegesAdministrationCommandParserTest extends AdministrationComman
     Seq(
       ("ALL", ast.ShowAllPrivileges()(pos)),
       ("USER", ast.ShowUserPrivileges(None)(pos)),
-      ("USER neo4j", ast.ShowUsersPrivileges(List(literal("neo4j")))(pos)),
-      ("USERS neo4j, $user", ast.ShowUsersPrivileges(List(literal("neo4j"), paramUser))(pos)),
+      ("USER ongdb", ast.ShowUsersPrivileges(List(literal("ongdb")))(pos)),
+      ("USERS ongdb, $user", ast.ShowUsersPrivileges(List(literal("ongdb"), paramUser))(pos)),
       ("ROLES $role", ast.ShowRolesPrivileges(List(paramRole))(pos)),
       ("ROLE $role, reader", ast.ShowRolesPrivileges(List(paramRole, literal("reader")))(pos))
     ).foreach { case (privType, privilege) =>

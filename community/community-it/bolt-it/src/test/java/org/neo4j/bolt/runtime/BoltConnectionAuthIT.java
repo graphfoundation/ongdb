@@ -83,7 +83,7 @@ class BoltConnectionAuthIT
         BoltResponseRecorder recorder = new BoltResponseRecorder();
 
         // When
-        var hello = BoltV4Messages.hello( newBasicAuthToken( "neo4j", "neo4j" ) );
+        var hello = BoltV4Messages.hello( newBasicAuthToken( "ongdb", "ongdb" ) );
 
         machine.process( hello, recorder );
         machine.process( BoltV4Messages.run( "CREATE ()" ), recorder );
@@ -100,10 +100,10 @@ class BoltConnectionAuthIT
         // identify expired credentials as the cause of not being authenticated
         BoltStateMachine machine = newStateMachine();
         BoltResponseRecorder recorder = new BoltResponseRecorder();
-        String version = "Neo4j/" + Version.getNeo4jVersion();
+        String version = "Neo4j/" + Version.getONgDBVersion();
 
         // When
-        var hello = BoltV4Messages.hello( newBasicAuthToken( "neo4j", "neo4j" ) );
+        var hello = BoltV4Messages.hello( newBasicAuthToken( "ongdb", "ongdb" ) );
 
         machine.process( hello, recorder );
         machine.process( BoltV4Messages.run( "CREATE ()" ), recorder );
@@ -120,7 +120,7 @@ class BoltConnectionAuthIT
         BoltResponseRecorder recorder = new BoltResponseRecorder();
 
         // When... then
-        var hello = BoltV4Messages.hello( newBasicAuthToken( "neo4j", "j4oen" ) );
+        var hello = BoltV4Messages.hello( newBasicAuthToken( "ongdb", "j4oen" ) );
         verifyKillsConnection( () -> machine.process( hello, recorder ) );
 
         // ...and

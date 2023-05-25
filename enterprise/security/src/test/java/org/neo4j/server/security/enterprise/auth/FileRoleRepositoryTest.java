@@ -262,7 +262,7 @@ public class FileRoleRepositoryTest
         fs.mkdirs( roleFile.getParentFile() );
         // First line is correctly formatted, second line has an extra field
         FileRepositorySerializer.writeToFile( fs, roleFile, UTF8.encode(
-                "neo4j:admin\n" +
+                "ongdb:admin\n" +
                 "admin:admin:\n" ) );
 
         // When

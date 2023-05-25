@@ -140,7 +140,7 @@ public class Main implements Closeable
         }
         if ( args.getDriverVersion() )
         {
-            terminal.write().println( "Neo4j Driver " + Build.driverVersion() );
+            terminal.write().println( "ONgDB Driver " + Build.driverVersion() );
             return EXIT_SUCCESS;
         }
         if ( args.getChangePassword() )

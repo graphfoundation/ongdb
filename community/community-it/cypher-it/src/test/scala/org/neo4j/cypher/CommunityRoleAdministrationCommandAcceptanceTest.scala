@@ -76,12 +76,12 @@ class CommunityRoleAdministrationCommandAcceptanceTest extends CommunityAdminist
   }
 
   test("should fail on granting role to user from community") {
-    assertFailure("GRANT ROLE reader TO neo4j", "Unsupported administration command: GRANT ROLE reader TO neo4j")
+    assertFailure("GRANT ROLE reader TO ongdb", "Unsupported administration command: GRANT ROLE reader TO ongdb")
     assertFailure("GRANT ROLE $r TO $u", "Unsupported administration command: GRANT ROLE $r TO $u")
   }
 
   test("should fail on revoking role from user from community") {
-    assertFailure("REVOKE ROLE custom FROM neo4j", "Unsupported administration command: REVOKE ROLE custom FROM neo4j")
+    assertFailure("REVOKE ROLE custom FROM ongdb", "Unsupported administration command: REVOKE ROLE custom FROM ongdb")
     assertFailure("REVOKE ROLE $r FROM $u", "Unsupported administration command: REVOKE ROLE $r FROM $u")
   }
 }

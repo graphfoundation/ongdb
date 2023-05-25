@@ -50,7 +50,7 @@ import org.neo4j.server.rest.repr.formats.MapWrappingWriter;
 
 public class RepresentationTestAccess
 {
-    private static final URI BASE_URI = URI.create( "http://neo4j.org/" );
+    private static final URI BASE_URI = URI.create( "http://ongdb.org/" );
 
     private RepresentationTestAccess()
     {

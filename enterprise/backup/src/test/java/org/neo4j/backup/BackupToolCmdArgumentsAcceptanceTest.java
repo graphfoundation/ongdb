@@ -73,7 +73,7 @@ public class BackupToolCmdArgumentsAcceptanceTest
 {
     private static final String HOST = "localhost";
     private static final int PORT = 9090;
-    private static final Path PATH = Paths.get( "/var/backup/neo4j/" );
+    private static final Path PATH = Paths.get( "/var/backup/ongdb/" );
 
     @Parameter( 0 )
     public String argsAsString;

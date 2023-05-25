@@ -278,7 +278,7 @@ class MainTest
         var result = testWithMocks().args( "--driver-version" ).run();
 
         result.assertSuccess();
-        assertTrue( result.getOutput().toString( UTF_8 ).matches( "Neo4j Driver \\d+\\.\\d+\\.\\d+.*\\R" ) );
+        assertTrue( result.getOutput().toString( UTF_8 ).matches( "ONgDB Driver \\d+\\.\\d+\\.\\d+.*\\R" ) );
     }
 
     @Test

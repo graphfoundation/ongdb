@@ -72,7 +72,7 @@ class ThirdPartyJAXRSModuleTest
         Config config = mock( Config.class );
         List<ThirdPartyJaxRsPackage> jaxRsPackages = new ArrayList<>();
         String path = "/third/party/package";
-        jaxRsPackages.add( new ThirdPartyJaxRsPackage( "org.example.neo4j", path ) );
+        jaxRsPackages.add( new ThirdPartyJaxRsPackage( "org.example.ongdb", path ) );
         when( config.get( ServerSettings.third_party_packages ) ).thenReturn( jaxRsPackages );
 
         // When

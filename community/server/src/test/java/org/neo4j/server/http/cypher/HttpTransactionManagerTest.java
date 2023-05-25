@@ -127,11 +127,11 @@ class HttpTransactionManagerTest
         DatabaseManagementService managementService = mock( DatabaseManagementService.class );
         var memoryPool = mock( MemoryPool.class );
         var manager = newTransactionManager( managementService, memoryPool );
-        var transactionFacade = manager.getGraphDatabaseAPI( "neo4j" );
+        var transactionFacade = manager.getGraphDatabaseAPI( "ongdb" );
 
         assertTrue( transactionFacade.isPresent() );
 
-        verify( managementService ).database( "neo4j" );
+        verify( managementService ).database( "ongdb" );
     }
 
     @Test
@@ -165,7 +165,7 @@ class HttpTransactionManagerTest
         when( dependencyResolver.resolveDependency( QueryExecutionEngine.class ) )
                 .thenReturn( queryExecutionEngine );
 
-        var facade = manager.createTransactionFacade( graphDatabase, memoryTracker, "neo4j" );
+        var facade = manager.createTransactionFacade( graphDatabase, memoryTracker, "ongdb" );
 
         verify( memoryTracker ).allocateHeap( TransactionFacade.SHALLOW_SIZE );
         verifyNoMoreInteractions( memoryTracker );
@@ -180,7 +180,7 @@ class HttpTransactionManagerTest
         var boltSPI = mock( BoltGraphDatabaseManagementServiceSPI.class );
         var authManager = mock( AuthManager.class );
         AssertableLogProvider logProvider = new AssertableLogProvider( true );
-        var defaultDatabase = "neo4j";
+        var defaultDatabase = "ongdb";
         when( managementService.database( any( String.class ) ) ).thenAnswer( invocation -> {
             Object[] args = invocation.getArguments();
             String db = (String) args[0];

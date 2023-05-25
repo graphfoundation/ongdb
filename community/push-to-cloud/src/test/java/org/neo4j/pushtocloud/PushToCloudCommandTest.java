@@ -87,8 +87,8 @@ import static org.neo4j.configuration.GraphDatabaseSettings.default_database;
 @ExtendWith( TestDirectorySupportExtension.class )
 class PushToCloudCommandTest
 {
-    private static final String SOME_EXAMPLE_BOLT_URI = "bolt+routing://database_id.databases.neo4j.io";
-    public static final String DBNAME = "neo4j";
+    private static final String SOME_EXAMPLE_BOLT_URI = "bolt+routing://database_id.databases.ongdb.io";
+    public static final String DBNAME = "ongdb";
 
     @Inject
     TestDirectory directory;
@@ -101,7 +101,7 @@ class PushToCloudCommandTest
     {
         homeDir = directory.directory( "home-dir" );
         Path configDir = directory.directory( "config-dir" );
-        Path configFile = configDir.resolve( "neo4j.conf" );
+        Path configFile = configDir.resolve( "ongdb.conf" );
         Files.createFile( configFile );
         PrintStream nullOutputStream = new PrintStream( NullOutputStream.nullOutputStream() );
         ctx = new ExecutionContext( homeDir, configDir, nullOutputStream, nullOutputStream, directory.getFileSystem() );
@@ -161,10 +161,10 @@ class PushToCloudCommandTest
         // when
         CommandFailedException exception = assertThrows(
                 CommandFailedException.class,
-                () -> command.buildConsoleURI("neo4j+s://rogue-env.databases.neo4j-abc.io", devMode));
+                () -> command.buildConsoleURI("neo4j+s://rogue-env.databases.ongdb-abc.io", devMode));
 
         // then
-        assertEquals("Invalid Bolt URI 'neo4j+s://rogue-env.databases.neo4j-abc.io'", exception.getMessage());
+        assertEquals("Invalid Bolt URI 'neo4j+s://rogue-env.databases.ongdb-abc.io'", exception.getMessage());
     }
 
     @Test
@@ -179,10 +179,10 @@ class PushToCloudCommandTest
                 .build();
 
         // when
-        String consoleUrl = command.buildConsoleURI("neo4j+s://rogue.databases.neo4j.io", devMode);
+        String consoleUrl = command.buildConsoleURI("neo4j+s://rogue.databases.ongdb.io", devMode);
 
         // then
-        assertEquals("https://console.neo4j.io/v1/databases/rogue", consoleUrl);
+        assertEquals("https://console.ongdb.io/v1/databases/rogue", consoleUrl);
     }
 
     @Test
@@ -197,10 +197,10 @@ class PushToCloudCommandTest
                 .build();
 
         // when
-        String consoleUrl = command.buildConsoleURI("neo4j+s://rogue-env.databases.neo4j-abc.io", devMode);
+        String consoleUrl = command.buildConsoleURI("neo4j+s://rogue-env.databases.ongdb-abc.io", devMode);
 
         // then
-        assertEquals("https://console-env.neo4j-abc.io/v1/databases/rogue", consoleUrl);
+        assertEquals("https://console-env.ongdb-abc.io/v1/databases/rogue", consoleUrl);
     }
 
     @Test
@@ -215,10 +215,10 @@ class PushToCloudCommandTest
                 .build();
 
         // when
-        String consoleUrl = command.buildConsoleURI("neo4j+s://rogue.production-orch-0001.neo4j.io", devMode);
+        String consoleUrl = command.buildConsoleURI("neo4j+s://rogue.production-orch-0001.ongdb.io", devMode);
 
         // then
-        assertEquals("https://console.neo4j.io/v1/databases/rogue", consoleUrl);
+        assertEquals("https://console.ongdb.io/v1/databases/rogue", consoleUrl);
     }
 
     @Test
@@ -233,30 +233,30 @@ class PushToCloudCommandTest
                 .build();
 
         // when
-        String consoleUrl = command.buildConsoleURI("neo4j+s://rogue.env-orch-0001.neo4j-abc.io", devMode);
+        String consoleUrl = command.buildConsoleURI("neo4j+s://rogue.env-orch-0001.ongdb-abc.io", devMode);
 
         // then
-        assertEquals("https://console-env.neo4j-abc.io/v1/databases/rogue", consoleUrl);
+        assertEquals("https://console-env.ongdb-abc.io/v1/databases/rogue", consoleUrl);
 
         // when
-        consoleUrl = command.buildConsoleURI("neo4j+s://rogue.staging-orch-0001.neo4j.io", devMode);
+        consoleUrl = command.buildConsoleURI("neo4j+s://rogue.staging-orch-0001.ongdb.io", devMode);
 
         // then
-        assertEquals("https://console-staging.neo4j.io/v1/databases/rogue", consoleUrl);
+        assertEquals("https://console-staging.ongdb.io/v1/databases/rogue", consoleUrl);
 
         // when
-        consoleUrl = command.buildConsoleURI("neo4j+s://rogue.prestaging-orch-0001.neo4j.io", devMode);
+        consoleUrl = command.buildConsoleURI("neo4j+s://rogue.prestaging-orch-0001.ongdb.io", devMode);
 
         // then
-        assertEquals("https://console-prestaging.neo4j.io/v1/databases/rogue", consoleUrl);
+        assertEquals("https://console-prestaging.ongdb.io/v1/databases/rogue", consoleUrl);
 
         // when
         CommandFailedException exception = assertThrows(
                 CommandFailedException.class,
-                () -> command.buildConsoleURI("neo4j+s://rogue.env-orch-0001.neo4j.io", devMode));
+                () -> command.buildConsoleURI("neo4j+s://rogue.env-orch-0001.ongdb.io", devMode));
 
         // then
-        assertEquals("Invalid Bolt URI 'neo4j+s://rogue.env-orch-0001.neo4j.io'", exception.getMessage());
+        assertEquals("Invalid Bolt URI 'neo4j+s://rogue.env-orch-0001.ongdb.io'", exception.getMessage());
     }
 
     @Test
@@ -273,11 +273,11 @@ class PushToCloudCommandTest
         // when
         CommandFailedException exception = assertThrows(
                 CommandFailedException.class,
-                () -> command.buildConsoleURI("neo4j+s://rogue.databases.neo4j.io", devMode));
+                () -> command.buildConsoleURI("neo4j+s://rogue.databases.ongdb.io", devMode));
 
         // then
         assertEquals(
-                "Expected to find an environment running in dev mode in bolt URI: neo4j+s://rogue.databases.neo4j.io",
+                "Expected to find an environment running in dev mode in bolt URI: neo4j+s://rogue.databases.ongdb.io",
                 exception.getMessage());
     }
 
@@ -286,7 +286,7 @@ class PushToCloudCommandTest
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "neo4j";
+        String username = "ongdb";
         String password = "abc";
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
@@ -305,13 +305,13 @@ class PushToCloudCommandTest
     }
 
     @Test
-    public void shouldUseNeo4jAsDefaultUsernameIfUserHitsEnter() throws Exception
+    public void shouldUseOngdbAsDefaultUsernameIfUserHitsEnter() throws Exception
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
         PushToCloudConsole console = mock( PushToCloudConsole.class );
         when( console.readLine( anyString(), anyString() ) ).thenReturn( "" );
-        String defaultUsername = "neo4j";
+        String defaultUsername = "ongdb";
         String password = "super-secret-password";
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
@@ -326,7 +326,7 @@ class PushToCloudCommandTest
         new CommandLine( command ).execute( args );
 
         // then
-        verify( console ).readLine( "%s", format( "Neo4j aura username (default: %s):", defaultUsername ) );
+        verify( console ).readLine( "%s", format( "ONgDB aura username (default: %s):", defaultUsername ) );
         verify( targetCommunicator ).authenticate( anyBoolean(), any(), eq( defaultUsername ), eq( password.toCharArray() ), anyBoolean() );
         verify( targetCommunicator ).copy( anyBoolean(), any(), any(), any(), eq( false ), any() );
     }
@@ -338,7 +338,7 @@ class PushToCloudCommandTest
         Copier targetCommunicator = mockedTargetCommunicator();
         PushToCloudConsole console = mock( PushToCloudConsole.class );
         when( console.readLine( anyString(), anyString() ) ).thenReturn( null );
-        String defaultUsername = "neo4j";
+        String defaultUsername = "ongdb";
         String password = "super-secret-password";
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
@@ -471,7 +471,7 @@ class PushToCloudCommandTest
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "neo4j";
+        String username = "ongdb";
 
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
@@ -485,7 +485,7 @@ class PushToCloudCommandTest
                 "--password", "pass",
                 "--bolt-uri", SOME_EXAMPLE_BOLT_URI};
         new CommandLine( command ).execute( args );
-        verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "neo4j" ), eq( "pass".toCharArray() ), anyBoolean() );
+        verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "ongdb" ), eq( "pass".toCharArray() ), anyBoolean() );
     }
 
     @Test
@@ -493,7 +493,7 @@ class PushToCloudCommandTest
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "neo4j";
+        String username = "ongdb";
 
         PushToCloudCommand command = command().copier( targetCommunicator ).console( PushToCloudConsole.fakeConsole( username, "tomte", false ) ).build();
 
@@ -503,10 +503,10 @@ class PushToCloudCommandTest
                 "--dump", dump.toString(),
                 "--bolt-uri", SOME_EXAMPLE_BOLT_URI
         };
-        var environment = Map.of( "NEO4J_USERNAME", "", "NEO4J_PASSWORD", "pass" );
+        var environment = Map.of( "ONGDB_USERNAME", "", "ONGDB_PASSWORD", "pass" );
         new CommandLine( command ).setResourceBundle( new MapResourceBundle( environment ) ).execute( args );
 
-        verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "neo4j" ), eq( "pass".toCharArray() ), anyBoolean() );
+        verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "ongdb" ), eq( "pass".toCharArray() ), anyBoolean() );
     }
 
     @Test
@@ -514,7 +514,7 @@ class PushToCloudCommandTest
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "neo4j";
+        String username = "ongdb";
         String password = "abc";
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
@@ -538,7 +538,7 @@ class PushToCloudCommandTest
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "neo4j";
+        String username = "ongdb";
         String password = "abc";
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
@@ -551,7 +551,7 @@ class PushToCloudCommandTest
                 "--dump", dump.toString(),
                 "--bolt-uri", SOME_EXAMPLE_BOLT_URI};
 
-        var environment = Map.of( "NEO4J_USERNAME", "user", "NEO4J_PASSWORD", "" );
+        var environment = Map.of( "ONGDB_USERNAME", "user", "ONGDB_PASSWORD", "" );
         new CommandLine( command ).setResourceBundle( new MapResourceBundle( environment ) ).execute( args );
         assertTrue( Files.exists( dump ) );
         verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "user" ), eq( "abc".toCharArray() ), anyBoolean() );
@@ -562,7 +562,7 @@ class PushToCloudCommandTest
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "neo4j";
+        String username = "ongdb";
         String password = "abc";
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
@@ -572,12 +572,12 @@ class PushToCloudCommandTest
         // when
         String[] args = {
                 "--dump", dump.toString(),
-                "--username", "neo4jcli",
+                "--username", "ongdbcli",
                 "--password", "passcli",
                 "--bolt-uri", SOME_EXAMPLE_BOLT_URI};
         new CommandLine( command ).execute( args );
 
-        verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "neo4jcli" ), eq( "passcli".toCharArray() ), anyBoolean() );
+        verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "ongdbcli" ), eq( "passcli".toCharArray() ), anyBoolean() );
     }
 
     @Test
@@ -585,7 +585,7 @@ class PushToCloudCommandTest
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "neo4j";
+        String username = "ongdb";
         String password = "abc";
         PushToCloudCommand command = command()
                 .copier( targetCommunicator )
@@ -596,10 +596,10 @@ class PushToCloudCommandTest
         String[] args = {
                 "--dump", dump.toString(),
                 "--bolt-uri", SOME_EXAMPLE_BOLT_URI};
-        var environment = Map.of( "NEO4J_USERNAME", "neo4jenv", "NEO4J_PASSWORD", "passenv" );
+        var environment = Map.of( "ONGDB_USERNAME", "ongdbenv", "ONGDB_PASSWORD", "passenv" );
         new CommandLine( command ).setResourceBundle( new MapResourceBundle( environment ) ).execute( args );
 
-        verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "neo4jenv" ), eq( "passenv".toCharArray() ), anyBoolean() );
+        verify( targetCommunicator ).authenticate( anyBoolean(), anyString(), eq( "ongdbenv" ), eq( "passenv".toCharArray() ), anyBoolean() );
     }
 
     @Test
@@ -649,12 +649,12 @@ class PushToCloudCommandTest
         // when
         String[] args = {
                 "--dump", dump.toString(),
-                "--bolt-uri", "bolt+routing://mydbid-testenvironment.databases.neo4j.io"
+                "--bolt-uri", "bolt+routing://mydbid-testenvironment.databases.ongdb.io"
         };
         new CommandLine( command ).execute( args );
         // then
-        verify( copier ).copy( anyBoolean(), eq( "https://console-testenvironment.neo4j.io/v1/databases/mydbid" ),
-                               eq( "bolt+routing://mydbid-testenvironment.databases.neo4j.io" ), any(), eq( false ), any() );
+        verify( copier ).copy( anyBoolean(), eq( "https://console-testenvironment.ongdb.io/v1/databases/mydbid" ),
+                               eq( "bolt+routing://mydbid-testenvironment.databases.ongdb.io" ), any(), eq( false ), any() );
     }
 
     @Test
@@ -667,11 +667,11 @@ class PushToCloudCommandTest
         // when
         String[] args = {
                 "--dump", dump.toString(),
-                "--bolt-uri", "bolt+routing://mydbid.databases.neo4j.io"};
+                "--bolt-uri", "bolt+routing://mydbid.databases.ongdb.io"};
         new CommandLine( command ).execute( args );
         // then
-        verify( copier ).copy( anyBoolean(), eq( "https://console.neo4j.io/v1/databases/mydbid" ),
-                               eq( "bolt+routing://mydbid.databases.neo4j.io" ), any(), eq( false ), any() );
+        verify( copier ).copy( anyBoolean(), eq( "https://console.ongdb.io/v1/databases/mydbid" ),
+                               eq( "bolt+routing://mydbid.databases.ongdb.io" ), any(), eq( false ), any() );
     }
 
     @Test
@@ -684,7 +684,7 @@ class PushToCloudCommandTest
         // when
         String[] args = {
                 "--dump", dump.toString(),
-                "--bolt-uri", "bolt+routing://mydbid-env.databases.neo4j-env.io"};
+                "--bolt-uri", "bolt+routing://mydbid-env.databases.ongdb-env.io"};
         new CommandLine( command ).execute( args );
         // then
 
@@ -692,7 +692,7 @@ class PushToCloudCommandTest
         verify(copier)
                 .copy(
                         anyBoolean(),
-                        eq("https://console-env.neo4j-env.io/v1/databases/mydbid"),
+                        eq("https://console-env.ongdb-env.io/v1/databases/mydbid"),
                         any(),
                         any(),
                         eq(false),
@@ -709,7 +709,7 @@ class PushToCloudCommandTest
         // when
         String[] args = {
                 "--dump", dump.toString(),
-                "--bolt-uri", "bolt+routing://mydbid.databases.neo4j.io"};
+                "--bolt-uri", "bolt+routing://mydbid.databases.ongdb.io"};
         new CommandLine( command ).execute( args );
         // then
 
@@ -717,7 +717,7 @@ class PushToCloudCommandTest
         verify(copier)
                 .copy(
                         anyBoolean(),
-                        eq("https://console.neo4j.io/v1/databases/mydbid"),
+                        eq("https://console.ongdb.io/v1/databases/mydbid"),
                         any(),
                         any(),
                         eq(false),
@@ -733,14 +733,14 @@ class PushToCloudCommandTest
         PushToCloudCommand command = command().copier( copier ).dumpCreator( dumper ).build();
 
         // when
-        String[] args = {"--bolt-uri", "bolt+routing://mydbid.databases.neo4j.io"};
+        String[] args = {"--bolt-uri", "bolt+routing://mydbid.databases.ongdb.io"};
         new CommandLine( command ).execute( args );
 
         // then
         InOrder inOrder = inOrder( copier, dumper );
         inOrder.verify( copier ).authenticate( anyBoolean(), anyString(), anyString(), any(), eq( false ) );
         inOrder.verify( dumper ).dumpDatabase( anyString(), any() );
-        inOrder.verify( copier ).copy( anyBoolean(), anyString(), eq( "bolt+routing://mydbid.databases.neo4j.io" ), any(),
+        inOrder.verify( copier ).copy( anyBoolean(), anyString(), eq( "bolt+routing://mydbid.databases.ongdb.io" ), any(),
                                        eq( true ), anyString() );
     }
 

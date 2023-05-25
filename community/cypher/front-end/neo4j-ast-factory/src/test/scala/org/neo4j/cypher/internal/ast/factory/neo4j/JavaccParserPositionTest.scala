@@ -168,7 +168,7 @@ class JavaccParserPositionTest extends ParserComparisonTestBase with FunSuiteLik
     ("DEFAULT DATABASE YIELD name", 28),
     ("HOME DATABASE YIELD name", 25),
     ("DATABASE $db YIELD name", 24),
-    ("DATABASE neo4j YIELD name", 26),
+    ("DATABASE ongdb YIELD name", 26),
   ).foreach { case (name, variableOffset) =>
     test(s"SHOW $name") {
       assertSameAST(testName)

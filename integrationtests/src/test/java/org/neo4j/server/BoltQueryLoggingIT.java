@@ -136,7 +136,7 @@ public class BoltQueryLoggingIT
         for ( String line : lines )
         {
             assertTrue( line.contains( "INFO" ) );
-            assertTrue( line.contains( "ms: bolt-session\tbolt\tneo4j\tMyClient/1.0" ) );
+            assertTrue( line.contains( "ms: bolt-session\tbolt\tongdb\tMyClient/1.0" ) );
             assertTrue( line.contains( "client/127.0.0.1:" ) );
             assertTrue( line.contains( "client/127.0.0.1:" ) );
             assertTrue( line.contains( "server/127.0.0.1:" + neo4j.boltURI().getPort() ) );

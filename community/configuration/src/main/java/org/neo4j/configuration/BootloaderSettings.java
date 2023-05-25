@@ -56,9 +56,9 @@ import static org.neo4j.configuration.SettingValueParsers.JVM_ADDITIONAL;
 @ServiceProvider
 public class BootloaderSettings implements SettingsDeclaration
 {
-    @Description( "Name of the Windows Service managing Neo4j when installed using `neo4j install-service`. Only applicable on Windows OS." +
+    @Description( "Name of the Windows Service managing ONgDB when installed using `ongdb install-service`. Only applicable on Windows OS." +
             " Note: This must be unique for each individual installation." )
-    public static final Setting<String> windows_service_name = newBuilder( "dbms.windows_service_name", STRING, "neo4j" ).build();
+    public static final Setting<String> windows_service_name = newBuilder( "dbms.windows_service_name", STRING, "ongdb" ).build();
 
     @Internal
     @Description( "Path of the lib directory" )
@@ -89,8 +89,8 @@ public class BootloaderSettings implements SettingsDeclaration
     @Description( "Enable GC Logging" )
     public static final Setting<Boolean> gc_logging_enabled = newBuilder( "dbms.logs.gc.enabled", BOOL, false ).build();
 
-    @Description( "Path of the run directory. This directory holds Neo4j's runtime state, such as a pidfile when it " +
-            "is running in the background. The pidfile is created when starting neo4j and removed when stopping it." +
+    @Description( "Path of the run directory. This directory holds ONgDB's runtime state, such as a pidfile when it " +
+            "is running in the background. The pidfile is created when starting ONgDB and removed when stopping it." +
             " It may be placed on an in-memory filesystem such as tmpfs." )
     public static final Setting<Path> run_directory =
             newBuilder( "dbms.directories.run", PATH, Path.of( "run" ) ).setDependency( ongdb_home ).immutable().build();
@@ -98,7 +98,7 @@ public class BootloaderSettings implements SettingsDeclaration
     @Internal
     @Description( "Path of the pid file." )
     public static final Setting<Path> pid_file =
-            newBuilder( "unsupported.dbms.directories.pid_file", PATH, Path.of( "neo4j.pid" ) ).setDependency( run_directory ).immutable().build();
+            newBuilder( "unsupported.dbms.directories.pid_file", PATH, Path.of( "ongdb.pid" ) ).setDependency( run_directory ).immutable().build();
 
     @Description( "Path of the lib directory" )
     public static final Setting<Path> lib_directory =

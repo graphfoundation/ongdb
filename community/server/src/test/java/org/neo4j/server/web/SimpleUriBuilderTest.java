@@ -55,8 +55,8 @@ class SimpleUriBuilderTest
     @Test
     void shouldIncludeScheme()
     {
-        var uri1 = SimpleUriBuilder.buildURI( new SocketAddress( "neo4j.example.org", 443 ), false );
-        var uri2 = SimpleUriBuilder.buildURI( new SocketAddress( "neo4j.example.org", 80 ), true );
+        var uri1 = SimpleUriBuilder.buildURI( new SocketAddress( "ongdb.example.org", 443 ), false );
+        var uri2 = SimpleUriBuilder.buildURI( new SocketAddress( "ongdb.example.org", 80 ), true );
 
         assertEquals( "http", uri1.getScheme() );
         assertEquals( "https", uri2.getScheme() );
@@ -65,11 +65,11 @@ class SimpleUriBuilderTest
     @Test
     void shouldIncludePortWhenNecessary()
     {
-        var uri1 = SimpleUriBuilder.buildURI( new SocketAddress( "neo4j.example.org", 80 ), false );
-        var uri2 = SimpleUriBuilder.buildURI( new SocketAddress( "neo4j.example.org", 443 ), true );
-        var uri3 = SimpleUriBuilder.buildURI( new SocketAddress( "neo4j.example.org", 443 ), false );
-        var uri4 = SimpleUriBuilder.buildURI( new SocketAddress( "neo4j.example.org", 80 ), true );
-        var uri5 = SimpleUriBuilder.buildURI( new SocketAddress( "neo4j.example.org", 7690 ), false );
+        var uri1 = SimpleUriBuilder.buildURI( new SocketAddress( "ongdb.example.org", 80 ), false );
+        var uri2 = SimpleUriBuilder.buildURI( new SocketAddress( "ongdb.example.org", 443 ), true );
+        var uri3 = SimpleUriBuilder.buildURI( new SocketAddress( "ongdb.example.org", 443 ), false );
+        var uri4 = SimpleUriBuilder.buildURI( new SocketAddress( "ongdb.example.org", 80 ), true );
+        var uri5 = SimpleUriBuilder.buildURI( new SocketAddress( "ongdb.example.org", 7690 ), false );
 
         assertEquals( -1, uri1.getPort() );
         assertEquals( -1, uri2.getPort() );

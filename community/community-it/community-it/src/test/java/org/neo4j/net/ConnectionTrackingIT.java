@@ -126,7 +126,7 @@ import static org.neo4j.values.storable.Values.stringValue;
 @TestInstance( TestInstance.Lifecycle.PER_CLASS )
 class ConnectionTrackingIT
 {
-    private static final String NEO4J_USER_PWD = "test";
+    private static final String ONGDB_USER_PWD = "test";
     private static final String OTHER_USER = "otherUser";
     private static final String OTHER_USER_PWD = "test";
 
@@ -158,7 +158,7 @@ class ConnectionTrackingIT
         neo4j.start();
         db = (GraphDatabaseAPI) neo4j.defaultDatabaseService();
 
-        changeDefaultPasswordForUserNeo4j( NEO4J_USER_PWD );
+        changeDefaultPasswordForUserOngdb( ONGDB_USER_PWD );
         createNewUser( OTHER_USER, OTHER_USER_PWD );
         dummyNodeId = createDummyNode();
         IOUtils.closeAllSilently( acceptedConnectionsFromConnectionTracker() );
@@ -228,7 +228,7 @@ class ConnectionTrackingIT
         {
             for ( int i = 0; i < 4; i++ )
             {
-                updateNodeViaHttp( dummyNodeId, "neo4j", NEO4J_USER_PWD );
+                updateNodeViaHttp( dummyNodeId, "ongdb", ONGDB_USER_PWD );
             }
             for ( int i = 0; i < 3; i++ )
             {
@@ -237,7 +237,7 @@ class ConnectionTrackingIT
 
         } );
         awaitNumberOfAuthenticatedConnectionsToBe( 7 );
-        verifyAuthenticatedConnectionCount( HTTP, "neo4j", 4 );
+        verifyAuthenticatedConnectionCount( HTTP, "ongdb", 4 );
         verifyAuthenticatedConnectionCount( HTTP, OTHER_USER, 3 );
     }
 
@@ -248,7 +248,7 @@ class ConnectionTrackingIT
         {
             for ( int i = 0; i < 4; i++ )
             {
-                updateNodeViaHttps( dummyNodeId, "neo4j", NEO4J_USER_PWD );
+                updateNodeViaHttps( dummyNodeId, "ongdb", ONGDB_USER_PWD );
             }
             for ( int i = 0; i < 5; i++ )
             {
@@ -257,7 +257,7 @@ class ConnectionTrackingIT
 
             awaitNumberOfAuthenticatedConnectionsToBe( 9 );
         } );
-        verifyAuthenticatedConnectionCount( HTTPS, "neo4j", 4 );
+        verifyAuthenticatedConnectionCount( HTTPS, "ongdb", 4 );
         verifyAuthenticatedConnectionCount( HTTPS, OTHER_USER, 5 );
     }
 
@@ -268,7 +268,7 @@ class ConnectionTrackingIT
         {
             for ( int i = 0; i < 2; i++ )
             {
-                updateNodeViaBolt( dummyNodeId, "neo4j", NEO4J_USER_PWD );
+                updateNodeViaBolt( dummyNodeId, "ongdb", ONGDB_USER_PWD );
             }
             for ( int i = 0; i < 5; i++ )
             {
@@ -277,7 +277,7 @@ class ConnectionTrackingIT
 
         } );
         awaitNumberOfAuthenticatedConnectionsToBe( 7 );
-        verifyAuthenticatedConnectionCount( BOLT, "neo4j", 2 );
+        verifyAuthenticatedConnectionCount( BOLT, "ongdb", 2 );
         verifyAuthenticatedConnectionCount( BOLT, OTHER_USER, 5 );
     }
 
@@ -292,18 +292,18 @@ class ConnectionTrackingIT
             }
             for ( int i = 0; i < 1; i++ )
             {
-                updateNodeViaHttp( dummyNodeId, "neo4j", NEO4J_USER_PWD );
+                updateNodeViaHttp( dummyNodeId, "ongdb", ONGDB_USER_PWD );
             }
             for ( int i = 0; i < 5; i++ )
             {
-                updateNodeViaHttps( dummyNodeId, "neo4j", NEO4J_USER_PWD );
+                updateNodeViaHttps( dummyNodeId, "ongdb", ONGDB_USER_PWD );
             }
 
             awaitNumberOfAuthenticatedConnectionsToBe( 10 );
         } );
         verifyConnectionCount( BOLT, OTHER_USER, 4 );
-        verifyConnectionCount( HTTP, "neo4j", 1 );
-        verifyConnectionCount( HTTPS, "neo4j", 5 );
+        verifyConnectionCount( HTTP, "ongdb", 1 );
+        verifyConnectionCount( HTTPS, "ongdb", 5 );
     }
 
     @Test
@@ -455,11 +455,11 @@ class ConnectionTrackingIT
         return connectionTracker.activeConnections();
     }
 
-    private void changeDefaultPasswordForUserNeo4j( String newPassword )
+    private void changeDefaultPasswordForUserOngdb( String newPassword )
     {
         var uri = neo4j.httpURI().resolve( "db/system/tx/commit" ).toString();
-        Response response = withBasicAuth( "neo4j", "neo4j" )
-                .POST( uri, query( String.format( "ALTER CURRENT USER SET PASSWORD FROM 'neo4j' TO '%s'", newPassword ) ) );
+        Response response = withBasicAuth( "ongdb", "ongdb" )
+                .POST( uri, query( String.format( "ALTER CURRENT USER SET PASSWORD FROM 'ongdb' TO '%s'", newPassword ) ) );
 
         assertEquals( 200, response.status() );
     }
@@ -468,11 +468,11 @@ class ConnectionTrackingIT
     {
         var uri = neo4j.httpURI().resolve( "db/system/tx/commit" ).toString();
 
-        Response response1 = withBasicAuth( "neo4j", NEO4J_USER_PWD )
+        Response response1 = withBasicAuth( "ongdb", ONGDB_USER_PWD )
                 .POST( uri, query( "CALL dbms.security.createUser(\\\"" + username + "\\\", \\\"" + password + "\\\", false)" ) );
         assertEquals( 200, response1.status() );
 
-        Response response2 = withBasicAuth( "neo4j", NEO4J_USER_PWD )
+        Response response2 = withBasicAuth( "ongdb", ONGDB_USER_PWD )
                 .POST( uri, query( "CALL dbms.security.addRoleToUser(\\\"admin\\\", \\\"" + username + "\\\")" ) );
         assertEquals( 200, response2.status() );
     }
@@ -571,7 +571,7 @@ class ConnectionTrackingIT
         try
         {
             connection.send( util.defaultAcceptedVersions() )
-                    .send( auth( "neo4j", NEO4J_USER_PWD ) )
+                    .send( auth( "ongdb", ONGDB_USER_PWD ) )
                     .send( util.defaultRunAutoCommitTx( "CALL dbms.killConnection('" + id + "')" ) );
 
             assertThat( connection ).satisfies( TransportTestUtil.eventuallyReceivesSelectedProtocolVersion() );
@@ -626,7 +626,7 @@ class ConnectionTrackingIT
     private URI txCommitUri( boolean encrypted )
     {
         URI baseUri = encrypted ? neo4j.httpsURI() : neo4j.httpURI();
-        return baseUri.resolve( "db/neo4j/tx/commit" );
+        return baseUri.resolve( "db/ongdb/tx/commit" );
     }
 
     private static RawPayload query( String statement )

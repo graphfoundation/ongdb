@@ -69,7 +69,7 @@ public final class WebContainerTestUtils
 
     public static Path createTempDir() throws IOException
     {
-        return Files.createTempDirectory( "neo4j-test" );
+        return Files.createTempDirectory( "ongdb-test" );
     }
 
     public static Path getRelativePath( Path folder, Setting<Path> setting )

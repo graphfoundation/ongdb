@@ -122,7 +122,7 @@ class MethodSignatureCompiler
             {
                 throw new ProcedureException( e.status(),
                         "Argument `%s` at position %d in `%s` with%n" +
-                        "type `%s` cannot be converted to a Neo4j type: %s",
+                        "type `%s` cannot be converted to an ONgDB type: %s",
                         name, i, method.getName(), param.getType().getSimpleName(),
                         e.getMessage() );
             }

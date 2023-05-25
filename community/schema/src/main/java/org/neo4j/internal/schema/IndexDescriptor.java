@@ -59,7 +59,7 @@ public final class IndexDescriptor implements IndexRef<IndexDescriptor>, SchemaR
     public static final IndexDescriptor NO_INDEX = new IndexDescriptor();
     public static final long INJECTED_NLI_ID = -2;
     public static final String NLI_GENERATED_NAME =
-            "__org_neo4j_schema_index_label_scan_store_converted_to_token_index";
+            "__org_ongdb_schema_index_label_scan_store_converted_to_token_index";
     public static final IndexPrototype NLI_PROTOTYPE = IndexPrototype.forSchema( SchemaDescriptors.forAnyEntityTokens( EntityType.NODE ),
                                                                                  new IndexProviderDescriptor( "token-lookup", "1.0" ) )
                                                                      .withIndexType( IndexType.LOOKUP )

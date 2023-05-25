@@ -100,7 +100,7 @@ class BoltIT extends ExclusiveWebContainerTestBase
     void boltAddressShouldComeFromConnectorAdvertisedAddress() throws Throwable
     {
         // Given
-        String host = "neo4j.com";
+        String host = "ongdb.com";
 
         startServerWithBoltEnabled( host, 9999, "localhost", 0 );
 

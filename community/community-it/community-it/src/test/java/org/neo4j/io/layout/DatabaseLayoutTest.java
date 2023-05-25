@@ -65,7 +65,7 @@ class DatabaseLayoutTest
     @Test
     void databaseLayoutForAbsoluteFile()
     {
-        Path databaseDir = testDirectory.directory( "neo4j" );
+        Path databaseDir = testDirectory.directory( "ongdb" );
         DatabaseLayout databaseLayout = DatabaseLayout.ofFlat( databaseDir );
         assertEquals( databaseLayout.databaseDirectory(), databaseDir );
     }
@@ -121,7 +121,7 @@ class DatabaseLayoutTest
     @Test
     void databaseLayoutProvideCorrectDatabaseName()
     {
-        assertEquals( "neo4j", databaseLayout.getDatabaseName() );
+        assertEquals( "ongdb", databaseLayout.getDatabaseName() );
         assertEquals( "testdb", neo4jLayout.databaseLayout( "testdb" ).getDatabaseName() );
     }
 }

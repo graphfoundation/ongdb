@@ -99,7 +99,7 @@ class NeoWebServerConfigurableModulesIT extends CommunityWebContainerTestBase
                 arguments(
                         ConfigurableServerModules.TRANSACTIONAL_ENDPOINTS,
                         (Function<URI,List<URI>>) baseUir ->
-                                List.of( baseUir.resolve( "/db/neo4j/tx" ), baseUir.resolve( "/db/data/transaction" ) ),
+                                List.of( baseUir.resolve( "/db/ongdb/tx" ), baseUir.resolve( "/db/data/transaction" ) ),
                         (Function<URI,HTTP.Response>) uri -> HTTP.POST( uri.toString() )
                 ),
                 arguments(

@@ -81,7 +81,7 @@ class UnixBootloaderOs extends AbstractUnixBootloaderOs
         int limit = getFileHandleLimit();
         if ( limit < MIN_ALLOWED_OPEN_FILES )
         {
-            ctx.err.printf( "WARNING: Max %s open files allowed, minimum of %s recommended. See the Neo4j manual.%n", limit, MIN_ALLOWED_OPEN_FILES );
+            ctx.err.printf( "WARNING: Max %s open files allowed, minimum of %s recommended. See the ONgDB manual.%n", limit, MIN_ALLOWED_OPEN_FILES );
         }
     }
 }

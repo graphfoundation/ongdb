@@ -53,7 +53,7 @@ import org.neo4j.server.http.cypher.format.jolt.JoltCodec;
 public class LineDelimitedEventSourceJoltMessageBodyWriter extends AbstractEventSourceJoltMessageBodyWriter
 {
 
-    public static final String JSON_JOLT_MIME_TYPE_VALUE = "application/vnd.neo4j.jolt";
+    public static final String JSON_JOLT_MIME_TYPE_VALUE = "application/vnd.ongdb.jolt";
     public static final String JSON_JOLT_MIME_TYPE_VALUE_WITH_QUALITY = JSON_JOLT_MIME_TYPE_VALUE + ";qs=0.5";
     public static final MediaType JSON_JOLT_MIME_TYPE = MediaType.valueOf( JSON_JOLT_MIME_TYPE_VALUE );
 

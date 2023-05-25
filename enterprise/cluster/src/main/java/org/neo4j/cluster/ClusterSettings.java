@@ -94,7 +94,7 @@ public class ClusterSettings implements LoadableConfig
 
     @Description( "The name of a cluster." )
     @Internal
-    public static final Setting<String> cluster_name = buildSetting( "unsupported.ha.cluster_name", STRING, "neo4j.ha" ).constraint(
+    public static final Setting<String> cluster_name = buildSetting( "unsupported.ha.cluster_name", STRING, "ongdb.ha" ).constraint(
             illegalValueMessage( "must be a valid cluster name", matches( ANY ) ) ).build();
 
     @Description( "A comma-separated list of other members of the cluster to join." )

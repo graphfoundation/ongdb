@@ -74,7 +74,7 @@ class BookmarkWithPrefixTest
 
         bookmark.attachTo( responseHandler );
 
-        verify( responseHandler ).onMetadata( "bookmark", stringValue( "neo4j:bookmark:v1:tx42" ) );
+        verify( responseHandler ).onMetadata( "bookmark", stringValue( "ongdb:bookmark:v1:tx42" ) );
     }
 
     @Test
@@ -82,6 +82,6 @@ class BookmarkWithPrefixTest
     {
         var bookmark = new BookmarkWithPrefix( 424242 );
 
-        assertEquals( "neo4j:bookmark:v1:tx424242", bookmark.toString() );
+        assertEquals( "ongdb:bookmark:v1:tx424242", bookmark.toString() );
     }
 }

@@ -63,7 +63,7 @@ object TCKValueToNeo4jValue extends (CypherValue => Object) {
       case CypherPropertyMap(ps) => ps.map { case (k, v) => k -> TCKValueToNeo4jValue(v) }.asJava
       case l: CypherList => l.elements.map(TCKValueToNeo4jValue).asJava
       case CypherNull => null
-      case _ => throw new UnsupportedOperationException(s"Could not convert value $value to a Neo4j representation")
+      case _ => throw new UnsupportedOperationException(s"Could not convert value $value to an ONgDB representation")
     }
   }
 

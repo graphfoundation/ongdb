@@ -350,7 +350,7 @@ public class ProcedureTest
     {
         // Given
         ProcedureConfig config = new ProcedureConfig(
-                Config.defaults( procedure_allowlist, List.of( "org.neo4j.procedure.impl.NOTlistCoolPeople" ) ) );
+                Config.defaults( procedure_allowlist, List.of( "org.ongdb.procedure.impl.NOTlistCoolPeople" ) ) );
 
         Log log = mock(Log.class);
         ProcedureCompiler procedureCompiler = new ProcedureCompiler( new TypeCheckers(), components,

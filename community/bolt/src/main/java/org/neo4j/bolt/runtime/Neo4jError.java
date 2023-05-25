@@ -132,7 +132,7 @@ public class Neo4jError
     @Override
     public String toString()
     {
-        return "Neo4jError{" +
+        return "ONgDBError{" +
                 "status=" + status +
                 ", message='" + message + '\'' +
                 ", cause=" + cause +

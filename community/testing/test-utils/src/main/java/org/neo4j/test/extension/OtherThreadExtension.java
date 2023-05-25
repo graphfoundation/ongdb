@@ -46,7 +46,7 @@ import org.junit.jupiter.api.extension.ExtensionContext.Namespace;
 public class OtherThreadExtension extends StatefulFieldExtension<OtherThread> implements BeforeEachCallback, AfterEachCallback
 {
     private static final String OTHER_THREAD = "otherThread";
-    private static final Namespace OTHER_THREAD_NAMESPACE = Namespace.create( "org", "neo4j", OTHER_THREAD );
+    private static final Namespace OTHER_THREAD_NAMESPACE = Namespace.create( "org", "ongdb", OTHER_THREAD );
 
     @Override
     protected String getFieldKey()

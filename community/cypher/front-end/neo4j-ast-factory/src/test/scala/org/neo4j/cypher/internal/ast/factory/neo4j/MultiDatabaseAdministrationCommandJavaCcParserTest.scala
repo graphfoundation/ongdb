@@ -68,7 +68,7 @@ class MultiDatabaseAdministrationCommandJavaCcParserTest extends ParserCompariso
     "DEFAULT DATABASE",
     "HOME DATABASE",
     "DATABASE $db",
-    "DATABASE neo4j"
+    "DATABASE ongdb"
   ).foreach { dbType =>
 
     test(s"SHOW $dbType") {

@@ -153,15 +153,15 @@ class NormalizeWithAndReturnClausesTest extends CypherFunSuite with RewriteTest 
 
   test("ensure variables are aliased for SHOW USER PRIVILEGES with WHERE") {
     assertRewriteAndSemanticError(
-      "SHOW USER neo4j PRIVILEGES YIELD access, resource WHERE role = 'PUBLIC'",
-      "SHOW USER neo4j PRIVILEGES YIELD access AS access, resource AS resource WHERE role = 'PUBLIC'",
+      "SHOW USER ongdb PRIVILEGES YIELD access, resource WHERE role = 'PUBLIC'",
+      "SHOW USER ongdb PRIVILEGES YIELD access AS access, resource AS resource WHERE role = 'PUBLIC'",
       "Variable `role` not defined (line 1, column 57 (offset: 56))")
   }
 
   test("ensure variables are aliased for SHOW USER PRIVILEGES with ORDER BY") {
     assertRewriteAndSemanticError(
-      "SHOW USER neo4j PRIVILEGES YIELD access, resource ORDER BY role",
-      "SHOW USER neo4j PRIVILEGES YIELD access AS access, resource AS resource ORDER BY role",
+      "SHOW USER ongdb PRIVILEGES YIELD access, resource ORDER BY role",
+      "SHOW USER ongdb PRIVILEGES YIELD access AS access, resource AS resource ORDER BY role",
       "Variable `role` not defined (line 1, column 60 (offset: 59))")
   }
 

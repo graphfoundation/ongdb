@@ -496,7 +496,7 @@ class Neo4jASTFactory(query: String, anonymousVariableNameGenerator: AnonymousVa
         case x: SingleQuery => x
         case other =>
           throw new Neo4jASTConstructionException(
-            s"The Neo4j AST encodes Unions as a left-deep tree, so the rhs query must always be a SingleQuery. Got `$other`")
+            s"The ONgDB AST encodes Unions as a left-deep tree, so the rhs query must always be a SingleQuery. Got `$other`")
       }
 
     val union =

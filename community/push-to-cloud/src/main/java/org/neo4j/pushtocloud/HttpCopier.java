@@ -172,7 +172,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
     }
 
     /**
-     * Do the actual transfer of the source (a Neo4j database dump) to the target.
+     * Do the actual transfer of the source (a ONgDB database dump) to the target.
      */
     @Override
     public void copy( boolean verbose, String consoleURL, String boltUri, PushToCloudCommand.Source source, boolean deleteSourceAfterImport,
@@ -449,7 +449,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
     }
 
     /**
-     * Communication with Neo4j's cloud console, resulting in some signed URI to do the actual upload to.
+     * Communication with ONgDB's cloud console, resulting in some signed URI to do the actual upload to.
      */
     private URL initiateCopy( boolean verbose, URL importURL, long crc32Sum, long size, String bearerToken ) throws IOException
     {
@@ -744,7 +744,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
         debugErrorResponse( true, connection );
         return new CommandFailedException( "We encountered a problem while communicating to the Neo4j Aura system. \n" +
                                            "You can re-try using the existing dump by running this command: \n" +
-                                           String.format( "neo4j-admin push-to-cloud --%s=%s --%s=%s", "dump", dump.toAbsolutePath(), "bolt-uri",
+                                           String.format( "ongdb-admin push-to-cloud --%s=%s --%s=%s", "dump", dump.toAbsolutePath(), "bolt-uri",
                                                           boltUri ) );
     }
 

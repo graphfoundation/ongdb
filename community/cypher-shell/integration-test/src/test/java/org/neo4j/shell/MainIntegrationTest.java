@@ -83,7 +83,7 @@ import static org.neo4j.shell.util.Versions.majorVersion;
 @Timeout( value = 5, unit = MINUTES )
 class MainIntegrationTest
 {
-    private static final String USER = "neo4j";
+    private static final String USER = "ongdb";
     private static final String PASSWORD = "neo";
     private static final String newLine = System.lineSeparator();
     private static final String GOOD_BYE = format( ":exit%n%nBye!%n" );
@@ -158,7 +158,7 @@ class MainIntegrationTest
         assumeTrue( serverVersion.major() >= 4 );
 
         testWithUser( "kjell", "expired", true )
-            .args( "-u kjell -p expired -d neo4j --non-interactive")
+            .args( "-u kjell -p expired -d ongdb --non-interactive")
             .addArgs( "ALTER CURRENT USER SET PASSWORD FROM \"expired\" TO \"höglund\";" )
             .run()
             .assertFailure()
@@ -171,7 +171,7 @@ class MainIntegrationTest
         assumeTrue( serverVersion.major() >= 4 );
 
         testWithUser( "bruce", "expired", true )
-            .args( "-u bruce -p expired -d neo4j" ).addArgs( "match (n) return n;" )
+            .args( "-u bruce -p expired -d ongdb" ).addArgs( "match (n) return n;" )
             .userInputLines( "newpass", "newpass" )
             .run()
             .assertSuccess();
@@ -185,7 +185,7 @@ class MainIntegrationTest
         assumeTrue( serverVersion.major() >= 4 );
 
         testWithUser( "nick", "expired", true )
-            .args( "-u nick -p expired -d neo4j --non-interactive" ).addArgs( "match (n) return n;" )
+            .args( "-u nick -p expired -d ongdb --non-interactive" ).addArgs( "match (n) return n;" )
             .run()
             .assertFailure()
             .assertThatErrorOutput( containsString( "The credentials you provided were valid, but must be changed" ) )
@@ -208,8 +208,8 @@ class MainIntegrationTest
     void shouldHandleEmptyLine() throws Exception
     {
         var expectedPrompt = format(
-                "neo4j@neo4j> %n" +
-                "neo4j@neo4j> :exit");
+                "ongdb@ongdb> %n" +
+                "ongdb@ongdb> :exit");
 
         buildTest()
                 .addArgs( "-u", USER, "-p", PASSWORD, "--format", "plain" )
@@ -232,10 +232,10 @@ class MainIntegrationTest
     }
 
     @Test
-    void wrongPortWithNeo4j() throws Exception
+    void wrongPortWithONgDB() throws Exception
     {
         testWithUser( "jackie", "leven", false )
-            .args( "-u jackie -p leven -a neo4j://localhost:1234" )
+            .args( "-u jackie -p leven -a ongdb://localhost:1234" )
             .run()
             .assertFailure( "Connection refused" );
     }
@@ -330,7 +330,7 @@ class MainIntegrationTest
                 .addArgs( "-u", USER, "-p", PASSWORD, "--format", "plain" )
                 .userInputLines( ":disconnect ", "RETURN 42 AS x;", ":exit" )
                 .run()
-                .assertThatErrorOutput( containsString( "Not connected to Neo4j" ) )
+                .assertThatErrorOutput( containsString( "Not connected to ONgDB" ) )
                 .assertThatOutput( containsString( "> :disconnect " + format("%nDisconnected>")), endsWith( GOOD_BYE ) );
     }
 
@@ -741,7 +741,7 @@ class MainIntegrationTest
                 .addArgs( "-u", USER, "-p", PASSWORD, "--format", "plain" )
                 .userInputLines(
                         ":disconnect",
-                        ":connect -u new_user -p new_password -d neo4j",
+                        ":connect -u new_user -p new_password -d ongdb",
                         "show current user yield user;"
                 )
                 .run()
@@ -750,7 +750,7 @@ class MainIntegrationTest
                         "show current user yield user;\n" +
                         "user\n" +
                         "\"new_user\"\n" +
-                        "new_user@neo4j>"
+                        "new_user@ongdb>"
                 ) );
     }
 
@@ -761,13 +761,13 @@ class MainIntegrationTest
                 .addArgs( "-u", USER, "-p", PASSWORD, "--format", "plain" )
                 .userInputLines(
                         ":disconnect",
-                        ":connect -u new_user -p " + PASSWORD + " -d neo4j", // Wrong password
+                        ":connect -u new_user -p " + PASSWORD + " -d ongdb", // Wrong password
                         "show current user yield user;"
                 )
                 .run()
                 .assertThatOutput( containsString(
-                        "neo4j@neo4j> :disconnect\n" +
-                        "Disconnected> :connect -u new_user -p " + PASSWORD + " -d neo4j\n" +
+                        "ongdb@ongdb> :disconnect\n" +
+                        "Disconnected> :connect -u new_user -p " + PASSWORD + " -d ongdb\n" +
                         "Disconnected> show current user yield user;\n" +
                         "Disconnected>"
                 ) )
@@ -785,14 +785,14 @@ class MainIntegrationTest
                 .addArgs( "-u", USER, "-p", PASSWORD, "--format", "plain" )
                 .userInputLines(
                         ":disconnect",
-                        ":connect -u new_user -d neo4j",
+                        ":connect -u new_user -d ongdb",
                         PASSWORD, // Password prompt with WRONG password
                         "show current user yield user;"
                 )
                 .run()
                 .assertThatOutput( containsString(
-                        "neo4j@neo4j> :disconnect\n" +
-                        "Disconnected> :connect -u new_user -d neo4j\n" +
+                        "ongdb@ongdb> :disconnect\n" +
+                        "Disconnected> :connect -u new_user -d ongdb\n" +
                         "password: ***\n" +
                         "Disconnected> show current user yield user;\n" +
                         "Disconnected>"
@@ -811,17 +811,17 @@ class MainIntegrationTest
         testWithUser( "new_user", "new_password", false )
                 .addArgs( "-u", USER, "-p", PASSWORD, "--format", "plain" )
                 .userInputLines(
-                        ":connect -u new_user -p new_password -d neo4j", // No disconnect
+                        ":connect -u new_user -p new_password -d ongdb", // No disconnect
                         "show current user yield user;"
                 )
                 .run()
                 .assertThatErrorOutput( containsString( "Already connected" ) )
                 .assertThatOutput( containsString(
-                        "neo4j@neo4j> :connect -u new_user -p new_password -d neo4j\n" +
-                        "neo4j@neo4j> show current user yield user;\n" +
+                        "ongdb@ongdb> :connect -u new_user -p new_password -d ongdb\n" +
+                        "ongdb@ongdb> show current user yield user;\n" +
                         "user\n" +
-                        "\"neo4j\"\n" +
-                        "neo4j@neo4j> "
+                        "\"ongdb\"\n" +
+                        "ongdb@ongdb> "
                 ) );
     }
 
@@ -834,12 +834,12 @@ class MainIntegrationTest
                 .run()
                 .assertSuccessAndConnected()
                 .assertThatOutput( containsString(
-                        "neo4j@neo4j> return\n" +
+                        "ongdb@ongdb> return\n" +
                         "             1 as res\n" +
                         "             ;\n" +
                         "res\n" +
                         "1\n" +
-                        "neo4j@neo4j> :exit"
+                        "ongdb@ongdb> :exit"
                 ) );
     }
 
@@ -946,7 +946,7 @@ class MainIntegrationTest
         try
         {
             shell = new CypherShell( new StringLinePrinter(), new PrettyConfig( Format.PLAIN, false, 100 ), true, new ShellParameterMap() );
-            shell.connect( new ConnectionConfig( "neo4j", "localhost", 7687, USER, PASSWORD, Encryption.DEFAULT, database ) );
+            shell.connect( new ConnectionConfig( "ongdb", "localhost", 7687, USER, PASSWORD, Encryption.DEFAULT, database ) );
             return systemDbConsumer.apply( shell );
         }
         catch ( Exception e )

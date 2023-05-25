@@ -52,7 +52,7 @@ abstract class CypherShellIntegrationTest
 
     void connect( String password ) throws CommandException
     {
-        shell.connect( new ConnectionConfig( "bolt", "localhost", 7687, "neo4j", password, Encryption.DEFAULT, ABSENT_DB_NAME ) );
+        shell.connect( new ConnectionConfig( "bolt", "localhost", 7687, "ongdb", password, Encryption.DEFAULT, ABSENT_DB_NAME ) );
     }
 
     boolean runningAtLeast( String version )

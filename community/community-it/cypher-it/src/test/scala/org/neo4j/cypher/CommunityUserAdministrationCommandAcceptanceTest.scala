@@ -65,7 +65,7 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 //noinspection RedundantDefaultArgument
 // uses default argument for clarification in some tests
 class CommunityUserAdministrationCommandAcceptanceTest extends CommunityAdministrationCommandAcceptanceTestBase {
-  private val defaultUsername = "neo4j"
+  private val defaultUsername = "ongdb"
   private val defaultUser = user(defaultUsername)
   private val defaultUserMap = Map("user" -> defaultUsername)
   private val username = "foo"
@@ -94,7 +94,7 @@ class CommunityUserAdministrationCommandAcceptanceTest extends CommunityAdminist
   test("should show all users") {
     // GIVEN
     // User  : Roles
-    // neo4j : admin
+    // ongdb : admin
     // Bar   :
     // Baz   :
     // Zet   :
@@ -557,7 +557,7 @@ class CommunityUserAdministrationCommandAcceptanceTest extends CommunityAdminist
     result.queryStatistics().systemUpdates should be(0)
     execute("SHOW USERS").toSet shouldBe Set(defaultUser)
     testUserLogin(defaultUsername, wrongPassword, AuthenticationResult.FAILURE)
-    testUserLogin(defaultUsername, "neo4j", AuthenticationResult.PASSWORD_CHANGE_REQUIRED)
+    testUserLogin(defaultUsername, "ongdb", AuthenticationResult.PASSWORD_CHANGE_REQUIRED)
   }
 
   test("should fail when creating user with illegal username") {
@@ -597,14 +597,14 @@ class CommunityUserAdministrationCommandAcceptanceTest extends CommunityAdminist
 
     val exception = the[SyntaxException] thrownBy {
       // WHEN
-      execute("CREATE USER `3neo4j` SET PASSWORD 'password'")
-      execute("CREATE USER 4neo4j SET PASSWORD 'password'")
+      execute("CREATE USER `3ongdb` SET PASSWORD 'password'")
+      execute("CREATE USER 4ongdb SET PASSWORD 'password'")
     }
     // THEN
-    exception.getMessage should include("Invalid input '4neo4j'")
+    exception.getMessage should include("Invalid input '4ongdb'")
 
     // THEN
-    execute("SHOW USERS").toSet shouldBe Set(defaultUser, user("3neo4j"))
+    execute("SHOW USERS").toSet shouldBe Set(defaultUser, user("3ongdb"))
   }
 
   test("should replace existing user") {
@@ -627,7 +627,7 @@ class CommunityUserAdministrationCommandAcceptanceTest extends CommunityAdminist
 
   test("should fail when replacing current user") {
     // GIVEN
-    executeOnSystem(defaultUsername, "neo4j", s"ALTER CURRENT USER SET PASSWORD FROM 'neo4j' TO '$password'")
+    executeOnSystem(defaultUsername, "ongdb", s"ALTER CURRENT USER SET PASSWORD FROM 'ongdb' TO '$password'")
     execute("SHOW USERS").toSet should be(Set(user(defaultUsername, passwordChangeRequired = false)))
 
     the[QueryExecutionException] thrownBy {
@@ -1614,7 +1614,7 @@ class CommunityUserAdministrationCommandAcceptanceTest extends CommunityAdminist
     }
 
     // THEN
-    e.getMessage should startWith("ACCESS on database 'neo4j' is not allowed.")
+    e.getMessage should startWith("ACCESS on database 'ongdb' is not allowed.")
   }
 
   // Helper methods

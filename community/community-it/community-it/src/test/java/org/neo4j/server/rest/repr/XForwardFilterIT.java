@@ -98,7 +98,7 @@ public class XForwardFilterIT extends AbstractRestFunctionalTestBase
     @Test
     public void shouldPickFirstXForwardedHostHeaderValueFromCommaOrCommaAndSpaceSeparatedList() throws Exception
     {
-        var entity = sendGetRequest( X_FORWARDED_HOST, "jimwebber.org, kathwebber.com,neo4j.org" );
+        var entity = sendGetRequest( X_FORWARDED_HOST, "jimwebber.org, kathwebber.com,ongdb.org" );
 
         assertTrue( entity.contains( "http://jimwebber.org" ) );
         assertFalse( entity.contains( "http://localhost" ) );

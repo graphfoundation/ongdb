@@ -97,13 +97,13 @@ public class SrvHostnameResolverTest
         // given
         // given
         mockSrvRecordResolver.addRecord(
-                "_resolutionDetailsAreLoggedToUserLogs._test.neo4j.com",
+                "_resolutionDetailsAreLoggedToUserLogs._test.ongdb.com",
                 SrvRecordResolver.SrvRecord.parse( "1 1 4321 1.2.3.4" )
         );
 
         // when
         resolver.resolve(
-                new AdvertisedSocketAddress( "_resolutionDetailsAreLoggedToUserLogs._test.neo4j.com", 0 )
+                new AdvertisedSocketAddress( "_resolutionDetailsAreLoggedToUserLogs._test.ongdb.com", 0 )
         );
 
         // then

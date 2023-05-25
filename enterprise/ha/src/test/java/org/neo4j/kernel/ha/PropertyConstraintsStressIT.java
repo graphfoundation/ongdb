@@ -141,7 +141,7 @@ public class PropertyConstraintsStressIT
     private final int REPETITIONS = 1;
     /** Configure how long to run the test. */
     private static long runtime =
-            Long.getLong( "neo4j.PropertyConstraintsStressIT.runtime", TimeUnit.SECONDS.toMillis( 10 ) );
+            Long.getLong( "ongdb.PropertyConstraintsStressIT.runtime", TimeUnit.SECONDS.toMillis( 10 ) );
 
     /** Label or relationship type to constrain for the current iteration of the test. */
     private volatile String labelOrRelType = "Foo";

@@ -269,11 +269,11 @@ class ParserComparisonSimpleTest extends ParserComparisonTestBase with FunSuiteL
     assertSameAST(testName)
   }
 
-  test("CALL { USE neo4j RETURN 1 AS y } RETURN y") {
+  test("CALL { USE ongdb RETURN 1 AS y } RETURN y") {
     assertSameAST(testName)
   }
 
-  test("WITH 1 AS x CALL { WITH x USE neo4j RETURN x AS y } RETURN x, y") {
+  test("WITH 1 AS x CALL { WITH x USE ongdb RETURN x AS y } RETURN x, y") {
     assertSameAST(testName)
   }
 

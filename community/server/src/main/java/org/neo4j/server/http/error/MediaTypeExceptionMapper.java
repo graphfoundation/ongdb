@@ -58,7 +58,7 @@ public class MediaTypeExceptionMapper implements ExceptionMapper<InternalServerE
         if ( cause instanceof MessageBodyProviderNotFoundException )
         {
             return Response.notAcceptable( Collections.emptyList() )
-                           .entity( "Unsupported media type - Supported types are application/json and application/vnd.neo4j.jolt" )
+                           .entity( "Unsupported media type - Supported types are application/json and application/vnd.ongdb.jolt" )
                            .build();
         }
 

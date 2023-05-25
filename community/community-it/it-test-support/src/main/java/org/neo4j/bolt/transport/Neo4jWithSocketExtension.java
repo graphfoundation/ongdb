@@ -71,7 +71,7 @@ import java.lang.annotation.Target;
 @Target( ElementType.TYPE )
 @Retention( RetentionPolicy.RUNTIME )
 @ExtendWith( Neo4jWithSocketSupportExtension.class )
-@ResourceLock( value = Neo4jWithSocket.NEO4J_WITH_SOCKET, mode = ResourceAccessMode.READ_WRITE )
+@ResourceLock( value = Neo4jWithSocket.ONGDB_WITH_SOCKET, mode = ResourceAccessMode.READ_WRITE )
 public @interface Neo4jWithSocketExtension
 {
 }

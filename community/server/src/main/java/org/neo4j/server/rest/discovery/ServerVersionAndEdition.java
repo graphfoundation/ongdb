@@ -57,8 +57,8 @@ public class ServerVersionAndEdition
     public ServerVersionAndEdition( String version, String edition )
     {
         serverInfo = new HashMap<>();
-        serverInfo.put( "neo4j_version", version );
-        serverInfo.put( "neo4j_edition", edition );
+        serverInfo.put( "ongdb_version", version );
+        serverInfo.put( "ongdb_edition", edition );
     }
 
     public void forEach( BiConsumer<String,String> consumer )

@@ -52,6 +52,6 @@ public class ReadOnlyTransactionCommitProcess implements TransactionCommitProces
     @Override
     public long commit( TransactionToApply batch, CommitEvent commitEvent, TransactionApplicationMode mode ) throws TransactionFailureException
     {
-        throw new TransactionFailureException( Status.General.ForbiddenOnReadOnlyDatabase, "Transactions cannot be committed in a read-only Neo4j database" );
+        throw new TransactionFailureException( Status.General.ForbiddenOnReadOnlyDatabase, "Transactions cannot be committed in a read-only ONgDB database" );
     }
 }

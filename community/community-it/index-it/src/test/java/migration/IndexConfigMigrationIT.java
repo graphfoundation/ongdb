@@ -206,7 +206,7 @@ class IndexConfigMigrationIT
 
     private static Path tempStoreDirectory() throws IOException
     {
-        return Files.createTempDirectory( "create-db-neo4j" );
+        return Files.createTempDirectory( "create-db-ongdb" );
     }
 
     @Disabled( "Here as reference for how 3.5 db was created" )

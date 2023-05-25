@@ -77,7 +77,7 @@ class OutputFormatterTest
         ResultSummary summary = new InternalResultSummary(
                 new Query( "PROFILE MATCH (n:LABEL) WHERE 20 < n.age < 35 return n" ),
                 new InternalServerInfo( "agent", new BoltServerAddress( "localhost:7687" ), ServerVersion.vInDev, BoltProtocolV43.VERSION ),
-                new InternalDatabaseInfo( "neo4j" ),
+                new InternalDatabaseInfo( "ongdb" ),
                 QueryType.READ_ONLY,
                 null,
                 plan,

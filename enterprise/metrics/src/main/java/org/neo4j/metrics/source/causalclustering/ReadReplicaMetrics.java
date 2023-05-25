@@ -48,7 +48,7 @@ import static com.codahale.metrics.MetricRegistry.name;
 @Documented( ".Read Replica Metrics" )
 public class ReadReplicaMetrics extends LifecycleAdapter
 {
-    private static final String CAUSAL_CLUSTERING_PREFIX = "neo4j.causal_clustering.read_replica";
+    private static final String CAUSAL_CLUSTERING_PREFIX = "ongdb.causal_clustering.read_replica";
 
     @Documented( "The total number of pull requests made by this instance" )
     public static final String PULL_UPDATES = name( CAUSAL_CLUSTERING_PREFIX, "pull_updates" );

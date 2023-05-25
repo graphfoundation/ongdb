@@ -72,7 +72,7 @@ public class Location
     }
 
     /**
-     * A Local location refers to a graph/database running on this instance of Neo4j.
+     * A Local location refers to a graph/database running on this instance of ONgDB.
      */
     public static class Local extends Location
     {
@@ -112,7 +112,7 @@ public class Location
     }
 
     /**
-     * A Remote location refers to a graph/database running on another instance of Neo4j.
+     * A Remote location refers to a graph/database running on another instance of ONgDB.
      * This instance may or may not be part of the same DBMS.
      */
     public abstract static class Remote extends Location
@@ -131,7 +131,7 @@ public class Location
         }
 
         /**
-         * A Remote.Internal location refers to a graph/database running on another instance of Neo4j within
+         * A Remote.Internal location refers to a graph/database running on another instance of ONgDB within
          * the same DBMS.
          */
         public static class Internal extends Remote
@@ -174,7 +174,7 @@ public class Location
         }
 
         /**
-         * A Remote.External location refers to a graph/database running on another instance of Neo4j, in another DBMS.
+         * A Remote.External location refers to a graph/database running on another instance of ONgDB, in another DBMS.
          */
         public static class External extends Remote
         {
@@ -216,7 +216,7 @@ public class Location
         }
 
         /**
-         * When connecting to an external neo4j instance via an internal driver, we need to authenticate with that remote instance.
+         * When connecting to an external ONgDB instance via an internal driver, we need to authenticate with that remote instance.
          *
          * When a location is {@link External} we will attempt to connect with the credentials of the current authenticated user on this instance.
          * When a location is {@link ExternalWithCredentials} we will look up specific credentials for that remote instance and use those, rather

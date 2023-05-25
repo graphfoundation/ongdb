@@ -143,7 +143,7 @@ public class InternalFlatFileRealmIT
                         "Carol:SHA-256,FE0056C37E,A543:\n" +
                         "Mia:SHA-256,0E1FFFC23E,34A4:password_change_required\n"
                 ,
-                "admin:neo4j,Mao\n" +
+                "admin:ongdb,Mao\n" +
                         "publisher:Hanna\n" );
 
         // finally valid files
@@ -171,7 +171,7 @@ public class InternalFlatFileRealmIT
                 "Carol:SHA-256,FE0056C37E,A543:\n" +
                 "Mia:SHA-256,0E1FFFC23E,34A4:password_change_required\n"
                 ,
-                "admin:neo4j,Mao\n" +
+                "admin:ongdb,Mao\n" +
                 "publisher:Hanna\n" );
 
         // perma-broken auth file

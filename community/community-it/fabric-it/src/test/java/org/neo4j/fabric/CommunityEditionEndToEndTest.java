@@ -186,14 +186,14 @@ class CommunityEditionEndToEndTest
         assertEquals( 2, transactionManager.getOpenTransactions().size() );
 
         var query1 = joinAsLines(
-                "USE neo4j",
+                "USE ongdb",
                 "RETURN 1/0 AS res"
         );
 
         assertThrows( org.neo4j.exceptions.ArithmeticException.class, () -> fabricExecutor.run( tx1, query1, MapValue.EMPTY ).records().collectList().block() );
 
         var query2 = joinAsLines(
-                "USE neo4j",
+                "USE ongdb",
                 "UNWIND [1, 0] AS a",
                 "RETURN 1/a AS res"
         );

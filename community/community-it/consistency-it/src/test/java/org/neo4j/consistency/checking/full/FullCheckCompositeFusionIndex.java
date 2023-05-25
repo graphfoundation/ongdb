@@ -78,7 +78,7 @@ public class FullCheckCompositeFusionIndex
         DatabaseManagementService managementService = new TestDatabaseManagementServiceBuilder()
                 .setDatabaseRootDirectory( dir.homePath() )
                 .build();
-        GraphDatabaseService neo4j = managementService.database( "neo4j" );
+        GraphDatabaseService neo4j = managementService.database( "ongdb" );
 
         try ( Transaction tx = neo4j.beginTx() )
         {
@@ -106,7 +106,7 @@ public class FullCheckCompositeFusionIndex
         var config = Config.newBuilder().set( GraphDatabaseSettings.ongdb_home, path ).build();
 
         ConsistencyCheckService checkService = new ConsistencyCheckService();
-        return checkService.runFullConsistencyCheck( Neo4jLayout.of( config ).databaseLayout( "neo4j" ),
+        return checkService.runFullConsistencyCheck( Neo4jLayout.of( config ).databaseLayout( "ongdb" ),
                 config, ProgressMonitorFactory.NONE, NullLogProvider.getInstance(), false, DEFAULT );
     }
 }

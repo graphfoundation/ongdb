@@ -72,10 +72,10 @@ class FromPathsIT
     @BeforeEach
     void setUp()
     {
-        this.neo4j1Directory = testDirectory.directory( "neo4j", "db1" );
+        this.neo4j1Directory = testDirectory.directory( "ongdb", "db1" );
         this.mongo1Directory = testDirectory.directory( "mongo", "db1" );
         this.redis1Directory = testDirectory.directory( "redis", "db1" );
-        this.neo4j2Directory = testDirectory.directory( "neo4j", "db2" );
+        this.neo4j2Directory = testDirectory.directory( "ongdb", "db2" );
         this.dbRoot1Directory = neo4j1Directory.getParent();
         this.dbRoot2Directory = neo4j2Directory.getParent();
     }
@@ -92,13 +92,13 @@ class FromPathsIT
     @Test
     void shouldGetAllFoldersThatMatchIfFilterIsApplied()
     {
-        assertThat( new FromPaths( concatenateSubPath( dbRoot1Directory.toAbsolutePath().toString(), "n*" ) )
+        assertThat( new FromPaths( concatenateSubPath( dbRoot1Directory.toAbsolutePath().toString(), "o*" ) )
                             .getPaths() ).containsAll( Set.of( neo4j1Directory ) );
-        assertThat( new FromPaths( concatenateSubPath( dbRoot1Directory.toAbsolutePath().toString(), "neo4?" ) )
+        assertThat( new FromPaths( concatenateSubPath( dbRoot1Directory.toAbsolutePath().toString(), "ongd?" ) )
                             .getPaths() ).containsAll( Set.of( neo4j1Directory ) );
-        assertThat( new FromPaths( concatenateSubPath( dbRoot1Directory.toAbsolutePath().toString(), "neo4j" ) )
+        assertThat( new FromPaths( concatenateSubPath( dbRoot1Directory.toAbsolutePath().toString(), "ongdb" ) )
                             .getPaths() ).containsAll( Set.of( neo4j1Directory ) );
-        assertThat( new FromPaths( concatenateSubPath( dbRoot1Directory.toAbsolutePath().toString(), "*4*" ) )
+        assertThat( new FromPaths( concatenateSubPath( dbRoot1Directory.toAbsolutePath().toString(), "*d*" ) )
                             .getPaths() ).containsAll( Set.of( neo4j1Directory ) );
         assertThat( new FromPaths( concatenateSubPath( dbRoot1Directory.toAbsolutePath().toString(), "*" ) ).getPaths() ).containsAll(
                 Set.of( neo4j1Directory, mongo1Directory, redis1Directory ) );
@@ -129,8 +129,8 @@ class FromPathsIT
     @Test
     void shouldGetAllFoldersFromTheListOfPathsIfFilterIsApplied()
     {
-        final var filteredPaths = new FromPaths( concatenateSubPath( dbRoot1Directory.toAbsolutePath().toString(), "n*" ) + ", "
-                                                 + concatenateSubPath( dbRoot2Directory.toAbsolutePath().toString(), "n*" ) ).getPaths();
+        final var filteredPaths = new FromPaths( concatenateSubPath( dbRoot1Directory.toAbsolutePath().toString(), "o*" ) + ", "
+                                                 + concatenateSubPath( dbRoot2Directory.toAbsolutePath().toString(), "o*" ) ).getPaths();
 
         final var expected = Set.of( neo4j1Directory, neo4j2Directory );
         assertThat( filteredPaths ).containsAll( expected );

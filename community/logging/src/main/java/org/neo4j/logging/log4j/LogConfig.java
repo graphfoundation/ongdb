@@ -71,7 +71,7 @@ public final class LogConfig
         Log4jPluginLoadingWorkaround.doLog4jPluginLoadingWorkaround();
     }
 
-    private static final String APPENDER_NAME = "neo4jLog";
+    private static final String APPENDER_NAME = "ongdbLog";
 
     private LogConfig()
     {

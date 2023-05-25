@@ -56,12 +56,12 @@ import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toList;
 
 /**
- * File layout representation of neo4j instance that provides the ability to reference any store
+ * File layout representation of ONgDB instance that provides the ability to reference any store
  * specific file that can be created by particular store implementation.
  * <br/>
  * <b>Any file lookup should use provided layout or particular {@link DatabaseLayout database layout}.</b>
  * <br/>
- * Neo4J layout represent layout of whole neo4j instance while particular {@link DatabaseLayout database layout} represent single database.
+ * Neo4J layout represent layout of whole ONgDB instance while particular {@link DatabaseLayout database layout} represent single database.
  * Neo4J layout should be used as a factory of any layouts for particular database.
  * <br/>
  * Any user-provided home or store directory will be transformed to canonical file form and any subsequent layout file
@@ -188,7 +188,7 @@ public final class Neo4jLayout
 
     /**
      * Neo4J root directory.
-     * @return the root of the Neo4j instance
+     * @return the root of the ONgDB instance
      */
     public Path homeDirectory()
     {

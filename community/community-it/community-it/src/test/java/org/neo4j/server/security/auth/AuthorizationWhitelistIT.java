@@ -88,7 +88,7 @@ class AuthorizationWhitelistIT extends ExclusiveWebContainerTestBase
                 .withProperty( auth_enabled.name(), TRUE ).build();
 
         // Then I should get a unauthorized response for access to the DB
-        HTTP.Response response = HTTP.GET( testWebContainer.getBaseUri().resolve( "db/neo4j" ).toString() );
+        HTTP.Response response = HTTP.GET( testWebContainer.getBaseUri().resolve( "db/ongdb" ).toString() );
         assertThat( response.status() ).isEqualTo( 401 );
     }
 

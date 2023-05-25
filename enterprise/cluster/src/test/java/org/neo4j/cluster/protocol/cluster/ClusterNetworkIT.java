@@ -177,7 +177,7 @@ public class ClusterNetworkIT
 
         for ( int i = 0; i < nrOfServers; i++ )
         {
-            final URI uri = new URI( "neo4j://localhost:" + PortAuthority.allocatePort() );
+            final URI uri = new URI( "ongdb://localhost:" + PortAuthority.allocatePort() );
 
             Monitors monitors = new Monitors();
             NetworkedServerFactory factory = new NetworkedServerFactory( life,

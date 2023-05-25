@@ -117,7 +117,7 @@ class StoreInfoCommandTest
             CommandLine.usage( command, new PrintStream( out ), CommandLine.Help.Ansi.OFF );
         }
         assertThat( baos.toString().trim() ).isEqualTo( String.format(
-                "Print information about a Neo4j database store.%n" +
+                "Print information about an ONgDB database store.%n" +
                         "%n" +
                         "USAGE%n" +
                         "%n" +
@@ -125,7 +125,7 @@ class StoreInfoCommandTest
                         "%n" +
                         "DESCRIPTION%n" +
                         "%n" +
-                        "Print information about a Neo4j database store, such as what version of Neo4j%n" +
+                        "Print information about an ONgDB database store, such as what version of ONgDB%n" +
                         "created it.%n" +
                         "%n" +
                         "PARAMETERS%n" +

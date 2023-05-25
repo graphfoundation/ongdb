@@ -75,14 +75,14 @@ public interface Connector
      * Returns the version of Neo4j which the shell is connected to. If the version is before 3.1.0-M09, or we are not connected yet, this returns the empty
      * string.
      *
-     * @return the version of neo4j (like '3.1.0') if connected and available, an empty string otherwise
+     * @return the version of ONgDB (like '3.1.0') if connected and available, an empty string otherwise
      */
     String getServerVersion();
 
     /**
      * Returns Bolt protocol version
      *
-     * @return the version of neo4j driver (like '4.3') if connected and available, an empty string otherwise
+     * @return the version of ONgDB driver (like '4.3') if connected and available, an empty string otherwise
      */
     String getProtocolVersion();
 }

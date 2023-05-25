@@ -79,8 +79,8 @@ class IndexCommandsParserTest extends SchemaCommandsParserTestBase {
         yields(createIndex(List(prop("n", "name")), None, ast.IfExistsThrowError, NoOptions, true))
       }
 
-      test(s"USE neo4j CREATE INDEX FOR $pattern ON (n.name)") {
-        yields(_ => createIndex(List(prop("n", "name")), None, ast.IfExistsThrowError, NoOptions, true).withGraph(Some(use(varFor("neo4j")))))
+      test(s"USE ongdb CREATE INDEX FOR $pattern ON (n.name)") {
+        yields(_ => createIndex(List(prop("n", "name")), None, ast.IfExistsThrowError, NoOptions, true).withGraph(Some(use(varFor("ongdb")))))
       }
 
       test(s"CREATE INDEX FOR $pattern ON (n.name, n.age)") {
@@ -204,8 +204,8 @@ class IndexCommandsParserTest extends SchemaCommandsParserTestBase {
         yields(createIndex(List(prop("n", "name")), None, ast.IfExistsThrowError, NoOptions, false))
       }
 
-      test(s"USE neo4j CREATE RANGE INDEX FOR $pattern ON (n.name)") {
-        yields(_ => createIndex(List(prop("n", "name")), None, ast.IfExistsThrowError, NoOptions, false).withGraph(Some(use(varFor("neo4j")))))
+      test(s"USE ongdb CREATE RANGE INDEX FOR $pattern ON (n.name)") {
+        yields(_ => createIndex(List(prop("n", "name")), None, ast.IfExistsThrowError, NoOptions, false).withGraph(Some(use(varFor("ongdb")))))
       }
 
       test(s"CREATE RANGE INDEX FOR $pattern ON (n.name, n.age)") {
@@ -318,8 +318,8 @@ class IndexCommandsParserTest extends SchemaCommandsParserTestBase {
         yields(createIndex(List(prop("n", "name")), None, ast.IfExistsThrowError, NoOptions))
       }
 
-      test(s"USE neo4j CREATE BTREE INDEX FOR $pattern ON (n.name)") {
-        yields(_ => createIndex(List(prop("n", "name")), None, ast.IfExistsThrowError, NoOptions).withGraph(Some(use(varFor("neo4j")))))
+      test(s"USE ongdb CREATE BTREE INDEX FOR $pattern ON (n.name)") {
+        yields(_ => createIndex(List(prop("n", "name")), None, ast.IfExistsThrowError, NoOptions).withGraph(Some(use(varFor("ongdb")))))
       }
 
       test(s"CREATE BTREE INDEX FOR $pattern ON (n.name, n.age)") {
@@ -441,8 +441,8 @@ class IndexCommandsParserTest extends SchemaCommandsParserTestBase {
         yields(createIndex(None, ast.IfExistsThrowError, NoOptions))
       }
 
-      test(s"USE neo4j CREATE LOOKUP INDEX FOR $pattern ON EACH $function") {
-        yields(_ => createIndex(None, ast.IfExistsThrowError, NoOptions).withGraph(Some(use(varFor("neo4j")))))
+      test(s"USE ongdb CREATE LOOKUP INDEX FOR $pattern ON EACH $function") {
+        yields(_ => createIndex(None, ast.IfExistsThrowError, NoOptions).withGraph(Some(use(varFor("ongdb")))))
       }
 
       test(s"CREATE LOOKUP INDEX my_index FOR $pattern ON EACH $function") {
@@ -510,8 +510,8 @@ class IndexCommandsParserTest extends SchemaCommandsParserTestBase {
         yields(createIndex(List(prop("n", "name")), None, ast.IfExistsThrowError, NoOptions))
       }
 
-      test(s"USE neo4j CREATE FULLTEXT INDEX FOR $pattern ON EACH [n.name]") {
-        yields(_ => createIndex(List(prop("n", "name")), None, ast.IfExistsThrowError, NoOptions).withGraph(Some(use(varFor("neo4j")))))
+      test(s"USE ongdb CREATE FULLTEXT INDEX FOR $pattern ON EACH [n.name]") {
+        yields(_ => createIndex(List(prop("n", "name")), None, ast.IfExistsThrowError, NoOptions).withGraph(Some(use(varFor("ongdb")))))
       }
 
       test(s"CREATE FULLTEXT INDEX FOR $pattern ON EACH [n.name, n.age]") {
@@ -650,8 +650,8 @@ class IndexCommandsParserTest extends SchemaCommandsParserTestBase {
         yields(createIndex(List(prop("n", "name")), None, ast.IfExistsThrowError, NoOptions))
       }
 
-      test(s"USE neo4j CREATE TEXT INDEX FOR $pattern ON (n.name)") {
-        yields(_ => createIndex(List(prop("n", "name")), None, ast.IfExistsThrowError, NoOptions).withGraph(Some(use(varFor("neo4j")))))
+      test(s"USE ongdb CREATE TEXT INDEX FOR $pattern ON (n.name)") {
+        yields(_ => createIndex(List(prop("n", "name")), None, ast.IfExistsThrowError, NoOptions).withGraph(Some(use(varFor("ongdb")))))
       }
 
       test(s"CREATE TEXT INDEX FOR $pattern ON (n.name, n.age)") {
@@ -777,8 +777,8 @@ class IndexCommandsParserTest extends SchemaCommandsParserTestBase {
         yields(createIndex(List(prop("n", "name")), None, ast.IfExistsThrowError, NoOptions))
       }
 
-      test(s"USE neo4j CREATE POINT INDEX FOR $pattern ON (n.name)") {
-        yields(_ => createIndex(List(prop("n", "name")), None, ast.IfExistsThrowError, NoOptions).withGraph(Some(use(varFor("neo4j")))))
+      test(s"USE ongdb CREATE POINT INDEX FOR $pattern ON (n.name)") {
+        yields(_ => createIndex(List(prop("n", "name")), None, ast.IfExistsThrowError, NoOptions).withGraph(Some(use(varFor("ongdb")))))
       }
 
       test(s"CREATE POINT INDEX FOR $pattern ON (n.name, n.age)") {

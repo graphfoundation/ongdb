@@ -48,7 +48,7 @@ import org.neo4j.graphdb.config.Setting;
 public interface Neo4jBuilder extends Neo4jConfigurator<Neo4jBuilder>
 {
     /**
-     * Start new neo4j instance. By default, the neo4j server will listen on random free port, and you can determine where to
+     * Start new ONgDB instance. By default, the neo4j server will listen on random free port, and you can determine where to
      * connect using the {@link Neo4j#httpURI()} method. You could also specify explicit ports using the
      * {@link #withConfig(Setting, Object)} method or disable web server completely. Please refer to the Neo4j Manual for
      * details on available configuration options.

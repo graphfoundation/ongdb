@@ -345,7 +345,7 @@ public class BackupToolTest
     {
         // Given
         String host = "localhost";
-        Path targetDir = Paths.get( "/var/backup/neo4j/" );
+        Path targetDir = Paths.get( "/var/backup/ongdb/" );
         String[] args = {"-from", host, "-to", targetDir.toString(), "-verify", "false"};
         BackupProtocolService service = mock( BackupProtocolService.class );
         PrintStream systemOut = mock( PrintStream.class );

@@ -95,12 +95,12 @@ class TransactionStateMachineSPIProviderV4Test
     @Test
     void shouldReturnDefaultTransactionStateMachineSPIWithEmptyDatabasename() throws Throwable
     {
-        String databaseName = "neo4j";
+        String databaseName = "ongdb";
         String txId = "123";
 
         DatabaseManagementService managementService = managementService( databaseName );
         TransactionStateMachineSPIProvider spiProvider = newSpiProvider( managementService );
-        when( mockBoltChannel.defaultDatabase() ).thenReturn( "neo4j" );
+        when( mockBoltChannel.defaultDatabase() ).thenReturn( "ongdb" );
 
         TransactionStateMachineSPI spi = spiProvider.getTransactionStateMachineSPI( "", mock( StatementProcessorReleaseManager.class, RETURNS_MOCKS ), txId );
 
@@ -126,7 +126,7 @@ class TransactionStateMachineSPIProviderV4Test
     @Test
     void shouldAllocateMemoryForTransactionStateMachineSPI() throws BoltProtocolBreachFatality, BoltIOException
     {
-        String databaseName = "neo4j";
+        String databaseName = "ongdb";
         String txId = "123";
         var clock = mock( SystemNanoClock.class );
 
@@ -134,7 +134,7 @@ class TransactionStateMachineSPIProviderV4Test
         var memoryTracker = mock( MemoryTracker.class );
         var scopedMemoryTracker = mock( MemoryTracker.class, RETURNS_MOCKS );
 
-        when( mockBoltChannel.defaultDatabase() ).thenReturn( "neo4j" );
+        when( mockBoltChannel.defaultDatabase() ).thenReturn( "ongdb" );
         when( memoryTracker.getScopedMemoryTracker() ).thenReturn( scopedMemoryTracker );
 
         var dbProvider = new BoltKernelDatabaseManagementServiceProvider( managementService, new Monitors(), clock, Duration.ZERO );

@@ -53,7 +53,7 @@ public class ReadReplica implements AccessCapability
     public void assertCanWrite()
     {
         throw new WriteOperationsNotAllowedException(
-                "No write operations are allowed on this database. This is a read only Neo4j instance.",
+                "No write operations are allowed on this database. This is a read only ONgDB instance.",
                 Status.General.ForbiddenOnReadOnlyDatabase );
     }
 }

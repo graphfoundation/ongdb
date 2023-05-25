@@ -46,7 +46,7 @@ import org.neo4j.kernel.database.DatabaseReference;
  * table for a given database, when requested.
  *
  * A database may be invalid for routing because it is not currently available (i.e. it may be store copying) or not
- * present at all (perhaps it is still starting up, or dropped, or only exists on another Neo4j instance).
+ * present at all (perhaps it is still starting up, or dropped, or only exists on another ONgDB instance).
  *
  * @see LocalRoutingTableProcedureValidator
  */
@@ -62,7 +62,7 @@ public interface DatabaseAvailabilityChecker
 
     /**
      * @param databaseReference the database reference to check
-     * @return whether this database is present on this Neo4j instance
+     * @return whether this database is present on This ONgDB instance
      */
     boolean isPresent( DatabaseReference.Internal databaseReference );
 }

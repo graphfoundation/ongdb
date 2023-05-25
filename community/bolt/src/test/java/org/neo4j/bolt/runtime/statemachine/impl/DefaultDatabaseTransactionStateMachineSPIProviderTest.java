@@ -73,7 +73,7 @@ class DefaultDatabaseTransactionStateMachineSPIProviderTest
     @Test
     void shouldReturnDefaultTransactionStateMachineSPIWithEmptyDatabaseName() throws Throwable
     {
-        DatabaseManagementService managementService = managementServiceWithDatabase( "neo4j" );
+        DatabaseManagementService managementService = managementServiceWithDatabase( "ongdb" );
         TransactionStateMachineSPIProvider spiProvider = newSpiProvider( managementService );
 
         TransactionStateMachineSPI spi = spiProvider.getTransactionStateMachineSPI( ABSENT_DB_NAME, mock( StatementProcessorReleaseManager.class ), "123" );
@@ -103,7 +103,7 @@ class DefaultDatabaseTransactionStateMachineSPIProviderTest
         when( dependencyResolver.resolveDependency( GraphDatabaseQueryService.class ) ).thenReturn( queryService );
         when( queryService.getDependencyResolver() ).thenReturn( dependencyResolver );
         when( dependencyResolver.resolveDependency( Database.class ) ).thenReturn( mock( Database.class ) );
-        when( mockBoltChannel.defaultDatabase() ).thenReturn( "neo4j" );
+        when( mockBoltChannel.defaultDatabase() ).thenReturn( "ongdb" );
 
         return managementService;
     }

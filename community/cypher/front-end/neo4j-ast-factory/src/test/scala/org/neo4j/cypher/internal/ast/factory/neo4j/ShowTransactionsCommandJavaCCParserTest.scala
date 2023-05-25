@@ -242,7 +242,7 @@ class ShowTransactionsCommandJavaCCParserTest extends ParserComparisonTestBase w
 
   // Invalid clause order
 
-  for (prefix <- Seq("USE neo4j", "")) {
+  for (prefix <- Seq("USE ongdb", "")) {
     test(s"$prefix SHOW TRANSACTIONS YIELD * WITH * MATCH (n) RETURN n") {
       // Can't parse WITH after SHOW
       assertJavaCCExceptionStart(testName, "Invalid input 'WITH': expected")

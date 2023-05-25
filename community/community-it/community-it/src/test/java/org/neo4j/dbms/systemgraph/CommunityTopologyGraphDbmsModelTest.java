@@ -110,8 +110,8 @@ public class CommunityTopologyGraphDbmsModelTest extends BaseTopologyGraphDbmsMo
     void canReturnAllExternalDatabaseReferences()
     {
         // given
-        var remoteAddress = new SocketAddress( "my.neo4j.com", 7687 );
-        var remoteNeo4j = new RemoteUri( "neo4j", List.of( remoteAddress ), null );
+        var remoteAddress = new SocketAddress( "my.ongdb.com", 7687 );
+        var remoteNeo4j = new RemoteUri( "ongdb", List.of( remoteAddress ), null );
         var fooId = randomUUID();
         var fooOtherId = randomUUID();
         var barId = randomUUID();
@@ -137,8 +137,8 @@ public class CommunityTopologyGraphDbmsModelTest extends BaseTopologyGraphDbmsMo
         // given
         var fooDb = newDatabase( b -> b.withDatabase( "foo" ) );
         createInternalReferenceForDatabase( tx, "fooAlias", false, fooDb  );
-        var remoteAddress = new SocketAddress( "my.neo4j.com", 7687 );
-        var remoteNeo4j = new RemoteUri( "neo4j", List.of( remoteAddress ), null );
+        var remoteAddress = new SocketAddress( "my.ongdb.com", 7687 );
+        var remoteNeo4j = new RemoteUri( "ongdb", List.of( remoteAddress ), null );
         var barId = UUID.randomUUID();
         createExternalReferenceForDatabase( tx, "bar", "foo", remoteNeo4j, barId );
 
@@ -159,8 +159,8 @@ public class CommunityTopologyGraphDbmsModelTest extends BaseTopologyGraphDbmsMo
     {
         // given
         var aliasName = "fooAlias";
-        var remoteAddress = new SocketAddress( "my.neo4j.com", 7687 );
-        var remoteNeo4j = new RemoteUri( "neo4j", List.of( remoteAddress ), null );
+        var remoteAddress = new SocketAddress( "my.ongdb.com", 7687 );
+        var remoteNeo4j = new RemoteUri( "ongdb", List.of( remoteAddress ), null );
         createExternalReferenceForDatabase( tx, aliasName, "foo", remoteNeo4j, randomUUID() );
 
         // when
@@ -176,8 +176,8 @@ public class CommunityTopologyGraphDbmsModelTest extends BaseTopologyGraphDbmsMo
     {
         // given
         var aliasName = "fooAlias";
-        var remoteAddress = new SocketAddress( "my.neo4j.com", 7687 );
-        var remoteNeo4j = new RemoteUri( "neo4j", List.of( remoteAddress ), null );
+        var remoteAddress = new SocketAddress( "my.ongdb.com", 7687 );
+        var remoteNeo4j = new RemoteUri( "ongdb", List.of( remoteAddress ), null );
         var fooId = randomUUID();
         var aliasNode = createExternalReferenceForDatabase( tx, aliasName, "foo", remoteNeo4j, fooId );
 

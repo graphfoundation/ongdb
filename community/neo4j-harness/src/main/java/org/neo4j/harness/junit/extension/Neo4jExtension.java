@@ -60,7 +60,7 @@ import org.neo4j.harness.internal.InProcessNeo4j;
 
 /**
  * Community Neo4j JUnit 5 Extension.
- * Allows easily start neo4j instance for testing purposes with junit 5 with various user-provided options and configurations.
+ * Allows easily start ONgDB instance for testing purposes with junit 5 with various user-provided options and configurations.
  * Can be registered declaratively with {@link ExtendWith} or programmatically using {@link RegisterExtension}.
  * <p>
  * By default it will try to start neo4j with embedded web server on random ports.
@@ -85,7 +85,7 @@ import org.neo4j.harness.internal.InProcessNeo4j;
  *  </code>
  * </pre>
  * The extension follows the lifecycle of junit 5. If you define the extension with {@link ExtendWith} on the test class or {@link RegisterExtension}
- * on a static field, the neo4j instance will start before any tests are executed, and stop after the last test finishes. If you define the
+ * on a static field, the ONgDB instance will start before any tests are executed, and stop after the last test finishes. If you define the
  * extension with {@link RegisterExtension} on a non-static field, there will be a new instance per test method.
  * <p>
  * Example with per method instances:
@@ -107,9 +107,9 @@ import org.neo4j.harness.internal.InProcessNeo4j;
 @PublicApi
 public class Neo4jExtension implements BeforeAllCallback, AfterAllCallback, BeforeEachCallback, AfterEachCallback, ParameterResolver
 {
-    private static final String NEO4J_NAMESPACE = "neo4j-extension";
+    private static final String ONGDB_NAMESPACE = "ongdb-extension";
     private static final String PER_METHOD_KEY = "perMethod";
-    private static final Namespace NAMESPACE = Namespace.create( NEO4J_NAMESPACE );
+    private static final Namespace NAMESPACE = Namespace.create( ONGDB_NAMESPACE );
 
     private final Neo4jBuilder builder;
 

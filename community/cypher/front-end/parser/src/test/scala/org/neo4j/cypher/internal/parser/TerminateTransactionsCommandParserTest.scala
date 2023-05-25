@@ -184,7 +184,7 @@ class TerminateTransactionsCommandParserTest extends ParserAstTest[ast.Statement
 
   // Invalid clause order
 
-  for (prefix <- Seq("USE neo4j", "")) {
+  for (prefix <- Seq("USE ongdb", "")) {
     test(s"$prefix TERMINATE TRANSACTIONS YIELD * WITH * MATCH (n) RETURN n") {
       // Can't parse WITH after TERMINATE
       failsToParse

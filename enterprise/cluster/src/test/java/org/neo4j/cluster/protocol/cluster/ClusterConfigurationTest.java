@@ -59,7 +59,7 @@ public class ClusterConfigurationTest
     {
         try
         {
-            ONGDB_SERVER1_URI = new URI( "neo4j://server1" );
+            ONGDB_SERVER1_URI = new URI( "ongdb://server1" );
             ONGDB_SERVER_ID = new InstanceId( 1 );
         }
         catch ( URISyntaxException e )

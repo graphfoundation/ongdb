@@ -81,7 +81,7 @@ class DiscoveryRepresentationTest
 
         assertEquals( joinBaseWithRelativePath( baseUri, managementUri ), mappedManagementUri.toString() );
         assertEquals( joinBaseWithRelativePath( baseUri, dataUri ), mappedDataUri.toString() );
-        assertEquals( "bolt://neo4j.org:7687", mappedBoltUri.toString() );
+        assertEquals( "bolt://ongdb.org:7687", mappedBoltUri.toString() );
     }
 
     @Test
@@ -92,8 +92,8 @@ class DiscoveryRepresentationTest
 
         var mapOfUris = RepresentationTestAccess.serialize( dr );
 
-        var version = mapOfUris.get( "neo4j_version" );
-        var edition = mapOfUris.get( "neo4j_edition" );
+        var version = mapOfUris.get( "ongdb_version" );
+        var edition = mapOfUris.get( "ongdb_edition" );
         var authConfig = mapOfUris.get( "auth_config" );
 
         assertNotNull( version );

@@ -1702,7 +1702,7 @@ class ImportCommandTest
         // GIVEN
         int arrayBlockSize = 10;
         int stringBlockSize = 12;
-        Path dbConfig = file( "neo4j.properties" );
+        Path dbConfig = file( "ongdb.properties" );
         store( stringMap(
                 databases_root_path.name(), databaseLayout.getNeo4jLayout().databasesDirectory().toAbsolutePath().toString(),
                 GraphDatabaseInternalSettings.array_block_size.name(), String.valueOf( arrayBlockSize ),
@@ -2522,7 +2522,7 @@ class ImportCommandTest
 
     private Path prepareDefaultConfigFile() throws IOException
     {
-        Path dbConfig = file( "neo4j.properties" );
+        Path dbConfig = file( "ongdb.properties" );
         store( Map.of(
                 ongdb_home.name(), testDirectory.absolutePath().toString(),
                 preallocate_logical_logs.name(), FALSE
@@ -2563,7 +2563,7 @@ class ImportCommandTest
 
     private Path defaultConfig() throws IOException
     {
-        Path dbConfig = file( "neo4j.properties" );
+        Path dbConfig = file( "ongdb.properties" );
         store( Map.of(
                 ongdb_home.name(), testDirectory.absolutePath().toString(),
                 preallocate_logical_logs.name(), FALSE

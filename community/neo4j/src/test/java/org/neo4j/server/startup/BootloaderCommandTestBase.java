@@ -170,7 +170,7 @@ abstract class BootloaderCommandTestBase
     protected int execute( List<String> args, Map<String, String> env, Runtime.Version version )
     {
         HashMap<String,String> environment = new HashMap<>( env );
-        environment.putIfAbsent( Bootloader.ENV_NEO4J_HOME, home.toString() );
+        environment.putIfAbsent( Bootloader.ENV_ONGDB_HOME, home.toString() );
 
         return createCommand( environment, version )
                 .setResourceBundle( bundleFromMap( environment ) )

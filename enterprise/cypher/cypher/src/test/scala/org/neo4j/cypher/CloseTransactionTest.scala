@@ -167,17 +167,17 @@ class CloseTransactionTest extends CypherFunSuite with GraphIcing {
       txBridge(service).hasTransaction shouldBe false
 
       // when
-      db.execute(s"CYPHER runtime=$runtime CALL org.neo4j.bench.getAllNodes()").close()
+      db.execute(s"CYPHER runtime=$runtime CALL org.ongdb.bench.getAllNodes()").close()
       // then
       txBridge(service).hasTransaction shouldBe false
 
       // when
-      engine.execute(s"CYPHER runtime=$runtime CALL org.neo4j.bench.getAllNodes()", Map.empty[String, Object]).close()
+      engine.execute(s"CYPHER runtime=$runtime CALL org.ongdb.bench.getAllNodes()", Map.empty[String, Object]).close()
       // then
       txBridge(service).hasTransaction shouldBe false
 
       // when
-      engine.execute(s"CYPHER runtime=$runtime CALL org.neo4j.bench.getAllNodes()", Map.empty[String, Object]).close()
+      engine.execute(s"CYPHER runtime=$runtime CALL org.ongdb.bench.getAllNodes()", Map.empty[String, Object]).close()
       // then
       txBridge(service).hasTransaction shouldBe false
     }
@@ -191,17 +191,17 @@ class CloseTransactionTest extends CypherFunSuite with GraphIcing {
       txBridge(service).hasTransaction shouldBe false
 
       // when
-      db.execute(s"CYPHER runtime=$runtime profile CALL org.neo4j.bench.getAllNodes()").close()
+      db.execute(s"CYPHER runtime=$runtime profile CALL org.ongdb.bench.getAllNodes()").close()
       // then
       txBridge(service).hasTransaction shouldBe false
 
       // when
-      engine.execute(s"CYPHER runtime=$runtime profile CALL org.neo4j.bench.getAllNodes()", Map.empty[String, Object]).close()
+      engine.execute(s"CYPHER runtime=$runtime profile CALL org.ongdb.bench.getAllNodes()", Map.empty[String, Object]).close()
       // then
       txBridge(service).hasTransaction shouldBe false
 
       // when
-      engine.execute(s"CYPHER runtime=$runtime profile CALL org.neo4j.bench.getAllNodes()", Map.empty[String, Object]).close()
+      engine.execute(s"CYPHER runtime=$runtime profile CALL org.ongdb.bench.getAllNodes()", Map.empty[String, Object]).close()
       // then
       txBridge(service).hasTransaction shouldBe false
     }
@@ -215,17 +215,17 @@ class CloseTransactionTest extends CypherFunSuite with GraphIcing {
       txBridge(service).hasTransaction shouldBe false
 
       // when
-      db.execute(s"CYPHER runtime=$runtime explain CALL org.neo4j.bench.getAllNodes()").close()
+      db.execute(s"CYPHER runtime=$runtime explain CALL org.ongdb.bench.getAllNodes()").close()
       // then
       txBridge(service).hasTransaction shouldBe false
 
       // when
-      engine.execute(s"CYPHER runtime=$runtime explain CALL org.neo4j.bench.getAllNodes()", Map.empty[String, Object]).close()
+      engine.execute(s"CYPHER runtime=$runtime explain CALL org.ongdb.bench.getAllNodes()", Map.empty[String, Object]).close()
       // then
       txBridge(service).hasTransaction shouldBe false
 
       // when
-      engine.execute(s"CYPHER runtime=$runtime explain CALL org.neo4j.bench.getAllNodes()", Map.empty[String, Object]).close()
+      engine.execute(s"CYPHER runtime=$runtime explain CALL org.ongdb.bench.getAllNodes()", Map.empty[String, Object]).close()
       // then
       txBridge(service).hasTransaction shouldBe false
     }
@@ -306,17 +306,17 @@ class CloseTransactionTest extends CypherFunSuite with GraphIcing {
 
       import scala.collection.JavaConverters._
       // when
-      db.execute(s"CYPHER runtime=$runtime CALL org.neo4j.bench.getAllNodes()").asScala.length
+      db.execute(s"CYPHER runtime=$runtime CALL org.ongdb.bench.getAllNodes()").asScala.length
       // then
       txBridge(service).hasTransaction shouldBe false
 
       // when
-      engine.execute(s"CYPHER runtime=$runtime CALL org.neo4j.bench.getAllNodes()", Map.empty[String, Object]).resultAsString()
+      engine.execute(s"CYPHER runtime=$runtime CALL org.ongdb.bench.getAllNodes()", Map.empty[String, Object]).resultAsString()
       // then
       txBridge(service).hasTransaction shouldBe false
 
       // when
-      engine.execute(s"CYPHER runtime=$runtime CALL org.neo4j.bench.getAllNodes()", Map.empty[String, Object]).asScala.length
+      engine.execute(s"CYPHER runtime=$runtime CALL org.ongdb.bench.getAllNodes()", Map.empty[String, Object]).asScala.length
       // then
       txBridge(service).hasTransaction shouldBe false
     }
@@ -331,17 +331,17 @@ class CloseTransactionTest extends CypherFunSuite with GraphIcing {
 
       import scala.collection.JavaConverters._
       // when
-      db.execute(s"CYPHER runtime=$runtime profile CALL org.neo4j.bench.getAllNodes()").asScala.length
+      db.execute(s"CYPHER runtime=$runtime profile CALL org.ongdb.bench.getAllNodes()").asScala.length
       // then
       txBridge(service).hasTransaction shouldBe false
 
       // when
-      engine.execute(s"CYPHER runtime=$runtime profile CALL org.neo4j.bench.getAllNodes()", Map.empty[String, Object]).resultAsString()
+      engine.execute(s"CYPHER runtime=$runtime profile CALL org.ongdb.bench.getAllNodes()", Map.empty[String, Object]).resultAsString()
       // then
       txBridge(service).hasTransaction shouldBe false
 
       // when
-      engine.execute(s"CYPHER runtime=$runtime profile CALL org.neo4j.bench.getAllNodes()", Map.empty[String, Object]).asScala.length
+      engine.execute(s"CYPHER runtime=$runtime profile CALL org.ongdb.bench.getAllNodes()", Map.empty[String, Object]).asScala.length
       // then
       txBridge(service).hasTransaction shouldBe false
     }
@@ -356,17 +356,17 @@ class CloseTransactionTest extends CypherFunSuite with GraphIcing {
 
       import scala.collection.JavaConverters._
       // when
-      db.execute(s"CYPHER runtime=$runtime explain CALL org.neo4j.bench.getAllNodes()").asScala.length
+      db.execute(s"CYPHER runtime=$runtime explain CALL org.ongdb.bench.getAllNodes()").asScala.length
       // then
       txBridge(service).hasTransaction shouldBe false
 
       // when
-      engine.execute(s"CYPHER runtime=$runtime explain CALL org.neo4j.bench.getAllNodes()", Map.empty[String, Object]).resultAsString()
+      engine.execute(s"CYPHER runtime=$runtime explain CALL org.ongdb.bench.getAllNodes()", Map.empty[String, Object]).resultAsString()
       // then
       txBridge(service).hasTransaction shouldBe false
 
       // when
-      engine.execute(s"CYPHER runtime=$runtime explain CALL org.neo4j.bench.getAllNodes()", Map.empty[String, Object]).asScala.length
+      engine.execute(s"CYPHER runtime=$runtime explain CALL org.ongdb.bench.getAllNodes()", Map.empty[String, Object]).asScala.length
       // then
       txBridge(service).hasTransaction shouldBe false
     }
@@ -427,13 +427,13 @@ class CloseTransactionTest extends CypherFunSuite with GraphIcing {
       procedures(service).register(new AllNodesProcedure())
       txBridge(service).hasTransaction shouldBe false
 
-      db.execute(s"CYPHER runtime=$runtime CALL org.neo4j.bench.getAllNodes()").accept(consumerVisitor)
+      db.execute(s"CYPHER runtime=$runtime CALL org.ongdb.bench.getAllNodes()").accept(consumerVisitor)
 
       // then
       txBridge(service).hasTransaction shouldBe false
 
       // when
-      engine.execute(s"CYPHER runtime=$runtime CALL org.neo4j.bench.getAllNodes()", Map.empty[String, Object]).accept(consumerVisitor)
+      engine.execute(s"CYPHER runtime=$runtime CALL org.ongdb.bench.getAllNodes()", Map.empty[String, Object]).accept(consumerVisitor)
       // then
       txBridge(service).hasTransaction shouldBe false
     }
@@ -446,13 +446,13 @@ class CloseTransactionTest extends CypherFunSuite with GraphIcing {
       procedures(service).register(new AllNodesProcedure())
       txBridge(service).hasTransaction shouldBe false
 
-      db.execute(s"CYPHER runtime=$runtime profile CALL org.neo4j.bench.getAllNodes()").accept(consumerVisitor)
+      db.execute(s"CYPHER runtime=$runtime profile CALL org.ongdb.bench.getAllNodes()").accept(consumerVisitor)
 
       // then
       txBridge(service).hasTransaction shouldBe false
 
       // when
-      engine.execute(s"CYPHER runtime=$runtime profile CALL org.neo4j.bench.getAllNodes()", Map.empty[String, Object]).accept(consumerVisitor)
+      engine.execute(s"CYPHER runtime=$runtime profile CALL org.ongdb.bench.getAllNodes()", Map.empty[String, Object]).accept(consumerVisitor)
       // then
       txBridge(service).hasTransaction shouldBe false
     }
@@ -465,13 +465,13 @@ class CloseTransactionTest extends CypherFunSuite with GraphIcing {
       procedures(service).register(new AllNodesProcedure())
       txBridge(service).hasTransaction shouldBe false
 
-      db.execute(s"CYPHER runtime=$runtime explain CALL org.neo4j.bench.getAllNodes()").accept(consumerVisitor)
+      db.execute(s"CYPHER runtime=$runtime explain CALL org.ongdb.bench.getAllNodes()").accept(consumerVisitor)
 
       // then
       txBridge(service).hasTransaction shouldBe false
 
       // when
-      engine.execute(s"CYPHER runtime=$runtime explain CALL org.neo4j.bench.getAllNodes()", Map.empty[String, Object]).accept(consumerVisitor)
+      engine.execute(s"CYPHER runtime=$runtime explain CALL org.ongdb.bench.getAllNodes()", Map.empty[String, Object]).accept(consumerVisitor)
       // then
       txBridge(service).hasTransaction shouldBe false
     }
@@ -502,7 +502,7 @@ class CloseTransactionTest extends CypherFunSuite with GraphIcing {
     import scala.collection.JavaConverters._
 
     private val results = Map[String, AnyRef]("node" -> Neo4jTypes.NTInteger)
-    val procedureName = new QualifiedName(Array[String]("org", "neo4j", "bench"), "getAllNodes")
+    val procedureName = new QualifiedName(Array[String]("org", "ongdb", "bench"), "getAllNodes")
     val emptySignature: util.List[FieldSignature] = List.empty[FieldSignature].asJava
     val signature: ProcedureSignature = new ProcedureSignature(
       procedureName, paramSignature, resultSignature, Mode.READ, null, Array.empty,

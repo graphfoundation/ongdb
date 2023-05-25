@@ -114,7 +114,7 @@ class ImportCommandTest
                         "                               exist prior to importing," + lineSeparator() +
                         "                               then it must be created subsequently using" + lineSeparator() +
                         "                               CREATE DATABASE." + lineSeparator() +
-                        "                               Default: neo4j" + lineSeparator() +
+                        "                               Default: ongdb" + lineSeparator() +
                         "      --additional-config=<path>" + lineSeparator() +
                         "                             Configuration file to supply additional" + lineSeparator() +
                         "                               configuration in." + lineSeparator() +
@@ -181,7 +181,7 @@ class ImportCommandTest
                         "                               value can be a plain number or a byte units" + lineSeparator() +
                         "                               string, e.g. 128k, 1m." + lineSeparator() +
                         "                               Default: 4194304" + lineSeparator() +
-                        "      --max-memory=<size>    Maximum memory that neo4j-admin can use for" + lineSeparator() +
+                        "      --max-memory=<size>    Maximum memory that ongdb-admin can use for" + lineSeparator() +
                         "                               various data structures and caching to improve" + lineSeparator() +
                         "                               performance. Values can be plain numbers, like" + lineSeparator() +
                         "                               10000000 or e.g. 20G for 20 gigabyte, or even e." + lineSeparator() +

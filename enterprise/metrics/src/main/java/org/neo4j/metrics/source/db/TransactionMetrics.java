@@ -49,7 +49,7 @@ import static com.codahale.metrics.MetricRegistry.name;
 @Documented( ".Database Transaction Metrics" )
 public class TransactionMetrics extends LifecycleAdapter
 {
-    private static final String TRANSACTION_PREFIX = "neo4j.transaction";
+    private static final String TRANSACTION_PREFIX = "ongdb.transaction";
 
     @Documented( "The total number of started transactions" )
     public static final String TX_STARTED = name( TRANSACTION_PREFIX, "started" );

@@ -291,7 +291,7 @@ class SpecialisedIndexFullCheckTest
             var config = Config.newBuilder().set( GraphDatabaseSettings.ongdb_home, testDirectory.homePath() ).build();
 
             ConsistencyCheckService checkService = new ConsistencyCheckService();
-            return checkService.runFullConsistencyCheck( Neo4jLayout.of( config ).databaseLayout( "neo4j" ),
+            return checkService.runFullConsistencyCheck( Neo4jLayout.of( config ).databaseLayout( "ongdb" ),
                     config, ProgressMonitorFactory.NONE, logProvider, false, DEFAULT ).summary();
         }
 

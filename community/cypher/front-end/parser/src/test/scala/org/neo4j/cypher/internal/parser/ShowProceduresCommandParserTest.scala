@@ -217,7 +217,7 @@ class ShowProceduresCommandParserTest  extends ParserAstTest[ast.Statement]
 
   // Invalid clause order
 
-  for (prefix <- Seq("USE neo4j", "")) {
+  for (prefix <- Seq("USE ongdb", "")) {
     test(s"$prefix SHOW PROCEDURES YIELD * WITH * MATCH (n) RETURN n") {
       // Can't parse WITH after SHOW
       failsToParse

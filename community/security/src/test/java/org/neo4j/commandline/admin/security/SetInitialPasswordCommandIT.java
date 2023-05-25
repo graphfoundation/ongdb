@@ -78,7 +78,7 @@ class SetInitialPasswordCommandIT
     private PrintStream out;
     private PrintStream err;
 
-    private static final String successMessage = "Changed password for user 'neo4j'. " +
+    private static final String successMessage = "Changed password for user 'ongdb'. " +
                                                  "IMPORTANT: this change will only take effect if performed before the database is started for the first time.";
 
     @BeforeEach
@@ -138,10 +138,10 @@ class SetInitialPasswordCommandIT
     @Test
     void shouldWorkWithSamePassword() throws Throwable
     {
-        executeCommand( "neo4j" );
-        assertAuthIniFile( "neo4j", false );
-        executeCommand( "neo4j" );
-        assertAuthIniFile( "neo4j", false );
+        executeCommand( "ongdb" );
+        assertAuthIniFile( "ongdb", false );
+        executeCommand( "ongdb" );
+        assertAuthIniFile( "ongdb", false );
 
         verify( out, times( 2 ) ).println( successMessage );
     }
@@ -156,7 +156,7 @@ class SetInitialPasswordCommandIT
 
         // When
         var e = assertThrows( Exception.class, () -> executeCommand( "will-be-ignored" ) );
-        assertThat( e.getMessage() ).contains( "the provided initial password was not set because existing Neo4j users were detected" );
+        assertThat( e.getMessage() ).contains( "the provided initial password was not set because existing ONgDB users were detected" );
 
         // Then
         assertNoAuthIniFile();
@@ -175,7 +175,7 @@ class SetInitialPasswordCommandIT
 
         // When
         var e = assertThrows( Exception.class, () -> executeCommand( "will-be-ignored" ) );
-        assertThat( e.getMessage() ).contains( "the provided initial password was not set because existing Neo4j users were detected" );
+        assertThat( e.getMessage() ).contains( "the provided initial password was not set because existing ONgDB users were detected" );
 
         // Then
         assertNoAuthIniFile();
@@ -193,7 +193,7 @@ class SetInitialPasswordCommandIT
 
         // When
         var e = assertThrows( Exception.class, () -> executeCommand( "will-be-ignored" ) );
-        assertThat( e.getMessage() ).contains( "the provided initial password was not set because existing Neo4j users were detected" );
+        assertThat( e.getMessage() ).contains( "the provided initial password was not set because existing ONgDB users were detected" );
 
         // Then
         assertNoAuthIniFile();

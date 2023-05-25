@@ -46,7 +46,7 @@ import static com.codahale.metrics.MetricRegistry.name;
 @Documented( ".Database PageCache Metrics" )
 public class PageCacheMetrics extends LifecycleAdapter
 {
-    private static final String PAGE_CACHE_PREFIX = "neo4j.page_cache";
+    private static final String PAGE_CACHE_PREFIX = "ongdb.page_cache";
 
     @Documented( "The total number of exceptions seen during the eviction process in the page cache" )
     public static final String PC_EVICTION_EXCEPTIONS = name( PAGE_CACHE_PREFIX, "eviction_exceptions" );

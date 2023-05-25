@@ -55,7 +55,7 @@ object GraphCountsJson {
 
   /**
    * Given a JSON file obtained from the data collector, e.g. via
-   * `curl -H accept:application/json -H content-type:application/json -d '{"statements":[{"statement":"CALL db.stats.retrieve(\"GRAPH COUNTS\")"}]}' http://_________:7474/db/neo4j/tx/commit > graphCounts.json`,
+   * `curl -H accept:application/json -H content-type:application/json -d '{"statements":[{"statement":"CALL db.stats.retrieve(\"GRAPH COUNTS\")"}]}' http://_________:7474/db/ongdb/tx/commit > graphCounts.json`,
    * return a 1-1 representation of the
    * JSON structure in Scala case classes.
    *

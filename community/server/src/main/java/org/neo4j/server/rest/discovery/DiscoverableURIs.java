@@ -197,7 +197,7 @@ public class DiscoverableURIs
             }
 
             addBoltEndpoint( "bolt_direct", "bolt", ServerSettings.bolt_discoverable_address, config, portRegister );
-            addBoltEndpoint( "bolt_routing", "neo4j", ServerSettings.bolt_routing_discoverable_address, config, portRegister );
+            addBoltEndpoint( "bolt_routing", "ongdb", ServerSettings.bolt_routing_discoverable_address, config, portRegister );
 
             return this;
         }

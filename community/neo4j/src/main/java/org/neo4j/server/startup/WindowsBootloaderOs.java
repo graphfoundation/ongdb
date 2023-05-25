@@ -81,7 +81,7 @@ class WindowsBootloaderOs extends BootloaderOsAbstraction
     {
         if ( !serviceInstalled() )
         {
-            throw new BootFailureException( "Neo4j service is not installed", EXIT_CODE_NOT_RUNNING );
+            throw new BootFailureException( "ONgDB service is not installed", EXIT_CODE_NOT_RUNNING );
         }
         issueServiceCommand( "ES", behaviour().blocking() );
         return UNKNOWN_PID;
@@ -119,13 +119,13 @@ class WindowsBootloaderOs extends BootloaderOsAbstraction
                 .with( arg( "--StopMode", "jvm" ) )
                 .with( arg( "--StopMethod", "stop" ) )
                 .with( arg( "--StopPath", home.toString() ) )
-                .with( arg( "--Description", "Neo4j Graph Database - " + home ) )
-                .with( arg( "--DisplayName", "Neo4j Graph Database - " + serviceName() ) )
+                .with( arg( "--Description", "ONgDB Graph Database - " + home ) )
+                .with( arg( "--DisplayName", "ONgDB Graph Database - " + serviceName() ) )
                 .with( arg( "--Jvm", jvmDll.toString() ) )
                 .with( arg( "--LogPath", logs.toString() ) )
                 .with( arg( "--StdOutput", logs.resolve( ctx.config().get( store_user_log_path ) ).toString() ) )
                 .with( arg( "--StdError", logs.resolve( "service-error.log" ).toString() ) )
-                .with( arg( "--LogPrefix", "neo4j-service" ) )
+                .with( arg( "--LogPrefix", "ongdb-service" ) )
                 .with( arg( "--Classpath", getClassPath() ) )
                 .with( multiArg( "--JvmOptions", jvmOpts.toArray( new String[0] ) ) )
                 .with( arg( "--Startup", "auto" ) )

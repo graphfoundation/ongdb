@@ -80,7 +80,7 @@ class HelloMessageDecoderTest extends AuthTokenDecoderTest
     @Test
     void shouldDecodeHelloMessage() throws Exception
     {
-        HelloMessage originalMessage = new HelloMessage( map( "user_agent", "My Driver", "user", "neo4j", "password", "secret" ) );
+        HelloMessage originalMessage = new HelloMessage( map( "user_agent", "My Driver", "user", "ongdb", "password", "secret" ) );
         assertOriginalMessageEqualsToDecoded( originalMessage, decoder );
     }
 

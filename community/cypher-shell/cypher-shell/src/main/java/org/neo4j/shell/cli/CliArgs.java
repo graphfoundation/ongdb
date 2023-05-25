@@ -50,7 +50,7 @@ import static org.neo4j.shell.DatabaseManager.ABSENT_DB_NAME;
 
 public class CliArgs
 {
-    static final String DEFAULT_SCHEME = "neo4j";
+    static final String DEFAULT_SCHEME = "ongdb";
     static final String DEFAULT_HOST = "localhost";
     static final int DEFAULT_PORT = 7687;
     static final int DEFAULT_NUM_SAMPLE_ROWS = 1000;

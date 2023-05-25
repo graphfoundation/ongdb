@@ -46,7 +46,7 @@ import static org.neo4j.capabilities.Type.STRING;
 @ServiceProvider
 public class DBMSCapabilities implements CapabilityDeclaration
 {
-    @Description( "Neo4j version this instance is running" )
+    @Description( "ONgDB version this instance is running" )
     public static final Capability<String> dbms_instance_version = new Capability<>( Name.of( "dbms.instance.version" ), STRING );
 
     @Description( "Kernel version this instance is running" )

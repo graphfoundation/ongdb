@@ -159,7 +159,7 @@ abstract class Neo4jCommandTestBase extends BootloaderCommandTestBase
     protected int execute( List<String> args, Map<String, String> env, Runtime.Version version )
     {
         HashMap<String,String> environment = new HashMap<>( env );
-        environment.putIfAbsent( Bootloader.ENV_NEO4J_START_WAIT, "0" );
+        environment.putIfAbsent( Bootloader.ENV_ONGDB_START_WAIT, "0" );
         return super.execute( args, environment, version );
     }
 

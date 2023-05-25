@@ -66,6 +66,7 @@ import org.neo4j.time.Clocks;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.configuration.GraphDatabaseSettings.allow_upgrade;
+import static org.neo4j.configuration.GraphDatabaseSettings.default_database;
 import static org.neo4j.configuration.GraphDatabaseSettings.memory_tracking;
 import static org.neo4j.configuration.GraphDatabaseSettings.ongdb_home;
 import static org.neo4j.consistency.checking.full.ConsistencyFlags.DEFAULT;
@@ -90,12 +91,14 @@ public class FullCheckFulltextIndexEmptyDocs
     @Test
     void shouldNotReportEmptyDocsInFulltextIndexAsInconsistencies() throws Throwable
     {
+        String dbName = "neo4j";
         Config config = Config.newBuilder()
                 .set( allow_upgrade, true )
+                .set( default_database, dbName)
                 .set( ongdb_home, testDirectory.homePath() ).build();
 
         DatabaseManagementService managementService = startUp42Db( config );
-        GraphDatabaseAPI db = (GraphDatabaseAPI) managementService.database( GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
+        GraphDatabaseAPI db = (GraphDatabaseAPI) managementService.database( dbName );
         DatabaseLayout layout = db.databaseLayout();
         managementService.shutdown();
 

@@ -77,21 +77,21 @@ public interface ComponentVersion
 
     class Neo4jVersions
     {
-        public static final String VERSION_35 = "Neo4j 3.5";
-        public static final String VERSION_36 = "Neo4j 3.6";
-        public static final String VERSION_40 = "Neo4j 4.0";
-        public static final String VERSION_41D1 = "Neo4j 4.1.0-Drop01";
-        public static final String VERSION_41 = "Neo4j 4.1";
-        public static final String VERSION_42D4 = "Neo4j 4.2.0-Drop04";
-        public static final String VERSION_42D6 = "Neo4j 4.2.0-Drop06";
-        public static final String VERSION_42D7 = "Neo4j 4.2.0-Drop07";
-        public static final String VERSION_42 = "Neo4j 4.2.0";
-        public static final String VERSION_42P1 = "Neo4j 4.2.1";
-        public static final String VERSION_43D1 = "Neo4j 4.3.0-Drop01";
-        public static final String VERSION_43D2 = "Neo4j 4.3.0-Drop02";
-        public static final String VERSION_43D3 = "Neo4j 4.3.0-Drop03";
-        public static final String VERSION_43D4 = "Neo4j 4.3.0-Drop04";
-        public static final String VERSION_44 = "Neo4j 4.4";
-        public static final String VERSION_44P7 = "Neo4j 4.4.7";
+        public static final String VERSION_35 = "ONgDB 3.5";
+        public static final String VERSION_36 = "ONgDB 3.6";
+        public static final String VERSION_40 = "ONgDB 4.0";
+        public static final String VERSION_41D1 = "ONgDB 4.1.0-Drop01";
+        public static final String VERSION_41 = "ONgDB 4.1";
+        public static final String VERSION_42D4 = "ONgDB 4.2.0-Drop04";
+        public static final String VERSION_42D6 = "ONgDB 4.2.0-Drop06";
+        public static final String VERSION_42D7 = "ONgDB 4.2.0-Drop07";
+        public static final String VERSION_42 = "ONgDB 4.2.0";
+        public static final String VERSION_42P1 = "ONgDB 4.2.1";
+        public static final String VERSION_43D1 = "ONgDB 4.3.0-Drop01";
+        public static final String VERSION_43D2 = "ONgDB 4.3.0-Drop02";
+        public static final String VERSION_43D3 = "ONgDB 4.3.0-Drop03";
+        public static final String VERSION_43D4 = "ONgDB 4.3.0-Drop04";
+        public static final String VERSION_44 = "ONgDB 4.4";
+        public static final String VERSION_44P7 = "ONgDB 4.4.7";
     }
 }

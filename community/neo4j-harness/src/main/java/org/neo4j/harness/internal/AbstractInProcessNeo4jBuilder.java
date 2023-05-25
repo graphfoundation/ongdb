@@ -144,7 +144,7 @@ public abstract class AbstractInProcessNeo4jBuilder implements Neo4jBuilder
     @Override
     public InProcessNeo4j build()
     {
-        Path userLogFile = serverFolder.resolve( "neo4j.log" );
+        Path userLogFile = serverFolder.resolve( "ongdb.log" );
         Path internalLogFile = serverFolder.resolve( "debug.log" );
 
         config.set( ServerSettings.third_party_packages, unmanagedExtentions.toList() );

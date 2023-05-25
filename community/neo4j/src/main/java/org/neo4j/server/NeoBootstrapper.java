@@ -102,7 +102,7 @@ public abstract class NeoBootstrapper implements Bootstrapper
 
         if ( args.version() )
         {
-            System.out.println( "neo4j " + Version.getNeo4jVersion() );
+            System.out.println( "ongdb " + Version.getONgDBVersion() );
             return 0;
         }
 
@@ -170,12 +170,12 @@ public abstract class NeoBootstrapper implements Bootstrapper
         }
         catch ( TransactionFailureException tfe )
         {
-            log.error( format( "Failed to start Neo4j on %s. Another process may be using databases at location: %s", serverAddress, serverLocation ), tfe );
+            log.error( format( "Failed to start ONgDB on %s. Another process may be using databases at location: %s", serverAddress, serverLocation ), tfe );
             return GRAPH_DATABASE_STARTUP_ERROR_CODE;
         }
         catch ( Exception e )
         {
-            log.error( format( "Failed to start Neo4j on %s.", serverAddress ), e );
+            log.error( format( "Failed to start ONgDB on %s.", serverAddress ), e );
             return WEB_SERVER_STARTUP_ERROR_CODE;
         }
     }
@@ -184,7 +184,7 @@ public abstract class NeoBootstrapper implements Bootstrapper
     {
         if ( !SystemUtils.IS_OS_WINDOWS ) //Windows does not use PID-files (for somewhat mysterious reasons)
         {
-            try //The neo4j.pid should already be there, but in the case of using the `console --dry-run` functionality we need to ensure it!
+            try //The ongdb.pid should already be there, but in the case of using the `console --dry-run` functionality we need to ensure it!
             {
                 Long currentPid = ProcessHandle.current().pid();
                 Long pid = PidFileHelper.readPid( pidFile );
@@ -340,7 +340,7 @@ public abstract class NeoBootstrapper implements Bootstrapper
     private void addShutdownHook()
     {
         shutdownHook = new Thread( () -> {
-            log.info( "Neo4j Server shutdown initiated by request" );
+            log.info( "ONgDB Server shutdown initiated by request" );
             doShutdown();
             closeUserLogFileStream();
         } );

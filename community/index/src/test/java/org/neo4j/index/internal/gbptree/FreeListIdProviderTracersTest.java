@@ -56,7 +56,7 @@ import static org.neo4j.io.pagecache.context.CursorContext.NULL;
 @PageCacheExtension
 public class FreeListIdProviderTracersTest
 {
-    private static final String DATABASE_NAME = "neo4j";
+    private static final String DATABASE_NAME = "ongdb";
     @Inject
     private PageCache pageCache;
     @Inject

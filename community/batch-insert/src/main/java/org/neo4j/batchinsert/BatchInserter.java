@@ -286,7 +286,7 @@ public interface BatchInserter extends AutoCloseable
     /**
      * Returns the path to default neo4j database.
      *
-     * @return the path to default Neo4j database.
+     * @return the path to default ONgDB database.
      */
     String getStoreDir();
 

@@ -1086,7 +1086,7 @@ class SubqueryCallPlanningIntegrationTest
 
     val query =
       """
-        |LOAD CSV FROM 'https://neo4j.com/test.csv' AS line
+        |LOAD CSV FROM 'https://cdn.graphfoundation.org/ongdb/testing/test.csv' AS line
         |CALL {
         |  CREATE (n)
         |} IN TRANSACTIONS
@@ -1107,7 +1107,7 @@ class SubqueryCallPlanningIntegrationTest
       .transactionForeach()
       .|.create(createNode("n"))
       .|.argument()
-      .loadCSV("'https://neo4j.com/test.csv'", "line", NoHeaders)
+      .loadCSV("'https://cdn.graphfoundation.org/ongdb/testing/test.csv'", "line", NoHeaders)
       .argument()
       .build()
   }

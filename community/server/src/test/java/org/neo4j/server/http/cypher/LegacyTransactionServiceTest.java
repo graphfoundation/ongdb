@@ -97,7 +97,7 @@ class LegacyTransactionServiceTest
     }
 
     @ParameterizedTest
-    @CsvSource( "neo4j, andy, greg" )
+    @CsvSource( "ongdb, andy, greg" )
     void shouldSwitchDefaultDatabaseBasedOnAuthenticatedUser( String user )
     {
         // Given
@@ -111,7 +111,7 @@ class LegacyTransactionServiceTest
                 .thenReturn( userPrincipalA );
 
         when( databaseResolver.defaultDatabase( anyString() ) )
-                .thenReturn( "neo4j" );
+                .thenReturn( "ongdb" );
         when( databaseResolver.defaultDatabase( user ) )
                 .thenReturn( "db-" + user );
 

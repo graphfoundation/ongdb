@@ -115,9 +115,9 @@ class Neo4jAdminCommandTest
         @Test
         void shouldWarnWhenHomeIsInvalid() throws Exception
         {
-            if ( fork.run( () -> execute( "test-command" ), Map.of( Bootloader.ENV_NEO4J_HOME, "foo" ) ) )
+            if ( fork.run( () -> execute( "test-command" ), Map.of( Bootloader.ENV_ONGDB_HOME, "foo" ) ) )
             {
-                assertThat( err.toString() ).contains( "NEO4J_HOME path doesn't exist" );
+                assertThat( err.toString() ).contains( "ONGDB_HOME path doesn't exist" );
             }
         }
 
@@ -179,7 +179,7 @@ class Neo4jAdminCommandTest
         void shouldPrintUsageWhenNoArgument()
         {
             assertThat( execute() ).isEqualTo( ExitCode.USAGE );
-            assertThat( out.toString() ).containsSubsequence( "Usage: neo4j-admin",  "--verbose", "--expand-commands" , "Commands:" );
+            assertThat( out.toString() ).containsSubsequence( "Usage: ongdb-admin",  "--verbose", "--expand-commands" , "Commands:" );
         }
 
         @Test
@@ -194,7 +194,7 @@ class Neo4jAdminCommandTest
         {
             addConf( BootloaderSettings.max_heap_size, "$(echo foo)" );
             assertThat( execute() ).isEqualTo( ExitCode.USAGE );
-            assertThat( out.toString() ).contains( "Usage: neo4j-admin", "Commands:" );
+            assertThat( out.toString() ).contains( "Usage: ongdb-admin", "Commands:" );
         }
 
         @Test

@@ -194,11 +194,11 @@ class ConstraintCommandJavaCcParserTest extends ParserComparisonTestBase with Fu
 
           // Create constraint: With name
 
-          test(s"USE neo4j CREATE CONSTRAINT my_constraint $onOrFor (node1:Label) $assertOrRequire (node2.prop) IS NODE KEY") {
+          test(s"USE ongdb CREATE CONSTRAINT my_constraint $onOrFor (node1:Label) $assertOrRequire (node2.prop) IS NODE KEY") {
             assertSameAST(testName)
           }
 
-          test(s"USE neo4j CREATE OR REPLACE CONSTRAINT my_constraint IF NOT EXISTS $onOrFor (node1:Label) $assertOrRequire (node2.prop) IS NODE KEY") {
+          test(s"USE ongdb CREATE OR REPLACE CONSTRAINT my_constraint IF NOT EXISTS $onOrFor (node1:Label) $assertOrRequire (node2.prop) IS NODE KEY") {
             assertSameAST(testName)
           }
 

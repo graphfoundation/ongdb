@@ -105,22 +105,22 @@ class JavaCCPrettifierIT extends CypherFunSuite {
 
     "show alias for database" -> "SHOW ALIASES FOR DATABASE",
     "show aliases for database" -> "SHOW ALIASES FOR DATABASE",
-    "show aliases for database YIELD * where name = 'neo4j' Return *" ->
+    "show aliases for database YIELD * where name = 'ongdb' Return *" ->
       """SHOW ALIASES FOR DATABASE
         |  YIELD *
-        |    WHERE name = "neo4j"
+        |    WHERE name = "ongdb"
         |  RETURN *""".stripMargin,
     "show aliases for database YIELD * Return DISTINCT default, name" ->
       """SHOW ALIASES FOR DATABASE
         |  YIELD *
         |  RETURN DISTINCT default, name""".stripMargin,
-    "show aliases for database yield name order by name skip 1 limit 1 where name='neo4j'" ->
+    "show aliases for database yield name order by name skip 1 limit 1 where name='ongdb'" ->
       """SHOW ALIASES FOR DATABASE
         |  YIELD name
         |    ORDER BY name ASCENDING
         |    SKIP 1
         |    LIMIT 1
-        |    WHERE name = "neo4j"""".stripMargin,
+        |    WHERE name = "ongdb"""".stripMargin,
 
     """MATCH (c:Country) UsIng TexT iNdEx c:Country(name) WHERE c.name = "Sweden"""" ->
       """MATCH (c:Country)

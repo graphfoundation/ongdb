@@ -52,7 +52,7 @@ import static java.util.Collections.emptySortedMap;
 @Documented( ".Database Checkpointing Metrics" )
 public class CheckPointingMetrics extends LifecycleAdapter
 {
-    private static final String CHECK_POINT_PREFIX = "neo4j.check_point";
+    private static final String CHECK_POINT_PREFIX = "ongdb.check_point";
 
     @Documented( "The total number of check point events executed so far" )
     public static final String CHECK_POINT_EVENTS = name( CHECK_POINT_PREFIX, "events" );

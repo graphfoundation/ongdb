@@ -142,7 +142,7 @@ class ProcedureOutputSignatureCompiler
             catch ( ProcedureException e )
             {
                 throw new ProcedureException( e.status(), e,
-                        "Field `%s` in record `%s` cannot be converted to a Neo4j type: %s", field.getName(),
+                        "Field `%s` in record `%s` cannot be converted to an ONgDB type: %s", field.getName(),
                         userClass.getSimpleName(), e.getMessage() );
             }
         }

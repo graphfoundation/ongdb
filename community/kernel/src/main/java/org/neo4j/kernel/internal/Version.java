@@ -48,9 +48,9 @@ import static org.apache.commons.lang3.StringUtils.defaultString;
 
 public class Version
 {
-    static final String CUSTOM_VERSION_SETTING = "unsupported.neo4j.custom.version";
+    static final String CUSTOM_VERSION_SETTING = "unsupported.ongdb.custom.version";
     private static final String DEFAULT_DEV_VERSION = "dev";
-    private static final String KERNEL_ARTIFACT_ID = "neo4j-kernel";
+    private static final String KERNEL_ARTIFACT_ID = "ongdb-kernel";
     private static final Version KERNEL_VERSION = new Version( KERNEL_ARTIFACT_ID, selectVersion() );
 
     static String selectVersion()
@@ -74,7 +74,7 @@ public class Version
         return getKernel().getVersion();
     }
 
-    public static String getNeo4jVersion()
+    public static String getONgDBVersion()
     {
         return getKernel().getReleaseVersion();
     }

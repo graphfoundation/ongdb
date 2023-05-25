@@ -48,7 +48,7 @@ import static com.codahale.metrics.MetricRegistry.name;
 @Documented( ".CatchUp Metrics" )
 public class CatchUpMetrics extends LifecycleAdapter
 {
-    private static final String CAUSAL_CLUSTERING_PREFIX = "neo4j.causal_clustering.catchup";
+    private static final String CAUSAL_CLUSTERING_PREFIX = "ongdb.causal_clustering.catchup";
 
     @Documented( "TX pull requests received from read replicas" )
     public static final String TX_PULL_REQUESTS_RECEIVED = name( CAUSAL_CLUSTERING_PREFIX, "tx_pull_requests_received" );

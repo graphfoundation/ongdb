@@ -229,7 +229,7 @@ class BoltStateHandlerTest
         RuntimeException originalException = new RuntimeException( "original exception" );
         RuntimeException thrownFromSilentDisconnect = new RuntimeException( "exception from silent disconnect" );
 
-        Driver mockedDriver = stubResultSummaryInAnOpenSession( resultMock, session, "neo4j-version" );
+        Driver mockedDriver = stubResultSummaryInAnOpenSession( resultMock, session, "ongdb-version" );
         OfflineBoltStateHandler boltStateHandler = new OfflineBoltStateHandler( mockedDriver );
 
         when( resultMock.consume() ).thenThrow( originalException );
@@ -265,7 +265,7 @@ class BoltStateHandlerTest
         assertFalse( boltStateHandler.isConnected() );
 
         var exception = assertThrows( CommandException.class, boltStateHandler::beginTransaction );
-        assertThat( exception.getMessage(), containsString( "Not connected to Neo4j" ) );
+        assertThat( exception.getMessage(), containsString( "Not connected to ONgDB" ) );
     }
 
     @Test
@@ -274,7 +274,7 @@ class BoltStateHandlerTest
         assertFalse( boltStateHandler.isConnected() );
 
         var exception = assertThrows( CommandException.class, boltStateHandler::commitTransaction );
-        assertThat( exception.getMessage(), containsString( "Not connected to Neo4j" ) );
+        assertThat( exception.getMessage(), containsString( "Not connected to ONgDB" ) );
     }
 
     @Test
@@ -292,7 +292,7 @@ class BoltStateHandlerTest
         Transaction transactionMock = mock( Transaction.class );
         Session sessionMock = mock( Session.class );
         when( sessionMock.beginTransaction() ).thenReturn( transactionMock );
-        Driver driverMock = stubResultSummaryInAnOpenSession( mock( Result.class ), sessionMock, "neo4j-version" );
+        Driver driverMock = stubResultSummaryInAnOpenSession( mock( Result.class ), sessionMock, "ongdb-version" );
 
         Result result = mock( Result.class );
 
@@ -315,14 +315,14 @@ class BoltStateHandlerTest
         assertFalse( boltStateHandler.isConnected() );
 
         var exception = assertThrows( CommandException.class, boltStateHandler::rollbackTransaction );
-        assertThat( exception.getMessage(), containsString( "Not connected to Neo4j" ) );
+        assertThat( exception.getMessage(), containsString( "Not connected to ONgDB" ) );
     }
 
     @Test
     void executeNeedsToBeConnected()
     {
         var exception = assertThrows( CommandException.class, () -> boltStateHandler.runCypher( "", Collections.emptyMap() ) );
-        assertThat( exception.getMessage(), containsString( "Not connected to Neo4j" ) );
+        assertThat( exception.getMessage(), containsString( "Not connected to ONgDB" ) );
     }
 
     @Test
@@ -342,7 +342,7 @@ class BoltStateHandlerTest
         Record recordMock = mock( Record.class );
         Value valueMock = mock( Value.class );
 
-        Driver driverMock = stubResultSummaryInAnOpenSession( resultMock, sessionMock, "neo4j-version" );
+        Driver driverMock = stubResultSummaryInAnOpenSession( resultMock, sessionMock, "ongdb-version" );
 
         when( resultMock.list() ).thenReturn( singletonList( recordMock ) );
 
@@ -369,7 +369,7 @@ class BoltStateHandlerTest
         Record recordMock = mock( Record.class );
         Value valueMock = mock( Value.class );
 
-        Driver driverMock = stubResultSummaryInAnOpenSession( resultMock, sessionMock, "neo4j-version" );
+        Driver driverMock = stubResultSummaryInAnOpenSession( resultMock, sessionMock, "ongdb-version" );
 
         when( resultMock.list() ).thenReturn( singletonList( recordMock ) );
 
@@ -412,7 +412,7 @@ class BoltStateHandlerTest
     {
         // given
         Session sessionMock = mock( Session.class );
-        Driver driverMock = stubResultSummaryInAnOpenSession( mock( Result.class ), sessionMock, "neo4j-version" );
+        Driver driverMock = stubResultSummaryInAnOpenSession( mock( Result.class ), sessionMock, "ongdb-version" );
 
         OfflineBoltStateHandler boltStateHandler = new OfflineBoltStateHandler( driverMock );
 
@@ -517,7 +517,7 @@ class BoltStateHandlerTest
 
         Session sessionMock = mock( Session.class );
         Result resultMock = mock( Result.class );
-        Driver driverMock = stubResultSummaryInAnOpenSession( resultMock, sessionMock, "Neo4j/9.4.1-ALPHA", "my_default_db" );
+        Driver driverMock = stubResultSummaryInAnOpenSession( resultMock, sessionMock, "ONgDB/9.4.1-ALPHA", "my_default_db" );
         when( sessionMock.run( "CALL dbms.security.changePassword($n)", Values.parameters( "n", newPassword ) ) ).thenReturn( resultMock );
         when( sessionMock.lastBookmark() ).thenReturn( bookmark );
         BoltStateHandler handler = new OfflineBoltStateHandler( driverMock );
@@ -558,7 +558,7 @@ class BoltStateHandlerTest
         when( db2SessionMock.lastBookmark() ).thenReturn( db2Bookmark );
         when( db2SessionMock.run( "CALL db.ping()" ) ).thenReturn( resultMock );
 
-        Driver driverMock = stubResultSummaryInAnOpenSession( resultMock, db1SessionMock, "Neo4j/9.4.1-ALPHA", "database1" );
+        Driver driverMock = stubResultSummaryInAnOpenSession( resultMock, db1SessionMock, "ONgDB/9.4.1-ALPHA", "database1" );
         when( driverMock.session( any() ) ).thenAnswer( arg ->
                                                         {
                                                             SessionConfig sc = (SessionConfig) arg.getArguments()[0];
@@ -629,7 +629,7 @@ class BoltStateHandlerTest
         BoltStateHandler handler = new BoltStateHandler( provider, false );
         handler.connect( config );
 
-        assertTrue( provider.config.userAgent().startsWith( "neo4j-cypher-shell/v" ) );
+        assertTrue( provider.config.userAgent().startsWith( "ongdb-cypher-shell/v" ) );
     }
 
     @Test

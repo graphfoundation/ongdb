@@ -127,7 +127,7 @@ class BoltStateMachineContextImplTest
     @Test
     void impersonationShouldResolveHomeDatabase()
     {
-        when( this.databaseResolver.defaultDatabase( "bob" ) ).thenReturn( "neo4j" );
+        when( this.databaseResolver.defaultDatabase( "bob" ) ).thenReturn( "ongdb" );
         when( this.databaseResolver.defaultDatabase( "grace" ) ).thenReturn( "secretdb" );
 
         var subject = mock( AuthSubject.class );
@@ -140,11 +140,11 @@ class BoltStateMachineContextImplTest
         context.authenticatedAsUser( loginContext, "Test/0.0.0" );
 
         verify( this.databaseResolver ).defaultDatabase( "bob" );
-        verify( this.channel ).updateDefaultDatabase( "neo4j" );
+        verify( this.channel ).updateDefaultDatabase( "ongdb" );
         verify( this.channel ).updateUser( "bob", "Test/0.0.0" );
 
         assertThat( this.context.getLoginContext() ).isSameAs( loginContext );
-        assertThat( this.context.getDefaultDatabase() ).isEqualTo( "neo4j" );
+        assertThat( this.context.getDefaultDatabase() ).isEqualTo( "ongdb" );
 
         var impersonatedSubject = mock( AuthSubject.class );
         when( impersonatedSubject.authenticatedUser() ).thenReturn( "bob" );

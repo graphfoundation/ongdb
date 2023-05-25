@@ -81,7 +81,7 @@ public class BackupDelegatorTest
     public void tryCatchingUpDelegatesToRemoteStore() throws StoreCopyFailedException, IOException
     {
         // given
-        AdvertisedSocketAddress fromAddress = new AdvertisedSocketAddress( "neo4j.com", 5432 );
+        AdvertisedSocketAddress fromAddress = new AdvertisedSocketAddress( "ongdb.com", 5432 );
         StoreId expectedStoreId = new StoreId( 7, 2, 5, 98 );
         Path storeDir = Paths.get( "A directory to store transactions to" );
 

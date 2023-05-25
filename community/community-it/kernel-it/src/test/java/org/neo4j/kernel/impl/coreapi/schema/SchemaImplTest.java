@@ -107,7 +107,7 @@ class SchemaImplTest
             for ( int id = 0; id < 100000; id++ )
             {
                 Node userNode = tx.createNode( label );
-                userNode.setProperty( "username", "user" + id + "@neo4j.org" );
+                userNode.setProperty( "username", "user" + id + "@ongdb.org" );
             }
             tx.commit();
         }

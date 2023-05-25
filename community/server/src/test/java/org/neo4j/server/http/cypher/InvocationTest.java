@@ -296,7 +296,7 @@ class InvocationTest
         when( executionEngine.isPeriodicCommit( queryText ) ).thenReturn( true );
         when( registry.begin( any( TransactionHandle.class ) ) ).thenReturn( 123L );
         when( transactionManager
-                      .runProgram( any( String.class ), any( LoginContext.class ), eq( "neo4j" ), eq( queryText ), eq( MapValue.EMPTY ),
+                      .runProgram( any( String.class ), any( LoginContext.class ), eq( "ongdb" ), eq( queryText ), eq( MapValue.EMPTY ),
                                    eq( emptyList() ), eq( true ), eq( emptyMap() ), nullable( Duration.class ), eq( "123" ) ) )
                 .thenReturn( new DefaultProgramResultReference( "123", metadata ) );
         TransactionHandle handle = getTransactionHandle( executionEngine, registry );
@@ -320,7 +320,7 @@ class InvocationTest
                       .begin( any( LoginContext.class ), anyString(), anyList(), eq( true ), anyMap(), nullable( Duration.class ), anyString() );
         txManagerOrder.verify( transactionManager ).rollback( "123" );
         txManagerOrder.verify( transactionManager )
-                      .runProgram( any( String.class ), any( LoginContext.class ), eq( "neo4j" ), eq( queryText ), eq( MapValue.EMPTY ),
+                      .runProgram( any( String.class ), any( LoginContext.class ), eq( "ongdb" ), eq( queryText ), eq( MapValue.EMPTY ),
                                    eq( emptyList() ), eq( true ), eq( emptyMap() ), nullable( Duration.class ), eq( "123" ) );
         txManagerOrder.verify( transactionManager ).pullData( any( String.class ), any( Integer.class ), any( Long.class ), any( ResultConsumer.class ) );
         txManagerOrder.verify( transactionManager )
@@ -777,7 +777,7 @@ class InvocationTest
         // given
         TransactionManager txManager = mock( TransactionManager.class );
         TransactionHandle handle =
-                new TransactionHandle( "neo4j", executionEngine, mock( TransactionRegistry.class ), uriScheme, true, AUTH_DISABLED,
+                new TransactionHandle( "ongdb", executionEngine, mock( TransactionRegistry.class ), uriScheme, true, AUTH_DISABLED,
                                        mock( ClientConnectionInfo.class ), 100, txManager, mock( LogProvider.class ),
                                        mock( BoltGraphDatabaseManagementServiceSPI.class ), mock( MemoryTracker.class ), mock( AuthManager.class ),
                                        Clocks.nanoClock(), true );
@@ -793,7 +793,7 @@ class InvocationTest
 
         // then
         verify( txManager ).initialize( any() );
-        verify( txManager ).begin( AUTH_DISABLED, "neo4j", emptyList(), true, emptyMap(), Duration.ofMillis( 100 ), "0" );
+        verify( txManager ).begin( AUTH_DISABLED, "ongdb", emptyList(), true, emptyMap(), Duration.ofMillis( 100 ), "0" );
     }
 
     @Test
@@ -1048,7 +1048,7 @@ class InvocationTest
     private TransactionHandle getTransactionHandle( QueryExecutionEngine executionEngine, TransactionRegistry registry, boolean implicitTransaction,
                                                     boolean readOnly )
     {
-        return new TransactionHandle( "neo4j", executionEngine, registry, uriScheme, implicitTransaction, AUTH_DISABLED, mock( ClientConnectionInfo.class ),
+        return new TransactionHandle( "ongdb", executionEngine, registry, uriScheme, implicitTransaction, AUTH_DISABLED, mock( ClientConnectionInfo.class ),
                                       anyLong(), transactionManager, logProvider, boltSPI, memoryTracker, authManager, Clocks.nanoClock(), readOnly );
     }
 
@@ -1111,7 +1111,7 @@ class InvocationTest
                     recordConsumer.consumeField( stringValue( "v6" ) );
                     recordConsumer.endRecord();
                     recordConsumer.addMetadata( "type", stringValue( "w" ) );
-                    recordConsumer.addMetadata( "db", stringValue( "neo4j" ) );
+                    recordConsumer.addMetadata( "db", stringValue( "ongdb" ) );
                     recordConsumer.addMetadata( "t_last", longValue( 0 ) );
                     return false;
                 }

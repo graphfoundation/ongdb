@@ -95,7 +95,7 @@ class CrashGenerationCleanerTest
     private RandomSupport randomRule;
 
     private static final String FILE_NAME = "index";
-    private static final String DATABASE_NAME = "neo4j";
+    private static final String DATABASE_NAME = "ongdb";
     private static final int PAGE_SIZE = 256;
 
     private PagedFile pagedFile;

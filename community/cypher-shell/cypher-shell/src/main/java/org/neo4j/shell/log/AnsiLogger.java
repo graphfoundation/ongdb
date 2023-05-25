@@ -191,7 +191,7 @@ public class AnsiLogger implements Logger
                 // Username and password was not specified
                 msg = msg.append( e.getMessage() )
                          .append( "\nPlease specify --username, and optionally --password, as argument(s)" )
-                         .append( "\nor as environment variable(s), NEO4J_USERNAME, and NEO4J_PASSWORD respectively." )
+                         .append( "\nor as environment variable(s), ONGDB_USERNAME, and ONGDB_PASSWORD respectively." )
                          .append( "\nSee --help for more info." );
             }
             else

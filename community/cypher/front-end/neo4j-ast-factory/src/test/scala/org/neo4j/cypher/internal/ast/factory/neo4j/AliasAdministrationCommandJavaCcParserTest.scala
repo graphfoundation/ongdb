@@ -121,28 +121,28 @@ class AliasAdministrationCommandJavaCcParserTest extends ParserComparisonTestBas
   }
 
   // CREATE REMOTE ALIAS
-  test("""CREATE ALIAS name FOR DATABASE target AT "neo4j://serverA:7687" USER user PASSWORD 'password'""") {
-    assertJavaCCAST(testName, CreateRemoteDatabaseAlias(Left("name"), Left("target"), IfExistsThrowError, Left("neo4j://serverA:7687"), Left("user"), sensitiveLiteral("password"))(pos))
+  test("""CREATE ALIAS name FOR DATABASE target AT "ongdb://serverA:7687" USER user PASSWORD 'password'""") {
+    assertJavaCCAST(testName, CreateRemoteDatabaseAlias(Left("name"), Left("target"), IfExistsThrowError, Left("ongdb://serverA:7687"), Left("user"), sensitiveLiteral("password"))(pos))
   }
 
-  test("""CREATE ALIAS name.illegal FOR DATABASE target AT "neo4j://serverA:7687" USER user PASSWORD 'password'""") {
+  test("""CREATE ALIAS name.illegal FOR DATABASE target AT "ongdb://serverA:7687" USER user PASSWORD 'password'""") {
     assertJavaCCException(testName, "'.' is not a valid character in the remote alias name 'name.illegal'. Remote alias names using '.' must be quoted with backticks e.g. `remote.alias`. (line 1, column 14 (offset: 13))")
   }
 
-  test("""CREATE ALIAS `name.illegal` FOR DATABASE target AT "neo4j://serverA:7687" USER user PASSWORD 'password'""".stripMargin) {
-    assertJavaCCAST(testName, CreateRemoteDatabaseAlias(Left("name.illegal"), Left("target"), IfExistsThrowError, Left("neo4j://serverA:7687"), Left("user"), sensitiveLiteral("password"))(pos))
+  test("""CREATE ALIAS `name.illegal` FOR DATABASE target AT "ongdb://serverA:7687" USER user PASSWORD 'password'""".stripMargin) {
+    assertJavaCCAST(testName, CreateRemoteDatabaseAlias(Left("name.illegal"), Left("target"), IfExistsThrowError, Left("ongdb://serverA:7687"), Left("user"), sensitiveLiteral("password"))(pos))
   }
 
-  test("CREATE ALIAS name FOR DATABASE target AT 'neo4j://serverA:7687' USER user PASSWORD 'password'") {
-    assertJavaCCAST(testName, CreateRemoteDatabaseAlias(Left("name"), Left("target"), IfExistsThrowError, Left("neo4j://serverA:7687"), Left("user"), sensitiveLiteral("password"))(pos))
+  test("CREATE ALIAS name FOR DATABASE target AT 'ongdb://serverA:7687' USER user PASSWORD 'password'") {
+    assertJavaCCAST(testName, CreateRemoteDatabaseAlias(Left("name"), Left("target"), IfExistsThrowError, Left("ongdb://serverA:7687"), Left("user"), sensitiveLiteral("password"))(pos))
   }
 
   test("""CREATE ALIAS name FOR DATABASE target AT '' USER `` PASSWORD ''""") {
     assertJavaCCAST(testName, CreateRemoteDatabaseAlias(Left("name"), Left("target"), IfExistsThrowError, Left(""), Left(""), sensitiveLiteral(""))(pos))
   }
 
-  test("""CREATE ALIAS name FOR DATABASE target AT neo4j://serverA:7687" USER user PASSWORD 'password'""") {
-    assertJavaCCException(testName, "Invalid input 'neo4j': expected \"\\\"\", \"\\'\" or a parameter (line 1, column 42 (offset: 41))")
+  test("""CREATE ALIAS name FOR DATABASE target AT ongdb://serverA:7687" USER user PASSWORD 'password'""") {
+    assertJavaCCException(testName, "Invalid input 'ongdb': expected \"\\\"\", \"\\'\" or a parameter (line 1, column 42 (offset: 41))")
   }
 
   test("""CREATE ALIAS $name FOR DATABASE $target AT $url USER $user PASSWORD $password""") {
@@ -150,34 +150,34 @@ class AliasAdministrationCommandJavaCcParserTest extends ParserComparisonTestBas
       Right(parameter("url", CTString)), Right(parameter("user", CTString)), parameter("password", CTString))(pos))
   }
 
-  test("""CREATE ALIAS name IF NOT EXISTS FOR DATABASE target AT "neo4j://serverA:7687" USER user PASSWORD 'password'""") {
-    assertJavaCCAST(testName, CreateRemoteDatabaseAlias(Left("name"), Left("target"), IfExistsDoNothing, Left("neo4j://serverA:7687"), Left("user"), sensitiveLiteral("password"))(pos))
+  test("""CREATE ALIAS name IF NOT EXISTS FOR DATABASE target AT "ongdb://serverA:7687" USER user PASSWORD 'password'""") {
+    assertJavaCCAST(testName, CreateRemoteDatabaseAlias(Left("name"), Left("target"), IfExistsDoNothing, Left("ongdb://serverA:7687"), Left("user"), sensitiveLiteral("password"))(pos))
   }
 
-  test("CREATE OR REPLACE ALIAS name FOR DATABASE target AT 'neo4j://serverA:7687' USER user PASSWORD 'password'") {
-    assertJavaCCAST(testName, CreateRemoteDatabaseAlias(Left("name"), Left("target"), IfExistsReplace, Left("neo4j://serverA:7687"), Left("user"), sensitiveLiteral("password"))(pos))
+  test("CREATE OR REPLACE ALIAS name FOR DATABASE target AT 'ongdb://serverA:7687' USER user PASSWORD 'password'") {
+    assertJavaCCAST(testName, CreateRemoteDatabaseAlias(Left("name"), Left("target"), IfExistsReplace, Left("ongdb://serverA:7687"), Left("user"), sensitiveLiteral("password"))(pos))
   }
 
-  test("CREATE OR REPLACE ALIAS name IF NOT EXISTS FOR DATABASE target AT 'neo4j://serverA:7687' USER user PASSWORD 'password'") {
-    assertJavaCCAST(testName, CreateRemoteDatabaseAlias(Left("name"), Left("target"), IfExistsInvalidSyntax, Left("neo4j://serverA:7687"), Left("user"), sensitiveLiteral("password"))(pos))
+  test("CREATE OR REPLACE ALIAS name IF NOT EXISTS FOR DATABASE target AT 'ongdb://serverA:7687' USER user PASSWORD 'password'") {
+    assertJavaCCAST(testName, CreateRemoteDatabaseAlias(Left("name"), Left("target"), IfExistsInvalidSyntax, Left("ongdb://serverA:7687"), Left("user"), sensitiveLiteral("password"))(pos))
   }
 
-  test("""CREATE ALIAS name FOR DATABASE target AT "neo4j://serverA:7687" USER user PASSWORD "password" DRIVER { ssl_enforced: true }""") {
-    assertJavaCCAST(testName, CreateRemoteDatabaseAlias(Left("name"), Left("target"), IfExistsThrowError, Left("neo4j://serverA:7687"), Left("user"), sensitiveLiteral("password"),
+  test("""CREATE ALIAS name FOR DATABASE target AT "ongdb://serverA:7687" USER user PASSWORD "password" DRIVER { ssl_enforced: true }""") {
+    assertJavaCCAST(testName, CreateRemoteDatabaseAlias(Left("name"), Left("target"), IfExistsThrowError, Left("ongdb://serverA:7687"), Left("user"), sensitiveLiteral("password"),
       Some(Left(Map(
         "ssl_enforced" -> trueLiteral,
       ))))(pos))
   }
 
-  test("""CREATE ALIAS name IF NOT EXISTS FOR DATABASE target AT "neo4j://serverA:7687" USER user PASSWORD 'password' DRIVER { ssl_enforced: true }""") {
-    assertJavaCCAST(testName, CreateRemoteDatabaseAlias(Left("name"), Left("target"), IfExistsDoNothing, Left("neo4j://serverA:7687"), Left("user"), sensitiveLiteral("password"),
+  test("""CREATE ALIAS name IF NOT EXISTS FOR DATABASE target AT "ongdb://serverA:7687" USER user PASSWORD 'password' DRIVER { ssl_enforced: true }""") {
+    assertJavaCCAST(testName, CreateRemoteDatabaseAlias(Left("name"), Left("target"), IfExistsDoNothing, Left("ongdb://serverA:7687"), Left("user"), sensitiveLiteral("password"),
       Some(Left(Map(
         "ssl_enforced" -> trueLiteral,
       ))))(pos))
   }
 
   test("Create remote database alias with driver settings") {
-    val command = """CREATE ALIAS name FOR DATABASE target AT "neo4j://serverA:7687" USER user PASSWORD 'password'
+    val command = """CREATE ALIAS name FOR DATABASE target AT "ongdb://serverA:7687" USER user PASSWORD 'password'
       |DRIVER
       |{
       |    ssl_enforced: true,
@@ -191,7 +191,7 @@ class AliasAdministrationCommandJavaCcParserTest extends ParserComparisonTestBas
       |""".stripMargin
     val durationExpression = function("duration", literalString("PT1S"))
 
-    assertJavaCCAST(command, CreateRemoteDatabaseAlias(Left("name"), Left("target"), IfExistsThrowError, Left("neo4j://serverA:7687"), Left("user"), sensitiveLiteral("password"),
+    assertJavaCCAST(command, CreateRemoteDatabaseAlias(Left("name"), Left("target"), IfExistsThrowError, Left("ongdb://serverA:7687"), Left("user"), sensitiveLiteral("password"),
       Some(Left(Map(
         "ssl_enforced" -> trueLiteral,
         "connection_timeout" -> durationExpression,
@@ -301,14 +301,14 @@ class AliasAdministrationCommandJavaCcParserTest extends ParserComparisonTestBas
   }
 
   // ALTER REMOTE ALIAS
-  test("""ALTER ALIAS name SET DATABASE TARGET target AT "neo4j://serverA:7687" USER user PASSWORD "password" DRIVER { ssl_enforced: true }""") {
+  test("""ALTER ALIAS name SET DATABASE TARGET target AT "ongdb://serverA:7687" USER user PASSWORD "password" DRIVER { ssl_enforced: true }""") {
     assertJavaCCAST(testName, AlterRemoteDatabaseAlias(Left("name"), Some(Left("target")), ifExists = false,
-      Some(Left("neo4j://serverA:7687")), Some(Left("user")), Some(sensitiveLiteral("password")), Some(Left(Map(
+      Some(Left("ongdb://serverA:7687")), Some(Left("user")), Some(sensitiveLiteral("password")), Some(Left(Map(
         "ssl_enforced" -> trueLiteral,
       ))))(pos))
   }
 
-  test("""ALTER ALIAS name.illegal SET DATABASE TARGET target AT "neo4j://serverA:7687" USER user PASSWORD "password" DRIVER { ssl_enforced: true }""") {
+  test("""ALTER ALIAS name.illegal SET DATABASE TARGET target AT "ongdb://serverA:7687" USER user PASSWORD "password" DRIVER { ssl_enforced: true }""") {
     assertJavaCCException(testName, ASTExceptionFactory.invalidDotsInRemoteAliasName("name.illegal") + " (line 1, column 13 (offset: 12))")
   }
 
@@ -352,19 +352,19 @@ class AliasAdministrationCommandJavaCcParserTest extends ParserComparisonTestBas
   }
 
   // set target
-  test("""ALTER ALIAS name SET DATABASE TARGET target AT "neo4j://serverA:7687"""") {
-    assertJavaCCAST(testName, AlterRemoteDatabaseAlias(Left("name"), targetName = Some(Left("target")), url = Some(Left("neo4j://serverA:7687")))(pos))
+  test("""ALTER ALIAS name SET DATABASE TARGET target AT "ongdb://serverA:7687"""") {
+    assertJavaCCAST(testName, AlterRemoteDatabaseAlias(Left("name"), targetName = Some(Left("target")), url = Some(Left("ongdb://serverA:7687")))(pos))
   }
 
-  test("ALTER ALIAS name SET DATABASE TARGET target AT 'neo4j://serverA:7687'") {
-    assertJavaCCAST(testName, AlterRemoteDatabaseAlias(Left("name"), targetName = Some(Left("target")), url = Some(Left("neo4j://serverA:7687")))(pos))
+  test("ALTER ALIAS name SET DATABASE TARGET target AT 'ongdb://serverA:7687'") {
+    assertJavaCCAST(testName, AlterRemoteDatabaseAlias(Left("name"), targetName = Some(Left("target")), url = Some(Left("ongdb://serverA:7687")))(pos))
   }
 
   test("""ALTER ALIAS name SET DATABASE TARGET target AT """"") {
     assertJavaCCAST(testName, AlterRemoteDatabaseAlias(Left("name"), targetName = Some(Left("target")), url = Some(Left("")))(pos))
   }
 
-  test("ALTER ALIAS name SET DATABASE TARGET target AT 'neo4j://serverA:7687' TARGET target AT 'neo4j://serverA:7687'") {
+  test("ALTER ALIAS name SET DATABASE TARGET target AT 'ongdb://serverA:7687' TARGET target AT 'ongdb://serverA:7687'") {
     assertJavaCCException(testName, "Duplicate SET DATABASE TARGET clause (line 1, column 71 (offset: 70))")
   }
 

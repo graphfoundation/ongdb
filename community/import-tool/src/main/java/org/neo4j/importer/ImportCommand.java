@@ -174,7 +174,7 @@ public class ImportCommand extends AbstractCommand
     private long bufferSize = DEFAULT_CSV_CONFIG.bufferSize();
 
     @Option( names = "--max-memory", paramLabel = "<size>", defaultValue = "90%", converter = MemoryConverter.class,
-            description = "Maximum memory that neo4j-admin can use for various data structures and caching to improve performance. " +
+            description = "Maximum memory that ongdb-admin can use for various data structures and caching to improve performance. " +
                     "Values can be plain numbers, like 10000000 or e.g. 20G for 20 gigabyte, or even e.g. 70%%." )
     private long maxMemory;
 

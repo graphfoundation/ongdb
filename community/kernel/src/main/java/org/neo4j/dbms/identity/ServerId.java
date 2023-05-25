@@ -47,7 +47,7 @@ import org.neo4j.io.marshal.SafeStateMarshal;
 import org.neo4j.util.Id;
 
 /**
- * ServerId is used for identifying a Neo4J instance.
+ * ServerId is used for identifying a ONgDB instance.
  * It is persisted in the root of the data directory.
  */
 public final class ServerId extends Id

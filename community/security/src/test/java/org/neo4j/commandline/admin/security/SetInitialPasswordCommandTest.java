@@ -99,7 +99,7 @@ class SetInitialPasswordCommandTest
                         "set-initial-password [--expand-commands] [--require-password-change]%n" +
                         "                     [--verbose] <password>%n" +
                         "%n" + "DESCRIPTION%n" + "%n" +
-                        "Sets the initial password of the initial admin user ('neo4j'). And removes the%n" +
+                        "Sets the initial password of the initial admin user ('ongdb'). And removes the%n" +
                         "requirement to change password on first login. IMPORTANT: this change will only%n" +
                         "take effect if performed before the database is started for the first time.%n" +
                         "%n" + "PARAMETERS%n" + "%n" +
@@ -143,11 +143,11 @@ class SetInitialPasswordCommandTest
     @Test
     void shouldWorkAlsoWithSamePassword() throws Throwable
     {
-        CommandLine.populateCommand( command, "neo4j" );
+        CommandLine.populateCommand( command, "ongdb" );
         command.execute();
 
         // Then
-        assertAuthIniFile( "neo4j" );
+        assertAuthIniFile( "ongdb" );
     }
 
     private void assertAuthIniFile( String password ) throws Throwable

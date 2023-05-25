@@ -98,7 +98,7 @@ public class DiagnosticsReportCommand extends AbstractCommand
     @Option( names = "--to", paramLabel = "<path>", description = "Destination directory for reports. Defaults to a system tmp directory." )
     private Path reportDir;
 
-    @Option( names = "--pid", description = "Specify process id of running neo4j instance", showDefaultValue = NEVER )
+    @Option( names = "--pid", description = "Specify process id of running ONgDB instance", showDefaultValue = NEVER )
     private long pid;
 
     @Parameters( arity = "0..*", paramLabel = "<classifier>" )
@@ -211,7 +211,7 @@ public class DiagnosticsReportCommand extends AbstractCommand
 
         // Register sources provided by this tool
         reporter.registerSource( "config",
-                DiagnosticsReportSources.newDiagnosticsFile( "neo4j.conf", ctx.fs(), configFile() ) );
+                DiagnosticsReportSources.newDiagnosticsFile( "ongdb.conf", ctx.fs(), configFile() ) );
 
         reporter.registerSource( "ps", runningProcesses() );
 
@@ -288,7 +288,7 @@ public class DiagnosticsReportCommand extends AbstractCommand
         case "ps":
             return "include a list of running processes";
         case "version":
-            return "include version of neo4j";
+            return "include version of ONgDB";
         default:
         }
         throw new IllegalArgumentException( "Unknown classifier: " + classifier );

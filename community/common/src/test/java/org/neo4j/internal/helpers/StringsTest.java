@@ -58,10 +58,10 @@ class StringsTest
         assertEquals( "[a, b, z]", prettyPrint( new char[]{'a', 'b', 'z'} ) );
         assertEquals( "[ab, cd, zx]", prettyPrint( new String[]{"ab", "cd", "zx"} ) );
         assertEquals(
-                "[Cat, [http://neo4j.com, http://neo4j.org], Dog, [1, 2, 3], [[[Wolf]]]]",
+                "[Cat, [http://ongdb.com, http://ongdb.org], Dog, [1, 2, 3], [[[Wolf]]]]",
                 prettyPrint( new Object[]{
                         "Cat",
-                        new URI[]{URI.create( "http://neo4j.com" ), URI.create( "http://neo4j.org" )},
+                        new URI[]{URI.create( "http://ongdb.com" ), URI.create( "http://ongdb.org" )},
                         "Dog",
                         new int[]{1, 2, 3},
                         new Object[]{new Object[]{new Object[]{"Wolf"}}}} ) );

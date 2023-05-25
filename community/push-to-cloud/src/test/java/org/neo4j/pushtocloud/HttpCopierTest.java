@@ -929,7 +929,7 @@ class HttpCopierTest
     {
         String bearerToken = copier.authenticate( false, TEST_CONSOLE_URL, username, password, false );
         PushToCloudCommand.Source source = new PushToCloudCommand.Source( path, databaseSize );
-        copier.copy( true, TEST_CONSOLE_URL, "bolt+routing://deadbeef.databases.neo4j.io", source, sourceProvided, bearerToken );
+        copier.copy( true, TEST_CONSOLE_URL, "bolt+routing://deadbeef.databases.ongdb.io", source, sourceProvided, bearerToken );
     }
 
     private interface ThrowingRunnable

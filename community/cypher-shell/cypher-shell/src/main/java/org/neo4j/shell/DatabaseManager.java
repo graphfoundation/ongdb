@@ -47,7 +47,7 @@ public interface DatabaseManager
 {
     String ABSENT_DB_NAME = "";
     String SYSTEM_DB_NAME = "system";
-    String DEFAULT_DEFAULT_DB_NAME = "neo4j";
+    String DEFAULT_DEFAULT_DB_NAME = "ongdb";
 
     String DATABASE_UNAVAILABLE_ERROR_CODE = "Neo.TransientError.General.DatabaseUnavailable";
 

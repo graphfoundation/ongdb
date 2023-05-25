@@ -234,7 +234,7 @@ public enum NotificationCode
         Status.Statement.EagerOperatorWarning,
         "Using LOAD CSV with a large data set in a query where the execution plan contains the " +
         "Eager operator could potentially consume a lot of memory and is likely to not perform well. " +
-        "See the Neo4j Manual entry on the Eager operator for more information and hints on " +
+        "See the ONgDB Manual entry on the Eager operator for more information and hints on " +
         "how problems could be avoided."
     ),
     LARGE_LABEL_LOAD_CSV(

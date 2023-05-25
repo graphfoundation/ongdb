@@ -108,7 +108,7 @@ class CliArgHelperTest extends LocaleDependentTestBase
     {
         CliArgs arguments = CliArgHelper.parse();
         assertNotNull( arguments );
-        assertEquals( "neo4j", arguments.getScheme() );
+        assertEquals( "ongdb", arguments.getScheme() );
     }
 
     @Test
@@ -216,7 +216,7 @@ class CliArgHelperTest extends LocaleDependentTestBase
         CliArgs cliArgs = CliArgHelper.parse( "--address", "localhost:10000" );
         assertNotNull( cliArgs );
         assertNotNull( cliArgs );
-        assertEquals( "neo4j", cliArgs.getScheme() );
+        assertEquals( "ongdb", cliArgs.getScheme() );
         assertEquals( "localhost", cliArgs.getHost() );
         assertEquals( 10000, cliArgs.getPort() );
     }
@@ -224,9 +224,9 @@ class CliArgHelperTest extends LocaleDependentTestBase
     @Test
     void parseAddressWithRoutingContext()
     {
-        CliArgs cliArgs = CliArgHelper.parse( "--address", "neo4j://localhost:7697?policy=one" );
+        CliArgs cliArgs = CliArgHelper.parse( "--address", "ongdb://localhost:7697?policy=one" );
         assertNotNull( cliArgs );
-        assertEquals( "neo4j", cliArgs.getScheme() );
+        assertEquals( "ongdb", cliArgs.getScheme() );
         assertEquals( "localhost", cliArgs.getHost() );
         assertEquals( 7697, cliArgs.getPort() );
     }

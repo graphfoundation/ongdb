@@ -1048,10 +1048,10 @@ class ParboiledPrettifierIT extends CypherFunSuite {
         |YIELD *
         |RETURN DISTINCT type""".stripMargin,
 
-    "show fulltext index YIELD * where name = 'neo4j' Return *" ->
+    "show fulltext index YIELD * where name = 'ongdb' Return *" ->
       """SHOW FULLTEXT INDEXES
         |YIELD *
-        |  WHERE name = "neo4j"
+        |  WHERE name = "ongdb"
         |RETURN *""".stripMargin,
 
     "show index yield name order by name skip 1 limit 1" ->
@@ -1127,10 +1127,10 @@ class ParboiledPrettifierIT extends CypherFunSuite {
         |YIELD *
         |RETURN DISTINCT type""".stripMargin,
 
-    "show existence constraint YIELD * where name = 'neo4j' Return *" ->
+    "show existence constraint YIELD * where name = 'ongdb' Return *" ->
       """SHOW PROPERTY EXISTENCE CONSTRAINTS
         |YIELD *
-        |  WHERE name = "neo4j"
+        |  WHERE name = "ongdb"
         |RETURN *""".stripMargin,
 
     "show constraint yield name order by name skip 1 limit 1" ->
@@ -1173,10 +1173,10 @@ class ParboiledPrettifierIT extends CypherFunSuite {
         |YIELD *
         |RETURN DISTINCT mode""".stripMargin,
 
-    "show procedure YIELD * where name = 'neo4j' Return *" ->
+    "show procedure YIELD * where name = 'ongdb' Return *" ->
       """SHOW PROCEDURES
         |YIELD *
-        |  WHERE name = "neo4j"
+        |  WHERE name = "ongdb"
         |RETURN *""".stripMargin,
 
     "show procedure yield name order by name skip 1 limit 1" ->
@@ -1228,10 +1228,10 @@ class ParboiledPrettifierIT extends CypherFunSuite {
         |YIELD *
         |RETURN DISTINCT mode""".stripMargin,
 
-    "show function YIELD * where name = 'neo4j' Return *" ->
+    "show function YIELD * where name = 'ongdb' Return *" ->
       """SHOW ALL FUNCTIONS
         |YIELD *
-        |  WHERE name = "neo4j"
+        |  WHERE name = "ongdb"
         |RETURN *""".stripMargin,
 
     "show function yield name order by name skip 1 limit 1" ->
@@ -1274,10 +1274,10 @@ class ParboiledPrettifierIT extends CypherFunSuite {
         |YIELD *
         |RETURN DISTINCT database""".stripMargin,
 
-    "show transaction YIELD * where database = 'neo4j' Return *" ->
+    "show transaction YIELD * where database = 'ongdb' Return *" ->
       """SHOW TRANSACTIONS
         |YIELD *
-        |  WHERE database = "neo4j"
+        |  WHERE database = "ongdb"
         |RETURN *""".stripMargin,
 
     "show transaction yield currentQueryId order by currentQueryId skip 1 limit 1" ->
@@ -1309,14 +1309,14 @@ class ParboiledPrettifierIT extends CypherFunSuite {
     "Show Users" ->
       "SHOW USERS",
 
-    "Show Users where user = 'neo4j'" ->
+    "Show Users where user = 'ongdb'" ->
       """SHOW USERS
-        |  WHERE user = "neo4j"""".stripMargin,
+        |  WHERE user = "ongdb"""".stripMargin,
 
-    "Show Users YIELD * where user = 'neo4j' Return *" ->
+    "Show Users YIELD * where user = 'ongdb' Return *" ->
       """SHOW USERS
         |  YIELD *
-        |    WHERE user = "neo4j"
+        |    WHERE user = "ongdb"
         |  RETURN *""".stripMargin,
 
     "Show Users YIELD * Return DISTINCT roles, user" ->
@@ -1324,25 +1324,25 @@ class ParboiledPrettifierIT extends CypherFunSuite {
         |  YIELD *
         |  RETURN DISTINCT roles, user""".stripMargin,
 
-    "show users yield user order by user skip 1 limit 1 where user='neo4j'" ->
+    "show users yield user order by user skip 1 limit 1 where user='ongdb'" ->
       """SHOW USERS
         |  YIELD user
         |    ORDER BY user ASCENDING
         |    SKIP 1
         |    LIMIT 1
-        |    WHERE user = "neo4j"""".stripMargin,
+        |    WHERE user = "ongdb"""".stripMargin,
 
     "Show Current User" ->
       "SHOW CURRENT USER",
 
-    "Show Current User where user = 'neo4j'" ->
+    "Show Current User where user = 'ongdb'" ->
       """SHOW CURRENT USER
-        |  WHERE user = "neo4j"""".stripMargin,
+        |  WHERE user = "ongdb"""".stripMargin,
 
-    "Show Current User YIELD * where user = 'neo4j' Return *" ->
+    "Show Current User YIELD * where user = 'ongdb' Return *" ->
       """SHOW CURRENT USER
         |  YIELD *
-        |    WHERE user = "neo4j"
+        |    WHERE user = "ongdb"
         |  RETURN *""".stripMargin,
 
     "Show Current User YIELD * Return DISTINCT roles, user" ->
@@ -1350,13 +1350,13 @@ class ParboiledPrettifierIT extends CypherFunSuite {
         |  YIELD *
         |  RETURN DISTINCT roles, user""".stripMargin,
 
-    "show current user yield user order by user skip 1 limit 1 where user='neo4j'" ->
+    "show current user yield user order by user skip 1 limit 1 where user='ongdb'" ->
       """SHOW CURRENT USER
         |  YIELD user
         |    ORDER BY user ASCENDING
         |    SKIP 1
         |    LIMIT 1
-        |    WHERE user = "neo4j"""".stripMargin,
+        |    WHERE user = "ongdb"""".stripMargin,
 
     "create user abc set password 'foo'" ->
       "CREATE USER abc SET PASSWORD '******' CHANGE REQUIRED",
@@ -1547,10 +1547,10 @@ class ParboiledPrettifierIT extends CypherFunSuite {
       """SHOW ALL ROLES WITH USERS
         |  WHERE role = "admin"""".stripMargin,
 
-    "Show roles with users YIELD * where member = 'neo4j' Return *" ->
+    "Show roles with users YIELD * where member = 'ongdb' Return *" ->
       """SHOW ALL ROLES WITH USERS
         |  YIELD *
-        |    WHERE member = "neo4j"
+        |    WHERE member = "ongdb"
         |  RETURN *""".stripMargin,
 
     "Show roles with users YIELD * Return DISTINCT member, role" ->
@@ -1558,13 +1558,13 @@ class ParboiledPrettifierIT extends CypherFunSuite {
         |  YIELD *
         |  RETURN DISTINCT member, role""".stripMargin,
 
-    "show roles with users yield member order by member skip 1 limit 1 where member='neo4j'" ->
+    "show roles with users yield member order by member skip 1 limit 1 where member='ongdb'" ->
       """SHOW ALL ROLES WITH USERS
         |  YIELD member
         |    ORDER BY member ASCENDING
         |    SKIP 1
         |    LIMIT 1
-        |    WHERE member = "neo4j"""".stripMargin,
+        |    WHERE member = "ongdb"""".stripMargin,
 
     "Show Populated Roles" ->
       "SHOW POPULATED ROLES",
@@ -1595,9 +1595,9 @@ class ParboiledPrettifierIT extends CypherFunSuite {
     "Show Populated Roles with users" ->
       "SHOW POPULATED ROLES WITH USERS",
 
-    "Show Populated roles with users where member = 'neo4j'" ->
+    "Show Populated roles with users where member = 'ongdb'" ->
       """SHOW POPULATED ROLES WITH USERS
-        |  WHERE member = "neo4j"""".stripMargin,
+        |  WHERE member = "ongdb"""".stripMargin,
 
     "Show populated roles with users YIELD * where role = 'admin' Return *" ->
       """SHOW POPULATED ROLES WITH USERS
@@ -1610,13 +1610,13 @@ class ParboiledPrettifierIT extends CypherFunSuite {
         |  YIELD *
         |  RETURN DISTINCT member, role""".stripMargin,
 
-    "show Populated roles with users yield member order by member skip 1 limit 1 where member='neo4j'" ->
+    "show Populated roles with users yield member order by member skip 1 limit 1 where member='ongdb'" ->
       """SHOW POPULATED ROLES WITH USERS
         |  YIELD member
         |    ORDER BY member ASCENDING
         |    SKIP 1
         |    LIMIT 1
-        |    WHERE member = "neo4j"""".stripMargin,
+        |    WHERE member = "ongdb"""".stripMargin,
 
     "create role abc" ->
       "CREATE ROLE abc",
@@ -1735,13 +1735,13 @@ class ParboiledPrettifierIT extends CypherFunSuite {
         |  YIELD *
         |  RETURN DISTINCT action, role""".stripMargin,
 
-    "show user privileges yield user order by user skip 1 limit 1 where user='neo4j'" ->
+    "show user privileges yield user order by user skip 1 limit 1 where user='ongdb'" ->
       """SHOW USER PRIVILEGES
         |  YIELD user
         |    ORDER BY user ASCENDING
         |    SKIP 1
         |    LIMIT 1
-        |    WHERE user = "neo4j"""".stripMargin,
+        |    WHERE user = "ongdb"""".stripMargin,
 
     "show user abc privileges" ->
       "SHOW USER abc PRIVILEGES",
@@ -1827,10 +1827,10 @@ class ParboiledPrettifierIT extends CypherFunSuite {
     "catalog show databases" ->
       "SHOW DATABASES",
 
-    "Show Databases YIELD * where name = 'neo4j' Return *" ->
+    "Show Databases YIELD * where name = 'ongdb' Return *" ->
       """SHOW DATABASES
         |  YIELD *
-        |    WHERE name = "neo4j"
+        |    WHERE name = "ongdb"
         |  RETURN *""".stripMargin,
 
     "Show Databases YIELD * Return DISTINCT default, name" ->
@@ -1847,13 +1847,13 @@ class ParboiledPrettifierIT extends CypherFunSuite {
     "show database $foo" ->
       "SHOW DATABASE $foo",
 
-    "show database $foo yield name order by name skip 1 limit 1 where name='neo4j'" ->
+    "show database $foo yield name order by name skip 1 limit 1 where name='ongdb'" ->
       """SHOW DATABASE $foo
         |  YIELD name
         |    ORDER BY name ASCENDING
         |    SKIP 1
         |    LIMIT 1
-        |    WHERE name = "neo4j"""".stripMargin,
+        |    WHERE name = "ongdb"""".stripMargin,
 
     "show home database" ->
       "SHOW HOME DATABASE",

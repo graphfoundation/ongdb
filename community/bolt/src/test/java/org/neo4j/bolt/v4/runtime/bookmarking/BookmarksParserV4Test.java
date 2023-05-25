@@ -131,7 +131,7 @@ class BookmarksParserV4Test
     void shouldFailWhenParsingBadlyFormattedBookmark()
     {
         var bookmarkString = bookmarkString();
-        var wrongBookmarkString = "neo4j:1234:v9:xt998";
+        var wrongBookmarkString = "ongdb:1234:v9:xt998";
 
         var error = assertThrows( BookmarkParsingException.class,
                 () -> parser.parseBookmarks( metadata( List.of( bookmarkString, wrongBookmarkString ) ) ) );
@@ -143,7 +143,7 @@ class BookmarksParserV4Test
     @Test
     void shouldFailWhenProvidingBookmarkInOldFormat()
     {
-        var bookmarkString = "neo4j:bookmark:v1:tx10";
+        var bookmarkString = "ongdb:bookmark:v1:tx10";
 
         var error = assertThrows( BookmarkParsingException.class,
                 () -> parser.parseBookmarks( metadata( List.of( bookmarkString ) ) ) );
@@ -156,7 +156,7 @@ class BookmarksParserV4Test
     void shouldFailWhenMixingOldFormatAndNewFormat()
     {
         var bookmarkString = bookmarkString();
-        var wrongBookmarkString = "neo4j:bookmark:v1:tx10";
+        var wrongBookmarkString = "ongdb:bookmark:v1:tx10";
 
         var error = assertThrows( BookmarkParsingException.class,
                 () -> parser.parseBookmarks( metadata( List.of( bookmarkString, wrongBookmarkString ) ) ) );
@@ -312,7 +312,7 @@ class BookmarksParserV4Test
     @Test
     void shouldErrorWhenDatabaseIdContainsInvalidUuid()
     {
-        var wrongBookmarkString = "neo4j:1234";
+        var wrongBookmarkString = "ongdb:1234";
 
         var error = assertThrows( BookmarkParsingException.class,
                 () -> parser.parseBookmarks( metadata( List.of( wrongBookmarkString ) ) ) );
@@ -325,7 +325,7 @@ class BookmarksParserV4Test
     void shouldErrorWhenDatabaseIdContainsInvalidTxId() throws Exception
     {
         var namedDatabaseId = from( "foo", UUID.randomUUID() );
-        var wrongBookmarkString = String.format( "%s:neo4j", namedDatabaseId.databaseId().uuid() );
+        var wrongBookmarkString = String.format( "%s:ongdb", namedDatabaseId.databaseId().uuid() );
 
         var error = assertThrows( BookmarkParsingException.class,
                 () -> parser.parseBookmarks( metadata( List.of( wrongBookmarkString ) ) ) );

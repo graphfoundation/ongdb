@@ -730,7 +730,7 @@ class ShowSchemaCommandJavaCcParserTest extends ParserComparisonTestBase with Fu
 
   // Invalid clause order tests for indexes and constraints
 
-  for {prefix <- Seq("USE neo4j", "")
+  for {prefix <- Seq("USE ongdb", "")
        entity <- Seq("INDEXES", "CONSTRAINTS")} {
     test(s"$prefix SHOW $entity YIELD * WITH * MATCH (n) RETURN n") {
       // Can't parse WITH after SHOW

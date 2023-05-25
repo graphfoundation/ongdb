@@ -781,7 +781,7 @@ class ConfigTest
         Files.write( authEnabled, "true".getBytes() );
 
         // Create and populate the actual conf dir
-        Path confDir = testDirectory.directory( "neo4j.conf" );
+        Path confDir = testDirectory.directory( "ongdb.conf" );
 
         // -- Set up all the links --
         // Symbolic link to a dot file

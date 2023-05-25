@@ -96,7 +96,7 @@ class BookmarksParserV3Test
     @Test
     void shouldFailWhenParsingBadlyFormattedMultipleBookmarks()
     {
-        var bookmarkString = "neo4j:bookmark:v1:tx998";
+        var bookmarkString = "ongdb:bookmark:v1:tx998";
         var wrongBookmarkString = "neo4q:markbook:v9:xt998";
 
         var error = assertThrows( BookmarkFormatException.class,
@@ -108,7 +108,7 @@ class BookmarksParserV3Test
     @Test
     void shouldFailWhenNoNumberFollowsThePrefixInSingleBookmark()
     {
-        var bookmarkString = "neo4j:bookmark:v1:tx";
+        var bookmarkString = "ongdb:bookmark:v1:tx";
 
         var error = assertThrows( BookmarkFormatException.class,
                 () -> parse( singletonMap( "bookmark", bookmarkString ) ) );
@@ -119,8 +119,8 @@ class BookmarksParserV3Test
     @Test
     void shouldFailWhenNoNumberFollowsThePrefixInMultipleBookmarks()
     {
-        var bookmarkString = "neo4j:bookmark:v1:tx10";
-        var wrongBookmarkString = "neo4j:bookmark:v1:tx";
+        var bookmarkString = "ongdb:bookmark:v1:tx10";
+        var wrongBookmarkString = "ongdb:bookmark:v1:tx";
 
         var error = assertThrows( BookmarkFormatException.class,
                 () -> parse( singletonMap( "bookmarks", List.of( bookmarkString, wrongBookmarkString ) ) ) );
@@ -131,7 +131,7 @@ class BookmarksParserV3Test
     @Test
     void shouldFailWhenSingleBookmarkHasExtraneousTrailingCharacters()
     {
-        var bookmarkString = "neo4j:bookmark:v1:tx1234supercalifragilisticexpialidocious";
+        var bookmarkString = "ongdb:bookmark:v1:tx1234supercalifragilisticexpialidocious";
 
         var error = assertThrows( BookmarkFormatException.class,
                 () -> parse( singletonMap( "bookmark", bookmarkString ) ) );
@@ -142,8 +142,8 @@ class BookmarksParserV3Test
     @Test
     void shouldFailWhenMultipleBookmarksHaveExtraneousTrailingCharacters()
     {
-        var bookmarkString = "neo4j:bookmark:v1:tx1234";
-        var wrongBookmarkString = "neo4j:bookmark:v1:tx1234supercalifragilisticexpialidocious";
+        var bookmarkString = "ongdb:bookmark:v1:tx1234";
+        var wrongBookmarkString = "ongdb:bookmark:v1:tx1234supercalifragilisticexpialidocious";
 
         var error = assertThrows( BookmarkFormatException.class,
                 () -> parse( singletonMap( "bookmarks", List.of( bookmarkString, wrongBookmarkString ) ) ) );
@@ -155,8 +155,8 @@ class BookmarksParserV3Test
     void shouldUseMultipleBookmarksWhenGivenBothSingleAndMultiple() throws Exception
     {
         var metadata = metadata(
-                "neo4j:bookmark:v1:tx42",
-                List.of( "neo4j:bookmark:v1:tx10", "neo4j:bookmark:v1:tx99", "neo4j:bookmark:v1:tx3" ) );
+                "ongdb:bookmark:v1:tx42",
+                List.of( "ongdb:bookmark:v1:tx10", "ongdb:bookmark:v1:tx99", "ongdb:bookmark:v1:tx3" ) );
 
         var bookmark = parse( metadata );
 
@@ -168,7 +168,7 @@ class BookmarksParserV3Test
     void shouldUseMultipleBookmarksWhenGivenOnlyMultiple() throws Exception
     {
         var metadata = metadata( null,
-                List.of( "neo4j:bookmark:v1:tx85", "neo4j:bookmark:v1:tx47", "neo4j:bookmark:v1:tx15", "neo4j:bookmark:v1:tx6" ) );
+                List.of( "ongdb:bookmark:v1:tx85", "ongdb:bookmark:v1:tx47", "ongdb:bookmark:v1:tx15", "ongdb:bookmark:v1:tx6" ) );
 
         var bookmark = parse( metadata );
 
@@ -179,7 +179,7 @@ class BookmarksParserV3Test
     @Test
     void shouldUseSingleBookmarkWhenGivenOnlySingle() throws Exception
     {
-        var metadata = metadata( "neo4j:bookmark:v1:tx82", null );
+        var metadata = metadata( "ongdb:bookmark:v1:tx82", null );
 
         var bookmark = parse( metadata );
 
@@ -190,7 +190,7 @@ class BookmarksParserV3Test
     @Test
     void shouldUseSingleBookmarkWhenGivenBothSingleAndNullAsMultiple() throws Exception
     {
-        var metadata = metadata( "neo4j:bookmark:v1:tx58", null );
+        var metadata = metadata( "ongdb:bookmark:v1:tx58", null );
 
         var bookmark = parse( metadata );
 
@@ -201,7 +201,7 @@ class BookmarksParserV3Test
     @Test
     void shouldUseSingleBookmarkWhenGivenBothSingleAndEmptyListAsMultiple() throws Exception
     {
-        var metadata = metadata( "neo4j:bookmark:v1:tx67", emptyList() );
+        var metadata = metadata( "ongdb:bookmark:v1:tx67", emptyList() );
 
         var bookmark = parse( metadata );
 
@@ -212,7 +212,7 @@ class BookmarksParserV3Test
     @Test
     void shouldThrowWhenMultipleBookmarksIsNotAList()
     {
-        var metadata = metadata( "neo4j:bookmark:v1:tx67", new String[]{"neo4j:bookmark:v1:tx68"} );
+        var metadata = metadata( "ongdb:bookmark:v1:tx67", new String[]{"ongdb:bookmark:v1:tx68"} );
 
         var error = assertThrows( BookmarkFormatException.class, () -> parse( metadata ) );
 
@@ -223,8 +223,8 @@ class BookmarksParserV3Test
     void shouldThrowWhenMultipleBookmarksIsNotAListOfStrings()
     {
         var metadata = metadata(
-                "neo4j:bookmark:v1:tx67",
-                List.of( new String[]{"neo4j:bookmark:v1:tx50"}, new Object[]{"neo4j:bookmark:v1:tx89"} ) );
+                "ongdb:bookmark:v1:tx67",
+                List.of( new String[]{"ongdb:bookmark:v1:tx50"}, new Object[]{"ongdb:bookmark:v1:tx89"} ) );
 
         var error = assertThrows( BookmarkFormatException.class, () -> parse( metadata ) );
 
@@ -235,8 +235,8 @@ class BookmarksParserV3Test
     void shouldThrowWhenOneOfMultipleBookmarksIsMalformed()
     {
         var metadata = metadata(
-                "neo4j:bookmark:v1:tx67",
-                List.of( "neo4j:bookmark:v1:tx99", "neo4j:bookmark:v1:tx12", "neo4j:bookmark:www:tx99" ) );
+                "ongdb:bookmark:v1:tx67",
+                List.of( "ongdb:bookmark:v1:tx99", "ongdb:bookmark:v1:tx12", "ongdb:bookmark:www:tx99" ) );
 
         var error = assertThrows( BookmarkFormatException.class, () -> parse( metadata ) );
 
@@ -246,7 +246,7 @@ class BookmarksParserV3Test
     @Test
     void shouldThrowWhenSingleBookmarkIsMalformed()
     {
-        var metadata = metadata( "neo4j:strange-bookmark:v1:tx6", null );
+        var metadata = metadata( "ongdb:strange-bookmark:v1:tx6", null );
 
         var error = assertThrows( BookmarkFormatException.class, () -> parse( metadata ) );
 
@@ -271,7 +271,7 @@ class BookmarksParserV3Test
     void shouldSkipNullsInMultipleBookmarks() throws Exception
     {
         var metadata = metadata( null,
-                Arrays.asList( "neo4j:bookmark:v1:tx3", "neo4j:bookmark:v1:tx5", null, "neo4j:bookmark:v1:tx17" ) );
+                Arrays.asList( "ongdb:bookmark:v1:tx3", "ongdb:bookmark:v1:tx5", null, "ongdb:bookmark:v1:tx17" ) );
 
         var bookmark = parse( metadata );
 

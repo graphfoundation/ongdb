@@ -70,7 +70,7 @@ public class BoltStateMachineSPIImpl implements BoltStateMachineSPI
         this.authentication = authentication;
         this.transactionSpiProvider = transactionSpiProvider;
         this.boltChannel = boltChannel;
-        this.version = BOLT_SERVER_VERSION_PREFIX + Version.getNeo4jVersion();
+        this.version = BOLT_SERVER_VERSION_PREFIX + Version.getONgDBVersion();
     }
 
     @Override

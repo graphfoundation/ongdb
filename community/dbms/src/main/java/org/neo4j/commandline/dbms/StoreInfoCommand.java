@@ -74,8 +74,8 @@ import static picocli.CommandLine.Command;
 
 @Command(
         name = "store-info",
-        header = "Print information about a Neo4j database store.",
-        description = "Print information about a Neo4j database store, such as what version of Neo4j created it."
+        header = "Print information about an ONgDB database store.",
+        description = "Print information about an ONgDB database store, such as what version of ONgDB created it."
 )
 public class StoreInfoCommand extends AbstractCommand
 {

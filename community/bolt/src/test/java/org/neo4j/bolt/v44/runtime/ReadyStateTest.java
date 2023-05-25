@@ -140,7 +140,7 @@ class ReadyStateTest
         when( this.spi.impersonate( this.originalContext, "bob" ) )
                 .thenReturn( this.impersonationContext );
 
-        var message = new BeginMessage( MapValue.EMPTY, Collections.emptyList(), null, AccessMode.WRITE, Collections.emptyMap(), "neo4j", "bob" );
+        var message = new BeginMessage( MapValue.EMPTY, Collections.emptyList(), null, AccessMode.WRITE, Collections.emptyMap(), "ongdb", "bob" );
         var nextState = this.state.processBeginMessage( message, this.context );
 
         assertSame( this.inTransactionState, nextState );
@@ -156,7 +156,7 @@ class ReadyStateTest
         inOrder.verify( this.context ).getTransactionManager();
         inOrder.verify( this.context ).getLoginContext();
         inOrder.verify( this.context ).connectionId();
-        inOrder.verify( this.transactionManager ).begin( eq( this.impersonationContext ), eq( "neo4j" ), any(), eq( false ), any(), any(), any() );
+        inOrder.verify( this.transactionManager ).begin( eq( this.impersonationContext ), eq( "ongdb" ), any(), eq( false ), any(), any(), any() );
         inOrder.verify( this.context ).connectionState();
 
         // impersonation is cleared when leaving transaction state
@@ -169,7 +169,7 @@ class ReadyStateTest
         when( this.spi.impersonate( this.originalContext, "bob" ) )
                 .thenReturn( this.impersonationContext );
 
-        var message = new RouteMessage( MapValue.EMPTY, Collections.emptyList(), "neo4j", "bob" );
+        var message = new RouteMessage( MapValue.EMPTY, Collections.emptyList(), "ongdb", "bob" );
         var nextState = this.state.processRouteMessage( message, this.context );
 
         assertSame( this.state, nextState );
@@ -187,7 +187,7 @@ class ReadyStateTest
         inOrder.verify( this.context ).getTransactionManager();
         inOrder.verify( this.context ).connectionId();
 
-        inOrder.verify( this.routingTableGetter ).get( any(), eq( this.impersonationContext ), any(), any(), any(), eq( "neo4j" ), any() );
+        inOrder.verify( this.routingTableGetter ).get( any(), eq( this.impersonationContext ), any(), any(), any(), eq( "ongdb" ), any() );
 
         inOrder.verify( this.context ).impersonateUser( null );
     }
@@ -200,7 +200,7 @@ class ReadyStateTest
 
         var message =
                 new RunMessage( "RUN FANCY QUERY", MapValue.EMPTY, MapValue.EMPTY, Collections.emptyList(), null, AccessMode.WRITE, Collections.emptyMap(),
-                                "neo4j", "bob" );
+                                "ongdb", "bob" );
         var nextState = this.state.processRunMessage( message, this.context );
 
         assertSame( this.streamingState, nextState );
@@ -219,7 +219,7 @@ class ReadyStateTest
         inOrder.verify( this.context ).getLoginContext();
         inOrder.verify( this.context ).connectionId();
         inOrder.verify( this.transactionManager )
-               .runProgram( any(), eq( this.impersonationContext ), eq( "neo4j" ), eq( "RUN FANCY QUERY" ), any(), any(), eq( false ), any(), any(), any() );
+               .runProgram( any(), eq( this.impersonationContext ), eq( "ongdb" ), eq( "RUN FANCY QUERY" ), any(), any(), eq( false ), any(), any(), any() );
         inOrder.verify( this.context ).clock();
         inOrder.verify( this.context, times( 2 ) ).connectionState();
 

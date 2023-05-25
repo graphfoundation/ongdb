@@ -63,7 +63,7 @@ public class DriverUtils
 
     private static URI getBoltRoutingUri( ConnectorPortRegister portRegister )
     {
-        return getBoltUri( portRegister, "neo4j" );
+        return getBoltUri( portRegister, "ongdb" );
     }
 
     private static URI getBoltDirectUri( ConnectorPortRegister portRegister )

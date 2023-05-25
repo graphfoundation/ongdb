@@ -66,7 +66,7 @@ class ConnectorPortRegisterTest
     @Test
     void shouldRegisterSocketAddress()
     {
-        SocketAddress address = new SocketAddress( "neo4j.com", 12345 );
+        SocketAddress address = new SocketAddress( "ongdb.com", 12345 );
 
         portRegister.register( "key", address );
 
@@ -76,7 +76,7 @@ class ConnectorPortRegisterTest
     @Test
     void shouldDeregister()
     {
-        SocketAddress address = new SocketAddress( "neo4j.com", 42 );
+        SocketAddress address = new SocketAddress( "ongdb.com", 42 );
         portRegister.register( "key", address );
         assertNotNull( portRegister.getLocalAddress( "key" ) );
 
@@ -89,7 +89,7 @@ class ConnectorPortRegisterTest
     void shouldReturnAddressByKey()
     {
         SocketAddress address1 = new SocketAddress( "localhost", 7574 );
-        SocketAddress address2 = new SocketAddress( "neo4j.com", 8989 );
+        SocketAddress address2 = new SocketAddress( "ongdb.com", 8989 );
         SocketAddress address3 = new SocketAddress( "8.8.8.8", 80 );
 
         portRegister.register( "key1", address1 );
@@ -97,7 +97,7 @@ class ConnectorPortRegisterTest
         portRegister.register( "key3", address3 );
 
         verifyAddress( "key1", "localhost", 7574 );
-        verifyAddress( "key2", "neo4j.com", 8989 );
+        verifyAddress( "key2", "ongdb.com", 8989 );
         verifyAddress( "key3", "8.8.8.8", 80 );
     }
 

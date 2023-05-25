@@ -111,7 +111,7 @@ class Neo4jExtensionRegisterIT
     {
         String currentOffset = currentTimeZoneOffsetString();
 
-        assertThat( contentOf( "neo4j.log", databaseService ) ).contains( currentOffset );
+        assertThat( contentOf( "ongdb.log", databaseService ) ).contains( currentOffset );
         assertThat( contentOf( "debug.log", databaseService ) ).contains( currentOffset );
     }
 
@@ -131,7 +131,7 @@ class Neo4jExtensionRegisterIT
     void fixturesRegistered( Neo4j neo4j ) throws Exception
     {
         // Then
-        HTTP.Response response = HTTP.POST( neo4j.httpURI() + "db/neo4j/tx/commit",
+        HTTP.Response response = HTTP.POST( neo4j.httpURI() + "db/ongdb/tx/commit",
                 quotedJson( "{'statements':[{'statement':'MATCH (n:User) RETURN n'}]}" ) );
 
         assertThat( response.get( "results" ).get( 0 ).get( "data" ).size() ).isEqualTo( 2 );

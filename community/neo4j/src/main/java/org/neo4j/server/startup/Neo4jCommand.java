@@ -52,8 +52,8 @@ import org.neo4j.util.VisibleForTesting;
 import static org.neo4j.server.startup.Bootloader.EXIT_CODE_OK;
 
 @CommandLine.Command(
-        name = "Neo4j",
-        description = "Neo4j database server CLI.",
+        name = "ONgDB",
+        description = "ONgDB database server CLI.",
         synopsisSubcommandLabel = "<COMMAND>"
 )
 class Neo4jCommand extends BootloaderCommand
@@ -122,7 +122,7 @@ class Neo4jCommand extends BootloaderCommand
         @Override
         public Integer call()
         {
-            bootloader.ctx.out.println( "neo4j " + org.neo4j.kernel.internal.Version.getNeo4jVersion() );
+            bootloader.ctx.out.println( "ongdb " + org.neo4j.kernel.internal.Version.getONgDBVersion() );
             return EXIT_CODE_OK;
         }
     }

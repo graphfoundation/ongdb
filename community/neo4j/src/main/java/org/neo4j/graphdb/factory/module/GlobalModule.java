@@ -469,7 +469,7 @@ public class GlobalModule
     private CapabilitiesService loadCapabilities()
     {
         var service = CapabilitiesService.newCapabilities( globalConfig, globalDependencies );
-        service.set( DBMSCapabilities.dbms_instance_version, Version.getNeo4jVersion() );
+        service.set( DBMSCapabilities.dbms_instance_version, Version.getONgDBVersion() );
         service.set( DBMSCapabilities.dbms_instance_kernel_version, Version.getKernelVersion() );
         service.set( DBMSCapabilities.dbms_instance_edition, dbmsInfo.edition.toString() );
         service.set( DBMSCapabilities.dbms_instance_operational_mode, dbmsInfo.operationalMode.toString() );

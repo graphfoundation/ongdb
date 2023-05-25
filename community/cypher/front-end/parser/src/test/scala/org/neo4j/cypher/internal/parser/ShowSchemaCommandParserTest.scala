@@ -259,7 +259,7 @@ class ShowSchemaCommandParserTest extends SchemaCommandsParserTestBase {
     failsToParse
   }
 
-  for (prefix <- Seq("USE neo4j", "")) {
+  for (prefix <- Seq("USE ongdb", "")) {
 
     test(s"$prefix SHOW INDEXES YIELD * WITH * MATCH (n) RETURN n") {
       // Can't parse WITH after SHOW

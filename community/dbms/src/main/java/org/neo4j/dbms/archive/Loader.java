@@ -150,7 +150,7 @@ public class Loader
             String bytes = "?";
             if ( StandardCompressionFormat.ZSTD.isFormat( decompressor ) )
             {
-                format = "Neo4j ZSTD Dump.";
+                format = "ONgDB ZSTD Dump.";
                 // Important: Only the ZSTD compressed archives have any archive metadata.
                 readArchiveMetadata( decompressor );
                 files = String.valueOf( progressPrinter.maxFiles );

@@ -97,7 +97,7 @@ import static org.neo4j.configuration.GraphDatabaseSettings.strict_config_valida
 @IgnoreApiCheck
 public class Config implements Configuration
 {
-    public static final String DEFAULT_CONFIG_FILE_NAME = "neo4j.conf";
+    public static final String DEFAULT_CONFIG_FILE_NAME = "ongdb.conf";
     public static final String DEFAULT_CONFIG_DIR_NAME = "conf";
 
     public static final class Builder

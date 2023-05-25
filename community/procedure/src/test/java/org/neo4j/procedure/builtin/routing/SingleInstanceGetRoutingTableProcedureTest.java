@@ -218,7 +218,7 @@ public class SingleInstanceGetRoutingTableProcedureTest
     void shouldReturnRoutingTable( Config config, String clientAddress ) throws Exception
     {
         var portRegister = mock( ConnectorPortRegister.class );
-        config = newConfig( config, Duration.ofMinutes( 42 ), new SocketAddress( "neo4j.com", 7687 ) );
+        config = newConfig( config, Duration.ofMinutes( 42 ), new SocketAddress( "ongdb.com", 7687 ) );
 
         var proc = newProcedure( portRegister, config );
 
@@ -226,7 +226,7 @@ public class SingleInstanceGetRoutingTableProcedureTest
 
         assertEquals( Duration.ofMinutes( 42 ).toMillis(), result.ttlMillis() );
 
-        var address = clientAddress != null ? socketAddressFor( clientAddress ) : new SocketAddress( "neo4j.com", 7687 );
+        var address = clientAddress != null ? socketAddressFor( clientAddress ) : new SocketAddress( "ongdb.com", 7687 );
         assertEquals( singletonList( address ), result.readEndpoints() );
         assertEquals( expectedWriters( address ), result.writeEndpoints() );
         assertEquals( singletonList( address ), result.routeEndpoints() );
@@ -282,7 +282,7 @@ public class SingleInstanceGetRoutingTableProcedureTest
         var ctx = ctxContents.build();
 
         var portRegister = mock( ConnectorPortRegister.class );
-        var config = newConfig( Config.defaults( SERVER_DEFAULTS ), Duration.ofSeconds( 100 ), new SocketAddress( "neo4j.com", 7687 ) );
+        var config = newConfig( Config.defaults( SERVER_DEFAULTS ), Duration.ofSeconds( 100 ), new SocketAddress( "ongdb.com", 7687 ) );
         config.set( routing_default_router, routingMode );
 
         var databaseReferenceRepo = new TestDatabaseReferenceRepository.Fixed( REF );
@@ -305,7 +305,7 @@ public class SingleInstanceGetRoutingTableProcedureTest
         ctxContents.add( ADDRESS_CONTEXT_KEY, Values.stringValue( "not a socket address" ) );
         var ctx = ctxContents.build();
 
-        var config = newConfig( Config.defaults( SERVER_DEFAULTS ), Duration.ofSeconds( 100 ), new SocketAddress( "neo4j.com", 7687 ) );
+        var config = newConfig( Config.defaults( SERVER_DEFAULTS ), Duration.ofSeconds( 100 ), new SocketAddress( "ongdb.com", 7687 ) );
         config.set( routing_default_router, routingMode );
 
         var portRegister = mock( ConnectorPortRegister.class );
@@ -326,7 +326,7 @@ public class SingleInstanceGetRoutingTableProcedureTest
         // given
         var advertisedBoldPort = 8776;
         var defaultBoltPort = 7687;
-        var advertisedBoltAddress = new SocketAddress( "neo4j.com", advertisedBoldPort );
+        var advertisedBoltAddress = new SocketAddress( "ongdb.com", advertisedBoldPort );
         config.set( BoltConnector.advertised_address, advertisedBoltAddress );
         var clientProvidedHost = clientAddress == null ? "mydomain.com" : clientAddress.split( ":" )[0];
         var ctxContents = new MapValueBuilder();
@@ -334,7 +334,7 @@ public class SingleInstanceGetRoutingTableProcedureTest
         var ctx = ctxContents.build();
 
         var portRegister = mock( ConnectorPortRegister.class );
-        when( portRegister.getLocalAddress( BoltConnector.NAME ) ).thenReturn( new HostnamePort( "neo4j.com", advertisedBoldPort ) );
+        when( portRegister.getLocalAddress( BoltConnector.NAME ) ).thenReturn( new HostnamePort( "ongdb.com", advertisedBoldPort ) );
         var logProvider = new AssertableLogProvider();
 
         var databaseReferenceRepo = new TestDatabaseReferenceRepository.Fixed( REF );
@@ -362,13 +362,13 @@ public class SingleInstanceGetRoutingTableProcedureTest
         // given
         var advertisedBoldPort = 8776;
         var clientProvidedPort = 0;
-        var advertisedBoltAddress = new SocketAddress( "neo4j.com", advertisedBoldPort );
+        var advertisedBoltAddress = new SocketAddress( "ongdb.com", advertisedBoldPort );
         config.set( BoltConnector.advertised_address, advertisedBoltAddress );
         var clientProvidedHost = clientAddress == null ? "mydomain.com" : clientAddress.split( ":" )[0];
         var clientProvidedHostPortStr = String.format( "%s:%d", clientProvidedHost, clientProvidedPort );
 
         var portRegister = mock( ConnectorPortRegister.class );
-        when( portRegister.getLocalAddress( BoltConnector.NAME ) ).thenReturn( new HostnamePort( "neo4j.com", advertisedBoldPort ) );
+        when( portRegister.getLocalAddress( BoltConnector.NAME ) ).thenReturn( new HostnamePort( "ongdb.com", advertisedBoldPort ) );
 
         var databaseReferenceRepo = new TestDatabaseReferenceRepository.Fixed( REF );
         var databaseAvailabilityChecker = new TestDatabaseAvailabilityChecker().withDatabase( REF, true );
@@ -393,15 +393,15 @@ public class SingleInstanceGetRoutingTableProcedureTest
         // given
         var advertisedBoldPort = 8776;
         var clientProvidedPort = -5;
-        var advertisedBoltAddress = new SocketAddress( "neo4j.com", advertisedBoldPort );
-        var clientProvidedHostPortStr = String.format( "%s:%d", "my.neo4j-service.com", clientProvidedPort );
+        var advertisedBoltAddress = new SocketAddress( "ongdb.com", advertisedBoldPort );
+        var clientProvidedHostPortStr = String.format( "%s:%d", "my.ongdb-service.com", clientProvidedPort );
 
         var ctxContents = new MapValueBuilder();
         ctxContents.add( ADDRESS_CONTEXT_KEY, Values.stringValue( clientProvidedHostPortStr ) );
         var ctx = ctxContents.build();
 
         var portRegister = mock( ConnectorPortRegister.class );
-        when( portRegister.getLocalAddress( BoltConnector.NAME ) ).thenReturn( new HostnamePort( "neo4j.com", advertisedBoldPort ) );
+        when( portRegister.getLocalAddress( BoltConnector.NAME ) ).thenReturn( new HostnamePort( "ongdb.com", advertisedBoldPort ) );
         var config = newConfig( Config.defaults( SERVER_DEFAULTS ), Duration.ofSeconds( 100 ), advertisedBoltAddress );
         config.set( routing_default_router, routingMode );
 
@@ -423,15 +423,15 @@ public class SingleInstanceGetRoutingTableProcedureTest
         // given
         var advertisedBoldPort = 8776;
         var clientProvidedPort = "bolt";
-        var advertisedBoltAddress = new SocketAddress( "neo4j.com", advertisedBoldPort );
-        var clientProvidedHostPortStr = String.format( "%s:%s", "my.neo4j-service.com", clientProvidedPort );
+        var advertisedBoltAddress = new SocketAddress( "ongdb.com", advertisedBoldPort );
+        var clientProvidedHostPortStr = String.format( "%s:%s", "my.ongdb-service.com", clientProvidedPort );
 
         var ctxContents = new MapValueBuilder();
         ctxContents.add( ADDRESS_CONTEXT_KEY, Values.stringValue( clientProvidedHostPortStr ) );
         var ctx = ctxContents.build();
 
         var portRegister = mock( ConnectorPortRegister.class );
-        when( portRegister.getLocalAddress( BoltConnector.NAME ) ).thenReturn( new HostnamePort( "neo4j.com", advertisedBoldPort ) );
+        when( portRegister.getLocalAddress( BoltConnector.NAME ) ).thenReturn( new HostnamePort( "ongdb.com", advertisedBoldPort ) );
         var config = newConfig( Config.defaults( SERVER_DEFAULTS ), Duration.ofSeconds( 100 ), advertisedBoltAddress );
         config.set( routing_default_router, routingMode );
         var databaseReferenceRepo = new TestDatabaseReferenceRepository.Fixed( REF );
@@ -450,14 +450,14 @@ public class SingleInstanceGetRoutingTableProcedureTest
     {
         // given
         var advertisedBoldPort = 8776;
-        var advertisedBoltAddress = new SocketAddress( "neo4j.com", advertisedBoldPort );
-        var clientProvidedHost = "my.neo4j-service.com";
+        var advertisedBoltAddress = new SocketAddress( "ongdb.com", advertisedBoldPort );
+        var clientProvidedHost = "my.ongdb-service.com";
 
         var config = newConfig( Config.defaults( SERVER_DEFAULTS ), Duration.ofSeconds( 100 ), advertisedBoltAddress );
         config.set( GraphDatabaseSettings.routing_default_router, GraphDatabaseSettings.RoutingMode.SERVER );
 
         var portRegister = mock( ConnectorPortRegister.class );
-        when( portRegister.getLocalAddress( BoltConnector.NAME ) ).thenReturn( new HostnamePort( "neo4j.com", advertisedBoldPort ) );
+        when( portRegister.getLocalAddress( BoltConnector.NAME ) ).thenReturn( new HostnamePort( "ongdb.com", advertisedBoldPort ) );
 
         var databaseReferenceRepo = new TestDatabaseReferenceRepository.Fixed( REF );
         var databaseAvailabilityChecker = new TestDatabaseAvailabilityChecker().withDatabase( REF, true );
@@ -504,9 +504,9 @@ public class SingleInstanceGetRoutingTableProcedureTest
     void shouldUseClientProvidedHostAndPortAsAdvertisedAddress( RoutingMode routingMode ) throws Exception
     {
         // given
-        var advertisedBoltAddress = new SocketAddress( "neo4j.com", 7687 );
+        var advertisedBoltAddress = new SocketAddress( "ongdb.com", 7687 );
         var clientProvidedPort = 8888;
-        var clientProvidedHost = "my.neo4j-service.com";
+        var clientProvidedHost = "my.ongdb-service.com";
         var clientProvidedHostPortStr = String.format( "%s:%d", clientProvidedHost, clientProvidedPort );
         var config = newConfig( Config.defaults( SERVER_DEFAULTS ), Duration.ofSeconds( 100 ), advertisedBoltAddress );
         config.set( routing_default_router, routingMode );

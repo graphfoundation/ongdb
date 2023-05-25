@@ -110,7 +110,7 @@ public class GraphDatabaseSettings implements SettingsDeclaration
     public static final long UNSPECIFIED_TIMEOUT = 0L;
 
     public static final String SYSTEM_DATABASE_NAME = NamedDatabaseId.SYSTEM_DATABASE_NAME;
-    public static final String DEFAULT_DATABASE_NAME = "neo4j";
+    public static final String DEFAULT_DATABASE_NAME = "ongdb";
 
     public static final String DEFAULT_DATA_DIR_NAME = "data";
     public static final String DEFAULT_DATABASES_ROOT_DIR_NAME = "databases";
@@ -132,29 +132,29 @@ public class GraphDatabaseSettings implements SettingsDeclaration
     public static final Setting<String> default_database =
             newBuilder( "dbms.default_database", DATABASENAME, DEFAULT_DATABASE_NAME ).build();
 
-    @Description( "Path of the data directory. You must not configure more than one Neo4j installation to use the " +
+    @Description( "Path of the data directory. You must not configure more than one ONgDB installation to use the " +
             "same data directory." )
     public static final Setting<Path> data_directory = newBuilder( "dbms.directories.data", PATH, Path.of( DEFAULT_DATA_DIR_NAME ) )
             .setDependency( ongdb_home )
             .immutable()
             .build();
 
-    @Description( "Root location where Neo4j will store transaction logs for configured databases." )
+    @Description( "Root location where ONgDB will store transaction logs for configured databases." )
     public static final Setting<Path> transaction_logs_root_path =
             newBuilder( "dbms.directories.transaction.logs.root", PATH, Path.of( DEFAULT_TX_LOGS_ROOT_DIR_NAME ) )
                     .setDependency( data_directory ).immutable().build();
 
-    @Description( "Root location where Neo4j will store scripts for configured databases." )
+    @Description( "Root location where ONgDB will store scripts for configured databases." )
     public static final Setting<Path> script_root_path =
             newBuilder( "dbms.directories.script.root", PATH, Path.of( DEFAULT_SCRIPT_FOLDER ) )
                     .setDependency( data_directory ).immutable().build();
 
-    @Description( "Root location where Neo4j will store database dumps optionally produced when dropping said databases." )
+    @Description( "Root location where ONgDB will store database dumps optionally produced when dropping said databases." )
     public static final Setting<Path> database_dumps_root_path =
             newBuilder( "dbms.directories.dumps.root", PATH, Path.of( DEFAULT_DUMPS_DIR_NAME ) )
                     .setDependency( data_directory ).immutable().build();
 
-    @Description( "Only allow read operations from this Neo4j instance. " +
+    @Description( "Only allow read operations from This ONgDB instance. " +
             "This mode still requires write access to the directory for lock purposes. " +
             "Replaced by: dbms.databases.default_to_read_only, dbms.databases.read_only, dbms.databases.writable." )
     @Deprecated( since = "4.3.0", forRemoval = true )
@@ -176,7 +176,7 @@ public class GraphDatabaseSettings implements SettingsDeclaration
             .dynamic().build();
 
     @Description( "A strict configuration validation will prevent the database from starting up if unknown " +
-            "configuration options are specified in the neo4j settings namespace (such as dbms., cypher., etc)." )
+            "configuration options are specified in the ongdb settings namespace (such as dbms., cypher., etc)." )
     public static final Setting<Boolean> strict_config_validation = newBuilder( "dbms.config.strict_validation", BOOL, false ).build();
 
     @Description( "Whether to allow a store upgrade in case the current version of the database starts against an older version of the store." )
@@ -215,7 +215,7 @@ public class GraphDatabaseSettings implements SettingsDeclaration
                   "When 'dbms.mode' is clustered (CORE, READ_REPLICA) this setting is not recognized." )
     public static final Setting<Boolean> enable_clustering_in_standalone = newBuilder( "dbms.clustering.enable", BOOL, false ).build();
 
-    @Description( "Routing strategy for neo4j:// protocol connections.\n" +
+    @Description( "Routing strategy for ongdb:// protocol connections.\n" +
                   "Default is `CLIENT`, using client-side routing, with server-side routing as a fallback (if enabled).\n" +
                   "When set to `SERVER`, client-side routing is short-circuited, and requests will rely on server-side routing " +
                   "(which must be enabled for proper operation, i.e. `dbms.routing.enabled=true`).\n" +
@@ -223,7 +223,7 @@ public class GraphDatabaseSettings implements SettingsDeclaration
     public static final Setting<RoutingMode> routing_default_router = newBuilder( "dbms.routing.default_router", ofEnum( RoutingMode.class ),
                                                                                   RoutingMode.CLIENT ).build();
 
-    @Description( "Always use client side routing (regardless of the default router) for neo4j:// protocol connections to these domains. " +
+    @Description( "Always use client side routing (regardless of the default router) for ongdb:// protocol connections to these domains. " +
                   "A comma separated list of domains. Wildcards (*) are supported." )
     public static final Setting<Set<String>> client_side_router_enforce_for_domains = newBuilder( "dbms.routing.client_side.enforce_for_domains",
                                                                                                   setOf( STRING ), Set.of() ).dynamic().build();
@@ -276,7 +276,7 @@ public class GraphDatabaseSettings implements SettingsDeclaration
             "plan to perform an exhaustive depth-first search if the fast algorithm finds no paths. However, " +
             "the exhaustive search may be orders of magnitude slower than the fast algorithm. If it is critical " +
             "that queries terminate as soon as possible, it is recommended that this option be set to `true`, " +
-            "which means that Neo4j will never consider using the exhaustive search for shortestPath queries. " +
+            "which means that ONgDB will never consider using the exhaustive search for shortestPath queries. " +
             "However, please note that if no paths are found, an error will be thrown at run time, which will " +
             "need to be handled by the application." )
     public static final Setting<Boolean> forbid_exhaustive_shortestpath =
@@ -332,22 +332,22 @@ public class GraphDatabaseSettings implements SettingsDeclaration
             newBuilder( "cypher.min_replan_interval", DURATION, ofSeconds( 10 ) ).build();
 
     @Description( "Determines if Cypher will allow using file URLs when loading data using `LOAD CSV`. Setting this "
-            + "value to `false` will cause Neo4j to fail `LOAD CSV` clauses that load data from the file system." )
+            + "value to `false` will cause ONgDB to fail `LOAD CSV` clauses that load data from the file system." )
     public static final Setting<Boolean> allow_file_urls =
             newBuilder( "dbms.security.allow_csv_import_from_file_urls", BOOL, true ).build();
 
     @Description( "Sets the root directory for file URLs used with the Cypher `LOAD CSV` clause. This should be set to a " +
-            "directory relative to the Neo4j installation path, restricting access to only those files within that directory " +
+            "directory relative to the ONgDB installation path, restricting access to only those files within that directory " +
             "and its subdirectories. For example the value \"import\" will only enable access to files within the 'import' folder. " +
             "Removing this setting will disable the security feature, allowing all files in the local system to be imported. " +
-            "Setting this to an empty field will allow access to all files within the Neo4j installation folder." )
+            "Setting this to an empty field will allow access to all files within the ONgDB installation folder." )
     public static final Setting<Path> load_csv_file_url_root =
             newBuilder( "dbms.directories.import", PATH, null ).immutable().setDependency( ongdb_home ).build();
 
     @Description( "Selects whether to conform to the standard https://tools.ietf.org/html/rfc4180 for interpreting " +
             "escaped quotation characters in CSV files loaded using `LOAD CSV`. Setting this to `false` will use" +
             " the standard, interpreting repeated quotes '\"\"' as a single in-lined quote, while `true` will " +
-            "use the legacy convention originally supported in Neo4j 3.0 and 3.1, allowing a backslash to " +
+            "use the legacy convention originally supported in ONgDB 3.0 and 3.1, allowing a backslash to " +
             "include quotes in-lined in fields." )
     public static final Setting<Boolean> csv_legacy_quote_escaping =
             newBuilder( "dbms.import.csv.legacy_quote_escaping", BOOL, true ).build();
@@ -421,7 +421,7 @@ public class GraphDatabaseSettings implements SettingsDeclaration
     public static final Setting<FormattedLogFormat> store_user_log_format =
             newBuilder( "dbms.logs.user.format", ofEnum( FormattedLogFormat.class ), null ).setDependency( default_log_format ).build();
 
-    @Description( "Threshold for rotation of the user log (_neo4j.log_). If set to 0, log rotation is " +
+    @Description( "Threshold for rotation of the user log (_ongdb.log_). If set to 0, log rotation is " +
             "disabled. Note that if dbms.logs.user.stdout_enabled is enabled this setting will be ignored." )
     public static final Setting<Long> store_user_log_rotation_threshold =
             newBuilder( "dbms.logs.user.rotation.size", BYTES, 0L ).addConstraint( range( 0L, Long.MAX_VALUE ) ).build();
@@ -443,7 +443,7 @@ public class GraphDatabaseSettings implements SettingsDeclaration
     public static final Setting<ZoneId> db_temporal_timezone = newBuilder( "db.temporal.timezone", TIMEZONE, ZoneOffset.UTC ).build();
 
     @Deprecated( since = "4.2.0", forRemoval = true )
-    @Description( "Minimum time interval after last rotation of the user log (_neo4j.log_) before it " +
+    @Description( "Minimum time interval after last rotation of the user log (_ongdb.log_) before it " +
             "may be rotated again. Note that if dbms.logs.user.stdout_enabled is enabled this setting will be ignored." )
     public static final Setting<Duration> store_user_log_rotation_delay =
             newBuilder( "dbms.logs.user.rotation.delay", DURATION, ofSeconds( 300 ) ).build();
@@ -453,7 +453,7 @@ public class GraphDatabaseSettings implements SettingsDeclaration
     public static final Setting<Duration> store_internal_log_rotation_delay =
             newBuilder( "dbms.logs.debug.rotation.delay", DURATION, ofSeconds( 300 ) ).build();
 
-    @Description( "Maximum number of history files for the user log (_neo4j.log_). " +
+    @Description( "Maximum number of history files for the user log (_ongdb.log_). " +
                   "Note that if dbms.logs.user.stdout_enabled is enabled this setting will be ignored." )
     public static final Setting<Integer> store_user_log_max_archives =
             newBuilder( "dbms.logs.user.rotation.keep_number", INT, 7 ).addConstraint( min( 1 ) ).build();
@@ -615,7 +615,7 @@ public class GraphDatabaseSettings implements SettingsDeclaration
             newBuilder( "dbms.index.default_schema_provider", STRING, SchemaIndex.NATIVE_BTREE10.toString() ).build();
 
     // Store settings
-    @Description( "Tell Neo4j how long logical transaction logs should be kept to backup the database." +
+    @Description( "Tell ONgDB how long logical transaction logs should be kept to backup the database." +
             "For example, \"10 days\" will prune logical logs that only contain transactions older than 10 days." +
             "Alternatively, \"100k txs\" will keep the 100k latest transactions from each database and prune any older transactions." )
     public static final Setting<String> keep_logical_logs = newBuilder( "dbms.tx_log.rotation.retention_policy", STRING, "7 days" )
@@ -646,19 +646,19 @@ public class GraphDatabaseSettings implements SettingsDeclaration
                     .addConstraint( min( kibiBytes( 128 ) ) )
                     .build();
 
-    @Description( "Specify if Neo4j should try to preallocate logical log file in advance." )
+    @Description( "Specify if ONgDB should try to preallocate logical log file in advance." )
     public static final Setting<Boolean> preallocate_logical_logs = newBuilder( "dbms.tx_log.preallocate", BOOL, true ).dynamic().build();
 
-    @Description( "Specify if Neo4j should try to preallocate store files as they grow." )
+    @Description( "Specify if ONgDB should try to preallocate store files as they grow." )
     public static final Setting<Boolean> preallocate_store_files = newBuilder( "dbms.store.files.preallocate", BOOL, true ).build();
 
-    @Description( "If `true`, Neo4j will abort recovery if transaction log files are missing. Setting " +
-            "this to `false` will allow Neo4j to create new empty missing files for the already existing  " +
+    @Description( "If `true`, ONgDB will abort recovery if transaction log files are missing. Setting " +
+            "this to `false` will allow ONgDB to create new empty missing files for the already existing  " +
             "database, but the integrity of the database might be compromised." )
     public static final Setting<Boolean> fail_on_missing_files = newBuilder( "dbms.recovery.fail_on_missing_files", BOOL, true ).build();
 
     @Description( "The amount of memory to use for mapping the store files, in bytes (or kilobytes with the 'k' " +
-            "suffix, megabytes with 'm' and gigabytes with 'g'). If Neo4j is running on a dedicated server, " +
+            "suffix, megabytes with 'm' and gigabytes with 'g'). If ONgDB is running on a dedicated server, " +
             "then it is generally recommended to leave about 2-4 gigabytes for the operating system, give the " +
             "JVM enough heap to hold all your transaction state and query context, and then leave the rest for " +
             "the page cache. If no page cache memory is configured, then a heuristic setting is computed based " +
@@ -764,7 +764,7 @@ public class GraphDatabaseSettings implements SettingsDeclaration
             newBuilder( "dbms.logs.query.transaction.enabled", ofEnum( LogQueryLevel.class ), LogQueryLevel.OFF ).dynamic().build();
 
     @Description( "Send user logs to the process stdout. " +
-            "If this is disabled then logs will instead be sent to the file _neo4j.log_ located in the logs directory." )
+            "If this is disabled then logs will instead be sent to the file _ongdb.log_ located in the logs directory." )
     public static final Setting<Boolean> store_user_log_to_stdout = newBuilder( "dbms.logs.user.stdout_enabled", BOOL, true ).build();
 
     @Description( "Path of the logs directory." )
@@ -780,7 +780,7 @@ public class GraphDatabaseSettings implements SettingsDeclaration
             .build();
 
     @Description( "Path to the user log file. Note that if dbms.logs.user.stdout_enabled is enabled this setting will be ignored." )
-    public static final Setting<Path> store_user_log_path = newBuilder( "dbms.logs.user.path", PATH, Path.of( "neo4j.log" ) )
+    public static final Setting<Path> store_user_log_path = newBuilder( "dbms.logs.user.path", PATH, Path.of( "ongdb.log" ) )
             .setDependency( logs_directory )
             .immutable()
             .build();
@@ -875,7 +875,7 @@ public class GraphDatabaseSettings implements SettingsDeclaration
 
     // Security settings
 
-    @Description( "Enable auth requirement to access Neo4j." )
+    @Description( "Enable auth requirement to access ONgDB." )
     @DocumentedDefaultValue( "true" ) // Should document server defaults.
     public static final Setting<Boolean> auth_enabled = newBuilder( "dbms.security.auth_enabled", BOOL, false ).build();
 

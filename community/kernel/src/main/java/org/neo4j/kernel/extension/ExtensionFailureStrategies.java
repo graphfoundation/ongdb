@@ -68,9 +68,9 @@ public class ExtensionFailureStrategies
                 message.append( " because it a reflective access to a class, method, or field, that is not in the class path: " );
             }
             message.append( '\'' ).append( e.getMessage() ).append( '\'' );
-            message.append( ". The most common cause of this problem, is that Neo4j has been upgraded without also upgrading all" );
+            message.append( ". The most common cause of this problem, is that ONgDB has been upgraded without also upgrading all" );
             message.append( "installed extensions, such as APOC. " );
-            message.append( "Make sure that all of your extensions are build against your specific version of Neo4j." );
+            message.append( "Make sure that all of your extensions are build against your specific version of ONgDB." );
         }
         else
         {

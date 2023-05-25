@@ -88,7 +88,7 @@ class ReadOnlyIT extends ExclusiveWebContainerTestBase
         String message = error.get( "message" ).asText();
 
         assertEquals( "Neo.ClientError.General.WriteOnReadOnlyAccessDatabase", code );
-        assertThat( message ).contains( "The database is in read-only mode on this Neo4j instance" );
+        assertThat( message ).contains( "The database is in read-only mode on this ONgDB instance" );
     }
 
     @Test
@@ -105,7 +105,7 @@ class ReadOnlyIT extends ExclusiveWebContainerTestBase
         String message = error.get( "message" ).asText();
 
         assertEquals( "Neo.ClientError.General.WriteOnReadOnlyAccessDatabase", code );
-        assertThat( message ).contains( "The database is in read-only mode on this Neo4j instance" );
+        assertThat( message ).contains( "The database is in read-only mode on this ONgDB instance" );
     }
 
 }

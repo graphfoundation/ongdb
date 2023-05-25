@@ -58,13 +58,13 @@ public class UserMessagesHandler
 
     public String getWelcomeMessage()
     {
-        String neo4j = "Neo4j";
+        String ongdb = "ONgDB";
         if ( !protocolVersion.isEmpty() )
         {
             Version version = Versions.version( protocolVersion );
-            neo4j += " using Bolt protocol version " + version.major() + "." + version.minor();
+            ongdb += " using Bolt protocol version " + version.major() + "." + version.minor();
         }
-        AnsiFormattedText welcomeMessage = AnsiFormattedText.from( "Connected to " + neo4j + " at " ).bold( connectionConfig.driverUrl() );
+        AnsiFormattedText welcomeMessage = AnsiFormattedText.from( "Connected to " + ongdb + " at " ).bold( connectionConfig.driverUrl() );
 
         if ( !connectionConfig.username().isEmpty() )
         {

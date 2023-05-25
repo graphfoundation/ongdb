@@ -183,7 +183,7 @@ case class UnknownRuntime(requestedRuntime: String) extends CypherRuntime[Runtim
   override def correspondingRuntimeOption: Option[CypherRuntimeOption] = None
 
   override def compileToExecutable(logicalQuery: LogicalQuery, context: RuntimeContext): ExecutionPlan =
-    throw new CantCompileQueryException(s"This version of Neo4j does not support requested runtime: $requestedRuntime")
+    throw new CantCompileQueryException(s"This version of ONgDB does not support requested runtime: $requestedRuntime")
 }
 
 /**

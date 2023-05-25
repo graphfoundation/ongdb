@@ -51,7 +51,7 @@ import static com.codahale.metrics.MetricRegistry.name;
 @Documented( ".Core Metrics" )
 public class CoreMetrics extends LifecycleAdapter
 {
-    private static final String CAUSAL_CLUSTERING_PREFIX = "neo4j.causal_clustering.core";
+    private static final String CAUSAL_CLUSTERING_PREFIX = "ongdb.causal_clustering.core";
 
     @Documented( "Append index of the RAFT log" )
     public static final String APPEND_INDEX = name( CAUSAL_CLUSTERING_PREFIX, "append_index" );

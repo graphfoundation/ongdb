@@ -60,16 +60,16 @@ import static org.neo4j.cli.AdminTool.VersionProvider;
 import static picocli.CommandLine.IVersionProvider;
 
 @Command(
-        name = "neo4j-admin",
-        description = "Neo4j database administration tool.",
+        name = "ongdb-admin",
+        description = "ONgDB database administration tool.",
         mixinStandardHelpOptions = true,
         versionProvider = VersionProvider.class,
         sortOptions = false,
         footerHeading = "\nEnvironment variables:\n",
         footer = {
-                "  NEO4J_CONF    Path to directory which contains neo4j.conf.",
-                "  NEO4J_DEBUG   Set to anything to enable debug output.",
-                "  NEO4J_HOME    Neo4j home directory.",
+                "  ONGDB_CONF    Path to directory which contains ongdb.conf.",
+                "  ONGDB_DEBUG   Set to anything to enable debug output.",
+                "  ONGDB_HOME    ONgDB home directory.",
                 "  HEAP_SIZE     Set JVM maximum heap size during command execution. Takes a number and a unit, for example 512m.",
                 "  JAVA_OPTS     Used to pass custom setting to Java Virtual Machine. Refer to JVM documentation about the exact format. " +
                         "This variable is incompatible with HEAP_SIZE and takes precedence over HEAP_SIZE."
@@ -92,8 +92,8 @@ public final class AdminTool
     public static void main( String[] args )
     {
         IllegalAccessLoggerSuppressor.suppress();
-        final var homeDir = getDirOrExit( "NEO4J_HOME" );
-        final var confDir = getDirOrExit( "NEO4J_CONF" );
+        final var homeDir = getDirOrExit( "ONGDB_HOME" );
+        final var confDir = getDirOrExit( "ONGDB_CONF" );
         final var ctx = new ExecutionContext( homeDir, confDir );
         final var exitCode = execute( ctx, args );
         System.exit( exitCode );
@@ -170,7 +170,7 @@ public final class AdminTool
         @Override
         public String[] getVersion()
         {
-            return new String[]{Version.getNeo4jVersion()};
+            return new String[]{Version.getONgDBVersion()};
         }
     }
 }

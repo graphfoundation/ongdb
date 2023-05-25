@@ -187,8 +187,8 @@ abstract class BootloaderOsAbstraction
     private void printBadRuntime()
     {
         ctx.err.println( "WARNING! You are using an unsupported Java runtime." );
-        ctx.err.println( "* Please use Oracle(R) Java(TM) 11, OpenJDK(TM) 11 to run Neo4j." );
-        ctx.err.println( "* Please see https://neo4j.com/docs/ for Neo4j installation instructions." );
+        ctx.err.println( "* Please use Oracle(R) Java(TM) 11, OpenJDK(TM) 11 to run ONgDB." );
+        ctx.err.println( "* Please see https://www.graphfoundation.org/ongdb/ for ONgDB installation instructions." );
     }
 
     private static Path getJava()

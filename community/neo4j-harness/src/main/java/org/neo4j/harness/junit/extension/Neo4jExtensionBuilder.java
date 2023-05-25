@@ -96,7 +96,7 @@ public class Neo4jExtensionBuilder
     }
 
     /**
-     * Configure the Neo4j instance. Configuration here can be both configuration aimed at the server as well as the
+     * Configure the ONgDB instance. Configuration here can be both configuration aimed at the server as well as the
      * database tuning options. Please refer to the Neo4j Manual for details on available configuration options.
      *
      * @param key the config key
@@ -138,7 +138,7 @@ public class Neo4jExtensionBuilder
     }
 
     /**
-     * Enhance Neo4j instance with provided extensions.
+     * Enhance ONgDB instance with provided extensions.
      * Please refer to the Neo4j Manual for details on extensions, how to write and use them.
      * @param extensionFactories extension factories
      * @return this configurator instance
@@ -150,7 +150,7 @@ public class Neo4jExtensionBuilder
     }
 
     /**
-     * Disable web server on configured Neo4j instance.
+     * Disable web server on configured ONgDB instance.
      * For cases where web server is not required to test specific functionality it can be fully disabled using this tuning option.
      * @return this configurator instance.
      */

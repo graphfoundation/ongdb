@@ -97,7 +97,7 @@ class DiagnosticsReportCommandIT
         configDir = testDirectory.directory( "config-dir" );
 
         // Touch config
-        configFile = configDir.resolve( "neo4j.conf" );
+        configFile = configDir.resolve( "ongdb.conf" );
         Files.createFile( configFile );
 
         // To make sure files are resolved from the working directory
@@ -120,11 +120,11 @@ class DiagnosticsReportCommandIT
         assertThat( pid ).isNotEqualTo( 0 );
 
         // Write config file
-        Files.createFile( testDirectory.file( "neo4j.conf" ) );
+        Files.createFile( testDirectory.file( "ongdb.conf" ) );
 
-        // write neo4j.pid file
+        // write ongdb.pid file
         Path run = testDirectory.directory( "run" );
-        Files.write( run.resolve( "neo4j.pid" ), String.valueOf( pid ).getBytes() );
+        Files.write( run.resolve( "ongdb.pid" ), String.valueOf( pid ).getBytes() );
 
         // Run command, should detect running instance
         try
@@ -168,11 +168,11 @@ class DiagnosticsReportCommandIT
         assertThat( pid ).isNotEqualTo( 0 );
 
         // Write config file
-        Files.createFile( testDirectory.file( "neo4j.conf" ) );
+        Files.createFile( testDirectory.file( "ongdb.conf" ) );
 
-        // write neo4j.pid file
+        // write ongdb.pid file
         Path run = testDirectory.directory( "run" );
-        Files.write( run.resolve( "neo4j.pid" ), String.valueOf( pid ).getBytes() );
+        Files.write( run.resolve( "ongdb.pid" ), String.valueOf( pid ).getBytes() );
 
         // Run command, should detect running instance
         try
@@ -209,15 +209,15 @@ class DiagnosticsReportCommandIT
     void shouldHandleRotatedLogFiles() throws IOException
     {
         // Write config file and specify a custom name for the neo4j.log file.
-        Path confFile = testDirectory.createFile( "neo4j.conf" );
-        Files.write( confFile, singletonList( GraphDatabaseSettings.store_user_log_path.name() + "=custom.neo4j.log.name" ) );
+        Path confFile = testDirectory.createFile( "ongdb.conf" );
+        Files.write( confFile, singletonList( GraphDatabaseSettings.store_user_log_path.name() + "=custom.ongdb.log.name" ) );
 
         // Create some log files that should be found. debug.log has already been created during setup.
         testDirectory.directory( "logs" );
         testDirectory.createFile( "logs/debug.log" );
         testDirectory.createFile( "logs/debug.log.1.zip" );
-        testDirectory.createFile( "logs/custom.neo4j.log.name" );
-        testDirectory.createFile( "logs/custom.neo4j.log.name.1" );
+        testDirectory.createFile( "logs/custom.ongdb.log.name" );
+        testDirectory.createFile( "logs/custom.ongdb.log.name.1" );
 
         String[] args = {"logs", "--to=" + testDirectory.absolutePath() + "/reports"};
         Path homeDir = testDirectory.homePath();
@@ -235,8 +235,8 @@ class DiagnosticsReportCommandIT
             Path logsDir = fileSystem.getPath( "logs" );
             assertTrue( Files.exists( logsDir.resolve( "debug.log" ) ) );
             assertTrue( Files.exists( logsDir.resolve( "debug.log.1.zip" ) ) );
-            assertTrue( Files.exists( logsDir.resolve( "custom.neo4j.log.name" ) ) );
-            assertTrue( Files.exists( logsDir.resolve( "custom.neo4j.log.name.1" ) ) );
+            assertTrue( Files.exists( logsDir.resolve( "custom.ongdb.log.name" ) ) );
+            assertTrue( Files.exists( logsDir.resolve( "custom.ongdb.log.name.1" ) ) );
         }
     }
 
@@ -301,9 +301,9 @@ class DiagnosticsReportCommandIT
             diagnosticsReportCommand.execute();
 
             assertThat( baos.toString() ).isEqualTo( String.format(
-                    "Finding running instance of neo4j%n" +
-                            "No running instance of neo4j was found. Online reports will be omitted.%n" +
-                            "If neo4j is running but not detected, you can supply the process id of the running instance with --pid%n" +
+                    "Finding running instance of ONgDB%n" +
+                            "No running instance of ONgDB was found. Online reports will be omitted.%n" +
+                            "If ONgDB is running but not detected, you can supply the process id of the running instance with --pid%n" +
                             "All available classifiers:%n" +
                             "  config     include configuration file%n" +
                             "  logs       include log files%n" +
@@ -311,7 +311,7 @@ class DiagnosticsReportCommandIT
                             "  ps         include a list of running processes%n" +
                             "  tree       include a view of the tree structure of the data directory%n" +
                             "  tx         include transaction logs%n" +
-                            "  version    include version of neo4j%n" ) );
+                            "  version    include version of ONgDB%n" ) );
         }
     }
 

@@ -189,7 +189,7 @@ class TerminateTransactionsCommandJavaCCParserTest extends ParserComparisonTestB
 
   // Invalid clause order
 
-  for (prefix <- Seq("USE neo4j", "")) {
+  for (prefix <- Seq("USE ongdb", "")) {
     test(s"$prefix TERMINATE TRANSACTIONS WITH * MATCH (n) RETURN n") {
       // Can't parse WITH after TERMINATE
       assertJavaCCExceptionStart(testName, "Invalid input 'WITH': expected")

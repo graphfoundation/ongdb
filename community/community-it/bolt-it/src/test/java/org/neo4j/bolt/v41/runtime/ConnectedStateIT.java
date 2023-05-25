@@ -75,7 +75,7 @@ class ConnectedStateIT extends BoltStateMachineV41StateTestBase
 
         // Then
         RecordedBoltResponse response = recorder.nextResponse();
-        assertThat( response ).satisfies( succeededWithMetadata( "server", BOLT_SERVER_VERSION_PREFIX + Version.getNeo4jVersion() ) );
+        assertThat( response ).satisfies( succeededWithMetadata( "server", BOLT_SERVER_VERSION_PREFIX + Version.getONgDBVersion() ) );
         assertThat( response ).satisfies( succeededWithMetadata( "connection_id", "conn-v41-test-boltchannel-id" ) );
         assertThat( machine.state() ).isInstanceOf( ReadyState.class );
     }

@@ -82,7 +82,7 @@ public class NeoWebServerIT extends AbstractRestFunctionalTestBase
                 .POST( txCommitUri( "foo" ) );
 
         assertThat( response.status() ).isEqualTo( 406 );
-        assertThat( response.rawContent() ).contains( "application/json", "application/vnd.neo4j.jolt" );
+        assertThat( response.rawContent() ).contains( "application/json", "application/vnd.ongdb.jolt" );
     }
 
     @Test

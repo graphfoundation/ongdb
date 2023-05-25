@@ -169,7 +169,7 @@ class ProcedureCallPipeTest
     }
 
     val transactionalContext = mock[QueryTransactionalContext]
-    val databaseID = DatabaseIdFactory.from("neo4j", UUID.randomUUID())
+    val databaseID = DatabaseIdFactory.from("ongdb", UUID.randomUUID())
 
     Mockito.when(transactionalContext.databaseId).thenReturn(databaseID)
 

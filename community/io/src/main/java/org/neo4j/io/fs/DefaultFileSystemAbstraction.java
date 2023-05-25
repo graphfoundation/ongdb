@@ -76,7 +76,7 @@ import static java.nio.file.StandardOpenOption.WRITE;
  */
 public class DefaultFileSystemAbstraction implements FileSystemAbstraction
 {
-    static final String UNABLE_TO_CREATE_DIRECTORY_FORMAT = "Unable to write directory path [%s] for Neo4j store.";
+    static final String UNABLE_TO_CREATE_DIRECTORY_FORMAT = "Unable to write directory path [%s] for ONgDB store.";
     public static final Set<OpenOption> WRITE_OPTIONS = Set.of( READ, WRITE, CREATE );
     private static final Set<OpenOption> READ_OPTIONS = Set.of( READ );
     private static final OpenOption[] APPEND_OPTIONS = new OpenOption[]{CREATE, APPEND};

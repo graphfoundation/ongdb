@@ -60,7 +60,7 @@ public final class FunctionalTestHelper
 
     private String databaseUri()
     {
-        return databaseUri( "neo4j" );
+        return databaseUri( "ongdb" );
     }
 
     private String databaseUri( String databaseName )

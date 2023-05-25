@@ -69,7 +69,7 @@ public class ExclusiveWebContainerTestBase
     @BeforeAll
     public static void ensureServerNotRunning() throws Exception
     {
-        System.setProperty( "org.neo4j.useInsecureCertificateGeneration", "true" );
+        System.setProperty( "org.ongdb.useInsecureCertificateGeneration", "true" );
         suppressAll().call( (Callable<Void>) () ->
         {
             WebContainerHolder.ensureNotRunning();
@@ -85,7 +85,7 @@ public class ExclusiveWebContainerTestBase
 
     protected static String txEndpoint()
     {
-        return txEndpoint( "neo4j" );
+        return txEndpoint( "ongdb" );
     }
 
     private static String txEndpoint( String database )
@@ -95,7 +95,7 @@ public class ExclusiveWebContainerTestBase
 
     protected static String txCommitEndpoint()
     {
-        return txCommitEndpoint( "neo4j" );
+        return txCommitEndpoint( "ongdb" );
     }
 
     protected static String txCommitEndpoint( String database )

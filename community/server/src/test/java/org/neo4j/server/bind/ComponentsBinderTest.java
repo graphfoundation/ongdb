@@ -113,7 +113,7 @@ class ComponentsBinderTest
 
         ApplicationHandler handler = new ApplicationHandler( resourceConfig );
 
-        ContainerRequest request = new ContainerRequest( URI.create( "http://neo4j.com/" ), URI.create( "http://neo4j.com/" ), GET,
+        ContainerRequest request = new ContainerRequest( URI.create( "http://ongdb.com/" ), URI.create( "http://ongdb.com/" ), GET,
                 mock( SecurityContext.class ), mock( PropertiesDelegate.class ), null );
 
         MemorizingContainerResponseWriter responseWriter = new MemorizingContainerResponseWriter();

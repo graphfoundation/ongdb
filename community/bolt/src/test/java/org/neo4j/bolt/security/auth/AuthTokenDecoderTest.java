@@ -70,6 +70,6 @@ public abstract class AuthTokenDecoderTest
 
     private static Map<String,Object> authTokenMapWithCredential( String pwd )
     {
-        return map( AuthToken.PRINCIPAL, "neo4j", AuthToken.CREDENTIALS, pwd );
+        return map( AuthToken.PRINCIPAL, "ongdb", AuthToken.CREDENTIALS, pwd );
     }
 }

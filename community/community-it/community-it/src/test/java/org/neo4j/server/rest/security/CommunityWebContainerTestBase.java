@@ -91,12 +91,12 @@ public class CommunityWebContainerTestBase extends ExclusiveWebContainerTestBase
 
     String databaseURL()
     {
-        return testWebContainer.getBaseUri().resolve( "db/neo4j/" ).toString();
+        return testWebContainer.getBaseUri().resolve( "db/ongdb/" ).toString();
     }
 
     protected String txCommitURL()
     {
-        return txCommitURL( "neo4j" );
+        return txCommitURL( "ongdb" );
     }
 
     protected String txCommitURL( String database )
@@ -106,7 +106,7 @@ public class CommunityWebContainerTestBase extends ExclusiveWebContainerTestBase
 
     protected static void assertPermissionErrorAtDataAccess( HTTP.Response response ) throws JsonParseException
     {
-        assertPermissionError( response, Collections.singletonList( CredentialsExpired.code().serialize() ), "ACCESS on database 'neo4j' is not allowed." );
+        assertPermissionError( response, Collections.singletonList( CredentialsExpired.code().serialize() ), "ACCESS on database 'ongdb' is not allowed." );
     }
 
     static void assertPermissionErrorAtSystemAccess( HTTP.Response response ) throws JsonParseException

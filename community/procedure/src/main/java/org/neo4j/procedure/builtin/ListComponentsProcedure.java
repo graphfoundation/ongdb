@@ -73,7 +73,7 @@ import static org.neo4j.values.storable.Values.utf8Value;
  */
 public class ListComponentsProcedure extends CallableProcedure.BasicProcedure
 {
-    private static final TextValue NEO4J_KERNEL = utf8Value( "Neo4j Kernel" );
+    private static final TextValue NEO4J_KERNEL = utf8Value( "ONgDB Kernel" );
     private final TextValue neo4jVersion;
     private final TextValue neo4jEdition;
 

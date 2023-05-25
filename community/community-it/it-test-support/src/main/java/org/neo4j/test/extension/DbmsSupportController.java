@@ -78,7 +78,7 @@ public class DbmsSupportController
 {
     private static final String DBMS_KEY = "service";
     private static final String CONTROLLER_KEY = "controller";
-    private static final ExtensionContext.Namespace DBMS_NAMESPACE = ExtensionContext.Namespace.create( "org", "neo4j", "dbms" );
+    private static final ExtensionContext.Namespace DBMS_NAMESPACE = ExtensionContext.Namespace.create( "org", "ongdb", "dbms" );
 
     private final ExtensionContext context;
     private final TestInstances testInstances;

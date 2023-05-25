@@ -226,7 +226,7 @@ public class CliArgHelper
         ArgumentParser parser = ArgumentParsers.newFor( "cypher-shell" ).build()
                 .defaultHelp( true )
                 .description( format(
-                        "A command line shell where you can execute Cypher against an instance of Neo4j. " +
+                        "A command line shell where you can execute Cypher against an instance of ONgDB. " +
                         "By default the shell is interactive but you can use it for scripting by passing cypher " +
                         "directly on the command line or by piping a file with cypher statements (requires Powershell on Windows)." +
                         "%n%n" +
@@ -244,10 +244,10 @@ public class CliArgHelper
                  .setDefault( "" )
                  .help( "password to connect with. Can also be specified using environment variable " + ConnectionConfig.PASSWORD_ENV_VAR );
         connGroup.addArgument( "--encryption" )
-                 .help( "whether the connection to Neo4j should be encrypted. This must be consistent with Neo4j's " +
+                 .help( "whether the connection to ONgDB should be encrypted. This must be consistent with ONgDB's " +
                         "configuration. If choosing '" + Encryption.DEFAULT.name().toLowerCase() +
                         "' the encryption setting is deduced from the specified address. " +
-                        "For example the 'neo4j+ssc' protocol would use encryption." )
+                        "For example the 'bolt+ssc' protocol would use encryption." )
                  .choices( new CollectionArgumentChoice<>(
                          Encryption.TRUE.name().toLowerCase(),
                          Encryption.FALSE.name().toLowerCase(),
@@ -309,7 +309,7 @@ public class CliArgHelper
               .action( new StoreTrueArgumentAction() );
 
         parser.addArgument( "--driver-version" )
-              .help( "print version of the Neo4j Driver used and exit" )
+              .help( "print version of the ONgDB Driver used and exit" )
               .dest( "driver-version" )
               .action( new StoreTrueArgumentAction() );
 
@@ -322,7 +322,7 @@ public class CliArgHelper
         parser.addArgument( "--change-password" )
               .action( Arguments.storeTrue() )
               .dest( "change-password" )
-              .help( "change neo4j user password and exit" );
+              .help( "change ongdb user password and exit" );
 
         return parser;
     }

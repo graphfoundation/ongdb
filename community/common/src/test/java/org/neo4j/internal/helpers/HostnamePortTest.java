@@ -243,7 +243,7 @@ class HostnamePortTest
         // Given
         String hostname1 = InetAddress.getLocalHost().getHostName();
         String host1 = InetAddress.getLocalHost().getHostAddress();
-        String hostname2 = "neo4j.org";
+        String hostname2 = "ongdb.org";
 
         assertDoesNotThrow( () -> InetAddress.getByName( hostname2 ) );
         assumeFalse( hostname1.equals( hostname2 ) );
@@ -306,7 +306,7 @@ class HostnamePortTest
 
         String host1 = InetAddress.getLocalHost().getHostName().replace( '.', '-' );
         // any other hostname?
-        String host2 = "neo4j.org";
+        String host2 = "ongdb.org";
 
         assertDoesNotThrow( () -> InetAddress.getByName( host2 ) );
         assumeFalse( host1.equals( host2 ) );

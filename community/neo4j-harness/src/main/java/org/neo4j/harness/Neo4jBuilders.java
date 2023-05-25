@@ -51,7 +51,7 @@ import org.neo4j.harness.internal.InProcessNeo4jBuilder;
 public final class Neo4jBuilders
 {
     /**
-     * Create a builder capable of starting an in-process Neo4j instance. This builder will use the standard java temp
+     * Create a builder capable of starting an in-process ONgDB instance. This builder will use the standard java temp
      * directory (configured via the 'java.io.tmpdir' system property) as the location for the temporary Neo4j directory.
      */
     public static Neo4jBuilder newInProcessBuilder()
@@ -60,7 +60,7 @@ public final class Neo4jBuilders
     }
 
     /**
-     * Create a builder capable of starting an in-process Neo4j instance, running in a subdirectory of the specified directory.
+     * Create a builder capable of starting an in-process ONgDB instance, running in a subdirectory of the specified directory.
      * @deprecated Use {@link #newInProcessBuilder(Path)}.
      */
     @Deprecated( forRemoval = true )
@@ -70,7 +70,7 @@ public final class Neo4jBuilders
     }
 
     /**
-     * Create a builder capable of starting an in-process Neo4j instance, running in a subdirectory of the specified directory.
+     * Create a builder capable of starting an in-process ONgDB instance, running in a subdirectory of the specified directory.
      */
     public static Neo4jBuilder newInProcessBuilder( Path workingDirectory )
     {

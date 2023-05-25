@@ -87,7 +87,7 @@ import static picocli.CommandLine.Command;
                 "%n" +
                 "All checks except 'check-graph' can be quite expensive so it may be useful to turn them off" +
                 " for very large databases. Increasing the heap size can also be a good idea." +
-                " See 'neo4j-admin help' for details."
+                " See 'ongdb-admin help' for details."
 
 )
 public class CheckConsistencyCommand extends AbstractCommand

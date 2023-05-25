@@ -319,7 +319,7 @@ class CsvImporter implements Importer
     private static void printOverview( Path storeDir, Map<Set<String>, List<Path[]>> nodesFiles, Map<String, List<Path[]>> relationshipsFiles,
         Configuration configuration, PrintStream out )
     {
-        out.println( "Neo4j version: " + Version.getNeo4jVersion() );
+        out.println( "ONgDB version: " + Version.getONgDBVersion() );
         out.println( "Importing the contents of these files into " + storeDir + ":" );
         printInputFiles( "Nodes", nodesFiles, out );
         printInputFiles( "Relationships", relationshipsFiles, out );

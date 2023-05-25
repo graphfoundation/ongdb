@@ -463,7 +463,7 @@ public class ObservedClusterMembersTest
     private ClusterConfiguration clusterConfiguration( URI... uris )
     {
         LogProvider logProvider = FormattedLogProvider.toOutputStream( System.out );
-        ClusterConfiguration toReturn = new ClusterConfiguration( "neo4j.ha", logProvider, asList( uris ) );
+        ClusterConfiguration toReturn = new ClusterConfiguration( "ongdb.ha", logProvider, asList( uris ) );
         toReturn.joined( clusterId1, clusterUri1 );
         toReturn.joined( clusterId2, clusterUri2 );
         if ( uris.length == 3 )

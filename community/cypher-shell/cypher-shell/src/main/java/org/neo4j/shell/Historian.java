@@ -67,7 +67,7 @@ public interface Historian
     static File defaultHistoryFile()
     {
         // Storing in same directory as driver uses
-        File dir = new File( getProperty( "user.home" ), ".neo4j" );
+        File dir = new File( getProperty( "user.home" ), ".ongdb" );
         return new File( dir, ".cypher_shell_history" );
     }
 

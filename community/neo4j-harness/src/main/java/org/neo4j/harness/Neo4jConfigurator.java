@@ -54,7 +54,7 @@ import org.neo4j.procedure.UserFunction;
 public interface Neo4jConfigurator<T extends Neo4jConfigurator>
 {
     /**
-     * Configure the Neo4j instance. Configuration here can be both configuration aimed at the server as well as the
+     * Configure the ONgDB instance. Configuration here can be both configuration aimed at the server as well as the
      * database tuning options. Please refer to the Neo4j Manual for details on available configuration options.
      *
      * @param key the config setting
@@ -83,7 +83,7 @@ public interface Neo4jConfigurator<T extends Neo4jConfigurator>
     T withUnmanagedExtension( String mountPath, String packageName );
 
     /**
-     * Enhance Neo4j instance with provided extensions.
+     * Enhance ONgDB instance with provided extensions.
      * Please refer to the Neo4j Manual for details on extensions, how to write and use them.
      * @param extensionFactories extension factories
      * @return this configurator instance
@@ -91,7 +91,7 @@ public interface Neo4jConfigurator<T extends Neo4jConfigurator>
     T withExtensionFactories( Iterable<ExtensionFactory<?>> extensionFactories );
 
     /**
-     * Disable web server on configured Neo4j instance.
+     * Disable web server on configured ONgDB instance.
      * For cases where web server is not required to test specific functionality it can be fully disabled using this tuning option.
      * @return this configurator instance.
      */

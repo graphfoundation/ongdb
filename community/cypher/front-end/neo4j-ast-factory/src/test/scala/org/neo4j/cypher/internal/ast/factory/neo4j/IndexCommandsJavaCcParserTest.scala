@@ -90,7 +90,7 @@ class IndexCommandsJavaCcParserTest extends ParserComparisonTestBase with FunSui
         assertSameAST(testName)
       }
 
-      test(s"USE neo4j CREATE INDEX FOR $pattern ON (n2.name)") {
+      test(s"USE ongdb CREATE INDEX FOR $pattern ON (n2.name)") {
         assertSameAST(testName)
       }
 
@@ -203,7 +203,7 @@ class IndexCommandsJavaCcParserTest extends ParserComparisonTestBase with FunSui
         assertSameAST(testName)
       }
 
-      test(s"USE neo4j CREATE RANGE INDEX FOR $pattern ON (n2.name)") {
+      test(s"USE ongdb CREATE RANGE INDEX FOR $pattern ON (n2.name)") {
         assertSameAST(testName)
       }
 
@@ -312,7 +312,7 @@ class IndexCommandsJavaCcParserTest extends ParserComparisonTestBase with FunSui
         assertSameAST(testName)
       }
 
-      test(s"USE neo4j CREATE BTREE INDEX FOR $pattern ON (n2.name)") {
+      test(s"USE ongdb CREATE BTREE INDEX FOR $pattern ON (n2.name)") {
         assertSameAST(testName)
       }
 
@@ -421,7 +421,7 @@ class IndexCommandsJavaCcParserTest extends ParserComparisonTestBase with FunSui
         assertSameAST(testName)
       }
 
-      test(s"USE neo4j CREATE LOOKUP INDEX FOR $pattern ON EACH $function") {
+      test(s"USE ongdb CREATE LOOKUP INDEX FOR $pattern ON EACH $function") {
         assertSameAST(testName)
       }
 
@@ -490,7 +490,7 @@ class IndexCommandsJavaCcParserTest extends ParserComparisonTestBase with FunSui
         assertSameAST(testName)
       }
 
-      test(s"USE neo4j CREATE FULLTEXT INDEX FOR $pattern ON EACH [n2.name]") {
+      test(s"USE ongdb CREATE FULLTEXT INDEX FOR $pattern ON EACH [n2.name]") {
         assertSameAST(testName)
       }
 
@@ -616,7 +616,7 @@ class IndexCommandsJavaCcParserTest extends ParserComparisonTestBase with FunSui
         assertSameAST(testName)
       }
 
-      test(s"USE neo4j CREATE TEXT INDEX FOR $pattern ON (n2.name)") {
+      test(s"USE ongdb CREATE TEXT INDEX FOR $pattern ON (n2.name)") {
         assertSameAST(testName)
       }
 
@@ -729,7 +729,7 @@ class IndexCommandsJavaCcParserTest extends ParserComparisonTestBase with FunSui
         assertSameAST(testName)
       }
 
-      test(s"USE neo4j CREATE POINT INDEX FOR $pattern ON (n2.name)") {
+      test(s"USE ongdb CREATE POINT INDEX FOR $pattern ON (n2.name)") {
         assertSameAST(testName)
       }
 

@@ -441,7 +441,7 @@ class StartOldDbOnCurrentVersionAndCreateFusionIndexIT
 
     private static Path tempStoreDirectory() throws IOException
     {
-        return Files.createTempDirectory( "create-db-neo4j" );
+        return Files.createTempDirectory( "create-db-ongdb" );
     }
 
     private static void createIndexesAndData( GraphDatabaseService db, Label label )
