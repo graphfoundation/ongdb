@@ -36,7 +36,7 @@ package org.neo4j.internal.cypher.acceptance
 
 import java.time._
 
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport.{ComparePlansWithAssertion, Configs, TestConfiguration}
+import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport.{ComparePlansWithAssertion, Configs}
 import org.neo4j.values.storable._
 
 class TemporalIndexAcceptanceTest extends IndexingTestSupport {
@@ -104,7 +104,7 @@ class TemporalIndexAcceptanceTest extends IndexingTestSupport {
 
     graph.createIndex("Runner", "results")
     val resultIndex = executeWith(Configs.Interpreted - Configs.OldAndRule, query,
-      planComparisonStrategy = ComparePlansWithAssertion((plan) => {
+      planComparisonStrategy = ComparePlansWithAssertion(plan => {
         //THEN
         plan should useOperators("NodeIndexSeek")
       }))

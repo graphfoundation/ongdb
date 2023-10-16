@@ -72,7 +72,7 @@
         <!-- shared versions are defined in the parent pom -->
 
         <dependency>
-            <groupId>org.opencypher</groupId>
+            <groupId>org.graphfoundation</groupId>
             <artifactId>tck</artifactId>
             <version>${opencypher.version}</version>
         </dependency>
