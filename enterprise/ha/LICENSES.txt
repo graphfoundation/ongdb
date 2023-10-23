@@ -29,6 +29,32 @@ Apache Software License, Version 2.0
   LZ4 and xxHash
   Netty
   Netty/All-in-One
+  Netty/Buffer
+  Netty/Codec
+  Netty/Codec/DNS
+  Netty/Codec/HAProxy
+  Netty/Codec/HTTP
+  Netty/Codec/HTTP2
+  Netty/Codec/Memcache
+  Netty/Codec/MQTT
+  Netty/Codec/Redis
+  Netty/Codec/SMTP
+  Netty/Codec/Socks
+  Netty/Codec/Stomp
+  Netty/Codec/XML
+  Netty/Common
+  Netty/Handler
+  Netty/Handler/Proxy
+  Netty/Resolver
+  Netty/Resolver/DNS
+  Netty/Resolver/DNS/Classes/MacOS
+  Netty/Transport
+  Netty/Transport/Classes/Epoll
+  Netty/Transport/Classes/KQueue
+  Netty/Transport/Native/Unix/Common
+  Netty/Transport/RXTX
+  Netty/Transport/SCTP
+  Netty/Transport/UDT
   WMI4Java
 ------------------------------------------------------------------------------
 
