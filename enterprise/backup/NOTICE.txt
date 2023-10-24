@@ -95,7 +95,6 @@ Bouncy Castle License
   Bouncy Castle Provider
 
 MIT License
-  minimal-json
   SLF4J API Module
   SLF4J NOP Binding
 

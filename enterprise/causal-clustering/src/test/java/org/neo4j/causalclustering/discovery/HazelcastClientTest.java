@@ -114,10 +114,11 @@ import static org.neo4j.helpers.collection.Iterators.asSet;
 
 public class HazelcastClientTest
 {
-    private MemberId myself = new MemberId( UUID.randomUUID() );
-    private TopologyServiceRetryStrategy topologyServiceRetryStrategy = new TopologyServiceNoRetriesStrategy();
-    private static final java.util.function.Supplier<HashMap<String, String>> DEFAULT_SETTINGS = () -> {
-        HashMap<String, String> settings = new HashMap<>();
+    private final MemberId myself = new MemberId( UUID.randomUUID() );
+    private final TopologyServiceRetryStrategy topologyServiceRetryStrategy = new TopologyServiceNoRetriesStrategy();
+    private static final java.util.function.Supplier<HashMap<String,String>> DEFAULT_SETTINGS = () ->
+    {
+        HashMap<String,String> settings = new HashMap<>();
 
         settings.put( new BoltConnector( "bolt" ).type.name(), "BOLT" );
         settings.put( new BoltConnector( "bolt" ).enabled.name(), "true" );
@@ -129,17 +130,17 @@ public class HazelcastClientTest
         return settings;
     };
 
-    private Config config( HashMap<String, String> settings )
+    private Config config( HashMap<String,String> settings )
     {
-        HashMap<String, String> defaults = DEFAULT_SETTINGS.get();
+        HashMap<String,String> defaults = DEFAULT_SETTINGS.get();
         defaults.putAll( settings );
         return Config.defaults( defaults );
     }
 
     private Config config( String key, String value )
     {
-        HashMap<String, String> defaults = DEFAULT_SETTINGS.get();
-        defaults.put(key, value);
+        HashMap<String,String> defaults = DEFAULT_SETTINGS.get();
+        defaults.put( key, value );
         return Config.defaults( defaults );
     }
 
@@ -154,7 +155,7 @@ public class HazelcastClientTest
         HazelcastConnector connector = mock( HazelcastConnector.class );
 
         HazelcastClient client = new HazelcastClient( connector, jobScheduler, NullLogProvider.getInstance(), config, myself,
-                topologyServiceRetryStrategy );
+                                                      topologyServiceRetryStrategy );
 
         HazelcastInstance hazelcastInstance = mock( HazelcastInstance.class );
         when( connector.connectToHazelcast() ).thenReturn( hazelcastInstance );
@@ -206,7 +207,7 @@ public class HazelcastClientTest
 
         // then
         String message = "Different local and global topologies reported despite single, default database name.";
-        assertEquals(message, client.allCoreServers(), client.localCoreServers() );
+        assertEquals( message, client.allCoreServers(), client.localCoreServers() );
     }
 
     @Test
@@ -218,7 +219,7 @@ public class HazelcastClientTest
 
         // then
         String message = "Identical local and global topologies reported despite multiple, distinct database names.";
-        assertNotEquals(message, client.allCoreServers(), client.localCoreServers() );
+        assertNotEquals( message, client.allCoreServers(), client.localCoreServers() );
         assertEquals( 1, client.localCoreServers().members().size() );
     }
 
@@ -231,7 +232,7 @@ public class HazelcastClientTest
 
         // then
         String message = "Global topology should contain all Hazelcast Members despite different db names.";
-        assertEquals(message, members.size(), client.allCoreServers().members().size() );
+        assertEquals( message, members.size(), client.allCoreServers().members().size() );
     }
 
     @Test
@@ -242,7 +243,7 @@ public class HazelcastClientTest
         OnDemandJobScheduler jobScheduler = new OnDemandJobScheduler();
 
         HazelcastClient client = new HazelcastClient( connector, jobScheduler, NullLogProvider.getInstance(), config(), myself,
-                topologyServiceRetryStrategy );
+                                                      topologyServiceRetryStrategy );
 
         HazelcastInstance hazelcastInstance = mock( HazelcastInstance.class );
         when( connector.connectToHazelcast() ).thenReturn( hazelcastInstance );
@@ -343,7 +344,7 @@ public class HazelcastClientTest
 
         OnDemandJobScheduler jobScheduler = new OnDemandJobScheduler();
         HazelcastClient hazelcastClient = new HazelcastClient( connector, jobScheduler, NullLogProvider.getInstance(), config(), myself,
-                topologyServiceRetryStrategy );
+                                                               topologyServiceRetryStrategy );
 
         // when
         hazelcastClient.start();
@@ -388,7 +389,7 @@ public class HazelcastClientTest
 
         OnDemandJobScheduler jobScheduler = new OnDemandJobScheduler();
         HazelcastClient hazelcastClient = new HazelcastClient( connector, jobScheduler, NullLogProvider.getInstance(), config(), myself,
-                topologyServiceRetryStrategy );
+                                                               topologyServiceRetryStrategy );
 
         hazelcastClient.start();
 
@@ -420,7 +421,7 @@ public class HazelcastClientTest
         OnDemandJobScheduler jobScheduler = new OnDemandJobScheduler();
 
         HazelcastClient hazelcastClient = new HazelcastClient( connector, jobScheduler, NullLogProvider.getInstance(), config(), myself,
-                topologyServiceRetryStrategy );
+                                                               topologyServiceRetryStrategy );
 
         hazelcastClient.start();
 
@@ -521,6 +522,12 @@ public class HazelcastClientTest
         }
 
         @Override
+        public ICompletableFuture<Object> putAsync( Object o, Object o2, long l, TimeUnit timeUnit, long l1, TimeUnit timeUnit1 )
+        {
+            return null;
+        }
+
+        @Override
         public ICompletableFuture<Void> setAsync( Object o, Object o2 )
         {
             return null;
@@ -528,6 +535,12 @@ public class HazelcastClientTest
 
         @Override
         public ICompletableFuture<Void> setAsync( Object o, Object o2, long l, TimeUnit timeUnit )
+        {
+            return null;
+        }
+
+        @Override
+        public ICompletableFuture<Void> setAsync( Object o, Object o2, long l, TimeUnit timeUnit, long l1, TimeUnit timeUnit1 )
         {
             return null;
         }
@@ -557,7 +570,19 @@ public class HazelcastClientTest
         }
 
         @Override
+        public Object put( Object o, Object o2, long l, TimeUnit timeUnit, long l1, TimeUnit timeUnit1 )
+        {
+            return null;
+        }
+
+        @Override
         public void putTransient( Object key, Object value, long ttl, TimeUnit timeunit )
+        {
+
+        }
+
+        @Override
+        public void putTransient( Object o, Object o2, long l, TimeUnit timeUnit, long l1, TimeUnit timeUnit1 )
         {
 
         }
@@ -701,6 +726,12 @@ public class HazelcastClientTest
         }
 
         @Override
+        public boolean setTtl( Object o, long l, TimeUnit timeUnit )
+        {
+            return false;
+        }
+
+        @Override
         public Object aggregate( Supplier supplier, Aggregation aggregation, JobTracker jobTracker )
         {
             return null;
@@ -732,6 +763,12 @@ public class HazelcastClientTest
 
         @Override
         public Object putIfAbsent( Object key, Object value, long ttl, TimeUnit timeunit )
+        {
+            return null;
+        }
+
+        @Override
+        public Object putIfAbsent( Object o, Object o2, long l, TimeUnit timeUnit, long l1, TimeUnit timeUnit1 )
         {
             return null;
         }
@@ -798,6 +835,12 @@ public class HazelcastClientTest
 
         @Override
         public void set( Object key, Object value, long ttl, TimeUnit timeunit )
+        {
+
+        }
+
+        @Override
+        public void set( Object o, Object o2, long l, TimeUnit timeUnit, long l1, TimeUnit timeUnit1 )
         {
 
         }
@@ -1266,14 +1309,14 @@ public class HazelcastClientTest
 
         @Override
         public <SuppliedValue, Result> Result aggregate( Supplier<Object,Object,SuppliedValue> supplier,
-                Aggregation<Object,SuppliedValue,Result> aggregation )
+                                                         Aggregation<Object,SuppliedValue,Result> aggregation )
         {
             throw new UnsupportedOperationException();
         }
 
         @Override
         public <SuppliedValue, Result> Result aggregate( Supplier<Object,Object,SuppliedValue> supplier,
-                Aggregation<Object,SuppliedValue,Result> aggregation, JobTracker jobTracker )
+                                                         Aggregation<Object,SuppliedValue,Result> aggregation, JobTracker jobTracker )
         {
             throw new UnsupportedOperationException();
         }
