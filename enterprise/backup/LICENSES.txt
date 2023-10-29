@@ -42,6 +42,7 @@ Apache Software License, Version 2.0
   Netty/Common
   Netty/Handler
   Netty/Handler/Proxy
+  Netty/Handler/Ssl/Ocsp
   Netty/Resolver
   Netty/Resolver/DNS
   Netty/Resolver/DNS/Classes/MacOS
