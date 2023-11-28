@@ -23,7 +23,7 @@
     <scm>
         <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
         <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
-        <url>https://github.com/graphfoundation/ongdb</url>
+        <url>https://github.com/graphfoundation/ongdb.git</url>
     </scm>
 
     <properties>
