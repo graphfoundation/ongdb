@@ -1,6 +1,6 @@
 # ONgDB Kernel
 
-This module, for historical reasons, contains multiple important components of Neo4j:
+This module, for historical reasons, contains multiple important components of ONgDB:
 
  - The embedded Java API
     - org.neo4j.graphdb
