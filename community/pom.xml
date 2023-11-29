@@ -24,43 +24,43 @@
 
     <modules>
         <module>common</module>
-        <module>configuration</module>
         <module>resource</module>
         <module>collections</module>
-        <module>primitive-collections</module>
         <module>graphdb-api</module>
-        <module>procedure-api</module>
         <module>unsafe</module>
+        <module>primitive-collections</module>
         <module>io</module>
+        <module>logging</module>
+        <module>configuration</module>
+        <module>procedure-api</module>
+        <module>values</module>
         <module>kernel-api</module>
         <module>csv</module>
-        <module>logging</module>
+        <module>lucene-index-upgrade</module>
+        <module>index</module>
+        <module>spatial-index</module>
+        <module>ssl</module>
+        <module>kernel</module>
+        <module>command-line</module>
+        <module>lucene-index</module>
+        <module>import-tool</module>
+        <module>jmx</module>
+        <module>dbms</module>
+        <module>graph-algo</module>
+        <module>codegen</module>
         <module>security</module>
         <module>neo4j-slf4j</module>
-        <module>codegen</module>
-        <module>index</module>
-        <module>kernel</module>
-        <module>jmx</module>
         <module>udc</module>
-        <module>lucene-index</module>
-        <module>lucene-index-upgrade</module>
-        <module>graph-algo</module>
+        <module>bolt</module>
+        <module>consistency-check</module>
         <module>neo4j</module>
         <module>neo4j-community</module>
-        <module>shell</module>
-        <module>import-tool</module>
         <module>server-api</module>
-        <module>bolt</module>
+        <module>shell</module>
         <module>server</module>
         <module>server-plugin-test</module>
-        <module>consistency-check</module>
         <module>neo4j-harness</module>
-        <module>dbms</module>
-        <module>command-line</module>
         <module>procedure-compiler</module>
-        <module>values</module>
-        <module>ssl</module>
-        <module>spatial-index</module>
         <module>push-to-cloud</module>
     </modules>
 
