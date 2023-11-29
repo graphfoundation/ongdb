@@ -23,6 +23,7 @@
     </properties>
 
     <modules>
+        <module>annotation-processors</module>
         <module>common</module>
         <module>resource</module>
         <module>collections</module>
