@@ -39,14 +39,17 @@
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 
 case class CartesianProductPipe(lhs: Pipe, rhs: Pipe)
                                (val id: Id = Id.INVALID_ID) extends Pipe {
   protected def internalCreateResults(state: QueryState): Iterator[ExecutionContext] = {
-    for (outer <- lhs.createResults(state);
-         inner <- rhs.createResults(state))
-      yield outer mergeWith inner
+    for (lhsRow <- lhs.createResults(state);
+         rhsRow <- rhs.createResults(state))
+      yield {
+        val output = lhsRow.createClone()
+        output.mergeWith(rhsRow, state.query)
+        output
+      }
   }
-
 }

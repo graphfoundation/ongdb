@@ -38,6 +38,7 @@
  */
 package org.neo4j.index.internal.gbptree;
 
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
@@ -59,6 +60,7 @@ import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 
 import static java.lang.Integer.max;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -75,8 +77,15 @@ public abstract class GBPTreeITBase<KEY,VALUE>
     @Rule
     public final RuleChain rules = outerRule( fs ).around( directory ).around( pageCacheRule ).around( random );
 
+    private double ratioToKeepInLeftOnSplit;
     private TestLayout<KEY,VALUE> layout;
     private GBPTree<KEY,VALUE> index;
+
+    @Before
+    public void setup()
+    {
+        ratioToKeepInLeftOnSplit = random.nextBoolean() ? InternalTreeLogic.DEFAULT_SPLIT_RATIO : random.nextDouble();
+    }
 
     private GBPTree<KEY,VALUE> createIndex()
             throws IOException
@@ -85,6 +94,11 @@ public abstract class GBPTreeITBase<KEY,VALUE>
         layout = getLayout( random );
         PageCache pageCache = pageCacheRule.getPageCache( fs.get(), config().withPageSize( 512 ).withAccessChecks( true ) );
         return index = new GBPTreeBuilder<>( pageCache, directory.file( "index" ), layout ).build();
+    }
+
+    private Writer<KEY,VALUE> createWriter( GBPTree<KEY,VALUE> index ) throws IOException
+    {
+        return index.writer( ratioToKeepInLeftOnSplit );
     }
 
     abstract TestLayout<KEY,VALUE> getLayout( RandomRule random );
@@ -107,7 +121,7 @@ public abstract class GBPTreeITBase<KEY,VALUE>
             }
 
             // WHEN
-            try ( Writer<KEY,VALUE> writer = index.writer() )
+            try ( Writer<KEY,VALUE> writer = createWriter( index ) )
             {
                 for ( Map.Entry<KEY,VALUE> entry : data.entrySet() )
                 {
@@ -159,7 +173,7 @@ public abstract class GBPTreeITBase<KEY,VALUE>
                     }
                 }
 
-                index.checkpoint( IOLimiter.unlimited() );
+                index.checkpoint( IOLimiter.UNLIMITED );
                 randomlyModifyIndex( index, data, random.random(), (double) round / totalNumberOfRounds );
             }
 
@@ -175,7 +189,7 @@ public abstract class GBPTreeITBase<KEY,VALUE>
         try ( GBPTree<KEY,VALUE> index = createIndex() )
         {
             int numberOfNodes = 200_000;
-            try ( Writer<KEY,VALUE> writer = index.writer() )
+            try ( Writer<KEY,VALUE> writer = createWriter( index ) )
             {
                 for ( int i = 0; i < numberOfNodes; i++ )
                 {
@@ -185,7 +199,7 @@ public abstract class GBPTreeITBase<KEY,VALUE>
 
             // when
             BitSet removed = new BitSet();
-            try ( Writer<KEY,VALUE> writer = index.writer() )
+            try ( Writer<KEY,VALUE> writer = createWriter( index ) )
             {
                 for ( int i = 0; i < numberOfNodes - numberOfNodes / 10; i++ )
                 {
@@ -202,7 +216,7 @@ public abstract class GBPTreeITBase<KEY,VALUE>
             }
 
             int next = 0;
-            try ( Writer<KEY,VALUE> writer = index.writer() )
+            try ( Writer<KEY,VALUE> writer = createWriter( index ) )
             {
                 for ( int i = 0; i < numberOfNodes / 10; i++ )
                 {
@@ -223,11 +237,39 @@ public abstract class GBPTreeITBase<KEY,VALUE>
         }
     }
 
+    // Timeout because test verify no infinite loop
+    @Test( timeout = 10_000L )
+    public void shouldHandleDescendingWithEmptyRange() throws IOException
+    {
+        long[] seeds = new long[]{0, 1, 4};
+        try ( GBPTree<KEY,VALUE> index = createIndex() )
+        {
+            // Write
+            try ( Writer<KEY, VALUE> writer = createWriter( index ) )
+            {
+                for ( long seed : seeds )
+                {
+                    KEY key = layout.key( seed );
+                    VALUE value = layout.value( 0 );
+                    writer.put( key, value );
+                }
+            }
+
+            KEY from = layout.key( 3 );
+            KEY to = layout.key( 1 );
+            try ( RawCursor<Hit<KEY,VALUE>, IOException> seek = index.seek( from, to ) )
+            {
+                assertFalse( seek.next() );
+            }
+            index.checkpoint( IOLimiter.UNLIMITED );
+        }
+    }
+
     private void randomlyModifyIndex( GBPTree<KEY,VALUE> index, Map<KEY,VALUE> data, Random random, double removeProbability )
             throws IOException
     {
         int changeCount = random.nextInt( 10 ) + 10;
-        try ( Writer<KEY,VALUE> writer = index.writer() )
+        try ( Writer<KEY,VALUE> writer = createWriter( index ) )
         {
             for ( int i = 0; i < changeCount; i++ )
             {
@@ -296,15 +338,15 @@ public abstract class GBPTreeITBase<KEY,VALUE>
 
     private void assertEqualsValue( VALUE expected, VALUE actual )
     {
-        assertTrue( String.format( "expected equal, expected=%s, actual=%s", expected.toString(), actual.toString() ),
-                layout.compareValue( expected, actual ) == 0 );
+        assertEquals( String.format( "expected equal, expected=%s, actual=%s", expected.toString(), actual.toString() ), 0,
+                layout.compareValue( expected, actual ) );
     }
 
     // KEEP even if unused
     @SuppressWarnings( "unused" )
     private void printTree() throws IOException
     {
-        index.printTree( false, false, false, false );
+        index.printTree( false, false, false, false, false );
     }
 
     @SuppressWarnings( "unused" )

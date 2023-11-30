@@ -58,7 +58,7 @@ public class UserAggregationFunctionProcessorTest extends ExtensionTestBase
     @Rule
     public CompilationRule compilation = new CompilationRule();
 
-    private Processor processor = new UserAggregationFunctionProcessor();
+    private final Processor processor = new UserAggregationFunctionProcessor();
 
     @Test
     public void fails_if_aggregation_function_directly_exposes_parameters()

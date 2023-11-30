@@ -39,15 +39,14 @@
 package org.neo4j.kernel.impl.api.index;
 
 import org.neo4j.internal.kernel.api.TokenNameLookup;
-import org.neo4j.kernel.api.index.IndexProvider;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.api.SchemaState;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingController;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingControllerFactory;
-import org.neo4j.kernel.impl.store.record.IndexRule;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.storageengine.api.schema.SchemaRule;
 
 /**
  * Factory to create {@link IndexingService}
@@ -59,33 +58,28 @@ public class IndexingServiceFactory
     }
 
     public static IndexingService createIndexingService( Config config,
-                                          JobScheduler scheduler,
-                                          IndexProviderMap providerMap,
-                                          IndexStoreView storeView,
-                                          TokenNameLookup tokenNameLookup,
-                                          Iterable<IndexRule> indexRules,
-                                          LogProvider logProvider,
-                                          IndexingService.Monitor monitor,
-                                          SchemaState schemaState )
+            JobScheduler scheduler,
+            IndexProviderMap providerMap,
+            IndexStoreView storeView,
+            TokenNameLookup tokenNameLookup,
+            Iterable<SchemaRule> schemaRules,
+            LogProvider internalLogProvider,
+            LogProvider userLogProvider,
+            IndexingService.Monitor monitor,
+            SchemaState schemaState,
+            boolean readOnly )
     {
-        if ( providerMap == null || providerMap.getDefaultProvider() == null )
-        {
-            throw new IllegalStateException( "You cannot run the database without an index provider, " +
-                                             "please make sure that a valid provider (subclass of " + IndexProvider.class.getName() +
-                                             ") is on your classpath." );
-        }
-
         IndexSamplingConfig samplingConfig = new IndexSamplingConfig( config );
         MultiPopulatorFactory multiPopulatorFactory = MultiPopulatorFactory.forConfig( config );
         IndexMapReference indexMapRef = new IndexMapReference();
         IndexSamplingControllerFactory factory =
-                new IndexSamplingControllerFactory( samplingConfig, storeView, scheduler, tokenNameLookup, logProvider );
+                new IndexSamplingControllerFactory( samplingConfig, storeView, scheduler, tokenNameLookup, internalLogProvider );
         IndexSamplingController indexSamplingController = factory.create( indexMapRef );
         IndexProxyCreator proxySetup =
-                new IndexProxyCreator( samplingConfig, storeView, providerMap, tokenNameLookup, logProvider );
+                new IndexProxyCreator( samplingConfig, storeView, providerMap, tokenNameLookup, internalLogProvider );
 
-        return new IndexingService( proxySetup, providerMap, indexMapRef, storeView, indexRules,
+        return new IndexingService( proxySetup, providerMap, indexMapRef, storeView, schemaRules,
                 indexSamplingController, tokenNameLookup, scheduler, schemaState,
-                multiPopulatorFactory, logProvider, monitor );
+                multiPopulatorFactory, internalLogProvider, userLogProvider, monitor, readOnly );
     }
 }

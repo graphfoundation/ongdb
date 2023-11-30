@@ -124,7 +124,7 @@ public class CodeBlock implements AutoCloseable
         emitter.expression( expression );
     }
 
-    LocalVariable local( String name )
+    public LocalVariable local( String name )
     {
         return localVariables.get( name );
     }

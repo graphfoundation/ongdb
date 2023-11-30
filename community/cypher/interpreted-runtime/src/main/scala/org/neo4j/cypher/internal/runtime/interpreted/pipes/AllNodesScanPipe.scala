@@ -39,12 +39,12 @@
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 
 case class AllNodesScanPipe(ident: String)(val id: Id = Id.INVALID_ID) extends Pipe {
 
   protected def internalCreateResults(state: QueryState): Iterator[ExecutionContext] = {
-    val baseContext = state.createOrGetInitialContext(executionContextFactory)
+    val baseContext = state.newExecutionContext(executionContextFactory)
     state.query.nodeOps.all.map(n => executionContextFactory.copyWith(baseContext, ident, n))
   }
 

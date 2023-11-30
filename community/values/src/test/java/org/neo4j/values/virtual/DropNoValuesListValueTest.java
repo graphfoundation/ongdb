@@ -38,26 +38,25 @@
  */
 package org.neo4j.values.virtual;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.neo4j.values.storable.Values.NO_VALUE;
 import static org.neo4j.values.storable.Values.longValue;
-import static org.neo4j.values.virtual.VirtualValues.dropNoValues;
 import static org.neo4j.values.virtual.VirtualValues.list;
 
-public class DropNoValuesListValueTest
+class DropNoValuesListValueTest
 {
     @Test
-    public void shouldFilterList()
+    void shouldFilterList()
     {
         // Given
         ListValue inner = list( NO_VALUE, longValue( 6L ), NO_VALUE,
                                 longValue( 8L ), longValue( 9L ), longValue( 11L ), NO_VALUE );
 
         // When
-        ListValue filter = dropNoValues( inner );
+        ListValue filter = inner.dropNoValues();
 
         // Then
         ListValue expected = list( longValue( 6L ), longValue( 8L ), longValue( 9L ), longValue( 11L ) );

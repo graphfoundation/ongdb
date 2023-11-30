@@ -38,7 +38,7 @@
  */
 package org.neo4j.consistency.checking.full;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.consistency.checking.ChainCheck;
 import org.neo4j.consistency.checking.CheckerEngine;
@@ -54,10 +54,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.neo4j.consistency.checking.RecordCheckTestBase.inUse;
 
-public class DuplicatePropertyTest
+class DuplicatePropertyTest
 {
     @Test
-    public void shouldReportDuplicatePropertyIndexesInPropertyRecordForNode()
+    void shouldReportDuplicatePropertyIndexesInPropertyRecordForNode()
     {
         // given
         ChainCheck check = new ChainCheck();
@@ -96,7 +96,7 @@ public class DuplicatePropertyTest
     }
 
     @Test
-    public void shouldReportDuplicatePropertyIndexesAcrossRecordsInPropertyChainForNode()
+    void shouldReportDuplicatePropertyIndexesAcrossRecordsInPropertyChainForNode()
     {
         // given
         ChainCheck check = new ChainCheck();
@@ -148,7 +148,7 @@ public class DuplicatePropertyTest
     }
 
     @Test
-    public void shouldNotReportAnythingForConsistentChains()
+    void shouldNotReportAnythingForConsistentChains()
     {
         // given
         ChainCheck check = new ChainCheck();

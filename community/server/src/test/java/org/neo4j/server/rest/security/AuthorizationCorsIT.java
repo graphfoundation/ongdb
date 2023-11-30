@@ -81,7 +81,7 @@ public class AuthorizationCorsIT extends CommunityServerTestBase
     {
         startServer( true );
 
-        HTTP.Response response = runQuery( "ongdb", "ongdb" );
+        HTTP.Response response = runQuery( "neo4j", "neo4j" );
 
         assertEquals( FORBIDDEN.getStatusCode(), response.status() );
         assertCorsHeaderPresent( response );
@@ -92,11 +92,11 @@ public class AuthorizationCorsIT extends CommunityServerTestBase
     public void shouldAddCorsHeaderWhenAuthEnabledAndPasswordChangeNotRequired() throws Exception
     {
         startServer( true );
-        HTTP.Response passwordChangeResponse = changePassword( "ongdb", "ongdb", "newPassword" );
+        HTTP.Response passwordChangeResponse = changePassword( "neo4j", "neo4j", "newPassword" );
         assertEquals( OK.getStatusCode(), passwordChangeResponse.status() );
         assertCorsHeaderPresent( passwordChangeResponse );
 
-        HTTP.Response queryResponse = runQuery( "ongdb", "newPassword" );
+        HTTP.Response queryResponse = runQuery( "neo4j", "newPassword" );
 
         assertEquals( OK.getStatusCode(), queryResponse.status() );
         assertCorsHeaderPresent( queryResponse );
@@ -108,7 +108,7 @@ public class AuthorizationCorsIT extends CommunityServerTestBase
     {
         startServer( true );
 
-        HTTP.Response response = runQuery( "ongdb", "wrongPassword" );
+        HTTP.Response response = runQuery( "neo4j", "wrongPassword" );
 
         assertEquals( UNAUTHORIZED.getStatusCode(), response.status() );
         assertCorsHeaderPresent( response );
@@ -185,12 +185,11 @@ public class AuthorizationCorsIT extends CommunityServerTestBase
         return requestBuilder.POST( txCommitURL(), statements );
     }
 
-    private HTTP.Builder requestWithHeaders( String username, String password )
+    private static HTTP.Builder requestWithHeaders( String username, String password )
     {
-        return HTTP.withHeaders(
+        return HTTP.withBasicAuth( username, password ).withHeaders(
                 HttpHeaders.ACCEPT, "application/json; charset=UTF-8",
-                HttpHeaders.CONTENT_TYPE, "application/json",
-                HttpHeaders.AUTHORIZATION, basicAuthHeader( username, password )
+                HttpHeaders.CONTENT_TYPE, "application/json"
         );
     }
 

@@ -38,48 +38,59 @@
  */
 package org.neo4j.kernel.impl.util.collection;
 
-import org.neo4j.collection.primitive.Primitive;
-import org.neo4j.collection.primitive.PrimitiveIntObjectMap;
-import org.neo4j.collection.primitive.PrimitiveLongObjectMap;
-import org.neo4j.collection.primitive.PrimitiveLongSet;
-import org.neo4j.kernel.impl.util.diffsets.PrimitiveLongDiffSets;
+import org.eclipse.collections.api.map.primitive.MutableLongObjectMap;
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+
+import java.util.ArrayList;
+import java.util.Collection;
+
+import org.neo4j.graphdb.Resource;
+import org.neo4j.kernel.impl.api.state.AppendOnlyValuesContainer;
+import org.neo4j.kernel.impl.api.state.ValuesContainer;
+import org.neo4j.kernel.impl.api.state.ValuesMap;
+import org.neo4j.kernel.impl.util.diffsets.MutableLongDiffSetsImpl;
+import org.neo4j.memory.LocalMemoryTracker;
 import org.neo4j.memory.MemoryAllocationTracker;
 import org.neo4j.memory.MemoryTracker;
+import org.neo4j.values.storable.Value;
 
-import static java.util.Objects.requireNonNull;
-import static org.neo4j.collection.primitive.PrimitiveLongCollections.emptySet;
-
-class OffHeapCollectionsFactory implements CollectionsFactory
+public class OffHeapCollectionsFactory implements CollectionsFactory
 {
-    private final MemoryAllocationTracker memoryTracker;
+    private final MemoryAllocationTracker memoryTracker = new LocalMemoryTracker();
+    private final MemoryAllocator allocator;
 
-    OffHeapCollectionsFactory( MemoryAllocationTracker memoryTracker )
+    private final Collection<Resource> resources = new ArrayList<>();
+    private ValuesContainer valuesContainer;
+
+    public OffHeapCollectionsFactory( OffHeapBlockAllocator blockAllocator )
     {
-        this.memoryTracker = requireNonNull( memoryTracker );
+        this.allocator = new OffHeapMemoryAllocator( memoryTracker, blockAllocator );
     }
 
     @Override
-    public PrimitiveLongSet newLongSet()
+    public MutableLongSet newLongSet()
     {
-        return Primitive.offHeapLongSet( memoryTracker );
+        final MutableLinearProbeLongHashSet set = new MutableLinearProbeLongHashSet( allocator );
+        resources.add( set );
+        return set;
     }
 
     @Override
-    public <V> PrimitiveLongObjectMap<V> newLongObjectMap()
+    public MutableLongDiffSetsImpl newLongDiffSets()
     {
-        return Primitive.longObjectMap();
+        return new MutableLongDiffSetsImpl( this );
     }
 
     @Override
-    public <V> PrimitiveIntObjectMap<V> newIntObjectMap()
+    public MutableLongObjectMap<Value> newValuesMap()
     {
-        return Primitive.intObjectMap();
-    }
-
-    @Override
-    public PrimitiveLongDiffSets newLongDiffSets()
-    {
-        return new PrimitiveLongDiffSets( emptySet(), emptySet(), this );
+        if ( valuesContainer == null )
+        {
+            valuesContainer = new AppendOnlyValuesContainer( allocator );
+        }
+        final LinearProbeLongLongHashMap refs = new LinearProbeLongLongHashMap( allocator );
+        resources.add( refs );
+        return new ValuesMap( refs, valuesContainer );
     }
 
     @Override
@@ -89,8 +100,14 @@ class OffHeapCollectionsFactory implements CollectionsFactory
     }
 
     @Override
-    public boolean collectionsMustBeReleased()
+    public void release()
     {
-        return true;
+        resources.forEach( Resource::close );
+        resources.clear();
+        if ( valuesContainer != null )
+        {
+            valuesContainer.close();
+            valuesContainer = null;
+        }
     }
 }

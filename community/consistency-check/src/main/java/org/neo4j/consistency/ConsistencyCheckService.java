@@ -59,6 +59,7 @@ import org.neo4j.helpers.progress.ProgressMonitorFactory;
 import org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracerSupplier;
@@ -66,29 +67,36 @@ import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier
 import org.neo4j.kernel.api.direct.DirectStoreAccess;
 import org.neo4j.kernel.api.labelscan.LabelScanStore;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.extension.KernelExtensions;
-import org.neo4j.kernel.impl.api.index.IndexProviderMap;
+import org.neo4j.kernel.extension.DatabaseKernelExtensions;
 import org.neo4j.kernel.impl.api.scan.FullStoreChangeStream;
+import org.neo4j.kernel.impl.core.DelegatingTokenHolder;
+import org.neo4j.kernel.impl.core.ReadOnlyTokenCreator;
+import org.neo4j.kernel.impl.core.TokenHolder;
+import org.neo4j.kernel.impl.core.TokenHolders;
 import org.neo4j.kernel.impl.index.labelscan.NativeLabelScanStore;
-import org.neo4j.kernel.impl.logging.SimpleLogService;
 import org.neo4j.kernel.impl.pagecache.ConfiguringPageCacheFactory;
+import org.neo4j.kernel.impl.recovery.RecoveryRequiredException;
+import org.neo4j.kernel.impl.scheduler.JobSchedulerFactory;
 import org.neo4j.kernel.impl.store.NeoStores;
 import org.neo4j.kernel.impl.store.StoreAccess;
 import org.neo4j.kernel.impl.store.StoreFactory;
 import org.neo4j.kernel.impl.store.id.DefaultIdGeneratorFactory;
+import org.neo4j.kernel.impl.transaction.state.DefaultIndexProviderMap;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.logging.DuplicatingLog;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.logging.internal.SimpleLogService;
+import org.neo4j.scheduler.JobScheduler;
 
 import static java.lang.String.format;
 import static org.neo4j.consistency.internal.SchemaIndexExtensionLoader.instantiateKernelExtensions;
-import static org.neo4j.consistency.internal.SchemaIndexExtensionLoader.loadIndexProviders;
 import static org.neo4j.io.file.Files.createOrOpenAsOutputStream;
 import static org.neo4j.kernel.configuration.Settings.FALSE;
 import static org.neo4j.kernel.configuration.Settings.TRUE;
-import static org.neo4j.kernel.impl.factory.DatabaseInfo.COMMUNITY;
+import static org.neo4j.kernel.impl.factory.DatabaseInfo.TOOL;
+import static org.neo4j.kernel.impl.recovery.RecoveryRequiredChecker.assertRecoveryIsNotRequired;
 
 public class ConsistencyCheckService
 {
@@ -105,22 +113,22 @@ public class ConsistencyCheckService
     }
 
     @Deprecated
-    public Result runFullConsistencyCheck( File storeDir, Config tuningConfiguration,
+    public Result runFullConsistencyCheck( DatabaseLayout databaseLayout, Config tuningConfiguration,
             ProgressMonitorFactory progressFactory, LogProvider logProvider, boolean verbose )
             throws ConsistencyCheckIncompleteException
     {
-        return runFullConsistencyCheck( storeDir, tuningConfiguration, progressFactory, logProvider, verbose,
+        return runFullConsistencyCheck( databaseLayout, tuningConfiguration, progressFactory, logProvider, verbose,
                 new ConsistencyFlags( tuningConfiguration ) );
     }
 
-    public Result runFullConsistencyCheck( File storeDir, Config config, ProgressMonitorFactory progressFactory,
+    public Result runFullConsistencyCheck( DatabaseLayout databaseLayout, Config config, ProgressMonitorFactory progressFactory,
             LogProvider logProvider, boolean verbose, ConsistencyFlags consistencyFlags )
             throws ConsistencyCheckIncompleteException
     {
         FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction();
         try
         {
-            return runFullConsistencyCheck( storeDir, config, progressFactory, logProvider,
+            return runFullConsistencyCheck( databaseLayout, config, progressFactory, logProvider,
                     fileSystem, verbose, consistencyFlags );
         }
         finally
@@ -138,44 +146,45 @@ public class ConsistencyCheckService
     }
 
     @Deprecated
-    public Result runFullConsistencyCheck( File storeDir, Config tuningConfiguration,
+    public Result runFullConsistencyCheck( DatabaseLayout databaseLayout, Config tuningConfiguration,
             ProgressMonitorFactory progressFactory, LogProvider logProvider, FileSystemAbstraction fileSystem,
             boolean verbose ) throws ConsistencyCheckIncompleteException
     {
-        return runFullConsistencyCheck( storeDir, tuningConfiguration, progressFactory, logProvider, fileSystem,
+        return runFullConsistencyCheck( databaseLayout, tuningConfiguration, progressFactory, logProvider, fileSystem,
                 verbose, new ConsistencyFlags( tuningConfiguration ) );
     }
 
-    public Result runFullConsistencyCheck( File storeDir, Config config, ProgressMonitorFactory progressFactory,
+    public Result runFullConsistencyCheck( DatabaseLayout databaseLayout, Config config, ProgressMonitorFactory progressFactory,
             LogProvider logProvider, FileSystemAbstraction fileSystem, boolean verbose,
             ConsistencyFlags consistencyFlags ) throws ConsistencyCheckIncompleteException
     {
-        return runFullConsistencyCheck( storeDir, config, progressFactory, logProvider, fileSystem,
-                verbose, defaultReportDir( config, storeDir ), consistencyFlags );
+        return runFullConsistencyCheck( databaseLayout, config, progressFactory, logProvider, fileSystem,
+                verbose, defaultReportDir( config, databaseLayout.databaseDirectory() ), consistencyFlags );
     }
 
     @Deprecated
-    public Result runFullConsistencyCheck( File storeDir, Config tuningConfiguration,
+    public Result runFullConsistencyCheck( DatabaseLayout databaseLayout, Config tuningConfiguration,
             ProgressMonitorFactory progressFactory, LogProvider logProvider, FileSystemAbstraction fileSystem,
             boolean verbose, File reportDir ) throws ConsistencyCheckIncompleteException
     {
-        return runFullConsistencyCheck( storeDir, tuningConfiguration, progressFactory, logProvider, fileSystem,
+        return runFullConsistencyCheck( databaseLayout, tuningConfiguration, progressFactory, logProvider, fileSystem,
                 verbose, reportDir, new ConsistencyFlags( tuningConfiguration ) );
     }
 
-    public Result runFullConsistencyCheck( File storeDir, Config config, ProgressMonitorFactory progressFactory,
+    public Result runFullConsistencyCheck( DatabaseLayout databaseLayout, Config config, ProgressMonitorFactory progressFactory,
             LogProvider logProvider, FileSystemAbstraction fileSystem, boolean verbose, File reportDir,
             ConsistencyFlags consistencyFlags ) throws ConsistencyCheckIncompleteException
     {
         Log log = logProvider.getLog( getClass() );
+        JobScheduler jobScheduler = JobSchedulerFactory.createInitialisedScheduler();
         ConfiguringPageCacheFactory pageCacheFactory = new ConfiguringPageCacheFactory(
                 fileSystem, config, PageCacheTracer.NULL, PageCursorTracerSupplier.NULL,
-                logProvider.getLog( PageCache.class ), EmptyVersionContextSupplier.EMPTY );
+                logProvider.getLog( PageCache.class ), EmptyVersionContextSupplier.EMPTY, jobScheduler );
         PageCache pageCache = pageCacheFactory.getOrCreatePageCache();
 
         try
         {
-            return runFullConsistencyCheck( storeDir, config, progressFactory, logProvider, fileSystem,
+            return runFullConsistencyCheck( databaseLayout, config, progressFactory, logProvider, fileSystem,
                     pageCache, verbose, reportDir, consistencyFlags );
         }
         finally
@@ -188,82 +197,89 @@ public class ConsistencyCheckService
             {
                 log.error( "Failure during shutdown of the page cache", e );
             }
+            try
+            {
+                jobScheduler.close();
+            }
+            catch ( Exception e )
+            {
+                log.error( "Failure during shutdown of the job scheduler", e );
+            }
         }
     }
 
     @Deprecated
-    public Result runFullConsistencyCheck( final File storeDir, Config tuningConfiguration,
+    public Result runFullConsistencyCheck( DatabaseLayout databaseLayout, Config tuningConfiguration,
             ProgressMonitorFactory progressFactory, final LogProvider logProvider,
             final FileSystemAbstraction fileSystem, final PageCache pageCache, final boolean verbose )
             throws ConsistencyCheckIncompleteException
     {
-        return runFullConsistencyCheck( storeDir, tuningConfiguration, progressFactory, logProvider, fileSystem,
+        return runFullConsistencyCheck( databaseLayout, tuningConfiguration, progressFactory, logProvider, fileSystem,
                 pageCache, verbose, new ConsistencyFlags( tuningConfiguration ) );
     }
 
-    public Result runFullConsistencyCheck( final File storeDir, Config config, ProgressMonitorFactory progressFactory,
+    public Result runFullConsistencyCheck( DatabaseLayout databaseLayout, Config config, ProgressMonitorFactory progressFactory,
             final LogProvider logProvider, final FileSystemAbstraction fileSystem, final PageCache pageCache,
             final boolean verbose, ConsistencyFlags consistencyFlags )
             throws ConsistencyCheckIncompleteException
     {
-        return runFullConsistencyCheck( storeDir, config, progressFactory, logProvider, fileSystem, pageCache,
-                verbose, defaultReportDir( config, storeDir ), consistencyFlags );
+        return runFullConsistencyCheck( databaseLayout, config, progressFactory, logProvider, fileSystem, pageCache,
+                verbose, defaultReportDir( config, databaseLayout.databaseDirectory() ), consistencyFlags );
     }
 
     @Deprecated
-    public Result runFullConsistencyCheck( final File storeDir, Config tuningConfiguration,
+    public Result runFullConsistencyCheck( DatabaseLayout databaseLayout, Config tuningConfiguration,
             ProgressMonitorFactory progressFactory, final LogProvider logProvider,
             final FileSystemAbstraction fileSystem, final PageCache pageCache, final boolean verbose, File reportDir )
             throws ConsistencyCheckIncompleteException
     {
-        return runFullConsistencyCheck( storeDir, tuningConfiguration, progressFactory, logProvider, fileSystem,
+        return runFullConsistencyCheck( databaseLayout, tuningConfiguration, progressFactory, logProvider, fileSystem,
                 pageCache, verbose, reportDir, new ConsistencyFlags( tuningConfiguration ) );
     }
 
-    public Result runFullConsistencyCheck( final File storeDir, Config config, ProgressMonitorFactory progressFactory,
+    public Result runFullConsistencyCheck( DatabaseLayout databaseLayout, Config config, ProgressMonitorFactory progressFactory,
             final LogProvider logProvider, final FileSystemAbstraction fileSystem, final PageCache pageCache,
             final boolean verbose, File reportDir, ConsistencyFlags consistencyFlags )
             throws ConsistencyCheckIncompleteException
     {
+        assertRecovered( databaseLayout, config, fileSystem, pageCache );
         Log log = logProvider.getLog( getClass() );
         config.augment( GraphDatabaseSettings.read_only, TRUE );
         config.augment( GraphDatabaseSettings.pagecache_warmup_enabled, FALSE );
 
-        StoreFactory factory = new StoreFactory( storeDir, config,
+        StoreFactory factory = new StoreFactory( databaseLayout, config,
                 new DefaultIdGeneratorFactory( fileSystem ), pageCache, fileSystem, logProvider, EmptyVersionContextSupplier.EMPTY );
 
         ConsistencySummaryStatistics summary;
         final File reportFile = chooseReportPath( reportDir );
-        Log reportLog = new ConsistencyReportLog( Suppliers.lazySingleton( () ->
-        {
-            try
-            {
-                return new PrintWriter( createOrOpenAsOutputStream( fileSystem, reportFile, true ) );
-            }
-            catch ( IOException e )
-            {
-                throw new RuntimeException( e );
-            }
-        } ) );
+        Suppliers.Lazy<PrintWriter> reportWriterSupplier = getReportWriterSupplier( fileSystem, reportFile );
+        Log reportLog = new ConsistencyReportLog( reportWriterSupplier );
 
         // Bootstrap kernel extensions
         Monitors monitors = new Monitors();
         LifeSupport life = new LifeSupport();
-        KernelExtensions extensions = life.add( instantiateKernelExtensions( storeDir,
-                fileSystem, config, new SimpleLogService( logProvider, logProvider ), pageCache,
+        JobScheduler jobScheduler = life.add( JobSchedulerFactory.createInitialisedScheduler() );
+        TokenHolders tokenHolders = new TokenHolders( new DelegatingTokenHolder( new ReadOnlyTokenCreator(), TokenHolder.TYPE_PROPERTY_KEY ),
+                new DelegatingTokenHolder( new ReadOnlyTokenCreator(), TokenHolder.TYPE_LABEL ),
+                new DelegatingTokenHolder( new ReadOnlyTokenCreator(), TokenHolder.TYPE_RELATIONSHIP_TYPE ) );
+        DatabaseKernelExtensions extensions = life.add( instantiateKernelExtensions( databaseLayout.databaseDirectory(),
+                fileSystem, config, new SimpleLogService( logProvider, logProvider ), pageCache, jobScheduler,
                 RecoveryCleanupWorkCollector.ignore(),
-                // May be enterprise edition, but in consistency checker we only care about the operational mode
-                COMMUNITY,
-                monitors ) );
+                TOOL, // We use TOOL context because it's true, and also because it uses the 'single' operational mode, which is important.
+                monitors, tokenHolders ) );
+        DefaultIndexProviderMap indexes = life.add( new DefaultIndexProviderMap( extensions, config ) );
 
         try ( NeoStores neoStores = factory.openAllNeoStores() )
         {
+            // Load tokens before starting extensions, etc.
+            tokenHolders.propertyKeyTokens().setInitialTokens( neoStores.getPropertyKeyTokenStore().getTokens() );
+            tokenHolders.labelTokens().setInitialTokens( neoStores.getLabelTokenStore().getTokens() );
+            tokenHolders.relationshipTypeTokens().setInitialTokens( neoStores.getRelationshipTypeTokenStore().getTokens() );
+
             life.start();
 
-            IndexProviderMap indexes = loadIndexProviders( extensions );
-
             LabelScanStore labelScanStore =
-                    new NativeLabelScanStore( pageCache, fileSystem, storeDir, FullStoreChangeStream.EMPTY, true, monitors,
+                    new NativeLabelScanStore( pageCache, databaseLayout, fileSystem, FullStoreChangeStream.EMPTY, true, monitors,
                             RecoveryCleanupWorkCollector.ignore() );
             life.add( labelScanStore );
 
@@ -282,14 +298,18 @@ public class ConsistencyCheckService
                 storeAccess = new StoreAccess( neoStores );
             }
             storeAccess.initialize();
-            DirectStoreAccess stores = new DirectStoreAccess( storeAccess, labelScanStore, indexes );
+            DirectStoreAccess stores = new DirectStoreAccess( storeAccess, labelScanStore, indexes, tokenHolders );
             FullCheck check = new FullCheck(
-                    progressFactory, statistics, numberOfThreads, consistencyFlags, config );
+                    progressFactory, statistics, numberOfThreads, consistencyFlags, config, true );
             summary = check.execute( stores, new DuplicatingLog( log, reportLog ) );
         }
         finally
         {
             life.shutdown();
+            if ( reportWriterSupplier.isInitialised() )
+            {
+                reportWriterSupplier.get().close();
+            }
         }
 
         if ( !summary.isConsistent() )
@@ -300,16 +320,45 @@ public class ConsistencyCheckService
         return Result.success( reportFile );
     }
 
+    private void assertRecovered( DatabaseLayout databaseLayout, Config config, FileSystemAbstraction fileSystem, PageCache pageCache )
+            throws ConsistencyCheckIncompleteException
+    {
+        try
+        {
+            assertRecoveryIsNotRequired( fileSystem, pageCache, config, databaseLayout, new Monitors() );
+        }
+        catch ( RecoveryRequiredException | IOException e )
+        {
+            throw new ConsistencyCheckIncompleteException( e );
+        }
+    }
+
+    private static Suppliers.Lazy<PrintWriter> getReportWriterSupplier( FileSystemAbstraction fileSystem, File reportFile )
+    {
+        return Suppliers.lazySingleton( () ->
+        {
+            try
+            {
+                return new PrintWriter( createOrOpenAsOutputStream( fileSystem, reportFile, true ) );
+            }
+            catch ( IOException e )
+            {
+                throw new RuntimeException( e );
+            }
+        } );
+    }
+
     private File chooseReportPath( File reportDir )
     {
         return new File( reportDir, defaultLogFileName( timestamp ) );
     }
 
-    private File defaultReportDir( Config tuningConfiguration, File storeDir )
+    private static File defaultReportDir( Config tuningConfiguration, File storeDir )
     {
-        if ( tuningConfiguration.get( GraphDatabaseSettings.ongdb_home ) == null )
+        if ( tuningConfiguration.get( GraphDatabaseSettings.neo4j_home ) == null )
         {
-            tuningConfiguration.augment( GraphDatabaseSettings.ongdb_home, storeDir.getAbsolutePath() );
+            tuningConfiguration.augment( GraphDatabaseSettings.neo4j_home, storeDir.getAbsolutePath() );
+            tuningConfiguration.augment( GraphDatabaseSettings.database_path, storeDir.getAbsolutePath() );
         }
 
         return tuningConfiguration.get( GraphDatabaseSettings.logs_directory );

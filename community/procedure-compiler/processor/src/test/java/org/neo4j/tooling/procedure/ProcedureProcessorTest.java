@@ -59,7 +59,7 @@ public class ProcedureProcessorTest extends ExtensionTestBase
     @Rule
     public CompilationRule compilation = new CompilationRule();
 
-    private Processor processor = new ProcedureProcessor();
+    private final Processor processor = new ProcedureProcessor();
 
     @Test
     public void fails_if_parameters_are_not_properly_annotated()
@@ -126,7 +126,7 @@ public class ProcedureProcessorTest extends ExtensionTestBase
 
         UnsuccessfulCompilationClause compilation =
                 assert_().about( javaSource() ).that( sproc ).processedWith( processor() ).failsToCompile()
-                        .withErrorCount( 3 );
+                        .withErrorCount( 4 );
 
         compilation.withErrorContaining( "Unsupported parameter type " +
                 "<java.util.List<java.util.List<java.util.Map<java.lang.String,java.lang.Thread>>>>" +
@@ -139,6 +139,10 @@ public class ProcedureProcessorTest extends ExtensionTestBase
         compilation.withErrorContaining(
                 "Unsupported parameter type <java.util.Map> of procedure|function BadGenericInputSproc#doSomething3" )
                 .in( sproc ).onLine( 67 );
+
+        compilation.withErrorContaining(
+                "Unsupported parameter type <java.lang.String[]> of procedure|function BadGenericInputSproc#doSomething4" )
+                   .in( sproc ).onLine( 73 );
     }
 
     @Test

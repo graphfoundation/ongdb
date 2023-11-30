@@ -42,6 +42,8 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -49,8 +51,10 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
+import java.util.SortedSet;
 import java.util.Spliterator;
 import java.util.Spliterators;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -494,6 +498,13 @@ public final class Iterators
         return set;
     }
 
+    public static <T> SortedSet<T> asSortedSet( Comparator<T> comparator, T... items )
+    {
+        TreeSet<T> set = new TreeSet<>( comparator );
+        Collections.addAll( set, items );
+        return set;
+    }
+
     public static Iterator<Long> asIterator( final long... array )
     {
         return new PrefetchingIterator<Long>()
@@ -605,6 +616,68 @@ public final class Iterators
     public static <T> Iterator<T> iterator( int maxItems, T ... items )
     {
         return asIterator( maxItems, items );
+    }
+
+    public static <T> Iterator<T> appendTo( Iterator<T> iterator, T... appended )
+    {
+        return new Iterator<T>()
+        {
+            private int index;
+
+            @Override
+            public boolean hasNext()
+            {
+                return iterator.hasNext() || index < appended.length;
+            }
+
+            @Override
+            public T next()
+            {
+                if ( iterator.hasNext() )
+                {
+                    return iterator.next();
+                }
+                else if ( index < appended.length )
+                {
+                    return appended[index++];
+                }
+                else
+                {
+                    throw new NoSuchElementException();
+                }
+            }
+        };
+    }
+
+    public static <T> Iterator<T> prependTo( Iterator<T> iterator, T... prepended )
+    {
+        return new Iterator<T>()
+        {
+            private int index;
+
+            @Override
+            public boolean hasNext()
+            {
+                return index < prepended.length || iterator.hasNext();
+            }
+
+            @Override
+            public T next()
+            {
+                if ( index < prepended.length )
+                {
+                    return prepended[index++];
+                }
+                else if ( iterator.hasNext() )
+                {
+                    return iterator.next();
+                }
+                else
+                {
+                    throw new NoSuchElementException();
+                }
+            }
+        };
     }
 
     @SuppressWarnings( "unchecked" )

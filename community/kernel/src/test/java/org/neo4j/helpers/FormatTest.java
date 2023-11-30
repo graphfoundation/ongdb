@@ -38,18 +38,19 @@
  */
 package org.neo4j.helpers;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.helpers.Format.duration;
 
-public class FormatTest
+class FormatTest
 {
     @Test
-    public void shouldDisplayBytes()
+    void shouldDisplayBytes()
     {
         // when
         String format = Format.bytes( 123 );
@@ -60,7 +61,7 @@ public class FormatTest
     }
 
     @Test
-    public void shouldDisplayKiloBytes()
+    void shouldDisplayKiloBytes()
     {
         // when
         String format = Format.bytes( 1_234 );
@@ -71,7 +72,7 @@ public class FormatTest
     }
 
     @Test
-    public void shouldDisplayMegaBytes()
+    void shouldDisplayMegaBytes()
     {
         // when
         String format = Format.bytes( 1_234_567 );
@@ -82,7 +83,7 @@ public class FormatTest
     }
 
     @Test
-    public void shouldDisplayGigaBytes()
+    void shouldDisplayGigaBytes()
     {
         // when
         String format = Format.bytes( 1_234_567_890 );
@@ -93,7 +94,7 @@ public class FormatTest
     }
 
     @Test
-    public void shouldDisplayPlainCount()
+    void shouldDisplayPlainCount()
     {
         // when
         String format = Format.count( 10 );
@@ -103,7 +104,7 @@ public class FormatTest
     }
 
     @Test
-    public void shouldDisplayThousandCount()
+    void shouldDisplayThousandCount()
     {
         // when
         String format = Format.count( 2_000 );
@@ -114,7 +115,7 @@ public class FormatTest
     }
 
     @Test
-    public void shouldDisplayMillionCount()
+    void shouldDisplayMillionCount()
     {
         // when
         String format = Format.count( 2_000_000 );
@@ -125,7 +126,7 @@ public class FormatTest
     }
 
     @Test
-    public void shouldDisplayBillionCount()
+    void shouldDisplayBillionCount()
     {
         // when
         String format = Format.count( 2_000_000_000 );
@@ -136,7 +137,7 @@ public class FormatTest
     }
 
     @Test
-    public void shouldDisplayTrillionCount()
+    void shouldDisplayTrillionCount()
     {
         // when
         String format = Format.count( 4_000_000_000_000L );
@@ -147,10 +148,10 @@ public class FormatTest
     }
 
     @Test
-    public void displayDuration()
+    void displayDuration()
     {
-        assertThat( Format.duration( MINUTES.toMillis( 1 ) + SECONDS.toMillis( 2 ) ), is( "1m 2s" ) );
-        assertThat( Format.duration( 42 ), is( "42ms" ) );
-        assertThat( Format.duration( 0 ), is( "0ms" ) );
+        assertThat( duration( MINUTES.toMillis( 1 ) + SECONDS.toMillis( 2 ) ), is( "1m 2s" ) );
+        assertThat( duration( 42 ), is( "42ms" ) );
+        assertThat( duration( 0 ), is( "0ms" ) );
     }
 }

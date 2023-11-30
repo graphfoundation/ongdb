@@ -71,14 +71,14 @@ public class FilteringNativeHitIteratorTest
         for ( int i = 0; i < 100; i++ )
         {
             // duplicates are fine
-            keys.add( random.string() );
+            keys.add( random.nextAlphaNumericString() );
         }
 
-        RawCursor<Hit<StringSchemaKey,NativeSchemaValue>,IOException> cursor = new ResultCursor( keys.iterator() );
+        RawCursor<Hit<StringIndexKey,NativeIndexValue>,IOException> cursor = new ResultCursor( keys.iterator() );
         IndexQuery[] predicates = new IndexQuery[]{mock( IndexQuery.class )};
         Predicate<String> filter = string -> string.contains( "a" );
         when( predicates[0].acceptsValue( any( Value.class ) ) ).then( invocation -> filter.test( ((TextValue)invocation.getArgument( 0 )).stringValue() ) );
-        FilteringNativeHitIterator<StringSchemaKey,NativeSchemaValue> iterator = new FilteringNativeHitIterator<>( cursor, new ArrayList<>(), predicates );
+        FilteringNativeHitIterator<StringIndexKey,NativeIndexValue> iterator = new FilteringNativeHitIterator<>( cursor, new ArrayList<>(), predicates );
         List<Long> result = new ArrayList<>();
 
         // when

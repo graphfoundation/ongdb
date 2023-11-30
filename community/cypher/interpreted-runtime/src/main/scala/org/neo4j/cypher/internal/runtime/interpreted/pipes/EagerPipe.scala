@@ -39,14 +39,13 @@
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 
 case class EagerPipe(src: Pipe)(val id: Id = Id.INVALID_ID)
   extends PipeWithSource(src) {
 
   protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
     val buffer = input.toIndexedSeq
-    state.query.transactionalContext.markAsStable()
     buffer.toIterator
   }
 }

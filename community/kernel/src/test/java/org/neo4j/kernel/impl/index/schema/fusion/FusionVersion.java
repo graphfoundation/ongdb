@@ -38,20 +38,20 @@
  */
 package org.neo4j.kernel.impl.index.schema.fusion;
 
-import static org.neo4j.kernel.impl.index.schema.fusion.SlotSelector.LUCENE;
-import static org.neo4j.kernel.impl.index.schema.fusion.SlotSelector.NUMBER;
-import static org.neo4j.kernel.impl.index.schema.fusion.SlotSelector.SPATIAL;
-import static org.neo4j.kernel.impl.index.schema.fusion.SlotSelector.STRING;
-import static org.neo4j.kernel.impl.index.schema.fusion.SlotSelector.TEMPORAL;
+import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.LUCENE;
+import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.NUMBER;
+import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.SPATIAL;
+import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.STRING;
+import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.TEMPORAL;
 
 enum FusionVersion
 {
     v00
             {
                 @Override
-                int[] aliveSlots()
+                IndexSlot[] aliveSlots()
                 {
-                    return new int[]{LUCENE, SPATIAL, TEMPORAL};
+                    return new IndexSlot[]{LUCENE, SPATIAL, TEMPORAL};
                 }
 
                 @Override
@@ -63,9 +63,9 @@ enum FusionVersion
     v10
             {
                 @Override
-                int[] aliveSlots()
+                IndexSlot[] aliveSlots()
                 {
-                    return new int[]{NUMBER, LUCENE, SPATIAL, TEMPORAL};
+                    return new IndexSlot[]{NUMBER, LUCENE, SPATIAL, TEMPORAL};
                 }
 
                 @Override
@@ -77,9 +77,9 @@ enum FusionVersion
     v20
             {
                 @Override
-                int[] aliveSlots()
+                IndexSlot[] aliveSlots()
                 {
-                    return new int[]{STRING, NUMBER, SPATIAL, TEMPORAL, LUCENE};
+                    return new IndexSlot[]{STRING, NUMBER, SPATIAL, TEMPORAL, LUCENE};
                 }
 
                 @Override
@@ -89,7 +89,7 @@ enum FusionVersion
                 }
             };
 
-    abstract int[] aliveSlots();
+    abstract IndexSlot[] aliveSlots();
 
     abstract SlotSelector slotSelector();
 }

@@ -41,11 +41,10 @@ package org.neo4j.kernel.impl.store;
 import java.io.File;
 import java.nio.file.OpenOption;
 import java.util.Arrays;
-import java.util.List;
 
+import org.neo4j.helpers.Exceptions;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.storageengine.impl.recordstorage.StoreStatement;
 import org.neo4j.kernel.impl.store.format.RecordFormats;
 import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.store.id.IdType;
@@ -55,13 +54,17 @@ import org.neo4j.kernel.impl.store.record.RecordLoad;
 import org.neo4j.kernel.impl.util.Bits;
 import org.neo4j.logging.LogProvider;
 
+import static java.lang.String.format;
 import static org.neo4j.kernel.impl.store.NoStoreHeaderFormat.NO_STORE_HEADER_FORMAT;
 
 /**
  * Implementation of the node store.
  */
-public class NodeStore extends CommonAbstractStore<NodeRecord,NoStoreHeader> implements StoreStatement.Nodes
+public class NodeStore extends CommonAbstractStore<NodeRecord,NoStoreHeader>
 {
+    public static final String TYPE_DESCRIPTOR = "NodeStore";
+    private final DynamicArrayStore dynamicLabelStore;
+
     public static Long readOwnerFromDynamicLabelsRecord( DynamicRecord record )
     {
         byte[] data = record.getData();
@@ -77,24 +80,9 @@ public class NodeStore extends CommonAbstractStore<NodeRecord,NoStoreHeader> imp
         return bits.getLong( requiredBits );
     }
 
-    @Override
-    public RecordCursor<DynamicRecord> newLabelCursor()
-    {
-        return dynamicLabelStore.newRecordCursor( dynamicLabelStore.newRecord() ).acquire( getNumberOfReservedLowIds(),
-                RecordLoad.NORMAL );
-    }
-
-    public abstract static class Configuration
-        extends CommonAbstractStore.Configuration
-    {
-    }
-
-    public static final String TYPE_DESCRIPTOR = "NodeStore";
-
-    private final DynamicArrayStore dynamicLabelStore;
-
     public NodeStore(
-            File fileName,
+            File file,
+            File idFile,
             Config config,
             IdGeneratorFactory idGeneratorFactory,
             PageCache pageCache,
@@ -103,8 +91,8 @@ public class NodeStore extends CommonAbstractStore<NodeRecord,NoStoreHeader> imp
             RecordFormats recordFormats,
             OpenOption... openOptions )
     {
-        super( fileName, config, IdType.NODE, idGeneratorFactory, pageCache, logProvider, TYPE_DESCRIPTOR,
-                recordFormats.node(), NO_STORE_HEADER_FORMAT, recordFormats.storeVersion(), openOptions );
+        super( file, idFile, config, IdType.NODE, idGeneratorFactory, pageCache, logProvider, TYPE_DESCRIPTOR, recordFormats.node(),
+                NO_STORE_HEADER_FORMAT, recordFormats.storeVersion(), openOptions );
         this.dynamicLabelStore = dynamicLabelStore;
     }
 
@@ -131,15 +119,15 @@ public class NodeStore extends CommonAbstractStore<NodeRecord,NoStoreHeader> imp
         }
 
         // Load any dynamic labels and populate the node record
-        node.setLabelField( node.getLabelField(), dynamicLabelStore.getRecords( firstDynamicLabelRecord, RecordLoad.NORMAL ) );
-    }
-
-    public static void ensureHeavy( NodeRecord node, RecordCursor<DynamicRecord> dynamicLabelCursor )
-    {
-        long firstDynamicLabelId = NodeLabelsField.firstDynamicLabelRecordId( node.getLabelField() );
-        dynamicLabelCursor.placeAt( firstDynamicLabelId, RecordLoad.NORMAL );
-        List<DynamicRecord> dynamicLabelRecords = dynamicLabelCursor.getAll();
-        node.setLabelField( node.getLabelField(), dynamicLabelRecords );
+        try
+        {
+            node.setLabelField( node.getLabelField(), dynamicLabelStore.getRecords( firstDynamicLabelRecord, RecordLoad.NORMAL ) );
+        }
+        catch ( InvalidRecordException e )
+        {
+            Exceptions.setMessage( e, format( "Error loading dynamic label records for %s | %s", node, e.getMessage() ) );
+            throw e;
+        }
     }
 
     @Override

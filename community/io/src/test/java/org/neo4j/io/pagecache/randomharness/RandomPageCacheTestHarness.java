@@ -48,10 +48,8 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -74,6 +72,10 @@ import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracerSupplier;
 import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
 import org.neo4j.io.pagecache.tracing.linear.LinearHistoryPageCacheTracerTest;
 import org.neo4j.io.pagecache.tracing.linear.LinearTracers;
+import org.neo4j.resources.Profiler;
+import org.neo4j.scheduler.DaemonThreadFactory;
+import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.scheduler.ThreadPoolJobScheduler;
 import org.neo4j.test.rule.TestDirectory;
 
 /**
@@ -88,15 +90,8 @@ import org.neo4j.test.rule.TestDirectory;
  */
 public class RandomPageCacheTestHarness implements Closeable
 {
-    private static final ThreadFactory THREAD_FACTORY = r ->
-    {
-        Thread thread = Executors.defaultThreadFactory().newThread( r );
-        thread.setDaemon( true );
-        return thread;
-    };
-
     private static final ExecutorService EXECUTOR_SERVICE = new ThreadPoolExecutor(
-            0, Integer.MAX_VALUE, 1, TimeUnit.SECONDS, new SynchronousQueue<>(), THREAD_FACTORY );
+            0, Integer.MAX_VALUE, 1, TimeUnit.SECONDS, new SynchronousQueue<>(), new DaemonThreadFactory() );
 
     private double mischiefRate;
     private double failureRate;
@@ -118,6 +113,7 @@ public class RandomPageCacheTestHarness implements Closeable
     private Phase preparation;
     private Phase verification;
     private RecordFormat recordFormat;
+    private Profiler profiler;
 
     public RandomPageCacheTestHarness()
     {
@@ -142,6 +138,7 @@ public class RandomPageCacheTestHarness implements Closeable
         fs = new EphemeralFileSystemAbstraction();
         useAdversarialIO = true;
         recordFormat = new StandardRecordFormat();
+        profiler = Profiler.nullProfiler();
     }
 
     /**
@@ -311,6 +308,11 @@ public class RandomPageCacheTestHarness implements Closeable
         this.fs = fileSystem;
     }
 
+    public void useProfiler( Profiler profiler )
+    {
+        this.profiler = profiler;
+    }
+
     /**
      * Write out a textual description of the last run iteration, including the exact plan and what thread
      * executed which command, and the random seed that can be used to recreate that plan for improved repeatability.
@@ -411,8 +413,9 @@ public class RandomPageCacheTestHarness implements Closeable
 
         PageSwapperFactory swapperFactory = new SingleFilePageSwapperFactory();
         swapperFactory.open( fs, Configuration.EMPTY );
+        JobScheduler jobScheduler = new ThreadPoolJobScheduler();
         MuninnPageCache cache = new MuninnPageCache( swapperFactory, cachePageCount, tracer,
-                cursorTracerSupplier, EmptyVersionContextSupplier.EMPTY );
+                cursorTracerSupplier, EmptyVersionContextSupplier.EMPTY, jobScheduler );
         if ( filePageSize == 0 )
         {
             filePageSize = cache.pageSize();
@@ -428,7 +431,7 @@ public class RandomPageCacheTestHarness implements Closeable
         plan = plan( cache, files, fileMap );
 
         AtomicBoolean stopSignal = new AtomicBoolean();
-        Callable<Void> planRunner = new PlanRunner( plan, stopSignal );
+        Callable<Void> planRunner = new PlanRunner( plan, stopSignal, profiler );
         Future<Void>[] futures = new Future[concurrencyLevel];
         for ( int i = 0; i < concurrencyLevel; i++ )
         {
@@ -484,6 +487,7 @@ public class RandomPageCacheTestHarness implements Closeable
             {
                 plan.close();
                 cache.close();
+                jobScheduler.close();
 
                 if ( this.fs instanceof EphemeralFileSystemAbstraction )
                 {

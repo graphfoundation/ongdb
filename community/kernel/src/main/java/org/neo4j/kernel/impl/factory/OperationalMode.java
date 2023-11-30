@@ -43,6 +43,7 @@ public enum OperationalMode
     // Note, these are sent verbatim via UDC if UDC is enabled
     unknown,
     single,
+    @Deprecated
     ha,
     core,
     read_replica

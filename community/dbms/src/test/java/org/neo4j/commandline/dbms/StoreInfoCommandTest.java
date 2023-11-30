@@ -56,11 +56,13 @@ import java.util.function.Consumer;
 
 import org.neo4j.commandline.admin.CommandLocator;
 import org.neo4j.commandline.admin.Usage;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.impl.store.format.RecordFormatSelector;
 import org.neo4j.kernel.impl.store.format.RecordFormats;
 import org.neo4j.kernel.impl.store.format.standard.StandardV2_3;
+import org.neo4j.test.mockito.matcher.RootCauseMatcher;
 import org.neo4j.test.rule.PageCacheRule;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.rule.fs.DefaultFileSystemRule;
@@ -86,12 +88,14 @@ public class StoreInfoCommandTest
     private ArgumentCaptor<String> outCaptor;
     private StoreInfoCommand command;
     private Consumer<String> out;
+    private DatabaseLayout databaseLayout;
 
     @Before
     public void setUp() throws Exception
     {
         Path homeDir = testDirectory.directory( "home-dir" ).toPath();
         databaseDirectory = homeDir.resolve( "data/databases/foo.db" );
+        databaseLayout = DatabaseLayout.of( databaseDirectory.toFile() );
         Files.createDirectories( databaseDirectory );
 
         outCaptor = ArgumentCaptor.forClass( String.class );
@@ -105,19 +109,19 @@ public class StoreInfoCommandTest
         try ( ByteArrayOutputStream baos = new ByteArrayOutputStream() )
         {
             PrintStream ps = new PrintStream( baos );
-            Usage usage = new Usage( "ongdb-admin", mock( CommandLocator.class ) );
+            Usage usage = new Usage( "neo4j-admin", mock( CommandLocator.class ) );
             usage.printUsageForCommand( new StoreInfoCommandProvider(), ps::println );
 
-            assertEquals( String.format( "usage: ongdb-admin store-info --store=<path-to-dir>%n" +
+            assertEquals( String.format( "usage: neo4j-admin store-info --store=<path-to-dir>%n" +
                             "%n" +
                             "environment variables:%n" +
-                            "    ONGDB_CONF    Path to directory which contains ongdb.conf.%n" +
-                            "    ONGDB_DEBUG   Set to anything to enable debug output.%n" +
-                            "    ONGDB_HOME    ONgDB home directory.%n" +
+                            "    NEO4J_CONF    Path to directory which contains neo4j.conf.%n" +
+                            "    NEO4J_DEBUG   Set to anything to enable debug output.%n" +
+                            "    NEO4J_HOME    Neo4j home directory.%n" +
                             "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
                             "                  Takes a number and a unit, for example 512m.%n" +
                             "%n" +
-                            "Prints information about a ONgDB database store, such as what version of ONgDB%n" +
+                            "Prints information about a Neo4j database store, such as what version of Neo4j%n" +
                             "created it. Note that this command expects a path to a store directory, for%n" +
                             "example --store=data/databases/graph.db.%n" +
                             "%n" +
@@ -193,7 +197,7 @@ public class StoreInfoCommandTest
     {
         prepareNeoStoreFile( "v9.9.9" );
 
-        expected.expect( IllegalArgumentException.class );
+        expected.expect( new RootCauseMatcher( IllegalArgumentException.class ) );
         expected.expectMessage( "Unknown store version 'v9.9.9'" );
 
         execute( databaseDirectory.toString() );
@@ -216,8 +220,7 @@ public class StoreInfoCommandTest
 
     private File createNeoStoreFile() throws IOException
     {
-        fsRule.get().mkdir( databaseDirectory.toFile() );
-        File neoStoreFile = new File( databaseDirectory.toFile(), MetaDataStore.DEFAULT_NAME );
+        File neoStoreFile = databaseLayout.metadataStore();
         fsRule.get().create( neoStoreFile ).close();
         return neoStoreFile;
     }

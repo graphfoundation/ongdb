@@ -44,6 +44,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.neo4j.consistency.RecordType;
 import org.neo4j.consistency.checking.CheckerEngine;
@@ -57,7 +58,7 @@ import org.neo4j.consistency.store.RecordReference;
 import org.neo4j.consistency.store.synthetic.CountsEntry;
 import org.neo4j.consistency.store.synthetic.IndexEntry;
 import org.neo4j.consistency.store.synthetic.LabelScanDocument;
-import org.neo4j.kernel.impl.annotations.Documented;
+import org.neo4j.kernel.impl.annotations.DocumentedUtils;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
 import org.neo4j.kernel.impl.store.record.DynamicRecord;
 import org.neo4j.kernel.impl.store.record.LabelTokenRecord;
@@ -100,9 +101,12 @@ public class ConsistencyReporter implements ConsistencyReport.Reporter
     private static final ProxyFactory<ConsistencyReport.CountsConsistencyReport> COUNTS_REPORT =
             ProxyFactory.create( ConsistencyReport.CountsConsistencyReport.class );
 
+    static final int MAX_UNKNOWN_ERRORS = 1000;
+
     private final RecordAccess records;
     private final InconsistencyReport report;
     private final Monitor monitor;
+    private final AtomicInteger unknownErrorCounter = new AtomicInteger( 0 );
 
     public interface Monitor
     {
@@ -140,6 +144,10 @@ public class ConsistencyReporter implements ConsistencyReport.Reporter
             // can only see that something went wrong, not at all what.
             handler.report.error( type, record, "Failed to check record: " + stringify( e ),
                     new Object[0] );
+            if ( unknownErrorCounter.incrementAndGet() >= MAX_UNKNOWN_ERRORS )
+            {
+                throw new IllegalStateException( "Encountered " + unknownErrorCounter.get() + " unknown errors, aborting.", e );
+            }
         }
         handler.updateSummary();
     }
@@ -186,6 +194,47 @@ public class ConsistencyReporter implements ConsistencyReport.Reporter
             }
         };
         return handler.report();
+    }
+
+    public static FormattingDocumentedHandler formattingHandler( InconsistencyReport report, RecordType type )
+    {
+        return new FormattingDocumentedHandler( report, type );
+    }
+
+    public static class FormattingDocumentedHandler implements InvocationHandler
+    {
+        private final InconsistencyReport report;
+        private final RecordType type;
+        private int errors;
+        private int warnings;
+
+        FormattingDocumentedHandler( InconsistencyReport report, RecordType type )
+        {
+            this.report = report;
+            this.type = type;
+        }
+
+        @Override
+        public Object invoke( Object proxy, Method method, Object[] args )
+        {
+            String message = DocumentedUtils.extractFormattedMessage( method, args );
+            if ( method.getAnnotation( ConsistencyReport.Warning.class ) == null )
+            {
+                errors++;
+                report.error( message );
+            }
+            else
+            {
+                warnings++;
+                report.warning( message );
+            }
+            return null;
+        }
+
+        public void updateSummary()
+        {
+            report.updateSummary( type, errors, warnings );
+        }
     }
 
     public abstract static class ReportInvocationHandler
@@ -268,16 +317,7 @@ public class ConsistencyReporter implements ConsistencyReport.Reporter
         @Override
         public Object invoke( Object proxy, Method method, Object[] args )
         {
-            String message;
-            Documented annotation = method.getAnnotation( Documented.class );
-            if ( annotation != null && !"".equals( annotation.value() ) )
-            {
-               message = annotation.value();
-            }
-            else
-            {
-                message = method.getName();
-            }
+            String message = DocumentedUtils.extractMessage( method );
             if ( method.getAnnotation( ConsistencyReport.Warning.class ) == null )
             {
                 errors++;

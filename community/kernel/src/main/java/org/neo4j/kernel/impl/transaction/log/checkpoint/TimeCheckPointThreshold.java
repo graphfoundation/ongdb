@@ -68,7 +68,7 @@ class TimeCheckPointThreshold extends AbstractCheckPointThreshold
     }
 
     @Override
-    protected boolean thresholdReached( long lastCommittedTransactionId )
+    protected boolean thresholdReached( long lastCommittedTransactionId, long lastCommittedTransactionLogVersion )
     {
         return lastCommittedTransactionId > lastCheckPointedTransactionId &&
                clock.nanos() - lastCheckPointTimeNanos >= TimeUnit.MILLISECONDS.toNanos( timeMillisThreshold );

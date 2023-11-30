@@ -52,7 +52,7 @@ import org.neo4j.graphdb.PropertyContainer;
  * and the user should have no access other than mutating operations on the
  * database primitives.
  *
- * @deprecated this feature will be removed in a future release, please consider using schema indexes instead
+ * @deprecated this feature will be removed in the next major release. Please consider using schema indexes instead.
  */
 @Deprecated
 public interface AutoIndexer<T extends PropertyContainer>
@@ -64,6 +64,7 @@ public interface AutoIndexer<T extends PropertyContainer>
      *
      * @param enabled True to enable this auto indexer, false to disable it.
      */
+    @Deprecated
     void setEnabled( boolean enabled );
 
     /**
@@ -75,6 +76,7 @@ public interface AutoIndexer<T extends PropertyContainer>
      *
      * @see #setEnabled(boolean)
      */
+    @Deprecated
     boolean isEnabled();
 
     /**
@@ -83,6 +85,7 @@ public interface AutoIndexer<T extends PropertyContainer>
      *
      * @return A read only index
      */
+    @Deprecated
     ReadableIndex<T> getAutoIndex();
 
     /**
@@ -92,6 +95,7 @@ public interface AutoIndexer<T extends PropertyContainer>
      *
      * @param propName The property name to start auto indexing.
      */
+    @Deprecated
     void startAutoIndexingProperty( String propName );
 
     /**
@@ -100,6 +104,7 @@ public interface AutoIndexer<T extends PropertyContainer>
      *
      * @param propName The property name to stop auto indexing.
      */
+    @Deprecated
     void stopAutoIndexingProperty( String propName );
 
     /**
@@ -110,5 +115,6 @@ public interface AutoIndexer<T extends PropertyContainer>
      * @return An immutable set of the auto indexed property names, possibly
      *         empty.
      */
+    @Deprecated
     Set<String> getAutoIndexedProperties();
 }

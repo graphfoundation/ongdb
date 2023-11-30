@@ -76,9 +76,10 @@ import java.util.stream.Stream;
 
 import org.neo4j.test.ProcessStreamHandler;
 
-import static org.neo4j.io.proc.ProcessUtil.getClassPath;
-import static org.neo4j.io.proc.ProcessUtil.getClassPathList;
-import static org.neo4j.io.proc.ProcessUtil.getJavaExecutable;
+import static java.util.Objects.requireNonNull;
+import static org.neo4j.test.proc.ProcessUtil.getClassPath;
+import static org.neo4j.test.proc.ProcessUtil.getClassPathList;
+import static org.neo4j.test.proc.ProcessUtil.getJavaExecutable;
 
 public abstract class SubProcess<T, P> implements Serializable
 {
@@ -177,6 +178,10 @@ public abstract class SubProcess<T, P> implements Serializable
             }
             dispatcher = callback.get( process );
         }
+        catch ( Throwable t )
+        {
+            throw new RuntimeException( "Failed to start sub process", t );
+        }
         finally
         {
             try
@@ -188,10 +193,7 @@ public abstract class SubProcess<T, P> implements Serializable
                 e.printStackTrace();
             }
         }
-        if ( dispatcher == null )
-        {
-            throw new IllegalStateException( "failed to start sub process" );
-        }
+        requireNonNull( dispatcher );
         Handler handler = new Handler( t, dispatcher, process, "<" + toString() + ":" + pid + ">" );
         return t.cast( Proxy.newProxyInstance( t.getClassLoader(), new Class[]{t}, live( handler ) ) );
     }

@@ -41,20 +41,19 @@ package org.neo4j.jmx.impl;
 import org.apache.commons.lang3.mutable.MutableLong;
 
 import java.io.File;
-import java.io.IOException;
 import java.time.Clock;
 
 import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.helpers.Service;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.FileUtils;
+import org.neo4j.io.layout.DatabaseFile;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.jmx.StoreSize;
 import org.neo4j.kernel.NeoStoreDataSource;
 import org.neo4j.kernel.api.labelscan.LabelScanStore;
-import org.neo4j.kernel.impl.api.ExplicitIndexProviderLookup;
+import org.neo4j.kernel.impl.api.ExplicitIndexProvider;
 import org.neo4j.kernel.impl.api.index.IndexProviderMap;
-import org.neo4j.kernel.impl.store.StoreFile;
-import org.neo4j.kernel.impl.storemigration.StoreFileType;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogVersionVisitor;
 import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
@@ -62,25 +61,26 @@ import org.neo4j.kernel.spi.explicitindex.IndexImplementation;
 import org.neo4j.util.VisibleForTesting;
 
 import static java.util.Objects.requireNonNull;
+import static org.neo4j.io.layout.DatabaseFile.COUNTS_STORE_A;
+import static org.neo4j.io.layout.DatabaseFile.COUNTS_STORE_B;
+import static org.neo4j.io.layout.DatabaseFile.LABEL_TOKEN_NAMES_STORE;
+import static org.neo4j.io.layout.DatabaseFile.LABEL_TOKEN_STORE;
+import static org.neo4j.io.layout.DatabaseFile.NODE_LABEL_STORE;
+import static org.neo4j.io.layout.DatabaseFile.NODE_STORE;
+import static org.neo4j.io.layout.DatabaseFile.PROPERTY_ARRAY_STORE;
+import static org.neo4j.io.layout.DatabaseFile.PROPERTY_KEY_TOKEN_NAMES_STORE;
+import static org.neo4j.io.layout.DatabaseFile.PROPERTY_KEY_TOKEN_STORE;
+import static org.neo4j.io.layout.DatabaseFile.PROPERTY_STORE;
+import static org.neo4j.io.layout.DatabaseFile.PROPERTY_STRING_STORE;
+import static org.neo4j.io.layout.DatabaseFile.RELATIONSHIP_GROUP_STORE;
+import static org.neo4j.io.layout.DatabaseFile.RELATIONSHIP_STORE;
+import static org.neo4j.io.layout.DatabaseFile.RELATIONSHIP_TYPE_TOKEN_NAMES_STORE;
+import static org.neo4j.io.layout.DatabaseFile.RELATIONSHIP_TYPE_TOKEN_STORE;
+import static org.neo4j.io.layout.DatabaseFile.SCHEMA_STORE;
 import static org.neo4j.jmx.impl.ThrottlingBeanSnapshotProxy.newThrottlingBeanSnapshotProxy;
-import static org.neo4j.kernel.impl.store.StoreFile.COUNTS_STORE_LEFT;
-import static org.neo4j.kernel.impl.store.StoreFile.COUNTS_STORE_RIGHT;
-import static org.neo4j.kernel.impl.store.StoreFile.LABEL_TOKEN_NAMES_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.LABEL_TOKEN_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.NODE_LABEL_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.NODE_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.PROPERTY_ARRAY_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.PROPERTY_KEY_TOKEN_NAMES_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.PROPERTY_KEY_TOKEN_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.PROPERTY_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.PROPERTY_STRING_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.RELATIONSHIP_GROUP_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.RELATIONSHIP_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.RELATIONSHIP_TYPE_TOKEN_NAMES_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.RELATIONSHIP_TYPE_TOKEN_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.SCHEMA_STORE;
 
 @Service.Implementation( ManagementBeanProvider.class )
+@Deprecated
 public final class StoreSizeBean extends ManagementBeanProvider
 {
     private static final long UPDATE_INTERVAL = 60000;
@@ -175,25 +175,22 @@ public final class StoreSizeBean extends ManagementBeanProvider
     static StoreSizeMBean createBean( ManagementData management, boolean isMxBean, long updateInterval, Clock clock )
     {
         final StoreSizeMBean bean = new StoreSizeMBean( management, isMxBean, updateInterval, clock );
-        final DataSourceManager dataSourceManager = management.resolveDependency( DataSourceManager.class );
+        final DataSourceManager dataSourceManager = management.getKernelData().getDataSourceManager();
         dataSourceManager.addListener( bean );
         return bean;
     }
 
-    static class StoreSizeMBean extends Neo4jMBean implements StoreSize, DataSourceManager.Listener
+    private static class StoreSizeMBean extends Neo4jMBean implements StoreSize, DataSourceManager.Listener
     {
         private final FileSystemAbstraction fs;
-        private final File storePath;
         private final long updateInterval;
         private final Clock clock;
-
         private volatile StoreSize delegate = NO_STORE_SIZE;
 
         StoreSizeMBean( ManagementData management, boolean isMXBean, long updateInterval, Clock clock )
         {
             super( management, isMXBean );
             this.fs = management.getKernelData().getFilesystemAbstraction();
-            this.storePath = resolveStorePath( management );
             this.updateInterval = updateInterval;
             this.clock = clock;
         }
@@ -201,7 +198,7 @@ public final class StoreSizeBean extends ManagementBeanProvider
         @Override
         public void registered( NeoStoreDataSource ds )
         {
-            final StoreSizeProvider dataProvider = new StoreSizeProvider( fs, storePath, ds.getDependencyResolver() );
+            final StoreSizeProvider dataProvider = new StoreSizeProvider( fs, ds );
             this.delegate = newThrottlingBeanSnapshotProxy( StoreSize.class, dataProvider, updateInterval, clock );
         }
 
@@ -278,36 +275,24 @@ public final class StoreSizeBean extends ManagementBeanProvider
         }
     }
 
-    static File resolveStorePath( ManagementData management )
-    {
-        File storeDir = management.getKernelData().getStoreDir();
-        try
-        {
-            return storeDir.getCanonicalFile().getAbsoluteFile();
-        }
-        catch ( IOException e )
-        {
-            return storeDir.getAbsoluteFile();
-        }
-    }
-
     private static class StoreSizeProvider implements StoreSize
     {
         private final FileSystemAbstraction fs;
-        private final File storePath;
         private final LogFiles logFiles;
-        private final ExplicitIndexProviderLookup explicitIndexProviderLookup;
+        private final ExplicitIndexProvider explicitIndexProviderLookup;
         private final IndexProviderMap indexProviderMap;
         private final LabelScanStore labelScanStore;
+        private final DatabaseLayout databaseLayout;
 
-        private StoreSizeProvider( FileSystemAbstraction fs, File storePath, DependencyResolver deps )
+        private StoreSizeProvider( FileSystemAbstraction fs, NeoStoreDataSource ds )
         {
+            final DependencyResolver deps = ds.getDependencyResolver();
             this.fs = requireNonNull( fs );
-            this.storePath = requireNonNull( storePath );
             this.logFiles = deps.resolveDependency( LogFiles.class );
-            this.explicitIndexProviderLookup = deps.resolveDependency( ExplicitIndexProviderLookup.class );
+            this.explicitIndexProviderLookup = deps.resolveDependency( ExplicitIndexProvider.class );
             this.indexProviderMap = deps.resolveDependency( IndexProviderMap.class );
             this.labelScanStore = deps.resolveDependency( LabelScanStore.class );
+            this.databaseLayout = ds.getDatabaseLayout();
         }
 
         @Override
@@ -327,8 +312,7 @@ public final class StoreSizeBean extends ManagementBeanProvider
         @Override
         public long getRelationshipStoreSize()
         {
-            return sizeOfStoreFiles( RELATIONSHIP_STORE, RELATIONSHIP_GROUP_STORE, RELATIONSHIP_TYPE_TOKEN_STORE,
-                    RELATIONSHIP_TYPE_TOKEN_NAMES_STORE );
+            return sizeOfStoreFiles( RELATIONSHIP_STORE, RELATIONSHIP_GROUP_STORE, RELATIONSHIP_TYPE_TOKEN_STORE, RELATIONSHIP_TYPE_TOKEN_NAMES_STORE );
         }
 
         @Override
@@ -358,7 +342,7 @@ public final class StoreSizeBean extends ManagementBeanProvider
         @Override
         public long getCountStoreSize()
         {
-            return sizeOfStoreFiles( COUNTS_STORE_LEFT, COUNTS_STORE_RIGHT );
+            return sizeOfStoreFiles( COUNTS_STORE_A, COUNTS_STORE_B );
         }
 
         @Override
@@ -373,9 +357,9 @@ public final class StoreSizeBean extends ManagementBeanProvider
             long size = 0L;
 
             // Add explicit indices
-            for ( IndexImplementation index : explicitIndexProviderLookup.all() )
+            for ( IndexImplementation index : explicitIndexProviderLookup.allIndexProviders() )
             {
-                size += FileUtils.size( fs, index.getIndexImplementationDirectory( storePath ) );
+                size += FileUtils.size( fs, index.getIndexImplementationDirectory( databaseLayout ) );
             }
 
             // Add schema index
@@ -400,12 +384,12 @@ public final class StoreSizeBean extends ManagementBeanProvider
         @Override
         public long getTotalStoreSize()
         {
-            return storePath == null ? 0L : FileUtils.size( fs, storePath );
+            return FileUtils.size( fs, databaseLayout.databaseDirectory() );
         }
 
-        private long sizeOf( String name )
+        private long sizeOf( File file )
         {
-            return storePath == null ? 0L : FileUtils.size( fs, new File( storePath, name ) );
+            return FileUtils.size( fs, file );
         }
 
         private class TotalSizeVersionVisitor implements LogVersionVisitor
@@ -425,23 +409,19 @@ public final class StoreSizeBean extends ManagementBeanProvider
         }
 
         /**
-         * Count the total file size, including id files, of {@link StoreFile}s.
+         * Count the total file size, including id files, of {@link DatabaseFile}s.
          * Missing files will be counted as 0 bytes.
          *
-         * @param files the file types to count
+         * @param databaseFiles the store types to count
          * @return the total size in bytes of the files
          */
-        private long sizeOfStoreFiles( StoreFile... files )
+        private long sizeOfStoreFiles( DatabaseFile... databaseFiles )
         {
             long size = 0L;
-            for ( StoreFile file : files )
+            for ( DatabaseFile store : databaseFiles )
             {
-                // Get size of both store and id file
-                size += sizeOf( file.fileName( StoreFileType.STORE ) );
-                if ( file.isRecordStore() )
-                {
-                    size += sizeOf( file.fileName( StoreFileType.ID ) );
-                }
+                size += databaseLayout.file( store ).mapToLong( this::sizeOf ).sum();
+                size += databaseLayout.idFile( store ).map( this::sizeOf ).orElse( 0L );
             }
             return size;
         }

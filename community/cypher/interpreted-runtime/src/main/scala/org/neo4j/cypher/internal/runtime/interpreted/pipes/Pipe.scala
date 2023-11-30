@@ -39,8 +39,8 @@
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.Unchangeable
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.Unchangeable
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 
 /**
   * Pipe is a central part of Cypher. Most pipes are decorators - they
@@ -83,7 +83,7 @@ trait Pipe {
 case class ArgumentPipe()(val id: Id = Id.INVALID_ID) extends Pipe {
 
   def internalCreateResults(state: QueryState) =
-    Iterator(state.createOrGetInitialContext(executionContextFactory))
+    Iterator(state.newExecutionContext(executionContextFactory))
 }
 
 abstract class PipeWithSource(source: Pipe) extends Pipe {

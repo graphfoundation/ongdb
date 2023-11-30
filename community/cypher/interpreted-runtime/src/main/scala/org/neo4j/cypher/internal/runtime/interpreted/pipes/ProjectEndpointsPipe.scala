@@ -40,9 +40,8 @@ package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, ListSupport}
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.values.virtual.VirtualValues.reverse
-import org.neo4j.values.virtual.{RelationshipReference, RelationshipValue, ListValue, NodeValue}
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.values.virtual.{ListValue, NodeValue, RelationshipReference, RelationshipValue}
 
 case class ProjectEndpointsPipe(source: Pipe, relName: String,
                                 start: String, startInScope: Boolean,
@@ -61,14 +60,16 @@ case class ProjectEndpointsPipe(source: Pipe, relName: String,
   private def projectVarLength(qtx: QueryContext): Projector = (context: ExecutionContext) => {
     findVarLengthRelEndpoints(context, qtx) match {
       case Some((InScopeReversed(startNode, endNode), rels)) if !directed =>
-        Iterator(context.set(start, endNode, end, startNode, relName, reverse(rels)))
+        context.set(start, endNode, end, startNode, relName, rels.reverse())
+        Iterator(context)
       case Some((NotInScope(startNode, endNode), rels)) if !directed =>
         Iterator(
           executionContextFactory.copyWith(context, start, startNode, end, endNode),
-          executionContextFactory.copyWith(context, start, endNode, end, startNode, relName, reverse(rels))
+          executionContextFactory.copyWith(context, start, endNode, end, startNode, relName, rels.reverse())
         )
       case Some((startAndEnd, rels)) =>
-        Iterator(context.set(start, startAndEnd.start, end, startAndEnd.end))
+        context.set(start, startAndEnd.start, end, startAndEnd.end)
+        Iterator(context)
       case None =>
         Iterator.empty
     }
@@ -77,14 +78,16 @@ case class ProjectEndpointsPipe(source: Pipe, relName: String,
   private def project(qtx: QueryContext): Projector = (context: ExecutionContext) => {
     findSimpleLengthRelEndpoints(context, qtx) match {
       case Some(InScopeReversed(startNode, endNode)) if !directed =>
-        Iterator(context.set(start, endNode, end, startNode))
+        context.set(start, endNode, end, startNode)
+        Iterator(context)
       case Some(NotInScope(startNode, endNode)) if !directed =>
         Iterator(
           executionContextFactory.copyWith(context, start, startNode, end, endNode),
           executionContextFactory.copyWith(context, start, endNode, end, startNode)
         )
       case Some(startAndEnd) =>
-        Iterator(context.set(start, startAndEnd.start, end, startAndEnd.end))
+        context.set(start, startAndEnd.start, end, startAndEnd.end)
+        Iterator(context)
       case None =>
         Iterator.empty
     }
@@ -96,6 +99,7 @@ case class ProjectEndpointsPipe(source: Pipe, relName: String,
       val relValue = context(relName) match {
         case relValue: RelationshipValue => relValue
         case relRef: RelationshipReference => qtx.relationshipOps.getById(relRef.id())
+        case _ =>  return None
       }
       val rel = Some(relValue).filter(hasAllowedType)
     rel.flatMap( rel => pickStartAndEnd(rel, rel, context, qtx) )
@@ -126,6 +130,7 @@ case class ProjectEndpointsPipe(source: Pipe, relName: String,
       val next = iterator.next() match {
         case relValue: RelationshipValue => relValue
         case relRef: RelationshipReference => qtx.relationshipOps.getById(relRef.id())
+        case _ =>  return false
       }
       if (!hasAllowedType(next)) return false
     }

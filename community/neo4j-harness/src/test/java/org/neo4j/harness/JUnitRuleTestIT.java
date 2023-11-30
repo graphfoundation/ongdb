@@ -43,6 +43,10 @@ import org.junit.Test;
 import org.junit.runners.model.Statement;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import org.neo4j.graphdb.GraphDatabaseService;
@@ -54,14 +58,17 @@ import org.neo4j.harness.extensionpackage.MyUnmanagedExtension;
 import org.neo4j.harness.junit.Neo4jRule;
 import org.neo4j.helpers.collection.Iterators;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.configuration.ssl.LegacySslPolicyConfig;
-import org.neo4j.server.configuration.ServerSettings;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.logging.LogTimeZone;
 import org.neo4j.test.TestGraphDatabaseFactory;
 import org.neo4j.test.rule.SuppressOutput;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.server.HTTP;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.time.ZoneOffset.UTC;
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
@@ -78,9 +85,9 @@ public class JUnitRuleTestIT
     @Rule
     public Neo4jRule neo4j = new Neo4jRule()
             .withFixture( "CREATE (u:User)" )
+            .withConfig( GraphDatabaseSettings.db_timezone.name(), LogTimeZone.SYSTEM.toString() )
             .withConfig( LegacySslPolicyConfig.certificates_directory.name(),
                     getRelativePath( getSharedTestTemporaryFolder(), LegacySslPolicyConfig.certificates_directory ) )
-            .withConfig( ServerSettings.script_enabled, Settings.TRUE )
             .withFixture( graphDatabaseService ->
             {
                 try ( Transaction tx = graphDatabaseService.beginTx() )
@@ -133,9 +140,9 @@ public class JUnitRuleTestIT
     @Test
     public void shouldRuleWorkWithExistingDirectory() throws Throwable
     {
-        // given a data folder, create /databases/graph.db sub-folders.
-        File existingDir = testDirectory.directory( "existing" );
-        File storeDir = Config.defaults( GraphDatabaseSettings.data_directory, existingDir.toPath().toString() )
+        // given a root folder, create /databases/graph.db folders.
+        File oldDir = testDirectory.directory( "old" );
+        File storeDir = Config.defaults( GraphDatabaseSettings.data_directory, oldDir.toPath().toString() )
                 .get( GraphDatabaseSettings.database_path );
         GraphDatabaseService db = new TestGraphDatabaseFactory().newEmbeddedDatabase( storeDir );
 
@@ -148,11 +155,10 @@ public class JUnitRuleTestIT
             db.shutdown();
         }
 
-        // When a rule with an pre-populated data directory is used
+        // When a rule with an pre-populated graph db directory is used
         File newDir = testDirectory.directory( "new" );
         final Neo4jRule ruleWithDirectory = new Neo4jRule( newDir )
-                .withConfig( ServerSettings.script_enabled, Settings.TRUE )
-                .copyFrom( existingDir );
+                .copyFrom( oldDir );
         Statement statement = ruleWithDirectory.apply( new Statement()
         {
             @Override
@@ -169,5 +175,28 @@ public class JUnitRuleTestIT
 
         // Then
         statement.evaluate();
+    }
+
+    @Test
+    public void shouldUseSystemTimeZoneForLogging() throws Exception
+    {
+        String currentOffset = currentTimeZoneOffsetString();
+
+        assertThat( contentOf( "neo4j.log" ), containsString( currentOffset ) );
+        assertThat( contentOf( "debug.log" ), containsString( currentOffset ) );
+    }
+
+    private String contentOf( String file ) throws IOException
+    {
+        GraphDatabaseAPI api = (GraphDatabaseAPI) neo4j.getGraphDatabaseService();
+        Config config = api.getDependencyResolver().resolveDependency( Config.class );
+        File dataDirectory = config.get( GraphDatabaseSettings.data_directory );
+        return new String( Files.readAllBytes( new File( dataDirectory, file ).toPath() ), UTF_8 );
+    }
+
+    private static String currentTimeZoneOffsetString()
+    {
+        ZoneOffset offset = OffsetDateTime.now().getOffset();
+        return offset.equals( UTC ) ? "+0000" : offset.toString().replace( ":", "" );
     }
 }

@@ -38,15 +38,16 @@
  */
 package org.neo4j.unsafe.impl.batchimport;
 
-import java.io.File;
 import java.util.NoSuchElementException;
 
 import org.neo4j.helpers.Service;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.logging.LogService;
 import org.neo4j.kernel.impl.store.format.RecordFormats;
+import org.neo4j.logging.internal.LogService;
+import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.unsafe.impl.batchimport.staging.ExecutionMonitor;
 
 public abstract class BatchImporterFactory extends Service
@@ -59,9 +60,10 @@ public abstract class BatchImporterFactory extends Service
         this.priority = priority;
     }
 
-    public abstract BatchImporter instantiate( File storeDir, FileSystemAbstraction fileSystem, PageCache externalPageCache,
+    public abstract BatchImporter instantiate( DatabaseLayout directoryStructure, FileSystemAbstraction fileSystem, PageCache externalPageCache,
             Configuration config, LogService logService, ExecutionMonitor executionMonitor,
-            AdditionalInitialIds additionalInitialIds, Config dbConfig, RecordFormats recordFormats, ImportLogic.Monitor monitor );
+            AdditionalInitialIds additionalInitialIds, Config dbConfig, RecordFormats recordFormats, ImportLogic.Monitor monitor,
+            JobScheduler jobScheduler );
 
     public static BatchImporterFactory withHighestPriority()
     {

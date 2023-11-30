@@ -41,49 +41,53 @@ package org.neo4j.kernel.impl.transaction.state;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
 
-import org.neo4j.collection.primitive.Primitive;
-import org.neo4j.collection.primitive.PrimitiveLongIterator;
-import org.neo4j.collection.primitive.PrimitiveLongObjectMap;
-import org.neo4j.collection.primitive.PrimitiveLongSet;
-import org.neo4j.helpers.collection.Iterables;
 import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
 import org.neo4j.kernel.api.index.IndexEntryUpdate;
+import org.neo4j.kernel.impl.api.index.EntityCommandGrouper;
+import org.neo4j.kernel.impl.api.index.EntityUpdates;
 import org.neo4j.kernel.impl.api.index.IndexingUpdateService;
-import org.neo4j.kernel.impl.api.index.NodeUpdates;
 import org.neo4j.kernel.impl.api.index.PropertyPhysicalToLogicalConverter;
 import org.neo4j.kernel.impl.store.NodeStore;
+import org.neo4j.kernel.impl.store.RelationshipStore;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
 import org.neo4j.kernel.impl.store.record.RecordLoad;
+import org.neo4j.kernel.impl.store.record.RelationshipRecord;
+import org.neo4j.kernel.impl.transaction.command.Command;
 import org.neo4j.kernel.impl.transaction.command.Command.NodeCommand;
 import org.neo4j.kernel.impl.transaction.command.Command.PropertyCommand;
+import org.neo4j.kernel.impl.transaction.command.Command.RelationshipCommand;
+import org.neo4j.storageengine.api.EntityType;
 
 import static org.neo4j.kernel.impl.store.NodeLabelsField.parseLabelsField;
+import static org.neo4j.kernel.impl.transaction.command.Command.Mode.CREATE;
+import static org.neo4j.kernel.impl.transaction.command.Command.Mode.DELETE;
 
 /**
- * Derives logical index updates from physical records, provided by {@link NodeCommand node commands} and
- * {@link PropertyCommand property commands}. For some types of updates state from store is also needed,
- * for example if adding a label to a node which already has properties matching existing and online indexes;
- * in that case the properties for that node needs to be read from store since the commands in that transaction
- * cannot itself provide enough information.
+ * Derives logical index updates from physical records, provided by {@link NodeCommand node commands},
+ * {@link RelationshipCommand relationship commands} and {@link PropertyCommand property commands}. For some
+ * types of updates state from store is also needed, for example if adding a label to a node which already has
+ * properties matching existing and online indexes; in that case the properties for that node needs to be read
+ * from store since the commands in that transaction cannot itself provide enough information.
  *
- * One instance can be {@link #feed(PrimitiveLongObjectMap, PrimitiveLongObjectMap) fed} data about
+ * One instance can be {@link IndexUpdates#feed(EntityCommandGrouper.Cursor,EntityCommandGrouper.Cursor) fed} data about
  * multiple transactions, to be {@link #iterator() accessed} later.
  */
 public class OnlineIndexUpdates implements IndexUpdates
 {
     private final NodeStore nodeStore;
+    private final RelationshipStore relationshipStore;
     private final IndexingUpdateService updateService;
     private final PropertyPhysicalToLogicalConverter converter;
     private final Collection<IndexEntryUpdate<SchemaDescriptor>> updates = new ArrayList<>();
     private NodeRecord nodeRecord;
+    private RelationshipRecord relationshipRecord;
 
-    public OnlineIndexUpdates( NodeStore nodeStore,
-                             IndexingUpdateService updateService,
-                             PropertyPhysicalToLogicalConverter converter )
+    public OnlineIndexUpdates( NodeStore nodeStore, RelationshipStore relationshipStore, IndexingUpdateService updateService,
+            PropertyPhysicalToLogicalConverter converter )
     {
         this.nodeStore = nodeStore;
+        this.relationshipStore = relationshipStore;
         this.updateService = updateService;
         this.converter = converter;
     }
@@ -95,25 +99,16 @@ public class OnlineIndexUpdates implements IndexUpdates
     }
 
     @Override
-    public void feed( PrimitiveLongObjectMap<List<PropertyCommand>> propertyCommands,
-            PrimitiveLongObjectMap<NodeCommand> nodeCommands )
+    public void feed( EntityCommandGrouper<NodeCommand>.Cursor nodeCommands, EntityCommandGrouper<RelationshipCommand>.Cursor relationshipCommands )
     {
-        PrimitiveLongIterator nodeIds = allKeys( nodeCommands, propertyCommands ).iterator();
-        while ( nodeIds.hasNext() )
+        while ( nodeCommands.nextEntity() )
         {
-            long nodeId = nodeIds.next();
-            gatherUpdatesFor( nodeId, nodeCommands.get( nodeId ), propertyCommands.get( nodeId ) );
+            gatherUpdatesFor( nodeCommands.currentEntityId(), nodeCommands.currentEntityCommand(), nodeCommands );
         }
-    }
-
-    private PrimitiveLongSet allKeys( PrimitiveLongObjectMap... maps )
-    {
-        PrimitiveLongSet union = Primitive.longSet();
-        for ( PrimitiveLongObjectMap map : maps )
+        while ( relationshipCommands.nextEntity() )
         {
-            union.addAll( map.iterator() );
+            gatherUpdatesFor( relationshipCommands.currentEntityId(), relationshipCommands.currentEntityCommand(), relationshipCommands );
         }
-        return union;
     }
 
     @Override
@@ -122,23 +117,37 @@ public class OnlineIndexUpdates implements IndexUpdates
         return !updates.isEmpty();
     }
 
-    private void gatherUpdatesFor( long nodeId, NodeCommand nodeCommand, List<PropertyCommand> propertyCommands )
+    private void gatherUpdatesFor( long nodeId, NodeCommand nodeCommand, EntityCommandGrouper<NodeCommand>.Cursor propertyCommands )
     {
-        NodeUpdates.Builder nodePropertyUpdate =
+        EntityUpdates.Builder nodePropertyUpdate =
                 gatherUpdatesFromCommandsForNode( nodeId, nodeCommand, propertyCommands );
 
-        NodeUpdates nodeUpdates = nodePropertyUpdate.build();
+        EntityUpdates entityUpdates = nodePropertyUpdate.build();
         // we need to materialize the IndexEntryUpdates here, because when we
         // consume (later in separate thread) the store might have changed.
-        for ( IndexEntryUpdate<SchemaDescriptor> update :  updateService.convertToIndexUpdates( nodeUpdates ) )
+        for ( IndexEntryUpdate<SchemaDescriptor> update : updateService.convertToIndexUpdates( entityUpdates, EntityType.NODE ) )
         {
             updates.add( update );
         }
     }
 
-    private NodeUpdates.Builder gatherUpdatesFromCommandsForNode( long nodeId,
+    private void gatherUpdatesFor( long relationshipId, RelationshipCommand relationshipCommand,
+            EntityCommandGrouper<RelationshipCommand>.Cursor propertyCommands )
+    {
+        EntityUpdates.Builder relationshipPropertyUpdate = gatherUpdatesFromCommandsForRelationship( relationshipId, relationshipCommand, propertyCommands );
+
+        EntityUpdates entityUpdates = relationshipPropertyUpdate.build();
+        // we need to materialize the IndexEntryUpdates here, because when we
+        // consume (later in separate thread) the store might have changed.
+        for ( IndexEntryUpdate<SchemaDescriptor> update : updateService.convertToIndexUpdates( entityUpdates, EntityType.RELATIONSHIP ) )
+        {
+            updates.add( update );
+        }
+    }
+
+    private EntityUpdates.Builder gatherUpdatesFromCommandsForNode( long nodeId,
             NodeCommand nodeChanges,
-            List<PropertyCommand> propertyCommandsForNode )
+            EntityCommandGrouper<NodeCommand>.Cursor propertyCommandsForNode )
     {
         long[] nodeLabelsBefore;
         long[] nodeLabelsAfter;
@@ -169,15 +178,40 @@ public class OnlineIndexUpdates implements IndexUpdates
         }
 
         // First get possible Label changes
-        NodeUpdates.Builder nodePropertyUpdates =
-                NodeUpdates.forNode( nodeId, nodeLabelsBefore, nodeLabelsAfter );
+        boolean complete = providesCompleteListOfProperties( nodeChanges );
+        EntityUpdates.Builder nodePropertyUpdates =
+                EntityUpdates.forEntity( nodeId, complete ).withTokens( nodeLabelsBefore ).withTokensAfter( nodeLabelsAfter );
 
         // Then look for property changes
-        if ( propertyCommandsForNode != null )
-        {
-            converter.convertPropertyRecord( nodeId, Iterables.cast( propertyCommandsForNode ), nodePropertyUpdates );
-        }
+        converter.convertPropertyRecord( propertyCommandsForNode, nodePropertyUpdates );
         return nodePropertyUpdates;
+    }
+
+    private static boolean providesCompleteListOfProperties( Command entityCommand )
+    {
+        return entityCommand != null && (entityCommand.getMode() == CREATE || entityCommand.getMode() == DELETE);
+    }
+
+    private EntityUpdates.Builder gatherUpdatesFromCommandsForRelationship( long relationshipId, RelationshipCommand relationshipCommand,
+            EntityCommandGrouper<RelationshipCommand>.Cursor propertyCommands )
+    {
+        long reltypeBefore;
+        long reltypeAfter;
+        if ( relationshipCommand != null )
+        {
+            reltypeBefore = relationshipCommand.getBefore().getType();
+            reltypeAfter = relationshipCommand.getAfter().getType();
+        }
+        else
+        {
+            RelationshipRecord relationshipRecord = loadRelationship( relationshipId );
+            reltypeBefore = reltypeAfter = relationshipRecord.getType();
+        }
+        boolean complete = providesCompleteListOfProperties( relationshipCommand );
+        EntityUpdates.Builder relationshipPropertyUpdates =
+                EntityUpdates.forEntity( relationshipId, complete ).withTokens( reltypeBefore ).withTokensAfter( reltypeAfter );
+        converter.convertPropertyRecord( propertyCommands, relationshipPropertyUpdates );
+        return relationshipPropertyUpdates;
     }
 
     private NodeRecord loadNode( long nodeId )
@@ -188,5 +222,21 @@ public class OnlineIndexUpdates implements IndexUpdates
         }
         nodeStore.getRecord( nodeId, nodeRecord, RecordLoad.NORMAL );
         return nodeRecord;
+    }
+
+    private RelationshipRecord loadRelationship( long relationshipId )
+    {
+        if ( relationshipRecord == null )
+        {
+            relationshipRecord = relationshipStore.newRecord();
+        }
+        relationshipStore.getRecord( relationshipId, relationshipRecord, RecordLoad.NORMAL );
+        return relationshipRecord;
+    }
+
+    @Override
+    public String toString()
+    {
+        return "OnlineIndexUpdates[" + updates + "]";
     }
 }

@@ -40,21 +40,22 @@ package org.neo4j.cypher.internal.runtime.interpreted
 
 import java.net.URL
 
-import org.neo4j.collection.primitive.PrimitiveLongIterator
-import org.neo4j.cypher.internal.planner.v3_4.spi.{IndexDescriptor, KernelStatisticProvider}
+import org.eclipse.collections.api.iterator.LongIterator
+import org.neo4j.cypher.internal.planner.v3_5.spi.{IndexDescriptor, KernelStatisticProvider}
 import org.neo4j.cypher.internal.runtime._
-import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection
-import org.neo4j.cypher.internal.v3_4.logical.plans.QualifiedName
-import org.neo4j.graphdb.{Node, Path, PropertyContainer}
+import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v3_5.logical.plans.{IndexOrder, QualifiedName}
+import org.neo4j.graphdb.{Path, PropertyContainer}
 import org.neo4j.internal.kernel.api.helpers.RelationshipSelectionCursor
+import org.neo4j.internal.kernel.api.procs.ProcedureCallContext
 import org.neo4j.internal.kernel.api.{CursorFactory, IndexReference, Read, Write, _}
 import org.neo4j.kernel.api.dbms.DbmsOperations
 import org.neo4j.kernel.impl.api.store.RelationshipIterator
 import org.neo4j.kernel.impl.core.EmbeddedProxySPI
 import org.neo4j.kernel.impl.factory.DatabaseInfo
 import org.neo4j.values.AnyValue
-import org.neo4j.values.storable.Value
-import org.neo4j.values.virtual.{ListValue, NodeValue, RelationshipValue}
+import org.neo4j.values.storable.{TextValue, Value}
+import org.neo4j.values.virtual.{ListValue, MapValue, NodeValue, RelationshipValue}
 
 import scala.collection.Iterator
 
@@ -62,12 +63,14 @@ abstract class DelegatingQueryContext(val inner: QueryContext) extends QueryCont
 
   protected def singleDbHit[A](value: A): A = value
   protected def manyDbHits[A](value: Iterator[A]): Iterator[A] = value
-  protected def manyDbHits[A](value: PrimitiveLongIterator): PrimitiveLongIterator = value
+
+  protected def manyDbHits[A](value: LongIterator): LongIterator = value
   protected def manyDbHits[A](value: RelationshipIterator): RelationshipIterator = value
   protected def manyDbHits[A](value: RelationshipSelectionCursor): RelationshipSelectionCursor = value
+  protected def manyDbHits[A](value: NodeValueIndexCursor): NodeValueIndexCursor = value
   protected def manyDbHits(count: Int): Int = count
 
-  override def resources: CloseableResource = inner.resources
+  override def resources: ResourceManager = inner.resources
 
   override def transactionalContext: QueryTransactionalContext = inner.transactionalContext
 
@@ -78,9 +81,9 @@ abstract class DelegatingQueryContext(val inner: QueryContext) extends QueryCont
   override def setLabelsOnNode(node: Long, labelIds: Iterator[Int]): Int =
     singleDbHit(inner.setLabelsOnNode(node, labelIds))
 
-  override def createNode(): Node = singleDbHit(inner.createNode())
+  override def createNode(labels: Array[Int]): NodeValue = singleDbHit(inner.createNode(labels))
 
-  override def createNodeId(): Long = singleDbHit(inner.createNodeId())
+  override def createNodeId(labels: Array[Int]): Long = singleDbHit(inner.createNodeId(labels))
 
   override def createRelationship(start: Long, end: Long, relType: Int): RelationshipValue =
     singleDbHit(inner.createRelationship(start, end, relType))
@@ -125,6 +128,11 @@ abstract class DelegatingQueryContext(val inner: QueryContext) extends QueryCont
 
   override def getOrCreatePropertyKeyId(propertyKey: String) = singleDbHit(inner.getOrCreatePropertyKeyId(propertyKey))
 
+  override def getOrCreatePropertyKeyIds(propertyKeys: Array[String]): Array[Int] = {
+    manyDbHits(propertyKeys.length)
+    inner.getOrCreatePropertyKeyIds(propertyKeys)
+  }
+
   override def addIndexRule(descriptor: IndexDescriptor) = singleDbHit(inner.addIndexRule(descriptor))
 
   override def dropIndexRule(descriptor: IndexDescriptor) = singleDbHit(inner.dropIndexRule(descriptor))
@@ -132,25 +140,45 @@ abstract class DelegatingQueryContext(val inner: QueryContext) extends QueryCont
 
   override def indexReference(label: Int, properties: Int*): IndexReference = singleDbHit(inner.indexReference(label, properties:_*))
 
-  override def indexSeek(index: IndexReference, values: Seq[IndexQuery]): Iterator[NodeValue] =
-    manyDbHits(inner.indexSeek(index, values))
+  override def indexSeek[RESULT <: AnyRef](index: IndexReference,
+                                           needsValues: Boolean,
+                                           indexOrder: IndexOrder,
+                                           queries: Seq[IndexQuery]): NodeValueIndexCursor =
+    manyDbHits(inner.indexSeek(index, needsValues, indexOrder, queries))
 
-  override def indexScan(index: IndexReference): Iterator[NodeValue] = manyDbHits(inner.indexScan(index))
+  override def indexScan[RESULT <: AnyRef](index: IndexReference,
+                                           needsValues: Boolean,
+                                           indexOrder: IndexOrder): NodeValueIndexCursor =
+    manyDbHits(inner.indexScan(index, needsValues, indexOrder))
 
-  override def indexScanPrimitive(index: IndexReference): PrimitiveLongIterator = manyDbHits(inner.indexScanPrimitive(index))
+  override def indexSeekByContains[RESULT <: AnyRef](index: IndexReference,
+                                                     needsValues: Boolean,
+                                                     indexOrder: IndexOrder,
+                                                     value: TextValue): NodeValueIndexCursor =
+    manyDbHits(inner.indexSeekByContains(index, needsValues, indexOrder, value))
 
-  override def indexScanByContains(index: IndexReference, value: String): scala.Iterator[NodeValue] =
-    manyDbHits(inner.indexScanByContains(index, value))
-
-  override def indexScanByEndsWith(index: IndexReference, value: String): scala.Iterator[NodeValue] =
-    manyDbHits(inner.indexScanByEndsWith(index, value))
+  override def indexSeekByEndsWith[RESULT <: AnyRef](index: IndexReference,
+                                                     needsValues: Boolean,
+                                                     indexOrder: IndexOrder,
+                                                     value: TextValue): NodeValueIndexCursor =
+    manyDbHits(inner.indexSeekByEndsWith(index, needsValues, indexOrder, value))
 
   override def getNodesByLabel(id: Int): Iterator[NodeValue] = manyDbHits(inner.getNodesByLabel(id))
 
-  override def getNodesByLabelPrimitive(id: Int): PrimitiveLongIterator = manyDbHits(inner.getNodesByLabelPrimitive(id))
+  override def getNodesByLabelPrimitive(id: Int): LongIterator = manyDbHits(inner.getNodesByLabelPrimitive(id))
 
-  override def getOrCreateFromSchemaState[K, V](key: K, creator: => V): V =
-    singleDbHit(inner.getOrCreateFromSchemaState(key, creator))
+  override def nodeAsMap(id: Long): MapValue = {
+    val map = inner.nodeAsMap(id)
+    //one hit finding the node, then finding the properies
+    manyDbHits(1 + map.size())
+    map
+  }
+
+  override def relationshipAsMap(id: Long): MapValue = {
+    val map = inner.relationshipAsMap(id)
+    manyDbHits(1 + map.size())
+    map
+  }
 
   override def createNodeKeyConstraint(descriptor: IndexDescriptor): Boolean =
     singleDbHit(inner.createNodeKeyConstraint(descriptor))
@@ -178,8 +206,9 @@ abstract class DelegatingQueryContext(val inner: QueryContext) extends QueryCont
 
   override def withAnyOpenQueryContext[T](work: (QueryContext) => T): T = inner.withAnyOpenQueryContext(work)
 
-  override def lockingUniqueIndexSeek(index: IndexReference, values: Seq[IndexQuery.ExactPredicate]): Option[NodeValue] =
-    singleDbHit(inner.lockingUniqueIndexSeek(index, values))
+  override def lockingUniqueIndexSeek[RESULT](index: IndexReference,
+                                              queries: Seq[IndexQuery.ExactPredicate]): NodeValueIndexCursor =
+    singleDbHit(inner.lockingUniqueIndexSeek(index, queries))
 
   override def getRelTypeId(relType: String): Int = singleDbHit(inner.getRelTypeId(relType))
 
@@ -189,14 +218,22 @@ abstract class DelegatingQueryContext(val inner: QueryContext) extends QueryCont
 
   override def getImportURL(url: URL): Either[String,URL] = inner.getImportURL(url)
 
-  override def edgeGetStartNode(edge: RelationshipValue) = inner.edgeGetStartNode(edge)
+  override def relationshipGetStartNode(relationship: RelationshipValue) = inner.relationshipGetStartNode(relationship)
 
-  override def edgeGetEndNode(edge: RelationshipValue) = inner.edgeGetEndNode(edge)
+  override def relationshipGetEndNode(relationship: RelationshipValue) = inner.relationshipGetEndNode(relationship)
 
-  override def nodeGetDegree(node: Long, dir: SemanticDirection): Int = singleDbHit(inner.nodeGetDegree(node, dir))
 
-  override def nodeGetDegree(node: Long, dir: SemanticDirection, relTypeId: Int): Int =
-    singleDbHit(inner.nodeGetDegree(node, dir, relTypeId))
+  override def nodeGetOutgoingDegree(node: Long): Int = singleDbHit(inner.nodeGetOutgoingDegree(node))
+
+  override def nodeGetOutgoingDegree(node: Long, relationship: Int): Int = singleDbHit(inner.nodeGetOutgoingDegree(node, relationship))
+
+  override def nodeGetIncomingDegree(node: Long): Int = singleDbHit(inner.nodeGetIncomingDegree(node))
+
+  override def nodeGetIncomingDegree(node: Long, relationship: Int): Int = singleDbHit(inner.nodeGetIncomingDegree(node, relationship))
+
+  override def nodeGetTotalDegree(node: Long): Int = singleDbHit(inner.nodeGetTotalDegree(node))
+
+  override def nodeGetTotalDegree(node: Long, relationship: Int): Int = singleDbHit(inner.nodeGetTotalDegree(node, relationship))
 
   override def nodeIsDense(node: Long): Boolean = singleDbHit(inner.nodeIsDense(node))
 
@@ -228,29 +265,29 @@ abstract class DelegatingQueryContext(val inner: QueryContext) extends QueryCont
                                filters: Seq[KernelPredicate[PropertyContainer]]): Iterator[Path] =
     manyDbHits(inner.allShortestPath(left, right, depth, expander, pathPredicate, filters))
 
-  override def callReadOnlyProcedure(id: Int, args: Seq[Any], allowed: Array[String]) =
-    singleDbHit(inner.callReadOnlyProcedure(id, args, allowed))
+  override def callReadOnlyProcedure(id: Int, args: Seq[Any], allowed: Array[String], context: ProcedureCallContext) =
+    singleDbHit(inner.callReadOnlyProcedure(id, args, allowed, context))
 
-  override def callReadWriteProcedure(id: Int, args: Seq[Any], allowed: Array[String]) =
-    singleDbHit(inner.callReadWriteProcedure(id, args, allowed))
+  override def callReadWriteProcedure(id: Int, args: Seq[Any], allowed: Array[String], context: ProcedureCallContext) =
+    singleDbHit(inner.callReadWriteProcedure(id, args, allowed, context))
 
-  override def callSchemaWriteProcedure(id: Int, args: Seq[Any], allowed: Array[String]) =
-    singleDbHit(inner.callSchemaWriteProcedure(id, args, allowed))
+  override def callSchemaWriteProcedure(id: Int, args: Seq[Any], allowed: Array[String], context: ProcedureCallContext) =
+    singleDbHit(inner.callSchemaWriteProcedure(id, args, allowed, context))
 
-  override def callDbmsProcedure(id: Int, args: Seq[Any], allowed: Array[String]) =
-    inner.callDbmsProcedure(id, args, allowed)
+  override def callDbmsProcedure(id: Int, args: Seq[Any], allowed: Array[String], context: ProcedureCallContext) =
+    inner.callDbmsProcedure(id, args, allowed, context)
 
-  override def callReadOnlyProcedure(name: QualifiedName, args: Seq[Any], allowed: Array[String]) =
-    singleDbHit(inner.callReadOnlyProcedure(name, args, allowed))
+  override def callReadOnlyProcedure(name: QualifiedName, args: Seq[Any], allowed: Array[String], context: ProcedureCallContext) =
+    singleDbHit(inner.callReadOnlyProcedure(name, args, allowed, context))
 
-  override def callReadWriteProcedure(name: QualifiedName, args: Seq[Any], allowed: Array[String]) =
-    singleDbHit(inner.callReadWriteProcedure(name, args, allowed))
+  override def callReadWriteProcedure(name: QualifiedName, args: Seq[Any], allowed: Array[String], context: ProcedureCallContext) =
+    singleDbHit(inner.callReadWriteProcedure(name, args, allowed, context))
 
-  override def callSchemaWriteProcedure(name: QualifiedName, args: Seq[Any], allowed: Array[String]) =
-    singleDbHit(inner.callSchemaWriteProcedure(name, args, allowed))
+  override def callSchemaWriteProcedure(name: QualifiedName, args: Seq[Any], allowed: Array[String], context: ProcedureCallContext) =
+    singleDbHit(inner.callSchemaWriteProcedure(name, args, allowed, context))
 
-  override def callDbmsProcedure(name: QualifiedName, args: Seq[Any], allowed: Array[String]) =
-    inner.callDbmsProcedure(name, args, allowed)
+  override def callDbmsProcedure(name: QualifiedName, args: Seq[Any], allowed: Array[String], context: ProcedureCallContext) =
+    inner.callDbmsProcedure(name, args, allowed, context)
 
   override def callFunction(id: Int, args: Seq[AnyValue], allowed: Array[String]) =
     singleDbHit(inner.callFunction(id, args, allowed))
@@ -266,21 +303,19 @@ abstract class DelegatingQueryContext(val inner: QueryContext) extends QueryCont
                                  allowed: Array[String]): UserDefinedAggregator =
     singleDbHit(inner.aggregateFunction(name, allowed))
 
-  override def isGraphKernelResultValue(v: Any): Boolean =
-    inner.isGraphKernelResultValue(v)
-
   override def detachDeleteNode(node: Long): Int = manyDbHits(inner.detachDeleteNode(node))
 
   override def assertSchemaWritesAllowed(): Unit = inner.assertSchemaWritesAllowed()
 
-  override def asObject(value: AnyValue): Any = inner.asObject(value)
+  override def asObject(value: AnyValue): AnyRef = inner.asObject(value)
 }
 
 class DelegatingOperations[T](protected val inner: Operations[T]) extends Operations[T] {
 
   protected def singleDbHit[A](value: A): A = value
   protected def manyDbHits[A](value: Iterator[A]): Iterator[A] = value
-  protected def manyDbHits[A](value: PrimitiveLongIterator): PrimitiveLongIterator = value
+
+  protected def manyDbHits[A](value: LongIterator): LongIterator = value
 
   override def delete(id: Long): Unit = singleDbHit(inner.delete(id))
 
@@ -291,15 +326,20 @@ class DelegatingOperations[T](protected val inner: Operations[T]) extends Operat
 
   override def getProperty(obj: Long, propertyKeyId: Int): Value = singleDbHit(inner.getProperty(obj, propertyKeyId))
 
+  override def getTxStateProperty(obj: Long, propertyKeyId: Int): Option[Value] = inner.getTxStateProperty(obj, propertyKeyId)
+
   override def hasProperty(obj: Long, propertyKeyId: Int): Boolean = singleDbHit(inner.hasProperty(obj, propertyKeyId))
 
-  override def propertyKeyIds(obj: Long): Iterator[Int] = singleDbHit(inner.propertyKeyIds(obj))
+  override def hasTxStatePropertyForCachedNodeProperty(nodeId: Long, propertyKeyId: Int): Boolean =
+    inner.hasTxStatePropertyForCachedNodeProperty(nodeId, propertyKeyId)
+
+  override def propertyKeyIds(obj: Long): Array[Int] = singleDbHit(inner.propertyKeyIds(obj))
 
   override def removeProperty(obj: Long, propertyKeyId: Int): Unit = singleDbHit(inner.removeProperty(obj, propertyKeyId))
 
   override def all: Iterator[T] = manyDbHits(inner.all)
 
-  override def allPrimitive: PrimitiveLongIterator = manyDbHits(inner.allPrimitive)
+  override def allPrimitive: LongIterator = manyDbHits(inner.allPrimitive)
 
   override def isDeletedInThisTx(id: Long): Boolean = inner.isDeletedInThisTx(id)
 
@@ -324,13 +364,11 @@ class DelegatingQueryTransactionalContext(val inner: QueryTransactionalContext) 
 
   override def databaseInfo: DatabaseInfo = inner.databaseInfo
 
+  override def transaction: Transaction = inner.transaction
+
   override def cursors: CursorFactory = inner.cursors
 
   override def dataRead: Read = inner.dataRead
-
-  override def stableDataRead: Read = inner.stableDataRead
-
-  override def markAsStable(): Unit = inner.markAsStable()
 
   override def tokenRead: TokenRead = inner.tokenRead
 

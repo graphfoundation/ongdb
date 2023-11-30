@@ -55,13 +55,11 @@ import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.neo4j.helpers.collection.Pair;
 import org.neo4j.values.StructureBuilder;
 import org.neo4j.values.ValueMapper;
 import org.neo4j.values.utils.InvalidValuesArgumentException;
 import org.neo4j.values.utils.UnsupportedTemporalUnitException;
 import org.neo4j.values.virtual.MapValue;
-import org.neo4j.values.virtual.VirtualValues;
 
 import static java.lang.Integer.parseInt;
 import static java.util.Objects.requireNonNull;
@@ -101,7 +99,12 @@ public final class DateValue extends TemporalValue<LocalDate,DateValue>
 
     public static DateValue epochDate( long epochDay )
     {
-        return new DateValue( assertValidArgument( () -> LocalDate.ofEpochDay( epochDay ) ) );
+        return new DateValue( epochDateRaw( epochDay ) );
+    }
+
+    public static LocalDate epochDateRaw( long epochDay )
+    {
+        return assertValidArgument( () -> LocalDate.ofEpochDay( epochDay ) );
     }
 
     public static DateValue parse( CharSequence text )
@@ -153,7 +156,7 @@ public final class DateValue extends TemporalValue<LocalDate,DateValue>
         }
         else
         {
-            MapValue updatedFields = VirtualValues.copy( fields, Pair.of( "date", truncated ) );
+            MapValue updatedFields = fields.updatedWith( "date", truncated );
             return build( updatedFields, defaultZone );
         }
     }

@@ -38,16 +38,16 @@
  */
 package org.neo4j.consistency.statistics;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.consistency.statistics.Counts.Type;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class DefaultCountsTest
+class DefaultCountsTest
 {
     @Test
-    public void shouldCountPerThread()
+    void shouldCountPerThread()
     {
         // GIVEN
         Counts counts = new DefaultCounts( 3 );
@@ -64,7 +64,7 @@ public class DefaultCountsTest
     }
 
     @Test
-    public void shouldResetCounts()
+    void shouldResetCounts()
     {
         // GIVEN
         Counts counts = new DefaultCounts( 2 );

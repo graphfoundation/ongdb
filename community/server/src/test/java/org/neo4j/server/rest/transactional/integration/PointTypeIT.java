@@ -39,7 +39,6 @@
 package org.neo4j.server.rest.transactional.integration;
 
 import com.fasterxml.jackson.databind.JsonNode;
-
 import org.junit.After;
 import org.junit.Test;
 

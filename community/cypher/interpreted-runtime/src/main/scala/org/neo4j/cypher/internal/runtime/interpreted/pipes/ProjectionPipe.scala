@@ -38,25 +38,30 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.InterpretedCommandProjection
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.runtime.interpreted.{CommandProjection, ExecutionContext}
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 
-case class ProjectionPipe(source: Pipe, expressions: Map[String, Expression])
+case class ProjectionPipe(source: Pipe, projection: CommandProjection)
                          (val id: Id = Id.INVALID_ID) extends PipeWithSource(source) {
 
-  expressions.values.foreach(_.registerOwningPipe(this))
+  projection.registerOwningPipe(this)
 
-  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState) = {
-    input.map {
-      ctx =>
-        expressions.foreach {
-          case (name, expression) =>
-            val result = expression(ctx, state)
-            ctx.put(name, result)
-        }
-
-        ctx
+  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
+    if (projection.isEmpty)
+      input
+    else {
+      input.map {
+        ctx =>
+          projection.project(ctx, state)
+          ctx
+      }
     }
   }
+}
+
+object ProjectionPipe {
+  def apply(source: Pipe, projections: Map[String, Expression]): ProjectionPipe =
+    ProjectionPipe(source, InterpretedCommandProjection(projections))()
 }

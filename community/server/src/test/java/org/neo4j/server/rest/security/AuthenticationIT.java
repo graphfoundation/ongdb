@@ -39,13 +39,14 @@
 package org.neo4j.server.rest.security;
 
 import com.fasterxml.jackson.databind.JsonNode;
-
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
 
 import java.io.IOException;
 import javax.ws.rs.core.HttpHeaders;
 
+import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.impl.annotations.Documented;
 import org.neo4j.server.rest.RESTRequestGenerator;
 import org.neo4j.server.rest.domain.JsonHelper;
@@ -57,6 +58,7 @@ import org.neo4j.test.server.HTTP.RawPayload;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.neo4j.test.server.HTTP.RawPayload.rawPayload;
 
 public class AuthenticationIT extends CommunityServerTestBase
 {
@@ -75,7 +77,7 @@ public class AuthenticationIT extends CommunityServerTestBase
         // Document
         RESTRequestGenerator.ResponseEntity response = gen.get()
                 .expectedStatus( 401 )
-                .expectedHeader( "WWW-Authenticate", "Basic realm=\"ONgDB\"" )
+                .expectedHeader( "WWW-Authenticate", "Basic realm=\"Neo4j\"" )
                 .get( dataURL() );
 
         // Then
@@ -88,7 +90,7 @@ public class AuthenticationIT extends CommunityServerTestBase
     @Test
     @Documented( "Authenticate to access the server\n" +
                  "\n" +
-                 "Authenticate by sending a username and a password to ONgDB using HTTP Basic Auth.\n" +
+                 "Authenticate by sending a username and a password to Neo4j using HTTP Basic Auth.\n" +
                  "Requests should include an +Authorization+ header, with a value of +Basic <payload>+,\n" +
                  "where \"payload\" is a base64 encoded string of \"username:password\"." )
     public void successful_authentication() throws JsonParseException, IOException
@@ -99,14 +101,14 @@ public class AuthenticationIT extends CommunityServerTestBase
         // Document
         RESTRequestGenerator.ResponseEntity response = gen.get()
                 .expectedStatus( 200 )
-                .withHeader( HttpHeaders.AUTHORIZATION, basicAuthHeader( "ongdb", "secret" ) )
-                .get( userURL( "ongdb" ) );
+                .withHeader( HttpHeaders.AUTHORIZATION, HTTP.basicAuthHeader( "neo4j", "secret" ) )
+                .get( userURL( "neo4j" ) );
 
         // Then
         JsonNode data = JsonHelper.jsonNode( response.entity() );
-        assertThat( data.get( "username" ).asText(), equalTo( "ongdb" ) );
+        assertThat( data.get( "username" ).asText(), equalTo( "neo4j" ) );
         assertThat( data.get( "password_change_required" ).asBoolean(), equalTo( false ) );
-        assertThat( data.get( "password_change" ).asText(), equalTo( passwordURL( "ongdb" ) ) );
+        assertThat( data.get( "password_change" ).asText(), equalTo( passwordURL( "neo4j" ) ) );
     }
 
     @Test
@@ -121,8 +123,8 @@ public class AuthenticationIT extends CommunityServerTestBase
         // Document
         RESTRequestGenerator.ResponseEntity response = gen.get()
                 .expectedStatus( 401 )
-                .withHeader( HttpHeaders.AUTHORIZATION, basicAuthHeader( "ongdb", "incorrect" ) )
-                .expectedHeader( "WWW-Authenticate", "Basic realm=\"ONgDB\"" )
+                .withHeader( HttpHeaders.AUTHORIZATION, HTTP.basicAuthHeader( "neo4j", "incorrect" ) )
+                .expectedHeader( "WWW-Authenticate", "Basic realm=\"Neo4j\"" )
                 .post( dataURL() );
 
         // Then
@@ -135,7 +137,7 @@ public class AuthenticationIT extends CommunityServerTestBase
     @Test
     @Documented( "Required password changes\n" +
                  "\n" +
-                 "In some cases, like the very first time ONgDB is accessed, the user will be required to choose\n" +
+                 "In some cases, like the very first time Neo4j is accessed, the user will be required to choose\n" +
                  "a new password. The database will signal that a new password is required and deny access.\n" +
                  "\n" +
                  "See <<rest-api-security-user-status-and-password-changing>> for how to set a new password." )
@@ -147,7 +149,7 @@ public class AuthenticationIT extends CommunityServerTestBase
         // Document
         RESTRequestGenerator.ResponseEntity response = gen.get()
                 .expectedStatus( 403 )
-                .withHeader( HttpHeaders.AUTHORIZATION, basicAuthHeader( "ongdb", "ongdb" ) )
+                .withHeader( HttpHeaders.AUTHORIZATION, HTTP.basicAuthHeader( "neo4j", "neo4j" ) )
                 .get( dataURL() );
 
         // Then
@@ -155,7 +157,7 @@ public class AuthenticationIT extends CommunityServerTestBase
         JsonNode firstError = data.get( "errors" ).get( 0 );
         assertThat( firstError.get( "code" ).asText(), equalTo( "Neo.ClientError.Security.Forbidden" ) );
         assertThat( firstError.get( "message" ).asText(), equalTo( "User is required to change their password." ) );
-        assertThat( data.get( "password_change" ).asText(), equalTo( passwordURL( "ongdb" ) ) );
+        assertThat( data.get( "password_change" ).asText(), equalTo( passwordURL( "neo4j" ) ) );
     }
 
     @Test
@@ -204,6 +206,81 @@ public class AuthenticationIT extends CommunityServerTestBase
     }
 
     @Test
+    public void shouldNotAllowAnotherUserToAccessTransaction() throws Exception
+    {
+        // Given
+        startServerWithConfiguredUser();
+        setupBobAndAliceUsers();
+
+        // When Bob creates a transaction
+        HTTP.Response initiatingUserRequest =
+                HTTP.withBasicAuth( "bob", "secret" ).POST( server.baseUri().resolve( "db/data/transaction/" ).toString(), query( "CREATE (n)" ) );
+        Assertions.assertEquals( 201, initiatingUserRequest.status() );
+
+        // Then alice cannot access that transaction
+        HTTP.Response hijackingUserRequest =
+                HTTP.withBasicAuth( "alice", "secret" ).POST( initiatingUserRequest.location(), query( "CREATE (n)" ) );
+        Assertions.assertEquals( 404, hijackingUserRequest.status() );
+        assertThat( hijackingUserRequest.get( "errors" ).get( 0 ).get( "code" ).asText(),
+                    equalTo( Status.Transaction.TransactionNotFound.code().serialize() ) );
+
+        // And bob can still commit it
+        HTTP.Response initiatingUserCommitRequest =
+                HTTP.withBasicAuth( "bob", "secret" ).POST( initiatingUserRequest.location() + "/commit", query( "CREATE (n)" ) );
+        Assertions.assertEquals( 200, initiatingUserCommitRequest.status() );
+    }
+
+    @Test
+    public void shouldNotAllowAnotherUserToCommitTransaction() throws Exception
+    {
+        // Given
+        startServerWithConfiguredUser();
+        setupBobAndAliceUsers();
+
+        // When Bob creates a transaction
+        HTTP.Response initiatingUserRequest =
+                HTTP.withBasicAuth( "bob", "secret" ).POST( server.baseUri().resolve( "db/data/transaction/" ).toString(), query( "CREATE (n)" ) );
+        Assertions.assertEquals( 201, initiatingUserRequest.status() );
+
+        // Then alice cannot commit that transaction
+        HTTP.Response hijackingUserRequest =
+                HTTP.withBasicAuth( "alice", "secret" ).POST( initiatingUserRequest.location() + "/commit" );
+        Assertions.assertEquals( 404, hijackingUserRequest.status() );
+        assertThat( hijackingUserRequest.get( "errors" ).get( 0 ).get( "code" ).asText(),
+                    equalTo( Status.Transaction.TransactionNotFound.code().serialize() ) );
+
+        // And bob can still commit it
+        HTTP.Response initiatingUserCommitRequest =
+                HTTP.withBasicAuth( "bob", "secret" ).POST( initiatingUserRequest.location() + "/commit", query( "CREATE (n)" ) );
+        Assertions.assertEquals( 200, initiatingUserCommitRequest.status() );
+    }
+
+    @Test
+    public void shouldNotAllowAnotherUserToRollbackTransaction() throws Exception
+    {
+        // Given
+        startServerWithConfiguredUser();
+        setupBobAndAliceUsers();
+
+        // When Bob creates a transaction
+        HTTP.Response initiatingUserRequest =
+                HTTP.withBasicAuth( "bob", "secret" ).POST( server.baseUri().resolve( "db/data/transaction/" ).toString(), query( "CREATE (n)" ) );
+        Assertions.assertEquals( 201, initiatingUserRequest.status() );
+
+        // Then alice cannot rollback that transaction
+        HTTP.Response hijackingUserRequest =
+                HTTP.withBasicAuth( "alice", "secret" ).DELETE( initiatingUserRequest.location() );
+        Assertions.assertEquals( 404, hijackingUserRequest.status() );
+        assertThat( hijackingUserRequest.get( "errors" ).get( 0 ).get( "code" ).asText(),
+                    equalTo( Status.Transaction.TransactionNotFound.code().serialize() ) );
+
+        // And bob can still commit it
+        HTTP.Response initiatingUserCommitRequest =
+                HTTP.withBasicAuth( "bob", "secret" ).POST( initiatingUserRequest.location() + "/commit", query( "CREATE (n)" ) );
+        Assertions.assertEquals( 200, initiatingUserCommitRequest.status() );
+    }
+
+    @Test
     public void shouldAllowAllAccessIfAuthenticationIsDisabled() throws Exception
     {
         // Given
@@ -229,9 +306,9 @@ public class AuthenticationIT extends CommunityServerTestBase
         while ( System.currentTimeMillis() < timeout )
         {
             // Done in a loop because we're racing with the clock to get enough failed requests into 5 seconds
-            response = HTTP.withHeaders( HttpHeaders.AUTHORIZATION, basicAuthHeader( "ongdb", "incorrect" ) ).POST(
+            response = HTTP.withBasicAuth( "neo4j", "incorrect" ).POST(
                     server.baseUri().resolve( "authentication" ).toString(),
-                    HTTP.RawPayload.quotedJson( "{'username':'ongdb', 'password':'something that is wrong'}" )
+                    HTTP.RawPayload.quotedJson( "{'username':'neo4j', 'password':'something that is wrong'}" )
             );
 
             if ( response.status() == 429 )
@@ -256,18 +333,18 @@ public class AuthenticationIT extends CommunityServerTestBase
 
         // When
         HTTP.Response response =
-                HTTP.withHeaders( HttpHeaders.AUTHORIZATION, basicAuthHeader( "ongdb", "ongdb" ) ).POST(
+                HTTP.withBasicAuth( "neo4j", "neo4j" ).POST(
                         server.baseUri().resolve( "authentication" ).toString(),
-                        HTTP.RawPayload.quotedJson( "{'username':'ongdb', 'password':'ongdb'}" )
+                        HTTP.RawPayload.quotedJson( "{'username':'neo4j', 'password':'neo4j'}" )
                 );
 
         // When & then
-        assertEquals( 403, HTTP.withHeaders( HttpHeaders.AUTHORIZATION, basicAuthHeader( "ongdb", "ongdb" ) )
+        assertEquals( 403, HTTP.withBasicAuth( "neo4j", "neo4j" )
                 .POST( server.baseUri().resolve( "db/data/node" ).toString(),
                         RawPayload.quotedJson( "{'name':'jake'}" ) ).status() );
-        assertEquals( 403, HTTP.withHeaders( HttpHeaders.AUTHORIZATION, basicAuthHeader( "ongdb", "ongdb" ) )
+        assertEquals( 403, HTTP.withBasicAuth( "neo4j", "neo4j" )
                 .GET( server.baseUri().resolve( "db/data/node/1234" ).toString() ).status() );
-        assertEquals( 403, HTTP.withHeaders( HttpHeaders.AUTHORIZATION, basicAuthHeader( "ongdb", "ongdb" ) )
+        assertEquals( 403, HTTP.withBasicAuth( "neo4j", "neo4j" )
                 .POST( server.baseUri().resolve( "db/data/transaction/commit" ).toString(),
                         RawPayload.quotedJson( "{'statements':[{'statement':'MATCH (n) RETURN n'}]}" ) ).status() );
     }
@@ -285,7 +362,7 @@ public class AuthenticationIT extends CommunityServerTestBase
         assertThat(response.status(), equalTo(401));
         assertThat(response.get("errors").get(0).get("code").asText(), equalTo("Neo.ClientError.Security.Unauthorized"));
         assertThat(response.get("errors").get(0).get("message").asText(), equalTo("No authentication header supplied."));
-        assertThat(response.header( HttpHeaders.WWW_AUTHENTICATE ), equalTo("Basic realm=\"ONgDB\""));
+        assertThat(response.header( HttpHeaders.WWW_AUTHENTICATE ), equalTo("Basic realm=\"Neo4j\""));
 
         // When malformed header
         response = HTTP.withHeaders( HttpHeaders.AUTHORIZATION, "This makes no sense" )
@@ -295,15 +372,15 @@ public class AuthenticationIT extends CommunityServerTestBase
         assertThat(response.get("errors").get(0).get( "message" ).asText(), equalTo("Invalid authentication header."));
 
         // When invalid credential
-        response = HTTP.withHeaders( HttpHeaders.AUTHORIZATION, basicAuthHeader( "ongdb", "incorrect" ) )
+        response = HTTP.withBasicAuth( "neo4j", "incorrect" )
                 .request( method, server.baseUri().resolve( path ).toString(), payload );
         assertThat(response.status(), equalTo(401));
         assertThat(response.get("errors").get(0).get("code").asText(), equalTo("Neo.ClientError.Security.Unauthorized"));
         assertThat(response.get("errors").get(0).get("message").asText(), equalTo("Invalid username or password."));
-        assertThat(response.header(HttpHeaders.WWW_AUTHENTICATE ), equalTo("Basic realm=\"ONgDB\""));
+        assertThat(response.header(HttpHeaders.WWW_AUTHENTICATE ), equalTo("Basic realm=\"Neo4j\""));
 
         // When authorized
-        response = HTTP.withHeaders( HttpHeaders.AUTHORIZATION, basicAuthHeader( "ongdb", "secret" ) )
+        response = HTTP.withBasicAuth( "neo4j", "secret" )
                 .request( method, server.baseUri().resolve( path ).toString(), payload );
         assertThat(response.status(), equalTo(expectedAuthorizedStatus));
     }
@@ -312,10 +389,28 @@ public class AuthenticationIT extends CommunityServerTestBase
     {
         startServer( true );
         // Set the password
-        HTTP.Response post = HTTP.withHeaders( HttpHeaders.AUTHORIZATION, basicAuthHeader( "ongdb", "ongdb" ) ).POST(
-                server.baseUri().resolve( "/user/ongdb/password" ).toString(),
+        HTTP.Response post = HTTP.withBasicAuth( "neo4j", "neo4j" ).POST(
+                server.baseUri().resolve( "/user/neo4j/password" ).toString(),
                 RawPayload.quotedJson( "{'password':'secret'}" )
         );
         assertEquals( 200, post.status() );
+    }
+
+    private void setupBobAndAliceUsers()
+    {
+        HTTP.Response createBobRequest = HTTP.withBasicAuth( "neo4j", "secret" )
+                                             .POST( txCommitURL(), query( "CALL dbms.security.createUser('bob','secret',false)" ) );
+        Assertions.assertEquals( 200, createBobRequest.status() );
+        HTTP.Response grantBobAdmin = HTTP.withBasicAuth( "neo4j", "secret" )
+                                          .POST( txCommitURL(), query( "CALL dbms.security.addRoleToUser('admin', 'bob')" ) );
+        Assertions.assertEquals( 200, grantBobAdmin.status() );
+        HTTP.Response createAliceRequest = HTTP.withBasicAuth( "neo4j", "secret" )
+                                               .POST( txCommitURL(), query( "CALL dbms.security.createUser('alice','secret',false)" ) );
+        Assertions.assertEquals( 200, createAliceRequest.status() );
+    }
+
+    private static HTTP.RawPayload query( String statement )
+    {
+        return rawPayload( "{\"statements\":[{\"statement\":\"" + statement + "\"}]}" );
     }
 }

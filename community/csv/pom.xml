@@ -56,16 +56,12 @@
         </license>
     </licenses>
 
+
     <dependencies>
         <!-- main dependencies -->
         <dependency>
             <groupId>com.google.code.findbugs</groupId>
             <artifactId>annotations</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-primitive-collections</artifactId>
-            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
@@ -77,6 +73,7 @@
             <artifactId>ongdb-values</artifactId>
             <version>${project.version}</version>
         </dependency>
+
 
         <!-- test dependencies -->
         <dependency>
@@ -97,8 +94,16 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-migrationsupport</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
         </dependency>
     </dependencies>
 </project>

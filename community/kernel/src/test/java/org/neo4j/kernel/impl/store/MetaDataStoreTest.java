@@ -41,6 +41,7 @@ package org.neo4j.kernel.impl.store;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 
 import java.io.File;
 import java.io.IOException;
@@ -51,6 +52,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
+import org.neo4j.dbms.database.DatabaseManager;
 import org.neo4j.graphdb.mockfs.EphemeralFileSystemAbstraction;
 import org.neo4j.io.pagecache.DelegatingPageCache;
 import org.neo4j.io.pagecache.DelegatingPagedFile;
@@ -70,6 +72,7 @@ import org.neo4j.logging.NullLogProvider;
 import org.neo4j.logging.NullLogger;
 import org.neo4j.test.Race;
 import org.neo4j.test.rule.PageCacheRule;
+import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
 
 import static java.lang.System.currentTimeMillis;
@@ -88,13 +91,11 @@ import static org.neo4j.test.rule.PageCacheRule.config;
 
 public class MetaDataStoreTest
 {
-    private static final File STORE_DIR = new File( "store" );
-
+    private final EphemeralFileSystemRule fsRule = new EphemeralFileSystemRule();
+    private final PageCacheRule pageCacheRule = new PageCacheRule( config().withInconsistentReads( false ) );
+    private final TestDirectory testDirectory = TestDirectory.testDirectory( fsRule );
     @Rule
-    public final EphemeralFileSystemRule fsRule = new EphemeralFileSystemRule();
-
-    @Rule
-    public final PageCacheRule pageCacheRule = new PageCacheRule( config().withInconsistentReads( false ) );
+    public final RuleChain ruleChain = RuleChain.outerRule( fsRule ).around( testDirectory ).around( pageCacheRule );
 
     private EphemeralFileSystemAbstraction fs;
     private PageCache pageCache;
@@ -423,7 +424,7 @@ public class MetaDataStoreTest
     {
         try ( MetaDataStore store = newMetaDataStore() )
         {
-            PagedFile pf = store.storeFile;
+            PagedFile pf = store.pagedFile;
             store.setUpgradeTransaction( 0, 0, 0 );
             AtomicLong writeCount = new AtomicLong();
             AtomicLong fileReadCount = new AtomicLong();
@@ -509,7 +510,7 @@ public class MetaDataStoreTest
     {
         try ( MetaDataStore store = newMetaDataStore() )
         {
-            PagedFile pf = store.storeFile;
+            PagedFile pf = store.pagedFile;
             store.transactionCommitted( 2, 2, 2 );
             AtomicLong writeCount = new AtomicLong();
             AtomicLong fileReadCount = new AtomicLong();
@@ -564,7 +565,7 @@ public class MetaDataStoreTest
     {
         try ( MetaDataStore store = newMetaDataStore() )
         {
-            PagedFile pf = store.storeFile;
+            PagedFile pf = store.pagedFile;
             int initialValue = 2;
             store.transactionClosed( initialValue, initialValue, initialValue );
             AtomicLong writeCount = new AtomicLong();
@@ -661,8 +662,7 @@ public class MetaDataStoreTest
 
     private File createMetaDataFile() throws IOException
     {
-        File file = new File( STORE_DIR, MetaDataStore.DEFAULT_NAME );
-        fs.mkdir( STORE_DIR );
+        File file = testDirectory.databaseLayout().metadataStore();
         fs.create( file ).close();
         return file;
     }
@@ -679,13 +679,13 @@ public class MetaDataStoreTest
         try ( MetaDataStore store = newMetaDataStore() )
         {
             MetaDataRecord record = store.newRecord();
-            try ( RecordCursor<MetaDataRecord> cursor = store.newRecordCursor( record ) )
+            try ( PageCursor cursor = store.openPageCursorForReading( 0 ) )
             {
-                cursor.acquire( 0, RecordLoad.NORMAL );
                 long highId = store.getHighId();
                 for ( long id = 0; id < highId; id++ )
                 {
-                    if ( cursor.next( id ) )
+                    store.getRecordByCursor( id, record, RecordLoad.NORMAL, cursor );
+                    if ( record.inUse() )
                     {
                         actualValues.add( record.getValue() );
                     }
@@ -800,7 +800,7 @@ public class MetaDataStoreTest
     private MetaDataStore newMetaDataStore()
     {
         LogProvider logProvider = NullLogProvider.getInstance();
-        StoreFactory storeFactory = new StoreFactory( STORE_DIR, Config.defaults(), new DefaultIdGeneratorFactory( fs ),
+        StoreFactory storeFactory = new StoreFactory( testDirectory.databaseLayout(), Config.defaults(), new DefaultIdGeneratorFactory( fs ),
                 pageCacheWithFakeOverflow, fs, logProvider, EmptyVersionContextSupplier.EMPTY );
         return storeFactory.openNeoStores( true, StoreType.META_DATA ).getMetaDataStore();
     }

@@ -38,20 +38,17 @@
  */
 package org.neo4j.kernel.api.impl.index;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.File;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
 
-import org.neo4j.collection.primitive.PrimitiveLongCollections;
+import org.neo4j.collection.PrimitiveLongCollections;
 import org.neo4j.internal.kernel.api.IndexQuery;
+import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.schema.LuceneIndexAccessor;
@@ -59,62 +56,53 @@ import org.neo4j.kernel.api.impl.schema.LuceneSchemaIndexBuilder;
 import org.neo4j.kernel.api.impl.schema.SchemaIndex;
 import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
+import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.api.index.IndexUpdateMode;
+import org.neo4j.storageengine.api.schema.IndexDescriptor;
 import org.neo4j.storageengine.api.schema.IndexReader;
 import org.neo4j.storageengine.api.schema.IndexSample;
 import org.neo4j.storageengine.api.schema.IndexSampler;
+import org.neo4j.test.extension.DefaultFileSystemExtension;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 import org.neo4j.values.storable.Values;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@RunWith( Parameterized.class )
-public class LuceneSchemaIndexPopulationIT
+@ExtendWith( {DefaultFileSystemExtension.class, TestDirectoryExtension.class} )
+class LuceneSchemaIndexPopulationIT
 {
-    @Rule
-    public TestDirectory testDir = TestDirectory.testDirectory();
-    @Rule
-    public final DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
+    private final IndexDescriptor descriptor = TestIndexDescriptorFactory.uniqueForLabel( 0, 0 );
 
-    private final int affectedNodes;
-    private final SchemaIndexDescriptor descriptor = SchemaIndexDescriptorFactory.uniqueForLabel( 0, 0 );
+    @Inject
+    private TestDirectory testDir;
+    @Inject
+    private DefaultFileSystemAbstraction fileSystem;
 
-    @Before
-    public void before()
+    @BeforeEach
+    void before()
     {
         System.setProperty( "luceneSchemaIndex.maxPartitionSize", "10" );
     }
 
-    @After
-    public void after()
+    @AfterEach
+    void after()
     {
         System.setProperty( "luceneSchemaIndex.maxPartitionSize", "" );
     }
 
-    @Parameterized.Parameters( name = "{0}" )
-    public static List<Integer> affectedNodes()
+    @ParameterizedTest
+    @ValueSource( ints = {7, 11, 14, 20, 35, 58} )
+    void partitionedIndexPopulation( int affectedNodes ) throws Exception
     {
-        return Arrays.asList( 7, 11, 14, 20, 35, 58 );
-    }
-
-    public LuceneSchemaIndexPopulationIT( int affectedNodes )
-    {
-        this.affectedNodes = affectedNodes;
-    }
-
-    @Test
-    public void partitionedIndexPopulation() throws Exception
-    {
+        File rootFolder = new File( testDir.directory( "partitionIndex" + affectedNodes ), "uniqueIndex" + affectedNodes );
         try ( SchemaIndex uniqueIndex = LuceneSchemaIndexBuilder.create( descriptor, Config.defaults() )
-                .withFileSystem( fileSystemRule.get() )
-                .withIndexRootFolder( new File( testDir.directory( "partitionIndex" + affectedNodes ), "uniqueIndex" + affectedNodes ) )
-                .build() )
+                .withFileSystem( fileSystem )
+                .withIndexRootFolder( rootFolder ).build() )
         {
             uniqueIndex.open();
 
@@ -125,7 +113,7 @@ public class LuceneSchemaIndexPopulationIT
             try ( LuceneIndexAccessor indexAccessor = new LuceneIndexAccessor( uniqueIndex, descriptor ) )
             {
                 generateUpdates( indexAccessor, affectedNodes );
-                indexAccessor.force( IOLimiter.unlimited() );
+                indexAccessor.force( IOLimiter.UNLIMITED );
 
                 // now index is online and should contain updates data
                 assertTrue( uniqueIndex.isOnline() );
@@ -133,7 +121,7 @@ public class LuceneSchemaIndexPopulationIT
                 try ( IndexReader indexReader = indexAccessor.newReader();
                       IndexSampler indexSampler = indexReader.createSampler() )
                 {
-                    long[] nodes = PrimitiveLongCollections.asArray( indexReader.query( IndexQuery.exists( 1 )) );
+                    long[] nodes = PrimitiveLongCollections.asArray( indexReader.query( IndexQuery.exists( 1 ) ) );
                     assertEquals( affectedNodes, nodes.length );
 
                     IndexSample sample = indexSampler.sampleIndex();
@@ -145,8 +133,7 @@ public class LuceneSchemaIndexPopulationIT
         }
     }
 
-    private void generateUpdates( LuceneIndexAccessor indexAccessor, int nodesToUpdate )
-            throws IOException, IndexEntryConflictException
+    private void generateUpdates( LuceneIndexAccessor indexAccessor, int nodesToUpdate ) throws IndexEntryConflictException
     {
         try ( IndexUpdater updater = indexAccessor.newUpdater( IndexUpdateMode.ONLINE ) )
         {

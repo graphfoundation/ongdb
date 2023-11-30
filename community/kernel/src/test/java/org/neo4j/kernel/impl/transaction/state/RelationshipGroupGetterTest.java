@@ -43,10 +43,11 @@ import org.junit.Test;
 import org.junit.rules.RuleChain;
 import org.mockito.InOrder;
 
-import java.io.File;
-
 import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
 import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.impl.storageengine.impl.recordstorage.Loaders;
+import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RelationshipGroupGetter;
+import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RelationshipGroupGetter.RelationshipGroupPosition;
 import org.neo4j.kernel.impl.store.NeoStores;
 import org.neo4j.kernel.impl.store.RecordStore;
 import org.neo4j.kernel.impl.store.StoreFactory;
@@ -55,10 +56,10 @@ import org.neo4j.kernel.impl.store.id.DefaultIdGeneratorFactory;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
 import org.neo4j.kernel.impl.store.record.RecordLoad;
 import org.neo4j.kernel.impl.store.record.RelationshipGroupRecord;
-import org.neo4j.kernel.impl.transaction.state.RelationshipGroupGetter.RelationshipGroupPosition;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.test.rule.PageCacheRule;
+import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
 import org.neo4j.unsafe.batchinsert.internal.DirectRecordAccess;
 
@@ -74,17 +75,16 @@ public class RelationshipGroupGetterTest
 {
     private final EphemeralFileSystemRule fs = new EphemeralFileSystemRule();
     private final PageCacheRule pageCache = new PageCacheRule();
+    private final TestDirectory testDirectory = TestDirectory.testDirectory( fs );
     @Rule
-    public final RuleChain ruleChain = RuleChain.outerRule( fs ).around( pageCache );
+    public final RuleChain ruleChain = RuleChain.outerRule( fs ).around( testDirectory ).around( pageCache );
 
     @Test
     public void shouldAbortLoadingGroupChainIfComeTooFar()
     {
         // GIVEN a node with relationship group chain 2-->4-->10-->23
-        File dir = new File( "dir" );
-        fs.get().mkdirs( dir );
         LogProvider logProvider = NullLogProvider.getInstance();
-        StoreFactory storeFactory = new StoreFactory( dir, Config.defaults(), new DefaultIdGeneratorFactory( fs.get() ),
+        StoreFactory storeFactory = new StoreFactory( testDirectory.databaseLayout(), Config.defaults(), new DefaultIdGeneratorFactory( fs.get() ),
                 pageCache.getPageCache( fs.get() ), fs.get(),
                 logProvider, EmptyVersionContextSupplier.EMPTY );
         try ( NeoStores stores = storeFactory.openNeoStores( true, StoreType.RELATIONSHIP_GROUP ) )
@@ -123,7 +123,7 @@ public class RelationshipGroupGetterTest
         }
     }
 
-    private void link( RelationshipGroupRecord... groups )
+    private static void link( RelationshipGroupRecord... groups )
     {
         for ( int i = 0; i < groups.length; i++ )
         {

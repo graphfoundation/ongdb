@@ -39,7 +39,7 @@
 package org.neo4j.kernel.api.impl.schema.populator;
 
 import org.apache.lucene.index.Term;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
@@ -51,7 +51,7 @@ import org.neo4j.kernel.impl.api.index.sampling.NonUniqueIndexSampler;
 import org.neo4j.storageengine.api.schema.IndexSample;
 
 import static org.hamcrest.Matchers.hasToString;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -62,7 +62,7 @@ import static org.neo4j.kernel.api.index.IndexQueryHelper.add;
 import static org.neo4j.kernel.api.index.IndexQueryHelper.change;
 import static org.neo4j.kernel.api.index.IndexQueryHelper.remove;
 
-public class NonUniqueDatabaseIndexPopulatingUpdaterTest
+class NonUniqueDatabaseIndexPopulatingUpdaterTest
 {
     private static final SchemaDescriptor SCHEMA_DESCRIPTOR = SchemaDescriptorFactory.forLabel( 1, 42 );
     private static final int SAMPLING_BUFFER_SIZE_LIMIT = 100;
@@ -70,7 +70,7 @@ public class NonUniqueDatabaseIndexPopulatingUpdaterTest
             .forLabel( 1, 42, 43 );
 
     @Test
-    public void addedNodePropertiesIncludedInSample() throws Exception
+    void addedNodePropertiesIncludedInSample() throws Exception
     {
         NonUniqueIndexSampler sampler = newSampler();
         NonUniqueLuceneIndexPopulatingUpdater updater = newUpdater( sampler );
@@ -84,7 +84,7 @@ public class NonUniqueDatabaseIndexPopulatingUpdaterTest
     }
 
     @Test
-    public void addedNodeCompositePropertiesIncludedInSample() throws Exception
+    void addedNodeCompositePropertiesIncludedInSample() throws Exception
     {
         NonUniqueIndexSampler sampler = newSampler();
         NonUniqueLuceneIndexPopulatingUpdater updater = newUpdater( sampler );
@@ -97,7 +97,7 @@ public class NonUniqueDatabaseIndexPopulatingUpdaterTest
     }
 
     @Test
-    public void changedNodePropertiesIncludedInSample() throws Exception
+    void changedNodePropertiesIncludedInSample() throws Exception
     {
         NonUniqueIndexSampler sampler = newSampler();
         NonUniqueLuceneIndexPopulatingUpdater updater = newUpdater( sampler );
@@ -113,7 +113,7 @@ public class NonUniqueDatabaseIndexPopulatingUpdaterTest
     }
 
     @Test
-    public void changedNodeCompositePropertiesIncludedInSample() throws Exception
+    void changedNodeCompositePropertiesIncludedInSample() throws Exception
     {
         NonUniqueIndexSampler sampler = newSampler();
         NonUniqueLuceneIndexPopulatingUpdater updater = newUpdater( sampler );
@@ -131,7 +131,7 @@ public class NonUniqueDatabaseIndexPopulatingUpdaterTest
     }
 
     @Test
-    public void removedNodePropertyIncludedInSample() throws Exception
+    void removedNodePropertyIncludedInSample() throws Exception
     {
         NonUniqueIndexSampler sampler = newSampler();
         NonUniqueLuceneIndexPopulatingUpdater updater = newUpdater( sampler );
@@ -149,7 +149,7 @@ public class NonUniqueDatabaseIndexPopulatingUpdaterTest
     }
 
     @Test
-    public void removedNodeCompositePropertyIncludedInSample() throws Exception
+    void removedNodeCompositePropertyIncludedInSample() throws Exception
     {
         NonUniqueIndexSampler sampler = newSampler();
         NonUniqueLuceneIndexPopulatingUpdater updater = newUpdater( sampler );
@@ -167,7 +167,7 @@ public class NonUniqueDatabaseIndexPopulatingUpdaterTest
     }
 
     @Test
-    public void nodePropertyUpdatesIncludedInSample() throws Exception
+    void nodePropertyUpdatesIncludedInSample() throws Exception
     {
         NonUniqueIndexSampler sampler = newSampler();
         NonUniqueLuceneIndexPopulatingUpdater updater = newUpdater( sampler );
@@ -190,7 +190,7 @@ public class NonUniqueDatabaseIndexPopulatingUpdaterTest
     }
 
     @Test
-    public void nodeCompositePropertyUpdatesIncludedInSample() throws Exception
+    void nodeCompositePropertyUpdatesIncludedInSample() throws Exception
     {
         NonUniqueIndexSampler sampler = newSampler();
         NonUniqueLuceneIndexPopulatingUpdater updater = newUpdater( sampler );
@@ -215,7 +215,7 @@ public class NonUniqueDatabaseIndexPopulatingUpdaterTest
     }
 
     @Test
-    public void additionsDeliveredToIndexWriter() throws Exception
+    void additionsDeliveredToIndexWriter() throws Exception
     {
         LuceneIndexWriter writer = mock( LuceneIndexWriter.class );
         NonUniqueLuceneIndexPopulatingUpdater updater = newUpdater( writer );
@@ -239,7 +239,7 @@ public class NonUniqueDatabaseIndexPopulatingUpdaterTest
     }
 
     @Test
-    public void changesDeliveredToIndexWriter() throws Exception
+    void changesDeliveredToIndexWriter() throws Exception
     {
         LuceneIndexWriter writer = mock( LuceneIndexWriter.class );
         NonUniqueLuceneIndexPopulatingUpdater updater = newUpdater( writer );
@@ -259,13 +259,8 @@ public class NonUniqueDatabaseIndexPopulatingUpdaterTest
         verifydocument( writer, newTermForChangeOrRemove( 3 ), expectedString3 );
     }
 
-    private void verifydocument( LuceneIndexWriter writer, Term eq, String documentString ) throws IOException
-    {
-        verify( writer ).updateDocument(  eq(eq), argThat( hasToString( documentString ) ) );
-    }
-
     @Test
-    public void removalsDeliveredToIndexWriter() throws Exception
+    void removalsDeliveredToIndexWriter() throws Exception
     {
         LuceneIndexWriter writer = mock( LuceneIndexWriter.class );
         NonUniqueLuceneIndexPopulatingUpdater updater = newUpdater( writer );
@@ -281,6 +276,11 @@ public class NonUniqueDatabaseIndexPopulatingUpdaterTest
 
         updater.process( remove( 4, COMPOSITE_SCHEMA_DESCRIPTOR, "bit", "baz" ) );
         verify( writer ).deleteDocuments( newTermForChangeOrRemove( 4 ) );
+    }
+
+    private void verifydocument( LuceneIndexWriter writer, Term eq, String documentString ) throws IOException
+    {
+        verify( writer ).updateDocument(  eq(eq), argThat( hasToString( documentString ) ) );
     }
 
     private static void verifySamplingResult( NonUniqueIndexSampler sampler, long expectedIndexSize,

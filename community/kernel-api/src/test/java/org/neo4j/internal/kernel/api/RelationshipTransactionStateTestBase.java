@@ -38,6 +38,8 @@
  */
 package org.neo4j.internal.kernel.api;
 
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -45,8 +47,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-import org.neo4j.collection.primitive.PrimitiveLongCollections;
-import org.neo4j.collection.primitive.PrimitiveLongSet;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.internal.kernel.api.exceptions.EntityNotFoundException;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
@@ -81,7 +81,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
     {
         int label;
         long n1, n2;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             n1 = tx.dataWrite().nodeCreate();
             n2 = tx.dataWrite().nodeCreate();
@@ -93,7 +93,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             long r = tx.dataWrite().relationshipCreate( n1, label, n2 );
             try ( RelationshipScanCursor relationship = tx.cursors().allocateRelationshipScanCursor() )
@@ -117,7 +117,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
     {
         int label;
         long n1, n2, r;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             n1 = tx.dataWrite().nodeCreate();
             n2 = tx.dataWrite().nodeCreate();
@@ -130,7 +130,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             assertTrue( "should delete relationship", tx.dataWrite().relationshipDelete( r ) );
             try ( RelationshipScanCursor relationship = tx.cursors().allocateRelationshipScanCursor() )
@@ -150,7 +150,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
         int type;
         long n1, n2;
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             n1 = tx.dataWrite().nodeCreate();
             n2 = tx.dataWrite().nodeCreate();
@@ -161,7 +161,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             long r = tx.dataWrite().relationshipCreate( n1, type, n2 );
             try ( RelationshipScanCursor relationship = tx.cursors().allocateRelationshipScanCursor() )
@@ -180,7 +180,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
 
         int type;
         long n1, n2, r;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             n1 = tx.dataWrite().nodeCreate();
             n2 = tx.dataWrite().nodeCreate();
@@ -193,7 +193,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             assertTrue( "should delete relationship", tx.dataWrite().relationshipDelete( r ) );
             try ( RelationshipScanCursor relationship = tx.cursors().allocateRelationshipScanCursor() )
@@ -209,14 +209,14 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
     public void shouldSeeRelationshipInTransaction() throws Exception
     {
         long n1, n2;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             n1 = tx.dataWrite().nodeCreate();
             n2 = tx.dataWrite().nodeCreate();
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             int label = tx.tokenWrite().relationshipTypeGetOrCreateForName( "R" );
             long r = tx.dataWrite().relationshipCreate( n1, label, n2 );
@@ -240,7 +240,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
     public void shouldNotSeeRelationshipDeletedInTransaction() throws Exception
     {
         long n1, n2, r;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             n1 = tx.dataWrite().nodeCreate();
             n2 = tx.dataWrite().nodeCreate();
@@ -251,7 +251,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             tx.dataWrite().relationshipDelete( r );
             try ( NodeCursor node = tx.cursors().allocateNodeCursor();
@@ -271,14 +271,14 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
     public void shouldSeeRelationshipInTransactionBeforeCursorInitialization() throws Exception
     {
         long n1, n2;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             n1 = tx.dataWrite().nodeCreate();
             n2 = tx.dataWrite().nodeCreate();
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             int label = tx.tokenWrite().relationshipTypeGetOrCreateForName( "R" );
             long r = tx.dataWrite().relationshipCreate( n1, label, n2 );
@@ -350,7 +350,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
     @Test
     public void shouldSeeNewRelationshipPropertyInTransaction() throws Exception
     {
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             String propKey1 = "prop1";
             String propKey2 = "prop2";
@@ -403,7 +403,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
         // Given
         long relationshipId;
         String propKey = "prop1";
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             relationshipId = write.relationshipCreate( write.nodeCreate(),
@@ -412,7 +412,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
         }
 
         // When/Then
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             int propToken = tx.token().propertyKeyGetOrCreateForName( propKey );
             assertEquals( tx.dataWrite().relationshipSetProperty( relationshipId, propToken, stringValue( "hello" ) ),
@@ -452,7 +452,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
         String propKey2 = "prop2";
         int propToken1;
         int propToken2;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             relationshipId = write.relationshipCreate( write.nodeCreate(),
@@ -464,7 +464,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
         }
 
         // When/Then
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             propToken2 = tx.token().propertyKeyGetOrCreateForName( propKey2 );
             assertEquals( tx.dataWrite().relationshipSetProperty( relationshipId, propToken2, stringValue( "world" ) ),
@@ -515,7 +515,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
         long relationshipId;
         String propKey = "prop1";
         int propToken;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             relationshipId = write.relationshipCreate( write.nodeCreate(),
@@ -527,7 +527,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
         }
 
         // When/Then
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             assertEquals( tx.dataWrite().relationshipSetProperty( relationshipId, propToken, stringValue( "world" ) ),
                     stringValue( "hello" ) );
@@ -564,7 +564,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
         long relationshipId;
         String propKey = "prop1";
         int propToken;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             relationshipId = write.relationshipCreate( write.nodeCreate(),
@@ -576,7 +576,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
         }
 
         // When/Then
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             assertEquals( tx.dataWrite().relationshipRemoveProperty( relationshipId, propToken ),
                     stringValue( "hello" ) );
@@ -608,7 +608,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
         long relationshipId;
         String propKey = "prop1";
         int propToken;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             relationshipId = write.relationshipCreate( write.nodeCreate(),
@@ -620,7 +620,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
         }
 
         // When/Then
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             assertEquals( tx.dataWrite().relationshipRemoveProperty( relationshipId, propToken ),
                     stringValue( "hello" ) );
@@ -708,7 +708,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
     @Test
     public void groupCursorShouldSeeNewTypes() throws Exception
     {
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             long start = write.nodeCreate();
@@ -773,7 +773,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
         long start;
         long existingRelationship;
         int type;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             start = write.nodeCreate();
@@ -782,7 +782,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             long newRelationship = write.relationshipCreate( start, type, write.nodeCreate() );
@@ -814,7 +814,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
         long start;
         long existingRelationship;
         int one;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             start = write.nodeCreate();
@@ -823,7 +823,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             int two = tx.tokenWrite().relationshipTypeGetOrCreateForName( "TWO" );
@@ -872,7 +872,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
         long start;
         long existingRelationship;
         int one, bulk;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             start = write.nodeCreate();
@@ -886,7 +886,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             int two = tx.tokenWrite().relationshipTypeGetOrCreateForName( "TWO" );
@@ -942,7 +942,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
         long end;
         long existingRelationship;
         int type;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             start = write.nodeCreate();
@@ -952,7 +952,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             long newRelationship = write.relationshipCreate( start, type, write.nodeCreate() );
@@ -986,7 +986,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
         long end;
         long existingRelationship;
         int type, bulk;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             start = write.nodeCreate();
@@ -1001,7 +1001,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             long newRelationship = write.relationshipCreate( start, type, write.nodeCreate() );
@@ -1047,7 +1047,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
     public void shouldCountNewRelationships() throws Exception
     {
         int relationship;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             relationship = tx.tokenWrite().relationshipTypeGetOrCreateForName( "R" );
@@ -1055,7 +1055,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             write.relationshipCreate( write.nodeCreate(), relationship, write.nodeCreate() );
@@ -1073,7 +1073,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
     {
         int relationshipId;
         long relationship;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             relationshipId = tx.tokenWrite().relationshipTypeGetOrCreateForName( "R" );
@@ -1081,7 +1081,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             write.relationshipDelete( relationship );
@@ -1112,7 +1112,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
             throw new AssertionError( "Where is your god now!" );
         }
 
-        PrimitiveLongSet set = PrimitiveLongCollections.asSet( relationships );
+        MutableLongSet set = LongHashSet.newSetWith( relationships );
         for ( long relationship : relationships )
         {
             assertTrue( traversal.next() );
@@ -1147,7 +1147,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
 
     private void traverseWithoutGroups( RelationshipTestSupport.StartNode start, boolean detached ) throws Exception
     {
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Map<String,Integer> expectedCounts = modifyStartNodeRelationships( start, tx );
 
@@ -1180,7 +1180,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
 
     private void traverseViaGroups( RelationshipTestSupport.StartNode start, boolean detached ) throws Exception
     {
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Read read = tx.dataRead();
             Map<String,Integer> expectedCounts = modifyStartNodeRelationships( start, tx );
@@ -1295,7 +1295,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
     {
         // Given
         long relationship;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             int token = tx.tokenWrite().relationshipTypeGetOrCreateForName( "R" );
@@ -1306,17 +1306,17 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
         }
 
         // Then
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             try ( RelationshipScanCursor cursor = tx.cursors().allocateRelationshipScanCursor() )
             {
                 tx.dataRead().singleRelationship( relationship, cursor );
                 assertTrue( cursor.next() );
-                assertFalse( cursor.hasProperties() );
+                assertFalse( hasProperties( cursor, tx ) );
                 tx.dataWrite().relationshipSetProperty( relationship,
                         tx.tokenWrite().propertyKeyGetOrCreateForName( "prop" ),
                         stringValue( "foo" ) );
-                assertTrue( cursor.hasProperties() );
+                assertTrue( hasProperties( cursor, tx ) );
             }
         }
     }
@@ -1324,7 +1324,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
     @Test
     public void hasPropertiesShouldSeeNewlyCreatedPropertiesOnNewlyCreatedRelationship() throws Exception
     {
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             int token = tx.tokenWrite().relationshipTypeGetOrCreateForName( "R" );
@@ -1333,11 +1333,11 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
             {
                 tx.dataRead().singleRelationship( relationship, cursor );
                 assertTrue( cursor.next() );
-                assertFalse( cursor.hasProperties() );
+                assertFalse( hasProperties( cursor, tx ) );
                 tx.dataWrite().relationshipSetProperty( relationship,
                         tx.tokenWrite().propertyKeyGetOrCreateForName( "prop" ),
                         stringValue( "foo" ) );
-                assertTrue( cursor.hasProperties() );
+                assertTrue( hasProperties( cursor, tx ) );
             }
         }
     }
@@ -1348,7 +1348,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
         // Given
         long relationship;
         int prop1, prop2, prop3;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             int token = tx.tokenWrite().relationshipTypeGetOrCreateForName( "R" );
@@ -1363,20 +1363,20 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
         }
 
         // Then
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             try ( RelationshipScanCursor cursor = tx.cursors().allocateRelationshipScanCursor() )
             {
                 tx.dataRead().singleRelationship( relationship, cursor );
                 assertTrue( cursor.next() );
 
-                assertTrue( cursor.hasProperties() );
+                assertTrue( hasProperties( cursor, tx ) );
                 tx.dataWrite().relationshipRemoveProperty( relationship, prop1 );
-                assertTrue( cursor.hasProperties() );
+                assertTrue( hasProperties( cursor, tx ) );
                 tx.dataWrite().relationshipRemoveProperty( relationship, prop2 );
-                assertTrue( cursor.hasProperties() );
+                assertTrue( hasProperties( cursor, tx ) );
                 tx.dataWrite().relationshipRemoveProperty( relationship, prop3 );
-                assertFalse( cursor.hasProperties() );
+                assertFalse( hasProperties( cursor, tx ) );
             }
         }
     }
@@ -1386,7 +1386,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
     {
         // Given
         long relationship;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             int token = tx.tokenWrite().relationshipTypeGetOrCreateForName( "R" );
@@ -1395,14 +1395,14 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
         }
 
         // Then
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             try ( RelationshipScanCursor relationships = tx.cursors().allocateRelationshipScanCursor();
                   PropertyCursor properties = tx.cursors().allocatePropertyCursor() )
             {
                 tx.dataRead().singleRelationship( relationship, relationships );
                 assertTrue( relationships.next() );
-                assertFalse( relationships.hasProperties() );
+                assertFalse( hasProperties( relationships, tx ) );
                 int prop = tx.tokenWrite().propertyKeyGetOrCreateForName( "prop" );
                 tx.dataWrite().relationshipSetProperty( relationship, prop, stringValue( "foo" ) );
                 relationships.properties( properties );
@@ -1410,6 +1410,15 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
                 assertTrue( properties.next() );
                 assertThat( properties.propertyType(), equalTo( ValueGroup.TEXT ) );
             }
+        }
+    }
+
+    private boolean hasProperties( RelationshipScanCursor cursor, Transaction tx )
+    {
+        try ( PropertyCursor propertyCursor = tx.cursors().allocatePropertyCursor() )
+        {
+            cursor.properties( propertyCursor );
+            return propertyCursor.next();
         }
     }
 
@@ -1448,7 +1457,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
     {
         long start;
         int type;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             start = write.nodeCreate();
@@ -1460,7 +1469,7 @@ public abstract class RelationshipTransactionStateTestBase<G extends KernelAPIWr
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Write write = tx.dataWrite();
             createRelationship( direction, start, type, write );

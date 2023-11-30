@@ -76,12 +76,7 @@ public class IoMonitor implements StatsProvider
         endTime = currentTimeMillis();
     }
 
-    public long startTime()
-    {
-        return startTime;
-    }
-
-    public long totalBytesWritten()
+    private long totalBytesWritten()
     {
         return tracer.countBytesWritten() - resetPoint;
     }

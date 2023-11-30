@@ -41,7 +41,6 @@ package org.neo4j.server.rest.security;
 import org.junit.After;
 
 import java.io.IOException;
-import java.util.Base64;
 
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.server.CommunityNeoServer;
@@ -77,12 +76,6 @@ public class CommunityServerTestBase extends ExclusiveServerTestBase
                 .withProperty( ServerSettings.http_access_control_allow_origin.name(), accessControlAllowOrigin )
                 .build();
         server.start();
-    }
-
-    protected String basicAuthHeader( String username, String password )
-    {
-        String usernamePassword = username + ':' + password;
-        return "Basic " + Base64.getEncoder().encodeToString( usernamePassword.getBytes() );
     }
 
     protected String dataURL()

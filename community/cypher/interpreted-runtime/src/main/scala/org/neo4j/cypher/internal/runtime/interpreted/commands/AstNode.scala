@@ -38,7 +38,7 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands
 
-import org.neo4j.cypher.internal.util.v3_4.CypherTypeException
+import org.neo4j.cypher.internal.v3_5.util.CypherTypeException
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 
 import scala.reflect.ClassTag

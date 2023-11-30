@@ -49,13 +49,14 @@ import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.event.LabelEntry;
 import org.neo4j.graphdb.event.PropertyEntry;
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.internal.kernel.api.TokenRead;
+import org.neo4j.internal.kernel.api.exceptions.PropertyKeyIdNotFoundKernelException;
 import org.neo4j.internal.kernel.api.security.AccessMode;
 import org.neo4j.internal.kernel.api.security.AuthSubject;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
-import org.neo4j.kernel.api.AssertOpen;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.Statement;
-import org.neo4j.kernel.api.properties.PropertyKeyValue;
 import org.neo4j.kernel.api.security.AnonymousContext;
 import org.neo4j.kernel.api.txstate.TransactionState;
 import org.neo4j.kernel.impl.api.KernelTransactionImplementation;
@@ -64,9 +65,7 @@ import org.neo4j.kernel.impl.core.EmbeddedProxySPI;
 import org.neo4j.kernel.impl.core.NodeProxy;
 import org.neo4j.kernel.impl.core.RelationshipProxy;
 import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
-import org.neo4j.kernel.impl.locking.Lock;
-import org.neo4j.kernel.impl.storageengine.impl.recordstorage.StoreStatement;
-import org.neo4j.storageengine.api.StoreReadLayer;
+import org.neo4j.storageengine.api.StubStorageCursors;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
@@ -74,35 +73,34 @@ import static java.util.Arrays.asList;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.neo4j.helpers.collection.Iterables.single;
 import static org.neo4j.helpers.collection.MapUtil.genericMap;
-import static org.neo4j.kernel.impl.api.state.StubCursors.asNodeCursor;
-import static org.neo4j.kernel.impl.api.state.StubCursors.asPropertyCursor;
-import static org.neo4j.kernel.impl.api.state.StubCursors.asRelationshipCursor;
-import static org.neo4j.kernel.impl.api.state.StubCursors.labels;
-import static org.neo4j.kernel.impl.locking.LockService.NO_LOCK;
 
 public class TxStateTransactionDataViewTest
 {
+    private static final long[] NO_LABELS = new long[0];
     private final ThreadToStatementContextBridge bridge = mock( ThreadToStatementContextBridge.class );
     private final Statement stmt = mock( Statement.class );
-    private final StoreReadLayer ops = mock( StoreReadLayer.class );
-    private final StoreStatement storeStatement = mock( StoreStatement.class );
+    private final StubStorageCursors ops = new StubStorageCursors();
     private final KernelTransaction transaction = mock( KernelTransaction.class );
+    private final TokenRead tokenRead = mock( TokenRead.class );
 
     private final TransactionState state = new TxState();
 
     @Before
-    public void setup()
+    public void setup() throws PropertyKeyIdNotFoundKernelException
     {
+        when( transaction.tokenRead() ).thenReturn( tokenRead );
         when( bridge.get() ).thenReturn( stmt );
-        when( ops.newStatement() ).thenReturn( storeStatement );
+        when( tokenRead.propertyKeyName( anyInt() ) ).thenAnswer( invocationOnMock ->
+        {
+            int id = invocationOnMock.getArgument( 0 );
+            return ops.propertyKeyTokenHolder().getTokenById( id ).name();
+        } );
     }
 
     @Test
@@ -123,17 +121,11 @@ public class TxStateTransactionDataViewTest
         state.nodeDoDelete( 1L );
         state.nodeDoDelete( 2L );
 
-        when( storeStatement.acquireSingleNodeCursor( 2L ) ).thenReturn( asNodeCursor( 2L, 20L, labels( 15 ) ) );
+        int labelId = 15;
+        when( tokenRead.nodeLabelName( labelId ) ).thenReturn( "label" );
 
-        when( storeStatement.acquirePropertyCursor( eq( 20L ), any( Lock.class ), any( AssertOpen.class ) ) )
-                .thenReturn( asPropertyCursor( new PropertyKeyValue( 1, Values.of( "p" ) ) ) );
-
-        when( storeStatement.acquireSingleNodeCursor( 1L ) ).thenReturn( asNodeCursor( 1L, 21L, labels() ) );
-        when( storeStatement.acquirePropertyCursor( eq( 21L ), any( Lock.class ), any( AssertOpen.class ) ) )
-                .thenReturn( asPropertyCursor() );
-
-        when( ops.propertyKeyGetName( 1 ) ).thenReturn( "key" );
-        when( ops.labelGetName( 15 ) ).thenReturn( "label" );
+        ops.withNode( 1, new long[]{labelId}, genericMap( "key", Values.of( "p" ) ) );
+        ops.withNode( 2, NO_LABELS );
 
         // When & Then
         TxStateTransactionDataSnapshot snapshot = snapshot();
@@ -160,18 +152,8 @@ public class TxStateTransactionDataViewTest
         state.relationshipDoDelete( 1L, 1, 1L, 2L );
         state.relationshipDoDelete( 2L, 1, 1L, 1L );
 
-        long noPropertyId = -1L;
-        when( storeStatement.acquireSingleRelationshipCursor( 1L ) ).
-                thenReturn( asRelationshipCursor( 1L, 1, 1L, 2L, noPropertyId ) );
-        when( storeStatement.acquirePropertyCursor( noPropertyId, NO_LOCK, AssertOpen.ALWAYS_OPEN ) )
-                .thenReturn( asPropertyCursor() );
-        long propertyId = 40L;
-        when( storeStatement.acquireSingleRelationshipCursor( 2L ) ).
-                thenReturn( asRelationshipCursor( 2L, 1, 1L, 1L, propertyId ) );
-        when( storeStatement.acquirePropertyCursor( propertyId, NO_LOCK, AssertOpen.ALWAYS_OPEN ) )
-                .thenReturn( asPropertyCursor( new PropertyKeyValue( 1, Values.of( "p" ) ) ) );
-
-        when( ops.propertyKeyGetName( 1 ) ).thenReturn( "key" );
+        ops.withRelationship( 1, 1, 1, 2 );
+        ops.withRelationship( 2, 1, 1, 1, genericMap( "key", Values.of( "p") ) );
 
         // When & Then
         TxStateTransactionDataSnapshot snapshot = snapshot();
@@ -186,9 +168,7 @@ public class TxStateTransactionDataViewTest
         state.nodeDoDelete( 1L );
         Node node = mock( Node.class );
         when( node.getId() ).thenReturn( 1L );
-        when( storeStatement.acquireSingleNodeCursor( 1 ) ).thenReturn( asNodeCursor( 1, -1 ) );
-        when( storeStatement.acquirePropertyCursor( -1, NO_LOCK, AssertOpen.ALWAYS_OPEN ) )
-                .thenReturn( asPropertyCursor() );
+        ops.withNode( 1 );
 
         // When & Then
         assertThat( snapshot().isDeleted( node ), equalTo( true ) );
@@ -202,11 +182,7 @@ public class TxStateTransactionDataViewTest
 
         Relationship rel = mock( Relationship.class );
         when( rel.getId() ).thenReturn( 1L );
-        long noPropertyId = -1L;
-        when( storeStatement.acquireSingleRelationshipCursor( 1L ) )
-                .thenReturn( asRelationshipCursor( 1L, 1, 1L, 2L, noPropertyId ) );
-        when( storeStatement.acquirePropertyCursor( noPropertyId, NO_LOCK, AssertOpen.ALWAYS_OPEN ) )
-                .thenReturn( asPropertyCursor() );
+        ops.withRelationship( 1L, 1L, 1, 2L );
 
         // When & Then
         assertThat( snapshot().isDeleted( rel ), equalTo( true ) );
@@ -216,16 +192,10 @@ public class TxStateTransactionDataViewTest
     public void shouldListAddedNodePropertiesProperties() throws Exception
     {
         // Given
-        int propertyKeyId = 1;
+        int propertyKeyId = ops.propertyKeyTokenHolder().getOrCreateId( "theKey" );
         Value prevValue = Values.of( "prevValue" );
-        state.nodeDoChangeProperty( 1L, propertyKeyId, prevValue, Values.of( "newValue" ) );
-        when( ops.propertyKeyGetName( propertyKeyId ) ).thenReturn( "theKey" );
-        long propertyId = 20L;
-        when( storeStatement.acquireSingleNodeCursor( 1L ) ).thenReturn(
-                asNodeCursor( 1L, propertyId, labels() ) );
-        when( storeStatement
-                .acquireSinglePropertyCursor( propertyId, propertyKeyId, NO_LOCK, AssertOpen.ALWAYS_OPEN ) )
-                .thenReturn( asPropertyCursor( new PropertyKeyValue( propertyKeyId, prevValue ) ) );
+        state.nodeDoChangeProperty( 1L, propertyKeyId, Values.of( "newValue" ) );
+        ops.withNode( 1, NO_LABELS, genericMap( "theKey", prevValue ) );
 
         // When
         Iterable<PropertyEntry<Node>> propertyEntries = snapshot().assignedNodeProperties();
@@ -242,16 +212,10 @@ public class TxStateTransactionDataViewTest
     public void shouldListRemovedNodeProperties() throws Exception
     {
         // Given
-        int propertyKeyId = 1;
+        int propertyKeyId = ops.propertyKeyTokenHolder().getOrCreateId( "theKey" );
         Value prevValue = Values.of( "prevValue" );
         state.nodeDoRemoveProperty( 1L, propertyKeyId );
-        when( ops.propertyKeyGetName( propertyKeyId ) ).thenReturn( "theKey" );
-        long propertyId = 20L;
-        when( storeStatement.acquireSingleNodeCursor( 1L ) ).thenReturn(
-                asNodeCursor( 1L, propertyId, labels() ) );
-        when( storeStatement
-                .acquireSinglePropertyCursor( propertyId, propertyKeyId, NO_LOCK, AssertOpen.ALWAYS_OPEN ) )
-                .thenReturn( asPropertyCursor( new PropertyKeyValue( propertyKeyId, prevValue ) ) );
+        ops.withNode( 1, NO_LABELS, genericMap( "theKey", prevValue ) );
 
         // When
         Iterable<PropertyEntry<Node>> propertyEntries = snapshot().removedNodeProperties();
@@ -267,16 +231,10 @@ public class TxStateTransactionDataViewTest
     public void shouldListRemovedRelationshipProperties() throws Exception
     {
         // Given
-        int propertyKeyId = 1;
+        int propertyKeyId = ops.propertyKeyTokenHolder().getOrCreateId( "theKey" );
         Value prevValue = Values.of( "prevValue" );
         state.relationshipDoRemoveProperty( 1L, propertyKeyId );
-        when( ops.propertyKeyGetName( propertyKeyId ) ).thenReturn( "theKey" );
-        long propertyId = 40L;
-        when( storeStatement.acquireSingleRelationshipCursor( 1 ) )
-                .thenReturn( asRelationshipCursor( 1, 0, 0, 0, propertyId ) );
-        when( storeStatement
-                .acquireSinglePropertyCursor( propertyId, propertyKeyId, NO_LOCK, AssertOpen.ALWAYS_OPEN ) )
-                .thenReturn( asPropertyCursor( new PropertyKeyValue( propertyKeyId, prevValue ) ) );
+        ops.withRelationship( 1, 0, 0, 0, genericMap( "theKey", prevValue ) );
 
         // When
         Iterable<PropertyEntry<Relationship>> propertyEntries = snapshot().removedRelationshipProperties();
@@ -292,17 +250,10 @@ public class TxStateTransactionDataViewTest
     public void shouldListAddedRelationshipProperties() throws Exception
     {
         // Given
-        int propertyKeyId = 1;
         Value prevValue = Values.of( "prevValue" );
+        int propertyKeyId = ops.propertyKeyTokenHolder().getOrCreateId( "theKey" );
         state.relationshipDoReplaceProperty( 1L, propertyKeyId, prevValue, Values.of( "newValue" ) );
-
-        when( ops.propertyKeyGetName( propertyKeyId ) ).thenReturn( "theKey" );
-        long propertyId = 40L;
-        when( storeStatement.acquireSingleRelationshipCursor( 1 ) ).thenReturn(
-                asRelationshipCursor( 1, 0, 0, 0, propertyId ) );
-        when( storeStatement
-                .acquireSinglePropertyCursor( propertyId, propertyKeyId, NO_LOCK, AssertOpen.ALWAYS_OPEN ) )
-                .thenReturn( asPropertyCursor( new PropertyKeyValue( propertyKeyId, prevValue ) ) );
+        ops.withRelationship( 1, 0, 0, 0, genericMap( "theKey", prevValue ) );
 
         // When
         Iterable<PropertyEntry<Relationship>> propertyEntries = snapshot().assignedRelationshipProperties();
@@ -319,9 +270,9 @@ public class TxStateTransactionDataViewTest
     public void shouldListAddedLabels() throws Exception
     {
         // Given
-        state.nodeDoAddLabel( 2, 1L );
-        when( ops.labelGetName( 2 ) ).thenReturn( "theLabel" );
-        when( storeStatement.acquireSingleNodeCursor( 1 ) ).thenReturn( asNodeCursor( 1 ) );
+        int labelId = 2;
+        when( tokenRead.nodeLabelName( labelId ) ).thenReturn( "theLabel" );
+        state.nodeDoAddLabel( labelId, 1L );
 
         // When
         Iterable<LabelEntry> labelEntries = snapshot().assignedLabels();
@@ -336,8 +287,9 @@ public class TxStateTransactionDataViewTest
     public void shouldListRemovedLabels() throws Exception
     {
         // Given
-        state.nodeDoRemoveLabel( 2, 1L );
-        when( ops.labelGetName( 2 ) ).thenReturn( "theLabel" );
+        int labelId = 2;
+        when( tokenRead.nodeLabelName( labelId ) ).thenReturn( "theLabel" );
+        state.nodeDoRemoveLabel( labelId, 1L );
 
         // When
         Iterable<LabelEntry> labelEntries = snapshot().removedLabels();
@@ -364,7 +316,7 @@ public class TxStateTransactionDataViewTest
     @Test
     public void shouldGetEmptyUsernameForAnonymousContext()
     {
-        when( transaction.securityContext() ).thenReturn( AnonymousContext.read().authorize( s -> -1 ) );
+        when( transaction.securityContext() ).thenReturn( AnonymousContext.read().authorize( s -> -1, GraphDatabaseSettings.DEFAULT_DATABASE_NAME ) );
 
         TxStateTransactionDataSnapshot transactionDataSnapshot = snapshot();
         assertEquals( "", transactionDataSnapshot.username() );
@@ -396,7 +348,7 @@ public class TxStateTransactionDataViewTest
         final KernelTransactionImplementation transaction = mock( KernelTransactionImplementation.class );
         when( transaction.getMetaData() ).thenReturn( genericMap( "username", "Igor" ) );
         TxStateTransactionDataSnapshot transactionDataSnapshot =
-                new TxStateTransactionDataSnapshot( state, spi, ops, storeStatement, transaction );
+                new TxStateTransactionDataSnapshot( state, spi, ops, transaction );
         assertEquals( 1, transactionDataSnapshot.metaData().size() );
         assertThat( "Expected metadata map to contain defined username", transactionDataSnapshot.metaData(),
                 equalTo( genericMap( "username", "Igor" ) ) );
@@ -420,6 +372,6 @@ public class TxStateTransactionDataViewTest
         when( spi.newRelationshipProxy( anyLong(), anyLong(), anyInt(), anyLong() ) ).thenAnswer(
                 invocation -> new RelationshipProxy( spi, invocation.getArgument( 0 ), invocation.getArgument( 1 ),
                         invocation.getArgument( 2 ), invocation.getArgument( 3 ) ) );
-        return new TxStateTransactionDataSnapshot( state, spi, ops, storeStatement, transaction );
+        return new TxStateTransactionDataSnapshot( state, spi, ops, transaction );
     }
 }

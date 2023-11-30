@@ -46,12 +46,14 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.impl.FileIsNotMappedException;
 import org.neo4j.io.pagecache.tracing.cursor.context.VersionContextSupplier;
 import org.neo4j.kernel.impl.store.UnderlyingStorageException;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.logging.Logger;
+import org.neo4j.util.FeatureToggles;
 
 import static org.neo4j.kernel.impl.store.kvstore.LockWrapper.readLock;
 import static org.neo4j.kernel.impl.store.kvstore.LockWrapper.writeLock;
@@ -62,10 +64,11 @@ import static org.neo4j.kernel.impl.store.kvstore.LockWrapper.writeLock;
  *
  * @param <Key> a base type for the keys stored in this store.
  */
-@Rotation( Rotation.Strategy.LEFT_RIGHT )
 @State( State.Strategy.CONCURRENT_HASH_MAP )
 public abstract class AbstractKeyValueStore<Key> extends LifecycleAdapter
 {
+    static final long MAX_LOOKUP_RETRY_COUNT = FeatureToggles.getLong( AbstractKeyValueStore.class, "maxLookupRetryCount", 1024 );
+
     private final UpdateLock updateLock = new UpdateLock();
     private final Format format;
     final RotationStrategy rotationStrategy;
@@ -78,7 +81,7 @@ public abstract class AbstractKeyValueStore<Key> extends LifecycleAdapter
     final int valueSize;
     private volatile boolean stopped;
 
-    public AbstractKeyValueStore( FileSystemAbstraction fs, PageCache pages, File base, RotationMonitor monitor, Logger logger,
+    public AbstractKeyValueStore( FileSystemAbstraction fs, PageCache pages, DatabaseLayout databaseLayout, RotationMonitor monitor, Logger logger,
             RotationTimerFactory timerFactory, VersionContextSupplier versionContextSupplier, int keySize,
             int valueSize, HeaderField<?>... headerFields )
     {
@@ -92,7 +95,7 @@ public abstract class AbstractKeyValueStore<Key> extends LifecycleAdapter
         }
         this.format = new Format( headerFields );
         this.logger = logger;
-        this.rotationStrategy = rotation.value().create( fs, pages, format, monitor, base, rotation.parameters() );
+        this.rotationStrategy = rotation.value().create( fs, pages, format, monitor, databaseLayout );
         this.rotationTimerFactory = timerFactory;
         this.state = new DeadState.Stopped<>( format, getClass().getAnnotation( State.class ).value(),
                 versionContextSupplier );
@@ -112,7 +115,8 @@ public abstract class AbstractKeyValueStore<Key> extends LifecycleAdapter
     protected final <Value> Value lookup( Key key, Reader<Value> reader ) throws IOException
     {
         ValueLookup<Value> lookup = new ValueLookup<>( reader );
-        while ( true )
+        long retriesLeft = MAX_LOOKUP_RETRY_COUNT;
+        while ( retriesLeft > 0 )
         {
             ProgressiveState<Key> originalState = this.state;
             try
@@ -128,7 +132,9 @@ public abstract class AbstractKeyValueStore<Key> extends LifecycleAdapter
                     throw e;
                 }
             }
+            retriesLeft--;
         }
+        throw new IOException( String.format( "Failed to lookup `%s` in key value store, after %d retries", key, MAX_LOOKUP_RETRY_COUNT ) );
     }
 
     /** Introspective feature, not thread safe. */

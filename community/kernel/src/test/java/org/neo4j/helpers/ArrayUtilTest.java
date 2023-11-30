@@ -38,18 +38,18 @@
  */
 package org.neo4j.helpers;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.helpers.collection.Iterators.asSet;
 
-public class ArrayUtilTest
+class ArrayUtilTest
 {
     @Test
-    public void shouldProduceUnionOfTwoArrays()
+    void shouldProduceUnionOfTwoArrays()
     {
         // GIVEN
         String[] first = {"one", "three"};
@@ -64,7 +64,7 @@ public class ArrayUtilTest
     }
 
     @Test
-    public void shouldProduceUnionWhereFirstIsNull()
+    void shouldProduceUnionWhereFirstIsNull()
     {
         // GIVEN
         String[] first = null;
@@ -78,7 +78,7 @@ public class ArrayUtilTest
     }
 
     @Test
-    public void shouldProduceUnionWhereOtherIsNull()
+    void shouldProduceUnionWhereOtherIsNull()
     {
         // GIVEN
         String[] first = {"one", "two"};
@@ -92,7 +92,7 @@ public class ArrayUtilTest
     }
 
     @Test
-    public void shouldCheckNullSafeEqual()
+    void shouldCheckNullSafeEqual()
     {
         // WHEN/THEN
         assertTrue( ArrayUtil.nullSafeEquals( null, null ) );
@@ -102,7 +102,7 @@ public class ArrayUtilTest
     }
 
     @Test
-    public void emptyArray()
+    void emptyArray()
     {
         assertTrue( ArrayUtil.isEmpty( null ) );
         assertTrue( ArrayUtil.isEmpty( new String[] {} ) );
@@ -110,20 +110,40 @@ public class ArrayUtilTest
     }
 
     @Test
-    public void shouldConcatOneAndMany()
+    void shouldConcatOneAndMany()
     {
         // WHEN
         Integer[] result = ArrayUtil.concat( 0, 1, 2, 3, 4 );
 
         // THEN
-        for ( int i = 0; i < result.length; i++ )
+        for ( int i = 0; i < 5; i++ )
         {
             assertEquals( (Integer)i, result[i] );
         }
     }
 
     @Test
-    public void shouldFindIndexOf()
+    void shouldConcatSeveralArrays()
+    {
+        // GIVEN
+        Integer[] a = {0, 1, 2};
+        Integer[] b = {3, 4};
+        Integer[] c = {5, 6, 7, 8};
+
+        // WHEN
+        Integer[] result = ArrayUtil.concatArrays( a, b, c );
+
+        // THEN
+        assertEquals( a.length + b.length + c.length, result.length );
+
+        for ( int i = 0; i < result.length; i++ )
+        {
+            assertEquals( (Integer) i, result[i] );
+        }
+    }
+
+    @Test
+    void shouldFindIndexOf()
     {
         // GIVEN
         Integer[] numbers = ArrayUtil.concat( 0, 1, 2, 3, 4, 5 );
@@ -136,7 +156,17 @@ public class ArrayUtilTest
     }
 
     @Test
-    public void shouldRemoveItems()
+    void shouldFindLastOf()
+    {
+        // GIVEN
+        Integer[] numbers = new Integer[]{0, 100, 4, 5, 6, 3};
+
+        // WHEN/THEN
+        assertEquals( 3, (int) ArrayUtil.lastOf( numbers ) );
+    }
+
+    @Test
+    void shouldRemoveItems()
     {
         // GIVEN
         Integer[] numbers = ArrayUtil.concat( 0, 1, 2, 3, 4, 5 );
@@ -157,7 +187,7 @@ public class ArrayUtilTest
     }
 
     @Test
-    public void shouldConcatArrays()
+    void shouldConcatArrays()
     {
         // GIVEN
         Integer[] initial = new Integer[] {0, 1, 2};
@@ -170,7 +200,7 @@ public class ArrayUtilTest
     }
 
     @Test
-    public void shouldReverseEvenCount()
+    void shouldReverseEvenCount()
     {
         // given
         Integer[] array = new Integer[] {0, 1, 2, 3, 4, 5};
@@ -183,7 +213,7 @@ public class ArrayUtilTest
     }
 
     @Test
-    public void shouldReverseUnevenCount()
+    void shouldReverseUnevenCount()
     {
         // given
         Integer[] array = new Integer[] {0, 1, 2, 3, 4};
@@ -196,7 +226,7 @@ public class ArrayUtilTest
     }
 
     @Test
-    public void shouldReverseEmptyArray()
+    void shouldReverseEmptyArray()
     {
         // given
         Integer[] array = new Integer[] {};

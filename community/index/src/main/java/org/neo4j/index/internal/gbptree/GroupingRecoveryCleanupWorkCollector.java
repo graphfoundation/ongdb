@@ -45,9 +45,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobHandle;
 import org.neo4j.scheduler.JobScheduler;
-
-import static org.neo4j.scheduler.JobScheduler.Groups.recoveryCleanup;
 
 /**
  * Runs cleanup work as they're added in {@link #add(CleanupJob)}, but the thread that calls {@link #add(CleanupJob)} will not execute them itself.
@@ -57,7 +57,7 @@ public class GroupingRecoveryCleanupWorkCollector extends RecoveryCleanupWorkCol
     private final BlockingQueue<CleanupJob> jobs = new LinkedBlockingQueue<>();
     private final JobScheduler jobScheduler;
     private volatile boolean started;
-    private JobScheduler.JobHandle handle;
+    private JobHandle handle;
 
     /**
      * @param jobScheduler {@link JobScheduler} to queue {@link CleanupJob} into.
@@ -112,7 +112,7 @@ public class GroupingRecoveryCleanupWorkCollector extends RecoveryCleanupWorkCol
 
     private void scheduleJobs()
     {
-        handle = jobScheduler.schedule( recoveryCleanup, allJobs() );
+        handle = jobScheduler.schedule( Group.STORAGE_MAINTENANCE, allJobs() );
     }
 
     private Runnable allJobs()

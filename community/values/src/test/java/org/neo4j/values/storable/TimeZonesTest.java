@@ -39,7 +39,8 @@
 package org.neo4j.values.storable;
 
 import org.apache.commons.codec.digest.DigestUtils;
-import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -48,15 +49,16 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.ZoneId;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.fail;
 
-public class TimeZonesTest
+class TimeZonesTest
 {
     @Test
-    public void weSupportAllJavaZoneIds()
+    void weSupportAllJavaZoneIds()
     {
         ZoneId.getAvailableZoneIds().forEach( s ->
         {
@@ -75,7 +77,7 @@ public class TimeZonesTest
     }
 
     @Test
-    public void weSupportDeletedZoneIdEastSaskatchewan()
+    void weSupportDeletedZoneIdEastSaskatchewan()
     {
         try
         {
@@ -89,20 +91,60 @@ public class TimeZonesTest
         }
     }
 
+    @Test
+    void weSupportDeletedZoneIdUSPacificNew()
+    {
+        try
+        {
+            short pacificNew = TimeZones.map( "US/Pacific-New" );
+            assertThat( "Our time zone table does not remap US/Pacific-New to US/Pacific",
+                        TimeZones.map( pacificNew ), equalTo( "US/Pacific" ) );
+        }
+        catch ( IllegalArgumentException e )
+        {
+            fail( "Our time zone table does not support US/Pacific-New" );
+        }
+    }
+
+    @Test
+    void weSupportDeletedZoneIdUSPacificNewForDeserialization()
+    {
+        try
+        {
+            short pacificNew = 58; // Old timezone id for US/Pacific-New
+            assertThat( "Our time zone table does not remap US/Pacific-New to US/Pacific",
+                        TimeZones.map( pacificNew ), equalTo( "US/Pacific" ) );
+        }
+        catch ( IllegalArgumentException e )
+        {
+            fail( "Our time zone table does not support US/Pacific-New" );
+        }
+    }
+
     /**
-     * If this test fails, you have changed something in TZIDS. This is fine, as long as you only append lines to the end,
-     * or add a mapping to a deleted timezone. You are not allowed to change the order of lines or remove a line.
-     * p>
-     * If your changes were legit, please change the expected byte[] below.
+     * If this test fails, you have changed something in TZIDS. This is fine, as long as you only append lines to the end, or add a mapping to a deleted
+     * timezone. You are not allowed to change the order of lines or remove a line. p> If your changes were legit, please change the expected byte[] below.
      */
     @Test
-    public void tzidsOrderMustNotChange() throws URISyntaxException, IOException
+    void tzidsOrderMustNotChange() throws URISyntaxException, IOException
     {
         Path path = Paths.get( TimeZones.class.getResource( "/TZIDS" ).toURI() );
         byte[] timeZonesInfo = Files.readAllBytes( path );
         byte[] timeZonesHash = DigestUtils.sha256( timeZonesInfo );
         assertThat( timeZonesHash, equalTo(
-                new byte[]{-98, 104, 53, 94, -62, -115, 51, -124, -73, -4, 118, -61, -33, -115, 23, 45, 115, -103, -77, -94, 65, -25, 110, 10, 68, -8, 68, -95,
-                           -106, -126, -56, -25} ) );
+                new byte[]{26, 103, -23, 29, 64, 96, -114, -16, -85, -97, -1, -12, -87, 120, 77, 49, -4, 114, 54, -112, 97, 69, 16, -111, 115, -46, -13, 103,
+                           -97, 20, 29, -94} ) );
+    }
+
+    @Disabled( "Too restrictive as-is: Zone IDs aren't stable across JDKs, 'Pacific/Kanton' isn't currently supported by x86-ubuntu-oraclejdk-17" )
+    @Test
+    void allTimeZonesAreValidZoneIDs()
+    {
+        TimeZones.supportedTimeZones().forEach( timeZone ->
+        {
+            short zoneOffset = TimeZones.map( timeZone );
+            String timeZone2 = TimeZones.map( zoneOffset );
+            assertNotNull( ZoneId.of( timeZone2 ) );
+        });
     }
 }

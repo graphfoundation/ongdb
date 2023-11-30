@@ -40,20 +40,22 @@ package org.neo4j.test.rule;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.junit.Rule;
-import org.junit.rules.TestRule;
+import org.junit.rules.ExternalResource;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.UncheckedIOException;
 import java.net.URISyntaxException;
-import java.util.Arrays;
-import java.util.stream.Collectors;
+import java.util.Random;
 
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.fs.FileUtils.MaybeWindowsMemoryMappedFileReleaseProblem;
+import org.neo4j.io.layout.DatabaseLayout;
+import org.neo4j.io.layout.StoreLayout;
+import org.neo4j.util.VisibleForTesting;
 
 import static java.lang.String.format;
 
@@ -69,21 +71,34 @@ import static java.lang.String.format;
  *     @Test
  *     public void shouldDoSomething()
  *     {
- *       File storeDir = dir.graphDbDir();
+ *       File storeDir = dir.databaseDir();
  *       // do stuff with store dir
  *     }
  *   }
  * </pre>
  */
-public class TestDirectory implements TestRule
+public class TestDirectory extends ExternalResource
 {
-    public static final String DATABASE_DIRECTORY = "graph-db";
+    private static final String DEFAULT_DATABASE_DIRECTORY = "graph.db";
+    /**
+     * This value is mixed into the hash string, along with the test name,
+     * that we use for uniquely naming test directories.
+     * By getting a new value here, every time the JVM is started, we the same
+     * tests will get different directory names when executed many times in
+     * different JVMs.
+     * This way, the test results for many runs of the same tests are kept
+     * around, so they can easily be compared with each other. This is useful
+     * when you need to investigate a flaky test, for instance.
+     */
+    private static final long JVM_EXECUTION_HASH = new Random().nextLong();
 
     private final FileSystemAbstraction fileSystem;
     private File testClassBaseFolder;
     private Class<?> owningTest;
     private boolean keepDirectoryAfterSuccessfulTest;
     private File testDirectory;
+    private StoreLayout storeLayout;
+    private DatabaseLayout defaultDatabaseLayout;
 
     private TestDirectory( FileSystemAbstraction fileSystem )
     {
@@ -124,7 +139,7 @@ public class TestDirectory implements TestRule
             @Override
             public void evaluate() throws Throwable
             {
-                testDirectory = directoryForDescription( description );
+                directoryForDescription( description );
                 boolean success = false;
                 try
                 {
@@ -167,10 +182,7 @@ public class TestDirectory implements TestRule
     public File directory( String name )
     {
         File dir = new File( directory(), name );
-        if ( !fileSystem.fileExists( dir ) )
-        {
-            fileSystem.mkdir( dir );
-        }
+        createDirectory( dir );
         return dir;
     }
 
@@ -179,14 +191,63 @@ public class TestDirectory implements TestRule
         return new File( directory(), name );
     }
 
-    public File graphDbDir()
+    public File createFile( String name )
     {
-        return directory( DATABASE_DIRECTORY );
+        File file = file( name );
+        ensureFileExists( file );
+        return file;
     }
 
-    public File makeGraphDbDir() throws IOException
+    public File databaseDir()
     {
-        return cleanDirectory( DATABASE_DIRECTORY );
+        return databaseLayout().databaseDirectory();
+    }
+
+    public StoreLayout storeLayout()
+    {
+        return storeLayout;
+    }
+
+    public DatabaseLayout databaseLayout()
+    {
+        createDirectory( defaultDatabaseLayout.databaseDirectory() );
+        return defaultDatabaseLayout;
+    }
+
+    public DatabaseLayout databaseLayout( File storeDir )
+    {
+        DatabaseLayout databaseLayout = StoreLayout.of( storeDir ).databaseLayout( DEFAULT_DATABASE_DIRECTORY );
+        createDirectory( databaseLayout.databaseDirectory() );
+        return databaseLayout;
+    }
+
+    public DatabaseLayout databaseLayout( String name )
+    {
+        DatabaseLayout databaseLayout = storeLayout.databaseLayout( name );
+        createDirectory( databaseLayout.databaseDirectory() );
+        return databaseLayout;
+    }
+
+    public File storeDir()
+    {
+        return storeLayout.storeDirectory();
+    }
+
+    public File storeDir( String storeDirName )
+    {
+        return directory( storeDirName );
+    }
+
+    public File databaseDir( File storeDirectory )
+    {
+        File databaseDirectory = databaseLayout( storeDirectory ).databaseDirectory();
+        createDirectory( databaseDirectory );
+        return databaseDirectory;
+    }
+
+    public File databaseDir( String customStoreDirectoryName )
+    {
+        return databaseDir( storeDir( customStoreDirectoryName ) );
     }
 
     public void cleanup() throws IOException
@@ -198,12 +259,91 @@ public class TestDirectory implements TestRule
     public String toString()
     {
         String testDirectoryName = testDirectory == null ? "<uninitialized>" : testDirectory.toString();
-        return format( "%s[%s]", getClass().getSimpleName(), testDirectoryName );
+        return format( "%s[\"%s\"]", getClass().getSimpleName(), testDirectoryName );
     }
 
     public File cleanDirectory( String name ) throws IOException
     {
         return clean( fileSystem, new File( ensureBase(), name ) );
+    }
+
+    public void complete( boolean success ) throws IOException
+    {
+        try
+        {
+            if ( success && testDirectory != null && !keepDirectoryAfterSuccessfulTest )
+            {
+                fileSystem.deleteRecursively( testDirectory );
+            }
+            testDirectory = null;
+            storeLayout = null;
+            defaultDatabaseLayout = null;
+        }
+        finally
+        {
+            fileSystem.close();
+        }
+    }
+
+    public void prepareDirectory( Class<?> testClass, String test ) throws IOException
+    {
+        if ( owningTest == null )
+        {
+            owningTest = testClass;
+        }
+        if ( test == null )
+        {
+            test = "static";
+        }
+        testDirectory = prepareDirectoryForTest( test );
+        storeLayout = StoreLayout.of( testDirectory );
+        defaultDatabaseLayout = storeLayout.databaseLayout( DEFAULT_DATABASE_DIRECTORY );
+    }
+
+    public File prepareDirectoryForTest( String test ) throws IOException
+    {
+        String dir = DigestUtils.md5Hex( JVM_EXECUTION_HASH + test );
+        evaluateClassBaseTestFolder();
+        register( test, dir );
+        return cleanDirectory( dir );
+    }
+
+    @VisibleForTesting
+    public FileSystemAbstraction getFileSystem()
+    {
+        return fileSystem;
+    }
+
+    private void directoryForDescription( Description description ) throws IOException
+    {
+        prepareDirectory( description.getTestClass(), description.getMethodName() );
+    }
+
+    private void ensureFileExists( File file )
+    {
+        try
+        {
+            if ( !fileSystem.fileExists( file ) )
+            {
+                fileSystem.create( file ).close();
+            }
+        }
+        catch ( IOException e )
+        {
+            throw new UncheckedIOException( "Failed to create file: " + file, e );
+        }
+    }
+
+    private void createDirectory( File databaseDirectory )
+    {
+        try
+        {
+            fileSystem.mkdirs( databaseDirectory );
+        }
+        catch ( IOException e )
+        {
+            throw new UncheckedIOException( "Failed to create directory: " + databaseDirectory, e );
+        }
     }
 
     private static File clean( FileSystemAbstraction fs, File dir ) throws IOException
@@ -216,83 +356,19 @@ public class TestDirectory implements TestRule
         return dir;
     }
 
-    private void complete( boolean success ) throws IOException
-    {
-        try
-        {
-            if ( success && testDirectory != null && !keepDirectoryAfterSuccessfulTest )
-            {
-                try
-                {
-                    fileSystem.deleteRecursively( testDirectory );
-                }
-                catch ( MaybeWindowsMemoryMappedFileReleaseProblem fme )
-                {
-                    System.err.println(
-                            "Failed to delete test directory, " + "maybe due to Windows memory-mapped file problem: " +
-                                    fme.getMessage() );
-                }
-                catch ( IOException e )
-                {
-                    throw new RuntimeException( e );
-                }
-            }
-            testDirectory = null;
-        }
-        finally
-        {
-            fileSystem.close();
-        }
-    }
-
-    private File directoryForDescription( Description description ) throws IOException
-    {
-        if ( owningTest == null )
-        {
-            owningTest = description.getTestClass();
-        }
-        String test = description.getMethodName();
-        if ( test == null )
-        {
-            test = "static";
-        }
-        return prepareDirectoryForTest( test );
-    }
-
-    public File prepareDirectoryForTest( String test ) throws IOException
-    {
-        String dir = DigestUtils.md5Hex( test );
-        evaluateClassBaseTestFolder();
-        register( test, dir );
-        return cleanDirectory( dir );
-    }
-
     private void evaluateClassBaseTestFolder( )
     {
         if ( owningTest == null )
         {
             throw new IllegalStateException( " Test owning class is not defined" );
         }
-        try
-        {
-            testClassBaseFolder = testDataDirectoryOf( fileSystem, owningTest, false );
-        }
-        catch ( IOException e )
-        {
-            throw new RuntimeException( e );
-        }
+        testClassBaseFolder = testDataDirectoryOf( owningTest );
     }
 
-    private static File testDataDirectoryOf( FileSystemAbstraction fs, Class<?> owningTest, boolean clean )
-            throws IOException
+    private static File testDataDirectoryOf( Class<?> owningTest )
     {
-        File testData = new File( locateTarget( owningTest ), "test-data" );
-        File result = new File( testData, shorten( owningTest.getName() ) ).getAbsoluteFile();
-        if ( clean )
-        {
-            clean( fs, result );
-        }
-        return result;
+        File testData = new File( locateTarget( owningTest ), "test data" );
+        return new File( testData, shorten( owningTest.getName() ) ).getAbsoluteFile();
     }
 
     private static String shorten( String owningTestName )
@@ -307,7 +383,7 @@ public class TestDirectory implements TestRule
                 parts[i] = part.substring( 0, targetPartLength - 1 ) + "~";
             }
         }
-        return Arrays.stream( parts ).collect( Collectors.joining( "." ) );
+        return String.join( ".", parts );
     }
 
     private void register( String test, String dir )
@@ -315,7 +391,7 @@ public class TestDirectory implements TestRule
         try ( PrintStream printStream =
                     new PrintStream( fileSystem.openAsOutputStream( new File( ensureBase(), ".register" ), true ) ) )
         {
-            printStream.println( format( "%s=%s\n", dir, test ) );
+            printStream.print( format( "%s = %s%n", dir, test ) );
         }
         catch ( IOException e )
         {

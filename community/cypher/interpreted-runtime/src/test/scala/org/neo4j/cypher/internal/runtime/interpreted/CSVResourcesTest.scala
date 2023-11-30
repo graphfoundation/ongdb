@@ -43,19 +43,19 @@ import java.net.URL
 import org.apache.commons.lang3.SystemUtils
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
-import org.neo4j.cypher.internal.runtime.CreateTempFileTestSupport
+import org.neo4j.cypher.internal.runtime.{CreateTempFileTestSupport, ResourceManager}
+import org.neo4j.cypher.internal.v3_5.util.{LoadExternalResourceException, TaskCloser}
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 import org.neo4j.cypher.internal.runtime.interpreted.CSVResources.DEFAULT_BUFFER_SIZE
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.util.v3_4.{LoadExternalResourceException, TaskCloser}
 import org.neo4j.io.fs.FileUtils
 
 class CSVResourcesTest extends CypherFunSuite with CreateTempFileTestSupport {
 
   var resources: CSVResources = _
-  var cleaner: TaskCloser = _
+  var cleaner: ResourceManager = _
 
   override def beforeEach() {
-    cleaner = mock[TaskCloser]
+    cleaner = mock[ResourceManager]
     resources = new CSVResources(cleaner)
   }
 
@@ -143,7 +143,7 @@ class CSVResourcesTest extends CypherFunSuite with CreateTempFileTestSupport {
     result should equal(List.empty)
   }
 
-  test("should register a task in the cleanupper") {
+  test("should register a task in the resource manager") {
     // given
     val url = createCSVTempFileURL {
       writer =>
@@ -156,7 +156,7 @@ class CSVResourcesTest extends CypherFunSuite with CreateTempFileTestSupport {
     resources.getCsvIterator(new URL(url), None, legacyCsvQuoteEscaping = false, DEFAULT_BUFFER_SIZE)
 
     // then
-    verify(cleaner, times(1)).addTask(any(classOf[Boolean => Unit]))
+    verify(cleaner, times(1)).trace(any(classOf[AutoCloseable]))
   }
 
   test("should accept and use a custom field terminator") {

@@ -43,20 +43,20 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.neo4j.collection.primitive.PrimitiveLongResourceCollections;
-import org.neo4j.collection.primitive.PrimitiveLongResourceIterator;
+import org.neo4j.collection.PrimitiveLongResourceCollections;
+import org.neo4j.collection.PrimitiveLongResourceIterator;
 import org.neo4j.helpers.TaskCoordinator;
 import org.neo4j.internal.kernel.api.IndexOrder;
 import org.neo4j.internal.kernel.api.IndexQuery;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotApplicableKernelException;
 import org.neo4j.io.IOUtils;
-import org.neo4j.kernel.api.exceptions.index.IndexNotApplicableKernelException;
 import org.neo4j.kernel.api.impl.index.partition.PartitionSearcher;
 import org.neo4j.kernel.api.impl.index.sampler.AggregatingIndexSampler;
-import org.neo4j.kernel.api.index.PropertyAccessor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
 import org.neo4j.kernel.impl.api.schema.BridgingIndexProgressor;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.storageengine.api.schema.AbstractIndexReader;
+import org.neo4j.storageengine.api.schema.IndexDescriptor;
 import org.neo4j.storageengine.api.schema.IndexProgressor;
 import org.neo4j.storageengine.api.schema.IndexReader;
 import org.neo4j.storageengine.api.schema.IndexSampler;
@@ -73,7 +73,7 @@ public class PartitionedIndexReader extends AbstractIndexReader
     private final List<SimpleIndexReader> indexReaders;
 
     public PartitionedIndexReader( List<PartitionSearcher> partitionSearchers,
-            SchemaIndexDescriptor descriptor,
+            IndexDescriptor descriptor,
             IndexSamplingConfig samplingConfig,
             TaskCoordinator taskCoordinator )
     {
@@ -83,7 +83,7 @@ public class PartitionedIndexReader extends AbstractIndexReader
                 .collect( Collectors.toList() ) );
     }
 
-    PartitionedIndexReader( SchemaIndexDescriptor descriptor, List<SimpleIndexReader> readers )
+    PartitionedIndexReader( IndexDescriptor descriptor, List<SimpleIndexReader> readers )
     {
         super( descriptor );
         this.indexReaders = readers;
@@ -103,7 +103,8 @@ public class PartitionedIndexReader extends AbstractIndexReader
     }
 
     @Override
-    public void query( IndexProgressor.NodeValueClient client, IndexOrder indexOrder, IndexQuery... query ) throws IndexNotApplicableKernelException
+    public void query( IndexProgressor.NodeValueClient client, IndexOrder indexOrder, boolean needsValues, IndexQuery... query )
+            throws IndexNotApplicableKernelException
     {
         try
         {
@@ -112,14 +113,14 @@ public class PartitionedIndexReader extends AbstractIndexReader
             {
                 try
                 {
-                    reader.query( bridgingIndexProgressor, indexOrder, query );
+                    reader.query( bridgingIndexProgressor, indexOrder, needsValues, query );
                 }
                 catch ( IndexNotApplicableKernelException e )
                 {
                     throw new InnerException( e );
                 }
             } );
-            client.initialize( descriptor, bridgingIndexProgressor, query );
+            client.initialize( descriptor, bridgingIndexProgressor, query, indexOrder, needsValues );
         }
         catch ( InnerException e )
         {
@@ -134,11 +135,11 @@ public class PartitionedIndexReader extends AbstractIndexReader
     }
 
     @Override
-    public void distinctValues( IndexProgressor.NodeValueClient client, PropertyAccessor propertyAccessor )
+    public void distinctValues( IndexProgressor.NodeValueClient client, NodePropertyAccessor propertyAccessor, boolean needsValues )
     {
         BridgingIndexProgressor bridgingIndexProgressor = new BridgingIndexProgressor( client, descriptor.schema().getPropertyIds() );
-        indexReaders.parallelStream().forEach( reader -> reader.distinctValues( bridgingIndexProgressor, propertyAccessor ) );
-        client.initialize( descriptor, bridgingIndexProgressor, new IndexQuery[0] );
+        indexReaders.parallelStream().forEach( reader -> reader.distinctValues( bridgingIndexProgressor, propertyAccessor, needsValues ) );
+        client.initialize( descriptor, bridgingIndexProgressor, new IndexQuery[0], IndexOrder.NONE, needsValues );
     }
 
     private PrimitiveLongResourceIterator innerQuery( IndexReader reader, IndexQuery[] predicates )
@@ -168,10 +169,10 @@ public class PartitionedIndexReader extends AbstractIndexReader
     }
 
     @Override
-    public long countIndexedNodes( long nodeId, Value... propertyValues )
+    public long countIndexedNodes( long nodeId, int[] propertyKeyIds, Value... propertyValues )
     {
         return indexReaders.parallelStream()
-                .mapToLong( reader -> reader.countIndexedNodes( nodeId, propertyValues ) )
+                .mapToLong( reader -> reader.countIndexedNodes( nodeId, propertyKeyIds, propertyValues ) )
                 .sum();
     }
 

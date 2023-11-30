@@ -224,8 +224,7 @@ public class DynamicRecord extends AbstractBaseRecord
     @Override
     public DynamicRecord clone()
     {
-        DynamicRecord clone = new DynamicRecord( getId() ).initialize( inUse(),
-                startRecord, nextBlock, type, length );
+        DynamicRecord clone = (DynamicRecord) super.clone();
         if ( data != null )
         {
             clone.setData( data.clone() );

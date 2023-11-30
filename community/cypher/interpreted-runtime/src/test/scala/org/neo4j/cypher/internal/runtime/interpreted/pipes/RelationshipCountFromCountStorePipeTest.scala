@@ -39,13 +39,13 @@
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.mockito.Mockito._
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.util.v3_4.NameId._
-import org.neo4j.cypher.internal.frontend.v3_4.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.NameId._
+import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
 import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.cypher.internal.runtime.interpreted.{ImplicitDummyPos, QueryStateHelper}
-import org.neo4j.cypher.internal.util.v3_4.{LabelId, RelTypeId}
-import org.neo4j.cypher.internal.v3_4.expressions.{LabelName, RelTypeName}
+import org.neo4j.cypher.internal.v3_5.util.{LabelId, RelTypeId}
+import org.neo4j.cypher.internal.v3_5.expressions.{LabelName, RelTypeName}
 import org.neo4j.values.storable.Values.longValue
 
 class RelationshipCountFromCountStorePipeTest extends CypherFunSuite with ImplicitDummyPos {

@@ -45,11 +45,12 @@ import java.util.List;
 import java.util.Set;
 
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.internal.diagnostics.DiagnosticsPhase;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
-import org.neo4j.kernel.info.DiagnosticsPhase;
 import org.neo4j.kernel.internal.KernelDiagnostics;
 import org.neo4j.logging.BufferingLog;
 
@@ -61,7 +62,7 @@ public class KernelDiagnosticsOfflineReportProvider extends DiagnosticsOfflineRe
 {
     private FileSystemAbstraction fs;
     private Config config;
-    private File storeDirectory;
+    private DatabaseLayout databaseLayout;
 
     public KernelDiagnosticsOfflineReportProvider()
     {
@@ -73,7 +74,7 @@ public class KernelDiagnosticsOfflineReportProvider extends DiagnosticsOfflineRe
     {
         this.fs = fs;
         this.config = config;
-        this.storeDirectory = storeDirectory;
+        this.databaseLayout = DatabaseLayout.of( storeDirectory );
     }
 
     @Override
@@ -140,13 +141,13 @@ public class KernelDiagnosticsOfflineReportProvider extends DiagnosticsOfflineRe
     }
 
     /**
-     * Print a tree view of all the files in the graph.db directory with files sizes.
+     * Print a tree view of all the files in the database directory with files sizes.
      *
      * @param sources destination of the sources.
      */
     private void listDataDirectory( List<DiagnosticsReportSource> sources )
     {
-        KernelDiagnostics.StoreFiles storeFiles = new KernelDiagnostics.StoreFiles( storeDirectory );
+        KernelDiagnostics.StoreFiles storeFiles = new KernelDiagnostics.StoreFiles( databaseLayout );
 
         BufferingLog logger = new BufferingLog();
         storeFiles.dump( DiagnosticsPhase.INITIALIZED, logger.debugLogger() );
@@ -155,7 +156,7 @@ public class KernelDiagnosticsOfflineReportProvider extends DiagnosticsOfflineRe
     }
 
     /**
-     * Add {@code debug.log}, {@code ongdb.log} and {@code gc.log}. All with all available rotated files.
+     * Add {@code debug.log}, {@code neo4j.log} and {@code gc.log}. All with all available rotated files.
      *
      * @param sources destination of the sources.
      */
@@ -168,12 +169,12 @@ public class KernelDiagnosticsOfflineReportProvider extends DiagnosticsOfflineRe
             sources.addAll( newDiagnosticsRotatingFile( "logs/debug.log", fs, debugLogFile ) );
         }
 
-        // ongdb.log
+        // neo4j.log
         File logDirectory = config.get( GraphDatabaseSettings.logs_directory );
-        File ongdbLog = new File( logDirectory, "ongdb.log" );
-        if ( fs.fileExists( ongdbLog ) )
+        File neo4jLog = new File( logDirectory, "neo4j.log" );
+        if ( fs.fileExists( neo4jLog ) )
         {
-            sources.add( newDiagnosticsFile( "logs/ongdb.log", fs, ongdbLog ) );
+            sources.add( newDiagnosticsFile( "logs/neo4j.log", fs, neo4jLog ) );
         }
 
         // gc.log
@@ -206,7 +207,7 @@ public class KernelDiagnosticsOfflineReportProvider extends DiagnosticsOfflineRe
     {
         try
         {
-            LogFiles logFiles = LogFilesBuilder.logFilesBasedOnlyBuilder( storeDirectory, fs ).build();
+            LogFiles logFiles = LogFilesBuilder.logFilesBasedOnlyBuilder( databaseLayout.databaseDirectory(), fs ).build();
             for ( File file : logFiles.logFiles() )
             {
                 sources.add( DiagnosticsReportSources.newDiagnosticsFile( "tx/" + file.getName(), fs, file ) );

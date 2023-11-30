@@ -51,16 +51,16 @@ import java.util.Map;
 import org.neo4j.kernel.api.impl.schema.LuceneSchemaIndexBuilder;
 import org.neo4j.kernel.api.impl.schema.SchemaIndex;
 import org.neo4j.kernel.api.impl.schema.writer.LuceneIndexWriter;
-import org.neo4j.kernel.api.index.PropertyAccessor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
+import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.index.schema.GatheringNodeValueClient;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
+import org.neo4j.storageengine.api.schema.IndexDescriptorFactory;
 import org.neo4j.storageengine.api.schema.IndexReader;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 import org.neo4j.values.storable.Value;
-import org.neo4j.values.storable.Values;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -68,7 +68,6 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.neo4j.kernel.api.impl.schema.LuceneDocumentStructure.documentRepresentingProperties;
-import static org.neo4j.test.Randoms.CS_DIGITS;
 import static org.neo4j.values.storable.Values.stringValue;
 
 public class SimpleIndexReaderDistinctValuesTest
@@ -84,7 +83,7 @@ public class SimpleIndexReaderDistinctValuesTest
     @Before
     public void setup() throws IOException
     {
-        index = LuceneSchemaIndexBuilder.create( SchemaIndexDescriptorFactory.forLabel( 1, 1 ), Config.defaults() )
+        index = LuceneSchemaIndexBuilder.create( IndexDescriptorFactory.forSchema( SchemaDescriptorFactory.forLabel( 1, 1 ) ), Config.defaults() )
                 .withFileSystem( fs )
                 .withIndexRootFolder( directory.directory() )
                 .build();
@@ -106,7 +105,7 @@ public class SimpleIndexReaderDistinctValuesTest
         Map<Value,MutableInt> expectedCounts = new HashMap<>();
         for ( int i = 0; i < 10_000; i++ )
         {
-            Value value = stringValue( random.randoms().string( 1, 3, CS_DIGITS ) );
+            Value value = stringValue( String.valueOf( random.nextInt( 1_000 ) ) );
             writer.addDocument( documentRepresentingProperties( i, value ) );
             expectedCounts.computeIfAbsent( value, v -> new MutableInt( 0 ) ).increment();
         }
@@ -114,10 +113,10 @@ public class SimpleIndexReaderDistinctValuesTest
 
         // when/then
         GatheringNodeValueClient client = new GatheringNodeValueClient();
-        PropertyAccessor propertyAccessor = mock( PropertyAccessor.class );
+        NodePropertyAccessor propertyAccessor = mock( NodePropertyAccessor.class );
         try ( IndexReader reader = index.getIndexReader() )
         {
-            reader.distinctValues( client, propertyAccessor );
+            reader.distinctValues( client, propertyAccessor, true );
             while ( client.progressor.next() )
             {
                 Value value = client.values[0];
@@ -138,17 +137,17 @@ public class SimpleIndexReaderDistinctValuesTest
         int expectedCount = 10_000;
         for ( int i = 0; i < expectedCount; i++ )
         {
-            Value value = Values.of( random.propertyValue() );
+            Value value = random.nextValue();
             writer.addDocument( documentRepresentingProperties( i, value ) );
         }
         index.maybeRefreshBlocking();
 
         // when/then
         GatheringNodeValueClient client = new GatheringNodeValueClient();
-        PropertyAccessor propertyAccessor = mock( PropertyAccessor.class );
+        NodePropertyAccessor propertyAccessor = mock( NodePropertyAccessor.class );
         try ( IndexReader reader = index.getIndexReader() )
         {
-            reader.distinctValues( client, propertyAccessor );
+            reader.distinctValues( client, propertyAccessor, true );
             int actualCount = 0;
             while ( client.progressor.next() )
             {

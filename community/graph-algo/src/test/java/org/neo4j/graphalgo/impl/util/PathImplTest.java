@@ -38,8 +38,7 @@
  */
 package org.neo4j.graphalgo.impl.util;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -51,25 +50,25 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.kernel.impl.core.NodeProxy;
 import org.neo4j.kernel.impl.core.EmbeddedProxySPI;
+import org.neo4j.kernel.impl.core.NodeProxy;
 import org.neo4j.kernel.impl.core.RelationshipProxy;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class PathImplTest
+class PathImplTest
 {
     private final EmbeddedProxySPI spi = mock( EmbeddedProxySPI.class );
 
     @Test
-    public void singularNodeWorksForwardsAndBackwards()
+    void singularNodeWorksForwardsAndBackwards()
     {
         Node node = createNode( 1337L );
         Path path = PathImpl.singular( node );
@@ -91,9 +90,8 @@ public class PathImplTest
     }
 
     @Test
-    public void pathsWithTheSameContentsShouldBeEqual()
+    void pathsWithTheSameContentsShouldBeEqual()
     {
-
         Node node = createNode( 1337L );
         Relationship relationship = createRelationship( 1337L, 7331L );
 
@@ -107,7 +105,7 @@ public class PathImplTest
     }
 
     @Test
-    public void pathsWithDifferentLengthAreNotEqual()
+    void pathsWithDifferentLengthAreNotEqual()
     {
         Node node = createNode( 1337L );
         Relationship relationship = createRelationship( 1337L, 7331L );
@@ -122,7 +120,7 @@ public class PathImplTest
     }
 
     @Test
-    public void testPathReverseNodes()
+    void testPathReverseNodes()
     {
         when( spi.newNodeProxy( Mockito.anyLong() ) ).thenAnswer( new NodeProxyAnswer() );
 
@@ -134,14 +132,14 @@ public class PathImplTest
         Iterable<Node> nodes = path.reverseNodes();
         List<Node> nodeList = Iterables.asList( nodes );
 
-        Assert.assertEquals( 3, nodeList.size() );
-        Assert.assertEquals( 3, nodeList.get( 0 ).getId() );
-        Assert.assertEquals( 2, nodeList.get( 1 ).getId() );
-        Assert.assertEquals( 1, nodeList.get( 2 ).getId() );
+        assertEquals( 3, nodeList.size() );
+        assertEquals( 3, nodeList.get( 0 ).getId() );
+        assertEquals( 2, nodeList.get( 1 ).getId() );
+        assertEquals( 1, nodeList.get( 2 ).getId() );
     }
 
     @Test
-    public void testPathNodes()
+    void testPathNodes()
     {
         when( spi.newNodeProxy( Mockito.anyLong() ) ).thenAnswer( new NodeProxyAnswer() );
 
@@ -153,10 +151,10 @@ public class PathImplTest
         Iterable<Node> nodes = path.nodes();
         List<Node> nodeList = Iterables.asList( nodes );
 
-        Assert.assertEquals( 3, nodeList.size() );
-        Assert.assertEquals( 1, nodeList.get( 0 ).getId() );
-        Assert.assertEquals( 2, nodeList.get( 1 ).getId() );
-        Assert.assertEquals( 3, nodeList.get( 2 ).getId() );
+        assertEquals( 3, nodeList.size() );
+        assertEquals( 1, nodeList.get( 0 ).getId() );
+        assertEquals( 2, nodeList.get( 1 ).getId() );
+        assertEquals( 3, nodeList.get( 2 ).getId() );
     }
 
     private RelationshipProxy createRelationshipProxy( int startNodeId, int endNodeId )
@@ -169,14 +167,14 @@ public class PathImplTest
         return new NodeProxy( spi, nodeId );
     }
 
-    private Node createNode( long nodeId )
+    private static Node createNode( long nodeId )
     {
         Node node = mock( Node.class );
         when( node.getId() ).thenReturn( nodeId );
         return node;
     }
 
-    private Relationship createRelationship( long startNodeId, long endNodeId )
+    private static Relationship createRelationship( long startNodeId, long endNodeId )
     {
         Relationship relationship = mock( Relationship.class );
         Node startNode = createNode( startNodeId );

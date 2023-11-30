@@ -57,6 +57,8 @@ import org.neo4j.graphdb.schema.ConstraintType;
 import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.helpers.collection.Iterables;
 
+import static org.neo4j.helpers.collection.Iterables.single;
+
 public class SubGraphExporter
 {
     private final SubGraph graph;
@@ -115,9 +117,13 @@ public class SubGraphExporter
                     throw new RuntimeException( "Exporting compound indexes is not implemented yet" );
                 }
 
-                String key = quote( id );
-                String label = quote( index.getLabel().name() );
-                result.add( "create index on :" + label + "(" + key + ")" );
+                if ( !index.isMultiTokenIndex() && index.isNodeIndex() )
+                {
+                    String key = quote( id );
+                    String label = quote( single( index.getLabels() ).name() );
+                    result.add( "create index on :" + label + "(" + key + ")" );
+                }
+                // We don't know how to deal with multi-token indexes here, so we just ignore them.
             }
         }
         Collections.sort( result );

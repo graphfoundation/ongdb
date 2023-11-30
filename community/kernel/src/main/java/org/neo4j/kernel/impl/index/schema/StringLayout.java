@@ -41,52 +41,56 @@ package org.neo4j.kernel.impl.index.schema;
 import org.neo4j.index.internal.gbptree.Layout;
 import org.neo4j.io.pagecache.PageCursor;
 
+import static java.lang.Math.min;
 import static java.lang.String.format;
-import static org.neo4j.kernel.impl.index.schema.StringSchemaKey.ENTITY_ID_SIZE;
+import static org.neo4j.kernel.impl.index.schema.StringIndexKey.ENTITY_ID_SIZE;
 
 /**
  * {@link Layout} for strings.
  */
-class StringLayout extends SchemaLayout<StringSchemaKey>
+class StringLayout extends IndexLayout<StringIndexKey,NativeIndexValue>
 {
+    private static final int NO_ENTITY_ID = -1;
+
     StringLayout()
     {
         super( "USI", 0, 1 );
     }
 
     @Override
-    public StringSchemaKey newKey()
+    public StringIndexKey newKey()
     {
-        return new StringSchemaKey();
+        return new StringIndexKey();
     }
 
     @Override
-    public StringSchemaKey copyKey( StringSchemaKey key, StringSchemaKey into )
+    public StringIndexKey copyKey( StringIndexKey key, StringIndexKey into )
     {
         into.copyFrom( key );
         return into;
     }
 
     @Override
-    public int keySize( StringSchemaKey key )
+    public int keySize( StringIndexKey key )
     {
         return key.size();
     }
 
     @Override
-    public void writeKey( PageCursor cursor, StringSchemaKey key )
+    public void writeKey( PageCursor cursor, StringIndexKey key )
     {
         cursor.putLong( key.getEntityId() );
         cursor.putBytes( key.bytes, 0, key.bytesLength );
     }
 
     @Override
-    public void readKey( PageCursor cursor, StringSchemaKey into, int keySize )
+    public void readKey( PageCursor cursor, StringIndexKey into, int keySize )
     {
         if ( keySize < ENTITY_ID_SIZE )
         {
             into.setEntityId( Long.MIN_VALUE );
             into.setBytesLength( 0 );
+            cursor.setCursorException( format( "Reading string index key with an unexpected keySize:%d", keySize ) );
             return;
         }
         into.setEntityId( cursor.getLong() );
@@ -102,13 +106,47 @@ class StringLayout extends SchemaLayout<StringSchemaKey>
     }
 
     @Override
+    public void minimalSplitter( StringIndexKey left, StringIndexKey right, StringIndexKey into )
+    {
+        into.setCompareId( right.getCompareId() );
+        if ( compareValue( left, right ) != 0 )
+        {
+            into.setEntityId( NO_ENTITY_ID );
+        }
+        else
+        {
+            into.setEntityId( right.getEntityId() );
+        }
+        int targetLength = minimalLengthFromRightNeededToDifferentiateFromLeft( left.bytes, left.bytesLength, right.bytes, right.bytesLength );
+        into.copyValueFrom( right, targetLength );
+    }
+
+    static int minimalLengthFromRightNeededToDifferentiateFromLeft( byte[] leftBytes, int leftLength, byte[] rightBytes, int rightLength )
+    {
+        int lastEqualIndex = -1;
+        int maxLength = min( leftLength, rightLength );
+        for ( int index = 0; index < maxLength; index++ )
+        {
+            if ( leftBytes[index] != rightBytes[index] )
+            {
+                break;
+            }
+            lastEqualIndex++;
+        }
+        // Convert from last equal index to first index to differ +1
+        // Convert from index to length +1
+        // Total +2
+        return Math.min( rightLength, lastEqualIndex + 2 );
+    }
+
+    @Override
     public String toString()
     {
         return format( "%s[version:%d.%d, identifier:%d]", getClass().getSimpleName(), majorVersion(), minorVersion(), identifier() );
     }
 
     @Override
-    int compareValue( StringSchemaKey o1, StringSchemaKey o2 )
+    int compareValue( StringIndexKey o1, StringIndexKey o2 )
     {
         return o1.compareValueTo( o2 );
     }

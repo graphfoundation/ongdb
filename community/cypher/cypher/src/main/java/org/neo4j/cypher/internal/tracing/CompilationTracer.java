@@ -38,7 +38,7 @@
  */
 package org.neo4j.cypher.internal.tracing;
 
-import org.neo4j.cypher.internal.frontend.v3_4.phases.CompilationPhaseTracer;
+import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer;
 
 public interface CompilationTracer
 {

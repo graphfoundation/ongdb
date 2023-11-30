@@ -38,11 +38,12 @@
  */
 package org.neo4j.bolt.v1.packstream;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
@@ -55,11 +56,17 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.neo4j.bolt.v1.packstream.PackType.BYTES;
+import static org.neo4j.bolt.v1.packstream.PackType.LIST;
+import static org.neo4j.bolt.v1.packstream.PackType.MAP;
+import static org.neo4j.bolt.v1.packstream.PackType.STRING;
 
-public class PackStreamTest
+class PackStreamTest
 {
 
-    public static Map<String,Object> asMap( Object... keysAndValues )
+    private static Map<String,Object> asMap( Object... keysAndValues )
     {
         Map<String,Object> map = new LinkedHashMap<>( keysAndValues.length / 2 );
         String key = null;
@@ -80,7 +87,6 @@ public class PackStreamTest
 
     private static class Machine
     {
-
         private final ByteArrayOutputStream output;
         private final WritableByteChannel writable;
         private final PackStream.Packer packer;
@@ -113,7 +119,61 @@ public class PackStreamTest
         {
             return packer;
         }
+    }
 
+    private static class MachineClient
+    {
+        private final PackStream.Unpacker unpacker;
+        private final ResetableReadableByteChannel readable;
+
+        MachineClient( int capacity )
+        {
+            readable = new ResetableReadableByteChannel();
+            BufferedChannelInput input = new BufferedChannelInput( capacity ).reset( readable );
+            unpacker = new PackStream.Unpacker( input );
+        }
+
+        public void reset( byte[] input )
+        {
+            readable.reset( input );
+        }
+
+        public PackStream.Unpacker unpacker()
+        {
+            return this.unpacker;
+        }
+    }
+
+    private static class ResetableReadableByteChannel implements ReadableByteChannel
+    {
+        private byte[] bytes;
+        private int pos;
+
+        public void reset( byte[] input )
+        {
+            bytes = input;
+            pos = 0;
+        }
+
+        @Override
+        public int read( ByteBuffer dst ) throws IOException
+        {
+            dst.put( bytes );
+            int read = bytes.length;
+            pos += read;
+            return read;
+        }
+
+        @Override
+        public boolean isOpen()
+        {
+            return pos < bytes.length;
+        }
+
+        @Override
+        public void close() throws IOException
+        {
+        }
     }
 
     private PackStream.Unpacker newUnpacker( byte[] bytes )
@@ -123,7 +183,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanPackAndUnpackNull() throws Throwable
+    void testCanPackAndUnpackNull() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -145,7 +205,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanPackAndUnpackTrue() throws Throwable
+    void testCanPackAndUnpackTrue() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -167,7 +227,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanPackAndUnpackFalse() throws Throwable
+    void testCanPackAndUnpackFalse() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -189,7 +249,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanPackAndUnpackTinyIntegers() throws Throwable
+    void testCanPackAndUnpackTinyIntegers() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -214,7 +274,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanPackAndUnpackShortIntegers() throws Throwable
+    void testCanPackAndUnpackShortIntegers() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -239,7 +299,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanPackAndUnpackPowersOfTwoAsIntegers() throws Throwable
+    void testCanPackAndUnpackPowersOfTwoAsIntegers() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -260,7 +320,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanPackAndUnpackPowersOfTwoPlusABitAsDoubles() throws Throwable
+    void testCanPackAndUnpackPowersOfTwoPlusABitAsDoubles() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -282,7 +342,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanPackAndUnpackPowersOfTwoMinusABitAsDoubles() throws Throwable
+    void testCanPackAndUnpackPowersOfTwoMinusABitAsDoubles() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -303,7 +363,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanPackCommonlyUsedCharAndUnpackAsString() throws Throwable
+    void testCanPackCommonlyUsedCharAndUnpackAsString() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -324,7 +384,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanPackRandomCharAndUnpackAsString() throws Throwable
+    void testCanPackRandomCharAndUnpackAsString() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -344,7 +404,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanPackAndUnpackStrings() throws Throwable
+    void testCanPackAndUnpackStrings() throws Throwable
     {
         // Given
         Machine machine = new Machine( 17000000 );
@@ -365,7 +425,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanPackAndUnpackBytes() throws Throwable
+    void testCanPackAndUnpackBytes() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -382,7 +442,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanPackAndUnpackString() throws Throwable
+    void testCanPackAndUnpackString() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -399,7 +459,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanPackAndUnpackListInOneCall() throws Throwable
+    void testCanPackAndUnpackListInOneCall() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -422,7 +482,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanPackAndUnpackListOneItemAtATime() throws Throwable
+    void testCanPackAndUnpackListOneItemAtATime() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -445,7 +505,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanPackAndUnpackListOfString() throws Throwable
+    void testCanPackAndUnpackListOfString() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -471,7 +531,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanPackAndUnpackListStream() throws Throwable
+    void testCanPackAndUnpackListStream() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -498,7 +558,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanPackAndUnpackMap() throws Throwable
+    void testCanPackAndUnpackMap() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -524,7 +584,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanPackAndUnpackMapStream() throws Throwable
+    void testCanPackAndUnpackMapStream() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -553,7 +613,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanPackAndUnpackStruct() throws Throwable
+    void testCanPackAndUnpackStruct() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -591,7 +651,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanPackStructIncludingSignature() throws Throwable
+    void testCanPackStructIncludingSignature() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -628,7 +688,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanDoStreamingListUnpacking() throws Throwable
+    void testCanDoStreamingListUnpacking() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -666,7 +726,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanDoStreamingStructUnpacking() throws Throwable
+    void testCanDoStreamingStructUnpacking() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -706,7 +766,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanDoStreamingMapUnpacking() throws Throwable
+    void testCanDoStreamingMapUnpacking() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -740,11 +800,11 @@ public class PackStreamTest
         assertEquals( "Bob", v1 );
         assertEquals( "cat_ages", k2 );
         assertEquals( 4.3, d, 0.0001 );
-        assertEquals( true, e );
+        assertTrue( e );
     }
 
     @Test
-    public void handlesDataCrossingBufferBoundaries() throws Throwable
+    void handlesDataCrossingBufferBoundaries() throws Throwable
     {
         // Given
         Machine machine = new Machine();
@@ -772,7 +832,7 @@ public class PackStreamTest
     }
 
     @Test
-    public void testCanPeekOnNextType() throws Throwable
+    void testCanPeekOnNextType() throws Throwable
     {
         // When & Then
         assertPeekType( PackType.STRING, "a string" );
@@ -781,6 +841,179 @@ public class PackStreamTest
         assertPeekType( PackType.BOOLEAN, true );
         assertPeekType( PackType.LIST, asList( 1, 2, 3 ) );
         assertPeekType( PackType.MAP, asMap( "l", 3 ) );
+    }
+
+    @Test
+    void shouldPackUnpackBytesHeaderWithCorrectBufferSize() throws Throwable
+    {
+        Machine machine = new Machine();
+        PackStream.Packer packer = machine.packer();
+
+        MachineClient client = new MachineClient( 8 );
+        PackStream.Unpacker unpacker = client.unpacker();
+
+        for ( int size = 0; size <= 65536; size++ )
+        {
+            machine.reset();
+            packer.packBytesHeader( size );
+            packer.flush();
+
+            // Then
+            int bufferSize = computeOutputBufferSize( size, false );
+            byte[] output = machine.output();
+            assertThat( output.length, equalTo( bufferSize ) );
+
+            client.reset( output );
+            int value = unpacker.unpackBytesHeader();
+            assertThat( value, equalTo( size ) );
+        }
+    }
+
+    @Test
+    void shouldPackUnpackStringHeaderWithCorrectBufferSize() throws Throwable
+    {
+        shouldPackUnpackHeaderWithCorrectBufferSize( PackType.STRING );
+    }
+
+    @Test
+    void shouldPackUnpackMapHeaderWithCorrectBufferSize() throws Throwable
+    {
+        shouldPackUnpackHeaderWithCorrectBufferSize( MAP );
+    }
+
+    @Test
+    void shouldPackUnpackListHeaderWithCorrectBufferSize() throws Throwable
+    {
+        shouldPackUnpackHeaderWithCorrectBufferSize( PackType.LIST );
+    }
+
+    @Test
+    void shouldThrowErrorWhenUnPackHeaderSizeGreaterThanIntMaxValue() throws Throwable
+    {
+        assertThrows( PackStream.Overflow.class, () -> unpackHeaderSizeGreaterThanIntMaxValue( MAP ) );
+        assertThrows( PackStream.Overflow.class, () -> unpackHeaderSizeGreaterThanIntMaxValue( LIST ) );
+        assertThrows( PackStream.Overflow.class, () -> unpackHeaderSizeGreaterThanIntMaxValue( STRING ) );
+        assertThrows( PackStream.Overflow.class, () -> unpackHeaderSizeGreaterThanIntMaxValue( BYTES ) );
+    }
+
+    private void unpackHeaderSizeGreaterThanIntMaxValue( PackType type ) throws Throwable
+    {
+        byte marker32;
+        switch ( type )
+        {
+        case MAP:
+            marker32 = PackStream.MAP_32;
+            break;
+        case LIST:
+            marker32 = PackStream.LIST_32;
+            break;
+        case STRING:
+            marker32 = PackStream.STRING_32;
+            break;
+        case BYTES:
+            marker32 = PackStream.BYTES_32;
+            break;
+        default:
+            throw new IllegalArgumentException( "Unsupported type: " + type + "." );
+        }
+
+        byte[] input = new byte[]{marker32, (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff};
+        MachineClient client = new MachineClient( 8 );
+
+        client.reset( input );
+        PackStream.Unpacker unpacker = client.unpacker();
+
+        switch ( type )
+        {
+        case MAP:
+            unpacker.unpackMapHeader();
+            break;
+        case LIST:
+            unpacker.unpackListHeader();
+            break;
+        case STRING:
+            unpacker.unpackStringHeader();
+            break;
+        case BYTES:
+            unpacker.unpackBytesHeader();
+            break;
+        default:
+            throw new IllegalArgumentException( "Unsupported type: " + type + "." );
+        }
+    }
+
+    private void shouldPackUnpackHeaderWithCorrectBufferSize( PackType type ) throws Throwable
+    {
+        Machine machine = new Machine();
+        PackStream.Packer packer = machine.packer();
+
+        MachineClient client = new MachineClient( 8 );
+        PackStream.Unpacker unpacker = client.unpacker();
+
+        for ( int size = 0; size <= 65536; size++ )
+        {
+            machine.reset();
+            switch ( type )
+            {
+            case MAP:
+                packer.packMapHeader( size );
+                break;
+            case LIST:
+                packer.packListHeader( size );
+                break;
+            case STRING:
+                packer.packStringHeader( size );
+                break;
+            default:
+                throw new IllegalArgumentException( "Unsupported type: " + type + "." );
+            }
+            packer.flush();
+
+            int bufferSize = computeOutputBufferSize( size, true );
+            byte[] output = machine.output();
+            assertThat( output.length, equalTo( bufferSize ) );
+
+            client.reset( output );
+            int value = 0;
+            switch ( type )
+            {
+            case MAP:
+                value = (int) unpacker.unpackMapHeader();
+                break;
+            case LIST:
+                value = (int) unpacker.unpackListHeader();
+                break;
+            case STRING:
+                value = unpacker.unpackStringHeader();
+                break;
+            default:
+                throw new IllegalArgumentException( "Unsupported type: " + type + "." );
+            }
+
+            assertThat( value, equalTo( size ) );
+        }
+    }
+
+    private int computeOutputBufferSize( int size, boolean withMarker8 )
+    {
+        int bufferSize;
+        if ( withMarker8 && size < 16 )
+        {
+            bufferSize = 1;
+        }
+        else if ( size < 128 )
+        {
+            bufferSize = 2;
+        }
+        else if ( size < 32768 )
+        {
+            bufferSize = 1 + 2;
+        }
+        else
+        {
+            bufferSize = 1 + 4;
+        }
+        return bufferSize;
     }
 
     private void assertPeekType( PackType type, Object value ) throws IOException

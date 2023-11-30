@@ -48,16 +48,15 @@ import org.apache.lucene.search.NumericRangeQuery;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TermRangeQuery;
 import org.apache.lucene.search.WildcardQuery;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.kernel.api.impl.LuceneTestUtil.documentRepresentingProperties;
 import static org.neo4j.kernel.api.impl.LuceneTestUtil.newSeekQuery;
 import static org.neo4j.kernel.api.impl.schema.LuceneDocumentStructure.NODE_ID_KEY;
@@ -67,14 +66,10 @@ import static org.neo4j.kernel.api.impl.schema.ValueEncoding.Bool;
 import static org.neo4j.kernel.api.impl.schema.ValueEncoding.Number;
 import static org.neo4j.kernel.api.impl.schema.ValueEncoding.String;
 
-public class LuceneDocumentStructureTest
+class LuceneDocumentStructureTest
 {
-
-    @Rule
-    public final ExpectedException expectedException = ExpectedException.none();
-
     @Test
-    public void stringWithMaximumLengthShouldBeAllowed()
+    void stringWithMaximumLengthShouldBeAllowed()
     {
         String longestString = RandomStringUtils.randomAscii( IndexWriter.MAX_TERM_LENGTH );
         Document document = documentRepresentingProperties( (long) 123, longestString );
@@ -82,7 +77,7 @@ public class LuceneDocumentStructureTest
     }
 
     @Test
-    public void shouldBuildDocumentRepresentingStringProperty()
+    void shouldBuildDocumentRepresentingStringProperty()
     {
         // given
         Document document = documentRepresentingProperties( (long) 123, "hello" );
@@ -93,7 +88,7 @@ public class LuceneDocumentStructureTest
     }
 
     @Test
-    public void shouldBuildDocumentRepresentingMultipleStringProperties()
+    void shouldBuildDocumentRepresentingMultipleStringProperties()
     {
         // given
         String[] values = new String[]{"hello", "world"};
@@ -106,7 +101,7 @@ public class LuceneDocumentStructureTest
     }
 
     @Test
-    public void shouldBuildDocumentRepresentingMultiplePropertiesOfDifferentTypes()
+    void shouldBuildDocumentRepresentingMultiplePropertiesOfDifferentTypes()
     {
         // given
         Object[] values = new Object[]{"hello", 789};
@@ -119,7 +114,7 @@ public class LuceneDocumentStructureTest
     }
 
     @Test
-    public void shouldBuildDocumentRepresentingBoolProperty()
+    void shouldBuildDocumentRepresentingBoolProperty()
     {
         // given
         Document document = documentRepresentingProperties( (long) 123, true );
@@ -130,7 +125,7 @@ public class LuceneDocumentStructureTest
     }
 
     @Test
-    public void shouldBuildDocumentRepresentingNumberProperty()
+    void shouldBuildDocumentRepresentingNumberProperty()
     {
         // given
         Document document = documentRepresentingProperties( (long) 123, 12 );
@@ -141,7 +136,7 @@ public class LuceneDocumentStructureTest
     }
 
     @Test
-    public void shouldBuildDocumentRepresentingArrayProperty()
+    void shouldBuildDocumentRepresentingArrayProperty()
     {
         // given
         Document document = documentRepresentingProperties( (long) 123, new Object[]{new Integer[]{1, 2, 3}} );
@@ -152,7 +147,7 @@ public class LuceneDocumentStructureTest
     }
 
     @Test
-    public void shouldBuildQueryRepresentingBoolProperty()
+    void shouldBuildQueryRepresentingBoolProperty()
     {
         // given
         BooleanQuery booleanQuery = (BooleanQuery) newSeekQuery( true );
@@ -164,7 +159,7 @@ public class LuceneDocumentStructureTest
     }
 
     @Test
-    public void shouldBuildQueryRepresentingStringProperty()
+    void shouldBuildQueryRepresentingStringProperty()
     {
         // given
         BooleanQuery booleanQuery = (BooleanQuery) newSeekQuery( "Characters" );
@@ -176,7 +171,7 @@ public class LuceneDocumentStructureTest
 
     @SuppressWarnings( "unchecked" )
     @Test
-    public void shouldBuildQueryRepresentingNumberProperty()
+    void shouldBuildQueryRepresentingNumberProperty()
     {
         // given
         BooleanQuery booleanQuery = (BooleanQuery) newSeekQuery( 12 );
@@ -189,7 +184,7 @@ public class LuceneDocumentStructureTest
     }
 
     @Test
-    public void shouldBuildQueryRepresentingArrayProperty()
+    void shouldBuildQueryRepresentingArrayProperty()
     {
         // given
         BooleanQuery booleanQuery = (BooleanQuery) newSeekQuery( new Object[]{new Integer[]{1, 2, 3}} );
@@ -201,7 +196,7 @@ public class LuceneDocumentStructureTest
     }
 
     @Test
-    public void shouldBuildQueryRepresentingMultipleProperties()
+    void shouldBuildQueryRepresentingMultipleProperties()
     {
         // given
         BooleanQuery booleanQuery = (BooleanQuery) newSeekQuery( true, "Characters", 12, new Integer[]{1, 2, 3} );
@@ -227,7 +222,7 @@ public class LuceneDocumentStructureTest
     }
 
     @Test
-    public void shouldBuildRangeSeekByNumberQueryForStrings()
+    void shouldBuildRangeSeekByNumberQueryForStrings()
     {
         // given
         NumericRangeQuery<Double> query = LuceneDocumentStructure.newInclusiveNumericRangeSeekQuery( 12.0d, null );
@@ -235,13 +230,13 @@ public class LuceneDocumentStructureTest
         // then
         assertEquals( "number", query.getField() );
         assertEquals( 12.0, query.getMin(), 0.001 );
-        assertEquals( true, query.includesMin() );
-        assertEquals( null, query.getMax() );
-        assertEquals( true, query.includesMax() );
+        assertTrue( query.includesMin() );
+        assertNull( query.getMax() );
+        assertTrue( query.includesMax() );
     }
 
     @Test
-    public void shouldBuildRangeSeekByStringQueryForStrings()
+    void shouldBuildRangeSeekByStringQueryForStrings()
     {
         // given
         TermRangeQuery query = (TermRangeQuery) LuceneDocumentStructure
@@ -250,13 +245,13 @@ public class LuceneDocumentStructureTest
         // then
         assertEquals( "string", query.getField() );
         assertEquals( "foo", query.getLowerTerm().utf8ToString() );
-        assertEquals( false, query.includesLower() );
-        assertEquals( null, query.getUpperTerm() );
-        assertEquals( true, query.includesUpper() );
+        assertFalse( query.includesLower() );
+        assertNull( query.getUpperTerm() );
+        assertTrue( query.includesUpper() );
     }
 
     @Test
-    public void shouldBuildWildcardQueries()
+    void shouldBuildWildcardQueries()
     {
         // given
         WildcardQuery query = (WildcardQuery) LuceneDocumentStructure.newWildCardStringQuery( "foo" );
@@ -266,7 +261,7 @@ public class LuceneDocumentStructureTest
     }
 
     @Test
-    public void shouldBuildRangeSeekByPrefixQueryForStrings()
+    void shouldBuildRangeSeekByPrefixQueryForStrings()
     {
         // given
         MultiTermQuery prefixQuery = (MultiTermQuery) LuceneDocumentStructure.newRangeSeekByPrefixQuery( "Prefix" );
@@ -276,7 +271,7 @@ public class LuceneDocumentStructureTest
     }
 
     @Test
-    public void checkFieldUsageForUniquenessVerification()
+    void checkFieldUsageForUniquenessVerification()
     {
         assertFalse( useFieldForUniquenessVerification( "id" ) );
         assertFalse( useFieldForUniquenessVerification( "1number" ) );

@@ -38,7 +38,6 @@
  */
 package org.neo4j.server.security.auth;
 
-import org.neo4j.kernel.impl.security.Credential;
 import org.neo4j.kernel.impl.security.User;
 import org.neo4j.server.security.auth.exception.FormatException;
 import org.neo4j.string.HexString;
@@ -58,7 +57,8 @@ public class UserSerialization extends FileRepositorySerializer<User>
     {
         return String.join( userSeparator,
                 user.name(),
-                serialize( user.credentials() ),
+                // Only used by FileRepository (InternalFlatFileRealm) so we can assume LegacyCredential here
+                serialize( (LegacyCredential) user.credentials() ),
                 String.join( ",", user.getFlags() )
             );
     }
@@ -91,26 +91,26 @@ public class UserSerialization extends FileRepositorySerializer<User>
         return  b.build();
     }
 
-    private String serialize( Credential cred )
+    protected String serialize( LegacyCredential cred )
     {
         String encodedSalt = HexString.encodeHexString( cred.salt() );
         String encodedPassword = HexString.encodeHexString( cred.passwordHash() );
-        return String.join( credentialSeparator, Credential.DIGEST_ALGO, encodedPassword, encodedSalt );
+        return String.join( credentialSeparator, LegacyCredential.DIGEST_ALGO, encodedPassword, encodedSalt );
     }
 
-    private Credential deserializeCredentials( String part, int lineNumber ) throws FormatException
+    private LegacyCredential deserializeCredentials( String part, int lineNumber ) throws FormatException
     {
         String[] split = part.split( credentialSeparator, -1 );
         if ( split.length != 3 )
         {
             throw new FormatException( format( "wrong number of credential fields [line %d]", lineNumber ) );
         }
-        if ( !split[0].equals( Credential.DIGEST_ALGO ) )
+        if ( !split[0].equals( LegacyCredential.DIGEST_ALGO ) )
         {
             throw new FormatException( format( "unknown digest \"%s\" [line %d]", split[0], lineNumber ) );
         }
         byte[] decodedPassword = HexString.decodeHexString( split[1] );
         byte[] decodedSalt = HexString.decodeHexString( split[2] );
-        return new Credential( decodedSalt, decodedPassword );
+        return new LegacyCredential( decodedSalt, decodedPassword );
     }
 }

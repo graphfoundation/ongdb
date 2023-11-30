@@ -40,7 +40,7 @@ package org.neo4j.kernel.impl.newapi;
 
 import static org.neo4j.kernel.impl.store.record.AbstractBaseRecord.NO_ID;
 
-enum RelationshipReferenceEncoding
+public enum RelationshipReferenceEncoding
 {
     /** No encoding */
     NONE( 0 ),
@@ -73,7 +73,7 @@ enum RelationshipReferenceEncoding
         this.bits = id << 60;
     }
 
-    static RelationshipReferenceEncoding parseEncoding( long reference )
+    public static RelationshipReferenceEncoding parseEncoding( long reference )
     {
         if ( reference == NO_ID )
         {
@@ -90,7 +90,7 @@ enum RelationshipReferenceEncoding
     /**
      * Encode a group id as a relationship reference.
      */
-    static long encodeGroup( long groupId )
+    public static long encodeGroup( long groupId )
     {
         return groupId | GROUP.bits | References.FLAG_MARKER;
     }
@@ -98,7 +98,7 @@ enum RelationshipReferenceEncoding
     /**
      * Encode that the relationship id needs filtering by it's first element.
      */
-    static long encodeForFiltering( long relationshipId )
+    public static long encodeForFiltering( long relationshipId )
     {
         return relationshipId | FILTER.bits | References.FLAG_MARKER;
     }
@@ -106,7 +106,7 @@ enum RelationshipReferenceEncoding
     /**
      * Encode that the relationship id needs filtering by it's first element.
      */
-    static long encodeForTxStateFiltering( long relationshipId )
+    public static long encodeForTxStateFiltering( long relationshipId )
     {
         return relationshipId | FILTER_TX_STATE.bits | References.FLAG_MARKER;
     }
@@ -114,7 +114,7 @@ enum RelationshipReferenceEncoding
     /**
      * Encode that no outgoing relationships of the encoded type exist.
      */
-    static long encodeNoOutgoingRels( int type )
+    public static long encodeNoOutgoingRels( int type )
     {
         return type | NO_OUTGOING_OF_TYPE.bits | References.FLAG_MARKER;
     }
@@ -122,7 +122,7 @@ enum RelationshipReferenceEncoding
     /**
      * Encode that no incoming relationships of the encoded type exist.
      */
-    static long encodeNoIncomingRels( int type )
+    public static long encodeNoIncomingRels( int type )
     {
         return type | NO_INCOMING_OF_TYPE.bits | References.FLAG_MARKER;
     }
@@ -130,7 +130,7 @@ enum RelationshipReferenceEncoding
     /**
      * Encode that no loop relationships of the encoded type exist.
      */
-    static long encodeNoLoopRels( int type )
+    public static long encodeNoLoopRels( int type )
     {
         return type | NO_LOOP_OF_TYPE.bits | References.FLAG_MARKER;
     }

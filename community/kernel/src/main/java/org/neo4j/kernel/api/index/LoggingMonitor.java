@@ -43,8 +43,9 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import java.io.File;
 import java.util.StringJoiner;
 
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
 import org.neo4j.logging.Log;
+import org.neo4j.storageengine.api.schema.IndexDescriptor;
+import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 
 import static org.neo4j.helpers.Format.duration;
 
@@ -58,29 +59,29 @@ public class LoggingMonitor implements IndexProvider.Monitor
     }
 
     @Override
-    public void failedToOpenIndex( long indexId, SchemaIndexDescriptor schemaIndexDescriptor, String action, Exception cause )
+    public void failedToOpenIndex( StoreIndexDescriptor descriptor, String action, Exception cause )
     {
-        log.error( "Failed to open index:" + indexId + ". " + action, cause );
+        log.error( "Failed to open index:" + descriptor.getId() + ". " + action, cause );
     }
 
     @Override
-    public void recoveryCleanupRegistered( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor )
+    public void recoveryCleanupRegistered( File indexFile, IndexDescriptor indexDescriptor )
     {
-        log.info( "Schema index cleanup job registered: " + indexDescription( indexFile, schemaIndexDescriptor ) );
+        log.info( "Schema index cleanup job registered: " + indexDescription( indexFile, indexDescriptor ) );
     }
 
     @Override
-    public void recoveryCleanupStarted( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor )
+    public void recoveryCleanupStarted( File indexFile, IndexDescriptor indexDescriptor )
     {
-        log.info( "Schema index cleanup job started: " + indexDescription( indexFile, schemaIndexDescriptor ) );
+        log.info( "Schema index cleanup job started: " + indexDescription( indexFile, indexDescriptor ) );
     }
 
     @Override
-    public void recoveryCleanupFinished( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor,
+    public void recoveryCleanupFinished( File indexFile, IndexDescriptor indexDescriptor,
             long numberOfPagesVisited, long numberOfCleanedCrashPointers, long durationMillis )
     {
         StringJoiner joiner =
-                new StringJoiner( ", ", "Schema index cleanup job finished: " + indexDescription( indexFile, schemaIndexDescriptor ) + " ", "" );
+                new StringJoiner( ", ", "Schema index cleanup job finished: " + indexDescription( indexFile, indexDescriptor ) + " ", "" );
         joiner.add( "Number of pages visited: " + numberOfPagesVisited );
         joiner.add( "Number of cleaned crashed pointers: " + numberOfCleanedCrashPointers );
         joiner.add( "Time spent: " + duration( durationMillis ) );
@@ -88,20 +89,20 @@ public class LoggingMonitor implements IndexProvider.Monitor
     }
 
     @Override
-    public void recoveryCleanupClosed( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor )
+    public void recoveryCleanupClosed( File indexFile, IndexDescriptor indexDescriptor )
     {
-        log.info( "Schema index cleanup job closed: " + indexDescription( indexFile, schemaIndexDescriptor ) );
+        log.info( "Schema index cleanup job closed: " + indexDescription( indexFile, indexDescriptor ) );
     }
 
     @Override
-    public void recoveryCleanupFailed( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor, Throwable throwable )
+    public void recoveryCleanupFailed( File indexFile, IndexDescriptor indexDescriptor, Throwable throwable )
     {
         log.info( String.format( "Schema index cleanup job failed: %s.%nCaused by: %s",
-                indexDescription( indexFile, schemaIndexDescriptor ), ExceptionUtils.getStackTrace( throwable ) ) );
+                indexDescription( indexFile, indexDescriptor ), ExceptionUtils.getStackTrace( throwable ) ) );
     }
 
-    private String indexDescription( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor )
+    private String indexDescription( File indexFile, IndexDescriptor indexDescriptor )
     {
-        return "descriptor=" + schemaIndexDescriptor.toString() + ", indexFile=" + indexFile.getAbsolutePath();
+        return "descriptor=" + indexDescriptor.toString() + ", indexFile=" + indexFile.getAbsolutePath();
     }
 }

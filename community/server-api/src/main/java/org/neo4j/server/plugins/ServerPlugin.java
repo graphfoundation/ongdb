@@ -49,7 +49,7 @@ import java.util.List;
 import org.neo4j.helpers.Service;
 
 /**
- * API for creating extensions for the ONgDB server.
+ * API for creating extensions for the Neo4j server.
  * <p>
  * Extensions are created by creating a subclass of this class. The subclass
  * should have a public no-argument constructor (or no constructor at all).
@@ -63,7 +63,7 @@ import org.neo4j.helpers.Service;
  * file is placed on the class path of the server, it will be loaded
  * automatically when the server starts.
  * <p>
- * The easiest way to implement ONgDB server extensions is by defining public
+ * The easiest way to implement Neo4j server extensions is by defining public
  * methods on the extension class annotated with
  * <code>@{@link PluginTarget}</code>. The parameter for the
  * {@link PluginTarget} annotation should be the class representing the
@@ -102,7 +102,9 @@ import org.neo4j.helpers.Service;
  * propagated to the invoking client.
  *
  * @see java.util.ServiceLoader
+ * @deprecated Server plugins are deprecated for removal in the next major release. Please use unmanaged extensions instead.
  */
+@Deprecated
 public abstract class ServerPlugin
 {
     final String name;
@@ -112,6 +114,7 @@ public abstract class ServerPlugin
      *
      * @param name the name of this extension.
      */
+    @Deprecated
     public ServerPlugin( String name )
     {
         this.name = verifyName( name );
@@ -121,6 +124,7 @@ public abstract class ServerPlugin
      * Create a server extension using the simple name of the concrete class
      * that extends {@link ServerPlugin} as the name for the extension.
      */
+    @Deprecated
     public ServerPlugin()
     {
         this.name = verifyName( getClass().getSimpleName() );
@@ -167,6 +171,7 @@ public abstract class ServerPlugin
      *                     {@link org.neo4j.server.plugins.ServerPlugin}.
      *
      */
+    @Deprecated
     protected void loadServerExtender( ServerExtender extender )
     {
         for ( PluginPoint plugin : getDefaultExtensionPoints( extender.getPluginPointFactory() ) )
@@ -184,6 +189,7 @@ public abstract class ServerPlugin
      * @return the collection of {@link PluginPoint}s for this
      *         {@link ServerPlugin}.
      */
+    @Deprecated
     protected Collection<PluginPoint> getDefaultExtensionPoints( PluginPointFactory pluginPointFactory )
     {
         List<PluginPoint> result = new ArrayList<>();

@@ -92,7 +92,7 @@ public class DiagnosticsReportCommand implements AdminCommand
             .withArgument( destinationArgument )
             .withArgument( new OptionalVerboseArgument() )
             .withArgument( new OptionalForceArgument() )
-            .withArgument( new OptionalNamedArg( PID_KEY, "1234", "", "Specify process id of running ONgDB instance" ) )
+            .withArgument( new OptionalNamedArg( PID_KEY, "1234", "", "Specify process id of running neo4j instance" ) )
             .withPositionalArgument( new ClassifierFiltersArgument() );
 
     private final Path homeDir;
@@ -270,7 +270,7 @@ public class DiagnosticsReportCommand implements AdminCommand
 
         // Register sources provided by this tool
         reporter.registerSource( "config",
-                DiagnosticsReportSources.newDiagnosticsFile( "ongdb.conf", fs, configFile ) );
+                DiagnosticsReportSources.newDiagnosticsFile( "neo4j.conf", fs, configFile ) );
 
         reporter.registerSource( "ps", runningProcesses() );
 
@@ -306,7 +306,14 @@ public class DiagnosticsReportCommand implements AdminCommand
         {
             throw new CommandFailed( "Unable to find config file, tried: " + configFile.getAbsolutePath() );
         }
-        return Config.fromFile( configFile ).withHome( homeDir ).withConnectorsDisabled().build();
+        try
+        {
+            return Config.fromFile( configFile ).withHome( homeDir ).withConnectorsDisabled().build();
+        }
+        catch ( Exception e )
+        {
+            throw new CommandFailed( "Failed to read config file: " + configFile.getAbsolutePath(), e );
+        }
     }
 
     static String describeClassifier( String classifier )
@@ -374,7 +381,7 @@ public class DiagnosticsReportCommand implements AdminCommand
                         .append( processInfo.getPhysicalMemory() ).append( ',' )
                         .append( processInfo.getCpuUsage() ).append( ',' )
                         .append( processInfo.getStartTime() ).append( ',' )
-                        .append( processInfo.getStartTime() ).append( ',' )
+                        .append( processInfo.getPriority() ).append( ',' )
                         .append( escapeCsv( processInfo.getCommand() ) ).append( '\n' );
             }
             return sb.toString();

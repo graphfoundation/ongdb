@@ -38,13 +38,10 @@
  */
 package org.neo4j.kernel.api.txstate;
 
-import javax.annotation.Nullable;
-
 import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
 import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
-import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.api.schema.constaints.IndexBackedConstraintDescriptor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
+import org.neo4j.kernel.api.schema.constraints.IndexBackedConstraintDescriptor;
+import org.neo4j.storageengine.api.schema.IndexDescriptor;
 import org.neo4j.storageengine.api.txstate.ReadableTransactionState;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.ValueTuple;
@@ -73,7 +70,7 @@ public interface TransactionState extends ReadableTransactionState
 
     void nodeDoAddProperty( long nodeId, int newPropertyKeyId, Value value );
 
-    void nodeDoChangeProperty( long nodeId, int propertyKeyId, Value replacedValue, Value newValue );
+    void nodeDoChangeProperty( long nodeId, int propertyKeyId, Value newValue );
 
     void relationshipDoReplaceProperty( long relationshipId, int propertyKeyId, Value replacedValue, Value newValue );
 
@@ -85,13 +82,13 @@ public interface TransactionState extends ReadableTransactionState
 
     void graphDoRemoveProperty( int propertyKeyId );
 
-    void nodeDoAddLabel( int labelId, long nodeId );
+    void nodeDoAddLabel( long labelId, long nodeId );
 
-    void nodeDoRemoveLabel( int labelId, long nodeId );
+    void nodeDoRemoveLabel( long labelId, long nodeId );
 
     // TOKEN RELATED
 
-    void labelDoCreateForName( String labelName, int id );
+    void labelDoCreateForName( String labelName, long id );
 
     void propertyKeyDoCreateForName( String propertyKeyName, int id );
 
@@ -99,18 +96,11 @@ public interface TransactionState extends ReadableTransactionState
 
     // SCHEMA RELATED
 
-    /**
-     * Adds transaction state about creating an index rule.
-     *
-     * @param descriptor {@link SchemaIndexDescriptor} for the index to be created.
-     * @param providerDescriptor specific {@link IndexProvider.Descriptor} to use for this index to be created.
-     * This provider descriptor is allowed to be null, which will be interpreted as simply using the default instead.
-     */
-    void indexRuleDoAdd( SchemaIndexDescriptor descriptor, @Nullable IndexProvider.Descriptor providerDescriptor );
+    void indexDoAdd( IndexDescriptor descriptor );
 
-    void indexDoDrop( SchemaIndexDescriptor descriptor );
+    void indexDoDrop( IndexDescriptor descriptor );
 
-    boolean indexDoUnRemove( SchemaIndexDescriptor constraint );
+    boolean indexDoUnRemove( IndexDescriptor constraint );
 
     void constraintDoAdd( ConstraintDescriptor constraint );
 

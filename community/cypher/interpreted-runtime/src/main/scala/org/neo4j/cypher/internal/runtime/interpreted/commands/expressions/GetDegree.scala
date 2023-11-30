@@ -39,11 +39,12 @@
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
 import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.util.v3_4.CypherTypeException
+import org.neo4j.cypher.internal.v3_5.util.CypherTypeException
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.commands.values.KeyToken
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.NodeValue
@@ -63,9 +64,11 @@ case class GetDegree(node: Expression, typ: Option[KeyToken], direction: Semanti
     case other   => throw new CypherTypeException(s"Type mismatch: expected a node but was $other of type ${other.getClass.getSimpleName}")
   }
 
-  def arguments: Seq[Expression] = Seq(node)
+  override def arguments: Seq[Expression] = Seq(node)
 
-  def rewrite(f: (Expression) => Expression): Expression = f(GetDegree(node.rewrite(f), typ, direction))
+  override def children: Seq[AstNode[_]] = Seq(node) ++ typ
 
-  def symbolTableDependencies: Set[String] = node.symbolTableDependencies
+  override def rewrite(f: Expression => Expression): Expression = f(GetDegree(node.rewrite(f), typ, direction))
+
+  override def symbolTableDependencies: Set[String] = node.symbolTableDependencies
 }

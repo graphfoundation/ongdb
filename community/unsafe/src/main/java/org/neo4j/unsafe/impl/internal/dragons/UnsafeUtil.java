@@ -60,6 +60,7 @@ import java.util.stream.Collectors;
 import org.neo4j.memory.GlobalMemoryTracker;
 import org.neo4j.memory.MemoryAllocationTracker;
 
+import static java.lang.Long.compareUnsigned;
 import static java.lang.String.format;
 import static org.neo4j.util.FeatureToggles.flag;
 
@@ -89,6 +90,11 @@ public final class UnsafeUtil
     private static final MethodHandle sharedStringConstructor;
     private static final String allowUnalignedMemoryAccessProperty =
             "org.neo4j.unsafe.impl.internal.dragons.UnsafeUtil.allowUnalignedMemoryAccess";
+
+    private static final ConcurrentSkipListMap<Long, Allocation> allocations = new ConcurrentSkipListMap<>();
+    private static final ThreadLocal<Allocation> lastUsedAllocation = new ThreadLocal<>();
+    private static final FreeTrace[] freeTraces = CHECK_NATIVE_ACCESS ? new FreeTrace[4096] : null;
+    private static final AtomicLong freeCounter = new AtomicLong();
 
     public static final Class<?> directByteBufferClass;
     private static final Constructor<?> directByteBufferCtor;
@@ -393,34 +399,46 @@ public final class UnsafeUtil
         }
     }
 
-    public static long allocateMemory( long sizeInBytes ) throws NativeMemoryAllocationRefusedError
-    {
-        return allocateMemory( sizeInBytes, GlobalMemoryTracker.INSTANCE );
-    }
-
     /**
      * Allocate a block of memory of the given size in bytes, and return a pointer to that memory.
      * <p>
      * The memory is aligned such that it can be used for any data type.
      * The memory is uninitialised, so it may contain random garbage, or it may not.
+     *
+     * @return a pointer to the allocated memory
      */
-    public static long allocateMemory( long sizeInBytes, MemoryAllocationTracker allocationTracker ) throws NativeMemoryAllocationRefusedError
+    public static long allocateMemory( long bytes ) throws NativeMemoryAllocationRefusedError
     {
         final long pointer;
         try
         {
-            pointer = unsafe.allocateMemory( sizeInBytes );
+            pointer = unsafe.allocateMemory( bytes );
         }
         catch ( Throwable e )
         {
-            throw new NativeMemoryAllocationRefusedError( sizeInBytes, allocationTracker.usedDirectMemory(), e );
+            throw new NativeMemoryAllocationRefusedError( bytes, GlobalMemoryTracker.INSTANCE.usedDirectMemory(), e );
         }
+
+        addAllocatedPointer( pointer, bytes );
+        GlobalMemoryTracker.INSTANCE.allocated( bytes );
         if ( DIRTY_MEMORY )
         {
-            setMemory( pointer, sizeInBytes, (byte) 0xA5 );
+            setMemory( pointer, bytes, (byte) 0xA5 );
         }
-        addAllocatedPointer( pointer, sizeInBytes );
-        allocationTracker.allocated( sizeInBytes );
+        return pointer;
+    }
+
+    /**
+     * Allocate a block of memory of the given size in bytes and update memory allocation tracker accordingly.
+     * <p>
+     * The memory is aligned such that it can be used for any data type.
+     * The memory is uninitialised, so it may contain random garbage, or it may not.
+     * @return a pointer to the allocated memory
+     */
+    public static long allocateMemory( long bytes, MemoryAllocationTracker allocationTracker ) throws NativeMemoryAllocationRefusedError
+    {
+        final long pointer = allocateMemory( bytes );
+        allocationTracker.allocated( bytes );
         return pointer;
     }
 
@@ -452,58 +470,29 @@ public final class UnsafeUtil
     }
 
     /**
-     * Free the memory that was allocated with {@link #allocateMemory}.
+     * Free the memory that was allocated with {@link #allocateMemory} and update memory allocation tracker accordingly.
      */
     public static void free( long pointer, long bytes, MemoryAllocationTracker allocationTracker )
     {
-        checkFree( pointer );
-        unsafe.freeMemory( pointer );
+        free( pointer, bytes );
         allocationTracker.deallocated( bytes );
     }
 
-    private static final class FreeTrace extends Throwable implements Comparable<FreeTrace>
+    /**
+     * Free the memory that was allocated with {@link #allocateMemory}.
+     */
+    public static void free( long pointer, long bytes )
     {
-        private final long pointer;
-        private final long size;
-        private final long id;
-        private final long nanoTime;
-        private long referenceTime;
-
-        private FreeTrace( long pointer, long size, long id )
-        {
-            this.pointer = pointer;
-            this.size = size;
-            this.id = id;
-            this.nanoTime = System.nanoTime();
-        }
-
-        private boolean contains( long pointer )
-        {
-            return this.pointer <= pointer && pointer <= this.pointer + size;
-        }
-
-        @Override
-        public int compareTo( FreeTrace that )
-        {
-            return Long.compare( this.id, that.id );
-        }
-
-        @Override
-        public String getMessage()
-        {
-            return format( "0x%x of %6d bytes, freed %s µs ago at", pointer, size, (referenceTime - nanoTime) / 1000 );
-        }
+        checkFree( pointer );
+        unsafe.freeMemory( pointer );
+        GlobalMemoryTracker.INSTANCE.deallocated( bytes );
     }
-
-    private static final ConcurrentSkipListMap<Long,Long> pointers = new ConcurrentSkipListMap<>();
-    private static final FreeTrace[] freeTraces = CHECK_NATIVE_ACCESS ? new FreeTrace[4096] : null;
-    private static final AtomicLong freeTraceCounter = new AtomicLong();
 
     private static void addAllocatedPointer( long pointer, long sizeInBytes )
     {
         if ( CHECK_NATIVE_ACCESS )
         {
-            pointers.put( pointer, sizeInBytes );
+            allocations.put( pointer, new Allocation( pointer, sizeInBytes, freeCounter.get() ) );
         }
     }
 
@@ -517,19 +506,19 @@ public final class UnsafeUtil
 
     private static void doCheckFree( long pointer )
     {
-        Long size = pointers.remove( pointer );
-        if ( size == null )
+        long count = freeCounter.getAndIncrement();
+        Allocation allocation = allocations.remove( pointer );
+        if ( allocation == null )
         {
             StringBuilder sb = new StringBuilder( format( "Bad free: 0x%x, valid pointers are:", pointer ) );
-            pointers.forEach( ( k, v ) -> sb.append( '\n' ).append( k ) );
+            allocations.forEach( ( k, v ) -> sb.append( '\n' ).append( k ) );
             throw new AssertionError( sb.toString() );
         }
-        long count = freeTraceCounter.getAndIncrement();
         int idx = (int) (count & 4095);
-        freeTraces[idx] = new FreeTrace( pointer, size, count );
+        freeTraces[idx] = new FreeTrace( pointer, allocation, count );
     }
 
-    private static void checkAccess( long pointer, int size )
+    private static void checkAccess( long pointer, long size )
     {
         if ( CHECK_NATIVE_ACCESS && nativeAccessCheckEnabled )
         {
@@ -537,25 +526,39 @@ public final class UnsafeUtil
         }
     }
 
-    private static void doCheckAccess( long pointer, int size )
+    private static void doCheckAccess( long pointer, long size )
     {
-        Map.Entry<Long,Long> fentry = pointers.floorEntry( pointer + size );
-        if ( fentry == null || fentry.getKey() + fentry.getValue() < pointer + size )
+        long boundary = pointer + size;
+        Allocation allocation = lastUsedAllocation.get();
+        if ( allocation != null )
         {
-            Map.Entry<Long,Long> centry = pointers.ceilingEntry( pointer );
+            if ( compareUnsigned( allocation.pointer, pointer ) <= 0 &&
+                 compareUnsigned( allocation.boundary, boundary ) > 0 &&
+                 allocation.freeCounter == freeCounter.get() )
+            {
+                return;
+            }
+        }
+
+        Map.Entry<Long,Allocation> fentry = allocations.floorEntry( boundary );
+        if ( fentry == null || compareUnsigned( fentry.getValue().boundary, boundary ) < 0 )
+        {
+            Map.Entry<Long,Allocation> centry = allocations.ceilingEntry( pointer );
             throwBadAccess( pointer, size, fentry, centry );
         }
+        //noinspection ConstantConditions
+        lastUsedAllocation.set( fentry.getValue() );
     }
 
-    private static void throwBadAccess( long pointer, int size, Map.Entry<Long,Long> fentry,
-                                        Map.Entry<Long,Long> centry )
+    private static void throwBadAccess( long pointer, long size, Map.Entry<Long,Allocation> fentry,
+                                        Map.Entry<Long,Allocation> centry )
     {
         long now = System.nanoTime();
         long faddr = fentry == null ? 0 : fentry.getKey();
-        long fsize = fentry == null ? 0 : fentry.getValue();
+        long fsize = fentry == null ? 0 : fentry.getValue().sizeInBytes;
         long foffset = pointer - (faddr + fsize);
         long caddr = centry == null ? 0 : centry.getKey();
-        long csize = centry == null ? 0 : centry.getValue();
+        long csize = centry == null ? 0 : centry.getValue().sizeInBytes;
         long coffset = caddr - (pointer + size);
         boolean floorIsNearest = foffset < coffset;
         long naddr = floorIsNearest ? faddr : caddr;
@@ -570,7 +573,7 @@ public final class UnsafeUtil
                 "Bad access to address 0x%x with size %s, nearest valid allocation is " +
                 "0x%x (%s bytes, off by %s bytes). " +
                 "Recent relevant frees (of %s) are attached as suppressed exceptions.",
-                pointer, size, naddr, nsize, noffset, freeTraceCounter.get() ) );
+                pointer, size, naddr, nsize, noffset, freeCounter.get() ) );
         for ( FreeTrace recentFree : recentFrees )
         {
             recentFree.referenceTime = now;
@@ -960,7 +963,16 @@ public final class UnsafeUtil
      */
     public static void setMemory( long address, long bytes, byte value )
     {
-        unsafe.setMemory( address, bytes, value );
+        checkAccess( address, bytes );
+        if ( 0 == (address & 1) && bytes > 64 )
+        {
+            unsafe.putByte( address, value );
+            unsafe.setMemory( address + 1, bytes - 1, value );
+        }
+        else
+        {
+            unsafe.setMemory( address, bytes, value );
+        }
     }
 
     /**
@@ -968,6 +980,7 @@ public final class UnsafeUtil
      */
     public static void copyMemory( long srcAddress, long destAddress, long bytes )
     {
+        checkAccess( srcAddress, bytes );
         unsafe.copyMemory( srcAddress, destAddress, bytes );
     }
 
@@ -978,6 +991,7 @@ public final class UnsafeUtil
      */
     public static ByteBuffer newDirectByteBuffer( long addr, int cap ) throws Exception
     {
+        checkAccess( addr, cap );
         if ( directByteBufferCtor == null )
         {
             // Simulate the JNI NewDirectByteBuffer(void*, long) invocation.
@@ -994,6 +1008,7 @@ public final class UnsafeUtil
      */
     public static void initDirectByteBuffer( Object dbb, long addr, int cap )
     {
+        checkAccess( addr, cap );
         unsafe.putInt( dbb, directByteBufferMarkOffset, -1 );
         unsafe.putInt( dbb, directByteBufferPositionOffset, 0 );
         unsafe.putInt( dbb, directByteBufferLimitOffset, cap );
@@ -1144,4 +1159,62 @@ public final class UnsafeUtil
         UnsafeUtil.putByte( p + 6, (byte) (value >> 48) );
         UnsafeUtil.putByte( p + 7, (byte) (value >> 56) );
     }
+
+    private static final class Allocation
+    {
+        private final long pointer;
+        private final long sizeInBytes;
+        private final long boundary;
+        private final long freeCounter;
+
+        Allocation( long pointer, long sizeInBytes, long freeCounter )
+        {
+            this.pointer = pointer;
+            this.sizeInBytes = sizeInBytes;
+            this.freeCounter = freeCounter;
+            this.boundary = pointer + sizeInBytes;
+        }
+
+        @Override
+        public String toString()
+        {
+            return format( "Allocation[pointer=%s (%x), size=%s, boundary=%s (%x), free counter=%s]",
+                    pointer, pointer, sizeInBytes, boundary, boundary, freeCounter );
+        }
+    }
+
+    private static final class FreeTrace extends Throwable implements Comparable<FreeTrace>
+    {
+        private final long pointer;
+        private final Allocation allocation;
+        private final long id;
+        private final long nanoTime;
+        private long referenceTime;
+
+        private FreeTrace( long pointer, Allocation allocation, long id )
+        {
+            this.pointer = pointer;
+            this.allocation = allocation;
+            this.id = id;
+            this.nanoTime = System.nanoTime();
+        }
+
+        private boolean contains( long pointer )
+        {
+            return this.pointer <= pointer && pointer <= this.pointer + allocation.sizeInBytes;
+        }
+
+        @Override
+        public int compareTo( FreeTrace that )
+        {
+            return Long.compare( this.id, that.id );
+        }
+
+        @Override
+        public String getMessage()
+        {
+            return format( "0x%x of %6d bytes, freed %s µs ago at", pointer, allocation.sizeInBytes, (referenceTime - nanoTime) / 1000 );
+        }
+    }
+
 }

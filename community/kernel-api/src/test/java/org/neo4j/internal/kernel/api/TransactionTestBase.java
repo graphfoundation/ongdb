@@ -53,7 +53,7 @@ public abstract class TransactionTestBase<G extends KernelAPIWriteTestSupport> e
         // GIVEN
         long nodeId;
         int labelId;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             // WHEN
             nodeId = tx.dataWrite().nodeCreate();
@@ -73,7 +73,7 @@ public abstract class TransactionTestBase<G extends KernelAPIWriteTestSupport> e
         // GIVEN
         long nodeId;
         int labelId;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             // WHEN
             nodeId = tx.dataWrite().nodeCreate();
@@ -94,7 +94,7 @@ public abstract class TransactionTestBase<G extends KernelAPIWriteTestSupport> e
         long nodeId;
         int labelId;
 
-        Transaction tx = session.beginTransaction();
+        Transaction tx = beginTransaction();
         nodeId = tx.dataWrite().nodeCreate();
         labelId = tx.tokenWrite().labelGetOrCreateForName( "labello" );
         tx.dataWrite().nodeAddLabel( nodeId, labelId );
@@ -118,7 +118,7 @@ public abstract class TransactionTestBase<G extends KernelAPIWriteTestSupport> e
 
     private void assertNoNode( long nodeId ) throws TransactionFailureException
     {
-        try ( Transaction tx = session.beginTransaction();
+        try ( Transaction tx = beginTransaction();
                 NodeCursor cursor = tx.cursors().allocateNodeCursor() )
         {
             tx.dataRead().singleNode( nodeId, cursor );

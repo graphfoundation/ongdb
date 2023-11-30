@@ -38,7 +38,7 @@
  */
 package org.neo4j.graphdb.impl.notification;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,16 +50,16 @@ import org.neo4j.graphdb.Notification;
 import org.neo4j.graphdb.SeverityLevel;
 
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.neo4j.graphdb.impl.notification.NotificationCode.CARTESIAN_PRODUCT;
 import static org.neo4j.graphdb.impl.notification.NotificationCode.DEPRECATED_PROCEDURE;
 import static org.neo4j.graphdb.impl.notification.NotificationCode.INDEX_HINT_UNFULFILLABLE;
 import static org.neo4j.graphdb.impl.notification.NotificationCode.JOIN_HINT_UNFULFILLABLE;
 
-public class NotificationCodeTest
+class NotificationCodeTest
 {
     @Test
-    public void shouldConstructNotificationFor_INDEX_HINT_UNFULFILLABLE()
+    void shouldConstructNotificationFor_INDEX_HINT_UNFULFILLABLE()
     {
         NotificationDetail indexDetail = NotificationDetail.Factory.index( "Person", "name" );
         Notification notification = INDEX_HINT_UNFULFILLABLE.notification( InputPosition.empty, indexDetail );
@@ -73,7 +73,7 @@ public class NotificationCodeTest
     }
 
     @Test
-    public void shouldConstructNotificationFor_CARTESIAN_PRODUCT()
+    void shouldConstructNotificationFor_CARTESIAN_PRODUCT()
     {
         Set<String> idents = new TreeSet<>();
         idents.add( "n" );
@@ -94,7 +94,7 @@ public class NotificationCodeTest
     }
 
     @Test
-    public void shouldConstructNotificationsFor_JOIN_HINT_UNFULFILLABLE()
+    void shouldConstructNotificationsFor_JOIN_HINT_UNFULFILLABLE()
     {
         List<String> idents = new ArrayList<>();
         idents.add( "n" );
@@ -113,7 +113,7 @@ public class NotificationCodeTest
     }
 
     @Test
-    public void shouldConstructNotificationsFor_DEPRECATED_PROCEDURE()
+    void shouldConstructNotificationsFor_DEPRECATED_PROCEDURE()
     {
         NotificationDetail identifierDetail = NotificationDetail.Factory.deprecatedName("oldName", "newName");
         Notification notification = DEPRECATED_PROCEDURE.notification( InputPosition.empty, identifierDetail );
@@ -127,7 +127,7 @@ public class NotificationCodeTest
     }
 
     @Test
-    public void shouldConstructNotificationsFor_DEPRECATED_PROCEDURE_with_no_newName()
+    void shouldConstructNotificationsFor_DEPRECATED_PROCEDURE_with_no_newName()
     {
         NotificationDetail identifierDetail = NotificationDetail.Factory.deprecatedName("oldName", "");
         Notification notification = DEPRECATED_PROCEDURE.notification( InputPosition.empty, identifierDetail );

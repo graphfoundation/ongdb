@@ -43,6 +43,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import org.neo4j.helpers.ListenSocketAddress;
+import org.neo4j.kernel.api.net.NetworkConnectionTracker;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.test.rule.ImpermanentDatabaseRule;
@@ -64,9 +65,9 @@ public class Jetty9WebServerIT extends ExclusiveServerTestBase
     public void shouldBeAbleToUsePortZero() throws Exception
     {
         // Given
-        webServer = new Jetty9WebServer( NullLogProvider.getInstance(), Config.defaults() );
+        webServer = new Jetty9WebServer( NullLogProvider.getInstance(), Config.defaults(), NetworkConnectionTracker.NO_OP );
 
-        webServer.setAddress( new ListenSocketAddress( "localhost", 0 ) );
+        webServer.setHttpAddress( new ListenSocketAddress( "localhost", 0 ) );
 
         // When
         webServer.start();
@@ -78,8 +79,8 @@ public class Jetty9WebServerIT extends ExclusiveServerTestBase
     public void shouldBeAbleToRestart() throws Throwable
     {
         // given
-        webServer = new Jetty9WebServer( NullLogProvider.getInstance(), Config.defaults() );
-        webServer.setAddress( new ListenSocketAddress( "127.0.0.1", 7878 ) );
+        webServer = new Jetty9WebServer( NullLogProvider.getInstance(), Config.defaults(), NetworkConnectionTracker.NO_OP );
+        webServer.setHttpAddress( new ListenSocketAddress( "127.0.0.1", 7878 ) );
 
         // when
         webServer.start();
@@ -92,7 +93,7 @@ public class Jetty9WebServerIT extends ExclusiveServerTestBase
     @Test
     public void shouldStopCleanlyEvenWhenItHasntBeenStarted()
     {
-        new Jetty9WebServer( NullLogProvider.getInstance(), Config.defaults() ).stop();
+        new Jetty9WebServer( NullLogProvider.getInstance(), Config.defaults(), NetworkConnectionTracker.NO_OP ).stop();
     }
 
     @After

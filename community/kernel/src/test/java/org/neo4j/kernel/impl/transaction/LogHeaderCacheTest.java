@@ -43,6 +43,7 @@ import org.junit.Test;
 import org.neo4j.kernel.impl.transaction.log.LogHeaderCache;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 public class LogHeaderCacheTest
 {
@@ -56,7 +57,7 @@ public class LogHeaderCacheTest
         final Long logHeader = cache.getLogHeader( 5 );
 
         // then
-        assertEquals( null, logHeader );
+        assertNull( logHeader );
     }
 
     @Test
@@ -85,6 +86,6 @@ public class LogHeaderCacheTest
         final Long logHeader = cache.getLogHeader( 5 );
 
         // then
-        assertEquals( null, logHeader );
+        assertNull( logHeader );
     }
 }

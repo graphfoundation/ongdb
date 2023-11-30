@@ -38,24 +38,20 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.util.v3_4.CypherTypeException
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.IsMap
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.operations.CypherFunctions
 import org.neo4j.values.AnyValue
-import org.neo4j.values.virtual.VirtualValues
 
 case class PropertiesFunction(a: Expression) extends NullInNullOutExpression(a) {
-  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState) =
-    value match {
-      case IsMap(mapValue) => VirtualValues.copy(mapValue(state.query))
-      case v =>
-        throw new CypherTypeException(s"Expected a Node, Relationship, or Map, got: $v")
-    }
+  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState) = CypherFunctions.properties(value, state.query)
 
-  override def symbolTableDependencies = a.symbolTableDependencies
+  override def symbolTableDependencies: Set[String] = a.symbolTableDependencies
 
-  override def arguments = Seq(a)
+  override def arguments: Seq[Expression] = Seq(a)
 
-  override def rewrite(f: (Expression) => Expression) = f(PropertiesFunction(a.rewrite(f)))
+  override def children: Seq[AstNode[_]] = Seq(a)
+
+  override def rewrite(f: Expression => Expression): Expression = f(PropertiesFunction(a.rewrite(f)))
 }

@@ -39,6 +39,7 @@
 package org.neo4j.unsafe.impl.batchimport.staging;
 
 import org.neo4j.unsafe.impl.batchimport.Parallelizable;
+import org.neo4j.unsafe.impl.batchimport.stats.Key;
 import org.neo4j.unsafe.impl.batchimport.stats.StepStats;
 
 /**
@@ -91,6 +92,25 @@ public interface Step<T> extends Parallelizable, AutoCloseable, Panicable
     StepStats stats();
 
     /**
+     * Convenience method for getting a long value of a particular stat.
+     *
+     * @param key key to get stat for.
+     * @return long stat for the given {@code key}.
+     */
+    default long longStat( Key key )
+    {
+        return stats().stat( key ).asLong();
+    }
+
+    /**
+     * @return max number of processors assignable to this step.
+     */
+    default int maxProcessors()
+    {
+        return 1;
+    }
+
+    /**
      * Called by upstream to let this step know that it will not send any more batches.
      */
     void endOfUpstream();
@@ -100,6 +120,12 @@ public interface Step<T> extends Parallelizable, AutoCloseable, Panicable
      * the case of a producer, that this step has produced all batches.
      */
     boolean isCompleted();
+
+    /**
+     * Waits for this step to become completed, i.e. until {@link #isCompleted()} returns {@code true}. If this step is already completed
+     * then this method will return immediately.
+     */
+    void awaitCompleted() throws InterruptedException;
 
     /**
      * Called by the {@link Stage} when setting up the stage. This will form a pipeline of steps,

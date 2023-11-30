@@ -38,7 +38,7 @@
  */
 package org.neo4j.internal.kernel.api;
 
-import org.neo4j.collection.primitive.PrimitiveLongSet;
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -46,7 +46,7 @@ import static org.junit.Assert.assertTrue;
 
 public class IndexReadAsserts
 {
-    static void assertNodes( NodeIndexCursor node, PrimitiveLongSet uniqueIds, long... expected )
+    static void assertNodes( NodeIndexCursor node, MutableLongSet uniqueIds, long... expected )
     {
         uniqueIds.clear();
         for ( long count : expected )
@@ -62,7 +62,7 @@ public class IndexReadAsserts
         }
     }
 
-    static void assertNodeCount( NodeIndexCursor node, int expectedCount, PrimitiveLongSet uniqueIds )
+    static void assertNodeCount( NodeIndexCursor node, int expectedCount, MutableLongSet uniqueIds )
     {
         uniqueIds.clear();
         for ( int i = 0; i < expectedCount; i++ )
@@ -73,7 +73,7 @@ public class IndexReadAsserts
         assertFalse( "no more than " + expectedCount + " nodes", node.next() );
     }
 
-    static void assertFoundRelationships( RelationshipIndexCursor edge, int edges, PrimitiveLongSet uniqueIds )
+    static void assertFoundRelationships( RelationshipIndexCursor edge, int edges, MutableLongSet uniqueIds )
     {
         for ( int i = 0; i < edges; i++ )
         {

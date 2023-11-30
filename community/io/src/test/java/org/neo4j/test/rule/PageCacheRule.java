@@ -49,14 +49,17 @@ import org.neo4j.graphdb.config.Configuration;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.mem.MemoryAllocator;
 import org.neo4j.io.pagecache.PageCache;
+import org.neo4j.io.pagecache.PageSwapperFactory;
 import org.neo4j.io.pagecache.checking.AccessCheckingPageCache;
 import org.neo4j.io.pagecache.impl.SingleFilePageSwapperFactory;
 import org.neo4j.io.pagecache.impl.muninn.MuninnPageCache;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracerSupplier;
+import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
 import org.neo4j.io.pagecache.tracing.cursor.context.VersionContextSupplier;
 import org.neo4j.memory.LocalMemoryTracker;
-import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
+import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.scheduler.ThreadPoolJobScheduler;
 
 public class PageCacheRule extends ExternalResource
 {
@@ -176,6 +179,7 @@ public class PageCacheRule extends ExternalResource
         return new PageCacheConfig();
     }
 
+    protected JobScheduler jobScheduler;
     protected PageCache pageCache;
     final PageCacheConfig baseConfig;
 
@@ -194,15 +198,27 @@ public class PageCacheRule extends ExternalResource
         return getPageCache( fs, config() );
     }
 
+    public PageCache getPageCache( FileSystemAbstraction fs, PageCacheConfig overriddenConfig )
+    {
+        SingleFilePageSwapperFactory factory = new SingleFilePageSwapperFactory();
+        factory.open( fs, Configuration.EMPTY );
+        return getPageCache( factory, overriddenConfig );
+    }
+
+    public PageCache getPageCache( PageSwapperFactory swapperFactory )
+    {
+        return getPageCache( swapperFactory, config() );
+    }
+
     /**
      * Opens a new {@link PageCache} with the provided file system and config.
      *
-     * @param fs {@link FileSystemAbstraction} to use for the {@link PageCache}.
+     * @param factory {@link PageSwapperFactory} to use for the {@link PageCache}.
      * @param overriddenConfig specific {@link PageCacheConfig} overriding config provided in {@link PageCacheRule}
      * constructor, if any.
      * @return the opened {@link PageCache}.
      */
-    public PageCache getPageCache( FileSystemAbstraction fs, PageCacheConfig overriddenConfig )
+    public PageCache getPageCache( PageSwapperFactory factory, PageCacheConfig overriddenConfig )
     {
         closeExistingPageCache();
         Integer pageSize = selectConfig( baseConfig.pageSize, overriddenConfig.pageSize, null );
@@ -212,23 +228,25 @@ public class PageCacheRule extends ExternalResource
                 overriddenConfig.pageCursorTracerSupplier,
                 PageCursorTracerSupplier.NULL );
 
-        SingleFilePageSwapperFactory factory = new SingleFilePageSwapperFactory();
-        factory.open( fs, Configuration.EMPTY );
-
         VersionContextSupplier contextSupplier = EmptyVersionContextSupplier.EMPTY;
         MemoryAllocator mman = MemoryAllocator.createAllocator( selectConfig( baseConfig.memory, overriddenConfig.memory, "8 MiB" ),
                 new LocalMemoryTracker() );
+        initializeJobScheduler();
         if ( pageSize != null )
         {
-            pageCache = new MuninnPageCache( factory, mman, pageSize, cacheTracer, cursorTracerSupplier,
-                    contextSupplier );
+            pageCache = new MuninnPageCache( factory, mman, pageSize, cacheTracer, cursorTracerSupplier, contextSupplier, jobScheduler );
         }
         else
         {
-            pageCache = new MuninnPageCache( factory, mman, cacheTracer, cursorTracerSupplier, contextSupplier );
+            pageCache = new MuninnPageCache( factory, mman, cacheTracer, cursorTracerSupplier, contextSupplier, jobScheduler );
         }
         pageCachePostConstruct( overriddenConfig );
         return pageCache;
+    }
+
+    protected void initializeJobScheduler()
+    {
+        jobScheduler = new ThreadPoolJobScheduler();
     }
 
     protected static <T> T selectConfig( T base, T overridden, T defaultValue )
@@ -255,22 +273,34 @@ public class PageCacheRule extends ExternalResource
 
     protected void closeExistingPageCache()
     {
-        if ( pageCache != null )
-        {
-            try
-            {
-                pageCache.close();
-            }
-            catch ( Exception e )
-            {
-                throw new AssertionError(
-                        "Failed to stop existing PageCache prior to creating a new one", e );
-            }
-        }
+        closePageCache( "Failed to stop existing PageCache prior to creating a new one." );
+        closeJobScheduler( "Failed to stop existing job scheduler prior to creating a new one." );
     }
 
     @Override
     protected void after( boolean success )
+    {
+        closePageCache( "Failed to stop PageCache after test." );
+        closeJobScheduler( "Failed to stop job scheduler after test." );
+    }
+
+    private void closeJobScheduler( String errorMessage )
+    {
+        if ( jobScheduler != null )
+        {
+            try
+            {
+                jobScheduler.close();
+            }
+            catch ( Exception e )
+            {
+                throw new RuntimeException( errorMessage, e );
+            }
+            jobScheduler = null;
+        }
+    }
+
+    private void closePageCache( String errorMessage )
     {
         if ( pageCache != null )
         {
@@ -280,7 +310,7 @@ public class PageCacheRule extends ExternalResource
             }
             catch ( Exception e )
             {
-                throw new AssertionError( "Failed to stop PageCache after test", e );
+                throw new AssertionError( errorMessage, e );
             }
             pageCache = null;
         }

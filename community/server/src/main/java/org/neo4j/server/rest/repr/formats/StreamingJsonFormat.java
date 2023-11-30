@@ -43,7 +43,6 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.io.IOContext;
 import com.fasterxml.jackson.core.json.UTF8JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -65,6 +64,7 @@ import org.neo4j.server.rest.repr.MappingWriter;
 import org.neo4j.server.rest.repr.RepresentationFormat;
 import org.neo4j.server.rest.repr.StreamingFormat;
 
+import static com.fasterxml.jackson.databind.SerializationFeature.FLUSH_AFTER_WRITE_VALUE;
 import static org.neo4j.server.rest.domain.JsonHelper.assertSupportedPropertyValue;
 import static org.neo4j.server.rest.domain.JsonHelper.readJson;
 
@@ -82,16 +82,15 @@ public class StreamingJsonFormat extends RepresentationFormat implements Streami
 
     private JsonFactory createJsonFactory()
     {
-        final ObjectMapper objectMapper = new ObjectMapper().configure( SerializationFeature.FLUSH_AFTER_WRITE_VALUE, false );
-
+        final ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.disable( FLUSH_AFTER_WRITE_VALUE );
         JsonFactory factory = new JsonFactory( objectMapper )
         {
             @Override
-            public JsonGenerator createGenerator( OutputStream out )
+            protected JsonGenerator _createUTF8Generator( OutputStream out, IOContext ctxt )
             {
-                IOContext ctxt = _createContext(_createContentReference(out), false);
                 final int bufferSize = 1024 * 8;
-                UTF8JsonGenerator gen = new UTF8JsonGenerator( ctxt, _generatorFeatures, _objectCodec, out, DEFAULT_QUOTE_CHAR,
+                UTF8JsonGenerator gen = new UTF8JsonGenerator( ctxt, _generatorFeatures, _objectCodec, out,
                         new byte[bufferSize], 0, true );
                 if ( _characterEscapes != null )
                 {

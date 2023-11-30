@@ -51,6 +51,7 @@ import org.neo4j.jmx.Description;
 import org.neo4j.jmx.Kernel;
 import org.neo4j.kernel.internal.KernelData;
 
+@Deprecated
 public abstract class Neo4jMBean extends StandardMBean
 {
     final ObjectName objectName;

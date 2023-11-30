@@ -41,6 +41,7 @@ package org.neo4j.kernel.impl.transaction.log;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Iterator;
 
 import org.neo4j.helpers.collection.Visitor;
 import org.neo4j.kernel.impl.transaction.TransactionRepresentation;
@@ -179,10 +180,13 @@ public class PhysicalTransactionRepresentation implements TransactionRepresentat
         builder.append( "timeCommitted:" ).append( timeCommitted ).append( ',' );
         builder.append( "lockSession:" ).append( lockSessionIdentifier ).append( ',' );
         builder.append( "additionalHeader:" ).append( Arrays.toString( additionalHeader ) );
-        for ( StorageCommand command : commands )
-        {
-            builder.append( '\n' ).append( command );
-        }
+        builder.append( "commands.length:" ).append( commands.size() );
         return builder.toString();
+    }
+
+    @Override
+    public Iterator<StorageCommand> iterator()
+    {
+        return commands.iterator();
     }
 }

@@ -53,9 +53,9 @@ public class QueryExecutionException extends RuntimeException
     }
 
     /**
-     * The ONgDB error <a href="https://graphfoundation.org/ongdb/docs/developer-manual/current/reference/status-codes/">status code</a>.
+     * The Neo4j error <a href="https://docs.graphfoundation.org/developer-manual/current/reference/status-codes/">status code</a>.
      *
-     * @return the ONgDB error status code.
+     * @return the Neo4j error status code.
      */
     public String getStatusCode()
     {

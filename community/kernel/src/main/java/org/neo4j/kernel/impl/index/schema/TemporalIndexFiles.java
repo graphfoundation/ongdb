@@ -43,26 +43,25 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.neo4j.index.internal.gbptree.Layout;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
+import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 import org.neo4j.values.storable.ValueGroup;
 
 class TemporalIndexFiles
 {
     private final FileSystemAbstraction fs;
-    private FileLayout<DateSchemaKey> date;
-    private FileLayout<LocalDateTimeSchemaKey> localDateTime;
-    private FileLayout<ZonedDateTimeSchemaKey> zonedDateTime;
-    private FileLayout<LocalTimeSchemaKey> localTime;
-    private FileLayout<ZonedTimeSchemaKey> zonedTime;
-    private FileLayout<DurationSchemaKey> duration;
+    private FileLayout<DateIndexKey> date;
+    private FileLayout<LocalDateTimeIndexKey> localDateTime;
+    private FileLayout<ZonedDateTimeIndexKey> zonedDateTime;
+    private FileLayout<LocalTimeIndexKey> localTime;
+    private FileLayout<ZonedTimeIndexKey> zonedTime;
+    private FileLayout<DurationIndexKey> duration;
 
-    TemporalIndexFiles( IndexDirectoryStructure directoryStructure, long indexId, SchemaIndexDescriptor descriptor, FileSystemAbstraction fs )
+    TemporalIndexFiles( IndexDirectoryStructure directoryStructure, StoreIndexDescriptor descriptor, FileSystemAbstraction fs )
     {
         this.fs = fs;
-        File indexDirectory = directoryStructure.directoryForIndex( indexId );
+        File indexDirectory = directoryStructure.directoryForIndex( descriptor.getId() );
         this.date = new FileLayout<>( new File( indexDirectory, "date" ), new DateLayout(), ValueGroup.DATE );
         this.localTime = new FileLayout<>( new File( indexDirectory, "localTime" ), new LocalTimeLayout(), ValueGroup.LOCAL_TIME );
         this.zonedTime = new FileLayout<>( new File( indexDirectory, "zonedTime" ), new ZonedTimeLayout(), ValueGroup.ZONED_TIME );
@@ -91,32 +90,32 @@ class TemporalIndexFiles
         }
     }
 
-    FileLayout<DateSchemaKey> date()
+    FileLayout<DateIndexKey> date()
     {
         return date;
     }
 
-    FileLayout<LocalTimeSchemaKey> localTime()
+    FileLayout<LocalTimeIndexKey> localTime()
     {
         return localTime;
     }
 
-    FileLayout<ZonedTimeSchemaKey> zonedTime()
+    FileLayout<ZonedTimeIndexKey> zonedTime()
     {
         return zonedTime;
     }
 
-    FileLayout<LocalDateTimeSchemaKey> localDateTime()
+    FileLayout<LocalDateTimeIndexKey> localDateTime()
     {
         return localDateTime;
     }
 
-    FileLayout<ZonedDateTimeSchemaKey> zonedDateTime()
+    FileLayout<ZonedDateTimeIndexKey> zonedDateTime()
     {
         return zonedDateTime;
     }
 
-    FileLayout<DurationSchemaKey> duration()
+    FileLayout<DurationIndexKey> duration()
     {
         return duration;
     }
@@ -136,13 +135,13 @@ class TemporalIndexFiles
 
     // .... we will add more explicit accessor methods later
 
-    static class FileLayout<KEY extends NativeSchemaKey<KEY>>
+    static class FileLayout<KEY extends NativeIndexSingleValueKey<KEY>>
     {
         final File indexFile;
-        final Layout<KEY,NativeSchemaValue> layout;
+        final IndexLayout<KEY,NativeIndexValue> layout;
         final ValueGroup valueGroup;
 
-        FileLayout( File indexFile, Layout<KEY,NativeSchemaValue> layout, ValueGroup valueGroup )
+        FileLayout( File indexFile, IndexLayout<KEY,NativeIndexValue> layout, ValueGroup valueGroup )
         {
             this.indexFile = indexFile;
             this.layout = layout;

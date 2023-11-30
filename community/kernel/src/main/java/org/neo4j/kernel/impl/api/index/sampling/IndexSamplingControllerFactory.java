@@ -41,13 +41,13 @@ package org.neo4j.kernel.impl.api.index.sampling;
 import java.util.function.Predicate;
 
 import org.neo4j.internal.kernel.api.TokenNameLookup;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
 import org.neo4j.kernel.impl.api.index.IndexMapSnapshotProvider;
 import org.neo4j.kernel.impl.api.index.IndexStoreView;
-import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.register.Register.DoubleLongRegister;
+import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 
 import static org.neo4j.register.Registers.newDoubleLongRegister;
 
@@ -80,8 +80,8 @@ public class IndexSamplingControllerFactory
         IndexSamplingController.RecoveryCondition
                 indexRecoveryCondition = createIndexRecoveryCondition( logProvider, tokenNameLookup );
         return new IndexSamplingController(
-                config, jobFactory, jobQueue, jobTracker, snapshotProvider, scheduler, indexRecoveryCondition
-        );
+                config, jobFactory, jobQueue, jobTracker, snapshotProvider, scheduler, indexRecoveryCondition,
+                logProvider );
     }
 
     private Predicate<Long> createSamplingPredicate()
@@ -111,9 +111,9 @@ public class IndexSamplingControllerFactory
             private final DoubleLongRegister register = newDoubleLongRegister();
 
             @Override
-            public boolean test( long indexId, SchemaIndexDescriptor descriptor )
+            public boolean test( StoreIndexDescriptor descriptor )
             {
-                boolean result = storeView.indexSample( indexId, register ).readSecond() == 0;
+                boolean result = storeView.indexSample( descriptor.getId(), register ).readSecond() == 0;
                 if ( result )
                 {
                     log.debug( "Recovering index sampling for index %s",

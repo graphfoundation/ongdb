@@ -41,6 +41,7 @@ package org.neo4j.kernel.impl.util;
 import java.util.AbstractCollection;
 import java.util.AbstractSet;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -99,6 +100,11 @@ public class CopyOnWriteHashMap<K, V> implements Map<K, V>
     private Map<K, V> copy()
     {
         return new HashMap<>( actual );
+    }
+
+    public Map<K, V> snapshot()
+    {
+        return Collections.unmodifiableMap( actual );
     }
 
     @Override

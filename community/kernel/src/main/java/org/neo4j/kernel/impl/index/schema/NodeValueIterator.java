@@ -38,16 +38,18 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import org.neo4j.collection.primitive.PrimitiveLongCollections;
-import org.neo4j.collection.primitive.PrimitiveLongIterator;
-import org.neo4j.collection.primitive.PrimitiveLongResourceIterator;
+import org.eclipse.collections.api.iterator.LongIterator;
+
+import org.neo4j.collection.PrimitiveLongCollections;
+import org.neo4j.collection.PrimitiveLongResourceIterator;
+import org.neo4j.internal.kernel.api.IndexOrder;
 import org.neo4j.internal.kernel.api.IndexQuery;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
+import org.neo4j.storageengine.api.schema.IndexDescriptor;
 import org.neo4j.storageengine.api.schema.IndexProgressor;
 import org.neo4j.values.storable.Value;
 
 /**
- * A {@link IndexProgressor} + {@link IndexProgressor.NodeValueClient} combo presented as a {@link PrimitiveLongIterator}.
+ * A {@link IndexProgressor} + {@link IndexProgressor.NodeValueClient} combo presented as a {@link LongIterator}.
  */
 public class NodeValueIterator extends PrimitiveLongCollections.PrimitiveLongBaseIterator
         implements IndexProgressor.NodeValueClient, PrimitiveLongResourceIterator
@@ -69,7 +71,11 @@ public class NodeValueIterator extends PrimitiveLongCollections.PrimitiveLongBas
     }
 
     @Override
-    public void initialize( SchemaIndexDescriptor descriptor, IndexProgressor progressor, IndexQuery[] query )
+    public void initialize( IndexDescriptor descriptor,
+                            IndexProgressor progressor,
+                            IndexQuery[] query,
+                            IndexOrder indexOrder,
+                            boolean needsValues )
     {
         this.progressor = progressor;
     }

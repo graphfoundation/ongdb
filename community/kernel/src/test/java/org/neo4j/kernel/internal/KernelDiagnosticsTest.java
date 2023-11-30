@@ -47,11 +47,13 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import org.neo4j.io.fs.StoreChannel;
-import org.neo4j.kernel.impl.store.MetaDataStore;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.neo4j.io.ByteUnit.kibiBytes;
 
 public class KernelDiagnosticsTest
@@ -69,14 +71,16 @@ public class KernelDiagnosticsTest
         // which, if purely mocked, won't be assigned. At the same time we want to control the total/free space methods
         // and what they return... a tough one.
         File storeDir = Mockito.spy( new File( "storeDir" ) );
-        Mockito.when( storeDir.getTotalSpace() ).thenReturn( 100L );
-        Mockito.when( storeDir.getFreeSpace() ).thenReturn( 40L );
+        DatabaseLayout layout = mock( DatabaseLayout.class );
+        when( layout.databaseDirectory() ).thenReturn( storeDir );
+        when( storeDir.getTotalSpace() ).thenReturn( 100L );
+        when( storeDir.getFreeSpace() ).thenReturn( 40L );
 
         AssertableLogProvider logProvider = new AssertableLogProvider();
-        KernelDiagnostics.StoreFiles storeFiles = new KernelDiagnostics.StoreFiles( storeDir );
+        KernelDiagnostics.StoreFiles storeFiles = new KernelDiagnostics.StoreFiles( layout );
         storeFiles.dump( logProvider.getLog( getClass() ).debugLogger() );
 
-        logProvider.assertContainsMessageContaining( "100 / 40 / 40" );
+        logProvider.rawMessageMatcher().assertContains( "100 / 40 / 40" );
     }
 
     @Test
@@ -86,16 +90,17 @@ public class KernelDiagnosticsTest
         //   storeDir/indexDir/indexFile (1 kB)
         //   storeDir/neostore (3 kB)
         File storeDir = directory.directory( "storeDir" );
+        DatabaseLayout layout = DatabaseLayout.of( storeDir );
         File indexDir = directory( storeDir, "indexDir" );
         file( indexDir, "indexFile", (int) kibiBytes( 1 ) );
-        file( storeDir, MetaDataStore.DEFAULT_NAME, (int) kibiBytes( 3 ) );
+        file( storeDir, layout.metadataStore().getName(), (int) kibiBytes( 3 ) );
 
         AssertableLogProvider logProvider = new AssertableLogProvider();
-        KernelDiagnostics.StoreFiles storeFiles = new KernelDiagnostics.StoreFiles( storeDir );
+        KernelDiagnostics.StoreFiles storeFiles = new KernelDiagnostics.StoreFiles( layout );
         storeFiles.dump( logProvider.getLog( getClass() ).debugLogger() );
 
-        logProvider.assertContainsMessageContaining( "Total size of store: 4.00 kB" );
-        logProvider.assertContainsMessageContaining( "Total size of mapped files: 3.00 kB" );
+        logProvider.rawMessageMatcher().assertContains( "Total size of store: 4.00 kB" );
+        logProvider.rawMessageMatcher().assertContains( "Total size of mapped files: 3.00 kB" );
     }
 
     private File directory( File parent, String name ) throws IOException

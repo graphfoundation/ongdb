@@ -46,35 +46,38 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
-import org.neo4j.concurrent.WorkSync;
 import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.kernel.api.index.IndexProvider;
+import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
 import org.neo4j.kernel.api.labelscan.LabelScanWriter;
 import org.neo4j.kernel.api.labelscan.NodeLabelUpdate;
 import org.neo4j.kernel.impl.api.TransactionApplier;
 import org.neo4j.kernel.impl.api.TransactionToApply;
 import org.neo4j.kernel.impl.api.index.IndexingService;
 import org.neo4j.kernel.impl.api.index.IndexingUpdateService;
-import org.neo4j.kernel.impl.api.index.PropertyPhysicalToLogicalConverter;
 import org.neo4j.kernel.impl.store.NodeLabelsField;
 import org.neo4j.kernel.impl.store.NodeStore;
 import org.neo4j.kernel.impl.store.PropertyStore;
+import org.neo4j.kernel.impl.store.RelationshipStore;
 import org.neo4j.kernel.impl.store.record.DynamicRecord;
-import org.neo4j.kernel.impl.store.record.IndexRule;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
 import org.neo4j.kernel.impl.transaction.command.Command.NodeCommand;
+import org.neo4j.storageengine.api.EntityType;
+import org.neo4j.storageengine.api.schema.SchemaRule;
+import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
+import org.neo4j.util.concurrent.WorkSync;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-import static org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory.uniqueForLabel;
-import static org.neo4j.kernel.impl.store.record.IndexRule.constraintIndexRule;
+import static org.neo4j.kernel.api.schema.SchemaDescriptorFactory.forLabel;
 import static org.neo4j.kernel.impl.store.record.Record.NO_NEXT_PROPERTY;
 import static org.neo4j.kernel.impl.store.record.Record.NO_NEXT_RELATIONSHIP;
+import static org.neo4j.storageengine.api.schema.IndexDescriptorFactory.uniqueForSchema;
 
 public class IndexBatchTransactionApplierTest
 {
@@ -83,16 +86,15 @@ public class IndexBatchTransactionApplierTest
     {
         // GIVEN
         IndexingService indexing = mock( IndexingService.class );
-        when( indexing.convertToIndexUpdates( any() ) ).thenAnswer( o -> Iterables.empty() );
+        when( indexing.convertToIndexUpdates( any(), eq( EntityType.NODE ) ) ).thenAnswer( o -> Iterables.empty() );
         LabelScanWriter writer = new OrderVerifyingLabelScanWriter( 10, 15, 20 );
         WorkSync<Supplier<LabelScanWriter>,LabelUpdateWork> labelScanSync =
                 spy( new WorkSync<>( singletonProvider( writer ) ) );
         WorkSync<IndexingUpdateService,IndexUpdatesWork> indexUpdatesSync = new WorkSync<>( indexing );
         TransactionToApply tx = mock( TransactionToApply.class );
         PropertyStore propertyStore = mock( PropertyStore.class );
-        try ( IndexBatchTransactionApplier applier = new IndexBatchTransactionApplier( indexing, labelScanSync,
-                indexUpdatesSync, mock( NodeStore.class ),
-                new PropertyPhysicalToLogicalConverter( propertyStore ), new IndexActivator( indexing ) ) )
+        try ( IndexBatchTransactionApplier applier = new IndexBatchTransactionApplier( indexing, labelScanSync, indexUpdatesSync, mock( NodeStore.class ),
+                mock( RelationshipStore.class ), propertyStore, new IndexActivator( indexing ) ) )
         {
             try ( TransactionApplier txApplier = applier.startTx( tx ) )
             {
@@ -124,13 +126,13 @@ public class IndexBatchTransactionApplierTest
         long constraintId1 = 10;
         long constraintId2 = 11;
         long constraintId3 = 12;
-        IndexProvider.Descriptor providerDescriptor = new IndexProvider.Descriptor( "index-key", "v1" );
-        IndexRule rule1 = constraintIndexRule( indexId1, uniqueForLabel( 1, 1 ), providerDescriptor, constraintId1 );
-        IndexRule rule2 = constraintIndexRule( indexId2, uniqueForLabel( 2, 1 ), providerDescriptor, constraintId2 );
-        IndexRule rule3 = constraintIndexRule( indexId3, uniqueForLabel( 3, 1 ), providerDescriptor, constraintId3 );
+        IndexProviderDescriptor providerDescriptor = new IndexProviderDescriptor( "index-key", "v1" );
+        StoreIndexDescriptor rule1 = uniqueForSchema( forLabel( 1, 1 ), providerDescriptor ).withIds( indexId1, constraintId1 );
+        StoreIndexDescriptor rule2 = uniqueForSchema( forLabel( 2, 1 ), providerDescriptor ).withIds( indexId2, constraintId2 );
+        StoreIndexDescriptor rule3 = uniqueForSchema( forLabel( 3, 1 ), providerDescriptor ).withIds( indexId3, constraintId3 );
         try ( IndexBatchTransactionApplier applier = new IndexBatchTransactionApplier( indexing, labelScanSync,
-                indexUpdatesSync, mock( NodeStore.class ),
-                new PropertyPhysicalToLogicalConverter( propertyStore ), indexActivator ) )
+                indexUpdatesSync, mock( NodeStore.class ), mock( RelationshipStore.class ),
+                propertyStore, indexActivator ) )
         {
             try ( TransactionApplier txApplier = applier.startTx( tx ) )
             {
@@ -156,7 +158,7 @@ public class IndexBatchTransactionApplierTest
         verifyNoMoreInteractions( indexing );
     }
 
-    private Collection<DynamicRecord> asRecords( IndexRule rule, boolean inUse )
+    private Collection<DynamicRecord> asRecords( SchemaRule rule, boolean inUse )
     {
         // Only used to transfer
         List<DynamicRecord> records = new ArrayList<>();

@@ -38,12 +38,11 @@
  */
 package org.neo4j.values.storable;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.neo4j.values.storable.Values.byteValue;
 import static org.neo4j.values.storable.Values.doubleValue;
 import static org.neo4j.values.storable.Values.floatValue;
@@ -54,13 +53,10 @@ import static org.neo4j.values.utils.ValueMath.overflowSafeAdd;
 import static org.neo4j.values.utils.ValueMath.overflowSafeMultiply;
 import static org.neo4j.values.utils.ValueMath.overflowSafeSubtract;
 
-public class NumberValueMathTest
+class NumberValueMathTest
 {
-    @Rule
-    public ExpectedException exception = ExpectedException.none();
-
     @Test
-    public void shouldAddSimpleIntegers()
+    void shouldAddSimpleIntegers()
     {
         NumberValue[] integers =
                 new NumberValue[]{byteValue( (byte) 42 ), shortValue( (short) 42 ), intValue( 42 ), longValue( 42 )};
@@ -76,7 +72,7 @@ public class NumberValueMathTest
     }
 
     @Test
-    public void shouldSubtractSimpleIntegers()
+    void shouldSubtractSimpleIntegers()
     {
         NumberValue[] integers =
                 new NumberValue[]{byteValue( (byte) 42 ), shortValue( (short) 42 ), intValue( 42 ), longValue( 42 )};
@@ -92,7 +88,7 @@ public class NumberValueMathTest
     }
 
     @Test
-    public void shouldMultiplySimpleIntegers()
+    void shouldMultiplySimpleIntegers()
     {
         NumberValue[] integers =
                 new NumberValue[]{byteValue( (byte) 42 ), shortValue( (short) 42 ), intValue( 42 ), longValue( 42 )};
@@ -108,7 +104,7 @@ public class NumberValueMathTest
     }
 
     @Test
-    public void shouldAddSimpleFloats()
+    void shouldAddSimpleFloats()
     {
         NumberValue[] integers =
                 new NumberValue[]{byteValue( (byte) 42 ), shortValue( (short) 42 ), intValue( 42 ), longValue( 42 )};
@@ -126,7 +122,7 @@ public class NumberValueMathTest
     }
 
     @Test
-    public void shouldSubtractSimpleFloats()
+    void shouldSubtractSimpleFloats()
     {
         NumberValue[] integers =
                 new NumberValue[]{byteValue( (byte) 42 ), shortValue( (short) 42 ), intValue( 42 ), longValue( 42 )};
@@ -144,7 +140,7 @@ public class NumberValueMathTest
     }
 
     @Test
-    public void shouldMultiplySimpleFloats()
+    void shouldMultiplySimpleFloats()
     {
         NumberValue[] integers =
                 new NumberValue[]{byteValue( (byte) 42 ), shortValue( (short) 42 ), intValue( 42 ), longValue( 42 )};
@@ -162,7 +158,7 @@ public class NumberValueMathTest
     }
 
     @Test
-    public void shouldDivideSimpleIntegers()
+    void shouldDivideSimpleIntegers()
     {
         NumberValue[] integers =
                 new NumberValue[]{byteValue( (byte) 42 ), shortValue( (short) 42 ), intValue( 42 ), longValue( 42 )};
@@ -178,7 +174,7 @@ public class NumberValueMathTest
     }
 
     @Test
-    public void shouldDivideSimpleFloats()
+    void shouldDivideSimpleFloats()
     {
         NumberValue[] integers =
                 new NumberValue[]{byteValue( (byte) 42 ), shortValue( (short) 42 ), intValue( 42 ), longValue( 42 )};
@@ -196,49 +192,37 @@ public class NumberValueMathTest
     }
 
     @Test
-    public void shouldFailOnOverflowingAdd()
+    void shouldFailOnOverflowingAdd()
     {
-        //Expect
-        exception.expect( ArithmeticException.class );
-
-        //WHEN
-        longValue( Long.MAX_VALUE ).plus( longValue( 1 ) );
+        assertThrows(ArithmeticException.class, () -> longValue( Long.MAX_VALUE ).plus( longValue( 1 ) ) );
     }
 
     @Test
-    public void shouldFailOnOverflowingSubtraction()
+    void shouldFailOnOverflowingSubtraction()
     {
-        //Expect
-        exception.expect( ArithmeticException.class );
-
-        //WHEN
-        longValue( Long.MAX_VALUE ).minus( longValue( -1 ) );
+        assertThrows( ArithmeticException.class, () -> longValue( Long.MAX_VALUE ).minus( longValue( -1 ) ) );
     }
 
     @Test
-    public void shouldFailOnOverflowingMultiplication()
+    void shouldFailOnOverflowingMultiplication()
     {
-        //Expect
-        exception.expect( ArithmeticException.class );
-
-        //When
-        longValue( Long.MAX_VALUE ).times( 2 );
+        assertThrows( ArithmeticException.class, () -> longValue( Long.MAX_VALUE ).times( 2 ) );
     }
 
     @Test
-    public void shouldNotOverflowOnSafeAddition()
+    void shouldNotOverflowOnSafeAddition()
     {
         assertThat( overflowSafeAdd( Long.MAX_VALUE, 1 ), equalTo( doubleValue( (double) Long.MAX_VALUE + 1 ) ) );
     }
 
     @Test
-    public void shouldNotOverflowOnSafeSubtraction()
+    void shouldNotOverflowOnSafeSubtraction()
     {
         assertThat( overflowSafeSubtract( Long.MAX_VALUE, -1 ), equalTo( doubleValue( ((double) Long.MAX_VALUE)  + (double) 1 ) ) );
     }
 
     @Test
-    public void shouldNotOverflowOnMultiplication()
+    void shouldNotOverflowOnMultiplication()
     {
         assertThat( overflowSafeMultiply( Long.MAX_VALUE, 2 ), equalTo( doubleValue( (double) Long.MAX_VALUE * 2 ) ) );
     }

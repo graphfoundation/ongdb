@@ -44,6 +44,7 @@ import org.apache.commons.io.FileUtils;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,29 +53,37 @@ import java.util.function.Function;
 
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.config.Setting;
+import org.neo4j.graphdb.facade.GraphDatabaseDependencies;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.harness.ServerControls;
 import org.neo4j.harness.TestServerBuilder;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.GraphDatabaseDependencies;
 import org.neo4j.kernel.configuration.BoltConnector;
+import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.HttpConnector;
 import org.neo4j.kernel.configuration.HttpConnector.Encryption;
 import org.neo4j.kernel.configuration.Settings;
+import org.neo4j.kernel.extension.ExtensionType;
 import org.neo4j.kernel.extension.KernelExtensionFactory;
-import org.neo4j.kernel.impl.factory.GraphDatabaseFacadeFactory;
 import org.neo4j.kernel.impl.proc.Procedures;
 import org.neo4j.kernel.impl.spi.KernelContext;
 import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.logging.FormattedLogProvider;
+import org.neo4j.logging.LogProvider;
+import org.neo4j.logging.LogTimeZone;
 import org.neo4j.server.AbstractNeoServer;
+import org.neo4j.server.DisabledNeoServer;
+import org.neo4j.server.NeoServer;
 import org.neo4j.server.configuration.ServerSettings;
 import org.neo4j.server.configuration.ThirdPartyJaxRsPackage;
+import org.neo4j.server.database.GraphFactory;
 
+import static org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory.Dependencies;
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.auth_enabled;
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.data_directory;
+import static org.neo4j.graphdb.factory.GraphDatabaseSettings.db_timezone;
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.pagecache_memory;
 import static org.neo4j.helpers.collection.Iterables.append;
 import static org.neo4j.io.file.Files.createOrOpenAsOutputStream;
@@ -147,7 +156,7 @@ public abstract class AbstractInProcessServerBuilder implements TestServerBuilde
     {
         try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction() )
         {
-            File userLogFile = new File( serverFolder, "ongdb.log" );
+            File userLogFile = new File( serverFolder, "neo4j.log" );
             File internalLogFile = new File( serverFolder, "debug.log" );
 
             final OutputStream logOutputStream;
@@ -163,14 +172,22 @@ public abstract class AbstractInProcessServerBuilder implements TestServerBuilde
             config.put( ServerSettings.third_party_packages.name(), toStringForThirdPartyPackageProperty( extensions.toList() ) );
             config.put( GraphDatabaseSettings.store_internal_log_path.name(), internalLogFile.getAbsolutePath() );
 
-            final FormattedLogProvider userLogProvider = FormattedLogProvider.toOutputStream( logOutputStream );
-            GraphDatabaseDependencies dependencies = GraphDatabaseDependencies.newDependencies();
+            LogProvider userLogProvider = FormattedLogProvider.withZoneId( logZoneIdFrom( config ) ).toOutputStream( logOutputStream );
+            GraphDatabaseDependencies dependencies = GraphDatabaseDependencies.newDependencies()
+                    .userLogProvider( userLogProvider );
             Iterable<KernelExtensionFactory<?>> kernelExtensions =
                     append( new Neo4jHarnessExtensions( procedures ), dependencies.kernelExtensions() );
-            dependencies = dependencies.kernelExtensions( kernelExtensions ).userLogProvider( userLogProvider );
+            dependencies = dependencies.kernelExtensions( kernelExtensions );
 
-            AbstractNeoServer neoServer = createNeoServer( config, dependencies, userLogProvider );
-            InProcessServerControls controls = new InProcessServerControls( serverFolder, userLogFile, internalLogFile, neoServer, logOutputStream );
+            Config dbConfig = Config.defaults( config );
+            GraphFactory graphFactory = createGraphFactory( dbConfig );
+            boolean httpAndHttpsDisabled = dbConfig.enabledHttpConnectors().isEmpty();
+
+            NeoServer server = httpAndHttpsDisabled
+                               ? new DisabledNeoServer( graphFactory, dependencies, dbConfig )
+                               : createNeoServer( graphFactory, dbConfig, dependencies );
+
+            InProcessServerControls controls = new InProcessServerControls( serverFolder, userLogFile, internalLogFile, server, logOutputStream );
             controls.start();
 
             try
@@ -190,8 +207,9 @@ public abstract class AbstractInProcessServerBuilder implements TestServerBuilde
         }
     }
 
-    protected abstract AbstractNeoServer createNeoServer( Map<String,String> config,
-            GraphDatabaseFacadeFactory.Dependencies dependencies, FormattedLogProvider userLogProvider );
+    protected abstract GraphFactory createGraphFactory( Config config );
+
+    protected abstract AbstractNeoServer createNeoServer( GraphFactory graphFactory, Config config, Dependencies dependencies );
 
     @Override
     public TestServerBuilder withConfig( Setting<?> key, String value )
@@ -296,6 +314,12 @@ public abstract class AbstractInProcessServerBuilder implements TestServerBuilde
         }
     }
 
+    private static ZoneId logZoneIdFrom( Map<String,String> config )
+    {
+        String dbTimeZone = config.getOrDefault( db_timezone.name(), db_timezone.getDefaultValue() );
+        return LogTimeZone.valueOf( dbTimeZone ).getZoneId();
+    }
+
     /**
      * A kernel extension used to ensure we load user-registered procedures
      * after other kernel extensions have initialized, since kernel extensions
@@ -312,7 +336,7 @@ public abstract class AbstractInProcessServerBuilder implements TestServerBuilde
 
         Neo4jHarnessExtensions( HarnessRegisteredProcs userProcs )
         {
-            super( "harness" );
+            super( ExtensionType.DATABASE, "harness" );
             this.userProcs = userProcs;
         }
 

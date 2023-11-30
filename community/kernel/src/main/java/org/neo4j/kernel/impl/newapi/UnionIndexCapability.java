@@ -54,10 +54,10 @@ import org.neo4j.values.storable.ValueCategory;
  */
 public class UnionIndexCapability implements IndexCapability
 {
-    private final IndexCapability[] capabilities;
+    private final Iterable<IndexCapability> capabilities;
     private final IndexLimitation[] limitationsUnion;
 
-    public UnionIndexCapability( IndexCapability... capabilities )
+    protected UnionIndexCapability( Iterable<IndexCapability> capabilities )
     {
         this.capabilities = capabilities;
         this.limitationsUnion = limitationsUnion( capabilities );
@@ -90,12 +90,24 @@ public class UnionIndexCapability implements IndexCapability
     }
 
     @Override
+    public boolean isFulltextIndex()
+    {
+        return false;
+    }
+
+    @Override
+    public boolean isEventuallyConsistent()
+    {
+        return false;
+    }
+
+    @Override
     public IndexLimitation[] limitations()
     {
         return limitationsUnion;
     }
 
-    private IndexLimitation[] limitationsUnion( IndexCapability[] capabilities )
+    private IndexLimitation[] limitationsUnion( Iterable<IndexCapability> capabilities )
     {
         HashSet<IndexLimitation> union = new HashSet<>();
         for ( IndexCapability capability : capabilities )

@@ -39,6 +39,9 @@
 package org.neo4j.ssl;
 
 import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.asn1.x509.GeneralNames;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
@@ -60,8 +63,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.security.GeneralSecurityException;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -79,7 +80,6 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Collection;
 import java.util.Date;
 import java.util.LinkedList;
-import javax.crypto.NoSuchPaddingException;
 
 /**
  * Public Key Infrastructure utilities, e.g. generating/loading keys and certificates.
@@ -89,7 +89,7 @@ public class PkiUtils
     /* Generating SSL certificates takes a long time.
      * This non-official setting allows us to use a fast source of randomness when running tests */
     private static final boolean useInsecureCertificateGeneration = Boolean.getBoolean( "org.neo4j.useInsecureCertificateGeneration" );
-    private static final String CERTIFICATE_TYPE = "X.509";
+    public static final String CERTIFICATE_TYPE = "X.509";
     private static final String DEFAULT_ENCRYPTION = "RSA";
     private final SecureRandom random;
     /** Current time minus 1 year, just in case software clock goes back due to time synchronization */
@@ -122,6 +122,10 @@ public class PkiUtils
         X500Name owner = new X500Name( "CN=" + hostName );
         X509v3CertificateBuilder builder = new JcaX509v3CertificateBuilder(
                 owner, new BigInteger( 64, random ), NOT_BEFORE, NOT_AFTER, owner, keypair.getPublic() );
+
+        // Subject alternative name (part of SNI extension, used for hostname verification)
+        GeneralNames subjectAlternativeName = new GeneralNames( new GeneralName( GeneralName.dNSName, hostName ) );
+        builder.addExtension( Extension.subjectAlternativeName, false, subjectAlternativeName );
 
         PrivateKey privateKey = keypair.getPrivate();
         ContentSigner signer = new JcaContentSignerBuilder( "SHA512WithRSAEncryption" ).build( privateKey );

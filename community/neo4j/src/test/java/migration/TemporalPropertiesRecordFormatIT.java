@@ -38,8 +38,8 @@
  */
 package migration;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.time.LocalDate;
@@ -55,40 +55,42 @@ import org.neo4j.kernel.impl.store.format.standard.Standard;
 import org.neo4j.kernel.impl.store.format.standard.StandardV3_2;
 import org.neo4j.kernel.impl.store.format.standard.StandardV3_4;
 import org.neo4j.kernel.impl.storemigration.StoreUpgrader;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.values.storable.DateValue;
 
 import static migration.RecordFormatMigrationIT.startDatabaseWithFormat;
 import static migration.RecordFormatMigrationIT.startNonUpgradableDatabaseWithFormat;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayWithSize;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public class TemporalPropertiesRecordFormatIT
+@ExtendWith( TestDirectoryExtension.class )
+class TemporalPropertiesRecordFormatIT
 {
-    // TODO tests for temporal arrays
-
-    @Rule
-    public final TestDirectory testDirectory = TestDirectory.testDirectory();
+    @Inject
+    private TestDirectory testDirectory;
 
     @Test
-    public void failToCreateDateOnOldDatabase() throws Exception
+    void failToCreateDateOnOldDatabase()
     {
-        File storeDir = testDirectory.graphDbDir();
+        File storeDir = testDirectory.storeDir();
         GraphDatabaseService nonUpgradedStore = startNonUpgradableDatabaseWithFormat( storeDir, StandardV3_2.NAME );
-        try ( Transaction transaction = nonUpgradedStore.beginTx() )
+        TransactionFailureException failureException = assertThrows( TransactionFailureException.class, () ->
         {
-            Node node = nonUpgradedStore.createNode();
-            node.setProperty( "a", DateValue.date( 1991, 5, 3 ).asObjectCopy() );
-            transaction.success();
-        }
-        catch ( TransactionFailureException e )
-        {
-            assertEquals( "Current record format does not support TEMPORAL_PROPERTIES. Please upgrade your store " +
-                    "to the format that support requested capability.", Exceptions.rootCause( e ).getMessage() );
-        }
+            try ( Transaction transaction = nonUpgradedStore.beginTx() )
+            {
+                Node node = nonUpgradedStore.createNode();
+                node.setProperty( "a", DateValue.date( 1991, 5, 3 ).asObjectCopy() );
+                transaction.success();
+            }
+        } );
+        assertEquals( "Current record format does not support TEMPORAL_PROPERTIES. Please upgrade your store to the format that support requested capability.",
+                Exceptions.rootCause( failureException ).getMessage() );
         nonUpgradedStore.shutdown();
 
         GraphDatabaseService restartedOldFormatDatabase = startNonUpgradableDatabaseWithFormat( storeDir, StandardV3_2.NAME );
@@ -102,22 +104,22 @@ public class TemporalPropertiesRecordFormatIT
     }
 
     @Test
-    public void failToCreateDateArrayOnOldDatabase() throws Exception
+    void failToCreateDateArrayOnOldDatabase()
     {
-        File storeDir = testDirectory.graphDbDir();
+        File storeDir = testDirectory.storeDir();
         GraphDatabaseService nonUpgradedStore = startNonUpgradableDatabaseWithFormat( storeDir, StandardV3_2.NAME );
         LocalDate date = DateValue.date( 1991, 5, 3 ).asObjectCopy();
-        try ( Transaction transaction = nonUpgradedStore.beginTx() )
+        TransactionFailureException failureException = assertThrows( TransactionFailureException.class, () ->
         {
-            Node node = nonUpgradedStore.createNode();
-            node.setProperty( "a", new LocalDate[]{date, date} );
-            transaction.success();
-        }
-        catch ( TransactionFailureException e )
-        {
-            assertEquals( "Current record format does not support TEMPORAL_PROPERTIES. Please upgrade your store " +
-                    "to the format that support requested capability.", Exceptions.rootCause( e ).getMessage() );
-        }
+            try ( Transaction transaction = nonUpgradedStore.beginTx() )
+            {
+                Node node = nonUpgradedStore.createNode();
+                node.setProperty( "a", new LocalDate[]{date, date} );
+                transaction.success();
+            }
+        } );
+        assertEquals( "Current record format does not support TEMPORAL_PROPERTIES. Please upgrade your store " +
+                "to the format that support requested capability.", Exceptions.rootCause( failureException ).getMessage() );
         nonUpgradedStore.shutdown();
 
         GraphDatabaseService restartedOldFormatDatabase = startNonUpgradableDatabaseWithFormat( storeDir, StandardV3_2.NAME );
@@ -131,9 +133,9 @@ public class TemporalPropertiesRecordFormatIT
     }
 
     @Test
-    public void createDatePropertyOnLatestDatabase()
+    void createDatePropertyOnLatestDatabase()
     {
-        File storeDir = testDirectory.graphDbDir();
+        File storeDir = testDirectory.storeDir();
         Label label = Label.label( "DateNode" );
         String propertyKey = "a";
         LocalDate date = DateValue.date( 1991, 5, 3 ).asObjectCopy();
@@ -156,9 +158,9 @@ public class TemporalPropertiesRecordFormatIT
     }
 
     @Test
-    public void createDateArrayOnLatestDatabase() throws Exception
+    void createDateArrayOnLatestDatabase()
     {
-        File storeDir = testDirectory.graphDbDir();
+        File storeDir = testDirectory.storeDir();
         Label label = Label.label( "DateNode" );
         String propertyKey = "a";
         LocalDate date = DateValue.date( 1991, 5, 3 ).asObjectCopy();
@@ -186,9 +188,9 @@ public class TemporalPropertiesRecordFormatIT
     }
 
     @Test
-    public void failToOpenStoreWithDatePropertyUsingOldFormat()
+    void failToOpenStoreWithDatePropertyUsingOldFormat()
     {
-        File storeDir = testDirectory.graphDbDir();
+        File storeDir = testDirectory.storeDir();
         GraphDatabaseService database = startDatabaseWithFormat( storeDir, StandardV3_4.NAME );
         try ( Transaction transaction = database.beginTx() )
         {
@@ -198,13 +200,7 @@ public class TemporalPropertiesRecordFormatIT
         }
         database.shutdown();
 
-        try
-        {
-            startDatabaseWithFormat( storeDir, StandardV3_2.NAME );
-        }
-        catch ( Throwable t )
-        {
-            assertSame( StoreUpgrader.AttemptedDowngradeException.class, Exceptions.rootCause( t ).getClass() );
-        }
+        Throwable throwable = assertThrows( Throwable.class, () -> startDatabaseWithFormat( storeDir, StandardV3_2.NAME ) );
+        assertSame( StoreUpgrader.AttemptedDowngradeException.class, Exceptions.rootCause( throwable ).getClass() );
     }
 }

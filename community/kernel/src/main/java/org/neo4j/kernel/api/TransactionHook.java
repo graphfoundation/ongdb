@@ -38,8 +38,7 @@
  */
 package org.neo4j.kernel.api;
 
-import org.neo4j.storageengine.api.StorageStatement;
-import org.neo4j.storageengine.api.StoreReadLayer;
+import org.neo4j.storageengine.api.StorageReader;
 import org.neo4j.storageengine.api.txstate.ReadableTransactionState;
 
 /**
@@ -53,8 +52,7 @@ public interface TransactionHook<OUTCOME extends TransactionHook.Outcome>
         Throwable failure();
     }
 
-    OUTCOME beforeCommit( ReadableTransactionState state, KernelTransaction transaction,
-            StoreReadLayer storeReadLayer, StorageStatement statement );
+    OUTCOME beforeCommit( ReadableTransactionState state, KernelTransaction transaction, StorageReader storageReader );
     void afterCommit( ReadableTransactionState state, KernelTransaction transaction, OUTCOME outcome );
     void afterRollback( ReadableTransactionState state, KernelTransaction transaction, OUTCOME outcome );
 }

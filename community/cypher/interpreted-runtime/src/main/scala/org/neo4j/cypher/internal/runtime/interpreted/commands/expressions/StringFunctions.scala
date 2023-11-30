@@ -39,28 +39,28 @@
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.util.v3_4.symbols._
-import org.neo4j.cypher.internal.util.v3_4.{CypherTypeException, ParameterWrongTypeException}
+import org.neo4j.cypher.internal.v3_5.util.CypherTypeException
+import org.neo4j.cypher.internal.v3_5.util.symbols._
+import org.neo4j.cypher.operations.CypherFunctions
 import org.neo4j.values._
 import org.neo4j.values.storable.Values.NO_VALUE
 import org.neo4j.values.storable._
-import org.neo4j.values.virtual.VirtualValues
 
 abstract class StringFunction(arg: Expression) extends NullInNullOutExpression(arg) {
 
-  def innerExpectedType = CTString
+  def innerExpectedType: CypherType = CTString
 
-  override def arguments = Seq(arg)
+  override def arguments: Seq[Expression] = Seq(arg)
 
-  override def symbolTableDependencies = arg.symbolTableDependencies
+  override def symbolTableDependencies: Set[String] = arg.symbolTableDependencies
 }
 
 object StringFunction {
 
   def notAString(a: Any) = throw new CypherTypeException(
-    "Expected a string value for %s, but got: %s; consider converting it to a string with toString()."
-      .format(toString, a.toString))
+    s"Expected a string value for $toString, but got: ${a.toString}; consider converting it to a string with toString().")
 }
 
 case object asString extends (AnyValue => String) {
@@ -74,90 +74,78 @@ case object asString extends (AnyValue => String) {
 
 case class ToStringFunction(argument: Expression) extends StringFunction(argument) {
 
-  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = argument(m, state) match {
-    case v: IntegralValue => Values.stringValue(v.longValue().toString)
-    case v: FloatingPointValue => Values.stringValue(v.doubleValue().toString)
-    case v: TextValue => v
-    case v: BooleanValue => Values.stringValue(v.booleanValue().toString)
-    case v: TemporalValue[_,_] => Values.stringValue(v.toString)
-    case v: DurationValue => Values.stringValue(v.toString)
-    case v: PointValue => Values.stringValue(v.toString)
-    case v =>
-      throw new ParameterWrongTypeException("Expected a String, Number, Boolean, Temporal or Duration, got: " + v.toString)
-  }
+  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue =
+    CypherFunctions.toString(argument(m, state))
 
-  override def rewrite(f: (Expression) => Expression): Expression = f(ToStringFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(ToStringFunction(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
 case class ToLowerFunction(argument: Expression) extends StringFunction(argument) {
 
-  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = value match {
-    case t: TextValue => t.toLower
-    case _ => StringFunction.notAString(value)
-  }
+  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = CypherFunctions.toLower(value)
 
-  override def rewrite(f: (Expression) => Expression) = f(ToLowerFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(ToLowerFunction(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
 case class ToUpperFunction(argument: Expression) extends StringFunction(argument) {
 
-  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue =value match {
-    case t: TextValue => t.toUpper
-    case _ => StringFunction.notAString(value)
-  }
+  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = CypherFunctions.toUpper(value)
 
-  override def rewrite(f: (Expression) => Expression) = f(ToUpperFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(ToUpperFunction(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
 case class LTrimFunction(argument: Expression) extends StringFunction(argument) {
 
-  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = value match {
-    case t: TextValue => t.ltrim()
-    case _ => StringFunction.notAString(value)
-  }
+  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue =
+    CypherFunctions.ltrim(value)
 
-  override def rewrite(f: (Expression) => Expression) = f(LTrimFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(LTrimFunction(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
 case class RTrimFunction(argument: Expression) extends StringFunction(argument) {
 
-  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = value match {
-    case t: TextValue => t.rtrim()
-    case _ => StringFunction.notAString(value)
-  }
+  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue =
+    CypherFunctions.rtrim(value)
 
-  override def rewrite(f: (Expression) => Expression) = f(RTrimFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(RTrimFunction(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
 case class TrimFunction(argument: Expression) extends StringFunction(argument) {
 
-  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = value match {
-    case t: TextValue => t.trim()
-    case _ => StringFunction.notAString(value)
-  }
+  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue =
+    CypherFunctions.trim(value)
 
-  override def rewrite(f: (Expression) => Expression) = f(TrimFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(TrimFunction(argument.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(argument)
 }
 
 case class SubstringFunction(orig: Expression, start: Expression, length: Option[Expression])
-  extends NullInNullOutExpression(orig) with NumericHelper {
+  extends NullInNullOutExpression(orig) {
 
-  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = value match {
-      case text: TextValue =>
-        val startVal = asPrimitiveInt(start(m, state))
-        length match {
-          case None => text.substring(startVal)
-          case Some(func) => text.substring(startVal, asPrimitiveInt(func(m, state)))
-        }
-      case _ => StringFunction.notAString(value)
-    }
+  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = length match {
+    case None => CypherFunctions.substring(value, start(m, state))
+    case Some(func) => CypherFunctions.substring(value, start(m, state), func(m, state))
+  }
 
-  override def arguments = Seq(orig, start) ++ length
+  override def arguments: Seq[Expression] = Seq(orig, start) ++ length
 
-  override def rewrite(f: (Expression) => Expression) = f(
+  override def children: Seq[AstNode[_]] = arguments
+
+  override def rewrite(f: Expression => Expression): Expression = f(
     SubstringFunction(orig.rewrite(f), start.rewrite(f), length.map(_.rewrite(f))))
 
-  override def symbolTableDependencies = {
+  override def symbolTableDependencies: Set[String] = {
     val a = orig.symbolTableDependencies ++
       start.symbolTableDependencies
 
@@ -170,20 +158,21 @@ case class SubstringFunction(orig: Expression, start: Expression, length: Option
 case class ReplaceFunction(orig: Expression, search: Expression, replaceWith: Expression)
   extends NullInNullOutExpression(orig) {
 
-  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = value match {
-    case t: TextValue =>
-      val searchVal = asString(search(m, state))
-      val replaceWithVal = asString(replaceWith(m, state))
-      if (searchVal == null || replaceWithVal == null) NO_VALUE else t.replace(searchVal, replaceWithVal)
-    case _ => StringFunction.notAString(value)
+  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = {
+      val searchVal = search(m, state)
+      val replaceWithVal = replaceWith(m, state)
+      if (searchVal == NO_VALUE || replaceWithVal == NO_VALUE) NO_VALUE
+      else CypherFunctions.replace(value, searchVal, replaceWithVal)
   }
 
-  override def arguments = Seq(orig, search, replaceWith)
+  override def arguments: Seq[Expression] = Seq(orig, search, replaceWith)
 
-  override def rewrite(f: (Expression) => Expression) = f(
+  override def children: Seq[AstNode[_]] = arguments
+
+  override def rewrite(f: Expression => Expression): Expression = f(
     ReplaceFunction(orig.rewrite(f), search.rewrite(f), replaceWith.rewrite(f)))
 
-  override def symbolTableDependencies = orig.symbolTableDependencies ++
+  override def symbolTableDependencies: Set[String] = orig.symbolTableDependencies ++
     search.symbolTableDependencies ++
     replaceWith.symbolTableDependencies
 }
@@ -191,54 +180,48 @@ case class ReplaceFunction(orig: Expression, search: Expression, replaceWith: Ex
 case class SplitFunction(orig: Expression, separator: Expression)
   extends NullInNullOutExpression(orig) {
 
-  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = value match {
-    case t: TextValue if t.length() == 0  => VirtualValues.list(Values.EMPTY_STRING)
-    case t: TextValue =>
-      val separatorVal = asString(separator(m, state))
-      if (separatorVal == null) NO_VALUE else t.split(separatorVal)
-    case _ => StringFunction.notAString(value)
+  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = {
+    val sep = separator(m, state)
+    if (sep == NO_VALUE) NO_VALUE else CypherFunctions.split(value, sep)
   }
 
-  override def arguments = Seq(orig, separator)
+  override def arguments: Seq[Expression] = Seq(orig, separator)
 
-  override def rewrite(f: (Expression) => Expression) = f(SplitFunction(orig.rewrite(f), separator.rewrite(f)))
+  override def children: Seq[AstNode[_]] = arguments
 
-  override def symbolTableDependencies = orig.symbolTableDependencies ++ separator.symbolTableDependencies
+  override def rewrite(f: Expression => Expression): Expression = f(SplitFunction(orig.rewrite(f), separator.rewrite(f)))
+
+  override def symbolTableDependencies: Set[String] = orig.symbolTableDependencies ++ separator.symbolTableDependencies
 }
 
 case class LeftFunction(orig: Expression, length: Expression)
   extends NullInNullOutExpression(orig) with NumericHelper {
 
-  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = value match {
-      case origVal: TextValue => origVal.substring(0, asPrimitiveInt(length(m, state)))
-      case _ => StringFunction.notAString(value)
-  }
+  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue =
+    CypherFunctions.left(value, length(m, state))
 
-  override def arguments = Seq(orig, length)
+  override def arguments: Seq[Expression] = Seq(orig, length)
 
-  override def rewrite(f: (Expression) => Expression) = f(LeftFunction(orig.rewrite(f), length.rewrite(f)))
+  override def children: Seq[AstNode[_]] = arguments
 
-  override def symbolTableDependencies = orig.symbolTableDependencies ++
+  override def rewrite(f: Expression => Expression): Expression = f(LeftFunction(orig.rewrite(f), length.rewrite(f)))
+
+  override def symbolTableDependencies: Set[String] = orig.symbolTableDependencies ++
     length.symbolTableDependencies
 }
 
 case class RightFunction(orig: Expression, length: Expression)
   extends NullInNullOutExpression(orig) with NumericHelper {
 
-  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = value match {
-      case origVal: TextValue =>
-        // if length goes off the end of the string, let's be nice and handle that.
-        val lengthVal = asPrimitiveInt(length(m, state))
-        if (lengthVal < 0) throw new IndexOutOfBoundsException(s"negative length")
-        val startVal = origVal.length - lengthVal
-        origVal.substring(Math.max(0,startVal))
-      case _ => StringFunction.notAString(value)
-    }
+  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue =
+    CypherFunctions.right(value, length(m, state))
 
-  override def arguments = Seq(orig, length)
+  override def arguments: Seq[Expression] = Seq(orig, length)
 
-  override def rewrite(f: (Expression) => Expression) = f(RightFunction(orig.rewrite(f), length.rewrite(f)))
+  override def children: Seq[AstNode[_]] = arguments
 
-  override def symbolTableDependencies = orig.symbolTableDependencies ++
+  override def rewrite(f: Expression => Expression): Expression = f(RightFunction(orig.rewrite(f), length.rewrite(f)))
+
+  override def symbolTableDependencies: Set[String] = orig.symbolTableDependencies ++
     length.symbolTableDependencies
 }

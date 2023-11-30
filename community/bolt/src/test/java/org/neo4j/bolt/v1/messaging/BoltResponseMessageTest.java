@@ -45,18 +45,17 @@ import org.junit.rules.ExpectedException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-import org.neo4j.bolt.logging.NullBoltMessageLogger;
-import org.neo4j.bolt.v1.messaging.message.FailureMessage;
-import org.neo4j.bolt.v1.messaging.message.IgnoredMessage;
-import org.neo4j.bolt.v1.messaging.message.RecordMessage;
-import org.neo4j.bolt.v1.messaging.message.ResponseMessage;
-import org.neo4j.bolt.v1.messaging.message.SuccessMessage;
+import org.neo4j.bolt.messaging.Neo4jPack;
+import org.neo4j.bolt.messaging.ResponseMessage;
+import org.neo4j.bolt.v1.messaging.response.FailureMessage;
+import org.neo4j.bolt.v1.messaging.response.RecordMessage;
+import org.neo4j.bolt.v1.messaging.response.SuccessMessage;
 import org.neo4j.bolt.v1.packstream.BufferedChannelInput;
 import org.neo4j.bolt.v1.packstream.BufferedChannelOutput;
 import org.neo4j.kernel.api.exceptions.Status;
-import org.neo4j.kernel.impl.logging.NullLogService;
 import org.neo4j.kernel.impl.util.HexPrinter;
 import org.neo4j.kernel.impl.util.ValueUtils;
+import org.neo4j.logging.internal.NullLogService;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.virtual.NodeValue;
 import org.neo4j.values.virtual.RelationshipValue;
@@ -74,6 +73,7 @@ import static org.neo4j.bolt.v1.messaging.example.Paths.PATH_WITH_LOOP;
 import static org.neo4j.bolt.v1.messaging.example.Paths.PATH_WITH_NODES_VISITED_MULTIPLE_TIMES;
 import static org.neo4j.bolt.v1.messaging.example.Paths.PATH_WITH_RELATIONSHIP_TRAVERSED_AGAINST_ITS_DIRECTION;
 import static org.neo4j.bolt.v1.messaging.example.Paths.PATH_WITH_RELATIONSHIP_TRAVERSED_MULTIPLE_TIMES_IN_SAME_DIRECTION;
+import static org.neo4j.bolt.v1.messaging.response.IgnoredMessage.IGNORED_MESSAGE;
 import static org.neo4j.bolt.v1.messaging.util.MessageMatchers.serialize;
 import static org.neo4j.bolt.v1.runtime.spi.Records.record;
 import static org.neo4j.helpers.collection.MapUtil.map;
@@ -97,7 +97,7 @@ public class BoltResponseMessageTest
         assertSerializes( new RecordMessage( record( longValue( 1L ), stringValue( "b" ), longValue( 2L ) ) ) );
         assertSerializes( new SuccessMessage( VirtualValues.EMPTY_MAP ) );
         assertSerializes( new FailureMessage( Status.General.UnknownError, "Err" ) );
-        assertSerializes( new IgnoredMessage() );
+        assertSerializes( IGNORED_MESSAGE );
     }
 
     @Test
@@ -249,10 +249,9 @@ public class BoltResponseMessageTest
         BoltResponseMessageReader reader = new BoltResponseMessageReader(
                 neo4jPack.newUnpacker( new BufferedChannelInput( 16 ).reset( channel ) ) );
         BufferedChannelOutput output = new BufferedChannelOutput( channel );
-        BoltResponseMessageWriter writer = new BoltResponseMessageWriter( neo4jPack, output,
-                NullLogService.getInstance(), NullBoltMessageLogger.getInstance() );
+        BoltResponseMessageWriterV1 writer = new BoltResponseMessageWriterV1( neo4jPack::newPacker, output, NullLogService.getInstance() );
 
-        msg.dispatch( writer );
+        writer.write( msg );
         writer.flush();
 
         channel.eof();

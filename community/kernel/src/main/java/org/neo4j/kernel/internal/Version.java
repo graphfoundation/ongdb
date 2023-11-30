@@ -55,19 +55,9 @@ public class Version extends Service
         return getKernel().getVersion();
     }
 
-    public static String getONgDBVersion()
+    public static String getNeo4jVersion()
     {
         return getKernel().getReleaseVersion();
-    }
-
-    public static String getCompatibilityVersion()
-    {
-        return "3.4.0";
-    }
-
-    public static String getProtocolCompatibilityVersion()
-    {
-        return "Neo4j/" + getCompatibilityVersion();
     }
 
     private final String artifactId;
@@ -127,7 +117,7 @@ public class Version extends Service
         super( artifactId );
         this.artifactId = artifactId;
         this.title = artifactId;
-        this.vendor = "Graph Foundation";
+        this.vendor = "Neo Technology";
         this.version = version == null ? "dev" : version;
         this.releaseVersion = parseReleaseVersion( this.version );
     }
@@ -159,7 +149,7 @@ public class Version extends Service
     }
 
     /**
-     * A very nice to have main-method for quickly checking the version of a ONgDB kernel,
+     * A very nice to have main-method for quickly checking the version of a neo4j kernel,
      * for example given a kernel jar file.
      */
     public static void main( String[] args )
@@ -172,7 +162,7 @@ public class Version extends Service
         System.out.println( "Version: " + kernelVersion.getVersion() );
     }
 
-    static final String KERNEL_ARTIFACT_ID = "ongdb-kernel";
+    static final String KERNEL_ARTIFACT_ID = "neo4j-kernel";
     private static final Version KERNEL_VERSION = new Version( KERNEL_ARTIFACT_ID,
             Version.class.getPackage().getImplementationVersion() );
 }

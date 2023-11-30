@@ -43,6 +43,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.StandardOpenOption;
@@ -51,14 +52,14 @@ import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
-import org.neo4j.collection.primitive.Primitive;
-import org.neo4j.collection.primitive.PrimitiveLongSet;
 import org.neo4j.cursor.RawCursor;
 import org.neo4j.helpers.Exceptions;
+import org.neo4j.io.pagecache.CursorException;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.io.pagecache.PagedFile;
+import org.neo4j.util.VisibleForTesting;
 
 import static java.lang.String.format;
 import static org.neo4j.helpers.Exceptions.withMessage;
@@ -190,6 +191,16 @@ public class GBPTree<KEY,VALUE> implements Closeable
             public void startupState( boolean clean )
             {   // no-op
             }
+
+            @Override
+            public void treeGrowth()
+            {   // no-op
+            }
+
+            @Override
+            public void treeShrink()
+            {   // no-op
+            }
         }
 
         /**
@@ -239,6 +250,16 @@ public class GBPTree<KEY,VALUE> implements Closeable
          * @param clean true if tree was clean on startup.
          */
         void startupState( boolean clean );
+
+        /**
+         * Report tree growth, meaning split in root.
+         */
+        void treeGrowth();
+
+        /**
+         * Report tree shrink, when root becomes empty.
+         */
+        void treeShrink();
     }
 
     /**
@@ -370,9 +391,15 @@ public class GBPTree<KEY,VALUE> implements Closeable
     private final Monitor monitor;
 
     /**
+     * If this tree is read only, no changes will be made to it. No generation bumping, no checkpointing, no nothing.
+     */
+    private final boolean readOnly;
+
+    /**
      * Whether or not this tree has been closed. Accessed and changed solely in
      * {@link #close()} to be able to close tree multiple times gracefully.
      */
+    @SuppressWarnings( "UnusedAssignment" )
     private boolean closed = true;
 
     /**
@@ -457,21 +484,22 @@ public class GBPTree<KEY,VALUE> implements Closeable
      * or {@link #close()}
      * @param headerWriter writes header data if indexFile is created as a result of this call.
      * @param recoveryCleanupWorkCollector collects recovery cleanup jobs for execution after recovery.
-     * @throws IOException on page cache error
+     * @param readOnly Opening tree in readOnly mode will prevent any modifications to it.
+     * @throws UncheckedIOException on page cache error
      * @throws MetadataMismatchException if meta information does not match constructor parameters or meta page is missing
      */
     public GBPTree( PageCache pageCache, File indexFile, Layout<KEY,VALUE> layout, int tentativePageSize,
             Monitor monitor, Header.Reader headerReader, Consumer<PageCursor> headerWriter,
-            RecoveryCleanupWorkCollector recoveryCleanupWorkCollector ) throws IOException, MetadataMismatchException
+            RecoveryCleanupWorkCollector recoveryCleanupWorkCollector, boolean readOnly ) throws MetadataMismatchException
     {
         this.indexFile = indexFile;
         this.monitor = monitor;
+        this.readOnly = readOnly;
         this.generation = Generation.generation( MIN_GENERATION, MIN_GENERATION + 1 );
         long rootId = IdSpace.MIN_TREE_NODE_ID;
         setRoot( rootId, Generation.unstableGeneration( generation ) );
         this.layout = layout;
 
-        boolean success = false;
         try
         {
             this.pagedFile = openOrCreate( pageCache, indexFile, tentativePageSize );
@@ -491,7 +519,7 @@ public class GBPTree<KEY,VALUE> implements Closeable
             }
             this.bTreeNode = format.create( pageSize, layout );
             this.freeList = new FreeListIdProvider( pagedFile, pageSize, rootId, FreeListIdProvider.NO_MONITOR );
-            this.writer = new SingleWriter( new InternalTreeLogic<>( freeList, bTreeNode, layout ) );
+            this.writer = new SingleWriter( new InternalTreeLogic<>( freeList, bTreeNode, layout, monitor ) );
 
             // Create or load state
             if ( created )
@@ -508,22 +536,40 @@ public class GBPTree<KEY,VALUE> implements Closeable
             dirtyOnStartup = !clean;
             clean = false;
             bumpUnstableGeneration();
-            forceState();
-            cleaning = createCleanupJob( recoveryCleanupWorkCollector, dirtyOnStartup );
-            success = true;
-        }
-        catch ( Throwable t )
-        {
-            appendTreeInformation( t );
-            throw t;
-        }
-        finally
-        {
-            if ( !success )
+            if ( !readOnly )
             {
-                close();
+                forceState();
+                cleaning = createCleanupJob( recoveryCleanupWorkCollector, dirtyOnStartup );
+            }
+            else
+            {
+                cleaning = CleanupJob.CLEAN;
             }
         }
+        catch ( IOException e )
+        {
+            throw exitConstructor( new UncheckedIOException( e ) );
+        }
+        catch ( Throwable e )
+        {
+            throw exitConstructor( e );
+        }
+    }
+
+    private RuntimeException exitConstructor( Throwable throwable )
+    {
+        try
+        {
+            close();
+        }
+        catch ( IOException e )
+        {
+            throwable = Exceptions.chain( new UncheckedIOException( e ), throwable );
+        }
+
+        appendTreeInformation( throwable );
+        Exceptions.throwIfUnchecked( throwable );
+        return new RuntimeException( throwable );
     }
 
     private void initializeAfterCreation( Consumer<PageCursor> headerWriter ) throws IOException
@@ -548,7 +594,7 @@ public class GBPTree<KEY,VALUE> implements Closeable
         changesSinceLastCheckpoint = true;
 
         // Checkpoint to make the created root node stable. Forcing tree state also piggy-backs on this.
-        checkpoint( IOLimiter.unlimited(), headerWriter );
+        checkpoint( IOLimiter.UNLIMITED, headerWriter );
         clean = true;
     }
 
@@ -561,11 +607,16 @@ public class GBPTree<KEY,VALUE> implements Closeable
         }
         catch ( NoSuchFileException e )
         {
-            return createNewIndexFile( pageCache, indexFile, pageSizeForCreation );
+            if ( !readOnly )
+            {
+                return createNewIndexFile( pageCache, indexFile, pageSizeForCreation );
+            }
+            throw new TreeFileNotFoundException( "Can not create new tree file in read only mode.", e );
         }
     }
 
-    private static PagedFile openExistingIndexFile( PageCache pageCache, File indexFile ) throws IOException, MetadataMismatchException
+    private static PagedFile openExistingIndexFile( PageCache pageCache, File indexFile )
+            throws IOException, MetadataMismatchException
     {
         PagedFile pagedFile = pageCache.map( indexFile, pageCache.pageSize() );
         // This index already exists, verify meta data aligns with expectations
@@ -890,11 +941,18 @@ public class GBPTree<KEY,VALUE> implements Closeable
      *
      * @param ioLimiter for controlling I/O usage.
      * @param headerWriter hook for writing header data, must leave cursor at end of written header.
-     * @throws IOException on error flushing to storage.
+     * @throws UncheckedIOException on error flushing to storage.
      */
-    public void checkpoint( IOLimiter ioLimiter, Consumer<PageCursor> headerWriter ) throws IOException
+    public void checkpoint( IOLimiter ioLimiter, Consumer<PageCursor> headerWriter )
     {
-        checkpoint( ioLimiter, replace( headerWriter ) );
+        try
+        {
+            checkpoint( ioLimiter, replace( headerWriter ) );
+        }
+        catch ( IOException e )
+        {
+            throw new UncheckedIOException( e );
+        }
     }
 
     /**
@@ -902,16 +960,27 @@ public class GBPTree<KEY,VALUE> implements Closeable
      * written in previous check point.
      *
      * @param ioLimiter for controlling I/O usage.
-     * @throws IOException on error flushing to storage.
+     * @throws UncheckedIOException on error flushing to storage.
      * @see #checkpoint(IOLimiter, Consumer)
      */
-    public void checkpoint( IOLimiter ioLimiter ) throws IOException
+    public void checkpoint( IOLimiter ioLimiter )
     {
-        checkpoint( ioLimiter, CARRY_OVER_PREVIOUS_HEADER );
+        try
+        {
+            checkpoint( ioLimiter, CARRY_OVER_PREVIOUS_HEADER );
+        }
+        catch ( IOException e )
+        {
+            throw new UncheckedIOException( e );
+        }
     }
 
     private void checkpoint( IOLimiter ioLimiter, Header.Writer headerWriter ) throws IOException
     {
+        if ( readOnly )
+        {
+            return;
+        }
         // Flush dirty pages of the tree, do this before acquiring the lock so that writers won't be
         // blocked while we do this
         pagedFile.flushAndForce( ioLimiter );
@@ -958,6 +1027,14 @@ public class GBPTree<KEY,VALUE> implements Closeable
         }
     }
 
+    private void assertNotReadOnly( String operationDescription )
+    {
+        if ( readOnly )
+        {
+            throw new UnsupportedOperationException( "GBPTree was opened in read only mode and can not finish operation: " + operationDescription );
+        }
+    }
+
     /**
      * Closes this tree and its associated resources.
      * <p>
@@ -968,6 +1045,12 @@ public class GBPTree<KEY,VALUE> implements Closeable
     @Override
     public void close() throws IOException
     {
+        if ( readOnly )
+        {
+            // Close without forcing state
+            doClose();
+            return;
+        }
         lock.writerLock();
         try
         {
@@ -976,14 +1059,16 @@ public class GBPTree<KEY,VALUE> implements Closeable
                 return;
             }
 
-            internalIndexClose();
+            maybeForceCleanState();
+            doClose();
         }
         catch ( IOException ioe )
         {
             try
             {
                 pagedFile.flushAndForce();
-                internalIndexClose();
+                maybeForceCleanState();
+                doClose();
             }
             catch ( IOException e )
             {
@@ -997,30 +1082,49 @@ public class GBPTree<KEY,VALUE> implements Closeable
         }
     }
 
-    private void internalIndexClose() throws IOException
+    private void maybeForceCleanState() throws IOException
     {
         if ( cleaning != null && !changesSinceLastCheckpoint && !cleaning.needed() )
         {
             clean = true;
             forceState();
         }
-        pagedFile.close();
+    }
+
+    private void doClose() throws IOException
+    {
+        if ( pagedFile != null )
+        {
+            // Will be null if exception while mapping file
+            pagedFile.close();
+        }
         closed = true;
+    }
+
+    /**
+     * Use default value for ratioToKeepInLeftOnSplit
+     * @see GBPTree#writer(double)
+     */
+    public Writer<KEY,VALUE> writer() throws IOException
+    {
+        return writer( InternalTreeLogic.DEFAULT_SPLIT_RATIO );
     }
 
     /**
      * Returns a {@link Writer} able to modify the index, i.e. insert and remove keys/values.
      * After usage the returned writer must be closed, typically by using try-with-resource clause.
      *
+     * @param ratioToKeepInLeftOnSplit Decide how much to keep in left node on split, 0=keep nothing, 0.5=split 50-50, 1=keep everything.
      * @return the single {@link Writer} for this index. The returned writer must be
      * {@link Writer#close() closed} before another caller can acquire this writer.
      * @throws IOException on error accessing the index.
      * @throws IllegalStateException for calls made between a successful call to this method and closing the
      * returned writer.
      */
-    public Writer<KEY,VALUE> writer() throws IOException
+    public Writer<KEY,VALUE> writer( double ratioToKeepInLeftOnSplit ) throws IOException
     {
-        writer.initialize();
+        assertNotReadOnly( "Open tree writer." );
+        writer.initialize( ratioToKeepInLeftOnSplit );
         changesSinceLastCheckpoint = true;
         return writer;
     }
@@ -1042,6 +1146,7 @@ public class GBPTree<KEY,VALUE> implements Closeable
 
     private void forceState() throws IOException
     {
+        assertNotReadOnly( "Force tree state." );
         if ( changesSinceLastCheckpoint )
         {
             throw new IllegalStateException( "It seems that this method has been called in the wrong state. " +
@@ -1081,10 +1186,21 @@ public class GBPTree<KEY,VALUE> implements Closeable
         }
     }
 
-    @SuppressWarnings( "unused" )
-    void printTree() throws IOException
+    public <VISITOR extends GBPTreeVisitor<KEY,VALUE>> VISITOR visit( VISITOR visitor ) throws IOException
     {
-        printTree( false, false, false, false );
+        try ( PageCursor cursor = openRootCursor( PagedFile.PF_SHARED_READ_LOCK ) )
+        {
+            new GBPTreeStructure<>( bTreeNode, layout, stableGeneration( generation ), unstableGeneration( generation ) )
+                    .visitTree( cursor, writer.cursor, visitor );
+            freeList.visitFreelist( visitor );
+        }
+        return visitor;
+    }
+
+    @SuppressWarnings( "unused" )
+    public void printTree() throws IOException
+    {
+        printTree( false, false, false, false, false );
     }
 
     // Utility method
@@ -1095,23 +1211,33 @@ public class GBPTree<KEY,VALUE> implements Closeable
      * @param printPosition whether or not to print position for each key.
      * @param printState whether or not to print the tree state.
      * @param printHeader whether or not to print header of each tree node
+     * @param printFreelist whether or not to print freelist
      * @throws IOException on I/O error.
      */
     @SuppressWarnings( "SameParameterValue" )
-    void printTree( boolean printValues, boolean printPosition, boolean printState, boolean printHeader ) throws IOException
+    void printTree( boolean printValues, boolean printPosition, boolean printState, boolean printHeader, boolean printFreelist ) throws IOException
+    {
+        PrintingGBPTreeVisitor<KEY,VALUE> printingVisitor = new PrintingGBPTreeVisitor<>( System.out, printValues, printPosition, printState, printHeader,
+                printFreelist );
+        visit( printingVisitor );
+    }
+
+    // Utility method
+    public void printState() throws IOException
     {
         try ( PageCursor cursor = openRootCursor( PagedFile.PF_SHARED_READ_LOCK ) )
         {
-            new TreePrinter<>( bTreeNode, layout, stableGeneration( generation ), unstableGeneration( generation ) )
-                .printTree( cursor, writer.cursor, System.out, printValues, printPosition, printState, printHeader );
+            PrintingGBPTreeVisitor<KEY,VALUE> printingVisitor = new PrintingGBPTreeVisitor<>( System.out, false, false, true, false, false );
+            GBPTreeStructure.visitTreeState( cursor, printingVisitor );
         }
     }
+
     // Utility method
     /**
      * Print node with given id to System.out, if node with id exists.
      * @param id the page id of node to print
      */
-    void printNode( int id ) throws IOException
+    void printNode( long id ) throws IOException
     {
         if ( id < freeList.lastId() )
         {
@@ -1128,26 +1254,52 @@ public class GBPTree<KEY,VALUE> implements Closeable
         }
     }
 
-    // Utility method
-    boolean consistencyCheck() throws IOException
+    public boolean consistencyCheck() throws IOException
     {
+        return consistencyCheck( true );
+    }
+
+    public boolean consistencyCheck( boolean reportCrashPointers ) throws IOException
+    {
+        ThrowingConsistencyCheckVisitor<KEY> reporter = new ThrowingConsistencyCheckVisitor<>();
+        return consistencyCheck( reporter, reportCrashPointers );
+    }
+
+    public boolean consistencyCheck( GBPTreeConsistencyCheckVisitor<KEY> visitor ) throws IOException
+    {
+        return consistencyCheck( visitor, true );
+    }
+
+    // Utility method
+    public boolean consistencyCheck( GBPTreeConsistencyCheckVisitor<KEY> visitor, boolean reportCrashPointers ) throws IOException
+    {
+        CleanTrackingConsistencyCheckVisitor<KEY> cleanTrackingVisitor = new CleanTrackingConsistencyCheckVisitor<>( visitor );
         try ( PageCursor cursor = pagedFile.io( 0L /*ignored*/, PagedFile.PF_SHARED_READ_LOCK ) )
         {
             long unstableGeneration = unstableGeneration( generation );
-            ConsistencyChecker<KEY> consistencyChecker = new ConsistencyChecker<>( bTreeNode, layout,
-                    stableGeneration( generation ), unstableGeneration );
+            GBPTreeConsistencyChecker<KEY> consistencyChecker = new GBPTreeConsistencyChecker<>( bTreeNode, layout, freeList,
+                    stableGeneration( generation ), unstableGeneration, reportCrashPointers );
 
-            long rootGeneration = root.goTo( cursor );
-            boolean check = consistencyChecker.check( cursor, rootGeneration );
-            root.goTo( cursor );
-
-            PrimitiveLongSet freelistIds = Primitive.longSet();
-            freeList.visitFreelistPageIds( freelistIds::add );
-            freeList.visitUnacquiredIds( freelistIds::add, unstableGeneration );
-            boolean checkSpace = consistencyChecker.checkSpace( cursor, freeList.lastId(), freelistIds.iterator() );
-
-            return check && checkSpace;
+            consistencyChecker.check( indexFile, cursor, root, cleanTrackingVisitor );
         }
+        catch ( TreeInconsistencyException | MetadataMismatchException | CursorException e )
+        {
+            cleanTrackingVisitor.exception( e );
+        }
+        return cleanTrackingVisitor.clean();
+    }
+
+    @VisibleForTesting
+    public void unsafe( GBPTreeUnsafe<KEY,VALUE> unsafe ) throws IOException
+    {
+        TreeState state;
+        try ( PageCursor cursor = pagedFile.io( 0, PagedFile.PF_SHARED_WRITE_LOCK ) )
+        {
+            // todo find better way of getting TreeState?
+            Pair<TreeState,TreeState> states = TreeStatePair.readStatePages( cursor, IdSpace.STATE_PAGE_A, IdSpace.STATE_PAGE_B );
+            state = TreeStatePair.selectNewestValidState( states );
+        }
+        unsafe.access( pagedFile, layout, bTreeNode, state );
     }
 
     @Override
@@ -1159,9 +1311,9 @@ public class GBPTree<KEY,VALUE> implements Closeable
                 stableGeneration( generation ), unstableGeneration( generation ) );
     }
 
-    private <E extends Throwable> E appendTreeInformation( E e )
+    private <E extends Throwable> void appendTreeInformation( E e )
     {
-        return Exceptions.withMessage( e, e.getMessage() + " | " + toString() );
+        Exceptions.withMessage( e, e.getMessage() + " | " + toString() );
     }
 
     private class SingleWriter implements Writer<KEY,VALUE>
@@ -1179,6 +1331,7 @@ public class GBPTree<KEY,VALUE> implements Closeable
         // therefore safe to locally cache these generation fields from the volatile generation in the tree
         private long stableGeneration;
         private long unstableGeneration;
+        private double ratioToKeepInLeftOnSplit;
 
         SingleWriter( InternalTreeLogic<KEY,VALUE> treeLogic )
         {
@@ -1203,8 +1356,9 @@ public class GBPTree<KEY,VALUE> implements Closeable
          * </ul>
          *
          * @throws IOException if fail to open {@link PageCursor}
+         * @param ratioToKeepInLeftOnSplit Decide how much to keep in left node on split, 0=keep nothing, 0.5=split 50-50, 1=keep everything.
          */
-        void initialize() throws IOException
+        void initialize( double ratioToKeepInLeftOnSplit ) throws IOException
         {
             if ( !writerTaken.compareAndSet( false, true ) )
             {
@@ -1222,8 +1376,9 @@ public class GBPTree<KEY,VALUE> implements Closeable
                 cursor = openRootCursor( PagedFile.PF_SHARED_WRITE_LOCK );
                 stableGeneration = stableGeneration( generation );
                 unstableGeneration = unstableGeneration( generation );
+                this.ratioToKeepInLeftOnSplit = ratioToKeepInLeftOnSplit;
                 assert assertNoSuccessor( cursor, stableGeneration, unstableGeneration );
-                treeLogic.initialize( cursor );
+                treeLogic.initialize( cursor, ratioToKeepInLeftOnSplit );
                 success = true;
             }
             catch ( Throwable e )
@@ -1241,26 +1396,42 @@ public class GBPTree<KEY,VALUE> implements Closeable
         }
 
         @Override
-        public void put( KEY key, VALUE value ) throws IOException
+        public void put( KEY key, VALUE value )
         {
             merge( key, value, ValueMergers.overwrite() );
         }
 
         @Override
-        public void merge( KEY key, VALUE value, ValueMerger<KEY,VALUE> valueMerger ) throws IOException
+        public void merge( KEY key, VALUE value, ValueMerger<KEY,VALUE> valueMerger )
+        {
+            internalMerge( key, value, valueMerger, true );
+        }
+
+        @Override
+        public void mergeIfExists( KEY key, VALUE value, ValueMerger<KEY,VALUE> valueMerger )
+        {
+            internalMerge( key, value, valueMerger, false );
+        }
+
+        private void internalMerge( KEY key, VALUE value, ValueMerger<KEY,VALUE> valueMerger, boolean createIfNotExists )
         {
             try
             {
-                treeLogic.insert( cursor, structurePropagation, key, value, valueMerger,
+                treeLogic.insert( cursor, structurePropagation, key, value, valueMerger, createIfNotExists,
                         stableGeneration, unstableGeneration );
+
+                handleStructureChanges();
             }
-            catch ( Throwable e )
+            catch ( IOException e )
             {
                 appendTreeInformation( e );
-                throw e;
+                throw new UncheckedIOException( e );
             }
-
-            handleStructureChanges();
+            catch ( Throwable t )
+            {
+                appendTreeInformation( t );
+                throw t;
+            }
 
             checkOutOfBounds( cursor );
         }
@@ -1269,25 +1440,30 @@ public class GBPTree<KEY,VALUE> implements Closeable
         {
             long rootId = GenerationSafePointerPair.pointer( rootPointer );
             GBPTree.this.setRoot( rootId, unstableGeneration );
-            treeLogic.initialize( cursor );
+            treeLogic.initialize( cursor, ratioToKeepInLeftOnSplit );
         }
 
         @Override
-        public VALUE remove( KEY key ) throws IOException
+        public VALUE remove( KEY key )
         {
             VALUE result;
             try
             {
                 result = treeLogic.remove( cursor, structurePropagation, key, layout.newValue(),
                         stableGeneration, unstableGeneration );
+
+                handleStructureChanges();
+            }
+            catch ( IOException e )
+            {
+                appendTreeInformation( e );
+                throw new UncheckedIOException( e );
             }
             catch ( Throwable e )
             {
                 appendTreeInformation( e );
                 throw e;
             }
-
-            handleStructureChanges();
 
             checkOutOfBounds( cursor );
             return result;
@@ -1308,6 +1484,7 @@ public class GBPTree<KEY,VALUE> implements Closeable
                         stableGeneration, unstableGeneration );
                 TreeNode.setKeyCount( cursor, 1 );
                 setRoot( newRootId );
+                monitor.treeGrowth();
             }
             else if ( structurePropagation.hasMidChildUpdate )
             {

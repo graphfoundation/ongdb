@@ -38,7 +38,7 @@
  */
 package org.neo4j.cypher.internal.runtime
 
-import org.neo4j.cypher.internal.util.v3_4.InvalidSemanticsException
+import org.neo4j.cypher.internal.v3_5.util.InvalidSemanticsException
 
 object ExecutionMode {
   def cantMixProfileAndExplain: Nothing =

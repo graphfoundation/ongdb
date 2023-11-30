@@ -46,7 +46,7 @@ import org.neo4j.graphdb.index.IndexPopulationProgress;
 
 /**
  * Interface for managing the schema of your graph database. This currently includes
- * the indexing support added in Neo4j 2.0. Please see the ONgDB manual for details.
+ * the indexing support added in Neo4j 2.0. Please see the Neo4j manual for details.
  *
  * Compatibility note: New methods may be added to this interface without notice,
  * backwards compatibility is only guaranteed for clients of this interface, not for
@@ -181,4 +181,12 @@ public interface Schema
      *             FAILED state
      */
     void awaitIndexesOnline( long duration, TimeUnit unit );
+
+    /**
+     * Get an {@link IndexDefinition} by the given name of the index.
+     * @param indexName The given name of the index.
+     * @return The index with that given name.
+     * @throws IllegalArgumentException if there is no index with that given name.
+     */
+    IndexDefinition getIndexByName( String indexName );
 }

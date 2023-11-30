@@ -50,25 +50,41 @@ public interface TokenWrite
     int labelGetOrCreateForName( String labelName ) throws IllegalTokenNameException, TooManyLabelsException;
 
     /**
-     * Creates a label with the given id
-     * @param labelName the name of the label
-     * @param id the id of the label
+     * Get or create the label token ids for each of the given {@code labelNames}, and store them at the corresponding
+     * index in the given {@code labelIds} array.
+     *
+     * This is effectively a batching version of {@link #labelGetOrCreateForName(String)}.
+     *
+     * @param labelNames The array of label names for which to resolve or create their id.
+     * @param labelIds The array into which the resulting token ids will be stored.
+     * @throws TooManyLabelsException if too many labels would bve created by this call, compared to the token id space
+     * available.
      */
-    void labelCreateForName( String labelName, int id ) throws IllegalTokenNameException, TooManyLabelsException;
+    void labelGetOrCreateForNames( String[] labelNames, int[] labelIds )
+            throws IllegalTokenNameException, TooManyLabelsException;
 
     /**
-     * Creates a property token with the given id
-     * @param propertyKeyName the name of the property
-     * @param id the id of the property
+     * Creates a label with the given name.
+     *
+     * @param labelName the name of the label.
+     * @return id of the created label.
      */
-    void propertyKeyCreateForName( String propertyKeyName, int id ) throws IllegalTokenNameException;
+    int labelCreateForName( String labelName ) throws IllegalTokenNameException, TooManyLabelsException;
 
     /**
-     * Creates a relationship type with the given id
-     * @param relationshipTypeName the name of the relationship
-     * @param id the relationship type
+     * Creates a property token with the given name.
+     *
+     * @param propertyKeyName the name of the property.
+     * @return id of the created property key.
      */
-    void relationshipTypeCreateForName( String relationshipTypeName, int id ) throws IllegalTokenNameException;
+    int propertyKeyCreateForName( String propertyKeyName ) throws IllegalTokenNameException;
+
+    /**
+     * Creates a relationship type with the given name.
+     * @param relationshipTypeName the name of the relationship.
+     * @return id of the created relationship type.
+     */
+    int relationshipTypeCreateForName( String relationshipTypeName ) throws IllegalTokenNameException;
 
     /**
      * Returns a property key id for a property key. If the key doesn't exist prior to
@@ -77,9 +93,31 @@ public interface TokenWrite
     int propertyKeyGetOrCreateForName( String propertyKeyName ) throws IllegalTokenNameException;
 
     /**
+     * Get or create the property token ids for each of the given {@code propertyKeys}, and store them at the
+     * corresponding index in the given {@code ids} array.
+     *
+     * This is effectively a batching version of {@link #propertyKeyGetOrCreateForName(String)}.
+     *
+     * @param propertyKeys The array of property names for which to resolve or create their id.
+     * @param ids The array into which the resulting token ids will be stored.
+     */
+    void propertyKeyGetOrCreateForNames( String[] propertyKeys, int[] ids ) throws IllegalTokenNameException;
+
+    /**
      * Returns the id associated with the relationship type or creates a new one.
      * @param relationshipTypeName the name of the relationship
      * @return the id associated with the name
      */
     int relationshipTypeGetOrCreateForName( String relationshipTypeName ) throws IllegalTokenNameException;
+
+    /**
+     * Get or create the relationship type token ids for each of the given {@code relationshipTypes}, and store them at
+     * the corresponding index in the given {@code ids} array.
+     *
+     * This is effectively a batching version of {@link #relationshipTypeGetOrCreateForName(String)}.
+     *
+     * @param relationshipTypes The array of relationship type names for which to resolve or create their id.
+     * @param ids The array into which the resulting token ids will be stored.
+     */
+    void relationshipTypeGetOrCreateForNames( String[] relationshipTypes, int[] ids ) throws IllegalTokenNameException;
 }

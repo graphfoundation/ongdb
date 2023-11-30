@@ -43,18 +43,18 @@ import java.io.IOException;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.index.PropertyAccessor;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.values.storable.ValueGroup;
 
 public class TemporalIndexPopulatingUpdater extends TemporalIndexCache<IndexUpdater> implements IndexUpdater
 {
-    TemporalIndexPopulatingUpdater( TemporalIndexPopulator populator, PropertyAccessor propertyAccessor )
+    TemporalIndexPopulatingUpdater( TemporalIndexPopulator populator, NodePropertyAccessor nodePropertyAccessor )
     {
-        super( new PartFactory( populator, propertyAccessor ) );
+        super( new PartFactory( populator, nodePropertyAccessor ) );
     }
 
     @Override
-    public void process( IndexEntryUpdate<?> update ) throws IOException, IndexEntryConflictException
+    public void process( IndexEntryUpdate<?> update ) throws IndexEntryConflictException
     {
         switch ( update.updateMode() )
         {
@@ -90,7 +90,7 @@ public class TemporalIndexPopulatingUpdater extends TemporalIndexCache<IndexUpda
     }
 
     @Override
-    public void close() throws IOException, IndexEntryConflictException
+    public void close() throws IndexEntryConflictException
     {
         for ( IndexUpdater part : this )
         {
@@ -101,48 +101,48 @@ public class TemporalIndexPopulatingUpdater extends TemporalIndexCache<IndexUpda
     static class PartFactory implements TemporalIndexCache.Factory<IndexUpdater>
     {
         private final TemporalIndexPopulator populator;
-        private PropertyAccessor propertyAccessor;
+        private NodePropertyAccessor nodePropertyAccessor;
 
-        PartFactory( TemporalIndexPopulator populator, PropertyAccessor propertyAccessor )
+        PartFactory( TemporalIndexPopulator populator, NodePropertyAccessor nodePropertyAccessor )
         {
             this.populator = populator;
-            this.propertyAccessor = propertyAccessor;
+            this.nodePropertyAccessor = nodePropertyAccessor;
         }
 
         @Override
         public IndexUpdater newDate() throws IOException
         {
-            return populator.select(ValueGroup.DATE).newPopulatingUpdater( propertyAccessor );
+            return populator.select(ValueGroup.DATE).newPopulatingUpdater( nodePropertyAccessor );
         }
 
         @Override
         public IndexUpdater newLocalDateTime() throws IOException
         {
-            return populator.select(ValueGroup.LOCAL_DATE_TIME).newPopulatingUpdater( propertyAccessor );
+            return populator.select(ValueGroup.LOCAL_DATE_TIME).newPopulatingUpdater( nodePropertyAccessor );
         }
 
         @Override
         public IndexUpdater newZonedDateTime() throws IOException
         {
-            return populator.select(ValueGroup.ZONED_DATE_TIME).newPopulatingUpdater( propertyAccessor );
+            return populator.select(ValueGroup.ZONED_DATE_TIME).newPopulatingUpdater( nodePropertyAccessor );
         }
 
         @Override
         public IndexUpdater newLocalTime() throws IOException
         {
-            return populator.select(ValueGroup.LOCAL_TIME).newPopulatingUpdater( propertyAccessor );
+            return populator.select(ValueGroup.LOCAL_TIME).newPopulatingUpdater( nodePropertyAccessor );
         }
 
         @Override
         public IndexUpdater newZonedTime() throws IOException
         {
-            return populator.select(ValueGroup.ZONED_TIME).newPopulatingUpdater( propertyAccessor );
+            return populator.select(ValueGroup.ZONED_TIME).newPopulatingUpdater( nodePropertyAccessor );
         }
 
         @Override
         public IndexUpdater newDuration() throws IOException
         {
-            return populator.select(ValueGroup.DURATION).newPopulatingUpdater( propertyAccessor );
+            return populator.select(ValueGroup.DURATION).newPopulatingUpdater( nodePropertyAccessor );
         }
     }
 }

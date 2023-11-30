@@ -38,13 +38,14 @@
  */
 package org.neo4j.kernel.api.impl.schema;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
+import org.neo4j.graphdb.mockfs.EphemeralFileSystemAbstraction;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.index.storage.DirectoryFactory;
 import org.neo4j.kernel.api.impl.index.storage.IndexStorageFactory;
@@ -53,29 +54,31 @@ import org.neo4j.kernel.api.index.IndexAccessor;
 import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexQueryHelper;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
+import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.api.index.IndexUpdateMode;
-import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
+import org.neo4j.storageengine.api.schema.IndexDescriptor;
+import org.neo4j.test.extension.EphemeralFileSystemExtension;
+import org.neo4j.test.extension.Inject;
 import org.neo4j.values.storable.Values;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.neo4j.kernel.api.impl.schema.LuceneIndexProviderFactory.PROVIDER_DESCRIPTOR;
 import static org.neo4j.kernel.api.index.IndexDirectoryStructure.directoriesByProviderKey;
 
-public class AccessUniqueDatabaseIndexTest
+@ExtendWith( EphemeralFileSystemExtension.class )
+class AccessUniqueDatabaseIndexTest
 {
-    @Rule
-    public final EphemeralFileSystemRule fileSystemRule = new EphemeralFileSystemRule();
+    @Inject
+    private EphemeralFileSystemAbstraction fileSystem;
     private final DirectoryFactory directoryFactory = new DirectoryFactory.InMemoryDirectoryFactory();
     private final File storeDirectory = new File( "db" );
-    private final SchemaIndexDescriptor index = SchemaIndexDescriptorFactory.uniqueForLabel( 1000, 100 );
+    private final IndexDescriptor index = TestIndexDescriptorFactory.uniqueForLabel( 1000, 100 );
 
     @Test
-    public void shouldAddUniqueEntries() throws Exception
+    void shouldAddUniqueEntries() throws Exception
     {
         // given
         PartitionedIndexStorage indexStorage = getIndexStorage();
@@ -91,7 +94,7 @@ public class AccessUniqueDatabaseIndexTest
     }
 
     @Test
-    public void shouldUpdateUniqueEntries() throws Exception
+    void shouldUpdateUniqueEntries() throws Exception
     {
         // given
         PartitionedIndexStorage indexStorage = getIndexStorage();
@@ -109,7 +112,7 @@ public class AccessUniqueDatabaseIndexTest
     }
 
     @Test
-    public void shouldRemoveAndAddEntries() throws Exception
+    void shouldRemoveAndAddEntries() throws Exception
     {
         // given
         PartitionedIndexStorage indexStorage = getIndexStorage();
@@ -137,7 +140,7 @@ public class AccessUniqueDatabaseIndexTest
     }
 
     @Test
-    public void shouldConsiderWholeTransactionForValidatingUniqueness() throws Exception
+    void shouldConsiderWholeTransactionForValidatingUniqueness() throws Exception
     {
         // given
         PartitionedIndexStorage indexStorage = getIndexStorage();
@@ -166,7 +169,7 @@ public class AccessUniqueDatabaseIndexTest
 
     private PartitionedIndexStorage getIndexStorage()
     {
-        IndexStorageFactory storageFactory = new IndexStorageFactory( directoryFactory, fileSystemRule.get(),
+        IndexStorageFactory storageFactory = new IndexStorageFactory( directoryFactory, fileSystem,
                 directoriesByProviderKey( storeDirectory ).forProvider( PROVIDER_DESCRIPTOR ) );
         return storageFactory.indexStorageOf( 1 );
     }

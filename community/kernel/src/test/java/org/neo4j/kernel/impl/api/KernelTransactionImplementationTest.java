@@ -46,6 +46,7 @@ import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -54,14 +55,17 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import org.neo4j.graphdb.TransactionTerminatedException;
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.internal.kernel.api.security.LoginContext;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
 import org.neo4j.io.pagecache.tracing.cursor.DefaultPageCursorTracer;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.exceptions.Status;
-import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.kernel.api.security.AnonymousContext;
+import org.neo4j.kernel.api.txstate.ExplicitIndexTransactionState;
 import org.neo4j.kernel.api.txstate.TransactionState;
+import org.neo4j.kernel.api.txstate.auxiliary.AuxiliaryTransactionState;
 import org.neo4j.kernel.impl.locking.Locks;
 import org.neo4j.kernel.impl.locking.NoOpClient;
 import org.neo4j.kernel.impl.locking.SimpleStatementLocks;
@@ -70,8 +74,9 @@ import org.neo4j.kernel.impl.transaction.command.Command;
 import org.neo4j.resources.CpuClock;
 import org.neo4j.resources.HeapAllocation;
 import org.neo4j.storageengine.api.StorageCommand;
-import org.neo4j.storageengine.api.StorageStatement;
+import org.neo4j.storageengine.api.StorageReader;
 import org.neo4j.storageengine.api.lock.ResourceLocker;
+import org.neo4j.storageengine.api.txstate.TxStateVisitor;
 import org.neo4j.test.DoubleLatch;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -94,6 +99,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import static org.neo4j.helpers.collection.MapUtil.map;
 import static org.neo4j.internal.kernel.api.security.LoginContext.AUTH_DISABLED;
 import static org.neo4j.kernel.impl.transaction.log.TransactionIdStore.BASE_TX_COMMIT_TIMESTAMP;
 import static org.neo4j.kernel.impl.transaction.log.TransactionIdStore.BASE_TX_ID;
@@ -130,6 +136,30 @@ public class KernelTransactionImplementationTest extends KernelTransactionTestBa
                 new Object[]{readTxInitializer, false, "readOperationsInNewTransaction"},
                 new Object[]{writeTxInitializer, true, "write"}
         );
+    }
+
+    @Test
+    public void emptyMetadataReturnedWhenMetadataIsNotSet() throws TransactionFailureException
+    {
+        try ( KernelTransaction transaction = newTransaction( loginContext() ) )
+        {
+            Map<String,Object> metaData = transaction.getMetaData();
+            assertTrue( metaData.isEmpty() );
+        }
+    }
+
+    @Test
+    public void accessSpecifiedTransactionMetadata() throws TransactionFailureException
+    {
+        try ( KernelTransaction transaction = newTransaction( loginContext() ) )
+        {
+            Map<String,Object> externalMetadata = map( "Robot", "Bender", "Human", "Fry" );
+            transaction.setMetaData( externalMetadata );
+            Map<String,Object> transactionMetadata = transaction.getMetaData();
+            assertFalse( transactionMetadata.isEmpty() );
+            assertEquals( "Bender", transactionMetadata.get( "Robot" ) );
+            assertEquals( "Fry", transactionMetadata.get( "Human" ) );
+        }
     }
 
     @Test
@@ -388,6 +418,15 @@ public class KernelTransactionImplementationTest extends KernelTransactionTestBa
     {
         // GIVEN a transaction starting at one point in time
         long startingTime = clock.millis();
+        ExplicitIndexTransactionState explicitIndexState = mock( ExplicitIndexTransactionState.class );
+        auxTxStateManager.registerProvider( new ExplicitIndexTransactionStateProvider( null, null )
+        {
+            @Override
+            public AuxiliaryTransactionState createNewAuxiliaryTransactionState()
+            {
+                return explicitIndexState;
+            }
+        });
         when( explicitIndexState.hasChanges() ).thenReturn( true );
         doAnswer( invocation ->
         {
@@ -398,9 +437,9 @@ public class KernelTransactionImplementationTest extends KernelTransactionTestBa
         } ).when( storageEngine ).createCommands(
                 any( Collection.class ),
                 any( TransactionState.class ),
-                any( StorageStatement.class ),
+                any( StorageReader.class ),
                 any( ResourceLocker.class ),
-                anyLong() );
+                anyLong(), any( TxStateVisitor.Decorator.class ) );
 
         try ( KernelTransactionImplementation transaction = newTransaction( loginContext() ) )
         {
@@ -468,7 +507,7 @@ public class KernelTransactionImplementationTest extends KernelTransactionTestBa
         transaction.close();
         SimpleStatementLocks statementLocks = new SimpleStatementLocks( new NoOpClient() );
         transaction.initialize( 1, BASE_TX_COMMIT_TIMESTAMP, statementLocks, KernelTransaction.Type.implicit,
-                loginContext().authorize( s -> -1 ), 0L, 1L );
+                loginContext().authorize( s -> -1, GraphDatabaseSettings.DEFAULT_DATABASE_NAME ), 0L, 1L );
 
         // THEN
         assertEquals( reuseCount + 1, transaction.getReuseCount() );
@@ -689,7 +728,8 @@ public class KernelTransactionImplementationTest extends KernelTransactionTestBa
 
         Locks.Client locksClient = mock( Locks.Client.class );
         SimpleStatementLocks statementLocks = new SimpleStatementLocks( locksClient );
-        tx.initialize( 42, 42, statementLocks, KernelTransaction.Type.implicit, loginContext().authorize( s -> -1 ), 0L, 0L );
+        tx.initialize( 42, 42, statementLocks, KernelTransaction.Type.implicit,
+                loginContext().authorize( s -> -1, GraphDatabaseSettings.DEFAULT_DATABASE_NAME ), 0L, 0L );
 
         assertTrue( tx.markForTermination( reuseCount, terminationReason ) );
 
@@ -710,7 +750,7 @@ public class KernelTransactionImplementationTest extends KernelTransactionTestBa
         Locks.Client locksClient = mock( Locks.Client.class );
         SimpleStatementLocks statementLocks = new SimpleStatementLocks( locksClient );
         tx.initialize( 42, 42, statementLocks, KernelTransaction.Type.implicit,
-                loginContext().authorize( s -> -1 ), 0L, 0L );
+                loginContext().authorize( s -> -1, GraphDatabaseSettings.DEFAULT_DATABASE_NAME ), 0L, 0L );
 
         assertFalse( tx.markForTermination( nextReuseCount, terminationReason ) );
 
@@ -777,7 +817,8 @@ public class KernelTransactionImplementationTest extends KernelTransactionTestBa
         for ( int i = 0; i < times; i++ )
         {
             SimpleStatementLocks statementLocks = new SimpleStatementLocks( new NoOpClient() );
-            tx.initialize( i + 10, i + 10, statementLocks, KernelTransaction.Type.implicit, loginContext().authorize( s -> -1 ), 0L, 0L );
+            tx.initialize( i + 10, i + 10, statementLocks, KernelTransaction.Type.implicit,
+                    loginContext().authorize( s -> -1, GraphDatabaseSettings.DEFAULT_DATABASE_NAME ), 0L, 0L );
             tx.close();
         }
     }

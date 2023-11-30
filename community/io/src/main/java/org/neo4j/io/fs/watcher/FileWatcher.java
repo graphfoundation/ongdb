@@ -49,7 +49,7 @@ import org.neo4j.io.fs.watcher.resource.WatchedResource;
  * Watcher that allows receive notification about files modifications/removal for particular underlying file system.
  *
  * To be able to get notification users need to register resource they are interested in using
- * {@link #watch(File)} method call and add by adding {@link FileWatchEventListener listner} to be able to receive
+ * {@link #watch(File)} method call and add by adding {@link FileWatchEventListener listener} to be able to receive
  * status updates.
  *
  * @see WatchService
@@ -63,7 +63,7 @@ public interface FileWatcher extends Closeable
      * Register provided directory in list of resources that we would like to watch and receive status modification
      * updates
      * @param file directory to be monitored for updates
-     * @return
+     * @return closable resource that represent watched file
      * @throws IOException
      */
     WatchedResource watch( File file ) throws IOException;

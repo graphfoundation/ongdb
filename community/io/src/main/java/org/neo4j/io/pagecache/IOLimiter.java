@@ -52,6 +52,11 @@ import java.io.IOException;
  * Normally, flushing a channel will just copy the dirty buffers into the OS page cache, but flushing is in this case
  * implying that the OS pages are cleared as well. In other words, the IOPSLimiter can make sure that the operating
  * system does not pile up too much IO work in its page cache, by flushing those caches as well on regular intervals.
+ * <p>
+ * The page cache will consult {@link #recommendedMaxIOBatchSize} about the IO batch size.
+ * Use of this method prevents a situation when IO batches are so large
+ * that even an invocation of {@link #maybeLimitIO(long, int, Flushable)} after each batch
+ * is unable to prevent IO-related degradation of performance.
  */
 public interface IOLimiter
 {
@@ -85,6 +90,24 @@ public interface IOLimiter
      * @return A new stamp to pass into the next call to this method.
      */
     long maybeLimitIO( long previousStamp, int recentlyCompletedIOs, Flushable flushable );
+
+    /**
+     * Returns max IO batch size recommended by the IO Limiter.
+     * <p>
+     * The only concern of this method is selecting an IO batch size that will
+     * help the Limiter to fulfil the configured IO limits
+     * and it does not concern itself with other issues related to IO batch size.
+     * For instance, when there are no limits, the implementation is free to return
+     * something as large as {@link Long#MAX_VALUE}.
+     * <p>
+     * Use of this method prevents a situation when IO batches are so large
+     * that even an invocation of {@link #maybeLimitIO(long, int, Flushable)} after each batch
+     * is unable to prevent IO-related degradation of performance.
+     */
+    default long recommendedMaxIOBatchSize()
+    {
+        return Long.MAX_VALUE;
+    }
 
     /**
      * Temporarily disable the IOLimiter, to allow IO to proceed at full speed.
@@ -126,8 +149,13 @@ public interface IOLimiter
      * An IOPSLimiter implementation that does not restrict the rate of IO. Use this implementation if you want the
      * flush to go as fast as possible.
      */
-    static IOLimiter unlimited()
+    IOLimiter UNLIMITED = ( previousStamp, recentlyCompletedIOs, flushable ) -> previousStamp;
+
+    /**
+     * @return {@code true} if IO is currently limited
+     */
+    default boolean isLimited()
     {
-        return ( previousStamp, recentlyCompletedIOs, flushable ) -> previousStamp;
+        return false;
     }
 }

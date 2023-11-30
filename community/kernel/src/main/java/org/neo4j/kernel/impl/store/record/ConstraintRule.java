@@ -40,14 +40,16 @@ package org.neo4j.kernel.impl.store.record;
 
 import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
 import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
-import org.neo4j.kernel.api.schema.constaints.IndexBackedConstraintDescriptor;
+import org.neo4j.kernel.api.schema.constraints.IndexBackedConstraintDescriptor;
 import org.neo4j.storageengine.api.schema.SchemaRule;
 
 import static org.neo4j.internal.kernel.api.schema.SchemaUtil.idTokenNameLookup;
 
-public class ConstraintRule extends SchemaRule implements ConstraintDescriptor.Supplier
+public class ConstraintRule implements SchemaRule, ConstraintDescriptor.Supplier
 {
-    private final Long ownedIndexRule;
+    private final Long ownedIndex;
+    private final String name;
+    private final long id;
     private final ConstraintDescriptor descriptor;
 
     public static ConstraintRule constraintRule(
@@ -74,23 +76,24 @@ public class ConstraintRule extends SchemaRule implements ConstraintDescriptor.S
         return new ConstraintRule( id, descriptor, ownedIndexRule, name );
     }
 
-    ConstraintRule( long id, ConstraintDescriptor descriptor, Long ownedIndexRule )
+    ConstraintRule( long id, ConstraintDescriptor descriptor, Long ownedIndex )
     {
-        this( id, descriptor, ownedIndexRule, null );
+        this( id, descriptor, ownedIndex, null );
     }
 
-    ConstraintRule( long id, ConstraintDescriptor descriptor, Long ownedIndexRule, String name )
+    ConstraintRule( long id, ConstraintDescriptor descriptor, Long ownedIndex, String name )
     {
-        super( id, name );
+        this.id = id;
         this.descriptor = descriptor;
-        this.ownedIndexRule = ownedIndexRule;
+        this.ownedIndex = ownedIndex;
+        this.name = SchemaRule.nameOrDefault( name, "constraint_" + id );
     }
 
     @Override
     public String toString()
     {
         return "ConstraintRule[id=" + id + ", descriptor=" + descriptor.userDescription( idTokenNameLookup ) + ", " +
-                "ownedIndex=" + ownedIndexRule + "]";
+                "ownedIndex=" + ownedIndex + "]";
     }
 
     @Override
@@ -108,17 +111,11 @@ public class ConstraintRule extends SchemaRule implements ConstraintDescriptor.S
     @SuppressWarnings( "NumberEquality" )
     public long getOwnedIndex()
     {
-        if ( ownedIndexRule == null )
+        if ( ownedIndex == null )
         {
             throw new IllegalStateException( "This constraint does not own an index." );
         }
-        return ownedIndexRule;
-    }
-
-    @Override
-    public byte[] serialize()
-    {
-        return SchemaRuleSerialization.serialize( this );
+        return ownedIndex;
     }
 
     @Override
@@ -136,5 +133,17 @@ public class ConstraintRule extends SchemaRule implements ConstraintDescriptor.S
     public int hashCode()
     {
         return descriptor.hashCode();
+    }
+
+    @Override
+    public long getId()
+    {
+        return id;
+    }
+
+    @Override
+    public String getName()
+    {
+        return name;
     }
 }

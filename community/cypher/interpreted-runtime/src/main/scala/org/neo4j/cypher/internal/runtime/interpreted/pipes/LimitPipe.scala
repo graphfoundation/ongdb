@@ -40,7 +40,7 @@ package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Expression, NumericHelper}
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 
 import scala.collection.AbstractIterator
 import scala.collection.Iterator.empty
@@ -55,7 +55,7 @@ case class LimitPipe(source: Pipe, exp: Expression)
 
     if (input.isEmpty) return empty
 
-    val limit = asPrimitiveLong(exp(state.createOrGetInitialContext(executionContextFactory), state))
+    val limit = asPrimitiveLong(exp(state.newExecutionContext(executionContextFactory), state))
 
     new AbstractIterator[ExecutionContext] {
       private var remaining = limit

@@ -57,7 +57,7 @@ public abstract class GraphPropertiesTestBase<G extends KernelAPIWriteTestSuppor
     public void shouldBeAbleToWriteNewGraphProperty() throws Exception
     {
         int prop;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             prop = tx.tokenWrite().propertyKeyGetOrCreateForName( "prop" );
             assertThat( tx.dataWrite().graphSetProperty( prop, stringValue( "hello" ) ), equalTo( NO_VALUE ) );
@@ -74,14 +74,14 @@ public abstract class GraphPropertiesTestBase<G extends KernelAPIWriteTestSuppor
     public void shouldBeAbleToReplaceExistingGraphProperty() throws Exception
     {
         int prop;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             prop = tx.tokenWrite().propertyKeyGetOrCreateForName( "prop" );
             assertThat( tx.dataWrite().graphSetProperty( prop, stringValue( "hello" ) ), equalTo( NO_VALUE ) );
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             assertThat( tx.dataWrite().graphSetProperty( prop, stringValue( "good bye" ) ), equalTo( stringValue("hello") ) );
             tx.success();
@@ -97,14 +97,14 @@ public abstract class GraphPropertiesTestBase<G extends KernelAPIWriteTestSuppor
     public void shouldBeAbleToRemoveExistingGraphProperty() throws Exception
     {
         int prop;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             prop = tx.tokenWrite().propertyKeyGetOrCreateForName( "prop" );
             assertThat( tx.dataWrite().graphSetProperty( prop, stringValue( "hello" ) ), equalTo( NO_VALUE ) );
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             assertThat( tx.dataWrite().graphRemoveProperty( prop ), equalTo( stringValue("hello") ) );
             tx.success();
@@ -120,7 +120,7 @@ public abstract class GraphPropertiesTestBase<G extends KernelAPIWriteTestSuppor
     public void shouldBeAbleToReadExistingGraphProperties() throws Exception
     {
         int prop1, prop2, prop3;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             prop1 = tx.tokenWrite().propertyKeyGetOrCreateForName( "prop1" );
             prop2 = tx.tokenWrite().propertyKeyGetOrCreateForName( "prop2" );
@@ -131,7 +131,7 @@ public abstract class GraphPropertiesTestBase<G extends KernelAPIWriteTestSuppor
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction();
+        try ( Transaction tx = beginTransaction();
               PropertyCursor cursor = tx.cursors().allocatePropertyCursor() )
         {
             tx.dataRead().graphProperties( cursor );
@@ -155,7 +155,7 @@ public abstract class GraphPropertiesTestBase<G extends KernelAPIWriteTestSuppor
     @Test
     public void shouldSeeNewGraphPropertyInTransaction() throws Exception
     {
-        try ( Transaction tx = session.beginTransaction();
+        try ( Transaction tx = beginTransaction();
               PropertyCursor cursor = tx.cursors().allocatePropertyCursor() )
         {
             int prop = tx.tokenWrite().propertyKeyGetOrCreateForName( "prop" );
@@ -172,14 +172,14 @@ public abstract class GraphPropertiesTestBase<G extends KernelAPIWriteTestSuppor
     public void shouldSeeUpdatedGraphPropertyInTransaction() throws Exception
     {
         int prop;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             prop = tx.tokenWrite().propertyKeyGetOrCreateForName( "prop" );
             assertThat( tx.dataWrite().graphSetProperty( prop, stringValue( "hello" ) ), equalTo( NO_VALUE ) );
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction();
+        try ( Transaction tx = beginTransaction();
               PropertyCursor cursor = tx.cursors().allocatePropertyCursor() )
         {
             assertThat( tx.dataWrite().graphSetProperty( prop, stringValue( "good bye" ) ),
@@ -197,14 +197,14 @@ public abstract class GraphPropertiesTestBase<G extends KernelAPIWriteTestSuppor
     public void shouldNotSeeRemovedGraphPropertyInTransaction() throws Exception
     {
         int prop;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             prop = tx.tokenWrite().propertyKeyGetOrCreateForName( "prop" );
             assertThat( tx.dataWrite().graphSetProperty( prop, stringValue( "hello" ) ), equalTo( NO_VALUE ) );
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction();
+        try ( Transaction tx = beginTransaction();
               PropertyCursor cursor = tx.cursors().allocatePropertyCursor() )
         {
             assertThat( tx.dataWrite().graphRemoveProperty( prop ), equalTo( stringValue( "hello" ) ) );
@@ -221,7 +221,7 @@ public abstract class GraphPropertiesTestBase<G extends KernelAPIWriteTestSuppor
         int prop;
         Value theValue = stringValue( "The Value" );
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             prop = tx.tokenWrite().propertyKeyGetOrCreateForName( "prop" );
             tx.dataWrite().graphSetProperty( prop, theValue );
@@ -229,7 +229,7 @@ public abstract class GraphPropertiesTestBase<G extends KernelAPIWriteTestSuppor
         }
 
         // When
-        Transaction tx = session.beginTransaction();
+        Transaction tx = beginTransaction();
         assertThat( tx.dataWrite().graphSetProperty( prop, theValue ), equalTo( theValue ) );
         tx.success();
 

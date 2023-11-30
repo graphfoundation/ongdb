@@ -58,10 +58,7 @@
 
     <build>
         <plugins>
-            <!-- This module contains public API, run javadoc and revapi -->
-            <plugin>
-                <artifactId>maven-javadoc-plugin</artifactId>
-            </plugin>
+            <!-- This module contains public API, run revapi -->
             <plugin>
                 <groupId>org.revapi</groupId>
                 <artifactId>revapi-maven-plugin</artifactId>
@@ -75,8 +72,16 @@
             <artifactId>annotations</artifactId>
         </dependency>
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-migrationsupport</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
         </dependency>
         <dependency>
             <groupId>org.hamcrest</groupId>

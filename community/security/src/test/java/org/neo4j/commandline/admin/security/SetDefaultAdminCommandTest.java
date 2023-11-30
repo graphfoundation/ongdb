@@ -57,7 +57,7 @@ import org.neo4j.graphdb.mockfs.EphemeralFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.api.exceptions.InvalidArgumentsException;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.security.Credential;
+import org.neo4j.server.security.auth.LegacyCredential;
 import org.neo4j.kernel.impl.security.User;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.server.security.auth.CommunitySecurityModule;
@@ -97,7 +97,7 @@ public class SetDefaultAdminCommandTest
         UserRepository users = CommunitySecurityModule.getUserRepository( config, NullLogProvider.getInstance(),
                 fileSystem );
         users.create(
-                new User.Builder( "jake", Credential.forPassword( "123" ) )
+                new User.Builder( "jake", LegacyCredential.forPassword( "123" ) )
                         .withRequiredPasswordChange( false )
                         .build()
             );
@@ -151,15 +151,15 @@ public class SetDefaultAdminCommandTest
         {
             PrintStream ps = new PrintStream( baos );
 
-            Usage usage = new Usage( "ongdb-admin", mock( CommandLocator.class ) );
+            Usage usage = new Usage( "neo4j-admin", mock( CommandLocator.class ) );
             usage.printUsageForCommand( new SetDefaultAdminCommandProvider(), ps::println );
 
-            assertEquals( String.format( "usage: ongdb-admin set-default-admin <username>%n" +
+            assertEquals( String.format( "usage: neo4j-admin set-default-admin <username>%n" +
                             "%n" +
                             "environment variables:%n" +
-                            "    ONGDB_CONF    Path to directory which contains ongdb.conf.%n" +
-                            "    ONGDB_DEBUG   Set to anything to enable debug output.%n" +
-                            "    ONGDB_HOME    ONgDB home directory.%n" +
+                            "    NEO4J_CONF    Path to directory which contains neo4j.conf.%n" +
+                            "    NEO4J_DEBUG   Set to anything to enable debug output.%n" +
+                            "    NEO4J_HOME    Neo4j home directory.%n" +
                             "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
                             "                  Takes a number and a unit, for example 512m.%n" +
                             "%n" +

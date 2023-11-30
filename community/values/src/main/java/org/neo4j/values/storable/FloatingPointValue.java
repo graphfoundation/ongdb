@@ -158,6 +158,7 @@ public abstract class FloatingPointValue extends NumberValue
         return ValueMath.multiply( doubleValue(), b );
     }
 
+    @Override
     public DoubleValue dividedBy( long b )
     {
         return Values.doubleValue( doubleValue() / b );

@@ -43,6 +43,7 @@ import java.util.Collection;
 
 import org.neo4j.helpers.collection.Iterables;
 import org.neo4j.kernel.impl.api.CommandVisitor;
+import org.neo4j.kernel.impl.storageengine.impl.recordstorage.PropertyRecordChange;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
 import org.neo4j.kernel.impl.store.record.DynamicRecord;
 import org.neo4j.kernel.impl.store.record.LabelTokenRecord;
@@ -57,7 +58,6 @@ import org.neo4j.kernel.impl.store.record.RelationshipRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
 import org.neo4j.kernel.impl.store.record.SchemaRecord;
 import org.neo4j.kernel.impl.store.record.TokenRecord;
-import org.neo4j.kernel.impl.transaction.state.PropertyRecordChange;
 import org.neo4j.storageengine.api.StorageCommand;
 import org.neo4j.storageengine.api.WritableChannel;
 import org.neo4j.storageengine.api.schema.SchemaRule;
@@ -108,44 +108,6 @@ public abstract class Command implements StorageCommand
         {
             return fromRecordState( record.isCreated(), record.inUse() );
         }
-    }
-
-    /**
-     * Many commands have before/after versions of their records. In some scenarios there's a need
-     * to parameterize which of those to work with.
-     */
-    public enum Version
-    {
-        /**
-         * The "before" version of a command's record. I.e. the record how it looked before changes took place.
-         */
-        BEFORE
-        {
-            @Override
-            <RECORD extends AbstractBaseRecord> RECORD select( BaseCommand<RECORD> command )
-            {
-                return command.getBefore();
-            }
-        },
-        /**
-         * The "after" version of a command's record. I.e. the record how it looks after changes took place.
-         */
-        AFTER
-        {
-            @Override
-            <RECORD extends AbstractBaseRecord> RECORD select( BaseCommand<RECORD> command )
-            {
-                return command.getAfter();
-            }
-        };
-
-        /**
-         * Selects one of the versions of a {@link BaseCommand}.
-         *
-         * @param command command to select a version from.
-         * @return the specific record version in this command.
-         */
-        abstract <RECORD extends AbstractBaseRecord> RECORD select( BaseCommand<RECORD> command );
     }
 
     protected final void setup( long key, Mode mode )
@@ -354,6 +316,12 @@ public abstract class Command implements StorageCommand
         }
     }
 
+    /**
+     * This command can be serialized into two different command types, depending on if the relationship type will fit in 2 or 3 bytes.
+     * High-limit format might require more bytes, this was unfortunately not tested properly, so this is an afterthought.
+     * This approach was chosen to minimize impact of introducing a new command in a patch release, that could prevent
+     * users from upgrading.
+     */
     public static class RelationshipGroupCommand extends BaseCommand<RelationshipGroupRecord>
     {
         public RelationshipGroupCommand( RelationshipGroupRecord before, RelationshipGroupRecord after )
@@ -370,14 +338,26 @@ public abstract class Command implements StorageCommand
         @Override
         public void serialize( WritableChannel channel ) throws IOException
         {
-            channel.put( NeoCommandType.REL_GROUP_COMMAND );
-            channel.putLong( after.getId() );
-            writeRelationshipGroupRecord( channel, before );
-            writeRelationshipGroupRecord( channel, after );
+            int relType = Math.max( before.getType(), after.getType() );
+            if ( relType == Record.NULL_REFERENCE.intValue() || relType >>> Short.SIZE == 0 )
+            {
+                // relType will fit in a short
+                channel.put( NeoCommandType.REL_GROUP_COMMAND );
+                channel.putLong( after.getId() );
+                writeRelationshipGroupRecord( channel, before );
+                writeRelationshipGroupRecord( channel, after );
+            }
+            else
+            {
+                // here we need 3 bytes to store the relType
+                channel.put( NeoCommandType.REL_GROUP_EXTENDED_COMMAND );
+                channel.putLong( after.getId() );
+                writeRelationshipGroupExtendedRecord( channel, before );
+                writeRelationshipGroupExtendedRecord( channel, after );
+            }
         }
 
-        private void writeRelationshipGroupRecord( WritableChannel channel, RelationshipGroupRecord record )
-                throws IOException
+        private void writeRelationshipGroupRecord( WritableChannel channel, RelationshipGroupRecord record ) throws IOException
         {
             byte flags = bitFlags( bitFlag( record.inUse(), Record.IN_USE.byteValue() ),
                                    bitFlag( record.requiresSecondaryUnit(), Record.REQUIRE_SECONDARY_UNIT ),
@@ -385,6 +365,26 @@ public abstract class Command implements StorageCommand
                                    bitFlag( record.isUseFixedReferences(), Record.USES_FIXED_REFERENCE_FORMAT ) );
             channel.put( flags );
             channel.putShort( (short) record.getType() );
+            channel.putLong( record.getNext() );
+            channel.putLong( record.getFirstOut() );
+            channel.putLong( record.getFirstIn() );
+            channel.putLong( record.getFirstLoop() );
+            channel.putLong( record.getOwningNode() );
+            if ( record.hasSecondaryUnitId() )
+            {
+                channel.putLong( record.getSecondaryUnitId() );
+            }
+        }
+
+        private void writeRelationshipGroupExtendedRecord( WritableChannel channel, RelationshipGroupRecord record ) throws IOException
+        {
+            byte flags = bitFlags( bitFlag( record.inUse(), Record.IN_USE.byteValue() ),
+                    bitFlag( record.requiresSecondaryUnit(), Record.REQUIRE_SECONDARY_UNIT ),
+                    bitFlag( record.hasSecondaryUnitId(), Record.HAS_SECONDARY_UNIT ),
+                    bitFlag( record.isUseFixedReferences(), Record.USES_FIXED_REFERENCE_FORMAT ) );
+            channel.put( flags );
+            channel.putShort( (short) record.getType() );
+            channel.put( (byte) (record.getType() >>> Short.SIZE) );
             channel.putLong( record.getNext() );
             channel.putLong( record.getFirstOut() );
             channel.putLong( record.getFirstIn() );
@@ -435,6 +435,19 @@ public abstract class Command implements StorageCommand
         public boolean handle( CommandVisitor handler ) throws IOException
         {
             return handler.visitPropertyCommand( this );
+        }
+
+        public long getEntityId()
+        {
+            if ( after.isNodeSet() )
+            {
+                return after.getNodeId();
+            }
+            if ( after.isRelSet() )
+            {
+                return after.getRelId();
+            }
+            throw new UnsupportedOperationException( format( "Unexpected owner of property %s, neither a node nor a relationship", after ) );
         }
 
         public long getNodeId()

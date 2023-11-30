@@ -38,39 +38,25 @@
  */
 package org.neo4j.bolt.v1.messaging;
 
-import org.neo4j.bolt.v1.messaging.message.FailureMessage;
-import org.neo4j.bolt.v1.messaging.message.IgnoredMessage;
-import org.neo4j.bolt.v1.messaging.message.RecordMessage;
-import org.neo4j.bolt.v1.messaging.message.ResponseMessage;
-import org.neo4j.bolt.v1.messaging.message.SuccessMessage;
-import org.neo4j.cypher.result.QueryResult;
-import org.neo4j.kernel.api.exceptions.Status;
-import org.neo4j.values.virtual.MapValue;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
-public class BoltResponseMessageRecorder extends MessageRecorder<ResponseMessage> implements BoltResponseMessageHandler<RuntimeException>
+import org.neo4j.bolt.messaging.ResponseMessage;
+import org.neo4j.bolt.messaging.BoltResponseMessageWriter;
+
+public class BoltResponseMessageRecorder implements BoltResponseMessageWriter
 {
-    @Override
-    public void onSuccess( MapValue metadata )
+    private final List<ResponseMessage> messages = new ArrayList<>();
+
+    public List<ResponseMessage> asList()
     {
-        messages.add( new SuccessMessage( metadata ) );
+        return messages;
     }
 
     @Override
-    public void onRecord( QueryResult.Record item )
+    public void write( ResponseMessage message ) throws IOException
     {
-        messages.add( new RecordMessage( item ) );
+        messages.add( message );
     }
-
-    @Override
-    public void onIgnored() throws RuntimeException
-    {
-        messages.add( new IgnoredMessage() );
-    }
-
-    @Override
-    public void onFailure( Status status, String errorMessage )
-    {
-        messages.add( new FailureMessage( status, errorMessage ) );
-    }
-
 }

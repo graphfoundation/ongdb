@@ -48,8 +48,8 @@ public interface DbStructureLookup
     Iterator<Pair<Integer, String>> properties();
     Iterator<Pair<Integer, String>> relationshipTypes();
 
-    Iterator<Pair<String, String[]>> knownIndices();
-    Iterator<Pair<String, String[]>> knownUniqueIndices();
+    Iterator<Pair<String[], String[]>> knownIndices();
+    Iterator<Pair<String[], String[]>> knownUniqueIndices();
     Iterator<Pair<String, String[]>> knownUniqueConstraints();
     Iterator<Pair<String, String[]>> knownNodePropertyExistenceConstraints();
     Iterator<Pair<String, String[]>> knownRelationshipPropertyExistenceConstraints();
@@ -58,6 +58,6 @@ public interface DbStructureLookup
     long nodesAllCardinality();
     long nodesWithLabelCardinality( int labelId );
     long cardinalityByLabelsAndRelationshipType( int fromLabelId, int relTypeId, int toLabelId );
-    double indexSelectivity( int labelId, int... propertyKeyIds );
+    double indexUniqueValueSelectivity( int labelId, int... propertyKeyIds );
     double indexPropertyExistsSelectivity( int labelId, int... propertyKeyIds );
 }

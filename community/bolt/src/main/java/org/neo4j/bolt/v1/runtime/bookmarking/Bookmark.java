@@ -38,8 +38,9 @@
  */
 package org.neo4j.bolt.v1.runtime.bookmarking;
 
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
-import org.neo4j.kernel.api.exceptions.Status;
+import java.util.Objects;
+
+import org.neo4j.bolt.runtime.BoltResponseHandler;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.storable.TextValue;
 import org.neo4j.values.storable.Values;
@@ -47,24 +48,19 @@ import org.neo4j.values.virtual.ListValue;
 import org.neo4j.values.virtual.MapValue;
 
 import static java.lang.String.format;
+import static org.neo4j.values.storable.Values.stringValue;
 
 public class Bookmark
 {
     private static final String BOOKMARK_KEY = "bookmark";
     private static final String BOOKMARKS_KEY = "bookmarks";
-    private static final String BOOKMARK_TX_PREFIX = "neo4j:bookmark:v1:tx";
+    static final String BOOKMARK_TX_PREFIX = "neo4j:bookmark:v1:tx";
 
     private final long txId;
 
     public Bookmark( long txId )
     {
         this.txId = txId;
-    }
-
-    @Override
-    public String toString()
-    {
-        return format( BOOKMARK_TX_PREFIX + "%d", txId );
     }
 
     public static Bookmark fromParamsOrNull( MapValue params ) throws BookmarkFormatException
@@ -83,6 +79,33 @@ public class Bookmark
     public long txId()
     {
         return txId;
+    }
+
+    @Override
+    public boolean equals( Object o )
+    {
+        if ( this == o )
+        {
+            return true;
+        }
+        if ( o == null || getClass() != o.getClass() )
+        {
+            return false;
+        }
+        Bookmark bookmark = (Bookmark) o;
+        return txId == bookmark.txId;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash( txId );
+    }
+
+    @Override
+    public String toString()
+    {
+        return format( BOOKMARK_TX_PREFIX + "%d", txId );
     }
 
     private static Bookmark parseMultipleBookmarks( MapValue params ) throws BookmarkFormatException
@@ -150,18 +173,8 @@ public class Bookmark
         }
     }
 
-    static class BookmarkFormatException extends KernelException
+    public void attachTo( BoltResponseHandler state )
     {
-        BookmarkFormatException( String bookmarkString, NumberFormatException e )
-        {
-            super( Status.Transaction.InvalidBookmark, e, "Supplied bookmark [%s] does not conform to pattern %s; " +
-                    "unable to parse transaction id", bookmarkString, BOOKMARK_TX_PREFIX );
-        }
-
-        BookmarkFormatException( Object bookmarkObject )
-        {
-            super( Status.Transaction.InvalidBookmark, "Supplied bookmark [%s] does not conform to pattern %s",
-                    bookmarkObject, BOOKMARK_TX_PREFIX );
-        }
+        state.onMetadata( BOOKMARK_KEY, stringValue( toString() ) );
     }
 }

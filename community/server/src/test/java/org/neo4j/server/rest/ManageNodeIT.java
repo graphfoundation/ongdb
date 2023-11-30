@@ -48,10 +48,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -60,13 +57,11 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 
-import org.neo4j.kernel.GraphDatabaseDependencies;
+import org.neo4j.graphdb.facade.GraphDatabaseDependencies;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.HttpConnector;
 import org.neo4j.kernel.configuration.HttpConnector.Encryption;
-import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.impl.annotations.Documented;
-import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
 import org.neo4j.kernel.internal.KernelData;
 import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.logging.LogProvider;
@@ -75,32 +70,24 @@ import org.neo4j.server.CommunityNeoServer;
 import org.neo4j.server.NeoServer;
 import org.neo4j.server.configuration.ServerSettings;
 import org.neo4j.server.database.Database;
-import org.neo4j.server.database.WrappedDatabase;
 import org.neo4j.server.helpers.CommunityServerBuilder;
 import org.neo4j.server.helpers.FunctionalTestHelper;
 import org.neo4j.server.rest.domain.GraphDbHelper;
 import org.neo4j.server.rest.domain.JsonHelper;
-import org.neo4j.server.rest.domain.JsonParseException;
 import org.neo4j.server.rest.management.JmxService;
 import org.neo4j.server.rest.management.RootService;
 import org.neo4j.server.rest.management.VersionAndEditionService;
 import org.neo4j.server.rest.management.console.ConsoleService;
 import org.neo4j.server.rest.management.console.ConsoleSessionFactory;
 import org.neo4j.server.rest.management.console.ScriptSession;
-import org.neo4j.server.rest.management.console.ShellSession;
 import org.neo4j.server.rest.repr.OutputFormat;
 import org.neo4j.server.rest.repr.formats.JsonFormat;
-import org.neo4j.shell.ShellSettings;
 import org.neo4j.string.UTF8;
 import org.neo4j.test.TestData;
-import org.neo4j.test.TestGraphDatabaseFactory;
 import org.neo4j.test.server.EntityOutputFormat;
 import org.neo4j.test.server.ExclusiveServerTestBase;
 import org.neo4j.test.server.HTTP;
-import org.neo4j.time.Clocks;
-import org.neo4j.time.FakeClock;
 
-import static java.lang.System.lineSeparator;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasKey;
@@ -220,10 +207,10 @@ public class ManageNodeIT extends AbstractRestFunctionalDocTestBase
     public void shouldGetASingleContentLengthHeaderWhenCreatingANode()
     {
         JaxRsResponse response = sendCreateRequestToServer();
-        List<String> contentLentgthHeaders = response.getHeaders()
+        List<String> contentLengthHeaders = response.getHeaders()
                 .get( "Content-Length" );
-        assertNotNull( contentLentgthHeaders );
-        assertEquals( 1, contentLentgthHeaders.size() );
+        assertNotNull( contentLengthHeaders );
+        assertEquals( 1, contentLengthHeaders.size() );
     }
 
     @Test
@@ -346,15 +333,12 @@ public class ManageNodeIT extends AbstractRestFunctionalDocTestBase
 
         @Rule
         public TestData<RESTRequestGenerator> gen = TestData.producedThrough( RESTRequestGenerator.PRODUCER );
-        private static FakeClock clock;
 
         @BeforeClass
         public static void setupServer() throws Exception
         {
-            clock = Clocks.fakeClock();
             server = CommunityServerBuilder.server()
                     .usingDataDir( staticFolder.getRoot().getAbsolutePath() )
-                    .withClock( clock )
                     .build();
 
             suppressAll().call( (Callable<Void>) () ->
@@ -444,7 +428,7 @@ public class ManageNodeIT extends AbstractRestFunctionalDocTestBase
         @Test
         public void correctRepresentation()
         {
-            ConsoleService consoleService = new ConsoleService( new ShellOnlyConsoleSessionFactory(), mock( Database.class ),
+            ConsoleService consoleService = new ConsoleService( new StubConsoleSessionFactory(), mock( Database.class ),
                     NullLogProvider.getInstance(), new OutputFormat( new JsonFormat(), uri, null ) );
 
             Response consoleResponse = consoleService.getServiceDefinition();
@@ -458,12 +442,12 @@ public class ManageNodeIT extends AbstractRestFunctionalDocTestBase
         @Test
         public void advertisesAvailableConsoleEngines()
         {
-            ConsoleService consoleServiceWithJustShellEngine = new ConsoleService( new ShellOnlyConsoleSessionFactory(),
+            ConsoleService consoleServiceWithJustShellEngine = new ConsoleService( new StubConsoleSessionFactory(),
                     mock( Database.class ), NullLogProvider.getInstance(), new OutputFormat( new JsonFormat(), uri, null ) );
 
             String response = decode( consoleServiceWithJustShellEngine.getServiceDefinition());
 
-            MatcherAssert.assertThat( response, containsString( "\"engines\" : [ \"shell\" ]" ) );
+            MatcherAssert.assertThat( response, containsString( "\"engines\" : [ \"stub-engine\" ]" ) );
 
         }
 
@@ -472,7 +456,7 @@ public class ManageNodeIT extends AbstractRestFunctionalDocTestBase
             return UTF8.decode( (byte[]) response.getEntity() );
         }
 
-        private static class ShellOnlyConsoleSessionFactory implements ConsoleSessionFactory
+        private static class StubConsoleSessionFactory implements ConsoleSessionFactory
         {
             @Override
             public ScriptSession createSession( String engineName, Database database, LogProvider logProvider )
@@ -483,7 +467,7 @@ public class ManageNodeIT extends AbstractRestFunctionalDocTestBase
             @Override
             public Iterable<String> supportedEngines()
             {
-                return Collections.singletonList( "shell" );
+                return Collections.singletonList( "stub-engine" );
             }
         }
     }
@@ -528,72 +512,6 @@ public class ManageNodeIT extends AbstractRestFunctionalDocTestBase
 
     }
 
-    public static class Neo4jShellConsoleSessionDocTest implements ConsoleSessionFactory
-    {
-        private ConsoleService consoleService;
-        private Database database;
-        private final URI uri = URI.create( "http://peteriscool.com:6666/" );
-
-        @Before
-        public void setUp()
-        {
-            this.database = new WrappedDatabase( (GraphDatabaseFacade) new TestGraphDatabaseFactory().
-                    newImpermanentDatabaseBuilder().
-                    setConfig( ShellSettings.remote_shell_enabled, Settings.TRUE ).
-                    newGraphDatabase() );
-            this.consoleService = new ConsoleService(
-                    this,
-                    database,
-                    NullLogProvider.getInstance(),
-                    new OutputFormat( new JsonFormat(), uri, null ) );
-        }
-
-        @After
-        public void shutdownDatabase()
-        {
-            this.database.getGraph().shutdown();
-        }
-
-        @Override
-        public ScriptSession createSession( String engineName, Database database, LogProvider logProvider )
-        {
-            return new ShellSession( database.getGraph() );
-        }
-
-        @Test
-        public void doesntMangleNewlines() throws Exception
-        {
-            Response response = consoleService.exec( new JsonFormat(),
-                    "{ \"command\" : \"create (n) return n;\", \"engine\":\"shell\" }" );
-
-            assertEquals( 200, response.getStatus() );
-            String result = decode( response ).get( 0 );
-
-            String expected = "+-----------+" + lineSeparator()
-                    + "| n         |" + lineSeparator()
-                    + "+-----------+" + lineSeparator()
-                    + "| Node[0]{} |" + lineSeparator()
-                    + "+-----------+" + lineSeparator()
-                    + "1 row";
-
-            MatcherAssert.assertThat( result, containsString( expected ) );
-        }
-
-        private List<String> decode( final Response response ) throws JsonParseException
-        {
-            return (List<String>) JsonHelper.readJson( UTF8.decode( (byte[]) response.getEntity() ) );
-        }
-
-        @Override
-        public Iterable<String> supportedEngines()
-        {
-            return new ArrayList<String>()
-            {{
-                add( "shell" );
-            }};
-        }
-    }
-
     public static class RootServiceDocTest
     {
         @Test
@@ -608,8 +526,8 @@ public class ManageNodeIT extends AbstractRestFunctionalDocTestBase
                     new HttpConnector( "http", Encryption.NONE ).enabled.name(), "true"
             ) ),
                     GraphDatabaseDependencies.newDependencies().userLogProvider( NullLogProvider.getInstance() )
-                            .monitors( new Monitors() ),
-                    NullLogProvider.getInstance() ) );
+                            .monitors( new Monitors() )
+            ) );
 
             EntityOutputFormat output = new EntityOutputFormat( new JsonFormat(), null, null );
             Response serviceDefinition = svc.getServiceDefinition( uriInfo, output );

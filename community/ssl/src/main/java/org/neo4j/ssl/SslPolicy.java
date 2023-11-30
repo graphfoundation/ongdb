@@ -39,6 +39,7 @@
 package org.neo4j.ssl;
 
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslHandler;
@@ -54,6 +55,9 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.TrustManagerFactory;
 
+import org.neo4j.logging.Log;
+import org.neo4j.logging.LogProvider;
+
 public class SslPolicy
 {
     /* cryptographic objects */
@@ -68,9 +72,11 @@ public class SslPolicy
     private final TrustManagerFactory trustManagerFactory;
     private final SslProvider sslProvider;
 
-    public SslPolicy( PrivateKey privateKey, X509Certificate[] keyCertChain,
-            List<String> tlsVersions, List<String> ciphers, ClientAuth clientAuth,
-            TrustManagerFactory trustManagerFactory, SslProvider sslProvider )
+    private final boolean verifyHostname;
+    private final Log log;
+
+    public SslPolicy( PrivateKey privateKey, X509Certificate[] keyCertChain, List<String> tlsVersions, List<String> ciphers, ClientAuth clientAuth,
+            TrustManagerFactory trustManagerFactory, SslProvider sslProvider, boolean verifyHostname, LogProvider logProvider )
     {
         this.privateKey = privateKey;
         this.keyCertChain = keyCertChain;
@@ -79,6 +85,8 @@ public class SslPolicy
         this.clientAuth = clientAuth;
         this.trustManagerFactory = trustManagerFactory;
         this.sslProvider = sslProvider;
+        this.verifyHostname = verifyHostname;
+        this.log = logProvider.getLog( SslPolicy.class );
     }
 
     public SslContext nettyServerContext() throws SSLException
@@ -119,25 +127,26 @@ public class SslPolicy
     }
 
     @SuppressWarnings( "unused" )
-    public SslHandler nettyServerHandler( Channel channel ) throws SSLException
+    public ChannelHandler nettyServerHandler( Channel channel ) throws SSLException
     {
-        return makeNettyHandler( channel, nettyServerContext() );
+        return nettyServerHandler( channel, nettyServerContext() );
+    }
+
+    private ChannelHandler nettyServerHandler( Channel channel, SslContext sslContext )
+    {
+        SSLEngine sslEngine = sslContext.newEngine( channel.alloc() );
+        return new SslHandler( sslEngine );
     }
 
     @SuppressWarnings( "unused" )
-    public SslHandler nettyClientHandler( Channel channel ) throws SSLException
+    public ChannelHandler nettyClientHandler( Channel channel ) throws SSLException
     {
-        return makeNettyHandler( channel, nettyClientContext() );
+        return nettyClientHandler( channel, nettyClientContext() );
     }
 
-    private SslHandler makeNettyHandler( Channel channel, SslContext sslContext )
+    ChannelHandler nettyClientHandler( Channel channel, SslContext sslContext )
     {
-        SSLEngine sslEngine = sslContext.newEngine( channel.alloc() );
-        if ( tlsVersions != null )
-        {
-            sslEngine.setEnabledProtocols( tlsVersions );
-        }
-        return new SslHandler( sslEngine );
+        return new ClientSideOnConnectSslHandler( channel, sslContext, verifyHostname, tlsVersions );
     }
 
     public PrivateKey privateKey()
@@ -156,6 +165,7 @@ public class SslPolicy
         try
         {
             keyStore = KeyStore.getInstance( KeyStore.getDefaultType() );
+            log.debug( "Keystore loaded is of type " + keyStore.getClass().getName() );
             keyStore.load( null, keyStorePass );
             keyStore.setKeyEntry( "key", privateKey, privateKeyPass, keyCertChain );
         }
@@ -185,6 +195,11 @@ public class SslPolicy
     public ClientAuth getClientAuth()
     {
         return clientAuth;
+    }
+
+    public boolean isVerifyHostname()
+    {
+        return verifyHostname;
     }
 
     @Override

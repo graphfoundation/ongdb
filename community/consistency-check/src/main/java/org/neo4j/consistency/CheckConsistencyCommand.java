@@ -42,41 +42,40 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.ZoneId;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
 import org.neo4j.commandline.admin.AdminCommand;
 import org.neo4j.commandline.admin.CommandFailed;
 import org.neo4j.commandline.admin.IncorrectUsage;
-import org.neo4j.commandline.admin.OutsideWorld;
 import org.neo4j.commandline.arguments.Arguments;
 import org.neo4j.commandline.arguments.OptionalBooleanArg;
-import org.neo4j.commandline.arguments.common.Database;
 import org.neo4j.commandline.arguments.common.OptionalCanonicalPath;
 import org.neo4j.consistency.checking.full.ConsistencyCheckIncompleteException;
 import org.neo4j.consistency.checking.full.ConsistencyFlags;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.helpers.Strings;
-import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.helpers.progress.ProgressMonitorFactory;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.pagecache.ConfigurableStandalonePageCacheFactory;
-import org.neo4j.kernel.impl.recovery.RecoveryRequiredChecker;
+import org.neo4j.kernel.impl.recovery.RecoveryRequiredException;
 import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.logging.FormattedLogProvider;
+import org.neo4j.scheduler.JobScheduler;
 
 import static java.lang.String.format;
 import static org.neo4j.commandline.arguments.common.Database.ARG_DATABASE;
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.database_path;
+import static org.neo4j.kernel.impl.recovery.RecoveryRequiredChecker.assertRecoveryIsNotRequired;
+import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createInitialisedScheduler;
 
 public class CheckConsistencyCommand implements AdminCommand
 {
     public static final String CHECK_GRAPH = "check-graph";
     public static final String CHECK_INDEXES = "check-indexes";
+    public static final String CHECK_INDEX_STRUCTURE = "check-index-structure";
     public static final String CHECK_LABEL_SCAN_STORE = "check-label-scan-store";
     public static final String CHECK_PROPERTY_OWNERS = "check-property-owners";
     private static final Arguments arguments = new Arguments()
@@ -92,6 +91,8 @@ public class CheckConsistencyCommand implements AdminCommand
                     "Perform checks between nodes, relationships, properties, types and tokens." ) )
             .withArgument( new OptionalBooleanArg( CHECK_INDEXES, true,
                     "Perform checks on indexes." ) )
+            .withArgument( new OptionalBooleanArg( CHECK_INDEX_STRUCTURE, false,
+                    "Perform structure checks on indexes." ) )
             .withArgument( new OptionalBooleanArg( CHECK_LABEL_SCAN_STORE, true,
                     "Perform checks on the label scan store." ) )
             .withArgument( new OptionalBooleanArg( CHECK_PROPERTY_OWNERS, false,
@@ -100,20 +101,17 @@ public class CheckConsistencyCommand implements AdminCommand
 
     private final Path homeDir;
     private final Path configDir;
-    private final OutsideWorld outsideWorld;
     private final ConsistencyCheckService consistencyCheckService;
 
-    public CheckConsistencyCommand( Path homeDir, Path configDir, OutsideWorld outsideWorld )
+    public CheckConsistencyCommand( Path homeDir, Path configDir )
     {
-        this( homeDir, configDir, outsideWorld, new ConsistencyCheckService() );
+        this( homeDir, configDir, new ConsistencyCheckService() );
     }
 
-    public CheckConsistencyCommand( Path homeDir, Path configDir, OutsideWorld outsideWorld,
-            ConsistencyCheckService consistencyCheckService )
+    public CheckConsistencyCommand( Path homeDir, Path configDir, ConsistencyCheckService consistencyCheckService )
     {
         this.homeDir = homeDir;
         this.configDir = configDir;
-        this.outsideWorld = outsideWorld;
         this.consistencyCheckService = consistencyCheckService;
     }
 
@@ -127,6 +125,7 @@ public class CheckConsistencyCommand implements AdminCommand
         final Optional<Path> backupPath;
         final boolean checkGraph;
         final boolean checkIndexes;
+        final boolean checkIndexStructure;
         final boolean checkLabelScanStore;
         final boolean checkPropertyOwners;
 
@@ -177,6 +176,14 @@ public class CheckConsistencyCommand implements AdminCommand
             {
                 checkIndexes = config.get( ConsistencyCheckSettings.consistency_check_indexes );
             }
+            if ( arguments.has( CHECK_INDEX_STRUCTURE ) )
+            {
+                checkIndexStructure = arguments.getBoolean( CHECK_INDEX_STRUCTURE );
+            }
+            else
+            {
+                checkIndexStructure = config.get( ConsistencyCheckSettings.consistency_check_index_structure );
+            }
             if ( arguments.has( CHECK_LABEL_SCAN_STORE ) )
             {
                 checkLabelScanStore = arguments.getBoolean( CHECK_LABEL_SCAN_STORE );
@@ -201,8 +208,9 @@ public class CheckConsistencyCommand implements AdminCommand
 
         try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction() )
         {
-            File storeDir = backupPath.map( Path::toFile ).orElse( config.get( database_path ) );
-            checkDbState( storeDir, config );
+            File databaseDirectory = backupPath.map( Path::toFile ).orElse( config.get( database_path ) );
+            DatabaseLayout databaseLayout = DatabaseLayout.of( databaseDirectory );
+            checkDbState( databaseLayout, config );
             ZoneId logTimeZone = config.get( GraphDatabaseSettings.db_timezone ).getZoneId();
             // Only output progress indicator if a console receives the output
             ProgressMonitorFactory progressMonitorFactory = ProgressMonitorFactory.NONE;
@@ -212,10 +220,10 @@ public class CheckConsistencyCommand implements AdminCommand
             }
 
             ConsistencyCheckService.Result consistencyCheckResult = consistencyCheckService
-                    .runFullConsistencyCheck( storeDir, config, progressMonitorFactory,
+                    .runFullConsistencyCheck( databaseLayout, config, progressMonitorFactory,
                             FormattedLogProvider.withZoneId( logTimeZone ).toOutputStream( System.out ), fileSystem,
                             verbose, reportDir.toFile(),
-                            new ConsistencyFlags( checkGraph, checkIndexes, checkLabelScanStore, checkPropertyOwners ) );
+                            new ConsistencyFlags( checkGraph, checkIndexes, checkIndexStructure, checkLabelScanStore, checkPropertyOwners ) );
 
             if ( !consistencyCheckResult.isSuccessful() )
             {
@@ -229,54 +237,53 @@ public class CheckConsistencyCommand implements AdminCommand
         }
     }
 
-    private Map<String,String> loadAdditionalConfig( Optional<Path> additionalConfigFile )
+    private static Config loadAdditionalConfig( Optional<Path> additionalConfigFile )
     {
         if ( additionalConfigFile.isPresent() )
         {
             try
             {
-                return MapUtil.load( additionalConfigFile.get().toFile() );
+                return Config.fromFile( additionalConfigFile.get() ).build();
             }
-            catch ( IOException e )
+            catch ( Exception e )
             {
                 throw new IllegalArgumentException(
                         String.format( "Could not read configuration file [%s]", additionalConfigFile ), e );
             }
         }
 
-        return new HashMap<>();
+        return Config.defaults();
     }
 
-    private void checkDbState( File storeDir, Config additionalConfiguration ) throws CommandFailed
+    private static void checkDbState( DatabaseLayout databaseLayout, Config additionalConfiguration ) throws CommandFailed
     {
         try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction();
+              JobScheduler jobScheduler = createInitialisedScheduler();
               PageCache pageCache = ConfigurableStandalonePageCacheFactory
-                      .createPageCache( fileSystem, additionalConfiguration ) )
+                      .createPageCache( fileSystem, additionalConfiguration, jobScheduler ) )
         {
-            RecoveryRequiredChecker requiredChecker =
-                    new RecoveryRequiredChecker( fileSystem, pageCache, additionalConfiguration, new Monitors() );
-            if ( requiredChecker.isRecoveryRequiredAt( storeDir ) )
-            {
-                throw new CommandFailed(
-                        Strings.joinAsLines( "Active logical log detected, this might be a source of inconsistencies.",
-                                "Please recover database before running the consistency check.",
-                                "To perform recovery please start database and perform clean shutdown." ) );
-            }
+            assertRecoveryIsNotRequired( fileSystem, pageCache, additionalConfiguration, databaseLayout, new Monitors() );
         }
-        catch ( IOException e )
+        catch ( RecoveryRequiredException rre )
         {
-            outsideWorld.stdErrLine(
-                    "Failure when checking for recovery state: '%s', continuing as normal.%n" + e.getMessage() );
+            throw new CommandFailed( rre.getMessage() );
+        }
+        catch ( Exception e )
+        {
+            throw new CommandFailed( "Failure when checking for recovery state: '%s'." + e.getMessage(), e );
         }
     }
 
-    private static Config loadNeo4jConfig( Path homeDir, Path configDir, String databaseName,
-            Map<String,String> additionalConfig )
+    private static Config loadNeo4jConfig( Path homeDir, Path configDir, String databaseName, Config additionalConfig )
     {
-        additionalConfig.put( GraphDatabaseSettings.active_database.name(), databaseName );
-
-        return Config.fromFile( configDir.resolve( Config.DEFAULT_CONFIG_FILE_NAME ) ).withHome( homeDir ).withConnectorsDisabled()
-                .withSettings( additionalConfig ).build();
+        Config config = Config.fromFile( configDir.resolve( Config.DEFAULT_CONFIG_FILE_NAME ) )
+                .withHome( homeDir )
+                .withConnectorsDisabled()
+                .withNoThrowOnFileLoadFailure()
+                .build();
+        config.augment( additionalConfig );
+        config.augment( GraphDatabaseSettings.active_database, databaseName );
+        return config;
     }
 
     public static Arguments arguments()

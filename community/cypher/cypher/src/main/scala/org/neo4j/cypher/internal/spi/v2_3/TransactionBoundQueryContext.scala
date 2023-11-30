@@ -39,9 +39,10 @@
 package org.neo4j.cypher.internal.spi.v2_3
 
 import java.net.URL
+import java.nio.charset.StandardCharsets
 import java.util.function.Predicate
 
-import org.neo4j.collection.primitive.PrimitiveLongIterator
+import org.eclipse.collections.api.iterator.LongIterator
 import org.neo4j.cypher.InternalException
 import org.neo4j.cypher.internal.compiler.v2_3.MinMaxOrdering.{BY_NUMBER, BY_STRING, BY_VALUE}
 import org.neo4j.cypher.internal.compiler.v2_3._
@@ -53,8 +54,9 @@ import org.neo4j.cypher.internal.compiler.v2_3.spi._
 import org.neo4j.cypher.internal.frontend.v2_3.SemanticDirection.{BOTH, INCOMING, OUTGOING}
 import org.neo4j.cypher.internal.frontend.v2_3.{Bound, EntityNotFoundException, FailedIndexException, SemanticDirection}
 import org.neo4j.cypher.internal.javacompat.GraphDatabaseCypherService
+import org.neo4j.cypher.internal.runtime.ResourceManager
 import org.neo4j.cypher.internal.runtime.interpreted._
-import org.neo4j.cypher.internal.spi.{CursorIterator, PrimitiveCursorIterator}
+import org.neo4j.cypher.internal.spi.CursorIterator
 import org.neo4j.graphalgo.impl.path.ShortestPath
 import org.neo4j.graphalgo.impl.path.ShortestPath.ShortestPathPredicate
 import org.neo4j.graphdb.RelationshipType._
@@ -68,9 +70,8 @@ import org.neo4j.internal.kernel.api.helpers.RelationshipSelections.{allCursor, 
 import org.neo4j.kernel.GraphDatabaseQueryService
 import org.neo4j.kernel.api.exceptions.schema.{AlreadyConstrainedException, AlreadyIndexedException}
 import org.neo4j.kernel.api.schema.SchemaDescriptorFactory
-import org.neo4j.kernel.api.schema.constaints.ConstraintDescriptorFactory
+import org.neo4j.kernel.api.schema.constraints.ConstraintDescriptorFactory
 import org.neo4j.kernel.api.{SilentTokenNameLookup, StatementConstants}
-import org.neo4j.kernel.impl.api.store.DefaultIndexReference
 import org.neo4j.kernel.impl.core.EmbeddedProxySPI
 import org.neo4j.values.storable.Values
 
@@ -95,7 +96,7 @@ final class TransactionBoundQueryContext(tc: TransactionalContextWrapper, val re
 
   def close(success: Boolean) { tc.close(success) }
   //We cannot assign to value because of periodic commit
-  protected def reads(): Read = tc.stableDataRead
+  protected def reads(): Read = tc.dataRead
   private def writes() = tc.dataWrite
   private lazy val nodeCursor = allocateAndTraceNodeCursor()
   private lazy val relationshipScanCursor = allocateAndTraceRelationshipScanCursor()
@@ -197,7 +198,7 @@ final class TransactionBoundQueryContext(tc: TransactionalContextWrapper, val re
     val cursor = nodeCursor
     reads().singleNode(node, cursor)
     if (!cursor.next()) false
-    else cursor.labels().contains(label)
+    else cursor.hasLabel(label)
   }
 
   def getOrCreateLabelId(labelName: String) =
@@ -227,7 +228,7 @@ final class TransactionBoundQueryContext(tc: TransactionalContextWrapper, val re
   }
 
   def indexSeek(index: SchemaTypes.IndexDescriptor, value: Any) =
-    seek(DefaultIndexReference.general(index.labelId, index.propertyId),
+    seek(tc.schemaRead.indexReferenceUnchecked(index.labelId, index.propertyId),
          IndexQuery.exact(index.propertyId, value))
 
   def indexSeekByRange(index: SchemaTypes.IndexDescriptor, value: Any) = value match {
@@ -247,23 +248,13 @@ final class TransactionBoundQueryContext(tc: TransactionalContextWrapper, val re
 
   private def seek(index: IndexReference, query: IndexQuery*) = {
     val nodeCursor = allocateAndTraceNodeValueIndexCursor()
-    reads().nodeIndexSeek(index, nodeCursor, IndexOrder.NONE, query:_*)
+    //older planners cannot use values provided by the index
+    reads().nodeIndexSeek(index, nodeCursor, IndexOrder.NONE, false, query:_*)
     new CursorIterator[Node] {
       override protected def fetchNext(): Node = {
         if (nodeCursor.next()) proxySpi.newNodeProxy(nodeCursor.nodeReference())
         else null
       }
-
-      override protected def close(): Unit = nodeCursor.close()
-    }
-  }
-
-  private def scan(index: IndexReference) = {
-    val nodeCursor = allocateAndTraceNodeValueIndexCursor()
-    reads().nodeIndexScan(index, nodeCursor, IndexOrder.NONE)
-    new PrimitiveCursorIterator {
-      override protected def fetchNext(): Long =
-        if (nodeCursor.next()) nodeCursor.nodeReference() else -1L
 
       override protected def close(): Unit = nodeCursor.close()
     }
@@ -319,19 +310,19 @@ final class TransactionBoundQueryContext(tc: TransactionalContextWrapper, val re
   }
 
   private def indexSeekByPrefixRange(index: SchemaTypes.IndexDescriptor, prefix: String): scala.Iterator[Node] =
-    seek(DefaultIndexReference.general(index.labelId, index.propertyId), IndexQuery.stringPrefix(index.propertyId, prefix))
+    seek(tc.schemaRead.indexReferenceUnchecked(index.labelId, index.propertyId), IndexQuery.stringPrefix(index.propertyId, Values.utf8Value( prefix.getBytes(StandardCharsets.UTF_8 ))))
 
   private def indexSeekByNumericalRange(index: SchemaTypes.IndexDescriptor, range: InequalitySeekRange[Number]): scala.Iterator[Node] = (range match {
     case rangeLessThan: RangeLessThan[Number] =>
       rangeLessThan.limit(BY_NUMBER).map { limit =>
         val rangePredicate = IndexQuery.range(index.propertyId, null, false, limit.endPoint, limit.isInclusive)
-        seek(DefaultIndexReference.general(index.labelId, index.propertyId), rangePredicate)
+        seek(tc.schemaRead.indexReferenceUnchecked(index.labelId, index.propertyId), rangePredicate)
       }
 
     case rangeGreaterThan: RangeGreaterThan[Number] =>
       rangeGreaterThan.limit(BY_NUMBER).map { limit =>
         val rangePredicate = IndexQuery.range(index.propertyId, limit.endPoint, limit.isInclusive, null, false)
-        seek(DefaultIndexReference.general(index.labelId, index.propertyId), rangePredicate)
+        seek(tc.schemaRead.indexReferenceUnchecked(index.labelId, index.propertyId), rangePredicate)
       }
 
     case RangeBetween(rangeGreaterThan, rangeLessThan) =>
@@ -341,7 +332,7 @@ final class TransactionBoundQueryContext(tc: TransactionalContextWrapper, val re
             .range(index.propertyId, greaterThanLimit.endPoint, greaterThanLimit.isInclusive,
                    lessThanLimit.endPoint,
                    lessThanLimit.isInclusive)
-          seek(DefaultIndexReference.general(index.labelId, index.propertyId), rangePredicate)
+          seek(tc.schemaRead.indexReferenceUnchecked(index.labelId, index.propertyId), rangePredicate)
         }
       }
   }).getOrElse(Iterator.empty)
@@ -352,14 +343,14 @@ final class TransactionBoundQueryContext(tc: TransactionalContextWrapper, val re
       rangeLessThan.limit(BY_STRING).map { limit =>
         val rangePredicate = IndexQuery
           .range(index.propertyId, null, false, limit.endPoint.asInstanceOf[String], limit.isInclusive)
-        seek(DefaultIndexReference.general(index.labelId, index.propertyId), rangePredicate)
+        seek(tc.schemaRead.indexReferenceUnchecked(index.labelId, index.propertyId), rangePredicate)
       }.getOrElse(Iterator.empty)
 
     case rangeGreaterThan: RangeGreaterThan[String] =>
       rangeGreaterThan.limit(BY_STRING).map { limit =>
         val rangePredicate = IndexQuery
           .range(index.propertyId, limit.endPoint.asInstanceOf[String], limit.isInclusive, null, false)
-        seek(DefaultIndexReference.general(index.labelId, index.propertyId), rangePredicate)
+        seek(tc.schemaRead.indexReferenceUnchecked(index.labelId, index.propertyId), rangePredicate)
       }.getOrElse(Iterator.empty)
 
     case RangeBetween(rangeGreaterThan, rangeLessThan) =>
@@ -368,14 +359,15 @@ final class TransactionBoundQueryContext(tc: TransactionalContextWrapper, val re
           val rangePredicate = IndexQuery
             .range(index.propertyId, greaterThanLimit.endPoint.asInstanceOf[String], greaterThanLimit.isInclusive,
                    lessThanLimit.endPoint.asInstanceOf[String], lessThanLimit.isInclusive)
-          seek(DefaultIndexReference.general(index.labelId, index.propertyId), rangePredicate)
+          seek(tc.schemaRead.indexReferenceUnchecked(index.labelId, index.propertyId), rangePredicate)
         }
       }.getOrElse(Iterator.empty)
   }
 
-  def indexScan(index: SchemaTypes.IndexDescriptor) = {
+  def indexScan(index: SchemaTypes.IndexDescriptor): CursorIterator[Node] = {
     val cursor = allocateAndTraceNodeValueIndexCursor()
-    reads().nodeIndexScan(DefaultIndexReference.general(index.labelId, index.propertyId), cursor, IndexOrder.NONE)
+    //older planners cannot use values provided by the index
+    reads().nodeIndexScan(tc.schemaRead.indexReferenceUnchecked(index.labelId, index.propertyId), cursor, IndexOrder.NONE, false)
     new CursorIterator[Node] {
       override protected def fetchNext(): Node = {
         if (cursor.next()) proxySpi.newNodeProxy(cursor.nodeReference())
@@ -386,7 +378,7 @@ final class TransactionBoundQueryContext(tc: TransactionalContextWrapper, val re
   }
 
   override def lockingExactUniqueIndexSearch(index: SchemaTypes.IndexDescriptor, value: Any): Option[Node] = {
-    val nodeId: Long = tc.dataRead.lockingNodeUniqueIndexSeek(DefaultIndexReference.general(index.labelId, index.propertyId),
+    val nodeId: Long = tc.dataRead.lockingNodeUniqueIndexSeek(tc.schemaRead.indexReferenceUnchecked(index.labelId, index.propertyId),
                                                        IndexQuery.exact(index.propertyId, Values.of(value)))
     if (StatementConstants.NO_SUCH_NODE == nodeId) None else Some(nodeOps.getById(nodeId))
   }
@@ -719,7 +711,7 @@ final class TransactionBoundQueryContext(tc: TransactionalContextWrapper, val re
   })
 
   abstract class BaseOperations[T <: PropertyContainer] extends Operations[T] {
-    def primitiveLongIteratorToScalaIterator(primitiveIterator: PrimitiveLongIterator): Iterator[Long] =
+    def primitiveLongIteratorToScalaIterator(primitiveIterator: LongIterator): Iterator[Long] =
       new Iterator[Long] {
         override def hasNext: Boolean = primitiveIterator.hasNext
 
@@ -736,8 +728,7 @@ final class TransactionBoundQueryContext(tc: TransactionalContextWrapper, val re
 
   def addIndexRule(labelId: Int, propertyKeyId: Int): IdempotentResult[SchemaTypes.IndexDescriptor] = try {
     IdempotentResult(
-      DefaultIndexReference.toDescriptor(
-      tc.kernelTransaction.schemaWrite().indexCreate(SchemaDescriptorFactory.forLabel(labelId, propertyKeyId)))
+      tc.kernelTransaction.schemaWrite().indexCreate(SchemaDescriptorFactory.forLabel(labelId, propertyKeyId))
     )
   } catch {
     case _: AlreadyIndexedException =>
@@ -746,11 +737,11 @@ final class TransactionBoundQueryContext(tc: TransactionalContextWrapper, val re
 
       if (tc.schemaRead.indexGetState(index) == InternalIndexState.FAILED)
         throw new FailedIndexException(index.userDescription(tokenNameLookup))
-      IdempotentResult(DefaultIndexReference.toDescriptor(index), wasCreated = false)
+      IdempotentResult(index, wasCreated = false)
   }
 
   def dropIndexRule(labelId: Int, propertyKeyId: Int) =
-    tc.kernelTransaction.schemaWrite().indexDrop(DefaultIndexReference.general( labelId, propertyKeyId ))
+    tc.kernelTransaction.schemaWrite().indexDrop(tc.schemaRead.indexReferenceUnchecked( labelId, propertyKeyId ))
 
   def createUniqueConstraint(labelId: Int, propertyKeyId: Int): IdempotentResult[SchemaTypes.UniquenessConstraint] = try {
     tc.kernelTransaction.schemaWrite().uniquePropertyConstraintCreate(

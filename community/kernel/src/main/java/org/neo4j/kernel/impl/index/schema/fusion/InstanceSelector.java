@@ -38,6 +38,11 @@
  */
 package org.neo4j.kernel.impl.index.schema.fusion;
 
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.function.Consumer;
+
 import org.neo4j.function.ThrowingConsumer;
 import org.neo4j.function.ThrowingFunction;
 import org.neo4j.helpers.Exceptions;
@@ -48,15 +53,33 @@ import org.neo4j.helpers.Exceptions;
  */
 class InstanceSelector<T>
 {
-    final T[] instances;
+    final EnumMap<IndexSlot,T> instances;
     boolean closed;
 
     /**
-     * @param instances array of fully instantiated instances
+     * Empty selector
      */
-    InstanceSelector( T[] instances )
+    InstanceSelector()
     {
-        this.instances = instances;
+        this( new EnumMap<>( IndexSlot.class ) );
+    }
+
+    /**
+     * Selector with initial mapping
+     *
+     * @param map with initial mapping
+     */
+    InstanceSelector( EnumMap<IndexSlot,T> map )
+    {
+        this.instances = map;
+    }
+
+    /**
+     * Put a new mapping to this selector
+     */
+    void put( IndexSlot slot, T instance )
+    {
+        instances.put( slot, instance );
     }
 
     /**
@@ -65,48 +88,69 @@ class InstanceSelector<T>
      * @param slot slot number to return instance for.
      * @return the instance at the given {@code slot}.
      */
-    T select( int slot )
+    T select( IndexSlot slot )
     {
-        if ( instances[slot] == null )
+        if ( !instances.containsKey( slot )  )
         {
             throw new IllegalStateException( "Instance is not instantiated" );
         }
-        return instances[slot];
+        return instances.get( slot );
     }
 
     /**
-     * Convenience method typically for calling a method on each of the instances, a method that returns another type of instance.
-     * Even called on instances that haven't been instantiated yet. All those created instances are put into the provided array and returned.
+     * Map current instances to some other type using the converter function.
+     * Even called on instances that haven't been instantiated yet.
+     * Mapping is preserved in returned {@link EnumMap}.
      *
-     * @param target array to put the created instances into, also returned.
      * @param converter {@link ThrowingFunction} which converts from the source to target instance.
      * @param <R> type of returned instance.
      * @param <E> type of exception that converter may throw.
-     * @return the target array which was passed in, now populated.
+     * @return A new {@link EnumMap} containing the mapped values.
      * @throws E exception from converter.
      */
-    <R,E extends Exception> R[] instancesAs( R[] target, ThrowingFunction<T,R,E> converter ) throws E
+    <R,E extends Exception> EnumMap<IndexSlot,R> map( ThrowingFunction<T,R,E> converter ) throws E
     {
-        for ( int slot = 0; slot < instances.length; slot++ )
+        EnumMap<IndexSlot,R> result = new EnumMap<>( IndexSlot.class );
+        for ( IndexSlot slot : IndexSlot.values() )
         {
-            target[slot] = converter.apply( select( slot ) );
+            result.put( slot, converter.apply( select( slot ) ) );
         }
-        return target;
+        return result;
+    }
+
+    /**
+     * Map current instances to some other type using the converter function,
+     * without preserving the mapping.
+     * Even called on instances that haven't been instantiated yet.
+     *
+     * @param converter {@link ThrowingFunction} which converts from the source to target instance.
+     * @param <R> type of returned instance.
+     * @param <E> type of exception that converter may throw.
+     * @return A new {@link EnumMap} containing the mapped values.
+     * @throws E exception from converter.
+     */
+    @SuppressWarnings( "unchecked" )
+    <R,E extends Exception> Iterable<R> transform( ThrowingFunction<T,R,E> converter ) throws E
+    {
+        List<R> result = new ArrayList<>();
+        for ( IndexSlot slot : IndexSlot.values() )
+        {
+            result.add( converter.apply( select( slot ) ) );
+        }
+        return result;
     }
 
     /**
      * Convenience method for doing something to all instances, even those that haven't already been instantiated.
      *
-     * @param consumer {@link ThrowingConsumer} which performs some action on an instance.
-     * @param <E> type of exception the action may throw.
-     * @throws E exception from action.
+     * @param consumer {@link Consumer} which performs some action on an instance.
      */
-    <E extends Exception> void forAll( ThrowingConsumer<T,E> consumer ) throws E
+    void forAll( Consumer<T> consumer )
     {
-        E exception = null;
-        for ( int slot = 0; slot < instances.length; slot++ )
+        RuntimeException exception = null;
+        for ( IndexSlot slot : IndexSlot.values() )
         {
-            exception = consume( exception, consumer, select( slot ) );
+            exception = consumeAndChainException( select( slot ), consumer, exception );
         }
         if ( exception != null )
         {
@@ -117,11 +161,9 @@ class InstanceSelector<T>
     /**
      * Perform a final action on instantiated instances and then closes this selector, preventing further instantiation.
      *
-     * @param consumer {@link ThrowingConsumer} which performs some action on an instance.
-     * @param <E> type of exception the action may throw.
-     * @throws E exception from action.
+     * @param consumer {@link Consumer} which performs some action on an instance.
      */
-    <E extends Exception> void close( ThrowingConsumer<T,E> consumer ) throws E
+    void close( Consumer<T> consumer )
     {
         if ( !closed )
         {
@@ -136,21 +178,25 @@ class InstanceSelector<T>
         }
     }
 
+    @Override
+    public String toString()
+    {
+        return instances.toString();
+    }
+
     /**
      * Convenience method for doing something to already instantiated instances.
      *
      * @param consumer {@link ThrowingConsumer} which performs some action on an instance.
-     * @param <E> type of exception the action may throw.
-     * @throws E exception from action.
      */
-    private <E extends Exception> void forInstantiated( ThrowingConsumer<T,E> consumer ) throws E
+    private void forInstantiated( Consumer<T> consumer )
     {
-        E exception = null;
-        for ( T instance : instances )
+        RuntimeException exception = null;
+        for ( T instance : instances.values() )
         {
             if ( instance != null )
             {
-                exception = consume( exception, consumer, instance );
+                exception = consumeAndChainException( instance, consumer, exception );
             }
         }
         if ( exception != null )
@@ -159,15 +205,15 @@ class InstanceSelector<T>
         }
     }
 
-    private static <E extends Exception, T> E consume( E exception, ThrowingConsumer<T,E> consumer, T instance )
+    private RuntimeException consumeAndChainException( T instance, Consumer<T> consumer, RuntimeException exception )
     {
         try
         {
             consumer.accept( instance );
         }
-        catch ( Exception e )
+        catch ( RuntimeException e )
         {
-            exception = Exceptions.chain( exception, (E) e );
+            exception = Exceptions.chain( exception, e );
         }
         return exception;
     }

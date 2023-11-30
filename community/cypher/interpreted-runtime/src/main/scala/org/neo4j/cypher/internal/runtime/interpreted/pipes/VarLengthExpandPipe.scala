@@ -40,9 +40,9 @@ package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Predicate
-import org.neo4j.cypher.internal.util.v3_4.InternalException
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v3_5.util.InternalException
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual._
 
@@ -88,7 +88,7 @@ case class VarLengthExpandPipe(source: Pipe,
     new Iterator[(NodeValue, Seq[RelationshipValue])] {
       def next(): (NodeValue, Seq[RelationshipValue]) = {
         val (node, rels) = stack.pop()
-        if (rels.length < maxDepth.getOrElse(Int.MaxValue) && filteringStep.filterNode(row,state)(node)) {
+        if (rels.length < maxDepth.getOrElse(Int.MaxValue) && filteringStep.filterNode(row, state)(node)) {
           val relationships: Iterator[RelationshipValue] = state.query.getRelationshipsForIds(node.id(), dir,
                                                                                       types.types(state.query))
 
@@ -114,10 +114,14 @@ case class VarLengthExpandPipe(source: Pipe,
 
   protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
     def expand(row: ExecutionContext, n: NodeValue) = {
-      val paths = varLengthExpand(n, state, max, row)
-      paths.collect {
-        case (node, rels) if rels.length >= min && isToNodeValid(row, state, node) =>
-          executionContextFactory.copyWith(row, relName, VirtualValues.list(rels: _*), toName, node)
+      if (filteringStep.filterNode(row, state)(n)) {
+        val paths = varLengthExpand(n, state, max, row)
+        paths.collect {
+          case (node, rels) if rels.length >= min && isToNodeValid(row, state, node) =>
+            executionContextFactory.copyWith(row, relName, VirtualValues.list(rels: _*), toName, node)
+        }
+      } else {
+        Iterator.empty
       }
     }
 
@@ -133,10 +137,10 @@ case class VarLengthExpandPipe(source: Pipe,
 
           case Values.NO_VALUE =>
             if (nodeInScope)
-              Iterator(row.set(relName, Values.NO_VALUE))
+              row.set(relName, Values.NO_VALUE)
             else
-              Iterator(row.set(relName, Values.NO_VALUE, toName, Values.NO_VALUE))
-
+              row.set(relName, Values.NO_VALUE, toName, Values.NO_VALUE)
+            Iterator(row)
           case value => throw new InternalException(s"Expected to find a node at '$fromName' but found $value instead")
         }
       }

@@ -46,12 +46,12 @@ import org.neo4j.cypher.internal.runtime.interpreted.ValueComparisonHelper._
 import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
 import org.neo4j.cypher.internal.runtime.ImplicitValueConversion._
 import org.neo4j.cypher.internal.runtime.interpreted.symbols.SymbolTable
-import org.neo4j.cypher.internal.util.v3_4.symbols._
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.symbols._
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.{Predicate, True}
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.VarLengthExpandPipeTest.createVarLengthPredicate
-import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
 import org.neo4j.graphdb.{Node, Relationship}
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
@@ -1097,9 +1097,9 @@ class VarLengthExpandPipeTest extends CypherFunSuite {
     val pipe = VarLengthExpandPipe(src, "a", "r", "b", SemanticDirection.OUTGOING, SemanticDirection.OUTGOING,
       LazyTypes.empty, 3, None, nodeInScope = false, filteringStep)()
 
-    pipe.filteringStep.predicateExpressions.foreach(_.owningPipe should equal(pipe))
-    pred1.owningPipe should equal(pipe)
-    pred2.owningPipe should equal(pipe)
+    pipe.filteringStep.predicateExpressions.foreach(_.owningPipe.get should equal(pipe))
+    pred1.owningPipe.get should equal(pipe)
+    pred2.owningPipe.get should equal(pipe)
   }
 
   private def row(values: (String, AnyValue)*) = ExecutionContext.from(values: _*)

@@ -52,7 +52,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
-import org.neo4j.bolt.v1.messaging.Neo4jPack;
+import org.neo4j.bolt.messaging.Neo4jPack;
 import org.neo4j.bolt.v1.packstream.PackedInputArray;
 import org.neo4j.bolt.v1.packstream.PackedOutputArray;
 import org.neo4j.test.rule.RandomRule;
@@ -79,10 +79,6 @@ import static org.neo4j.values.storable.CoordinateReferenceSystem.Cartesian_3D;
 import static org.neo4j.values.storable.CoordinateReferenceSystem.WGS84;
 import static org.neo4j.values.storable.CoordinateReferenceSystem.WGS84_3D;
 import static org.neo4j.values.storable.DateTimeValue.datetime;
-import static org.neo4j.values.storable.DateValue.date;
-import static org.neo4j.values.storable.DurationValue.duration;
-import static org.neo4j.values.storable.LocalDateTimeValue.localDateTime;
-import static org.neo4j.values.storable.LocalTimeValue.localTime;
 import static org.neo4j.values.storable.Values.doubleValue;
 import static org.neo4j.values.storable.Values.intValue;
 import static org.neo4j.values.storable.Values.unsafePointValue;
@@ -415,42 +411,42 @@ public class Neo4jPackV2Test
 
     private DurationValue randomDuration()
     {
-        return duration( random.randoms().randomDuration() );
+        return random.randomValues().nextDuration();
     }
 
     private DurationValue randomPeriod()
     {
-        return duration( random.randoms().randomPeriod() );
+        return random.randomValues().nextPeriod();
     }
 
     private DateValue randomDate()
     {
-        return date( random.randoms().randomDate() );
+        return random.randomValues().nextDateValue();
     }
 
     private LocalTimeValue randomLocalTime()
     {
-        return localTime( random.randoms().randomLocalTime() );
+        return random.randomValues().nextLocalTimeValue();
     }
 
     private TimeValue randomTime()
     {
-        return TimeValue.time( random.randoms().randomTime() );
+        return random.randomValues().nextTimeValue();
     }
 
     private LocalDateTimeValue randomLocalDateTime()
     {
-        return localDateTime( random.randoms().randomLocalDateTime() );
+        return random.randomValues().nextLocalDateTimeValue();
     }
 
     private DateTimeValue randomDateTimeWithTimeZoneName()
     {
-        return datetime( random.randoms().randomDateTime( randomZoneIdWithName() ) );
+        return random.randomValues().nextDateTimeValue( randomZoneIdWithName() );
     }
 
     private DateTimeValue randomDateTimeWithTimeZoneOffset()
     {
-        return datetime( random.randoms().randomDateTime( randomZoneOffset() ) );
+        return random.randomValues().nextDateTimeValue( randomZoneOffset() );
     }
 
     private ZoneOffset randomZoneOffset()

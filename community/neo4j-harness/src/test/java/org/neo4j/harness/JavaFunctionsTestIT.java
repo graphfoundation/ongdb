@@ -39,15 +39,12 @@
 package org.neo4j.harness;
 
 import com.fasterxml.jackson.databind.JsonNode;
-
 import org.junit.Rule;
 import org.junit.Test;
 
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
-import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.procedure.Context;
 import org.neo4j.procedure.UserFunction;
-import org.neo4j.server.configuration.ServerSettings;
 import org.neo4j.test.rule.SuppressOutput;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.server.HTTP;
@@ -115,7 +112,6 @@ public class JavaFunctionsTestIT
     private TestServerBuilder createServer( Class<?> functionClass )
     {
         return TestServerBuilders.newInProcessBuilder()
-                                 .withConfig( ServerSettings.script_enabled, Settings.TRUE )
                                  .withFunction( functionClass );
     }
 

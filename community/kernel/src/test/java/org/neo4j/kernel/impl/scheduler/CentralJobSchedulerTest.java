@@ -39,7 +39,9 @@
 package org.neo4j.kernel.impl.scheduler;
 
 import org.junit.After;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,10 +54,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 
-import org.neo4j.concurrent.BinaryLatch;
 import org.neo4j.kernel.lifecycle.LifeSupport;
-import org.neo4j.scheduler.JobScheduler;
-import org.neo4j.scheduler.JobScheduler.JobHandle;
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobHandle;
+import org.neo4j.util.concurrent.BinaryLatch;
 
 import static java.lang.Thread.sleep;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -67,10 +69,12 @@ import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.neo4j.scheduler.JobScheduler.Groups.indexPopulation;
 
 public class CentralJobSchedulerTest
 {
+    @Rule
+    public final ExpectedException expectedException = ExpectedException.none();
+
     private final AtomicInteger invocations = new AtomicInteger();
     private final LifeSupport life = new LifeSupport();
     private final CentralJobScheduler scheduler = life.add( new CentralJobScheduler() );
@@ -81,6 +85,14 @@ public class CentralJobSchedulerTest
     public void stopScheduler()
     {
         life.shutdown();
+    }
+
+    @Test
+    public void taskSchedulerGroupMustNotBeDirectlySchedulable()
+    {
+        life.start();
+        expectedException.expect( IllegalArgumentException.class );
+        scheduler.schedule( Group.TASK_SCHEDULER, () -> fail( "This task should not have been executed." ) );
     }
 
     // Tests schedules a recurring job to run 5 times with 100ms in between.
@@ -94,7 +106,7 @@ public class CentralJobSchedulerTest
         life.start();
 
         // When
-        scheduler.scheduleRecurring( indexPopulation, countInvocationsJob, period, MILLISECONDS );
+        scheduler.scheduleRecurring( Group.INDEX_POPULATION, countInvocationsJob, period, MILLISECONDS );
         awaitInvocationCount( count );
         scheduler.shutdown();
 
@@ -110,8 +122,8 @@ public class CentralJobSchedulerTest
         // Given
         long period = 2;
         life.start();
-        JobScheduler.JobHandle jobHandle =
-                scheduler.scheduleRecurring( indexPopulation, countInvocationsJob, period, MILLISECONDS );
+        JobHandle jobHandle =
+                scheduler.scheduleRecurring( Group.INDEX_POPULATION, countInvocationsJob, period, MILLISECONDS );
         awaitFirstInvocation();
 
         // When
@@ -122,7 +134,7 @@ public class CentralJobSchedulerTest
             jobHandle.waitTermination();
             fail( "Task should be terminated" );
         }
-        catch ( CancellationException ingored )
+        catch ( CancellationException ignored )
         {
             // task should be canceled
         }
@@ -146,7 +158,7 @@ public class CentralJobSchedulerTest
 
         long time = System.nanoTime();
 
-        scheduler.schedule( new JobScheduler.Group( "group" ), () ->
+        scheduler.schedule( Group.INDEX_POPULATION, () ->
         {
             runTime.set( System.nanoTime() );
             latch.countDown();
@@ -163,7 +175,6 @@ public class CentralJobSchedulerTest
         life.start();
 
         List<JobHandle> handles = new ArrayList<>( 30 );
-        JobScheduler.Group group = new JobScheduler.Group( "test" );
         AtomicLong startedCounter = new AtomicLong();
         BinaryLatch blockLatch = new BinaryLatch();
         Runnable task = () ->
@@ -174,15 +185,15 @@ public class CentralJobSchedulerTest
 
         for ( int i = 0; i < 10; i++ )
         {
-            handles.add( scheduler.schedule( group, task, 0, TimeUnit.MILLISECONDS ) );
+            handles.add( scheduler.schedule( Group.INDEX_POPULATION, task, 0, TimeUnit.MILLISECONDS ) );
         }
         for ( int i = 0; i < 10; i++ )
         {
-            handles.add( scheduler.scheduleRecurring( group, task, Integer.MAX_VALUE, TimeUnit.MILLISECONDS ) );
+            handles.add( scheduler.scheduleRecurring( Group.INDEX_POPULATION, task, Integer.MAX_VALUE, TimeUnit.MILLISECONDS ) );
         }
         for ( int i = 0; i < 10; i++ )
         {
-            handles.add( scheduler.scheduleRecurring( group, task, 0, Integer.MAX_VALUE, TimeUnit.MILLISECONDS ) );
+            handles.add( scheduler.scheduleRecurring( Group.INDEX_POPULATION, task, 0, Integer.MAX_VALUE, TimeUnit.MILLISECONDS ) );
         }
 
         long deadline = TimeUnit.SECONDS.toNanos( 10 ) + System.nanoTime();
@@ -220,7 +231,7 @@ public class CentralJobSchedulerTest
                 LockSupport.parkNanos( MILLISECONDS.toNanos( 10 ) );
             }
         };
-        JobHandle handle = centralJobScheduler.schedule( indexPopulation, job );
+        JobHandle handle = centralJobScheduler.schedule( Group.INDEX_POPULATION, job );
         handle.registerCancelListener( mayBeInterrupted -> halted.set( true ) );
         handle.cancel( false );
 
@@ -242,7 +253,7 @@ public class CentralJobSchedulerTest
             triggered.set( true );
         };
 
-        JobHandle handle = scheduler.schedule( indexPopulation, job, 10, TimeUnit.MILLISECONDS );
+        JobHandle handle = scheduler.schedule( Group.INDEX_POPULATION, job, 10, TimeUnit.MILLISECONDS );
 
         handle.waitTermination();
         assertTrue( triggered.get() );
@@ -262,7 +273,7 @@ public class CentralJobSchedulerTest
             throw boom;
         };
 
-        JobHandle handle = scheduler.scheduleRecurring( indexPopulation, job, 1, TimeUnit.MILLISECONDS );
+        JobHandle handle = scheduler.scheduleRecurring( Group.INDEX_POPULATION, job, 1, TimeUnit.MILLISECONDS );
         try
         {
             handle.waitTermination();
@@ -290,7 +301,7 @@ public class CentralJobSchedulerTest
             throw boom;
         };
 
-        scheduler.scheduleRecurring( indexPopulation, job, 1, TimeUnit.MILLISECONDS );
+        scheduler.scheduleRecurring( Group.INDEX_POPULATION, job, 1, TimeUnit.MILLISECONDS );
 
         triggerLatch.await();
         Thread.sleep( 50 );
@@ -306,7 +317,7 @@ public class CentralJobSchedulerTest
 
         BinaryLatch startLatch = new BinaryLatch();
         BinaryLatch stopLatch = new BinaryLatch();
-        scheduler.schedule( indexPopulation, () ->
+        scheduler.schedule( Group.INDEX_POPULATION, () ->
         {
             try
             {

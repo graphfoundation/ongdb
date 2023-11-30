@@ -38,11 +38,11 @@
  */
 package org.neo4j.kernel.impl.util.dbstructure;
 
-import org.neo4j.kernel.api.schema.constaints.NodeExistenceConstraintDescriptor;
-import org.neo4j.kernel.api.schema.constaints.NodeKeyConstraintDescriptor;
-import org.neo4j.kernel.api.schema.constaints.RelExistenceConstraintDescriptor;
-import org.neo4j.kernel.api.schema.constaints.UniquenessConstraintDescriptor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
+import org.neo4j.kernel.api.schema.constraints.NodeExistenceConstraintDescriptor;
+import org.neo4j.kernel.api.schema.constraints.NodeKeyConstraintDescriptor;
+import org.neo4j.kernel.api.schema.constraints.RelExistenceConstraintDescriptor;
+import org.neo4j.kernel.api.schema.constraints.UniquenessConstraintDescriptor;
+import org.neo4j.storageengine.api.schema.IndexDescriptor;
 
 public interface DbStructureVisitor
 {
@@ -50,7 +50,7 @@ public interface DbStructureVisitor
     void visitPropertyKey( int propertyKeyId, String propertyKeyName );
     void visitRelationshipType( int relTypeId, String relTypeName );
 
-    void visitIndex( SchemaIndexDescriptor descriptor, String userDescription, double uniqueValuesPercentage, long size );
+    void visitIndex( IndexDescriptor descriptor, String userDescription, double uniqueValuesPercentage, long size );
     void visitUniqueConstraint( UniquenessConstraintDescriptor constraint, String userDescription );
     void visitNodePropertyExistenceConstraint( NodeExistenceConstraintDescriptor constraint, String userDescription );
     void visitRelationshipPropertyExistenceConstraint( RelExistenceConstraintDescriptor constraint,

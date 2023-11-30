@@ -46,7 +46,7 @@ import org.neo4j.cursor.RawCursor;
 import org.neo4j.index.internal.gbptree.Hit;
 import org.neo4j.values.storable.Value;
 
-public class NativeHitIndexProgressor<KEY extends NativeSchemaKey<KEY>, VALUE extends NativeSchemaValue> extends NativeIndexProgressor<KEY,VALUE>
+public class NativeHitIndexProgressor<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> extends NativeIndexProgressor<KEY,VALUE>
 {
     NativeHitIndexProgressor( RawCursor<Hit<KEY,VALUE>,IOException> seeker, NodeValueClient client,
             Collection<RawCursor<Hit<KEY,VALUE>,IOException>> toRemoveFromOnClose )

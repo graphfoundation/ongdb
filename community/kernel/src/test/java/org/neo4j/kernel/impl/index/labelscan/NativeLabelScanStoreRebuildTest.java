@@ -39,12 +39,10 @@
 package org.neo4j.kernel.impl.index.labelscan;
 
 import org.hamcrest.Matchers;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -71,9 +69,9 @@ import static org.neo4j.kernel.impl.api.scan.FullStoreChangeStream.asStream;
 
 public class NativeLabelScanStoreRebuildTest
 {
-    private PageCacheRule pageCacheRule = new PageCacheRule();
-    private FileSystemRule fileSystemRule = new DefaultFileSystemRule();
-    private TestDirectory testDirectory = TestDirectory.testDirectory();
+    private final PageCacheRule pageCacheRule = new PageCacheRule();
+    private final FileSystemRule fileSystemRule = new DefaultFileSystemRule();
+    private final TestDirectory testDirectory = TestDirectory.testDirectory();
 
     @Rule
     public RuleChain ruleChain = RuleChain.outerRule( fileSystemRule ).around( pageCacheRule ).around( testDirectory );
@@ -82,13 +80,6 @@ public class NativeLabelScanStoreRebuildTest
     {
         throw new IllegalArgumentException();
     };
-    private File storeDir;
-
-    @Before
-    public void setup()
-    {
-        storeDir = testDirectory.graphDbDir();
-    }
 
     @Test
     public void mustBeDirtyIfFailedDuringRebuild() throws Exception
@@ -103,7 +94,7 @@ public class NativeLabelScanStoreRebuildTest
         monitors.addMonitorListener( monitor );
 
         NativeLabelScanStore nativeLabelScanStore =
-                new NativeLabelScanStore( pageCache, fileSystemRule, storeDir, EMPTY, false, monitors, immediate() );
+                new NativeLabelScanStore( pageCache, testDirectory.databaseLayout(), fileSystemRule.get(), EMPTY, false, monitors, immediate() );
         nativeLabelScanStore.init();
         nativeLabelScanStore.start();
 
@@ -124,8 +115,8 @@ public class NativeLabelScanStoreRebuildTest
         RecordingMonitor monitor = new RecordingMonitor();
         monitors.addMonitorListener( monitor );
 
-        NativeLabelScanStore nativeLabelScanStore =
-                new NativeLabelScanStore( pageCache, fileSystemRule, storeDir, EMPTY, true, monitors, ignore() );
+        NativeLabelScanStore nativeLabelScanStore = new NativeLabelScanStore( pageCache, testDirectory.databaseLayout(), fileSystemRule.get(),
+                EMPTY, true, monitors, ignore() );
         nativeLabelScanStore.init();
         nativeLabelScanStore.start();
 
@@ -145,8 +136,8 @@ public class NativeLabelScanStoreRebuildTest
         RecordingMonitor monitor = new RecordingMonitor();
         monitors.addMonitorListener( monitor );
 
-        NativeLabelScanStore nativeLabelScanStore =
-                new NativeLabelScanStore( pageCache, fileSystemRule, storeDir, EMPTY, true, monitors, ignore() );
+        NativeLabelScanStore nativeLabelScanStore = new NativeLabelScanStore( pageCache, testDirectory.databaseLayout(), fileSystemRule.get(),
+                EMPTY, true, monitors, ignore() );
         nativeLabelScanStore.init();
         nativeLabelScanStore.start();
 
@@ -165,8 +156,8 @@ public class NativeLabelScanStoreRebuildTest
         NativeLabelScanStore nativeLabelScanStore = null;
         try
         {
-            nativeLabelScanStore =
-                    new NativeLabelScanStore( pageCache, fileSystemRule, storeDir, changeStream, false, new Monitors(), immediate() );
+            nativeLabelScanStore = new NativeLabelScanStore( pageCache, testDirectory.databaseLayout(), fileSystemRule.get(),
+                    changeStream, false, new Monitors(), immediate() );
             nativeLabelScanStore.init();
 
             // when
@@ -193,7 +184,7 @@ public class NativeLabelScanStoreRebuildTest
         NativeLabelScanStore nativeLabelScanStore = null;
         try
         {
-            nativeLabelScanStore = new NativeLabelScanStore( pageCache, fileSystemRule, storeDir, THROWING_STREAM, false,
+            nativeLabelScanStore = new NativeLabelScanStore( pageCache, testDirectory.databaseLayout(), fileSystemRule.get(), THROWING_STREAM, false,
                     new Monitors(), immediate() );
 
             nativeLabelScanStore.init();
@@ -208,7 +199,7 @@ public class NativeLabelScanStoreRebuildTest
         }
     }
 
-    private class RecordingMonitor extends LabelScanStore.Monitor.Adaptor
+    private static class RecordingMonitor extends LabelScanStore.Monitor.Adaptor
     {
         boolean notValid;
         boolean rebuilding;

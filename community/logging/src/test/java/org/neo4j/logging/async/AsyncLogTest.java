@@ -39,20 +39,21 @@
 package org.neo4j.logging.async;
 
 import org.hamcrest.Matcher;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 
-import org.neo4j.concurrent.AsyncEventSender;
 import org.neo4j.logging.AbstractLog;
 import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.Logger;
+import org.neo4j.util.concurrent.AsyncEventSender;
 
 import static java.util.Objects.requireNonNull;
 import static org.hamcrest.CoreMatchers.allOf;
@@ -61,41 +62,28 @@ import static org.hamcrest.CoreMatchers.sameInstance;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.neo4j.logging.AssertableLogProvider.inLog;
 
-@RunWith( Parameterized.class )
 public class AsyncLogTest
 {
-    @Parameterized.Parameters( name = "{0} {1}.log({2})" )
-    public static Iterable<Object[]> parameters()
+    private static final Throwable exception = new Exception();
+
+    public static Stream<Arguments> parameters()
     {
-        List<Object[]> parameters = new ArrayList<>();
-        for ( Invocation invocation : Invocation.values() )
+        List<Arguments> parameters = new ArrayList<>();
+        for ( Invocation invocation: Invocation.values() )
         {
-            for ( Level level : Level.values() )
+            for ( Level level: Level.values() )
             {
-                for ( Style style : Style.values() )
+                for ( Style style: Style.values() )
                 {
-                    parameters.add( new Object[]{invocation, level, style} );
+                    parameters.add( Arguments.of( invocation, level, style ) );
                 }
             }
-        }
-        return parameters;
+        } return parameters.stream();
     }
 
-    @SuppressWarnings( "ThrowableInstanceNeverThrown" )
-    private final Throwable exception = new Exception();
-    private final Invocation invocation;
-    private final Level level;
-    private final Style style;
-
-    public AsyncLogTest( Invocation invocation, Level level, Style style )
-    {
-        this.invocation = invocation;
-        this.level = level;
-        this.style = style;
-    }
-
-    @Test
-    public void shouldLogAsynchronously()
+    @ParameterizedTest
+    @MethodSource( "parameters" )
+    void shouldLogAsynchronously( Invocation invocation, Level level, Style style )
     {
         // given
         AssertableLogProvider logging = new AssertableLogProvider();
@@ -104,7 +92,7 @@ public class AsyncLogTest
         AsyncLog asyncLog = new AsyncLog( events, log );
 
         // when
-        log( invocation.decorate( asyncLog ) );
+        log( invocation.decorate( asyncLog ), level, style );
         // then
         logging.assertNoLoggingOccurred();
 
@@ -112,11 +100,11 @@ public class AsyncLogTest
         events.process();
         // then
         MatcherBuilder matcherBuilder = new MatcherBuilder( inLog( getClass() ) );
-        log( matcherBuilder );
+        log( matcherBuilder, level, style );
         logging.assertExactly( matcherBuilder.matcher() );
     }
 
-    private void log( Log log )
+    private void log( Log log, Level level, Style style )
     {
         style.invoke( this, level.logger( log ) );
     }
@@ -202,7 +190,7 @@ public class AsyncLogTest
                     @Override
                     void invoke( AsyncLogTest state, Logger logger )
                     {
-                        logger.log( "an exception", state.exception );
+                        logger.log( "an exception", exception );
                     }
 
                     @Override

@@ -38,7 +38,7 @@
  */
 package org.neo4j.io.pagecache.impl.muninn;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -46,20 +46,20 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.neo4j.concurrent.BinaryLatch;
 import org.neo4j.test.ThreadTestUtils;
+import org.neo4j.util.concurrent.BinaryLatch;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
 
-public class LatchMapTest
+class LatchMapTest
 {
-    LatchMap latches = new LatchMap();
+    private LatchMap latches = new LatchMap();
 
     @Test
-    public void takeOrAwaitLatchMustReturnLatchIfAvailable()
+    void takeOrAwaitLatchMustReturnLatchIfAvailable()
     {
         BinaryLatch latch = latches.takeOrAwaitLatch( 0 );
         assertThat( latch, is( notNullValue() ) );
@@ -67,7 +67,7 @@ public class LatchMapTest
     }
 
     @Test
-    public void takeOrAwaitLatchMustAwaitExistingLatchAndReturnNull() throws Exception
+    void takeOrAwaitLatchMustAwaitExistingLatchAndReturnNull() throws Exception
     {
         AtomicReference<Thread> threadRef = new AtomicReference<>();
         BinaryLatch latch = latches.takeOrAwaitLatch( 42 );
@@ -90,7 +90,7 @@ public class LatchMapTest
     }
 
     @Test
-    public void takeOrAwaitLatchMustNotLetUnrelatedLatchesConflictTooMuch() throws Exception
+    void takeOrAwaitLatchMustNotLetUnrelatedLatchesConflictTooMuch() throws Exception
     {
         BinaryLatch latch = latches.takeOrAwaitLatch( 42 );
         assertThat( latch, is( notNullValue() ) );
@@ -101,7 +101,7 @@ public class LatchMapTest
     }
 
     @Test
-    public void latchMustBeAvailableAfterRelease()
+    void latchMustBeAvailableAfterRelease()
     {
         latches.takeOrAwaitLatch( 42 ).release();
         latches.takeOrAwaitLatch( 42 ).release();

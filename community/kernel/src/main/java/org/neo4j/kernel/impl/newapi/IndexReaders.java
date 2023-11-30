@@ -43,7 +43,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.neo4j.internal.kernel.api.IndexReference;
-import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
 import org.neo4j.storageengine.api.schema.IndexReader;
 
 import static org.neo4j.io.IOUtils.closeAllUnchecked;

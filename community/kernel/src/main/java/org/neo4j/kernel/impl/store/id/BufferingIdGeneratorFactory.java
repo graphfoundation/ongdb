@@ -57,7 +57,7 @@ public class BufferingIdGeneratorFactory implements IdGeneratorFactory
     private final BufferingIdGenerator[/*IdType#ordinal as key*/] overriddenIdGenerators =
             new BufferingIdGenerator[IdType.values().length];
     private Supplier<KernelTransactionsSnapshot> boundaries;
-    private Predicate<KernelTransactionsSnapshot> safeThreshold;
+    private final Predicate<KernelTransactionsSnapshot> safeThreshold;
     private final IdGeneratorFactory delegate;
     private final IdTypeConfigurationProvider idTypeConfigurationProvider;
 
@@ -77,8 +77,8 @@ public class BufferingIdGeneratorFactory implements IdGeneratorFactory
     @Override
     public IdGenerator open( File filename, IdType idType, LongSupplier highId, long maxId )
     {
-        IdTypeConfiguration typeConfiguration = idTypeConfigurationProvider.getIdTypeConfiguration( idType );
-        return open( filename, typeConfiguration.getGrabSize(), idType, highId, maxId);
+        IdTypeConfiguration typeConfiguration = getIdTypeConfiguration( idType );
+        return open( filename, typeConfiguration.getGrabSize(), idType, highId, maxId );
     }
 
     @Override

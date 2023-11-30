@@ -43,15 +43,15 @@ import org.neo4j.internal.kernel.api.PropertyCursor;
 import org.neo4j.internal.kernel.api.Read;
 import org.neo4j.internal.kernel.api.exceptions.EntityNotFoundException;
 import org.neo4j.io.IOUtils;
-import org.neo4j.kernel.api.index.PropertyAccessor;
 import org.neo4j.storageengine.api.EntityType;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
 /**
- * Generic single-threaded {@link PropertyAccessor} given a {@link NodeCursor} and {@link PropertyCursor}.
+ * Generic single-threaded {@link NodePropertyAccessor} given a {@link NodeCursor} and {@link PropertyCursor}.
  */
-class CursorPropertyAccessor implements PropertyAccessor, AutoCloseable
+class CursorPropertyAccessor implements NodePropertyAccessor, AutoCloseable
 {
     private final NodeCursor nodeCursor;
     private final PropertyCursor propertyCursor;
@@ -71,7 +71,7 @@ class CursorPropertyAccessor implements PropertyAccessor, AutoCloseable
     }
 
     @Override
-    public Value getPropertyValue( long nodeId, int propertyKeyId ) throws EntityNotFoundException
+    public Value getNodePropertyValue( long nodeId, int propertyKeyId ) throws EntityNotFoundException
     {
         read.singleNode( nodeId, nodeCursor );
         if ( !nodeCursor.next() )

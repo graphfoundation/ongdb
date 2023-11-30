@@ -38,7 +38,7 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted
 
-import org.neo4j.cypher.internal.planner.v3_4.spi.TokenContext
+import org.neo4j.cypher.internal.planner.v3_5.spi.TokenContext
 import org.neo4j.internal.kernel.api.TokenRead
 import org.neo4j.internal.kernel.api.exceptions.LabelNotFoundKernelException
 import org.neo4j.kernel.api.KernelTransaction
@@ -53,8 +53,8 @@ abstract class TransactionBoundTokenContext(transaction: => KernelTransaction) e
 
   def getPropertyKeyId(propertyKeyName: String) = {
     val propertyId: Int = transaction.tokenRead().propertyKey(propertyKeyName)
-    if (propertyId ==TokenRead.NO_TOKEN)
-      throw new PropertyKeyNotFoundException("No such property.", null)
+    if (propertyId == TokenRead.NO_TOKEN)
+      throw new PropertyKeyNotFoundException(propertyKeyName, null)
     propertyId
   }
 
@@ -63,7 +63,7 @@ abstract class TransactionBoundTokenContext(transaction: => KernelTransaction) e
   def getLabelId(labelName: String): Int = {
     val labelId: Int = transaction.tokenRead().nodeLabel(labelName)
     if (labelId == TokenRead.NO_TOKEN)
-      throw new LabelNotFoundKernelException("No such label", null)
+      throw new LabelNotFoundKernelException(labelId, null)
     labelId
   }
 
@@ -84,7 +84,7 @@ abstract class TransactionBoundTokenContext(transaction: => KernelTransaction) e
   def getRelTypeId(relType: String): Int = {
     val relTypeId: Int = transaction.tokenRead().relationshipType(relType)
     if (relTypeId == TokenRead.NO_TOKEN)
-      throw new RelationshipTypeNotFoundException("No such relationship.", null)
+      throw new RelationshipTypeNotFoundException(relType, null)
     relTypeId
   }
 

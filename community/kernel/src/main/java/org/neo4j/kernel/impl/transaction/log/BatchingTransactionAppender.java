@@ -150,7 +150,7 @@ public class BatchingTransactionAppender extends LifecycleAdapter implements Tra
         // in this batch exist durably on disk.
         if ( forceAfterAppend( logAppendEvent ) )
         {
-            // We got lucky and were the one forcing the log. It's enough if ones of all doing concurrent committerss
+            // We got lucky and were the one forcing the log. It's enough if ones of all doing concurrent committers
             // checks the need for log rotation.
             boolean logRotated = logRotation.rotateLogIfNeeded( logAppendEvent );
             logAppendEvent.setLogRotated( logRotated );
@@ -191,20 +191,19 @@ public class BatchingTransactionAppender extends LifecycleAdapter implements Tra
     @Override
     public void checkPoint( LogPosition logPosition, LogCheckPointEvent logCheckPointEvent ) throws IOException
     {
-        try
+        // Synchronized with logFile to get absolute control over concurrent rotations happening
+        synchronized ( logFile )
         {
-            // Synchronized with logFile to get absolute control over concurrent rotations happening
-            synchronized ( logFile )
+            try
             {
                 transactionLogWriter.checkPoint( logPosition );
             }
+            catch ( Throwable cause )
+            {
+                databaseHealth.panic( cause );
+                throw cause;
+            }
         }
-        catch ( Throwable cause )
-        {
-            databaseHealth.panic( cause );
-            throw cause;
-        }
-
         forceAfterAppend( logCheckPointEvent );
     }
 
@@ -361,6 +360,7 @@ public class BatchingTransactionAppender extends LifecycleAdapter implements Tra
         Flushable flushable;
         synchronized ( logFile )
         {
+            databaseHealth.assertHealthy( IOException.class );
             flushable = writer.prepareForFlush();
         }
         // Force the writer outside of the lock.

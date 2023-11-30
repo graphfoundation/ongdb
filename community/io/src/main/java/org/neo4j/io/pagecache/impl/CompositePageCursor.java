@@ -400,6 +400,20 @@ public class CompositePageCursor extends PageCursor
     }
 
     @Override
+    public void mark()
+    {
+        first.mark();
+        second.mark();
+    }
+
+    @Override
+    public void setOffsetToMark()
+    {
+        first.setOffsetToMark();
+        second.setOffsetToMark();
+    }
+
+    @Override
     public long getCurrentPageId()
     {
         return cursor( 0 ).getCurrentPageId();

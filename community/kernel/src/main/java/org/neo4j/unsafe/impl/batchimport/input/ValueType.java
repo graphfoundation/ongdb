@@ -70,7 +70,7 @@ import static java.time.temporal.ChronoUnit.NANOS;
 import static java.time.temporal.ChronoUnit.SECONDS;
 
 /**
- * Utility for reading and writing property values from/into a channel. Supports ONgDB property types,
+ * Utility for reading and writing property values from/into a channel. Supports neo4j property types,
  * including arrays.
  */
 public abstract class ValueType
@@ -235,7 +235,7 @@ public abstract class ValueType
             @Override
             public int length( Object value )
             {
-                return Integer.BYTES + ((String)value).length() * Character.BYTES; // pessimistic
+                return Integer.BYTES + UTF8.encode( (String)value ).length * Character.BYTES; // pessimistic
             }
 
             @Override
@@ -500,9 +500,9 @@ public abstract class ValueType
         public int length( Object value )
         {
             ValueType componentType = typeOf( value.getClass().getComponentType() );
-            int arrayLlength = Array.getLength( value );
-            int length = Integer.BYTES; // array length
-            for ( int i = 0; i < arrayLlength; i++ )
+            int arrayLength = Array.getLength( value );
+            int length = Byte.BYTES /*component type id*/ + Integer.BYTES; /*array length*/
+            for ( int i = 0; i < arrayLength; i++ )
             {
                 length += componentType.length( Array.get( value, i ) );
             }

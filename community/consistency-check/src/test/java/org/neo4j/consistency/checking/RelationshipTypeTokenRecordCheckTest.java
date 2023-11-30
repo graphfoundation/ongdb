@@ -38,7 +38,7 @@
  */
 package org.neo4j.consistency.checking;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.consistency.report.ConsistencyReport.RelationshipTypeConsistencyReport;
 import org.neo4j.kernel.impl.store.record.DynamicRecord;
@@ -47,16 +47,16 @@ import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
-public class RelationshipTypeTokenRecordCheckTest extends
+class RelationshipTypeTokenRecordCheckTest extends
         RecordCheckTestBase<RelationshipTypeTokenRecord, RelationshipTypeConsistencyReport, RelationshipTypeTokenRecordCheck>
 {
-    public RelationshipTypeTokenRecordCheckTest()
+    RelationshipTypeTokenRecordCheckTest()
     {
         super( new RelationshipTypeTokenRecordCheck(), RelationshipTypeConsistencyReport.class, new int[0] );
     }
 
     @Test
-    public void shouldNotReportAnythingForRecordNotInUse()
+    void shouldNotReportAnythingForRecordNotInUse()
     {
         // given
         RelationshipTypeTokenRecord label = notInUse( new RelationshipTypeTokenRecord( 42 ) );
@@ -69,7 +69,7 @@ public class RelationshipTypeTokenRecordCheckTest extends
     }
 
     @Test
-    public void shouldNotReportAnythingForRecordThatDoesNotReferenceADynamicBlock()
+    void shouldNotReportAnythingForRecordThatDoesNotReferenceADynamicBlock()
     {
         // given
         RelationshipTypeTokenRecord label = inUse( new RelationshipTypeTokenRecord( 42 ) );
@@ -82,7 +82,7 @@ public class RelationshipTypeTokenRecordCheckTest extends
     }
 
     @Test
-    public void shouldReportDynamicBlockNotInUse()
+    void shouldReportDynamicBlockNotInUse()
     {
         // given
         RelationshipTypeTokenRecord label = inUse( new RelationshipTypeTokenRecord( 42 ) );
@@ -98,7 +98,7 @@ public class RelationshipTypeTokenRecordCheckTest extends
     }
 
     @Test
-    public void shouldReportEmptyName()
+    void shouldReportEmptyName()
     {
         // given
         RelationshipTypeTokenRecord label = inUse( new RelationshipTypeTokenRecord( 42 ) );

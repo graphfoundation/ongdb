@@ -50,7 +50,7 @@ import org.neo4j.server.rest.transactional.error.TransactionLifecycleException;
 import org.neo4j.server.rest.web.TransactionUriScheme;
 
 /**
- * Transactional actions contains the business logic for executing statements against ONgDB across long-running
+ * Transactional actions contains the business logic for executing statements against Neo4j across long-running
  * transactions.
  * <p>
  * The idiom for the public methods here is:
@@ -94,14 +94,14 @@ public class TransactionFacade
                 loginContext, customTransactionTimeout, logProvider );
     }
 
-    public TransactionHandle findTransactionHandle( long txId ) throws TransactionLifecycleException
+    public TransactionHandle findTransactionHandle( long txId, LoginContext requestingUser ) throws TransactionLifecycleException
     {
-        return registry.acquire( txId );
+        return registry.acquire( txId, requestingUser );
     }
 
-    public TransactionHandle terminate( long txId ) throws TransactionLifecycleException
+    public TransactionHandle terminate( long txId, LoginContext requestingUser ) throws TransactionLifecycleException
     {
-        return registry.terminate( txId );
+        return registry.terminate( txId, requestingUser );
     }
 
     public StatementDeserializer deserializer( InputStream input )

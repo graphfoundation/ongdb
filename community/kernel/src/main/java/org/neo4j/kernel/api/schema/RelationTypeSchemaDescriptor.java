@@ -38,6 +38,8 @@
  */
 package org.neo4j.kernel.api.schema;
 
+import org.apache.commons.lang3.ArrayUtils;
+
 import java.util.Arrays;
 
 import org.neo4j.internal.kernel.api.TokenNameLookup;
@@ -46,6 +48,7 @@ import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
 import org.neo4j.internal.kernel.api.schema.SchemaProcessor;
 import org.neo4j.internal.kernel.api.schema.SchemaUtil;
 import org.neo4j.kernel.impl.locking.ResourceTypes;
+import org.neo4j.storageengine.api.EntityType;
 import org.neo4j.storageengine.api.lock.ResourceType;
 
 public class RelationTypeSchemaDescriptor implements org.neo4j.internal.kernel.api.schema.RelationTypeSchemaDescriptor
@@ -57,6 +60,12 @@ public class RelationTypeSchemaDescriptor implements org.neo4j.internal.kernel.a
     {
         this.relTypeId = relTypeId;
         this.propertyIds = propertyIds;
+    }
+
+    @Override
+    public boolean isAffected( long[] entityTokenIds )
+    {
+        return ArrayUtils.contains( entityTokenIds, relTypeId );
     }
 
     @Override
@@ -74,13 +83,8 @@ public class RelationTypeSchemaDescriptor implements org.neo4j.internal.kernel.a
     @Override
     public String userDescription( TokenNameLookup tokenNameLookup )
     {
-        return SchemaUtil.niceRelTypeAndProperties( tokenNameLookup, relTypeId, propertyIds );
-    }
-
-    @Override
-    public String keyName( TokenNameLookup tokenNameLookup )
-    {
-        return tokenNameLookup.relationshipTypeGetName( relTypeId );
+        return String.format( "-[:%s(%s)]-", tokenNameLookup.relationshipTypeGetName( relTypeId ),
+                SchemaUtil.niceProperties( tokenNameLookup, propertyIds ) );
     }
 
     @Override
@@ -96,6 +100,12 @@ public class RelationTypeSchemaDescriptor implements org.neo4j.internal.kernel.a
     }
 
     @Override
+    public int[] getEntityTokenIds()
+    {
+        return new int[]{relTypeId};
+    }
+
+    @Override
     public int keyId()
     {
         return getRelTypeId();
@@ -105,6 +115,18 @@ public class RelationTypeSchemaDescriptor implements org.neo4j.internal.kernel.a
     public ResourceType keyType()
     {
         return ResourceTypes.RELATIONSHIP_TYPE;
+    }
+
+    @Override
+    public EntityType entityType()
+    {
+        return EntityType.RELATIONSHIP;
+    }
+
+    @Override
+    public PropertySchemaType propertySchemaType()
+    {
+        return PropertySchemaType.COMPLETE_ALL_TOKENS;
     }
 
     @Override

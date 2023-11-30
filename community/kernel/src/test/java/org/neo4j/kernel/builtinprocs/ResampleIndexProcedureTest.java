@@ -41,18 +41,18 @@ package org.neo4j.kernel.builtinprocs;
 import org.junit.Before;
 import org.junit.Test;
 
-import org.neo4j.internal.kernel.api.CapableIndexReference;
+import org.neo4j.internal.kernel.api.IndexReference;
 import org.neo4j.internal.kernel.api.SchemaRead;
 import org.neo4j.internal.kernel.api.TokenRead;
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.exceptions.Status;
-import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
 import org.neo4j.kernel.api.exceptions.schema.SchemaRuleNotFoundException;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
+import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
 import org.neo4j.kernel.impl.api.index.IndexingService;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingMode;
+import org.neo4j.storageengine.api.schema.IndexDescriptor;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -63,7 +63,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.neo4j.kernel.impl.api.store.DefaultCapableIndexReference.fromDescriptor;
 
 public class ResampleIndexProcedureTest
 {
@@ -124,10 +123,10 @@ public class ResampleIndexProcedureTest
     public void shouldLookUpTheIndexByLabelIdAndPropertyKeyId()
             throws ProcedureException, SchemaRuleNotFoundException
     {
-        SchemaIndexDescriptor index = SchemaIndexDescriptorFactory.forLabel( 0, 0 );
+        IndexDescriptor index = TestIndexDescriptorFactory.forLabel( 0, 0 );
         when( tokenRead.nodeLabel( anyString() ) ).thenReturn( 123 );
         when( tokenRead.propertyKey( anyString() ) ).thenReturn( 456 );
-        when( schemaRead.index( anyInt(), any() ) ).thenReturn( fromDescriptor( index ) );
+        when( schemaRead.index( anyInt(), any() ) ).thenReturn( index );
 
         procedure.resampleIndex( ":Person(name)" );
 
@@ -138,11 +137,11 @@ public class ResampleIndexProcedureTest
     public void shouldLookUpTheCompositeIndexByLabelIdAndPropertyKeyId()
             throws ProcedureException, SchemaRuleNotFoundException
     {
-        SchemaIndexDescriptor index = SchemaIndexDescriptorFactory.forLabel( 0, 0, 1 );
+        IndexDescriptor index = TestIndexDescriptorFactory.forLabel( 0, 0, 1 );
         when( tokenRead.nodeLabel( anyString() ) ).thenReturn( 123 );
         when( tokenRead.propertyKey( "name" ) ).thenReturn( 0 );
         when( tokenRead.propertyKey( "lastName" ) ).thenReturn( 1 );
-        when( schemaRead.index( 123, 0, 1  ) ).thenReturn( fromDescriptor( index ) );
+        when( schemaRead.index( 123, 0, 1  ) ).thenReturn( index );
 
         procedure.resampleIndex( ":Person(name, lastName)" );
 
@@ -156,7 +155,7 @@ public class ResampleIndexProcedureTest
     {
         when( tokenRead.nodeLabel( anyString() ) ).thenReturn( 0 );
         when( tokenRead.propertyKey( anyString() ) ).thenReturn( 0 );
-        when( schemaRead.index( anyInt(), any() ) ).thenReturn( CapableIndexReference.NO_INDEX );
+        when( schemaRead.index( anyInt(), any() ) ).thenReturn( IndexReference.NO_INDEX );
 
         try
         {
@@ -173,8 +172,8 @@ public class ResampleIndexProcedureTest
     public void shouldTriggerResampling()
             throws SchemaRuleNotFoundException, ProcedureException, IndexNotFoundKernelException
     {
-        SchemaIndexDescriptor index = SchemaIndexDescriptorFactory.forLabel( 123, 456 );
-        when( schemaRead.index( anyInt(), any() ) ).thenReturn( fromDescriptor( index ) );
+        IndexDescriptor index = TestIndexDescriptorFactory.forLabel( 123, 456 );
+        when( schemaRead.index( anyInt(), any() ) ).thenReturn( index );
 
         procedure.resampleIndex( ":Person(name)" );
 

@@ -46,11 +46,12 @@ import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.kernel.impl.store.UnderlyingStorageException;
 import org.neo4j.kernel.internal.DatabaseHealth;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobHandle;
 import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.util.FeatureToggles;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static org.neo4j.scheduler.JobScheduler.Groups.checkPoint;
 
 public class CheckPointScheduler extends LifecycleAdapter
 {
@@ -80,7 +81,7 @@ public class CheckPointScheduler extends LifecycleAdapter
                 {
                     return;
                 }
-                checkPointer.checkPointIfNeeded( new SimpleTriggerInfo( "scheduler" ) );
+                checkPointer.checkPointIfNeeded( new SimpleTriggerInfo( "Scheduled checkpoint" ) );
 
                 // There were previous unsuccessful attempts, but this attempt was a success
                 // so let's clear those previous errors.
@@ -110,7 +111,7 @@ public class CheckPointScheduler extends LifecycleAdapter
             // reschedule only if it is not stopped
             if ( !stopped )
             {
-                handle = scheduler.schedule( checkPoint, job, recurringPeriodMillis, MILLISECONDS );
+                handle = scheduler.schedule( Group.CHECKPOINT, job, recurringPeriodMillis, MILLISECONDS );
             }
         }
 
@@ -125,7 +126,7 @@ public class CheckPointScheduler extends LifecycleAdapter
         }
     };
 
-    private volatile JobScheduler.JobHandle handle;
+    private volatile JobHandle handle;
     private volatile boolean stopped;
     private volatile boolean checkPointing;
     private final BooleanSupplier checkPointingCondition = new BooleanSupplier()
@@ -150,7 +151,7 @@ public class CheckPointScheduler extends LifecycleAdapter
     @Override
     public void start()
     {
-        handle = scheduler.schedule( checkPoint, job, recurringPeriodMillis, MILLISECONDS );
+        handle = scheduler.schedule( Group.CHECKPOINT, job, recurringPeriodMillis, MILLISECONDS );
     }
 
     @Override

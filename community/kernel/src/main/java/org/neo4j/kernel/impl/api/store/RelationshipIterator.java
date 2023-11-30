@@ -38,12 +38,12 @@
  */
 package org.neo4j.kernel.impl.api.store;
 
-import org.neo4j.collection.primitive.PrimitiveLongCollections;
-import org.neo4j.collection.primitive.PrimitiveLongCollections.PrimitiveLongBaseIterator;
-import org.neo4j.collection.primitive.PrimitiveLongIterator;
-import org.neo4j.kernel.impl.api.RelationshipVisitor;
+import org.eclipse.collections.api.iterator.LongIterator;
 
-public interface RelationshipIterator extends PrimitiveLongIterator, RelationshipVisitor.Home
+import org.neo4j.collection.PrimitiveLongCollections;
+import org.neo4j.storageengine.api.RelationshipVisitor;
+
+public interface RelationshipIterator extends RelationshipVisitor.Home, LongIterator
 {
     /**
      * Can be called to visit the data about the most recent id returned from {@link #next()}.
@@ -69,8 +69,4 @@ public interface RelationshipIterator extends PrimitiveLongIterator, Relationshi
     }
 
     RelationshipIterator EMPTY = new Empty();
-
-    abstract class BaseIterator extends PrimitiveLongBaseIterator implements RelationshipIterator
-    {
-    }
 }

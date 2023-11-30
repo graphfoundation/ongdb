@@ -41,10 +41,10 @@ package org.neo4j.server.database;
 import org.junit.Test;
 
 import org.neo4j.graphdb.TransactionFailureException;
-import org.neo4j.kernel.GraphDatabaseDependencies;
+import org.neo4j.graphdb.facade.GraphDatabaseDependencies;
+import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
-import org.neo4j.kernel.impl.factory.GraphDatabaseFacadeFactory;
 import org.neo4j.logging.NullLogProvider;
 
 import static org.junit.Assert.assertTrue;
@@ -61,7 +61,7 @@ public class LifecycleManagingDatabaseTest
         Config config = Config.defaults();
         GraphDatabaseFacadeFactory.Dependencies deps =
                 GraphDatabaseDependencies.newDependencies().userLogProvider( NullLogProvider.getInstance() );
-        LifecycleManagingDatabase.GraphFactory factory = ( conf, dependencies ) -> mockDb;
+        GraphFactory factory = new SimpleGraphFactory( mockDb );
         LifecycleManagingDatabase db = new LifecycleManagingDatabase( config, factory, deps )
         {
             @Override

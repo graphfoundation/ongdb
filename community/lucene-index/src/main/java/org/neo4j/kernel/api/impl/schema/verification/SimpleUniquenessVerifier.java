@@ -53,7 +53,7 @@ import java.util.List;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.index.partition.PartitionSearcher;
 import org.neo4j.kernel.api.impl.schema.LuceneDocumentStructure;
-import org.neo4j.kernel.api.index.PropertyAccessor;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.values.storable.Value;
 
 /**
@@ -76,7 +76,7 @@ public class SimpleUniquenessVerifier implements UniquenessVerifier
     }
 
     @Override
-    public void verify( PropertyAccessor accessor, int[] propKeyIds ) throws IndexEntryConflictException, IOException
+    public void verify( NodePropertyAccessor accessor, int[] propKeyIds ) throws IndexEntryConflictException, IOException
     {
         try
         {
@@ -115,7 +115,7 @@ public class SimpleUniquenessVerifier implements UniquenessVerifier
     }
 
     @Override
-    public void verify( PropertyAccessor accessor, int[] propKeyIds, List<Value[]> updatedValueTuples )
+    public void verify( NodePropertyAccessor accessor, int[] propKeyIds, List<Value[]> updatedValueTuples )
             throws IndexEntryConflictException, IOException
     {
         try

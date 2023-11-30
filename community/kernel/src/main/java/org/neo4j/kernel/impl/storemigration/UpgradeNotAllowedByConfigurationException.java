@@ -55,7 +55,7 @@ public class UpgradeNotAllowedByConfigurationException extends UpgradeNotAllowed
     private static String baseMessage()
     {
         return String.format(
-                "ONgDB cannot be started because the database files require upgrading and upgrades are disabled " +
+                "Neo4j cannot be started because the database files require upgrading and upgrades are disabled " +
                 "in the configuration. Please set '%s' to 'true' in your configuration file and try again.",
                 GraphDatabaseSettings.allow_upgrade.name() );
     }

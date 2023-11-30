@@ -40,10 +40,10 @@ package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import java.util.Comparator
 
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
 import org.neo4j.cypher.internal.runtime.interpreted.ValueComparisonHelper.beEquivalentTo
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
-import org.neo4j.cypher.internal.util.v3_4.symbols._
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.symbols._
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 
 class Top1WithTiesPipeTest extends CypherFunSuite {
 

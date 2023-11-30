@@ -56,24 +56,24 @@ import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.api.explicitindex.AutoIndexing;
-import org.neo4j.kernel.api.txstate.ExplicitIndexTransactionState;
-import org.neo4j.kernel.impl.api.index.IndexProviderMap;
+import org.neo4j.kernel.api.txstate.auxiliary.AuxiliaryTransactionStateManager;
+import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.api.index.IndexingService;
 import org.neo4j.kernel.impl.api.state.ConstraintIndexCreator;
 import org.neo4j.kernel.impl.constraints.StandardConstraintSemantics;
 import org.neo4j.kernel.impl.factory.CanWrite;
 import org.neo4j.kernel.impl.index.ExplicitIndexStore;
-import org.neo4j.kernel.impl.locking.LockTracer;
 import org.neo4j.kernel.impl.locking.NoOpClient;
 import org.neo4j.kernel.impl.locking.SimpleStatementLocks;
-import org.neo4j.kernel.impl.newapi.DefaultCursors;
 import org.neo4j.kernel.impl.proc.Procedures;
 import org.neo4j.kernel.impl.transaction.TransactionHeaderInformationFactory;
 import org.neo4j.kernel.impl.transaction.TransactionMonitor;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionTracer;
+import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.resources.CpuClock;
 import org.neo4j.resources.HeapAllocation;
 import org.neo4j.storageengine.api.StorageEngine;
+import org.neo4j.storageengine.api.lock.LockTracer;
 import org.neo4j.test.Race;
 import org.neo4j.time.Clocks;
 
@@ -88,6 +88,7 @@ import static org.mockito.Mockito.RETURNS_MOCKS;
 import static org.mockito.Mockito.mock;
 import static org.neo4j.internal.kernel.api.security.SecurityContext.AUTH_DISABLED;
 import static org.neo4j.kernel.impl.util.collection.CollectionsFactorySupplier.ON_HEAP;
+import static org.neo4j.test.MockedNeoStores.mockedTokenHolders;
 
 public class KernelTransactionTerminationTest
 {
@@ -361,17 +362,13 @@ public class KernelTransactionTerminationTest
 
         TestKernelTransaction( CommitTrackingMonitor monitor )
         {
-            super( mock( StatementOperationParts.class ), mock( SchemaWriteGuard.class ), new TransactionHooks(),
-                    mock( ConstraintIndexCreator.class ), new Procedures(), TransactionHeaderInformationFactory.DEFAULT,
-                    mock( TransactionCommitProcess.class ), monitor, () -> mock( ExplicitIndexTransactionState.class ),
-                    mock( Pool.class ), Clocks.fakeClock(),
-                    new AtomicReference<>( CpuClock.NOT_AVAILABLE ), new AtomicReference<>( HeapAllocation.NOT_AVAILABLE ),
-                    TransactionTracer.NULL,
-                    LockTracer.NONE, PageCursorTracerSupplier.NULL,
-                    mock( StorageEngine.class, RETURNS_MOCKS ), new CanWrite(),
-                    mock( DefaultCursors.class ), AutoIndexing.UNSUPPORTED, mock( ExplicitIndexStore.class ),
-                    EmptyVersionContextSupplier.EMPTY, ON_HEAP, new StandardConstraintSemantics(), mock( SchemaState.class),
-                    mock( IndexingService.class ), mock( IndexProviderMap.class ) );
+            super( Config.defaults(), mock( StatementOperationParts.class ), mock( SchemaWriteGuard.class ), new TransactionHooks(),
+                    mock( ConstraintIndexCreator.class ), new Procedures(), TransactionHeaderInformationFactory.DEFAULT, mock( TransactionCommitProcess.class ),
+                    monitor, mock( AuxiliaryTransactionStateManager.class ), mock( Pool.class ), Clocks.fakeClock(),
+                    new AtomicReference<>( CpuClock.NOT_AVAILABLE ), new AtomicReference<>( HeapAllocation.NOT_AVAILABLE ), TransactionTracer.NULL,
+                    LockTracer.NONE, PageCursorTracerSupplier.NULL, mock( StorageEngine.class, RETURNS_MOCKS ), new CanWrite(), AutoIndexing.UNSUPPORTED,
+                    mock( ExplicitIndexStore.class ), EmptyVersionContextSupplier.EMPTY, ON_HEAP, new StandardConstraintSemantics(), mock( SchemaState.class ),
+                    mock( IndexingService.class ), mockedTokenHolders(), new Dependencies() );
 
             this.monitor = monitor;
         }

@@ -40,6 +40,7 @@ package org.neo4j.kernel.impl.store;
 
 import java.io.File;
 import java.util.Collection;
+import java.util.List;
 import java.util.function.Predicate;
 
 import org.neo4j.graphdb.ResourceIterable;
@@ -69,12 +70,11 @@ import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
  * There are two ways of getting records, either one-by-one using
  * {@link #getRecord(long, AbstractBaseRecord, RecordLoad)}, passing in record retrieved from {@link #newRecord()}.
  * This to make a conscious decision about who will create the record instance and in that process figure out
- * ways to reduce number of record instances created. The other way is to use a {@link RecordCursor}, created
- * by {@link #newRecordCursor(AbstractBaseRecord)} and placed at a certain record using
- * {@link RecordCursor#placeAt(long, RecordLoad)}. A {@link RecordCursor} will keep underlying
- * {@link PageCursor} open until until the {@link RecordCursor} is closed and so will be efficient if multiple
- * records are retrieved from it. A {@link RecordCursor} will follow {@link #getNextRecordReference(AbstractBaseRecord)}
- * references to get to {@link RecordCursor#next()} record.
+ * ways to reduce number of record instances created.
+ * <p>
+ * The other way is to use {@link #openPageCursorForReading(long)} to open a cursor and use it to read records using
+ * {@link #getRecordByCursor(long, AbstractBaseRecord, RecordLoad, PageCursor)}. A {@link PageCursor} can be ket open
+ * to read multiple records before closing it.
  *
  * @param <RECORD> type of {@link AbstractBaseRecord}.
  */
@@ -83,7 +83,7 @@ public interface RecordStore<RECORD extends AbstractBaseRecord> extends IdSequen
     /**
      * @return the {@link File} that backs this store.
      */
-    File getStorageFileName();
+    File getStorageFile();
 
     /**
      * @return high id of this store, i.e an id higher than any in use record.
@@ -106,8 +106,7 @@ public interface RecordStore<RECORD extends AbstractBaseRecord> extends IdSequen
     void setHighestPossibleIdInUse( long highestIdInUse );
 
     /**
-     * @return a new record instance for receiving data by {@link #getRecord(long, AbstractBaseRecord, RecordLoad)}
-     * and {@link #newRecordCursor(AbstractBaseRecord)}.
+     * @return a new record instance for receiving data by {@link #getRecord(long, AbstractBaseRecord, RecordLoad)}.
      */
     RECORD newRecord();
 
@@ -135,6 +134,16 @@ public interface RecordStore<RECORD extends AbstractBaseRecord> extends IdSequen
     RECORD getRecord( long id, RECORD target, RecordLoad mode ) throws InvalidRecordException;
 
     /**
+     * Opens a {@link PageCursor} on this store, capable of reading records using
+     * {@link #getRecordByCursor(long, AbstractBaseRecord, RecordLoad, PageCursor)}.
+     * The caller is responsible for closing it when done with it.
+     *
+     * @param id cursor will initially be placed at the page containing this record id.
+     * @return PageCursor for reading records.
+     */
+    PageCursor openPageCursorForReading( long id );
+
+    /**
      * Reads a record from the store into {@code target}, see
      * {@link RecordStore#getRecord(long, AbstractBaseRecord, RecordLoad)}.
      * <p>
@@ -148,6 +157,21 @@ public interface RecordStore<RECORD extends AbstractBaseRecord> extends IdSequen
      * @throws InvalidRecordException if record not in use and the {@code mode} allows for throwing.
      */
     void getRecordByCursor( long id, RECORD target, RecordLoad mode, PageCursor cursor ) throws InvalidRecordException;
+
+    /**
+     * Reads a record from the store into {@code target}, see
+     * {@link RecordStore#getRecord(long, AbstractBaseRecord, RecordLoad)}.
+     * <p>
+     * This method requires that the cursor page and offset point to the first byte of the record in target on calling.
+     * The provided page cursor will be used to get the record, and in doing this it will be redirected to the
+     * next page if the input record was the last on it's page.
+     *
+     * @param target the record to fill.
+     * @param mode loading behaviour, read more in {@link RecordStore#getRecord(long, AbstractBaseRecord, RecordLoad)}.
+     * @param cursor the PageCursor to use for record loading.
+     * @throws InvalidRecordException if record not in use and the {@code mode} allows for throwing.
+     */
+    void nextRecordByCursor( RECORD target, RecordLoad mode, PageCursor cursor ) throws InvalidRecordException;
 
     /**
      * For stores that have other stores coupled underneath, the "top level" record will have a flag
@@ -166,20 +190,10 @@ public interface RecordStore<RECORD extends AbstractBaseRecord> extends IdSequen
      * @return {@link Collection} of records in the loaded chain.
      * @throws InvalidRecordException if some record not in use and the {@code mode} is allows for throwing.
      */
-    Collection<RECORD> getRecords( long firstId, RecordLoad mode ) throws InvalidRecordException;
+    List<RECORD> getRecords( long firstId, RecordLoad mode ) throws InvalidRecordException;
 
     /**
-     * Instantiates a new record cursor capable of iterating over records in this store. A {@link RecordCursor}
-     * gets created with one record and will use every time it reads records.
-     *
-     * @param record instance to use when reading record data.
-     * @return a new {@link RecordCursor} instance capable of reading records in this store.
-     */
-    RecordCursor<RECORD> newRecordCursor( RECORD record );
-
-    /**
-     * Returns another record id which the given {@code record} references and which a {@link RecordCursor}
-     * would follow and read next.
+     * Returns another record id which the given {@code record} references, if it exists in a chain of records.
      *
      * @param record to read the "next" reference from.
      * @return record id of "next" record that the given {@code record} references, or {@link Record#NULL_REFERENCE}
@@ -309,21 +323,27 @@ public interface RecordStore<RECORD extends AbstractBaseRecord> extends IdSequen
         }
 
         @Override
+        public PageCursor openPageCursorForReading( long id )
+        {
+            return actual.openPageCursorForReading( id );
+        }
+
+        @Override
         public void getRecordByCursor( long id, R target, RecordLoad mode, PageCursor cursor ) throws InvalidRecordException
         {
             actual.getRecordByCursor( id, target, mode, cursor );
         }
 
         @Override
-        public Collection<R> getRecords( long firstId, RecordLoad mode ) throws InvalidRecordException
+        public void nextRecordByCursor( R target, RecordLoad mode, PageCursor cursor ) throws InvalidRecordException
         {
-            return actual.getRecords( firstId, mode );
+            actual.nextRecordByCursor( target, mode, cursor );
         }
 
         @Override
-        public RecordCursor<R> newRecordCursor( R record )
+        public List<R> getRecords( long firstId, RecordLoad mode ) throws InvalidRecordException
         {
-            return actual.newRecordCursor( record );
+            return actual.getRecords( firstId, mode );
         }
 
         @Override
@@ -350,9 +370,9 @@ public interface RecordStore<RECORD extends AbstractBaseRecord> extends IdSequen
         }
 
         @Override
-        public File getStorageFileName()
+        public File getStorageFile()
         {
-            return actual.getStorageFileName();
+            return actual.getStorageFile();
         }
 
         @Override

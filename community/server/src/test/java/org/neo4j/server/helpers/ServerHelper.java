@@ -98,11 +98,15 @@ public class ServerHelper
         return createServer( CommunityServerBuilder.server(), false, null );
     }
 
-    public static NeoServer createNonPersistentReadOnlyServer() throws IOException
+    public static NeoServer createReadOnlyServer( File path ) throws IOException
     {
+        // Start writable server to create all store files needed
         CommunityServerBuilder builder = CommunityServerBuilder.server();
+        builder.withProperty( "dbms.connector.bolt.listen_address", ":0" );
+        createServer( builder, true, path ).stop();
+        // Then start server in read only mode
         builder.withProperty( GraphDatabaseSettings.read_only.name(), "true" );
-        return createServer( builder, false, null );
+        return createServer( builder, true, path );
     }
 
     public static NeoServer createNonPersistentServer( LogProvider logProvider ) throws IOException

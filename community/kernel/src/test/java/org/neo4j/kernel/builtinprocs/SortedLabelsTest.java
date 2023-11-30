@@ -38,17 +38,15 @@
  */
 package org.neo4j.kernel.builtinprocs;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
-public class SortedLabelsTest
+class SortedLabelsTest
 {
     @Test
-    public void testEquals()
+    void testEquals()
     {
         long[] longsA = new long[]{1L, 2L, 3L};
         long[] longsB = new long[]{3L, 2L, 1L};
@@ -59,23 +57,23 @@ public class SortedLabelsTest
 
         // self
         //noinspection EqualsWithItself
-        assertTrue( a.equals( a ) );
+        assertEquals( a, a );
 
         // unordered self
-        assertTrue( a.equals( b ) );
-        assertTrue( b.equals( a ) );
+        assertEquals( a, b );
+        assertEquals( b, a );
 
         // other
-        assertFalse( a.equals( c ) );
-        assertFalse( c.equals( a ) );
+        assertNotEquals( a, c );
+        assertNotEquals( c, a );
     }
 
     @Test
-    public void testHashCodeOfLabelSet()
+    void testHashCodeOfLabelSet()
     {
-        long[] longsA = new long[]{1L,2L,3L};
-        long[] longsB = new long[]{3L,2L,1L};
-        long[] longsC = new long[]{1L,2L,3L,4L};
+        long[] longsA = new long[]{1L, 2L, 3L};
+        long[] longsB = new long[]{3L, 2L, 1L};
+        long[] longsC = new long[]{1L, 2L, 3L, 4L};
         SortedLabels a = SortedLabels.from( longsA );
         SortedLabels b = SortedLabels.from( longsB );
         SortedLabels c = SortedLabels.from( longsC );

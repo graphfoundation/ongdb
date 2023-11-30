@@ -38,14 +38,14 @@
  */
 package org.neo4j.helpers;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class ArgsTest
+class ArgsTest
 {
     @Test
-    public void shoulInterpretSingleDashAsValue()
+    void shouldInterpretSingleDashAsValue()
     {
         // GIVEN
         Args args = Args.parse( "-test", "-" );

@@ -64,7 +64,7 @@ public class UdcSettings implements LoadableConfig
     /** Configuration key for enabling the UDC extension. */
     @Description( "Enable the UDC extension." )
     public static final Setting<Boolean> udc_enabled = setting(
-            "dbms.udc.enabled", Enabled.UNLESS_EXPLICITLY_ENABLED, Enabled.AS_DEFAULT_VALUE );
+            "dbms.udc.enabled", Enabled.UNLESS_EXPLICITLY_DISABLED, Enabled.AS_DEFAULT_VALUE );
 
     /** Configuration key for the first delay, expressed in milliseconds. */
     @Internal
@@ -79,7 +79,7 @@ public class UdcSettings implements LoadableConfig
     /** The host address to which UDC updates will be sent. Should be of the form hostname[:port]. */
     @Internal
     public static final Setting<HostnamePort> udc_host = setting( "unsupported.dbms.udc.host", HOSTNAME_PORT,
-            "udc.graphfoundation.org" );
+            "udc.neo4j.org" );
 
     /** Configuration key for overriding the source parameter in UDC */
     @Internal
@@ -94,56 +94,56 @@ public class UdcSettings implements LoadableConfig
 
     private enum Enabled implements Function<String,Boolean>
     {
-        /** Only explicitly configuring this as 'true' enables UDC, all other values leaves UDC disabled. */
-        UNLESS_EXPLICITLY_ENABLED;
+        /** Only explicitly configuring this as 'false' disables UDC, all other values leaves UDC enabled. */
+        UNLESS_EXPLICITLY_DISABLED;
         /**
          * Explicitly allocate a String here so that we know it is unique and can do identity equality comparisons on it
          * to detect that the default value has been used.
          */
         @SuppressWarnings( "RedundantStringConstructorCall" )
-        static final String AS_DEFAULT_VALUE = new String( FALSE );
+        static final String AS_DEFAULT_VALUE = new String( TRUE );
 
         @Override
         public Boolean apply( String from )
         {
             // Perform identity equality here to differentiate between the default value (which is explicitly allocated
-            // as a new instance, and is thus known to be unique), and explicitly being configured as "false".
+            // as a new instance, and is thus known to be unique), and explicitly being configured as "true".
             //noinspection StringEquality
             if ( from == AS_DEFAULT_VALUE ) // yes, this should really be ==
-            { // the default value, as opposed to explicitly configured to "false"
-                // Should result in UDC being disabled, unless one of the other ways to configure explicitly enables it
+            { // the default value, as opposed to explicitly configured to "true"
+                // Should result in UDC being enabled, unless one of the other ways to configure explicitly disables it
                 String enabled = System.getProperty( udc_enabled.name() );
-                if ( TRUE.equalsIgnoreCase( enabled ) )
-                { // the 'enabled' system property tries to enable UDC
+                if ( FALSE.equalsIgnoreCase( enabled ) )
+                { // the 'enabled' system property tries to disable UDC
                     String disabled = System.getProperty( udc_disabled() );
-                    if ( disabled == null || disabled.equalsIgnoreCase( FALSE ) )
-                    { // the 'disabled' system property does nothing to disable UDC
-                        return Boolean.TRUE;
+                    if ( disabled == null || disabled.equalsIgnoreCase( TRUE ) )
+                    { // the 'disabled' system property does nothing to enable UDC
+                        return Boolean.FALSE;
                     }
                 }
-                else if ( FALSE.equalsIgnoreCase( System.getProperty( udc_disabled() ) ) )
-                { // the 'disabled' system property tries to enable UDC
-                    return enabled != null; // only enable if 'enabled' was not defined
+                else if ( TRUE.equalsIgnoreCase( System.getProperty( udc_disabled() ) ) )
+                { // the 'disabled' system property tries to disable UDC
+                    return enabled != null; // only disable if 'enabled' was not defined
                 }
-                return Boolean.FALSE;
+                return Boolean.TRUE;
             }
-            else if ( TRUE.equalsIgnoreCase( from ) )
-            { // the setting tries to enable UDC
-                // if any other way of configuring UDC disables it, trust that instead.
+            else if ( FALSE.equalsIgnoreCase( from ) )
+            { // the setting tries to disable UDC
+                // if any other way of configuring UDC enables it, trust that instead.
                 String enabled = System.getProperty( udc_enabled.name() );
                 String disabled = System.getProperty( udc_disabled() );
-                if ( enabled == null || enabled.equalsIgnoreCase( TRUE ) )
-                { // the 'enabled' system property does nothing to disable UDC
-                    if ( disabled == null || disabled.equalsIgnoreCase( FALSE ) )
-                    { // the 'disabled' system property does nothing to disable UDC
-                        return Boolean.TRUE;
+                if ( enabled == null || enabled.equalsIgnoreCase( FALSE ) )
+                { // the 'enabled' system property does nothing to enable UDC
+                    if ( disabled == null || disabled.equalsIgnoreCase( TRUE ) )
+                    { // the 'disabled' system property does nothing to enable UDC
+                        return Boolean.FALSE;
                     }
                 }
-                return Boolean.FALSE;
+                return Boolean.TRUE;
             }
             else
-            { // the setting disabled UDC
-                return Boolean.FALSE;
+            { // the setting enabled UDC
+                return Boolean.TRUE;
             }
         }
 

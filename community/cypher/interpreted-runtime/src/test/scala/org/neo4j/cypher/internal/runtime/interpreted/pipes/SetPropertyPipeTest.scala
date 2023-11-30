@@ -38,31 +38,27 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
+import org.mockito.ArgumentMatchers
 import org.mockito.ArgumentMatchers.{anyInt, anyLong}
 import org.mockito.Mockito._
-import org.neo4j.cypher.internal.frontend.v3_4.semantics.SemanticTable
-import org.neo4j.cypher.internal.planner.v3_4.spi.TokenContext
+import org.neo4j.cypher.internal.planner.v3_5.spi.TokenContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.{CommunityExpressionConverter, ExpressionConverters}
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions._
 import org.neo4j.cypher.internal.runtime.interpreted.commands.values.KeyToken
 import org.neo4j.cypher.internal.runtime.{Operations, QueryContext}
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.util.v3_4.{DummyPosition, PropertyKeyId}
-import org.neo4j.cypher.internal.v3_4.expressions.PropertyKeyName
-import org.neo4j.cypher.internal.v3_4.{expressions => ast}
-import org.neo4j.graphdb.{Node, Relationship}
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions._
-import org.neo4j.cypher.internal.runtime.interpreted.commands.values.{KeyToken, TokenType}
-import org.neo4j.cypher.internal.runtime.{Operations, QueryContext}
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.util.v3_4.{InputPosition, PropertyKeyId}
-import org.neo4j.cypher.internal.v3_4.expressions.PropertyKeyName
 import org.neo4j.graphdb.Node
 import org.neo4j.values.storable.Values
 import org.neo4j.values.storable.Values.longValue
-import org.neo4j.values.virtual.{RelationshipValue, NodeValue}
+import org.neo4j.values.virtual.{NodeValue, RelationshipValue}
+import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_5.expressions.PropertyKeyName
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.{DummyPosition, PropertyKeyId}
+import org.neo4j.cypher.internal.v3_5.{expressions => ast}
 
 class SetPropertyPipeTest extends CypherFunSuite with PipeTestSupport {
+
   private val pos = DummyPosition(0)
   private val entity1 = "x"
   private val entity2 = "y"
@@ -80,19 +76,20 @@ class SetPropertyPipeTest extends CypherFunSuite with PipeTestSupport {
   private val qtx = mock[QueryContext]
   when(qtx.getOptPropertyKeyId(property1)).thenReturn(Some(1))
   when(qtx.getOptPropertyKeyId(property2)).thenReturn(Some(2))
+  when(qtx.getOrCreatePropertyKeyIds(ArgumentMatchers.any())).thenReturn(Array[Int]())
   when(state.query).thenReturn(qtx)
   when(state.decorator).thenReturn(NullPipeDecorator)
   private val emptyExpression = mock[Expression]
   when(emptyExpression.children).thenReturn(Seq.empty)
 
-  private val expressionConverter = new ExpressionConverters(CommunityExpressionConverter)
+  private val expressionConverter = new ExpressionConverters(CommunityExpressionConverter(TokenContext.EMPTY))
   private def convertExpression(astExpression: ast.Expression): Expression = {
     def resolveTokens(expr: Expression, ctx: TokenContext): Expression = expr match {
-      case (keyToken: KeyToken) => keyToken.resolve(ctx)
+      case keyToken: KeyToken => keyToken.resolve(ctx)
       case _ => expr
     }
 
-    expressionConverter.toCommandExpression(astExpression).rewrite(resolveTokens(_, qtx))
+    expressionConverter.toCommandExpression(Id.INVALID_ID ,astExpression).rewrite(resolveTokens(_, qtx))
   }
 
   // match (n) set n.prop = n.prop + 1
@@ -234,7 +231,7 @@ class SetPropertyPipeTest extends CypherFunSuite with PipeTestSupport {
     when(nodeOps.getProperty(10L, 1)).thenReturn(longValue(13L))
     when(qtx.nodeOps).thenReturn(nodeOps)
     when(qtx.getOptPropertyKeyId(property1)).thenReturn(None)
-    when(nodeOps.propertyKeyIds(10)).thenReturn(Iterator.empty)
+    when(nodeOps.propertyKeyIds(10)).thenReturn(Array.empty[Int])
 
     needsExclusiveLock shouldBe true
 
@@ -257,7 +254,7 @@ class SetPropertyPipeTest extends CypherFunSuite with PipeTestSupport {
     val relOps = mock[Operations[RelationshipValue]]
     when(qtx.relationshipOps).thenReturn(relOps)
     when(qtx.getOptPropertyKeyId(property1)).thenReturn(None)
-    when(relOps.propertyKeyIds(10)).thenReturn(Iterator.empty)
+    when(relOps.propertyKeyIds(10)).thenReturn(Array.empty[Int])
     when(relOps.getProperty(anyLong(), anyInt())).thenReturn(Values.NO_VALUE)
 
     needsExclusiveLock shouldBe true
@@ -283,7 +280,7 @@ class SetPropertyPipeTest extends CypherFunSuite with PipeTestSupport {
     when(nodeOps.getProperty(20L, 1)).thenReturn(longValue(13L))
     when(qtx.nodeOps).thenReturn(nodeOps)
     when(qtx.getOptPropertyKeyId(property1)).thenReturn(None)
-    when(nodeOps.propertyKeyIds(10)).thenReturn(Iterator.empty)
+    when(nodeOps.propertyKeyIds(10)).thenReturn(Array.empty[Int])
 
     needsExclusiveLock shouldBe false
 
@@ -309,7 +306,7 @@ class SetPropertyPipeTest extends CypherFunSuite with PipeTestSupport {
     val relOps = mock[Operations[RelationshipValue]]
     when(qtx.relationshipOps).thenReturn(relOps)
     when(qtx.getOptPropertyKeyId(property1)).thenReturn(None)
-    when(relOps.propertyKeyIds(10)).thenReturn(Iterator.empty)
+    when(relOps.propertyKeyIds(10)).thenReturn(Array.empty[Int])
     when(relOps.getProperty(anyLong(), anyInt())).thenReturn(Values.NO_VALUE)
 
     needsExclusiveLock shouldBe false
@@ -337,7 +334,7 @@ class SetPropertyPipeTest extends CypherFunSuite with PipeTestSupport {
     when(nodeOps.getProperty(10L, 2)).thenReturn(longValue(13L))
     when(qtx.nodeOps).thenReturn(nodeOps)
     when(qtx.getOptPropertyKeyId(property1)).thenReturn(None)
-    when(nodeOps.propertyKeyIds(10)).thenReturn(Iterator.empty)
+    when(nodeOps.propertyKeyIds(10)).thenReturn(Array.empty[Int])
 
     needsExclusiveLock shouldBe false
 
@@ -361,7 +358,7 @@ class SetPropertyPipeTest extends CypherFunSuite with PipeTestSupport {
     val relOps = mock[Operations[RelationshipValue]]
     when(qtx.relationshipOps).thenReturn(relOps)
     when(qtx.getOptPropertyKeyId(property1)).thenReturn(None)
-    when(relOps.propertyKeyIds(10)).thenReturn(Iterator.empty)
+    when(relOps.propertyKeyIds(10)).thenReturn(Array.empty[Int])
     when(relOps.getProperty(anyLong(), anyInt())).thenReturn(Values.NO_VALUE)
 
     needsExclusiveLock shouldBe false

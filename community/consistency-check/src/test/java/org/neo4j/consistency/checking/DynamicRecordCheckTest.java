@@ -64,7 +64,7 @@ import static org.neo4j.consistency.store.RecordAccessStub.SCHEMA_RECORD_TYPE;
         DynamicRecordCheckTest.SchemaDynamicRecordCheckTest.class
 } )
 public abstract class DynamicRecordCheckTest
-    extends RecordCheckTestBase<DynamicRecord,ConsistencyReport.DynamicConsistencyReport,DynamicRecordCheck>
+        extends RecordCheckTestBase<DynamicRecord,ConsistencyReport.DynamicConsistencyReport,DynamicRecordCheck>
 {
     private final int blockSize;
 

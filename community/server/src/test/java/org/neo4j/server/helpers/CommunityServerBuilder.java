@@ -42,20 +42,18 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.time.Clock;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
+import org.neo4j.graphdb.facade.GraphDatabaseDependencies;
+import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.ListenSocketAddress;
-import org.neo4j.kernel.GraphDatabaseDependencies;
-import org.neo4j.kernel.configuration.BoltConnector;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.HttpConnector;
 import org.neo4j.kernel.configuration.HttpConnector.Encryption;
 import org.neo4j.kernel.configuration.ssl.LegacySslPolicyConfig;
-import org.neo4j.kernel.impl.factory.GraphDatabaseFacadeFactory;
 import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
@@ -63,26 +61,22 @@ import org.neo4j.logging.NullLogProvider;
 import org.neo4j.server.CommunityNeoServer;
 import org.neo4j.server.ServerTestUtils;
 import org.neo4j.server.configuration.ServerSettings;
+import org.neo4j.server.database.CommunityGraphFactory;
 import org.neo4j.server.database.Database;
-import org.neo4j.server.database.LifecycleManagingDatabase;
+import org.neo4j.server.database.InMemoryGraphFactory;
 import org.neo4j.server.preflight.PreFlightTasks;
-import org.neo4j.server.rest.paging.LeaseManager;
 import org.neo4j.server.rest.web.DatabaseActions;
-import org.neo4j.server.rest.web.ScriptExecutionMode;
-import org.neo4j.test.ImpermanentGraphDatabase;
-import org.neo4j.time.Clocks;
 
 import static org.neo4j.helpers.collection.MapUtil.stringMap;
 import static org.neo4j.server.ServerTestUtils.asOneLine;
-import static org.neo4j.server.database.LifecycleManagingDatabase.lifecycleManagingDatabase;
 
 public class CommunityServerBuilder
 {
-    protected static final ListenSocketAddress ANY_ADDRESS = new ListenSocketAddress( "localhost", 0 );
+    private static final ListenSocketAddress ANY_ADDRESS = new ListenSocketAddress( "localhost", 0 );
 
     protected final LogProvider logProvider;
-    private ListenSocketAddress address = new ListenSocketAddress( "localhost", 7474 );
-    private ListenSocketAddress httpsAddress = new ListenSocketAddress( "localhost", 7473 );
+    private ListenSocketAddress address = new ListenSocketAddress( "localhost", Encryption.NONE.defaultPort );
+    private ListenSocketAddress httpsAddress = new ListenSocketAddress( "localhost", Encryption.TLS.defaultPort );
     private String maxThreads;
     private String dataDir;
     private String managementUri = "/db/manage/";
@@ -96,20 +90,11 @@ public class CommunityServerBuilder
         System.setProperty( "sun.net.http.allowRestrictedHeaders", "true" );
     }
 
-    private static LifecycleManagingDatabase.GraphFactory IN_MEMORY_DB = ( config, dependencies ) ->
-    {
-        File storeDir = config.get( GraphDatabaseSettings.database_path );
-        config.augment( stringMap( GraphDatabaseFacadeFactory.Configuration.ephemeral.name(), "true",
-                new BoltConnector( "bolt" ).listen_address.name(), "localhost:0" ) );
-        return new ImpermanentGraphDatabase( storeDir, config,
-                GraphDatabaseDependencies.newDependencies( dependencies ) );
-    };
-
-    private Clock clock;
     private String[] autoIndexedNodeKeys;
     private final String[] autoIndexedRelationshipKeys = null;
     private String[] securityRuleClassNames;
     private boolean persistent;
+    private boolean httpEnabled = true;
     private boolean httpsEnabled;
 
     public static CommunityServerBuilder server( LogProvider logProvider )
@@ -145,7 +130,7 @@ public class CommunityServerBuilder
     protected CommunityNeoServer build( File configFile, Config config,
             GraphDatabaseFacadeFactory.Dependencies dependencies )
     {
-        return new TestCommunityNeoServer( config, configFile, dependencies, logProvider );
+        return new TestCommunityNeoServer( config, configFile, dependencies );
     }
 
     public File createConfigFiles() throws IOException
@@ -156,12 +141,6 @@ public class CommunityServerBuilder
         ServerTestUtils.writeConfigToFile( createConfiguration( temporaryFolder ), temporaryConfigFile );
 
         return temporaryConfigFile;
-    }
-
-    public CommunityServerBuilder withClock( Clock clock )
-    {
-        this.clock = clock;
-        return this;
     }
 
     public Map<String, String> createConfiguration( File temporaryFolder )
@@ -211,7 +190,7 @@ public class CommunityServerBuilder
         HttpConnector httpsConnector = new HttpConnector( "https", Encryption.TLS );
 
         properties.put( httpConnector.type.name(), "HTTP" );
-        properties.put( httpConnector.enabled.name(), "true" );
+        properties.put( httpConnector.enabled.name(), String.valueOf( httpEnabled ) );
         properties.put( httpConnector.address.name(), address.toString() );
         properties.put( httpConnector.encryption.name(), "NONE" );
 
@@ -228,6 +207,7 @@ public class CommunityServerBuilder
         properties.put( GraphDatabaseSettings.logical_logs_location.name(),
                 new File( temporaryFolder, "transaction-logs" ).getAbsolutePath() );
         properties.put( GraphDatabaseSettings.pagecache_memory.name(), "8m" );
+        properties.put( GraphDatabaseSettings.shutdown_transaction_end_timeout.name(), "0s" );
 
         for ( Object key : arbitraryProperties.keySet() )
         {
@@ -349,19 +329,21 @@ public class CommunityServerBuilder
         return this;
     }
 
+    public CommunityServerBuilder withHttpDisabled()
+    {
+        httpEnabled = false;
+        return this;
+    }
+
     public CommunityServerBuilder withProperty( String key, String value )
     {
         arbitraryProperties.put( key, value );
         return this;
     }
 
-    protected DatabaseActions createDatabaseActionsObject( Database database, Config config )
+    protected DatabaseActions createDatabaseActionsObject( Database database )
     {
-        Clock clockToUse = (clock != null) ? clock : Clocks.systemClock();
-
-        return new DatabaseActions(
-                new LeaseManager( clockToUse ),
-                ScriptExecutionMode.getConfiguredMode( config ), database.getGraph() );
+        return new DatabaseActions( database.getGraph() );
     }
 
     private File buildBefore() throws IOException
@@ -386,18 +368,16 @@ public class CommunityServerBuilder
     {
         private final File configFile;
 
-        private TestCommunityNeoServer( Config config, File configFile, GraphDatabaseFacadeFactory
-                .Dependencies dependencies, LogProvider logProvider )
+        private TestCommunityNeoServer( Config config, File configFile, GraphDatabaseFacadeFactory.Dependencies dependencies )
         {
-            super( config, lifecycleManagingDatabase( persistent ? COMMUNITY_FACTORY : IN_MEMORY_DB ), dependencies,
-                    logProvider );
+            super( config, persistent ? new CommunityGraphFactory() : new InMemoryGraphFactory(), dependencies );
             this.configFile = configFile;
         }
 
         @Override
         protected DatabaseActions createDatabaseActions()
         {
-            return createDatabaseActionsObject( database, getConfig() );
+            return createDatabaseActionsObject( database );
         }
 
         @Override

@@ -40,11 +40,11 @@ package org.neo4j.cypher.internal.runtime.interpreted.commands
 
 import java.nio.charset.StandardCharsets
 
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Add, Literal, ParameterExpression}
-import org.neo4j.cypher.internal.util.v3_4.CypherTypeException
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.CypherTypeException
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 import org.neo4j.values.AnyValue
+import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
 import org.neo4j.values.storable.Values.{longValue, stringValue, utf8Value}
 import org.neo4j.values.storable.{UTF8StringValue, Values}
 import org.neo4j.values.virtual.VirtualValues
@@ -83,17 +83,15 @@ class AddTest extends CypherFunSuite {
   }
 
   test("numberPlusBool") {
-    val expr = Add(Literal("1"), Literal(true))
+    val expr = Add(Literal(1), Literal(true))
     intercept[CypherTypeException](expr(m, s))
   }
 
   test("UTF8 value addition") {
-    import scala.collection.JavaConverters._
     // Given
     val hello = "hello".getBytes(StandardCharsets.UTF_8)
     val world = "world".getBytes(StandardCharsets.UTF_8)
-    val params: Map[String, AnyValue] = Map("p1" -> utf8Value(hello), "p2" -> utf8Value(world))
-    val state = QueryStateHelper.emptyWith(params = VirtualValues.map(params.asJava))
+    val state = QueryStateHelper.emptyWith(params = VirtualValues.map(Array("p1", "p2"), Array( utf8Value(hello), utf8Value(world))))
 
     // When
     val result = Add(ParameterExpression("p1"), ParameterExpression("p2"))(m,state)

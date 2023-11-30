@@ -43,16 +43,13 @@ import org.junit.Test;
 
 import java.io.File;
 import java.nio.file.Files;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Optional;
-import javax.annotation.Nonnull;
 
+import org.neo4j.graphdb.facade.GraphDatabaseDependencies;
 import org.neo4j.helpers.collection.MapUtil;
-import org.neo4j.kernel.GraphDatabaseDependencies;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.configuration.ConfigurationValidator;
-import org.neo4j.logging.LogProvider;
+import org.neo4j.server.database.CommunityGraphFactory;
+import org.neo4j.server.database.GraphFactory;
 import org.neo4j.test.rule.SuppressOutput;
 import org.neo4j.test.rule.TestDirectory;
 
@@ -77,17 +74,15 @@ public class ServerBootstrapperTest
         ServerBootstrapper serverBootstrapper = new ServerBootstrapper()
         {
             @Override
-            protected NeoServer createNeoServer( Config config, GraphDatabaseDependencies dependencies,
-                    LogProvider userLogProvider )
+            protected GraphFactory createGraphFactory( Config config )
             {
-                return mock( NeoServer.class );
+                return new CommunityGraphFactory();
             }
 
-            @Nonnull
             @Override
-            protected Collection<ConfigurationValidator> configurationValidators()
+            protected NeoServer createNeoServer( GraphFactory graphFactory, Config config, GraphDatabaseDependencies dependencies )
             {
-                return Collections.emptyList();
+                return mock( NeoServer.class );
             }
         };
 

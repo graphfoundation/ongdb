@@ -65,7 +65,7 @@ public class CursorPropertyAccessorTest
         CursorPropertyAccessor accessor = new CursorPropertyAccessor( nodeCursor, new StubPropertyCursor(), new StubRead() );
 
         // when
-        Value readValue = accessor.getPropertyValue( nodeId, propertyKeyId );
+        Value readValue = accessor.getNodePropertyValue( nodeId, propertyKeyId );
 
         // then
         assertEquals( value, readValue );
@@ -80,7 +80,7 @@ public class CursorPropertyAccessorTest
         CursorPropertyAccessor accessor = new CursorPropertyAccessor( nodeCursor, new StubPropertyCursor(), new StubRead() );
 
         // when
-        Value readValue = accessor.getPropertyValue( nodeId, 0 );
+        Value readValue = accessor.getNodePropertyValue( nodeId, 0 );
 
         // then
         assertEquals( NO_VALUE, readValue );
@@ -99,7 +99,7 @@ public class CursorPropertyAccessorTest
         // when
         try
         {
-            accessor.getPropertyValue( nodeId + 1, propertyKeyId );
+            accessor.getNodePropertyValue( nodeId + 1, propertyKeyId );
             fail();
         }
         catch ( EntityNotFoundException e )

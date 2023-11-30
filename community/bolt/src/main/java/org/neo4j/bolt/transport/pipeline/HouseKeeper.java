@@ -80,13 +80,11 @@ public class HouseKeeper extends ChannelInboundHandlerAdapter
             // test on the message we know we'll get.
             if ( Exceptions.contains( cause, e -> e.getMessage().contains( "Connection reset by peer" ) ) )
             {
-                log.warn( "Fatal error occurred when handling a client connection, " +
-                        "remote peer unexpectedly closed connection: %s", ctx.channel() );
+                log.warn( "Fatal error occurred when handling a client connection, " + "remote peer unexpectedly closed connection: %s", ctx.channel() );
             }
             else
             {
-                log.error( "Fatal error occurred when handling a client connection: " + ctx.channel(),
-                        cause );
+                log.error( "Fatal error occurred when handling a client connection: " + ctx.channel(), cause );
             }
         }
         finally

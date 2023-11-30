@@ -67,7 +67,6 @@ import org.neo4j.test.rule.ConfigurablePageCacheRule;
 import org.neo4j.test.rule.PageCacheRule;
 import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.neo4j.io.pagecache.PageCache.PAGE_SIZE;
@@ -258,87 +257,9 @@ public class CommonAbstractStoreBehaviourTest
     }
 
     @Test
-    public void recordCursorNextMustThrowOnPageOverflow() throws Exception
-    {
-        verifyExceptionOnOutOfBoundsAccess( () ->
-        {
-            try ( RecordCursor<IntRecord> cursor = store.newRecordCursor( new IntRecord( 0 ) ).acquire( 5, NORMAL ) )
-            {
-                cursor.next();
-            }
-        } );
-    }
-
-    @Test
-    public void pageCursorErrorsMustNotLingerInRecordCursor()
-    {
-        createStore();
-        RecordCursor<IntRecord> cursor = store.newRecordCursor( new IntRecord( 1 ) ).acquire( 1, FORCE );
-        cursorErrorOnRecord = 1;
-        // This will encounter a decoding error, which is ignored because FORCE
-        assertTrue( cursor.next() );
-        // Then this should not fail because of the previous decoding error, even though we stay on the same page
-        assertTrue( cursor.next( 2, new IntRecord( 2 ), NORMAL ) );
-    }
-
-    @Test
-    public void shouldReadTheCorrectRecordWhenGivenAnExplicitIdAndNotUseTheCurrentIdPointer()
-    {
-        createStore();
-        IntRecord record42 = new IntRecord( 42 );
-        record42.value = 0x42;
-        store.updateRecord( record42 );
-        IntRecord record43 = new IntRecord( 43 );
-        record43.value = 0x43;
-        store.updateRecord( record43 );
-
-        RecordCursor<IntRecord> cursor = store.newRecordCursor( new IntRecord( 1 ) ).acquire( 42, FORCE );
-
-        // we need to read record 43 not 42!
-        assertTrue( cursor.next( 43 ) );
-        assertEquals( record43, cursor.get() );
-
-        IntRecord record = new IntRecord( -1 );
-        assertTrue( cursor.next( 43, record, NORMAL ) );
-        assertEquals( record43, record );
-
-        // next with id does not affect the old pointer either, so 42 is read now
-        assertTrue( cursor.next() );
-        assertEquals( record42, cursor.get() );
-    }
-
-    @Test
-    public void shouldJumpAroundPageIds()
-    {
-        createStore();
-        IntRecord record42 = new IntRecord( 42 );
-        record42.value = 0x42;
-        store.updateRecord( record42 );
-
-        int idOnAnotherPage = 43 + (2 * store.getRecordsPerPage() );
-        IntRecord record43 = new IntRecord( idOnAnotherPage );
-        record43.value = 0x43;
-        store.updateRecord( record43 );
-
-        RecordCursor<IntRecord> cursor = store.newRecordCursor( new IntRecord( 1 ) ).acquire( 42, FORCE );
-
-        // we need to read record 43 not 42!
-        assertTrue( cursor.next( idOnAnotherPage ) );
-        assertEquals( record43, cursor.get() );
-
-        IntRecord record = new IntRecord( -1 );
-        assertTrue( cursor.next( idOnAnotherPage, record, NORMAL ) );
-        assertEquals( record43, record );
-
-        // next with id does not affect the old pointer either, so 42 is read now
-        assertTrue( cursor.next() );
-        assertEquals( record42, cursor.get() );
-    }
-
-    @Test
     public void rebuildIdGeneratorSlowMustThrowOnPageOverflow() throws Exception
     {
-        config.augment( CommonAbstractStore.Configuration.rebuild_idgenerators_fast, "false" );
+        config.augment( GraphDatabaseSettings.rebuild_idgenerators_fast, "false" );
         createStore();
         store.setStoreNotOk( new RuntimeException() );
         IntRecord record = new IntRecord( 200 );
@@ -366,7 +287,7 @@ public class CommonAbstractStoreBehaviourTest
         createStore();
         int headerSizeInRecords = store.getNumberOfReservedLowIds();
         int headerSizeInBytes = headerSizeInRecords * store.getRecordSize();
-        try ( PageCursor cursor = store.storeFile.io( 0, PagedFile.PF_SHARED_WRITE_LOCK ) )
+        try ( PageCursor cursor = store.pagedFile.io( 0, PagedFile.PF_SHARED_WRITE_LOCK ) )
         {
             assertTrue( cursor.next() );
             for ( int i = 0; i < headerSizeInBytes; i++ )
@@ -374,9 +295,9 @@ public class CommonAbstractStoreBehaviourTest
                 cursor.putByte( (byte) 0 );
             }
         }
-        int pageSize = store.storeFile.pageSize();
+        int pageSize = store.pagedFile.pageSize();
         store.close();
-        store.pageCache.map( store.getStorageFileName(), pageSize, StandardOpenOption.TRUNCATE_EXISTING ).close();
+        store.pageCache.map( store.getStorageFile(), pageSize, StandardOpenOption.TRUNCATE_EXISTING ).close();
         createStore();
     }
 
@@ -494,13 +415,13 @@ public class CommonAbstractStoreBehaviourTest
 
         MyStore( Config config, PageCache pageCache, MyFormat format )
         {
-            super( new File( "store" ), config, IdType.NODE, new DefaultIdGeneratorFactory( fs.get() ), pageCache,
+            super( new File( "store" ), new File( "idFile" ), config, IdType.NODE,
+                    new DefaultIdGeneratorFactory( fs.get() ), pageCache,
                     NullLogProvider.getInstance(), "T", format, format, "XYZ" );
         }
 
         @Override
         public <FAILURE extends Exception> void accept( Processor<FAILURE> processor, IntRecord record )
-                throws FAILURE
         {
             throw new UnsupportedOperationException();
         }

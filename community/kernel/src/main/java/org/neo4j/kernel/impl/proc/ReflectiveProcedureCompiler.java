@@ -56,6 +56,7 @@ import java.util.stream.Stream;
 
 import org.neo4j.collection.RawIterator;
 import org.neo4j.graphdb.Resource;
+import org.neo4j.graphdb.security.AuthorizationViolationException;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
 import org.neo4j.internal.kernel.api.procs.FieldSignature;
@@ -63,6 +64,7 @@ import org.neo4j.internal.kernel.api.procs.ProcedureSignature;
 import org.neo4j.internal.kernel.api.procs.QualifiedName;
 import org.neo4j.internal.kernel.api.procs.UserAggregator;
 import org.neo4j.internal.kernel.api.procs.UserFunctionSignature;
+import org.neo4j.internal.kernel.api.security.SecurityContext;
 import org.neo4j.io.IOUtils;
 import org.neo4j.kernel.api.ResourceTracker;
 import org.neo4j.kernel.api.exceptions.ComponentInjectionException;
@@ -77,7 +79,9 @@ import org.neo4j.kernel.api.proc.FailedLoadFunction;
 import org.neo4j.kernel.api.proc.FailedLoadProcedure;
 import org.neo4j.kernel.impl.proc.OutputMappers.OutputMapper;
 import org.neo4j.logging.Log;
+import org.neo4j.procedure.Admin;
 import org.neo4j.procedure.Description;
+import org.neo4j.procedure.Internal;
 import org.neo4j.procedure.Mode;
 import org.neo4j.procedure.PerformsWrites;
 import org.neo4j.procedure.Procedure;
@@ -91,6 +95,7 @@ import org.neo4j.values.ValueMapper;
 import static java.util.Collections.emptyIterator;
 import static java.util.Collections.emptyList;
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.procedure_unrestricted;
+import static org.neo4j.graphdb.security.AuthorizationViolationException.PERMISSION_DENIED;
 import static org.neo4j.helpers.collection.Iterators.asRawIterator;
 
 /**
@@ -291,6 +296,8 @@ class ReflectiveProcedureCompiler
         String description = description( method );
         Procedure procedure = method.getAnnotation( Procedure.class );
         Mode mode = procedure.mode();
+        boolean admin = method.isAnnotationPresent( Admin.class );
+        boolean internal = method.isAnnotationPresent( Internal.class );
         if ( method.isAnnotationPresent( PerformsWrites.class ) )
         {
             if ( procedure.mode() != org.neo4j.procedure.Mode.DEFAULT )
@@ -319,14 +326,14 @@ class ReflectiveProcedureCompiler
                 description = describeAndLogLoadFailure( procName );
                 ProcedureSignature signature =
                         new ProcedureSignature( procName, inputSignature, outputMapper.signature(), Mode.DEFAULT,
-                                null, new String[0], description, warning, procedure.eager(), false );
+                                admin, null, new String[0], description, warning, procedure.eager(), false, internal );
                 return new FailedLoadProcedure( signature );
             }
         }
 
         ProcedureSignature signature =
-                new ProcedureSignature( procName, inputSignature, outputMapper.signature(), mode, deprecated,
-                        config.rolesFor( procName.toString() ), description, warning, procedure.eager(), false );
+                new ProcedureSignature( procName, inputSignature, outputMapper.signature(), mode, admin, deprecated,
+                        config.rolesFor( procName.toString() ), description, warning, procedure.eager(), false, internal );
         return new ReflectiveProcedure( signature, constructor, method, outputMapper, setters );
     }
 
@@ -663,6 +670,17 @@ class ReflectiveProcedureCompiler
                 //API injection
                 inject( ctx, cls );
 
+                // Admin check
+                if ( signature.admin() )
+                {
+                    SecurityContext securityContext = ctx.get( Context.SECURITY_CONTEXT );
+                    securityContext.assertCredentialsNotExpired();
+                    if ( !securityContext.isAdmin() )
+                    {
+                        throw new AuthorizationViolationException( PERMISSION_DENIED );
+                    }
+                }
+
                 // Call the method
                 Object rs = procedureMethod.invoke( cls, input );
 
@@ -738,9 +756,9 @@ class ReflectiveProcedureCompiler
                     Resource resourceToClose = closeableResource;
                     closeableResource = null;
 
-                    IOUtils.closeAll( ResourceCloseFailureException.class,
+                    IOUtils.close( ResourceCloseFailureException::new,
                             () -> resourceTracker.unregisterCloseableResource( resourceToClose ),
-                            resourceToClose::close );
+                            resourceToClose );
                 }
             }
 

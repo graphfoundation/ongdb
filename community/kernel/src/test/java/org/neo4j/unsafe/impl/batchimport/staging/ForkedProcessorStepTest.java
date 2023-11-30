@@ -65,13 +65,13 @@ public class ForkedProcessorStepTest
     {
         // GIVEN
         StageControl control = mock( StageControl.class );
-        int processors = 10;
+        int maxProcessors = 10;
 
         int batches = 10;
-        BatchProcessor step = new BatchProcessor( control, processors );
+        BatchProcessor step = new BatchProcessor( control, maxProcessors );
         TrackingStep downstream = new TrackingStep();
         step.setDownstream( downstream );
-        step.processors( processors - step.processors( 0 ) );
+        int processors = step.processors( maxProcessors - step.processors( 0 ) );
 
         // WHEN
         step.start( 0 );
@@ -80,10 +80,7 @@ public class ForkedProcessorStepTest
             step.receive( i, new Batch( processors ) );
         }
         step.endOfUpstream();
-        while ( !step.isCompleted() )
-        {
-            Thread.sleep( 10 );
-        }
+        step.awaitCompleted();
         step.close();
 
         // THEN
@@ -109,10 +106,7 @@ public class ForkedProcessorStepTest
             step.receive( i, new Batch( processors ) );
         }
         step.endOfUpstream();
-        while ( !step.isCompleted() )
-        {
-            Thread.sleep( 10 );
-        }
+        step.awaitCompleted();
         step.close();
 
         // THEN
@@ -140,10 +134,7 @@ public class ForkedProcessorStepTest
             step.receive( i, new Batch( processors ) );
         }
         step.endOfUpstream();
-        while ( !step.isCompleted() )
-        {
-            Thread.sleep( 10 );
-        }
+        step.awaitCompleted();
         step.close();
 
         // THEN
@@ -258,10 +249,7 @@ public class ForkedProcessorStepTest
             step.receive( ticket, batch );
         }
         step.endOfUpstream();
-        while ( !step.isCompleted() )
-        {
-            Thread.sleep( 10 );
-        }
+        step.awaitCompleted();
         step.close();
     }
 
@@ -288,10 +276,7 @@ public class ForkedProcessorStepTest
         control.steps( step );
 
         // THEN
-        while ( !step.isCompleted() )
-        {
-            Thread.sleep( 10 );
-        }
+        step.awaitCompleted();
         try
         {
             control.assertHealthy();
@@ -482,6 +467,12 @@ public class ForkedProcessorStepTest
         public boolean isCompleted()
         {
             return false;
+        }
+
+        @Override
+        public void awaitCompleted()
+        {
+            throw new UnsupportedOperationException();
         }
 
         @Override

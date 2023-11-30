@@ -45,8 +45,6 @@ import java.io.InputStream;
 import java.io.PrintStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
-import java.lang.management.MonitorInfo;
-import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -66,6 +64,7 @@ import org.neo4j.diagnostics.DiagnosticsReportSource;
 import org.neo4j.diagnostics.DiagnosticsReportSources;
 import org.neo4j.diagnostics.DiagnosticsReporterProgress;
 import org.neo4j.diagnostics.ProgressAwareInputStream;
+import org.neo4j.diagnostics.utils.DumpUtils;
 
 /**
  * Encapsulates remoting functionality for collecting diagnostics information on running instances.
@@ -96,7 +95,7 @@ public class JmxDump
     /**
      * Captures a thread dump of the running instance.
      *
-     * @return a diagnostics source the will emmit a thread dump.
+     * @return a diagnostics source the will emit a thread dump.
      */
     public DiagnosticsReportSource threadDump()
     {
@@ -138,55 +137,7 @@ public class JmxDump
             return "ERROR: Unable to produce any thread dump";
         }
 
-        ThreadInfo[] threadInfos = threadMxBean.dumpAllThreads( true, true );
-
-        // Reproduce JVM stack trace as far as possible to allow existing analytics tools to be used
-        String vmName = systemProperties.getProperty( "java.vm.name" );
-        String vmVersion = systemProperties.getProperty( "java.vm.version" );
-        String vmInfoString = systemProperties.getProperty( "java.vm.info" );
-
-        StringBuilder sb = new StringBuilder();
-        sb.append( String.format( "Full thread dump %s (%s %s):\n\n", vmName, vmVersion, vmInfoString ) );
-        for ( ThreadInfo threadInfo : threadInfos )
-        {
-            sb.append( String.format( "\"%s\" #%d\n", threadInfo.getThreadName(), threadInfo.getThreadId() ) );
-            sb.append( "   java.lang.Thread.State: " ).append( threadInfo.getThreadState() ).append( "\n" );
-
-            StackTraceElement[] stackTrace = threadInfo.getStackTrace();
-            for ( int i = 0; i < stackTrace.length; i++ )
-            {
-                StackTraceElement e = stackTrace[i];
-                sb.append( "\tat " ).append( e.toString() );
-
-                // First stack element info can be found in the thread state
-                if ( i == 0 && threadInfo.getLockInfo() != null )
-                {
-                    Thread.State ts = threadInfo.getThreadState();
-                    switch ( ts )
-                    {
-                    case BLOCKED:
-                        sb.append( "\t-  blocked on " ).append( threadInfo.getLockInfo() ).append( '\n' );
-                        break;
-                    case WAITING:
-                        sb.append( "\t-  waiting on " ).append( threadInfo.getLockInfo() ).append( '\n' );
-                        break;
-                    case TIMED_WAITING:
-                        sb.append( "\t-  waiting on " ).append( threadInfo.getLockInfo() ).append( '\n' );
-                        break;
-                    default:
-                    }
-                }
-                for ( MonitorInfo mi : threadInfo.getLockedMonitors() )
-                {
-                    if ( mi.getLockedStackDepth() == i )
-                    {
-                        sb.append( "\t-  locked ").append( mi ).append( '\n' );
-                    }
-                }
-            }
-        }
-
-        return sb.toString();
+        return DumpUtils.threadDump( threadMxBean, systemProperties );
     }
 
     public DiagnosticsReportSource heapDump()
@@ -205,7 +156,7 @@ public class JmxDump
             {
                 // Heap dump has to target an actual file, we cannot stream directly to the archive
                 progress.info( "dumping..." );
-                Path tempFile = Files.createTempFile("ongdb-heapdump", ".hprof");
+                Path tempFile = Files.createTempFile("neo4j-heapdump", ".hprof");
                 Files.deleteIfExists( tempFile );
                 heapDump( tempFile.toAbsolutePath().toString() );
 

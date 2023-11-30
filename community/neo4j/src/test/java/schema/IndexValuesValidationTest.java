@@ -40,13 +40,9 @@ package schema;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.lucene.index.IndexWriter;
-import org.hamcrest.Matchers;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.concurrent.TimeUnit;
 
@@ -57,37 +53,49 @@ import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.graphdb.schema.IndexDefinition;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.neo4j.graphdb.factory.GraphDatabaseSettings.default_schema_provider;
+import static org.neo4j.helpers.collection.MapUtil.stringMap;
+import static org.neo4j.index.internal.gbptree.TreeNodeDynamicSize.keyValueSizeCapFromPageSize;
+import static org.neo4j.io.pagecache.PageCache.PAGE_SIZE;
 
-
-public class IndexValuesValidationTest
+@ExtendWith( TestDirectoryExtension.class )
+class IndexValuesValidationTest
 {
-    @ClassRule
-    public static final TestDirectory directory = TestDirectory.testDirectory();
-    @Rule
-    public ExpectedException expectedException = ExpectedException.none();
+    @Inject
+    private TestDirectory directory;
 
-    private static GraphDatabaseService database;
+    private GraphDatabaseService database;
 
-    @BeforeClass
-    public static void setUp()
+    void setUp( String... settings )
     {
-        database = new GraphDatabaseFactory().newEmbeddedDatabase( directory.graphDbDir() );
+        database = new GraphDatabaseFactory()
+                .newEmbeddedDatabaseBuilder( directory.storeDir() )
+                .setConfig( stringMap( settings ) )
+                .newGraphDatabase();
     }
 
-    @AfterClass
-    public static void tearDown()
+    @AfterEach
+    void tearDown()
     {
         database.shutdown();
     }
 
     @Test
-    public void validateIndexedNodeProperties()
+    void validateIndexedNodePropertiesInLucene()
     {
+        setUp( default_schema_provider.name(), GraphDatabaseSettings.SchemaIndex.NATIVE10.providerName() );
         Label label = Label.label( "indexedNodePropertiesTestLabel" );
         String propertyName = "indexedNodePropertyName";
 
@@ -98,20 +106,49 @@ public class IndexValuesValidationTest
             database.schema().awaitIndexesOnline( 5, TimeUnit.MINUTES );
         }
 
-        expectedException.expect( IllegalArgumentException.class );
-        expectedException.expectMessage( containsString( "Property value size is too large for index. Please see index documentation for limitations." ) );
-
-        try ( Transaction transaction = database.beginTx() )
+        IllegalArgumentException argumentException = assertThrows( IllegalArgumentException.class, () ->
         {
-            Node node = database.createNode( label );
-            node.setProperty( propertyName, StringUtils.repeat( "a", IndexWriter.MAX_TERM_LENGTH + 1 ) );
-            transaction.success();
-        }
+            try ( Transaction transaction = database.beginTx() )
+            {
+                Node node = database.createNode( label );
+                node.setProperty( propertyName, StringUtils.repeat( "a", IndexWriter.MAX_TERM_LENGTH + 1 ) );
+                transaction.success();
+            }
+        } );
+        assertThat( argumentException.getMessage(), equalTo( "Property value size is too large for index. Please see index documentation for limitations." ) );
     }
 
     @Test
-    public void validateNodePropertiesOnPopulation()
+    void validateIndexedNodePropertiesInNativeBtree()
     {
+        setUp();
+        Label label = Label.label( "indexedNodePropertiesTestLabel" );
+        String propertyName = "indexedNodePropertyName";
+
+        createIndex( label, propertyName );
+
+        try ( Transaction ignored = database.beginTx() )
+        {
+            database.schema().awaitIndexesOnline( 5, TimeUnit.MINUTES );
+        }
+
+        IllegalArgumentException argumentException = assertThrows( IllegalArgumentException.class, () ->
+        {
+            try ( Transaction transaction = database.beginTx() )
+            {
+                Node node = database.createNode( label );
+                node.setProperty( propertyName, StringUtils.repeat( "a", keyValueSizeCapFromPageSize( PAGE_SIZE ) + 1 ) );
+                transaction.success();
+            }
+        } );
+        assertThat( argumentException.getMessage(),
+                containsString( "is too large to index into this particular index. Please see index documentation for limitations." ) );
+    }
+
+    @Test
+    void validateNodePropertiesOnPopulation()
+    {
+        setUp();
         Label label = Label.label( "populationTestNodeLabel" );
         String propertyName = "populationTestPropertyName";
 
@@ -135,15 +172,18 @@ public class IndexValuesValidationTest
             try ( Transaction ignored = database.beginTx() )
             {
                 String indexFailure = database.schema().getIndexFailure( indexDefinition );
-                assertThat( "", indexFailure, Matchers.containsString(
-                        "java.lang.IllegalArgumentException: Index key-value size it to large. Please see index documentation for limitations." ) );
+                assertThat( indexFailure, allOf(
+                        containsString( "java.lang.IllegalArgumentException:" ),
+                        containsString( "Please see index documentation for limitations." )
+                ) );
             }
         }
     }
 
     @Test
-    public void validateExplicitIndexedNodeProperties()
+    void validateExplicitIndexedNodeProperties()
     {
+        setUp();
         Label label = Label.label( "explicitIndexedNodePropertiesTestLabel" );
         String propertyName = "explicitIndexedNodeProperties";
         String explicitIndexedNodeIndex = "explicitIndexedNodeIndex";
@@ -156,21 +196,24 @@ public class IndexValuesValidationTest
             transaction.success();
         }
 
-        expectedException.expect( IllegalArgumentException.class );
-        expectedException.expectMessage( "Property value size is too large for index. Please see index documentation for limitations." );
-        try ( Transaction transaction = database.beginTx() )
+        IllegalArgumentException argumentException = assertThrows( IllegalArgumentException.class, () ->
         {
-            Node node = database.createNode( label );
-            String longValue = StringUtils.repeat( "a", IndexWriter.MAX_TERM_LENGTH + 1 );
-            database.index().forNodes( explicitIndexedNodeIndex )
-                    .add( node, propertyName, longValue );
-            transaction.success();
-        }
+            try ( Transaction transaction = database.beginTx() )
+            {
+                Node node = database.createNode( label );
+                String longValue = StringUtils.repeat( "a", IndexWriter.MAX_TERM_LENGTH + 1 );
+                database.index().forNodes( explicitIndexedNodeIndex ).add( node, propertyName, longValue );
+                transaction.success();
+            }
+        } );
+        assertEquals( "Property value size is too large for index. Please see index documentation for limitations.",
+                argumentException.getMessage() );
     }
 
     @Test
-    public void validateExplicitIndexedRelationshipProperties()
+    void validateExplicitIndexedRelationshipProperties()
     {
+        setUp();
         Label label = Label.label( "explicitIndexedRelationshipPropertiesTestLabel" );
         String propertyName = "explicitIndexedRelationshipProperties";
         String explicitIndexedRelationshipIndex = "explicitIndexedRelationshipIndex";
@@ -186,18 +229,20 @@ public class IndexValuesValidationTest
             transaction.success();
         }
 
-        expectedException.expect( IllegalArgumentException.class );
-        expectedException.expectMessage( "Property value size is too large for index. Please see index documentation for limitations." );
-        try ( Transaction transaction = database.beginTx() )
+        IllegalArgumentException argumentException = assertThrows( IllegalArgumentException.class, () ->
         {
-            Node source = database.createNode( label );
-            Node destination = database.createNode( label );
-            Relationship relationship = source.createRelationshipTo( destination, indexType );
-            String longValue = StringUtils.repeat( "a", IndexWriter.MAX_TERM_LENGTH + 1 );
-            database.index().forRelationships( explicitIndexedRelationshipIndex )
-                    .add( relationship, propertyName, longValue );
-            transaction.success();
-        }
+            try ( Transaction transaction = database.beginTx() )
+            {
+                Node source = database.createNode( label );
+                Node destination = database.createNode( label );
+                Relationship relationship = source.createRelationshipTo( destination, indexType );
+                String longValue = StringUtils.repeat( "a", IndexWriter.MAX_TERM_LENGTH + 1 );
+                database.index().forRelationships( explicitIndexedRelationshipIndex ).add( relationship, propertyName, longValue );
+                transaction.success();
+            }
+        } );
+        assertEquals( "Property value size is too large for index. Please see index documentation for limitations.",
+                argumentException.getMessage() );
     }
 
     private IndexDefinition createIndex( Label label, String propertyName )

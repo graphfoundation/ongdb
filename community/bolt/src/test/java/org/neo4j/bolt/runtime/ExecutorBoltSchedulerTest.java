@@ -53,14 +53,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.neo4j.bolt.BoltKernelExtension;
+import org.neo4j.bolt.BoltServer;
 import org.neo4j.bolt.testing.Jobs;
 import org.neo4j.function.Predicates;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.logging.LogService;
-import org.neo4j.kernel.impl.logging.SimpleLogService;
 import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.logging.NullLog;
+import org.neo4j.logging.internal.LogService;
+import org.neo4j.logging.internal.SimpleLogService;
+import org.neo4j.scheduler.Group;
 import org.neo4j.scheduler.JobScheduler;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -118,7 +119,7 @@ public class ExecutorBoltSchedulerTest
 
         scheduler.start();
 
-        verify( jobScheduler ).threadFactory( JobScheduler.Groups.boltWorker );
+        verify( jobScheduler ).threadFactory( Group.BOLT_WORKER );
         verify( mockExecutorFactory, times( 1 ) ).create( anyInt(), anyInt(), any( Duration.class ), anyInt(), anyBoolean(), any( ThreadFactory.class ) );
     }
 
@@ -222,7 +223,7 @@ public class ExecutorBoltSchedulerTest
         verify( connection ).processNextBatch();
         verify( connection ).stop();
 
-        logProvider.assertExactly( AssertableLogProvider.inLog( containsString( BoltKernelExtension.class.getPackage().getName() ) ).error(
+        logProvider.assertExactly( AssertableLogProvider.inLog( containsString( BoltServer.class.getPackage().getName() ) ).error(
                 containsString( "Unexpected error during job scheduling for session" ),
                 matchesExceptionMessage( containsString( "some unexpected error" ) ) ) );
     }

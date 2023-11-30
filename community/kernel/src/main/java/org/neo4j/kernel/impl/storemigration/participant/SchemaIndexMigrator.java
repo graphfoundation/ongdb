@@ -42,6 +42,7 @@ import java.io.File;
 import java.io.IOException;
 
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.api.index.IndexProvider;
 import org.neo4j.kernel.impl.store.format.CapabilityType;
 import org.neo4j.kernel.impl.store.format.RecordFormatSelector;
@@ -49,7 +50,7 @@ import org.neo4j.kernel.impl.store.format.RecordFormats;
 import org.neo4j.kernel.impl.util.monitoring.ProgressReporter;
 
 /**
- * Migrates schema and label indexes between different ONgDB versions.
+ * Migrates schema and label indexes between different neo4j versions.
  * Participates in store upgrade as one of the migration participants.
  * <p>
  * Since index format can be completely incompatible between version should be executed before {@link StoreMigrator}
@@ -69,7 +70,7 @@ public class SchemaIndexMigrator extends AbstractStoreMigrationParticipant
     }
 
     @Override
-    public void migrate( File storeDir, File migrationDir, ProgressReporter progressReporter,
+    public void migrate( DatabaseLayout directoryLayout, DatabaseLayout migrationLayout, ProgressReporter progressReporter,
             String versionToMigrateFrom, String versionToMigrateTo )
     {
         RecordFormats from = RecordFormatSelector.selectForVersion( versionToMigrateFrom );
@@ -86,7 +87,7 @@ public class SchemaIndexMigrator extends AbstractStoreMigrationParticipant
     }
 
     @Override
-    public void moveMigratedFiles( File migrationDir, File storeDir, String versionToUpgradeFrom,
+    public void moveMigratedFiles( DatabaseLayout migrationLayout, DatabaseLayout directoryLayout, String versionToUpgradeFrom,
             String versionToMigrateTo ) throws IOException
     {
         if ( deleteObsoleteIndexes )

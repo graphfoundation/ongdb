@@ -38,14 +38,14 @@
  */
 package org.neo4j.server.rest.repr.util;
 
+import org.junit.Test;
+
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 
-import org.junit.Test;
-
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertSame;
 
 public class RFC1123Test
 {
@@ -94,8 +94,6 @@ public class RFC1123Test
         RFC1123 instance2 = RFC1123.instance();
 
         // then
-        assertTrue(
-                "Expected to get same instance from second call to RFC1123.instance() in same thread",
-                instance == instance2 );
+        assertSame( "Expected to get same instance from second call to RFC1123.instance() in same thread", instance, instance2 );
     }
 }

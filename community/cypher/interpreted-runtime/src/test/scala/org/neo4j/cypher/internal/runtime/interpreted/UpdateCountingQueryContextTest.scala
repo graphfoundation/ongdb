@@ -42,13 +42,13 @@ import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito.when
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
-import org.neo4j.cypher.internal.planner.v3_4.spi.{IdempotentResult, IndexDescriptor}
+import org.neo4j.cypher.internal.planner.v3_5.spi.{IdempotentResult, IndexDescriptor}
 import org.neo4j.cypher.internal.runtime.{Operations, QueryContext, QueryStatistics}
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
 import org.neo4j.graphdb.{Node, Relationship}
 import org.neo4j.internal.kernel.api.IndexReference
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.{NodeValue, RelationshipValue}
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 
 class UpdateCountingQueryContextTest extends CypherFunSuite {
 
@@ -97,9 +97,9 @@ class UpdateCountingQueryContextTest extends CypherFunSuite {
   }
 
   test("create_node") {
-    context.createNode()
+    context.createNode(Array(1, 2, 3))
 
-    context.getStatistics should equal(QueryStatistics(nodesCreated = 1))
+    context.getStatistics should equal(QueryStatistics(nodesCreated = 1, labelsAdded = 3))
   }
 
   test("delete_node") {

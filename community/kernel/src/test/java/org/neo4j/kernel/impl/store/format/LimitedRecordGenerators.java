@@ -50,8 +50,7 @@ import org.neo4j.kernel.impl.store.record.PropertyRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipGroupRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
-import org.neo4j.test.Randoms;
-import org.neo4j.values.storable.Values;
+import org.neo4j.values.storable.RandomValues;
 
 import static java.lang.Long.max;
 import static java.lang.Math.abs;
@@ -61,7 +60,7 @@ public class LimitedRecordGenerators implements RecordGenerators
 {
     static final long NULL = -1;
 
-    private final Randoms random;
+    private final RandomValues random;
     private final int entityBits;
     private final int propertyBits;
     private final int nodeLabelBits;
@@ -69,13 +68,13 @@ public class LimitedRecordGenerators implements RecordGenerators
     private final long nullValue;
     private final float fractionNullValues;
 
-    public LimitedRecordGenerators( Randoms random, int entityBits, int propertyBits, int nodeLabelBits,
+    public LimitedRecordGenerators( RandomValues random, int entityBits, int propertyBits, int nodeLabelBits,
             int tokenBits, long nullValue )
     {
         this( random, entityBits, propertyBits, nodeLabelBits, tokenBits, nullValue, 0.2f );
     }
 
-    public LimitedRecordGenerators( Randoms random, int entityBits, int propertyBits, int nodeLabelBits,
+    public LimitedRecordGenerators( RandomValues random, int entityBits, int propertyBits, int nodeLabelBits,
             int tokenBits, long nullValue, float fractionNullValues )
     {
         this.random = random;
@@ -145,7 +144,7 @@ public class LimitedRecordGenerators implements RecordGenerators
                 PropertyBlock block = new PropertyBlock();
                 // Dynamic records will not be written and read by the property record format,
                 // that happens in the store where it delegates to a "sub" store.
-                PropertyStore.encodeValue( block, random.nextInt( tokenBits ), Values.of( random.propertyValue() ),
+                PropertyStore.encodeValue( block, random.nextInt( tokenBits ), random.nextValue(),
                         stringAllocator, arrayAllocator, true );
                 int tentativeBlocksWithThisOne = blocksOccupied + block.getValueBlocks().length;
                 if ( tentativeBlocksWithThisOne <= 4 )
@@ -174,9 +173,13 @@ public class LimitedRecordGenerators implements RecordGenerators
     @Override
     public Generator<LabelTokenRecord> labelToken()
     {
-        return ( recordSize, format, recordId ) -> new LabelTokenRecord( toIntExact( recordId ) ).initialize(
-                random.nextBoolean(),
-                random.nextInt( tokenBits ) );
+        return ( recordSize, format, recordId ) ->
+        {
+            assert recordId < 0xffffffffL : "Record id too big: " + recordId;
+            return new LabelTokenRecord( recordId ).initialize(
+                    random.nextBoolean(),
+                    random.nextInt( tokenBits ) );
+        };
     }
 
     @Override
@@ -189,9 +192,8 @@ public class LimitedRecordGenerators implements RecordGenerators
             long next = length == dataSize ? randomLong( propertyBits ) : nullValue;
             DynamicRecord record = new DynamicRecord( max( 1, recordId ) ).initialize( random.nextBoolean(),
                     random.nextBoolean(), next, random.nextInt( PropertyType.values().length ), length );
-            byte[] data = new byte[record.getLength()];
-            random.nextBytes( data );
-            record.setData( data );
+            byte[] bytes = random.nextByteArray( record.getLength(), record.getLength() ).asObjectCopy();
+            record.setData( bytes );
             return record;
         };
     }

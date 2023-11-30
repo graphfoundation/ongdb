@@ -42,6 +42,7 @@ import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.api.SchemaState;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.storageengine.api.EntityType;
 
 /**
  * Factory that is able to create either {@link MultipleIndexPopulator} or {@link BatchingMultipleIndexPopulator}
@@ -56,7 +57,7 @@ public abstract class MultiPopulatorFactory
     }
 
     public abstract MultipleIndexPopulator create( IndexStoreView storeView, LogProvider logProvider,
-                                                   SchemaState schemaState );
+                                                   EntityType type, SchemaState schemaState );
 
     public static MultiPopulatorFactory forConfig( Config config )
     {
@@ -68,9 +69,9 @@ public abstract class MultiPopulatorFactory
     {
         @Override
         public MultipleIndexPopulator create( IndexStoreView storeView, LogProvider logProvider,
-                                              SchemaState schemaState )
+                                              EntityType type, SchemaState schemaState )
         {
-            return new MultipleIndexPopulator( storeView, logProvider, schemaState );
+            return new MultipleIndexPopulator( storeView, logProvider, type, schemaState );
         }
     }
 
@@ -78,9 +79,9 @@ public abstract class MultiPopulatorFactory
     {
         @Override
         public MultipleIndexPopulator create( IndexStoreView storeView, LogProvider logProvider,
-                                              SchemaState schemaState )
+                                              EntityType type, SchemaState schemaState )
         {
-            return new BatchingMultipleIndexPopulator( storeView, logProvider, schemaState );
+            return new BatchingMultipleIndexPopulator( storeView, logProvider, type, schemaState );
         }
     }
 }

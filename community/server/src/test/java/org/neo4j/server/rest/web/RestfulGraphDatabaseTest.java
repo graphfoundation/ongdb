@@ -71,8 +71,6 @@ import org.neo4j.server.plugins.ConfigAdapter;
 import org.neo4j.server.rest.domain.GraphDbHelper;
 import org.neo4j.server.rest.domain.JsonHelper;
 import org.neo4j.server.rest.domain.JsonParseException;
-import org.neo4j.server.rest.domain.TraverserReturnType;
-import org.neo4j.server.rest.paging.LeaseManager;
 import org.neo4j.server.rest.repr.RelationshipRepresentationTest;
 import org.neo4j.server.rest.repr.formats.JsonFormat;
 import org.neo4j.server.rest.web.DatabaseActions.RelationshipDirection;
@@ -80,7 +78,6 @@ import org.neo4j.server.rest.web.RestfulGraphDatabase.AmpersandSeparatedCollecti
 import org.neo4j.string.UTF8;
 import org.neo4j.test.TestGraphDatabaseFactory;
 import org.neo4j.test.server.EntityOutputFormat;
-import org.neo4j.time.Clocks;
 
 import static java.lang.Long.parseLong;
 import static org.hamcrest.Matchers.containsString;
@@ -116,8 +113,7 @@ public class RestfulGraphDatabaseTest
         database = new WrappedDatabase( graph );
         helper = new GraphDbHelper( database );
         output = new EntityOutputFormat( new JsonFormat(), URI.create( BASE_URI ), null );
-        DatabaseActions databaseActions = new DatabaseActions(
-                new LeaseManager( Clocks.fakeClock() ), ScriptExecutionMode.SANDBOXED, database.getGraph() );
+        DatabaseActions databaseActions = new DatabaseActions( database.getGraph() );
         service = new TransactionWrappingRestfulGraphDatabase(
                 graph,
                 new RestfulGraphDatabase(
@@ -624,8 +620,7 @@ public class RestfulGraphDatabaseTest
         properties.put( "number", 15 );
         helper.setNodeProperties( nodeId, properties );
         service.deleteAllNodeProperties( nodeId );
-        assertEquals( true, helper.getNodeProperties( nodeId )
-                .isEmpty() );
+        assertTrue( helper.getNodeProperties( nodeId ).isEmpty() );
     }
 
     @Test
@@ -976,9 +971,7 @@ public class RestfulGraphDatabaseTest
             Set<String> indexes = output.getResultAsMap()
                     .keySet();
             assertEquals( 1, indexes.size() );
-            assertTrue( indexes.iterator()
-                    .next()
-                    .equals( NODE_AUTO_INDEX ) );
+            assertEquals( indexes.iterator().next(), NODE_AUTO_INDEX );
         }
         else
         {
@@ -1037,7 +1030,6 @@ public class RestfulGraphDatabaseTest
         //this can be null
 //        assertNotNull( map.get( "reference_node" ) );
         assertNotNull( map.get( "neo4j_version" ) );
-        assertNotNull( map.get( "ongdb_version" ) );
         assertNotNull( map.get( "node_index" ) );
         assertNotNull( map.get( "extensions_info" ) );
         assertNotNull( map.get( "relationship_index" ) );
@@ -1097,14 +1089,14 @@ public class RestfulGraphDatabaseTest
 
         char[] alphabet = "abcdefghijklmnopqrstuvwxyz".toCharArray();
 
-        String largePropertyValue = "";
+        StringBuilder largePropertyValue = new StringBuilder();
         Random random = new Random();
         for ( int i = 0; i < 30_000; i++ )
         {
-            largePropertyValue += alphabet[random.nextInt( alphabet.length )];
+            largePropertyValue.append( alphabet[random.nextInt( alphabet.length )] );
         }
 
-        postBody.put( "value", largePropertyValue );
+        postBody.put( "value", largePropertyValue.toString() );
         postBody.put( "uri", nodeUri.toString() );
 
         response = service.addToNodeIndex( "node", null, null, JsonHelper.createJsonFrom( postBody ) );
@@ -1726,7 +1718,6 @@ public class RestfulGraphDatabaseTest
     {
         Response response = service.deleteFromNodeIndex( "nodes", "bogus", "bogus", 999999 );
         assertEquals( Status.NOT_FOUND.getStatusCode(), response.getStatus() );
-//        assertEquals( Statement..code().serialize(), singleErrorCode( response ) );
     }
 
     @Test
@@ -1734,108 +1725,6 @@ public class RestfulGraphDatabaseTest
     {
         Response response = service.deleteFromRelationshipIndex( "relationships", "bogus", "bogus", 999999 );
         assertEquals( Status.NOT_FOUND.getStatusCode(), response.getStatus() );
-    }
-
-    @Test
-    public void shouldGet404WhenTraversingFromNonExistentNode()
-    {
-        Response response = service.traverse( 9999999, TraverserReturnType.node, "{}" );
-        assertEquals( Status.NOT_FOUND.getStatusCode(), response.getStatus() );
-    }
-
-    @Test
-    public void shouldGet200WhenNoHitsReturnedFromTraverse()
-    {
-        long startNode = helper.createNode();
-
-        try ( Transaction ignored = graph.beginTx() )
-        {
-            Response response = service.traverse( startNode, TraverserReturnType.node, "" );
-            assertEquals( Status.OK.getStatusCode(), response.getStatus() );
-            assertThat( output.getResultAsList().size(), is( 0 ) );
-        }
-    }
-
-    @Test
-    public void shouldGetSomeHitsWhenTraversingWithDefaultDescription()
-    {
-        long startNode = helper.createNode();
-        long child1L1 = helper.createNode();
-        helper.createRelationship( "knows", startNode, child1L1 );
-        long child2L1 = helper.createNode();
-        helper.createRelationship( "knows", startNode, child2L1 );
-        long child1L2 = helper.createNode();
-        helper.createRelationship( "knows", child2L1, child1L2 );
-        Response response = service.traverse( startNode, TraverserReturnType.node, "" );
-        String entity = entityAsString( response );
-        assertTrue( entity.contains( "/node/" + child1L1 ) );
-        assertTrue( entity.contains( "/node/" + child2L1 ) );
-        assertFalse( entity.contains( "/node/" + child1L2 ) );
-
-        checkContentTypeCharsetUtf8(response);
-    }
-
-    @Test
-    public void shouldBeAbleToDescribeTraverser()
-    {
-        long startNode = helper.createNode( MapUtil.map( "name", "Mattias" ) );
-        long node1 = helper.createNode( MapUtil.map( "name", "Emil" ) );
-        long node2 = helper.createNode( MapUtil.map( "name", "Johan" ) );
-        long node3 = helper.createNode( MapUtil.map( "name", "Tobias" ) );
-        helper.createRelationship( "knows", startNode, node1 );
-        helper.createRelationship( "knows", startNode, node2 );
-        helper.createRelationship( "knows", node1, node3 );
-        String description = "{"
-                + "\"prune_evaluator\":{\"language\":\"builtin\",\"name\":\"none\"},"
-                + "\"return_filter\":{\"language\":\"javascript\",\"body\":\"position.endNode().getProperty('name')" +
-                ".toLowerCase().contains('t');\"},"
-                + "\"order\":\"depth_first\","
-                + "\"relationships\":{\"type\":\"knows\",\"direction\":\"all\"}" + "}";
-        Response response = service.traverse( startNode, TraverserReturnType.node, description );
-        assertEquals( Status.OK.getStatusCode(), response.getStatus() );
-        String entity = entityAsString( response );
-        assertTrue( entity.contains( NODE_SUBPATH + startNode ) );
-        assertFalse( entity.contains( NODE_SUBPATH + node1 ) );
-        assertFalse( entity.contains( NODE_SUBPATH + node2 ) );
-        assertTrue( entity.contains( NODE_SUBPATH + node3 ) );
-    }
-
-    @Test
-    public void shouldBeAbleToGetOtherResultTypesWhenTraversing()
-    {
-        long startNode = helper.createNode( MapUtil.map( "name", "Mattias" ) );
-        long node1 = helper.createNode( MapUtil.map( "name", "Emil" ) );
-        long node2 = helper.createNode( MapUtil.map( "name", "Johan" ) );
-        long node3 = helper.createNode( MapUtil.map( "name", "Tobias" ) );
-        long rel1 = helper.createRelationship( "knows", startNode, node1 );
-        long rel2 = helper.createRelationship( "knows", startNode, node2 );
-        long rel3 = helper.createRelationship( "knows", node1, node3 );
-
-        Response response = service.traverse( startNode, TraverserReturnType.relationship, "" );
-        assertEquals( Status.OK.getStatusCode(), response.getStatus() );
-        String entity = entityAsString( response );
-        assertTrue( entity.contains( "/relationship/" + rel1 ) );
-        assertTrue( entity.contains( "/relationship/" + rel2 ) );
-        assertFalse( entity.contains( "/relationship/" + rel3 ) );
-
-        response = service.traverse( startNode, TraverserReturnType.path, "" );
-        assertEquals( Status.OK.getStatusCode(), response.getStatus() );
-        entity = entityAsString( response );
-        assertTrue( entity.contains( "nodes" ) );
-        assertTrue( entity.contains( "relationships" ) );
-        assertTrue( entity.contains( "length" ) );
-
-        response = service.traverse( startNode, TraverserReturnType.fullpath, "" );
-        assertEquals( Status.OK.getStatusCode(), response.getStatus() );
-        entity = entityAsString( response );
-        assertTrue( entity.contains( "nodes" ) );
-        assertTrue( entity.contains( "data" ) );
-        assertTrue( entity.contains( "type" ) );
-        assertTrue( entity.contains( "self" ) );
-        assertTrue( entity.contains( "outgoing_relationships" ) );
-        assertTrue( entity.contains( "incoming_relationships" ) );
-        assertTrue( entity.contains( "relationships" ) );
-        assertTrue( entity.contains( "length" ) );
     }
 
     private static String markWithUnicodeMarker( String string )
@@ -1928,10 +1817,6 @@ public class RestfulGraphDatabaseTest
                 service.addToNodeIndex( "node", null, null,
                         markWithUnicodeMarker( "{\"key\":\"foo\", \"value\":\"bar\", \"uri\": \"" + nodeLocation
                                 + "\"}" ) )
-                        .getStatus() );
-
-        assertEquals( Status.OK.getStatusCode(),
-                service.traverse( node, TraverserReturnType.node, markWithUnicodeMarker( "{\"max depth\":2}" ) )
                         .getStatus() );
     }
 

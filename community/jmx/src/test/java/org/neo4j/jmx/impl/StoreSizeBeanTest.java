@@ -38,92 +38,83 @@
  */
 package org.neo4j.jmx.impl;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.Assert;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Clock;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.neo4j.graphdb.mockfs.EphemeralFileSystemAbstraction;
-import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
 import org.neo4j.io.fs.StoreChannel;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.jmx.StoreSize;
 import org.neo4j.kernel.NeoStoreDataSource;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
 import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.api.index.IndexProvider.Descriptor;
 import org.neo4j.kernel.api.labelscan.LabelScanStore;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.api.ExplicitIndexProviderLookup;
-import org.neo4j.kernel.impl.api.index.IndexProviderMap;
+import org.neo4j.kernel.impl.api.ExplicitIndexProvider;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
 import org.neo4j.kernel.impl.transaction.state.DefaultIndexProviderMap;
 import org.neo4j.kernel.impl.util.Dependencies;
-import org.neo4j.kernel.internal.DefaultKernelData;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.internal.KernelData;
 import org.neo4j.kernel.spi.explicitindex.IndexImplementation;
+import org.neo4j.test.extension.EphemeralFileSystemExtension;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.TestDirectoryExtension;
+import org.neo4j.test.rule.TestDirectory;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.neo4j.graphdb.factory.GraphDatabaseSettings.default_schema_provider;
 import static org.neo4j.helpers.collection.Iterables.iterable;
-import static org.neo4j.kernel.impl.store.StoreFile.COUNTS_STORE_LEFT;
-import static org.neo4j.kernel.impl.store.StoreFile.COUNTS_STORE_RIGHT;
-import static org.neo4j.kernel.impl.store.StoreFile.LABEL_TOKEN_NAMES_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.LABEL_TOKEN_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.NODE_LABEL_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.NODE_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.PROPERTY_ARRAY_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.PROPERTY_KEY_TOKEN_NAMES_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.PROPERTY_KEY_TOKEN_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.PROPERTY_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.PROPERTY_STRING_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.RELATIONSHIP_GROUP_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.RELATIONSHIP_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.RELATIONSHIP_TYPE_TOKEN_NAMES_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.RELATIONSHIP_TYPE_TOKEN_STORE;
-import static org.neo4j.kernel.impl.store.StoreFile.SCHEMA_STORE;
-import static org.neo4j.kernel.impl.storemigration.StoreFileType.ID;
-import static org.neo4j.kernel.impl.storemigration.StoreFileType.STORE;
 
-public class StoreSizeBeanTest
+@ExtendWith( {EphemeralFileSystemExtension.class, TestDirectoryExtension.class} )
+class StoreSizeBeanTest
 {
-    private final FileSystemAbstraction fs = new EphemeralFileSystemAbstraction();
-    private final File storeDir = new File( "" );
-    private final LogFiles logFiles = LogFilesBuilder.logFilesBasedOnlyBuilder( storeDir, fs ).build();
-    private final ExplicitIndexProviderLookup explicitIndexProviderLookup = mock( ExplicitIndexProviderLookup.class );
-    private final IndexProvider indexProvider = mockedIndexProvider( "providah1" );
-    private final IndexProvider indexProvider2 = mockedIndexProvider( "providah" );
+    @Inject
+    private EphemeralFileSystemAbstraction fs;
+    @Inject
+    private TestDirectory testDirectory;
+    private final ExplicitIndexProvider explicitIndexProviderLookup = mock( ExplicitIndexProvider.class );
+    private final IndexProvider indexProvider = mockedIndexProvider( "provider1" );
+    private final IndexProvider indexProvider2 = mockedIndexProvider( "provider2" );
     private final LabelScanStore labelScanStore = mock( LabelScanStore.class );
     private StoreSize storeSizeBean;
-    private File storeDirAbsolute;
+    private LogFiles logFiles;
     private ManagementData managementData;
 
-    public StoreSizeBeanTest() throws IOException
+    @BeforeEach
+    void setUp() throws IOException
     {
-    }
+        logFiles = LogFilesBuilder.logFilesBasedOnlyBuilder( testDirectory.databaseDir(), fs ).build();
 
-    @Before
-    public void setUp()
-    {
-        DataSourceManager dataSourceManager = new DataSourceManager();
+        Dependencies dependencies = new Dependencies();
+        Config config = Config.defaults( default_schema_provider, indexProvider.getProviderDescriptor().name() );
+        DataSourceManager dataSourceManager = new DataSourceManager( config );
         GraphDatabaseAPI db = mock( GraphDatabaseAPI.class );
         NeoStoreDataSource dataSource = mock( NeoStoreDataSource.class );
-        IndexProviderMap indexProviderMap = new DefaultIndexProviderMap( indexProvider,
-                Collections.singleton( indexProvider2 ) );
+
+        dependencies.satisfyDependency( indexProvider );
+        dependencies.satisfyDependency( indexProvider2 );
+
+        DefaultIndexProviderMap indexProviderMap = new DefaultIndexProviderMap( dependencies, config );
+        indexProviderMap.init();
 
         // Setup all dependencies
-        Dependencies dependencies = new Dependencies();
         dependencies.satisfyDependency( fs );
         dependencies.satisfyDependencies( dataSourceManager );
         dependencies.satisfyDependency( logFiles );
@@ -132,136 +123,137 @@ public class StoreSizeBeanTest
         dependencies.satisfyDependency( labelScanStore );
         when( db.getDependencyResolver() ).thenReturn( dependencies );
         when( dataSource.getDependencyResolver() ).thenReturn( dependencies );
+        when( dataSource.getDatabaseLayout() ).thenReturn( testDirectory.databaseLayout() );
 
         // Start DataSourceManager
         dataSourceManager.register( dataSource );
         dataSourceManager.start();
 
         // Create bean
-        KernelData kernelData = new DefaultKernelData( fs, mock( PageCache.class ), storeDir, Config.defaults(), db );
+        KernelData kernelData = new KernelData( fs, mock( PageCache.class ), testDirectory.databaseDir(), config, dataSourceManager );
         managementData = new ManagementData( new StoreSizeBean(), kernelData, ManagementSupport.load() );
         storeSizeBean = StoreSizeBean.createBean( managementData, false, 0, mock( Clock.class ) );
 
         when( indexProvider.directoryStructure() ).thenReturn( mock( IndexDirectoryStructure.class ) );
         when( indexProvider2.directoryStructure() ).thenReturn( mock( IndexDirectoryStructure.class ) );
-        when( labelScanStore.getLabelScanStoreFile() ).thenReturn( new File( storeDir, "labelScanStore" ) );
+        when( labelScanStore.getLabelScanStoreFile() ).thenReturn( testDirectory.databaseLayout().labelScanStore() );
     }
 
-    private IndexProvider mockedIndexProvider( String name )
+    private static IndexProvider mockedIndexProvider( String name )
     {
         IndexProvider provider = mock( IndexProvider.class );
-        when( provider.getProviderDescriptor() ).thenReturn( new Descriptor( name, "1" ) );
+        when( provider.getProviderDescriptor() ).thenReturn( new IndexProviderDescriptor( name, "1" ) );
         return provider;
     }
 
     private void createFakeStoreDirectory() throws IOException
     {
-        Map<String, Integer> dummyStore = new HashMap<>();
-        dummyStore.put( NODE_STORE.fileName( STORE ), 1 );
-        dummyStore.put( NODE_STORE.fileName( ID ), 2 );
-        dummyStore.put( NODE_LABEL_STORE.fileName( STORE ), 3 );
-        dummyStore.put( NODE_LABEL_STORE.fileName( ID ), 4 );
-        dummyStore.put( PROPERTY_STORE.fileName( STORE ), 5 );
-        dummyStore.put( PROPERTY_STORE.fileName( ID ), 6 );
-        dummyStore.put( PROPERTY_KEY_TOKEN_STORE.fileName( STORE ), 7 );
-        dummyStore.put( PROPERTY_KEY_TOKEN_STORE.fileName( ID ), 8 );
-        dummyStore.put( PROPERTY_KEY_TOKEN_NAMES_STORE.fileName( STORE ), 9 );
-        dummyStore.put( PROPERTY_KEY_TOKEN_NAMES_STORE.fileName( ID ), 10 );
-        dummyStore.put( PROPERTY_STRING_STORE.fileName( STORE ), 11 );
-        dummyStore.put( PROPERTY_STRING_STORE.fileName( ID ), 12 );
-        dummyStore.put( PROPERTY_ARRAY_STORE.fileName( STORE ), 13 );
-        dummyStore.put( PROPERTY_ARRAY_STORE.fileName( ID ), 14 );
-        dummyStore.put( RELATIONSHIP_STORE.fileName( STORE ), 15 );
-        dummyStore.put( RELATIONSHIP_STORE.fileName( ID ), 16 );
-        dummyStore.put( RELATIONSHIP_GROUP_STORE.fileName( STORE ), 17 );
-        dummyStore.put( RELATIONSHIP_GROUP_STORE.fileName( ID ), 18 );
-        dummyStore.put( RELATIONSHIP_TYPE_TOKEN_STORE.fileName( STORE ), 19 );
-        dummyStore.put( RELATIONSHIP_TYPE_TOKEN_STORE.fileName( ID ), 20 );
-        dummyStore.put( RELATIONSHIP_TYPE_TOKEN_NAMES_STORE.fileName( STORE ), 21 );
-        dummyStore.put( RELATIONSHIP_TYPE_TOKEN_NAMES_STORE.fileName( ID ), 22 );
-        dummyStore.put( LABEL_TOKEN_STORE.fileName( STORE ), 23 );
-        dummyStore.put( LABEL_TOKEN_STORE.fileName( ID ), 24 );
-        dummyStore.put( LABEL_TOKEN_NAMES_STORE.fileName( STORE ), 25 );
-        dummyStore.put( LABEL_TOKEN_NAMES_STORE.fileName( ID ), 26 );
-        dummyStore.put( SCHEMA_STORE.fileName( STORE ), 27 );
-        dummyStore.put( SCHEMA_STORE.fileName( ID ), 28 );
-        dummyStore.put( COUNTS_STORE_LEFT.fileName( STORE ), 29 );
-        // COUNTS_STORE_RIGHT is created in the test
+        Map<File, Integer> dummyStore = new HashMap<>();
+        DatabaseLayout layout = testDirectory.databaseLayout();
+        dummyStore.put( layout.nodeStore(), 1 );
+        dummyStore.put( layout.idNodeStore(), 2 );
+        dummyStore.put( layout.nodeLabelStore(), 3 );
+        dummyStore.put( layout.idNodeLabelStore(), 4 );
+        dummyStore.put( layout.propertyStore(), 5 );
+        dummyStore.put( layout.idPropertyStore(), 6 );
+        dummyStore.put( layout.propertyKeyTokenStore(), 7 );
+        dummyStore.put( layout.idPropertyKeyTokenStore(), 8 );
+        dummyStore.put( layout.propertyKeyTokenNamesStore(), 9 );
+        dummyStore.put( layout.idPropertyKeyTokenNamesStore(), 10 );
+        dummyStore.put( layout.propertyStringStore(), 11 );
+        dummyStore.put( layout.idPropertyStringStore(), 12 );
+        dummyStore.put( layout.propertyArrayStore(), 13 );
+        dummyStore.put( layout.idPropertyArrayStore(), 14 );
+        dummyStore.put( layout.relationshipStore(), 15 );
+        dummyStore.put( layout.idRelationshipStore(), 16 );
+        dummyStore.put( layout.relationshipGroupStore(), 17 );
+        dummyStore.put( layout.idRelationshipGroupStore(), 18 );
+        dummyStore.put( layout.relationshipTypeTokenStore(), 19 );
+        dummyStore.put( layout.idRelationshipTypeTokenStore(), 20 );
+        dummyStore.put( layout.relationshipTypeTokenNamesStore(), 21 );
+        dummyStore.put( layout.idRelationshipTypeTokenNamesStore(), 22 );
+        dummyStore.put( layout.labelTokenStore(), 23 );
+        dummyStore.put( layout.idLabelTokenStore(), 24 );
+        dummyStore.put( layout.labelTokenNamesStore(), 25 );
+        dummyStore.put( layout.idLabelTokenNamesStore(), 26 );
+        dummyStore.put( layout.schemaStore(), 27 );
+        dummyStore.put( layout.idSchemaStore(), 28 );
+        dummyStore.put( layout.countStoreB(), 29 );
+        // COUNTS_STORE_B is created in the test
 
-        storeDirAbsolute = storeDir.getCanonicalFile().getAbsoluteFile();
-        for ( Map.Entry<String, Integer> dummyFile : dummyStore.entrySet() )
+        for ( Map.Entry<File, Integer> fileEntry : dummyStore.entrySet() )
         {
-            createFileOfSize( new File( storeDirAbsolute, dummyFile.getKey() ), dummyFile.getValue() );
+            createFileOfSize( fileEntry.getKey(), fileEntry.getValue() );
         }
     }
 
     @Test
-    public void verifyGroupingOfNodeRelatedFiles() throws Exception
+    void verifyGroupingOfNodeRelatedFiles() throws Exception
     {
         createFakeStoreDirectory();
         assertEquals( getExpected( 1, 4 ), storeSizeBean.getNodeStoreSize() );
     }
 
     @Test
-    public void verifyGroupingOfPropertyRelatedFiles() throws Exception
+    void verifyGroupingOfPropertyRelatedFiles() throws Exception
     {
         createFakeStoreDirectory();
         assertEquals( getExpected( 5, 10 ), storeSizeBean.getPropertyStoreSize() );
     }
 
     @Test
-    public void verifyGroupingOfStringRelatedFiles() throws Exception
+    void verifyGroupingOfStringRelatedFiles() throws Exception
     {
         createFakeStoreDirectory();
         assertEquals( getExpected( 11, 12 ), storeSizeBean.getStringStoreSize() );
     }
 
     @Test
-    public void verifyGroupingOfArrayRelatedFiles() throws Exception
+    void verifyGroupingOfArrayRelatedFiles() throws Exception
     {
         createFakeStoreDirectory();
         assertEquals( getExpected( 13, 14 ), storeSizeBean.getArrayStoreSize() );
     }
 
     @Test
-    public void verifyGroupingOfRelationshipRelatedFiles() throws Exception
+    void verifyGroupingOfRelationshipRelatedFiles() throws Exception
     {
         createFakeStoreDirectory();
         assertEquals( getExpected( 15, 22 ), storeSizeBean.getRelationshipStoreSize() );
     }
 
     @Test
-    public void verifyGroupingOfLabelRelatedFiles() throws Exception
+    void verifyGroupingOfLabelRelatedFiles() throws Exception
     {
         createFakeStoreDirectory();
         assertEquals( getExpected( 23, 26 ), storeSizeBean.getLabelStoreSize() );
     }
 
     @Test
-    public void verifyGroupingOfCountStoreRelatedFiles() throws Exception
+    void verifyGroupingOfCountStoreRelatedFiles() throws Exception
     {
         createFakeStoreDirectory();
         assertEquals( getExpected( 29, 29 ), storeSizeBean.getCountStoreSize() );
-        createFileOfSize( new File( storeDirAbsolute, COUNTS_STORE_RIGHT.fileName( STORE ) ), 30 );
+        createFileOfSize( testDirectory.databaseLayout().countStoreA(), 30 );
         assertEquals( getExpected( 29, 30 ), storeSizeBean.getCountStoreSize() );
     }
 
     @Test
-    public void verifyGroupingOfSchemaRelatedFiles() throws Exception
+    void verifyGroupingOfSchemaRelatedFiles() throws Exception
     {
         createFakeStoreDirectory();
         assertEquals( getExpected( 27, 28 ), storeSizeBean.getSchemaStoreSize() );
     }
 
     @Test
-    public void sumAllFiles() throws Exception
+    void sumAllFiles() throws Exception
     {
         createFakeStoreDirectory();
         assertEquals( getExpected( 0, 29 ), storeSizeBean.getTotalStoreSize() );
     }
 
     @Test
-    public void shouldCountAllLogFiles() throws Throwable
+    void shouldCountAllLogFiles() throws Throwable
     {
         createFileOfSize( logFiles.getLogFileForVersion( 0 ), 1 );
         createFileOfSize( logFiles.getLogFileForVersion( 1 ), 2 );
@@ -270,34 +262,31 @@ public class StoreSizeBeanTest
     }
 
     @Test
-    public void shouldCountAllIndexFiles() throws Exception
+    void shouldCountAllIndexFiles() throws Exception
     {
         // Explicit index file
-        File explicitIndex = new File( storeDir, "explicitIndex" );
+        File explicitIndex = testDirectory.databaseLayout().file( "explicitIndex" );
         createFileOfSize( explicitIndex, 1 );
 
         IndexImplementation indexImplementation = mock( IndexImplementation.class );
         when( indexImplementation.getIndexImplementationDirectory( any() ) ).thenReturn( explicitIndex );
-        when( explicitIndexProviderLookup.all() ).thenReturn( iterable( indexImplementation ) );
+        when( explicitIndexProviderLookup.allIndexProviders() ).thenReturn( iterable( indexImplementation ) );
 
         // Schema index files
-        {
-            File schemaIndex = new File( storeDir, "schemaIndex" );
-            createFileOfSize( schemaIndex, 2 );
-            IndexDirectoryStructure directoryStructure = mock( IndexDirectoryStructure.class );
-            when( directoryStructure.rootDirectory() ).thenReturn( schemaIndex );
-            when( indexProvider.directoryStructure() ).thenReturn( directoryStructure );
-        }
-        {
-            File schemaIndex = new File( storeDir, "schemaIndex2" );
-            createFileOfSize( schemaIndex, 3 );
-            IndexDirectoryStructure directoryStructure = mock( IndexDirectoryStructure.class );
-            when( directoryStructure.rootDirectory() ).thenReturn( schemaIndex );
-            when( indexProvider2.directoryStructure() ).thenReturn( directoryStructure );
-        }
+        File schemaIndex = testDirectory.databaseLayout().file( "schemaIndex" );
+        createFileOfSize( schemaIndex, 2 );
+        IndexDirectoryStructure directoryStructure = mock( IndexDirectoryStructure.class );
+        when( directoryStructure.rootDirectory() ).thenReturn( schemaIndex );
+        when( indexProvider.directoryStructure() ).thenReturn( directoryStructure );
+
+        File schemaIndex2 = testDirectory.databaseLayout().file( "schemaIndex2" );
+        createFileOfSize( schemaIndex2, 3 );
+        IndexDirectoryStructure directoryStructure2 = mock( IndexDirectoryStructure.class );
+        when( directoryStructure2.rootDirectory() ).thenReturn( schemaIndex2 );
+        when( indexProvider2.directoryStructure() ).thenReturn( directoryStructure2 );
 
         // Label scan store
-        File labelScan = new File( storeDir, "labelScanStore" );
+        File labelScan = testDirectory.databaseLayout().labelScanStore();
         createFileOfSize( labelScan, 4 );
         when( labelScanStore.getLabelScanStoreFile() ).thenReturn( labelScan );
 
@@ -306,7 +295,7 @@ public class StoreSizeBeanTest
     }
 
     @Test
-    public void shouldCacheValues() throws Throwable
+    void shouldCacheValues() throws IOException
     {
         final Clock clock = mock( Clock.class );
         storeSizeBean = StoreSizeBean.createBean( managementData, false, 100, clock );
@@ -315,16 +304,16 @@ public class StoreSizeBeanTest
         createFileOfSize( logFiles.getLogFileForVersion( 0 ), 1 );
         createFileOfSize( logFiles.getLogFileForVersion( 1 ), 2 );
 
-        assertEquals( 3L, storeSizeBean.getTransactionLogsSize() );
+        Assert.assertEquals( 3L, storeSizeBean.getTransactionLogsSize() );
 
         createFileOfSize( logFiles.getLogFileForVersion( 2 ), 3 );
         createFileOfSize( logFiles.getLogFileForVersion( 3 ), 4 );
 
-        assertEquals( 3L, storeSizeBean.getTransactionLogsSize() );
+        Assert.assertEquals( 3L, storeSizeBean.getTransactionLogsSize() );
 
         when( clock.millis() ).thenReturn( 200L );
 
-        assertEquals( 10L, storeSizeBean.getTransactionLogsSize() );
+        Assert.assertEquals( 10L, storeSizeBean.getTransactionLogsSize() );
     }
 
     private void createFileOfSize( File file, int size ) throws IOException
@@ -337,7 +326,7 @@ public class StoreSizeBeanTest
         }
     }
 
-    private long getExpected( int lower, int upper )
+    private static long getExpected( int lower, int upper )
     {
         long expected = 0;
         for ( int i = lower; i <= upper; i++ )

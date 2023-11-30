@@ -38,8 +38,8 @@
  */
 package org.neo4j.io.pagecache.checking;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -48,22 +48,22 @@ import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.io.pagecache.PagedFile;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class AccessCheckingPageCacheTest
+class AccessCheckingPageCacheTest
 {
     private PageCache pageCache;
     private PageCursor cursor;
 
-    @Before
-    public void getPageCursor() throws IOException
+    @BeforeEach
+    void getPageCursor() throws IOException
     {
         PageCache mockedPageCache = mock( PageCache.class );
         PagedFile mockedPagedFile = mock( PagedFile.class );
@@ -76,7 +76,7 @@ public class AccessCheckingPageCacheTest
     }
 
     @Test
-    public void shouldGrant_read_shouldRetry_close() throws Exception
+    void shouldGrant_read_shouldRetry_close() throws Exception
     {
         // GIVEN
         cursor.getByte();
@@ -89,7 +89,7 @@ public class AccessCheckingPageCacheTest
     }
 
     @Test
-    public void shouldGrant_read_shouldRetry_next() throws Exception
+    void shouldGrant_read_shouldRetry_next() throws Exception
     {
         // GIVEN
         cursor.getByte( 0 );
@@ -102,7 +102,7 @@ public class AccessCheckingPageCacheTest
     }
 
     @Test
-    public void shouldGrant_read_shouldRetry_next_with_id() throws Exception
+    void shouldGrant_read_shouldRetry_next_with_id() throws Exception
     {
         // GIVEN
         cursor.getShort();
@@ -115,7 +115,7 @@ public class AccessCheckingPageCacheTest
     }
 
     @Test
-    public void shouldGrant_read_shouldRetry_read_shouldRetry_close() throws Exception
+    void shouldGrant_read_shouldRetry_read_shouldRetry_close() throws Exception
     {
         // GIVEN
         cursor.getShort( 0 );
@@ -130,7 +130,7 @@ public class AccessCheckingPageCacheTest
     }
 
     @Test
-    public void shouldGrant_read_shouldRetry_read_shouldRetry_next() throws Exception
+    void shouldGrant_read_shouldRetry_read_shouldRetry_next() throws Exception
     {
         // GIVEN
         cursor.getInt( 0 );
@@ -145,7 +145,7 @@ public class AccessCheckingPageCacheTest
     }
 
     @Test
-    public void shouldGrant_read_shouldRetry_read_shouldRetry_next_with_id() throws Exception
+    void shouldGrant_read_shouldRetry_read_shouldRetry_next_with_id() throws Exception
     {
         // GIVEN
         cursor.getLong( 0 );
@@ -160,7 +160,7 @@ public class AccessCheckingPageCacheTest
     }
 
     @Test
-    public void shouldFail_read_close()
+    void shouldFail_read_close()
     {
         // GIVEN
         cursor.getByte();
@@ -179,7 +179,7 @@ public class AccessCheckingPageCacheTest
     }
 
     @Test
-    public void shouldFail_read_next() throws Exception
+    void shouldFail_read_next() throws Exception
     {
         // GIVEN
         cursor.getByte( 0 );
@@ -198,7 +198,7 @@ public class AccessCheckingPageCacheTest
     }
 
     @Test
-    public void shouldFail_read_next_with_id() throws Exception
+    void shouldFail_read_next_with_id() throws Exception
     {
         // GIVEN
         cursor.getShort();
@@ -217,7 +217,7 @@ public class AccessCheckingPageCacheTest
     }
 
     @Test
-    public void shouldFail_read_shouldRetry_read_close() throws Exception
+    void shouldFail_read_shouldRetry_read_close() throws Exception
     {
         // GIVEN
         cursor.getShort( 0 );
@@ -238,7 +238,7 @@ public class AccessCheckingPageCacheTest
     }
 
     @Test
-    public void shouldFail_read_shouldRetry_read_next() throws Exception
+    void shouldFail_read_shouldRetry_read_next() throws Exception
     {
         // GIVEN
         cursor.getInt( 0 );
@@ -259,7 +259,7 @@ public class AccessCheckingPageCacheTest
     }
 
     @Test
-    public void shouldFail_read_shouldRetry_read_next_with_id() throws Exception
+    void shouldFail_read_shouldRetry_read_next_with_id() throws Exception
     {
         // GIVEN
         cursor.getLong( 0 );

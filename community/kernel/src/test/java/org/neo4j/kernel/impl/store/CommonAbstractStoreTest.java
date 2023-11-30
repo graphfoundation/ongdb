@@ -49,18 +49,15 @@ import org.mockito.InOrder;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.OpenOption;
-import java.util.Arrays;
 import java.util.function.LongSupplier;
 
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseFile;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.io.pagecache.PagedFile;
-import org.neo4j.io.pagecache.tracing.ConfigurablePageCursorTracerSupplier;
-import org.neo4j.io.pagecache.tracing.recording.Event;
-import org.neo4j.io.pagecache.tracing.recording.RecordingPageCacheTracer;
-import org.neo4j.io.pagecache.tracing.recording.RecordingPageCursorTracer;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.impl.store.format.RecordFormat;
@@ -75,24 +72,18 @@ import org.neo4j.kernel.impl.store.id.validation.IdCapacityExceededException;
 import org.neo4j.kernel.impl.store.id.validation.NegativeIdException;
 import org.neo4j.kernel.impl.store.id.validation.ReservedIdException;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
-import org.neo4j.kernel.impl.store.record.NodeRecord;
-import org.neo4j.kernel.impl.store.record.RecordLoad;
-import org.neo4j.kernel.impl.storemigration.StoreFileType;
+import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.test.rule.ConfigurablePageCacheRule;
-import org.neo4j.test.rule.PageCacheRule;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 
+import static java.lang.String.format;
 import static java.nio.file.StandardOpenOption.DELETE_ON_CLOSE;
-import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -100,16 +91,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
-import static org.neo4j.io.pagecache.tracing.recording.RecordingPageCursorTracer.Pin;
-import static org.neo4j.kernel.impl.store.record.Record.NO_NEXT_PROPERTY;
-import static org.neo4j.kernel.impl.store.record.Record.NO_NEXT_RELATIONSHIP;
-import static org.neo4j.test.rule.PageCacheRule.config;
 import static org.neo4j.test.rule.TestDirectory.testDirectory;
 
 public class CommonAbstractStoreTest
@@ -125,6 +110,7 @@ public class CommonAbstractStoreTest
     private final PageCache pageCache = mock( PageCache.class );
     private final Config config = Config.defaults();
     private final File storeFile = new File( "store" );
+    private final File idStoreFile = new File( "isStore" );
     private final RecordFormat<TheRecord> recordFormat = mock( RecordFormat.class );
     private final IdType idType = IdType.RELATIONSHIP; // whatever
 
@@ -165,29 +151,10 @@ public class CommonAbstractStoreTest
     }
 
     @Test
-    public void recordCursorCallsNextOnThePageCursor() throws IOException
-    {
-        TheStore store = newStore();
-        long recordId = 4;
-        long pageIdForRecord = store.pageIdForRecord( recordId );
-
-        when( pageCursor.getCurrentPageId() ).thenReturn( pageIdForRecord );
-        when( pageCursor.next( anyLong() ) ).thenReturn( true );
-
-        RecordCursor<TheRecord> cursor = store.newRecordCursor( newRecord( -1 ) );
-        cursor.acquire( recordId, RecordLoad.FORCE );
-
-        cursor.next( recordId );
-
-        InOrder order = inOrder( pageCursor );
-        order.verify( pageCursor ).next( pageIdForRecord );
-        order.verify( pageCursor ).shouldRetry();
-    }
-
-    @Test
     public void failStoreInitializationWhenHeaderRecordCantBeRead() throws IOException
     {
         File storeFile = dir.file( "a" );
+        File idFile = dir.file( "idFile" );
         PageCache pageCache = mock( PageCache.class );
         PagedFile pagedFile = mock( PagedFile.class );
         PageCursor pageCursor = mock( PageCursor.class );
@@ -201,74 +168,12 @@ public class CommonAbstractStoreTest
         expectedException.expect( StoreNotFoundException.class );
         expectedException.expectMessage( "Fail to read header record of store file: " + storeFile.getAbsolutePath() );
 
-        try ( DynamicArrayStore dynamicArrayStore = new DynamicArrayStore( storeFile, config, IdType.NODE_LABELS,
+        try ( DynamicArrayStore dynamicArrayStore = new DynamicArrayStore( storeFile, idFile, config, IdType.NODE_LABELS,
                 idGeneratorFactory, pageCache, NullLogProvider.getInstance(),
-                Settings.INTEGER.apply( GraphDatabaseSettings.label_block_size.getDefaultValue() ),
-                recordFormats ) )
+                Settings.INTEGER.apply( GraphDatabaseSettings.label_block_size.getDefaultValue() ), recordFormats ) )
         {
             dynamicArrayStore.initialise( false );
         }
-    }
-
-    @Test
-    public void recordCursorPinsEachPageItReads()
-    {
-        File storeFile = dir.file( "a" );
-        RecordingPageCacheTracer tracer = new RecordingPageCacheTracer();
-        RecordingPageCursorTracer pageCursorTracer = new RecordingPageCursorTracer( Pin.class );
-        PageCacheRule.PageCacheConfig pageCacheConfig = config().withTracer( tracer )
-                                        .withCursorTracerSupplier( pageCursorTracerSupplier( pageCursorTracer ) );
-        PageCache pageCache = pageCacheRule.getPageCache( fileSystemRule.get(), pageCacheConfig, Config.defaults() );
-
-        try ( NodeStore store = new NodeStore( storeFile, Config.defaults(), new DefaultIdGeneratorFactory( fileSystemRule.get() ),
-                pageCache, NullLogProvider.getInstance(), null, Standard.LATEST_RECORD_FORMATS ) )
-        {
-            store.initialise( true );
-            assertNull( tracer.tryObserve( Event.class ) );
-
-            long nodeId1 = insertNodeRecordAndObservePinEvent( pageCursorTracer, store );
-            long nodeId2 = insertNodeRecordAndObservePinEvent( pageCursorTracer, store );
-
-            try ( RecordCursor<NodeRecord> cursor = store.newRecordCursor( store.newRecord() ) )
-            {
-                cursor.acquire( 0, RecordLoad.NORMAL );
-                assertTrue( cursor.next( nodeId1 ) );
-                assertTrue( cursor.next( nodeId2 ) );
-            }
-            // Because both nodes hit the same page, the code will only pin the page once and thus only emit one pin
-            // event. This pin event will not be observable until after we have closed the cursor. We could
-            // alternatively have chosen nodeId2 to be on a different page than nodeId1. In that case, the pin event
-            // for nodeId1 would have been visible after our call to cursor.next( nodeId2 ).
-            assertNotNull( pageCursorTracer.tryObserve( Pin.class ) );
-            assertNull( pageCursorTracer.tryObserve( Event.class ) );
-        }
-    }
-
-    @Test
-    public void recordCursorGetAllForEmptyCursor() throws IOException
-    {
-        TheStore store = newStore();
-        long recordId = 4;
-        long pageIdForRecord = store.pageIdForRecord( recordId );
-
-        when( pageCursor.getCurrentPageId() ).thenReturn( pageIdForRecord );
-        when( pageCursor.next( anyInt() ) ).thenReturn( false );
-
-        RecordCursor<TheRecord> cursor = store.newRecordCursor( newRecord( -1 ) );
-        cursor.acquire( recordId, RecordLoad.FORCE );
-
-        assertThat( cursor.getAll(), is( empty() ) );
-    }
-
-    @Test
-    public void recordCursorGetAll()
-    {
-        TheStore store = newStore();
-        RecordCursor<TheRecord> cursor = spy( store.newRecordCursor( store.newRecord() ) );
-        doReturn( true ).doReturn( true ).doReturn( true ).doReturn( false ).when( cursor ).next();
-        doReturn( newRecord( 1 ) ).doReturn( newRecord( 5 ) ).doReturn( newRecord( 42 ) ).when( cursor ).get();
-
-        assertEquals( Arrays.asList( newRecord( 1 ), newRecord( 5 ), newRecord( 42 ) ), cursor.getAll() );
     }
 
     @Test
@@ -329,29 +234,60 @@ public class CommonAbstractStoreTest
     public void shouldDeleteOnCloseIfOpenOptionsSaysSo()
     {
         // GIVEN
-        File file = dir.file( "store" ).getAbsoluteFile();
-        File idFile = new File( file.getParentFile(), StoreFileType.ID.augment( file.getName() ) );
+        DatabaseLayout databaseLayout = dir.databaseLayout();
+        File nodeStore = databaseLayout.nodeStore();
+        File idFile = databaseLayout.idFile( DatabaseFile.NODE_STORE ).orElseThrow( () -> new IllegalStateException( "Node store id file not found." ) );
         FileSystemAbstraction fs = fileSystemRule.get();
         PageCache pageCache = pageCacheRule.getPageCache( fs, Config.defaults() );
-        TheStore store = new TheStore( file, config, idType, new DefaultIdGeneratorFactory( fs ), pageCache,
+        TheStore store = new TheStore( nodeStore, databaseLayout.idNodeStore(), config, idType, new DefaultIdGeneratorFactory( fs ), pageCache,
                 NullLogProvider.getInstance(), recordFormat, DELETE_ON_CLOSE );
         store.initialise( true );
         store.makeStoreOk();
-        assertTrue( fs.fileExists( file ) );
+        assertTrue( fs.fileExists( nodeStore ) );
         assertTrue( fs.fileExists( idFile ) );
 
         // WHEN
         store.close();
 
         // THEN
-        assertFalse( fs.fileExists( file ) );
+        assertFalse( fs.fileExists( nodeStore ) );
         assertFalse( fs.fileExists( idFile ) );
+    }
+
+    @Test
+    public void shouldIncludeFileNameInIdUsagePrintout()
+    {
+        // given
+        TheStore store = newStore();
+        AssertableLogProvider logProvider = new AssertableLogProvider();
+
+        // when
+        store.logIdUsage( logProvider.getLog( TheStore.class ).infoLogger() );
+
+        // then
+        logProvider.assertExactly( AssertableLogProvider.inLog( TheStore.class ).info(
+                containsString( format( "%s[%s]: used=0 high=0", TheStore.TYPE_DESCRIPTOR, storeFile.getName() ) ) ) );
+    }
+
+    @Test
+    public void shouldIncludeFileNameInStoreVersionPrintout()
+    {
+        // given
+        TheStore store = newStore();
+        AssertableLogProvider logProvider = new AssertableLogProvider();
+
+        // when
+        store.logVersions( logProvider.getLog( TheStore.class ).infoLogger() );
+
+        // then
+        logProvider.assertExactly( AssertableLogProvider.inLog( TheStore.class ).info(
+                containsString( format( "%s[%s] %s", TheStore.TYPE_DESCRIPTOR, storeFile.getName(), TheStore.STORE_VERSION ) ) ) );
     }
 
     private TheStore newStore()
     {
         LogProvider log = NullLogProvider.getInstance();
-        TheStore store = new TheStore( storeFile, config, idType, idGeneratorFactory, pageCache, log, recordFormat );
+        TheStore store = new TheStore( storeFile, idStoreFile, config, idType, idGeneratorFactory, pageCache, log, recordFormat );
         store.initialise( false );
         return store;
     }
@@ -361,33 +297,17 @@ public class CommonAbstractStoreTest
         return new TheRecord( id );
     }
 
-    private long insertNodeRecordAndObservePinEvent( RecordingPageCursorTracer tracer, NodeStore store )
-    {
-        long nodeId = store.nextId();
-        NodeRecord record = store.newRecord();
-        record.setId( nodeId );
-        record.initialize( true, NO_NEXT_PROPERTY.intValue(), false, NO_NEXT_RELATIONSHIP.intValue(), 42 );
-        store.prepareForCommit( record );
-        store.updateRecord( record );
-        assertNotNull( tracer.tryObserve( Pin.class ) );
-        assertNull( tracer.tryObserve( Event.class ) );
-        return nodeId;
-    }
-
-    private static ConfigurablePageCursorTracerSupplier pageCursorTracerSupplier(
-            RecordingPageCursorTracer pageCursorTracer )
-    {
-        return new ConfigurablePageCursorTracerSupplier( pageCursorTracer );
-    }
-
     private static class TheStore extends CommonAbstractStore<TheRecord,NoStoreHeader>
     {
-        TheStore( File fileName, Config configuration, IdType idType, IdGeneratorFactory idGeneratorFactory,
+        static final String TYPE_DESCRIPTOR = "TheType";
+        static final String STORE_VERSION = "v1";
+
+        TheStore( File file, File idFile, Config configuration, IdType idType, IdGeneratorFactory idGeneratorFactory,
                 PageCache pageCache, LogProvider logProvider, RecordFormat<TheRecord> recordFormat,
                 OpenOption... openOptions )
         {
-            super( fileName, configuration, idType, idGeneratorFactory, pageCache, logProvider, "TheType",
-                    recordFormat, NoStoreHeaderFormat.NO_STORE_HEADER_FORMAT, "v1", openOptions );
+            super( file, idFile, configuration, idType, idGeneratorFactory, pageCache, logProvider, TYPE_DESCRIPTOR,
+                    recordFormat, NoStoreHeaderFormat.NO_STORE_HEADER_FORMAT, STORE_VERSION, openOptions );
         }
 
         @Override
@@ -408,7 +328,7 @@ public class CommonAbstractStoreTest
         }
 
         @Override
-        public <FAILURE extends Exception> void accept( Processor<FAILURE> processor, TheRecord record ) throws FAILURE
+        public <FAILURE extends Exception> void accept( Processor<FAILURE> processor, TheRecord record )
         {
         }
     }
@@ -423,7 +343,7 @@ public class CommonAbstractStoreTest
         @Override
         public TheRecord clone()
         {
-            return new TheRecord( getId() );
+            return (TheRecord) super.clone();
         }
     }
 }

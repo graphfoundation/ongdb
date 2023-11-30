@@ -40,26 +40,35 @@ package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.cypher.internal.v3_4.expressions.{LabelToken, PropertyKeyToken}
-import org.neo4j.internal.kernel.api.{CapableIndexReference, IndexReference}
+import org.neo4j.cypher.internal.v3_5.logical.plans.{CachedNodeProperty, IndexOrder, IndexedProperty}
+import org.neo4j.internal.kernel.api.IndexReference
+import org.neo4j.cypher.internal.v3_5.expressions.LabelToken
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+
+import scala.collection.Iterator
 
 case class NodeIndexScanPipe(ident: String,
                              label: LabelToken,
-                             propertyKey: PropertyKeyToken)
-                            (val id: Id = Id.INVALID_ID) extends Pipe {
+                             property: IndexedProperty,
+                             indexOrder: IndexOrder)
+                            (val id: Id = Id.INVALID_ID) extends Pipe with IndexPipeWithValues {
 
-  private var reference: IndexReference = CapableIndexReference.NO_INDEX
+  private val needsValues = property.shouldGetValue
+  override val indexPropertyIndices: Array[Int] = if (needsValues) Array(0) else Array.empty
+  override val indexCachedNodeProperties: Array[CachedNodeProperty] =
+    if (needsValues) Array(property.asCachedNodeProperty(ident)) else Array.empty
+
+  private var reference: IndexReference = IndexReference.NO_INDEX
 
   private def reference(context: QueryContext): IndexReference = {
-    if (reference == CapableIndexReference.NO_INDEX) {
-      reference = context.indexReference(label.nameId.id, propertyKey.nameId.id)
+    if (reference == IndexReference.NO_INDEX) {
+      reference = context.indexReference(label.nameId.id, property.propertyKeyToken.nameId.id)
     }
     reference
   }
   protected def internalCreateResults(state: QueryState): Iterator[ExecutionContext] = {
-    val baseContext = state.createOrGetInitialContext(executionContextFactory)
-    val resultNodes = state.query.indexScan(reference(state.query))
-    resultNodes.map(node => executionContextFactory.copyWith(baseContext, ident, node))
+    val baseContext = state.newExecutionContext(executionContextFactory)
+    val cursor = state.query.indexScan(reference(state.query), needsValues, indexOrder)
+    new IndexIterator(state.query, baseContext, cursor)
   }
 }

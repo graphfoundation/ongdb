@@ -43,13 +43,18 @@ import java.io.IOException;
 
 import org.neo4j.internal.kernel.api.IndexCapability;
 import org.neo4j.internal.kernel.api.InternalIndexState;
+import org.neo4j.internal.kernel.api.TokenNameLookup;
+import org.neo4j.internal.kernel.api.exceptions.schema.MisconfiguredIndexException;
+import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
 import org.neo4j.kernel.impl.api.index.IndexingService;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
+import org.neo4j.kernel.impl.index.schema.ByteBufferFactory;
 import org.neo4j.kernel.impl.storemigration.StoreMigrationParticipant;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
+import org.neo4j.storageengine.api.schema.IndexDescriptor;
+import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 
 /**
  * Contract for implementing an index in Neo4j.
@@ -61,7 +66,7 @@ import org.neo4j.kernel.lifecycle.LifecycleAdapter;
  *
  * When an index rule is added, the {@link IndexingService} is notified. It will, in turn, ask
  * your {@link IndexProvider} for a
- * {@link #getPopulator(long, SchemaIndexDescriptor, IndexSamplingConfig) batch index writer}.
+ * {@link #getPopulator(StoreIndexDescriptor, IndexSamplingConfig, ByteBufferFactory, TokenNameLookup) batch index writer}.
  *
  * A background index job is triggered, and all existing data that applies to the new rule, as well as new data
  * from the "outside", will be inserted using the writer. You are guaranteed that usage of this writer,
@@ -106,10 +111,10 @@ import org.neo4j.kernel.lifecycle.LifecycleAdapter;
  * <h3>Online operation</h3>
  *
  * Once the index is online, the database will move to using the
- * {@link #getOnlineAccessor(long, SchemaIndexDescriptor, IndexSamplingConfig) online accessor} to
+ * {@link #getOnlineAccessor(StoreIndexDescriptor, IndexSamplingConfig, TokenNameLookup) online accessor} to
  * write to the index.
  */
-public abstract class IndexProvider extends LifecycleAdapter implements Comparable<IndexProvider>
+public abstract class IndexProvider extends LifecycleAdapter
 {
     public interface Monitor
     {
@@ -118,79 +123,79 @@ public abstract class IndexProvider extends LifecycleAdapter implements Comparab
         class Adaptor implements Monitor
         {
             @Override
-            public void failedToOpenIndex( long indexId, SchemaIndexDescriptor schemaIndexDescriptor, String action, Exception cause )
+            public void failedToOpenIndex( StoreIndexDescriptor schemaIndexDescriptor, String action, Exception cause )
             {   // no-op
             }
 
             @Override
-            public void recoveryCleanupRegistered( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor )
+            public void recoveryCleanupRegistered( File indexFile, IndexDescriptor indexDescriptor )
             {   // no-op
             }
 
             @Override
-            public void recoveryCleanupStarted( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor )
+            public void recoveryCleanupStarted( File indexFile, IndexDescriptor indexDescriptor )
             {   // no-op
             }
 
             @Override
-            public void recoveryCleanupFinished( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor,
+            public void recoveryCleanupFinished( File indexFile, IndexDescriptor indexDescriptor,
                     long numberOfPagesVisited, long numberOfCleanedCrashPointers, long durationMillis )
             {   // no-op
             }
 
             @Override
-            public void recoveryCleanupClosed( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor )
+            public void recoveryCleanupClosed( File indexFile, IndexDescriptor indexDescriptor )
             {   // no-op
             }
 
             @Override
-            public void recoveryCleanupFailed( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor, Throwable throwable )
+            public void recoveryCleanupFailed( File indexFile, IndexDescriptor indexDescriptor, Throwable throwable )
             {   // no-op
             }
         }
 
-        void failedToOpenIndex( long indexId, SchemaIndexDescriptor schemaIndexDescriptor, String action, Exception cause );
+        void failedToOpenIndex( StoreIndexDescriptor schemaIndexDescriptor, String action, Exception cause );
 
-        void recoveryCleanupRegistered( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor );
+        void recoveryCleanupRegistered( File indexFile, IndexDescriptor indexDescriptor );
 
-        void recoveryCleanupStarted( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor );
+        void recoveryCleanupStarted( File indexFile, IndexDescriptor indexDescriptor );
 
-        void recoveryCleanupFinished( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor,
+        void recoveryCleanupFinished( File indexFile, IndexDescriptor indexDescriptor,
                 long numberOfPagesVisited, long numberOfCleanedCrashPointers, long durationMillis );
 
-        void recoveryCleanupClosed( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor );
+        void recoveryCleanupClosed( File indexFile, IndexDescriptor indexDescriptor );
 
-        void recoveryCleanupFailed( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor, Throwable throwable );
+        void recoveryCleanupFailed( File indexFile, IndexDescriptor indexDescriptor, Throwable throwable );
     }
 
     public static final IndexProvider EMPTY =
-            new IndexProvider( new Descriptor( "no-index-provider", "1.0" ), -1, IndexDirectoryStructure.NONE )
+            new IndexProvider( new IndexProviderDescriptor( "no-index-provider", "1.0" ), IndexDirectoryStructure.NONE )
             {
                 private final IndexAccessor singleWriter = IndexAccessor.EMPTY;
                 private final IndexPopulator singlePopulator = IndexPopulator.EMPTY;
 
                 @Override
-                public IndexAccessor getOnlineAccessor( long indexId, SchemaIndexDescriptor descriptor,
-                                                        IndexSamplingConfig samplingConfig )
+                public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig,
+                        TokenNameLookup tokenNameLookup )
                 {
                     return singleWriter;
                 }
 
                 @Override
-                public IndexPopulator getPopulator( long indexId, SchemaIndexDescriptor descriptor,
-                                                    IndexSamplingConfig samplingConfig )
+                public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory,
+                        TokenNameLookup tokenNameLookup )
                 {
                     return singlePopulator;
                 }
 
                 @Override
-                public InternalIndexState getInitialState( long indexId, SchemaIndexDescriptor descriptor )
+                public InternalIndexState getInitialState( StoreIndexDescriptor descriptor )
                 {
                     return InternalIndexState.ONLINE;
                 }
 
                 @Override
-                public IndexCapability getCapability( SchemaIndexDescriptor schemaIndexDescriptor )
+                public IndexCapability getCapability( StoreIndexDescriptor descriptor )
                 {
                     return IndexCapability.NO_CAPABILITY;
                 }
@@ -203,88 +208,88 @@ public abstract class IndexProvider extends LifecycleAdapter implements Comparab
                 }
 
                 @Override
-                public String getPopulationFailure( long indexId, SchemaIndexDescriptor descriptor ) throws IllegalStateException
+                public String getPopulationFailure( StoreIndexDescriptor descriptor ) throws IllegalStateException
                 {
                     throw new IllegalStateException();
                 }
             };
 
-    /**
-     * Indicate that {@link Descriptor} has not yet been decided.
-     * Specifically before transaction that create a new index has committed.
-     */
-    public static final Descriptor UNDECIDED = new Descriptor( "Undecided", "0" );
-
-    protected final int priority;
-    private final Descriptor providerDescriptor;
+    private final IndexProviderDescriptor providerDescriptor;
     private final IndexDirectoryStructure.Factory directoryStructureFactory;
     private final IndexDirectoryStructure directoryStructure;
 
     protected IndexProvider( IndexProvider copySource )
     {
-        this( copySource.providerDescriptor, copySource.priority, copySource.directoryStructureFactory );
+        this( copySource.providerDescriptor, copySource.directoryStructureFactory );
     }
 
-    protected IndexProvider( Descriptor descriptor, int priority,
-                             IndexDirectoryStructure.Factory directoryStructureFactory )
+    protected IndexProvider( IndexProviderDescriptor descriptor, IndexDirectoryStructure.Factory directoryStructureFactory )
     {
         this.directoryStructureFactory = directoryStructureFactory;
         assert descriptor != null;
-        this.priority = priority;
         this.providerDescriptor = descriptor;
         this.directoryStructure = directoryStructureFactory.forProvider( descriptor );
     }
 
     /**
+     * Before an index is created, the chosen index provider will be asked to bless the index descriptor by calling this method, giving the index descriptor
+     * as an argument. The returned index descriptor is then blessed, and will be used for creating the index. This gives the provider an opportunity to check
+     * the index configuration, and make sure that it is sensible and support by this provider.
+     *
+     * @param index The index descriptor to bless.
+     * @return The blessed index descriptor that will be used for creating the index.
+     * @throws MisconfiguredIndexException if the index descriptor cannot be blessed by this provider for some reason.
+     */
+    public IndexDescriptor bless( IndexDescriptor index ) throws MisconfiguredIndexException
+    {
+        // Normal schema indexes accept all configurations by default. More specialised or custom providers, such as the fulltext index provider,
+        // can override this method to do whatever checking suits their needs.
+        return index;
+    }
+
+    /**
      * Used for initially populating a created index, using batch insertion.
      */
-    public abstract IndexPopulator getPopulator( long indexId, SchemaIndexDescriptor descriptor,
-                                                 IndexSamplingConfig samplingConfig );
+    public abstract IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory,
+            TokenNameLookup tokenNameLookup );
 
     /**
      * Used for updating an index once initial population has completed.
      */
-    public abstract IndexAccessor getOnlineAccessor( long indexId, SchemaIndexDescriptor descriptor,
-                                                     IndexSamplingConfig samplingConfig ) throws IOException;
+    public abstract IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig,
+            TokenNameLookup tokenNameLookup ) throws IOException;
 
     /**
      * Returns a failure previously gotten from {@link IndexPopulator#markAsFailed(String)}
      *
      * Implementations are expected to persist this failure
-     * @param indexId the id of the index.
-     * @param descriptor {@link SchemaIndexDescriptor} of the index.
+     * @param descriptor {@link StoreIndexDescriptor} of the index.
      * @return failure, in the form of a stack trace, that happened during population.
      * @throws IllegalStateException If there was no failure during population.
      */
-    public abstract String getPopulationFailure( long indexId, SchemaIndexDescriptor descriptor ) throws IllegalStateException;
+    public abstract String getPopulationFailure( StoreIndexDescriptor descriptor ) throws IllegalStateException;
 
     /**
      * Called during startup to find out which state an index is in. If {@link InternalIndexState#FAILED}
-     * is returned then a further call to {@link #getPopulationFailure(long, SchemaIndexDescriptor)} is expected and should return
+     * is returned then a further call to {@link #getPopulationFailure(StoreIndexDescriptor)} is expected and should return
      * the failure accepted by any call to {@link IndexPopulator#markAsFailed(String)} call at the time
      * of failure.
      */
-    public abstract InternalIndexState getInitialState( long indexId, SchemaIndexDescriptor descriptor );
+    public abstract InternalIndexState getInitialState( StoreIndexDescriptor descriptor );
 
     /**
-     * Return {@link IndexCapability} for this index provider for a given {@link SchemaIndexDescriptor}.
+     * Return {@link IndexCapability} for this index provider.
      *
-     * @param schemaIndexDescriptor {@link SchemaIndexDescriptor} to get IndexCapability for.
+     * @param descriptor The specific {@link StoreIndexDescriptor} to get the capabilities for, in case it matters.
      */
-    public abstract IndexCapability getCapability( SchemaIndexDescriptor schemaIndexDescriptor );
+    public abstract IndexCapability getCapability( StoreIndexDescriptor descriptor );
 
     /**
      * @return a description of this index provider
      */
-    public Descriptor getProviderDescriptor()
+    public IndexProviderDescriptor getProviderDescriptor()
     {
         return providerDescriptor;
-    }
-
-    @Override
-    public int compareTo( IndexProvider o )
-    {
-        return this.priority - o.priority;
     }
 
     @Override
@@ -301,16 +306,13 @@ public abstract class IndexProvider extends LifecycleAdapter implements Comparab
 
         IndexProvider other = (IndexProvider) o;
 
-        return priority == other.priority &&
-               providerDescriptor.equals( other.providerDescriptor );
+        return providerDescriptor.equals( other.providerDescriptor );
     }
 
     @Override
     public int hashCode()
     {
-        int result = priority;
-        result = 31 * result + providerDescriptor.hashCode();
-        return result;
+        return providerDescriptor.hashCode();
     }
 
     /**
@@ -324,105 +326,41 @@ public abstract class IndexProvider extends LifecycleAdapter implements Comparab
 
     public abstract StoreMigrationParticipant storeMigrationParticipant( FileSystemAbstraction fs, PageCache pageCache );
 
-    public static class Descriptor
-    {
-        private final String key;
-        private final String version;
-
-        public Descriptor( String key, String version )
-        {
-            if ( key == null )
-            {
-                throw new IllegalArgumentException( "null provider key prohibited" );
-            }
-            if ( key.length() == 0 )
-            {
-                throw new IllegalArgumentException( "empty provider key prohibited" );
-            }
-            if ( version == null )
-            {
-                throw new IllegalArgumentException( "null provider version prohibited" );
-            }
-
-            this.key = key;
-            this.version = version;
-        }
-
-        public String getKey()
-        {
-            return key;
-        }
-
-        public String getVersion()
-        {
-            return version;
-        }
-
-        /**
-         * @return a combination of {@link #getKey()} and {@link #getVersion()} with a '-' in between.
-         */
-        public String name()
-        {
-            return key + "-" + version;
-        }
-
-        @Override
-        public int hashCode()
-        {
-            return ( 23 + key.hashCode() ) ^ version.hashCode();
-        }
-
-        @Override
-        public boolean equals( Object obj )
-        {
-            if ( obj instanceof Descriptor )
-            {
-                Descriptor otherDescriptor = (Descriptor) obj;
-                return key.equals( otherDescriptor.getKey() ) && version.equals( otherDescriptor.getVersion() );
-            }
-            return false;
-        }
-
-        @Override
-        public String toString()
-        {
-            return "{key=" + key + ", version=" + version + "}";
-        }
-    }
-
     public static class Adaptor extends IndexProvider
     {
-        protected Adaptor( Descriptor descriptor, int priority, IndexDirectoryStructure.Factory directoryStructureFactory )
+        protected Adaptor( IndexProviderDescriptor descriptor, IndexDirectoryStructure.Factory directoryStructureFactory )
         {
-            super( descriptor, priority, directoryStructureFactory );
+            super( descriptor, directoryStructureFactory );
         }
 
         @Override
-        public IndexPopulator getPopulator( long indexId, SchemaIndexDescriptor descriptor, IndexSamplingConfig samplingConfig )
-        {
-            return null;
-        }
-
-        @Override
-        public IndexAccessor getOnlineAccessor( long indexId, SchemaIndexDescriptor descriptor, IndexSamplingConfig samplingConfig ) throws IOException
+        public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory,
+                TokenNameLookup tokenNameLookup )
         {
             return null;
         }
 
         @Override
-        public String getPopulationFailure( long indexId, SchemaIndexDescriptor descriptor ) throws IllegalStateException
+        public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig,
+                TokenNameLookup tokenNameLookup )
         {
             return null;
         }
 
         @Override
-        public InternalIndexState getInitialState( long indexId, SchemaIndexDescriptor descriptor )
+        public String getPopulationFailure( StoreIndexDescriptor descriptor ) throws IllegalStateException
         {
             return null;
         }
 
         @Override
-        public IndexCapability getCapability( SchemaIndexDescriptor schemaIndexDescriptor )
+        public InternalIndexState getInitialState( StoreIndexDescriptor descriptor )
+        {
+            return null;
+        }
+
+        @Override
+        public IndexCapability getCapability( StoreIndexDescriptor descriptor )
         {
             return null;
         }

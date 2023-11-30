@@ -139,11 +139,11 @@ public class SetInitialPasswordCommandTest
     @Test
     public void shouldWorkAlsoWithSamePassword() throws Throwable
     {
-        String[] arguments = {"ongdb"};
+        String[] arguments = {"neo4j"};
         setPasswordCommand.execute( arguments );
 
         // Then
-        assertAuthIniFile( "ongdb" );
+        assertAuthIniFile( "neo4j" );
     }
 
     @Test
@@ -153,19 +153,19 @@ public class SetInitialPasswordCommandTest
         {
             PrintStream ps = new PrintStream( baos );
 
-            Usage usage = new Usage( "ongdb-admin", mock( CommandLocator.class ) );
+            Usage usage = new Usage( "neo4j-admin", mock( CommandLocator.class ) );
             usage.printUsageForCommand( new SetInitialPasswordCommandProvider(), ps::println );
 
-            assertEquals( String.format( "usage: ongdb-admin set-initial-password <password>%n" +
+            assertEquals( String.format( "usage: neo4j-admin set-initial-password <password>%n" +
                             "%n" +
                             "environment variables:%n" +
-                            "    ONGDB_CONF    Path to directory which contains ongdb.conf.%n" +
-                            "    ONGDB_DEBUG   Set to anything to enable debug output.%n" +
-                            "    ONGDB_HOME    ONgDB home directory.%n" +
+                            "    NEO4J_CONF    Path to directory which contains neo4j.conf.%n" +
+                            "    NEO4J_DEBUG   Set to anything to enable debug output.%n" +
+                            "    NEO4J_HOME    Neo4j home directory.%n" +
                             "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
                             "                  Takes a number and a unit, for example 512m.%n" +
                             "%n" +
-                            "Sets the initial password of the initial admin user ('ongdb').%n" ),
+                            "Sets the initial password of the initial admin user ('neo4j').%n" ),
                     baos.toString() );
         }
     }

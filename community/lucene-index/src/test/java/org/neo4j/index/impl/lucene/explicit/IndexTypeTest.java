@@ -112,7 +112,7 @@ public class IndexTypeTest
                 2, getDocumentFields( document, NUMERIC_TEST_FIELD2 ).length );
     }
 
-    private IndexableField[] getDocumentFields( Document document, String name )
+    private static IndexableField[] getDocumentFields( Document document, String name )
     {
         return document.getFields( name );
     }

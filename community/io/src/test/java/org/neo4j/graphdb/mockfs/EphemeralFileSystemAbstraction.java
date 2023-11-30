@@ -48,6 +48,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
+import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
@@ -74,10 +75,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.zip.CRC32;
 import java.util.zip.Checksum;
@@ -85,7 +84,6 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import org.neo4j.io.ByteUnit;
-import org.neo4j.io.IOUtils;
 import org.neo4j.io.fs.FileHandle;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.OpenMode;
@@ -115,8 +113,6 @@ public class EphemeralFileSystemAbstraction implements FileSystemAbstraction
 
     private final Set<File> directories = Collections.newSetFromMap( new ConcurrentHashMap<>() );
     private final Map<File,EphemeralFileData> files;
-    private final Map<Class<? extends ThirdPartyFileSystem>,ThirdPartyFileSystem> thirdPartyFileSystems =
-            new HashMap<>();
 
     public EphemeralFileSystemAbstraction()
     {
@@ -138,9 +134,7 @@ public class EphemeralFileSystemAbstraction implements FileSystemAbstraction
         }
         catch ( IOException e )
         {
-            System.err.println(
-                    "WARNING: EphemeralFileSystemAbstraction could not initialise current working directory" );
-            e.printStackTrace();
+            throw new UncheckedIOException( "EphemeralFileSystemAbstraction could not initialise current working directory", e );
         }
     }
 
@@ -165,19 +159,12 @@ public class EphemeralFileSystemAbstraction implements FileSystemAbstraction
     public synchronized void close() throws IOException
     {
         closeFiles();
-        closeFileSystems();
         closed = true;
     }
 
     public boolean isClosed()
     {
         return closed;
-    }
-
-    private void closeFileSystems() throws IOException
-    {
-        IOUtils.closeAll( thirdPartyFileSystems.values() );
-        thirdPartyFileSystems.clear();
     }
 
     private void closeFiles()
@@ -230,10 +217,6 @@ public class EphemeralFileSystemAbstraction implements FileSystemAbstraction
                 zip.putNextEntry( new ZipEntry( file.getAbsolutePath() ) );
                 entry.getValue().dumpTo( zip );
                 zip.closeEntry();
-            }
-            for ( ThirdPartyFileSystem fs : thirdPartyFileSystems.values() )
-            {
-                fs.dumpToZip( zip, EphemeralFileData.SCRATCH_PAD.get() );
             }
             if ( prefix != null )
             {
@@ -353,11 +336,8 @@ public class EphemeralFileSystemAbstraction implements FileSystemAbstraction
         }
         catch ( IOException e )
         {
-            System.err.println( "WARNING: EphemeralFileSystemAbstraction could not canonicalise file: " + file );
-            e.printStackTrace();
+            throw new UncheckedIOException( "EphemeralFileSystemAbstraction could not canonicalise file: " + file, e );
         }
-        // Ugly fallback
-        return file.getAbsoluteFile();
     }
 
     @Override
@@ -662,14 +642,6 @@ public class EphemeralFileSystemAbstraction implements FileSystemAbstraction
                 sink.write( buffer );
             }
         }
-    }
-
-    @Override
-    public synchronized <K extends ThirdPartyFileSystem> K getOrCreateThirdPartyFileSystem(
-            Class<K> clazz, Function<Class<K>,K> creator )
-    {
-        ThirdPartyFileSystem fileSystem = thirdPartyFileSystems.computeIfAbsent( clazz, k -> creator.apply( clazz ) );
-        return clazz.cast( fileSystem );
     }
 
     @Override

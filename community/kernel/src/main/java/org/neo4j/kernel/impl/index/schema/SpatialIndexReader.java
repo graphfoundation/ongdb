@@ -38,16 +38,18 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import org.neo4j.collection.primitive.PrimitiveLongResourceIterator;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.neo4j.collection.PrimitiveLongResourceIterator;
 import org.neo4j.graphdb.Resource;
-import org.neo4j.helpers.collection.Iterators;
 import org.neo4j.internal.kernel.api.IndexOrder;
 import org.neo4j.internal.kernel.api.IndexQuery;
 import org.neo4j.internal.kernel.api.IndexQuery.ExistsPredicate;
-import org.neo4j.kernel.api.index.PropertyAccessor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.kernel.impl.index.schema.fusion.BridgingIndexProgressor;
+import org.neo4j.kernel.impl.api.schema.BridgingIndexProgressor;
 import org.neo4j.kernel.impl.index.schema.fusion.FusionIndexSampler;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
+import org.neo4j.storageengine.api.schema.IndexDescriptor;
 import org.neo4j.storageengine.api.schema.IndexProgressor;
 import org.neo4j.storageengine.api.schema.IndexReader;
 import org.neo4j.storageengine.api.schema.IndexSampler;
@@ -57,11 +59,11 @@ import org.neo4j.values.storable.Value;
 
 import static org.neo4j.kernel.impl.index.schema.fusion.FusionIndexBase.forAll;
 
-class SpatialIndexReader extends SpatialIndexCache<SpatialIndexPartReader<NativeSchemaValue>> implements IndexReader
+class SpatialIndexReader extends SpatialIndexCache<SpatialIndexPartReader<NativeIndexValue>> implements IndexReader
 {
-    private final SchemaIndexDescriptor descriptor;
+    private final IndexDescriptor descriptor;
 
-    SpatialIndexReader( SchemaIndexDescriptor descriptor, SpatialIndexAccessor accessor )
+    SpatialIndexReader( IndexDescriptor descriptor, SpatialIndexAccessor accessor )
     {
         super( new PartFactory( accessor ) );
         this.descriptor = descriptor;
@@ -74,30 +76,41 @@ class SpatialIndexReader extends SpatialIndexCache<SpatialIndexPartReader<Native
     }
 
     @Override
-    public long countIndexedNodes( long nodeId, Value... propertyValues )
+    public long countIndexedNodes( long nodeId, int[] propertyKeyIds, Value... propertyValues )
     {
-        NativeSchemaIndexReader<SpatialSchemaKey,NativeSchemaValue> partReader =
+        NativeIndexReader<SpatialIndexKey,NativeIndexValue> partReader =
                 uncheckedSelect( ((PointValue) propertyValues[0]).getCoordinateReferenceSystem() );
-        return partReader == null ? 0L : partReader.countIndexedNodes( nodeId, propertyValues );
+        return partReader == null ? 0L : partReader.countIndexedNodes( nodeId, propertyKeyIds, propertyValues );
     }
 
     @Override
     public IndexSampler createSampler()
     {
-        return new FusionIndexSampler( Iterators.stream( iterator() ).map( IndexReader::createSampler ).toArray( IndexSampler[]::new ) );
+        List<IndexSampler> samplers = new ArrayList<>();
+        for ( SpatialIndexPartReader<NativeIndexValue> partReader : this )
+        {
+            samplers.add( partReader.createSampler() );
+        }
+        return new FusionIndexSampler( samplers );
     }
 
     @Override
     public PrimitiveLongResourceIterator query( IndexQuery... predicates )
     {
         NodeValueIterator nodeValueIterator = new NodeValueIterator();
-        query( nodeValueIterator, IndexOrder.NONE, predicates );
+        query( nodeValueIterator, IndexOrder.NONE, nodeValueIterator.needsValues(), predicates );
         return nodeValueIterator;
     }
 
     @Override
-    public void query( IndexProgressor.NodeValueClient cursor, IndexOrder indexOrder, IndexQuery... predicates )
+    public void query( IndexProgressor.NodeValueClient cursor, IndexOrder indexOrder, boolean needsValues, IndexQuery... predicates )
     {
+        // Spatial does not support providing values
+        if ( needsValues )
+        {
+            throw new IllegalStateException( "Spatial index does not support providing values" );
+        }
+
         if ( predicates.length != 1 )
         {
             throw new IllegalArgumentException( "Only single property spatial indexes are supported." );
@@ -107,10 +120,10 @@ class SpatialIndexReader extends SpatialIndexCache<SpatialIndexPartReader<Native
         {
             loadAll();
             BridgingIndexProgressor multiProgressor = new BridgingIndexProgressor( cursor, descriptor.schema().getPropertyIds() );
-            cursor.initialize( descriptor, multiProgressor, predicates );
-            for ( NativeSchemaIndexReader<SpatialSchemaKey,NativeSchemaValue> reader : this )
+            cursor.initialize( descriptor, multiProgressor, predicates, indexOrder, false );
+            for ( NativeIndexReader<SpatialIndexKey,NativeIndexValue> reader : this )
             {
-                reader.query( multiProgressor, indexOrder, predicates );
+                reader.query( multiProgressor, indexOrder, false, predicates );
             }
         }
         else
@@ -130,19 +143,19 @@ class SpatialIndexReader extends SpatialIndexCache<SpatialIndexPartReader<Native
                 {
                     throw new IllegalArgumentException( "Wrong type of predicate, couldn't get CoordinateReferenceSystem" );
                 }
-                SpatialIndexPartReader<NativeSchemaValue> part = uncheckedSelect( crs );
+                SpatialIndexPartReader<NativeIndexValue> part = uncheckedSelect( crs );
                 if ( part != null )
                 {
-                    part.query( cursor, indexOrder, predicates );
+                    part.query( cursor, indexOrder, false, predicates );
                 }
                 else
                 {
-                    cursor.initialize( descriptor, IndexProgressor.EMPTY, predicates );
+                    cursor.initialize( descriptor, IndexProgressor.EMPTY, predicates, indexOrder, false );
                 }
             }
             else
             {
-                cursor.initialize( descriptor, IndexProgressor.EMPTY, predicates );
+                cursor.initialize( descriptor, IndexProgressor.EMPTY, predicates, indexOrder, false );
             }
         }
     }
@@ -154,14 +167,14 @@ class SpatialIndexReader extends SpatialIndexCache<SpatialIndexPartReader<Native
     }
 
     @Override
-    public void distinctValues( IndexProgressor.NodeValueClient cursor, PropertyAccessor propertyAccessor )
+    public void distinctValues( IndexProgressor.NodeValueClient cursor, NodePropertyAccessor propertyAccessor, boolean needsValues )
     {
         loadAll();
         BridgingIndexProgressor multiProgressor = new BridgingIndexProgressor( cursor, descriptor.schema().getPropertyIds() );
-        cursor.initialize( descriptor, multiProgressor, new IndexQuery[0] );
-        for ( NativeSchemaIndexReader<?,NativeSchemaValue> reader : this )
+        cursor.initialize( descriptor, multiProgressor, new IndexQuery[0], IndexOrder.NONE, false );
+        for ( NativeIndexReader<?,NativeIndexValue> reader : this )
         {
-            reader.distinctValues( multiProgressor, propertyAccessor );
+            reader.distinctValues( multiProgressor, propertyAccessor, needsValues );
         }
     }
 
@@ -174,7 +187,7 @@ class SpatialIndexReader extends SpatialIndexCache<SpatialIndexPartReader<Native
      * To create TemporalIndexPartReaders on demand, the PartFactory maintains a reference to the parent TemporalIndexAccessor.
      * The creation of a part reader can then be delegated to the correct PartAccessor.
      */
-    static class PartFactory implements Factory<SpatialIndexPartReader<NativeSchemaValue>>
+    static class PartFactory implements Factory<SpatialIndexPartReader<NativeIndexValue>>
     {
         private final SpatialIndexAccessor accessor;
 
@@ -184,7 +197,7 @@ class SpatialIndexReader extends SpatialIndexCache<SpatialIndexPartReader<Native
         }
 
         @Override
-        public SpatialIndexPartReader<NativeSchemaValue> newSpatial( CoordinateReferenceSystem crs )
+        public SpatialIndexPartReader<NativeIndexValue> newSpatial( CoordinateReferenceSystem crs )
         {
             return accessor.selectOrElse( crs, SpatialIndexAccessor.PartAccessor::newReader, null );
         }

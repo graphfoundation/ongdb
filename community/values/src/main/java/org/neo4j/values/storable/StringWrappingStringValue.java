@@ -43,6 +43,8 @@ import java.util.regex.Pattern;
 
 import org.neo4j.hashing.HashFunction;
 
+import static org.neo4j.values.utils.ValueMath.HASH_CONSTANT;
+
 /**
  * Implementation of StringValue that wraps a `java.lang.String` and
  * delegates methods to that instance.
@@ -81,7 +83,7 @@ final class StringWrappingStringValue extends StringValue
         for ( int offset = 0, codePoint; offset < length; offset += Character.charCount( codePoint ) )
         {
             codePoint = value.codePointAt( offset );
-            h = 31 * h + codePoint;
+            h = HASH_CONSTANT * h + codePoint;
         }
         return h;
     }
@@ -152,6 +154,30 @@ final class StringWrappingStringValue extends StringValue
     {
         StringBuilder stringBuilder = new StringBuilder( value() );
         return Values.stringValue( stringBuilder.reverse().toString() );
+    }
+
+    @Override
+    public TextValue plus( TextValue other )
+    {
+        return new StringWrappingStringValue( value + other.stringValue() );
+    }
+
+    @Override
+    public boolean startsWith( TextValue other )
+    {
+        return value.startsWith( other.stringValue() );
+    }
+
+    @Override
+    public boolean endsWith( TextValue other )
+    {
+        return value.endsWith( other.stringValue() );
+    }
+
+    @Override
+    public boolean contains( TextValue other )
+    {
+        return value.contains( other.stringValue() );
     }
 
     @Override

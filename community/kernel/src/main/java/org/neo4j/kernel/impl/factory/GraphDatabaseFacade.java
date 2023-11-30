@@ -38,7 +38,6 @@
  */
 package org.neo4j.kernel.impl.factory;
 
-import java.io.File;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
@@ -74,7 +73,6 @@ import org.neo4j.graphdb.traversal.BidirectionalTraversalDescription;
 import org.neo4j.graphdb.traversal.TraversalDescription;
 import org.neo4j.helpers.collection.Iterators;
 import org.neo4j.helpers.collection.PrefetchingResourceIterator;
-import org.neo4j.internal.kernel.api.CapableIndexReference;
 import org.neo4j.internal.kernel.api.IndexOrder;
 import org.neo4j.internal.kernel.api.IndexQuery;
 import org.neo4j.internal.kernel.api.IndexReference;
@@ -87,6 +85,7 @@ import org.neo4j.internal.kernel.api.PropertyCursor;
 import org.neo4j.internal.kernel.api.Read;
 import org.neo4j.internal.kernel.api.RelationshipScanCursor;
 import org.neo4j.internal.kernel.api.TokenRead;
+import org.neo4j.internal.kernel.api.TokenWrite;
 import org.neo4j.internal.kernel.api.Write;
 import org.neo4j.internal.kernel.api.exceptions.EntityNotFoundException;
 import org.neo4j.internal.kernel.api.exceptions.InvalidTransactionTypeKernelException;
@@ -95,6 +94,7 @@ import org.neo4j.internal.kernel.api.exceptions.schema.ConstraintValidationExcep
 import org.neo4j.internal.kernel.api.exceptions.schema.SchemaKernelException;
 import org.neo4j.internal.kernel.api.security.LoginContext;
 import org.neo4j.io.IOUtils;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.GraphDatabaseQueryService;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.SilentTokenNameLookup;
@@ -102,14 +102,13 @@ import org.neo4j.kernel.api.Statement;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.api.explicitindex.AutoIndexing;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.guard.Guard;
 import org.neo4j.kernel.impl.api.TokenAccess;
 import org.neo4j.kernel.impl.core.EmbeddedProxySPI;
 import org.neo4j.kernel.impl.core.GraphPropertiesProxy;
 import org.neo4j.kernel.impl.core.NodeProxy;
 import org.neo4j.kernel.impl.core.RelationshipProxy;
-import org.neo4j.kernel.impl.core.RelationshipTypeTokenHolder;
 import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
+import org.neo4j.kernel.impl.core.TokenHolders;
 import org.neo4j.kernel.impl.core.TokenNotFoundException;
 import org.neo4j.kernel.impl.coreapi.AutoIndexerFacade;
 import org.neo4j.kernel.impl.coreapi.IndexManagerImpl;
@@ -126,21 +125,23 @@ import org.neo4j.kernel.impl.query.Neo4jTransactionalContextFactory;
 import org.neo4j.kernel.impl.query.TransactionalContext;
 import org.neo4j.kernel.impl.query.TransactionalContextFactory;
 import org.neo4j.kernel.impl.query.clientconnection.ClientConnectionInfo;
-import org.neo4j.kernel.impl.store.StoreId;
 import org.neo4j.kernel.impl.traversal.BidirectionalTraversalDescriptionImpl;
 import org.neo4j.kernel.impl.traversal.MonoDirectionalTraversalDescription;
 import org.neo4j.kernel.impl.util.ValueUtils;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.storageengine.api.EntityType;
+import org.neo4j.storageengine.api.StoreId;
 import org.neo4j.values.storable.Values;
 import org.neo4j.values.virtual.MapValue;
 
 import static java.lang.String.format;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.transaction_timeout;
 import static org.neo4j.helpers.collection.Iterators.emptyResourceIterator;
 import static org.neo4j.internal.kernel.api.security.LoginContext.AUTH_DISABLED;
 import static org.neo4j.kernel.impl.api.explicitindex.InternalAutoIndexing.NODE_AUTO_INDEX;
 import static org.neo4j.kernel.impl.api.explicitindex.InternalAutoIndexing.RELATIONSHIP_AUTO_INDEX;
+import static org.neo4j.values.storable.Values.utf8Value;
 
 /**
  * Implementation of the GraphDatabaseService/GraphDatabaseService interfaces - the "Core API". Given an {@link SPI}
@@ -154,14 +155,13 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
     private Schema schema;
     private Supplier<IndexManager> indexManager;
     private ThreadToStatementContextBridge statementContext;
-    protected EditionModule editionModule;
     private SPI spi;
     private TransactionalContextFactory contextFactory;
     private Config config;
-    private RelationshipTypeTokenHolder relationshipTypeTokenHolder;
+    private TokenHolders tokenHolders;
 
     /**
-     * This is what you need to implemenent to get your very own {@link GraphDatabaseFacade}. This SPI exists as a thin
+     * This is what you need to implement to get your very own {@link GraphDatabaseFacade}. This SPI exists as a thin
      * layer to make it easy to provide
      * alternate {@link org.neo4j.graphdb.GraphDatabaseService} instances without having to re-implement this whole API
      * implementation.
@@ -178,9 +178,9 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
 
         StoreId storeId();
 
-        File storeDir();
+        DatabaseLayout databaseLayout();
 
-        /** Eg. ONgDB Enterprise HA, ONgDB Community Standalone.. */
+        /** Eg. Neo4j Enterprise HA, Neo4j Community Standalone.. */
         String name();
 
         void shutdown();
@@ -192,9 +192,6 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
          * @see GraphDatabaseAPI#beginTransaction(KernelTransaction.Type, LoginContext)
          */
         KernelTransaction beginTransaction( KernelTransaction.Type type, LoginContext loginContext, long timeout );
-
-        /** Execute a cypher statement */
-        Result executeQuery( String query, Map<String,Object> parameters, TransactionalContext context );
 
         /** Execute a cypher statement */
         Result executeQuery( String query, MapValue parameters, TransactionalContext context );
@@ -223,15 +220,13 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
     /**
      * Create a new Core API facade, backed by the given SPI and using pre-resolved dependencies
      */
-    public void init( EditionModule editionModule, SPI spi, Guard guard, ThreadToStatementContextBridge txBridge, Config config,
-            RelationshipTypeTokenHolder relationshipTypeTokenHolder )
+    public void init( SPI spi, ThreadToStatementContextBridge txBridge, Config config, TokenHolders tokenHolders )
     {
-        this.editionModule = editionModule;
         this.spi = spi;
         this.config = config;
-        this.relationshipTypeTokenHolder = relationshipTypeTokenHolder;
         this.schema = new SchemaImpl( () -> txBridge.getKernelTransactionBoundToThisThread( true ) );
         this.statementContext = txBridge;
+        this.tokenHolders = tokenHolders;
         this.indexManager = Suppliers.lazySingleton( () ->
         {
             IndexProviderImpl idxProvider = new IndexProviderImpl( this, () -> txBridge.getKernelTransactionBoundToThisThread( true ) );
@@ -247,7 +242,7 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
                     nodeAutoIndexer, relAutoIndexer );
         } );
 
-        this.contextFactory = Neo4jTransactionalContextFactory.create( spi, guard, txBridge, locker );
+        this.contextFactory = Neo4jTransactionalContextFactory.create( spi, txBridge, locker );
     }
 
     @Override
@@ -284,20 +279,17 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
         KernelTransaction transaction = statementContext.getKernelTransactionBoundToThisThread( true );
         try ( Statement ignore = transaction.acquireStatement() )
         {
-            Write write = transaction.dataWrite();
-            long nodeId = write.nodeCreate();
-            for ( Label label : labels )
+            TokenWrite tokenWrite = transaction.tokenWrite();
+            int[] labelIds = new int[labels.length];
+            String[] labelNames = new String[labels.length];
+            for ( int i = 0; i < labelNames.length; i++ )
             {
-                int labelId = transaction.tokenWrite().labelGetOrCreateForName( label.name() );
-                try
-                {
-                    write.nodeAddLabel( nodeId, labelId );
-                }
-                catch ( EntityNotFoundException e )
-                {
-                    throw new NotFoundException( "No node with id " + nodeId + " found.", e );
-                }
+                labelNames[i] = labels[i].name();
             }
+            tokenWrite.labelGetOrCreateForNames( labelNames, labelIds );
+
+            Write write = transaction.dataWrite();
+            long nodeId = write.nodeCreateWithLabels( labelIds );
             return newNodeProxy( nodeId );
         }
         catch ( ConstraintValidationException e )
@@ -358,6 +350,7 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
         }
     }
 
+    @Deprecated
     @Override
     public IndexManager index()
     {
@@ -538,7 +531,7 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
     private <T> ResourceIterable<T> allInUse( final TokenAccess<T> tokens )
     {
         assertTransactionOpen();
-        return () -> tokens.inUse( statementContext.getTopLevelTransactionBoundToThisThread( true ) );
+        return () -> tokens.inUse( statementContext.getKernelTransactionBoundToThisThread( true ) );
     }
 
     @Override
@@ -663,16 +656,16 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
         switch ( searchMode )
         {
         case EXACT:
-            query = IndexQuery.exact( propertyId, Values.stringValue( value ) );
+            query = IndexQuery.exact( propertyId, utf8Value( value.getBytes( UTF_8 ) ) );
             break;
         case PREFIX:
-            query = IndexQuery.stringPrefix( propertyId, value );
+            query = IndexQuery.stringPrefix( propertyId, utf8Value( value.getBytes( UTF_8 ) ) );
             break;
         case SUFFIX:
-            query = IndexQuery.stringSuffix( propertyId, value );
+            query = IndexQuery.stringSuffix( propertyId, utf8Value( value.getBytes( UTF_8 ) ) );
             break;
         case CONTAINS:
-            query = IndexQuery.stringContains( propertyId, value );
+            query = IndexQuery.stringContains( propertyId, utf8Value( value.getBytes( UTF_8 ) ) );
             break;
         default:
             throw new IllegalStateException( "Unknown string search mode: " + searchMode );
@@ -714,7 +707,7 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
             // FIXME: perhaps we should check that the new type and access mode are compatible with the current tx
             return new PlaceboTransaction( statementContext.getKernelTransactionBoundToThisThread( true ) );
         }
-        return new TopLevelTransaction( spi.beginTransaction( type, loginContext, timeoutMillis ), statementContext );
+        return new TopLevelTransaction( spi.beginTransaction( type, loginContext, timeoutMillis ) );
     }
 
     private ResourceIterator<Node> nodesByLabelAndProperty( KernelTransaction transaction, int labelId, IndexQuery query )
@@ -727,14 +720,14 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
             statement.close();
             return emptyResourceIterator();
         }
-        CapableIndexReference index = transaction.schemaRead().index( labelId, query.propertyKeyId() );
-        if ( index != CapableIndexReference.NO_INDEX )
+        IndexReference index = transaction.schemaRead().index( labelId, query.propertyKeyId() );
+        if ( index != IndexReference.NO_INDEX )
         {
             // Ha! We found an index - let's use it to find matching nodes
             try
             {
                 NodeValueIndexCursor cursor = transaction.cursors().allocateNodeValueIndexCursor();
-                read.nodeIndexSeek( index, cursor, IndexOrder.NONE, query );
+                read.nodeIndexSeek( index, cursor, IndexOrder.NONE, false, query );
 
                 return new NodeCursorResourceIterator<>( cursor, statement, this::newNodeProxy );
             }
@@ -762,12 +755,12 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
         int[] propertyIds = getPropertyIds( queries );
         IndexReference index = findMatchingIndex( transaction, labelId, propertyIds );
 
-        if ( index != CapableIndexReference.NO_INDEX )
+        if ( index != IndexReference.NO_INDEX )
         {
             try
             {
                 NodeValueIndexCursor cursor = transaction.cursors().allocateNodeValueIndexCursor();
-                read.nodeIndexSeek( index, cursor, IndexOrder.NONE, getReorderedIndexQueries( index.properties(), queries ) );
+                read.nodeIndexSeek( index, cursor, IndexOrder.NONE, false, getReorderedIndexQueries( index.properties(), queries ) );
                 return new NodeCursorResourceIterator<>( cursor, statement, this::newNodeProxy );
             }
             catch ( KernelException e )
@@ -778,10 +771,10 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
         return getNodesByLabelAndPropertyWithoutIndex( statement, labelId, queries );
     }
 
-    private IndexReference findMatchingIndex( KernelTransaction transaction, int labelId, int[] propertyIds )
+    private static IndexReference findMatchingIndex( KernelTransaction transaction, int labelId, int[] propertyIds )
     {
         IndexReference index = transaction.schemaRead().index( labelId, propertyIds );
-        if ( index != CapableIndexReference.NO_INDEX )
+        if ( index != IndexReference.NO_INDEX )
         {
             // index found with property order matching the query
             return index;
@@ -805,11 +798,11 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
                     return index;
                 }
             }
-            return CapableIndexReference.NO_INDEX;
+            return IndexReference.NO_INDEX;
         }
     }
 
-    private IndexQuery[] getReorderedIndexQueries( int[] indexPropertyIds, IndexQuery[] queries )
+    private static IndexQuery[] getReorderedIndexQueries( int[] indexPropertyIds, IndexQuery[] queries )
     {
         IndexQuery[] orderedQueries = new IndexQuery[queries.length];
         for ( int i = 0; i < indexPropertyIds.length; i++ )
@@ -827,7 +820,7 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
         return orderedQueries;
     }
 
-    private boolean hasSamePropertyIds( int[] original, int[] workingCopy, int[] propertyIds )
+    private static boolean hasSamePropertyIds( int[] original, int[] workingCopy, int[] propertyIds )
     {
         if ( original.length == propertyIds.length )
         {
@@ -838,7 +831,7 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
         return false;
     }
 
-    private int[] getPropertyIds( IndexQuery[] queries )
+    private static int[] getPropertyIds( IndexQuery[] queries )
     {
         int[] propertyIds = new int[queries.length];
         for ( int i = 0; i < queries.length; i++ )
@@ -848,7 +841,7 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
         return propertyIds;
     }
 
-    private boolean isInvalidQuery( int labelId, IndexQuery[] queries )
+    private static boolean isInvalidQuery( int labelId, IndexQuery[] queries )
     {
         boolean invalidQuery = labelId == TokenRead.NO_TOKEN;
         for ( IndexQuery query : queries )
@@ -859,7 +852,7 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
         return invalidQuery;
     }
 
-    private void assertNoDuplicates( int[] propertyIds, TokenRead tokenRead )
+    private static void assertNoDuplicates( int[] propertyIds, TokenRead tokenRead )
     {
         int prev = propertyIds[0];
         for ( int i = 1; i < propertyIds.length; i++ )
@@ -945,15 +938,15 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
     }
 
     @Override
-    public File getStoreDir()
+    public DatabaseLayout databaseLayout()
     {
-        return spi.storeDir();
+        return spi.databaseLayout();
     }
 
     @Override
     public String toString()
     {
-        return spi.name() + " [" + getStoreDir() + "]";
+        return spi.name() + " [" + databaseLayout() + "]";
     }
 
     @Override
@@ -1009,18 +1002,13 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
     {
         try
         {
-            return relationshipTypeTokenHolder.getTokenById( type );
+            String name = tokenHolders.relationshipTypeTokens().getTokenById( type ).name();
+            return RelationshipType.withName( name );
         }
         catch ( TokenNotFoundException e )
         {
-            throw new IllegalStateException( "Kernel API returned non-existent relationship type: " + type );
+            throw new IllegalStateException( "Kernel API returned non-existent relationship type: " + type, e );
         }
-    }
-
-    @Override
-    public int getRelationshipTypeIdByName( String typeName )
-    {
-        return relationshipTypeTokenHolder.getIdByName( typeName );
     }
 
     @Override
@@ -1119,7 +1107,7 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
         assertTransactionOpen( statementContext.getKernelTransactionBoundToThisThread( true ) );
     }
 
-    private void assertTransactionOpen( KernelTransaction transaction )
+    private static void assertTransactionOpen( KernelTransaction transaction )
     {
         if ( transaction.isTerminated() )
         {
@@ -1138,6 +1126,7 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
             this.cursor = cursor;
         }
 
+        @Override
         long fetchNext()
         {
             if ( cursor.next() )
@@ -1198,6 +1187,7 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
             return nodeProxy;
         }
 
+        @Override
         public void close()
         {
             if ( !closed )

@@ -53,6 +53,7 @@ import org.neo4j.storageengine.api.lock.WaitStrategy;
 import org.neo4j.test.FakeCpuClock;
 import org.neo4j.time.Clocks;
 import org.neo4j.time.FakeClock;
+import org.neo4j.values.virtual.VirtualValues;
 
 import static org.junit.Assert.assertEquals;
 
@@ -116,8 +117,8 @@ public class ExecutingQueryStatusTest
                                 12,
                                 null,
                                 null,
-                                null,
-                                null,
+                                "",
+                                VirtualValues.emptyMap(),
                                 null,
                                 ( /*activeLockCount:*/ ) -> 0,
                                 PageCursorTracer.NULL,

@@ -49,6 +49,7 @@ import org.neo4j.kernel.internal.GraphDatabaseAPI;
 
 import static java.lang.String.format;
 
+@Deprecated
 public class JmxUtils
 {
     private static final MBeanServer mbeanServer = ManagementFactory.getPlatformMBeanServer();
@@ -57,7 +58,7 @@ public class JmxUtils
     {
         if ( !(db instanceof GraphDatabaseAPI) )
         {
-            throw new IllegalArgumentException( "Can only resolve object names for embedded ONgDB database " +
+            throw new IllegalArgumentException( "Can only resolve object names for embedded Neo4j database " +
                     "instances, eg. instances created by GraphDatabaseFactory or HighlyAvailableGraphDatabaseFactory." );
         }
         ObjectName neoQuery = ((GraphDatabaseAPI)db).getDependencyResolver().resolveDependency( JmxKernelExtension.class )
@@ -89,11 +90,11 @@ public class JmxUtils
     }
 
     @SuppressWarnings( "unchecked" )
-    public static <T> T invoke( ObjectName objectName, String attribute, Object[] params, String[] signatur )
+    public static <T> T invoke( ObjectName objectName, String attribute, Object[] params, String[] signature )
     {
         try
         {
-            return (T) mbeanServer.invoke( objectName, attribute, params, signatur );
+            return (T) mbeanServer.invoke( objectName, attribute, params, signature );
         }
         catch ( Exception e )
         {

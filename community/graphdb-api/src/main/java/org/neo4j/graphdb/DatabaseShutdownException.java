@@ -38,7 +38,9 @@
  */
 package org.neo4j.graphdb;
 
-public class DatabaseShutdownException extends RuntimeException
+import org.neo4j.kernel.api.exceptions.Status;
+
+public class DatabaseShutdownException extends RuntimeException implements Status.HasStatus
 {
     public DatabaseShutdownException( )
     {
@@ -48,5 +50,11 @@ public class DatabaseShutdownException extends RuntimeException
     public DatabaseShutdownException( String message )
     {
         super( message );
+    }
+
+    @Override
+    public Status status()
+    {
+        return Status.General.DatabaseUnavailable;
     }
 }

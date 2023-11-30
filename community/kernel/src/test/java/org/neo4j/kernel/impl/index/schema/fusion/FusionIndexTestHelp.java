@@ -42,8 +42,10 @@ import org.hamcrest.Matcher;
 import org.mockito.Mockito;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.concurrent.Callable;
 
@@ -62,6 +64,11 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.LUCENE;
+import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.NUMBER;
+import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.SPATIAL;
+import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.STRING;
+import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.TEMPORAL;
 
 class FusionIndexTestHelp
 {
@@ -138,23 +145,22 @@ class FusionIndexTestHelp
     static Value[] allValues()
     {
         List<Value> values = new ArrayList<>();
-        for ( Value[] group : valuesByGroup() )
+        for ( Value[] group : valuesByGroup().values() )
         {
             values.addAll( Arrays.asList( group ) );
         }
-        return values.toArray( new Value[values.size()] );
+        return values.toArray( new Value[0] );
     }
 
-    static Value[][] valuesByGroup()
+    static EnumMap<IndexSlot,Value[]> valuesByGroup()
     {
-        return new Value[][]
-                {
-                        FusionIndexTestHelp.valuesSupportedByString(),
-                        FusionIndexTestHelp.valuesSupportedByNumber(),
-                        FusionIndexTestHelp.valuesSupportedBySpatial(),
-                        FusionIndexTestHelp.valuesSupportedByTemporal(),
-                        FusionIndexTestHelp.valuesNotSupportedBySpecificIndex()
-                };
+        EnumMap<IndexSlot,Value[]> values = new EnumMap<>( IndexSlot.class );
+        values.put( STRING, FusionIndexTestHelp.valuesSupportedByString() );
+        values.put( NUMBER, FusionIndexTestHelp.valuesSupportedByNumber() );
+        values.put( SPATIAL, FusionIndexTestHelp.valuesSupportedBySpatial() );
+        values.put( TEMPORAL, FusionIndexTestHelp.valuesSupportedByTemporal() );
+        values.put( LUCENE, FusionIndexTestHelp.valuesNotSupportedBySpecificIndex() );
+        return values;
     }
 
     static void verifyCallFail( Exception expectedFailure, Callable failingCall )
@@ -209,7 +215,7 @@ class FusionIndexTestHelp
     static void verifyOtherIsClosedOnSingleThrow( AutoCloseable failingCloseable, AutoCloseable fusionCloseable, AutoCloseable... successfulCloseables )
             throws Exception
     {
-        IOException failure = new IOException( "fail" );
+        UncheckedIOException failure = new UncheckedIOException( new IOException( "fail" ) );
         doThrow( failure ).when( failingCloseable ).close();
 
         // when
@@ -218,7 +224,7 @@ class FusionIndexTestHelp
             fusionCloseable.close();
             fail( "Should have failed" );
         }
-        catch ( IOException ignore )
+        catch ( UncheckedIOException ignore )
         {
         }
 
@@ -232,14 +238,14 @@ class FusionIndexTestHelp
     static void verifyFusionCloseThrowOnSingleCloseThrow( AutoCloseable failingCloseable, AutoCloseable fusionCloseable )
             throws Exception
     {
-        IOException expectedFailure = new IOException( "fail" );
+        UncheckedIOException expectedFailure = new UncheckedIOException( new IOException( "fail" ) );
         doThrow( expectedFailure ).when( failingCloseable ).close();
         try
         {
             fusionCloseable.close();
             fail( "Should have failed" );
         }
-        catch ( IOException e )
+        catch ( UncheckedIOException e )
         {
             assertSame( expectedFailure, e );
         }
@@ -248,10 +254,10 @@ class FusionIndexTestHelp
     static void verifyFusionCloseThrowIfAllThrow( AutoCloseable fusionCloseable, AutoCloseable... autoCloseables ) throws Exception
     {
         // given
-        IOException[] failures = new IOException[autoCloseables.length];
+        UncheckedIOException[] failures = new UncheckedIOException[autoCloseables.length];
         for ( int i = 0; i < autoCloseables.length; i++ )
         {
-            failures[i] = new IOException( "unknown" );
+            failures[i] = new UncheckedIOException( new IOException( "unknown" ) );
             doThrow( failures[i] ).when( autoCloseables[i] ).close();
         }
 
@@ -261,15 +267,23 @@ class FusionIndexTestHelp
             fusionCloseable.close();
             fail( "Should have failed" );
         }
-        catch ( IOException e )
+        catch ( UncheckedIOException e )
         {
             // then
-            List<Matcher<? super IOException>> matchers = new ArrayList<>();
-            for ( IOException failure : failures )
+            List<Matcher<? super UncheckedIOException>> matchers = new ArrayList<>();
+            for ( UncheckedIOException failure : failures )
             {
                 matchers.add( sameInstance( failure ) );
             }
             assertThat( e, anyOf( matchers ) );
+        }
+    }
+
+    static <T> void fill( EnumMap<IndexSlot,T> map, T instance )
+    {
+        for ( IndexSlot slot : IndexSlot.values() )
+        {
+            map.put( slot, instance );
         }
     }
 }

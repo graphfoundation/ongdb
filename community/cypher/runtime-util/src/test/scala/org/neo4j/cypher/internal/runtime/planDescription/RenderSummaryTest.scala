@@ -39,8 +39,8 @@
 package org.neo4j.cypher.internal.runtime.planDescription
 
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments.{DbHits, Rows}
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 
 class RenderSummaryTest extends CypherFunSuite {
 

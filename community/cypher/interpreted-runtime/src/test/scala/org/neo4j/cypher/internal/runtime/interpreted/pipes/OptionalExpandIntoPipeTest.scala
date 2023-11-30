@@ -46,8 +46,8 @@ import org.neo4j.cypher.internal.runtime.ImplicitValueConversion._
 import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.{Not, Predicate, True}
 import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
 import org.neo4j.graphdb.{Node, Relationship}
 import org.neo4j.kernel.impl.util.ValueUtils
 import org.neo4j.kernel.impl.util.ValueUtils.{fromNodeProxy, fromRelationshipProxy}
@@ -271,7 +271,7 @@ class OptionalExpandIntoPipeTest extends CypherFunSuite {
     val pipe = OptionalExpandIntoPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, LazyTypes.empty, True())()
 
     // then
-    pipe.predicate.owningPipe should equal(pipe)
+    pipe.predicate.owningPipe.get should equal(pipe)
   }
 
   private def mockRelationships(rels: Relationship*) {

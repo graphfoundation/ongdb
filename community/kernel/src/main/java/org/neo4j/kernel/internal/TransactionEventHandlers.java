@@ -58,8 +58,7 @@ import org.neo4j.kernel.api.TransactionHook;
 import org.neo4j.kernel.impl.core.EmbeddedProxySPI;
 import org.neo4j.kernel.impl.coreapi.TxStateTransactionDataSnapshot;
 import org.neo4j.kernel.lifecycle.Lifecycle;
-import org.neo4j.storageengine.api.StorageStatement;
-import org.neo4j.storageengine.api.StoreReadLayer;
+import org.neo4j.storageengine.api.StorageReader;
 import org.neo4j.storageengine.api.txstate.ReadableTransactionState;
 
 /**
@@ -121,7 +120,7 @@ public class TransactionEventHandlers
 
     @Override
     public TransactionHandlerState beforeCommit( ReadableTransactionState state, KernelTransaction transaction,
-            StoreReadLayer storeReadLayer, StorageStatement statement )
+            StorageReader storageReader )
     {
         // The iterator grabs a snapshot of our list of handlers
         Iterator<TransactionEventHandler> handlers = transactionEventHandlers.iterator();
@@ -132,7 +131,7 @@ public class TransactionEventHandlers
         }
 
         TransactionData txData = state == null ? EMPTY_DATA :
-                new TxStateTransactionDataSnapshot( state, proxySpi, storeReadLayer, statement, transaction );
+                new TxStateTransactionDataSnapshot( state, proxySpi, storageReader, transaction );
 
         TransactionHandlerState handlerStates = new TransactionHandlerState( txData );
         while ( handlers.hasNext() )

@@ -38,13 +38,15 @@
  */
 package org.neo4j.function;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.sameInstance;
-import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -52,10 +54,10 @@ import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 @SuppressWarnings( "unchecked" )
-public class SuppliersTest
+class SuppliersTest
 {
     @Test
-    public void singletonSupplierShouldAlwaysReturnSame()
+    void singletonSupplierShouldAlwaysReturnSame()
     {
         Object o = new Object();
         Supplier<Object> supplier = Suppliers.singleton( o );
@@ -66,7 +68,7 @@ public class SuppliersTest
     }
 
     @Test
-    public void lazySingletonSupplierShouldOnlyRequestInstanceWhenRequired()
+    void lazySingletonSupplierShouldOnlyRequestInstanceWhenRequired()
     {
         Object o = new Object();
         Supplier<Object> mockSupplier = mock( Supplier.class );
@@ -84,7 +86,7 @@ public class SuppliersTest
     }
 
     @Test
-    public void adapedSupplierShouldOnlyCallAdaptorOnceForEachNewInstance()
+    void adaptedSupplierShouldOnlyCallAdaptorOnceForEachNewInstance()
     {
         Object o1 = new Object();
         Object o1a = new Object();
@@ -113,5 +115,20 @@ public class SuppliersTest
         verify( mockFunction ).apply( o2 );
         verify( mockFunction ).apply( o3 );
         verifyNoMoreInteractions( mockFunction );
+    }
+
+    @Test
+    void correctlyReportNotInitialisedSuppliers()
+    {
+        Suppliers.Lazy<Object> lazySingleton = Suppliers.lazySingleton( Object::new );
+        assertFalse( lazySingleton.isInitialised() );
+    }
+
+    @Test
+    void correctlyReportInitialisedSuppliers()
+    {
+        Suppliers.Lazy<Object> lazySingleton = Suppliers.lazySingleton( Object::new );
+        lazySingleton.get();
+        assertTrue( lazySingleton.isInitialised() );
     }
 }

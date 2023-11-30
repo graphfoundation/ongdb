@@ -40,8 +40,8 @@ package org.neo4j.cypher.internal.runtime.interpreted.commands
 
 import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.cypher.internal.runtime.interpreted.{IsList, IsMap}
-import org.neo4j.cypher.internal.util.v3_4.CypherTypeException
-import org.neo4j.cypher.internal.util.v3_4.symbols._
+import org.neo4j.cypher.internal.v3_5.util.CypherTypeException
+import org.neo4j.cypher.internal.v3_5.util.symbols._
 import org.neo4j.values._
 import org.neo4j.values.storable._
 import org.neo4j.values.virtual._
@@ -92,5 +92,5 @@ object coerce {
   }
 
   private def cantCoerce(value: Any, typ: CypherType, cause: Option[Throwable] = None) =
-    new CypherTypeException(s"Can't coerce `$value` to $typ", cause.orNull)
+    new CypherTypeException(s"Wrong argument type: Can't coerce `$value` to $typ", cause.orNull)
 }

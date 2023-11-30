@@ -97,7 +97,7 @@ public class ConcurrentTransactionAccessTest
         try
         {
             // when
-            actions.findTransactionHandle( DisgustingUriScheme.parseTxId( transactionHandle.uri() ) );
+            actions.findTransactionHandle( DisgustingUriScheme.parseTxId( transactionHandle.uri() ), LoginContext.AUTH_DISABLED );
             fail( "should have thrown exception" );
         }
         catch ( InvalidConcurrentTransactionAccess neo4jError )

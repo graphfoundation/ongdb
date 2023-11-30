@@ -46,6 +46,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
 
+/**
+ * @deprecated This class will be removed from public API in 4.0.
+ */
+@Deprecated
 public class TextUtil
 {
     private TextUtil()
@@ -137,6 +141,11 @@ public class TextUtil
 
     private static String[] splitAndKeepEscapedSpaces( String string, boolean preserveEscapes )
     {
+        return splitAndKeepEscapedSpaces( string, preserveEscapes, preserveEscapes );
+    }
+
+    private static String[] splitAndKeepEscapedSpaces( String string, boolean preserveEscapes, boolean preserveSpaceEscapes )
+    {
         Collection<String> result = new ArrayList<>();
         StringBuilder current = new StringBuilder();
         for ( int i = 0; i < string.length(); i++ )
@@ -150,6 +159,10 @@ public class TextUtil
                     result.add( current.toString() );
                     current = new StringBuilder();
                     continue;
+                }
+                if ( preserveEscapes && !preserveSpaceEscapes )
+                {
+                    current.setLength( current.length() - 1 );
                 }
             }
 
@@ -190,6 +203,14 @@ public class TextUtil
      */
     public static String[] tokenizeStringWithQuotes( String string, boolean trim, boolean preserveEscapeCharacters )
     {
+        return tokenizeStringWithQuotes( string, trim, preserveEscapeCharacters, preserveEscapeCharacters );
+    }
+
+    /**
+     * Tokenizes a string, regarding quotes with a possibility to keep escaping characters but removing them when they used for space escaping.
+     */
+    public static String[] tokenizeStringWithQuotes( String string, boolean trim, boolean preserveEscapeCharacters, boolean preserveSpaceEscapeCharacters )
+    {
         if ( trim )
         {
             string = string.trim();
@@ -214,7 +235,7 @@ public class TextUtil
                 }
                 else
                 {
-                    Collections.addAll( result, TextUtil.splitAndKeepEscapedSpaces( token, preserveEscapeCharacters ) );
+                    Collections.addAll( result, TextUtil.splitAndKeepEscapedSpaces( token, preserveEscapeCharacters, preserveSpaceEscapeCharacters ) );
                 }
             }
             inside = !inside;

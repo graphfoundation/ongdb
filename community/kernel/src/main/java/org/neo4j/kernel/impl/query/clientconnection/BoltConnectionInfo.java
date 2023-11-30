@@ -38,25 +38,29 @@
  */
 package org.neo4j.kernel.impl.query.clientconnection;
 
-import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+
+import static org.neo4j.helpers.SocketAddress.format;
 
 /**
  * @see ClientConnectionInfo Parent class for documentation and tests.
  */
 public class BoltConnectionInfo extends ClientConnectionInfo
 {
+    private final String connectionId;
     private final String principalName;
     private final String clientName;
     private final SocketAddress clientAddress;
     private final SocketAddress serverAddress;
 
     public BoltConnectionInfo(
+            String connectionId,
             String principalName,
             String clientName,
             SocketAddress clientAddress,
             SocketAddress serverAddress )
     {
+        this.connectionId = connectionId;
         this.principalName = principalName;
         this.clientName = clientName;
         this.clientAddress = clientAddress;
@@ -81,24 +85,20 @@ public class BoltConnectionInfo extends ClientConnectionInfo
     }
 
     @Override
+    public String connectionId()
+    {
+        return connectionId;
+    }
+
+    @Override
     public String clientAddress()
     {
-        return addressString( clientAddress );
+        return format( clientAddress );
     }
 
     @Override
     public String requestURI()
     {
-        return addressString( serverAddress );
-    }
-
-    private String addressString( SocketAddress address )
-    {
-        if ( address instanceof InetSocketAddress )
-        {
-            InetSocketAddress inet = (InetSocketAddress) address;
-            return String.format( "%s:%s", inet.getHostString(), inet.getPort() );
-        }
-        return address.toString();
+        return format( serverAddress );
     }
 }

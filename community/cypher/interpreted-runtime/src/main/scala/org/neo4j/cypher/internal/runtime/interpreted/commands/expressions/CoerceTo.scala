@@ -39,19 +39,21 @@
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.commands.coerce
+import org.neo4j.cypher.internal.runtime.interpreted.commands.{AstNode, coerce}
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.util.v3_4.symbols._
+import org.neo4j.cypher.internal.v3_5.util.symbols._
 import org.neo4j.values.AnyValue
 
 
 case class CoerceTo(expr: Expression, typ: CypherType) extends Expression {
 
-  def apply(ctx: ExecutionContext, state: QueryState): AnyValue = coerce(expr(ctx, state), typ)(state.query)
+  override def apply(ctx: ExecutionContext, state: QueryState): AnyValue = coerce(expr(ctx, state), typ)(state.query)
 
-  def symbolTableDependencies = expr.symbolTableDependencies
+  override def symbolTableDependencies: Set[String] = expr.symbolTableDependencies
 
   override def rewrite(f: (Expression) => Expression): Expression = f(CoerceTo(expr.rewrite(f), typ))
 
   override def arguments: Seq[Expression] = Seq(expr)
+
+  override def children: Seq[AstNode[_]] = Seq(expr)
 }

@@ -47,7 +47,7 @@ import org.neo4j.index.internal.gbptree.Hit;
 import org.neo4j.storageengine.api.schema.IndexProgressor;
 import org.neo4j.values.storable.Value;
 
-abstract class NativeIndexProgressor<KEY extends NativeSchemaKey<KEY>, VALUE extends NativeSchemaValue> implements IndexProgressor
+abstract class NativeIndexProgressor<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> implements IndexProgressor
 {
     final RawCursor<Hit<KEY,VALUE>,IOException> seeker;
     final NodeValueClient client;
@@ -82,6 +82,6 @@ abstract class NativeIndexProgressor<KEY extends NativeSchemaKey<KEY>, VALUE ext
 
     Value[] extractValues( KEY key )
     {
-        return client.needsValues() ? new Value[]{ key.asValue()} : null;
+        return client.needsValues() ? key.asValues() : null;
     }
 }

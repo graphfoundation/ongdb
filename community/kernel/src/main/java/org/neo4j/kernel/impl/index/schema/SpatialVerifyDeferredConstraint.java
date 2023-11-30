@@ -38,33 +38,33 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
+import org.eclipse.collections.api.iterator.MutableLongIterator;
+import org.eclipse.collections.api.map.MutableMap;
+import org.eclipse.collections.impl.factory.Maps;
+import org.eclipse.collections.impl.list.mutable.primitive.LongArrayList;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.HashMap;
-import java.util.Map;
 
-import org.neo4j.collection.primitive.Primitive;
-import org.neo4j.collection.primitive.PrimitiveLongIterator;
-import org.neo4j.collection.primitive.PrimitiveLongList;
 import org.neo4j.cursor.RawCursor;
 import org.neo4j.index.internal.gbptree.GBPTree;
 import org.neo4j.index.internal.gbptree.Hit;
-import org.neo4j.index.internal.gbptree.Layout;
 import org.neo4j.internal.kernel.api.exceptions.EntityNotFoundException;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
-import org.neo4j.kernel.api.index.PropertyAccessor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
+import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 import org.neo4j.values.storable.Value;
+import org.neo4j.values.storable.ValueGroup;
 
 class SpatialVerifyDeferredConstraint
 {
-    static void verify( PropertyAccessor nodePropertyAccessor, Layout<SpatialSchemaKey,NativeSchemaValue> layout,
-            GBPTree<SpatialSchemaKey,NativeSchemaValue> tree, SchemaIndexDescriptor descriptor ) throws IndexEntryConflictException
+    static void verify( NodePropertyAccessor nodePropertyAccessor, IndexLayout<SpatialIndexKey,NativeIndexValue> layout,
+            GBPTree<SpatialIndexKey,NativeIndexValue> tree, StoreIndexDescriptor descriptor ) throws IndexEntryConflictException
     {
-        SpatialSchemaKey from = layout.newKey();
-        SpatialSchemaKey to = layout.newKey();
+        SpatialIndexKey from = layout.newKey();
+        SpatialIndexKey to = layout.newKey();
         initializeKeys( from, to );
-        try ( RawCursor<Hit<SpatialSchemaKey,NativeSchemaValue>,IOException> seek = tree.seek( from, to ) )
+        try ( RawCursor<Hit<SpatialIndexKey,NativeIndexValue>,IOException> seek = tree.seek( from, to ) )
         {
             scanAndVerifyDuplicates( nodePropertyAccessor, descriptor, seek );
         }
@@ -74,24 +74,24 @@ class SpatialVerifyDeferredConstraint
         }
     }
 
-    private static void scanAndVerifyDuplicates( PropertyAccessor nodePropertyAccessor, SchemaIndexDescriptor descriptor,
-            RawCursor<Hit<SpatialSchemaKey,NativeSchemaValue>,IOException> seek ) throws IOException, IndexEntryConflictException
+    private static void scanAndVerifyDuplicates( NodePropertyAccessor nodePropertyAccessor, StoreIndexDescriptor descriptor,
+            RawCursor<Hit<SpatialIndexKey,NativeIndexValue>,IOException> seek ) throws IOException, IndexEntryConflictException
     {
-        PrimitiveLongList nodesWithCollidingPoints = Primitive.longList();
+        LongArrayList nodesWithCollidingPoints = new LongArrayList();
         long prevRawBits = Long.MIN_VALUE;
 
         // Bootstrap starting state
         if ( seek.next() )
         {
-            Hit<SpatialSchemaKey,NativeSchemaValue> hit = seek.get();
+            Hit<SpatialIndexKey,NativeIndexValue> hit = seek.get();
             prevRawBits = hit.key().rawValueBits;
             nodesWithCollidingPoints.add( hit.key().getEntityId() );
         }
 
         while ( seek.next() )
         {
-            Hit<SpatialSchemaKey,NativeSchemaValue> hit = seek.get();
-            SpatialSchemaKey key = hit.key();
+            Hit<SpatialIndexKey,NativeIndexValue> hit = seek.get();
+            SpatialIndexKey key = hit.key();
             long currentRawBits = key.rawValueBits;
             long currentNodeId = key.getEntityId();
             if ( prevRawBits != currentRawBits )
@@ -113,23 +113,18 @@ class SpatialVerifyDeferredConstraint
         }
     }
 
-    private static void verifyConstraintOn( PrimitiveLongList nodeIds, PropertyAccessor nodePropertyAccessor, SchemaIndexDescriptor descriptor )
+    private static void verifyConstraintOn( LongArrayList nodeIds, NodePropertyAccessor nodePropertyAccessor, StoreIndexDescriptor descriptor )
             throws IndexEntryConflictException
     {
-        Map<Value,Long> points = new HashMap<>();
-        PrimitiveLongIterator iter = nodeIds.iterator();
+        MutableMap<Value,Long> points = Maps.mutable.empty();
+        MutableLongIterator iter = nodeIds.longIterator();
         try
         {
             while ( iter.hasNext() )
             {
                 long id = iter.next();
-                Value value = nodePropertyAccessor.getPropertyValue( id, descriptor.schema().getPropertyId() );
-                Long other = points.get( value );
-                if ( other == null )
-                {
-                    points.put( value, id );
-                    other = id;
-                }
+                Value value = nodePropertyAccessor.getNodePropertyValue( id, descriptor.schema().getPropertyId() );
+                Long other = points.getIfAbsentPut( value, id );
                 if ( other != id )
                 {
                     throw new IndexEntryConflictException( other, id, value );
@@ -142,11 +137,11 @@ class SpatialVerifyDeferredConstraint
         }
     }
 
-    private static void initializeKeys( SpatialSchemaKey from, SpatialSchemaKey to )
+    private static void initializeKeys( SpatialIndexKey from, SpatialIndexKey to )
     {
         from.initialize( Long.MIN_VALUE );
         to.initialize( Long.MAX_VALUE );
-        from.initValueAsLowest();
-        to.initValueAsHighest();
+        from.initValueAsLowest( ValueGroup.GEOMETRY );
+        to.initValueAsHighest( ValueGroup.GEOMETRY );
     }
 }

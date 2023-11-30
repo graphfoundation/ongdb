@@ -45,47 +45,48 @@ import org.apache.lucene.search.MultiTermQuery;
 import org.apache.lucene.search.NumericRangeQuery;
 import org.apache.lucene.search.TermRangeQuery;
 import org.apache.lucene.search.TotalHitCountCollector;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 import org.neo4j.helpers.TaskCoordinator;
+import org.neo4j.internal.kernel.api.IndexQuery;
 import org.neo4j.kernel.api.impl.index.collector.DocValuesCollector;
 import org.neo4j.kernel.api.impl.index.partition.PartitionSearcher;
 import org.neo4j.kernel.api.impl.schema.sampler.NonUniqueLuceneIndexSampler;
 import org.neo4j.kernel.api.impl.schema.sampler.UniqueLuceneIndexSampler;
-import org.neo4j.internal.kernel.api.IndexQuery;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
+import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
 import org.neo4j.storageengine.api.schema.IndexReader;
 import org.neo4j.values.storable.Values;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.neo4j.internal.kernel.api.IndexQuery.range;
+import static org.neo4j.values.storable.Values.stringValue;
 
-public class SimpleIndexReaderTest
+class SimpleIndexReaderTest
 {
     private final PartitionSearcher partitionSearcher = mock( PartitionSearcher.class );
     private final IndexSearcher indexSearcher = mock( IndexSearcher.class );
     private final IndexSamplingConfig samplingConfig = new IndexSamplingConfig( Config.defaults() );
     private final TaskCoordinator taskCoordinator = new TaskCoordinator( 0, TimeUnit.MILLISECONDS );
 
-    @Before
-    public void setUp()
+    @BeforeEach
+    void setUp()
     {
         when( partitionSearcher.getIndexSearcher() ).thenReturn( indexSearcher );
     }
 
     @Test
-    public void releaseSearcherOnClose() throws IOException
+    void releaseSearcherOnClose() throws IOException
     {
         IndexReader simpleIndexReader = getUniqueSimpleReader();
 
@@ -95,7 +96,7 @@ public class SimpleIndexReaderTest
     }
 
     @Test
-    public void seekQueryReachSearcher() throws Exception
+    void seekQueryReachSearcher() throws Exception
     {
         IndexReader simpleIndexReader = getUniqueSimpleReader();
 
@@ -105,7 +106,7 @@ public class SimpleIndexReaderTest
     }
 
     @Test
-    public void scanQueryReachSearcher() throws Exception
+    void scanQueryReachSearcher() throws Exception
     {
         IndexReader simpleIndexReader = getUniqueSimpleReader();
 
@@ -115,7 +116,7 @@ public class SimpleIndexReaderTest
     }
 
     @Test
-    public void stringRangeSeekQueryReachSearcher() throws Exception
+    void stringRangeSeekQueryReachSearcher() throws Exception
     {
         IndexReader simpleIndexReader = getUniqueSimpleReader();
 
@@ -125,17 +126,17 @@ public class SimpleIndexReaderTest
     }
 
     @Test
-    public void prefixRangeSeekQueryReachSearcher() throws Exception
+    void prefixRangeSeekQueryReachSearcher() throws Exception
     {
         IndexReader simpleIndexReader = getUniqueSimpleReader();
 
-        simpleIndexReader.query( IndexQuery.stringPrefix( 1, "bb" ) );
+        simpleIndexReader.query( IndexQuery.stringPrefix( 1, stringValue( "bb" ) ) );
 
         verify( indexSearcher ).search( any( MultiTermQuery.class ), any( DocValuesCollector.class ) );
     }
 
     @Test
-    public void numberRangeSeekQueryReachSearcher() throws Exception
+    void numberRangeSeekQueryReachSearcher() throws Exception
     {
         IndexReader simpleIndexReader = getUniqueSimpleReader();
 
@@ -145,38 +146,36 @@ public class SimpleIndexReaderTest
     }
 
     @Test
-    public void countIndexedNodesReachSearcher() throws IOException
+    void countIndexedNodesReachSearcher() throws IOException
     {
         IndexReader simpleIndexReader = getUniqueSimpleReader();
 
-        simpleIndexReader.countIndexedNodes( 2, Values.of( "testValue" ) );
+        simpleIndexReader.countIndexedNodes( 2, new int[] {3}, Values.of( "testValue" ) );
 
         verify( indexSearcher ).search( any( BooleanQuery.class ), any( TotalHitCountCollector.class ) );
     }
 
     @Test
-    public void uniqueIndexSamplerForUniqueIndex()
+    void uniqueIndexSamplerForUniqueIndex()
     {
         SimpleIndexReader uniqueSimpleReader = getUniqueSimpleReader();
-        Assert.assertThat( uniqueSimpleReader.createSampler(), instanceOf( UniqueLuceneIndexSampler.class ) );
+        assertThat( uniqueSimpleReader.createSampler(), instanceOf( UniqueLuceneIndexSampler.class ) );
     }
 
     @Test
-    public void nonUuniqueIndexSamplerForNonUniqueIndex()
+    void nonUniqueIndexSamplerForNonUniqueIndex()
     {
         SimpleIndexReader uniqueSimpleReader = getNonUniqueSimpleReader();
-        Assert.assertThat( uniqueSimpleReader.createSampler(), instanceOf( NonUniqueLuceneIndexSampler.class) );
+        assertThat( uniqueSimpleReader.createSampler(), instanceOf( NonUniqueLuceneIndexSampler.class ) );
     }
 
     private SimpleIndexReader getNonUniqueSimpleReader()
     {
-        return new SimpleIndexReader( partitionSearcher, SchemaIndexDescriptorFactory.forLabel( 0, 0 ), samplingConfig,
-                taskCoordinator );
+        return new SimpleIndexReader( partitionSearcher, TestIndexDescriptorFactory.forLabel( 0, 0 ), samplingConfig, taskCoordinator );
     }
 
     private SimpleIndexReader getUniqueSimpleReader()
     {
-        return new SimpleIndexReader( partitionSearcher, SchemaIndexDescriptorFactory.uniqueForLabel( 0, 0 ),
-                samplingConfig, taskCoordinator );
+        return new SimpleIndexReader( partitionSearcher, TestIndexDescriptorFactory.uniqueForLabel( 0, 0 ), samplingConfig, taskCoordinator );
     }
 }

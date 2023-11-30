@@ -38,10 +38,9 @@
  */
 package org.neo4j.values.utils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.ZoneOffset;
-import java.util.HashMap;
 
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
@@ -67,7 +66,7 @@ import org.neo4j.values.virtual.VirtualValues;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.neo4j.values.storable.DateTimeValue.datetime;
 import static org.neo4j.values.storable.DateValue.date;
 import static org.neo4j.values.storable.DurationValue.duration;
@@ -80,10 +79,10 @@ import static org.neo4j.values.storable.Values.stringValue;
 import static org.neo4j.values.virtual.VirtualValues.EMPTY_MAP;
 import static org.neo4j.values.virtual.VirtualValues.list;
 
-public class PrettyPrinterTest
+class PrettyPrinterTest
 {
     @Test
-    public void shouldHandleNodeReference()
+    void shouldHandleNodeReference()
     {
         // Given
         NodeReference node = VirtualValues.node( 42L );
@@ -97,7 +96,7 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldHandleNodeValue()
+    void shouldHandleNodeValue()
     {
         // Given
         NodeValue node = VirtualValues.nodeValue( 42L, Values.stringArray( "L1", "L2", "L3" ),
@@ -112,7 +111,7 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldHandleNodeValueWithoutLabels()
+    void shouldHandleNodeValueWithoutLabels()
     {
         // Given
         NodeValue node = VirtualValues.nodeValue( 42L, Values.stringArray(),
@@ -127,7 +126,7 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldHandleNodeValueWithoutProperties()
+    void shouldHandleNodeValueWithoutProperties()
     {
         // Given
         NodeValue node = VirtualValues.nodeValue( 42L, Values.stringArray( "L1", "L2", "L3" ), EMPTY_MAP );
@@ -141,7 +140,7 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldHandleNodeValueWithoutLabelsNorProperties()
+    void shouldHandleNodeValueWithoutLabelsNorProperties()
     {
         // Given
         NodeValue node = VirtualValues.nodeValue( 42L, Values.stringArray(), EMPTY_MAP );
@@ -155,7 +154,7 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldHandleEdgeReference()
+    void shouldHandleEdgeReference()
     {
         // Given
         RelationshipReference rel = VirtualValues.relationship( 42L );
@@ -169,7 +168,7 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldHandleEdgeValue()
+    void shouldHandleEdgeValue()
     {
         // Given
         NodeValue startNode = VirtualValues.nodeValue( 1L, Values.stringArray( "L" ), EMPTY_MAP );
@@ -186,11 +185,12 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldHandleEdgeValueWithoutProperties()
+    void shouldHandleEdgeValueWithoutProperties()
     {
         NodeValue startNode = VirtualValues.nodeValue( 1L, Values.stringArray( "L" ), EMPTY_MAP );
         NodeValue endNode = VirtualValues.nodeValue( 2L, Values.stringArray( "L" ), EMPTY_MAP );
-        RelationshipValue rel = VirtualValues.relationshipValue( 42L, startNode, endNode, stringValue( "R" ), EMPTY_MAP );
+        RelationshipValue rel =
+                VirtualValues.relationshipValue( 42L, startNode, endNode, stringValue( "R" ), EMPTY_MAP );
         PrettyPrinter printer = new PrettyPrinter();
 
         // When
@@ -201,7 +201,7 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldHandleEdgeValueWithoutLabelsNorProperties()
+    void shouldHandleEdgeValueWithoutLabelsNorProperties()
     {
         // Given
         NodeValue node = VirtualValues.nodeValue( 42L, Values.stringArray(), EMPTY_MAP );
@@ -215,12 +215,13 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldHandlePaths()
+    void shouldHandlePaths()
     {
         // Given
         NodeValue startNode = VirtualValues.nodeValue( 1L, Values.stringArray( "L" ), EMPTY_MAP );
         NodeValue endNode = VirtualValues.nodeValue( 2L, Values.stringArray( "L" ), EMPTY_MAP );
-        RelationshipValue rel = VirtualValues.relationshipValue( 42L, startNode, endNode, stringValue( "R" ), EMPTY_MAP );
+        RelationshipValue rel =
+                VirtualValues.relationshipValue( 42L, startNode, endNode, stringValue( "R" ), EMPTY_MAP );
         PathValue path = VirtualValues.path( new NodeValue[]{startNode, endNode}, new RelationshipValue[]{rel} );
         PrettyPrinter printer = new PrettyPrinter();
 
@@ -232,7 +233,7 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldHandleMaps()
+    void shouldHandleMaps()
     {
         // Given
         PrettyPrinter printer = new PrettyPrinter();
@@ -246,7 +247,7 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldHandleLists()
+    void shouldHandleLists()
     {
         // Given
         PrettyPrinter printer = new PrettyPrinter();
@@ -260,7 +261,7 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldHandleArrays()
+    void shouldHandleArrays()
     {
         // Given
         PrettyPrinter printer = new PrettyPrinter();
@@ -274,7 +275,7 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldHandleBooleans()
+    void shouldHandleBooleans()
     {
         // Given
         Value array = Values.booleanArray( new boolean[]{true, false, true} );
@@ -288,7 +289,7 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldHandleByteArrays()
+    void shouldHandleByteArrays()
     {
         // Given
         Value array = Values.byteArray( new byte[]{2, 3, 42} );
@@ -302,7 +303,7 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldHandleNull()
+    void shouldHandleNull()
     {
         // Given
         PrettyPrinter printer = new PrettyPrinter();
@@ -315,7 +316,7 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldHandlePoints()
+    void shouldHandlePoints()
     {
         // Given
         PointValue pointValue = Values.pointValue( CoordinateReferenceSystem.Cartesian, 11d, 12d );
@@ -332,7 +333,7 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldBeAbleToUseAnyQuoteMark()
+    void shouldBeAbleToUseAnyQuoteMark()
     {
         // Given
         TextValue hello = stringValue( "(ツ)" );
@@ -346,7 +347,7 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldHandleDuration()
+    void shouldHandleDuration()
     {
         DurationValue duration = duration( 12, 45, 90, 9911 );
         PrettyPrinter printer = new PrettyPrinter();
@@ -357,7 +358,7 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldHandleDate()
+    void shouldHandleDate()
     {
         DateValue date = date( 1991, 9, 24 );
         PrettyPrinter printer = new PrettyPrinter();
@@ -368,7 +369,7 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldHandleLocalTime()
+    void shouldHandleLocalTime()
     {
         LocalTimeValue localTime = localTime( 18, 39, 24, 111222777 );
         PrettyPrinter printer = new PrettyPrinter();
@@ -379,7 +380,7 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldHandleTime()
+    void shouldHandleTime()
     {
         TimeValue time = time( 11, 19, 11, 123456789, ZoneOffset.ofHoursMinutes( -9, -30 ) );
         PrettyPrinter printer = new PrettyPrinter();
@@ -390,7 +391,7 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldHandleLocalDateTime()
+    void shouldHandleLocalDateTime()
     {
         LocalDateTimeValue localDateTime = localDateTime( 2015, 8, 8, 8, 40, 29, 999888111 );
         PrettyPrinter printer = new PrettyPrinter();
@@ -401,7 +402,7 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldHandleDateTimeWithTimeZoneId()
+    void shouldHandleDateTimeWithTimeZoneId()
     {
         DateTimeValue datetime = datetime( 2045, 2, 7, 12, 00, 40, 999888999, "Europe/London" );
         PrettyPrinter printer = new PrettyPrinter();
@@ -412,7 +413,7 @@ public class PrettyPrinterTest
     }
 
     @Test
-    public void shouldHandleDateTimeWithTimeZoneOffset()
+    void shouldHandleDateTimeWithTimeZoneOffset()
     {
         DateTimeValue datetime = datetime( 1988, 4, 19, 10, 12, 59, 112233445, ZoneOffset.ofHoursMinutes( 3, 15 ) );
         PrettyPrinter printer = new PrettyPrinter();
@@ -424,19 +425,19 @@ public class PrettyPrinterTest
 
     private MapValue props( Object... keyValue )
     {
-        HashMap<String,AnyValue> map = new HashMap<>( keyValue.length );
-        String key = null;
+        String[] keys = new String[keyValue.length / 2];
+        AnyValue[] values = new AnyValue[keyValue.length / 2];
         for ( int i = 0; i < keyValue.length; i++ )
         {
             if ( i % 2 == 0 )
             {
-                key = (String) keyValue[i];
+                keys[i / 2] = (String) keyValue[i];
             }
             else
             {
-                map.put( key, (AnyValue) keyValue[i] );
+                values[i / 2] = (AnyValue) keyValue[i];
             }
         }
-        return VirtualValues.map( map );
+        return VirtualValues.map( keys, values );
     }
 }

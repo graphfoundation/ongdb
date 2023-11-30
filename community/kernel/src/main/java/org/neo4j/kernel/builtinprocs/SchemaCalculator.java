@@ -38,6 +38,10 @@
  */
 package org.neo4j.kernel.builtinprocs;
 
+import org.eclipse.collections.api.set.primitive.MutableIntSet;
+import org.eclipse.collections.impl.factory.primitive.IntSets;
+import org.eclipse.collections.impl.set.mutable.primitive.IntHashSet;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -63,7 +67,7 @@ public class SchemaCalculator
 {
     private Map<Integer,String> propertyIdToPropertyNameMapping;
 
-    private final Set<Integer> emptyPropertyIdSet = Collections.unmodifiableSet( Collections.emptySet() );
+    private final MutableIntSet emptyPropertyIdSet = IntSets.mutable.empty();
 
     private final Read dataRead;
     private final TokenRead tokenRead;
@@ -125,7 +129,7 @@ public class SchemaCalculator
             name = ":`" + name + "`";  // escaping
 
             // lookup property value types
-            Set<Integer> propertyIds = relMappings.relationshipTypeIdToPropertyKeys.get( typeId );
+            MutableIntSet propertyIds = relMappings.relationshipTypeIdToPropertyKeys.get( typeId );
             if ( propertyIds.size() == 0 )
             {
                 results.add( new RelationshipPropertySchemaInfoResult( name, null, null, false ) );
@@ -174,7 +178,7 @@ public class SchemaCalculator
             String labels = labelsConcatenator.toString();
 
             // lookup property value types
-            Set<Integer> propertyIds = nodeMappings.labelSetToPropertyKeys.get( labelSet );
+            MutableIntSet propertyIds = nodeMappings.labelSetToPropertyKeys.get( labelSet );
             if ( propertyIds.size() == 0 )
             {
                 results.add( new NodePropertySchemaInfoResult( labels, labelNames, null, null, false ) );
@@ -210,7 +214,7 @@ public class SchemaCalculator
             {
                 int typeId = relationshipScanCursor.type();
                 relationshipScanCursor.properties( propertyCursor );
-                Set<Integer> propertyIds = new HashSet<>();
+                MutableIntSet propertyIds = IntSets.mutable.empty();
 
                 while ( propertyCursor.next() )
                 {
@@ -224,7 +228,7 @@ public class SchemaCalculator
                 }
                 propertyCursor.close();
 
-                Set<Integer> oldPropertyKeySet = relMappings.relationshipTypeIdToPropertyKeys.getOrDefault( typeId, emptyPropertyIdSet );
+                MutableIntSet oldPropertyKeySet = relMappings.relationshipTypeIdToPropertyKeys.getOrDefault( typeId, emptyPropertyIdSet );
 
                 // find out which old properties we did not visited and mark them as nullable
                 if ( oldPropertyKeySet == emptyPropertyIdSet )
@@ -239,7 +243,7 @@ public class SchemaCalculator
                 }
                 else
                 {
-                    Set<Integer> currentPropertyIdsHelperSet = new HashSet( propertyIds );
+                    MutableIntSet currentPropertyIdsHelperSet = new IntHashSet( propertyIds.size() );
                     currentPropertyIdsHelperSet.addAll( propertyIds );
                     propertyIds.removeAll( oldPropertyKeySet );  // only the brand new ones in propIds now
                     oldPropertyKeySet.removeAll( currentPropertyIdsHelperSet );  // only the old ones that are not on the new rel
@@ -270,7 +274,7 @@ public class SchemaCalculator
                 // each node
                 SortedLabels labels = SortedLabels.from( nodeCursor.labels() );
                 nodeCursor.properties( propertyCursor );
-                Set<Integer> propertyIds = new HashSet<>();
+                MutableIntSet propertyIds = IntSets.mutable.empty();
 
                 while ( propertyCursor.next() )
                 {
@@ -283,7 +287,7 @@ public class SchemaCalculator
                 }
                 propertyCursor.close();
 
-                Set<Integer> oldPropertyKeySet = nodeMappings.labelSetToPropertyKeys.getOrDefault( labels, emptyPropertyIdSet );
+                MutableIntSet oldPropertyKeySet = nodeMappings.labelSetToPropertyKeys.getOrDefault( labels, emptyPropertyIdSet );
 
                 // find out which old properties we did not visited and mark them as nullable
                 if ( oldPropertyKeySet == emptyPropertyIdSet )
@@ -298,7 +302,7 @@ public class SchemaCalculator
                 }
                 else
                 {
-                    Set<Integer> currentPropertyIdsHelperSet = new HashSet( propertyIds );
+                    MutableIntSet currentPropertyIdsHelperSet = new IntHashSet( propertyIds.size() );
                     currentPropertyIdsHelperSet.addAll( propertyIds );
                     propertyIds.removeAll( oldPropertyKeySet );  // only the brand new ones in propIds now
                     oldPropertyKeySet.removeAll( currentPropertyIdsHelperSet );  // only the old ones that are not on the new node
@@ -354,7 +358,7 @@ public class SchemaCalculator
 
         private void setNullable()
         {
-            isMandatory = false;
+                isMandatory = false;
         }
 
         public boolean isMandatory()
@@ -382,7 +386,7 @@ public class SchemaCalculator
      */
     private class NodeMappings
     {
-        final Map<SortedLabels,Set<Integer>> labelSetToPropertyKeys;
+        final Map<SortedLabels,MutableIntSet> labelSetToPropertyKeys;
         final Map<Pair<SortedLabels,Integer>,ValueTypeListHelper> labelSetANDNodePropertyKeyIdToValueType;
         final Set<SortedLabels> nullableLabelSets; // used for label combinations without properties -> all properties are viewed as nullable
         final Map<Integer,String> labelIdToLabelName;
@@ -402,7 +406,7 @@ public class SchemaCalculator
     private class RelationshipMappings
     {
         final Map<Integer,String> relationshipTypIdToRelationshipName;
-        final Map<Integer,Set<Integer>> relationshipTypeIdToPropertyKeys;
+        final Map<Integer,MutableIntSet> relationshipTypeIdToPropertyKeys;
         final Map<Pair<Integer,Integer>,ValueTypeListHelper> relationshipTypeIdANDPropertyTypeIdToValueType;
         final Set<Integer> nullableRelationshipTypes; // used for types without properties -> all properties are viewed as nullable
 

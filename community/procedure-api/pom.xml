@@ -59,15 +59,26 @@
     <build>
         <plugins>
             <!-- This module contains public API, run javadoc and revapi -->
-            <!--TODO put back when 3.4 is out
-             <plugin>
-               <artifactId>maven-javadoc-plugin</artifactId>
-             </plugin>
-             <plugin>
-               <groupId>org.revapi</groupId>
-               <artifactId>revapi-maven-plugin</artifactId>
-             </plugin>
-             -->
+            <plugin>
+                <artifactId>maven-javadoc-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.revapi</groupId>
+                <artifactId>revapi-maven-plugin</artifactId>
+                <configuration>
+                    <analysisConfiguration>
+                        <revapi.ignore>
+                            <item>
+                                <code>java.class.added</code>
+                                <new>@interface org.neo4j.procedure.Internal</new>
+                                <justification>Adding an internal annotation to procedures to be able to add hidden procedures without breaking
+                                    dbms.procedures() output.
+                                </justification>
+                            </item>
+                        </revapi.ignore>
+                    </analysisConfiguration>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 

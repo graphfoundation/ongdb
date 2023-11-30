@@ -74,6 +74,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyByte;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -86,7 +87,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 import static org.neo4j.kernel.impl.transaction.log.rotation.LogRotation.NO_ROTATION;
 import static org.neo4j.kernel.impl.util.IdOrderingQueue.BYPASS;
@@ -105,7 +105,7 @@ public class BatchingTransactionAppenderTest
     private final LogFile logFile = mock( LogFile.class );
     private final LogFiles logFiles = mock( TransactionLogFiles.class );
     private final TransactionIdStore transactionIdStore = mock( TransactionIdStore.class );
-    private final TransactionMetadataCache positionCache = new TransactionMetadataCache( 10 );
+    private final TransactionMetadataCache positionCache = new TransactionMetadataCache();
 
     @Before
     public void setUp()
@@ -305,7 +305,7 @@ public class BatchingTransactionAppenderTest
         } ).when( channel ).prepareForFlush();
         doThrow( failure ).when( flushable ).flush();
         when( logFile.getWriter() ).thenReturn( channel );
-        TransactionMetadataCache metadataCache = new TransactionMetadataCache( 10 );
+        TransactionMetadataCache metadataCache = new TransactionMetadataCache();
         TransactionIdStore transactionIdStore = mock( TransactionIdStore.class );
         when( transactionIdStore.nextCommittingTransactionId() ).thenReturn( txId );
         Mockito.reset( databaseHealth );
@@ -349,7 +349,7 @@ public class BatchingTransactionAppenderTest
         verify( channel, times( 1 ) ).putLong( 2L );
         verify( channel, times( 1 ) ).prepareForFlush();
         verify( flushable, times( 1 ) ).flush();
-        verifyZeroInteractions( databaseHealth );
+        verify( databaseHealth, never() ).panic( any() );
     }
 
     @Test

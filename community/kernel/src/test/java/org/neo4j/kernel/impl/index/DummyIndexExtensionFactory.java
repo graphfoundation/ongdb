@@ -38,6 +38,7 @@
  */
 package org.neo4j.kernel.impl.index;
 
+import org.neo4j.kernel.extension.ExtensionType;
 import org.neo4j.kernel.extension.KernelExtensionFactory;
 import org.neo4j.kernel.impl.spi.KernelContext;
 import org.neo4j.kernel.lifecycle.Lifecycle;
@@ -51,7 +52,7 @@ public class DummyIndexExtensionFactory extends KernelExtensionFactory<DummyInde
 
     public DummyIndexExtensionFactory()
     {
-        super( IDENTIFIER );
+        super( ExtensionType.DATABASE, IDENTIFIER );
     }
 
     public interface Dependencies

@@ -38,8 +38,8 @@
  */
 package org.neo4j.unsafe.impl.batchimport.store;
 
-import org.neo4j.concurrent.BinaryLatch;
 import org.neo4j.io.pagecache.PageCache;
+import org.neo4j.util.concurrent.BinaryLatch;
 
 import static org.neo4j.helpers.Exceptions.throwIfUnchecked;
 

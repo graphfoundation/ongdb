@@ -43,18 +43,17 @@ import org.apache.commons.lang3.SystemUtils;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileFilter;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
+import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -66,6 +65,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.FileStore;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.NotDirectoryException;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
@@ -86,7 +86,7 @@ import static java.nio.file.StandardOpenOption.WRITE;
 
 public class FileUtils
 {
-    private static final int WINDOWS_RETRY_COUNT = 5;
+    private static final int NUMBER_OF_RETRIES = 5;
 
     private FileUtils()
     {
@@ -110,7 +110,7 @@ public class FileUtils
             @Override
             public FileVisitResult visitFile( Path file, BasicFileAttributes attrs ) throws IOException
             {
-                deleteFileWithRetries( file, 0 );
+                deleteFile( file );
                 return FileVisitResult.CONTINUE;
             }
 
@@ -144,7 +144,7 @@ public class FileUtils
                 waitAndThenTriggerGC();
             }
         }
-        while ( !deleted && count <= WINDOWS_RETRY_COUNT );
+        while ( !deleted && count <= NUMBER_OF_RETRIES );
         return deleted;
     }
 
@@ -242,31 +242,9 @@ public class FileUtils
         Files.move( srcFile.toPath(), renameToFile.toPath(), copyOptions );
     }
 
-    public static void truncateFile( SeekableByteChannel fileChannel, long position )
-            throws IOException
+    public static void truncateFile( SeekableByteChannel fileChannel, long position ) throws IOException
     {
-        int count = 0;
-        boolean success = false;
-        IOException cause = null;
-        do
-        {
-            count++;
-            try
-            {
-                fileChannel.truncate( position );
-                success = true;
-            }
-            catch ( IOException e )
-            {
-                cause = e;
-            }
-
-        }
-        while ( !success && count <= WINDOWS_RETRY_COUNT );
-        if ( !success )
-        {
-            throw cause;
-        }
+        windowsSafeIOOperation( () -> fileChannel.truncate( position ) );
     }
 
     public static void truncateFile( File file, long position ) throws IOException
@@ -353,11 +331,6 @@ public class FileUtils
         {
             out.write( text );
         }
-    }
-
-    public static BufferedReader newBufferedFileReader( File file, Charset charset ) throws FileNotFoundException
-    {
-        return new BufferedReader( new InputStreamReader( new FileInputStream( file ), charset ) );
     }
 
     public static PrintWriter newFilePrintWriter( File file, Charset charset ) throws FileNotFoundException
@@ -536,15 +509,15 @@ public class FileUtils
         }
     }
 
-    public interface FileOperation
+    public interface Operation
     {
         void perform() throws IOException;
     }
 
-    public static void windowsSafeIOOperation( FileOperation operation ) throws IOException
+    public static void windowsSafeIOOperation( Operation operation ) throws IOException
     {
         IOException storedIoe = null;
-        for ( int i = 0; i < 10; i++ )
+        for ( int i = 0; i < NUMBER_OF_RETRIES; i++ )
         {
             try
             {
@@ -554,7 +527,7 @@ public class FileUtils
             catch ( IOException e )
             {
                 storedIoe = e;
-                System.gc();
+                waitAndThenTriggerGC();
             }
         }
         throw Objects.requireNonNull( storedIoe );
@@ -592,34 +565,9 @@ public class FileUtils
         return out.toString();
     }
 
-    private static void deleteFileWithRetries( Path file, int tries ) throws IOException
+    private static void deleteFile( Path path ) throws IOException
     {
-        try
-        {
-            Files.delete( file );
-        }
-        catch ( IOException e )
-        {
-            if ( SystemUtils.IS_OS_WINDOWS && mayBeWindowsMemoryMappedFileReleaseProblem( e ) )
-            {
-                if ( tries >= WINDOWS_RETRY_COUNT )
-                {
-                    throw new MaybeWindowsMemoryMappedFileReleaseProblem( e );
-                }
-                waitAndThenTriggerGC();
-                deleteFileWithRetries( file, tries + 1 );
-            }
-            else
-            {
-                throw e;
-            }
-        }
-    }
-
-    private static boolean mayBeWindowsMemoryMappedFileReleaseProblem( IOException e )
-    {
-        return e.getMessage()
-                .contains( "The process cannot access the file because it is being used by another process." );
+        windowsSafeIOOperation( () -> Files.delete( path ) );
     }
 
     /**
@@ -650,16 +598,25 @@ public class FileUtils
         return path;
     }
 
-    // TODO javadoc what this one does. It comes from Serverutil initially.
-    public static File getMostCanonicalFile( File file )
+    /**
+     * Canonical file resolution on windows does not resolve links.
+     * Real paths on windows can be resolved only using {@link Path#toRealPath(LinkOption...)}, but file should exist in that case.
+     * We will try to do as much as possible and will try to use {@link Path#toRealPath(LinkOption...)} when file exist and will fallback to only
+     * use {@link File#getCanonicalFile()} if file does not exist.
+     * see JDK-8003887 for details
+     * @param file - file to resolve canonical representation
+     * @return canonical file representation.
+     */
+    public static File getCanonicalFile( File file )
     {
         try
         {
-            return file.getCanonicalFile().getAbsoluteFile();
+            File fileToResolve = file.exists() ? file.toPath().toRealPath().toFile() : file;
+            return fileToResolve.getCanonicalFile();
         }
         catch ( IOException e )
         {
-            return file.getAbsoluteFile();
+            throw new UncheckedIOException( e );
         }
     }
 
@@ -764,28 +721,20 @@ public class FileUtils
         return Files.newOutputStream( path, options );
     }
 
-    public static class MaybeWindowsMemoryMappedFileReleaseProblem extends IOException
-    {
-        public MaybeWindowsMemoryMappedFileReleaseProblem( IOException e )
-        {
-            super( e );
-        }
-    }
-
     /**
      * Calculates the size of a given directory or file given the provided abstract filesystem.
      *
      * @param fs the filesystem abstraction to use
-     * @param path to the file or directory.
+     * @param file to the file or directory.
      * @return the size, in bytes, of the file or the total size of the content in the directory, including
      * subdirectories.
      */
-    public static long size( FileSystemAbstraction fs, File path )
+    public static long size( FileSystemAbstraction fs, File file )
     {
-        if ( fs.isDirectory( path ) )
+        if ( fs.isDirectory( file ) )
         {
             long size = 0L;
-            File[] files = fs.listFiles( path );
+            File[] files = fs.listFiles( file );
             if ( files == null )
             {
                 return 0L;
@@ -798,7 +747,7 @@ public class FileUtils
         }
         else
         {
-            return fs.getFileSize( path );
+            return fs.getFileSize( file );
         }
     }
 }

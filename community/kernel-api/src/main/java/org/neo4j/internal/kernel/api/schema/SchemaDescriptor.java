@@ -38,9 +38,11 @@
  */
 package org.neo4j.internal.kernel.api.schema;
 
+import java.util.Arrays;
 import java.util.function.Predicate;
 
 import org.neo4j.internal.kernel.api.TokenNameLookup;
+import org.neo4j.storageengine.api.EntityType;
 import org.neo4j.storageengine.api.lock.ResourceType;
 
 /**
@@ -55,6 +57,111 @@ import org.neo4j.storageengine.api.lock.ResourceType;
  */
 public interface SchemaDescriptor extends SchemaDescriptorSupplier
 {
+    SchemaDescriptor NO_SCHEMA = new SchemaDescriptor()
+    {
+        @Override
+        public boolean isAffected( long[] entityIds )
+        {
+            return false;
+        }
+
+        @Override
+        public <R> R computeWith( SchemaComputer<R> computer )
+        {
+            return null;
+        }
+
+        @Override
+        public void processWith( SchemaProcessor processor )
+        {
+
+        }
+
+        @Override
+        public String userDescription( TokenNameLookup tokenNameLookup )
+        {
+            return "NO_SCHEMA";
+        }
+
+        @Override
+        public int[] getPropertyIds()
+        {
+            return new int[0];
+        }
+
+        @Override
+        public int[] getEntityTokenIds()
+        {
+            return new int[0];
+        }
+
+        @Override
+        public int keyId()
+        {
+            return 0;
+        }
+
+        @Override
+        public ResourceType keyType()
+        {
+            return null;
+        }
+
+        @Override
+        public EntityType entityType()
+        {
+            return null;
+        }
+
+        @Override
+        public PropertySchemaType propertySchemaType()
+        {
+            return null;
+        }
+
+        @Override
+        public SchemaDescriptor schema()
+        {
+            return null;
+        }
+    };
+
+    static long[] schemaTokenLockingIds( SchemaDescriptor schema )
+    {
+        // TODO make getEntityTokenIds produce a long array directly, and avoid this extra copying.
+        return schemaTokenLockingIds( schema.getEntityTokenIds() );
+    }
+
+    static long[] schemaTokenLockingIds( int[] tokenIds )
+    {
+        long[] lockingIds = new long[tokenIds.length];
+        for ( int i = 0; i < lockingIds.length; i++ )
+        {
+            lockingIds[i] = tokenIds[i];
+        }
+        return lockingIds;
+    }
+
+    /**
+     * Returns true if any of the given entity token ids are part of this schema unit.
+     * @param entityTokenIds entity token ids to check against.
+     * @return true if the supplied ids are relevant to this schema unit.
+     */
+    boolean isAffected( long[] entityTokenIds );
+
+    /**
+     * This enum signifies how this schema should behave in regards to updates.
+     * {@link PropertySchemaType#COMPLETE_ALL_TOKENS} signifies that this schema unit only should be affected by updates that match the entire schema,
+     * i.e. when all properties are present. If you are unsure then this is probably what you want.
+     * {@link PropertySchemaType#PARTIAL_ANY_TOKEN} signifies that this schema unit should be affected by any update that is partial match of the schema,
+     *  i.e. at least one of the properties of this schema unit is present.
+     */
+    enum PropertySchemaType
+    {
+        COMPLETE_ALL_TOKENS,
+        PARTIAL_ANY_TOKEN
+    }
+
     /**
      * Computes some value by feeding this object into the given SchemaComputer.
      *
@@ -80,13 +187,6 @@ public interface SchemaDescriptor extends SchemaDescriptorSupplier
      * @return a user friendly description of what this index indexes.
      */
     String userDescription( TokenNameLookup tokenNameLookup );
-
-    /**
-     * Translate the schema key to a key name using the given {@link TokenNameLookup}.
-     * @param tokenNameLookup used for looking up names for token ids.
-     * @return The string name of the key token.
-     */
-    String keyName( TokenNameLookup tokenNameLookup );
 
     /**
      * This method return the property ids that are relevant to this Schema Descriptor.
@@ -116,6 +216,12 @@ public interface SchemaDescriptor extends SchemaDescriptorSupplier
     }
 
     /**
+     * This method returns the entity token ids handled by this descriptor.
+     * @return the entity token ids that this schema descriptor represents
+     */
+    int[] getEntityTokenIds();
+
+    /**
      * Id of underlying schema descriptor key.
      * Key is part of schema unit that determines which resources with specified properties are applicable.
      * @return id of underlying key
@@ -130,6 +236,18 @@ public interface SchemaDescriptor extends SchemaDescriptorSupplier
     ResourceType keyType();
 
     /**
+     * Type of entities this schema represents.
+     * @return entity type
+     */
+    EntityType entityType();
+
+    /**
+     * Returns the type of this schema. See {@link PropertySchemaType}.
+     * @return PropertySchemaType of this schema unit.
+     */
+    PropertySchemaType propertySchemaType();
+
+    /**
      * Create a predicate that checks whether a schema descriptor Supplier supplies the given schema descriptor.
      * @param descriptor The schema descriptor to check equality with.
      * @return A predicate that returns {@code true} if it is given a schema descriptor supplier that supplies the
@@ -138,10 +256,5 @@ public interface SchemaDescriptor extends SchemaDescriptorSupplier
     static <T extends SchemaDescriptorSupplier> Predicate<T> equalTo( SchemaDescriptor descriptor )
     {
         return supplier -> descriptor.equals( supplier.schema() );
-    }
-
-    interface Supplier
-    {
-        SchemaDescriptor schema();
     }
 }

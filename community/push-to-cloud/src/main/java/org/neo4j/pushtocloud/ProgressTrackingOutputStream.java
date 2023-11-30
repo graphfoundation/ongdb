@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -79,7 +79,7 @@ class ProgressTrackingOutputStream extends OutputStream
         private final ProgressListener uploadProgress;
         // Why have this as a separate field here? Because we will track local progress while streaming the file,
         // i.e. how much we send. But if the upload gets aborted we may take a small step backwards after asking about resume position
-        // and so to play nice with out progress listener (e.g. hard to remove printed dots from the terminal)
+        // and so to play nice with our progress listener (e.g. hard to remove printed dots from the terminal)
         // we won't report until we're caught up with it.
         private long highestReportedProgress;
         private long progress;

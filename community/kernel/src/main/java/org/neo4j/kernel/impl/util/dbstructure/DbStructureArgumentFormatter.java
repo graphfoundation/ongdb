@@ -49,16 +49,16 @@ import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
 import org.neo4j.internal.kernel.api.schema.RelationTypeSchemaDescriptor;
 import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
 import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
-import org.neo4j.kernel.api.schema.constaints.ConstraintDescriptorFactory;
-import org.neo4j.kernel.api.schema.constaints.NodeExistenceConstraintDescriptor;
-import org.neo4j.kernel.api.schema.constaints.NodeKeyConstraintDescriptor;
-import org.neo4j.kernel.api.schema.constaints.RelExistenceConstraintDescriptor;
-import org.neo4j.kernel.api.schema.constaints.UniquenessConstraintDescriptor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
+import org.neo4j.kernel.api.schema.constraints.ConstraintDescriptorFactory;
+import org.neo4j.kernel.api.schema.constraints.NodeExistenceConstraintDescriptor;
+import org.neo4j.kernel.api.schema.constraints.NodeKeyConstraintDescriptor;
+import org.neo4j.kernel.api.schema.constraints.RelExistenceConstraintDescriptor;
+import org.neo4j.kernel.api.schema.constraints.UniquenessConstraintDescriptor;
+import org.neo4j.storageengine.api.schema.IndexDescriptor;
+import org.neo4j.storageengine.api.schema.IndexDescriptorFactory;
 
 import static java.lang.String.format;
-import static org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor.Type.GENERAL;
+import static org.neo4j.storageengine.api.schema.IndexDescriptor.Type.GENERAL;
 
 public enum DbStructureArgumentFormatter implements ArgumentFormatter
 {
@@ -72,8 +72,8 @@ public enum DbStructureArgumentFormatter implements ArgumentFormatter
             NodeKeyConstraintDescriptor.class.getCanonicalName(),
             SchemaDescriptor.class.getCanonicalName(),
             SchemaDescriptorFactory.class.getCanonicalName(),
-            SchemaIndexDescriptor.class.getCanonicalName(),
-            SchemaIndexDescriptorFactory.class.getCanonicalName()
+            IndexDescriptor.class.getCanonicalName(),
+            IndexDescriptorFactory.class.getCanonicalName()
     );
 
     @Override
@@ -121,14 +121,15 @@ public enum DbStructureArgumentFormatter implements ArgumentFormatter
                 builder.append( 'd' );
             }
         }
-        else if ( arg instanceof SchemaIndexDescriptor )
+        else if ( arg instanceof IndexDescriptor )
         {
-            SchemaIndexDescriptor descriptor = (SchemaIndexDescriptor) arg;
-            String className = SchemaIndexDescriptorFactory.class.getSimpleName();
-            int labelId = descriptor.schema().keyId();
-            String methodName = descriptor.type() == GENERAL ? "forLabel" : "uniqueForLabel";
-            builder.append( format( "%s.%s( %d, %s )",
-                    className, methodName, labelId, asString( descriptor.schema().getPropertyIds() ) ) );
+            IndexDescriptor descriptor = (IndexDescriptor) arg;
+            String className = IndexDescriptorFactory.class.getSimpleName();
+            SchemaDescriptor schema = descriptor.schema();
+            String methodName = descriptor.type() == GENERAL ? "forSchema" : "uniqueForSchema";
+            builder.append( String.format( "%s.%s( ", className, methodName));
+            formatArgument( builder, schema );
+            builder.append( " )" );
         }
         else if ( arg instanceof LabelSchemaDescriptor )
         {

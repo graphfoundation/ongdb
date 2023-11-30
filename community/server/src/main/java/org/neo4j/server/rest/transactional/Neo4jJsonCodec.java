@@ -40,7 +40,6 @@ package org.neo4j.server.rest.transactional;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
@@ -65,6 +64,7 @@ import org.neo4j.graphdb.spatial.Coordinate;
 import org.neo4j.graphdb.spatial.Geometry;
 import org.neo4j.graphdb.spatial.Point;
 
+import static com.fasterxml.jackson.databind.SerializationFeature.FLUSH_AFTER_WRITE_VALUE;
 import static java.util.Objects.requireNonNull;
 import static org.neo4j.helpers.collection.MapUtil.genericMap;
 
@@ -105,7 +105,7 @@ public class Neo4jJsonCodec extends ObjectMapper
 
     public Neo4jJsonCodec()
     {
-        getSerializationConfig().without( SerializationFeature.FLUSH_AFTER_WRITE_VALUE );
+        disable( FLUSH_AFTER_WRITE_VALUE );
     }
 
     @Override

@@ -83,15 +83,6 @@ public class DynamicNodeLabels implements NodeLabels
         return getDynamicLabelsArray( node.getUsedDynamicLabelRecords(), nodeStore.getDynamicLabelStore() );
     }
 
-    public static long[] get( NodeRecord node, RecordCursor<DynamicRecord> dynamicLabelCursor )
-    {
-        if ( node.isLight() )
-        {
-            NodeStore.ensureHeavy( node, dynamicLabelCursor );
-        }
-        return getDynamicLabelsArrayFromHeavyRecords( node.getUsedDynamicLabelRecords() );
-    }
-
     @Override
     public long[] getIfLoaded()
     {
@@ -110,8 +101,7 @@ public class DynamicNodeLabels implements NodeLabels
         return putSorted( node, labelIds, nodeStore, allocator );
     }
 
-    public static Collection<DynamicRecord> putSorted( NodeRecord node, long[] labelIds, NodeStore nodeStore,
-            DynamicRecordAllocator allocator )
+    static Collection<DynamicRecord> putSorted( NodeRecord node, long[] labelIds, NodeStore nodeStore, DynamicRecordAllocator allocator )
     {
         long existingLabelsField = node.getLabelField();
         long existingLabelsBits = parseLabelsBody( existingLabelsField );
@@ -198,7 +188,12 @@ public class DynamicNodeLabels implements NodeLabels
 
     public static long dynamicPointer( Collection<DynamicRecord> newRecords )
     {
-        return 0x8000000000L | Iterables.first( newRecords ).getId();
+        return dynamicPointer( Iterables.first( newRecords ).getId() );
+    }
+
+    public static long dynamicPointer( long id )
+    {
+        return 0x8000000000L | id;
     }
 
     private static void setNotInUse( Collection<DynamicRecord> changedDynamicRecords )

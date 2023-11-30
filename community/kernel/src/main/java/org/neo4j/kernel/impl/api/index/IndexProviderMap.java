@@ -40,25 +40,29 @@ package org.neo4j.kernel.impl.api.index;
 
 import java.util.function.Consumer;
 
+import org.neo4j.internal.kernel.api.IndexCapability;
+import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
 import org.neo4j.kernel.api.index.IndexProvider;
+import org.neo4j.storageengine.api.schema.CapableIndexDescriptor;
+import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 
 /**
- * Contains mapping from {@link IndexProvider.Descriptor} or provider name to {@link IndexProvider}.
+ * Contains mapping from {@link IndexProviderDescriptor} or provider name to {@link IndexProvider}.
  */
 public interface IndexProviderMap
 {
     /**
-     * Looks up and returns the {@link IndexProvider} for the given {@link IndexProvider.Descriptor}.
+     * Looks up and returns the {@link IndexProvider} for the given {@link IndexProviderDescriptor}.
      *
      * @param providerDescriptor the descriptor identifying the {@link IndexProvider}.
-     * @return the {@link IndexProvider} with the given {@link IndexProvider.Descriptor}.
+     * @return the {@link IndexProvider} with the given {@link IndexProviderDescriptor}.
      * @throws IndexProviderNotFoundException if no such {@link IndexProvider} was found.
      */
-    IndexProvider lookup( IndexProvider.Descriptor providerDescriptor ) throws IndexProviderNotFoundException;
+    IndexProvider lookup( IndexProviderDescriptor providerDescriptor ) throws IndexProviderNotFoundException;
 
     /**
      * Looks up and returns the {@link IndexProvider} for the given index provider name. The name is what
-     * an {@link IndexProvider.Descriptor#name()} call would return.
+     * an {@link IndexProviderDescriptor#name()} call would return.
      *
      * @param providerDescriptorName the descriptor name identifying the {@link IndexProvider}.
      * @return the {@link IndexProvider} with the given name.
@@ -79,4 +83,44 @@ public interface IndexProviderMap
      * @param visitor {@link Consumer} visiting all the {@link IndexProvider index providers} in this map.
      */
     void accept( Consumer<IndexProvider> visitor );
+
+    /**
+     * Create a {@link CapableIndexDescriptor} from the given index descriptor, which includes the capabilities
+     * that correspond to those of the index provider of the given {@code descriptor}, found in this {@link IndexProviderMap}.
+     *
+     * @return a CapableIndexDescriptor.
+     */
+    default CapableIndexDescriptor withCapabilities( StoreIndexDescriptor descriptor )
+    {
+        IndexProviderDescriptor providerDescriptor = descriptor.providerDescriptor();
+        IndexCapability capability = lookup( providerDescriptor ).getCapability( descriptor );
+        return new CapableIndexDescriptor( descriptor, capability );
+    }
+
+    IndexProviderMap EMPTY = new IndexProviderMap()
+    {
+        @Override
+        public IndexProvider lookup( IndexProviderDescriptor descriptor ) throws IndexProviderNotFoundException
+        {
+            return IndexProvider.EMPTY;
+        }
+
+        @Override
+        public IndexProvider lookup( String providerDescriptorName ) throws IndexProviderNotFoundException
+        {
+            return IndexProvider.EMPTY;
+        }
+
+        @Override
+        public IndexProvider getDefaultProvider()
+        {
+            return IndexProvider.EMPTY;
+        }
+
+        @Override
+        public void accept( Consumer<IndexProvider> visitor )
+        {
+            // yey!
+        }
+    };
 }

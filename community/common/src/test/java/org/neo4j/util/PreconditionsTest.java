@@ -38,51 +38,71 @@
  */
 package org.neo4j.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class PreconditionsTest
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.neo4j.util.Preconditions.requirePositive;
+
+class PreconditionsTest
 {
 
     @Test
-    public void requirePositiveOk()
+    void requirePositiveOk()
     {
-        Preconditions.requirePositive( 1 );
-    }
-
-    @Test( expected = IllegalArgumentException.class )
-    public void requirePositiveFailsOnZero()
-    {
-        Preconditions.requirePositive( 0 );
-    }
-
-    @Test( expected = IllegalArgumentException.class )
-    public void requirePositiveFailsOnNegative()
-    {
-        Preconditions.requirePositive( -1 );
+        requirePositive( 1 );
     }
 
     @Test
-    public void requireNonNegativeOk()
+    void requirePositiveFailsOnZero()
+    {
+        assertThrows( IllegalArgumentException.class, () -> Preconditions.requirePositive( 0 ) );
+    }
+
+    @Test
+    void requirePositiveFailsOnNegative()
+    {
+        assertThrows( IllegalArgumentException.class, () -> requirePositive( -1 ) );
+    }
+
+    @Test
+    void requireNonNegativeOk()
     {
         Preconditions.requireNonNegative( 0 );
         Preconditions.requireNonNegative( 1 );
     }
 
-    @Test( expected = IllegalArgumentException.class )
-    public void requireNonNegativeFailsOnNegative()
+    @Test
+    void requireNonNegativeFailsOnNegative()
     {
-        Preconditions.requireNonNegative( -1 );
+        assertThrows( IllegalArgumentException.class, () -> Preconditions.requireNonNegative( -1 ) );
     }
 
     @Test
-    public void checkStateOk()
+    void checkStateOk()
     {
         Preconditions.checkState( true, "must not fail" );
     }
 
-    @Test( expected = IllegalStateException.class )
-    public void checkStateFails()
+    @Test
+    void checkStateFails()
     {
-        Preconditions.checkState( false, "must fail" );
+        assertThrows( IllegalStateException.class, () -> Preconditions.checkState( false, "must fail" ) );
+    }
+
+    @Test
+    void requirePowerOfTwo()
+    {
+        assertEquals( 1, Preconditions.requirePowerOfTwo( 1 ) );
+        assertEquals( 2, Preconditions.requirePowerOfTwo( 2 ) );
+        assertEquals( 128, Preconditions.requirePowerOfTwo( 128 ) );
+        assertEquals( 0b01000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000L,
+                Preconditions.requirePowerOfTwo( 0b01000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000L ) );
+
+        assertThrows( IllegalArgumentException.class, () -> Preconditions.requirePowerOfTwo( -1 ), "negative" );
+        assertThrows( IllegalArgumentException.class, () -> Preconditions.requirePowerOfTwo( 0 ), "zero" );
+        assertThrows( IllegalArgumentException.class, () -> Preconditions.requirePowerOfTwo( 3 ), "three" );
+        assertThrows( IllegalArgumentException.class,
+                () -> Preconditions.requirePowerOfTwo( 0b10000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000L ), "sign bit" );
     }
 }

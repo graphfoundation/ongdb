@@ -50,6 +50,7 @@ import org.neo4j.jmx.ManagementInterface;
 
 import static java.lang.management.ManagementFactory.getPlatformMBeanServer;
 
+@Deprecated
 public class ManagementSupport
 {
     public static ManagementSupport load()
@@ -146,6 +147,6 @@ public class ManagementSupport
                 return management.name();
             }
         }
-        throw new IllegalArgumentException( iface + " is not a ONgDB Management Been interface" );
+        throw new IllegalArgumentException( iface + " is not a Neo4j Management Been interface" );
     }
 }

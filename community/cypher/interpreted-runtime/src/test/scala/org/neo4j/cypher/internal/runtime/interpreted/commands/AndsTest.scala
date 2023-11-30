@@ -40,11 +40,11 @@ package org.neo4j.cypher.internal.runtime.interpreted.commands
 
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
-import org.neo4j.cypher.internal.util.v3_4.NonEmptyList
+import org.neo4j.cypher.internal.v3_5.util.NonEmptyList
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.{Ands, Not, Predicate, True}
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 
 class AndsTest extends CypherFunSuite {
   private val state = QueryStateHelper.empty

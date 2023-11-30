@@ -38,75 +38,103 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
-import java.util.Arrays;
+import org.eclipse.collections.api.iterator.LongIterator;
+import org.eclipse.collections.api.set.primitive.LongSet;
+import org.eclipse.collections.impl.factory.primitive.LongSets;
+import org.eclipse.collections.impl.iterator.ImmutableEmptyLongIterator;
 
-import org.neo4j.collection.primitive.PrimitiveLongCollections;
-import org.neo4j.collection.primitive.PrimitiveLongIterator;
-import org.neo4j.collection.primitive.PrimitiveLongSet;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Iterator;
+
+import org.neo4j.graphdb.Resource;
+import org.neo4j.internal.kernel.api.IndexOrder;
 import org.neo4j.internal.kernel.api.IndexQuery;
 import org.neo4j.internal.kernel.api.NodeCursor;
 import org.neo4j.internal.kernel.api.NodeValueIndexCursor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
 import org.neo4j.kernel.api.txstate.TransactionState;
+import org.neo4j.kernel.impl.newapi.TxStateIndexChanges.AddedAndRemoved;
+import org.neo4j.kernel.impl.newapi.TxStateIndexChanges.AddedWithValuesAndRemoved;
+import org.neo4j.storageengine.api.schema.IndexDescriptor;
 import org.neo4j.storageengine.api.schema.IndexProgressor;
 import org.neo4j.storageengine.api.schema.IndexProgressor.NodeValueClient;
-import org.neo4j.storageengine.api.txstate.PrimitiveLongReadableDiffSets;
 import org.neo4j.values.storable.Value;
-import org.neo4j.values.storable.ValueCategory;
-import org.neo4j.values.storable.ValueGroup;
 
 import static java.util.Arrays.stream;
-import static org.neo4j.collection.primitive.PrimitiveLongCollections.asSet;
-import static org.neo4j.collection.primitive.PrimitiveLongCollections.emptyIterator;
-import static org.neo4j.collection.primitive.PrimitiveLongCollections.emptySet;
+import static org.neo4j.collection.PrimitiveLongCollections.mergeToSet;
+import static org.neo4j.kernel.impl.newapi.TxStateIndexChanges.indexUpdatesForRangeSeek;
+import static org.neo4j.kernel.impl.newapi.TxStateIndexChanges.indexUpdatesForRangeSeekByPrefix;
+import static org.neo4j.kernel.impl.newapi.TxStateIndexChanges.indexUpdatesForScan;
+import static org.neo4j.kernel.impl.newapi.TxStateIndexChanges.indexUpdatesForSeek;
+import static org.neo4j.kernel.impl.newapi.TxStateIndexChanges.indexUpdatesForSuffixOrContains;
+import static org.neo4j.kernel.impl.newapi.TxStateIndexChanges.indexUpdatesWithValuesForRangeSeek;
+import static org.neo4j.kernel.impl.newapi.TxStateIndexChanges.indexUpdatesWithValuesForRangeSeekByPrefix;
+import static org.neo4j.kernel.impl.newapi.TxStateIndexChanges.indexUpdatesWithValuesForScan;
+import static org.neo4j.kernel.impl.newapi.TxStateIndexChanges.indexUpdatesWithValuesForSuffixOrContains;
 import static org.neo4j.kernel.impl.store.record.AbstractBaseRecord.NO_ID;
 
 final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
-        implements NodeValueIndexCursor, NodeValueClient
+        implements NodeValueIndexCursor, NodeValueClient, SortedMergeJoin.Sink
 {
     private Read read;
     private long node;
     private IndexQuery[] query;
     private Value[] values;
-    private PrimitiveLongIterator added = emptyIterator();
-    private PrimitiveLongSet removed = emptySet();
+    private LongIterator added = ImmutableEmptyLongIterator.INSTANCE;
+    private Iterator<NodeWithPropertyValues> addedWithValues = Collections.emptyIterator();
+    private LongSet removed = LongSets.immutable.empty();
     private boolean needsValues;
+    private IndexOrder indexOrder;
     private final DefaultCursors pool;
+    private SortedMergeJoin sortedMergeJoin = new SortedMergeJoin();
 
     DefaultNodeValueIndexCursor( DefaultCursors pool )
     {
         this.pool = pool;
         node = NO_ID;
+        indexOrder = IndexOrder.NONE;
     }
 
     @Override
-    public void initialize( SchemaIndexDescriptor descriptor, IndexProgressor progressor,
-                            IndexQuery[] query )
+    public void initialize( IndexDescriptor descriptor,
+                            IndexProgressor progressor,
+                            IndexQuery[] query,
+                            IndexOrder indexOrder,
+                            boolean needsValues )
     {
         assert query != null;
         super.initialize( progressor );
+        sortedMergeJoin.initialize( indexOrder );
+
+        this.indexOrder = indexOrder;
+        this.needsValues = needsValues;
         this.query = query;
 
-        if ( query.length > 0 )
+        if ( read.hasTxStateWithChanges() && query.length > 0 )
         {
             IndexQuery firstPredicate = query[0];
             switch ( firstPredicate.type() )
             {
             case exact:
+                // No need to order, all values are the same
+                this.indexOrder = IndexOrder.NONE;
                 seekQuery( descriptor, query );
                 break;
 
             case exists:
+                setNeedsValuesIfRequiresOrder();
                 scanQuery( descriptor );
                 break;
 
             case range:
                 assert query.length == 1;
+                setNeedsValuesIfRequiresOrder();
                 rangeQuery( descriptor, (IndexQuery.RangePredicate) firstPredicate );
                 break;
 
             case stringPrefix:
                 assert query.length == 1;
+                setNeedsValuesIfRequiresOrder();
                 prefixQuery( descriptor, (IndexQuery.StringPrefixPredicate) firstPredicate );
                 break;
 
@@ -120,10 +148,17 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
                 throw new UnsupportedOperationException( "Query not supported: " + Arrays.toString( query ) );
             }
         }
-        else
+    }
+
+    /**
+     * If we require order, we can only do the merge sort if we also get values.
+     * This implicitly relies on the fact that if we can get order, we can also get values.
+     */
+    private void setNeedsValuesIfRequiresOrder()
+    {
+        if ( indexOrder != IndexOrder.NONE )
         {
-            // this is used for distinct values query
-            needsValues = true;
+            this.needsValues = true;
         }
     }
 
@@ -156,16 +191,63 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
     @Override
     public boolean next()
     {
-        if ( added.hasNext() )
+        if ( indexOrder == IndexOrder.NONE )
+        {
+            return nextWithoutOrder();
+        }
+        else
+        {
+            return nextWithOrdering();
+        }
+    }
+
+    private boolean nextWithoutOrder()
+    {
+        if ( !needsValues && added.hasNext() )
         {
             this.node = added.next();
             this.values = null;
             return true;
         }
+        else if ( needsValues && addedWithValues.hasNext() )
+        {
+            NodeWithPropertyValues nodeWithPropertyValues = addedWithValues.next();
+            this.node = nodeWithPropertyValues.getNodeId();
+            this.values = nodeWithPropertyValues.getValues();
+            return true;
+        }
+        else if ( added.hasNext() || addedWithValues.hasNext() )
+        {
+            throw new IllegalStateException( "Index cursor cannot have transaction state with values and without values simultaneously" );
+        }
         else
         {
             return innerNext();
         }
+    }
+
+    private boolean nextWithOrdering()
+    {
+        if ( sortedMergeJoin.needsA() && addedWithValues.hasNext() )
+        {
+            NodeWithPropertyValues nodeWithPropertyValues = addedWithValues.next();
+            sortedMergeJoin.setA( nodeWithPropertyValues.getNodeId(), nodeWithPropertyValues.getValues() );
+        }
+
+        if ( sortedMergeJoin.needsB() && innerNext() )
+        {
+            sortedMergeJoin.setB( node, values );
+        }
+
+        sortedMergeJoin.next( this );
+        return node != -1;
+    }
+
+    @Override
+    public void acceptSortedMergeJoin( long nodeId, Value[] values )
+    {
+        this.node = nodeId;
+        this.values = values;
     }
 
     public void setRead( Read read )
@@ -219,8 +301,9 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
             this.query = null;
             this.values = null;
             this.read = null;
-            this.added = emptyIterator();
-            this.removed = PrimitiveLongCollections.emptySet();
+            this.added = ImmutableEmptyLongIterator.INSTANCE;
+            this.addedWithValues = Collections.emptyIterator();
+            this.removed = LongSets.immutable.empty();
 
             pool.accept( this );
         }
@@ -243,81 +326,96 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
         {
             String keys = query == null ? "unknown" : Arrays.toString( stream( query ).map( IndexQuery::propertyKeyId ).toArray( Integer[]::new ) );
             return "NodeValueIndexCursor[node=" + node + ", open state with: keys=" + keys +
-                   ", values=" + Arrays.toString( values ) +
-                   ", underlying record=" + super.toString() + " ]";
+                    ", values=" + Arrays.toString( values ) +
+                    ", underlying record=" + super.toString() + "]";
         }
     }
 
-    private void prefixQuery( SchemaIndexDescriptor descriptor, IndexQuery.StringPrefixPredicate predicate )
+    private void prefixQuery( IndexDescriptor descriptor, IndexQuery.StringPrefixPredicate predicate )
     {
-        needsValues = true;
-        if ( read.hasTxStateWithChanges() )
+        TransactionState txState = read.txState();
+
+        if ( needsValues )
         {
-            TransactionState txState = read.txState();
-            PrimitiveLongReadableDiffSets changes = txState
-                    .indexUpdatesForRangeSeekByPrefix( descriptor, predicate.prefix() );
-            added = changes.augment( emptyIterator() );
-            removed = removed( txState, changes );
+            AddedWithValuesAndRemoved changes = indexUpdatesWithValuesForRangeSeekByPrefix( txState, descriptor, predicate.prefix(), indexOrder );
+            addedWithValues = changes.getAdded().iterator();
+            removed = removed( txState, changes.getRemoved() );
         }
-    }
-
-    private void rangeQuery( SchemaIndexDescriptor descriptor, IndexQuery.RangePredicate<?> predicate )
-    {
-        ValueGroup valueGroup = predicate.valueGroup();
-        ValueCategory category = valueGroup.category();
-        this.needsValues = category == ValueCategory.TEXT || category == ValueCategory.NUMBER || category == ValueCategory.TEMPORAL;
-        if ( read.hasTxStateWithChanges() )
+        else
         {
-            TransactionState txState = read.txState();
-            PrimitiveLongReadableDiffSets changes = txState.indexUpdatesForRangeSeek( descriptor, predicate );
-            added = changes.augment( emptyIterator() );
-            removed = removed( txState, changes );
+            AddedAndRemoved changes = indexUpdatesForRangeSeekByPrefix( txState, descriptor, predicate.prefix(), indexOrder );
+            added = changes.getAdded().longIterator();
+            removed = removed( txState, changes.getRemoved() );
         }
     }
 
-    private void scanQuery( SchemaIndexDescriptor descriptor )
+    private void rangeQuery( IndexDescriptor descriptor, IndexQuery.RangePredicate<?> predicate )
     {
-        needsValues = true;
-        if ( read.hasTxStateWithChanges() )
+        TransactionState txState = read.txState();
+
+        if ( needsValues )
         {
-            TransactionState txState = read.txState();
-            PrimitiveLongReadableDiffSets changes = txState.indexUpdatesForScan( descriptor );
-            added = changes.augment( emptyIterator() );
-            removed = removed( txState, changes );
+            AddedWithValuesAndRemoved changes = indexUpdatesWithValuesForRangeSeek( txState, descriptor, predicate, indexOrder );
+            addedWithValues = changes.getAdded().iterator();
+            removed = removed( txState, changes.getRemoved() );
         }
-    }
-
-    private void suffixOrContainsQuery( SchemaIndexDescriptor descriptor, IndexQuery query )
-    {
-        needsValues = true;
-        if ( read.hasTxStateWithChanges() )
+        else
         {
-            TransactionState txState = read.txState();
-            PrimitiveLongReadableDiffSets changes = txState.indexUpdatesForSuffixOrContains( descriptor, query );
-            added = changes.augment( emptyIterator() );
-            removed = removed( txState, changes );
+            AddedAndRemoved changes = indexUpdatesForRangeSeek( txState, descriptor, predicate, indexOrder );
+            added = changes.getAdded().longIterator();
+            removed = removed( txState, changes.getRemoved() );
         }
     }
 
-    private void seekQuery( SchemaIndexDescriptor descriptor, IndexQuery[] query )
+    private void scanQuery( IndexDescriptor descriptor )
     {
-        needsValues = false;
+        TransactionState txState = read.txState();
+
+        if ( needsValues )
+        {
+            AddedWithValuesAndRemoved changes = indexUpdatesWithValuesForScan( txState, descriptor, indexOrder );
+            addedWithValues = changes.getAdded().iterator();
+            removed = removed( txState, changes.getRemoved() );
+        }
+        else
+        {
+            AddedAndRemoved changes = indexUpdatesForScan( txState, descriptor, indexOrder );
+            added = changes.getAdded().longIterator();
+            removed = removed( txState, changes.getRemoved() );
+        }
+    }
+
+    private void suffixOrContainsQuery( IndexDescriptor descriptor, IndexQuery query )
+    {
+        TransactionState txState = read.txState();
+
+        if ( needsValues )
+        {
+            AddedWithValuesAndRemoved changes = indexUpdatesWithValuesForSuffixOrContains( txState, descriptor, query, indexOrder );
+            addedWithValues = changes.getAdded().iterator();
+            removed = removed( txState, changes.getRemoved() );
+        }
+        else
+        {
+            AddedAndRemoved changes = indexUpdatesForSuffixOrContains( txState, descriptor, query, indexOrder );
+            added = changes.getAdded().longIterator();
+            removed = removed( txState, changes.getRemoved() );
+        }
+    }
+
+    private void seekQuery( IndexDescriptor descriptor, IndexQuery[] query )
+    {
         IndexQuery.ExactPredicate[] exactPreds = assertOnlyExactPredicates( query );
-        if ( read.hasTxStateWithChanges() )
-        {
-            TransactionState txState = read.txState();
-            PrimitiveLongReadableDiffSets changes = read.txState()
-                    .indexUpdatesForSeek( descriptor, IndexQuery.asValueTuple( exactPreds ) );
-            added = changes.augment( emptyIterator() );
-            removed = removed( txState, changes );
-        }
+        TransactionState txState = read.txState();
+
+        AddedAndRemoved changes = indexUpdatesForSeek( txState, descriptor, IndexQuery.asValueTuple( exactPreds ) );
+        added = changes.getAdded().longIterator();
+        removed = removed( txState, changes.getRemoved() );
     }
 
-    private PrimitiveLongSet removed( TransactionState txState, PrimitiveLongReadableDiffSets changes )
+    private LongSet removed( TransactionState txState, LongSet removedFromIndex )
     {
-        PrimitiveLongSet longSet = asSet( txState.addedAndRemovedNodes().getRemoved() );
-        longSet.addAll( changes.getRemoved().iterator() );
-        return longSet;
+        return mergeToSet( txState.addedAndRemovedNodes().getRemoved(), removedFromIndex );
     }
 
     private static IndexQuery.ExactPredicate[] assertOnlyExactPredicates( IndexQuery[] predicates )

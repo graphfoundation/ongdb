@@ -38,11 +38,12 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes.aggregation
 
-import org.neo4j.cypher.internal.util.v3_4.CypherTypeException
+import org.neo4j.cypher.internal.v3_5.util.CypherTypeException
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 import org.neo4j.values.storable.Values._
-import org.neo4j.values.storable.{DoubleValue, LongValue, Values}
+import org.neo4j.values.storable.{DoubleValue, DurationValue, LongValue, Values}
+import org.neo4j.values.utils.InvalidValuesArgumentException
 
 class SumFunctionTest extends CypherFunSuite with AggregateTest {
   def createAggregator(inner: Expression) = new SumFunction(inner)
@@ -52,6 +53,36 @@ class SumFunctionTest extends CypherFunSuite with AggregateTest {
 
     result should equal(longValue(1))
     result shouldBe a [LongValue]
+  }
+
+  test("singleValueReturnsThatDuration") {
+    val durationValue = DurationValue.duration(0, 0, 0, 1)
+    val result = aggregateOn(durationValue)
+
+    result should equal(durationValue)
+  }
+
+  test("twoValuesReturnsDuration") {
+    val durationValue = DurationValue.duration(0, 0, 0, 1)
+    val durationValue2 = DurationValue.duration(0, 0, 1, 1)
+    val result = aggregateOn(durationValue, durationValue2)
+
+    result should equal(DurationValue.duration(0,0,1,2))
+  }
+
+  test("cantMixDurationAndNumber") {
+    val durationValue = DurationValue.duration(0, 0, 0, 1)
+    val numberValue = longValue(1)
+    a[CypherTypeException] shouldBe thrownBy{
+      aggregateOn(durationValue, numberValue)
+    }
+  }
+
+  test("catches duration overflows") {
+    val durationValue = DurationValue.duration(0, 0, Long.MaxValue, 0)
+    an[InvalidValuesArgumentException] shouldBe thrownBy{
+      aggregateOn(durationValue, durationValue)
+    }
   }
 
   test("singleValueOfDecimalReturnsDecimal") {

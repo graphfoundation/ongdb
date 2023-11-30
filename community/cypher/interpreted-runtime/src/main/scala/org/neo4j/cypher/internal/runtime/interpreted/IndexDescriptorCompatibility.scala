@@ -38,19 +38,12 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted
 
-import org.neo4j.cypher.internal.planner.v3_4.spi.{IndexLimitation, SlowContains, IndexDescriptor => CypherIndexDescriptor}
-import org.neo4j.internal.kernel.api.{IndexLimitation => KernelIndexLimitation}
+import org.neo4j.cypher.internal.planner.v3_5.spi.{IndexLimitation, SlowContains, IndexDescriptor => CypherIndexDescriptor}
 import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor
+import org.neo4j.internal.kernel.api.{IndexLimitation => KernelIndexLimitation}
 import org.neo4j.kernel.api.schema.SchemaDescriptorFactory
-import org.neo4j.kernel.api.schema.index.{SchemaIndexDescriptorFactory, SchemaIndexDescriptor => KernelIndexDescriptor}
 
 trait IndexDescriptorCompatibility {
-  def cypherToKernel(index: CypherIndexDescriptor): KernelIndexDescriptor =
-    SchemaIndexDescriptorFactory.forLabel(index.label.id, index.properties.map(_.id):_*)
-
-  def kernelToCypher(index: KernelIndexDescriptor): CypherIndexDescriptor =
-    CypherIndexDescriptor(index.schema().keyId, index.schema().getPropertyIds)
-
   def kernelToCypher(limitation: KernelIndexLimitation): IndexLimitation = {
     limitation match {
       case KernelIndexLimitation.SLOW_CONTAINS => SlowContains

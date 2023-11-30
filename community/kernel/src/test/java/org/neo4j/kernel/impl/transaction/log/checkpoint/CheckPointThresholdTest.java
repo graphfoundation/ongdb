@@ -49,6 +49,7 @@ import static org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointThresho
 
 public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
 {
+
     @Test
     public void mustCreateThresholdThatTriggersAfterTransactionCount()
     {
@@ -56,11 +57,11 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
         threshold.initialize( 1 ); // Initialise at transaction id offset by 1.
 
         // False because we're not yet at threshold.
-        assertFalse( threshold.isCheckPointingNeeded( intervalTx - 1, notTriggered ) );
+        assertFalse( threshold.isCheckPointingNeeded( intervalTx - 1, ARBITRARY_LOG_VERSION, notTriggered ) );
         // Still false because the counter is offset by one, since we initialised with 1.
-        assertFalse( threshold.isCheckPointingNeeded( intervalTx, notTriggered ) );
+        assertFalse( threshold.isCheckPointingNeeded( intervalTx, ARBITRARY_LOG_VERSION, notTriggered ) );
         // True because new we're at intervalTx + initial offset.
-        assertTrue( threshold.isCheckPointingNeeded( intervalTx + 1, triggered ) );
+        assertTrue( threshold.isCheckPointingNeeded( intervalTx + 1, ARBITRARY_LOG_VERSION, triggered ) );
         verifyTriggered( "count" );
         verifyNoMoreTriggers();
     }
@@ -75,10 +76,10 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
         // The clock will trigger at a random point within the interval in the future.
 
         // False because we haven't moved the clock, or the transaction count.
-        assertFalse( threshold.isCheckPointingNeeded( 2, notTriggered ) );
+        assertFalse( threshold.isCheckPointingNeeded( 2, ARBITRARY_LOG_VERSION, notTriggered ) );
         // True because we now moved forward by an interval.
         clock.forward( intervalTime.toMillis(), MILLISECONDS );
-        assertTrue( threshold.isCheckPointingNeeded( 4, triggered ) );
+        assertTrue( threshold.isCheckPointingNeeded( 4, ARBITRARY_LOG_VERSION, triggered ) );
         verifyTriggered( "time" );
         verifyNoMoreTriggers();
     }
@@ -91,7 +92,7 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
         threshold.initialize( 2 );
 
         clock.forward( 50, MILLISECONDS );
-        assertFalse( threshold.isCheckPointingNeeded( 42, notTriggered ) );
+        assertFalse( threshold.isCheckPointingNeeded( 42, ARBITRARY_LOG_VERSION, notTriggered ) );
     }
 
     @Test
@@ -103,7 +104,7 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
 
         clock.forward( 199, MILLISECONDS );
 
-        assertTrue( threshold.isCheckPointingNeeded( 42, triggered ) );
+        assertTrue( threshold.isCheckPointingNeeded( 42, ARBITRARY_LOG_VERSION, triggered ) );
         verifyTriggered( "time" );
         verifyNoMoreTriggers();
     }
@@ -117,7 +118,7 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
 
         clock.forward( 199, MILLISECONDS );
 
-        assertFalse( threshold.isCheckPointingNeeded( 42, notTriggered ) );
+        assertFalse( threshold.isCheckPointingNeeded( 42, ARBITRARY_LOG_VERSION, notTriggered ) );
         verifyNoMoreTriggers();
     }
 
@@ -132,7 +133,7 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
         threshold.checkPointHappened( 42 );
         clock.forward( 100, MILLISECONDS );
 
-        assertFalse( threshold.isCheckPointingNeeded( 42, notTriggered ) );
+        assertFalse( threshold.isCheckPointingNeeded( 42, ARBITRARY_LOG_VERSION, notTriggered ) );
         verifyNoMoreTriggers();
     }
 
@@ -147,7 +148,7 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
         threshold.checkPointHappened( 42 );
         clock.forward( 100, MILLISECONDS );
 
-        assertTrue( threshold.isCheckPointingNeeded( 43, triggered ) );
+        assertTrue( threshold.isCheckPointingNeeded( 43, ARBITRARY_LOG_VERSION, triggered ) );
         verifyTriggered( "time" );
         verifyNoMoreTriggers();
     }
@@ -159,7 +160,7 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
         CheckPointThreshold threshold = createThreshold();
         threshold.initialize( 2 );
 
-        assertFalse( threshold.isCheckPointingNeeded( 2, notTriggered ) );
+        assertFalse( threshold.isCheckPointingNeeded( 2, ARBITRARY_LOG_VERSION, notTriggered ) );
     }
 
     @Test
@@ -169,7 +170,7 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
         CheckPointThreshold threshold = createThreshold();
         threshold.initialize( 2 );
 
-        assertFalse( threshold.isCheckPointingNeeded( 3, notTriggered ) );
+        assertFalse( threshold.isCheckPointingNeeded( 3, ARBITRARY_LOG_VERSION, notTriggered ) );
     }
 
     @Test
@@ -179,7 +180,7 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
         CheckPointThreshold threshold = createThreshold();
         threshold.initialize( 2 );
 
-        assertTrue( threshold.isCheckPointingNeeded( 4, triggered ) );
+        assertTrue( threshold.isCheckPointingNeeded( 4, ARBITRARY_LOG_VERSION, triggered ) );
         verifyTriggered( "count" );
         verifyNoMoreTriggers();
     }
@@ -192,7 +193,7 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
         threshold.initialize( 2 );
 
         threshold.checkPointHappened( 4 );
-        assertFalse( threshold.isCheckPointingNeeded( 4, notTriggered ) );
+        assertFalse( threshold.isCheckPointingNeeded( 4, ARBITRARY_LOG_VERSION, notTriggered ) );
     }
 
     @Test
@@ -203,7 +204,7 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
         threshold.initialize( 2 );
 
         threshold.checkPointHappened( 4 );
-        assertFalse( threshold.isCheckPointingNeeded( 5, notTriggered ) );
+        assertFalse( threshold.isCheckPointingNeeded( 5, ARBITRARY_LOG_VERSION, notTriggered ) );
     }
 
     @Test
@@ -214,7 +215,7 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
         threshold.initialize( 2 );
 
         threshold.checkPointHappened( 4 );
-        assertTrue( threshold.isCheckPointingNeeded( 6, triggered ) );
+        assertTrue( threshold.isCheckPointingNeeded( 6, ARBITRARY_LOG_VERSION, triggered ) );
         verifyTriggered( "count" );
         verifyNoMoreTriggers();
     }

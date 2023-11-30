@@ -44,8 +44,9 @@ import java.time.Duration;
 import java.util.function.Consumer;
 
 import org.neo4j.logging.Log;
+import org.neo4j.scheduler.Group;
 import org.neo4j.scheduler.JobScheduler;
-import org.neo4j.scheduler.JobScheduler.JobHandle;
+import org.neo4j.scheduler.JobHandle;
 import org.neo4j.util.VisibleForTesting;
 
 import static java.lang.Math.max;
@@ -80,7 +81,7 @@ public class VmPauseMonitor
     {
         log.debug( "Starting VM pause monitor" );
         checkState( job == null, "VM pause monitor is already started" );
-        job = requireNonNull( jobScheduler.schedule( JobScheduler.Groups.vmPauseMonitor, this::run ) );
+        job = requireNonNull( jobScheduler.schedule( Group.VM_PAUSE_MONITOR, this::run ) );
     }
 
     public void stop()

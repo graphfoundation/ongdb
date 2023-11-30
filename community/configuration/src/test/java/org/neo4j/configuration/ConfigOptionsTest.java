@@ -38,8 +38,8 @@
  */
 package org.neo4j.configuration;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.List;
@@ -52,7 +52,7 @@ import org.neo4j.graphdb.config.Setting;
 
 import static org.junit.Assert.assertEquals;
 
-public class ConfigOptionsTest
+class ConfigOptionsTest
 {
     private Setting<Integer> setting = new BaseSetting<Integer>()
     {
@@ -94,20 +94,20 @@ public class ConfigOptionsTest
     };
     private ConfigOptions configOptions;
 
-    @Before
-    public void setup()
+    @BeforeEach
+    void setup()
     {
         this.configOptions = new ConfigOptions( setting );
     }
 
     @Test
-    public void setting()
+    void setting()
     {
         assertEquals( setting, configOptions.settingGroup() );
     }
 
     @Test
-    public void asConfigValue()
+    void asConfigValue()
     {
         List<ConfigValue> values = configOptions.asConfigValues( Collections.singletonMap( "myInt", "123" ) );
 

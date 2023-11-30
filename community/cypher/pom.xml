@@ -10,23 +10,24 @@
         <relativePath>../..</relativePath>
     </parent>
 
-    <artifactId>cypher-parent</artifactId>
+    <artifactId>geequel-parent</artifactId>
     <version>1.1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
+
     <name>ONgDB - Community Geequel Build</name>
     <description>Project that builds the ONgDB Geequel modules as part of the Community distribution.</description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
-
-    <properties>
-        <licensing.prepend.text>licensing/notice-gpl-prefix.txt</licensing.prepend.text>
-        <license-text.header>headers/GPL-3-header.txt</license-text.header>
-    </properties>
 
     <scm>
         <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
         <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
         <url>https://github.com/graphfoundation/ongdb.git</url>
     </scm>
+
+    <properties>
+        <licensing.prepend.text>licensing/notice-gpl-prefix.txt</licensing.prepend.text>
+        <license-text.header>headers/GPL-3-header.txt</license-text.header>
+    </properties>
 
     <profiles>
         <profile>
@@ -37,16 +38,18 @@
                 </property>
             </activation>
             <modules>
-                <module>frontend-3.4</module>
-                <module>util-3.4</module>
-                <module>ir-3.4</module>
-                <module>cypher-planner-3.4</module>
-                <module>planner-spi-3.4</module>
-                <module>expressions-3.4</module>
+                <module>ir-3.5</module>
+                <module>cypher-planner-3.5</module>
+                <module>planner-spi-3.5</module>
                 <module>cypher</module>
-                <module>cypher-logical-plans-3.4</module>
+                <module>cypher-logical-plans-3.5</module>
+                <module>front-end</module>
                 <module>runtime-util</module>
                 <module>interpreted-runtime</module>
+                <module>acceptance-spec-suite</module>
+                <module>compatibility-spec-suite</module>
+                <module>spec-suite-tools</module>
+                <module>expression-evaluator</module>
             </modules>
         </profile>
     </profiles>
@@ -75,35 +78,6 @@
                 </configuration>
             </plugin>
         </plugins>
-
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>org.scalastyle</groupId>
-                    <artifactId>scalastyle-maven-plugin</artifactId>
-                    <version>1.0.0</version>
-                    <configuration>
-                        <verbose>false</verbose>
-                        <failOnViolation>true</failOnViolation>
-                        <includeTestSourceDirectory>true</includeTestSourceDirectory>
-                        <failOnWarning>false</failOnWarning>
-                        <inputEncoding>UTF-8</inputEncoding>
-                        <sourceDirectory>${basedir}/src/main/scala</sourceDirectory>
-                        <testSourceDirectory>${basedir}/src/test/scala</testSourceDirectory>
-                        <configLocation>${project.basedir}/../scalastyle_config.xml</configLocation>
-                        <outputFile>${basedir}/target/scalastyle-output.xml</outputFile>
-                        <outputEncoding>UTF-8</outputEncoding>
-                    </configuration>
-                    <executions>
-                        <execution>
-                            <goals>
-                                <goal>check</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                </plugin>
-            </plugins>
-        </pluginManagement>
     </build>
 
     <!-- inherited dependencies, versions are set in dependencyManagement -->
@@ -117,8 +91,16 @@
 
         <!-- shared java test dependencies -->
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-migrationsupport</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
         </dependency>
         <dependency>
             <groupId>org.hamcrest</groupId>

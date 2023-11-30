@@ -20,7 +20,7 @@
 
     <packaging>jar</packaging>
     <name>ONgDB - IO</name>
-    <description>Input/output abstraction layer for ONgDB.</description>
+    <description>Input/output abstraction layer for Neo4j.</description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
     <scm>
@@ -63,11 +63,6 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-primitive-collections</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
         </dependency>
@@ -76,11 +71,34 @@
             <artifactId>ongdb-graphdb-api</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-concurrent</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.collections</groupId>
+            <artifactId>eclipse-collections</artifactId>
+        </dependency>
 
         <!-- Test dependencies -->
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-migrationsupport</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
+            <version>${junit.platform.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
         </dependency>
         <dependency>
             <groupId>org.hamcrest</groupId>
@@ -110,6 +128,11 @@
             <artifactId>ongdb-common</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

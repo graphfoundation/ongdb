@@ -38,12 +38,15 @@
  */
 package org.neo4j.kernel.impl.transaction.state;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Supplier;
 
-import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.Listeners;
 import org.neo4j.internal.kernel.api.Kernel;
 import org.neo4j.kernel.NeoStoreDataSource;
+import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.kernel.lifecycle.LifecycleStatus;
@@ -56,6 +59,13 @@ import org.neo4j.kernel.lifecycle.LifecycleStatus;
  */
 public class DataSourceManager implements Lifecycle, Supplier<Kernel>
 {
+    private final Config config;
+
+    public DataSourceManager( Config config )
+    {
+        this.config = config;
+    }
+
     public interface Listener
     {
         void registered( NeoStoreDataSource dataSource );
@@ -65,7 +75,7 @@ public class DataSourceManager implements Lifecycle, Supplier<Kernel>
 
     private LifeSupport life = new LifeSupport();
     private final Listeners<Listener> dsRegistrationListeners = new Listeners<>();
-    private NeoStoreDataSource dataSource;
+    private final List<NeoStoreDataSource> dataSources = new ArrayList<>();
 
     public void addListener( Listener listener )
     {
@@ -73,10 +83,7 @@ public class DataSourceManager implements Lifecycle, Supplier<Kernel>
         {
             try
             {
-                if ( dataSource != null )
-                {
-                    listener.registered( dataSource );
-                }
+                dataSources.forEach( listener::registered );
             }
             catch ( Throwable t )
             {   // OK
@@ -87,30 +94,39 @@ public class DataSourceManager implements Lifecycle, Supplier<Kernel>
 
     public void register( NeoStoreDataSource dataSource )
     {
-        this.dataSource = dataSource;
+        dataSources.add( dataSource );
         if ( life.getStatus().equals( LifecycleStatus.STARTED ) )
         {
+            life.add( dataSource );
             dsRegistrationListeners.notify( listener -> listener.registered( dataSource ) );
         }
     }
 
     public void unregister( NeoStoreDataSource dataSource )
     {
-        this.dataSource = null;
+        dataSources.remove( dataSource );
         dsRegistrationListeners.notify( listener -> listener.unregistered( dataSource ) );
         life.remove( dataSource );
     }
 
     public NeoStoreDataSource getDataSource()
     {
-        return dataSource;
+        String activeDatabase = config.get( GraphDatabaseSettings.active_database );
+        for ( NeoStoreDataSource dataSource : dataSources )
+        {
+            if ( activeDatabase.equals( dataSource.getDatabaseLayout().getDatabaseName() ) )
+            {
+                return dataSource;
+            }
+        }
+        throw new IllegalStateException( "Default database not found" );
     }
 
     @Override
     public void init()
     {
         life = new LifeSupport();
-        life.add( dataSource );
+        dataSources.forEach( life::add );
     }
 
     @Override
@@ -122,10 +138,7 @@ public class DataSourceManager implements Lifecycle, Supplier<Kernel>
         {
             try
             {
-                if ( dataSource != null )
-                {
-                    listener.registered( dataSource );
-                }
+                dataSources.forEach( listener::registered );
             }
             catch ( Throwable t )
             {   // OK
@@ -143,33 +156,12 @@ public class DataSourceManager implements Lifecycle, Supplier<Kernel>
     public void shutdown()
     {
         life.shutdown();
-        dataSource = null;
+        dataSources.clear();
     }
 
     @Override
     public Kernel get()
     {
-        return dataSource.getKernel();
-    }
-
-    public static class DependencyResolverSupplier implements Supplier<DependencyResolver>
-    {
-        private DataSourceManager dataSourceManager;
-
-        public DependencyResolverSupplier( DataSourceManager dataSourceManager )
-        {
-            this.dataSourceManager = dataSourceManager;
-        }
-
-        @Override
-        public DependencyResolver get()
-        {
-            NeoStoreDataSource dataSource = dataSourceManager.getDataSource();
-            if ( dataSource == null )
-            {
-                return null;
-            }
-            return dataSource.getDependencyResolver();
-        }
+        return getDataSource().getKernel();
     }
 }

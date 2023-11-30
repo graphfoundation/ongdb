@@ -38,12 +38,14 @@
  */
 package org.neo4j.cypher.internal.parser
 
+import org.neo4j.cypher.internal.planner.v3_5.spi.TokenContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.{CommunityExpressionConverter, ExpressionConverters}
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.GreaterThan
 import org.neo4j.cypher.internal.runtime.interpreted.commands.values.TokenType.PropertyKey
 import org.neo4j.cypher.internal.runtime.interpreted.commands.{expressions => legacy}
-import org.neo4j.cypher.internal.v3_4.{expressions => ast}
-import org.neo4j.cypher.internal.frontend.v3_4.parser.{Expressions, ParserTest}
+import org.neo4j.cypher.internal.v3_5.parser.{Expressions, ParserTest}
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.cypher.internal.v3_5.{expressions => ast}
 import org.parboiled.scala._
 
 class ListComprehensionTest extends ParserTest[ast.ListComprehension, legacy.Expression] with Expressions {
@@ -64,6 +66,6 @@ class ListComprehensionTest extends ParserTest[ast.ListComprehension, legacy.Exp
       legacy.ExtractFunction(filterCommand, "a", legacy.Property(legacy.Variable("a"), PropertyKey("foo")))
   }
 
-  private val converters = new ExpressionConverters(CommunityExpressionConverter)
-  def convert(astNode: ast.ListComprehension): legacy.Expression = converters.toCommandExpression(astNode)
+  private val converters = new ExpressionConverters(CommunityExpressionConverter(TokenContext.EMPTY))
+  def convert(astNode: ast.ListComprehension): legacy.Expression = converters.toCommandExpression(Id.INVALID_ID, astNode)
 }

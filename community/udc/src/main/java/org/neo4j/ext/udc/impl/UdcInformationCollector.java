@@ -45,6 +45,4 @@ public interface UdcInformationCollector
     Map<String, String> getUdcParams();
 
     String getStoreId();
-
-    boolean getCrashPing();
 }

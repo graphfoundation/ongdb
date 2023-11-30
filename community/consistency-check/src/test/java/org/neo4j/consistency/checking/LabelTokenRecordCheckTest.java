@@ -38,7 +38,7 @@
  */
 package org.neo4j.consistency.checking;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.consistency.report.ConsistencyReport.LabelTokenConsistencyReport;
 import org.neo4j.kernel.impl.store.record.DynamicRecord;
@@ -47,16 +47,16 @@ import org.neo4j.kernel.impl.store.record.LabelTokenRecord;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
-public class LabelTokenRecordCheckTest
+class LabelTokenRecordCheckTest
         extends RecordCheckTestBase<LabelTokenRecord,LabelTokenConsistencyReport,LabelTokenRecordCheck>
 {
-    public LabelTokenRecordCheckTest()
+    LabelTokenRecordCheckTest()
     {
         super( new LabelTokenRecordCheck(), LabelTokenConsistencyReport.class, new int[0] );
     }
 
     @Test
-    public void shouldNotReportAnythingForRecordNotInUse()
+    void shouldNotReportAnythingForRecordNotInUse()
     {
         // given
         LabelTokenRecord key = notInUse( new LabelTokenRecord( 42 ) );
@@ -69,7 +69,7 @@ public class LabelTokenRecordCheckTest
     }
 
     @Test
-    public void shouldNotReportAnythingForRecordThatDoesNotReferenceADynamicBlock()
+    void shouldNotReportAnythingForRecordThatDoesNotReferenceADynamicBlock()
     {
         // given
         LabelTokenRecord key = inUse( new LabelTokenRecord( 42 ) );
@@ -82,7 +82,7 @@ public class LabelTokenRecordCheckTest
     }
 
     @Test
-    public void shouldReportDynamicBlockNotInUse()
+    void shouldReportDynamicBlockNotInUse()
     {
         // given
         LabelTokenRecord key = inUse( new LabelTokenRecord( 42 ) );
@@ -98,7 +98,7 @@ public class LabelTokenRecordCheckTest
     }
 
     @Test
-    public void shouldReportEmptyName()
+    void shouldReportEmptyName()
     {
         // given
         LabelTokenRecord key = inUse( new LabelTokenRecord( 42 ) );

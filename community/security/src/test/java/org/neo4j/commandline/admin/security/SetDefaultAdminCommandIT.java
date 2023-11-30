@@ -47,9 +47,10 @@ import org.neo4j.commandline.admin.AdminTool;
 import org.neo4j.commandline.admin.BlockerLocator;
 import org.neo4j.commandline.admin.CommandLocator;
 import org.neo4j.commandline.admin.OutsideWorld;
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.graphdb.mockfs.EphemeralFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.impl.security.Credential;
+import org.neo4j.server.security.auth.LegacyCredential;
 import org.neo4j.kernel.impl.security.User;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.server.security.auth.CommunitySecurityModule;
@@ -81,7 +82,7 @@ public class SetDefaultAdminCommandIT
     @Before
     public void setup()
     {
-        File graphDir = new File( "graph-db" );
+        File graphDir = new File( GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
         confDir = new File( graphDir, "conf" );
         homeDir = new File( graphDir, "home" );
         out = mock( OutsideWorld.class );
@@ -154,12 +155,12 @@ public class SetDefaultAdminCommandIT
 
         verify( out ).stdErrLine( "not enough arguments" );
         verify( out, times( 3 ) ).stdErrLine( "" );
-        verify( out ).stdErrLine( "usage: ongdb-admin set-default-admin <username>" );
+        verify( out ).stdErrLine( "usage: neo4j-admin set-default-admin <username>" );
         verify( out, times( 3 ) ).stdErrLine( "" );
         verify( out ).stdErrLine( String.format( "environment variables:" ) );
-        verify( out ).stdErrLine( String.format( "    ONGDB_CONF    Path to directory which contains ongdb.conf." ) );
-        verify( out ).stdErrLine( String.format( "    ONGDB_DEBUG   Set to anything to enable debug output." ) );
-        verify( out ).stdErrLine( String.format( "    ONGDB_HOME    ONgDB home directory." ) );
+        verify( out ).stdErrLine( String.format( "    NEO4J_CONF    Path to directory which contains neo4j.conf." ) );
+        verify( out ).stdErrLine( String.format( "    NEO4J_DEBUG   Set to anything to enable debug output." ) );
+        verify( out ).stdErrLine( String.format( "    NEO4J_HOME    Neo4j home directory." ) );
         verify( out ).stdErrLine( String.format( "    HEAP_SIZE     Set JVM maximum heap size during command execution." ) );
         verify( out ).stdErrLine( String.format( "                  Takes a number and a unit, for example 512m." ) );
         verify( out ).stdErrLine(
@@ -178,12 +179,12 @@ public class SetDefaultAdminCommandIT
 
         verify( out ).stdErrLine( "unrecognized arguments: 'bar'" );
         verify( out, times( 3 ) ).stdErrLine( "" );
-        verify( out ).stdErrLine( "usage: ongdb-admin set-default-admin <username>" );
+        verify( out ).stdErrLine( "usage: neo4j-admin set-default-admin <username>" );
         verify( out, times( 3 ) ).stdErrLine( "" );
         verify( out ).stdErrLine( String.format( "environment variables:" ) );
-        verify( out ).stdErrLine( String.format( "    ONGDB_CONF    Path to directory which contains ongdb.conf." ) );
-        verify( out ).stdErrLine( String.format( "    ONGDB_DEBUG   Set to anything to enable debug output." ) );
-        verify( out ).stdErrLine( String.format( "    ONGDB_HOME    ONgDB home directory." ) );
+        verify( out ).stdErrLine( String.format( "    NEO4J_CONF    Path to directory which contains neo4j.conf." ) );
+        verify( out ).stdErrLine( String.format( "    NEO4J_DEBUG   Set to anything to enable debug output." ) );
+        verify( out ).stdErrLine( String.format( "    NEO4J_HOME    Neo4j home directory." ) );
         verify( out ).stdErrLine( String.format( "    HEAP_SIZE     Set JVM maximum heap size during command execution." ) );
         verify( out ).stdErrLine( String.format( "                  Takes a number and a unit, for example 512m." ) );
         verify( out ).stdErrLine(
@@ -201,7 +202,7 @@ public class SetDefaultAdminCommandIT
         FileUserRepository userRepository = new FileUserRepository( fileSystem, userFile,
                 NullLogProvider.getInstance() );
         userRepository.start();
-        userRepository.create( new User.Builder( username, Credential.INACCESSIBLE ).build() );
+        userRepository.create( new User.Builder( username, LegacyCredential.INACCESSIBLE ).build() );
         assertTrue( userRepository.getAllUsernames().contains( username ) );
         userRepository.stop();
         userRepository.shutdown();

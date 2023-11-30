@@ -41,7 +41,6 @@ package org.neo4j.server.rest.transactional;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonNode;
-
 import org.hamcrest.MatcherAssert;
 import org.junit.Test;
 

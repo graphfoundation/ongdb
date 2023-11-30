@@ -42,10 +42,11 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 
-import java.io.File;
 import java.util.Arrays;
 
+import org.neo4j.dbms.database.DatabaseManager;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
 import org.neo4j.kernel.configuration.Config;
@@ -67,6 +68,7 @@ import org.neo4j.kernel.impl.transaction.command.NeoStoreBatchTransactionApplier
 import org.neo4j.kernel.impl.transaction.log.PhysicalTransactionRepresentation;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.test.rule.PageCacheRule;
+import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
 
 import static org.junit.Assert.assertEquals;
@@ -77,6 +79,29 @@ import static org.mockito.Mockito.when;
 
 public class ApplyRecoveredTransactionsTest
 {
+    private final EphemeralFileSystemRule fs = new EphemeralFileSystemRule();
+    private final PageCacheRule pageCacheRule = new PageCacheRule();
+    private final TestDirectory testDirectory = TestDirectory.testDirectory( fs );
+    @Rule
+    public final RuleChain ruleChain = RuleChain.outerRule( fs ).around( testDirectory ).around( pageCacheRule );
+
+    private NeoStores neoStores;
+
+    @Before
+    public void before()
+    {
+        FileSystemAbstraction fs = this.fs.get();
+        StoreFactory storeFactory = new StoreFactory( testDirectory.databaseLayout(), Config.defaults(), new DefaultIdGeneratorFactory( fs ),
+                pageCacheRule.getPageCache( fs ), fs, NullLogProvider.getInstance(), EmptyVersionContextSupplier.EMPTY );
+        neoStores = storeFactory.openAllNeoStores( true );
+    }
+
+    @After
+    public void after()
+    {
+        neoStores.close();
+    }
+
     @Test
     public void shouldSetCorrectHighIdWhenApplyingExternalTransactions() throws Exception
     {
@@ -122,35 +147,13 @@ public class ApplyRecoveredTransactionsTest
         }, new TransactionToApply( tx, transactionId ) );
     }
 
-    @Rule
-    public final EphemeralFileSystemRule fsr = new EphemeralFileSystemRule();
-    @Rule
-    public final PageCacheRule pageCacheRule = new PageCacheRule();
-    private NeoStores neoStores;
-
-    @Before
-    public void before()
-    {
-        FileSystemAbstraction fs = fsr.get();
-        File storeDir = new File( "dir" );
-        StoreFactory storeFactory = new StoreFactory( storeDir, Config.defaults(), new DefaultIdGeneratorFactory( fs ),
-                pageCacheRule.getPageCache( fs ), fs, NullLogProvider.getInstance(), EmptyVersionContextSupplier.EMPTY );
-        neoStores = storeFactory.openAllNeoStores( true );
-    }
-
-    @After
-    public void after()
-    {
-        neoStores.close();
-    }
-
-    private <RECORD extends AbstractBaseRecord> RECORD inUse( RECORD record )
+    private static <RECORD extends AbstractBaseRecord> RECORD inUse( RECORD record )
     {
         record.setInUse( true );
         return record;
     }
 
-    private <RECORD extends AbstractBaseRecord> RECORD created( RECORD record )
+    private static <RECORD extends AbstractBaseRecord> RECORD created( RECORD record )
     {
         record.setCreated();
         return record;

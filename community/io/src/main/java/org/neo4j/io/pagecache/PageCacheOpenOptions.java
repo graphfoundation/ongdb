@@ -52,5 +52,10 @@ public enum PageCacheOpenOptions implements OpenOption
      * If so, the given file page size will be ignored and a {@link PagedFile} will be returned that uses the
      * file page size of the existing mapping.
      */
-    ANY_PAGE_SIZE
+    ANY_PAGE_SIZE,
+
+    /**
+     * Mapped file will only use a single channel, overriding the otherwise configured striping amount, e.g. one channel per core.
+     */
+    NO_CHANNEL_STRIPING
 }

@@ -38,25 +38,24 @@
  */
 package org.neo4j.values.virtual;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.neo4j.values.storable.Values.longValue;
 import static org.neo4j.values.virtual.VirtualValues.EMPTY_LIST;
 import static org.neo4j.values.virtual.VirtualValues.list;
-import static org.neo4j.values.virtual.VirtualValues.reverse;
 
-public class ReversedListTest
+class ReversedListTest
 {
 
     @Test
-    public void shouldHandleEmptyList()
+    void shouldHandleEmptyList()
     {
         // Given
         ListValue inner = EMPTY_LIST;
         // When
-        ListValue reverse = reverse( inner );
+        ListValue reverse = inner.reverse();
 
         // Then
         assertEquals( inner, reverse );
@@ -65,13 +64,13 @@ public class ReversedListTest
     }
 
     @Test
-    public void shouldHandleSingleItemList()
+    void shouldHandleSingleItemList()
     {
         // Given
         ListValue inner = list( longValue( 5L ) );
 
         // When
-        ListValue reverse = reverse( inner );
+        ListValue reverse = inner.reverse();
 
         // Then
         assertEquals( inner, reverse );
@@ -80,13 +79,13 @@ public class ReversedListTest
     }
 
     @Test
-    public void shouldReverseList()
+    void shouldReverseList()
     {
         // Given
         ListValue inner = list( longValue( 5L ), longValue( 6L ), longValue( 7L ) );
 
         // When
-        ListValue reverse = reverse( inner );
+        ListValue reverse = inner.reverse();
 
         // Then
         ListValue expected = list( longValue( 7L ), longValue( 6L ), longValue( 5L ) );

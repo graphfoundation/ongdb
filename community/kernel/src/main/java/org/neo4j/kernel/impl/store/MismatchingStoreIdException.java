@@ -38,6 +38,8 @@
  */
 package org.neo4j.kernel.impl.store;
 
+import org.neo4j.storageengine.api.StoreId;
+
 public class MismatchingStoreIdException extends StoreFailureException
 {
     private final StoreId expected;

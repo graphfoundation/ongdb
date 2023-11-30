@@ -40,9 +40,12 @@ package org.neo4j.kernel.api.proc;
 
 import java.time.Clock;
 
+import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
+import org.neo4j.internal.kernel.api.procs.ProcedureCallContext;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
 import org.neo4j.kernel.api.KernelTransaction;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
 
 /**
  * The context in which a procedure is invoked. This is a read-only map-like structure.
@@ -54,8 +57,11 @@ import org.neo4j.kernel.api.KernelTransaction;
  */
 public interface Context
 {
+    Key<DependencyResolver> DEPENDENCY_RESOLVER = Key.key( "DependencyResolver", DependencyResolver.class );
+    Key<GraphDatabaseAPI> DATABASE_API = Key.key( "DatabaseAPI", GraphDatabaseAPI.class );
     Key<KernelTransaction> KERNEL_TRANSACTION = Key.key( "KernelTransaction", KernelTransaction.class );
     Key<SecurityContext> SECURITY_CONTEXT = Key.key( "SecurityContext", SecurityContext.class );
+    Key<ProcedureCallContext> PROCEDURE_CALL_CONTEXT = Key.key( "ProcedureCallContext", ProcedureCallContext.class );
     Key<Thread> THREAD = Key.key( "Thread", Thread.class );
     Key<Clock> SYSTEM_CLOCK = Key.key( "SystemClock", Clock.class );
     Key<Clock> STATEMENT_CLOCK = Key.key( "StatementClock", Clock.class );

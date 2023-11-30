@@ -40,58 +40,31 @@ package org.neo4j.bolt;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.InOrder;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import io.netty.channel.embedded.EmbeddedChannel;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.bolt.logging.BoltMessageLogger;
+import org.neo4j.helpers.SocketAddress;
+import org.neo4j.kernel.impl.query.clientconnection.ClientConnectionInfo;
 
-import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.inOrder;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-@RunWith( MockitoJUnitRunner.class )
-public class BoltChannelTest
+class BoltChannelTest
 {
-    private final String connector = "default";
-    @Mock
-    private Channel channel;
-    @Mock
-    private BoltMessageLogger messageLogger;
+    private final Channel channel = mock( Channel.class );
 
     @Test
-    public void shouldLogWhenOpened()
-    {
-        BoltChannel boltChannel = BoltChannel.open( connector, channel, messageLogger );
-        assertNotNull( boltChannel );
-
-        verify( messageLogger ).serverEvent( "OPEN" );
-    }
-
-    @Test
-    public void shouldLogWhenClosed()
+    void shouldCloseUnderlyingChannelWhenItIsOpen()
     {
         Channel channel = channelMock( true );
-        BoltChannel boltChannel = BoltChannel.open( connector, channel, messageLogger );
-        assertNotNull( boltChannel );
-
-        boltChannel.close();
-
-        InOrder inOrder = inOrder( messageLogger );
-        inOrder.verify( messageLogger ).serverEvent( "OPEN" );
-        inOrder.verify( messageLogger ).serverEvent( "CLOSE" );
-    }
-
-    @Test
-    public void shouldCloseUnderlyingChannelWhenItIsOpen()
-    {
-        Channel channel = channelMock( true );
-        BoltChannel boltChannel = BoltChannel.open( connector, channel, messageLogger );
+        BoltChannel boltChannel = new BoltChannel( "bolt-1", "bolt", channel );
 
         boltChannel.close();
 
@@ -99,14 +72,71 @@ public class BoltChannelTest
     }
 
     @Test
-    public void shouldNotCloseUnderlyingChannelWhenItIsClosed()
+    void shouldNotCloseUnderlyingChannelWhenItIsClosed()
     {
         Channel channel = channelMock( false );
-        BoltChannel boltChannel = BoltChannel.open( connector, channel, messageLogger );
+        BoltChannel boltChannel = new BoltChannel( "bolt-1", "bolt", channel );
 
         boltChannel.close();
 
         verify( channel, never() ).close();
+    }
+
+    @Test
+    void shouldHaveId()
+    {
+        BoltChannel boltChannel = new BoltChannel( "bolt-42", "bolt", channel );
+
+        assertEquals( "bolt-42", boltChannel.id() );
+    }
+
+    @Test
+    void shouldHaveConnector()
+    {
+        BoltChannel boltChannel = new BoltChannel( "bolt-1", "my-bolt", channel );
+
+        assertEquals( "my-bolt", boltChannel.connector() );
+    }
+
+    @Test
+    void shouldHaveConnectTime()
+    {
+        BoltChannel boltChannel = new BoltChannel( "bolt-1", "my-bolt", channel );
+
+        assertThat( boltChannel.connectTime(), greaterThan( 0L ) );
+    }
+
+    @Test
+    void shouldHaveUsernameAndUserAgent()
+    {
+        BoltChannel boltChannel = new BoltChannel( "bolt-1", "my-bolt", channel );
+
+        assertNull( boltChannel.username() );
+        boltChannel.updateUser( "hello", "my-bolt-driver/1.2.3" );
+        assertEquals( "hello", boltChannel.username() );
+        assertEquals( "my-bolt-driver/1.2.3", boltChannel.userAgent() );
+    }
+
+    @Test
+    @SuppressWarnings( "deprecation" )
+    void shouldExposeClientConnectionInfo()
+    {
+        EmbeddedChannel channel = new EmbeddedChannel();
+        BoltChannel boltChannel = new BoltChannel( "bolt-42", "my-bolt", channel );
+
+        ClientConnectionInfo info1 = boltChannel.info();
+        assertEquals( "bolt-42", info1.connectionId() );
+        assertEquals( "bolt", info1.protocol() );
+        assertEquals( SocketAddress.format( channel.remoteAddress() ), info1.clientAddress() );
+
+        boltChannel.updateUser( "Tom", "my-driver" );
+
+        ClientConnectionInfo info2 = boltChannel.info();
+        assertEquals( "bolt-42", info2.connectionId() );
+        assertEquals( "bolt", info2.protocol() );
+        assertEquals( SocketAddress.format( channel.remoteAddress() ), info2.clientAddress() );
+        assertThat( info2.asConnectionDetails(), containsString( "Tom" ) );
+        assertThat( info2.asConnectionDetails(), containsString( "my-driver" ) );
     }
 
     private static Channel channelMock( boolean open )

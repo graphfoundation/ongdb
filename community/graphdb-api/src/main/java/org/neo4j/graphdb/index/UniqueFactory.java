@@ -53,11 +53,15 @@ import org.neo4j.graphdb.Transaction;
  * Uses the {@link Index#putIfAbsent(PropertyContainer, String, Object) putIfAbsent() method} of the referenced index.
  *
  * @param <T> the type of entity created by this {@link UniqueFactory}.
+ *
+ * @deprecated This API will be removed in next major release. Please consider using schema constraints and the Cypher {@code MERGE} clause instead.
  */
+@Deprecated
 public abstract class UniqueFactory<T extends PropertyContainer>
 {
     private final Index<T> index;
 
+    @Deprecated
     public static class UniqueEntity<T extends PropertyContainer>
     {
         private final T entity;
@@ -69,11 +73,13 @@ public abstract class UniqueFactory<T extends PropertyContainer>
             this.created = created;
         }
 
+        @Deprecated
         public T entity()
         {
             return this.entity;
         }
 
+        @Deprecated
         public boolean wasCreated()
         {
             return this.created;
@@ -83,6 +89,7 @@ public abstract class UniqueFactory<T extends PropertyContainer>
     /**
      * Implementation of {@link UniqueFactory} for {@link Node}.
      */
+    @Deprecated
     public abstract static class UniqueNodeFactory extends UniqueFactory<Node>
     {
         /**
@@ -90,6 +97,7 @@ public abstract class UniqueFactory<T extends PropertyContainer>
          *
          * @param index the index to store entities uniquely in.
          */
+        @Deprecated
         public UniqueNodeFactory( Index<Node> index )
         {
             super( index );
@@ -101,6 +109,7 @@ public abstract class UniqueFactory<T extends PropertyContainer>
          * @param graphdb the graph database to get the index from.
          * @param index the name of the index to store entities uniquely in.
          */
+        @Deprecated
         public UniqueNodeFactory( GraphDatabaseService graphdb, String index )
         {
             super( graphdb.index().forNodes( index ) );
@@ -114,6 +123,7 @@ public abstract class UniqueFactory<T extends PropertyContainer>
          * @see UniqueFactory#create(Map)
          * @see UniqueFactory#initialize(PropertyContainer, Map)
          */
+        @Deprecated
         @Override
         protected Node create( Map<String, Object> properties )
         {
@@ -126,6 +136,7 @@ public abstract class UniqueFactory<T extends PropertyContainer>
          *
          * @see UniqueFactory#delete(PropertyContainer)
          */
+        @Deprecated
         @Override
         protected void delete( Node node )
         {
@@ -136,6 +147,7 @@ public abstract class UniqueFactory<T extends PropertyContainer>
     /**
      * Implementation of {@link UniqueFactory} for {@link Relationship}.
      */
+    @Deprecated
     public abstract static class UniqueRelationshipFactory extends UniqueFactory<Relationship>
     {
         /**
@@ -143,6 +155,7 @@ public abstract class UniqueFactory<T extends PropertyContainer>
          *
          * @param index the index to store entities uniquely in.
          */
+        @Deprecated
         public UniqueRelationshipFactory( Index<Relationship> index )
         {
             super( index );
@@ -154,6 +167,7 @@ public abstract class UniqueFactory<T extends PropertyContainer>
          * @param graphdb the graph database to get the index from.
          * @param index the name of the index to store entities uniquely in.
          */
+        @Deprecated
         public UniqueRelationshipFactory( GraphDatabaseService graphdb, String index )
         {
             super( graphdb.index().forRelationships( index ) );
@@ -167,6 +181,7 @@ public abstract class UniqueFactory<T extends PropertyContainer>
          * @see UniqueFactory#initialize(PropertyContainer, Map)
          * @see UniqueFactory#create(Map)
          */
+        @Deprecated
         @Override
         protected void initialize( Relationship relationship, Map<String, Object> properties )
         {
@@ -179,6 +194,7 @@ public abstract class UniqueFactory<T extends PropertyContainer>
          *
          * @see UniqueFactory#delete(PropertyContainer)
          */
+        @Deprecated
         @Override
         protected void delete( Relationship relationship )
         {
@@ -200,6 +216,7 @@ public abstract class UniqueFactory<T extends PropertyContainer>
      * @param properties the properties that this entity will is to be indexed uniquely with.
      * @return the entity to add to the index.
      */
+    @Deprecated
     protected abstract T create( Map<String, Object> properties );
 
     /**
@@ -213,6 +230,7 @@ public abstract class UniqueFactory<T extends PropertyContainer>
      * @param created the created entity to initialize.
      * @param properties the properties that this entity was indexed uniquely with.
      */
+    @Deprecated
     protected abstract void initialize( T created, Map<String, Object> properties );
 
     /**
@@ -223,6 +241,7 @@ public abstract class UniqueFactory<T extends PropertyContainer>
      *
      * @param created the entity that was created but was not added to the index.
      */
+    @Deprecated
     protected abstract void delete( T created );
 
     /**
@@ -231,6 +250,7 @@ public abstract class UniqueFactory<T extends PropertyContainer>
      * @param value the value the key is mapped to for the entity in the index.
      * @return the unique entity in the index.
      */
+    @Deprecated
     public final T getOrCreate( String key, Object value )
     {
         return getOrCreateWithOutcome( key, value ).entity();
@@ -244,6 +264,7 @@ public abstract class UniqueFactory<T extends PropertyContainer>
      * @return the unique entity in the index as well as whether or not it was created,
      * wrapped in a {@link UniqueEntity}.
      */
+    @Deprecated
     public final UniqueEntity<T> getOrCreateWithOutcome( String key, Object value )
     {
         // Index reads implies asserting we're in a transaction.
@@ -276,6 +297,7 @@ public abstract class UniqueFactory<T extends PropertyContainer>
      * Get the {@link GraphDatabaseService graph database} of the referenced index.
      * @return the {@link GraphDatabaseService graph database} of the referenced index.
      */
+    @Deprecated
     protected final GraphDatabaseService graphDatabase()
     {
         return index.getGraphDatabase();
@@ -285,6 +307,7 @@ public abstract class UniqueFactory<T extends PropertyContainer>
      * Get the referenced index.
      * @return the referenced index.
      */
+    @Deprecated
     protected final Index<T> index()
     {
         return index;

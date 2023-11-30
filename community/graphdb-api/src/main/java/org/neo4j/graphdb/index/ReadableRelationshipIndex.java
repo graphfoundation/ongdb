@@ -50,7 +50,9 @@ import org.neo4j.graphdb.Relationship;
  * relationships.
  *
  * @author Mattias Persson
+ * @deprecated This API will be removed in next major release. Please consider using schema indexes instead.
  */
+@Deprecated
 public interface ReadableRelationshipIndex extends ReadableIndex<Relationship>
 {
     /**
@@ -68,6 +70,7 @@ public interface ReadableRelationshipIndex extends ReadableIndex<Relationship>
      *         result set isn't looped through, {@link IndexHits#close()} must
      *         be called before disposing of the result.
      */
+    @Deprecated
     IndexHits<Relationship> get( String key, Object valueOrNull, Node startNodeOrNull,
             Node endNodeOrNull );
 
@@ -86,6 +89,7 @@ public interface ReadableRelationshipIndex extends ReadableIndex<Relationship>
      *         result set isn't looped through, {@link IndexHits#close()} must
      *         be called before disposing of the result.
      */
+    @Deprecated
     IndexHits<Relationship> query( String key, Object queryOrQueryObjectOrNull,
             Node startNodeOrNull, Node endNodeOrNull );
 
@@ -102,6 +106,7 @@ public interface ReadableRelationshipIndex extends ReadableIndex<Relationship>
      *         result set isn't looped through, {@link IndexHits#close()} must
      *         be called before disposing of the result.
      */
+    @Deprecated
     IndexHits<Relationship> query( Object queryOrQueryObjectOrNull, Node startNodeOrNull,
             Node endNodeOrNull );
 }

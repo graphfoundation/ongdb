@@ -41,8 +41,9 @@ package org.neo4j.kernel.impl.api.schema;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.neo4j.internal.kernel.api.IndexOrder;
 import org.neo4j.internal.kernel.api.IndexQuery;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
+import org.neo4j.storageengine.api.schema.IndexDescriptor;
 import org.neo4j.storageengine.api.schema.IndexProgressor;
 import org.neo4j.values.storable.Value;
 
@@ -54,7 +55,7 @@ public class BridgingIndexProgressor implements IndexProgressor.NodeValueClient,
     private final NodeValueClient client;
     private final int[] keys;
     // This is a thread-safe queue because it can be used in parallel scenarios.
-    // The overhead of a concurrent queue in this case is negligable since typically there will be two or a very few number
+    // The overhead of a concurrent queue in this case is negligible since typically there will be two or a very few number
     // of progressors and each progressor has many results each
     private final Queue<IndexProgressor> progressors = new ConcurrentLinkedQueue<>();
     private IndexProgressor current;
@@ -100,7 +101,11 @@ public class BridgingIndexProgressor implements IndexProgressor.NodeValueClient,
     }
 
     @Override
-    public void initialize( SchemaIndexDescriptor descriptor, IndexProgressor progressor, IndexQuery[] queries )
+    public void initialize( IndexDescriptor descriptor,
+                            IndexProgressor progressor,
+                            IndexQuery[] queries,
+                            IndexOrder indexOrder,
+                            boolean needsValues )
     {
         assertKeysAlign( descriptor.schema().getPropertyIds() );
         progressors.add( progressor );

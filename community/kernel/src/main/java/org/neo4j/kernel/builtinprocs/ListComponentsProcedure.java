@@ -44,6 +44,7 @@ import org.neo4j.internal.kernel.api.procs.QualifiedName;
 import org.neo4j.kernel.api.ResourceTracker;
 import org.neo4j.kernel.api.proc.CallableProcedure;
 import org.neo4j.kernel.api.proc.Context;
+import org.neo4j.procedure.Mode;
 
 import static java.util.Collections.singletonList;
 import static org.neo4j.helpers.collection.Iterators.asRawIterator;
@@ -59,7 +60,7 @@ import static org.neo4j.internal.kernel.api.procs.ProcedureSignature.procedureSi
  * get a list of which components are loaded and what versions of them.
  *
  * This way, it works as a general mechanism into which capabilities
- * a given ONgDB system has, and which version of those components
+ * a given Neo4j system has, and which version of those components
  * are in use.
  *
  * This would include things like Kernel, Storage Engine, Query Engines,
@@ -67,10 +68,10 @@ import static org.neo4j.internal.kernel.api.procs.ProcedureSignature.procedureSi
  */
 public class ListComponentsProcedure extends CallableProcedure.BasicProcedure
 {
-    private final String ongdbVersion;
-    private final String ongdbEdition;
+    private final String neo4jVersion;
+    private final String neo4jEdition;
 
-    public ListComponentsProcedure( QualifiedName name, String ongdbVersion, String ongdbEdition )
+    public ListComponentsProcedure( QualifiedName name, String neo4jVersion, String neo4jEdition )
     {
         super( procedureSignature( name )
                 .out( "name", NTString )
@@ -78,10 +79,11 @@ public class ListComponentsProcedure extends CallableProcedure.BasicProcedure
                 // at the same time, list of versions rather than single version.
                 .out( "versions", NTList( NTString ) )
                 .out( "edition", NTString )
+                .mode( Mode.DBMS )
                 .description( "List DBMS components and their versions." )
                 .build() );
-        this.ongdbVersion = ongdbVersion;
-        this.ongdbEdition = ongdbEdition;
+        this.neo4jVersion = neo4jVersion;
+        this.neo4jEdition = neo4jEdition;
     }
 
     @Override
@@ -89,6 +91,6 @@ public class ListComponentsProcedure extends CallableProcedure.BasicProcedure
             throws ProcedureException
     {
         return asRawIterator( singletonList(
-                new Object[]{"ONgDB Kernel", singletonList( ongdbVersion ), ongdbEdition}).iterator() );
+                new Object[]{"ONgDB Kernel", singletonList( neo4jVersion ), neo4jEdition}).iterator() );
     }
 }

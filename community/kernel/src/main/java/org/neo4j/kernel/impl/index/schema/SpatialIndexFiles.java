@@ -45,10 +45,10 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.neo4j.index.internal.gbptree.Layout;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
+import org.neo4j.kernel.impl.index.schema.config.ConfiguredSpaceFillingCurveSettingsCache;
 import org.neo4j.kernel.impl.index.schema.config.SpaceFillingCurveSettings;
 import org.neo4j.kernel.impl.index.schema.config.SpaceFillingCurveSettingsFactory;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
@@ -57,13 +57,14 @@ class SpatialIndexFiles
 {
     private static final Pattern CRS_DIR_PATTERN = Pattern.compile( "(\\d+)-(\\d+)" );
     private final FileSystemAbstraction fs;
-    private final SpaceFillingCurveSettingsFactory settingsFactory;
+    private final ConfiguredSpaceFillingCurveSettingsCache configuredSettings;
     private final File indexDirectory;
 
-    SpatialIndexFiles( IndexDirectoryStructure directoryStructure, long indexId, FileSystemAbstraction fs, SpaceFillingCurveSettingsFactory settingsFactory )
+    SpatialIndexFiles( IndexDirectoryStructure directoryStructure, long indexId, FileSystemAbstraction fs,
+            ConfiguredSpaceFillingCurveSettingsCache settingsCache )
     {
         this.fs = fs;
-        this.settingsFactory = settingsFactory;
+        this.configuredSettings = settingsCache;
         indexDirectory = directoryStructure.directoryForIndex( indexId );
     }
 
@@ -84,7 +85,7 @@ class SpatialIndexFiles
 
     SpatialFile forCrs( CoordinateReferenceSystem crs )
     {
-        return new SpatialFile( crs, settingsFactory, indexDirectory );
+        return new SpatialFile( crs, configuredSettings, indexDirectory );
     }
 
     private void addExistingFiles( List<SpatialFile> existing )
@@ -110,13 +111,13 @@ class SpatialIndexFiles
     static class SpatialFile
     {
         final File indexFile;
-        final SpaceFillingCurveSettingsFactory settings;
-        private final CoordinateReferenceSystem crs;
+        final ConfiguredSpaceFillingCurveSettingsCache configuredSettings;
+        final CoordinateReferenceSystem crs;
 
-        SpatialFile( CoordinateReferenceSystem crs, SpaceFillingCurveSettingsFactory settingsFactory, File indexDirectory )
+        SpatialFile( CoordinateReferenceSystem crs, ConfiguredSpaceFillingCurveSettingsCache configuredSettings, File indexDirectory )
         {
             this.crs = crs;
-            this.settings = settingsFactory;
+            this.configuredSettings = configuredSettings;
             String s = crs.getTable().getTableId() + "-" + Integer.toString( crs.getCode() );
             this.indexFile = new File( indexDirectory, s );
         }
@@ -126,7 +127,7 @@ class SpatialIndexFiles
          */
         SpatialFileLayout getLayoutForNewIndex()
         {
-            return new SpatialFileLayout( this, settings.settingsFor( crs ) );
+            return new SpatialFileLayout( this, configuredSettings.forCRS( crs ) );
         }
 
         /**
@@ -135,7 +136,7 @@ class SpatialIndexFiles
         SpatialFileLayout getLayoutForExistingIndex( PageCache pageCache ) throws IOException
         {
             SpaceFillingCurveSettings settings =
-                    SpaceFillingCurveSettings.fromGBPTree( indexFile, pageCache, NativeSchemaIndexHeaderReader::readFailureMessage );
+                    SpaceFillingCurveSettingsFactory.fromGBPTree( indexFile, pageCache, NativeIndexHeaderReader::readFailureMessage );
             return new SpatialFileLayout( this, settings );
         }
     }
@@ -144,7 +145,7 @@ class SpatialIndexFiles
     {
         final SpaceFillingCurveSettings settings;
         final SpatialFile spatialFile;
-        final Layout<SpatialSchemaKey,NativeSchemaValue> layout;
+        final IndexLayout<SpatialIndexKey,NativeIndexValue> layout;
 
         SpatialFileLayout( SpatialFile spatialFile, SpaceFillingCurveSettings settings )
         {

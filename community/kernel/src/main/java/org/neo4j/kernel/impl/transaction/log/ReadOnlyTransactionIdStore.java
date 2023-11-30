@@ -40,10 +40,9 @@ package org.neo4j.kernel.impl.transaction.log;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.concurrent.TimeoutException;
 
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.impl.store.MetaDataStore.Position;
 import org.neo4j.kernel.impl.store.NeoStores;
 import org.neo4j.kernel.impl.store.TransactionId;
@@ -57,15 +56,15 @@ public class ReadOnlyTransactionIdStore implements TransactionIdStore
     private final long logVersion;
     private final long byteOffset;
 
-    public ReadOnlyTransactionIdStore( PageCache pageCache, File storeDir ) throws IOException
+    public ReadOnlyTransactionIdStore( PageCache pageCache, DatabaseLayout databaseLayout ) throws IOException
     {
         long id = 0;
         long checksum = 0;
         long logVersion = 0;
         long byteOffset = 0;
-        if ( NeoStores.isStorePresent( pageCache, storeDir ) )
+        if ( NeoStores.isStorePresent( pageCache, databaseLayout ) )
         {
-            File neoStore = new File( storeDir, MetaDataStore.DEFAULT_NAME );
+            File neoStore = databaseLayout.metadataStore();
             id = getRecord( pageCache, neoStore, Position.LAST_TRANSACTION_ID );
             checksum = getRecord( pageCache, neoStore, Position.LAST_TRANSACTION_CHECKSUM );
             logVersion = getRecord( pageCache, neoStore, Position.LAST_CLOSED_TRANSACTION_LOG_VERSION );
@@ -141,12 +140,6 @@ public class ReadOnlyTransactionIdStore implements TransactionIdStore
 
     @Override
     public void transactionClosed( long transactionId, long logVersion, long logByteOffset )
-    {
-        throw new UnsupportedOperationException( "Read-only transaction ID store" );
-    }
-
-    @Override
-    public boolean closedTransactionIdIsOnParWithOpenedTransactionId()
     {
         throw new UnsupportedOperationException( "Read-only transaction ID store" );
     }

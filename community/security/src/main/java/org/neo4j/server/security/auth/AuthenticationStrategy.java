@@ -49,5 +49,5 @@ public interface AuthenticationStrategy
     /**
      * Verify a user by password
      */
-    AuthenticationResult authenticate( User user, String password );
+    AuthenticationResult authenticate( User user, byte[] password );
 }

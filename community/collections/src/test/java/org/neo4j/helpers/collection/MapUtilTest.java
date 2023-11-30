@@ -38,19 +38,19 @@
  */
 package org.neo4j.helpers.collection;
 
+import org.junit.jupiter.api.Test;
+
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import static org.junit.Assert.assertEquals;
-
-public class MapUtilTest
+class MapUtilTest
 {
     @Test
-    public void loadSpacedValue() throws Exception
+    void loadSpacedValue() throws Exception
     {
         // expecting
         Map<String,String> expected = new HashMap<>();
@@ -67,7 +67,7 @@ public class MapUtilTest
     }
 
     @Test
-    public void loadNothing() throws Exception
+    void loadNothing() throws Exception
     {
         // expecting
         Map<String,String> expected = new HashMap<>();

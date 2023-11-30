@@ -48,8 +48,9 @@ import java.util.function.Predicate;
 
 import org.neo4j.cursor.RawCursor;
 import org.neo4j.index.internal.gbptree.Hit;
+import org.neo4j.internal.kernel.api.IndexOrder;
 import org.neo4j.internal.kernel.api.IndexQuery;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
+import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.values.storable.TextValue;
 import org.neo4j.values.storable.Value;
@@ -72,10 +73,10 @@ public class FilteringNativeHitIndexProgressorTest
         for ( int i = 0; i < 100; i++ )
         {
             // duplicates are fine
-            keys.add( random.string() );
+            keys.add( random.nextString() );
         }
 
-        RawCursor<Hit<StringSchemaKey,NativeSchemaValue>,IOException> cursor = new ResultCursor( keys.iterator() );
+        RawCursor<Hit<StringIndexKey,NativeIndexValue>,IOException> cursor = new ResultCursor( keys.iterator() );
         NodeValueIterator valueClient = new NodeValueIterator()
         {
             @Override
@@ -87,9 +88,9 @@ public class FilteringNativeHitIndexProgressorTest
         IndexQuery[] predicates = new IndexQuery[]{mock( IndexQuery.class )};
         Predicate<String> filter = string -> string.contains( "a" );
         when( predicates[0].acceptsValue( any( Value.class ) ) ).then( invocation -> filter.test( ((TextValue)invocation.getArgument( 0 )).stringValue() ) );
-        FilteringNativeHitIndexProgressor<StringSchemaKey,NativeSchemaValue> progressor = new FilteringNativeHitIndexProgressor<>( cursor, valueClient,
+        FilteringNativeHitIndexProgressor<StringIndexKey,NativeIndexValue> progressor = new FilteringNativeHitIndexProgressor<>( cursor, valueClient,
                 new ArrayList<>(), predicates );
-        valueClient.initialize( SchemaIndexDescriptorFactory.forLabel( 0, 0 ), progressor, predicates );
+        valueClient.initialize( TestIndexDescriptorFactory.forLabel( 0, 0 ), progressor, predicates, IndexOrder.NONE, true );
         List<Long> result = new ArrayList<>();
 
         // when

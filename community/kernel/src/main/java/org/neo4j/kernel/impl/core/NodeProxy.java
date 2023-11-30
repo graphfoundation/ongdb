@@ -46,8 +46,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import org.neo4j.collection.primitive.Primitive;
-import org.neo4j.collection.primitive.PrimitiveIntSet;
 import org.neo4j.graphdb.ConstraintViolationException;
 import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.GraphDatabaseService;
@@ -62,7 +60,7 @@ import org.neo4j.graphdb.TransactionTerminatedException;
 import org.neo4j.internal.kernel.api.LabelSet;
 import org.neo4j.internal.kernel.api.NodeCursor;
 import org.neo4j.internal.kernel.api.PropertyCursor;
-import org.neo4j.internal.kernel.api.RelationshipTraversalCursor;
+import org.neo4j.internal.kernel.api.RelationshipGroupCursor;
 import org.neo4j.internal.kernel.api.TokenRead;
 import org.neo4j.internal.kernel.api.exceptions.EntityNotFoundException;
 import org.neo4j.internal.kernel.api.exceptions.InvalidTransactionTypeKernelException;
@@ -85,12 +83,12 @@ import org.neo4j.values.storable.Values;
 
 import static java.lang.String.format;
 import static org.neo4j.graphdb.Label.label;
+import static org.neo4j.internal.kernel.api.TokenRead.NO_TOKEN;
 import static org.neo4j.internal.kernel.api.helpers.RelationshipSelections.allIterator;
 import static org.neo4j.internal.kernel.api.helpers.RelationshipSelections.incomingIterator;
 import static org.neo4j.internal.kernel.api.helpers.RelationshipSelections.outgoingIterator;
 import static org.neo4j.kernel.api.StatementConstants.NO_SUCH_LABEL;
 import static org.neo4j.kernel.api.StatementConstants.NO_SUCH_RELATIONSHIP_TYPE;
-import static org.neo4j.kernel.impl.core.TokenHolder.NO_ID;
 
 public class NodeProxy implements Node, RelationshipFactory<Relationship>
 {
@@ -101,6 +99,20 @@ public class NodeProxy implements Node, RelationshipFactory<Relationship>
     {
         this.nodeId = nodeId;
         this.spi = spi;
+    }
+
+    public static boolean isDeletedInCurrentTransaction( Node node )
+    {
+        if ( node instanceof NodeProxy )
+        {
+            NodeProxy proxy = (NodeProxy) node;
+            KernelTransaction ktx = proxy.spi.kernelTransaction();
+            try ( Statement ignore = ktx.acquireStatement() )
+            {
+                return ktx.dataRead().nodeDeletedInTransaction( proxy.nodeId );
+            }
+        }
+        return false;
     }
 
     @Override
@@ -650,7 +662,7 @@ public class NodeProxy implements Node, RelationshipFactory<Relationship>
                 return false;
             }
             transaction.dataRead().singleNode( nodeId, nodes );
-            return nodes.next() && nodes.labels().contains( labelId );
+            return nodes.next() && nodes.hasLabel( labelId );
         }
     }
 
@@ -696,7 +708,7 @@ public class NodeProxy implements Node, RelationshipFactory<Relationship>
     {
         KernelTransaction transaction = safeAcquireTransaction();
         int typeId = transaction.tokenRead().relationshipType( type.name() );
-        if ( typeId == NO_ID )
+        if ( typeId == NO_TOKEN )
         {   // This type doesn't even exist. Return 0
             return 0;
         }
@@ -738,7 +750,7 @@ public class NodeProxy implements Node, RelationshipFactory<Relationship>
     {
         KernelTransaction transaction = safeAcquireTransaction();
         int typeId = transaction.tokenRead().relationshipType( type.name() );
-        if ( typeId == NO_ID )
+        if ( typeId == NO_TOKEN )
         {   // This type doesn't even exist. Return 0
             return 0;
         }
@@ -765,22 +777,21 @@ public class NodeProxy implements Node, RelationshipFactory<Relationship>
     public Iterable<RelationshipType> getRelationshipTypes()
     {
         KernelTransaction transaction = safeAcquireTransaction();
-        try ( RelationshipTraversalCursor relationships = transaction.cursors().allocateRelationshipTraversalCursor();
+        try ( RelationshipGroupCursor relationships = transaction.cursors().allocateRelationshipGroupCursor();
               Statement ignore = transaction.acquireStatement() )
         {
             NodeCursor nodes = transaction.ambientNodeCursor();
             TokenRead tokenRead = transaction.tokenRead();
             singleNode( transaction, nodes );
-            nodes.allRelationships( relationships );
-            PrimitiveIntSet seen = Primitive.intSet();
+            nodes.relationships( relationships );
             List<RelationshipType> types = new ArrayList<>();
             while ( relationships.next() )
             {
+                // only include this type if there are any relationships with this type
                 int type = relationships.type();
-                if ( !seen.contains( type ) )
+                if ( relationships.totalCount() > 0 )
                 {
                     types.add( RelationshipType.withName( tokenRead.relationshipTypeName( relationships.type() ) ) );
-                    seen.add( type );
                 }
             }
 

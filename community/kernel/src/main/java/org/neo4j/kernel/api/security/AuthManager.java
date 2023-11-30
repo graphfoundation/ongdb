@@ -51,6 +51,9 @@ public interface AuthManager extends Lifecycle
 {
     /**
      * Log in using the provided authentication token
+     *
+     * NOTE: The authToken will be cleared of any credentials
+     *
      * @param authToken The authentication token to login with. Typically contains principals and credentials.
      * @return An AuthSubject representing the newly logged-in user
      * @throws InvalidAuthTokenException if the authentication token is malformed
@@ -85,6 +88,7 @@ public interface AuthManager extends Lifecycle
         @Override
         public LoginContext login( Map<String,Object> authToken )
         {
+            AuthToken.clearCredentials( authToken );
             return LoginContext.AUTH_DISABLED;
         }
     };

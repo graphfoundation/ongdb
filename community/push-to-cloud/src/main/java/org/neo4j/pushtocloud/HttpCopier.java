@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
+ * Copyright (c) "Neo4j"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,7 +36,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.apache.commons.compress.utils.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -52,7 +51,6 @@ import java.nio.file.Path;
 import java.util.Base64;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.zip.CRC32;
 
 import org.neo4j.commandline.admin.CommandFailed;
 import org.neo4j.commandline.admin.OutsideWorld;
@@ -67,7 +65,6 @@ import static java.net.HttpURLConnection.HTTP_CREATED;
 import static java.net.HttpURLConnection.HTTP_FORBIDDEN;
 import static java.net.HttpURLConnection.HTTP_INTERNAL_ERROR;
 import static java.net.HttpURLConnection.HTTP_MOVED_PERM;
-import static java.net.HttpURLConnection.HTTP_NOT_ACCEPTABLE;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import static java.net.HttpURLConnection.HTTP_OK;
 import static java.net.HttpURLConnection.HTTP_UNAUTHORIZED;
@@ -75,8 +72,7 @@ import static java.net.HttpURLConnection.HTTP_UNAVAILABLE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.compress.utils.IOUtils.toByteArray;
-import static org.neo4j.pushtocloud.PushToCloudCommand.ARG_DUMP;
-import static org.neo4j.pushtocloud.PushToCloudCommand.ARG_BOLT_URI;
+import static org.neo4j.pushtocloud.PushToCloudCommand.bytesToGibibytes;
 
 public class HttpCopier implements PushToCloudCommand.Copier
 {
@@ -105,19 +101,19 @@ public class HttpCopier implements PushToCloudCommand.Copier
     }
 
     /**
-     * Do the actual transfer of the source (a ONgDB database dump) to the target.
+     * Do the actual transfer of the source (a Neo4j database dump) to the target.
      */
     @Override
-    public void copy( boolean verbose, String consoleURL, String boltUri, Path source, boolean deleteSourceAfterImport, String bearerToken )
-            throws CommandFailed
+    public void copy( boolean verbose, String consoleURL, String boltUri, PushToCloudCommand.Source source, boolean deleteSourceAfterImport,
+                      String bearerToken ) throws CommandFailed
     {
         try
         {
             String bearerTokenHeader = "Bearer " + bearerToken;
-            long crc32Sum = calculateCrc32HashOfFile( source );
-            URL signedURL = initiateCopy( verbose, safeUrl( consoleURL + "/import" ), crc32Sum, source.toFile().length(), bearerTokenHeader );
+            long crc32Sum = source.crc32Sum();
+            URL signedURL = initiateCopy( verbose, safeUrl( consoleURL + "/import" ), crc32Sum, source.size(), bearerTokenHeader );
             URL uploadLocation = initiateResumableUpload( verbose, signedURL );
-            long sourceLength = outsideWorld.fileSystem().getFileSize( source.toFile() );
+            long sourceLength = outsideWorld.fileSystem().getFileSize( source.path().toFile() );
 
             // Enter the resume:able upload loop
             long position = 0;
@@ -125,7 +121,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
             ThreadLocalRandom random = ThreadLocalRandom.current();
             ProgressTrackingOutputStream.Progress
                     uploadProgress = new ProgressTrackingOutputStream.Progress( progressListenerFactory.create( "Upload", sourceLength ), position );
-            while ( !resumeUpload( verbose, source, boltUri, sourceLength, position, uploadLocation, uploadProgress ) )
+            while ( !resumeUpload( verbose, source.path(), boltUri, sourceLength, position, uploadLocation, uploadProgress ) )
             {
                 position = getResumablePosition( verbose, sourceLength, uploadLocation );
                 if ( position == POSITION_UPLOAD_COMPLETED )
@@ -138,27 +134,68 @@ public class HttpCopier implements PushToCloudCommand.Copier
                 // Truncated exponential backoff
                 if ( retries > 50 )
                 {
-                    throw new CommandFailed( "Upload failed after numerous attempts. The upload can be resumed with this command: TODO" );
+                    throw new CommandFailed( "Upload failed after numerous attempts." );
                 }
                 long backoffFromRetryCount = SECONDS.toMillis( 1 << retries++ ) + random.nextInt( 1_000 );
                 sleeper.sleep( min( backoffFromRetryCount, MAXIMUM_RETRY_BACKOFF ) );
             }
             uploadProgress.done();
 
-            triggerImportProtocol( verbose, safeUrl( consoleURL + "/import/upload-complete" ), boltUri, source, crc32Sum, bearerTokenHeader );
+            triggerImportProtocol( verbose, safeUrl( consoleURL + "/import/upload-complete" ), boltUri, source.path(), crc32Sum, bearerTokenHeader );
 
             doStatusPolling( verbose, consoleURL, bearerToken, sourceLength );
 
             if ( deleteSourceAfterImport )
             {
-                source.toFile().delete();
+                //noinspection ResultOfMethodCallIgnored
+                source.path().toFile().delete();
             }
             else
             {
-                outsideWorld.stdOutLine( String.format( "It is safe to delete the dump file now: %s", source.toFile().getAbsolutePath() ) );
+                outsideWorld.stdOutLine( String.format( "It is safe to delete the dump file now: %s", source.path().toFile().getAbsolutePath() ) );
             }
         }
         catch ( InterruptedException | IOException e )
+        {
+            throw new CommandFailed( e.getMessage(), e );
+        }
+    }
+
+    @Override
+    public void checkSize( boolean verbose, String consoleURL, long size, String bearerToken ) throws CommandFailed
+    {
+        try
+        {
+            URL url = safeUrl( consoleURL + "/import/size" );
+            String bearerTokenHeader = "Bearer " + bearerToken;
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            try
+            {
+                connection.setDoOutput( true );
+                connection.setRequestMethod( "POST" );
+                connection.setRequestProperty( "Authorization", bearerTokenHeader );
+                connection.setRequestProperty( "Content-Type", "application/json" );
+                try ( OutputStream postData = connection.getOutputStream() )
+                {
+                    postData.write( String.format( "{\"FullSize\":%d}", size ).getBytes( UTF_8 ) );
+                }
+                int responseCode = connection.getResponseCode();
+                switch ( responseCode )
+                {
+                case HTTP_UNPROCESSABLE_ENTITY:
+                    throw validationFailureErrorResponse( verbose, connection, size );
+                case HTTP_OK:
+                    return;
+                default:
+                    throw unexpectedResponse( verbose, connection, "Size check" );
+                }
+            }
+            finally
+            {
+                connection.disconnect();
+            }
+        }
+        catch ( IOException e )
         {
             throw new CommandFailed( e.getMessage(), e );
         }
@@ -186,41 +223,41 @@ public class HttpCopier implements PushToCloudCommand.Copier
             StatusBody statusBody = getDatabaseStatus( verbose, safeUrl( consoleURL + "/import/status" ), bearerTokenHeader );
             switch ( statusBody.Status )
             {
-                case "running":
-                    // It could happen that the very first call of this method is so fast, that the database is still in state
-                    // "running". So we need to check if this is the case and ignore the result in that case and only
-                    // take this result as valid, once the status loading or restoring was seen before.
-                    if ( !firstRunning )
-                    {
-                        statusProgress.rewindTo( 0 );
-                        statusProgress.add( 100 );
-                        statusProgress.done();
-                    }
-                    else
-                    {
-                        boolean passedStartImportTimeout = importStarted > importStartedTimeout;
-                        if ( passedStartImportTimeout )
-                        {
-                            throw new CommandFailed( "We're sorry, it couldn't be detected that the import was started, " +
-                                    "please check the console for further details." );
-                        }
-                    }
-                    break;
-                case "loading failed":
-                    throw formatCommandFailedError( statusBody.Error.getMessage(), statusBody.Error.getUrl() );
-                default:
-                    firstRunning = false;
-                    long elapsed = System.currentTimeMillis() - importStarted;
+            case "running":
+                // It could happen that the very first call of this method is so fast, that the database is still in state
+                // "running". So we need to check if this is the case and ignore the result in that case and only
+                // take this result as valid, once the status loading or restoring was seen before.
+                if ( !firstRunning )
+                {
                     statusProgress.rewindTo( 0 );
-                    statusProgress.add( importStatusProgressEstimate( statusBody.Status, elapsed, importTimeEstimateMillis ) );
-                    break;
+                    statusProgress.add( 100 );
+                    statusProgress.done();
+                }
+                else
+                {
+                    boolean passedStartImportTimeout = importStarted > importStartedTimeout;
+                    if ( passedStartImportTimeout )
+                    {
+                        throw new CommandFailed( "We're sorry, it couldn't be detected that the import was started, " +
+                                                 "please check the console for further details." );
+                    }
+                }
+                break;
+            case "loading failed":
+                throw formatCommandFailedError( statusBody.Error.getMessage(), statusBody.Error.getUrl() );
+            default:
+                firstRunning = false;
+                long elapsed = System.currentTimeMillis() - importStarted;
+                statusProgress.rewindTo( 0 );
+                statusProgress.add( importStatusProgressEstimate( statusBody.Status, elapsed, importTimeEstimateMillis ) );
+                break;
             }
             sleeper.sleep( 2000 );
         }
         outsideWorld.stdOutLine( "Your data was successfully pushed to Aura and is now running." );
         long importDurationMillis = System.currentTimeMillis() - importStarted;
         debug( verbose, format( "Import took about %d minutes to complete excluding upload (%d ms)",
-                TimeUnit.MILLISECONDS.toMinutes( importDurationMillis ), importDurationMillis ) );
+                                TimeUnit.MILLISECONDS.toMinutes( importDurationMillis ), importDurationMillis ) );
     }
 
     int importStatusProgressEstimate( String databaseStatus, long elapsed, long importTimeEstimateMillis )
@@ -230,13 +267,14 @@ public class HttpCopier implements PushToCloudCommand.Copier
         {
         case "running":
             return 0;
+        case "updating":
         case "loading":
             int loadProgressEstimation = (int) Math.min( 98, (elapsed * 98) / importTimeEstimateMillis );
             return 1 + loadProgressEstimation;
         default:
             throw new CommandFailed( String.format(
                     "We're sorry, something has failed during the loading of your database. "
-                            + "Please try again and if this problem persists, please open up a support case. Database status: %s",
+                    + "Please try again and if this problem persists, please open up a support case. Database status: %s",
                     databaseStatus ) );
         }
     }
@@ -259,7 +297,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
                 {
                 case HTTP_NOT_FOUND:
                     throw errorResponse( verbose, connection, "We encountered a problem while contacting your Neo4j Aura instance, " +
-                            "please check your Bolt URI" );
+                                                              "please check your Bolt URI" );
                 case HTTP_MOVED_PERM:
                     throw updatePluginErrorResponse( connection );
                 case HTTP_UNAUTHORIZED:
@@ -303,7 +341,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
     /**
      * Communication with Neo4j's cloud console, resulting in some signed URI to do the actual upload to.
      */
-    private URL initiateCopy( boolean verbose, URL importURL, long crc32Sum, long fileSize, String bearerToken )
+    private URL initiateCopy( boolean verbose, URL importURL, long crc32Sum, long size, String bearerToken )
             throws IOException, CommandFailed
     {
         HttpURLConnection connection = (HttpURLConnection) importURL.openConnection();
@@ -317,7 +355,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
             connection.setDoOutput( true );
             try ( OutputStream postData = connection.getOutputStream() )
             {
-                postData.write( buildCrc32WithConsentJson( crc32Sum, fileSize ).getBytes( UTF_8 ) );
+                postData.write( String.format( "{\"Crc32\":%d, \"FullSize\":%d}", crc32Sum, size ).getBytes( UTF_8 ) );
             }
 
             // Read the response
@@ -330,11 +368,8 @@ public class HttpCopier implements PushToCloudCommand.Copier
                 throw updatePluginErrorResponse( connection );
             case HTTP_UNAUTHORIZED:
                 throw errorResponse( verbose, connection, "The given authorization token is invalid or has expired" );
-            // Deprecated: the use of this status code for the purpose below should be replaced with HTTP_UNPROCESSABLE_ENTITY in a future release.
-            case HTTP_NOT_ACCEPTABLE:
-                throw insufficientSpaceErrorResponse( verbose, connection, fileSize );
             case HTTP_UNPROCESSABLE_ENTITY:
-                throw validationFailureErrorResponse( verbose, connection, fileSize );
+                throw validationFailureErrorResponse( verbose, connection, size );
             case HTTP_ACCEPTED:
                 // the import request was accepted, and the server has not seen this dump file, meaning the import request is a new operation.
                 return safeUrl( extractSignedURIFromResponse( verbose, connection ) );
@@ -382,7 +417,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
      * Uploads source from the given position to the upload location.
      */
     private boolean resumeUpload( boolean verbose, Path source, String boltUri, long sourceLength, long position, URL uploadLocation,
-            ProgressTrackingOutputStream.Progress uploadProgress )
+                                  ProgressTrackingOutputStream.Progress uploadProgress )
             throws IOException, CommandFailed
     {
         HttpURLConnection connection = (HttpURLConnection) uploadLocation.openConnection();
@@ -436,7 +471,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
             connection.setDoOutput( true );
             try ( OutputStream postData = connection.getOutputStream() )
             {
-                postData.write( buildCrc32WithConsentJson( crc32Sum, null ).getBytes( UTF_8 ) );
+                postData.write( String.format( "{\"Crc32\":%d}", crc32Sum ).getBytes( UTF_8 ) );
             }
 
             int responseCode = connection.getResponseCode();
@@ -477,18 +512,18 @@ public class HttpCopier implements PushToCloudCommand.Copier
             int responseCode = connection.getResponseCode();
             switch ( responseCode )
             {
-                case HTTP_NOT_FOUND:
-                    // fallthrough
-                case HTTP_MOVED_PERM:
-                    throw updatePluginErrorResponse( connection );
-                case HTTP_OK:
-                    try ( InputStream responseData = connection.getInputStream() )
-                    {
-                        String json = new String( toByteArray( responseData ), UTF_8 );
-                        return parseJsonUsingJacksonParser( json, StatusBody.class );
-                    }
-                default:
-                    throw unexpectedResponse( verbose, connection, "Trigger import/restore after successful upload" );
+            case HTTP_NOT_FOUND:
+                // fallthrough
+            case HTTP_MOVED_PERM:
+                throw updatePluginErrorResponse( connection );
+            case HTTP_OK:
+                try ( InputStream responseData = connection.getInputStream() )
+                {
+                    String json = new String( toByteArray( responseData ), UTF_8 );
+                    return parseJsonUsingJacksonParser( json, StatusBody.class );
+                }
+            default:
+                throw unexpectedResponse( verbose, connection, "Trigger import/restore after successful upload" );
             }
         }
         finally
@@ -534,16 +569,6 @@ public class HttpCopier implements PushToCloudCommand.Copier
         {
             connection.disconnect();
         }
-    }
-
-    private static String buildCrc32WithConsentJson( long crc32Sum, Long fileSize )
-    {
-        String fileSizeString = "";
-        if ( fileSize != null )
-        {
-            fileSizeString = String.format(", \"DumpSize\":%d", fileSize);
-        }
-        return String.format( "{\"Crc32\":%d%s}", crc32Sum, fileSizeString );
     }
 
     private static void safeSkip( InputStream sourceStream, long position ) throws IOException
@@ -593,7 +618,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
 
     private static String base64Encode( String username, char[] password )
     {
-        String plainToken = new StringBuilder( username ).append( ":" ).append( password ).toString();
+        String plainToken = username + ':' + String.valueOf( password );
         return Base64.getEncoder().encodeToString( plainToken.getBytes() );
     }
 
@@ -617,53 +642,33 @@ public class HttpCopier implements PushToCloudCommand.Copier
 
     private void debugErrorResponse( boolean verbose, HttpURLConnection connection ) throws IOException
     {
-        debugResponse( verbose, connection, false );
-    }
-
-    private void debugResponse( boolean verbose, HttpURLConnection connection, boolean successful ) throws IOException
-    {
         if ( verbose )
         {
-            String responseString = "not available";
-            try ( InputStream responseData = successful ? connection.getInputStream() : connection.getErrorStream() )
+            String responseString;
+            try ( InputStream responseData = connection.getErrorStream() )
             {
                 responseString = new String( toByteArray( responseData ), UTF_8 );
             }
-            debugResponse( true, responseString, connection, successful );
+            debugResponse( true, responseString, connection, true );
         }
     }
 
-    private void debugResponse( boolean verbose, String responseBody, HttpURLConnection connection, boolean successful )
-            throws IOException
+    private void debugResponse( boolean verbose, String responseBody, HttpURLConnection connection, boolean error ) throws IOException
     {
         if ( verbose )
         {
-            debug( true, "=== Unexpected response ===" );
+            debug( true, error ? "=== Unexpected response ===" : "=== Response ===" );
             debug( true, "Response message: " + connection.getResponseMessage() );
             debug( true, "Response headers:" );
             connection.getHeaderFields().forEach( ( key, value1 ) ->
-            {
-                for ( String value : value1 )
-                {
-                    debug( true, "  " + key + ": " + value );
-                }
-            } );
-            debug( true, "Error response data: " + responseBody );
+                                                  {
+                                                      for ( String value : value1 )
+                                                      {
+                                                          debug( true, "  " + key + ": " + value );
+                                                      }
+                                                  } );
+            debug( true, "Response data: " + responseBody );
         }
-    }
-
-    private static long calculateCrc32HashOfFile( Path source ) throws IOException
-    {
-        CRC32 crc = new CRC32();
-        try ( InputStream inputStream = new BufferedInputStream( new FileInputStream( source.toFile() ) ) )
-        {
-            int cnt;
-            while ( (cnt = inputStream.read()) != -1 )
-            {
-                crc.update( cnt );
-            }
-        }
-        return crc.getValue();
     }
 
     private static URL safeUrl( String urlString )
@@ -698,51 +703,40 @@ public class HttpCopier implements PushToCloudCommand.Copier
     {
         debugErrorResponse( true, connection );
         return new CommandFailed( "We encountered a problem while communicating to the Neo4j Aura system. \n" +
-                "You can re-try using the existing dump by running this command: \n" +
-                String.format( "ongdb-admin push-to-cloud --%s=%s --%s=%s", ARG_DUMP, dump.toFile().getAbsolutePath(), ARG_BOLT_URI, boltUri ) );
+                                  "You can re-try using the existing dump by running this command: \n" +
+                                  String.format( "neo4j-admin push-to-cloud --%s=%s --%s=%s", "dump", dump.toFile().getAbsolutePath(), "bolt-uri",
+                                                 boltUri ) );
     }
 
     private CommandFailed updatePluginErrorResponse( HttpURLConnection connection ) throws IOException
     {
         debugErrorResponse( true, connection );
-        return new CommandFailed( "We encountered a problem while communicating to the Neo4j Aura system. " +
+        return new CommandFailed(
+                "We encountered a problem while communicating to the Neo4j Aura system. " +
                 "Please check that you are using the latest version of the push-to-cloud plugin and upgrade if necessary. " +
                 "If this problem persists after upgrading, please contact support and attach the logs shown below to your ticket in the support portal." );
     }
 
-    private CommandFailed validationFailureErrorResponse( boolean verbose, HttpURLConnection connection, long fileSize )
+    private CommandFailed validationFailureErrorResponse( boolean verbose, HttpURLConnection connection, long size )
             throws IOException
     {
         try ( InputStream responseData = connection.getErrorStream() )
         {
             String responseString = new String( toByteArray( responseData ), UTF_8 );
-            debugResponse( verbose, responseString, connection, false );
+            debugResponse( verbose, responseString, connection, true );
             ErrorBody errorBody = parseJsonUsingJacksonParser( responseString, ErrorBody.class );
 
             String message = errorBody.getMessage();
 
-            switch ( errorBody.getReason() )
+            // No special treatment required
+            if ( ERROR_REASON_EXCEEDS_MAX_SIZE.equals( errorBody.getReason() ) )
             {
-            case ERROR_REASON_EXCEEDS_MAX_SIZE:
                 String trimmedMessage = StringUtils.removeEnd( message, "." );
-                message = format( "%s. Minimum storage space required: %.1f GB", trimmedMessage, bytesToGibibytes( fileSize ) );
-                break;
-            default:
-                break; // No special treatment required
+                message = format( "%s. Minimum storage space required: %s", trimmedMessage, PushToCloudCommand.sizeText( size) );
             }
 
             return formatCommandFailedError( message, errorBody.getUrl() );
         }
-    }
-
-    private CommandFailed insufficientSpaceErrorResponse( boolean verbose, HttpURLConnection connection, long fileSize )
-            throws IOException
-    {
-        debugErrorResponse( verbose, connection );
-        return new CommandFailed(
-                format( "There is insufficient space in your Neo4j Aura instance to upload your data. "
-                        + "Please go to the Neo4j Aura Console to increase the size of your database "
-                        + "with at least %.1f GB of storage.", bytesToGibibytes( fileSize ) ) );
     }
 
     private CommandFailed unexpectedResponse( boolean verbose, HttpURLConnection connection, String requestDescription ) throws IOException
@@ -763,12 +757,17 @@ public class HttpCopier implements PushToCloudCommand.Copier
         }
     }
 
-    private double bytesToGibibytes( long sizeInBytes )
+    interface Sleeper
     {
-        return sizeInBytes / (double) (1024 * 1024 * 1024);
+        void sleep( long millis ) throws InterruptedException;
     }
 
-    // Simple structs for mapping JSON to objects, used by the jackson parser which ONgDB happens to depend on anyway
+    public interface ProgressListenerFactory
+    {
+        ProgressListener create( String text, long length );
+    }
+
+    // Simple structs for mapping JSON to objects, used by the jackson parser which Neo4j happens to depend on anyway
     @JsonIgnoreProperties( ignoreUnknown = true )
     private static class SignedURIBody
     {
@@ -806,7 +805,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
 
         @JsonCreator
         ErrorBody( @JsonProperty( "Message" ) String message, @JsonProperty( "Reason" ) String reason,
-                @JsonProperty( "Url" ) String url )
+                   @JsonProperty( "Url" ) String url )
         {
             this.message = message;
             this.reason = reason;
@@ -817,23 +816,15 @@ public class HttpCopier implements PushToCloudCommand.Copier
         {
             return StringUtils.defaultIfBlank( this.message, DEFAULT_MESSAGE );
         }
+
         public String getReason()
         {
             return StringUtils.defaultIfBlank( this.reason, DEFAULT_REASON );
         }
+
         public String getUrl()
         {
             return this.url;
         }
-    }
-
-    interface Sleeper
-    {
-        void sleep( long millis ) throws InterruptedException;
-    }
-
-    public interface ProgressListenerFactory
-    {
-        ProgressListener create( String text, long length );
     }
 }

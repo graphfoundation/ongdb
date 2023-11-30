@@ -43,12 +43,12 @@ import org.mockito.Answers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import org.neo4j.kernel.impl.core.StartupStatisticsProvider;
 import org.neo4j.kernel.impl.transaction.CommittedTransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.TransactionCursor;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryCommit;
 import org.neo4j.kernel.impl.util.monitoring.ProgressReporter;
+import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -62,7 +62,6 @@ public class RecoveryProgressIndicatorTest
     public void reportProgressOnRecovery() throws Throwable
     {
         RecoveryService recoveryService = mock( RecoveryService.class, Answers.RETURNS_MOCKS );
-        StartupStatisticsProvider statisticsProvider = mock( StartupStatisticsProvider.class );
         CorruptedLogsTruncator logsTruncator = mock( CorruptedLogsTruncator.class );
         RecoveryMonitor recoveryMonitor = mock( RecoveryMonitor.class );
         TransactionCursor reverseTransactionCursor = mock( TransactionCursor.class );
@@ -87,7 +86,7 @@ public class RecoveryProgressIndicatorTest
         when( recoveryService.getTransactions( recoveryStartPosition ) ).thenReturn( transactionCursor );
 
         AssertableProgressReporter progressReporter = new AssertableProgressReporter( expectedMax );
-        Recovery recovery = new Recovery( recoveryService, statisticsProvider, logsTruncator, recoveryMonitor,
+        Recovery recovery = new Recovery( recoveryService, logsTruncator, new LifecycleAdapter(), recoveryMonitor,
                 progressReporter, true );
         recovery.init();
 

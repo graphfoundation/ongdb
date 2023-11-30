@@ -40,10 +40,10 @@ package org.neo4j.kernel.api.impl.index;
 
 import java.util.List;
 
-import org.neo4j.kernel.api.index.PropertyAccessor;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.values.storable.Value;
 
-public class TestPropertyAccessor implements PropertyAccessor
+public class TestPropertyAccessor implements NodePropertyAccessor
 {
     private final List<Value> propertyValues;
 
@@ -53,7 +53,7 @@ public class TestPropertyAccessor implements PropertyAccessor
     }
 
     @Override
-    public Value getPropertyValue( long nodeId, int propertyKeyId )
+    public Value getNodePropertyValue( long nodeId, int propertyKeyId )
     {
         return propertyValues.get( (int)nodeId );
     }

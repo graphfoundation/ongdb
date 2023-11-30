@@ -38,15 +38,16 @@
  */
 package org.neo4j.cypher.internal.runtime.planDescription
 
+import org.neo4j.cypher.internal.ir.v3_5.ProvidedOrder
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments._
 import org.neo4j.cypher.internal.runtime.planDescription.PlanDescriptionArgumentSerializer.serialize
-import org.neo4j.cypher.internal.util.v3_4.attribution.SequentialIdGen
-import org.neo4j.cypher.internal.util.v3_4.symbols.{CTBoolean, CTList, CTNode, CTString}
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.util.v3_4.DummyPosition
-import org.neo4j.cypher.internal.v3_4.expressions.{DummyExpression, SemanticDirection, SignedDecimalIntegerLiteral}
-import org.neo4j.cypher.internal.v3_4.logical.plans.{LogicalPlan, NestedPlanExpression}
-import org.neo4j.cypher.internal.v3_4.logical.plans
+import org.neo4j.cypher.internal.v3_5.util.attribution.SequentialIdGen
+import org.neo4j.cypher.internal.v3_5.util.symbols.{CTBoolean, CTList, CTNode, CTString}
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.DummyPosition
+import org.neo4j.cypher.internal.v3_5.expressions.{DummyExpression, SemanticDirection, SignedDecimalIntegerLiteral}
+import org.neo4j.cypher.internal.v3_5.logical.plans.{LogicalPlan, NestedPlanExpression}
+import org.neo4j.cypher.internal.v3_5.logical.plans
 
 class PlanDescriptionArgumentSerializerTests extends CypherFunSuite {
   private val pos = DummyPosition(0)
@@ -92,9 +93,24 @@ class PlanDescriptionArgumentSerializerTests extends CypherFunSuite {
     )
   }
 
+  test("serialize and deduplicate variable names with regexy symbols") {
+    serialize(KeyNames(Seq("1 >=   version$@40, 2 <=   version$@352"))) should equal (
+      "1 >= version$, 2 <= version$"
+    )
+    serialize(KeyNames(Seq("1 >=   version\\@40, 2 <=   version\\@352"))) should equal (
+      "1 >= version\\, 2 <= version\\"
+    )
+  }
+
   test("should serialize point distance index seeks") {
     serialize(PointDistanceIndex("L", "location", "p", "300", inclusive = false)) should equal(":L(location) WHERE distance(_,p) < 300")
     serialize(PointDistanceIndex("L", "location", "p", "300", inclusive = true)) should equal(":L(location) WHERE distance(_,p) <= 300")
+  }
+
+  test("should serialize provided order") {
+    serialize(Order(ProvidedOrder(List(ProvidedOrder.Asc("a"), ProvidedOrder.Desc("b"), ProvidedOrder.Asc("c.foo"))))) should be("a ASC, b DESC, c.foo ASC")
+    serialize(Order(ProvidedOrder.empty)) should be("")
+    serialize(Order(ProvidedOrder(List(ProvidedOrder.Asc("  FRESHID42"))))) should be("anon[42] ASC")
   }
 
 }

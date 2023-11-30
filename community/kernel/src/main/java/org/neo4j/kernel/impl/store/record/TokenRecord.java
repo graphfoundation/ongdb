@@ -47,7 +47,7 @@ public abstract class TokenRecord extends AbstractBaseRecord
     private int nameId;
     private List<DynamicRecord> nameRecords;
 
-    public TokenRecord( int id )
+    public TokenRecord( long id )
     {
         super( id );
     }
@@ -121,5 +121,17 @@ public abstract class TokenRecord extends AbstractBaseRecord
     protected void additionalToString( StringBuilder buf )
     {
         // default: nothing additional
+    }
+
+    @Override
+    public TokenRecord clone()
+    {
+        TokenRecord clone = (TokenRecord) super.clone();
+        clone.nameRecords = new ArrayList<>( nameRecords.size() );
+        for ( DynamicRecord record : nameRecords )
+        {
+            nameRecords.add( record.clone() );
+        }
+        return clone;
     }
 }

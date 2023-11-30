@@ -40,11 +40,11 @@ package org.neo4j.cypher.internal.runtime.interpreted
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import org.neo4j.cypher.internal.planner.v3_4.spi.IndexDescriptor
+import org.neo4j.cypher.internal.planner.v3_5.spi.IndexDescriptor
 import org.neo4j.cypher.internal.runtime.{Operations, QueryContext, QueryStatistics}
-import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection
 import org.neo4j.values.storable.Value
-import org.neo4j.values.virtual.{RelationshipValue, NodeValue}
+import org.neo4j.values.virtual.{NodeValue, RelationshipValue}
+import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
 
 class UpdateCountingQueryContext(inner: QueryContext) extends DelegatingQueryContext(inner) {
 
@@ -85,14 +85,16 @@ class UpdateCountingQueryContext(inner: QueryContext) extends DelegatingQueryCon
 
   override def getOptStatistics = Some(getStatistics)
 
-  override def createNode() = {
+  override def createNode(labels: Array[Int]) = {
     nodesCreated.increase()
-    inner.createNode()
+    labelsAdded.increase(labels.length)
+    inner.createNode(labels)
   }
 
-  override def createNodeId() = {
+  override def createNodeId(labels: Array[Int]) = {
     nodesCreated.increase()
-    inner.createNodeId()
+    labelsAdded.increase(labels.length)
+    inner.createNodeId(labels)
   }
 
   override def nodeOps: Operations[NodeValue] =

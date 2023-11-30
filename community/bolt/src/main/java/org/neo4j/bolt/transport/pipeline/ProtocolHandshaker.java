@@ -44,13 +44,13 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.ReferenceCountUtil;
 
+import java.util.Arrays;
+
 import org.neo4j.bolt.BoltChannel;
-import org.neo4j.bolt.transport.BoltProtocolPipelineInstaller;
-import org.neo4j.bolt.transport.BoltProtocolPipelineInstallerFactory;
+import org.neo4j.bolt.BoltProtocol;
+import org.neo4j.bolt.transport.BoltProtocolFactory;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
-
-import static java.lang.String.format;
 
 public class ProtocolHandshaker extends ChannelInboundHandlerAdapter
 {
@@ -58,18 +58,18 @@ public class ProtocolHandshaker extends ChannelInboundHandlerAdapter
     private static final int HANDSHAKE_BUFFER_SIZE = 5 * Integer.BYTES;
 
     private final BoltChannel boltChannel;
-    private final BoltProtocolPipelineInstallerFactory handlerFactory;
+    private final BoltProtocolFactory boltProtocolFactory;
     private final Log log;
     private final boolean encryptionRequired;
     private final boolean encrypted;
 
     private ByteBuf handshakeBuffer;
-    private BoltProtocolPipelineInstaller protocol;
+    private BoltProtocol protocol;
 
-    public ProtocolHandshaker( BoltProtocolPipelineInstallerFactory handlerFactory, BoltChannel boltChannel, LogProvider logging, boolean encryptionRequired,
-            boolean encrypted )
+    public ProtocolHandshaker( BoltProtocolFactory boltProtocolFactory, BoltChannel boltChannel, LogProvider logging,
+            boolean encryptionRequired, boolean encrypted )
     {
-        this.handlerFactory = handlerFactory;
+        this.boltProtocolFactory = boltProtocolFactory;
         this.boltChannel = boltChannel;
         this.log = logging.getLog( getClass() );
         this.encryptionRequired = encryptionRequired;
@@ -151,12 +151,6 @@ public class ProtocolHandshaker extends ChannelInboundHandlerAdapter
     @Override
     public void exceptionCaught( ChannelHandlerContext ctx, Throwable cause )
     {
-        // log insecure handshake to the bolt message log
-        if ( cause instanceof SecurityException )
-        {
-            boltChannel.log().serverError( "HANDSHAKE", "Insecure handshake" );
-        }
-
         log.error( "Fatal error occurred during protocol handshaking: " + ctx.channel(), cause );
         ctx.close();
     }
@@ -179,8 +173,7 @@ public class ProtocolHandshaker extends ChannelInboundHandlerAdapter
     {
         if ( handshakeBuffer.getInt( 0 ) != BOLT_MAGIC_PREAMBLE )
         {
-            boltChannel.log().clientError( "HANDSHAKE", "Invalid Bolt signature", () -> format( "0x%08X", handshakeBuffer.getInt( 0 ) ) );
-
+            log.debug( "Invalid Bolt handshake signature. Expected 0x%08X, but got: 0x%08X", BOLT_MAGIC_PREAMBLE, handshakeBuffer.getInt( 0 ) );
             return false;
         }
 
@@ -189,24 +182,22 @@ public class ProtocolHandshaker extends ChannelInboundHandlerAdapter
 
     private boolean performHandshake()
     {
-        boltChannel.log().clientEvent( "HANDSHAKE", () -> format( "0x%08X", BOLT_MAGIC_PREAMBLE ) );
-
+        long[] suggestions = new long[4];
         for ( int i = 0; i < 4; i++ )
         {
             final long suggestion = handshakeBuffer.getInt( (i + 1) * Integer.BYTES ) & 0xFFFFFFFFL;
 
-            protocol = handlerFactory.create( suggestion, boltChannel );
+            protocol = boltProtocolFactory.create( suggestion, boltChannel );
             if ( protocol != null )
             {
-                boltChannel.log().serverEvent( "HANDSHAKE", () -> format( "0x%02X", suggestion ) );
-
                 break;
             }
+            suggestions[i] = suggestion;
         }
 
         if ( protocol == null )
         {
-            boltChannel.log().serverError( "HANDSHAKE", "No applicable protocol" );
+            log.debug( "Failed Bolt handshake: Bolt versions suggested by client '%s' are not supported by this server.", Arrays.toString( suggestions ) );
         }
 
         return protocol != null;

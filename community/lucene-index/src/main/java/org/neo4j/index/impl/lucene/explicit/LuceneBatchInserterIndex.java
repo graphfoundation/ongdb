@@ -49,6 +49,7 @@ import org.apache.lucene.search.SearcherManager;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
+import org.eclipse.collections.impl.factory.primitive.LongSets;
 
 import java.io.File;
 import java.io.IOException;
@@ -58,8 +59,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
-import org.neo4j.collection.primitive.PrimitiveLongCollections;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.index.IndexHits;
 import org.neo4j.helpers.collection.LruCache;
@@ -70,6 +71,8 @@ import org.neo4j.kernel.api.impl.index.collector.DocValuesCollector;
 import org.neo4j.kernel.impl.index.IndexEntityType;
 import org.neo4j.kernel.impl.util.IoPrimitiveUtils;
 import org.neo4j.unsafe.batchinsert.BatchInserterIndex;
+
+import static java.lang.String.format;
 
 class LuceneBatchInserterIndex implements BatchInserterIndex
 {
@@ -360,13 +363,11 @@ class LuceneBatchInserterIndex implements BatchInserterIndex
             ExplicitIndexHits primitiveHits = null;
             if ( key == null || this.cache == null || !this.cache.containsKey( key ) )
             {
-                primitiveHits = new DocToIdIterator( result, Collections.emptyList(), null,
-                        PrimitiveLongCollections.emptySet() );
+                primitiveHits = new DocToIdIterator( result, Collections.emptyList(), null, LongSets.immutable.empty() );
             }
             else
             {
-                primitiveHits = new DocToIdIterator( result, Collections.emptyList(), null,
-                        PrimitiveLongCollections.emptySet() )
+                primitiveHits = new DocToIdIterator( result, Collections.emptyList(), null, LongSets.immutable.empty() )
                 {
                     private final Collection<EntityId> ids = new ArrayList<>();
 
@@ -446,8 +447,13 @@ class LuceneBatchInserterIndex implements BatchInserterIndex
             {
                 try
                 {
-                    long singleId = PrimitiveLongCollections.single( ids, -1L );
-                    return singleId == -1 ? null : singleId;
+                    final Long result = ids.hasNext() ? ids.next() : null;
+
+                    if ( ids.hasNext() )
+                    {
+                        throw new NoSuchElementException( format( "More than one item in %s, first:%d, second:%d", ids, result, ids.next() ) );
+                    }
+                    return result;
                 }
                 finally
                 {
@@ -494,7 +500,7 @@ class LuceneBatchInserterIndex implements BatchInserterIndex
         if ( !dir.exists() && !dir.mkdirs() )
         {
             throw new RuntimeException( "Unable to create directory path["
-                    + dir.getAbsolutePath() + "] for ONgDB store." );
+                    + dir.getAbsolutePath() + "] for Neo4j store." );
         }
         return dir;
     }

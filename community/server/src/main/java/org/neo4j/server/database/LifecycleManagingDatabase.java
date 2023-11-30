@@ -41,14 +41,15 @@ package org.neo4j.server.database;
 import java.io.File;
 
 import org.neo4j.graphdb.Result;
+import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.kernel.availability.AvailabilityGuard;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
-import org.neo4j.kernel.impl.factory.GraphDatabaseFacadeFactory;
 import org.neo4j.logging.Log;
 
 /**
- * Wraps a ONgDB database in lifecycle management. This is intermediate, and will go away once we have an internal
+ * Wraps a neo4j database in lifecycle management. This is intermediate, and will go away once we have an internal
  * database that exposes lifecycle cleanly.
  */
 public class LifecycleManagingDatabase implements Database
@@ -56,20 +57,11 @@ public class LifecycleManagingDatabase implements Database
     static final String CYPHER_WARMUP_QUERY =
             "MATCH (a:` This query is just used to load the cypher compiler during warmup. Please ignore `) RETURN a LIMIT 0";
 
-    public interface GraphFactory
-    {
-        GraphDatabaseFacade newGraphDatabase( Config config, GraphDatabaseFacadeFactory.Dependencies dependencies );
-    }
-
-    public static Database.Factory lifecycleManagingDatabase( final GraphFactory graphDbFactory )
-    {
-        return ( config, dependencies ) -> new LifecycleManagingDatabase( config, graphDbFactory, dependencies );
-    }
-
     private final Config config;
     private final GraphFactory dbFactory;
     private final GraphDatabaseFacadeFactory.Dependencies dependencies;
     private final Log log;
+    private volatile AvailabilityGuard availabilityGuard;
 
     private boolean isRunning;
     private GraphDatabaseFacade graph;
@@ -79,7 +71,7 @@ public class LifecycleManagingDatabase implements Database
     {
         this.config = config;
         this.dbFactory = dbFactory;
-        this.dependencies = dependencies;
+        this.dependencies = new AvailabiltyGuardCapturingDependencies( this::setAvailabilityGuard, dependencies );
         this.log = dependencies.userLogProvider().getLog( getClass() );
     }
 
@@ -93,6 +85,16 @@ public class LifecycleManagingDatabase implements Database
     public GraphDatabaseFacade getGraph()
     {
         return graph;
+    }
+
+    public AvailabilityGuard getAvailabilityGuard()
+    {
+        return availabilityGuard;
+    }
+
+    private synchronized void setAvailabilityGuard( AvailabilityGuard availabilityGuard )
+    {
+        this.availabilityGuard = availabilityGuard;
     }
 
     @Override

@@ -38,14 +38,13 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.util.v3_4.{CypherTypeException, InvalidArgumentException}
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, IsMap}
 import org.neo4j.cypher.internal.runtime.interpreted.commands.values.KeyToken
-import org.neo4j.cypher.internal.runtime.interpreted.IsMap
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.{DurationValue, PointValue, TemporalValue, Values}
 import org.neo4j.values.virtual.{VirtualNodeValue, VirtualRelationshipValue}
+import org.neo4j.cypher.internal.v3_5.util.{CypherTypeException, InvalidArgumentException}
 
 import scala.util.{Failure, Success, Try}
 
@@ -53,7 +52,7 @@ case class Property(mapExpr: Expression, propertyKey: KeyToken)
   extends Expression with Product with Serializable
 {
   def apply(ctx: ExecutionContext, state: QueryState): AnyValue = mapExpr(ctx, state) match {
-    case n if n == Values.NO_VALUE => Values.NO_VALUE
+    case Values.NO_VALUE => Values.NO_VALUE
     case n: VirtualNodeValue =>
       propertyKey.getOptId(state.query) match {
         case None => Values.NO_VALUE
@@ -74,13 +73,13 @@ case class Property(mapExpr: Expression, propertyKey: KeyToken)
     case other => throw new CypherTypeException(s"Type mismatch: expected a map but was $other")
   }
 
-  def rewrite(f: (Expression) => Expression) = f(Property(mapExpr.rewrite(f), propertyKey.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(Property(mapExpr.rewrite(f), propertyKey.rewrite(f)))
 
   override def children = Seq(mapExpr, propertyKey)
 
-  def arguments = Seq(mapExpr)
+  override def arguments: Seq[Expression] = Seq(mapExpr)
 
-  def symbolTableDependencies = mapExpr.symbolTableDependencies
+  override def symbolTableDependencies: Set[String] = mapExpr.symbolTableDependencies
 
   override def toString = s"$mapExpr.${propertyKey.name}"
 }

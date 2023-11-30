@@ -48,13 +48,11 @@ import org.neo4j.cypher.internal.compiler.v2_3.executionplan.InternalExecutionRe
 import org.neo4j.cypher.internal.compiler.v2_3.{PlannerName, planDescription => planDescriptionv2_3, _}
 import org.neo4j.cypher.internal.frontend.v2_3
 import org.neo4j.cypher.internal.frontend.v2_3.notification.{InternalNotification, LegacyPlannerNotification, PlannerUnsupportedNotification, RuntimeUnsupportedNotification, _}
-import org.neo4j.cypher.internal.frontend.v2_3.{InputPosition => InternalInputPosition, SemanticDirection => SemanticDirection2_3, notification => notification_2_3}
+import org.neo4j.cypher.internal.frontend.v2_3.{InputPosition => InternalInputPosition, SemanticDirection => SemanticDirection2_3}
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments._
 import org.neo4j.cypher.internal.runtime.planDescription.{Children, NoChildren, PlanDescriptionImpl, SingleChild, TwoChildren, Argument => Argument3_4, InternalPlanDescription => InternalPlanDescription3_4}
-import org.neo4j.cypher.internal.runtime.{QueryStatistics, SCHEMA_WRITE, ExecutionMode => ExecutionModeV3_4, _}
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection.{BOTH, INCOMING, OUTGOING}
+import org.neo4j.cypher.internal.runtime.{QueryStatistics, SCHEMA_WRITE, ExecutionMode => ExecutionModev3_5, _}
 import org.neo4j.cypher.result.QueryResult
 import org.neo4j.cypher.result.QueryResult.Record
 import org.neo4j.graphdb.Result.ResultVisitor
@@ -62,18 +60,14 @@ import org.neo4j.graphdb._
 import org.neo4j.graphdb.impl.notification.{NotificationCode, NotificationDetail}
 import org.neo4j.kernel.impl.util.ValueUtils
 import org.neo4j.values.AnyValue
+import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection.{BOTH, INCOMING, OUTGOING}
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 
 import scala.collection.JavaConverters._
 
 object ExecutionResultWrapper {
 
-  def unapply(v: Any): Option[(InternalExecutionResult, PlannerName, RuntimeName, Set[org.neo4j.graphdb.Notification], Option[v2_3.InputPosition])] = v match {
-    case closing: ClosingExecutionResult => unapply(closing.inner)
-    case wrapper: ExecutionResultWrapper => Some((wrapper.inner, wrapper.planner, wrapper.runtime, wrapper.preParsingNotifications, wrapper.offset))
-    case _ => None
-  }
-
-   def asKernelNotification(offset : Option[v2_3.InputPosition])(notification: InternalNotification): org.neo4j.graphdb.Notification = notification match {
+  def asKernelNotification(offset : Option[v2_3.InputPosition])(notification: InternalNotification): org.neo4j.graphdb.Notification = notification match {
     case CartesianProductNotification(pos, variables) =>
       NotificationCode.CARTESIAN_PRODUCT.notification(pos.withOffset(offset).asInputPosition, NotificationDetail.Factory.cartesianProduct(variables.asJava))
     case LegacyPlannerNotification =>
@@ -119,16 +113,15 @@ object ExecutionResultWrapper {
 
 }
 
-class ExecutionResultWrapper(val inner: InternalExecutionResult, val planner: PlannerName, val runtime: RuntimeName,
+class ExecutionResultWrapper(val inner: InternalExecutionResult,
+                             val planner: PlannerName,
+                             val runtime: RuntimeName,
                              val preParsingNotifications: Set[org.neo4j.graphdb.Notification],
                              val offset : Option[v2_3.InputPosition])
-  extends internal.runtime.InternalExecutionResult {
+  extends CompatibilityInternalExecutionResult {
 
-  override def planDescriptionRequested: Boolean = inner.planDescriptionRequested
-
-  override def javaIterator: ResourceIterator[util.Map[String, Any]] = inner.javaIterator
-
-  override def columnAs[T](column: String): Iterator[Nothing] = inner.columnAs(column)
+  override def javaIterator: ResourceIterator[util.Map[String, AnyRef]] =
+    inner.javaIterator.asInstanceOf[ResourceIterator[util.Map[String, AnyRef]]]
 
   def queryStatistics(): QueryStatistics = {
     val i = inner.queryStatistics()
@@ -218,7 +211,7 @@ class ExecutionResultWrapper(val inner: InternalExecutionResult, val planner: Pl
 
   override def hasNext: Boolean = inner.hasNext
 
-  override def next(): Map[String, Any] = inner.next()
+  override def next(): Map[String, AnyRef] = inner.next().asInstanceOf[Map[String, AnyRef]]
 
   override def close(): Unit = inner.close()
 
@@ -233,15 +226,12 @@ class ExecutionResultWrapper(val inner: InternalExecutionResult, val planner: Pl
 
   override def accept[EX <: Exception](visitor: ResultVisitor[EX]): Unit = inner.accept(visitor)
 
-  override def executionMode: ExecutionModeV3_4 = {
+  override def executionMode: ExecutionModev3_5 = {
     val et = inner.executionType
     if (et.isExplained) internal.runtime.ExplainMode
     else if (et.isProfiled) internal.runtime.ProfileMode
     else internal.runtime.NormalMode
   }
-
-  override def withNotifications(notification: Notification*): internal.runtime.InternalExecutionResult =
-    new ExecutionResultWrapper(inner, planner, runtime, preParsingNotifications ++ notification, offset)
 
   override def fieldNames(): Array[String] = inner.columns.toArray
 

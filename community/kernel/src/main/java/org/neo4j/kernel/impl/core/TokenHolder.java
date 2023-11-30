@@ -40,26 +40,56 @@ package org.neo4j.kernel.impl.core;
 
 import java.util.List;
 
-import org.neo4j.storageengine.api.Token;
+import org.neo4j.internal.kernel.api.NamedToken;
+import org.neo4j.internal.kernel.api.TokenRead;
 
-public interface TokenHolder<TOKEN extends Token>
+public interface TokenHolder
 {
-    int NO_ID = -1;
+    String TYPE_PROPERTY_KEY = "PropertyKey";
+    String TYPE_RELATIONSHIP_TYPE = "RelationshipType";
+    String TYPE_LABEL = "Label";
 
-    void setInitialTokens( List<TOKEN> tokens ) throws NonUniqueTokenException;
+    void setInitialTokens( List<NamedToken> tokens ) throws NonUniqueTokenException;
 
-    void addToken( TOKEN token ) throws NonUniqueTokenException;
+    void addToken( NamedToken token ) throws NonUniqueTokenException;
 
+    /**
+     * Get the id of the token by the given name, or create a new id for the token if it does not have one already,
+     * and then return that id.
+     * <p>
+     * This method is thread-safe, and will ensure that distinct tokens will not have multiple ids allocated for them.
+     *
+     * @param name The name of the token to get the id for.
+     * @return The (possibly newly created) id of the given token.
+     */
     int getOrCreateId( String name );
 
-    TOKEN getTokenById( int id ) throws TokenNotFoundException;
+    /**
+     * Resolve the ids of the given token {@code names} into the array for {@code ids}.
+     * <p>
+     * Any tokens that don't already have an id will have one created for it.
+     */
+    void getOrCreateIds( String[] names, int[] ids );
 
-    TOKEN getTokenByIdOrNull( int id );
+    NamedToken getTokenById( int id ) throws TokenNotFoundException;
 
-    /** Returns the id, or {@link #NO_ID} if no token with this name exists. */
+    /**
+     * Returns the id, or {@link TokenRead#NO_TOKEN} if no token with this name exists.
+     */
     int getIdByName( String name );
 
-    Iterable<TOKEN> getAllTokens();
+    /**
+     * Resolve the ids of the given token {@code names} into the array for {@code ids}.
+     * <p>
+     * Any tokens that don't already have an id will not be resolved, and the corrosponding entry in the {@code ids}
+     * array will be left untouched. If you wish for those unresolved id entries to end up with the {@link TokenRead#NO_TOKEN}
+     * value, you must first fill the array with that value before calling this method.
+     *
+     * @return {@code true} if some of the token names could not be resolved, {@code false} otherwise.
+     */
+    boolean getIdsByNames( String[] names, int[] ids );
+
+    Iterable<NamedToken> getAllTokens();
 
     int size();
 }

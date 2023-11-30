@@ -38,6 +38,7 @@
  */
 package org.neo4j.internal.kernel.api;
 
+import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.internal.kernel.api.security.LoginContext;
 
 /**
@@ -45,7 +46,5 @@ import org.neo4j.internal.kernel.api.security.LoginContext;
  */
 public interface Kernel
 {
-    Session beginSession( LoginContext loginContext );
-
-    Modes modes();
+    <T extends Transaction> T beginTransaction( Transaction.Type type, LoginContext loginContext ) throws TransactionFailureException;
 }

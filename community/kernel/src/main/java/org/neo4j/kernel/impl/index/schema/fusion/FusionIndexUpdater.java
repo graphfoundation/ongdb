@@ -38,7 +38,7 @@
  */
 package org.neo4j.kernel.impl.index.schema.fusion;
 
-import java.io.IOException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.index.IndexEntryUpdate;
@@ -52,7 +52,7 @@ class FusionIndexUpdater extends FusionIndexBase<IndexUpdater> implements IndexU
     }
 
     @Override
-    public void process( IndexEntryUpdate<?> update ) throws IOException, IndexEntryConflictException
+    public void process( IndexEntryUpdate<?> update ) throws IndexEntryConflictException
     {
         switch ( update.updateMode() )
         {
@@ -87,20 +87,28 @@ class FusionIndexUpdater extends FusionIndexBase<IndexUpdater> implements IndexU
     }
 
     @Override
-    public void close() throws IOException, IndexEntryConflictException
+    public void close() throws IndexEntryConflictException
     {
-        try
+        AtomicReference<IndexEntryConflictException> chainedExceptions = new AtomicReference<>();
+
+        instanceSelector.close( indexUpdater ->
         {
-            instanceSelector.close( IndexUpdater::close );
-        }
-        catch ( IOException | IndexEntryConflictException | RuntimeException e )
+            try
+            {
+                indexUpdater.close();
+            }
+            catch ( IndexEntryConflictException e )
+            {
+                if ( !chainedExceptions.compareAndSet( null, e ) )
+                {
+                    chainedExceptions.get().addSuppressed( e );
+                }
+            }
+        } );
+
+        if ( chainedExceptions.get() != null )
         {
-            throw e;
-        }
-        catch ( Exception e )
-        {
-            // This catch-clause is basically only here to satisfy the compiler
-            throw new RuntimeException( e );
+            throw chainedExceptions.get();
         }
     }
 }

@@ -38,29 +38,20 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.util.v3_4.ParameterWrongTypeException
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.operations.CypherFunctions
 import org.neo4j.values.AnyValue
-import org.neo4j.values.storable.{BooleanValue, TextValue, Values}
 
 case class ToBooleanFunction(a: Expression) extends NullInNullOutExpression(a) {
-  def symbolTableDependencies: Set[String] = a.symbolTableDependencies
+  override def symbolTableDependencies: Set[String] = a.symbolTableDependencies
 
-  def arguments: Seq[Expression] = Seq(a)
+  override def arguments: Seq[Expression] = Seq(a)
 
-  def rewrite(f: (Expression) => Expression): Expression = f(ToBooleanFunction(a.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(ToBooleanFunction(a.rewrite(f)))
 
-  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = value match {
-    case b: BooleanValue => b
-    case v: TextValue =>
-      try {
-        Values.booleanValue(v.stringValue().trim.toBoolean)
-      } catch {
-        case e: IllegalArgumentException =>
-          Values.NO_VALUE
-      }
-    case v =>
-      throw new ParameterWrongTypeException("Expected a Boolean or String, got: " + v.toString)
-  }
+  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = CypherFunctions.toBoolean(value)
+
+  override def children: Seq[AstNode[_]] = Seq(a)
 }

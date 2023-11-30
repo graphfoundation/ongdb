@@ -11,17 +11,24 @@
         <relativePath>../..</relativePath>
     </parent>
 
+    <artifactId>ongdb-bolt</artifactId>
+    <version>1.1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>ONgDB - Bolt Protocol Version 1</name>
+    <description>The core of ONgDB Bolt Protocol, this contains the state machine for Bolt sessions.</description>
+
+    <scm>
+        <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
+        <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+        <url>https://github.com/graphfoundation/ongdb.git</url>
+    </scm>
+
     <properties>
         <license-text.header>headers/GPL-3-header.txt</license-text.header>
         <licensing.prepend.text>licensing/notice-gpl-prefix.txt</licensing.prepend.text>
         <moduleName>org.neo4j.bolt</moduleName>
     </properties>
-
-    <artifactId>ongdb-bolt</artifactId>
-
-    <packaging>jar</packaging>
-    <name>ONgDB - Bolt Protocol Version 1</name>
-    <description>The core of ONgDB Bolt Protocol, this contains the state machine for Bolt sessions.</description>
 
     <licenses>
         <license>
@@ -53,7 +60,7 @@
     <dependencies>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb</artifactId>
+            <artifactId>ongdb-geequel</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -68,6 +75,11 @@
             <artifactId>ongdb-kernel</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-udc</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
@@ -80,10 +92,6 @@
             <artifactId>netty-all</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-        </dependency>
         <dependency>
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
@@ -101,8 +109,20 @@
 
         <!--Test dependencies-->
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-migrationsupport</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
         </dependency>
         <dependency>
             <groupId>org.hamcrest</groupId>
@@ -164,9 +184,15 @@
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-random-values</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
 
         <!-- This dependency is needed for Netty to be able to generate
-        self signed certificate on a JDK without sun.security.* package -->
+    self signed certificate on a JDK without sun.security.* package -->
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcpkix-jdk15on</artifactId>

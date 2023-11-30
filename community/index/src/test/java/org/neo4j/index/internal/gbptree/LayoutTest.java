@@ -38,15 +38,15 @@
  */
 package org.neo4j.index.internal.gbptree;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public class LayoutTest
+class LayoutTest
 {
     @Test
-    public void shouldCreateDifferentIdentifierWithDifferentName()
+    void shouldCreateDifferentIdentifierWithDifferentName()
     {
         // GIVEN
         String firstName = "one";
@@ -62,7 +62,7 @@ public class LayoutTest
     }
 
     @Test
-    public void shouldCreateDifferentIdentifierWithDifferentChecksums()
+    void shouldCreateDifferentIdentifierWithDifferentChecksums()
     {
         // GIVEN
         String name = "name";
@@ -78,17 +78,8 @@ public class LayoutTest
     }
 
     @Test
-    public void shouldFailOnTooLongName()
+    void shouldFailOnTooLongName()
     {
-        // WHEN
-        try
-        {
-            Layout.namedIdentifier( "too-long", 12 );
-            fail( "Should have failed" );
-        }
-        catch ( IllegalArgumentException e )
-        {
-            // THEN good
-        }
+        assertThrows( IllegalArgumentException.class, () -> Layout.namedIdentifier( "too-long", 12 ) );
     }
 }

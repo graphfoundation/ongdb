@@ -38,20 +38,61 @@
  */
 package org.neo4j.graphdb;
 
-public abstract class FacadeMethod<T>
-{
-    private final String methodSignature;
+import java.util.Iterator;
+import java.util.function.Consumer;
 
-    public FacadeMethod( String methodSignature )
+import org.neo4j.graphdb.schema.IndexDefinition;
+
+import static org.junit.Assert.assertNotNull;
+import static org.mockito.Mockito.mock;
+import static org.neo4j.graphdb.Label.label;
+import static org.neo4j.graphdb.RelationshipType.withName;
+
+public class FacadeMethod<T> implements Consumer<T>
+{
+    public static final Label LABEL = Label.label( "Label" );
+    public static final RelationshipType FOO = withName( "foo" );
+    public static final RelationshipType BAR = withName( "bar" );
+    public static final Label QUUX = label( "quux" );
+    public static final IndexDefinition INDEX_DEFINITION = mock( IndexDefinition.class );
+
+    private final String methodSignature;
+    private final Consumer<T> callable;
+
+    public FacadeMethod( String methodSignature, Consumer<T> callable )
     {
         this.methodSignature = methodSignature;
+        this.callable = callable;
     }
 
-    public abstract void call( T self );
+    @Override
+    public void accept( T t )
+    {
+        callable.accept( t );
+    }
+
+    public void call( T self )
+    {
+        callable.accept( self );
+    }
 
     @Override
     public String toString()
     {
         return methodSignature;
+    }
+
+    public static <T> void consume( Iterator<T> iterator )
+    {
+        Iterable<T> iterable = () -> iterator;
+        consume( iterable );
+    }
+
+    public static void consume( Iterable<?> iterable )
+    {
+        for ( Object o : iterable )
+        {
+            assertNotNull( o );
+        }
     }
 }

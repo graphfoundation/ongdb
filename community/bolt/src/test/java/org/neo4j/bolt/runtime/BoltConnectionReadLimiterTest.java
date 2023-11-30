@@ -45,10 +45,12 @@ import org.junit.Test;
 
 import java.util.Arrays;
 
+import org.neo4j.bolt.v1.messaging.request.InitMessage;
 import org.neo4j.bolt.v1.runtime.Job;
-import org.neo4j.kernel.impl.logging.LogService;
 import org.neo4j.logging.Log;
+import org.neo4j.logging.internal.LogService;
 
+import static java.util.Collections.emptyMap;
 import static java.util.Collections.singleton;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.junit.Assert.assertFalse;
@@ -64,10 +66,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.neo4j.bolt.testing.NullResponseHandler.nullResponseHandler;
 
 public class BoltConnectionReadLimiterTest
 {
-    private static final Job job = s -> s.run( "INIT", null, null );
+    private static final Job job = machine -> machine.process( new InitMessage( "INIT", emptyMap() ), nullResponseHandler() );
     private BoltConnection connection;
     private EmbeddedChannel channel;
     private Log log;

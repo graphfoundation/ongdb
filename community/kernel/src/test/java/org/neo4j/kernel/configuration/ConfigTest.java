@@ -45,6 +45,7 @@ import org.junit.rules.ExpectedException;
 import org.mockito.InOrder;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -56,6 +57,7 @@ import javax.annotation.Nonnull;
 
 import org.neo4j.configuration.DocumentedDefaultValue;
 import org.neo4j.configuration.Dynamic;
+import org.neo4j.configuration.ExternalSettings;
 import org.neo4j.configuration.Internal;
 import org.neo4j.configuration.LoadableConfig;
 import org.neo4j.configuration.ReplacedBy;
@@ -135,7 +137,7 @@ public class ConfigTest
         @Override
         public Map<String,String> validate( @Nonnull Config config, @Nonnull Log log ) throws InvalidSettingException
         {
-            if ( !config.get( MySettingsWithDefaults.hello ).equals( "ongdb" ) )
+            if ( !config.get( MySettingsWithDefaults.hello ).equals( "neo4j" ) )
             {
                 throw new InvalidSettingException( "Setting hello has to set to neo4j" );
             }
@@ -221,8 +223,7 @@ public class ConfigTest
     }
 
     @Test
-    public void shouldWarnAndDiscardUnknownOptionsInReservedNamespaceAndPassOnBufferedLogInWithMethods()
-            throws Exception
+    public void shouldWarnAndDiscardUnknownOptionsInReservedNamespaceAndPassOnBufferedLogInWithMethods() throws Exception
     {
         // Given
         Log log = mock( Log.class );
@@ -245,8 +246,7 @@ public class ConfigTest
     }
 
     @Test
-    public void shouldLogDeprecationWarnings()
-            throws Exception
+    public void shouldLogDeprecationWarnings() throws Exception
     {
         // Given
         Log log = mock( Log.class );
@@ -267,6 +267,68 @@ public class ConfigTest
         verify( log ).warn( "%s is deprecated. Replaced by %s", MySettingsWithDefaults.oldHello.name(),
                 MySettingsWithDefaults.hello.name() );
         verify( log ).warn( "%s is deprecated.", MySettingsWithDefaults.oldSetting.name() );
+        verifyNoMoreInteractions( log );
+    }
+
+    @Test
+    public void shouldLogIfConfigFileCouldNotBeFound()
+    {
+        Log log = mock( Log.class );
+        File confFile = testDirectory.file( "test.conf" ); // Note: we don't create the file.
+
+        Config config = Config.fromFile( confFile ).withNoThrowOnFileLoadFailure().build();
+
+        config.setLogger( log );
+
+        verify( log ).warn( "Config file [%s] does not exist.", confFile );
+    }
+
+    @Test( expected = ConfigLoadIOException.class )
+    public void mustThrowIfConfigFileCouldNotBeFound()
+    {
+        File confFile = testDirectory.file( "test.conf" );
+
+        Config.fromFile( confFile ).build();
+    }
+
+    @Test
+    public void mustWarnIfFileContainsDuplicateSettings() throws Exception
+    {
+        Log log = mock( Log.class );
+        File confFile = testDirectory.createFile( "test.conf" );
+        Files.write( confFile.toPath(), Arrays.asList(
+                ExternalSettings.initialHeapSize.name() + "=5g",
+                ExternalSettings.initialHeapSize.name() + "=4g",
+                ExternalSettings.initialHeapSize.name() + "=3g",
+                ExternalSettings.maxHeapSize.name() + "=10g",
+                ExternalSettings.maxHeapSize.name() + "=10g" ) );
+
+        Config config = Config.fromFile( confFile ).build();
+        config.setLogger( log );
+
+        // We should only log the warning once for each.
+        verify( log ).warn( "The '%s' setting is specified more than once. Settings only be specified once, to avoid ambiguity. " +
+                        "The setting value that will be used is '%s'.",
+                ExternalSettings.initialHeapSize.name(), "5g" );
+        verify( log ).warn( "The '%s' setting is specified more than once. Settings only be specified once, to avoid ambiguity. " +
+                        "The setting value that will be used is '%s'.",
+                ExternalSettings.maxHeapSize.name(), "10g" );
+    }
+
+    @Test
+    public void mustNotWarnAboutDuplicateJvmAdditionalSettings() throws Exception
+    {
+        Log log = mock( Log.class );
+        File confFile = testDirectory.createFile( "test.conf" );
+        Files.write( confFile.toPath(), Arrays.asList(
+                ExternalSettings.additionalJvm.name() + "=-Dsysprop=val",
+                ExternalSettings.additionalJvm.name() + "=-XX:+UseG1GC",
+                ExternalSettings.additionalJvm.name() + "=-XX:+AlwaysPreTouch" ) );
+
+        Config config = Config.fromFile( confFile ).build();
+        config.setLogger( log );
+
+        // The ExternalSettings.additionalJvm setting is allowed to be specified more than once.
         verifyNoMoreInteractions( log );
     }
 
@@ -327,7 +389,7 @@ public class ConfigTest
     {
         // Should not throw
         Config.builder()
-              .withSetting( MySettingsWithDefaults.hello, "ongdb" )
+              .withSetting( MySettingsWithDefaults.hello, "neo4j" )
               .withValidator( new HelloHasToBeNeo4jConfigurationValidator() )
               .withConfigClasses( Arrays.asList( mySettingsWithDefaults, myMigratingSettings ) ).build();
 

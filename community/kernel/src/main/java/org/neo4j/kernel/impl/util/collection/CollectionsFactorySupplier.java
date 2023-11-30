@@ -38,13 +38,10 @@
  */
 package org.neo4j.kernel.impl.util.collection;
 
-import org.neo4j.memory.LocalMemoryTracker;
-
+@FunctionalInterface
 public interface CollectionsFactorySupplier
 {
     CollectionsFactorySupplier ON_HEAP = () -> OnHeapCollectionsFactory.INSTANCE;
-
-    CollectionsFactorySupplier OFF_HEAP = () -> new OffHeapCollectionsFactory( new LocalMemoryTracker() );
 
     CollectionsFactory create();
 }

@@ -39,7 +39,7 @@
 package org.neo4j.kernel.impl.util.dbstructure;
 
 import org.neo4j.helpers.collection.Visitable;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
+import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
 
 //
 // GENERATED FILE. DO NOT EDIT.
@@ -95,7 +95,7 @@ implements Visitable<DbStructureVisitor>
         visitor.visitRelationshipType( 5, "REL5" );
         visitor.visitRelationshipType( 6, "REL8" );
         visitor.visitRelationshipType( 9, "REL6" );
-        visitor.visitIndex( SchemaIndexDescriptorFactory.forLabel( 22, 0 ), ":Label2(id)", 0.3641877706337751d, 304838L );
+        visitor.visitIndex( TestIndexDescriptorFactory.forLabel( 22, 0 ), ":Label2(id)", 0.3641877706337751d, 304838L );
         visitor.visitAllNodesCount( 2668827L );
         visitor.visitNodeCount( 2, "Label20", 3L );
         visitor.visitNodeCount( 3, "Label4", 0L );

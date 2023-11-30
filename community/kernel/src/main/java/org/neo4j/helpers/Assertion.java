@@ -38,6 +38,7 @@
  */
 package org.neo4j.helpers;
 
+@Deprecated
 public class Assertion
 {
     private static boolean assertionEnabled;
@@ -47,6 +48,7 @@ public class Assertion
         assert assertionEnabled = true;
     }
 
+    @Deprecated
     public static boolean assertionsEnabled()
     {
         return assertionEnabled;

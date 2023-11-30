@@ -89,7 +89,7 @@ public class RecordedBoltResponse
         return metadata.containsKey( key );
     }
 
-    public Object metadata( String key )
+    public AnyValue metadata( String key )
     {
         return metadata.get( key );
     }

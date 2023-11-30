@@ -38,7 +38,7 @@
  */
 package org.neo4j.kernel.api.impl.index.sampler;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
@@ -46,12 +46,12 @@ import java.util.List;
 import org.neo4j.storageengine.api.schema.IndexSample;
 import org.neo4j.storageengine.api.schema.IndexSampler;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class AggregatingIndexSamplerTest
+class AggregatingIndexSamplerTest
 {
     @Test
-    public void samplePartitionedIndex()
+    void samplePartitionedIndex()
     {
         List<IndexSampler> samplers = Arrays.asList( createSampler( 1 ), createSampler( 2 ) );
         AggregatingIndexSampler partitionedSampler = new AggregatingIndexSampler( samplers );
@@ -61,7 +61,7 @@ public class AggregatingIndexSamplerTest
         assertEquals( new IndexSample( 3, 3, 6 ), sample );
     }
 
-    private IndexSampler createSampler( long value )
+    private static IndexSampler createSampler( long value )
     {
         return new TestIndexSampler( value );
     }

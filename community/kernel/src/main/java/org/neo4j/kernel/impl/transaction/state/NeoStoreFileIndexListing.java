@@ -38,19 +38,20 @@
  */
 package org.neo4j.kernel.impl.transaction.state;
 
+import org.eclipse.collections.api.set.primitive.LongSet;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.function.Function;
 
-import org.neo4j.collection.primitive.PrimitiveLongSet;
 import org.neo4j.graphdb.Resource;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.helpers.collection.Iterators;
-import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
 import org.neo4j.kernel.api.labelscan.LabelScanStore;
-import org.neo4j.kernel.impl.api.ExplicitIndexProviderLookup;
+import org.neo4j.kernel.impl.api.ExplicitIndexProvider;
 import org.neo4j.kernel.impl.api.index.IndexingService;
 import org.neo4j.kernel.impl.store.format.RecordFormat;
 import org.neo4j.kernel.impl.util.MultiResource;
@@ -63,18 +64,18 @@ public class NeoStoreFileIndexListing
 {
     private final LabelScanStore labelScanStore;
     private final IndexingService indexingService;
-    private final ExplicitIndexProviderLookup explicitIndexProviders;
+    private final ExplicitIndexProvider explicitIndexProviders;
 
     private static final Function<File,StoreFileMetadata> toStoreFileMetatadata = file -> new StoreFileMetadata( file, RecordFormat.NO_RECORD_SIZE );
 
-    NeoStoreFileIndexListing( LabelScanStore labelScanStore, IndexingService indexingService, ExplicitIndexProviderLookup explicitIndexProviders )
+    NeoStoreFileIndexListing( LabelScanStore labelScanStore, IndexingService indexingService, ExplicitIndexProvider explicitIndexProviders )
     {
         this.labelScanStore = labelScanStore;
         this.indexingService = indexingService;
         this.explicitIndexProviders = explicitIndexProviders;
     }
 
-    public PrimitiveLongSet getIndexIds()
+    public LongSet getIndexIds()
     {
         return indexingService.getIndexIds();
     }
@@ -100,7 +101,7 @@ public class NeoStoreFileIndexListing
     Resource gatherExplicitIndexFiles( Collection<StoreFileMetadata> files ) throws IOException
     {
         final Collection<ResourceIterator<File>> snapshots = new ArrayList<>();
-        for ( IndexImplementation indexProvider : explicitIndexProviders.all() )
+        for ( IndexImplementation indexProvider : explicitIndexProviders.allIndexProviders() )
         {
             ResourceIterator<File> snapshot = indexProvider.listStoreFiles();
             snapshots.add( snapshot );

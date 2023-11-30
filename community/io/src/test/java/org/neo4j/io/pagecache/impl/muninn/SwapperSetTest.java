@@ -38,39 +38,36 @@
  */
 package org.neo4j.io.pagecache.impl.muninn;
 
+import org.eclipse.collections.api.set.primitive.MutableIntSet;
+import org.eclipse.collections.impl.set.mutable.primitive.IntHashSet;
 import org.hamcrest.Matcher;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.collection.primitive.Primitive;
-import org.neo4j.collection.primitive.PrimitiveIntSet;
 import org.neo4j.io.pagecache.PageSwapper;
 import org.neo4j.io.pagecache.tracing.DummyPageSwapper;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
 
-public class SwapperSetTest
+class SwapperSetTest
 {
-    @Rule
-    public ExpectedException exception = ExpectedException.none();
+    private SwapperSet set;
 
-    SwapperSet set;
-
-    @Before
-    public void setUp()
+    @BeforeEach
+    void setUp()
     {
         set = new SwapperSet();
     }
 
     @Test
-    public void mustReturnAllocationWithSwapper()
+    void mustReturnAllocationWithSwapper()
     {
         DummyPageSwapper a = new DummyPageSwapper( "a", 42 );
         DummyPageSwapper b = new DummyPageSwapper( "b", 43 );
@@ -83,7 +80,7 @@ public class SwapperSetTest
     }
 
     @Test
-    public void accessingFreedAllocationMustReturnNull()
+    void accessingFreedAllocationMustReturnNull()
     {
         int id = set.allocate( new DummyPageSwapper( "a", 42 ) );
         set.free( id );
@@ -91,27 +88,26 @@ public class SwapperSetTest
     }
 
     @Test
-    public void doubleFreeMustThrow()
+    void doubleFreeMustThrow()
     {
         int id = set.allocate( new DummyPageSwapper( "a", 42 ) );
         set.free( id );
-        exception.expect( IllegalStateException.class );
-        exception.expectMessage( "double free" );
-        set.free( id );
+        IllegalStateException exception = assertThrows( IllegalStateException.class, () -> set.free( id ) );
+        assertThat( exception.getMessage(), containsString( "double free" ) );
     }
 
     @Test
-    public void freedIdsMustNotBeReusedBeforeVacuum()
+    void freedIdsMustNotBeReusedBeforeVacuum()
     {
         PageSwapper swapper = new DummyPageSwapper( "a", 42 );
-        PrimitiveIntSet ids = Primitive.intSet( 10_000 );
+        MutableIntSet ids = new IntHashSet( 10_000 );
         for ( int i = 0; i < 10_000; i++ )
         {
             allocateFreeAndAssertNotReused( swapper, ids, i );
         }
     }
 
-    private void allocateFreeAndAssertNotReused( PageSwapper swapper, PrimitiveIntSet ids, int i )
+    private void allocateFreeAndAssertNotReused( PageSwapper swapper, MutableIntSet ids, int i )
     {
         int id = set.allocate( swapper );
         set.free( id );
@@ -123,23 +119,22 @@ public class SwapperSetTest
     }
 
     @Test
-    public void freedAllocationsMustBecomeAvailableAfterVacuum()
+    void freedAllocationsMustBecomeAvailableAfterVacuum()
     {
-        PrimitiveIntSet allocated = Primitive.intSet();
-        PrimitiveIntSet freed = Primitive.intSet();
-        PrimitiveIntSet vacuumed = Primitive.intSet();
-        PrimitiveIntSet reused = Primitive.intSet();
+        MutableIntSet allocated = new IntHashSet();
+        MutableIntSet freed = new IntHashSet();
+        MutableIntSet vacuumed = new IntHashSet();
+        MutableIntSet reused = new IntHashSet();
         PageSwapper swapper = new DummyPageSwapper( "a", 42 );
 
         allocateAndAddTenThousand( allocated, swapper );
 
-        allocated.visitKeys( id ->
+        allocated.forEach( id ->
         {
             set.free( id );
             freed.add( id );
-            return false;
         } );
-        set.vacuum( swapperIds -> vacuumed.addAll( ((PrimitiveIntSet) swapperIds).iterator() ) );
+        set.vacuum( vacuumed::addAll );
 
         allocateAndAddTenThousand( reused, swapper );
 
@@ -148,7 +143,7 @@ public class SwapperSetTest
         assertThat( allocated, is( equalTo( reused ) ) );
     }
 
-    private void allocateAndAddTenThousand( PrimitiveIntSet allocated, PageSwapper swapper )
+    private void allocateAndAddTenThousand( MutableIntSet allocated, PageSwapper swapper )
     {
         for ( int i = 0; i < 10_000; i++ )
         {
@@ -156,22 +151,22 @@ public class SwapperSetTest
         }
     }
 
-    private void allocateAndAdd( PrimitiveIntSet allocated, PageSwapper swapper )
+    private void allocateAndAdd( MutableIntSet allocated, PageSwapper swapper )
     {
         int id = set.allocate( swapper );
         allocated.add( id );
     }
 
     @Test
-    public void vacuumMustNotDustOffAnyIdsWhenNoneHaveBeenFreed()
+    void vacuumMustNotDustOffAnyIdsWhenNoneHaveBeenFreed()
     {
         PageSwapper swapper = new DummyPageSwapper( "a", 42 );
         for ( int i = 0; i < 100; i++ )
         {
             set.allocate( swapper );
         }
-        PrimitiveIntSet vacuumedIds = Primitive.intSet();
-        set.vacuum( swapperIds -> vacuumedIds.addAll( ((PrimitiveIntSet) swapperIds).iterator() ) );
+        MutableIntSet vacuumedIds = new IntHashSet();
+        set.vacuum( vacuumedIds::addAll );
         if ( !vacuumedIds.isEmpty() )
         {
             throw new AssertionError( "Vacuum found id " + vacuumedIds + " when it should have found nothing" );
@@ -179,7 +174,7 @@ public class SwapperSetTest
     }
 
     @Test
-    public void mustNotUseZeroAsSwapperId()
+    void mustNotUseZeroAsSwapperId()
     {
         PageSwapper swapper = new DummyPageSwapper( "a", 42 );
         Matcher<Integer> isNotZero = is( not( 0 ) );
@@ -190,21 +185,19 @@ public class SwapperSetTest
     }
 
     @Test
-    public void gettingAllocationZeroMustThrow()
+    void gettingAllocationZeroMustThrow()
     {
-        exception.expect( IllegalArgumentException.class );
-        set.getAllocation( (short) 0 );
+        assertThrows( IllegalArgumentException.class, () -> set.getAllocation( (short) 0 ) );
     }
 
     @Test
-    public void freeOfIdZeroMustThrow()
+    void freeOfIdZeroMustThrow()
     {
-        exception.expect( IllegalArgumentException.class );
-        set.free( 0 );
+        assertThrows( IllegalArgumentException.class, () -> set.free( 0 ) );
     }
 
     @Test
-    public void mustKeepTrackOfAvailableSwapperIds()
+    void mustKeepTrackOfAvailableSwapperIds()
     {
         PageSwapper swapper = new DummyPageSwapper( "a", 42 );
         int initial = (1 << 21) - 2;

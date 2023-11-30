@@ -38,13 +38,15 @@
  */
 package org.neo4j.unsafe.impl.batchimport;
 
+import org.eclipse.collections.api.set.primitive.IntSet;
+import org.eclipse.collections.api.set.primitive.MutableIntSet;
+import org.eclipse.collections.impl.set.mutable.primitive.IntHashSet;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-import org.neo4j.collection.primitive.Primitive;
-import org.neo4j.collection.primitive.PrimitiveIntSet;
 import org.neo4j.helpers.collection.Iterators;
 
 import static java.lang.Integer.max;
@@ -56,15 +58,20 @@ import static java.lang.String.format;
 public class DataStatistics implements Iterable<DataStatistics.RelationshipTypeCount>
 {
     private final List<Client> clients = new ArrayList<>();
+    private final DataImporter.Monitor entityCounts;
     private int opened;
     private RelationshipTypeCount[] typeCounts;
-    private final long nodeCount;
-    private final long propertyCount;
 
     public DataStatistics( long nodeCount, long propertyCount, RelationshipTypeCount[] sortedTypes )
     {
-        this.nodeCount = nodeCount;
-        this.propertyCount = propertyCount;
+        this( new DataImporter.Monitor(), sortedTypes );
+        entityCounts.nodesImported( nodeCount );
+        entityCounts.propertiesImported( propertyCount );
+    }
+
+    public DataStatistics( DataImporter.Monitor entityCounts, RelationshipTypeCount[] sortedTypes )
+    {
+        this.entityCounts = entityCounts;
         this.typeCounts = sortedTypes;
     }
 
@@ -208,9 +215,9 @@ public class DataStatistics implements Iterable<DataStatistics.RelationshipTypeC
         return typeCounts[index];
     }
 
-    public PrimitiveIntSet types( int startingFromType, int upToType )
+    public IntSet types( int startingFromType, int upToType )
     {
-        PrimitiveIntSet set = Primitive.intSet( (upToType - startingFromType) * 2 );
+        final MutableIntSet set = new IntHashSet( (upToType - startingFromType) * 2 );
         for ( int i = startingFromType; i < upToType; i++ )
         {
             set.add( get( i ).getTypeId() );
@@ -220,12 +227,12 @@ public class DataStatistics implements Iterable<DataStatistics.RelationshipTypeC
 
     public long getNodeCount()
     {
-        return nodeCount;
+        return entityCounts.nodesImported();
     }
 
     public long getPropertyCount()
     {
-        return propertyCount;
+        return entityCounts.propertiesImported();
     }
 
     public long getRelationshipCount()
@@ -241,6 +248,6 @@ public class DataStatistics implements Iterable<DataStatistics.RelationshipTypeC
     @Override
     public String toString()
     {
-        return format( "Imported:%n  %d nodes%n  %d relationships%n  %d properties", nodeCount, getRelationshipCount(), propertyCount );
+        return format( "Imported:%n  %d nodes%n  %d relationships%n  %d properties", getNodeCount(), getRelationshipCount(), getPropertyCount() );
     }
 }

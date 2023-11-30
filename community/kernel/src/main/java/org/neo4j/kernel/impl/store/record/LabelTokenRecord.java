@@ -40,7 +40,7 @@ package org.neo4j.kernel.impl.store.record;
 
 public class LabelTokenRecord extends TokenRecord
 {
-    public LabelTokenRecord( int id )
+    public LabelTokenRecord( long id )
     {
         super( id );
     }
@@ -61,14 +61,6 @@ public class LabelTokenRecord extends TokenRecord
     @Override
     public LabelTokenRecord clone()
     {
-        LabelTokenRecord labelTokenRecord = new LabelTokenRecord( getIntId() );
-        labelTokenRecord.setInUse( inUse() );
-        if ( isCreated() )
-        {
-            labelTokenRecord.setCreated();
-        }
-        labelTokenRecord.setNameId( getNameId() );
-        labelTokenRecord.addNameRecords( getNameRecords() );
-        return labelTokenRecord;
+        return (LabelTokenRecord) super.clone();
     }
 }

@@ -38,14 +38,13 @@
  */
 package org.neo4j.kernel.impl.query;
 
-import java.net.InetSocketAddress;
-
 import org.junit.Test;
+
+import java.net.InetSocketAddress;
 
 import org.neo4j.kernel.impl.query.clientconnection.BoltConnectionInfo;
 import org.neo4j.kernel.impl.query.clientconnection.ClientConnectionInfo;
 import org.neo4j.kernel.impl.query.clientconnection.HttpConnectionInfo;
-import org.neo4j.kernel.impl.query.clientconnection.ShellConnectionInfo;
 
 import static org.junit.Assert.assertEquals;
 
@@ -56,6 +55,7 @@ public class ClientConnectionInfoTest
     {
         // given
         ClientConnectionInfo clientConnection = new BoltConnectionInfo(
+                "bolt-42",
                 "username",
                 "neo4j-java-bolt-driver",
                 new InetSocketAddress( "127.0.0.1", 56789 ),
@@ -77,7 +77,7 @@ public class ClientConnectionInfoTest
     {
         // given
         ClientConnectionInfo clientConnection =
-                new HttpConnectionInfo( "http", null,
+                new HttpConnectionInfo( "http-42", "http",
                         new InetSocketAddress( "127.0.0.1", 1337 ), null, "/db/data/transaction/45/commit" )
                         .withUsername( "username" );
 
@@ -98,18 +98,5 @@ public class ClientConnectionInfoTest
 
         // then
         assertEquals( "embedded-session\t", connectionDetails );
-    }
-
-    @Test
-    public void connectionDetailsForShellSession()
-    {
-        // given
-        ClientConnectionInfo clientConnection = new ShellConnectionInfo( 1 ).withUsername( "FULL" );
-
-        // when
-        String connectionDetails = clientConnection.asConnectionDetails();
-
-        // then
-        assertEquals( "shell-session\tshell\t1\tFULL", connectionDetails );
     }
 }

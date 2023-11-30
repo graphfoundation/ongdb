@@ -47,6 +47,7 @@ import org.neo4j.io.pagecache.PagedFile;
 import org.neo4j.kernel.impl.store.UnderlyingStorageException;
 
 import static org.neo4j.io.pagecache.PagedFile.PF_SHARED_READ_LOCK;
+import static org.neo4j.kernel.impl.store.kvstore.AbstractKeyValueStore.MAX_LOOKUP_RETRY_COUNT;
 import static org.neo4j.kernel.impl.store.kvstore.BigEndianByteArrayBuffer.compare;
 import static org.neo4j.kernel.impl.store.kvstore.BigEndianByteArrayBuffer.newBuffer;
 
@@ -229,29 +230,46 @@ public class KeyValueStoreFile implements Closeable
         return acceptZeroKey || !key.allZeroes();
     }
 
-    private static void readKeyValuePair( PageCursor cursor, int offset, WritableBuffer key, WritableBuffer value )
+    static void readKeyValuePair( PageCursor cursor, int offset, WritableBuffer key, WritableBuffer value )
             throws IOException
     {
+        long retriesLeft = MAX_LOOKUP_RETRY_COUNT;
         do
         {
             cursor.setOffset( offset );
             key.getFrom( cursor );
             value.getFrom( cursor );
         }
-        while ( cursor.shouldRetry() );
+        while ( cursor.shouldRetry() && (--retriesLeft) > 0 );
+
         if ( cursor.checkAndClearBoundsFlag() )
         {
             throwOutOfBounds( cursor, offset );
         }
+
+        if ( retriesLeft == 0 )
+        {
+            throwFailedRead( cursor, offset );
+        }
+    }
+
+    private static void throwFailedRead( PageCursor cursor, int offset )
+    {
+        throwReadError( cursor, offset, "Failed to read after " + MAX_LOOKUP_RETRY_COUNT + " retries" );
     }
 
     private static void throwOutOfBounds( PageCursor cursor, int offset )
+    {
+        throwReadError( cursor, offset, "Out of page bounds" );
+    }
+
+    private static void throwReadError( PageCursor cursor, int offset, String error )
     {
         long pageId = cursor.getCurrentPageId();
         int pageSize = cursor.getCurrentPageSize();
         String file = cursor.getCurrentFile().getAbsolutePath();
         throw new UnderlyingStorageException(
-                "Out of page bounds when reading key-value pair from offset " + offset + " into page " +
+                error + " when reading key-value pair from offset " + offset + " into page " +
                 pageId + " (with a size of " + pageSize + " bytes) of file " + file );
     }
 

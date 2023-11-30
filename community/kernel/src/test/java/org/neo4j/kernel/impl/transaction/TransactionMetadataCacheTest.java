@@ -53,7 +53,7 @@ public class TransactionMetadataCacheTest
     public void shouldReturnNullWhenMissingATxInTheCache()
     {
         // given
-        final TransactionMetadataCache cache = new TransactionMetadataCache( 2 );
+        final TransactionMetadataCache cache = new TransactionMetadataCache();
 
         // when
         final TransactionMetadataCache.TransactionMetadata metadata = cache.getTransactionMetadata( 42 );
@@ -66,7 +66,7 @@ public class TransactionMetadataCacheTest
     public void shouldReturnTheTxValueTIfInTheCached()
     {
         // given
-        final TransactionMetadataCache cache = new TransactionMetadataCache( 2 );
+        final TransactionMetadataCache cache = new TransactionMetadataCache();
         final LogPosition position = new LogPosition( 3, 4 );
         final int txId = 42;
         final int masterId = 0;
@@ -88,7 +88,7 @@ public class TransactionMetadataCacheTest
     public void shouldThrowWhenCachingATxWithNegativeOffsetPosition()
     {
         // given
-        final TransactionMetadataCache cache = new TransactionMetadataCache( 2 );
+        final TransactionMetadataCache cache = new TransactionMetadataCache();
         final LogPosition position = new LogPosition( 3, -1 );
         final int txId = 42;
         final int masterId = 0;
@@ -112,7 +112,7 @@ public class TransactionMetadataCacheTest
     public void shouldClearTheCache()
     {
         // given
-        final TransactionMetadataCache cache = new TransactionMetadataCache( 2 );
+        final TransactionMetadataCache cache = new TransactionMetadataCache();
         final LogPosition position = new LogPosition( 3, 4 );
         final int txId = 42;
         final int masterId = 0;

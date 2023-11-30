@@ -50,7 +50,7 @@ class CodeLoader extends ClassLoader
         super( parent );
     }
 
-    public synchronized void addSources( Iterable<? extends ByteCodes> sources, ByteCodeVisitor visitor )
+    synchronized void addSources( Iterable<? extends ByteCodes> sources, ByteCodeVisitor visitor )
     {
         for ( ByteCodes source : sources )
         {

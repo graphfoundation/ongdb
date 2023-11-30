@@ -41,10 +41,15 @@ package org.neo4j.values.storable;
 public enum ValueCategory
 {
     NUMBER,
+    NUMBER_ARRAY,
     TEXT,
+    TEXT_ARRAY,
     GEOMETRY,
+    GEOMETRY_ARRAY,
     TEMPORAL,
-    REST,
+    TEMPORAL_ARRAY,
+    BOOLEAN,
+    BOOLEAN_ARRAY,
     UNKNOWN,
     NO_CATEGORY
 }

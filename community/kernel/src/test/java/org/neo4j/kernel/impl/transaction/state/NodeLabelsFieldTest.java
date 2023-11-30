@@ -44,7 +44,6 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -52,9 +51,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.helpers.CloneableInPublic;
 import org.neo4j.helpers.collection.Iterables;
 import org.neo4j.helpers.collection.Pair;
 import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
@@ -66,12 +65,14 @@ import org.neo4j.kernel.impl.store.NodeLabelsField;
 import org.neo4j.kernel.impl.store.NodeStore;
 import org.neo4j.kernel.impl.store.StoreFactory;
 import org.neo4j.kernel.impl.store.id.DefaultIdGeneratorFactory;
+import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
 import org.neo4j.kernel.impl.store.record.DynamicRecord;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
 import org.neo4j.kernel.impl.util.Bits;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.test.rule.PageCacheRule;
 import org.neo4j.test.rule.RandomRule;
+import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
 
 import static org.junit.Assert.assertEquals;
@@ -86,9 +87,11 @@ public class NodeLabelsFieldTest
     @ClassRule
     public static final PageCacheRule pageCacheRule = new PageCacheRule();
     @Rule
-    public EphemeralFileSystemRule fs = new EphemeralFileSystemRule();
+    public final EphemeralFileSystemRule fs = new EphemeralFileSystemRule();
     @Rule
-    public RandomRule random = new RandomRule();
+    public final RandomRule random = new RandomRule();
+    @Rule
+    public final TestDirectory testDirectory = TestDirectory.testDirectory();
 
     private NeoStores neoStores;
     private NodeStore nodeStore;
@@ -96,10 +99,8 @@ public class NodeLabelsFieldTest
     @Before
     public void startUp()
     {
-        File storeDir = new File( "dir" );
-        fs.get().mkdirs( storeDir );
         Config config = Config.defaults( GraphDatabaseSettings.label_block_size, "60" );
-        StoreFactory storeFactory = new StoreFactory( storeDir, config, new DefaultIdGeneratorFactory( fs.get() ),
+        StoreFactory storeFactory = new StoreFactory( testDirectory.databaseLayout(), config, new DefaultIdGeneratorFactory( fs.get() ),
                 pageCacheRule.getPageCache( fs.get() ), fs.get(), NullLogProvider.getInstance(), EmptyVersionContextSupplier.EMPTY );
         neoStores = storeFactory.openAllNeoStores( true );
         nodeStore = neoStores.getNodeStore();
@@ -615,8 +616,8 @@ public class NodeLabelsFieldTest
         return used;
     }
 
-    private static <T extends CloneableInPublic> Iterable<T> cloned( Iterable<T> items, final Class<T> itemClass )
+    private static <T extends AbstractBaseRecord> Iterable<T> cloned( Iterable<T> items, final Class<T> itemClass )
     {
-        return Iterables.map( from -> itemClass.cast( from.clone() ), items );
+        return Iterables.map( obj -> itemClass.cast( obj.clone() ), items );
     }
 }

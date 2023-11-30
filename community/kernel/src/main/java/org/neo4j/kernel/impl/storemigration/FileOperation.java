@@ -123,7 +123,7 @@ public enum FileOperation
             File fromDirectory, boolean skipNonExistentFromFile,
             File toDirectory, ExistingTargetStrategy existingTargetStrategy ) throws IOException;
 
-    protected File fromFile( FileSystemAbstraction fs, File directory, String name, boolean skipNonExistent )
+    private static File fromFile( FileSystemAbstraction fs, File directory, String name, boolean skipNonExistent )
     {
         File fromFile = new File( directory, name );
         if ( skipNonExistent && !fs.fileExists( fromFile ) )
@@ -135,7 +135,7 @@ public enum FileOperation
         return fromFile;
     }
 
-    protected File toFile( FileSystemAbstraction fs, File directory, String name,
+    private static File toFile( FileSystemAbstraction fs, File directory, String name,
             ExistingTargetStrategy existingTargetStrategy )
     {
         File file = new File( directory, name );

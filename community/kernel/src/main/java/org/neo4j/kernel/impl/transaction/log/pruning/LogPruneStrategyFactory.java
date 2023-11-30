@@ -44,6 +44,7 @@ import java.util.stream.LongStream;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.pruning.ThresholdConfigParser.ThresholdConfigValue;
+import org.neo4j.util.VisibleForTesting;
 
 import static java.util.concurrent.TimeUnit.DAYS;
 import static java.util.concurrent.TimeUnit.HOURS;
@@ -98,7 +99,7 @@ public class LogPruneStrategyFactory
         return new ThresholdBasedPruneStrategy( fileSystem, logFiles, thresholdToUse );
     }
 
-    // visible for testing
+    @VisibleForTesting
     static Threshold getThresholdByType( FileSystemAbstraction fileSystem, Clock clock, ThresholdConfigValue value,
             String originalConfigValue )
     {

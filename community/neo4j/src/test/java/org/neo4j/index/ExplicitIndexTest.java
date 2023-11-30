@@ -38,143 +38,60 @@
  */
 package org.neo4j.index;
 
-import org.apache.commons.lang3.RandomStringUtils;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Function;
+import java.util.stream.IntStream;
 
-import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.PropertyContainer;
-import org.neo4j.graphdb.Relationship;
-import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.index.Index;
-import org.neo4j.graphdb.index.IndexHits;
 import org.neo4j.graphdb.index.IndexManager;
+import org.neo4j.helpers.collection.Pair;
 import org.neo4j.index.lucene.unsafe.batchinsert.LuceneBatchInserterIndexProvider;
-import org.neo4j.kernel.impl.MyRelTypes;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.unsafe.batchinsert.BatchInserter;
 import org.neo4j.unsafe.batchinsert.BatchInserterIndex;
 import org.neo4j.unsafe.batchinsert.BatchInserters;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static java.time.Duration.ofMillis;
+import static java.util.stream.Collectors.toMap;
+import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
+import static org.junit.jupiter.api.Assertions.assertTimeout;
 import static org.neo4j.helpers.collection.MapUtil.stringMap;
 
-public class ExplicitIndexTest
+@ExtendWith( TestDirectoryExtension.class )
+class ExplicitIndexTest
 {
     private static final long TEST_TIMEOUT = 80_000;
 
-    @Rule
-    public TestDirectory directory = TestDirectory.testDirectory();
-
-    @Test( timeout = TEST_TIMEOUT )
-    public void explicitIndexPopulationWithBunchOfFields() throws Exception
-    {
-        BatchInserter batchNode = BatchInserters.inserter( directory.graphDbDir() );
-        LuceneBatchInserterIndexProvider provider = new LuceneBatchInserterIndexProvider( batchNode );
-        try
-        {
-            BatchInserterIndex batchIndex = provider.nodeIndex( "node_auto_index",
-                    stringMap( IndexManager.PROVIDER, "lucene", "type", "fulltext" ) );
-
-            Map<String,Object> properties = new HashMap<>();
-            for ( int i = 0; i < 2000; i++ )
-            {
-                properties.put( Integer.toString( i ), RandomStringUtils.randomAlphabetic( 200 ) );
-            }
-
-            long node = batchNode.createNode( properties, Label.label( "NODE" ) );
-            batchIndex.add( node, properties );
-        }
-        finally
-        {
-            provider.shutdown();
-            batchNode.shutdown();
-        }
-    }
+    @Inject
+    private TestDirectory directory;
 
     @Test
-    public void shouldBeAbleToGetSingleHitAfterCallToHasNext()
+    void explicitIndexPopulationWithBunchOfFields()
     {
-        GraphDatabaseService db = new TestGraphDatabaseFactory().newImpermanentDatabase();
-        try
+        assertTimeout( ofMillis( TEST_TIMEOUT ), () ->
         {
-            // given
-            Index<Node> nodeIndex;
-            Index<Relationship> relationshipIndex;
-            try ( Transaction tx = db.beginTx() )
+            BatchInserter batchNode = BatchInserters.inserter( directory.databaseDir() );
+            LuceneBatchInserterIndexProvider provider = new LuceneBatchInserterIndexProvider( batchNode );
+            try
             {
-                nodeIndex = db.index().forNodes( "MyIndex" );
-                relationshipIndex = db.index().forRelationships( "MyIndex" );
-                tx.success();
+                BatchInserterIndex batchIndex = provider.nodeIndex( "node_auto_index", stringMap( IndexManager.PROVIDER, "lucene", "type", "fulltext" ) );
+
+                Map<String,Object> properties = IntStream.range( 0, 2000 )
+                        .mapToObj( i -> Pair.of( Integer.toString( i ), randomAlphabetic( 200 ) ) )
+                        .collect( toMap( Pair::first, Pair::other ) );
+
+                long node = batchNode.createNode( properties, Label.label( "NODE" ) );
+                batchIndex.add( node, properties );
             }
-            String key = "key";
-            String value = "value";
-            Node node;
-            Relationship relationship;
-            try ( Transaction tx = db.beginTx() )
+            finally
             {
-                node = db.createNode();
-                nodeIndex.add( node, key, value );
-
-                relationship = node.createRelationshipTo( node, MyRelTypes.TEST );
-                relationshipIndex.add( relationship, key, value );
-                tx.success();
+                provider.shutdown();
+                batchNode.shutdown();
             }
-            assertFindSingleHit( db, nodeIndex, key, value, node );
-            assertFindSingleHit( db, relationshipIndex, key, value, relationship );
-        }
-        finally
-        {
-            db.shutdown();
-        }
-    }
-
-    private <T extends PropertyContainer> void assertFindSingleHit( GraphDatabaseService db, Index<T> nodeIndex, String key, String value, T entity )
-    {
-        // when get using hasNext + next, then
-        assertEquals( entity, findSingle( db, nodeIndex, key, value, hits ->
-        {
-            assertTrue( hits.hasNext() );
-            T result = hits.next();
-            assertFalse( hits.hasNext() );
-            return result;
-        } ) );
-        // when get using getSingle, then
-        assertEquals( entity, findSingle( db, nodeIndex, key, value, hits ->
-        {
-            T result = hits.getSingle();
-            assertFalse( hits.hasNext() );
-            return result;
-        } ) );
-        // when get using hasNext + getSingle, then
-        assertEquals( entity, findSingle( db, nodeIndex, key, value, hits ->
-        {
-            assertTrue( hits.hasNext() );
-            T result = hits.getSingle();
-            assertFalse( hits.hasNext() );
-            return result;
-        } ) );
-    }
-
-    private <T extends PropertyContainer> T findSingle( GraphDatabaseService db, Index<T> index, String key, String value, Function<IndexHits<T>,T> getter )
-    {
-        try ( Transaction tx = db.beginTx() )
-        {
-            try ( IndexHits<T> hits = index.get( key, value ) )
-            {
-                T entity = getter.apply( hits );
-                tx.success();
-                return entity;
-            }
-        }
+        } );
     }
 }

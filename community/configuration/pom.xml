@@ -20,7 +20,7 @@
 
     <packaging>jar</packaging>
     <name>ONgDB - Configuration</name>
-    <description>Code responsible for parsing the ONgDB configuration.</description>
+    <description>Code responsible for parsing the Neo4j configuration.</description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
     <scm>
@@ -72,8 +72,16 @@
             <artifactId>annotations</artifactId>
         </dependency>
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-migrationsupport</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
         </dependency>
         <dependency>
             <groupId>org.hamcrest</groupId>
@@ -86,6 +94,11 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.seancfoley</groupId>
+            <artifactId>ipaddress</artifactId>
+            <version>5.3.3</version>
         </dependency>
     </dependencies>
 </project>

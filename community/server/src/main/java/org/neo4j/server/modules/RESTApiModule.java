@@ -40,12 +40,12 @@ package org.neo4j.server.modules;
 
 import java.net.URI;
 import java.util.List;
+import java.util.function.Supplier;
 
-import org.neo4j.concurrent.RecentK;
-import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.server.configuration.ServerSettings;
+import org.neo4j.server.plugins.DefaultPluginManager;
 import org.neo4j.server.plugins.PluginManager;
 import org.neo4j.server.rest.web.BatchOperationService;
 import org.neo4j.server.rest.web.CollectUserAgentFilter;
@@ -53,12 +53,12 @@ import org.neo4j.server.rest.web.CorsFilter;
 import org.neo4j.server.rest.web.CypherService;
 import org.neo4j.server.rest.web.DatabaseMetadataService;
 import org.neo4j.server.rest.web.ExtensionService;
-import org.neo4j.server.rest.web.ResourcesService;
 import org.neo4j.server.rest.web.RestfulGraphDatabase;
 import org.neo4j.server.rest.web.TransactionalService;
 import org.neo4j.server.web.WebServer;
 import org.neo4j.udc.UsageData;
 import org.neo4j.udc.UsageDataKeys;
+import org.neo4j.util.concurrent.RecentK;
 
 import static java.util.Arrays.asList;
 import static org.neo4j.server.configuration.ServerSettings.http_access_control_allow_origin;
@@ -70,17 +70,16 @@ public class RESTApiModule implements ServerModule
 {
     private final Config config;
     private final WebServer webServer;
-    private DependencyResolver dependencyResolver;
+    private final Supplier<UsageData> userDataSupplier;
     private final LogProvider logProvider;
 
     private PluginManager plugins;
 
-    public RESTApiModule( WebServer webServer, Config config, DependencyResolver dependencyResolver,
-            LogProvider logProvider )
+    public RESTApiModule( WebServer webServer, Config config, Supplier<UsageData> userDataSupplier, LogProvider logProvider )
     {
         this.webServer = webServer;
         this.config = config;
-        this.dependencyResolver = dependencyResolver;
+        this.userDataSupplier = userDataSupplier;
         this.logProvider = logProvider;
     }
 
@@ -95,16 +94,9 @@ public class RESTApiModule implements ServerModule
         loadPlugins();
     }
 
-    /**
-     * The modules are instantiated before the database is, meaning we can't access the UsageData service before we
-     * start. This resolves UsageData at start time.
-     *
-     * Obviously needs to be refactored, pending discussion on unifying module frameworks between kernel and server
-     * and hashing out associated dependency hierarchy and lifecycles.
-     */
     private RecentK<String> clientNames()
     {
-        return dependencyResolver.resolveDependency( UsageData.class ).get( UsageDataKeys.clientNames );
+        return userDataSupplier.get().get( UsageDataKeys.clientNames );
     }
 
     private List<String> getClassNames()
@@ -115,7 +107,6 @@ public class RESTApiModule implements ServerModule
                 CypherService.class.getName(),
                 DatabaseMetadataService.class.getName(),
                 ExtensionService.class.getName(),
-                ResourcesService.class.getName(),
                 BatchOperationService.class.getName() );
     }
 
@@ -123,7 +114,6 @@ public class RESTApiModule implements ServerModule
     public void stop()
     {
         webServer.removeJAXRSClasses( getClassNames(), restApiUri().toString() );
-        unloadPlugins();
     }
 
     private URI restApiUri()
@@ -133,12 +123,7 @@ public class RESTApiModule implements ServerModule
 
     private void loadPlugins()
     {
-        plugins = new PluginManager( config, logProvider );
-    }
-
-    private void unloadPlugins()
-    {
-        // TODO
+        plugins = new DefaultPluginManager( logProvider );
     }
 
     public PluginManager getPlugins()

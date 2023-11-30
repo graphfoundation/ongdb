@@ -58,10 +58,7 @@
 
     <build>
         <plugins>
-            <!-- This module contains public API, run javadoc and revapi -->
-            <plugin>
-                <artifactId>maven-javadoc-plugin</artifactId>
-            </plugin>
+            <!-- This module contains public API, run revapi -->
             <plugin>
                 <groupId>org.revapi</groupId>
                 <artifactId>revapi-maven-plugin</artifactId>
@@ -70,6 +67,10 @@
     </build>
 
     <dependencies>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>ongdb-resource</artifactId>
@@ -80,10 +81,22 @@
             <artifactId>ongdb-common</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.eclipse.collections</groupId>
+            <artifactId>eclipse-collections</artifactId>
+        </dependency>
 
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-migrationsupport</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
@@ -94,4 +107,5 @@
             <artifactId>hamcrest-all</artifactId>
         </dependency>
     </dependencies>
+
 </project>

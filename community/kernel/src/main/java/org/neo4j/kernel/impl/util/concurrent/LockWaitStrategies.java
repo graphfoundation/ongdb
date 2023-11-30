@@ -38,6 +38,7 @@
  */
 package org.neo4j.kernel.impl.util.concurrent;
 
+import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.storageengine.api.lock.AcquireLockTimeoutException;
 import org.neo4j.storageengine.api.lock.WaitStrategy;
 
@@ -96,6 +97,17 @@ public enum LockWaitStrategies implements WaitStrategy<AcquireLockTimeoutExcepti
                 Thread.interrupted();
                 throw new AcquireLockTimeoutException( e, "Interrupted while waiting.", Interrupted );
             }
+        }
+    },
+    NO_WAIT
+    {
+        @Override
+        public void apply( long iteration )
+                throws AcquireLockTimeoutException
+        {
+            // The NO_WAIT bail-out is a mix of deadlock and lock acquire timeout.
+            throw new AcquireLockTimeoutException( "Cannot acquire lock, and refusing to wait.",
+                    Status.Transaction.DeadlockDetected );
         }
     }
 }

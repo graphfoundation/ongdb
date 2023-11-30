@@ -44,6 +44,7 @@ import java.util.Iterator;
 
 import org.neo4j.helpers.collection.Iterators;
 import org.neo4j.kernel.api.properties.PropertyKeyValue;
+import org.neo4j.kernel.impl.util.collection.OnHeapCollectionsFactory;
 import org.neo4j.storageengine.api.StorageProperty;
 import org.neo4j.values.storable.Values;
 
@@ -51,6 +52,7 @@ import static java.util.Arrays.asList;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 public class PropertyContainerStateImplTest
 {
@@ -58,7 +60,7 @@ public class PropertyContainerStateImplTest
     public void shouldListAddedProperties()
     {
         // Given
-        PropertyContainerStateImpl state = new PropertyContainerStateImpl( 1 );
+        PropertyContainerStateImpl state = new PropertyContainerStateImpl( 1, OnHeapCollectionsFactory.INSTANCE );
         state.addProperty( 1, Values.of( "Hello" ) );
         state.addProperty( 2, Values.of( "Hello" ) );
         state.removeProperty( 1 );
@@ -75,7 +77,7 @@ public class PropertyContainerStateImplTest
     public void shouldListAddedPropertiesEvenIfPropertiesHaveBeenReplaced()
     {
         // Given
-        PropertyContainerStateImpl state = new PropertyContainerStateImpl( 1 );
+        PropertyContainerStateImpl state = new PropertyContainerStateImpl( 1, OnHeapCollectionsFactory.INSTANCE );
         state.addProperty( 1, Values.of( "Hello" ) );
         state.addProperty( 1, Values.of( "WAT" ) );
         state.addProperty( 2, Values.of( "Hello" ) );
@@ -95,7 +97,7 @@ public class PropertyContainerStateImplTest
     public void shouldConvertAddRemoveToChange()
     {
         // Given
-        PropertyContainerStateImpl state = new PropertyContainerStateImpl( 1 );
+        PropertyContainerStateImpl state = new PropertyContainerStateImpl( 1, OnHeapCollectionsFactory.INSTANCE );
 
         // When
         state.removeProperty( 4 );
@@ -105,6 +107,6 @@ public class PropertyContainerStateImplTest
         assertThat( Iterators.asList( state.changedProperties() ),
                 equalTo( asList( new PropertyKeyValue( 4, Values.of( "another value" ) ) ) ) );
         assertFalse( state.addedProperties().hasNext() );
-        assertFalse( state.removedProperties().hasNext() );
+        assertTrue( state.removedProperties().isEmpty() );
     }
 }

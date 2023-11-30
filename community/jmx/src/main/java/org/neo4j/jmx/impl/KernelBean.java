@@ -38,19 +38,18 @@
  */
 package org.neo4j.jmx.impl;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.Date;
 import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
 
 import org.neo4j.jmx.Kernel;
 import org.neo4j.kernel.NeoStoreDataSource;
-import org.neo4j.kernel.impl.store.StoreId;
 import org.neo4j.kernel.impl.transaction.log.LogVersionRepository;
 import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
 import org.neo4j.kernel.internal.KernelData;
+import org.neo4j.storageengine.api.StoreId;
 
+@Deprecated
 public class KernelBean extends Neo4jMBean implements Kernel
 {
     private final long kernelStartTime;
@@ -64,11 +63,10 @@ public class KernelBean extends Neo4jMBean implements Kernel
     private String databaseName;
     private long storeLogVersion;
 
-    KernelBean( KernelData kernel, ManagementSupport support ) throws NotCompliantMBeanException
+    KernelBean( KernelData kernel, DataSourceManager dataSourceManager, ManagementSupport support ) throws NotCompliantMBeanException
     {
         super( Kernel.class, kernel, support );
-        kernel.graphDatabase().getDependencyResolver().resolveDependency( DataSourceManager.class )
-                .addListener( new DataSourceInfo() );
+        dataSourceManager.addListener( new DataSourceInfo() );
         this.kernelVersion = kernel.version().toString();
         this.instanceId = kernel.instanceId();
         this.query = support.createMBeanQuery( instanceId );
@@ -129,8 +127,7 @@ public class KernelBean extends Neo4jMBean implements Kernel
         return databaseName;
     }
 
-    private class DataSourceInfo
-            implements DataSourceManager.Listener
+    private class DataSourceInfo implements DataSourceManager.Listener
     {
         @Override
         public void registered( NeoStoreDataSource ds )
@@ -141,17 +138,7 @@ public class KernelBean extends Neo4jMBean implements Kernel
             storeCreationDate = id.getCreationTime();
             isReadOnly = ds.isReadOnly();
             storeId = id.getRandomId();
-
-            File storeDir = ds.getStoreDir();
-            try
-            {
-                storeDir = storeDir.getCanonicalFile();
-            }
-            catch ( IOException ignored )
-            {
-            }
-
-            databaseName = storeDir.getName();
+            databaseName = ds.getDatabaseName();
         }
 
         @Override

@@ -38,31 +38,34 @@
  */
 package org.neo4j.index.internal.gbptree;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
-import org.neo4j.collection.primitive.Primitive;
-import org.neo4j.collection.primitive.PrimitiveLongSet;
 import org.neo4j.index.internal.gbptree.FreeListIdProvider.Monitor;
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.io.pagecache.PagedFile;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
 import org.neo4j.test.rule.RandomRule;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.neo4j.index.internal.gbptree.FreeListIdProvider.NO_MONITOR;
 
-public class FreeListIdProviderTest
+@ExtendWith( RandomExtension.class )
+class FreeListIdProviderTest
 {
     private static final int PAGE_SIZE = 128;
     private static final long GENERATION_ONE = GenerationSafePointer.MIN_GENERATION;
@@ -76,11 +79,11 @@ public class FreeListIdProviderTest
     private final FreelistPageMonitor monitor = new FreelistPageMonitor();
     private final FreeListIdProvider freelist = new FreeListIdProvider( pagedFile, PAGE_SIZE, BASE_ID, monitor );
 
-    @Rule
-    public final RandomRule random = new RandomRule();
+    @Inject
+    private RandomRule random;
 
-    @Before
-    public void setUpPagedFile() throws IOException
+    @BeforeEach
+    void setUpPagedFile() throws IOException
     {
         cursor = new PageAwareByteArrayCursor( PAGE_SIZE );
         when( pagedFile.io( anyLong(), anyInt() ) ).thenAnswer(
@@ -89,7 +92,7 @@ public class FreeListIdProviderTest
     }
 
     @Test
-    public void shouldReleaseAndAcquireId() throws Exception
+    void shouldReleaseAndAcquireId() throws Exception
     {
         // GIVEN
         long releasedId = 11;
@@ -106,7 +109,7 @@ public class FreeListIdProviderTest
     }
 
     @Test
-    public void shouldReleaseAndAcquireIdsFromMultiplePages() throws Exception
+    void shouldReleaseAndAcquireIdsFromMultiplePages() throws Exception
     {
         // GIVEN
         int entries = freelist.entriesPerPage() + freelist.entriesPerPage() / 2;
@@ -125,13 +128,13 @@ public class FreeListIdProviderTest
     }
 
     @Test
-    public void shouldPutFreedFreeListPagesIntoFreeListAsWell() throws Exception
+    void shouldPutFreedFreeListPagesIntoFreeListAsWell() throws Exception
     {
         // GIVEN
         long prevId;
         long acquiredId = BASE_ID + 1;
         long freelistPageId = BASE_ID + 1;
-        PrimitiveLongSet released = Primitive.longSet();
+        MutableLongSet released = new LongHashSet();
         do
         {
             prevId = acquiredId;
@@ -153,10 +156,10 @@ public class FreeListIdProviderTest
     }
 
     @Test
-    public void shouldStayBoundUnderStress() throws Exception
+    void shouldStayBoundUnderStress() throws Exception
     {
         // GIVEN
-        PrimitiveLongSet acquired = Primitive.longSet();
+        MutableLongSet acquired = new LongHashSet();
         List<Long> acquiredList = new ArrayList<>(); // for quickly finding random to remove
         long stableGeneration = GenerationSafePointer.MIN_GENERATION;
         long unstableGeneration = stableGeneration + 1;
@@ -204,22 +207,28 @@ public class FreeListIdProviderTest
         }
 
         // THEN
-        assertTrue( String.valueOf( freelist.lastId() ), freelist.lastId() < 200 );
+        assertTrue( freelist.lastId() < 200, String.valueOf( freelist.lastId() ) );
     }
 
     @Test
-    public void shouldVisitUnacquiredIds() throws Exception
+    void shouldVisitUnacquiredIds() throws Exception
     {
         // GIVEN a couple of released ids
-        PrimitiveLongSet expected = Primitive.longSet();
+        MutableLongSet expected = new LongHashSet();
         for ( int i = 0; i < 100; i++ )
         {
             expected.add( freelist.acquireNewId( GENERATION_ONE, GENERATION_TWO ) );
         }
-        expected.visitKeys( id ->
+        expected.forEach( id ->
         {
-            freelist.releaseId( GENERATION_ONE, GENERATION_TWO, id );
-            return false;
+            try
+            {
+                freelist.releaseId( GENERATION_ONE, GENERATION_TWO, id );
+            }
+            catch ( IOException e )
+            {
+                throw new RuntimeException( e );
+            }
         } );
         // and only a few acquired
         for ( int i = 0; i < 10; i++ )
@@ -229,15 +238,22 @@ public class FreeListIdProviderTest
         }
 
         // WHEN/THEN
-        freelist.visitUnacquiredIds( unacquiredId -> assertTrue( expected.remove( unacquiredId ) ), GENERATION_THREE );
+        freelist.visitFreelist( new IdProvider.IdProviderVisitor.Adaptor()
+        {
+            @Override
+            public void freelistEntry( long pageId, long generation, int pos )
+            {
+                assertTrue( expected.remove( pageId ) );
+            }
+        } );
         assertTrue( expected.isEmpty() );
     }
 
     @Test
-    public void shouldVisitFreelistPageIds() throws Exception
+    void shouldVisitFreelistPageIds() throws Exception
     {
         // GIVEN a couple of released ids
-        PrimitiveLongSet expected = Primitive.longSet();
+        MutableLongSet expected = new LongHashSet();
         // Add the already allocated free-list page id
         expected.add( BASE_ID + 1 );
         monitor.set( new Monitor()
@@ -256,7 +272,14 @@ public class FreeListIdProviderTest
         assertTrue( expected.size() > 0 );
 
         // WHEN/THEN
-        freelist.visitFreelistPageIds( id -> assertTrue( expected.remove( id ) ) );
+        freelist.visitFreelist( new IdProvider.IdProviderVisitor.Adaptor()
+        {
+            @Override
+            public void beginFreelistPage( long pageId )
+            {
+                assertTrue( expected.remove( pageId ) );
+            }
+        });
         assertTrue( expected.isEmpty() );
     }
 

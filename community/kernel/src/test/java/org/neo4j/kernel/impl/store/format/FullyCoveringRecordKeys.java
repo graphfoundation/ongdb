@@ -54,7 +54,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-class FullyCoveringRecordKeys implements RecordKeys
+public class FullyCoveringRecordKeys implements RecordKeys
 {
     public static final RecordKeys INSTANCE = new FullyCoveringRecordKeys();
 
@@ -66,7 +66,9 @@ class FullyCoveringRecordKeys implements RecordKeys
             assertEquals( written.getNextProp(), read.getNextProp() );
             assertEquals( written.getNextRel(), read.getNextRel() );
             assertEquals( written.getLabelField(), read.getLabelField() );
+            assertEquals( written.getDynamicLabelRecords(), read.getDynamicLabelRecords() );
             assertEquals( written.isDense(), read.isDense() );
+            assertEquals( written.isUseFixedReferences(), read.isUseFixedReferences() );
         };
     }
 
@@ -85,6 +87,7 @@ class FullyCoveringRecordKeys implements RecordKeys
             assertEquals( written.getSecondNextRel(), read.getSecondNextRel() );
             assertEquals( written.isFirstInFirstChain(), read.isFirstInFirstChain() );
             assertEquals( written.isFirstInSecondChain(), read.isFirstInSecondChain() );
+            assertEquals( written.isUseFixedReferences(), read.isUseFixedReferences() );
         };
     }
 
@@ -115,6 +118,7 @@ class FullyCoveringRecordKeys implements RecordKeys
                     assertTrue( readBlocks.hasNext() );
                     assertBlocksEquals( writtenBlocks.next(), readBlocks.next() );
                 }
+                assertEquals( written.isUseFixedReferences(), read.isUseFixedReferences() );
             }
 
             private void assertBlocksEquals( PropertyBlock written, PropertyBlock read )
@@ -138,13 +142,18 @@ class FullyCoveringRecordKeys implements RecordKeys
             assertEquals( written.getFirstLoop(), read.getFirstLoop() );
             assertEquals( written.getNext(), read.getNext() );
             assertEquals( written.getOwningNode(), read.getOwningNode() );
+            assertEquals( written.isUseFixedReferences(), read.isUseFixedReferences() );
         };
     }
 
     @Override
     public RecordKey<RelationshipTypeTokenRecord> relationshipTypeToken()
     {
-        return ( written, read ) -> assertEquals( written.getNameId(), read.getNameId() );
+        return ( written, read ) ->
+        {
+            assertEquals( written.getNameId(), read.getNameId() );
+            assertEquals( written.isUseFixedReferences(), read.isUseFixedReferences() );
+        };
     }
 
     @Override
@@ -160,7 +169,11 @@ class FullyCoveringRecordKeys implements RecordKeys
     @Override
     public RecordKey<LabelTokenRecord> labelToken()
     {
-        return ( written, read ) -> assertEquals( written.getNameId(), read.getNameId() );
+        return ( written, read ) ->
+        {
+            assertEquals( written.getNameId(), read.getNameId() );
+            assertEquals( written.isUseFixedReferences(), read.isUseFixedReferences() );
+        };
     }
 
     @Override
@@ -175,6 +188,7 @@ class FullyCoveringRecordKeys implements RecordKeys
             assertEquals( written.getNextBlock(), read.getNextBlock() );
             assertArrayEquals( written.getData(), read.getData() );
             assertEquals( written.isStartRecord(), read.isStartRecord() );
+            assertEquals( written.isUseFixedReferences(), read.isUseFixedReferences() );
         };
     }
 }

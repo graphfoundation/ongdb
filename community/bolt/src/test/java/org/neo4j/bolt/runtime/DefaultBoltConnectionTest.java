@@ -39,6 +39,7 @@
 package org.neo4j.bolt.runtime;
 
 import io.netty.channel.embedded.EmbeddedChannel;
+import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -51,24 +52,17 @@ import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 
 import org.neo4j.bolt.BoltChannel;
-import org.neo4j.bolt.BoltKernelExtension;
-import org.neo4j.bolt.logging.BoltMessageLogger;
-import org.neo4j.bolt.logging.BoltMessageLogging;
+import org.neo4j.bolt.BoltServer;
 import org.neo4j.bolt.security.auth.AuthenticationException;
 import org.neo4j.bolt.testing.Jobs;
 import org.neo4j.bolt.v1.packstream.PackOutput;
-import org.neo4j.bolt.v1.runtime.BoltConnectionAuthFatality;
-import org.neo4j.bolt.v1.runtime.BoltConnectionFatality;
-import org.neo4j.bolt.v1.runtime.BoltProtocolBreachFatality;
-import org.neo4j.bolt.v1.runtime.BoltStateMachine;
 import org.neo4j.bolt.v1.runtime.Job;
 import org.neo4j.kernel.api.exceptions.Status;
-import org.neo4j.kernel.impl.logging.LogService;
-import org.neo4j.kernel.impl.logging.SimpleLogService;
 import org.neo4j.logging.AssertableLogProvider;
+import org.neo4j.logging.internal.LogService;
+import org.neo4j.logging.internal.SimpleLogService;
 import org.neo4j.test.rule.concurrent.OtherThreadRule;
 
-import static org.hamcrest.CoreMatchers.any;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
@@ -76,7 +70,9 @@ import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -87,13 +83,12 @@ import static org.mockito.Mockito.when;
 
 public class DefaultBoltConnectionTest
 {
-    private final String connector = "default";
     private final AssertableLogProvider logProvider = new AssertableLogProvider();
     private final LogService logService = new SimpleLogService( logProvider );
     private final BoltConnectionLifetimeListener connectionListener = mock( BoltConnectionLifetimeListener.class );
     private final BoltConnectionQueueMonitor queueMonitor = mock( BoltConnectionQueueMonitor.class );
     private final EmbeddedChannel channel = new EmbeddedChannel();
-    private final BoltMessageLogger messageLogger = BoltMessageLogging.none().newLogger( channel );
+    private final PackOutput output = mock( PackOutput.class );
 
     private BoltChannel boltChannel;
     private BoltStateMachine stateMachine;
@@ -104,9 +99,8 @@ public class DefaultBoltConnectionTest
     @Before
     public void setup()
     {
-        boltChannel = BoltChannel.open( connector, channel, messageLogger );
-        stateMachine = mock( BoltStateMachine.class ); // MachineRoom.newMachineWithOwner( BoltStateMachine.State.READY, "ongdb" );
-        when( stateMachine.owner() ).thenReturn( "ongdb" );
+        boltChannel = new BoltChannel( "bolt-1", "bolt", channel );
+        stateMachine = mock( BoltStateMachine.class );
         when( stateMachine.shouldStickOnThread() ).thenReturn( false );
         when( stateMachine.hasOpenStatement() ).thenReturn( false );
     }
@@ -266,14 +260,14 @@ public class DefaultBoltConnectionTest
     }
 
     @Test
-    public void stopShouldFirstTerminateStateMachine()
+    public void stopShouldFirstMarkStateMachineForTermination()
     {
         BoltConnection connection = newConnection();
 
         connection.stop();
 
-        verify( stateMachine ).terminate();
-        verify( queueMonitor ).enqueued( ArgumentMatchers.eq( connection ), ArgumentMatchers.any( Job.class ) );
+        verify( stateMachine ).markForTermination();
+        verify( queueMonitor ).enqueued( ArgumentMatchers.eq( connection ), any( Job.class ) );
     }
 
     @Test
@@ -285,8 +279,8 @@ public class DefaultBoltConnectionTest
 
         connection.processNextBatch();
 
-        verify( queueMonitor ).enqueued( ArgumentMatchers.eq( connection ), ArgumentMatchers.any( Job.class ) );
-        verify( stateMachine ).terminate();
+        verify( queueMonitor ).enqueued( ArgumentMatchers.eq( connection ), any( Job.class ) );
+        verify( stateMachine ).markForTermination();
         verify( stateMachine ).close();
     }
 
@@ -299,11 +293,11 @@ public class DefaultBoltConnectionTest
         {
             connection.handleSchedulingError( new RejectedExecutionException() );
             return null;
-        } ).when( queueMonitor ).enqueued( ArgumentMatchers.eq( connection ), ArgumentMatchers.any( Job.class ) );
+        } ).when( queueMonitor ).enqueued( ArgumentMatchers.eq( connection ), any( Job.class ) );
 
         connection.stop();
 
-        verify( stateMachine ).terminate();
+        verify( stateMachine ).markForTermination();
         verify( stateMachine ).close();
     }
 
@@ -317,7 +311,7 @@ public class DefaultBoltConnectionTest
         } );
         connection.processNextBatch();
         verify( stateMachine ).close();
-        logProvider.assertExactly( AssertableLogProvider.inLog( containsString( BoltKernelExtension.class.getPackage().getName() ) ).warn(
+        logProvider.assertExactly( AssertableLogProvider.inLog( containsString( BoltServer.class.getPackage().getName() ) ).warn(
                 containsString( "inner error" ) ) );
     }
 
@@ -334,7 +328,8 @@ public class DefaultBoltConnectionTest
         connection.processNextBatch();
 
         verify( stateMachine ).close();
-        logProvider.assertNone( AssertableLogProvider.inLog( containsString( BoltKernelExtension.class.getPackage().getName() ) ).warn( any( String.class ) ) );
+        logProvider.assertNone( AssertableLogProvider.inLog( containsString( BoltServer.class.getPackage().getName() ) )
+                .warn( Matchers.any( String.class ) ) );
     }
 
     @Test
@@ -351,7 +346,7 @@ public class DefaultBoltConnectionTest
         connection.processNextBatch();
 
         verify( stateMachine ).close();
-        logProvider.assertExactly( AssertableLogProvider.inLog( containsString( BoltKernelExtension.class.getPackage().getName() ) ).error(
+        logProvider.assertExactly( AssertableLogProvider.inLog( containsString( BoltServer.class.getPackage().getName() ) ).error(
                 containsString( "Protocol breach detected in bolt session" ), is( exception ) ) );
     }
 
@@ -369,7 +364,7 @@ public class DefaultBoltConnectionTest
         connection.processNextBatch();
 
         verify( stateMachine ).close();
-        logProvider.assertExactly( AssertableLogProvider.inLog( containsString( BoltKernelExtension.class.getPackage().getName() ) ).error(
+        logProvider.assertExactly( AssertableLogProvider.inLog( containsString( BoltServer.class.getPackage().getName() ) ).error(
                 containsString( "Unexpected error detected in bolt session" ), is( exception ) ) );
     }
 
@@ -425,6 +420,22 @@ public class DefaultBoltConnectionTest
         verify( stateMachine ).close();
     }
 
+    @Test
+    public void shouldFlushErrorAndCloseConnectionIfFailedToSchedule() throws Throwable
+    {
+        // Given
+        BoltConnection connection = newConnection();
+
+        // When
+        RejectedExecutionException error = new RejectedExecutionException( "Failed to schedule" );
+        connection.handleSchedulingError( error );
+
+        // Then
+        verify( stateMachine ).markFailed( argThat( e -> e.status().equals( Status.Request.NoThreadsAvailable ) ) );
+        verify( stateMachine ).close();
+        verify( output ).flush();
+    }
+
     private DefaultBoltConnection newConnection()
     {
         return newConnection( 10 );
@@ -432,7 +443,7 @@ public class DefaultBoltConnectionTest
 
     private DefaultBoltConnection newConnection( int maxBatchSize )
     {
-        return new DefaultBoltConnection( boltChannel, mock( PackOutput.class ), stateMachine, logService, connectionListener, queueMonitor, maxBatchSize );
+        return new DefaultBoltConnection( boltChannel, output, stateMachine, logService, connectionListener, queueMonitor, maxBatchSize );
     }
 
 }

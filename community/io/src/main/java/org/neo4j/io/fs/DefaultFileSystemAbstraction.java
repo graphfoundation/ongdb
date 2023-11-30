@@ -56,12 +56,8 @@ import java.nio.file.CopyOption;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.WatchService;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Function;
 import java.util.stream.Stream;
 
-import org.neo4j.io.IOUtils;
 import org.neo4j.io.fs.watcher.DefaultFileSystemWatcher;
 import org.neo4j.io.fs.watcher.FileWatcher;
 
@@ -72,7 +68,7 @@ import static java.lang.String.format;
  */
 public class DefaultFileSystemAbstraction implements FileSystemAbstraction
 {
-    static final String UNABLE_TO_CREATE_DIRECTORY_FORMAT = "Unable to create directory path [%s] for ONgDB store.";
+    static final String UNABLE_TO_CREATE_DIRECTORY_FORMAT = "Unable to create directory path [%s] for Neo4j store.";
 
     @Override
     public FileWatcher fileWatcher() throws IOException
@@ -144,15 +140,15 @@ public class DefaultFileSystemAbstraction implements FileSystemAbstraction
     }
 
     @Override
-    public boolean fileExists( File fileName )
+    public boolean fileExists( File file )
     {
-        return fileName.exists();
+        return file.exists();
     }
 
     @Override
-    public long getFileSize( File fileName )
+    public long getFileSize( File file )
     {
-        return fileName.length();
+        return file.length();
     }
 
     @Override
@@ -215,17 +211,6 @@ public class DefaultFileSystemAbstraction implements FileSystemAbstraction
         FileUtils.copyRecursively( fromDirectory, toDirectory );
     }
 
-    private final Map<Class<? extends ThirdPartyFileSystem>, ThirdPartyFileSystem> thirdPartyFileSystems =
-            new HashMap<>();
-
-    @Override
-    public synchronized <K extends ThirdPartyFileSystem> K getOrCreateThirdPartyFileSystem(
-            Class<K> clazz, Function<Class<K>, K> creator )
-    {
-        ThirdPartyFileSystem fileSystem = thirdPartyFileSystems.computeIfAbsent( clazz, k -> creator.apply( clazz ) );
-        return clazz.cast( fileSystem );
-    }
-
     @Override
     public void truncate( File path, long size ) throws IOException
     {
@@ -258,6 +243,6 @@ public class DefaultFileSystemAbstraction implements FileSystemAbstraction
     @Override
     public void close() throws IOException
     {
-        IOUtils.closeAll( thirdPartyFileSystems.values() );
+        // nothing
     }
 }

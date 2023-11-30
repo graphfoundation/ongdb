@@ -45,7 +45,7 @@ import java.util.Set;
 import org.neo4j.helpers.MathUtil;
 
 /**
- * Instances describe single execution steps in a Geequel query execution plan
+ * Instances describe single execution steps in a Cypher query execution plan
  *
  * Execution plans form a tree of execution steps.  Each step is described by a {@link ExecutionPlanDescription} object.
  */
@@ -84,7 +84,7 @@ public interface ExecutionPlanDescription
      * Signifies that the query was profiled, and that statistics from the profiling can
      * {@link #getProfilerStatistics() be retrieved}.
      *
-     * The <a href="https://graphfoundation.org/ongdb/docs/developer-manual/current/geequel/execution-plans/">{@code PROFILE}</a> directive in Geequel
+     * The <a href="https://docs.graphfoundation.org/developer-manual/current/cypher/execution-plans/">{@code PROFILE}</a> directive in Cypher
      * ensures the presence of profiler statistics in the plan description.
      *
      * @return true, if {@link ProfilerStatistics} are available for this execution step

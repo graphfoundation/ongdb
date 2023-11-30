@@ -39,11 +39,16 @@
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.v3_5.logical.plans.CachedNodeProperty
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 
-case class NodeRightOuterHashJoinPipe(nodeVariables: Set[String], lhs: Pipe, rhs: Pipe, nullableVariables: Set[String])
+case class NodeRightOuterHashJoinPipe(nodeVariables: Set[String],
+                                      lhs: Pipe,
+                                      rhs: Pipe,
+                                      nullableVariables: Set[String],
+                                      nullableCachedProperties: Set[CachedNodeProperty])
                                      (val id: Id = Id.INVALID_ID)
-  extends NodeOuterHashJoinPipe(nodeVariables, lhs, rhs, nullableVariables) {
+  extends NodeOuterHashJoinPipe(nodeVariables, lhs, rhs, nullableVariables, nullableCachedProperties) {
 
   protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
 
@@ -57,9 +62,13 @@ case class NodeRightOuterHashJoinPipe(nodeVariables: Set[String], lhs: Pipe, rhs
         yield {
           computeKey(rhsRow) match {
             case Some(joinKey) =>
-              val seq = probeTable(joinKey)
-              if(seq.nonEmpty) {
-                seq.map(lhsRow => executionContextFactory.copyWith(rhsRow).mergeWith(lhsRow))
+              val lhsRows = probeTable(joinKey)
+              if(lhsRows.nonEmpty) {
+                lhsRows.map { lhsRow =>
+                  val outputRow = executionContextFactory.copyWith(rhsRow)
+                  outputRow.mergeWith(lhsRow, state.query)
+                  outputRow
+                }
               } else {
                 Seq(addNulls(rhsRow))
               }

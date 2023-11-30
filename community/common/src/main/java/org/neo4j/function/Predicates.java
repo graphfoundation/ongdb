@@ -61,6 +61,7 @@ import static org.neo4j.function.ThrowingSupplier.throwingSupplier;
 public class Predicates
 {
     public static final IntPredicate ALWAYS_TRUE_INT = v -> true;
+    public static final IntPredicate ALWAYS_FALSE_INT = v -> false;
 
     private static final int DEFAULT_POLL_INTERVAL = 20;
 
@@ -76,6 +77,11 @@ public class Predicates
     public static <T> Predicate<T> alwaysFalse()
     {
         return x -> false;
+    }
+
+    public static <T> Predicate<Iterable<T>> emptyIterable()
+    {
+        return iterable -> !iterable.iterator().hasNext();
     }
 
     public static <T> Predicate<T> notNull()

@@ -38,11 +38,12 @@
  */
 package org.neo4j.bolt.v1.runtime.spi;
 
+import org.neo4j.bolt.runtime.BoltResult;
 import org.neo4j.bolt.v1.runtime.bookmarking.Bookmark;
 
 import static org.neo4j.values.storable.Values.stringValue;
 
-public class BookmarkResult extends BoltResult
+public class BookmarkResult implements BoltResult
 {
     private final Bookmark bookmark;
 
@@ -66,5 +67,11 @@ public class BookmarkResult extends BoltResult
     @Override
     public void close()
     {
+    }
+
+    @Override
+    public String toString()
+    {
+        return "BookmarkResult{" + "bookmark=" + bookmark + '}';
     }
 }

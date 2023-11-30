@@ -38,6 +38,7 @@
  */
 package org.neo4j.bolt.security.auth;
 
+import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.Before;
@@ -49,12 +50,12 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.kernel.api.exceptions.Status;
-import org.neo4j.internal.kernel.api.security.AccessMode;
 import org.neo4j.kernel.api.security.PasswordPolicy;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.server.security.auth.BasicAuthManager;
 import org.neo4j.server.security.auth.InMemoryUserRepository;
 import org.neo4j.server.security.auth.UserRepository;
+import org.neo4j.string.UTF8;
 import org.neo4j.time.Clocks;
 
 import static java.util.Collections.singletonList;
@@ -76,7 +77,7 @@ public class BasicAuthenticationTest
     {
         // When
         AuthenticationResult result =
-                authentication.authenticate( map( "scheme", "basic", "principal", "mike", "credentials", "secret2" ) );
+                authentication.authenticate( map( "scheme", "basic", "principal", "mike", "credentials", UTF8.encode( "secret2" ) ) );
 
         // Then
         assertThat( result.getLoginContext().subject().username(), equalTo( "mike" ) );
@@ -91,7 +92,7 @@ public class BasicAuthenticationTest
         exception.expectMessage( "The client is unauthorized due to authentication failure." );
 
         // When
-        authentication.authenticate( map( "scheme", "basic", "principal", "bob", "credentials", "banana" ) );
+        authentication.authenticate( map( "scheme", "basic", "principal", "bob", "credentials", UTF8.encode( "banana" ) ) );
     }
 
     @Test
@@ -99,7 +100,7 @@ public class BasicAuthenticationTest
     {
         // When
         AuthenticationResult result =
-                authentication.authenticate( map( "scheme", "basic", "principal", "bob", "credentials", "secret" ) );
+                authentication.authenticate( map( "scheme", "basic", "principal", "bob", "credentials", UTF8.encode( "secret" ) ) );
 
         // Then
         assertTrue( result.credentialsExpired() );
@@ -116,7 +117,7 @@ public class BasicAuthenticationTest
         {
             try
             {
-                auth.authenticate( map( "scheme", "basic", "principal", "bob", "credentials", "gelato" ) );
+                auth.authenticate( map( "scheme", "basic", "principal", "bob", "credentials", UTF8.encode( "gelato" ) ) );
             }
             catch ( AuthenticationException e )
             {
@@ -130,7 +131,7 @@ public class BasicAuthenticationTest
         exception.expectMessage( "The client has provided incorrect authentication details too many times in a row." );
 
         //When
-        auth.authenticate( map( "scheme", "basic", "principal", "bob", "credentials", "gelato" ) );
+        auth.authenticate( map( "scheme", "basic", "principal", "bob", "credentials", UTF8.encode( "gelato" ) ) );
     }
 
     @Test
@@ -138,10 +139,31 @@ public class BasicAuthenticationTest
     {
         // When
         authentication.authenticate(
-                map( "scheme", "basic", "principal", "mike", "credentials", "secret2", "new_credentials", "secret" ) );
+                map( "scheme", "basic", "principal", "mike", "credentials", UTF8.encode( "secret2" ),
+                        "new_credentials", UTF8.encode( "secret" ) ) );
 
         // Then
-        authentication.authenticate( map( "scheme", "basic", "principal", "mike", "credentials", "secret" ) );
+        authentication.authenticate( map( "scheme", "basic", "principal", "mike", "credentials", UTF8.encode( "secret" ) ) );
+    }
+
+    @Test
+    public void shouldClearCredentialsAfterUse() throws Exception
+    {
+        // When
+        byte[] oldPassword = UTF8.encode( "secret2" );
+        byte[] newPassword1 = UTF8.encode( "secret" );
+        byte[] newPassword2 = UTF8.encode( "secret" );
+
+        authentication.authenticate(
+                map( "scheme", "basic", "principal", "mike", "credentials", oldPassword,
+                        "new_credentials", newPassword1 ) );
+
+        authentication.authenticate( map( "scheme", "basic", "principal", "mike", "credentials", newPassword2 ) );
+
+        // Then
+        assertThat( oldPassword, isCleared() );
+        assertThat( newPassword1, isCleared() );
+        assertThat( newPassword2, isCleared() );
     }
 
     @Test
@@ -149,7 +171,7 @@ public class BasicAuthenticationTest
     {
         // When
         AuthenticationResult result = authentication.authenticate(
-                map( "scheme", "basic", "principal", "bob", "credentials", "secret", "new_credentials", "secret2" ) );
+                map( "scheme", "basic", "principal", "bob", "credentials", UTF8.encode( "secret" ), "new_credentials", UTF8.encode( "secret2" ) ) );
 
         // Then
         assertThat(result.credentialsExpired(), equalTo( false ));
@@ -164,8 +186,8 @@ public class BasicAuthenticationTest
         exception.expectMessage( "The client is unauthorized due to authentication failure." );
 
         // When
-        authentication.authenticate( map( "scheme", "basic", "principal", "bob", "credentials", "gelato",
-                "new_credentials", "secret2" ) );
+        authentication.authenticate( map( "scheme", "basic", "principal", "bob", "credentials", UTF8.encode( "gelato" ),
+                "new_credentials", UTF8.encode( "secret2" ) ) );
     }
 
     @Test
@@ -176,7 +198,7 @@ public class BasicAuthenticationTest
         exception.expect( hasStatus( Status.Security.Unauthorized ) );
 
         // When
-        authentication.authenticate( map( "principal", "bob", "credentials", "secret" ) );
+        authentication.authenticate( map( "principal", "bob", "credentials", UTF8.encode( "secret" ) ) );
     }
 
     @Test
@@ -201,7 +223,7 @@ public class BasicAuthenticationTest
 
         // When
         authentication
-                .authenticate( map( "scheme", "basic", "principal", singletonList( "bob" ), "credentials", "secret" ) );
+                .authenticate( map( "scheme", "basic", "principal", singletonList( "bob" ), "credentials", UTF8.encode( "secret" ) ) );
     }
 
     @Before
@@ -219,8 +241,8 @@ public class BasicAuthenticationTest
 
         BasicAuthManager manager = new BasicAuthManager( users, policy, Clocks.systemClock(), users, config );
         Authentication authentication = new BasicAuthentication( manager, manager );
-        manager.newUser( "bob", "secret", true );
-        manager.newUser( "mike", "secret2", false );
+        manager.newUser( "bob", UTF8.encode( "secret" ), true );
+        manager.newUser( "mike", UTF8.encode( "secret2" ), false );
 
         return authentication;
     }
@@ -257,6 +279,38 @@ public class BasicAuthenticationTest
         {
             mismatchDescription.appendText( "was " )
                     .appendValue( item.status() );
+        }
+    }
+
+    static CredentialsClearedMatcher isCleared()
+    {
+        return new CredentialsClearedMatcher();
+    }
+
+    static class CredentialsClearedMatcher extends BaseMatcher<byte[]>
+    {
+        @Override
+        public boolean matches( Object o )
+        {
+            if ( o instanceof byte[] )
+            {
+                byte[] bytes = (byte[]) o;
+                for ( int i = 0; i < bytes.length; i++ )
+                {
+                    if ( bytes[i] != (byte) 0 )
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
+
+        @Override
+        public void describeTo( Description description )
+        {
+            description.appendText( "Byte array should contain only zeroes" );
         }
     }
 }

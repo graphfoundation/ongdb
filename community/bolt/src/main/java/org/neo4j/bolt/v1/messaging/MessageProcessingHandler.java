@@ -38,49 +38,46 @@
  */
 package org.neo4j.bolt.v1.messaging;
 
-import java.io.IOException;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 import org.neo4j.bolt.runtime.BoltConnection;
+import org.neo4j.bolt.runtime.BoltResponseHandler;
+import org.neo4j.bolt.runtime.BoltResult;
+import org.neo4j.bolt.runtime.Neo4jError;
+import org.neo4j.bolt.messaging.BoltResponseMessageWriter;
+import org.neo4j.bolt.v1.messaging.response.FailureMessage;
+import org.neo4j.bolt.v1.messaging.response.FatalFailureMessage;
+import org.neo4j.bolt.v1.messaging.response.SuccessMessage;
 import org.neo4j.bolt.v1.packstream.PackOutputClosedException;
-import org.neo4j.bolt.v1.runtime.BoltResponseHandler;
-import org.neo4j.bolt.v1.runtime.Neo4jError;
-import org.neo4j.bolt.v1.runtime.spi.BoltResult;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.logging.Log;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.virtual.MapValue;
-import org.neo4j.values.virtual.VirtualValues;
+import org.neo4j.values.virtual.MapValueBuilder;
 
-class MessageProcessingHandler implements BoltResponseHandler
+import static org.neo4j.bolt.v1.messaging.response.IgnoredMessage.IGNORED_MESSAGE;
+
+public class MessageProcessingHandler implements BoltResponseHandler
 {
     // Errors that are expected when the client disconnects mid-operation
-    private static final Set<Status> CLIENT_MID_OP_DISCONNECT_ERRORS = new HashSet<>( Arrays.asList(
-            Status.Transaction.Terminated, Status.Transaction.LockClientStopped ) );
-    protected final Map<String,AnyValue> metadata = new HashMap<>();
+    private static final Set<Status> CLIENT_MID_OP_DISCONNECT_ERRORS =
+            new HashSet<>( Arrays.asList( Status.Transaction.Terminated, Status.Transaction.LockClientStopped ) );
+    private final MapValueBuilder metadata = new MapValueBuilder();
 
     protected final Log log;
     protected final BoltConnection connection;
-    protected final BoltResponseMessageHandler<IOException> handler;
+    protected final BoltResponseMessageWriter messageWriter;
 
     private Neo4jError error;
     private boolean ignored;
 
-    MessageProcessingHandler( BoltResponseMessageHandler<IOException> handler, BoltConnection connection,
-            Log logger )
+    public MessageProcessingHandler( BoltResponseMessageWriter messageWriter, BoltConnection connection, Log logger )
     {
-        this.handler = handler;
+        this.messageWriter = messageWriter;
         this.connection = connection;
         this.log = logger;
-    }
-
-    @Override
-    public void onStart()
-    {
     }
 
     @Override
@@ -91,7 +88,7 @@ class MessageProcessingHandler implements BoltResponseHandler
     @Override
     public void onMetadata( String key, AnyValue value )
     {
-        metadata.put( key, value );
+        metadata.add( key, value );
     }
 
     @Override
@@ -113,15 +110,15 @@ class MessageProcessingHandler implements BoltResponseHandler
         {
             if ( ignored )
             {
-                handler.onIgnored();
+                messageWriter.write( IGNORED_MESSAGE );
             }
             else if ( error != null )
             {
-                publishError( handler, error );
+                publishError( messageWriter, error );
             }
             else
             {
-                handler.onSuccess( getMetadata() );
+                messageWriter.write( new SuccessMessage( getMetadata() ) );
             }
         }
         catch ( Throwable e )
@@ -137,7 +134,7 @@ class MessageProcessingHandler implements BoltResponseHandler
 
     MapValue getMetadata()
     {
-        return VirtualValues.map( metadata );
+        return metadata.build();
     }
 
     private void clearState()
@@ -147,17 +144,17 @@ class MessageProcessingHandler implements BoltResponseHandler
         metadata.clear();
     }
 
-    private void publishError( BoltResponseMessageHandler<IOException> out, Neo4jError error )
+    private void publishError( BoltResponseMessageWriter messageWriter, Neo4jError error )
     {
         try
         {
             if ( error.isFatal() )
             {
-                out.onFatal( error.status(), error.message() );
+                messageWriter.write( new FatalFailureMessage( error.status(), error.message() ) );
             }
             else
             {
-                out.onFailure( error.status(), error.message() );
+                messageWriter.write( new FailureMessage( error.status(), error.message() ) );
             }
         }
         catch ( PackOutputClosedException e )
@@ -171,9 +168,8 @@ class MessageProcessingHandler implements BoltResponseHandler
             if ( CLIENT_MID_OP_DISCONNECT_ERRORS.contains( error.status() ) )
             {
                 log.warn( "Client %s disconnected while query was running. Session has been cleaned up. " +
-                          "This can be caused by temporary network problems, but if you see this often, " +
-                          "ensure your applications are properly waiting for operations to complete before exiting.",
-                        e.clientAddress() );
+                        "This can be caused by temporary network problems, but if you see this often, " +
+                        "ensure your applications are properly waiting for operations to complete before exiting.", e.clientAddress() );
                 return;
             }
 

@@ -53,8 +53,8 @@ public class SpatialIndexValueTestUtil
 {
     public static Pair<PointValue,PointValue> pointsWithSameValueOnSpaceFillingCurve( Config config )
     {
-        SpaceFillingCurveSettingsFactory spaceFillingCurveSettingsFactory = new SpaceFillingCurveSettingsFactory( config );
-        SpaceFillingCurveSettings spaceFillingCurveSettings = spaceFillingCurveSettingsFactory.settingsFor( CoordinateReferenceSystem.WGS84 );
+        ConfiguredSpaceFillingCurveSettingsCache configuredCache = new ConfiguredSpaceFillingCurveSettingsCache( config );
+        SpaceFillingCurveSettings spaceFillingCurveSettings = configuredCache.forCRS( CoordinateReferenceSystem.WGS84 );
         SpaceFillingCurve curve = spaceFillingCurveSettings.curve();
         double[] origin = {0.0, 0.0};
         Long spaceFillingCurveMapForOrigin = curve.derivedValueFor( origin );

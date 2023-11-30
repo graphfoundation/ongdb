@@ -43,8 +43,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
 
-import java.io.File;
-
 import org.neo4j.io.ByteUnit;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
@@ -84,12 +82,11 @@ public class TestGrowingFileMemoryMapping
         // given
         final int NUMBER_OF_RECORDS = 1000000;
 
-        File storeDir = testDirectory.graphDbDir();
         Config config = Config.defaults( pagecache_memory, mmapSize( NUMBER_OF_RECORDS, NodeRecordFormat.RECORD_SIZE ) );
         FileSystemAbstraction fileSystemAbstraction = fileSystemRule.get();
         DefaultIdGeneratorFactory idGeneratorFactory = new DefaultIdGeneratorFactory( fileSystemAbstraction );
         PageCache pageCache = pageCacheRule.getPageCache( fileSystemAbstraction, config );
-        StoreFactory storeFactory = new StoreFactory( storeDir, config, idGeneratorFactory, pageCache,
+        StoreFactory storeFactory = new StoreFactory( testDirectory.databaseLayout(), config, idGeneratorFactory, pageCache,
                 fileSystemAbstraction, NullLogProvider.getInstance(), EmptyVersionContextSupplier.EMPTY );
 
         NeoStores neoStores = storeFactory.openAllNeoStores( true );
@@ -121,7 +118,7 @@ public class TestGrowingFileMemoryMapping
         neoStores.close();
     }
 
-    private String mmapSize( int numberOfRecords, int recordSize )
+    private static String mmapSize( int numberOfRecords, int recordSize )
     {
         int bytes = numberOfRecords * recordSize;
         long mebiByte = ByteUnit.mebiBytes( 1 );

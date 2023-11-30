@@ -53,6 +53,8 @@ import org.neo4j.io.pagecache.impl.muninn.MuninnPageCache;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracerSupplier;
 import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
+import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.scheduler.ThreadPoolJobScheduler;
 import org.neo4j.test.rule.PageCacheAndDependenciesRule;
 import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 
@@ -74,7 +76,7 @@ import static org.neo4j.index.internal.gbptree.SimpleLongLayout.longLayout;
 public class GBPTreePartialCreateFuzzIT
 {
     @Rule
-    public final PageCacheAndDependenciesRule storage = new PageCacheAndDependenciesRule( DefaultFileSystemRule::new, getClass() );
+    public final PageCacheAndDependenciesRule storage = new PageCacheAndDependenciesRule().with( new DefaultFileSystemRule() );
 
     @Test
     public void shouldDetectAndThrowIOExceptionOnPartiallyCreatedFile() throws Exception
@@ -115,16 +117,17 @@ public class GBPTreePartialCreateFuzzIT
         }
     }
 
-    public static void main( String[] args ) throws IOException
+    public static void main( String[] args ) throws Exception
     {
         // Just start and immediately close. The process spawning this subprocess will kill it in the middle of all this
         File file = new File( args[0] );
-        try ( FileSystemAbstraction fs = new DefaultFileSystemAbstraction() )
+        try ( FileSystemAbstraction fs = new DefaultFileSystemAbstraction();
+              JobScheduler jobScheduler = new ThreadPoolJobScheduler() )
         {
             SingleFilePageSwapperFactory swapper = new SingleFilePageSwapperFactory();
             swapper.open( fs, EMPTY );
             try ( PageCache pageCache = new MuninnPageCache( swapper, 10, PageCacheTracer.NULL,
-                    PageCursorTracerSupplier.NULL, EmptyVersionContextSupplier.EMPTY ) )
+                    PageCursorTracerSupplier.NULL, EmptyVersionContextSupplier.EMPTY, jobScheduler ) )
             {
                 fs.deleteFile( file );
                 new GBPTreeBuilder<>( pageCache, file, longLayout().build() ).build().close();

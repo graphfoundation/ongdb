@@ -42,8 +42,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import org.neo4j.collection.primitive.PrimitiveLongArrayQueue;
-import org.neo4j.collection.primitive.PrimitiveLongCollections;
+import org.neo4j.collection.PrimitiveLongArrayQueue;
+import org.neo4j.collection.PrimitiveLongCollections;
 import org.neo4j.io.fs.StoreChannel;
 import org.neo4j.kernel.impl.store.UnderlyingStorageException;
 
@@ -103,7 +103,7 @@ public class FreeIdKeeper implements Closeable
      * @param aggressiveMode whether to reuse freed IDs during this lifecycle.
      * @throws IOException if an I/O error occurs.
      */
-    FreeIdKeeper( StoreChannel channel, int batchSize, boolean aggressiveMode ) throws IOException
+    public FreeIdKeeper( StoreChannel channel, int batchSize, boolean aggressiveMode ) throws IOException
     {
         this.channel = channel;
         this.batchSize = batchSize;

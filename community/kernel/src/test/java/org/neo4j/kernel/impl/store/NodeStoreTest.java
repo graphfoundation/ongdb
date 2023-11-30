@@ -39,27 +39,25 @@
 package org.neo4j.kernel.impl.store;
 
 import org.apache.commons.lang3.mutable.MutableBoolean;
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
 import org.junit.After;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.LongSupplier;
-import java.util.stream.LongStream;
 
-import org.neo4j.collection.primitive.Primitive;
-import org.neo4j.collection.primitive.PrimitiveLongSet;
 import org.neo4j.graphdb.mockfs.DelegatingFileSystemAbstraction;
 import org.neo4j.graphdb.mockfs.DelegatingStoreChannel;
 import org.neo4j.graphdb.mockfs.EphemeralFileSystemAbstraction;
-import org.neo4j.helpers.collection.Iterables;
 import org.neo4j.helpers.collection.Visitor;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.OpenMode;
@@ -76,34 +74,38 @@ import org.neo4j.kernel.impl.store.record.DynamicRecord;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.test.rule.PageCacheRule;
+import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
 
 import static java.util.Arrays.asList;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.not;
+import static org.hamcrest.core.StringContains.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import static org.neo4j.helpers.Exceptions.contains;
 import static org.neo4j.kernel.impl.store.DynamicArrayStore.allocateFromNumbers;
 import static org.neo4j.kernel.impl.store.NodeStore.readOwnerFromDynamicLabelsRecord;
+import static org.neo4j.kernel.impl.store.record.Record.NO_LABELS_FIELD;
 import static org.neo4j.kernel.impl.store.record.Record.NO_NEXT_PROPERTY;
 import static org.neo4j.kernel.impl.store.record.Record.NO_NEXT_RELATIONSHIP;
+import static org.neo4j.kernel.impl.store.record.Record.NULL_REFERENCE;
 import static org.neo4j.kernel.impl.store.record.RecordLoad.NORMAL;
 
 public class NodeStoreTest
 {
     @ClassRule
     public static final PageCacheRule pageCacheRule = new PageCacheRule();
+
+    private final EphemeralFileSystemRule efs = new EphemeralFileSystemRule();
+    private final TestDirectory testDirectory = TestDirectory.testDirectory(efs);
+
     @Rule
-    public final EphemeralFileSystemRule efs = new EphemeralFileSystemRule();
+    public final RuleChain ruleChain = RuleChain.outerRule( efs ).around( testDirectory );
 
     private NodeStore nodeStore;
     private NeoStores neoStores;
@@ -248,7 +250,7 @@ public class NodeStoreTest
         nodeStore = newNodeStore( fs );
 
         ThreadLocalRandom rng = ThreadLocalRandom.current();
-        final PrimitiveLongSet nextRelSet = Primitive.longSet();
+        final MutableLongSet nextRelSet = new LongHashSet();
         for ( int i = 0; i < 10_000; i++ )
         {
             // Enough records to span several pages
@@ -366,21 +368,35 @@ public class NodeStoreTest
     }
 
     @Test
-    @SuppressWarnings( "unchecked" )
-    public void ensureHeavy()
+    public void shouldIncludeNodeRecordInExceptionLoadingDynamicLabelRecords() throws IOException
     {
-        long[] labels = LongStream.range( 1, 1000 ).toArray();
-        NodeRecord node = new NodeRecord( 5 );
-        node.setLabelField( 10, Collections.emptyList() );
-        Collection<DynamicRecord> dynamicLabelRecords = DynamicNodeLabels.putSorted( node, labels,
-                mock( NodeStore.class ), new StandaloneDynamicRecordAllocator() );
-        assertThat( dynamicLabelRecords, not( empty() ) );
-        RecordCursor<DynamicRecord> dynamicLabelCursor = mock( RecordCursor.class );
-        when( dynamicLabelCursor.getAll() ).thenReturn( Iterables.asList( dynamicLabelRecords ) );
+        // given a node with reference to a dynamic label record
+        EphemeralFileSystemAbstraction fs = efs.get();
+        nodeStore = newNodeStore( fs );
+        NodeRecord record = new NodeRecord( 5L ).initialize( true, NULL_REFERENCE.longValue(), false, 1234, NO_LABELS_FIELD.longValue() );
+        NodeLabels labels = NodeLabelsField.parseLabelsField( record );
+        labels.put( new long[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, nodeStore, nodeStore.getDynamicLabelStore() );
+        nodeStore.updateRecord( record );
 
-        NodeStore.ensureHeavy( node, dynamicLabelCursor );
+        // ... and where e.g. the dynamic label record is unused
+        for ( DynamicRecord dynamicLabelRecord : record.getDynamicLabelRecords() )
+        {
+            dynamicLabelRecord.setInUse( false );
+            nodeStore.getDynamicLabelStore().updateRecord( dynamicLabelRecord );
+        }
 
-        assertEquals( dynamicLabelRecords, node.getDynamicLabelRecords() );
+        // when loading that node and making it heavy
+        NodeRecord loadedRecord = nodeStore.getRecord( record.getId(), nodeStore.newRecord(), NORMAL );
+        try
+        {
+            nodeStore.ensureHeavy( loadedRecord );
+            fail( "Should have failed" );
+        }
+        catch ( InvalidRecordException e )
+        {
+            // then
+            assertThat( e.getMessage(), containsString( loadedRecord.toString() ) );
+        }
     }
 
     private NodeStore newNodeStore( FileSystemAbstraction fs ) throws IOException
@@ -390,8 +406,6 @@ public class NodeStoreTest
 
     private NodeStore newNodeStore( FileSystemAbstraction fs, PageCache pageCache ) throws IOException
     {
-        File storeDir = new File( "dir" );
-        fs.mkdirs( storeDir );
         idGeneratorFactory = spy( new DefaultIdGeneratorFactory( fs )
         {
             @Override
@@ -401,7 +415,7 @@ public class NodeStoreTest
                 return spy( super.instantiate( fs, fileName, grabSize, maxValue, aggressiveReuse, idType, highId ) );
             }
         } );
-        StoreFactory factory = new StoreFactory( storeDir, Config.defaults(), idGeneratorFactory, pageCache, fs,
+        StoreFactory factory = new StoreFactory( testDirectory.databaseLayout( "new" ), Config.defaults(), idGeneratorFactory, pageCache, fs,
                 NullLogProvider.getInstance(), EmptyVersionContextSupplier.EMPTY );
         neoStores = factory.openAllNeoStores( true );
         nodeStore = neoStores.getNodeStore();

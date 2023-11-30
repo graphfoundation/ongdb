@@ -62,7 +62,14 @@ public class ExecutionMonitors
     public static ExecutionMonitor defaultVisible( InputStream in, JobScheduler jobScheduler )
     {
         ProgressRestoringMonitor monitor = new ProgressRestoringMonitor();
-        return new HumanUnderstandableExecutionMonitor( NO_MONITOR, monitor );
+        return new MultiExecutionMonitor(
+                new HumanUnderstandableExecutionMonitor( NO_MONITOR, monitor ),
+                new OnDemandDetailsExecutionMonitor( System.out, in, monitor, jobScheduler ) );
+    }
+
+    public static ExecutionMonitor humanUnderstandable()
+    {
+        return new HumanUnderstandableExecutionMonitor( NO_MONITOR, new ProgressRestoringMonitor() );
     }
 
     private static final ExecutionMonitor INVISIBLE = new ExecutionMonitor()

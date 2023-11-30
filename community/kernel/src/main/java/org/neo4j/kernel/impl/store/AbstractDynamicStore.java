@@ -85,7 +85,8 @@ public abstract class AbstractDynamicStore extends CommonAbstractStore<DynamicRe
         implements DynamicRecordAllocator
 {
     public AbstractDynamicStore(
-            File fileName,
+            File file,
+            File idFile,
             Config conf,
             IdType idType,
             IdGeneratorFactory idGeneratorFactory,
@@ -97,7 +98,7 @@ public abstract class AbstractDynamicStore extends CommonAbstractStore<DynamicRe
             String storeVersion,
             OpenOption... openOptions )
     {
-        super( fileName, conf, idType, idGeneratorFactory, pageCache, logProvider, typeDescriptor,
+        super( file, idFile, conf, idType, idGeneratorFactory, pageCache, logProvider, typeDescriptor,
                 recordFormat, new DynamicStoreHeaderFormat( dataSizeFromConfiguration, recordFormat ),
                 storeVersion, openOptions );
     }
@@ -205,7 +206,7 @@ public abstract class AbstractDynamicStore extends CommonAbstractStore<DynamicRe
         return StandardDynamicRecordAllocator.allocateRecord( nextId() );
     }
 
-    public void allocateRecordsFromBytes( Collection<DynamicRecord> target, byte[] src )
+    void allocateRecordsFromBytes( Collection<DynamicRecord> target, byte[] src )
     {
         allocateRecordsFromBytes( target, src, this );
     }
@@ -213,12 +214,11 @@ public abstract class AbstractDynamicStore extends CommonAbstractStore<DynamicRe
     @Override
     public String toString()
     {
-        return super.toString() + "[fileName:" + storageFileName.getName() +
+        return super.toString() + "[fileName:" + storageFile.getName() +
                 ", blockSize:" + getRecordDataSize() + "]";
     }
 
-    public Pair<byte[]/*header in the first record*/, byte[]/*all other bytes*/> readFullByteArray(
-            Iterable<DynamicRecord> records, PropertyType propertyType )
+    Pair<byte[]/*header in the first record*/, byte[]/*all other bytes*/> readFullByteArray( Iterable<DynamicRecord> records, PropertyType propertyType )
     {
         for ( DynamicRecord record : records )
         {

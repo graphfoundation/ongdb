@@ -39,24 +39,24 @@
 package org.neo4j.kernel.impl.transaction.state.storeview;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.eclipse.collections.api.set.primitive.MutableIntSet;
 
 import java.util.function.IntPredicate;
 
-import org.neo4j.collection.primitive.PrimitiveIntSet;
 import org.neo4j.helpers.collection.Visitor;
 import org.neo4j.internal.kernel.api.exceptions.EntityNotFoundException;
 import org.neo4j.kernel.api.labelscan.LabelScanStore;
 import org.neo4j.kernel.api.labelscan.NodeLabelUpdate;
+import org.neo4j.kernel.impl.api.index.EntityUpdates;
 import org.neo4j.kernel.impl.api.index.IndexStoreView;
-import org.neo4j.kernel.impl.api.index.NodeUpdates;
 import org.neo4j.kernel.impl.api.index.StoreScan;
 import org.neo4j.kernel.impl.locking.LockService;
+import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageReader;
 import org.neo4j.kernel.impl.store.NeoStores;
-import org.neo4j.kernel.impl.store.NodeStore;
-import org.neo4j.kernel.impl.store.PropertyStore;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.register.Register;
+import org.neo4j.storageengine.api.EntityType;
 import org.neo4j.util.FeatureToggles;
 import org.neo4j.values.storable.Value;
 
@@ -73,14 +73,12 @@ public class DynamicIndexStoreView implements IndexStoreView
     private final LabelScanStore labelScanStore;
     protected final LockService locks;
     private final Log log;
-    protected final NodeStore nodeStore;
-    protected final PropertyStore propertyStore;
+    private final NeoStores neoStores;
 
     public DynamicIndexStoreView( NeoStoreIndexStoreView neoStoreIndexStoreView, LabelScanStore labelScanStore, LockService locks,
             NeoStores neoStores, LogProvider logProvider )
     {
-        this.nodeStore = neoStores.getNodeStore();
-        this.propertyStore = neoStores.getPropertyStore();
+        this.neoStores = neoStores;
         this.neoStoreIndexStoreView = neoStoreIndexStoreView;
         this.locks = locks;
         this.labelScanStore = labelScanStore;
@@ -89,7 +87,7 @@ public class DynamicIndexStoreView implements IndexStoreView
 
     @Override
     public <FAILURE extends Exception> StoreScan<FAILURE> visitNodes( int[] labelIds,
-            IntPredicate propertyKeyIdFilter, Visitor<NodeUpdates,FAILURE> propertyUpdatesVisitor,
+            IntPredicate propertyKeyIdFilter, Visitor<EntityUpdates,FAILURE> propertyUpdatesVisitor,
             Visitor<NodeLabelUpdate,FAILURE> labelUpdateVisitor,
             boolean forceStoreScan )
     {
@@ -98,12 +96,19 @@ public class DynamicIndexStoreView implements IndexStoreView
             return neoStoreIndexStoreView.visitNodes( labelIds, propertyKeyIdFilter, propertyUpdatesVisitor, labelUpdateVisitor,
                     forceStoreScan );
         }
-        return new LabelScanViewNodeStoreScan<>( nodeStore, locks, propertyStore, labelScanStore, labelUpdateVisitor,
+        return new LabelScanViewNodeStoreScan<>( new RecordStorageReader( neoStores ), locks, labelScanStore, labelUpdateVisitor,
                 propertyUpdatesVisitor, labelIds, propertyKeyIdFilter );
     }
 
     @Override
-    public NodeUpdates nodeAsUpdates( long nodeId )
+    public <FAILURE extends Exception> StoreScan<FAILURE> visitRelationships( int[] relationshipTypeIds, IntPredicate propertyKeyIdFilter,
+            Visitor<EntityUpdates,FAILURE> propertyUpdateVisitor )
+    {
+        return new RelationshipStoreScan<>( new RecordStorageReader( neoStores ), locks, propertyUpdateVisitor, relationshipTypeIds, propertyKeyIdFilter );
+    }
+
+    @Override
+    public EntityUpdates nodeAsUpdates( long nodeId )
     {
         return neoStoreIndexStoreView.nodeAsUpdates( nodeId );
     }
@@ -151,14 +156,14 @@ public class DynamicIndexStoreView implements IndexStoreView
     }
 
     @Override
-    public Value getPropertyValue( long nodeId, int propertyKeyId ) throws EntityNotFoundException
+    public Value getNodePropertyValue( long nodeId, int propertyKeyId ) throws EntityNotFoundException
     {
-        return neoStoreIndexStoreView.getPropertyValue( nodeId, propertyKeyId );
+        return neoStoreIndexStoreView.getNodePropertyValue( nodeId, propertyKeyId );
     }
 
     @Override
-    public void loadProperties( long nodeId, PrimitiveIntSet propertyIds, PropertyLoadSink sink )
+    public void loadProperties( long entityId, EntityType type, MutableIntSet propertyIds, PropertyLoadSink sink )
     {
-        neoStoreIndexStoreView.loadProperties( nodeId, propertyIds, sink );
+        neoStoreIndexStoreView.loadProperties( entityId, type, propertyIds, sink );
     }
 }

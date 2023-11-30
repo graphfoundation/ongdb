@@ -12,7 +12,7 @@
 
     <name>ONgDB - Lucene Index</name>
     <description>
-        Integration layer between ONgDB and Lucene, providing one possible implementation of the Index API.
+        Integration layer between Neo4j and Lucene, providing one possible implementation of the Index API.
     </description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
@@ -59,10 +59,7 @@
 
     <build>
         <plugins>
-            <!-- This module contains public API, run javadoc and revapi -->
-            <plugin>
-                <artifactId>maven-javadoc-plugin</artifactId>
-            </plugin>
+            <!-- This module contains public API, run revapi -->
             <plugin>
                 <groupId>org.revapi</groupId>
                 <artifactId>revapi-maven-plugin</artifactId>
@@ -134,8 +131,20 @@
 
 
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-migrationsupport</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
         </dependency>
         <dependency>
             <groupId>org.hamcrest</groupId>
@@ -149,6 +158,11 @@
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
         </dependency>
-
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-random-values</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

@@ -38,115 +38,92 @@
  */
 package org.neo4j.commandline.admin;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.function.Consumer;
 
 import org.neo4j.commandline.arguments.Arguments;
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 
+import static java.util.Arrays.asList;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class HelpCommandTest
+class HelpCommandTest
 {
     @Mock
     private Consumer<String> out;
 
-    @Before
-    public void setUp()
+    @BeforeEach
+    void setUp()
     {
         MockitoAnnotations.initMocks( this );
     }
 
     @Test
-    @SuppressWarnings( "unchecked" )
-    public void printsUnknownCommandWhenUnknownCommandIsProvided()
+    void printsUnknownCommandWhenUnknownCommandIsProvided()
     {
         CommandLocator commandLocator = mock( CommandLocator.class );
-        when( commandLocator.getAllProviders() ).thenReturn( Collections.EMPTY_LIST );
+        when( commandLocator.getAllProviders() ).thenReturn( Collections.emptyList() );
         when( commandLocator.findProvider( "foobar" ) ).thenThrow( new NoSuchElementException( "foobar" ) );
 
         HelpCommand helpCommand = new HelpCommand( mock( Usage.class ), out, commandLocator );
 
-        try
-        {
-            helpCommand.execute( "foobar" );
-            fail();
-        }
-        catch ( IncorrectUsage e )
-        {
-            assertThat( e.getMessage(), containsString( "Unknown command: foobar" ) );
-        }
+        IncorrectUsage incorrectUsage = assertThrows( IncorrectUsage.class, () -> helpCommand.execute( "foobar" ) );
+        assertThat( incorrectUsage.getMessage(), containsString( "Unknown command: foobar" ) );
     }
 
     @Test
-    public void printsAvailableCommandsWhenUnknownCommandIsProvided()
+    void printsAvailableCommandsWhenUnknownCommandIsProvided()
     {
         CommandLocator commandLocator = mock( CommandLocator.class );
-        ArrayList<AdminCommand.Provider> mockCommands = new ArrayList<AdminCommand.Provider>()
-        {{
-            add( mockCommand( "foo" ) );
-            add( mockCommand( "bar" ) );
-            add( mockCommand( "baz" ) );
-        }};
+        List<AdminCommand.Provider> mockCommands = asList( mockCommand( "foo" ), mockCommand( "bar" ), mockCommand( "baz" ) );
         when( commandLocator.getAllProviders() ).thenReturn( mockCommands );
         when( commandLocator.findProvider( "foobar" ) ).thenThrow( new NoSuchElementException( "foobar" ) );
 
         HelpCommand helpCommand = new HelpCommand( mock( Usage.class ), out, commandLocator );
 
-        try
-        {
-            helpCommand.execute( "foobar" );
-            fail();
-        }
-        catch ( IncorrectUsage e )
-        {
-            assertThat( e.getMessage(), containsString( "Available commands are: foo bar baz" ) );
-        }
+        IncorrectUsage incorrectUsage = assertThrows( IncorrectUsage.class, () -> helpCommand.execute( "foobar" ) );
+        assertThat( incorrectUsage.getMessage(), containsString( "Available commands are: foo bar baz" ) );
     }
 
     @Test
-    public void testAdminUsage() throws Exception
+    void testAdminUsage() throws Exception
     {
         CommandLocator commandLocator = mock( CommandLocator.class );
-        ArrayList<AdminCommand.Provider> mockCommands = new ArrayList<AdminCommand.Provider>()
-        {{
-            add( mockCommand( "foo" ) );
-            add( mockCommand( "bar" ) );
-            add( mockCommand( "baz" ) );
-        }};
+        List<AdminCommand.Provider> mockCommands = asList( mockCommand( "foo" ), mockCommand( "bar" ), mockCommand( "baz" ) );
         when( commandLocator.getAllProviders() ).thenReturn( mockCommands );
 
         try ( ByteArrayOutputStream baos = new ByteArrayOutputStream() )
         {
             PrintStream ps = new PrintStream( baos );
 
-            Usage usage = new Usage( "ongdb-admin", commandLocator );
+            Usage usage = new Usage( "neo4j-admin", commandLocator );
 
             HelpCommand helpCommand = new HelpCommand( usage, ps::println, commandLocator );
 
             helpCommand.execute();
 
-            assertEquals( String.format( "usage: ongdb-admin <command>%n" +
+            assertEquals( String.format( "usage: neo4j-admin <command>%n" +
                             "%n" +
-                            "Manage your ONgDB instance.%n" +
+                            "Manage your Neo4j instance.%n" +
                             "%n" +
                             "environment variables:%n" +
-                            "    ONGDB_CONF    Path to directory which contains ongdb.conf.%n" +
-                            "    ONGDB_DEBUG   Set to anything to enable debug output.%n" +
-                            "    ONGDB_HOME    ONgDB home directory.%n" +
+                            "    NEO4J_CONF    Path to directory which contains neo4j.conf.%n" +
+                            "    NEO4J_DEBUG   Set to anything to enable debug output.%n" +
+                            "    NEO4J_HOME    Neo4j home directory.%n" +
                             "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
                             "                  Takes a number and a unit, for example 512m.%n" +
                             "%n" +
@@ -160,13 +137,13 @@ public class HelpCommandTest
                             "    foo%n" +
                             "        null%n" +
                             "%n" +
-                            "Use ongdb-admin help <command> for more details.%n" ),
+                            "Use neo4j-admin help <command> for more details.%n" ),
                     baos.toString() );
         }
     }
 
     @Test
-    public void showsArgumentsAndDescriptionForSpecifiedCommand() throws Exception
+    void showsArgumentsAndDescriptionForSpecifiedCommand() throws Exception
     {
         CommandLocator commandLocator = mock( CommandLocator.class );
         AdminCommand.Provider commandProvider = mock( AdminCommand.Provider.class );
@@ -181,28 +158,28 @@ public class HelpCommandTest
         {
             PrintStream ps = new PrintStream( baos );
 
-            HelpCommand helpCommand = new HelpCommand( new Usage( "ongdb-admin", commandLocator ),
+            HelpCommand helpCommand = new HelpCommand( new Usage( "neo4j-admin", commandLocator ),
                     ps::println, commandLocator );
             helpCommand.execute( "foobar" );
 
-            assertEquals( String.format( "usage: ongdb-admin foobar [--database=<name>]%n" +
+            assertEquals( String.format( "usage: neo4j-admin foobar [--database=<name>]%n" +
                             "%n" +
                             "environment variables:%n" +
-                            "    ONGDB_CONF    Path to directory which contains ongdb.conf.%n" +
-                            "    ONGDB_DEBUG   Set to anything to enable debug output.%n" +
-                            "    ONGDB_HOME    ONgDB home directory.%n" +
+                            "    NEO4J_CONF    Path to directory which contains neo4j.conf.%n" +
+                            "    NEO4J_DEBUG   Set to anything to enable debug output.%n" +
+                            "    NEO4J_HOME    Neo4j home directory.%n" +
                             "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
                             "                  Takes a number and a unit, for example 512m.%n" +
                             "%n" +
                             "This is a description of the foobar command.%n" +
                             "%n" +
                             "options:%n" +
-                            "  --database=<name>   Name of database. [default:graph.db]%n" ),
+                            "  --database=<name>   Name of database. [default:" + GraphDatabaseSettings.DEFAULT_DATABASE_NAME + "]%n" ),
                     baos.toString() );
         }
     }
 
-    private AdminCommand.Provider mockCommand( String name )
+    private static AdminCommand.Provider mockCommand( String name )
     {
         AdminCommand.Provider commandProvider = mock( AdminCommand.Provider.class );
         when( commandProvider.name() ).thenReturn( name );

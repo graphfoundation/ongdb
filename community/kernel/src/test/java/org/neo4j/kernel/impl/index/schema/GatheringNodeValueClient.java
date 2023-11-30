@@ -38,8 +38,9 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
+import org.neo4j.internal.kernel.api.IndexOrder;
 import org.neo4j.internal.kernel.api.IndexQuery;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
+import org.neo4j.storageengine.api.schema.IndexDescriptor;
 import org.neo4j.storageengine.api.schema.IndexProgressor;
 import org.neo4j.values.storable.Value;
 
@@ -50,16 +51,20 @@ public class GatheringNodeValueClient implements IndexProgressor.NodeValueClient
 {
     public long reference;
     public Value[] values;
-    public SchemaIndexDescriptor descriptor;
+    public IndexDescriptor descriptor;
     public IndexProgressor progressor;
     public IndexQuery[] query;
+    public IndexOrder order;
+    public boolean needsValues;
 
     @Override
-    public void initialize( SchemaIndexDescriptor descriptor, IndexProgressor progressor, IndexQuery[] query )
+    public void initialize( IndexDescriptor descriptor, IndexProgressor progressor, IndexQuery[] query, IndexOrder order, boolean needsValues )
     {
         this.descriptor = descriptor;
         this.progressor = progressor;
         this.query = query;
+        this.order = order;
+        this.needsValues = needsValues;
     }
 
     @Override
@@ -73,6 +78,6 @@ public class GatheringNodeValueClient implements IndexProgressor.NodeValueClient
     @Override
     public boolean needsValues()
     {
-        return true;
+        return needsValues;
     }
 }

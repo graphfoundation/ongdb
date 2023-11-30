@@ -40,11 +40,11 @@ package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, MapExecutionContext}
-import org.neo4j.cypher.internal.util.v3_4.CypherTypeException
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.VirtualValues
+import org.neo4j.cypher.internal.v3_5.util.CypherTypeException
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 
 import scala.collection.mutable
 
@@ -101,6 +101,6 @@ class LockNodesPipeTest extends CypherFunSuite {
   }
 
   private def rowWithValue(value: AnyValue) = {
-    MapExecutionContext(mutable.Map("x" -> value))
+    new MapExecutionContext(mutable.Map("x" -> value), mutable.Map.empty)
   }
 }

@@ -41,8 +41,8 @@ package org.neo4j.kernel.impl.transaction.command;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
 import org.neo4j.kernel.api.exceptions.index.IndexActivationFailedKernelException;
-import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
 import org.neo4j.kernel.api.exceptions.index.IndexPopulationFailedKernelException;
 import org.neo4j.kernel.impl.api.index.IndexingService;
 

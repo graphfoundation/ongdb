@@ -46,7 +46,7 @@ import org.neo4j.index.internal.gbptree.Hit;
 import org.neo4j.internal.kernel.api.IndexQuery;
 import org.neo4j.values.storable.Value;
 
-class FilteringNativeHitIndexProgressor<KEY extends NativeSchemaKey<KEY>, VALUE extends NativeSchemaValue> extends NativeHitIndexProgressor<KEY,VALUE>
+class FilteringNativeHitIndexProgressor<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> extends NativeHitIndexProgressor<KEY,VALUE>
 {
     private final IndexQuery[] filter;
 
@@ -68,5 +68,12 @@ class FilteringNativeHitIndexProgressor<KEY extends NativeSchemaKey<KEY>, VALUE 
             }
         }
         return true;
+    }
+
+    // We need to make sure to always deserialize, even if the client doesn't need the value, to be able to filter
+    @Override
+    Value[] extractValues( KEY key )
+    {
+        return key.asValues();
     }
 }

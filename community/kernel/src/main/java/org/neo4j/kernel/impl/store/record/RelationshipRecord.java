@@ -220,7 +220,7 @@ public class RelationshipRecord extends PrimitiveRecord
                (firstInSecondChain ? ",tCount=" : ",tPrev=") + secondPrevRel +
                ",tNext=" + secondNextRel +
                ",prop=" + getNextProp() +
-               ",secondaryUnitId=" + getSecondaryUnitId() +
+               secondaryUnitToString() +
                (firstInFirstChain ? ", sFirst" : ",!sFirst") +
                (firstInSecondChain ? ", tFirst" : ",!tFirst") + "]";
     }
@@ -228,11 +228,7 @@ public class RelationshipRecord extends PrimitiveRecord
     @Override
     public RelationshipRecord clone()
     {
-        RelationshipRecord record = new RelationshipRecord( getId() ).initialize( inUse(), nextProp, firstNode,
-                secondNode, type, firstPrevRel, firstNextRel, secondPrevRel, secondNextRel, firstInFirstChain,
-                firstInSecondChain );
-        record.setSecondaryUnitId( getSecondaryUnitId() );
-        return record;
+        return (RelationshipRecord) super.clone();
     }
 
     @Override

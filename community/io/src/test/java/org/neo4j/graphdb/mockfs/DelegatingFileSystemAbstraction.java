@@ -47,7 +47,6 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.file.CopyOption;
-import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.neo4j.io.fs.FileHandle;
@@ -100,13 +99,6 @@ public class DelegatingFileSystemAbstraction implements FileSystemAbstraction
     public void copyFile( File from, File to ) throws IOException
     {
         delegate.copyFile( from, to );
-    }
-
-    @Override
-    public <K extends FileSystemAbstraction.ThirdPartyFileSystem> K getOrCreateThirdPartyFileSystem( Class<K> clazz,
-            Function<Class<K>,K> creator )
-    {
-        return delegate.getOrCreateThirdPartyFileSystem( clazz, creator );
     }
 
     @Override
@@ -164,9 +156,9 @@ public class DelegatingFileSystemAbstraction implements FileSystemAbstraction
     }
 
     @Override
-    public boolean fileExists( File fileName )
+    public boolean fileExists( File file )
     {
-        return delegate.fileExists( fileName );
+        return delegate.fileExists( file );
     }
 
     @Override

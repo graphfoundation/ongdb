@@ -38,9 +38,10 @@
  */
 package org.neo4j.consistency.checking.cache;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import org.neo4j.consistency.checking.full.CheckStage;
 import org.neo4j.consistency.checking.full.Stage;
 import org.neo4j.consistency.checking.full.StoreProcessor;
 import org.neo4j.consistency.statistics.Counts;
@@ -57,11 +58,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class CheckNextRelTaskTest
+class CheckNextRelTaskTest
 {
-
     @Test
-    public void scanForHighIdOnlyOnceWhenProcessCache()
+    void scanForHighIdOnlyOnceWhenProcessCache()
     {
         NeoStores neoStores = mock( NeoStores.class, Mockito.RETURNS_MOCKS );
         NodeStore nodeStore = mock( NodeStore.class );
@@ -76,9 +76,10 @@ public class CheckNextRelTaskTest
         StoreAccess storeAccess = new StoreAccess( neoStores );
         storeAccess.initialize();
 
-        CacheTask.CheckNextRel cacheTask = new CacheTask.CheckNextRel( Stage.SEQUENTIAL_FORWARD, new DefaultCacheAccess( Counts.NONE, 1 ),
-                storeAccess, storeProcessor );
+        DefaultCacheAccess cacheAccess = new DefaultCacheAccess( Counts.NONE, 1 );
+        CacheTask.CheckNextRel cacheTask = new CacheTask.CheckNextRel( Stage.SEQUENTIAL_FORWARD, cacheAccess, storeAccess, storeProcessor );
 
+        cacheAccess.setCacheSlotSizes( CheckStage.Stage5_Check_NextRel.getCacheSlotSizes() );
         cacheTask.processCache();
 
         verify( nodeStore, times( 1 ) ).getHighId();

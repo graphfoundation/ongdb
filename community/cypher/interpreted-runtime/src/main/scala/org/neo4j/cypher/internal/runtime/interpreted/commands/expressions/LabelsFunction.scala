@@ -39,21 +39,21 @@
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.util.v3_4.ParameterWrongTypeException
+import org.neo4j.cypher.operations.CypherFunctions
 import org.neo4j.values.AnyValue
-import org.neo4j.values.virtual.NodeValue
 
 case class LabelsFunction(nodeExpr: Expression) extends NullInNullOutExpression(nodeExpr) {
 
-  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = value match {
-    case n: NodeValue => state.query.getLabelsForNode(n.id())
-    case x => throw new ParameterWrongTypeException("Expected a Node, got: " + x)
-  }
+  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue =
+    CypherFunctions.labels(value, state.query)
 
-  override def rewrite(f: (Expression) => Expression) = f(LabelsFunction(nodeExpr.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(LabelsFunction(nodeExpr.rewrite(f)))
 
-  override def arguments = Seq(nodeExpr)
+  override def arguments: Seq[Expression] = Seq(nodeExpr)
 
-  override def symbolTableDependencies = nodeExpr.symbolTableDependencies
+  override def children: Seq[AstNode[_]] = Seq(nodeExpr)
+
+  override def symbolTableDependencies: Set[String] = nodeExpr.symbolTableDependencies
 }

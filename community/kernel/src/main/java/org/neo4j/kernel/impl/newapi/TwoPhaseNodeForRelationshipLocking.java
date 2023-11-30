@@ -38,29 +38,25 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
-import java.util.Arrays;
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
 
-import org.neo4j.collection.primitive.Primitive;
-import org.neo4j.collection.primitive.PrimitiveArrays;
-import org.neo4j.collection.primitive.PrimitiveLongSet;
 import org.neo4j.function.ThrowingConsumer;
 import org.neo4j.internal.kernel.api.NodeCursor;
 import org.neo4j.internal.kernel.api.Transaction;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.internal.kernel.api.helpers.RelationshipSelectionCursor;
 import org.neo4j.internal.kernel.api.helpers.RelationshipSelections;
-import org.neo4j.kernel.impl.locking.LockTracer;
 import org.neo4j.kernel.impl.locking.Locks;
 import org.neo4j.kernel.impl.locking.ResourceTypes;
-
-import static org.neo4j.kernel.api.StatementConstants.NO_SUCH_RELATIONSHIP;
+import org.neo4j.storageengine.api.lock.LockTracer;
 
 class TwoPhaseNodeForRelationshipLocking
 {
     private final ThrowingConsumer<Long,KernelException> relIdAction;
 
-    private long firstRelId;
     private long[] sortedNodeIds;
+    private MutableLongSet relIds;
     private static final long[] EMPTY = new long[0];
     private final Locks.Client locks;
     private final LockTracer lockTracer;
@@ -80,37 +76,48 @@ class TwoPhaseNodeForRelationshipLocking
         do
         {
             retry = false;
-            firstRelId = NO_SUCH_RELATIONSHIP;
+            relIds = new LongHashSet();
 
-            // lock all the nodes involved by following the node id ordering
             collectAndSortNodeIds( nodeId, transaction, nodes );
+            // lock all the nodes involved by following the node id ordering
             lockAllNodes( sortedNodeIds );
 
             // perform the action on each relationship, we will retry if the the relationship iterator contains
             // new relationships
-            org.neo4j.internal.kernel.api.Read read = transaction.dataRead();
-            read.singleNode( nodeId, nodes );
+            transaction.dataRead().singleNode( nodeId, nodes );
             //if the node is not there, someone else probably deleted it, just ignore
             if ( nodes.next() )
             {
                 try ( RelationshipSelectionCursor rels =
                               RelationshipSelections.allCursor( transaction.cursors(), nodes, null ) )
                 {
-                    boolean first = true;
                     while ( rels.next() && !retry )
                     {
-                        retry = performAction( rels.relationshipReference(), first );
-                        first = false;
+                        if ( !relIds.contains( rels.relationshipReference() ) )
+                        {
+                            retry = true;
+                            unlockAllNodes( sortedNodeIds );
+                            sortedNodeIds = null;
+                        }
                     }
                 }
             }
         }
         while ( retry );
+        long[] sortedRelIds = relIds.toSortedArray();
+        if ( sortedRelIds.length > 0 )
+        {
+            locks.acquireExclusive( lockTracer, ResourceTypes.RELATIONSHIP, sortedRelIds );
+            for ( long relId : sortedRelIds )
+            {
+                relIdAction.accept( relId );
+            }
+        }
     }
 
     private void collectAndSortNodeIds( long nodeId, Transaction transaction, NodeCursor nodes )
     {
-        PrimitiveLongSet nodeIdSet = Primitive.longSet();
+        final MutableLongSet nodeIdSet = new LongHashSet();
         nodeIdSet.add( nodeId );
 
         org.neo4j.internal.kernel.api.Read read = transaction.dataRead();
@@ -125,19 +132,13 @@ class TwoPhaseNodeForRelationshipLocking
         {
             while ( rels.next() )
             {
-                if ( firstRelId == NO_SUCH_RELATIONSHIP )
-                {
-                    firstRelId = rels.relationshipReference();
-                }
-
+                relIds.add( rels.relationshipReference() );
                 nodeIdSet.add( rels.sourceNodeReference() );
                 nodeIdSet.add( rels.targetNodeReference() );
             }
         }
 
-        long[] nodeIds = PrimitiveArrays.of( nodeIdSet );
-        Arrays.sort( nodeIds );
-        this.sortedNodeIds = nodeIds;
+        this.sortedNodeIds = nodeIdSet.toSortedArray();
     }
 
     private void lockAllNodes( long[] nodeIds )
@@ -148,24 +149,5 @@ class TwoPhaseNodeForRelationshipLocking
     private void unlockAllNodes( long[] nodeIds )
     {
         locks.releaseExclusive( ResourceTypes.NODE, nodeIds );
-    }
-
-    private boolean performAction( long rel, boolean first )
-            throws KernelException
-    {
-        if ( first )
-        {
-            if ( rel != firstRelId )
-            {
-                // if the first relationship is not the same someone added some new rels, so we need to
-                // lock them all again
-                unlockAllNodes( sortedNodeIds );
-                sortedNodeIds = null;
-                return true;
-            }
-        }
-
-        relIdAction.accept( rel );
-        return false;
     }
 }

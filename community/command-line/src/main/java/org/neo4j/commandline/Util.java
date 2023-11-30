@@ -49,6 +49,7 @@ import javax.annotation.Nonnull;
 import org.neo4j.commandline.admin.CommandFailed;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.StoreLayout;
 import org.neo4j.kernel.StoreLockException;
 import org.neo4j.kernel.internal.locker.GlobalStoreLocker;
 import org.neo4j.kernel.internal.locker.StoreLocker;
@@ -97,16 +98,16 @@ public class Util
         return normalizedCandidate.startsWith( normalizedParent );
     }
 
-    public static void checkLock( Path databaseDirectory ) throws CommandFailed
+    public static void checkLock( StoreLayout storeLayout ) throws CommandFailed
     {
         try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction();
-              StoreLocker storeLocker = new GlobalStoreLocker( fileSystem, databaseDirectory.toFile() ) )
+                StoreLocker storeLocker = new GlobalStoreLocker( fileSystem, storeLayout ) )
         {
             storeLocker.checkLock();
         }
         catch ( StoreLockException e )
         {
-            throw new CommandFailed( "the database is in use -- stop ONgDB and try again", e );
+            throw new CommandFailed( "the database is in use -- stop Neo4j and try again", e );
         }
         catch ( IOException e )
         {
@@ -121,16 +122,16 @@ public class Util
     }
 
     /**
-     * @return the version of ONgDB as defined during the build
+     * @return the version of Neo4j as defined during the build
      */
     @Nonnull
-    public static String ongdbVersion()
+    public static String neo4jVersion()
     {
         Properties props = new Properties();
         try
         {
             loadProperties( props );
-            return props.getProperty( "ongdbVersion" );
+            return props.getProperty( "neo4jVersion" );
         }
         catch ( IOException e )
         {

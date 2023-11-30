@@ -41,7 +41,6 @@ package org.neo4j.kernel.impl.index;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -52,12 +51,12 @@ import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.TransactionFailureException;
 import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.internal.kernel.api.Kernel;
-import org.neo4j.internal.kernel.api.Session;
 import org.neo4j.internal.kernel.api.Transaction;
 import org.neo4j.internal.kernel.api.exceptions.explicitindex.ExplicitIndexNotFoundKernelException;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.Statement;
 import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.impl.api.ExplicitIndexProvider;
 import org.neo4j.kernel.spi.explicitindex.IndexImplementation;
 
 import static org.neo4j.graphdb.index.IndexManager.PROVIDER;
@@ -70,16 +69,16 @@ public class ExplicitIndexStore
 {
     private final IndexConfigStore indexStore;
     private final Config config;
-    private final Function<String,IndexImplementation> indexProviders;
+    private final ExplicitIndexProvider explicitIndexProvider;
     private final Supplier<Kernel> kernel;
 
     public ExplicitIndexStore( @Nonnull Config config, IndexConfigStore indexStore, Supplier<Kernel> kernel,
-            Function<String,IndexImplementation> indexProviders )
+            ExplicitIndexProvider defaultExplicitIndexProvider )
     {
         this.config = config;
         this.indexStore = indexStore;
         this.kernel = kernel;
-        this.indexProviders = indexProviders;
+        this.explicitIndexProvider = defaultExplicitIndexProvider;
     }
 
     public Map<String, String> getOrCreateNodeIndexConfig( String indexName, Map<String, String> customConfiguration )
@@ -125,7 +124,7 @@ public class ExplicitIndexStore
             provider = configToUse.get( PROVIDER );
             provider = provider == null ? getDefaultProvider( indexName, dbConfig ) : provider;
         }
-        indexProvider = indexProviders.apply( provider );
+        indexProvider = explicitIndexProvider.getProviderByName( provider );
         configToUse = indexProvider.fillInDefaults( configToUse );
         configToUse = injectDefaultProviderIfMissing( indexName, dbConfig, configToUse );
 
@@ -190,13 +189,12 @@ public class ExplicitIndexStore
                 {
                     // No, someone else made it before us, cool
                     assertConfigMatches(
-                            indexProviders.apply( existing.get( PROVIDER ) ), indexName, existing, config );
+                            explicitIndexProvider.getProviderByName( existing.get( PROVIDER ) ), indexName, existing, config );
                     return config;
                 }
 
                 // We were the first one here, let's create this config
-                try ( Session session = kernel.get().beginSession( AUTH_DISABLED );
-                      Transaction transaction = session.beginTransaction( Transaction.Type.implicit );
+                try ( Transaction transaction = kernel.get().beginTransaction( Transaction.Type.implicit, AUTH_DISABLED );
                       Statement statement = ((KernelTransaction)transaction).acquireStatement() )
                 {
                     switch ( entityType )

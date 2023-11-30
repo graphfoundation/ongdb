@@ -39,7 +39,6 @@
 package org.neo4j.server.rest.transactional.integration;
 
 import com.fasterxml.jackson.databind.JsonNode;
-
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;

@@ -38,6 +38,9 @@
  */
 package org.neo4j.kernel.configuration;
 
+import inet.ipaddr.AddressStringException;
+import inet.ipaddr.IPAddressString;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
@@ -69,6 +72,7 @@ import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.AdvertisedSocketAddress;
 import org.neo4j.helpers.HostnamePort;
 import org.neo4j.helpers.ListenSocketAddress;
+import org.neo4j.helpers.Numbers;
 import org.neo4j.helpers.SocketAddressParser;
 import org.neo4j.helpers.TimeUtil;
 import org.neo4j.helpers.collection.CollectorsUtil;
@@ -210,7 +214,7 @@ public class Settings
      * @param <T> the concrete type of the setting.
      */
     @Nonnull
-    public static <T> Setting<T> setting( @Nonnull final String name, @Nonnull final Function<String,T> parser,
+    public static <T> Setting<T> setting( @Nonnull final String name, @Nonnull final Function<String, T> parser,
             @Nullable final String defaultValue )
     {
         return new SettingBuilder<>( name, parser, defaultValue ).build();
@@ -538,6 +542,30 @@ public class Settings
         }
     };
 
+    public static final Function<String, IPAddressString> CIDR_IP = new Function<String, IPAddressString>()
+    {
+        @Override
+        public IPAddressString apply( String value )
+        {
+            IPAddressString ipAddress = new IPAddressString( value.trim() );
+            try
+            {
+                ipAddress.validate();
+            }
+            catch ( AddressStringException e )
+            {
+                throw new IllegalArgumentException( format( "'%s' is not a valid CIDR ip", value ), e );
+            }
+            return ipAddress;
+        }
+
+        @Override
+        public String toString()
+        {
+            return "an ip with subnet in CDIR format. e.g. 127.168.0.1/8";
+        }
+    };
+
     public static final Function<String,Duration> DURATION = new Function<String, Duration>()
     {
         @Override
@@ -793,17 +821,17 @@ public class Settings
         }
     };
 
-    public static <T extends Enum<T>> Function<String, T> options( final Class<T> enumClass )
+    public static <T extends Enum<T>> Function<String, T> optionsObeyCase( final Class<T> enumClass )
     {
         return options( EnumSet.allOf( enumClass ), false );
     }
 
-    public static <T extends Enum<T>> Function<String, T> options( final Class<T> enumClass, boolean ignoreCase )
+    public static <T extends Enum<T>> Function<String, T> optionsIgnoreCase( final Class<T> enumClass )
     {
-        return options( EnumSet.allOf( enumClass ), ignoreCase );
+        return options( EnumSet.allOf( enumClass ), true );
     }
 
-    public static <T> Function<String, T> options( T... optionValues )
+    public static <T> Function<String, T> optionsObeyCase( T... optionValues )
     {
         return options( Iterables.iterable( optionValues ), false );
     }
@@ -960,6 +988,61 @@ public class Settings
             public String toString()
             {
                 return format( MATCHES_PATTERN_MESSAGE, regex );
+            }
+        };
+    }
+
+    public static BiFunction<String,Function<String,String>,String> except( final String... forbiddenValues )
+    {
+        return new BiFunction<String,Function<String,String>,String>()
+        {
+            @Override
+            public String apply( String value, Function<String,String> stringStringFunction )
+            {
+                if ( StringUtils.isNotBlank( value ) )
+                {
+                    if ( ArrayUtils.contains( forbiddenValues, value ) )
+                    {
+                        throw new IllegalArgumentException( format( "not allowed value is: %s", value ) );
+                    }
+                }
+                return value;
+            }
+
+            @Override
+            public String toString()
+            {
+                if ( forbiddenValues.length > 1 )
+                {
+                    return format( "is none of %s", Arrays.toString( forbiddenValues ) );
+                }
+                else if ( forbiddenValues.length == 1 )
+                {
+                    return format( "is not `%s`", forbiddenValues[0] );
+                }
+                return "";
+            }
+        };
+    }
+
+    public static BiFunction<Long,Function<String,String>,Long> powerOf2()
+    {
+        return new BiFunction<Long,Function<String,String>,Long>()
+        {
+            @Override
+            public Long apply( Long value, Function<String,String> settings )
+            {
+                if ( value != null && !Numbers.isPowerOfTwo( value ) )
+                {
+                    throw new IllegalArgumentException( "only power of 2 values allowed" );
+                }
+                return value;
+            }
+
+            @Override
+            public String toString()
+            {
+                return "is power of 2";
             }
         };
     }
@@ -1361,7 +1444,7 @@ public class Settings
 
         FileSetting( String name, String defaultValue )
         {
-            this( name, defaultValue, GraphDatabaseSettings.ongdb_home );
+            this( name, defaultValue, GraphDatabaseSettings.neo4j_home );
         }
 
         FileSetting( String name, String defaultValue, Setting<File> relativeRoot )

@@ -39,6 +39,7 @@
 package org.neo4j.internal.kernel.api;
 
 import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,12 +47,15 @@ import java.util.List;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
+import org.neo4j.internal.kernel.api.exceptions.InvalidTransactionTypeKernelException;
+import org.neo4j.internal.kernel.api.exceptions.explicitindex.AutoIndexingKernelException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.neo4j.graphdb.Label.label;
+import static org.neo4j.io.pagecache.tracing.cursor.PageCursorTracer.NULL;
 
 public abstract class NodeCursorTestBase<G extends KernelAPIReadTestSupport> extends KernelAPIReadTestBase<G>
 {
@@ -59,7 +63,7 @@ public abstract class NodeCursorTestBase<G extends KernelAPIReadTestSupport> ext
     private static long foo, bar, baz, barbaz, bare, gone;
 
     @Override
-    void createTestGraph( GraphDatabaseService graphDb )
+    public void createTestGraph( GraphDatabaseService graphDb )
     {
         Node deleted;
         try ( Transaction tx = graphDb.beginTx() )
@@ -175,6 +179,7 @@ public abstract class NodeCursorTestBase<G extends KernelAPIReadTestSupport> ext
             labels = nodes.labels();
             assertEquals( "number of labels", 1, labels.numberOfLabels() );
             int fooLabel = labels.label( 0 );
+            assertTrue( nodes.hasLabel( fooLabel ) );
             assertFalse( "should only access a single node", nodes.next() );
 
             // when
@@ -185,6 +190,8 @@ public abstract class NodeCursorTestBase<G extends KernelAPIReadTestSupport> ext
             labels = nodes.labels();
             assertEquals( "number of labels", 1, labels.numberOfLabels() );
             int barLabel = labels.label( 0 );
+            assertFalse( nodes.hasLabel( fooLabel ) );
+            assertTrue( nodes.hasLabel( barLabel ) );
             assertFalse( "should only access a single node", nodes.next() );
 
             // when
@@ -195,6 +202,9 @@ public abstract class NodeCursorTestBase<G extends KernelAPIReadTestSupport> ext
             labels = nodes.labels();
             assertEquals( "number of labels", 1, labels.numberOfLabels() );
             int bazLabel = labels.label( 0 );
+            assertFalse( nodes.hasLabel( fooLabel ) );
+            assertFalse( nodes.hasLabel( barLabel ) );
+            assertTrue( nodes.hasLabel( bazLabel ) );
             assertFalse( "should only access a single node", nodes.next() );
 
             assertNotEquals( "distinct labels", fooLabel, barLabel );
@@ -217,6 +227,10 @@ public abstract class NodeCursorTestBase<G extends KernelAPIReadTestSupport> ext
                 assertEquals( bazLabel, labels.label( 0 ) );
                 assertEquals( barLabel, labels.label( 1 ) );
             }
+            assertFalse( nodes.hasLabel( fooLabel ) );
+            assertTrue( nodes.hasLabel( barLabel ) );
+            assertTrue( nodes.hasLabel( bazLabel ) );
+
             assertFalse( "should only access a single node", nodes.next() );
 
             // when
@@ -226,7 +240,28 @@ public abstract class NodeCursorTestBase<G extends KernelAPIReadTestSupport> ext
             assertTrue( "should access defined node", nodes.next() );
             labels = nodes.labels();
             assertEquals( "number of labels", 0, labels.numberOfLabels() );
+            assertFalse( nodes.hasLabel( fooLabel ) );
+            assertFalse( nodes.hasLabel( barLabel ) );
+            assertFalse( nodes.hasLabel( bazLabel ) );
             assertFalse( "should only access a single node", nodes.next() );
         }
+    }
+
+    @Test
+    public void notFindNoIdNode() throws InvalidTransactionTypeKernelException, AutoIndexingKernelException
+    {
+        // given a non-commited node created in transaction
+        long nodeId = tx.dataWrite().nodeCreate();
+
+        try ( NodeCursor nodes = cursors.allocateNodeCursor( ) )
+        {
+            // when
+            read.singleNode( -1, nodes );
+            // then
+            Assertions.assertFalse( nodes.next(), "should not access any node" );
+        }
+
+        // remove temporarily created node.
+        tx.dataWrite().nodeDelete( nodeId );
     }
 }

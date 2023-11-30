@@ -57,12 +57,15 @@
     </licenses>
 
     <dependencies>
-        <!-- Main dependencies -->
-
-        <!-- Test dependencies -->
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-logging</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>

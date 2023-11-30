@@ -38,6 +38,10 @@
  */
 package org.neo4j.unsafe.impl.batchimport.cache;
 
+import org.eclipse.collections.api.map.primitive.MutableLongObjectMap;
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+import org.eclipse.collections.impl.map.mutable.primitive.LongObjectHashMap;
+import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -48,12 +52,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.neo4j.collection.primitive.Primitive;
-import org.neo4j.collection.primitive.PrimitiveLongObjectMap;
-import org.neo4j.collection.primitive.PrimitiveLongSet;
 import org.neo4j.graphdb.Direction;
 import org.neo4j.helpers.collection.Pair;
 import org.neo4j.test.rule.RandomRule;
@@ -227,7 +229,7 @@ public class NodeRelationshipCacheTest
         // GIVEN
         int typeId = 10;
         int nodes = 10_000;
-        PrimitiveLongObjectMap<long[]> key = Primitive.longObjectMap( nodes );
+        MutableLongObjectMap<long[]> key = new LongObjectHashMap<>( nodes );
         cache = new NodeRelationshipCache( NumberArrayFactory.HEAP, 1, 1000, base );
 
         // mark random nodes as dense (dense node threshold is 1 so enough with one increment
@@ -306,23 +308,31 @@ public class NodeRelationshipCacheTest
     public void shouldVisitChangedNodes()
     {
         // GIVEN
-        int nodes = 10;
+        int nodes = 100;
         int typeId = 10;
-        cache = new NodeRelationshipCache( NumberArrayFactory.HEAP, 2, 100, base );
+        int chunkSize = 10;
+        List<Long> changedNodes = new ArrayList<>();
+        cache = new NodeRelationshipCache( NumberArrayFactory.HEAP, 2, chunkSize, base );
         cache.setNodeCount( nodes );
         for ( long nodeId = 0; nodeId < nodes; nodeId++ )
         {
+            if ( nodeId >= chunkSize && nodeId < 2 * chunkSize )
+            {
+                // One chunk without any changes
+                continue;
+            }
             cache.incrementCount( nodeId );
             if ( random.nextBoolean() )
             {
                 cache.incrementCount( nodeId );
             }
+            changedNodes.add( nodeId );
         }
-        PrimitiveLongSet keySparseChanged = Primitive.longSet( nodes );
-        PrimitiveLongSet keyDenseChanged = Primitive.longSet( nodes );
+        MutableLongSet keySparseChanged = new LongHashSet();
+        MutableLongSet keyDenseChanged = new LongHashSet();
         for ( int i = 0; i < nodes / 2; i++ )
         {
-            long nodeId = random.nextLong( nodes );
+            long nodeId = random.among( changedNodes );
             cache.getAndPutRelationship( nodeId, typeId, Direction.OUTGOING, random.nextLong( 1_000_000 ), false );
             boolean dense = cache.isDense( nodeId );
             (dense ? keyDenseChanged : keySparseChanged).add( nodeId );

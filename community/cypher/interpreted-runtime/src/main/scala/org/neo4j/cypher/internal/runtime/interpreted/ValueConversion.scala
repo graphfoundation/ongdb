@@ -41,8 +41,8 @@ package org.neo4j.cypher.internal.runtime.interpreted
 import java.time._
 import java.time.temporal.TemporalAmount
 
-import org.neo4j.cypher.internal.util.v3_4.Eagerly
-import org.neo4j.cypher.internal.util.v3_4.symbols._
+import org.neo4j.cypher.internal.v3_5.util.Eagerly
+import org.neo4j.cypher.internal.v3_5.util.symbols._
 import org.neo4j.graphdb.spatial.{Geometry, Point}
 import org.neo4j.graphdb.{Node, Path, Relationship}
 import org.neo4j.kernel.impl.util.ValueUtils
@@ -50,9 +50,7 @@ import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values.byteArray
 import org.neo4j.values.storable._
 import org.neo4j.values.virtual.VirtualValues.fromArray
-import org.neo4j.values.virtual.{MapValue, VirtualValues}
-
-import scala.collection.JavaConverters._
+import org.neo4j.values.virtual.{MapValue, MapValueBuilder, VirtualValues}
 
 object ValueConversion {
   def getValueConverter(cType: CypherType): Any => AnyValue = {
@@ -84,7 +82,14 @@ object ValueConversion {
     (v) => if (v == null) Values.NO_VALUE else converter(v)
   }
 
-  def asValues(params: Map[String, Any]): MapValue = VirtualValues.map(Eagerly.immutableMapValues(params, asValue).asJava)
+  def asValues(params: Map[String, Any]): MapValue = {
+    val builder = new MapValueBuilder(params.size)
+    params.foreach {
+      case (key,value) => builder.add(key, asValue(value))
+    }
+    builder.build()
+  }
+
   def asValue(value: Any): AnyValue = value match {
     case null => Values.NO_VALUE
     case s: String => Values.stringValue(s)
@@ -104,7 +109,12 @@ object ValueConversion {
     case x: OffsetTime => TimeValue.time(x)
     case x: LocalTime => LocalTimeValue.localTime(x)
     case x: TemporalAmount => Values.durationValue(x)
-    case m: Map[_, _] => VirtualValues.map(Eagerly.immutableMapValues(m.asInstanceOf[Map[String, Any]], asValue).asJava)
+    case m: Map[_, _] =>
+      val builder = new MapValueBuilder
+      m.foreach {
+        case (k,v) => builder.add(k.asInstanceOf[String], asValue(v))
+      }
+      builder.build()
     case m: java.util.Map[_, _] => ValueUtils.asMapValue(m.asInstanceOf[java.util.Map[String, AnyRef]])
     case a: TraversableOnce[_] => VirtualValues.list(a.map(asValue).toArray:_*)
     case c: java.util.Collection[_] => ValueUtils.asListValue(c)

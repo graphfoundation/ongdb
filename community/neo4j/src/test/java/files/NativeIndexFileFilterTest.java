@@ -45,8 +45,8 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 
+import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
 import org.neo4j.kernel.api.impl.schema.LuceneIndexProviderFactory;
-import org.neo4j.kernel.api.index.IndexProvider;
 import org.neo4j.kernel.impl.index.schema.NumberIndexProvider;
 import org.neo4j.kernel.impl.index.schema.SpatialIndexProvider;
 import org.neo4j.kernel.impl.index.schema.StringIndexProvider;
@@ -62,7 +62,7 @@ import static org.neo4j.kernel.api.index.IndexDirectoryStructure.directoriesByPr
 
 public class NativeIndexFileFilterTest
 {
-    private static final IndexProvider.Descriptor LUCENE_DESCRTIPTOR = LuceneIndexProviderFactory.PROVIDER_DESCRIPTOR;
+    private static final IndexProviderDescriptor LUCENE_DESCRTIPTOR = LuceneIndexProviderFactory.PROVIDER_DESCRIPTOR;
 
     @Rule
     public DefaultFileSystemRule fs = new DefaultFileSystemRule();
@@ -112,28 +112,28 @@ public class NativeIndexFileFilterTest
     @Test
     public void shouldAcceptNativeStringIndexFileFromFusionProvider() throws IOException
     {
-        shouldAcceptNativeIndexFileFromFusionProvider( new IndexProvider.Descriptor( StringIndexProvider.KEY, "some-version" ) );
+        shouldAcceptNativeIndexFileFromFusionProvider( new IndexProviderDescriptor( StringIndexProvider.KEY, "some-version" ) );
     }
 
     @Test
     public void shouldAcceptNativeNumberIndexFileFromFusionProvider() throws IOException
     {
-        shouldAcceptNativeIndexFileFromFusionProvider( new IndexProvider.Descriptor( NumberIndexProvider.KEY, "some-version" ) );
+        shouldAcceptNativeIndexFileFromFusionProvider( new IndexProviderDescriptor( NumberIndexProvider.KEY, "some-version" ) );
     }
 
     @Test
     public void shouldAcceptNativeSpatialIndexFileFromFusionProvider() throws IOException
     {
-        shouldAcceptNativeIndexFileFromFusionProvider( new IndexProvider.Descriptor( SpatialIndexProvider.KEY, "some-version" ) );
+        shouldAcceptNativeIndexFileFromFusionProvider( new IndexProviderDescriptor( SpatialIndexProvider.KEY, "some-version" ) );
     }
 
     @Test
     public void shouldAcceptNativeTemporalIndexFileFromFusionProvider() throws IOException
     {
-        shouldAcceptNativeIndexFileFromFusionProvider( new IndexProvider.Descriptor( TemporalIndexProvider.KEY, "some-version" ) );
+        shouldAcceptNativeIndexFileFromFusionProvider( new IndexProviderDescriptor( TemporalIndexProvider.KEY, "some-version" ) );
     }
 
-    private void shouldAcceptNativeIndexFileFromFusionProvider( IndexProvider.Descriptor descriptor ) throws IOException
+    private void shouldAcceptNativeIndexFileFromFusionProvider( IndexProviderDescriptor descriptor ) throws IOException
     {
         // given
         File dir = subProviderDirectoryStructure( storeDir, descriptor ).forProvider( descriptor ).directoryForIndex( 1 );

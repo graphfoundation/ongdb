@@ -40,6 +40,8 @@ package org.neo4j.values.storable;
 
 import java.util.Comparator;
 
+import static org.neo4j.values.utils.ValueMath.HASH_CONSTANT;
+
 /**
  * A tuple of n values.
  */
@@ -66,7 +68,7 @@ public class ValueTuple
 
     private final Value[] values;
 
-    private ValueTuple( Value[] values )
+    protected ValueTuple( Value[] values )
     {
         this.values = values;
     }
@@ -79,6 +81,14 @@ public class ValueTuple
     public Value valueAt( int offset )
     {
         return values[offset];
+    }
+
+    /**
+     * WARNING: this method does not create a defensive copy. Do not modify the returned array.
+     */
+    public Value[] getValues()
+    {
+        return values;
     }
 
     @Override
@@ -116,7 +126,7 @@ public class ValueTuple
         int result = 1;
         for ( Object value : values )
         {
-            result = 31 * result + value.hashCode();
+            result = HASH_CONSTANT * result + value.hashCode();
         }
         return result;
     }

@@ -44,10 +44,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marks that an interface is a ONgDB management interface.
+ * Marks that an interface is a Neo4j management interface.
  */
 @Target( ElementType.TYPE )
 @Retention( RetentionPolicy.RUNTIME )
+@Deprecated
 public @interface ManagementInterface
 {
     String name();

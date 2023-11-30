@@ -45,9 +45,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.LockSupport;
 
-import org.neo4j.concurrent.AsyncEvent;
-import org.neo4j.concurrent.AsyncEvents;
 import org.neo4j.unsafe.impl.batchimport.cache.idmapping.string.DuplicateInputIdException;
+import org.neo4j.util.concurrent.AsyncEvent;
+import org.neo4j.util.concurrent.AsyncEvents;
 
 import static java.lang.String.format;
 import static org.neo4j.helpers.Exceptions.withMessage;
@@ -205,6 +205,7 @@ public class BadCollector implements Collector
         finally
         {
             out.flush();
+            out.close();
         }
     }
 

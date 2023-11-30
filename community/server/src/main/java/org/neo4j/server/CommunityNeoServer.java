@@ -38,19 +38,17 @@
  */
 package org.neo4j.server;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Supplier;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.kernel.api.net.NetworkConnectionTracker;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.factory.CommunityEditionModule;
-import org.neo4j.kernel.impl.factory.DatabaseInfo;
-import org.neo4j.kernel.impl.factory.GraphDatabaseFacadeFactory;
+import org.neo4j.kernel.configuration.ConnectorPortRegister;
 import org.neo4j.logging.LogProvider;
-import org.neo4j.server.database.Database;
-import org.neo4j.server.database.LifecycleManagingDatabase.GraphFactory;
+import org.neo4j.server.database.CommunityGraphFactory;
+import org.neo4j.server.database.GraphFactory;
 import org.neo4j.server.modules.AuthorizationModule;
 import org.neo4j.server.modules.ConsoleModule;
 import org.neo4j.server.modules.DBMSModule;
@@ -60,67 +58,70 @@ import org.neo4j.server.modules.RESTApiModule;
 import org.neo4j.server.modules.SecurityRulesModule;
 import org.neo4j.server.modules.ServerModule;
 import org.neo4j.server.modules.ThirdPartyJAXRSModule;
+import org.neo4j.server.rest.discovery.DiscoverableURIs;
 import org.neo4j.server.rest.management.AdvertisableService;
 import org.neo4j.server.rest.management.JmxService;
 import org.neo4j.server.rest.management.console.ConsoleService;
 import org.neo4j.server.web.Jetty9WebServer;
 import org.neo4j.server.web.WebServer;
+import org.neo4j.udc.UsageData;
 
-import static org.neo4j.server.database.LifecycleManagingDatabase.lifecycleManagingDatabase;
+import static org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory.Dependencies;
+import static org.neo4j.server.rest.discovery.CommunityDiscoverableURIs.communityDiscoverableURIs;
 
 public class CommunityNeoServer extends AbstractNeoServer
 {
-    protected static final GraphFactory COMMUNITY_FACTORY = ( config, dependencies ) ->
+    public CommunityNeoServer( Config config, Dependencies dependencies )
     {
-        File storeDir = config.get( GraphDatabaseSettings.database_path );
-        return new GraphDatabaseFacadeFactory( DatabaseInfo.COMMUNITY, CommunityEditionModule::new )
-                .newFacade( storeDir, config, dependencies );
-    };
-
-    public CommunityNeoServer( Config config, GraphDatabaseFacadeFactory.Dependencies dependencies,
-            LogProvider logProvider )
-    {
-        this( config, lifecycleManagingDatabase( COMMUNITY_FACTORY ), dependencies, logProvider );
+        this( config, new CommunityGraphFactory(), dependencies );
     }
 
-    public CommunityNeoServer( Config config, Database.Factory dbFactory, GraphDatabaseFacadeFactory.Dependencies
-            dependencies, LogProvider logProvider )
+    public CommunityNeoServer( Config config, GraphFactory graphFactory, Dependencies dependencies )
     {
-        super( config, dbFactory, dependencies, logProvider );
+        super( config, graphFactory, dependencies );
     }
 
     @Override
     protected Iterable<ServerModule> createServerModules()
     {
         return Arrays.asList(
-                new DBMSModule( webServer, getConfig() ),
-                new RESTApiModule( webServer, getConfig(), getDependencyResolver(), logProvider ),
+                createDBMSModule(),
+                new RESTApiModule( webServer, getConfig(), getDependencyResolver().provideDependency( UsageData.class ), userLogProvider ),
                 new ManagementApiModule( webServer, getConfig() ),
-                new ThirdPartyJAXRSModule( webServer, getConfig(), logProvider, this ),
+                new ThirdPartyJAXRSModule( webServer, getConfig(), userLogProvider, this ),
                 new ConsoleModule( webServer, getConfig() ),
                 new Neo4jBrowserModule( webServer ),
                 createAuthorizationModule(),
-                new SecurityRulesModule( webServer, getConfig(), logProvider ) );
+                new SecurityRulesModule( webServer, getConfig(), userLogProvider ) );
     }
 
     @Override
     protected WebServer createWebServer()
     {
-        return new Jetty9WebServer( logProvider, getConfig() );
+        NetworkConnectionTracker connectionTracker = getDependencyResolver().resolveDependency( NetworkConnectionTracker.class );
+        return new Jetty9WebServer( userLogProvider, getConfig(), connectionTracker );
     }
 
     @Override
     public Iterable<AdvertisableService> getServices()
     {
         List<AdvertisableService> toReturn = new ArrayList<>( 3 );
-        toReturn.add( new ConsoleService( null, null, logProvider, null ) );
+        toReturn.add( new ConsoleService( null, null, userLogProvider, null ) );
         toReturn.add( new JmxService( null, null ) );
 
         return toReturn;
     }
 
+    protected DBMSModule createDBMSModule()
+    {
+        // ConnectorPortRegister isn't available until runtime, so defer loading until then
+        Supplier<DiscoverableURIs> discoverableURIs  = () -> communityDiscoverableURIs( getConfig(),
+                getDependencyResolver().resolveDependency( ConnectorPortRegister.class ) );
+        return new DBMSModule( webServer, getConfig(), discoverableURIs );
+    }
+
     protected AuthorizationModule createAuthorizationModule()
     {
-        return new AuthorizationModule( webServer, authManagerSupplier, logProvider, getConfig(), getUriWhitelist() );
+        return new AuthorizationModule( webServer, authManagerSupplier, userLogProvider, getConfig(), getUriWhitelist() );
     }
 }

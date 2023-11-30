@@ -45,7 +45,7 @@ import org.mockito.stubbing.Answer
 import org.neo4j.cypher.internal.runtime.interpreted.ValueComparisonHelper.beEquivalentTo
 import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
 import org.neo4j.cypher.internal.runtime.ImplicitValueConversion._
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.graphdb.{Node, Relationship}
 import org.neo4j.kernel.impl.util.ValueUtils.{asListOfEdges, fromNodeProxy}
@@ -236,6 +236,36 @@ class ProjectEndpointsPipeTest extends CypherFunSuite {
     result should beEquivalentTo(List(
       Map("r" -> rel2, "a" -> node3, "b" -> node4),
       Map("r" -> rel2, "a" -> node4, "b" -> node3)
+    ))
+  }
+
+  test("projected endpoints of simple null relationship") {
+    // given
+    val left = newMockedPipe("r", row("r" -> Seq(null)))
+
+    // when
+    val result =
+      ProjectEndpointsPipe(left, "r", "a", startInScope = false, "b", endInScope = false, None, directed = false, simpleLength = true)().
+        createResults(queryState).toList
+
+    // then
+    result should beEquivalentTo(List(
+      Map("r" -> null)
+    ))
+  }
+
+  test("projected endpoints of simple null relationship with type") {
+    // given
+    val left = newMockedPipe("r", row("r" -> Seq(null)))
+
+    // when
+    val result =
+      ProjectEndpointsPipe(left, "r", "a", startInScope = false, "b", endInScope = false, Some(new LazyTypes(Array("B"))), directed = false, simpleLength = true)().
+        createResults(queryState).toList
+
+    // then
+    result should beEquivalentTo(List(
+      Map("r" -> null)
     ))
   }
 
@@ -437,6 +467,36 @@ class ProjectEndpointsPipeTest extends CypherFunSuite {
 
     // then
     result should be('isEmpty)
+  }
+
+  test("projected endpoints of var length null relationship") {
+    // given
+    val left = newMockedPipe("r", row("r" -> Seq(null)))
+
+    // when
+    val result =
+      ProjectEndpointsPipe(left, "r", "a", startInScope = false, "b", endInScope = false, None, directed = false, simpleLength = false)().
+        createResults(queryState).toList
+
+    // then
+    result should beEquivalentTo(List(
+      Map("r" -> null)
+    ))
+  }
+
+  test("projected endpoints of var length null relationship with type") {
+    // given
+    val left = newMockedPipe("r", row("r" -> Seq(null)))
+
+    // when
+    val result =
+      ProjectEndpointsPipe(left, "r", "a", startInScope = false, "b", endInScope = false, Some(new LazyTypes(Array("B"))), directed = false, simpleLength = false)().
+        createResults(queryState).toList
+
+    // then
+    result should beEquivalentTo(List(
+      Map("r" -> null)
+    ))
   }
 
   private def row(values: (String, AnyValue)*) = ExecutionContext.from(values: _*)

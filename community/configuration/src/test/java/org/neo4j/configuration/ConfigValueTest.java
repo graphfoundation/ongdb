@@ -38,7 +38,7 @@
  */
 package org.neo4j.configuration;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.Optional;
@@ -48,10 +48,10 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.neo4j.configuration.ConfigValue.valueToString;
 
-public class ConfigValueTest
+class ConfigValueTest
 {
     @Test
-    public void handlesEmptyValue()
+    void handlesEmptyValue()
     {
         ConfigValue value = new ConfigValue( "name", Optional.empty(), Optional.empty(), Optional.empty(),
                 "description", false, false, false, Optional.empty(), false );
@@ -65,7 +65,7 @@ public class ConfigValueTest
     }
 
     @Test
-    public void handlesInternal()
+    void handlesInternal()
     {
         ConfigValue value = new ConfigValue( "name", Optional.empty(), Optional.empty(), Optional.empty(),
                 "description", true, false, false, Optional.empty(), false );
@@ -75,7 +75,7 @@ public class ConfigValueTest
     }
 
     @Test
-    public void handlesNonEmptyValue()
+    void handlesNonEmptyValue()
     {
         ConfigValue value = new ConfigValue( "name", Optional.empty(), Optional.empty(), Optional.of( 1 ),
                 "description", false, false, false, Optional.empty(), false );
@@ -89,7 +89,7 @@ public class ConfigValueTest
     }
 
     @Test
-    public void handlesDeprecationAndReplacement()
+    void handlesDeprecationAndReplacement()
     {
         ConfigValue value = new ConfigValue( "old_name", Optional.empty(), Optional.empty(), Optional.of( 1 ),
                 "description", false, false, true, Optional.of( "new_name" ), false );
@@ -103,7 +103,7 @@ public class ConfigValueTest
     }
 
     @Test
-    public void handlesValueDescription()
+    void handlesValueDescription()
     {
         ConfigValue value = new ConfigValue( "old_name", Optional.empty(), Optional.empty(), Optional.of( 1 ),
                 "a simple integer", false, false, true, Optional.of( "new_name" ), false );
@@ -132,25 +132,25 @@ public class ConfigValueTest
     }
 
     @Test
-    public void durationValueIsRepresentedWithUnit()
+    void durationValueIsRepresentedWithUnit()
     {
         assertEquals( "120000ms", valueToString( Duration.ofMinutes( 2 ) ) );
     }
 
     @Test
-    public void stringValueIsRepresentedAsString()
+    void stringValueIsRepresentedAsString()
     {
         assertEquals( "bob", valueToString( "bob" ) );
     }
 
     @Test
-    public void intValueIsRepresentedAsInt()
+    void intValueIsRepresentedAsInt()
     {
         assertEquals( "7", valueToString( 7 ) );
     }
 
     @Test
-    public void nullIsHandled()
+    void nullIsHandled()
     {
         assertEquals( "null", valueToString( null ) );
     }

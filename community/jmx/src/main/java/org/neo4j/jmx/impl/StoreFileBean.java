@@ -39,181 +39,81 @@
 package org.neo4j.jmx.impl;
 
 import java.io.File;
-import java.time.Clock;
+import javax.management.NotCompliantMBeanException;
 
 import org.neo4j.helpers.Service;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.FileUtils;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.jmx.StoreFile;
 import org.neo4j.kernel.NeoStoreDataSource;
-import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
 
-import static org.neo4j.jmx.impl.StoreSizeBean.resolveStorePath;
-import static org.neo4j.jmx.impl.ThrottlingBeanSnapshotProxy.newThrottlingBeanSnapshotProxy;
-import static org.neo4j.kernel.impl.store.StoreFactory.NODE_STORE_NAME;
-import static org.neo4j.kernel.impl.store.StoreFactory.PROPERTY_ARRAYS_STORE_NAME;
-import static org.neo4j.kernel.impl.store.StoreFactory.PROPERTY_STORE_NAME;
-import static org.neo4j.kernel.impl.store.StoreFactory.PROPERTY_STRINGS_STORE_NAME;
-import static org.neo4j.kernel.impl.store.StoreFactory.RELATIONSHIP_STORE_NAME;
-
 @Service.Implementation( ManagementBeanProvider.class )
+@Deprecated
 public final class StoreFileBean extends ManagementBeanProvider
 {
-    private static final long UPDATE_INTERVAL = 60000;
-    private static final StoreFile NO_STORE_FILE = new StoreFile()
-    {
-        @Override
-        public long getLogicalLogSize()
-        {
-            return 0;
-        }
-
-        @Override
-        public long getTotalStoreSize()
-        {
-            return 0;
-        }
-
-        @Override
-        public long getNodeStoreSize()
-        {
-            return 0;
-        }
-
-        @Override
-        public long getRelationshipStoreSize()
-        {
-            return 0;
-        }
-
-        @Override
-        public long getPropertyStoreSize()
-        {
-            return 0;
-        }
-
-        @Override
-        public long getStringStoreSize()
-        {
-            return 0;
-        }
-
-        @Override
-        public long getArrayStoreSize()
-        {
-            return 0;
-        }
-    };
-
+    @SuppressWarnings( "WeakerAccess" ) // Bean needs public constructor
     public StoreFileBean()
     {
         super( StoreFile.class );
     }
 
     @Override
-    protected Neo4jMBean createMBean( ManagementData management )
+    protected Neo4jMBean createMBean( ManagementData management ) throws NotCompliantMBeanException
     {
-        final StoreFileMBean bean = new StoreFileMBean( management );
-        final DataSourceManager dataSourceManager = management.resolveDependency( DataSourceManager.class );
-        dataSourceManager.addListener( bean );
-        return bean;
+        return new StoreFileImpl( management );
     }
 
-    static class StoreFileMBean extends Neo4jMBean implements StoreFile, DataSourceManager.Listener
+    static class StoreFileImpl extends Neo4jMBean implements StoreFile
     {
-        private final FileSystemAbstraction fs;
-        private final File storePath;
-        private volatile StoreFile delegate = NO_STORE_FILE;
+        private File databaseDirectory;
+        private LogFiles logFiles;
+        private FileSystemAbstraction fs;
+        private DatabaseLayout databaseLayout;
 
-        StoreFileMBean( ManagementData management )
+        StoreFileImpl( ManagementData management ) throws NotCompliantMBeanException
         {
-            super( management, false );
-            this.fs = management.getKernelData().getFilesystemAbstraction();
-            this.storePath = resolveStorePath( management );
-        }
+            super( management );
 
-        @Override
-        public void registered( NeoStoreDataSource ds )
-        {
-            final LogFiles logFiles = ds.getDependencyResolver().resolveDependency( LogFiles.class );
-            final StoreFileImpl dataProvider = new StoreFileImpl( fs, storePath, logFiles );
-            this.delegate = newThrottlingBeanSnapshotProxy( StoreFile.class, dataProvider, UPDATE_INTERVAL, Clock.systemUTC() );
-        }
+            fs = management.getKernelData().getFilesystemAbstraction();
 
-        @Override
-        public void unregistered( NeoStoreDataSource ds )
-        {
-            this.delegate = NO_STORE_FILE;
-        }
+            DataSourceManager dataSourceManager = management.getKernelData().getDataSourceManager();
+            dataSourceManager.addListener( new DataSourceManager.Listener()
+            {
+                @Override
+                public void registered( NeoStoreDataSource ds )
+                {
+                    logFiles = resolveDependency( ds, LogFiles.class );
+                    databaseLayout = ds.getDatabaseLayout();
+                    databaseDirectory = resolveDatabaseDirectory();
+                }
 
-        @Override
-        public long getLogicalLogSize()
-        {
-            return delegate.getLogicalLogSize();
+                private <T> T resolveDependency( NeoStoreDataSource ds, Class<T> clazz )
+                {
+                    return ds.getDependencyResolver().resolveDependency( clazz );
+                }
+
+                @Override
+                public void unregistered( NeoStoreDataSource ds )
+                {
+                    logFiles = null;
+                    databaseDirectory = null;
+                    databaseLayout = null;
+                }
+
+                private File resolveDatabaseDirectory()
+                {
+                    return databaseLayout.databaseDirectory();
+                }
+            } );
         }
 
         @Override
         public long getTotalStoreSize()
         {
-            return delegate.getTotalStoreSize();
-        }
-
-        @Override
-        public long getNodeStoreSize()
-        {
-            return delegate.getNodeStoreSize();
-        }
-
-        @Override
-        public long getRelationshipStoreSize()
-        {
-            return delegate.getRelationshipStoreSize();
-        }
-
-        @Override
-        public long getPropertyStoreSize()
-        {
-            return delegate.getPropertyStoreSize();
-        }
-
-        @Override
-        public long getStringStoreSize()
-        {
-            return delegate.getStringStoreSize();
-        }
-
-        @Override
-        public long getArrayStoreSize()
-        {
-            return delegate.getArrayStoreSize();
-        }
-    }
-
-    static class StoreFileImpl implements StoreFile
-    {
-        private static final String NODE_STORE = MetaDataStore.DEFAULT_NAME + NODE_STORE_NAME;
-        private static final String RELATIONSHIP_STORE = MetaDataStore.DEFAULT_NAME +  RELATIONSHIP_STORE_NAME;
-        private static final String PROPERTY_STORE = MetaDataStore.DEFAULT_NAME + PROPERTY_STORE_NAME;
-        private static final String ARRAY_STORE = MetaDataStore.DEFAULT_NAME + PROPERTY_ARRAYS_STORE_NAME;
-        private static final String STRING_STORE = MetaDataStore.DEFAULT_NAME + PROPERTY_STRINGS_STORE_NAME;
-
-        private final File storePath;
-        private final LogFiles logFiles;
-        private final FileSystemAbstraction fs;
-
-        StoreFileImpl( FileSystemAbstraction fs, File storePath, LogFiles logFiles )
-        {
-            this.fs = fs;
-            this.storePath = storePath;
-            this.logFiles = logFiles;
-        }
-
-        @Override
-        public long getTotalStoreSize()
-        {
-            return storePath == null ? 0 : FileUtils.size( fs, storePath );
+            return databaseDirectory == null ? 0 : FileUtils.size( fs, databaseDirectory );
         }
 
         @Override
@@ -225,36 +125,36 @@ public final class StoreFileBean extends ManagementBeanProvider
         @Override
         public long getArrayStoreSize()
         {
-            return sizeOf( ARRAY_STORE );
+            return sizeOf( databaseLayout.propertyArrayStore() );
         }
 
         @Override
         public long getNodeStoreSize()
         {
-            return sizeOf( NODE_STORE );
+            return sizeOf( databaseLayout.nodeStore() );
         }
 
         @Override
         public long getPropertyStoreSize()
         {
-            return sizeOf( PROPERTY_STORE );
+            return sizeOf( databaseLayout.propertyStore() );
         }
 
         @Override
         public long getRelationshipStoreSize()
         {
-            return sizeOf( RELATIONSHIP_STORE );
+            return sizeOf( databaseLayout.relationshipStore() );
         }
 
         @Override
         public long getStringStoreSize()
         {
-            return sizeOf( STRING_STORE );
+            return sizeOf( databaseLayout.propertyStringStore() );
         }
 
-        private long sizeOf( String name )
+        private long sizeOf( File file )
         {
-            return storePath == null ? 0 : FileUtils.size( fs, new File( storePath, name ) );
+            return databaseDirectory == null ? 0 : FileUtils.size( fs, file );
         }
     }
 }

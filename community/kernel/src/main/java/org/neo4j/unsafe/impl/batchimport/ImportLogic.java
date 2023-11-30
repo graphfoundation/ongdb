@@ -38,6 +38,9 @@
  */
 package org.neo4j.unsafe.impl.batchimport;
 
+import org.eclipse.collections.api.iterator.LongIterator;
+import org.eclipse.collections.api.set.primitive.IntSet;
+
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -47,14 +50,11 @@ import java.util.Objects;
 import java.util.function.LongFunction;
 import java.util.function.Predicate;
 
-import org.neo4j.collection.primitive.PrimitiveIntSet;
-import org.neo4j.collection.primitive.PrimitiveLongIterator;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.api.CountsAccessor;
-import org.neo4j.kernel.impl.logging.LogService;
 import org.neo4j.kernel.impl.store.RecordStore;
 import org.neo4j.kernel.impl.store.RelationshipStore;
 import org.neo4j.kernel.impl.store.format.RecordFormats;
@@ -63,6 +63,8 @@ import org.neo4j.kernel.impl.storemigration.monitoring.MigrationProgressMonitor;
 import org.neo4j.kernel.impl.storemigration.monitoring.SilentMigrationProgressMonitor;
 import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.logging.Log;
+import org.neo4j.logging.internal.LogService;
+import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.unsafe.impl.batchimport.DataStatistics.RelationshipTypeCount;
 import org.neo4j.unsafe.impl.batchimport.cache.GatheringMemoryStatsVisitor;
 import org.neo4j.unsafe.impl.batchimport.cache.MemoryStatsVisitor;
@@ -72,25 +74,21 @@ import org.neo4j.unsafe.impl.batchimport.cache.NodeType;
 import org.neo4j.unsafe.impl.batchimport.cache.NumberArrayFactory;
 import org.neo4j.unsafe.impl.batchimport.cache.PageCacheArrayFactoryMonitor;
 import org.neo4j.unsafe.impl.batchimport.cache.idmapping.IdMapper;
-import org.neo4j.unsafe.impl.batchimport.input.CachedInput;
 import org.neo4j.unsafe.impl.batchimport.input.Collector;
 import org.neo4j.unsafe.impl.batchimport.input.EstimationSanityChecker;
 import org.neo4j.unsafe.impl.batchimport.input.Input;
 import org.neo4j.unsafe.impl.batchimport.input.Input.Estimates;
-import org.neo4j.unsafe.impl.batchimport.input.InputCache;
 import org.neo4j.unsafe.impl.batchimport.staging.ExecutionMonitor;
 import org.neo4j.unsafe.impl.batchimport.staging.ExecutionSupervisors;
 import org.neo4j.unsafe.impl.batchimport.staging.Stage;
 import org.neo4j.unsafe.impl.batchimport.store.BatchingNeoStores;
 
 import static java.lang.Long.max;
-import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
 import static java.lang.System.currentTimeMillis;
 import static org.neo4j.function.Predicates.alwaysTrue;
 import static org.neo4j.helpers.Format.bytes;
 import static org.neo4j.helpers.Format.duration;
-import static org.neo4j.io.ByteUnit.mebiBytes;
 import static org.neo4j.io.IOUtils.closeAll;
 import static org.neo4j.unsafe.impl.batchimport.cache.NodeRelationshipCache.calculateMaxMemoryUsage;
 import static org.neo4j.unsafe.impl.batchimport.cache.NumberArrayFactory.auto;
@@ -178,7 +176,6 @@ public class ImportLogic implements Closeable
     private NodeRelationshipCache nodeRelationshipCache;
     private NodeLabelsCache nodeLabelsCache;
     private long startTime;
-    private InputCache inputCache;
     private NumberArrayFactory numberArrayFactory;
     private Collector badCollector;
     private IdMapper idMapper;
@@ -214,8 +211,7 @@ public class ImportLogic implements Closeable
     {
         log.info( "Import starting" );
         startTime = currentTimeMillis();
-        inputCache = new InputCache( fileSystem, storeDir, recordFormats, toIntExact( mebiBytes( 1 ) ) );
-        this.input = CachedInput.cacheAsNecessary( input, inputCache );
+        this.input = input;
         PageCacheArrayFactoryMonitor numberArrayFactoryMonitor = new PageCacheArrayFactoryMonitor();
         numberArrayFactory = auto( neoStore.getPageCache(), storeDir, config.allowCacheAllocationOnHeap(), numberArrayFactoryMonitor );
         badCollector = input.badCollector();
@@ -293,7 +289,7 @@ public class ImportLogic implements Closeable
             MemoryUsageStatsProvider memoryUsageStats = new MemoryUsageStatsProvider( neoStore, idMapper );
             LongFunction<Object> inputIdLookup = new NodeInputIdPropertyLookup( neoStore.getTemporaryPropertyStore() );
             executeStage( new IdMapperPreparationStage( config, idMapper, inputIdLookup, badCollector, memoryUsageStats ) );
-            PrimitiveLongIterator duplicateNodeIds = idMapper.leftOverDuplicateNodesIds();
+            final LongIterator duplicateNodeIds = idMapper.leftOverDuplicateNodesIds();
             if ( duplicateNodeIds.hasNext() )
             {
                 executeStage( new DeleteDuplicateNodesStage( config, duplicateNodeIds, neoStore, storeUpdateMonitor ) );
@@ -384,7 +380,7 @@ public class ImportLogic implements Closeable
         int upToType = nextSetOfTypesThatFitInMemory(
                 relationshipTypeDistribution, startingFromType, availableMemoryForLinking, nodeRelationshipCache.getNumberOfDenseNodes() );
 
-        PrimitiveIntSet typesToLinkThisRound = relationshipTypeDistribution.types( startingFromType, upToType );
+        final IntSet typesToLinkThisRound = relationshipTypeDistribution.types( startingFromType, upToType );
         int typesImported = typesToLinkThisRound.size();
         boolean thisIsTheFirstRound = startingFromType == 0;
         boolean thisIsTheOnlyRound = thisIsTheFirstRound && upToType == relationshipTypeDistribution.getNumberOfRelationshipTypes();
@@ -514,7 +510,7 @@ public class ImportLogic implements Closeable
                 neoStore.getLastCommittedTransactionId() ) )
         {
             MigrationProgressMonitor progressMonitor = new SilentMigrationProgressMonitor();
-            nodeLabelsCache = new NodeLabelsCache( numberArrayFactory, neoStore.getLabelRepository().getHighId() );
+            nodeLabelsCache = new NodeLabelsCache( numberArrayFactory, neoStore.getNodeStore().getHighId(), neoStore.getLabelRepository().getHighId() );
             MemoryUsageStatsProvider memoryUsageStats = new MemoryUsageStatsProvider( neoStore, nodeLabelsCache );
             executeStage( new NodeCountsAndLabelIndexBuildStage( config, nodeLabelsCache, neoStore.getNodeStore(),
                     neoStore.getLabelRepository().getHighId(), countsUpdater, progressMonitor.startSection( "Nodes" ),
@@ -542,7 +538,7 @@ public class ImportLogic implements Closeable
         String additionalInformation = Objects.toString( state, "Data statistics is not available." );
         executionMonitor.done( successful, totalTimeMillis, format( "%n%s%nPeak memory usage: %s", additionalInformation, bytes( peakMemoryUsage ) ) );
         log.info( "Import completed successfully, took " + duration( totalTimeMillis ) + ". " + additionalInformation );
-        closeAll( nodeRelationshipCache, nodeLabelsCache, idMapper, inputCache );
+        closeAll( nodeRelationshipCache, nodeLabelsCache, idMapper );
     }
 
     private void updatePeakMemoryUsage()
@@ -552,12 +548,12 @@ public class ImportLogic implements Closeable
 
     public static BatchingNeoStores instantiateNeoStores( FileSystemAbstraction fileSystem, File storeDir,
             PageCache externalPageCache, RecordFormats recordFormats, Configuration config,
-            LogService logService, AdditionalInitialIds additionalInitialIds, Config dbConfig )
+            LogService logService, AdditionalInitialIds additionalInitialIds, Config dbConfig, JobScheduler scheduler )
     {
         if ( externalPageCache == null )
         {
             return BatchingNeoStores.batchingNeoStores( fileSystem, storeDir, recordFormats, config, logService,
-                    additionalInitialIds, dbConfig );
+                    additionalInitialIds, dbConfig, scheduler );
         }
 
         return BatchingNeoStores.batchingNeoStoresWithExternalPageCache( fileSystem, externalPageCache,
@@ -584,6 +580,6 @@ public class ImportLogic implements Closeable
 
     private void executeStage( Stage stage )
     {
-        superviseExecution( executionMonitor, config, stage );
+        superviseExecution( executionMonitor, stage );
     }
 }

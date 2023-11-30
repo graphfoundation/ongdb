@@ -40,16 +40,15 @@ package org.neo4j.cypher.internal.codegen;
 
 import org.junit.Test;
 
-import org.neo4j.internal.kernel.api.CapableIndexReference;
 import org.neo4j.internal.kernel.api.CursorFactory;
+import org.neo4j.internal.kernel.api.IndexReference;
 import org.neo4j.internal.kernel.api.NodeValueIndexCursor;
 import org.neo4j.internal.kernel.api.Read;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
-import org.neo4j.kernel.api.exceptions.index.IndexNotApplicableKernelException;
-import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
 
 import static org.junit.Assert.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -65,14 +64,14 @@ public class CompiledIndexUtilsTest
 
         // GIVEN
         Read read = mock( Read.class );
-        CapableIndexReference index = mock( CapableIndexReference.class );
+        IndexReference index = mock( IndexReference.class );
         when( index.properties() ).thenReturn( new int[]{42} );
 
         // WHEN
         CompiledIndexUtils.indexSeek( read, mock( CursorFactory.class ), index, "hello" );
 
         // THEN
-        verify( read, times( 1 ) ).nodeIndexSeek( any(), any(), any(), any() );
+        verify( read, times( 1 ) ).nodeIndexSeek( any(), any(), any(), anyBoolean(), any() );
     }
 
     @Test
@@ -80,7 +79,7 @@ public class CompiledIndexUtilsTest
     {
         // GIVEN
         Read read = mock( Read.class );
-        CapableIndexReference index = mock( CapableIndexReference.class );
+        IndexReference index = mock( IndexReference.class );
         when( index.properties() ).thenReturn( new int[]{42} );
 
         // WHEN
@@ -88,7 +87,7 @@ public class CompiledIndexUtilsTest
                 index, null );
 
         // THEN
-        verify( read, never() ).nodeIndexSeek( any(), any(), any() );
+        verify( read, never() ).nodeIndexSeek( any(), any(), any(), anyBoolean() );
         assertFalse( cursor.next() );
     }
 }

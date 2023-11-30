@@ -95,12 +95,20 @@
         <dependency>
             <groupId>com.google.auto.service</groupId>
             <artifactId>auto-service</artifactId>
-            <version>1.0-rc2</version>
+            <version>1.0-rc4</version>
             <optional>true</optional>
         </dependency>
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-migrationsupport</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
         </dependency>
         <dependency>
             <groupId>com.google.testing.compile</groupId>
@@ -109,7 +117,7 @@
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
-            <version>3.4.1</version>
+            <version>3.10.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

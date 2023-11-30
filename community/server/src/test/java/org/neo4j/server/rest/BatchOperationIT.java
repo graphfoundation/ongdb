@@ -38,9 +38,9 @@
  */
 package org.neo4j.server.rest;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.sun.jersey.api.client.ClientHandlerException;
 import com.sun.jersey.api.client.UniformInterfaceException;
-import com.fasterxml.jackson.databind.JsonNode;
 import org.json.JSONException;
 import org.junit.Test;
 

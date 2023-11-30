@@ -43,9 +43,7 @@ import java.util.Timer;
 import org.neo4j.helpers.Service;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.extension.KernelExtensionFactory;
-import org.neo4j.kernel.impl.core.StartupStatistics;
 import org.neo4j.kernel.impl.spi.KernelContext;
-import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
 import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.udc.UsageData;
@@ -69,8 +67,6 @@ public class UdcKernelExtensionFactory extends KernelExtensionFactory<UdcKernelE
         Config config();
         DataSourceManager dataSourceManager();
         UsageData usageData();
-        IdGeneratorFactory idGeneratorFactory();
-        StartupStatistics startupStats();
     }
 
     public UdcKernelExtensionFactory()
@@ -85,14 +81,7 @@ public class UdcKernelExtensionFactory extends KernelExtensionFactory<UdcKernelE
         return new UdcKernelExtension(
                 config,
                 dependencies.dataSourceManager(),
-                dependencies.idGeneratorFactory(),
-                dependencies.startupStats(),
                 dependencies.usageData(),
-                new Timer( "ONgDB UDC Timer", isAlwaysDaemon() ) );
-    }
-
-    private boolean isAlwaysDaemon()
-    {
-        return true;
+                new Timer( "Neo4j UDC Timer", true ) );
     }
 }

@@ -38,7 +38,7 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.predicates
 
-import org.neo4j.cypher.internal.util.v3_4.NonEmptyList
+import org.neo4j.cypher.internal.v3_5.util.NonEmptyList
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Property, Variable}
 
 // This transforms

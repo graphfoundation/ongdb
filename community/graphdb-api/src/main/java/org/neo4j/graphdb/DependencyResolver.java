@@ -44,8 +44,7 @@ import java.util.function.Supplier;
 import static org.neo4j.graphdb.DependencyResolver.SelectionStrategy.FIRST;
 
 /**
- * Find a dependency given a type. This can be the exact type or a super type of
- * the actual dependency.
+ * Find a dependency given a type.
  */
 public interface DependencyResolver
 {
@@ -53,10 +52,12 @@ public interface DependencyResolver
      * Tries to resolve a dependency that matches a given class. No specific
      * {@link SelectionStrategy} is used, so the first encountered matching dependency will be returned.
      *
+     *
      * @param type the type of {@link Class} that the returned instance must implement.
      * @param <T> the type that the returned instance must implement
      * @return the resolved dependency for the given type.
      * @throws IllegalArgumentException if no matching dependency was found.
+     * @deprecated in next major version default selection strategy will be changed to more strict {@link DependencyResolver.SelectionStrategy#ONLY}
      */
     <T> T resolveDependency( Class<T> type ) throws IllegalArgumentException;
 
@@ -72,6 +73,18 @@ public interface DependencyResolver
      * @throws IllegalArgumentException if no matching dependency was found.
      */
     <T> T resolveDependency( Class<T> type, SelectionStrategy selector ) throws IllegalArgumentException;
+
+    /**
+     * Tries to resolve a dependencies that matches a given class.
+     *
+     * @param type the type of {@link Class} that the returned instances must implement.
+     * @param <T> the type that the returned instance must implement
+     * @return the list of resolved dependencies for the given type.
+     */
+    default <T> Iterable<? extends T> resolveTypeDependencies( Class<T> type )
+    {
+        throw new UnsupportedOperationException( "not implemented" );
+    }
 
     <T> Supplier<T> provideDependency( Class<T> type, SelectionStrategy selector );
 
@@ -140,6 +153,8 @@ public interface DependencyResolver
     /**
      * Adapter for {@link DependencyResolver} which will select the first available candidate by default
      * for {@link #resolveDependency(Class)}.
+     *
+     * @deprecated in next major version default selection strategy will be changed to more strict {@link DependencyResolver.SelectionStrategy#ONLY}
      */
     abstract class Adapter implements DependencyResolver
     {

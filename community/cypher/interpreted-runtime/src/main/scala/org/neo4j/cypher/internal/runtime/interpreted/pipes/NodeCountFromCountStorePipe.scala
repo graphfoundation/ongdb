@@ -39,8 +39,8 @@
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.NameId
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.NameId
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 import org.neo4j.values.storable.Values
 
 case class NodeCountFromCountStorePipe(ident: String, labels: List[Option[LazyLabel]])
@@ -61,7 +61,7 @@ case class NodeCountFromCountStorePipe(ident: String, labels: List[Option[LazyLa
       }
     }
 
-    val baseContext = state.createOrGetInitialContext(executionContextFactory)
+    val baseContext = state.newExecutionContext(executionContextFactory)
     Iterator(executionContextFactory.copyWith(baseContext, ident, Values.longValue(count)))
   }
 }

@@ -38,24 +38,21 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.neo4j.internal.kernel.api.IndexCapability;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
 import org.neo4j.kernel.impl.api.index.updater.SwallowingIndexUpdater;
+import org.neo4j.storageengine.api.schema.CapableIndexDescriptor;
 import org.neo4j.storageengine.api.schema.IndexReader;
 import org.neo4j.storageengine.api.schema.PopulationProgress;
 
 public abstract class AbstractSwallowingIndexProxy implements IndexProxy
 {
-    private final IndexMeta indexMeta;
+    private final CapableIndexDescriptor capableIndexDescriptor;
     private final IndexPopulationFailure populationFailure;
 
-    AbstractSwallowingIndexProxy( IndexMeta indexMeta, IndexPopulationFailure populationFailure )
+    AbstractSwallowingIndexProxy( CapableIndexDescriptor capableIndexDescriptor, IndexPopulationFailure populationFailure )
     {
-        this.indexMeta = indexMeta;
+        this.capableIndexDescriptor = capableIndexDescriptor;
         this.populationFailure = populationFailure;
     }
 
@@ -90,32 +87,14 @@ public abstract class AbstractSwallowingIndexProxy implements IndexProxy
     }
 
     @Override
-    public IndexCapability getIndexCapability()
-    {
-        return indexMeta.indexCapability();
-    }
-
-    @Override
     public void refresh()
     {
     }
 
     @Override
-    public SchemaIndexDescriptor getDescriptor()
+    public CapableIndexDescriptor getDescriptor()
     {
-        return indexMeta.indexDescriptor();
-    }
-
-    @Override
-    public SchemaDescriptor schema()
-    {
-        return indexMeta.indexDescriptor().schema();
-    }
-
-    @Override
-    public IndexProvider.Descriptor getProviderDescriptor()
-    {
-        return indexMeta.providerDescriptor();
+        return capableIndexDescriptor;
     }
 
     @Override
@@ -127,11 +106,5 @@ public abstract class AbstractSwallowingIndexProxy implements IndexProxy
     public IndexReader newReader()
     {
         throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public long getIndexId()
-    {
-        return indexMeta.getIndexId();
     }
 }

@@ -38,7 +38,6 @@
  */
 package org.neo4j.io.fs;
 
-import java.io.Closeable;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
@@ -56,10 +55,6 @@ import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.neo4j.io.IOUtils;
@@ -75,7 +70,6 @@ import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 public class DelegateFileSystemAbstraction implements FileSystemAbstraction
 {
     private final FileSystem fs;
-    private final Map<Class<?>, ThirdPartyFileSystem> thirdPartyFs = new HashMap<>();
 
     public DelegateFileSystemAbstraction( FileSystem fs )
     {
@@ -135,9 +129,9 @@ public class DelegateFileSystemAbstraction implements FileSystemAbstraction
     }
 
     @Override
-    public boolean fileExists( File fileName )
+    public boolean fileExists( File file )
     {
-        return Files.exists( path( fileName ) );
+        return Files.exists( path( file ) );
     }
 
     @Override
@@ -288,20 +282,6 @@ public class DelegateFileSystemAbstraction implements FileSystemAbstraction
     }
 
     @Override
-    public synchronized <K extends ThirdPartyFileSystem> K getOrCreateThirdPartyFileSystem(
-            Class<K> clazz, Function<Class<K>,K> creator )
-    {
-        // what in the ever-loving mother of the lake is this!?
-        K otherFs = (K) thirdPartyFs.get( clazz );
-        if ( otherFs == null )
-        {
-            otherFs = creator.apply( clazz );
-            thirdPartyFs.put( clazz, otherFs );
-        }
-        return otherFs;
-    }
-
-    @Override
     public void truncate( File path, long size ) throws IOException
     {
         try ( FileChannel channel = FileChannel.open( path( path ) ) )
@@ -338,9 +318,6 @@ public class DelegateFileSystemAbstraction implements FileSystemAbstraction
     @Override
     public void close() throws IOException
     {
-        ArrayList<Closeable> fsToClose = new ArrayList<>( thirdPartyFs.size() + 1 );
-        fsToClose.add( fs );
-        fsToClose.addAll( thirdPartyFs.values() );
-        IOUtils.closeAll( fsToClose );
+        IOUtils.closeAll( fs );
     }
 }

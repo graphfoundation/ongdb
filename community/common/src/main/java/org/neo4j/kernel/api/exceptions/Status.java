@@ -56,7 +56,7 @@ import static org.neo4j.kernel.api.exceptions.Status.Classification.TransientErr
  * Each {@link Status} also has an associated {@link Classification} which defines meta-data about the code, such
  * as if the error was caused by a user or the database (and later on if the code denotes an error or merely a warning).
  *
- * This class is not part of the public ONgDB API, and backwards compatibility for using it as a Java class is not
+ * This class is not part of the public Neo4j API, and backwards compatibility for using it as a Java class is not
  * guaranteed. Instead, the automatically generated documentation derived from this class and available in the Neo4j
  * manual should be considered a user-level API.
  */
@@ -161,7 +161,7 @@ public interface Status
                 "Transaction was marked as both successful and failed. Failure takes precedence and so this " +
                 "transaction was rolled back although it may have looked like it was going to be committed" ),
         TransactionTimedOut( ClientError,
-                "The transaction has not completed within the specified timeout. You may want to retry with a longer " +
+                "The transaction has not completed within the specified timeout (dbms.transaction.timeout). You may want to retry with a longer " +
                 "timeout." ),
         InvalidBookmark( ClientError,
                 "Supplied bookmark cannot be interpreted. You should only supply a bookmark previously that was " +
@@ -186,7 +186,7 @@ public interface Status
                 "indefinitely, and the database has aborted it. Retrying this transaction will most likely be " +
                 "successful." ),
         InstanceStateChanged( TransientError,
-                "Transactions rely on assumptions around the state of the ONgDB instance they " +
+                "Transactions rely on assumptions around the state of the Neo4j instance they " +
                 "execute on. For instance, transactions in a cluster may expect that " +
                 "they are executing on an instance that can perform writes. However, " +
                 "instances may change state while the transaction is running. This causes " +
@@ -203,7 +203,7 @@ public interface Status
                 "transaction ran longer than the configured transaction timeout, or because a human operator manually " +
                 "terminated the transaction, or because the database is shutting down." ),
         LockAcquisitionTimeout( TransientError,
-                "Unable to acquire lock within configured timeout." ),
+                "Unable to acquire lock within configured timeout (dbms.lock.acquisition.timeout)." ),
         Terminated( TransientError,
                 "Explicitly terminated by the user." ),
         Interrupted( TransientError,
@@ -321,7 +321,11 @@ public interface Status
     {
         // client errors
         RepeatedPropertyInCompositeSchema( ClientError,
-                "Unable to create composite index or constraint because a property was specified in several positions." ),
+                "Unable to create index or constraint because schema had a repeated property." ),
+        RepeatedLabelInSchema( ClientError,
+                "Unable to create index or constraint because schema had a repeated label." ),
+        RepeatedRelationshipTypeInSchema( ClientError,
+                "Unable to create index or constraint because schema had a repeated relationship type." ),
         ConstraintAlreadyExists( ClientError,
                 "Unable to perform operation because it would clash with a pre-existing constraint." ),
         ConstraintNotFound( ClientError,
@@ -484,14 +488,14 @@ public interface Status
                 "An unknown error occurred." ),
         OutOfMemoryError( TransientError,
                 "There is not enough memory to perform the current task. Please try increasing " +
-                "'dbms.memory.heap.max_size' in the ONgDB configuration (normally in 'conf/ongdb.conf' or, if you " +
+                "'dbms.memory.heap.max_size' in the neo4j configuration (normally in 'conf/neo4j.conf' or, if you " +
                 "you are using Neo4j Desktop, found through the user interface) or if you are running an embedded " +
                 "installation increase the heap by using '-Xmx' command line flag, and then restart the database." ),
         StackOverFlowError( TransientError,
                 "There is not enough stack size to perform the current task. This is generally considered to be a " +
-                "database error, so please contact ONgDB support. You could try increasing the stack size: " +
+                "database error, so please contact Neo4j support. You could try increasing the stack size: " +
                 "for example to set the stack size to 2M, add `dbms.jvm.additional=-Xss2M' to " +
-                "in the ONgDB configuration (normally in 'conf/ongdb.conf' or, if you are using " +
+                "in the neo4j configuration (normally in 'conf/neo4j.conf' or, if you are using " +
                 "Neo4j Desktop, found through the user interface) or if you are running an embedded installation " +
                 "just add -Xss2M as command line flag." ),
 

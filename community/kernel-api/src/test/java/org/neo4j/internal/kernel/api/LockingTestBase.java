@@ -66,7 +66,7 @@ public abstract class LockingTestBase<G extends KernelAPIWriteTestSupport>
         int label;
 
         // Given
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             nodeProp = tx.tokenWrite().propertyKeyGetOrCreateForName( "nodeProp" );
             constraintProp = tx.tokenWrite().propertyKeyGetOrCreateForName( "constraintProp" );
@@ -74,7 +74,7 @@ public abstract class LockingTestBase<G extends KernelAPIWriteTestSupport>
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             tx.schemaWrite().uniquePropertyConstraintCreate( labelDescriptor( label, constraintProp ) );
             tx.success();
@@ -86,7 +86,7 @@ public abstract class LockingTestBase<G extends KernelAPIWriteTestSupport>
         // When & Then
         ExecutorService executor = Executors.newFixedThreadPool( 2 );
         Future<?> f1 = executor.submit( () -> {
-            try ( Transaction tx = session.beginTransaction() )
+            try ( Transaction tx = beginTransaction() )
             {
                 createNodeWithProperty( tx, nodeProp );
 
@@ -107,7 +107,7 @@ public abstract class LockingTestBase<G extends KernelAPIWriteTestSupport>
 
         Future<?> f2 = executor.submit( () -> {
 
-            try ( Transaction tx = session.beginTransaction() )
+            try ( Transaction tx = beginTransaction() )
             {
                 assertTrue( createNodeLatch.await( 5, TimeUnit.MINUTES) );
                 tx.schemaWrite().uniquePropertyConstraintCreate( labelDescriptor( label, constraintProp ) );

@@ -39,28 +39,29 @@
 package org.neo4j.kernel.api.impl.schema.populator;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.schema.SchemaIndex;
 import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.index.PropertyAccessor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.kernel.impl.api.index.sampling.UniqueIndexSampler;
+import org.neo4j.storageengine.api.schema.IndexDescriptor;
 import org.neo4j.storageengine.api.schema.IndexSample;
 
 /**
  * A {@link LuceneIndexPopulator} used for unique Lucene schema indexes.
  * Performs sampling using {@link UniqueIndexSampler}.
  * Verifies uniqueness of added and changed values using
- * {@link SchemaIndex#verifyUniqueness(PropertyAccessor, int[])} method.
+ * {@link SchemaIndex#verifyUniqueness(NodePropertyAccessor, int[])} method.
  */
-public class UniqueLuceneIndexPopulator extends LuceneIndexPopulator
+public class UniqueLuceneIndexPopulator extends LuceneIndexPopulator<SchemaIndex>
 {
     private final int[] propertyKeyIds;
     private final UniqueIndexSampler sampler;
 
-    public UniqueLuceneIndexPopulator( SchemaIndex index, SchemaIndexDescriptor descriptor )
+    public UniqueLuceneIndexPopulator( SchemaIndex index, IndexDescriptor descriptor )
     {
         super( index );
         this.propertyKeyIds = descriptor.schema().getPropertyIds();
@@ -68,13 +69,20 @@ public class UniqueLuceneIndexPopulator extends LuceneIndexPopulator
     }
 
     @Override
-    public void verifyDeferredConstraints( PropertyAccessor accessor ) throws IndexEntryConflictException, IOException
+    public void verifyDeferredConstraints( NodePropertyAccessor accessor ) throws IndexEntryConflictException
     {
-        luceneIndex.verifyUniqueness( accessor, propertyKeyIds );
+        try
+        {
+            luceneIndex.verifyUniqueness( accessor, propertyKeyIds );
+        }
+        catch ( IOException e )
+        {
+            throw new UncheckedIOException( e );
+        }
     }
 
     @Override
-    public IndexUpdater newPopulatingUpdater( final PropertyAccessor accessor )
+    public IndexUpdater newPopulatingUpdater( final NodePropertyAccessor accessor )
     {
         return new UniqueLuceneIndexPopulatingUpdater( writer, propertyKeyIds, luceneIndex, accessor, sampler );
     }

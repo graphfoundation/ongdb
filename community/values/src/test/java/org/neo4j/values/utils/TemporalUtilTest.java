@@ -38,7 +38,7 @@
  */
 package org.neo4j.values.utils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.LocalTime;
@@ -46,12 +46,12 @@ import java.time.OffsetTime;
 import java.time.ZoneOffset;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class TemporalUtilTest
+class TemporalUtilTest
 {
     @Test
-    public void shouldDoNothingForOffsetWithoutSeconds()
+    void shouldDoNothingForOffsetWithoutSeconds()
     {
         OffsetTime time = OffsetTime.of( 23, 30, 10, 0, ZoneOffset.ofHoursMinutes( -5, -30 ) );
 
@@ -61,7 +61,7 @@ public class TemporalUtilTest
     }
 
     @Test
-    public void shouldTruncateOffsetSeconds()
+    void shouldTruncateOffsetSeconds()
     {
         OffsetTime time = OffsetTime.of( 14, 55, 50, 0, ZoneOffset.ofHoursMinutesSeconds( 2, 15, 45 ) );
 
@@ -71,7 +71,7 @@ public class TemporalUtilTest
     }
 
     @Test
-    public void shouldConvertNanosOfDayToUTCWhenOffsetIsZero()
+    void shouldConvertNanosOfDayToUTCWhenOffsetIsZero()
     {
         int nanosOfDayLocal = 42;
 
@@ -81,7 +81,7 @@ public class TemporalUtilTest
     }
 
     @Test
-    public void shouldConvertNanosOfDayToUTC()
+    void shouldConvertNanosOfDayToUTC()
     {
         int nanosOfDayLocal = 42;
         Duration offsetDuration = Duration.ofMinutes( 35 );
@@ -92,7 +92,7 @@ public class TemporalUtilTest
     }
 
     @Test
-    public void shouldGetNanosOfDayUTC()
+    void shouldGetNanosOfDayUTC()
     {
         LocalTime localTime = LocalTime.of( 14, 19, 18, 123999 );
         ZoneOffset offset = ZoneOffset.ofHours( -12 );

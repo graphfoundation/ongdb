@@ -39,7 +39,9 @@
 package org.neo4j.internal.kernel.api;
 
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
-import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
+import org.neo4j.values.storable.Value;
+import org.neo4j.values.storable.Values;
 
 /**
  * Defines the graph read operations of the Kernel.
@@ -51,14 +53,14 @@ public interface Read
 
     /**
      * Seek all nodes matching the provided index query in an index.
-     *
-     * @param index {@link IndexReference} referencing index to query.
+     *  @param index {@link IndexReference} referencing index to query.
      * @param cursor the cursor to use for consuming the results.
      * @param indexOrder requested {@link IndexOrder} of result. Must be among the capabilities of
      * {@link IndexReference referenced index}, or {@link IndexOrder#NONE}.
+     * @param needsValues if the index should fetch property values together with node ids for index queries
      * @param query Combination of {@link IndexQuery index queries} to run against referenced index.
      */
-    void nodeIndexSeek( IndexReference index, NodeValueIndexCursor cursor, IndexOrder indexOrder, IndexQuery... query )
+    void nodeIndexSeek( IndexReference index, NodeValueIndexCursor cursor, IndexOrder indexOrder, boolean needsValues, IndexQuery... query )
             throws KernelException;
 
     /**
@@ -73,11 +75,11 @@ public interface Read
      *
      * NOTE distinct values may not be 100% accurate for point values that are very close to each other. In those cases they can be
      * reported as a single distinct values with a higher count instead of several separate values.
-     *
      * @param index {@link IndexReference} referencing index.
      * @param cursor {@link NodeValueIndexCursor} receiving distinct count data.
+     * @param needsValues whether or not values should be loaded and given to the cursor.
      */
-    void nodeIndexDistinctValues( IndexReference index, NodeValueIndexCursor cursor ) throws IndexNotFoundKernelException;
+    void nodeIndexDistinctValues( IndexReference index, NodeValueIndexCursor cursor, boolean needsValues ) throws IndexNotFoundKernelException;
 
     /**
      * Returns node id of node found in unique index or -1 if no node was found.
@@ -100,8 +102,9 @@ public interface Read
      * @param cursor the cursor to use for consuming the results.
      * @param indexOrder requested {@link IndexOrder} of result. Must be among the capabilities of
      * {@link IndexReference referenced index}, or {@link IndexOrder#NONE}.
+     * @param needsValues if the index should fetch property values together with node ids for index queries
      */
-    void nodeIndexScan( IndexReference index, NodeValueIndexCursor cursor, IndexOrder indexOrder ) throws KernelException;
+    void nodeIndexScan( IndexReference index, NodeValueIndexCursor cursor, IndexOrder indexOrder, boolean needsValues ) throws KernelException;
 
     void nodeLabelScan( int label, NodeLabelIndexCursor cursor );
 
@@ -344,6 +347,29 @@ public interface Read
      *         the cursor to use for consuming the results.
      */
     void relationshipProperties( long relationshipReference, long reference, PropertyCursor cursor );
+
+    /**
+     * Checks if a node was deleted in the current transaction
+     * @param node the node to check
+     * @return <code>true</code> if the node was deleted otherwise <code>false</code>
+     */
+    boolean nodeDeletedInTransaction( long node );
+
+    /**
+     * Checks if a relationship was deleted in the current transaction
+     * @param relationship the relationship to check
+     * @return <code>true</code> if the relationship was deleted otherwise <code>false</code>
+     */
+    boolean relationshipDeletedInTransaction( long relationship );
+
+    /**
+     * Returns the value of a node property if set in this transaction.
+     * @param node the node
+     * @param propertyKeyId the property key id of interest
+     * @return <code>null</code> if the property has not been changed for the node in this transaction. Otherwise returns
+     *         the new property value, or {@link Values#NO_VALUE} if the property has been removed in this transaction.
+     */
+    Value nodePropertyChangeInTransactionOrNull( long node, int propertyKeyId );
 
     void graphProperties( PropertyCursor cursor );
 

@@ -45,6 +45,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.URI;
+import java.util.List;
 import java.util.Optional;
 
 import org.neo4j.graphdb.GraphDatabaseService;
@@ -52,19 +53,26 @@ import org.neo4j.graphdb.config.Configuration;
 import org.neo4j.harness.ServerControls;
 import org.neo4j.helpers.HostnamePort;
 import org.neo4j.io.fs.FileUtils;
+import org.neo4j.kernel.configuration.BoltConnector;
+import org.neo4j.kernel.configuration.Connector;
 import org.neo4j.kernel.configuration.ConnectorPortRegister;
-import org.neo4j.server.AbstractNeoServer;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.server.NeoServer;
+
+import static org.neo4j.kernel.configuration.HttpConnector.Encryption;
 
 public class InProcessServerControls implements ServerControls
 {
+    private static final String DEFAULT_BOLT_CONNECTOR_KEY = "bolt";
+
     private final File serverFolder;
     private final File userLogFile;
     private final File internalLogFile;
-    private final AbstractNeoServer server;
+    private final NeoServer server;
     private final Closeable additionalClosable;
     private ConnectorPortRegister connectorPortRegister;
 
-    public InProcessServerControls( File serverFolder, File userLogFile, File internalLogFile, AbstractNeoServer server, Closeable additionalClosable )
+    public InProcessServerControls( File serverFolder, File userLogFile, File internalLogFile, NeoServer server, Closeable additionalClosable )
     {
         this.serverFolder = serverFolder;
         this.userLogFile = userLogFile;
@@ -76,26 +84,54 @@ public class InProcessServerControls implements ServerControls
     @Override
     public URI boltURI()
     {
-        HostnamePort boltHostNamePort = connectorPortRegister.getLocalAddress( "bolt" );
-        return URI.create( "bolt://" + boltHostNamePort.getHost() + ":" + boltHostNamePort.getPort() );
+        List<BoltConnector> connectors = server.getConfig().enabledBoltConnectors();
+
+        BoltConnector defaultConnector = null;
+        BoltConnector firstConnector = null;
+
+        for ( BoltConnector connector : connectors )
+        {
+            if ( DEFAULT_BOLT_CONNECTOR_KEY.equals( connector.key() ) )
+            {
+                defaultConnector = connector;
+            }
+            if ( firstConnector == null )
+            {
+                firstConnector = connector;
+            }
+        }
+
+        if ( defaultConnector != null )
+        {
+            // bolt connector with default key is configured, return its address
+            return connectorUri( "bolt", defaultConnector );
+        }
+        if ( firstConnector != null )
+        {
+            // some bolt connector is configured, return its address
+            return connectorUri( "bolt", firstConnector );
+        }
+
+        throw new IllegalStateException( "Bolt connector is not configured" );
     }
 
     @Override
     public URI httpURI()
     {
-        return server.baseUri();
+        return httpConnectorUri( "http", Encryption.NONE )
+                .orElseThrow( () -> new IllegalStateException( "HTTP connector is not configured" ) );
     }
 
     @Override
     public Optional<URI> httpsURI()
     {
-        return server.httpsUri();
+        return httpConnectorUri( "https", Encryption.TLS );
     }
 
     public void start()
     {
         this.server.start();
-        this.connectorPortRegister = server.getDependencyResolver().resolveDependency( ConnectorPortRegister.class );
+        this.connectorPortRegister = connectorPortRegister( server );
     }
 
     @Override
@@ -170,5 +206,26 @@ public class InProcessServerControls implements ServerControls
     public Configuration config()
     {
         return server.getConfig();
+    }
+
+    private Optional<URI> httpConnectorUri( String scheme, Encryption encryption )
+    {
+        return server.getConfig()
+                .enabledHttpConnectors()
+                .stream()
+                .filter( connector -> connector.encryptionLevel() == encryption )
+                .findFirst()
+                .map( connector -> connectorUri( scheme, connector ) );
+    }
+
+    private URI connectorUri( String scheme, Connector connector )
+    {
+        HostnamePort hostPort = connectorPortRegister.getLocalAddress( connector.key() );
+        return URI.create( scheme + "://" + hostPort + "/" );
+    }
+
+    private static ConnectorPortRegister connectorPortRegister( NeoServer server )
+    {
+        return ((GraphDatabaseAPI) server.getDatabase().getGraph()).getDependencyResolver().resolveDependency( ConnectorPortRegister.class );
     }
 }

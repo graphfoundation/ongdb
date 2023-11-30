@@ -38,8 +38,6 @@
  */
 package org.neo4j.kernel.impl.store.format.standard;
 
-import java.io.IOException;
-
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.kernel.impl.store.format.BaseOneByteHeaderRecordFormat;
 import org.neo4j.kernel.impl.store.format.BaseRecordFormat;
@@ -86,6 +84,11 @@ public class NodeRecordFormat extends BaseOneByteHeaderRecordFormat<NodeRecord>
             record.initialize( inUse,
                     BaseRecordFormat.longFromIntAndMod( nextProp, propModifier ), dense,
                     BaseRecordFormat.longFromIntAndMod( nextRel, relModifier ), labels );
+        }
+        else
+        {
+            int nextOffset = cursor.getOffset() + recordSize - HEADER_SIZE;
+            cursor.setOffset( nextOffset );
         }
     }
 

@@ -63,37 +63,12 @@
 
     <build>
         <plugins>
-            <!-- This module contains public API, run javadoc and revapi -->
-            <plugin>
-                <artifactId>maven-javadoc-plugin</artifactId>
-            </plugin>
+            <!-- This module contains public API, run revapi -->
             <plugin>
                 <groupId>org.revapi</groupId>
                 <artifactId>revapi-maven-plugin</artifactId>
             </plugin>
 
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>default-compile</id>
-                        <configuration>
-                            <compilerArgument>-proc:none</compilerArgument>
-                            <includes>
-                                <include>org/neo4j/kernel/impl/annotations/**</include>
-                            </includes>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>compile-ongdb-kernel</id>
-                        <phase>compile</phase>
-                        <goals>
-                            <goal>compile</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
             <plugin>
                 <artifactId>maven-jar-plugin</artifactId>
                 <configuration>
@@ -113,6 +88,11 @@
 
     <dependencies>
         <!-- main dependencies, internal -->
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-annotation-processors</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>ongdb-graphdb-api</artifactId>
@@ -141,11 +121,6 @@
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>ongdb-collections</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-primitive-collections</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -203,11 +178,27 @@
             <groupId>com.google.code.findbugs</groupId>
             <artifactId>annotations</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.eclipse.collections</groupId>
+            <artifactId>eclipse-collections</artifactId>
+        </dependency>
 
         <!-- test dependencies -->
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-migrationsupport</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
         </dependency>
         <dependency>
             <groupId>org.hamcrest</groupId>
@@ -231,6 +222,12 @@
             <artifactId>ongdb-common</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-random-values</artifactId>
+            <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -260,8 +257,23 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <!-- This is necessary because you have a dependency on :ongdb-logging test jar -->
+            <!-- and as we all know, test scoped dependencies from that test jar are not fetched transitively. -->
+            <!-- You should stop with the test jar dependencies; it is bad form, not cricket mate -->
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-text</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>ongdb-values</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-index</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>

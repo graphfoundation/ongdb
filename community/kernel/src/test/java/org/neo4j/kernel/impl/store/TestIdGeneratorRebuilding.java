@@ -45,7 +45,7 @@ import org.junit.Test;
 import org.junit.rules.RuleChain;
 
 import java.io.File;
-import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -91,9 +91,10 @@ public class TestIdGeneratorRebuilding
         // Given we have a store ...
         Config config = Config.defaults( GraphDatabaseSettings.rebuild_idgenerators_fast, "false" );
         File storeFile = testDirectory.file( "nodes" );
+        File idFile = testDirectory.file( "idNodes" );
 
         DynamicArrayStore labelStore = mock( DynamicArrayStore.class );
-        NodeStore store = new NodeStore( storeFile, config, new DefaultIdGeneratorFactory( fs ),
+        NodeStore store = new NodeStore( storeFile, idFile, config, new DefaultIdGeneratorFactory( fs ),
                 pageCacheRule.getPageCache( fs ), NullLogProvider.getInstance(), labelStore,
                 RecordFormatSelector.defaultFormat() );
         store.initialise( true );
@@ -142,7 +143,7 @@ public class TestIdGeneratorRebuilding
         // Given we have a store ...
         Config config = Config.defaults( GraphDatabaseSettings.rebuild_idgenerators_fast, "false" );
 
-        StoreFactory storeFactory = new StoreFactory( testDirectory.graphDbDir(), config,
+        StoreFactory storeFactory = new StoreFactory( testDirectory.databaseLayout(), config,
                 new DefaultIdGeneratorFactory( fs ), pageCacheRule.getPageCache( fs ), fs, NullLogProvider
                 .getInstance(), EmptyVersionContextSupplier.EMPTY );
         NeoStores neoStores = storeFactory.openAllNeoStores( true );
@@ -161,7 +162,7 @@ public class TestIdGeneratorRebuilding
             {
                 sb.append( 'a' );
             }
-            record.setData( sb.toString().getBytes( "UTF-16" ) );
+            record.setData( sb.toString().getBytes( StandardCharsets.UTF_16 ) );
             store.updateRecord( record );
         }
         store.setHighestPossibleIdInUse( highestId );
@@ -195,9 +196,10 @@ public class TestIdGeneratorRebuilding
         // Given we have a store ...
         Config config = Config.defaults( GraphDatabaseSettings.rebuild_idgenerators_fast, "false" );
         File storeFile = testDirectory.file( "nodes" );
+        File idFile = testDirectory.file( "idNodes" );
 
         DynamicArrayStore labelStore = mock( DynamicArrayStore.class );
-        NodeStore store = new NodeStore( storeFile, config, new DefaultIdGeneratorFactory( fs ),
+        NodeStore store = new NodeStore( storeFile, idFile, config, new DefaultIdGeneratorFactory( fs ),
                 pageCacheRule.getPageCache( fs ), NullLogProvider.getInstance(), labelStore,
                 RecordFormatSelector.defaultFormat() );
         store.initialise( true );

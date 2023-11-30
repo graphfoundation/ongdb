@@ -38,11 +38,10 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
-import java.util.Arrays;
-import java.util.Collection;
+import org.eclipse.collections.api.set.primitive.LongSet;
 
-import org.neo4j.collection.primitive.PrimitiveIntIterator;
-import org.neo4j.collection.primitive.PrimitiveIntSet;
+import java.util.Arrays;
+
 import org.neo4j.internal.kernel.api.LabelSet;
 
 public class Labels implements LabelSet
@@ -63,28 +62,9 @@ public class Labels implements LabelSet
         return new Labels( labels );
     }
 
-    static Labels from( Collection<Integer> integers )
+    static Labels from( LongSet set )
     {
-        int size = integers.size();
-        long[] tokens = new long[size];
-        int i = 0;
-        for ( Integer token : integers )
-        {
-            tokens[i++] = token;
-        }
-        return new Labels( tokens );
-    }
-
-    static Labels from( PrimitiveIntSet set )
-    {
-        long[] labelArray = new long[set.size()];
-        int index = 0;
-        PrimitiveIntIterator iterator = set.iterator();
-        while ( iterator.hasNext() )
-        {
-            labelArray[index++] = iterator.next();
-        }
-        return new Labels( labelArray );
+        return new Labels( set.toArray() );
     }
 
     @Override
@@ -107,6 +87,7 @@ public class Labels implements LabelSet
         //label sizes (≤100 labels)
         for ( long label : labels )
         {
+            assert (int) label == label : "value too big to be represented as and int";
             if ( label == labelToken )
             {
                 return true;
@@ -121,6 +102,7 @@ public class Labels implements LabelSet
         return "Labels" + Arrays.toString( labels );
     }
 
+    @Override
     public long[] all()
     {
         return labels;

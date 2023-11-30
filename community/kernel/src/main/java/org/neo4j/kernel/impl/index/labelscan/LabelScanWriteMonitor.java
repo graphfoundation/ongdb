@@ -55,6 +55,7 @@ import org.neo4j.io.ByteUnit;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.OpenMode;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.api.labelscan.LabelScanStore;
 import org.neo4j.kernel.impl.transaction.log.FlushableChannel;
 import org.neo4j.kernel.impl.transaction.log.PhysicalFlushableChannel;
@@ -79,7 +80,6 @@ public class LabelScanWriteMonitor implements NativeLabelScanWriter.WriteMonitor
     private static final long ROTATION_SIZE_THRESHOLD = FeatureToggles.getLong( LabelScanWriteMonitor.class, "rotationThreshold", mebiBytes( 200 ) );
     private static final long PRUNE_THRESHOLD = FeatureToggles.getLong( LabelScanWriteMonitor.class, "pruneThreshold", TimeUnit.DAYS.toMillis( 2 ) );
 
-    static final String NAME = NativeLabelScanStore.FILE_NAME + ".writelog";
     private static final byte TYPE_PREPARE_ADD = 0;
     private static final byte TYPE_PREPARE_REMOVE = 1;
     private static final byte TYPE_MERGE_ADD = 2;
@@ -100,20 +100,20 @@ public class LabelScanWriteMonitor implements NativeLabelScanWriter.WriteMonitor
     private long rotationThreshold;
     private long pruneThreshold;
 
-    LabelScanWriteMonitor( FileSystemAbstraction fs, File storeDir )
+    LabelScanWriteMonitor( FileSystemAbstraction fs, DatabaseLayout databaseLayout )
     {
-        this( fs, storeDir, ROTATION_SIZE_THRESHOLD, ByteUnit.Byte, PRUNE_THRESHOLD, TimeUnit.MILLISECONDS );
+        this( fs, databaseLayout, ROTATION_SIZE_THRESHOLD, ByteUnit.Byte, PRUNE_THRESHOLD, TimeUnit.MILLISECONDS );
     }
 
-    LabelScanWriteMonitor( FileSystemAbstraction fs, File storeDir,
+    LabelScanWriteMonitor( FileSystemAbstraction fs, DatabaseLayout databaseLayout,
             long rotationThreshold, ByteUnit rotationThresholdUnit,
             long pruneThreshold, TimeUnit pruneThresholdUnit )
     {
         this.fs = fs;
-        this.storeDir = storeDir;
         this.rotationThreshold = rotationThresholdUnit.toBytes( rotationThreshold );
         this.pruneThreshold = pruneThresholdUnit.toMillis( pruneThreshold );
-        this.file = new File( storeDir, NAME );
+        this.storeDir = databaseLayout.databaseDirectory();
+        this.file = writeLogBaseFile( databaseLayout );
         try
         {
             if ( fs.fileExists( file ) )
@@ -126,6 +126,11 @@ public class LabelScanWriteMonitor implements NativeLabelScanWriter.WriteMonitor
         {
             throw new UncheckedIOException( e );
         }
+    }
+
+    static File writeLogBaseFile( DatabaseLayout databaseLayout )
+    {
+        return new File( databaseLayout.labelScanStore() + ".writelog" );
     }
 
     private PhysicalFlushableChannel instantiateChannel() throws IOException
@@ -253,7 +258,7 @@ public class LabelScanWriteMonitor implements NativeLabelScanWriter.WriteMonitor
             // Prune
             long time = currentTimeMillis();
             long threshold = time - pruneThreshold;
-            for ( File file : fs.listFiles( storeDir, ( dir, name ) -> name.startsWith( NAME + "-" ) ) )
+            for ( File file : fs.listFiles( storeDir, ( dir, name ) -> name.startsWith( file.getName() + "-" ) ) )
             {
                 if ( millisOf( file ) < threshold )
                 {
@@ -319,7 +324,7 @@ public class LabelScanWriteMonitor implements NativeLabelScanWriter.WriteMonitor
 
     private File timestampedFile()
     {
-        return new File( storeDir, NAME + "-" + currentTimeMillis() );
+        return new File( storeDir, file.getName() + "-" + currentTimeMillis() );
     }
 
     /**
@@ -400,29 +405,31 @@ public class LabelScanWriteMonitor implements NativeLabelScanWriter.WriteMonitor
             return;
         }
 
-        File storeDir = new File( arguments.orphans().get( 0 ) );
+        DatabaseLayout databaseLayout = DatabaseLayout.of( new File( arguments.orphans().get( 0 ) ) );
         FileSystemAbstraction fs = new DefaultFileSystemAbstraction();
         TxFilter txFilter = parseTxFilter( arguments.get( ARG_TXFILTER, null ) );
         PrintStream out = System.out;
         boolean redirectsToFile = arguments.getBoolean( ARG_TOFILE );
         if ( redirectsToFile )
         {
-            File outFile = new File( storeDir, NAME + ".txt" );
+            File outFile = new File( writeLogBaseFile( databaseLayout ).getAbsolutePath() + ".txt" );
             System.out.println( "Redirecting output to " + outFile );
             out = new PrintStream( new BufferedOutputStream( new FileOutputStream( outFile ) ) );
         }
         Dumper dumper = new PrintStreamDumper( out );
-        dump( fs, storeDir, dumper, txFilter );
+        dump( fs, databaseLayout, dumper, txFilter );
         if ( redirectsToFile )
         {
             out.close();
         }
     }
 
-    public static void dump( FileSystemAbstraction fs, File storeDir, Dumper dumper, TxFilter txFilter ) throws IOException
+    public static void dump( FileSystemAbstraction fs, DatabaseLayout databaseLayout, Dumper dumper, TxFilter txFilter ) throws IOException
     {
-        File[] files = fs.listFiles( storeDir, ( dir, name ) -> name.startsWith( NAME ) );
-        Arrays.sort( files, comparing( file -> file.getName().equals( NAME ) ? 0 : millisOf( file ) ) );
+        File writeLogFile = writeLogBaseFile( databaseLayout );
+        String writeLogFileBaseName = writeLogFile.getName();
+        File[] files = fs.listFiles( databaseLayout.databaseDirectory(), ( dir, name ) -> name.startsWith( writeLogFileBaseName ) );
+        Arrays.sort( files, comparing( file -> file.getName().equals( writeLogFileBaseName ) ? 0 : millisOf( file ) ) );
         long session = 0;
         for ( File file : files )
         {

@@ -43,7 +43,10 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
 import org.neo4j.kernel.api.index.IndexProvider;
 import org.neo4j.kernel.impl.store.format.standard.StandardV2_3;
@@ -59,8 +62,8 @@ public class SchemaIndexMigratorTest
     private final FileSystemAbstraction fs = mock( FileSystemAbstraction.class );
     private final ProgressReporter progressReporter = mock( ProgressReporter.class );
     private final IndexProvider indexProvider = mock( IndexProvider.class );
-    private final File storeDir = new File( "store" );
-    private final File migrationDir = new File( "migrationDir" );
+    private final DatabaseLayout databaseLayout = DatabaseLayout.of( new File( "store" ), GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
+    private final DatabaseLayout migrationLayout = DatabaseLayout.of( new File( "migrationDir" ), GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
 
     private final SchemaIndexMigrator migrator = new SchemaIndexMigrator( fs, indexProvider );
 
@@ -68,16 +71,16 @@ public class SchemaIndexMigratorTest
     public void schemaAndLabelIndexesRemovedAfterSuccessfulMigration() throws IOException
     {
         IndexDirectoryStructure directoryStructure = mock( IndexDirectoryStructure.class );
-        File indexProviderRootDirectory = new File( storeDir, "just-some-directory" );
+        File indexProviderRootDirectory = databaseLayout.file( "just-some-directory" );
         when( directoryStructure.rootDirectory() ).thenReturn( indexProviderRootDirectory );
         when( indexProvider.directoryStructure() ).thenReturn( directoryStructure );
         when( indexProvider.getProviderDescriptor() )
-                .thenReturn( new IndexProvider.Descriptor( "key", "version" ) );
+                .thenReturn( new IndexProviderDescriptor( "key", "version" ) );
 
-        migrator.migrate( storeDir, migrationDir, progressReporter, StandardV2_3.STORE_VERSION,
+        migrator.migrate( databaseLayout, migrationLayout, progressReporter, StandardV2_3.STORE_VERSION,
                 StandardV3_0.STORE_VERSION );
 
-        migrator.moveMigratedFiles( migrationDir, storeDir, StandardV2_3.STORE_VERSION, StandardV3_0.STORE_VERSION );
+        migrator.moveMigratedFiles( migrationLayout, databaseLayout, StandardV2_3.STORE_VERSION, StandardV3_0.STORE_VERSION );
 
         verify( fs ).deleteRecursively( indexProviderRootDirectory );
     }

@@ -41,7 +41,7 @@ package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.ListSupport
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.util.v3_4.symbols._
+import org.neo4j.cypher.internal.v3_5.util.symbols._
 import org.neo4j.values.AnyValue
 
 case class ReduceFunction(collection: Expression, id: String, expression: Expression, acc: String, init: Expression)
@@ -50,10 +50,10 @@ case class ReduceFunction(collection: Expression, id: String, expression: Expres
   override def compute(value: AnyValue, m: ExecutionContext, state: QueryState) = {
     val list = makeTraversable(value)
     val iterator = list.iterator()
-    var contextWithAcc = m.copyWith(acc, init(m, state))
+    val contextWithAcc = m.copyWith(acc, init(m, state))
     while(iterator.hasNext) {
-      val innerMap = contextWithAcc.set(id, iterator.next())
-      contextWithAcc = contextWithAcc.set(acc, expression(innerMap, state))
+      contextWithAcc.set(id, iterator.next())
+      contextWithAcc.set(acc, expression(contextWithAcc, state))
     }
     contextWithAcc(acc)
   }
@@ -61,7 +61,7 @@ case class ReduceFunction(collection: Expression, id: String, expression: Expres
   def rewrite(f: (Expression) => Expression) =
     f(ReduceFunction(collection.rewrite(f), id, expression.rewrite(f), acc, init.rewrite(f)))
 
-  def arguments: Seq[Expression] = Seq(collection, init)
+  override def arguments: Seq[Expression] = Seq(collection, init)
 
   override def children = Seq(collection, expression, init)
 

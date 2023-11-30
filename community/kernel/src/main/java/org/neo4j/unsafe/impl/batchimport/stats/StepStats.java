@@ -60,11 +60,6 @@ public class StepStats implements StatsProvider
         this.providers = new ArrayList<>( providers );
     }
 
-    public boolean stillWorking()
-    {
-        return stillWorking;
-    }
-
     @Override
     public Key[] keys()
     {

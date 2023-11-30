@@ -391,7 +391,7 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
     private boolean verifyExpectedFirstAfterGoToNext;
 
     /**
-     * Whether or not this seeker have been closed.
+     * Whether or not this seeker has been closed.
      */
     private boolean closed;
 
@@ -399,6 +399,18 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
      * Decorator for caught exceptions, adding information about which tree the exception relates to.
      */
     private final Consumer<Throwable> exceptionDecorator;
+
+    /**
+     * Normally {@link #readHeader()} is called when {@link #concurrentWriteHappened} is {@code true}. However this flag
+     * guards for cases where the header must be read and {@link #concurrentWriteHappened} is {@code false},
+     * such as when moving over to the next sibling and continuing reading.
+     */
+    private boolean forceReadHeader;
+
+    /**
+     * Place where read generations will be kept when reading child/sibling/successor pointers.
+     */
+    private final GenerationKeeper generationKeeper = new GenerationKeeper();
 
     @SuppressWarnings( "unchecked" )
     SeekCursor( PageCursor cursor, TreeNode<KEY,VALUE> bTreeNode, KEY fromInclusive, KEY toExclusive,
@@ -476,8 +488,8 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
 
                 if ( isInternal )
                 {
-                    pointerId = bTreeNode.childAt( cursor, pos, stableGeneration, unstableGeneration );
-                    pointerGeneration = readPointerGenerationOnSuccess( pointerId );
+                    pointerId = bTreeNode.childAt( cursor, pos, stableGeneration, unstableGeneration, generationKeeper );
+                    pointerGeneration = generationKeeper.generation;
                 }
             }
             while ( cursor.shouldRetry() );
@@ -527,6 +539,10 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
     @Override
     public boolean next() throws IOException
     {
+        if ( closed )
+        {
+            return false;
+        }
         try
         {
             while ( true )
@@ -576,7 +592,7 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
                         continue;
                     }
 
-                    if ( (seekForward && pos >= keyCount) || (!seekForward && pos <= 0 && !insidePrevKey()) )
+                    if ( (seekForward && pos >= keyCount) || (!seekForward && pos <= 0 && !insidePrevKey( cachedIndex )) )
                     {
                         if ( goToNextSibling() )
                         {
@@ -595,6 +611,7 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
                 }
 
                 // We've come too far and so this means the end of the result set
+                close();
                 return false;
             }
         }
@@ -614,9 +631,12 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
             resultOnTrack = false;
 
             // Where we are
-            if ( !readHeader() || isInternal )
+            if ( concurrentWriteHappened || forceReadHeader || !seekForward )
             {
-                continue;
+                if ( !readHeader() || isInternal )
+                {
+                    continue;
+                }
             }
 
             if ( verifyExpectedFirstAfterGoToNext )
@@ -640,7 +660,7 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
                 {
                     // We may need to go to previous sibling to find correct place to start seeking from
                     prevSiblingId = readPrevSibling();
-                    prevSiblingGeneration = readPointerGenerationOnSuccess( prevSiblingId );
+                    prevSiblingGeneration = generationKeeper.generation;
                 }
             }
 
@@ -649,7 +669,7 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
             {
                 // Read right sibling
                 pointerId = readNextSibling();
-                pointerGeneration = readPointerGenerationOnSuccess( pointerId );
+                pointerGeneration = generationKeeper.generation;
             }
             for ( int readPos = pos; cachedLength < mutableKeys.length && 0 <= readPos && readPos < keyCount; readPos += stride )
             {
@@ -665,7 +685,10 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
                 if ( insideEndRange( exactMatch, cachedLength ) )
                 {
                     // This seems to be a result that should be part of our result set
-                    cachedLength++;
+                    if ( cachedLength > 0 /*no need to check "inside prev" for consecutive keys*/ || insidePrevKey( cachedLength ) )
+                    {
+                        cachedLength++;
+                    }
                 }
                 else
                 {
@@ -752,7 +775,7 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
      * @return whether or not the read key ({@link #mutableKeys}) is "after" the start of the key range
      * ({@link #fromInclusive}) of this seek.
      */
-    private boolean insideStartRange()
+    private boolean insideStartRange( int cachedIndex )
     {
         return seekForward ? layout.compare( mutableKeys[cachedIndex], fromInclusive ) >= 0
                            : layout.compare( mutableKeys[cachedIndex], fromInclusive ) <= 0;
@@ -762,11 +785,11 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
      * @return whether or not the read key ({@link #mutableKeys}) is "after" the last returned key of this seek
      * ({@link #prevKey}), or if no result has been returned the start of the key range ({@link #fromInclusive}).
      */
-    private boolean insidePrevKey()
+    private boolean insidePrevKey( int cachedIndex )
     {
         if ( first )
         {
-            return insideStartRange();
+            return insideStartRange( cachedIndex );
         }
         return seekForward ? layout.compare( mutableKeys[cachedIndex], prevKey ) > 0
                            : layout.compare( mutableKeys[cachedIndex], prevKey ) < 0;
@@ -814,18 +837,6 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
     }
 
     /**
-     * @return generation of {@code pointerId}, if the pointer id was successfully read.
-     */
-    private long readPointerGenerationOnSuccess( long pointerId )
-    {
-        if ( GenerationSafePointerPair.isSuccess( pointerId ) )
-        {
-            return bTreeNode.pointerGeneration( cursor, pointerId );
-        }
-        return -1; // this value doesn't matter
-    }
-
-    /**
      * @return {@code false} if there was a set expectancy on first key in tree node which weren't met,
      * otherwise {@code true}. Caller should
      */
@@ -847,8 +858,8 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
     private long readPrevSibling()
     {
         return seekForward ?
-               TreeNode.leftSibling( cursor, stableGeneration, unstableGeneration ) :
-               TreeNode.rightSibling( cursor, stableGeneration, unstableGeneration );
+               TreeNode.leftSibling( cursor, stableGeneration, unstableGeneration, generationKeeper ) :
+               TreeNode.rightSibling( cursor, stableGeneration, unstableGeneration, generationKeeper );
     }
 
     /**
@@ -857,8 +868,8 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
     private long readNextSibling()
     {
         return seekForward ?
-               TreeNode.rightSibling( cursor, stableGeneration, unstableGeneration ) :
-               TreeNode.leftSibling( cursor, stableGeneration, unstableGeneration );
+               TreeNode.rightSibling( cursor, stableGeneration, unstableGeneration, generationKeeper ) :
+               TreeNode.leftSibling( cursor, stableGeneration, unstableGeneration, generationKeeper );
     }
 
     /**
@@ -899,15 +910,13 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
 
         currentNodeGeneration = TreeNode.generation( cursor );
 
-        successor = TreeNode.successor( cursor, stableGeneration, unstableGeneration );
-        if ( GenerationSafePointerPair.isSuccess( successor ) )
-        {
-            successorGeneration = bTreeNode.pointerGeneration( cursor, successor );
-        }
+        successor = TreeNode.successor( cursor, stableGeneration, unstableGeneration, generationKeeper );
+        successorGeneration = generationKeeper.generation;
         isInternal = TreeNode.isInternal( cursor );
         // Find the left-most key within from-range
         keyCount = TreeNode.keyCount( cursor );
 
+        forceReadHeader = false;
         return keyCountIsSane( keyCount );
     }
 
@@ -971,6 +980,7 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
                 {
                     // It is likely that first key in right sibling is a next hit.
                     // Continue using scan
+                    forceReadHeader = true;
                     pos = -1;
                 }
                 return true;
@@ -1048,13 +1058,13 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
      */
     private boolean isResultKey()
     {
-        if ( !insideStartRange() )
+        if ( !insideStartRange( cachedIndex ) )
         {
             // Key is outside start range, possibly because page reuse
             concurrentWriteHappened = true;
             return false;
         }
-        else if ( !first && !insidePrevKey() )
+        else if ( !first && !insidePrevKey( cachedIndex ) )
         {
             // We've come across a bad read in the middle of a split
             // This is outlined in InternalTreeLogic, skip this value (it's fine)

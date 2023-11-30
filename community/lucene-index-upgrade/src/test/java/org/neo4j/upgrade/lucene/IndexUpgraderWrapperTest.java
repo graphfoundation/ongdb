@@ -59,9 +59,9 @@ public class IndexUpgraderWrapperTest
     {
         IndexUpgraderWrapper upgrader = getIndexUpgrader( createJarLoader() );
 
-        UpgraterStub.resetInvocationMark();
+        UpgraderStub.resetInvocationMark();
         upgrader.upgradeIndex( Paths.get( "some" ) );
-        assertTrue( UpgraterStub.getInvocationMark() );
+        assertTrue( UpgraderStub.getInvocationMark() );
     }
 
     @Test
@@ -84,7 +84,7 @@ public class IndexUpgraderWrapperTest
     private EmbeddedJarLoader createJarLoader() throws ClassNotFoundException, IOException
     {
         EmbeddedJarLoader jarLoader = Mockito.mock( EmbeddedJarLoader.class );
-        when( jarLoader.loadEmbeddedClass( anyString() ) ).thenReturn( UpgraterStub.class );
+        when( jarLoader.loadEmbeddedClass( anyString() ) ).thenReturn( UpgraderStub.class );
         return jarLoader;
     }
 }

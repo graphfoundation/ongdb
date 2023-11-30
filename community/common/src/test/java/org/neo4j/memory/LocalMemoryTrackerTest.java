@@ -38,14 +38,14 @@
  */
 package org.neo4j.memory;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class LocalMemoryTrackerTest
+class LocalMemoryTrackerTest
 {
     @Test
-    public void trackMemoryAllocations()
+    void trackMemoryAllocations()
     {
         LocalMemoryTracker memoryTracker = new LocalMemoryTracker();
         memoryTracker.allocated( 10 );
@@ -55,7 +55,7 @@ public class LocalMemoryTrackerTest
     }
 
     @Test
-    public void trackMemoryDeallocations()
+    void trackMemoryDeallocations()
     {
         LocalMemoryTracker memoryTracker = new LocalMemoryTracker();
         memoryTracker.allocated( 100 );
@@ -67,21 +67,4 @@ public class LocalMemoryTrackerTest
         memoryTracker.deallocated( 40 );
         assertEquals( 40, memoryTracker.usedDirectMemory() );
     }
-
-    @Test
-    public void localMemoryTrackerPropagatesAllocationsToGlobalTracker()
-    {
-        GlobalMemoryTracker globalMemoryTracker = GlobalMemoryTracker.INSTANCE;
-        long initialGlobalUsage = globalMemoryTracker.usedDirectMemory();
-        LocalMemoryTracker memoryTracker = new LocalMemoryTracker();
-
-        memoryTracker.allocated( 100 );
-        assertEquals( 100, memoryTracker.usedDirectMemory() );
-        assertEquals( 100, globalMemoryTracker.usedDirectMemory() - initialGlobalUsage );
-
-        memoryTracker.deallocated( 50 );
-        assertEquals( 50, memoryTracker.usedDirectMemory() );
-        assertEquals( 50, globalMemoryTracker.usedDirectMemory() - initialGlobalUsage );
-    }
-
 }

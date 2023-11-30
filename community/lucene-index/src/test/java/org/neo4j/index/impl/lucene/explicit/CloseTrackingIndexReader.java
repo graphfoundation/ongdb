@@ -44,9 +44,7 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.StoredFieldVisitor;
 import org.apache.lucene.index.Term;
 
-import java.io.IOException;
 import java.util.List;
-
 
 public class CloseTrackingIndexReader extends CompositeReader
 {

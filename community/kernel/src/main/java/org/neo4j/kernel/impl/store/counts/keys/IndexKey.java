@@ -93,6 +93,6 @@ abstract class IndexKey implements CountsKey
         {
             return Long.compare( indexId, ((IndexKey) other).indexId() );
         }
-        return recordType().ordinal() - other.recordType().ordinal();
+        return recordType().compareTo( other.recordType() );
     }
 }

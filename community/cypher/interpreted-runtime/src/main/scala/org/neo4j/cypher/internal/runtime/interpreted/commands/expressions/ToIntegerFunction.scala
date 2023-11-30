@@ -38,38 +38,21 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.util.v3_4.{CypherTypeException, ParameterWrongTypeException}
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.operations.CypherFunctions
 import org.neo4j.values._
-import org.neo4j.values.storable.{LongValue, NumberValue, TextValue, Values}
 
 case class ToIntegerFunction(a: Expression) extends NullInNullOutExpression(a) {
 
-  def symbolTableDependencies: Set[String] = a.symbolTableDependencies
+  override def symbolTableDependencies: Set[String] = a.symbolTableDependencies
 
-  def arguments: Seq[Expression] = Seq(a)
+  override def arguments: Seq[Expression] = Seq(a)
 
-  def rewrite(f: (Expression) => Expression): Expression = f(ToIntegerFunction(a.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(ToIntegerFunction(a.rewrite(f)))
 
-  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = value match {
-    case v: LongValue => v
-    case v: NumberValue => Values.longValue(v.longValue())
-    case v: TextValue =>
-      try {
-        Values.longValue(java.lang.Long.parseLong(v.stringValue()))
-      } catch {
-        case e: Exception =>
-          try {
-            val d = BigDecimal(v.stringValue())
-            if (d <= Long.MaxValue && d >= Long.MinValue) Values.longValue(d.toLong)
-            else throw new CypherTypeException(s"integer, ${v.stringValue()}, is too large")
-          } catch {
-            case _: NumberFormatException =>
-              Values.NO_VALUE
-          }
-      }
-    case v =>
-      throw new ParameterWrongTypeException("Expected a String or Number, got: " + v.toString)
-  }
+  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = CypherFunctions.toInteger(value)
+
+  override def children: Seq[AstNode[_]] = Seq(a)
 }

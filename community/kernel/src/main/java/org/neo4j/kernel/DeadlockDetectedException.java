@@ -40,6 +40,7 @@ package org.neo4j.kernel;
 
 import org.neo4j.graphdb.TransientTransactionFailureException;
 import org.neo4j.kernel.api.exceptions.Status;
+import org.neo4j.util.DocumentationURLs;
 
 /**
  * Signals that a deadlock between two or more transactions has been detected.
@@ -59,8 +60,8 @@ public class DeadlockDetectedException extends TransientTransactionFailureExcept
                 "holding locks, were wanting to await locks held by one another, which would have resulted in a deadlock " +
                 "between these transactions. This exception was thrown instead of ending up in that deadlock.\n" +
                 "\n" +
-                "See the deadlock section in the ONgDB Java developer reference for how to avoid this: " +
-                "https://graphfoundation.org/ongdb/docs/java-reference/current/#transactions-deadlocks\n" +
+                "See the deadlock section in the Neo4j Java developer reference for how to avoid this: " +
+                DocumentationURLs.TRANSACTION_DEADLOCK + "\n" +
                 "\n" +
                 "Details: '" + message + "'.", cause );
     }

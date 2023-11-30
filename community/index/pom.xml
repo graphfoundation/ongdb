@@ -19,7 +19,7 @@
 
     <packaging>jar</packaging>
     <name>ONgDB - Native index</name>
-    <description>Native index for ONgDB.</description>
+    <description>Native index for Neo4j.</description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
     <scm>
@@ -62,6 +62,15 @@
             <artifactId>ongdb-io</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-annotation-processors</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.collections</groupId>
+            <artifactId>eclipse-collections</artifactId>
+        </dependency>
 
         <!-- Test dependencies -->
         <dependency>
@@ -80,6 +89,12 @@
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-random-values</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>ongdb-collections</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
@@ -89,8 +104,20 @@
             <artifactId>commons-codec</artifactId>
         </dependency>
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-migrationsupport</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>

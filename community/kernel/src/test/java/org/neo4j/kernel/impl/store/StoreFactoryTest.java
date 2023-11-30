@@ -42,6 +42,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 
 import java.io.File;
 import java.io.IOException;
@@ -49,6 +50,7 @@ import java.nio.file.OpenOption;
 
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
 import org.neo4j.kernel.configuration.Config;
@@ -59,6 +61,7 @@ import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.test.rule.PageCacheRule;
+import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
 
 import static java.nio.file.StandardOpenOption.DELETE_ON_CLOSE;
@@ -66,17 +69,18 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.neo4j.kernel.impl.store.MetaDataStore.DEFAULT_NAME;
 import static org.neo4j.kernel.impl.store.format.RecordFormatSelector.selectForStoreOrConfig;
 
 public class StoreFactoryTest
 {
+    private final PageCacheRule pageCacheRule = new PageCacheRule();
+    private final EphemeralFileSystemRule fsRule = new EphemeralFileSystemRule();
+    private final TestDirectory testDirectory = TestDirectory.testDirectory( fsRule );
+
     @Rule
-    public final PageCacheRule pageCacheRule = new PageCacheRule();
-    @Rule
-    public EphemeralFileSystemRule fsRule = new EphemeralFileSystemRule();
+    public final RuleChain ruleChain = RuleChain.outerRule( fsRule ).around( testDirectory ).around( pageCacheRule );
+
     private NeoStores neoStores;
-    private File storeDir;
     private IdGeneratorFactory idGeneratorFactory;
     private PageCache pageCache;
 
@@ -86,22 +90,15 @@ public class StoreFactoryTest
         FileSystemAbstraction fs = fsRule.get();
         pageCache = pageCacheRule.getPageCache( fs );
         idGeneratorFactory = new DefaultIdGeneratorFactory( fs );
-        storeDir = directory( "dir" );
     }
 
     private StoreFactory storeFactory( Config config, OpenOption... openOptions )
     {
         LogProvider logProvider = NullLogProvider.getInstance();
-        RecordFormats recordFormats = selectForStoreOrConfig( config, storeDir, pageCache, logProvider );
-        return new StoreFactory( storeDir, DEFAULT_NAME, config, idGeneratorFactory, pageCache, fsRule.get(),
+        DatabaseLayout databaseLayout = testDirectory.databaseLayout();
+        RecordFormats recordFormats = selectForStoreOrConfig( config, databaseLayout, fsRule, pageCache, logProvider );
+        return new StoreFactory( databaseLayout, config, idGeneratorFactory, pageCache, fsRule.get(),
                 recordFormats, logProvider, EmptyVersionContextSupplier.EMPTY, openOptions );
-    }
-
-    private File directory( String name )
-    {
-        File dir = new File( name ).getAbsoluteFile();
-        fsRule.get().mkdirs( dir );
-        return dir;
     }
 
     @After
@@ -164,11 +161,11 @@ public class StoreFactoryTest
 
         // WHEN
         neoStores = storeFactory.openAllNeoStores( true );
-        assertTrue( fsRule.get().listFiles( storeDir ).length >= StoreType.values().length );
+        assertTrue( fsRule.get().listFiles( testDirectory.databaseDir() ).length >= StoreType.values().length );
 
         // THEN
         neoStores.close();
-        assertEquals( 0, fsRule.get().listFiles( storeDir ).length );
+        assertEquals( 0, fsRule.get().listFiles( testDirectory.databaseDir() ).length );
     }
 
     @Test
@@ -176,7 +173,7 @@ public class StoreFactoryTest
     {
         StoreFactory storeFactory = storeFactory( Config.defaults() );
         FileSystemAbstraction fs = fsRule.get();
-        fs.create( new File( storeDir, "neostore.nodestore.db.labels" ) );
+        fs.create( testDirectory.databaseLayout().file( "neostore.nodestore.db.labels" ) );
         storeFactory.openAllNeoStores( true ).close();
     }
 
@@ -186,7 +183,7 @@ public class StoreFactoryTest
         StoreFactory storeFactory = storeFactory( Config.defaults() );
         storeFactory.openAllNeoStores( true ).close();
         FileSystemAbstraction fs = fsRule.get();
-        for ( File f : fs.listFiles( storeDir ) )
+        for ( File f : fs.listFiles( testDirectory.databaseDir() ) )
         {
             fs.truncate( f, 0 );
         }

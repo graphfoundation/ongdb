@@ -38,140 +38,56 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import org.apache.commons.lang3.StringUtils;
 
-import org.neo4j.helpers.collection.PrefetchingIterator;
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.index.internal.gbptree.Layout;
-import org.neo4j.internal.kernel.api.IndexQuery;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.test.rule.RandomRule;
+import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.impl.index.schema.config.ConfiguredSpaceFillingCurveSettingsCache;
+import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettingsCache;
 import org.neo4j.values.storable.Value;
-import org.neo4j.values.storable.Values;
 
-abstract class LayoutTestUtil<KEY extends NativeSchemaKey<KEY>, VALUE extends NativeSchemaValue>
+import static java.util.Collections.emptyMap;
+import static org.junit.Assert.assertEquals;
+import static org.neo4j.values.storable.Values.stringValue;
+
+public class LayoutTestUtil
 {
-    private static final Comparator<IndexEntryUpdate<SchemaIndexDescriptor>> UPDATE_COMPARATOR = ( u1, u2 ) ->
-            Values.COMPARATOR.compare( u1.values()[0], u2.values()[0] );
-
-    final SchemaIndexDescriptor schemaIndexDescriptor;
-
-    LayoutTestUtil( SchemaIndexDescriptor schemaIndexDescriptor )
+    public static String generateStringResultingInSizeForIndexProvider( int size, GraphDatabaseSettings.SchemaIndex schemaIndex )
     {
-        this.schemaIndexDescriptor = schemaIndexDescriptor;
-    }
-
-    abstract Layout<KEY,VALUE> createLayout();
-
-    abstract IndexEntryUpdate<SchemaIndexDescriptor>[] someUpdates();
-
-    protected double fractionDuplicates()
-    {
-        return 0.1;
-    }
-
-    abstract IndexQuery rangeQuery( Value from, boolean fromInclusive, Value to, boolean toInclusive );
-
-    abstract int compareIndexedPropertyValue( KEY key1, KEY key2 );
-
-    SchemaIndexDescriptor indexDescriptor()
-    {
-        return schemaIndexDescriptor;
-    }
-
-    void copyValue( VALUE value, VALUE intoValue )
-    {
-    }
-
-    Iterator<IndexEntryUpdate<SchemaIndexDescriptor>> randomUpdateGenerator( RandomRule random )
-    {
-        double fractionDuplicates = fractionDuplicates();
-        return new PrefetchingIterator<IndexEntryUpdate<SchemaIndexDescriptor>>()
+        switch ( schemaIndex )
         {
-            private final Set<Object> uniqueCompareValues = new HashSet<>();
-            private final List<Value> uniqueValues = new ArrayList<>();
-            private long currentEntityId;
-
-            @Override
-            protected IndexEntryUpdate<SchemaIndexDescriptor> fetchNextOrNull()
-            {
-                Value value;
-                if ( fractionDuplicates > 0 && !uniqueValues.isEmpty() &&
-                        random.nextFloat() < fractionDuplicates )
-                {
-                    value = existingNonUniqueValue( random );
-                }
-                else
-                {
-                    value = newUniqueValue( random, uniqueCompareValues, uniqueValues );
-                }
-
-                return add( currentEntityId++, value );
-            }
-
-            private Value existingNonUniqueValue( RandomRule randomRule )
-            {
-                return uniqueValues.get( randomRule.nextInt( uniqueValues.size() ) );
-            }
-        };
-    }
-
-    abstract Value newUniqueValue( RandomRule random, Set<Object> uniqueCompareValues, List<Value> uniqueValues );
-
-    Value[] extractValuesFromUpdates( IndexEntryUpdate<SchemaIndexDescriptor>[] updates )
-    {
-        Value[] values = new Value[updates.length];
-        for ( int i = 0; i < updates.length; i++ )
-        {
-            if ( updates[i].values().length > 1 )
-            {
-                throw new UnsupportedOperationException( "This method does not support composite entries" );
-            }
-            values[i] = updates[i].values()[0];
+        case NATIVE_BTREE10:
+            Config config = Config.defaults();
+            ConfiguredSpaceFillingCurveSettingsCache globalConfigCache = new ConfiguredSpaceFillingCurveSettingsCache( config );
+            IndexSpecificSpaceFillingCurveSettingsCache spatialSettings = new IndexSpecificSpaceFillingCurveSettingsCache( globalConfigCache, emptyMap() );
+            return generateStringResultingInSize( new GenericLayout( 1, spatialSettings ), size );
+        case NATIVE20:
+            return generateStringResultingInSize( new StringLayout(), size );
+        default:
+            throw new UnsupportedOperationException( "SchemaIndex " + schemaIndex + " is not supported." );
         }
-        return values;
     }
 
-    abstract IndexEntryUpdate<SchemaIndexDescriptor>[] someUpdatesNoDuplicateValues();
-
-    abstract  IndexEntryUpdate<SchemaIndexDescriptor>[] someUpdatesWithDuplicateValues();
-
-    IndexEntryUpdate<SchemaIndexDescriptor>[] generateAddUpdatesFor( Object[] values )
+    static <KEY extends NativeIndexKey<KEY>> Value generateStringValueResultingInSize( Layout<KEY,?> layout, int size )
     {
-        @SuppressWarnings( "unchecked" )
-        IndexEntryUpdate<SchemaIndexDescriptor>[] indexEntryUpdates = new IndexEntryUpdate[values.length];
-        for ( int i = 0; i < indexEntryUpdates.length; i++ )
+        return stringValue( generateStringResultingInSize( layout, size ) );
+    }
+
+    static <KEY extends NativeIndexKey<KEY>> String generateStringResultingInSize( Layout<KEY,?> layout, int size )
+    {
+        String string;
+        KEY key = layout.newKey();
+        key.initialize( 0 );
+        int stringLength = size;
+        do
         {
-            indexEntryUpdates[i] = add( i, Values.of( values[i] ) );
+            string = StringUtils.repeat( 'A', stringLength-- );
+            Value value = stringValue( string );
+            key.initFromValue( 0, value, NativeIndexKey.Inclusion.NEUTRAL );
         }
-        return indexEntryUpdates;
-    }
-
-    protected IndexEntryUpdate<SchemaIndexDescriptor> add( long nodeId, Value value )
-    {
-        return IndexEntryUpdate.add( nodeId, schemaIndexDescriptor, value );
-    }
-
-    static int countUniqueValues( IndexEntryUpdate<SchemaIndexDescriptor>[] updates )
-    {
-        return Stream.of( updates ).map( update -> update.values()[0] ).collect( Collectors.toSet() ).size();
-    }
-
-    static int countUniqueValues( Object[] updates )
-    {
-        return Stream.of( updates ).collect( Collectors.toSet() ).size();
-    }
-
-    void sort( IndexEntryUpdate<SchemaIndexDescriptor>[] updates )
-    {
-        Arrays.sort( updates, UPDATE_COMPARATOR );
+        while ( layout.keySize( key ) > size );
+        assertEquals( size, layout.keySize( key ) );
+        return string;
     }
 }

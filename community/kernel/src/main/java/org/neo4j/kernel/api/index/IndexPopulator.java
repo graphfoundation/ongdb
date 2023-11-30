@@ -38,64 +38,64 @@
  */
 package org.neo4j.kernel.api.index;
 
-import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.Collection;
 
 import org.neo4j.internal.kernel.api.InternalIndexState;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
+import org.neo4j.kernel.impl.api.index.PhaseTracker;
 import org.neo4j.kernel.impl.api.index.UpdateMode;
 import org.neo4j.kernel.impl.api.index.updater.SwallowingIndexUpdater;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.storageengine.api.schema.IndexSample;
+import org.neo4j.storageengine.api.schema.PopulationProgress;
+import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 
 /**
  * Used for initial population of an index.
  */
-public interface IndexPopulator
+public interface IndexPopulator extends IndexConfigProvider
 {
     /**
      * Remove all data in the index and paves the way for populating an index.
      *
-     * @throws IOException on I/O error.
+     * @throws UncheckedIOException on I/O error.
      */
-    void create() throws IOException;
+    void create();
 
     /**
      * Closes and deletes this index.
-     *
-     * @throws IOException on I/O error.
      */
-    void drop() throws IOException;
+    void drop();
 
     /**
      * Called when initially populating an index over existing data. Guaranteed to be
      * called by the same thread every time. All data coming in here is guaranteed to not
      * have been added to this index previously, so no checks needs to be performed before applying it.
      * Implementations may verify constraints at this time, or defer them until the first verification
-     * of {@link #verifyDeferredConstraints(PropertyAccessor)}.
+     * of {@link #verifyDeferredConstraints(NodePropertyAccessor)}.
      *
      * @param updates batch of node property updates that needs to be inserted. Node ids will be retrieved using
      * {@link IndexEntryUpdate#getEntityId()} method and property values will be retrieved using
      * {@link IndexEntryUpdate#values()} method.
      * @throws IndexEntryConflictException if this is a uniqueness index and any of the updates are detected
      * to violate that constraint. Implementations may choose to not detect in this call, but instead do one efficient
-     * pass over the index in {@link #verifyDeferredConstraints(PropertyAccessor)}.
-     * @throws IOException on I/O error.
+     * pass over the index in {@link #verifyDeferredConstraints(NodePropertyAccessor)}.
+     * @throws UncheckedIOException on I/O error.
      */
-    void add( Collection<? extends IndexEntryUpdate<?>> updates )
-            throws IndexEntryConflictException, IOException;
+    void add( Collection<? extends IndexEntryUpdate<?>> updates ) throws IndexEntryConflictException;
 
     /**
      * Verifies that each value in this index is unique.
      * This method is called after the index has been fully populated and is guaranteed to not have
      * concurrent changes while executing.
      *
-     * @param propertyAccessor {@link PropertyAccessor} for accessing properties from database storage
+     * @param nodePropertyAccessor {@link NodePropertyAccessor} for accessing properties from database storage
      * in the event of conflicting values.
      * @throws IndexEntryConflictException for first detected uniqueness conflict, if any.
-     * @throws IOException on error reading from source files.
+     * @throws UncheckedIOException on error reading from source files.
      */
-    void verifyDeferredConstraints( PropertyAccessor propertyAccessor ) throws IndexEntryConflictException, IOException;
+    void verifyDeferredConstraints( NodePropertyAccessor nodePropertyAccessor ) throws IndexEntryConflictException;
 
     /**
      * Return an updater for applying a set of changes to this index, generally this will be a set of changes from a
@@ -122,31 +122,33 @@ public interface IndexPopulator
      * @return an {@link IndexUpdater} which will funnel changes that happen concurrently with index population
      * into the population and incorporating them as part of the index population.
      */
-    IndexUpdater newPopulatingUpdater( PropertyAccessor accessor );
+    IndexUpdater newPopulatingUpdater( NodePropertyAccessor accessor );
 
     /**
      * Close this populator and releases any resources related to it.
      * If {@code populationCompletedSuccessfully} is {@code true} then it must mark this index
      * as {@link InternalIndexState#ONLINE} so that future invocations of its parent
-     * {@link IndexProvider#getInitialState(long, SchemaIndexDescriptor)} also returns {@link InternalIndexState#ONLINE}.
+     * {@link IndexProvider#getInitialState(StoreIndexDescriptor)} also returns {@link InternalIndexState#ONLINE}.
      *
      * @param populationCompletedSuccessfully {@code true} if the index population was successful, where the index should
-     * be marked as {@link InternalIndexState#ONLINE}, otherwise {@code false} where index should be marked as
-     * {@link InternalIndexState#FAILED} and the failure, previously handed to this populator using {@link #markAsFailed(String)}
-     * should be stored and made available for later requests from {@link IndexProvider#getPopulationFailure(long, SchemaIndexDescriptor)}.
-     * @throws IOException on I/O error.
+     * be marked as {@link InternalIndexState#ONLINE}. Supplying {@code false} can have two meanings:
+     * <ul>
+     *     <li>if {@link #markAsFailed(String)} have been called the end state should be {@link InternalIndexState#FAILED}.
+     *     This method call should also make sure that the failure message gets stored for retrieval the next open too.</li>
+     *     <li>if {@link #markAsFailed(String)} have NOT been called the end state should be {@link InternalIndexState#POPULATING}</li>
+     * </ul>
      */
-    void close( boolean populationCompletedSuccessfully ) throws IOException;
+    void close( boolean populationCompletedSuccessfully );
 
     /**
      * Called then a population failed. The failure string should be stored for future retrieval by
-     * {@link IndexProvider#getPopulationFailure(long, SchemaIndexDescriptor)}. Called before {@link #close(boolean)}
+     * {@link IndexProvider#getPopulationFailure(StoreIndexDescriptor)}. Called before {@link #close(boolean)}
      * if there was a failure during population.
      *
      * @param failure the description of the failure.
-     * @throws IOException if marking failed.
+     * @throws UncheckedIOException if marking failed.
      */
-    void markAsFailed( String failure ) throws IOException;
+    void markAsFailed( String failure );
 
     /**
      * Add the given {@link IndexEntryUpdate update} to the sampler for this index.
@@ -160,12 +162,27 @@ public interface IndexPopulator
      */
     IndexSample sampleResult();
 
+    /**
+     * Returns actual population progress, given the progress of the scan. This is for when a populator needs to do
+     * significant work after scan has completed where the scan progress can be seen as only a part of the whole progress.
+     * @param scanProgress progress of the scan.
+     * @return progress of the population of this index as a whole.
+     */
+    default PopulationProgress progress( PopulationProgress scanProgress )
+    {
+        return scanProgress;
+    }
+
     IndexPopulator EMPTY = new Adapter();
+
+    default void scanCompleted( PhaseTracker phaseTracker ) throws IndexEntryConflictException
+    {   // no-op by default
+    }
 
     class Adapter implements IndexPopulator
     {
         @Override
-        public void create() throws IOException
+        public void create()
         {
         }
 
@@ -180,13 +197,18 @@ public interface IndexPopulator
         }
 
         @Override
-        public IndexUpdater newPopulatingUpdater( PropertyAccessor accessor )
+        public IndexUpdater newPopulatingUpdater( NodePropertyAccessor accessor )
         {
             return SwallowingIndexUpdater.INSTANCE;
         }
 
         @Override
-        public void close( boolean populationCompletedSuccessfully ) throws IOException
+        public void scanCompleted( PhaseTracker phaseTracker )
+        {
+        }
+
+        @Override
+        public void close( boolean populationCompletedSuccessfully )
         {
         }
 
@@ -207,8 +229,7 @@ public interface IndexPopulator
         }
 
         @Override
-        public void verifyDeferredConstraints( PropertyAccessor propertyAccessor )
-                throws IndexEntryConflictException, IOException
+        public void verifyDeferredConstraints( NodePropertyAccessor nodePropertyAccessor ) throws IndexEntryConflictException
         {
         }
     }

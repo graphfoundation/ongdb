@@ -41,11 +41,12 @@ package org.neo4j.kernel.api.impl.schema.populator;
 import org.apache.lucene.document.Document;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.Collection;
 
 import org.neo4j.io.IOUtils;
+import org.neo4j.kernel.api.impl.index.DatabaseIndex;
 import org.neo4j.kernel.api.impl.schema.LuceneDocumentStructure;
-import org.neo4j.kernel.api.impl.schema.SchemaIndex;
 import org.neo4j.kernel.api.impl.schema.writer.LuceneIndexWriter;
 import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexPopulator;
@@ -53,43 +54,58 @@ import org.neo4j.kernel.api.index.IndexPopulator;
 /**
  * An {@link IndexPopulator} used to create, populate and mark as online a Lucene schema index.
  */
-public abstract class LuceneIndexPopulator implements IndexPopulator
+public abstract class LuceneIndexPopulator<INDEX extends DatabaseIndex<?>> implements IndexPopulator
 {
-    protected SchemaIndex luceneIndex;
+    protected INDEX luceneIndex;
     protected LuceneIndexWriter writer;
 
-    LuceneIndexPopulator( SchemaIndex luceneIndex )
+    protected LuceneIndexPopulator( INDEX luceneIndex )
     {
         this.luceneIndex = luceneIndex;
     }
 
     @Override
-    public void create() throws IOException
+    public void create()
     {
-        luceneIndex.create();
-        luceneIndex.open();
-        writer = luceneIndex.getIndexWriter();
+        try
+        {
+            luceneIndex.create();
+            luceneIndex.open();
+            writer = luceneIndex.getIndexWriter();
+        }
+        catch ( IOException e )
+        {
+            throw new UncheckedIOException( e );
+        }
     }
 
     @Override
-    public void drop() throws IOException
+    public void drop()
     {
         luceneIndex.drop();
     }
 
     @Override
-    public void add( Collection<? extends IndexEntryUpdate<?>> updates ) throws IOException
+    public void add( Collection<? extends IndexEntryUpdate<?>> updates )
     {
         assert updatesForCorrectIndex( updates );
-        // Lucene documents stored in a ThreadLocal and reused so we can't create an eager collection of documents here
-        // That is why we create a lazy Iterator and then Iterable
-        writer.addDocuments( updates.size(), () -> updates.stream()
-                .map( LuceneIndexPopulator::updateAsDocument )
-                .iterator() );
+
+        try
+        {
+            // Lucene documents stored in a ThreadLocal and reused so we can't create an eager collection of documents here
+            // That is why we create a lazy Iterator and then Iterable
+            writer.addDocuments( updates.size(), () -> updates.stream()
+                    .map( LuceneIndexPopulator::updateAsDocument )
+                    .iterator() );
+        }
+        catch ( IOException e )
+        {
+            throw new UncheckedIOException( e );
+        }
     }
 
     @Override
-    public void close( boolean populationCompletedSuccessfully ) throws IOException
+    public void close( boolean populationCompletedSuccessfully )
     {
         try
         {
@@ -98,6 +114,10 @@ public abstract class LuceneIndexPopulator implements IndexPopulator
                 luceneIndex.markAsOnline();
             }
         }
+        catch ( IOException e )
+        {
+            throw new UncheckedIOException( e );
+        }
         finally
         {
             IOUtils.closeAllSilently( luceneIndex );
@@ -105,9 +125,16 @@ public abstract class LuceneIndexPopulator implements IndexPopulator
     }
 
     @Override
-    public void markAsFailed( String failure ) throws IOException
+    public void markAsFailed( String failure )
     {
-        luceneIndex.markAsFailed( failure );
+        try
+        {
+            luceneIndex.markAsFailed( failure );
+        }
+        catch ( IOException e )
+        {
+            throw new UncheckedIOException( e );
+        }
     }
 
     private boolean updatesForCorrectIndex( Collection<? extends IndexEntryUpdate<?>> updates )

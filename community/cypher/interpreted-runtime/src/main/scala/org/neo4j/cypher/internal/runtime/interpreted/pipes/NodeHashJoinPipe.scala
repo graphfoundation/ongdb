@@ -38,9 +38,9 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.util.v3_4.CypherTypeException
+import org.neo4j.cypher.internal.v3_5.util.CypherTypeException
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.VirtualNodeValue
 
@@ -64,12 +64,17 @@ case class NodeHashJoinPipe(nodeVariables: Set[String], left: Pipe, right: Pipe)
     if (table.isEmpty)
       return Iterator.empty
 
-    val result = for {context: ExecutionContext <- rhsIterator
-                      joinKey <- computeKey(context)}
-    yield {
-      val seq = table.getOrElse(joinKey, mutable.MutableList.empty)
-      seq.map(context.mergeWith)
-    }
+    val result =
+      for {rhsRow <- rhsIterator
+           joinKey <- computeKey(rhsRow)}
+        yield {
+          val lhsRows = table.getOrElse(joinKey, mutable.MutableList.empty)
+          lhsRows.map { lhsRow =>
+            val output = lhsRow.createClone()
+            output.mergeWith(rhsRow, state.query)
+            output
+          }
+        }
 
     result.flatten
   }

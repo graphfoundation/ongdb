@@ -45,33 +45,35 @@ import java.io.IOException;
 import org.neo4j.index.internal.gbptree.GBPTree;
 import org.neo4j.index.internal.gbptree.Writer;
 import org.neo4j.io.pagecache.IOLimiter;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
 import org.neo4j.storageengine.api.schema.IndexSample;
+import org.neo4j.values.storable.NumberValue;
+import org.neo4j.values.storable.RandomValues;
+import org.neo4j.values.storable.Value;
+import org.neo4j.values.storable.ValueType;
 
 import static org.junit.Assert.assertEquals;
+import static org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory.forLabel;
+import static org.neo4j.kernel.impl.index.schema.NativeIndexKey.Inclusion.NEUTRAL;
+import static org.neo4j.kernel.impl.index.schema.ValueCreatorUtil.FRACTION_DUPLICATE_NON_UNIQUE;
+import static org.neo4j.kernel.impl.index.schema.ValueCreatorUtil.countUniqueValues;
+import static org.neo4j.values.storable.RandomValues.typesOfGroup;
+import static org.neo4j.values.storable.ValueGroup.NUMBER;
 
-import static org.neo4j.kernel.impl.index.schema.LayoutTestUtil.countUniqueValues;
-import static org.neo4j.values.storable.Values.values;
-
-public class NumberFullScanNonUniqueIndexSamplerTest extends NativeSchemaIndexTestUtil<NumberSchemaKey,NativeSchemaValue>
+public class NumberFullScanNonUniqueIndexSamplerTest extends NativeIndexTestUtil<NumberIndexKey,NativeIndexValue>
 {
     @Test
     public void shouldIncludeAllValuesInTree() throws Exception
     {
         // GIVEN
-        Number[] values = generateNumberValues();
+        Value[] values = generateNumberValues();
         buildTree( values );
 
         // WHEN
         IndexSample sample;
-        try ( GBPTree<NumberSchemaKey,NativeSchemaValue> gbpTree = getTree() )
+        try ( GBPTree<NumberIndexKey,NativeIndexValue> gbpTree = getTree() )
         {
-            IndexSamplingConfig samplingConfig = new IndexSamplingConfig( Config.defaults() );
-            FullScanNonUniqueIndexSampler<NumberSchemaKey,NativeSchemaValue> sampler =
-                    new FullScanNonUniqueIndexSampler<>( gbpTree, layout, samplingConfig );
+            FullScanNonUniqueIndexSampler<NumberIndexKey,NativeIndexValue> sampler =
+                    new FullScanNonUniqueIndexSampler<>( gbpTree, layout );
             sample = sampler.result();
         }
 
@@ -81,41 +83,49 @@ public class NumberFullScanNonUniqueIndexSamplerTest extends NativeSchemaIndexTe
         assertEquals( values.length, sample.indexSize() );
     }
 
-    private Number[] generateNumberValues()
+    private Value[] generateNumberValues()
     {
-        IndexEntryUpdate<SchemaIndexDescriptor>[] updates = layoutUtil.someUpdates();
-        Number[] result = new Number[updates.length];
-        for ( int i = 0; i < updates.length; i++ )
+        ValueType[] numberTypes = RandomValues.including( t -> t.valueGroup == NUMBER );
+        int size = 20;
+        Value[] result = new NumberValue[size];
+        for ( int i = 0; i < size; i++ )
         {
-            result[i] = (Number) updates[i].values()[0].asObject();
+            result[i] = random.randomValues().nextValueOfTypes( numberTypes );
         }
         return result;
     }
 
-    private void buildTree( Number[] values ) throws IOException
+    private void buildTree( Value[] values ) throws IOException
     {
-        try ( GBPTree<NumberSchemaKey,NativeSchemaValue> gbpTree = getTree() )
+        try ( GBPTree<NumberIndexKey,NativeIndexValue> gbpTree = getTree() )
         {
-            try ( Writer<NumberSchemaKey,NativeSchemaValue> writer = gbpTree.writer() )
+            try ( Writer<NumberIndexKey,NativeIndexValue> writer = gbpTree.writer() )
             {
-                NumberSchemaKey key = layout.newKey();
-                NativeSchemaValue value = layout.newValue();
+                NumberIndexKey key = layout.newKey();
+                NativeIndexValue value = layout.newValue();
                 long nodeId = 0;
-                for ( Number number : values )
+                for ( Value number : values )
                 {
-                    key.from( nodeId, values( number ) );
-                    value.from( values( number ) );
+                    key.initialize( nodeId );
+                    key.initFromValue( 0, number, NEUTRAL );
+                    value.from( number );
                     writer.put( key, value );
                     nodeId++;
                 }
             }
-            gbpTree.checkpoint( IOLimiter.unlimited() );
+            gbpTree.checkpoint( IOLimiter.UNLIMITED );
         }
     }
 
     @Override
-    protected LayoutTestUtil<NumberSchemaKey,NativeSchemaValue> createLayoutTestUtil()
+    protected ValueCreatorUtil<NumberIndexKey,NativeIndexValue> createValueCreatorUtil()
     {
-        return new NumberNonUniqueLayoutTestUtil();
+        return new ValueCreatorUtil<>( forLabel( 42, 666 ).withId( 0 ), typesOfGroup( NUMBER ), FRACTION_DUPLICATE_NON_UNIQUE );
+    }
+
+    @Override
+    IndexLayout<NumberIndexKey,NativeIndexValue> createLayout()
+    {
+        return new NumberLayoutNonUnique();
     }
 }

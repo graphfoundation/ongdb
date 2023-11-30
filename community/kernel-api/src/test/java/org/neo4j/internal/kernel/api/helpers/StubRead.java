@@ -51,18 +51,18 @@ import org.neo4j.internal.kernel.api.RelationshipScanCursor;
 import org.neo4j.internal.kernel.api.RelationshipTraversalCursor;
 import org.neo4j.internal.kernel.api.Scan;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
+import org.neo4j.values.storable.Value;
 
 public class StubRead implements Read
 {
     @Override
-    public void nodeIndexSeek( IndexReference index, NodeValueIndexCursor cursor, IndexOrder indexOrder,
-            IndexQuery... query )
+    public void nodeIndexSeek( IndexReference index, NodeValueIndexCursor cursor, IndexOrder indexOrder, boolean needsValues, IndexQuery... query )
     {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public void nodeIndexDistinctValues( IndexReference index, NodeValueIndexCursor cursor )
+    public void nodeIndexDistinctValues( IndexReference index, NodeValueIndexCursor cursor, boolean needsValues )
     {
         throw new UnsupportedOperationException();
     }
@@ -75,7 +75,7 @@ public class StubRead implements Read
     }
 
     @Override
-    public void nodeIndexScan( IndexReference index, NodeValueIndexCursor cursor, IndexOrder indexOrder )
+    public void nodeIndexScan( IndexReference index, NodeValueIndexCursor cursor, IndexOrder indexOrder, boolean needsValues )
     {
         throw new UnsupportedOperationException();
     }
@@ -83,7 +83,7 @@ public class StubRead implements Read
     @Override
     public void nodeLabelScan( int label, NodeLabelIndexCursor cursor )
     {
-        ((StubNodeLabelIndexCursor) cursor).initalize( label );
+        ((StubNodeLabelIndexCursor) cursor).initialize( label );
     }
 
     @Override
@@ -195,19 +195,13 @@ public class StubRead implements Read
     }
 
     @Override
-    public Scan<RelationshipScanCursor> relationshipTypeScan( int type )
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void relationshipGroups( long nodeReference, long reference, RelationshipGroupCursor cursor )
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public void relationships( long nodeReference, long reference, RelationshipTraversalCursor cursor )
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Scan<RelationshipScanCursor> relationshipTypeScan( int type )
     {
         throw new UnsupportedOperationException();
     }
@@ -220,6 +214,30 @@ public class StubRead implements Read
 
     @Override
     public void relationshipProperties( long relationshipReference, long reference, PropertyCursor cursor )
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void relationshipGroups( long nodeReference, long reference, RelationshipGroupCursor cursor )
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean nodeDeletedInTransaction( long node )
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean relationshipDeletedInTransaction( long relationship )
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Value nodePropertyChangeInTransactionOrNull( long node, int propertyKeyId )
     {
         throw new UnsupportedOperationException();
     }

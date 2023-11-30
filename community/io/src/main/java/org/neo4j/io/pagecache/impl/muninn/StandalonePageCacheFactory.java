@@ -42,12 +42,14 @@ import org.neo4j.graphdb.config.Configuration;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.mem.MemoryAllocator;
 import org.neo4j.io.pagecache.PageCache;
+import org.neo4j.io.pagecache.PageSwapperFactory;
 import org.neo4j.io.pagecache.impl.SingleFilePageSwapperFactory;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.io.pagecache.tracing.cursor.DefaultPageCursorTracerSupplier;
 import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
 import org.neo4j.io.pagecache.tracing.cursor.context.VersionContextSupplier;
 import org.neo4j.memory.GlobalMemoryTracker;
+import org.neo4j.scheduler.JobScheduler;
 
 /*
  * This class is an helper to allow to construct properly a page cache in the few places we need it without all
@@ -62,15 +64,20 @@ public final class StandalonePageCacheFactory
     {
     }
 
-    public static PageCache createPageCache( FileSystemAbstraction fileSystem )
+    public static PageCache createPageCache( FileSystemAbstraction fileSystem, JobScheduler jobScheduler )
     {
         SingleFilePageSwapperFactory factory = new SingleFilePageSwapperFactory();
         factory.open( fileSystem, Configuration.EMPTY );
 
+        return createPageCache( factory, jobScheduler );
+    }
+
+    public static PageCache createPageCache( PageSwapperFactory factory, JobScheduler jobScheduler )
+    {
         PageCacheTracer cacheTracer = PageCacheTracer.NULL;
         DefaultPageCursorTracerSupplier cursorTracerSupplier = DefaultPageCursorTracerSupplier.INSTANCE;
         VersionContextSupplier versionContextSupplier = EmptyVersionContextSupplier.EMPTY;
         MemoryAllocator memoryAllocator = MemoryAllocator.createAllocator( "8 MiB", GlobalMemoryTracker.INSTANCE );
-        return new MuninnPageCache( factory, memoryAllocator, cacheTracer, cursorTracerSupplier, versionContextSupplier );
+        return new MuninnPageCache( factory, memoryAllocator, cacheTracer, cursorTracerSupplier, versionContextSupplier, jobScheduler );
     }
 }

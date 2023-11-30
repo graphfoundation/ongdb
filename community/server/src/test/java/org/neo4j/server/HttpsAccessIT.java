@@ -38,24 +38,33 @@
  */
 package org.neo4j.server;
 
+import org.apache.http.client.utils.URIBuilder;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.IOException;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
+import java.net.URI;
 import java.security.SecureRandom;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 
+import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.helpers.HostnamePort;
+import org.neo4j.kernel.configuration.ConnectorPortRegister;
+import org.neo4j.kernel.configuration.ssl.SslPolicyConfig;
+import org.neo4j.server.helpers.CommunityServerBuilder;
+import org.neo4j.ssl.ClientAuth;
 import org.neo4j.test.server.ExclusiveServerTestBase;
 import org.neo4j.test.server.HTTP;
 import org.neo4j.test.server.InsecureTrustManager;
 
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.neo4j.server.helpers.CommunityServerBuilder.serverOnRandomPorts;
 import static org.neo4j.test.server.HTTP.GET;
@@ -64,54 +73,131 @@ import static org.neo4j.test.server.HTTP.RawPayload.quotedJson;
 
 public class HttpsAccessIT extends ExclusiveServerTestBase
 {
+    private SSLSocketFactory originalSslSocketFactory;
     private CommunityNeoServer server;
 
-    @After
-    public void stopTheServer()
+    @Before
+    public void setUp()
     {
+        originalSslSocketFactory = HttpsURLConnection.getDefaultSSLSocketFactory();
+    }
+
+    @After
+    public void tearDown()
+    {
+        HttpsURLConnection.setDefaultSSLSocketFactory( originalSslSocketFactory );
         server.stop();
     }
 
-    @Before
-    public void startServer() throws NoSuchAlgorithmException, KeyManagementException, IOException
-    {
-        server = serverOnRandomPorts().withHttpsEnabled()
-                .usingDataDir( folder.directory( name.getMethodName() ).getAbsolutePath() )
-                .build();
-
-        // Because we are generating a non-CA-signed certificate, we need to turn off verification in the client.
-        // This is ironic, since there is no proper verification on the CA side in the first place, but I digress.
-        TrustManager[] trustAllCerts = {new InsecureTrustManager()};
-
-        // Install the all-trusting trust manager
-        SSLContext sc = SSLContext.getInstance( "TLS" );
-        sc.init( null, trustAllCerts, new SecureRandom() );
-        HttpsURLConnection.setDefaultSSLSocketFactory( sc.getSocketFactory() );
-    }
-
     @Test
-    public void serverShouldSupportSsl()
+    public void serverShouldSupportSsl() throws Exception
     {
-        // When
-        server.start();
+        startServer();
 
-        // Then
-        assertThat( server.httpsIsEnabled(), is( true ) );
+        assertThat( GET( httpsUri() ).status(), is( 200 ) );
         assertThat( GET(server.baseUri().toString()).status(), is( 200 ) );
     }
 
     @Test
     public void txEndpointShouldReplyWithHttpsWhenItReturnsURLs() throws Exception
     {
-        // Given
-        server.start();
+        startServer();
 
-        // When
         String baseUri = server.baseUri().toString();
         HTTP.Response response = POST( baseUri + "db/data/transaction", quotedJson( "{'statements':[]}" ) );
 
-        // Then
         assertThat( response.location(), startsWith( baseUri ) );
         assertThat( response.get( "commit" ).asText(), startsWith( baseUri ) );
+    }
+
+    @Test
+    public void shouldExposeBaseUriWhenHttpEnabledAndHttpsDisabled() throws Exception
+    {
+        startServer( true, false );
+
+        URI uri = server.baseUri();
+
+        assertEquals( "http", uri.getScheme() );
+        HostnamePort expectedHostPort = addressForConnector( "http" );
+        assertEquals( expectedHostPort.getHost(), uri.getHost() );
+        assertEquals( expectedHostPort.getPort(), uri.getPort() );
+    }
+
+    @Test
+    public void shouldExposeBaseUriWhenHttpDisabledAndHttpsEnabled() throws Exception
+    {
+        startServer( false, true );
+
+        URI uri = server.baseUri();
+
+        assertEquals( "https", uri.getScheme() );
+        HostnamePort expectedHostPort = addressForConnector( "https" );
+        assertEquals( expectedHostPort.getHost(), uri.getHost() );
+        assertEquals( expectedHostPort.getPort(), uri.getPort() );
+    }
+
+    private void startServer() throws Exception
+    {
+        startServer( true, true );
+    }
+
+    private void startServer( boolean httpEnabled, boolean httpsEnabled ) throws Exception
+    {
+        CommunityServerBuilder serverBuilder = serverOnRandomPorts().usingDataDir( folder.directory( name.getMethodName() ).getAbsolutePath() );
+        if ( !httpEnabled )
+        {
+            serverBuilder.withHttpDisabled();
+        }
+        if ( httpsEnabled )
+        {
+            serverBuilder.withHttpsEnabled();
+        }
+
+        SslPolicyConfig httpsPolicyConfig = new SslPolicyConfig( "default" );
+
+        server = serverBuilder
+                .withProperty( "https.ssl_policy", "default" )
+                .withProperty( httpsPolicyConfig.base_directory.name(), folder.directory( "cert" ).getAbsolutePath() )
+                .withProperty( httpsPolicyConfig.allow_key_generation.name(), "true" )
+                .withProperty( httpsPolicyConfig.client_auth.name(), ClientAuth.NONE.name() )
+                .withProperty( httpsPolicyConfig.ciphers.name(), getSupportedCipherSuites() )
+                .build();
+        server.start();
+
+        // Because we are generating a non-CA-signed certificate, we need to turn off verification in the client.
+        // This is ironic, since there is no proper verification on the CA side in the first place, but I digress.
+        TrustManager[] trustAllCerts = {new InsecureTrustManager()};
+
+        // Install the all-trusting trust manager
+        SSLContext sc = SSLContext.getInstance( "TLSv1.2" );
+        sc.init( null, trustAllCerts, new SecureRandom() );
+        HttpsURLConnection.setDefaultSSLSocketFactory( sc.getSocketFactory() );
+    }
+
+    private String httpsUri() throws Exception
+    {
+        HostnamePort hostPort = addressForConnector( "https" );
+        assertNotNull( hostPort );
+
+        return new URIBuilder()
+                .setScheme( "https" )
+                .setHost( hostPort.getHost() )
+                .setPort( hostPort.getPort() )
+                .build()
+                .toString();
+    }
+
+    private HostnamePort addressForConnector( String name )
+    {
+        DependencyResolver resolver = server.database.getGraph().getDependencyResolver();
+        ConnectorPortRegister portRegister = resolver.resolveDependency( ConnectorPortRegister.class );
+        return portRegister.getLocalAddress( name );
+    }
+
+    private static String getSupportedCipherSuites()
+    {
+        SSLServerSocketFactory ssf = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
+        String[] defaultCiphers = ssf.getDefaultCipherSuites();
+        return String.join( ",", defaultCiphers );
     }
 }

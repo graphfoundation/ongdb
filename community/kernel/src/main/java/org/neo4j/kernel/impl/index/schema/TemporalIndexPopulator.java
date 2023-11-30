@@ -38,14 +38,13 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.StreamSupport;
 
+import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
@@ -53,34 +52,29 @@ import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.IndexProvider;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.index.PropertyAccessor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.storageengine.api.schema.IndexReader;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.storageengine.api.schema.IndexSample;
+import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.ValueGroup;
 
+import static org.neo4j.index.internal.gbptree.GBPTree.NO_HEADER_WRITER;
 import static org.neo4j.kernel.impl.index.schema.fusion.FusionIndexBase.forAll;
 import static org.neo4j.kernel.impl.index.schema.fusion.FusionIndexSampler.combineSamples;
 
-class TemporalIndexPopulator extends TemporalIndexCache<TemporalIndexPopulator.PartPopulator<?>> implements IndexPopulator
+class TemporalIndexPopulator extends TemporalIndexCache<WorkSyncedNativeIndexPopulator<?,?>> implements IndexPopulator
 {
-    TemporalIndexPopulator( long indexId,
-                            SchemaIndexDescriptor descriptor,
-                            IndexSamplingConfig samplingConfig,
-                            TemporalIndexFiles temporalIndexFiles,
-                            PageCache pageCache,
-                            FileSystemAbstraction fs,
-                            IndexProvider.Monitor monitor )
+    TemporalIndexPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, TemporalIndexFiles temporalIndexFiles, PageCache pageCache,
+            FileSystemAbstraction fs, IndexProvider.Monitor monitor, TokenNameLookup tokenNameLookup )
     {
-        super( new PartFactory( pageCache, fs, temporalIndexFiles, indexId, descriptor, samplingConfig, monitor ) );
+        super( new PartFactory( pageCache, fs, temporalIndexFiles, descriptor, samplingConfig, monitor, tokenNameLookup ) );
     }
 
     @Override
-    public synchronized void create() throws IOException
+    public synchronized void create()
     {
-        forAll( NativeSchemaIndexPopulator::clear, this );
+        forAll( p -> p.getActual().clear(), this );
 
         // We must make sure to have at least one subindex:
         // to be able to persist failure and to have the right state in the beginning
@@ -91,13 +85,13 @@ class TemporalIndexPopulator extends TemporalIndexCache<TemporalIndexPopulator.P
     }
 
     @Override
-    public synchronized void drop() throws IOException
+    public synchronized void drop()
     {
-        forAll( NativeSchemaIndexPopulator::drop, this );
+        forAll( IndexPopulator::drop, this );
     }
 
     @Override
-    public void add( Collection<? extends IndexEntryUpdate<?>> updates ) throws IndexEntryConflictException, IOException
+    public void add( Collection<? extends IndexEntryUpdate<?>> updates ) throws IndexEntryConflictException
     {
         Map<ValueGroup,List<IndexEntryUpdate<?>>> batchMap = new HashMap<>();
         for ( IndexEntryUpdate<?> update : updates )
@@ -113,23 +107,22 @@ class TemporalIndexPopulator extends TemporalIndexCache<TemporalIndexPopulator.P
     }
 
     @Override
-    public void verifyDeferredConstraints( PropertyAccessor propertyAccessor )
-            throws IndexEntryConflictException, IOException
+    public void verifyDeferredConstraints( NodePropertyAccessor nodePropertyAccessor )
     {
         // No-op, uniqueness is checked for each update in add(IndexEntryUpdate)
     }
 
     @Override
-    public IndexUpdater newPopulatingUpdater( PropertyAccessor accessor )
+    public IndexUpdater newPopulatingUpdater( NodePropertyAccessor accessor )
     {
         return new TemporalIndexPopulatingUpdater( this, accessor );
     }
 
     @Override
-    public synchronized void close( boolean populationCompletedSuccessfully ) throws IOException
+    public synchronized void close( boolean populationCompletedSuccessfully )
     {
         closeInstantiateCloseLock();
-        for ( NativeSchemaIndexPopulator part : this )
+        for ( IndexPopulator part : this )
         {
             part.close( populationCompletedSuccessfully );
         }
@@ -138,7 +131,7 @@ class TemporalIndexPopulator extends TemporalIndexCache<TemporalIndexPopulator.P
     @Override
     public synchronized void markAsFailed( String failure )
     {
-        for ( NativeSchemaIndexPopulator part : this )
+        for ( IndexPopulator part : this )
         {
             part.markAsFailed( failure );
         }
@@ -155,90 +148,92 @@ class TemporalIndexPopulator extends TemporalIndexCache<TemporalIndexPopulator.P
     @Override
     public IndexSample sampleResult()
     {
-        IndexSample[] indexSamples = StreamSupport.stream( this.spliterator(), false )
-                .map( PartPopulator::sampleResult )
-                .toArray( IndexSample[]::new );
-        return combineSamples( indexSamples );
+        List<IndexSample> samples = new ArrayList<>();
+        for ( IndexPopulator partPopulator : this )
+        {
+            samples.add( partPopulator.sampleResult() );
+        }
+        return combineSamples( samples );
     }
 
-    static class PartPopulator<KEY extends NativeSchemaKey<KEY>> extends NativeSchemaIndexPopulator<KEY, NativeSchemaValue>
+    static class PartPopulator<KEY extends NativeIndexSingleValueKey<KEY>> extends NativeIndexPopulator<KEY,NativeIndexValue>
     {
-        PartPopulator( PageCache pageCache, FileSystemAbstraction fs, TemporalIndexFiles.FileLayout<KEY> fileLayout,
-                       IndexProvider.Monitor monitor, SchemaIndexDescriptor descriptor, long indexId, IndexSamplingConfig samplingConfig )
+        PartPopulator( PageCache pageCache, FileSystemAbstraction fs, TemporalIndexFiles.FileLayout<KEY> fileLayout, IndexProvider.Monitor monitor,
+                StoreIndexDescriptor descriptor, TokenNameLookup tokenNameLookup )
         {
-            super( pageCache, fs, fileLayout.indexFile, fileLayout.layout, monitor, descriptor, indexId, samplingConfig );
+            super( pageCache, fs, fileLayout.indexFile, fileLayout.layout, monitor, descriptor, NO_HEADER_WRITER, tokenNameLookup );
         }
 
         @Override
-        IndexReader newReader()
+        NativeIndexReader<KEY, NativeIndexValue> newReader()
         {
-            return new TemporalIndexPartReader<>( tree, layout, samplingConfig, descriptor );
+            return new TemporalIndexPartReader<>( tree, layout, descriptor );
         }
     }
 
-    static class PartFactory implements TemporalIndexCache.Factory<PartPopulator<?>>
+    static class PartFactory implements TemporalIndexCache.Factory<WorkSyncedNativeIndexPopulator<?,?>>
     {
         private final PageCache pageCache;
         private final FileSystemAbstraction fs;
         private final TemporalIndexFiles temporalIndexFiles;
-        private final long indexId;
-        private final SchemaIndexDescriptor descriptor;
+        private final StoreIndexDescriptor descriptor;
         private final IndexSamplingConfig samplingConfig;
         private final IndexProvider.Monitor monitor;
+        private final TokenNameLookup tokenNameLookup;
 
-        PartFactory( PageCache pageCache, FileSystemAbstraction fs, TemporalIndexFiles temporalIndexFiles, long indexId,
-                     SchemaIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, IndexProvider.Monitor monitor )
+        PartFactory( PageCache pageCache, FileSystemAbstraction fs, TemporalIndexFiles temporalIndexFiles, StoreIndexDescriptor descriptor,
+                IndexSamplingConfig samplingConfig, IndexProvider.Monitor monitor, TokenNameLookup tokenNameLookup )
         {
             this.pageCache = pageCache;
             this.fs = fs;
             this.temporalIndexFiles = temporalIndexFiles;
-            this.indexId = indexId;
             this.descriptor = descriptor;
             this.samplingConfig = samplingConfig;
             this.monitor = monitor;
+            this.tokenNameLookup = tokenNameLookup;
         }
 
         @Override
-        public PartPopulator<?> newDate() throws IOException
+        public WorkSyncedNativeIndexPopulator<?,?> newDate()
         {
             return create( temporalIndexFiles.date() );
         }
 
         @Override
-        public PartPopulator<?> newLocalDateTime() throws IOException
+        public WorkSyncedNativeIndexPopulator<?,?> newLocalDateTime()
         {
             return create( temporalIndexFiles.localDateTime() );
         }
 
         @Override
-        public PartPopulator<?> newZonedDateTime() throws IOException
+        public WorkSyncedNativeIndexPopulator<?,?> newZonedDateTime()
         {
             return create( temporalIndexFiles.zonedDateTime() );
         }
 
         @Override
-        public PartPopulator<?> newLocalTime() throws IOException
+        public WorkSyncedNativeIndexPopulator<?,?> newLocalTime()
         {
             return create( temporalIndexFiles.localTime() );
         }
 
         @Override
-        public PartPopulator<?> newZonedTime() throws IOException
+        public WorkSyncedNativeIndexPopulator<?,?> newZonedTime()
         {
             return create( temporalIndexFiles.zonedTime() );
         }
 
         @Override
-        public PartPopulator<?> newDuration() throws IOException
+        public WorkSyncedNativeIndexPopulator<?,?> newDuration()
         {
             return create( temporalIndexFiles.duration() );
         }
 
-        private <KEY extends NativeSchemaKey<KEY>> PartPopulator<KEY> create( TemporalIndexFiles.FileLayout<KEY> fileLayout ) throws IOException
+        private <KEY extends NativeIndexSingleValueKey<KEY>> WorkSyncedNativeIndexPopulator<KEY,?> create( TemporalIndexFiles.FileLayout<KEY> fileLayout )
         {
-            PartPopulator<KEY> populator = new PartPopulator<>( pageCache, fs, fileLayout, monitor, descriptor, indexId, samplingConfig );
+            PartPopulator<KEY> populator = new PartPopulator<>( pageCache, fs, fileLayout, monitor, descriptor, tokenNameLookup );
             populator.create();
-            return populator;
+            return new WorkSyncedNativeIndexPopulator<>( populator );
         }
     }
 }

@@ -56,24 +56,24 @@ import java.io.UncheckedIOException;
 import java.util.Arrays;
 import java.util.function.Function;
 
-import org.neo4j.collection.primitive.PrimitiveLongResourceIterator;
+import org.neo4j.collection.PrimitiveLongResourceIterator;
 import org.neo4j.helpers.TaskControl;
 import org.neo4j.helpers.TaskCoordinator;
 import org.neo4j.internal.kernel.api.IndexOrder;
 import org.neo4j.internal.kernel.api.IndexQuery;
 import org.neo4j.internal.kernel.api.IndexQuery.IndexQueryType;
-import org.neo4j.kernel.api.exceptions.index.IndexNotApplicableKernelException;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotApplicableKernelException;
 import org.neo4j.kernel.api.impl.index.collector.DocValuesCollector;
 import org.neo4j.kernel.api.impl.index.partition.PartitionSearcher;
 import org.neo4j.kernel.api.impl.schema.LuceneDocumentStructure;
 import org.neo4j.kernel.api.impl.schema.ValueEncoding;
 import org.neo4j.kernel.api.impl.schema.sampler.NonUniqueLuceneIndexSampler;
 import org.neo4j.kernel.api.impl.schema.sampler.UniqueLuceneIndexSampler;
-import org.neo4j.kernel.api.index.PropertyAccessor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.kernel.impl.index.schema.fusion.BridgingIndexProgressor;
+import org.neo4j.kernel.impl.api.schema.BridgingIndexProgressor;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.storageengine.api.schema.AbstractIndexReader;
+import org.neo4j.storageengine.api.schema.IndexDescriptor;
 import org.neo4j.storageengine.api.schema.IndexProgressor;
 import org.neo4j.storageengine.api.schema.IndexSampler;
 import org.neo4j.values.storable.Value;
@@ -82,7 +82,7 @@ import org.neo4j.values.storable.Values;
 import static java.lang.String.format;
 import static org.neo4j.internal.kernel.api.IndexQuery.IndexQueryType.exact;
 import static org.neo4j.kernel.api.impl.schema.LuceneDocumentStructure.NODE_ID_KEY;
-import static org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor.Type.UNIQUE;
+import static org.neo4j.storageengine.api.schema.IndexDescriptor.Type.UNIQUE;
 
 /**
  * Schema index reader that is able to read/sample a single partition of a partitioned Lucene index.
@@ -92,12 +92,12 @@ import static org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor.Type.UNIQU
 public class SimpleIndexReader extends AbstractIndexReader
 {
     private final PartitionSearcher partitionSearcher;
-    private final SchemaIndexDescriptor descriptor;
+    private final IndexDescriptor descriptor;
     private final IndexSamplingConfig samplingConfig;
     private final TaskCoordinator taskCoordinator;
 
     public SimpleIndexReader( PartitionSearcher partitionSearcher,
-            SchemaIndexDescriptor descriptor,
+            IndexDescriptor descriptor,
             IndexSamplingConfig samplingConfig,
             TaskCoordinator taskCoordinator )
     {
@@ -123,10 +123,11 @@ public class SimpleIndexReader extends AbstractIndexReader
     }
 
     @Override
-    public void query( IndexProgressor.NodeValueClient client, IndexOrder indexOrder, IndexQuery... predicates ) throws IndexNotApplicableKernelException
+    public void query( IndexProgressor.NodeValueClient client, IndexOrder indexOrder, boolean needsValues, IndexQuery... predicates )
+            throws IndexNotApplicableKernelException
     {
         Query query = toLuceneQuery( predicates );
-        client.initialize( descriptor, search( query ).getIndexProgressor( NODE_ID_KEY, client ), predicates );
+        client.initialize( descriptor, search( query ).getIndexProgressor( NODE_ID_KEY, client ), predicates, indexOrder, needsValues );
     }
 
     @Override
@@ -196,15 +197,15 @@ public class SimpleIndexReader extends AbstractIndexReader
         case stringPrefix:
             assertNotComposite( predicates );
             IndexQuery.StringPrefixPredicate spp = (IndexQuery.StringPrefixPredicate) predicate;
-            return LuceneDocumentStructure.newRangeSeekByPrefixQuery( spp.prefix() );
+            return LuceneDocumentStructure.newRangeSeekByPrefixQuery( spp.prefix().stringValue() );
         case stringContains:
             assertNotComposite( predicates );
             IndexQuery.StringContainsPredicate scp = (IndexQuery.StringContainsPredicate) predicate;
-            return LuceneDocumentStructure.newWildCardStringQuery( scp.contains() );
+            return LuceneDocumentStructure.newWildCardStringQuery( scp.contains().stringValue() );
         case stringSuffix:
             assertNotComposite( predicates );
             IndexQuery.StringSuffixPredicate ssp = (IndexQuery.StringSuffixPredicate) predicate;
-            return LuceneDocumentStructure.newSuffixStringQuery( ssp.suffix() );
+            return LuceneDocumentStructure.newSuffixStringQuery( ssp.suffix().stringValue() );
         default:
             // todo figure out a more specific exception
             throw new RuntimeException( "Index query not supported: " + Arrays.toString( predicates ) );
@@ -221,12 +222,12 @@ public class SimpleIndexReader extends AbstractIndexReader
      * OBS this implementation can only provide values for properties of type {@link String}.
      * Other property types will still be counted as distinct, but {@code client} won't receive {@link Value}
      * instances for those.
-     *
      * @param client {@link IndexProgressor.NodeValueClient} to get initialized with this progression.
-     * @param propertyAccessor {@link PropertyAccessor} for reading property values.
+     * @param propertyAccessor {@link NodePropertyAccessor} for reading property values.
+     * @param needsValues whether or not to load string values.
      */
     @Override
-    public void distinctValues( IndexProgressor.NodeValueClient client, PropertyAccessor propertyAccessor )
+    public void distinctValues( IndexProgressor.NodeValueClient client, NodePropertyAccessor propertyAccessor, boolean needsValues )
     {
         try
         {
@@ -238,7 +239,7 @@ public class SimpleIndexReader extends AbstractIndexReader
                 Terms terms = fields.terms( valueEncoding.key() );
                 if ( terms != null )
                 {
-                    Function<BytesRef,Value> valueMaterializer = valueEncoding == ValueEncoding.String && client.needsValues()
+                    Function<BytesRef,Value> valueMaterializer = valueEncoding == ValueEncoding.String && needsValues
                                                                  ? term -> Values.stringValue( term.utf8ToString() )
                                                                  : term -> null;
                     TermsEnum termsIterator = terms.iterator();
@@ -246,10 +247,11 @@ public class SimpleIndexReader extends AbstractIndexReader
                     {
                         termsIterator = NumericUtils.filterPrefixCodedLongs( termsIterator );
                     }
-                    multiProgressor.initialize( descriptor, new LuceneDistinctValuesProgressor( termsIterator, client, valueMaterializer ), noQueries );
+                    multiProgressor.initialize( descriptor, new LuceneDistinctValuesProgressor( termsIterator, client, valueMaterializer ), noQueries,
+                            IndexOrder.NONE, needsValues );
                 }
             }
-            client.initialize( descriptor, multiProgressor, noQueries );
+            client.initialize( descriptor, multiProgressor, noQueries, IndexOrder.NONE, needsValues );
         }
         catch ( IOException e )
         {
@@ -263,7 +265,7 @@ public class SimpleIndexReader extends AbstractIndexReader
     }
 
     @Override
-    public long countIndexedNodes( long nodeId, Value... propertyValues )
+    public long countIndexedNodes( long nodeId, int[] propertyKeyIds, Value... propertyValues )
     {
         Query nodeIdQuery = new TermQuery( LuceneDocumentStructure.newTermForChangeOrRemove( nodeId ) );
         Query valueQuery = LuceneDocumentStructure.newSeekQuery( propertyValues );

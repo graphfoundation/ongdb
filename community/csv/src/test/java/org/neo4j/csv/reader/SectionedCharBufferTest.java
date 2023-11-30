@@ -38,17 +38,17 @@
  */
 package org.neo4j.csv.reader;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.Reader;
 import java.io.StringReader;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class SectionedCharBufferTest
+class SectionedCharBufferTest
 {
     @Test
-    public void shouldCompactIntoItself() throws Exception
+    void shouldCompactIntoItself() throws Exception
     {
         // GIVEN
         Reader data = new StringReader( "01234567" );
@@ -64,7 +64,7 @@ public class SectionedCharBufferTest
     }
 
     @Test
-    public void shouldCompactIntoAnotherBuffer() throws Exception
+    void shouldCompactIntoAnotherBuffer() throws Exception
     {
         // GIVEN
         Reader data = new StringReader( "01234567" );

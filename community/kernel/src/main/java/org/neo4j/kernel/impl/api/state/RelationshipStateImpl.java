@@ -38,11 +38,16 @@
  */
 package org.neo4j.kernel.impl.api.state;
 
+import org.eclipse.collections.api.IntIterable;
+import org.eclipse.collections.impl.factory.primitive.IntSets;
+
 import java.util.Iterator;
 
-import org.neo4j.kernel.impl.api.RelationshipVisitor;
+import org.neo4j.kernel.impl.util.collection.CollectionsFactory;
+import org.neo4j.storageengine.api.RelationshipVisitor;
 import org.neo4j.storageengine.api.StorageProperty;
 import org.neo4j.storageengine.api.txstate.RelationshipState;
+import org.neo4j.values.storable.Value;
 
 import static java.util.Collections.emptyIterator;
 
@@ -75,9 +80,9 @@ class RelationshipStateImpl extends PropertyContainerStateImpl implements Relati
         }
 
         @Override
-        public Iterator<Integer> removedProperties()
+        public IntIterable removedProperties()
         {
-            return emptyIterator();
+            return IntSets.immutable.empty();
         }
 
         @Override
@@ -87,32 +92,9 @@ class RelationshipStateImpl extends PropertyContainerStateImpl implements Relati
         }
 
         @Override
-        public Iterator<StorageProperty> augmentProperties( Iterator<StorageProperty> iterator )
-        {
-            return iterator;
-        }
-
-        @Override
-        public void accept( Visitor visitor )
-        {
-        }
-
-        @Override
         public boolean hasPropertyChanges()
         {
             return false;
-        }
-
-        @Override
-        public StorageProperty getChangedProperty( int propertyKeyId )
-        {
-            return null;
-        }
-
-        @Override
-        public StorageProperty getAddedProperty( int propertyKeyId )
-        {
-            return null;
         }
 
         @Override
@@ -122,9 +104,9 @@ class RelationshipStateImpl extends PropertyContainerStateImpl implements Relati
         }
 
         @Override
-        public boolean isPropertyRemoved( int propertyKeyId )
+        public Value propertyValue( int propertyKey )
         {
-            return false;
+            return null;
         }
     };
 
@@ -132,9 +114,9 @@ class RelationshipStateImpl extends PropertyContainerStateImpl implements Relati
     private long endNode = -1;
     private int type = -1;
 
-    RelationshipStateImpl( long id )
+    RelationshipStateImpl( long id, CollectionsFactory collectionsFactory )
     {
-        super( id );
+        super( id, collectionsFactory );
     }
 
     void setMetaData( long startNode, long endNode, int type )

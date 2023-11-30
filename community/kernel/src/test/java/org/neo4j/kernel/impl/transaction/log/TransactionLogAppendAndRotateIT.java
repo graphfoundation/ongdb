@@ -104,7 +104,7 @@ public class TransactionLogAppendAndRotateIT
     {
         // GIVEN
         LogVersionRepository logVersionRepository = new SimpleLogVersionRepository();
-        LogFiles logFiles = LogFilesBuilder.builder( directory.directory(), fileSystemRule.get() )
+        LogFiles logFiles = LogFilesBuilder.builder( directory.databaseLayout(), fileSystemRule.get() )
                 .withLogVersionRepository( logVersionRepository )
                 .withRotationThreshold( ByteUnit.mebiBytes( 1 ) )
                 .withTransactionIdStore( new SimpleTransactionIdStore() ).build();
@@ -112,7 +112,7 @@ public class TransactionLogAppendAndRotateIT
         final AtomicBoolean end = new AtomicBoolean();
         AllTheMonitoring monitoring = new AllTheMonitoring( end, 100 );
         TransactionIdStore txIdStore = new SimpleTransactionIdStore();
-        TransactionMetadataCache metadataCache = new TransactionMetadataCache( 100 );
+        TransactionMetadataCache metadataCache = new TransactionMetadataCache();
         monitoring.setLogFile( logFiles.getLogFile() );
         DatabaseHealth health = new DatabaseHealth( mock( DatabasePanicEventGenerator.class ), NullLog.getInstance() );
         LogRotation rotation = new LogRotationImpl( monitoring, logFiles, health );

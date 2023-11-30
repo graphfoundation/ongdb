@@ -39,15 +39,16 @@
 package org.neo4j.server.rest.transactional.integration;
 
 import com.fasterxml.jackson.databind.JsonNode;
-
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.IOException;
 
 import org.neo4j.server.NeoServer;
 import org.neo4j.server.helpers.ServerHelper;
+import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.server.ExclusiveServerTestBase;
 import org.neo4j.test.server.HTTP;
 
@@ -58,6 +59,8 @@ import static org.neo4j.test.server.HTTP.RawPayload.quotedJson;
 
 public class ReadOnlyIT extends ExclusiveServerTestBase
 {
+    @Rule
+    public TestDirectory dir = TestDirectory.testDirectory();
     private NeoServer readOnlyServer;
     private HTTP.Builder http;
 
@@ -65,7 +68,7 @@ public class ReadOnlyIT extends ExclusiveServerTestBase
     public void setup() throws IOException
     {
         ServerHelper.cleanTheDatabase( readOnlyServer );
-        readOnlyServer = ServerHelper.createNonPersistentReadOnlyServer();
+        readOnlyServer = ServerHelper.createReadOnlyServer( dir.storeDir() );
         http = HTTP.withBaseUri( readOnlyServer.baseUri() );
     }
 
@@ -91,7 +94,7 @@ public class ReadOnlyIT extends ExclusiveServerTestBase
         String message = error.get( "message" ).asText();
 
         assertEquals( "Neo.ClientError.General.ForbiddenOnReadOnlyDatabase", code );
-        assertThat( message, containsString( "This is a read only ONgDB instance" ) );
+        assertThat( message, containsString( "This is a read only Neo4j instance" ) );
     }
 
     @Test
@@ -108,7 +111,7 @@ public class ReadOnlyIT extends ExclusiveServerTestBase
         String message = error.get( "message" ).asText();
 
         assertEquals( "Neo.ClientError.General.ForbiddenOnReadOnlyDatabase", code );
-        assertThat( message, containsString( "This is a read only ONgDB instance" ) );
+        assertThat( message, containsString( "This is a read only Neo4j instance" ) );
     }
 
 }

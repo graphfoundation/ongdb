@@ -38,19 +38,19 @@
  */
 package org.neo4j.commandline.dbms.config;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.function.Function;
 
 import org.neo4j.unsafe.impl.batchimport.input.csv.Configuration;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.neo4j.unsafe.impl.batchimport.input.csv.Configuration.COMMAS;
 
-public class WrappedCsvInputConfigurationForNeo4jAdminTest
+class WrappedCsvInputConfigurationForNeo4jAdminTest
 {
     @Test
-    public void shouldDelegateArrayDelimiter()
+    void shouldDelegateArrayDelimiter()
     {
         shouldDelegate( expected -> new Configuration.Overridden( COMMAS )
         {
@@ -63,7 +63,7 @@ public class WrappedCsvInputConfigurationForNeo4jAdminTest
     }
 
     @Test
-    public void shouldDelegateDelimiter()
+    void shouldDelegateDelimiter()
     {
         shouldDelegate( expected -> new Configuration.Overridden( COMMAS )
         {
@@ -76,7 +76,7 @@ public class WrappedCsvInputConfigurationForNeo4jAdminTest
     }
 
     @Test
-    public void shouldDelegateQuoteCharacter()
+    void shouldDelegateQuoteCharacter()
     {
         shouldDelegate( expected -> new Configuration.Overridden( COMMAS )
         {
@@ -89,7 +89,7 @@ public class WrappedCsvInputConfigurationForNeo4jAdminTest
     }
 
     @Test
-    public void shouldOverrideTrimStrings()
+    void shouldOverrideTrimStrings()
     {
         shouldOverride( expected -> new Configuration.Overridden( COMMAS )
         {
@@ -102,7 +102,7 @@ public class WrappedCsvInputConfigurationForNeo4jAdminTest
     }
 
     @Test
-    public void shouldOverrideBufferSize()
+    void shouldOverrideBufferSize()
     {
         shouldOverride( expected -> new Configuration.Overridden( COMMAS )
         {
@@ -115,7 +115,7 @@ public class WrappedCsvInputConfigurationForNeo4jAdminTest
     }
 
     @Test
-    public void shouldDelegateMultiLineFields()
+    void shouldDelegateMultiLineFields()
     {
         shouldDelegate( expected -> new Configuration.Overridden( COMMAS )
         {
@@ -128,7 +128,7 @@ public class WrappedCsvInputConfigurationForNeo4jAdminTest
     }
 
     @Test
-    public void shouldOverrideEmptyQuotedStringsAsNull()
+    void shouldOverrideEmptyQuotedStringsAsNull()
     {
         shouldOverride( expected -> new Configuration.Overridden( COMMAS )
         {
@@ -141,7 +141,7 @@ public class WrappedCsvInputConfigurationForNeo4jAdminTest
     }
 
     @Test
-    public void shouldOverrideLegacyStyleQuoting()
+    void shouldOverrideLegacyStyleQuoting()
     {
         shouldOverride( expected -> new Configuration.Overridden( COMMAS )
         {

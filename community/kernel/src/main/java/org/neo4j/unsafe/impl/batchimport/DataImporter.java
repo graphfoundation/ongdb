@@ -43,6 +43,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -62,6 +63,7 @@ import org.neo4j.unsafe.impl.batchimport.staging.Step;
 import org.neo4j.unsafe.impl.batchimport.stats.Key;
 import org.neo4j.unsafe.impl.batchimport.stats.Keys;
 import org.neo4j.unsafe.impl.batchimport.stats.Stat;
+import org.neo4j.unsafe.impl.batchimport.stats.Stats;
 import org.neo4j.unsafe.impl.batchimport.stats.StatsProvider;
 import org.neo4j.unsafe.impl.batchimport.stats.StepStats;
 import org.neo4j.unsafe.impl.batchimport.store.BatchingNeoStores;
@@ -69,7 +71,6 @@ import org.neo4j.unsafe.impl.batchimport.store.io.IoMonitor;
 
 import static java.lang.String.format;
 import static java.lang.System.currentTimeMillis;
-import static org.neo4j.unsafe.impl.batchimport.stats.Stats.longStat;
 
 /**
  * Imports data from {@link Input} into a store. Only linkage between property records is done, not between nodes/relationships
@@ -130,11 +131,6 @@ public class DataImporter
             return this.properties.sum();
         }
 
-        public long relationshipsImported()
-        {
-            return this.relationships.sum();
-        }
-
         @Override
         public String toString()
         {
@@ -157,6 +153,7 @@ public class DataImporter
         long startTime = currentTimeMillis();
         try ( InputIterator dataIterator = data.iterator() )
         {
+            executionMonitor.start( execution );
             for ( int i = 0; i < numRunners; i++ )
             {
                 pool.submit( new ExhaustingEntityImporterRunnable(
@@ -164,7 +161,6 @@ public class DataImporter
             }
             pool.shutdown();
 
-            executionMonitor.start( execution );
             long nextWait = 0;
             try
             {
@@ -204,7 +200,7 @@ public class DataImporter
             Monitor monitor, boolean validateRelationshipData )
                     throws IOException
     {
-        DataStatistics typeDistribution = new DataStatistics( monitor.nodes.sum(), monitor.properties.sum(), new RelationshipTypeCount[0] );
+        DataStatistics typeDistribution = new DataStatistics( monitor, new RelationshipTypeCount[0] );
         Supplier<EntityImporter> importers = () -> new RelationshipImporter( stores, idMapper, typeDistribution, monitor,
                 badCollector, validateRelationshipData, stores.usesDoubleRelationshipRecordUnits() );
         importData( RELATIONSHIP_IMPORT_NAME, numRunners, input.relationships(), stores, importers, executionMonitor,
@@ -223,7 +219,7 @@ public class DataImporter
         private final Key[] keys = new Key[] {Keys.done_batches, Keys.avg_processing_time};
         private final Collection<StatsProvider> statsProviders = new ArrayList<>();
 
-        private volatile boolean completed;
+        private final CountDownLatch completed = new CountDownLatch( 1 );
 
         ControllableStep( String name, LongAdder progress, Configuration config, StatsProvider... additionalStatsProviders )
         {
@@ -237,7 +233,7 @@ public class DataImporter
 
         void markAsCompleted()
         {
-            this.completed = true;
+            this.completed.countDown();
         }
 
         @Override
@@ -265,7 +261,7 @@ public class DataImporter
         @Override
         public StepStats stats()
         {
-            return new StepStats( name, completed, statsProviders );
+            return new StepStats( name, !isCompleted(), statsProviders );
         }
 
         @Override
@@ -276,7 +272,13 @@ public class DataImporter
         @Override
         public boolean isCompleted()
         {
-            return completed;
+            return completed.getCount() == 0;
+        }
+
+        @Override
+        public void awaitCompleted() throws InterruptedException
+        {
+            completed.await();
         }
 
         @Override
@@ -294,11 +296,11 @@ public class DataImporter
         {
             if ( key == Keys.done_batches )
             {
-                return longStat( progress.sum() / batchSize );
+                return Stats.longStat( progress.sum() / batchSize );
             }
             if ( key == Keys.avg_processing_time )
             {
-                return longStat( 10 );
+                return Stats.longStat( 10 );
             }
             return null;
         }

@@ -38,7 +38,7 @@
  */
 package org.neo4j.unsafe.impl.internal.dragons;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;
@@ -47,16 +47,16 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.neo4j.memory.GlobalMemoryTracker;
 
 import static java.lang.System.currentTimeMillis;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isOneOf;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.sameInstance;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.unsafe.impl.internal.dragons.UnsafeUtil.allocateMemory;
 import static org.neo4j.unsafe.impl.internal.dragons.UnsafeUtil.arrayBaseOffset;
 import static org.neo4j.unsafe.impl.internal.dragons.UnsafeUtil.arrayIndexScale;
@@ -111,7 +111,7 @@ import static org.neo4j.unsafe.impl.internal.dragons.UnsafeUtil.putShort;
 import static org.neo4j.unsafe.impl.internal.dragons.UnsafeUtil.putShortVolatile;
 import static org.neo4j.unsafe.impl.internal.dragons.UnsafeUtil.setMemory;
 
-public class UnsafeUtilTest
+class UnsafeUtilTest
 {
     static class Obj
     {
@@ -156,13 +156,13 @@ public class UnsafeUtilTest
     }
 
     @Test
-    public void mustHaveUnsafe()
+    void mustHaveUnsafe()
     {
         assertHasUnsafe();
     }
 
     @Test
-    public void pageSizeIsPowerOfTwo()
+    void pageSizeIsPowerOfTwo()
     {
         assertThat( pageSize(), isOneOf(
                 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144,
@@ -171,7 +171,7 @@ public class UnsafeUtilTest
     }
 
     @Test
-    public void mustSupportReadingFromAndWritingToFields()
+    void mustSupportReadingFromAndWritingToFields()
     {
         Obj obj;
 
@@ -296,7 +296,7 @@ public class UnsafeUtilTest
     }
 
     @Test
-    public void mustSupportReadingAndWritingOfPrimitivesToMemory()
+    void mustSupportReadingAndWritingOfPrimitivesToMemory()
     {
         int sizeInBytes = 8;
         long address = allocateMemory( sizeInBytes );
@@ -379,7 +379,7 @@ public class UnsafeUtilTest
     }
 
     @Test
-    public void getAndAddIntOfField()
+    void getAndAddIntOfField()
     {
         Obj obj = new Obj();
         long anIntOffset = getFieldOffset( Obj.class, "anInt" );
@@ -391,7 +391,7 @@ public class UnsafeUtilTest
     }
 
     @Test
-    public void compareAndSwapLongField()
+    void compareAndSwapLongField()
     {
         Obj obj = new Obj();
         long aLongOffset = getFieldOffset( Obj.class, "aLong" );
@@ -402,7 +402,7 @@ public class UnsafeUtilTest
     }
 
     @Test
-    public void compareAndSwapObjectField()
+    void compareAndSwapObjectField()
     {
         Obj obj = new Obj();
         long objectOffset = getFieldOffset( Obj.class, "object" );
@@ -413,7 +413,7 @@ public class UnsafeUtilTest
     }
 
     @Test
-    public void getAndSetObjectField()
+    void getAndSetObjectField()
     {
         Obj obj = new Obj();
         long objectOffset = getFieldOffset( Obj.class, "object" );
@@ -423,7 +423,7 @@ public class UnsafeUtilTest
     }
 
     @Test
-    public void getAndSetLongField()
+    void getAndSetLongField()
     {
         Obj obj = new Obj();
         long offset = getFieldOffset( Obj.class, "aLong" );
@@ -432,7 +432,7 @@ public class UnsafeUtilTest
     }
 
     @Test
-    public void compareAndSetMaxLongField()
+    void compareAndSetMaxLongField()
     {
         Obj obj = new Obj();
         long offset = getFieldOffset( Obj.class, "aLong" );
@@ -446,7 +446,7 @@ public class UnsafeUtilTest
     }
 
     @Test
-    public void unsafeArrayElementAccess() throws Exception
+    void unsafeArrayElementAccess()
     {
         int len = 3;
         int scale;
@@ -526,7 +526,7 @@ public class UnsafeUtilTest
     }
 
     @Test
-    public void directByteBufferCreationAndInitialisation() throws Exception
+    void directByteBufferCreationAndInitialisation() throws Exception
     {
         int sizeInBytes = 313;
         long address = allocateMemory( sizeInBytes );
@@ -577,7 +577,7 @@ public class UnsafeUtilTest
     }
 
     @Test
-    public void getAddressOfDirectByteBuffer() throws Exception
+    void getAddressOfDirectByteBuffer()
     {
         ByteBuffer buf = ByteBuffer.allocateDirect( 8 );
         long address = UnsafeUtil.getDirectByteBufferAddress( buf );
@@ -598,7 +598,7 @@ public class UnsafeUtilTest
     }
 
     @Test
-    public void shouldAlignMemoryTo4ByteBoundary()
+    void shouldAlignMemoryTo4ByteBoundary()
     {
         // GIVEN
         long allocatedMemory = currentTimeMillis();
@@ -617,7 +617,7 @@ public class UnsafeUtilTest
     }
 
     @Test
-    public void shouldPutAndGetByteWiseLittleEndianShort()
+    void shouldPutAndGetByteWiseLittleEndianShort()
     {
         // GIVEN
         int sizeInBytes = 2;
@@ -635,7 +635,7 @@ public class UnsafeUtilTest
     }
 
     @Test
-    public void shouldPutAndGetByteWiseLittleEndianInt()
+    void shouldPutAndGetByteWiseLittleEndianInt()
     {
         // GIVEN
         int sizeInBytes = 4;
@@ -653,7 +653,7 @@ public class UnsafeUtilTest
     }
 
     @Test
-    public void shouldPutAndGetByteWiseLittleEndianLong()
+    void shouldPutAndGetByteWiseLittleEndianLong()
     {
         // GIVEN
         int sizeInBytes = 8;

@@ -62,7 +62,7 @@ import org.neo4j.io.IOUtils;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.index.partition.PartitionSearcher;
 import org.neo4j.kernel.api.impl.schema.LuceneDocumentStructure;
-import org.neo4j.kernel.api.index.PropertyAccessor;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.values.storable.Value;
 
 import static java.util.stream.Collectors.toList;
@@ -88,7 +88,7 @@ public class PartitionedUniquenessVerifier implements UniquenessVerifier
     }
 
     @Override
-    public void verify( PropertyAccessor accessor, int[] propKeyIds ) throws IndexEntryConflictException, IOException
+    public void verify( NodePropertyAccessor accessor, int[] propKeyIds ) throws IndexEntryConflictException, IOException
     {
         for ( String field : allFields() )
         {
@@ -109,7 +109,7 @@ public class PartitionedUniquenessVerifier implements UniquenessVerifier
     }
 
     @Override
-    public void verify( PropertyAccessor accessor, int[] propKeyIds, List<Value[]> updatedValueTuples )
+    public void verify( NodePropertyAccessor accessor, int[] propKeyIds, List<Value[]> updatedValueTuples )
             throws IndexEntryConflictException, IOException
     {
         for ( Value[] valueTuple : updatedValueTuples )
@@ -158,7 +158,7 @@ public class PartitionedUniquenessVerifier implements UniquenessVerifier
      * @throws IOException
      * @throws IndexEntryConflictException
      */
-    private void searchForDuplicates( Query query, PropertyAccessor accessor, int[] propertyKeyIds )
+    private void searchForDuplicates( Query query, NodePropertyAccessor accessor, int[] propertyKeyIds )
             throws IOException, IndexEntryConflictException
     {
         DuplicateCheckingCollector collector = getDuplicateCollector( accessor, propertyKeyIds );
@@ -176,7 +176,7 @@ public class PartitionedUniquenessVerifier implements UniquenessVerifier
      * @throws IOException
      * @throws IndexEntryConflictException
      */
-    private void searchForDuplicates( Query query, PropertyAccessor accessor, int[] propertyKeyIds,
+    private void searchForDuplicates( Query query, NodePropertyAccessor accessor, int[] propertyKeyIds,
             int expectedNumberOfEntries ) throws IOException, IndexEntryConflictException
     {
         DuplicateCheckingCollector collector = getDuplicateCollector( accessor, propertyKeyIds );
@@ -184,7 +184,7 @@ public class PartitionedUniquenessVerifier implements UniquenessVerifier
         searchForDuplicates( query, collector );
     }
 
-    private DuplicateCheckingCollector getDuplicateCollector( PropertyAccessor accessor, int[] propertyKeyIds )
+    private DuplicateCheckingCollector getDuplicateCollector( NodePropertyAccessor accessor, int[] propertyKeyIds )
     {
         return DuplicateCheckingCollector.forProperties( accessor, propertyKeyIds );
     }

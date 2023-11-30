@@ -42,9 +42,9 @@ import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
-import org.neo4j.kernel.AvailabilityGuard;
-import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
+import org.neo4j.kernel.api.exceptions.Status;
+import org.neo4j.kernel.availability.AvailabilityGuard;
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
 
 import static org.neo4j.kernel.impl.transaction.log.TransactionIdStore.BASE_TX_ID;
@@ -56,11 +56,11 @@ import static org.neo4j.kernel.impl.transaction.log.TransactionIdStore.BASE_TX_I
 public class TransactionIdTracker
 {
     private final Supplier<TransactionIdStore> transactionIdStoreSupplier;
-    private final AvailabilityGuard availabilityGuard;
+    private final AvailabilityGuard databaseAvailabilityGuard;
 
-    public TransactionIdTracker( Supplier<TransactionIdStore> transactionIdStoreSupplier, AvailabilityGuard availabilityGuard )
+    public TransactionIdTracker( Supplier<TransactionIdStore> transactionIdStoreSupplier, AvailabilityGuard databaseAvailabilityGuard )
     {
-        this.availabilityGuard = availabilityGuard;
+        this.databaseAvailabilityGuard = databaseAvailabilityGuard;
         this.transactionIdStoreSupplier = transactionIdStoreSupplier;
     }
 
@@ -93,7 +93,7 @@ public class TransactionIdTracker
             return;
         }
 
-        if ( !availabilityGuard.isAvailable() )
+        if ( !databaseAvailabilityGuard.isAvailable() )
         {
             throw new TransactionFailureException( Status.General.DatabaseUnavailable, "Database unavailable" );
         }

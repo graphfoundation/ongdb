@@ -39,8 +39,7 @@
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.values.virtual.VirtualValues
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 
 import scala.collection.JavaConverters._
 
@@ -50,8 +49,8 @@ case class UndirectedRelationshipByIdSeekPipe(ident: String, relIdExpr: SeekArgs
   relIdExpr.registerOwningPipe(this)
 
   protected override def internalCreateResults(state: QueryState): Iterator[ExecutionContext] = {
-    val ctx = state.createOrGetInitialContext(executionContextFactory)
-    val relIds = VirtualValues.dropNoValues(relIdExpr.expressions(ctx, state))
+    val ctx = state.newExecutionContext(executionContextFactory)
+    val relIds = relIdExpr.expressions(ctx, state).dropNoValues()
     new UndirectedRelationshipIdSeekIterator(
       ident,
       fromNode,

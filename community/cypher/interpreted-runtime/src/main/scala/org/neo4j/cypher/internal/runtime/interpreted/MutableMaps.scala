@@ -38,19 +38,17 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted
 
-import org.neo4j.values.AnyValue
-
 object MutableMaps {
 
-  def create(size: Int) : collection.mutable.Map[String, AnyValue] =
-    new collection.mutable.OpenHashMap[String, AnyValue](if (size < 16) 16 else size)
+  def create[KEY, VALUE](size: Int) : collection.mutable.Map[KEY, VALUE] =
+    new collection.mutable.OpenHashMap[KEY, VALUE](if (size < 16) 16 else size)
 
-  def empty: collection.mutable.Map[String, AnyValue] = create(16)
+  def empty[KEY, VALUE]: collection.mutable.Map[KEY, VALUE] = create(16)
 
-  def create(input: scala.collection.Map[String, AnyValue]) : collection.mutable.Map[String, AnyValue] =
+  def create[KEY, VALUE](input: scala.collection.Map[KEY, VALUE]) : collection.mutable.Map[KEY, VALUE] =
     create(input.size) ++= input
 
-  def create(input: (String, AnyValue)*) : collection.mutable.Map[String, AnyValue] = {
+  def create[KEY, VALUE](input: (KEY, VALUE)*) : collection.mutable.Map[KEY, VALUE] = {
     create(input.size) ++= input
   }
 }

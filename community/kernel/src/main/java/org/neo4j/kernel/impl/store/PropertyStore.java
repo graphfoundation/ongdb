@@ -38,6 +38,9 @@
  */
 package org.neo4j.kernel.impl.store;
 
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+import org.eclipse.collections.impl.factory.primitive.LongSets;
+
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -48,13 +51,12 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.function.ToIntFunction;
 
-import org.neo4j.collection.primitive.PrimitiveLongObjectMap;
-import org.neo4j.cursor.Cursor;
 import org.neo4j.helpers.collection.Iterables;
 import org.neo4j.helpers.collection.Pair;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.impl.storageengine.impl.recordstorage.InconsistentDataReadException;
 import org.neo4j.kernel.impl.store.format.Capability;
 import org.neo4j.kernel.impl.store.format.RecordFormats;
 import org.neo4j.kernel.impl.store.format.UnsupportedFormatCapabilityException;
@@ -66,13 +68,15 @@ import org.neo4j.kernel.impl.store.record.PropertyBlock;
 import org.neo4j.kernel.impl.store.record.PropertyRecord;
 import org.neo4j.kernel.impl.store.record.Record;
 import org.neo4j.kernel.impl.store.record.RecordLoad;
+import org.neo4j.kernel.impl.util.Bits;
 import org.neo4j.logging.LogProvider;
-import org.neo4j.storageengine.api.StorageStatement;
 import org.neo4j.string.UTF8;
 import org.neo4j.values.storable.ArrayValue;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.Value;
+import org.neo4j.values.storable.Values;
 
+import static org.neo4j.kernel.impl.storageengine.impl.recordstorage.InconsistentDataReadException.CYCLE_DETECTION_THRESHOLD;
 import static org.neo4j.kernel.impl.store.DynamicArrayStore.getRightArray;
 import static org.neo4j.kernel.impl.store.NoStoreHeaderFormat.NO_STORE_HEADER_FORMAT;
 import static org.neo4j.kernel.impl.store.record.AbstractBaseRecord.NO_ID;
@@ -162,7 +166,7 @@ import static org.neo4j.kernel.impl.store.record.RecordLoad.NORMAL;
  *            seconds in next long block
  * </pre>
  */
-public class PropertyStore extends CommonAbstractStore<PropertyRecord,NoStoreHeader> implements StorageStatement.Properties
+public class PropertyStore extends CommonAbstractStore<PropertyRecord,NoStoreHeader>
 {
     public static final String TYPE_DESCRIPTOR = "PropertyStore";
 
@@ -176,7 +180,8 @@ public class PropertyStore extends CommonAbstractStore<PropertyRecord,NoStoreHea
     private final boolean allowStorePointsAndTemporal;
 
     public PropertyStore(
-            File fileName,
+            File file,
+            File idFile,
             Config configuration,
             IdGeneratorFactory idGeneratorFactory,
             PageCache pageCache,
@@ -187,13 +192,13 @@ public class PropertyStore extends CommonAbstractStore<PropertyRecord,NoStoreHea
             RecordFormats recordFormats,
             OpenOption... openOptions )
     {
-        super( fileName, configuration, IdType.PROPERTY, idGeneratorFactory, pageCache, logProvider, TYPE_DESCRIPTOR,
+        super( file, idFile, configuration, IdType.PROPERTY, idGeneratorFactory, pageCache, logProvider, TYPE_DESCRIPTOR,
                 recordFormats.property(), NO_STORE_HEADER_FORMAT, recordFormats.storeVersion(), openOptions );
         this.stringStore = stringPropertyStore;
         this.propertyKeyTokenStore = propertyKeyTokenStore;
         this.arrayStore = arrayPropertyStore;
-        allowStorePointsAndTemporal = recordFormats.hasCapability( Capability.POINT_PROPERTIES )
-                && recordFormats.hasCapability( Capability.TEMPORAL_PROPERTIES );
+        allowStorePointsAndTemporal =
+                recordFormats.hasCapability( Capability.POINT_PROPERTIES ) && recordFormats.hasCapability( Capability.TEMPORAL_PROPERTIES );
     }
 
     @Override
@@ -287,19 +292,14 @@ public class PropertyStore extends CommonAbstractStore<PropertyRecord,NoStoreHea
 
         PropertyType type = block.getType();
         RecordStore<DynamicRecord> dynamicStore = dynamicStoreForValueType( type );
-        if ( dynamicStore == null )
+        if ( dynamicStore != null )
         {
-            return;
-        }
-
-        try ( Cursor<DynamicRecord> dynamicRecords = dynamicStore.newRecordCursor( dynamicStore.newRecord() )
-                .acquire( block.getSingleValueLong(), NORMAL ) )
-        {
-            while ( dynamicRecords.next() )
+            List<DynamicRecord> dynamicRecords = dynamicStore.getRecords( block.getSingleValueLong(), NORMAL );
+            for ( DynamicRecord dynamicRecord : dynamicRecords )
             {
-                dynamicRecords.get().setType( type.intValue() );
-                block.addValueRecord( dynamicRecords.get().clone() );
+                dynamicRecord.setType( type.intValue() );
             }
+            block.setValueRecords( dynamicRecords );
         }
     }
 
@@ -318,14 +318,12 @@ public class PropertyStore extends CommonAbstractStore<PropertyRecord,NoStoreHea
         return propertyBlock.getType().value( propertyBlock, this );
     }
 
-    public static void allocateStringRecords( Collection<DynamicRecord> target, byte[] chars,
-            DynamicRecordAllocator allocator )
+    private static void allocateStringRecords( Collection<DynamicRecord> target, byte[] chars, DynamicRecordAllocator allocator )
     {
         AbstractDynamicStore.allocateRecordsFromBytes( target, chars, allocator );
     }
 
-    public static void allocateArrayRecords( Collection<DynamicRecord> target, Object array,
-            DynamicRecordAllocator allocator, boolean allowStorePoints )
+    private static void allocateArrayRecords( Collection<DynamicRecord> target, Object array, DynamicRecordAllocator allocator, boolean allowStorePoints )
     {
         DynamicArrayStore.allocateRecords( target, array, allocator, allowStorePoints );
     }
@@ -364,25 +362,21 @@ public class PropertyStore extends CommonAbstractStore<PropertyRecord,NoStoreHea
         }
     }
 
-    @Override
     public PageCursor openStringPageCursor( long reference )
     {
         return stringStore.openPageCursorForReading( reference );
     }
 
-    @Override
     public PageCursor openArrayPageCursor( long reference )
     {
         return arrayStore.openPageCursorForReading( reference );
     }
 
-    @Override
     public ByteBuffer loadString( long reference, ByteBuffer buffer, PageCursor page )
     {
         return readDynamic( stringStore, reference, buffer, page );
     }
 
-    @Override
     public ByteBuffer loadArray( long reference, ByteBuffer buffer, PageCursor page )
     {
         return readDynamic( arrayStore, reference, buffer, page );
@@ -400,6 +394,11 @@ public class PropertyStore extends CommonAbstractStore<PropertyRecord,NoStoreHea
             buffer.clear();
         }
         DynamicRecord record = store.newRecord();
+        // Only instantiated if number of dynamic records reaches a certain threshold, at which point it's instantiated
+        // and the set of dynamic IDs is observed for cycles to allow aborting the read if cycle detected.
+        MutableLongSet seenDynamicIds = null;
+        long firstReference = reference;
+        int count = 0;
         do
         {
             //We need to load forcefully here since otherwise we can have inconsistent reads
@@ -412,6 +411,20 @@ public class PropertyStore extends CommonAbstractStore<PropertyRecord,NoStoreHea
                 buffer = grow( buffer, data.length );
             }
             buffer.put( data, 0, data.length );
+
+            // An arbitrarily high threshold so that it's very likely only hit on actual chain cycle
+            if ( ++count >= CYCLE_DETECTION_THRESHOLD )
+            {
+                if ( seenDynamicIds == null )
+                {
+                    seenDynamicIds = LongSets.mutable.empty();
+                }
+                if ( !seenDynamicIds.add( reference ) )
+                {
+                    throw new InconsistentDataReadException( "Chain cycle detected in dynamic property value store %s starting at id:%d", store,
+                            firstReference );
+                }
+            }
         }
         while ( reference != NO_ID );
         return buffer;
@@ -431,11 +444,11 @@ public class PropertyStore extends CommonAbstractStore<PropertyRecord,NoStoreHea
 
     private static class PropertyBlockValueWriter extends TemporalValueWriterAdapter<IllegalArgumentException>
     {
+
         private final PropertyBlock block;
         private final int keyId;
         private final DynamicRecordAllocator stringAllocator;
         private final boolean allowStorePointsAndTemporal;
-
         PropertyBlockValueWriter( PropertyBlock block, int keyId, DynamicRecordAllocator stringAllocator, boolean allowStorePointsAndTemporal )
         {
             this.block = block;
@@ -653,8 +666,8 @@ public class PropertyStore extends CommonAbstractStore<PropertyRecord,NoStoreHea
                 throw new UnsupportedFormatCapabilityException( Capability.TEMPORAL_PROPERTIES );
             }
         }
-    }
 
+    }
     public static void setSingleBlockValue( PropertyBlock block, int keyId, PropertyType type, long longValue )
     {
         block.setSingleBlock( singleBlockLongValue( keyId, type, longValue ) );
@@ -676,26 +689,26 @@ public class PropertyStore extends CommonAbstractStore<PropertyRecord,NoStoreHea
         return UTF8.decode( byteArray );
     }
 
-    public String getStringFor( PropertyBlock propertyBlock )
+    String getStringFor( PropertyBlock propertyBlock )
     {
         ensureHeavy( propertyBlock );
         return getStringFor( propertyBlock.getValueRecords() );
     }
 
-    public String getStringFor( Collection<DynamicRecord> dynamicRecords )
+    private String getStringFor( Collection<DynamicRecord> dynamicRecords )
     {
         Pair<byte[], byte[]> source = stringStore.readFullByteArray( dynamicRecords, PropertyType.STRING );
         // A string doesn't have a header in the data array
         return decodeString( source.other() );
     }
 
-    public Value getArrayFor( PropertyBlock propertyBlock )
+    Value getArrayFor( PropertyBlock propertyBlock )
     {
         ensureHeavy( propertyBlock );
         return getArrayFor( propertyBlock.getValueRecords() );
     }
 
-    public Value getArrayFor( Iterable<DynamicRecord> records )
+    private Value getArrayFor( Iterable<DynamicRecord> records )
     {
         return getRightArray( arrayStore.readFullByteArray( records, PropertyType.ARRAY ) );
     }
@@ -720,24 +733,6 @@ public class PropertyStore extends CommonAbstractStore<PropertyRecord,NoStoreHea
         return toReturn;
     }
 
-    public Collection<PropertyRecord> getPropertyRecordChain( long firstRecordId,
-            PrimitiveLongObjectMap<PropertyRecord> propertyLookup )
-    {
-        long nextProp = firstRecordId;
-        List<PropertyRecord> toReturn = new ArrayList<>();
-        while ( nextProp != Record.NO_NEXT_PROPERTY.intValue() )
-        {
-            PropertyRecord propRecord = propertyLookup.get( nextProp );
-            if ( propRecord == null )
-            {
-                getRecord( nextProp, propRecord = newRecord(), RecordLoad.NORMAL );
-            }
-            toReturn.add( propRecord );
-            nextProp = propRecord.getNextProp();
-        }
-        return toReturn;
-    }
-
     @Override
     public PropertyRecord newRecord()
     {
@@ -755,5 +750,72 @@ public class PropertyStore extends CommonAbstractStore<PropertyRecord,NoStoreHea
     public ToIntFunction<Value[]> newValueEncodedSizeCalculator()
     {
         return new PropertyValueRecordSizeCalculator( this );
+    }
+
+    public static ArrayValue readArrayFromBuffer( ByteBuffer buffer )
+    {
+        if ( buffer.limit() <= 0 )
+        {
+            throw new IllegalStateException( "Given buffer is empty" );
+        }
+
+        byte typeId = buffer.get();
+        buffer.order( ByteOrder.BIG_ENDIAN );
+        try
+        {
+            if ( typeId == PropertyType.STRING.intValue() )
+            {
+                int arrayLength = buffer.getInt();
+                String[] result = new String[arrayLength];
+
+                for ( int i = 0; i < arrayLength; i++ )
+                {
+                    int byteLength = buffer.getInt();
+                    result[i] = UTF8.decode( buffer.array(), buffer.position(), byteLength );
+                    buffer.position( buffer.position() + byteLength );
+                }
+                return Values.stringArray( result );
+            }
+            else if ( typeId == PropertyType.GEOMETRY.intValue() )
+            {
+                GeometryType.GeometryHeader header = GeometryType.GeometryHeader.fromArrayHeaderByteBuffer( buffer );
+                byte[] byteArray = new byte[buffer.limit() - buffer.position()];
+                buffer.get( byteArray );
+                return GeometryType.decodeGeometryArray( header, byteArray );
+            }
+            else if ( typeId == PropertyType.TEMPORAL.intValue() )
+            {
+                TemporalType.TemporalHeader header = TemporalType.TemporalHeader.fromArrayHeaderByteBuffer( buffer );
+                byte[] byteArray = new byte[buffer.limit() - buffer.position()];
+                buffer.get( byteArray );
+                return TemporalType.decodeTemporalArray( header, byteArray );
+            }
+            else
+            {
+                ShortArray type = ShortArray.typeOf( typeId );
+                int bitsUsedInLastByte = buffer.get();
+                int requiredBits = buffer.get();
+                if ( requiredBits == 0 )
+                {
+                    return type.createEmptyArray();
+                }
+                if ( type == ShortArray.BYTE && requiredBits == Byte.SIZE )
+                {   // Optimization for byte arrays (probably large ones)
+                    byte[] byteArray = new byte[buffer.limit() - buffer.position()];
+                    buffer.get( byteArray );
+                    return Values.byteArray( byteArray );
+                }
+                else
+                {   // Fallback to the generic approach, which is a slower
+                    Bits bits = Bits.bitsFromBytes( buffer.array(), buffer.position() );
+                    int length = ((buffer.limit() - buffer.position()) * 8 - (8 - bitsUsedInLastByte)) / requiredBits;
+                    return type.createArray( length, bits, requiredBits );
+                }
+            }
+        }
+        finally
+        {
+            buffer.order( ByteOrder.LITTLE_ENDIAN );
+        }
     }
 }

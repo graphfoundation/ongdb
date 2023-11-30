@@ -38,45 +38,42 @@
  */
 package org.neo4j.kernel.impl.storageengine.impl.recordstorage;
 
-import java.util.Iterator;
-import java.util.Set;
+import org.eclipse.collections.api.IntIterable;
+import org.eclipse.collections.api.set.primitive.LongSet;
 
+import java.util.Iterator;
+import java.util.Optional;
+
+import org.neo4j.internal.kernel.api.exceptions.schema.CreateConstraintFailureException;
 import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
-import org.neo4j.kernel.api.exceptions.schema.CreateConstraintFailureException;
 import org.neo4j.kernel.api.exceptions.schema.DuplicateSchemaRuleException;
 import org.neo4j.kernel.api.exceptions.schema.SchemaRuleNotFoundException;
-import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.api.schema.constaints.IndexBackedConstraintDescriptor;
-import org.neo4j.kernel.api.schema.constaints.NodeKeyConstraintDescriptor;
-import org.neo4j.kernel.api.schema.constaints.UniquenessConstraintDescriptor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
+import org.neo4j.kernel.api.schema.constraints.IndexBackedConstraintDescriptor;
+import org.neo4j.kernel.api.schema.constraints.NodeKeyConstraintDescriptor;
+import org.neo4j.kernel.api.schema.constraints.UniquenessConstraintDescriptor;
 import org.neo4j.kernel.impl.api.SchemaState;
-import org.neo4j.kernel.impl.api.index.IndexProviderMap;
 import org.neo4j.kernel.impl.constraints.ConstraintSemantics;
 import org.neo4j.kernel.impl.store.SchemaStorage;
-import org.neo4j.kernel.impl.store.record.IndexRule;
-import org.neo4j.kernel.impl.transaction.state.TransactionRecordState;
 import org.neo4j.storageengine.api.StorageProperty;
+import org.neo4j.storageengine.api.schema.IndexDescriptor;
+import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 import org.neo4j.storageengine.api.txstate.TxStateVisitor;
 
-public class TransactionToRecordStateVisitor extends TxStateVisitor.Adapter
+class TransactionToRecordStateVisitor extends TxStateVisitor.Adapter
 {
     private boolean clearSchemaState;
     private final TransactionRecordState recordState;
     private final SchemaState schemaState;
     private final SchemaStorage schemaStorage;
     private final ConstraintSemantics constraintSemantics;
-    private final IndexProviderMap indexProviderMap;
 
-    public TransactionToRecordStateVisitor( TransactionRecordState recordState, SchemaState schemaState,
-                                            SchemaStorage schemaStorage, ConstraintSemantics constraintSemantics,
-                                            IndexProviderMap indexProviderMap )
+    TransactionToRecordStateVisitor( TransactionRecordState recordState, SchemaState schemaState, SchemaStorage schemaStorage,
+            ConstraintSemantics constraintSemantics )
     {
         this.recordState = recordState;
         this.schemaState = schemaState;
         this.schemaStorage = schemaStorage;
         this.constraintSemantics = constraintSemantics;
-        this.indexProviderMap = indexProviderMap;
     }
 
     @Override
@@ -123,12 +120,9 @@ public class TransactionToRecordStateVisitor extends TxStateVisitor.Adapter
 
     @Override
     public void visitNodePropertyChanges( long id, Iterator<StorageProperty> added,
-            Iterator<StorageProperty> changed, Iterator<Integer> removed )
+            Iterator<StorageProperty> changed, IntIterable removed )
     {
-        while ( removed.hasNext() )
-        {
-            recordState.nodeRemoveProperty( id, removed.next() );
-        }
+        removed.each( propId -> recordState.nodeRemoveProperty( id, propId ) );
         while ( changed.hasNext() )
         {
             StorageProperty prop = changed.next();
@@ -143,12 +137,9 @@ public class TransactionToRecordStateVisitor extends TxStateVisitor.Adapter
 
     @Override
     public void visitRelPropertyChanges( long id, Iterator<StorageProperty> added,
-            Iterator<StorageProperty> changed, Iterator<Integer> removed )
+            Iterator<StorageProperty> changed, IntIterable removed )
     {
-        while ( removed.hasNext() )
-        {
-            recordState.relRemoveProperty( id, removed.next() );
-        }
+        removed.each( relId -> recordState.relRemoveProperty( id, relId ) );
         while ( changed.hasNext() )
         {
             StorageProperty prop = changed.next();
@@ -163,12 +154,9 @@ public class TransactionToRecordStateVisitor extends TxStateVisitor.Adapter
 
     @Override
     public void visitGraphPropertyChanges( Iterator<StorageProperty> added, Iterator<StorageProperty> changed,
-            Iterator<Integer> removed )
+            IntIterable removed )
     {
-        while ( removed.hasNext() )
-        {
-            recordState.graphRemoveProperty( removed.next() );
-        }
+        removed.each( recordState::graphRemoveProperty );
         while ( changed.hasNext() )
         {
             StorageProperty prop = changed.next();
@@ -182,41 +170,42 @@ public class TransactionToRecordStateVisitor extends TxStateVisitor.Adapter
     }
 
     @Override
-    public void visitNodeLabelChanges( long id, final Set<Integer> added, final Set<Integer> removed )
+    public void visitNodeLabelChanges( long id, final LongSet added, final LongSet removed )
     {
         // record the state changes to be made to the store
-        for ( Integer label : removed )
-        {
-            recordState.removeLabelFromNode( label, id );
-        }
-        for ( Integer label : added )
-        {
-            recordState.addLabelToNode( label, id );
-        }
+        removed.each( label -> recordState.removeLabelFromNode( label, id ) );
+        added.each( label -> recordState.addLabelToNode( label, id ) );
     }
 
     @Override
-    public void visitAddedIndex( SchemaIndexDescriptor index, IndexProvider.Descriptor providerDescriptor )
+    public void visitAddedIndex( IndexDescriptor index )
     {
-        if ( providerDescriptor == null )
-        {
-            // No specific provider descriptor, use the default
-            providerDescriptor = indexProviderMap.getDefaultProvider().getProviderDescriptor();
-        }
-        else if ( indexProviderMap.lookup( providerDescriptor ) == null )
-        {
-            // A specific provider descriptor, verify that it exists
-            throw new IllegalArgumentException( "Specified non-existent provider '" + providerDescriptor + "' for created index " + index );
-        }
-
-        IndexRule rule = IndexRule.indexRule( schemaStorage.newRuleId(), index, providerDescriptor );
+        StoreIndexDescriptor rule = index.withId( schemaStorage.newRuleId() );
         recordState.createSchemaRule( rule );
     }
 
     @Override
-    public void visitRemovedIndex( SchemaIndexDescriptor index )
+    public void visitRemovedIndex( IndexDescriptor index )
     {
-        IndexRule rule = schemaStorage.indexGetForSchema( index );
+        StoreIndexDescriptor rule;
+        Optional<String> name = index.getUserSuppliedName();
+        if ( name.isPresent() )
+        {
+            String indexName = name.get();
+            rule = schemaStorage.indexGetForName( indexName );
+        }
+        else
+        {
+            rule = schemaStorage.indexGetForSchema( index, true );
+            if ( rule == null )
+            {
+                // Loosen the filtering a bit. The reason we do this during drop is this scenario where a uniqueness constraint creation
+                // crashed or similar, where the UNIQUE index exists, but not its constraint and so the only way to drop it
+                // (if you don't want to go the route of first creating a constraint and then drop that, where the index would be dropped along with it),
+                // is to do "DROP INDEX ON :Label(name) which has the type as GENERAL and would miss it.
+                rule = schemaStorage.indexGetForSchema( index, false );
+            }
+        }
         if ( rule != null )
         {
             recordState.dropSchemaRule( rule );
@@ -251,7 +240,7 @@ public class TransactionToRecordStateVisitor extends TxStateVisitor.Adapter
 
     private void visitAddedUniquenessConstraint( UniquenessConstraintDescriptor uniqueConstraint, long constraintId )
     {
-        IndexRule indexRule = schemaStorage.indexGetForSchema( uniqueConstraint.ownedIndexDescriptor() );
+        StoreIndexDescriptor indexRule = schemaStorage.indexGetForSchema( uniqueConstraint.ownedIndexDescriptor() );
         recordState.createSchemaRule( constraintSemantics.createUniquenessConstraintRule(
                 constraintId, uniqueConstraint, indexRule.getId() ) );
         recordState.setConstraintIndexOwner( indexRule, constraintId );
@@ -260,7 +249,7 @@ public class TransactionToRecordStateVisitor extends TxStateVisitor.Adapter
     private void visitAddedNodeKeyConstraint( NodeKeyConstraintDescriptor uniqueConstraint, long constraintId )
             throws CreateConstraintFailureException
     {
-        IndexRule indexRule = schemaStorage.indexGetForSchema( uniqueConstraint.ownedIndexDescriptor() );
+        StoreIndexDescriptor indexRule = schemaStorage.indexGetForSchema( uniqueConstraint.ownedIndexDescriptor() );
         recordState.createSchemaRule( constraintSemantics.createNodeKeyConstraintRule(
                 constraintId, uniqueConstraint, indexRule.getId() ) );
         recordState.setConstraintIndexOwner( indexRule, constraintId );
@@ -292,19 +281,19 @@ public class TransactionToRecordStateVisitor extends TxStateVisitor.Adapter
     }
 
     @Override
-    public void visitCreatedLabelToken( String name, int id )
+    public void visitCreatedLabelToken( long id, String name )
     {
         recordState.createLabelToken( name, id );
     }
 
     @Override
-    public void visitCreatedPropertyKeyToken( String name, int id )
+    public void visitCreatedPropertyKeyToken( long id, String name )
     {
         recordState.createPropertyKeyToken( name, id );
     }
 
     @Override
-    public void visitCreatedRelationshipTypeToken( String name, int id )
+    public void visitCreatedRelationshipTypeToken( long id, String name )
     {
         recordState.createRelationshipTypeToken( name, id );
     }

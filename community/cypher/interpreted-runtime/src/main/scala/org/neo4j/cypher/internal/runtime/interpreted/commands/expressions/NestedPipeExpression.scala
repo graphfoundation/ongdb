@@ -39,6 +39,7 @@
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, QueryState}
 import org.neo4j.values.AnyValue
 import org.neo4j.values.virtual.VirtualValues
@@ -49,17 +50,27 @@ the result of the NestedPipeExpression evaluation is a collection containing the
  */
 case class NestedPipeExpression(pipe: Pipe, inner: Expression) extends Expression {
   override def apply(ctx: ExecutionContext, state: QueryState): AnyValue = {
-    val innerState = state.withInitialContext(ctx).withDecorator(state.decorator.innerDecorator(owningPipe))
+    val innerState =
+      if (owningPipe.isDefined) {
+        state.withInitialContext(ctx).withDecorator(state.decorator.innerDecorator(owningPipe.get))
+      } else {
+        // We will get inaccurate profiling information of any db hits incurred by this nested expression
+        // but at least we will be able to execute the query
+        state.withInitialContext(ctx)
+      }
+
     val results = pipe.createResults(innerState)
     val map = results.map(ctx => inner(ctx, state))
     VirtualValues.list(map.toArray:_*)
   }
 
-  override def rewrite(f: (Expression) => Expression) = f(NestedPipeExpression(pipe, inner.rewrite(f)))
+  override def rewrite(f: (Expression) => Expression): Expression = f(NestedPipeExpression(pipe, inner.rewrite(f)))
 
-  override def arguments = List(inner)
+  override def arguments: Seq[Expression] = Seq(inner)
 
-  override def symbolTableDependencies = Set()
+  override def children: Seq[AstNode[_]] = Seq(inner)
+
+  override def symbolTableDependencies: Set[String] = Set()
 
   override def toString: String = s"NestedExpression()"
 }

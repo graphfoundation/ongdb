@@ -47,8 +47,7 @@ import org.neo4j.graphdb.Node
 import org.neo4j.internal.kernel.api.exceptions.KernelException
 import org.neo4j.internal.kernel.api.{IndexReference, InternalIndexState}
 import org.neo4j.kernel.api.schema.SchemaDescriptorFactory
-import org.neo4j.kernel.api.schema.constaints.ConstraintDescriptor
-import org.neo4j.kernel.api.schema.index.{SchemaIndexDescriptor => KernelIndexDescriptor}
+import org.neo4j.kernel.api.schema.constraints.ConstraintDescriptor
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore
 
 import scala.collection.JavaConverters._
@@ -87,8 +86,13 @@ class TransactionBoundPlanContext(tc: TransactionalContextWrapper)
 
   private def getOnlineIndex(descriptor: IndexReference): Option[SchemaTypes.IndexDescriptor] =
     tc.schemaRead.indexGetState(descriptor) match {
-      case InternalIndexState.ONLINE => Some(SchemaTypes.IndexDescriptor(descriptor.label(), descriptor.properties()(0)))
-      case _                         => None
+      case InternalIndexState.ONLINE =>
+        if (descriptor.isFulltextIndex || descriptor.isEventuallyConsistent) {
+          None
+        } else {
+          Some(SchemaTypes.IndexDescriptor(descriptor.schema().getEntityTokenIds()(0), descriptor.schema().getPropertyIds()(0)))
+        }
+      case _ => None
     }
 
   def getUniquenessConstraint(labelName: String, propertyKey: String): Option[SchemaTypes.UniquenessConstraint] = evalOrNone {

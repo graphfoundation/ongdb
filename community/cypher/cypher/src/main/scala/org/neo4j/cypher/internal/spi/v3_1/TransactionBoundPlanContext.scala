@@ -54,8 +54,7 @@ import org.neo4j.internal.kernel.api.procs.Neo4jTypes.AnyType
 import org.neo4j.internal.kernel.api.procs.{DefaultParameterValue, Neo4jTypes}
 import org.neo4j.internal.kernel.api.{IndexReference, InternalIndexState, procs}
 import org.neo4j.kernel.api.schema.SchemaDescriptorFactory
-import org.neo4j.kernel.api.schema.constaints.ConstraintDescriptor
-import org.neo4j.kernel.api.schema.index.{SchemaIndexDescriptor => KernelIndexDescriptor}
+import org.neo4j.kernel.api.schema.constraints.ConstraintDescriptor
 import org.neo4j.procedure.Mode
 
 import scala.collection.JavaConverters._
@@ -96,7 +95,7 @@ class TransactionBoundPlanContext(tc: TransactionalContextWrapper, logger: Inter
 
   private def getOnlineIndex(descriptor: IndexReference): Option[SchemaTypes.IndexDescriptor] =
     tc.kernelTransaction.schemaRead.indexGetState(descriptor) match {
-      case InternalIndexState.ONLINE => Some(SchemaTypes.IndexDescriptor(descriptor.label(), descriptor.properties()(0)))
+      case InternalIndexState.ONLINE => Some(SchemaTypes.IndexDescriptor(descriptor.schema().getEntityTokenIds()(0), descriptor.schema().getPropertyIds()(0)))
       case _                         => None
     }
 
@@ -117,7 +116,9 @@ class TransactionBoundPlanContext(tc: TransactionalContextWrapper, logger: Inter
     try {
       val labelId = getLabelId(labelName)
       val propId = getPropertyKeyId(propertyKey)
-      tc.kernelTransaction.schemaRead().constraintsGetForSchema(SchemaDescriptorFactory.forLabel(labelId, propId)).hasNext
+      tc.kernelTransaction.schemaRead().constraintsGetForSchema(SchemaDescriptorFactory.forLabel(labelId, propId)).asScala
+        .filter(c => c.enforcesPropertyExistence())
+        .hasNext
     } catch {
       case _: KernelException => false
     }

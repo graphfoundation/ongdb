@@ -44,9 +44,17 @@ import org.neo4j.kernel.lifecycle.Lifecycle;
 
 public abstract class KernelExtensionFactory<DEPENDENCIES> extends Service
 {
+    private final ExtensionType extensionType;
+
     protected KernelExtensionFactory( String key )
     {
+        this( ExtensionType.GLOBAL, key );
+    }
+
+    protected KernelExtensionFactory( ExtensionType extensionType, String key )
+    {
         super( key );
+        this.extensionType = extensionType;
     }
 
     /**
@@ -62,5 +70,10 @@ public abstract class KernelExtensionFactory<DEPENDENCIES> extends Service
     public String toString()
     {
         return "KernelExtension:" + getClass().getSimpleName() + getKeys();
+    }
+
+    ExtensionType getExtensionType()
+    {
+        return extensionType;
     }
 }

@@ -44,18 +44,18 @@ import java.util.function.Predicate;
 
 import org.neo4j.function.Predicates;
 import org.neo4j.helpers.collection.PrefetchingIterator;
+import org.neo4j.internal.kernel.api.exceptions.schema.MalformedSchemaRuleException;
 import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
 import org.neo4j.internal.kernel.api.schema.SchemaDescriptorPredicates;
 import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
 import org.neo4j.kernel.api.exceptions.schema.DuplicateSchemaRuleException;
-import org.neo4j.kernel.api.exceptions.schema.MalformedSchemaRuleException;
 import org.neo4j.kernel.api.exceptions.schema.SchemaRuleNotFoundException;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
 import org.neo4j.kernel.impl.store.record.ConstraintRule;
 import org.neo4j.kernel.impl.store.record.DynamicRecord;
-import org.neo4j.kernel.impl.store.record.IndexRule;
 import org.neo4j.kernel.impl.store.record.RecordLoad;
+import org.neo4j.storageengine.api.schema.IndexDescriptor;
 import org.neo4j.storageengine.api.schema.SchemaRule;
+import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 
 public class SchemaStorage implements SchemaRuleAccess
 {
@@ -67,25 +67,38 @@ public class SchemaStorage implements SchemaRuleAccess
     }
 
     /**
-     * Find the IndexRule that matches the given IndexDescriptor.
+     * Find the IndexRule that matches the given IndexDescriptor. Filters on index type.
      *
-     * @return  the matching IndexRule, or null if no matching IndexRule was found
-     * @throws  IllegalStateException if more than one matching rule.
+     * @return the matching IndexRule, or null if no matching IndexRule was found
+     * @throws IllegalStateException if more than one matching rule.
      * @param descriptor the target IndexDescriptor
      */
-    public IndexRule indexGetForSchema( final SchemaIndexDescriptor descriptor )
+    public StoreIndexDescriptor indexGetForSchema( final IndexDescriptor descriptor )
     {
-        Iterator<IndexRule> rules = loadAllSchemaRules( descriptor::isSame, IndexRule.class, false );
+        return indexGetForSchema( descriptor, true );
+    }
 
-        IndexRule foundRule = null;
+    /**
+     * Find the IndexRule that matches the given IndexDescriptor.
+     *
+     * @return the matching IndexRule, or null if no matching IndexRule was found
+     * @throws IllegalStateException if more than one matching rule.
+     * @param descriptor the target IndexDescriptor
+     * @param filterOnType whether or not to filter on index type. If {@code false} then only {@link SchemaDescriptor} will be compared.
+     */
+    public StoreIndexDescriptor indexGetForSchema( final IndexDescriptor descriptor, boolean filterOnType )
+    {
+        Predicate<StoreIndexDescriptor> filter = filterOnType ? descriptor::equals : candidate -> candidate.schema().equals( descriptor.schema() );
+        Iterator<StoreIndexDescriptor> indexes = loadAllSchemaRules( filter, StoreIndexDescriptor.class, false );
 
-        while ( rules.hasNext() )
+        StoreIndexDescriptor foundRule = null;
+        while ( indexes.hasNext() )
         {
-            IndexRule candidate = rules.next();
+            StoreIndexDescriptor candidate = indexes.next();
             if ( foundRule != null )
             {
                 throw new IllegalStateException( String.format(
-                        "Found more than one matching index rule, %s and %s", foundRule, candidate ) );
+                        "Found more than one matching index, %s and %s", foundRule, candidate ) );
             }
             foundRule = candidate;
         }
@@ -93,9 +106,29 @@ public class SchemaStorage implements SchemaRuleAccess
         return foundRule;
     }
 
-    public Iterator<IndexRule> indexesGetAll()
+    /**
+     * Find the IndexRule that has the given user supplied name.
+     *
+     * @param indexName the user supplied index name to look for.
+     * @return the matching IndexRule, or null if no matching index rule was found.
+     */
+    public StoreIndexDescriptor indexGetForName( String indexName )
     {
-        return loadAllSchemaRules( Predicates.alwaysTrue(), IndexRule.class, false );
+        Iterator<StoreIndexDescriptor> itr = indexesGetAll();
+        while ( itr.hasNext() )
+        {
+            StoreIndexDescriptor sid = itr.next();
+            if ( sid.getUserSuppliedName().map( n -> n.equals( indexName ) ).orElse( false ) )
+            {
+                return sid;
+            }
+        }
+        return null;
+    }
+
+    public Iterator<StoreIndexDescriptor> indexesGetAll()
+    {
+        return loadAllSchemaRules( Predicates.alwaysTrue(), StoreIndexDescriptor.class, false );
     }
 
     public Iterator<ConstraintRule> constraintsGetAll()
@@ -177,7 +210,7 @@ public class SchemaStorage implements SchemaRuleAccess
      *
      * @param predicate filter when loading.
      * @param returnType type of {@link SchemaRule} to load.
-     * @param ignoreMalformed whether or not to ignore inconsistent records (used in concsistency checking).
+     * @param ignoreMalformed whether or not to ignore inconsistent records (used in consistency checking).
      * @return {@link Iterator} of the loaded schema rules, lazily loaded when advancing the iterator.
      */
     <ReturnType extends SchemaRule> Iterator<ReturnType> loadAllSchemaRules(

@@ -39,8 +39,8 @@
 package org.neo4j.cypher.internal.compiler
 
 import org.neo4j.cypher.internal._
-import org.neo4j.cypher.internal.util.v3_4.InputPosition
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.InputPosition
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 
 class CypherPreParserTest extends CypherFunSuite with TableDrivenPropertyChecks {
@@ -78,7 +78,9 @@ class CypherPreParserTest extends CypherFunSuite with TableDrivenPropertyChecks 
     ("explainmatch", PreParsedStatement("explainmatch", Seq.empty, (1, 1, 0))),
     ("CYPHER updateStrategy=eager RETURN", PreParsedStatement("RETURN", Seq(ConfigurationOptions(None, Seq(EagerOption))), (1, 29, 28))),
     ("CYPHER debug=one debug=two RETURN", PreParsedStatement("RETURN", Seq(ConfigurationOptions(None, Seq(DebugOption("one"), DebugOption("two")))), (1, 28, 27))),
-    ("CYPHER runtime=slotted RETURN", PreParsedStatement("RETURN", Seq(ConfigurationOptions(None, Seq(SlottedRuntimeOption))), (1, 24, 23)))
+    ("CYPHER runtime=slotted RETURN", PreParsedStatement("RETURN", Seq(ConfigurationOptions(None, Seq(SlottedRuntimeOption))), (1, 24, 23))),
+    ("CYPHER expressionEngine=interpreted RETURN", PreParsedStatement("RETURN", Seq(ConfigurationOptions(None, Seq(InterpretedExpressionOption))), (1, 37, 36))),
+    ("CYPHER expressionEngine=compiled RETURN", PreParsedStatement("RETURN", Seq(ConfigurationOptions(None, Seq(CompiledExpressionOption))), (1, 34, 33)))
   )
 
   test("run the tests") {

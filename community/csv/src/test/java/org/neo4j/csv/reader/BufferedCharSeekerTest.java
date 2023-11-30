@@ -55,7 +55,6 @@ import java.util.List;
 import java.util.Random;
 
 import static java.lang.String.format;
-import static java.lang.System.currentTimeMillis;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -90,6 +89,13 @@ public class BufferedCharSeekerTest
 
     private static final String TEST_SOURCE = "TestSource";
     private final boolean useThreadAhead;
+    private static final int TAB = '\t';
+    private static final int COMMA = ',';
+    private static final Random random = new Random();
+    private final Extractors extractors = new Extractors( ',' );
+    private final Mark mark = new Mark();
+
+    private CharSeeker seeker;
 
     @Parameters( name = "{1}" )
     public static Collection<Object[]> data()
@@ -97,6 +103,15 @@ public class BufferedCharSeekerTest
         return asList(
                 new Object[] {Boolean.FALSE, "without thread-ahead"},
                 new Object[] {Boolean.TRUE, "with thread-ahead"} );
+    }
+
+    @After
+    public void closeSeeker() throws IOException
+    {
+        if ( seeker != null )
+        {
+            seeker.close();
+        }
     }
 
     /**
@@ -1057,23 +1072,6 @@ public class BufferedCharSeekerTest
                 return trimStrings;
             }
         };
-    }
-
-    private static final int TAB = '\t';
-    private static final int COMMA = ',';
-    private static final Random random = new Random();
-    private final Extractors extractors = new Extractors( ',' );
-    private final Mark mark = new Mark();
-
-    private CharSeeker seeker;
-
-    @After
-    public void closeSeeker() throws IOException
-    {
-        if ( seeker != null )
-        {
-            seeker.close();
-        }
     }
 
     private static class ControlledCharReadable extends CharReadable.Adapter

@@ -38,64 +38,50 @@
  */
 package org.neo4j.kernel.internal;
 
+import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
-import org.junit.rules.TestRule;
-import org.junit.runner.Description;
-import org.junit.runners.model.Statement;
 
 import java.io.File;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
+import java.util.Iterator;
 
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
 import org.neo4j.test.rule.PageCacheRule;
 import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.neo4j.graphdb.factory.GraphDatabaseSettings.forced_kernel_id;
 
 public class KernelDataTest
 {
-
+    private final Collection<Kernel> kernels = new HashSet<>();
     private final PageCacheRule pageCacheRule = new PageCacheRule();
     private final DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
-    private final TestRule shutDownRemainingKernels = new TestRule()
-    {
-        @Override
-        public Statement apply( final Statement base, Description description )
-        {
-            return new Statement()
-            {
-                @Override
-                public void evaluate() throws Throwable
-                {
-                    try
-                    {
-                        base.evaluate();
-                    }
-                    finally
-                    {
-                        for ( Kernel kernel : kernels.toArray( new Kernel[kernels.size()] ) )
-                        {
-                            kernel.shutdown();
-                        }
-                        kernels.clear();
-                    }
-                }
-            };
-        }
-    };
 
     @Rule
-    public final RuleChain ruleChain = RuleChain.outerRule( fileSystemRule )
-            .around( pageCacheRule ).around( shutDownRemainingKernels );
+    public final RuleChain ruleChain = RuleChain.outerRule( fileSystemRule ).around( pageCacheRule );
+
+    @After
+    public void tearDown()
+    {
+        Iterator<Kernel> kernelIterator = kernels.iterator();
+        while ( kernelIterator.hasNext() )
+        {
+            Kernel kernel = kernelIterator.next();
+            kernelIterator.remove();
+            kernel.shutdown();
+        }
+    }
 
     @Test
     public void shouldGenerateUniqueInstanceIdentifiers()
@@ -109,7 +95,7 @@ public class KernelDataTest
         // then
         assertNotNull( kernel1.instanceId() );
         assertNotNull( kernel2.instanceId() );
-        assertFalse( kernel1.instanceId().equals( kernel2.instanceId() ) );
+        assertNotEquals( kernel1.instanceId(), kernel2.instanceId() );
     }
 
     @Test
@@ -196,20 +182,8 @@ public class KernelDataTest
         Kernel( String desiredId )
         {
             super( fileSystemRule.get(), pageCacheRule.getPageCache( fileSystemRule.get() ),
-                    new File( "graph.db" ), Config.defaults( config( desiredId ) ) );
+                    new File( GraphDatabaseSettings.DEFAULT_DATABASE_NAME ), Config.defaults( forced_kernel_id, desiredId), mock( DataSourceManager.class ) );
             kernels.add( this );
-        }
-
-        @Override
-        public Version version()
-        {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public GraphDatabaseAPI graphDatabase()
-        {
-            throw new UnsupportedOperationException();
         }
 
         @Override
@@ -219,17 +193,4 @@ public class KernelDataTest
             kernels.remove( this );
         }
     }
-
-    private final Collection<Kernel> kernels = new HashSet<>();
-
-    private static Map<String,String> config( String desiredId )
-    {
-        HashMap<String,String> config = new HashMap<>();
-        if ( desiredId != null )
-        {
-            config.put( KernelData.forced_id.name(), desiredId );
-        }
-        return config;
-    }
-
 }

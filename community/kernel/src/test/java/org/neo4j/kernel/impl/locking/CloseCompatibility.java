@@ -38,12 +38,13 @@
  */
 package org.neo4j.kernel.impl.locking;
 
-import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import org.neo4j.kernel.impl.locking.Locks.Client;
+import org.neo4j.storageengine.api.lock.LockTracer;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.neo4j.kernel.impl.locking.ResourceTypes.NODE;
@@ -102,7 +103,7 @@ public class CloseCompatibility extends LockingCompatibilityTestSuite.Compatibil
 
         LockCountVisitor lockCountVisitor = new LockCountVisitor();
         locks.accept( lockCountVisitor );
-        Assert.assertEquals( 0, lockCountVisitor.getLockCount() );
+        assertEquals( 0, lockCountVisitor.getLockCount() );
 
     }
 
@@ -145,6 +146,6 @@ public class CloseCompatibility extends LockingCompatibilityTestSuite.Compatibil
 
         LockCountVisitor lockCountVisitor = new LockCountVisitor();
         locks.accept( lockCountVisitor );
-        Assert.assertEquals( 0, lockCountVisitor.getLockCount() );
+        assertEquals( 0, lockCountVisitor.getLockCount() );
     }
 }

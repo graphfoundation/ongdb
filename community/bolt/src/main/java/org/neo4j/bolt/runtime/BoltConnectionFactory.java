@@ -46,8 +46,9 @@ public interface BoltConnectionFactory
      * Create a new connection bound to the specified channel
      *
      * @param channel the underlying channel
+     * @param boltStateMachine to handle state change of the connection
      * @return the newly created connection instance
      */
-    BoltConnection newConnection( BoltChannel channel );
+    BoltConnection newConnection( BoltChannel channel, BoltStateMachine boltStateMachine );
 
 }

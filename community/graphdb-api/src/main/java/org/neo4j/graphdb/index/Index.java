@@ -47,19 +47,22 @@ import org.neo4j.graphdb.Relationship;
  * {@link Relationship}s) for fast lookup and querying. Any number of key/value
  * pairs can be associated with any number of entities using
  * {@link #add(PropertyContainer, String, Object)} and dissociated with
- * {@link #remove(PropertyContainer, String, Object)}. Querting is done using
+ * {@link #remove(PropertyContainer, String, Object)}. Querying is done using
  * {@link #get(String, Object)} for exact lookups and {@link #query(Object)} or
  * {@link #query(String, Object)} for more advanced querying, exposing querying
  * capabilities from the backend which is backing this particular index.
  *
  * Write operations participates in transactions so committing and rolling back
- * works the same way as usual in ONgDB.
+ * works the same way as usual in Neo4j.
  *
  * @author Mattias Persson
  *
  * @param <T> The type of entities this index manages. It may be either
  * {@link Node}s or {@link Relationship}s.
+ *
+ * @deprecated This API will be removed in the next major release. Please consider using schema indexes instead.
  */
+@Deprecated
 public interface Index<T extends PropertyContainer> extends ReadableIndex<T>
 {
     /**
@@ -73,6 +76,7 @@ public interface Index<T extends PropertyContainer> extends ReadableIndex<T>
      * @param value the value in the key/value pair to associate with the
      * entity.
      */
+    @Deprecated
     void add( T entity, String key, Object value );
 
     /**
@@ -86,6 +90,7 @@ public interface Index<T extends PropertyContainer> extends ReadableIndex<T>
      * @param value the value in the key/value pair to dissociate from the
      * entity.
      */
+    @Deprecated
     void remove( T entity, String key, Object value );
 
     /**
@@ -99,6 +104,7 @@ public interface Index<T extends PropertyContainer> extends ReadableIndex<T>
      * remove the this index.
      * @param key the key associated with the index entry
      */
+    @Deprecated
     void remove( T entity, String key );
 
     /**
@@ -112,6 +118,7 @@ public interface Index<T extends PropertyContainer> extends ReadableIndex<T>
      * @param entity the entity ({@link Node} or {@link Relationship}) to
      * remove the this index.
      */
+    @Deprecated
     void remove( T entity );
 
     /**
@@ -120,6 +127,7 @@ public interface Index<T extends PropertyContainer> extends ReadableIndex<T>
      * transaction which the delete operation was called in gets rolled back
      * it again becomes ok to use this index.
      */
+    @Deprecated
     void delete();
 
     /**
@@ -141,5 +149,6 @@ public interface Index<T extends PropertyContainer> extends ReadableIndex<T>
      * @return the previously indexed entity, or {@code null} if no entity was
      * indexed before (and the specified entity was added to the index).
      */
+    @Deprecated
     T putIfAbsent( T entity, String key, Object value );
 }

@@ -38,10 +38,10 @@
  */
 package org.neo4j.internal.kernel.api;
 
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
 import org.junit.Test;
 
-import org.neo4j.collection.primitive.Primitive;
-import org.neo4j.collection.primitive.PrimitiveLongSet;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
 
 import static org.neo4j.internal.kernel.api.IndexReadAsserts.assertNodeCount;
@@ -60,7 +60,7 @@ public abstract class NodeLabelIndexCursorTestBase<G extends KernelAPIWriteTestS
     {
         // GIVEN
         long toDelete;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             createNode( tx.dataWrite(), labelOne, labelFirst );
             createNode( tx.dataWrite(), labelTwo, labelFirst );
@@ -72,19 +72,20 @@ public abstract class NodeLabelIndexCursorTestBase<G extends KernelAPIWriteTestS
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             tx.dataWrite().nodeDelete( toDelete );
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             Read read = tx.dataRead();
 
-            try ( NodeLabelIndexCursor cursor = tx.cursors().allocateNodeLabelIndexCursor();
-                  PrimitiveLongSet uniqueIds = Primitive.longSet() )
+            try ( NodeLabelIndexCursor cursor = tx.cursors().allocateNodeLabelIndexCursor() )
             {
+                MutableLongSet uniqueIds = new LongHashSet();
+
                 // WHEN
                 read.nodeLabelScan( labelOne, cursor );
 
@@ -120,7 +121,7 @@ public abstract class NodeLabelIndexCursorTestBase<G extends KernelAPIWriteTestS
         long deletedInTx;
         long createdInTx;
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             inStore = createNode( tx.dataWrite(), labelOne );
             createNode( tx.dataWrite(), labelTwo );
@@ -128,7 +129,7 @@ public abstract class NodeLabelIndexCursorTestBase<G extends KernelAPIWriteTestS
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             tx.dataWrite().nodeDelete( deletedInTx );
             createdInTx = createNode( tx.dataWrite(), labelOne );
@@ -137,9 +138,10 @@ public abstract class NodeLabelIndexCursorTestBase<G extends KernelAPIWriteTestS
 
             Read read = tx.dataRead();
 
-            try ( NodeLabelIndexCursor cursor = tx.cursors().allocateNodeLabelIndexCursor();
-                  PrimitiveLongSet uniqueIds = Primitive.longSet() )
+            try ( NodeLabelIndexCursor cursor = tx.cursors().allocateNodeLabelIndexCursor() )
             {
+                MutableLongSet uniqueIds = new LongHashSet();
+
                 // when
                 read.nodeLabelScan( labelOne, cursor );
 

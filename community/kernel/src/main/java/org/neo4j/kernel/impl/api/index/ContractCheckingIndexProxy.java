@@ -54,7 +54,7 @@ import org.neo4j.kernel.impl.api.index.updater.DelegatingIndexUpdater;
  *
  * @see org.neo4j.kernel.impl.api.index.IndexProxy
  */
-public class ContractCheckingIndexProxy extends DelegatingIndexProxy
+class ContractCheckingIndexProxy extends DelegatingIndexProxy
 {
     /**
      * State machine for {@link IndexProxy proxies}
@@ -82,15 +82,15 @@ public class ContractCheckingIndexProxy extends DelegatingIndexProxy
     private final AtomicReference<State> state;
     private final AtomicInteger openCalls;
 
-    public ContractCheckingIndexProxy( IndexProxy delegate, boolean started )
+    ContractCheckingIndexProxy( IndexProxy delegate )
     {
         super( delegate );
-        this.state = new AtomicReference<>( started ? State.STARTED : State.INIT );
+        this.state = new AtomicReference<>( State.INIT );
         this.openCalls = new AtomicInteger( 0 );
     }
 
     @Override
-    public void start() throws IOException
+    public void start()
     {
         if ( state.compareAndSet( State.INIT, State.STARTING ) )
         {
@@ -118,7 +118,7 @@ public class ContractCheckingIndexProxy extends DelegatingIndexProxy
             return new DelegatingIndexUpdater( super.newUpdater( mode ) )
             {
                 @Override
-                public void close() throws IOException, IndexEntryConflictException
+                public void close() throws IndexEntryConflictException
                 {
                     try
                     {
@@ -140,19 +140,21 @@ public class ContractCheckingIndexProxy extends DelegatingIndexProxy
     @Override
     public void force( IOLimiter ioLimiter ) throws IOException
     {
-        openCall( "force" );
-        try
+        if ( tryOpenCall( "force" ) )
         {
-            super.force( ioLimiter );
-        }
-        finally
-        {
-            closeCall();
+            try
+            {
+                super.force( ioLimiter );
+            }
+            finally
+            {
+                closeCall();
+            }
         }
     }
 
     @Override
-    public void drop() throws IOException
+    public void drop()
     {
         if ( state.compareAndSet( State.INIT, State.CLOSED ) )
         {
@@ -224,6 +226,22 @@ public class ContractCheckingIndexProxy extends DelegatingIndexProxy
         {
             throw new IllegalStateException( "Cannot call " + name + "() when index state is " + state.get() );
         }
+    }
+
+    private boolean tryOpenCall( String name )
+    {
+        // do not open call unless we are in STARTED
+        if ( State.STARTED == state.get() )
+        {
+            // increment openCalls for closers to see
+            openCalls.incrementAndGet();
+            if ( State.STARTED == state.get() )
+            {
+                return true;
+            }
+            openCalls.decrementAndGet();
+        }
+        return false;
     }
 
     private void closeCall()

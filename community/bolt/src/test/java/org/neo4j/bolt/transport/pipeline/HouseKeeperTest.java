@@ -230,22 +230,18 @@ public class HouseKeeperTest
 
         // Then
         logProvider.assertExactly( AssertableLogProvider.inLog( HouseKeeper.class ).warn(
-                "Fatal error occurred when handling a client connection, " +
-                        "remote peer unexpectedly closed connection: %s", channel ) );
+                "Fatal error occurred when handling a client connection, " + "remote peer unexpectedly closed connection: %s", channel ) );
     }
 
     private static Bootstrap newBootstrap( HouseKeeper houseKeeper )
     {
-        return new Bootstrap()
-                .group( new NioEventLoopGroup( 1 ) )
-                .channel( NioSocketChannel.class )
-                .handler( new ChannelInitializer<SocketChannel>()
-                {
-                    @Override
-                    protected void initChannel( SocketChannel ch ) throws Exception
-                    {
-                        ch.pipeline().addLast( houseKeeper );
-                    }
-                } );
+        return new Bootstrap().group( new NioEventLoopGroup( 1 ) ).channel( NioSocketChannel.class ).handler( new ChannelInitializer<SocketChannel>()
+        {
+            @Override
+            protected void initChannel( SocketChannel ch ) throws Exception
+            {
+                ch.pipeline().addLast( houseKeeper );
+            }
+        } );
     }
 }

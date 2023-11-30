@@ -58,7 +58,6 @@ import org.neo4j.test.server.ExclusiveServerTestBase;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertFalse;
 import static org.neo4j.server.helpers.CommunityServerBuilder.serverOnRandomPorts;
 
 public class BoltIT extends ExclusiveServerTestBase
@@ -80,7 +79,7 @@ public class BoltIT extends ExclusiveServerTestBase
     @Test
     public void shouldLaunchBolt() throws Throwable
     {
-        // When I run ONgDB with Bolt enabled
+        // When I run Neo4j with Bolt enabled
         server = serverOnRandomPorts().withProperty( new BoltConnector( "bolt" ).type.name(), "BOLT" )
                 .withProperty( new BoltConnector( "bolt" ).enabled.name(), "true" )
                 .withProperty( new BoltConnector( "bolt" ).encryption_level.name(), "REQUIRED" )
@@ -105,30 +104,12 @@ public class BoltIT extends ExclusiveServerTestBase
     }
 
     @Test
-    public void boltAddressShouldAppearToComeFromTheSameOriginAsTheHttpAddressEvenThoughThisIsMorallyHazardous()
-            throws Throwable
-    {
-        // Given
-        String host = "neo4j.com";
-        startServerWithBoltEnabled();
-        RestRequest request = new RestRequest( server.baseUri() ).host( host );
-
-        // When
-        JaxRsResponse response = request.get();
-
-        // Then
-        Map<String,Object> map = JsonHelper.jsonToMap( response.getEntity() );
-        assertThat( String.valueOf( map.get( "bolt" ) ), containsString( "bolt://" + host ) );
-        assertFalse( String.valueOf( map.get( "bolt" ) ).contains( "bolt://bolt://" ) );
-    }
-
-    @Test
-    public void boltAddressShouldComeFromConfigWhenTheListenConfigIsNotLocalhost() throws Throwable
+    public void boltAddressShouldComeFromConnectorAdvertisedAddress() throws Throwable
     {
         // Given
         String host = "neo4j.com";
 
-        startServerWithBoltEnabled( host, 9999, "localhost", 7687 );
+        startServerWithBoltEnabled( host, 9999, "localhost", 0 );
         RestRequest request = new RestRequest( server.baseUri() ).host( host );
 
         // When
@@ -137,23 +118,6 @@ public class BoltIT extends ExclusiveServerTestBase
         // Then
         Map<String,Object> map = JsonHelper.jsonToMap( response.getEntity() );
         assertThat( String.valueOf( map.get( "bolt" ) ), containsString( "bolt://" + host + ":" + 9999 ) );
-    }
-
-    @Test
-    public void boltPortShouldComeFromConfigButHostShouldMatchHttpHostHeaderWhenConfigIsLocalhostOrEmptyEvenThoughThisIsMorallyHazardous()
-            throws Throwable
-    {
-        // Given
-        String host = "neo4j.com";
-        startServerWithBoltEnabled( "localhost", 9999, "localhost", 7687 );
-        RestRequest request = new RestRequest( server.baseUri() ).host( host );
-
-        // When
-        JaxRsResponse response = request.get();
-
-        // Then
-        Map<String,Object> map = JsonHelper.jsonToMap( response.getEntity() );
-        assertThat( String.valueOf( map.get( "bolt" ) ), containsString( "bolt://" + host + ":9999" ) );
     }
 
     private void startServerWithBoltEnabled() throws IOException

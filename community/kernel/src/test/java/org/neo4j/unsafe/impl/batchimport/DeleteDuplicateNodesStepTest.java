@@ -48,8 +48,11 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-import org.neo4j.collection.primitive.PrimitiveLongCollections;
+import org.neo4j.collection.PrimitiveLongCollections;
 import org.neo4j.helpers.collection.PrefetchingIterator;
+import org.neo4j.kernel.impl.storageengine.impl.recordstorage.Loaders;
+import org.neo4j.kernel.impl.storageengine.impl.recordstorage.PropertyCreator;
+import org.neo4j.kernel.impl.storageengine.impl.recordstorage.PropertyTraverser;
 import org.neo4j.kernel.impl.store.AbstractDynamicStore;
 import org.neo4j.kernel.impl.store.NeoStores;
 import org.neo4j.kernel.impl.store.NodeLabelsField;
@@ -61,24 +64,20 @@ import org.neo4j.kernel.impl.store.record.PrimitiveRecord;
 import org.neo4j.kernel.impl.store.record.PropertyBlock;
 import org.neo4j.kernel.impl.store.record.PropertyRecord;
 import org.neo4j.kernel.impl.store.record.Record;
-import org.neo4j.kernel.impl.transaction.state.Loaders;
-import org.neo4j.kernel.impl.transaction.state.PropertyCreator;
-import org.neo4j.kernel.impl.transaction.state.PropertyTraverser;
 import org.neo4j.kernel.impl.transaction.state.RecordAccess;
-import org.neo4j.test.Randoms;
 import org.neo4j.test.rule.NeoStoresRule;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.test.rule.RepeatRule;
 import org.neo4j.test.rule.RepeatRule.Repeat;
 import org.neo4j.unsafe.batchinsert.internal.DirectRecordAccess;
 import org.neo4j.unsafe.impl.batchimport.staging.SimpleStageControl;
-import org.neo4j.values.storable.Values;
+import org.neo4j.values.storable.RandomValues;
 
 import static org.junit.Assert.assertEquals;
 
 public class DeleteDuplicateNodesStepTest
 {
-    private final RandomRule random = new RandomRule().withConfiguration( new Randoms.Default()
+    private final RandomRule random = new RandomRule().withConfiguration( new RandomValues.Default()
     {
         @Override
         public int stringMaxLength()
@@ -256,7 +255,7 @@ public class DeleteDuplicateNodesStepTest
                     return null;
                 }
                 PropertyBlock block = new PropertyBlock();
-                propertyStore.encodeValue( block, i, Values.of( random.propertyValue() ) );
+                propertyStore.encodeValue( block, i, random.nextValue() );
                 i++;
                 return block;
             }
@@ -277,9 +276,6 @@ public class DeleteDuplicateNodesStepTest
     {
         step.start( 0 );
         step.receive( 0, null );
-        while ( !step.isCompleted() )
-        {
-            Thread.sleep( 10 );
-        }
+        step.awaitCompleted();
     }
 }

@@ -44,7 +44,7 @@ import org.neo4j.configuration.Description;
 import org.neo4j.configuration.LoadableConfig;
 import org.neo4j.graphdb.config.Setting;
 
-import static org.neo4j.kernel.configuration.Settings.options;
+import static org.neo4j.kernel.configuration.Settings.optionsObeyCase;
 import static org.neo4j.kernel.configuration.Settings.setting;
 
 /**
@@ -54,5 +54,6 @@ import static org.neo4j.kernel.configuration.Settings.setting;
 public class SslSystemSettings implements LoadableConfig
 {
     @Description( "Netty SSL provider" )
-    public static final Setting<SslProvider> netty_ssl_provider = setting( "dbms.netty.ssl.provider", options( SslProvider.class ), SslProvider.JDK.name() );
+    public static final Setting<SslProvider> netty_ssl_provider =
+            setting( "dbms.netty.ssl.provider", optionsObeyCase( SslProvider.class ), SslProvider.JDK.name() );
 }

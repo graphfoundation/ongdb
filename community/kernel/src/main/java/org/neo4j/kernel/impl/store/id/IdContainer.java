@@ -62,7 +62,7 @@ public class IdContainer
     public static final long NO_RESULT = -1;
 
     // header format: sticky(byte), nextFreeId(long)
-    static final int HEADER_SIZE = Byte.BYTES + Long.BYTES;
+    public static final int HEADER_SIZE = Byte.BYTES + Long.BYTES;
 
     // if sticky the id generator wasn't closed properly so it has to be
     // rebuilt (go through the node, relationship, property, rel type etc files)
@@ -157,7 +157,7 @@ public class IdContainer
     private static long readAndValidate( StoreChannel channel, File fileName ) throws IOException
     {
         ByteBuffer buffer = ByteBuffer.allocate( HEADER_SIZE );
-        readHeader( channel, buffer );
+        readHeader( fileName, channel, buffer );
         buffer.flip();
         byte storageStatus = buffer.get();
         if ( storageStatus != CLEAN_GENERATOR )
@@ -334,7 +334,7 @@ public class IdContainer
         }
     }
 
-    private static void readHeader( StoreChannel channel, ByteBuffer buffer ) throws IOException
+    private static void readHeader( File file, StoreChannel channel, ByteBuffer buffer ) throws IOException
     {
         try
         {
@@ -344,7 +344,8 @@ public class IdContainer
         {
             ByteBuffer exceptionBuffer = buffer.duplicate();
             exceptionBuffer.flip();
-            throw new InvalidIdGeneratorException( "Unable to read header, bytes read: " + Arrays.toString( getBufferBytes( exceptionBuffer ) ) );
+            throw new InvalidIdGeneratorException(
+                    "Unable to read header of id file [" + file + "], bytes read: " + Arrays.toString( getBufferBytes( exceptionBuffer ) ) );
         }
     }
 

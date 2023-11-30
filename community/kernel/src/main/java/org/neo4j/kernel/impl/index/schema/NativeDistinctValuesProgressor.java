@@ -46,9 +46,9 @@ import java.util.Comparator;
 import org.neo4j.cursor.RawCursor;
 import org.neo4j.index.internal.gbptree.Hit;
 
-public class NativeDistinctValuesProgressor<KEY extends NativeSchemaKey<KEY>, VALUE extends NativeSchemaValue> extends NativeIndexProgressor<KEY,VALUE>
+public class NativeDistinctValuesProgressor<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> extends NativeIndexProgressor<KEY,VALUE>
 {
-    private final SchemaLayout<KEY> layout;
+    private final IndexLayout<KEY,VALUE> layout;
     private final KEY prev;
     private final Comparator<KEY> comparator;
     private boolean first = true;
@@ -56,7 +56,7 @@ public class NativeDistinctValuesProgressor<KEY extends NativeSchemaKey<KEY>, VA
     private boolean last;
 
     NativeDistinctValuesProgressor( RawCursor<Hit<KEY,VALUE>,IOException> seeker, NodeValueClient client,
-            Collection<RawCursor<Hit<KEY,VALUE>,IOException>> toRemoveFromOnClose, SchemaLayout<KEY> layout,
+            Collection<RawCursor<Hit<KEY,VALUE>,IOException>> toRemoveFromOnClose, IndexLayout<KEY,VALUE> layout,
             Comparator<KEY> comparator )
     {
         super( seeker, client, toRemoveFromOnClose );
@@ -73,32 +73,27 @@ public class NativeDistinctValuesProgressor<KEY extends NativeSchemaKey<KEY>, VA
             while ( seeker.next() )
             {
                 KEY key = seeker.get().key();
-                try
+                if ( first )
                 {
-                    if ( first )
-                    {
-                        first = false;
-                        countForCurrentValue = 1;
-                    }
-                    else if ( comparator.compare( prev, key ) == 0 )
-                    {
-                        // same as previous
-                        countForCurrentValue++;
-                    }
-                    else
-                    {
-                        // different from previous
-                        boolean accepted = client.acceptNode( countForCurrentValue, extractValues( prev ) );
-                        countForCurrentValue = 1;
-                        if ( accepted )
-                        {
-                            return true;
-                        }
-                    }
-                }
-                finally
-                {
+                    first = false;
+                    countForCurrentValue = 1;
                     layout.copyKey( key, prev );
+                }
+                else if ( comparator.compare( prev, key ) == 0 )
+                {
+                    // same as previous
+                    countForCurrentValue++;
+                }
+                else
+                {
+                    // different from previous
+                    boolean accepted = client.acceptNode( countForCurrentValue, extractValues( prev ) );
+                    countForCurrentValue = 1;
+                    layout.copyKey( key, prev );
+                    if ( accepted )
+                    {
+                        return true;
+                    }
                 }
             }
             boolean finalResult = !first && !last && client.acceptNode( countForCurrentValue, extractValues( prev ) );

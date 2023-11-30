@@ -47,6 +47,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.neo4j.io.ByteUnit;
 
+@Deprecated
 public class Format
 {
     /**
@@ -102,7 +103,7 @@ public class Format
 
     public static String time( TimeZone timeZone )
     {
-        return time( new Date() );
+        return time( new Date(), timeZone );
     }
 
     public static String time( long millis )

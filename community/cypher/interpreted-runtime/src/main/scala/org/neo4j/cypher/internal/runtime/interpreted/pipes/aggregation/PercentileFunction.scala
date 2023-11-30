@@ -38,7 +38,7 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes.aggregation
 
-import org.neo4j.cypher.internal.util.v3_4.InvalidArgumentException
+import org.neo4j.cypher.internal.v3_5.util.InvalidArgumentException
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Expression, NumericHelper}
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState

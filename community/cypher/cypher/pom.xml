@@ -1,33 +1,33 @@
 <?xml version="1.0"?>
-
-
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
-        <artifactId>cypher-parent</artifactId>
+        <artifactId>geequel-parent</artifactId>
         <version>1.1.0-SNAPSHOT</version>
         <relativePath>../</relativePath>
     </parent>
 
-    <modelVersion>4.0.0</modelVersion>
     <artifactId>ongdb-geequel</artifactId>
-    <packaging>jar</packaging>
     <version>1.1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
     <name>ONgDB - Geequel</name>
     <description>ONgDB query language</description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
-
-    <properties>
-        <moduleName>org.neo4j.cypher</moduleName>
-        <license-text.header>headers/GPL-3-header.txt</license-text.header>
-    </properties>
 
     <scm>
         <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
         <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
         <url>https://github.com/graphfoundation/ongdb.git</url>
     </scm>
+
+    <properties>
+        <moduleName>org.neo4j.cypher</moduleName>
+        <license-text.header>headers/GPL-3-header.txt</license-text.header>
+    </properties>
 
     <licenses>
         <license>
@@ -62,10 +62,7 @@
                 <groupId>org.scalastyle</groupId>
                 <artifactId>scalastyle-maven-plugin</artifactId>
             </plugin>
-            <!-- This module contains public API, run javadoc and revapi -->
-            <plugin>
-                <artifactId>maven-javadoc-plugin</artifactId>
-            </plugin>
+            <!-- This module contains public API, run revapi -->
             <plugin>
                 <groupId>org.revapi</groupId>
                 <artifactId>revapi-maven-plugin</artifactId>
@@ -127,7 +124,7 @@
             <version>${project.version}</version>
         </dependency>
 
-        <!-- ongdb testing -->
+        <!-- neo4j testing -->
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>ongdb-common</artifactId>
@@ -156,8 +153,6 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-math3</artifactId>
-            <scope>test</scope>
-            <version>3.0</version>
         </dependency>
         <dependency>
             <groupId>org.reflections</groupId>
@@ -234,21 +229,21 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
-            <artifactId>neo4j-cypher-compiler-3.3</artifactId>
-            <version>${cypher.compatibility.33}</version>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-geequel-planner-3.4</artifactId>
+            <version>${geequel.compatibility.10}</version>
             <exclusions>
                 <exclusion>
-                    <groupId>org.neo4j</groupId>
-                    <artifactId>neo4j-kernel</artifactId>
+                    <groupId>org.graphfoundation.ongdb</groupId>
+                    <artifactId>ongdb-kernel</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>org.neo4j</groupId>
-                    <artifactId>neo4j-lucene-index</artifactId>
+                    <groupId>org.graphfoundation.ongdb</groupId>
+                    <artifactId>ongdb-lucene-index</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>org.neo4j</groupId>
-                    <artifactId>neo4j-graph-algo</artifactId>
+                    <groupId>org.graphfoundation.ongdb</groupId>
+                    <artifactId>ongdb-graph-algo</artifactId>
                 </exclusion>
                 <exclusion>
                     <groupId>org.scala-lang</groupId>
@@ -275,19 +270,25 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-geequel-util-3.4</artifactId>
+            <artifactId>ongdb-legacy</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-geequel-planner-3.4</artifactId>
+            <artifactId>ongdb-util-3.5</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-geequel-planner-spi-3.4</artifactId>
+            <artifactId>ongdb-geequel-planner-3.5</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-geequel-planner-spi-3.5</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -307,23 +308,7 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-geequel-planner-3.4</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>openCypher-frontend-1</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-geequel-util-3.4</artifactId>
+            <artifactId>ongdb-geequel-planner-3.5</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
@@ -345,8 +330,31 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-util-3.5</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
 
-        <!-- neo4j-cypher re-include excluded (with correct version) -->
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-ast-3.5</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-parser-3.5</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- ongdb-geequel re-include excluded (with correct version) -->
 
         <dependency>
             <groupId>org.parboiled</groupId>

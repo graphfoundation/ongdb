@@ -41,7 +41,7 @@ package org.neo4j.cypher.internal.runtime.interpreted
 import java.time._
 import java.time.temporal.TemporalAmount
 
-import org.neo4j.cypher.internal.util.v3_4.CypherTypeException
+import org.neo4j.cypher.internal.v3_5.util.CypherTypeException
 import org.neo4j.graphdb.spatial.Point
 import org.neo4j.values.storable.{ArrayValue, _}
 import org.neo4j.values.virtual._
@@ -140,8 +140,8 @@ object CastSupport {
       case (a, b) if a.isInstanceOf[ListValue] || b.isInstanceOf[ListValue] => throw new CypherTypeException(
         "Collections containing collections can not be stored in properties.")
 
-      case _ => throw new CypherTypeException("ONgDB only supports a subset of Geequel types for storage as singleton or array properties. " +
-        "Please refer to section geequel/syntax/values of the manual for more details.")
+      case _ => throw new CypherTypeException("Neo4j only supports a subset of Cypher types for storage as singleton or array properties. " +
+        "Please refer to section cypher/syntax/values of the manual for more details.")
 
     }
   }

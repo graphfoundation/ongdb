@@ -39,27 +39,23 @@
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.ListSupport
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.operations.CypherFunctions
 import org.neo4j.values.AnyValue
-import org.neo4j.values.storable.{TextValue, Values}
-import org.neo4j.values.virtual.PathValue
 
-case class LengthFunction(inner: Expression)
-  extends NullInNullOutExpression(inner)
-  with ListSupport {
-  //NOTE all usage except for paths is deprecated
-  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = value match {
-    case path: PathValue => Values.longValue(path.size())
-    case s: TextValue  => Values.longValue(s.length())
-    case x          => Values.longValue(makeTraversable(x).size())
-  }
+case class LengthFunction(inner: Expression) extends NullInNullOutExpression(inner) {
 
-  def rewrite(f: (Expression) => Expression) = f(LengthFunction(inner.rewrite(f)))
+  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue =
+    CypherFunctions.length(value)
 
-  def arguments = Seq(inner)
+  override def rewrite(f: Expression => Expression): Expression = f(LengthFunction(inner.rewrite(f)))
 
-  def symbolTableDependencies = inner.symbolTableDependencies
+  override def arguments: Seq[Expression] = Seq(inner)
+
+  override def children: Seq[AstNode[_]] = Seq(inner)
+
+  override def symbolTableDependencies: Set[String] = inner.symbolTableDependencies
 
   override def toString = s"length($inner)"
 }

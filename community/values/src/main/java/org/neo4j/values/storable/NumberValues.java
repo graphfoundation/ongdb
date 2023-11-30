@@ -41,6 +41,8 @@ package org.neo4j.values.storable;
 import java.math.BigDecimal;
 import java.util.Arrays;
 
+import static org.neo4j.values.utils.ValueMath.HASH_CONSTANT;
+
 /**
  * Static methods for computing the hashCode of primitive numbers and arrays of primitive numbers.
  * <p>
@@ -70,7 +72,7 @@ public final class NumberValues
         COEFFICIENTS[0] = 1;
         for ( int i = 1; i <= MAX_LENGTH; ++i )
         {
-            COEFFICIENTS[i] = 31 * COEFFICIENTS[i - 1];
+            COEFFICIENTS[i] = HASH_CONSTANT * COEFFICIENTS[i - 1];
         }
     }
 
@@ -132,7 +134,7 @@ public final class NumberValues
         int result = COEFFICIENTS[max];
         for ( int i = 0; i < values.length && i < COEFFICIENTS.length - 1; ++i )
         {
-            result += COEFFICIENTS[max - i - 1] * values[i];
+            result += COEFFICIENTS[max - i - 1] * ( values[i] + HASH_CONSTANT );
         }
         return result;
     }
@@ -165,7 +167,7 @@ public final class NumberValues
         for ( float value : values )
         {
             int elementHash = NumberValues.hash( value );
-            result = 31 * result + elementHash;
+            result = HASH_CONSTANT * result + elementHash;
         }
         return result;
     }
@@ -176,7 +178,7 @@ public final class NumberValues
         for ( double value : values )
         {
             int elementHash = NumberValues.hash( value );
-            result = 31 * result + elementHash;
+            result = HASH_CONSTANT * result + elementHash;
         }
         return result;
     }

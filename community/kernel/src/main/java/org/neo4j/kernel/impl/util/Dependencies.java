@@ -38,58 +38,62 @@
  */
 package org.neo4j.kernel.impl.util;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import org.eclipse.collections.api.RichIterable;
+import org.eclipse.collections.api.list.MutableList;
+import org.eclipse.collections.api.multimap.list.MutableListMultimap;
+import org.eclipse.collections.impl.factory.Multimaps;
+
+import java.util.Objects;
 import java.util.function.Supplier;
 
 import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.helpers.collection.Iterables;
 
 @SuppressWarnings( "unchecked" )
 public class Dependencies extends DependencyResolver.Adapter implements DependencySatisfier
 {
-    private final Supplier<DependencyResolver> parent;
-    private final Map<Class<?>, List<?>> typeDependencies = new HashMap<>();
+    private final DependencyResolver parent;
+    private final MutableListMultimap<Class, Object> typeDependencies = Multimaps.mutable.list.empty();
 
     public Dependencies()
     {
         parent = null;
     }
 
-    public Dependencies( final DependencyResolver parent )
+    public Dependencies( DependencyResolver parent )
     {
-        this.parent = () -> parent;
-    }
-
-    public Dependencies( Supplier<DependencyResolver> parent )
-    {
+        Objects.requireNonNull( parent );
         this.parent = parent;
     }
 
     @Override
     public <T> T resolveDependency( Class<T> type, SelectionStrategy selector )
     {
-        List<?> options = typeDependencies.get( type );
-
-        if ( options != null )
+        RichIterable options = typeDependencies.get( type );
+        if ( options.notEmpty() )
         {
-            return selector.select( type, (Iterable<T>) options);
+            return selector.select( type, (Iterable<T>) options );
         }
 
         // Try parent
         if ( parent != null )
         {
-            DependencyResolver dependencyResolver = parent.get();
-
-            if ( dependencyResolver != null )
-            {
-                return dependencyResolver.resolveDependency( type, selector );
-            }
+            return parent.resolveDependency( type, selector );
         }
 
         // Out of options
         throw new UnsatisfiedDependencyException( type );
+    }
+
+    @Override
+    public <T> Iterable<? extends T> resolveTypeDependencies( Class<T> type )
+    {
+        MutableList<T> options = (MutableList<T>) typeDependencies.get( type );
+        if ( parent != null )
+        {
+            return Iterables.concat( options, parent.resolveTypeDependencies( type ) );
+        }
+        return options;
     }
 
     @Override
@@ -111,13 +115,7 @@ public class Dependencies extends DependencyResolver.Adapter implements Dependen
         Class<?> type = dependency.getClass();
         do
         {
-            List<Object> deps = (List<Object>) typeDependencies.get( type );
-            if ( deps == null )
-            {
-                deps = new ArrayList<>(  );
-                typeDependencies.put(type, deps);
-            }
-            deps.add( dependency );
+            typeDependencies.put( type, dependency );
 
             // Add as all interfaces
             Class<?>[] interfaces = type.getInterfaces();
@@ -142,15 +140,7 @@ public class Dependencies extends DependencyResolver.Adapter implements Dependen
     {
         for ( Class<?> type : interfaces )
         {
-            List<Object> deps = (List<Object>) typeDependencies.get( type );
-            if ( deps == null )
-            {
-                deps = new ArrayList<>(  );
-                typeDependencies.put(type, deps);
-            }
-            deps.add( dependency );
-
-            // Add as all sub-interfaces
+            typeDependencies.put( type, dependency );
             addInterfaces(type.getInterfaces(), dependency);
         }
     }

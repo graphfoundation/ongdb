@@ -38,8 +38,8 @@
  */
 package org.neo4j.commandline.dbms;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -57,18 +57,22 @@ import org.neo4j.commandline.admin.NullOutsideWorld;
 import org.neo4j.commandline.admin.OutsideWorld;
 import org.neo4j.commandline.admin.RealOutsideWorld;
 import org.neo4j.commandline.admin.Usage;
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.Args;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.store.MetaDataStore;
-import org.neo4j.kernel.impl.storemigration.StoreFileType;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.SuppressOutputExtension;
+import org.neo4j.test.extension.TestDirectoryExtension;
 import org.neo4j.test.rule.SuppressOutput;
 import org.neo4j.test.rule.TestDirectory;
+import org.neo4j.util.DocumentationURLs;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -76,15 +80,16 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.neo4j.io.NullOutputStream.NULL_OUTPUT_STREAM;
 
-public class ImportCommandTest
+@ExtendWith( {TestDirectoryExtension.class, SuppressOutputExtension.class} )
+class ImportCommandTest
 {
-    @Rule
-    public final TestDirectory testDir = TestDirectory.testDirectory();
-    @Rule
-    public final SuppressOutput suppressOutput = SuppressOutput.suppressAll();
+    @Inject
+    private TestDirectory testDir;
+    @Inject
+    private SuppressOutput suppressOutput;
 
     @Test
-    public void defaultsToCsvWhenModeNotSpecified() throws Exception
+    void defaultsToCsvWhenModeNotSpecified() throws Exception
     {
         File homeDir = testDir.directory( "home" );
         ImporterFactory mockImporterFactory = mock( ImporterFactory.class );
@@ -109,7 +114,7 @@ public class ImportCommandTest
     }
 
     @Test
-    public void acceptsNodeMetadata() throws Exception
+    void acceptsNodeMetadata() throws Exception
     {
         File homeDir = testDir.directory( "home" );
         ImporterFactory mockImporterFactory = mock( ImporterFactory.class );
@@ -131,7 +136,7 @@ public class ImportCommandTest
     }
 
     @Test
-    public void acceptsRelationshipsMetadata() throws Exception
+    void acceptsRelationshipsMetadata() throws Exception
     {
         File homeDir = testDir.directory( "home" );
         ImporterFactory mockImporterFactory = mock( ImporterFactory.class );
@@ -153,7 +158,7 @@ public class ImportCommandTest
     }
 
     @Test
-    public void requiresDatabaseArgument() throws Exception
+    void requiresDatabaseArgument()
     {
         try ( NullOutsideWorld outsideWorld = new NullOutsideWorld() )
         {
@@ -162,20 +167,13 @@ public class ImportCommandTest
                             outsideWorld );
 
             String[] arguments = {"--mode=database", "--from=bar"};
-            try
-            {
-                importCommand.execute( arguments );
-                fail( "Should have thrown an exception." );
-            }
-            catch ( IncorrectUsage e )
-            {
-                assertThat( e.getMessage(), containsString( "database" ) );
-            }
+            IncorrectUsage incorrectUsage = assertThrows( IncorrectUsage.class, () -> importCommand.execute( arguments ) );
+            assertThat( incorrectUsage.getMessage(), containsString( "database" ) );
         }
     }
 
     @Test
-    public void failIfInvalidModeSpecified() throws Exception
+    void failIfInvalidModeSpecified()
     {
         try ( NullOutsideWorld outsideWorld = new NullOutsideWorld() )
         {
@@ -184,28 +182,22 @@ public class ImportCommandTest
                             outsideWorld );
 
             String[] arguments = {"--mode=foo", "--database=bar", "--from=baz"};
-            try
-            {
-                importCommand.execute( arguments );
-                fail( "Should have thrown an exception." );
-            }
-            catch ( IncorrectUsage e )
-            {
-                assertThat( e.getMessage(), containsString( "foo" ) );
-            }
+            IncorrectUsage incorrectUsage = assertThrows( IncorrectUsage.class, () -> importCommand.execute( arguments ) );
+            assertThat( incorrectUsage.getMessage(), containsString( "foo" ) );
         }
     }
 
     @Test
-    public void letImporterDecideAboutDatabaseExistence() throws Exception
+    void letImporterDecideAboutDatabaseExistence() throws Exception
     {
+        File report = testDir.file( "report" );
         Path homeDir = testDir.directory( "home" ).toPath();
         PrintStream nullOutput = new PrintStream( NULL_OUTPUT_STREAM );
         OutsideWorld outsideWorld = new RealOutsideWorld( nullOutput, nullOutput, new ByteArrayInputStream( new byte[0] ) );
         Path confPath = testDir.directory( "conf" ).toPath();
         ImportCommand importCommand = new ImportCommand( homeDir, confPath, outsideWorld );
         File nodesFile = createTextFile( "nodes.csv", ":ID", "1", "2" );
-        String[] arguments = {"--mode=csv", "--database=existing.db", "--nodes=" + nodesFile.getAbsolutePath()};
+        String[] arguments = {"--mode=csv", "--database=existing.db", "--nodes=" + nodesFile.getAbsolutePath(), "--report-file=" + report.getAbsolutePath()};
 
         // First run an import so that a database gets created
         importCommand.execute( arguments );
@@ -220,39 +212,17 @@ public class ImportCommandTest
     }
 
     @Test
-    public void failIfDestinationDatabaseAlreadyExists() throws Exception
-    {
-        Path homeDir = testDir.directory( "home" ).toPath();
-        PrintStream nullOutput = new PrintStream( NULL_OUTPUT_STREAM );
-        OutsideWorld outsideWorld = new RealOutsideWorld( nullOutput, nullOutput, new ByteArrayInputStream( new byte[0] ) );
-        ImportCommand importCommand = new ImportCommand( homeDir, testDir.directory( "conf" ).toPath(), outsideWorld );
-        File nodesFile = createTextFile( "nodes.csv", ":ID", "1", "2" );
-        String[] arguments = {"--mode=csv", "--database=existing.db", "--nodes=" + nodesFile.getAbsolutePath()};
-
-        // First run an import so that a database gets created
-        importCommand.execute( arguments );
-
-        // Then try to run yet another import on that database
-        try
-        {
-            importCommand.execute( arguments );
-            fail( "Should have thrown an exception." );
-        }
-        catch ( Exception e )
-        {
-            assertThat( e.getMessage(), containsString( "already contains data" ) );
-        }
-    }
-
-    @Test
-    public void shouldUseArgumentsFoundInside_f_Argument() throws FileNotFoundException, CommandFailed, IncorrectUsage
+    void shouldUseArgumentsFoundInside_f_Argument() throws FileNotFoundException, CommandFailed, IncorrectUsage
     {
         // given
+        File report = testDir.file( "report" );
         ImportCommand importCommand =
                 new ImportCommand( testDir.directory( "home" ).toPath(), testDir.directory( "conf" ).toPath(),
                         new RealOutsideWorld( System.out, System.err, new ByteArrayInputStream( new byte[0] ) ) );
         File nodesFile = createTextFile( "nodes.csv", ":ID", "1", "2" );
-        File argFile = createTextFile( "args.txt", "--database=foo", "--nodes=" + nodesFile.getAbsolutePath() );
+        String pathWithEscapedSpaces = escapeSpaces( nodesFile.getAbsolutePath() );
+        String reportEscapedPath = escapeSpaces( report.getAbsolutePath() );
+        File argFile = createTextFile( "args.txt", "--database=foo", "--nodes=" + pathWithEscapedSpaces, "--report-file=" + reportEscapedPath );
         String[] arguments = {"-f", argFile.getAbsolutePath()};
 
         // when
@@ -265,16 +235,16 @@ public class ImportCommandTest
     }
 
     @Test
-    public void shouldPrintNiceHelp() throws Throwable
+    void shouldPrintNiceHelp() throws Throwable
     {
         try ( ByteArrayOutputStream baos = new ByteArrayOutputStream() )
         {
             PrintStream ps = new PrintStream( baos );
 
-            Usage usage = new Usage( "ongdb-admin", mock( CommandLocator.class ) );
+            Usage usage = new Usage( "neo4j-admin", mock( CommandLocator.class ) );
             usage.printUsageForCommand( new ImportCommandProvider(), ps::println );
 
-            assertEquals( String.format( "usage: ongdb-admin import [--mode=csv] [--database=<name>]%n" +
+            assertEquals( String.format( "usage: neo4j-admin import [--mode=csv] [--database=<name>]%n" +
                             "                          [--additional-config=<config-file-path>]%n" +
                             "                          [--report-file=<filename>]%n" +
                             "                          [--nodes[:Label1:Label2]=<\"file1,file2,...\">]%n" +
@@ -291,14 +261,14 @@ public class ImportCommandTest
                             "                          [--max-memory=<max-memory-that-importer-can-use>]%n" +
                             "                          [--f=<File containing all arguments to this import>]%n" +
                             "                          [--high-io=<true/false>]%n" +
-                            "usage: ongdb-admin import --mode=database [--database=<name>]%n" +
+                            "usage: neo4j-admin import --mode=database [--database=<name>]%n" +
                             "                          [--additional-config=<config-file-path>]%n" +
                             "                          [--from=<source-directory>]%n" +
                             "%n" +
                             "environment variables:%n" +
-                            "    ONGDB_CONF    Path to directory which contains ongdb.conf.%n" +
-                            "    ONGDB_DEBUG   Set to anything to enable debug output.%n" +
-                            "    ONGDB_HOME    ONgDB home directory.%n" +
+                            "    NEO4J_CONF    Path to directory which contains neo4j.conf.%n" +
+                            "    NEO4J_DEBUG   Set to anything to enable debug output.%n" +
+                            "    NEO4J_HOME    Neo4j home directory.%n" +
                             "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
                             "                  Takes a number and a unit, for example 512m.%n" +
                             "%n" +
@@ -307,13 +277,13 @@ public class ImportCommandTest
                             "%n" +
                             "options:%n" +
                             "  --database=<name>%n" +
-                            "      Name of database. [default:graph.db]%n" +
+                            "      Name of database. [default:" + GraphDatabaseSettings.DEFAULT_DATABASE_NAME + "]%n" +
                             "  --additional-config=<config-file-path>%n" +
                             "      Configuration file to supply additional configuration in. [default:]%n" +
                             "  --mode=<database|csv>%n" +
                             "      Import a collection of CSV files or a pre-3.0 installation. [default:csv]%n" +
                             "  --from=<source-directory>%n" +
-                            "      The location of the pre-3.0 database (e.g. <ongdb-root>/data/graph.db).%n" +
+                            "      The location of the pre-3.0 database (e.g. <neo4j-root>/data/graph.db).%n" +
                             "      [default:]%n" +
                             "  --report-file=<filename>%n" +
                             "      File in which to store the report of the csv-import.%n" +
@@ -336,8 +306,8 @@ public class ImportCommandTest
                             "        STRING: arbitrary strings for identifying nodes,%n" +
                             "        INTEGER: arbitrary integer values for identifying nodes,%n" +
                             "        ACTUAL: (advanced) actual node ids.%n" +
-                            "      For more information on id handling, please see the ONgDB Manual:%n" +
-                            "      https://graphfoundation.org/ongdb/docs/operations-manual/current/tools/import/%n" +
+                            "      For more information on id handling, please see the Neo4j Manual:%n" +
+                            "      " + DocumentationURLs.IMPORT_TOOL + "%n" +
                             "      [default:STRING]%n" +
                             "  --input-encoding=<character-set>%n" +
                             "      Character set that input data is encoded in. [default:UTF-8]%n" +
@@ -362,7 +332,7 @@ public class ImportCommandTest
                             "      can be escaped as per RFC 4180 by doubling them, for example \"\" would be%n" +
                             "      interpreted as a literal \". You cannot escape using \\. [default:\"]%n" +
                             "  --max-memory=<max-memory-that-importer-can-use>%n" +
-                            "      Maximum memory that ongdb-admin can use for various data structures and%n" +
+                            "      Maximum memory that neo4j-admin can use for various data structures and%n" +
                             "      caching to improve performance. Values can be plain numbers, like 10000000%n" +
                             "      or e.g. 20G for 20 gigabyte, or even e.g. 70%%. [default:90%%]%n" +
                             "  --f=<File containing all arguments to this import>%n" +
@@ -378,10 +348,10 @@ public class ImportCommandTest
         }
     }
 
-    private void putStoreInDirectory( Path storeDir ) throws IOException
+    private static void putStoreInDirectory( Path databaseDirectory ) throws IOException
     {
-        Files.createDirectories( storeDir );
-        Path storeFile = storeDir.resolve( StoreFileType.STORE.augment( MetaDataStore.DEFAULT_NAME ) );
+        Files.createDirectories( databaseDirectory );
+        Path storeFile = DatabaseLayout.of( databaseDirectory.toFile() ).metadataStore().toPath();
         Files.createFile( storeFile );
     }
 
@@ -396,5 +366,10 @@ public class ImportCommandTest
             }
         }
         return file;
+    }
+
+    private static String escapeSpaces( String pathForFile )
+    {
+        return pathForFile.replaceAll( " ", "\\\\ " );
     }
 }

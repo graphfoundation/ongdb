@@ -39,28 +39,21 @@
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.util.v3_4.CypherTypeException
+import org.neo4j.cypher.operations.CypherFunctions
 import org.neo4j.values.AnyValue
-import org.neo4j.values.storable.{TextValue, Values}
-import org.neo4j.values.virtual.{ListValue, VirtualValues}
 
 case class ReverseFunction(argument: Expression) extends NullInNullOutExpression(argument) {
-  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = {
-    argument(m, state) match {
-      case x if x == Values.NO_VALUE => Values.NO_VALUE
-      case string: TextValue => string.reverse
-      case seq: ListValue => VirtualValues.reverse(seq)
-      case a => throw new CypherTypeException(
-        "Expected a string or a list; consider converting it to a string with toString() or creating a list."
-          .format(toString(), a.toString))
-    }
-  }
+  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue =
+    CypherFunctions.reverse(value)
 
-  override def rewrite(f: (Expression) => Expression) = f(ReverseFunction(argument.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(ReverseFunction(argument.rewrite(f)))
 
-  def arguments = Seq(argument)
+  override def arguments: Seq[Expression] = Seq(argument)
 
-  def symbolTableDependencies = argument.symbolTableDependencies
+  override def children: Seq[AstNode[_]] = Seq(argument)
+
+  override def symbolTableDependencies: Set[String] = argument.symbolTableDependencies
 
 }

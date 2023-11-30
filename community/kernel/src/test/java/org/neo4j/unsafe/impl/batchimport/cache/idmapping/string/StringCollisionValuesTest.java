@@ -49,12 +49,12 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.function.Function;
 
-import org.neo4j.test.Randoms;
 import org.neo4j.test.rule.PageCacheAndDependenciesRule;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 import org.neo4j.unsafe.impl.batchimport.cache.NumberArrayFactory;
 import org.neo4j.unsafe.impl.batchimport.cache.PageCachedNumberArrayFactory;
+import org.neo4j.values.storable.RandomValues;
 
 import static org.junit.Assert.assertEquals;
 import static org.neo4j.io.pagecache.PageCache.PAGE_SIZE;
@@ -67,9 +67,9 @@ import static org.neo4j.unsafe.impl.batchimport.cache.NumberArrayFactory.OFF_HEA
 public class StringCollisionValuesTest
 {
     @Rule
-    public final PageCacheAndDependenciesRule storage = new PageCacheAndDependenciesRule( DefaultFileSystemRule::new, getClass() );
+    public final PageCacheAndDependenciesRule storage = new PageCacheAndDependenciesRule().with( new DefaultFileSystemRule() );
     @Rule
-    public final RandomRule random = new RandomRule().withConfiguration( new Randoms.Default()
+    public final RandomRule random = new RandomRule().withConfiguration( new RandomValues.Default()
     {
         @Override
         public int stringMaxLength()
@@ -103,7 +103,7 @@ public class StringCollisionValuesTest
             String[] strings = new String[offsets.length];
             for ( int i = 0; i < offsets.length; i++ )
             {
-                String string = random.string();
+                String string = random.nextAlphaNumericString();
                 offsets[i] = values.add( string );
                 strings[i] = string;
             }

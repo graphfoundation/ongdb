@@ -353,7 +353,7 @@ class ByteCodeVerifier implements ByteCodeChecker, CodeGeneratorOption
 
         Verifier( ClassNode clazz, AssignmentChecker check )
         {
-            super( Opcodes.ASM6, Type.getObjectType( clazz.name ), superClass( clazz ), interfaces( clazz ),
+            super( ASM6, Type.getObjectType( clazz.name ), superClass( clazz ), interfaces( clazz ),
                     isInterfaceNode( clazz ) );
             this.check = check;
         }
@@ -368,7 +368,7 @@ class ByteCodeVerifier implements ByteCodeChecker, CodeGeneratorOption
         protected boolean isSubTypeOf( BasicValue value, BasicValue expected )
         {
             return super.isSubTypeOf( value, expected ) || check
-                    .invokableInterface( expected.getType(), value.getType() );
+                    .invocableInterface( expected.getType(), value.getType() );
         }
 
         private static Type superClass( ClassNode clazz )
@@ -402,7 +402,7 @@ class ByteCodeVerifier implements ByteCodeChecker, CodeGeneratorOption
             }
         }
 
-        boolean invokableInterface( Type target, Type value )
+        boolean invocableInterface( Type target, Type value )
         {
             // this method allows a bit too much through,
             // it really ought to only be used for the target type of INVOKEINTERFACE,

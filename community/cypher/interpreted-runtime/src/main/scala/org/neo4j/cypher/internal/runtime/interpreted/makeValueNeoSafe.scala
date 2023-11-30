@@ -38,7 +38,7 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted
 
-import org.neo4j.cypher.internal.util.v3_4.CypherTypeException
+import org.neo4j.cypher.internal.v3_5.util.CypherTypeException
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.{ArrayValue, Value, Values}
 import org.neo4j.values.virtual.ListValue
@@ -53,7 +53,7 @@ object makeValueNeoSafe extends (AnyValue => Value) with ListSupport {
     case _ => throw new CypherTypeException("Property values can only be of primitive types or arrays thereof")
   }
   /*
-  This method finds the type that we can use for the primitive array that ONgDB wants
+  This method finds the type that we can use for the primitive array that Neo4j wants
   We can't just find the nearest common supertype - we need a type that the other values
   can be coerced to according to Cypher coercion rules
    */

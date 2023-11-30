@@ -38,11 +38,11 @@
  */
 package org.neo4j.upgrade.lucene;
 
-class UpgraterStub
+class UpgraderStub
 {
     private static boolean invocationMark;
 
-    private UpgraterStub()
+    private UpgraderStub()
     {
     }
 

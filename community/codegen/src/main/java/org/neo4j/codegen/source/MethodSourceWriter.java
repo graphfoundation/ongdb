@@ -38,7 +38,7 @@
  */
 package org.neo4j.codegen.source;
 
-import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.text.StringEscapeUtils;
 
 import java.util.Deque;
 import java.util.LinkedList;
@@ -288,7 +288,23 @@ class MethodSourceWriter implements MethodEmitter, ExpressionVisitor
         }
         else if ( value instanceof Double )
         {
-            append( value.toString() );
+            Double doubleValue = (Double) value;
+            if ( Double.isNaN( doubleValue ) )
+            {
+                append( "Double.NaN" );
+            }
+            else if ( doubleValue == Double.POSITIVE_INFINITY )
+            {
+                append( "Double.POSITIVE_INFINITY" );
+            }
+            else if ( doubleValue == Double.NEGATIVE_INFINITY )
+            {
+                append( "Double.NEGATIVE_INFINITY" );
+            }
+            else
+            {
+                append( value.toString() );
+            }
         }
         else if ( value instanceof Boolean )
         {
@@ -447,6 +463,13 @@ class MethodSourceWriter implements MethodEmitter, ExpressionVisitor
         append( "(" ).append( type.fullName() ).append( ") " );
         expression.accept( this );
         append( ")" );
+    }
+
+    @Override
+    public void instanceOf( TypeReference type, Expression expression )
+    {
+        expression.accept( this );
+        append( " instanceof " ).append( type.fullName() );
     }
 
     @Override

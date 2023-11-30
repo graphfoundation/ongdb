@@ -38,7 +38,7 @@
  */
 package org.neo4j.cypher.internal.runtime
 
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 
 class CounterTest extends CypherFunSuite {
 

@@ -41,25 +41,26 @@ package org.neo4j.consistency.repair;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.kernel.impl.store.RecordStore;
 import org.neo4j.kernel.impl.store.RecordStoreUtil.ReadNodeAnswer;
+import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
 import org.neo4j.kernel.impl.store.record.RecordLoad;
 import org.neo4j.kernel.impl.store.record.RelationshipRecord;
 
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.neo4j.kernel.impl.store.record.Record.NO_NEXT_PROPERTY;
 
-public class OwningNodeRelationshipChainTest
+class OwningNodeRelationshipChainTest
 {
     @Test
-    public void shouldFindBothChainsThatTheRelationshipRecordShouldBelongTo()
+    void shouldFindBothChainsThatTheRelationshipRecordShouldBelongTo()
     {
         // given
         long node1 = 101;
@@ -69,11 +70,11 @@ public class OwningNodeRelationshipChainTest
         long sharedRel = 1000;
         int relType = 0;
 
-        RecordSet<RelationshipRecord> node1RelChain = RecordSet.asSet(
+        RecordSet<RelationshipRecord> node1RelChain = asSet(
                 new RelationshipRecord( node1Rel, node1, node1 - 1, relType ),
                 new RelationshipRecord( sharedRel, node1, node2, relType ),
                 new RelationshipRecord( node1Rel + 1, node1 + 1, node1, relType ) );
-        RecordSet<RelationshipRecord> node2RelChain = RecordSet.asSet(
+        RecordSet<RelationshipRecord> node2RelChain = asSet(
                 new RelationshipRecord( node2Rel, node2 - 1, node2, relType ),
                 new RelationshipRecord( sharedRel, node1, node2, relType ),
                 new RelationshipRecord( node2Rel + 1, node2, node2 + 1, relType ) );
@@ -103,7 +104,7 @@ public class OwningNodeRelationshipChainTest
         assertThat( recordsInChains, containsAllRecords( node2RelChain ) );
     }
 
-    private Matcher<RecordSet<RelationshipRecord>> containsAllRecords( final RecordSet<RelationshipRecord> expectedSet )
+    private static Matcher<RecordSet<RelationshipRecord>> containsAllRecords( final RecordSet<RelationshipRecord> expectedSet )
     {
         return new TypeSafeMatcher<RecordSet<RelationshipRecord>>()
         {
@@ -119,5 +120,16 @@ public class OwningNodeRelationshipChainTest
                 description.appendText( "RecordSet containing " ).appendValueList( "[", ",", "]", expectedSet );
             }
         };
+    }
+
+    @SafeVarargs
+    private static <R extends AbstractBaseRecord> RecordSet<R> asSet( R... records )
+    {
+        RecordSet<R> set = new RecordSet<>();
+        for ( R record : records )
+        {
+            set.add( record );
+        }
+        return set;
     }
 }

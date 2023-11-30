@@ -46,12 +46,14 @@ import java.util.List;
 
 import org.neo4j.internal.kernel.api.AutoCloseablePlus;
 import org.neo4j.internal.kernel.api.CursorFactory;
+import org.neo4j.storageengine.api.StorageReader;
 
 import static java.lang.String.format;
 import static org.neo4j.util.FeatureToggles.flag;
 
 public class DefaultCursors implements CursorFactory
 {
+    private final StorageReader storageReader;
     private DefaultNodeCursor nodeCursor;
     private DefaultRelationshipScanCursor relationshipScanCursor;
     private DefaultRelationshipTraversalCursor relationshipTraversalCursor;
@@ -65,12 +67,17 @@ public class DefaultCursors implements CursorFactory
     private static final boolean DEBUG_CLOSING = flag( DefaultCursors.class, "trackCursors", false );
     private List<CloseableStacktrace> closeables = new ArrayList<>();
 
+    public DefaultCursors( StorageReader storageReader )
+    {
+        this.storageReader = storageReader;
+    }
+
     @Override
     public DefaultNodeCursor allocateNodeCursor()
     {
         if ( nodeCursor == null )
         {
-            return trace( new DefaultNodeCursor( this ) );
+            return trace( new DefaultNodeCursor( this, storageReader.allocateNodeCursor() ) );
         }
 
         try
@@ -97,7 +104,7 @@ public class DefaultCursors implements CursorFactory
     {
         if ( relationshipScanCursor == null )
         {
-            return trace( new DefaultRelationshipScanCursor( this ) );
+            return trace( new DefaultRelationshipScanCursor( this, storageReader.allocateRelationshipScanCursor() ) );
         }
 
         try
@@ -124,7 +131,7 @@ public class DefaultCursors implements CursorFactory
     {
         if ( relationshipTraversalCursor == null )
         {
-            return trace( new DefaultRelationshipTraversalCursor( new DefaultRelationshipGroupCursor( null ), this ) );
+            return trace( new DefaultRelationshipTraversalCursor( this, storageReader.allocateRelationshipTraversalCursor() ) );
         }
 
         try
@@ -151,7 +158,7 @@ public class DefaultCursors implements CursorFactory
     {
         if ( propertyCursor == null )
         {
-            return trace( new DefaultPropertyCursor( this ) );
+            return trace( new DefaultPropertyCursor( this, storageReader.allocatePropertyCursor() ) );
         }
 
         try
@@ -178,7 +185,7 @@ public class DefaultCursors implements CursorFactory
     {
         if ( relationshipGroupCursor == null )
         {
-            return trace( new DefaultRelationshipGroupCursor( this ) );
+            return trace( new DefaultRelationshipGroupCursor( this, storageReader.allocateRelationshipGroupCursor() ) );
         }
 
         try
@@ -286,7 +293,8 @@ public class DefaultCursors implements CursorFactory
     {
         if ( relationshipExplicitIndexCursor == null )
         {
-            return trace( new DefaultRelationshipExplicitIndexCursor( new DefaultRelationshipScanCursor( null ), this ) );
+            return trace( new DefaultRelationshipExplicitIndexCursor( new DefaultRelationshipScanCursor( null,
+                    storageReader.allocateRelationshipScanCursor() ), this ) );
         }
 
         try

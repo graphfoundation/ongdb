@@ -50,12 +50,12 @@ import org.neo4j.commandline.admin.CommandFailed;
 import org.neo4j.commandline.admin.IncorrectUsage;
 import org.neo4j.commandline.arguments.Arguments;
 import org.neo4j.commandline.arguments.OptionalBooleanArg;
-import org.neo4j.commandline.arguments.common.Database;
 import org.neo4j.commandline.arguments.common.MandatoryCanonicalPath;
 import org.neo4j.dbms.archive.IncorrectFormat;
 import org.neo4j.dbms.archive.Loader;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.io.fs.FileUtils;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.configuration.Config;
 
 import static java.util.Objects.requireNonNull;
@@ -121,6 +121,7 @@ public class LoadCommand implements AdminCommand
         return Config.fromFile( configDir.resolve( Config.DEFAULT_CONFIG_FILE_NAME ) )
                 .withHome( homeDir )
                 .withConnectorsDisabled()
+                .withNoThrowOnFileLoadFailure()
                 .withSetting( GraphDatabaseSettings.active_database, databaseName )
                 .build();
     }
@@ -131,7 +132,7 @@ public class LoadCommand implements AdminCommand
         {
             if ( force )
             {
-                checkLock( databaseDirectory );
+                checkLock( DatabaseLayout.of( databaseDirectory.toFile() ).getStoreLayout() );
                 FileUtils.deletePathRecursively( databaseDirectory );
                 if ( !isSameOrChildPath( databaseDirectory, transactionLogsDirectory ) )
                 {
@@ -166,7 +167,7 @@ public class LoadCommand implements AdminCommand
         catch ( AccessDeniedException e )
         {
             throw new CommandFailed(
-                    "you do not have permission to load a database -- is ONgDB running as a " + "different user?", e );
+                    "you do not have permission to load a database -- is Neo4j running as a " + "different user?", e );
         }
         catch ( IOException e )
         {
@@ -174,7 +175,7 @@ public class LoadCommand implements AdminCommand
         }
         catch ( IncorrectFormat incorrectFormat )
         {
-            throw new CommandFailed( "Not a valid ONgDB archive: " + archive, incorrectFormat );
+            throw new CommandFailed( "Not a valid Neo4j archive: " + archive, incorrectFormat );
         }
     }
 

@@ -40,26 +40,31 @@ package org.neo4j.kernel.api.impl.schema;
 
 import java.io.File;
 
+import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
-import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.extension.KernelExtensionFactory;
-import org.neo4j.kernel.impl.index.schema.NumberIndexProvider;
+import org.neo4j.kernel.impl.index.schema.AbstractIndexProviderFactory;
+import org.neo4j.kernel.impl.index.schema.fusion.FusionIndexProvider;
 
 import static org.neo4j.kernel.api.index.IndexDirectoryStructure.directoriesByProvider;
 import static org.neo4j.kernel.api.index.IndexDirectoryStructure.directoriesBySubProvider;
 
-public abstract class NativeLuceneFusionIndexProviderFactory<DEPENDENCIES> extends KernelExtensionFactory<DEPENDENCIES>
+public abstract class NativeLuceneFusionIndexProviderFactory<DEPENDENCIES extends AbstractIndexProviderFactory.Dependencies>
+        extends AbstractIndexProviderFactory<DEPENDENCIES>
 {
-    public static final String KEY = LuceneIndexProviderFactory.KEY + "+" + NumberIndexProvider.KEY;
-
-    NativeLuceneFusionIndexProviderFactory()
+    NativeLuceneFusionIndexProviderFactory( String key )
     {
-        super( KEY );
+        super( key );
     }
 
-    public static IndexDirectoryStructure.Factory subProviderDirectoryStructure( File storeDir, IndexProvider.Descriptor descriptor )
+    @Override
+    protected Class loggingClass()
     {
-        IndexDirectoryStructure parentDirectoryStructure = directoriesByProvider( storeDir ).forProvider( descriptor );
+        return FusionIndexProvider.class;
+    }
+
+    public static IndexDirectoryStructure.Factory subProviderDirectoryStructure( File databaseDirectory, IndexProviderDescriptor descriptor )
+    {
+        IndexDirectoryStructure parentDirectoryStructure = directoriesByProvider( databaseDirectory ).forProvider( descriptor );
         return directoriesBySubProvider( parentDirectoryStructure );
     }
 }

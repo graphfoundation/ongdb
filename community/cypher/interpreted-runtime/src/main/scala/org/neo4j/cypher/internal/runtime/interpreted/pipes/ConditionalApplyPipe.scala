@@ -39,7 +39,7 @@
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 import org.neo4j.values.storable.Values
 
 case class ConditionalApplyPipe(source: Pipe, inner: Pipe, items: Seq[String], negated: Boolean)
@@ -48,13 +48,12 @@ case class ConditionalApplyPipe(source: Pipe, inner: Pipe, items: Seq[String], n
 
   protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] =
     input.flatMap {
-      (outerContext) =>
+      outerContext =>
         if (condition(outerContext)) {
-          val original = outerContext.createClone()
           val innerState = state.withInitialContext(outerContext)
-          val innerResults = inner.createResults(innerState)
-          innerResults.map { context => original mergeWith context }
-        } else Iterator.single(outerContext)
+          inner.createResults(innerState)
+        } else
+          Iterator.single(outerContext)
     }
 
   private def condition(context: ExecutionContext) = {

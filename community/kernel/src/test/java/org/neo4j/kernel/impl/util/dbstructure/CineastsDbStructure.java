@@ -39,8 +39,8 @@
 package org.neo4j.kernel.impl.util.dbstructure;
 
 import org.neo4j.helpers.collection.Visitable;
-import org.neo4j.kernel.api.schema.constaints.ConstraintDescriptorFactory;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
+import org.neo4j.kernel.api.schema.constraints.ConstraintDescriptorFactory;
+import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
 
 //
 // GENERATED FILE. DO NOT EDIT.
@@ -53,8 +53,7 @@ import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
 // (using org.neo4j.kernel.impl.util.dbstructure.InvocationTracer)
 //
 
-public enum CineastsDbStructure
-implements Visitable<DbStructureVisitor>
+public enum CineastsDbStructure implements Visitable<DbStructureVisitor>
 {
     INSTANCE;
 
@@ -98,11 +97,11 @@ implements Visitable<DbStructureVisitor>
         visitor.visitRelationshipType( 2, "ACTS_IN" );
         visitor.visitRelationshipType( 3, "RATED" );
         visitor.visitRelationshipType( 4, "ROOT" );
-        visitor.visitIndex( SchemaIndexDescriptorFactory.forLabel( 0, 9 ), ":Movie(title)", 1.0d, 12462L );
-        visitor.visitIndex( SchemaIndexDescriptorFactory.forLabel( 1, 5 ), ":Person(name)", 1.0d, 49845L );
-        visitor.visitIndex( SchemaIndexDescriptorFactory.forLabel( 3, 5 ), ":Actor(name)", 1.0d, 44689L );
-        visitor.visitIndex( SchemaIndexDescriptorFactory.forLabel( 4, 5 ), ":Director(name)", 1.0d, 6010L );
-        visitor.visitIndex( SchemaIndexDescriptorFactory.uniqueForLabel( 2, 3 ), ":User(login)", 1.0d, 45L );
+        visitor.visitIndex( TestIndexDescriptorFactory.forLabel( 0, 9 ), ":Movie(title)", 1.0d, 12462L );
+        visitor.visitIndex( TestIndexDescriptorFactory.forLabel( 1, 5 ), ":Person(name)", 1.0d, 49845L );
+        visitor.visitIndex( TestIndexDescriptorFactory.forLabel( 3, 5 ), ":Actor(name)", 1.0d, 44689L );
+        visitor.visitIndex( TestIndexDescriptorFactory.forLabel( 4, 5 ), ":Director(name)", 1.0d, 6010L );
+        visitor.visitIndex( TestIndexDescriptorFactory.uniqueForLabel( 2, 3 ), ":User(login)", 1.0d, 45L );
         visitor.visitUniqueConstraint( ConstraintDescriptorFactory.uniqueForLabel( 2, 3 ),
                 "CONSTRAINT ON ( " + "user:User ) ASSERT user.login IS UNIQUE" );
         visitor.visitAllNodesCount( 63042L );

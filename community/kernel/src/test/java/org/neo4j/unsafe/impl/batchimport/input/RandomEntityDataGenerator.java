@@ -39,10 +39,8 @@
 package org.neo4j.unsafe.impl.batchimport.input;
 
 import java.util.List;
-import java.util.Random;
 
 import org.neo4j.helpers.ArrayUtil;
-import org.neo4j.test.Randoms;
 import org.neo4j.unsafe.impl.batchimport.GeneratingInputIterator;
 import org.neo4j.unsafe.impl.batchimport.InputIterator;
 import org.neo4j.unsafe.impl.batchimport.RandomsStates;
@@ -50,6 +48,7 @@ import org.neo4j.unsafe.impl.batchimport.input.csv.Deserialization;
 import org.neo4j.unsafe.impl.batchimport.input.csv.Header;
 import org.neo4j.unsafe.impl.batchimport.input.csv.Header.Entry;
 import org.neo4j.unsafe.impl.batchimport.input.csv.Type;
+import org.neo4j.values.storable.RandomValues;
 
 import static java.lang.Integer.min;
 import static org.neo4j.unsafe.impl.batchimport.input.InputEntity.NO_LABELS;
@@ -57,7 +56,7 @@ import static org.neo4j.unsafe.impl.batchimport.input.InputEntity.NO_LABELS;
 /**
  * Data generator as {@link InputIterator}, parallelizable
  */
-public class RandomEntityDataGenerator extends GeneratingInputIterator<Randoms>
+public class RandomEntityDataGenerator extends GeneratingInputIterator<RandomValues>
 {
     public RandomEntityDataGenerator( long nodeCount, long count, int batchSize, long seed, long startId, Header header,
            Distribution<String> labels, Distribution<String> relationshipTypes, float factorBadNodeData, float factorBadRelationshipData )
@@ -86,7 +85,7 @@ public class RandomEntityDataGenerator extends GeneratingInputIterator<Randoms>
                     visitor.property( entry.name(), randomProperty( entry, randoms ) );
                     break;
                 case LABEL:
-                    visitor.labels( randomLabels( randoms.random(), labels ) );
+                    visitor.labels( randomLabels( randoms, labels ) );
                     break;
                 case START_ID:
                 case END_ID:
@@ -114,7 +113,7 @@ public class RandomEntityDataGenerator extends GeneratingInputIterator<Randoms>
                     }
                     break;
                 case TYPE:
-                    visitor.type( randomRelationshipType( randoms.random(), relationshipTypes ) );
+                    visitor.type( randomRelationshipType( randoms, relationshipTypes ) );
                     break;
                 default:
                     throw new IllegalArgumentException( entry.toString() );
@@ -133,39 +132,34 @@ public class RandomEntityDataGenerator extends GeneratingInputIterator<Randoms>
         }
     }
 
-    private static String randomRelationshipType( Random random, Distribution<String> relationshipTypes )
+    private static String randomRelationshipType( RandomValues random, Distribution<String> relationshipTypes )
     {
         return relationshipTypes.random( random );
     }
 
-    private static Object randomProperty( Entry entry, Randoms random )
+    private static Object randomProperty( Entry entry, RandomValues random )
     {
         String type = entry.extractor().name();
-        if ( type.equals( "String" ) )
+        switch ( type )
         {
-            return random.string( 5, 20, Randoms.CSA_LETTERS_AND_DIGITS );
-        }
-        else if ( type.equals( "long" ) )
-        {
+        case "String":
+            return random.nextAlphaNumericTextValue( 5, 20 ).stringValue();
+        case "long":
             return random.nextInt( Integer.MAX_VALUE );
-        }
-        else if ( type.equals( "int" ) )
-        {
+        case "int":
             return random.nextInt( 20 );
-        }
-        else
-        {
+        default:
             throw new IllegalArgumentException( "" + entry );
         }
     }
 
-    private static String[] randomLabels( Random random, Distribution<String> labels )
+    private static String[] randomLabels( RandomValues random, Distribution<String> labels )
     {
-        int length = random.nextInt( min( 3, labels.length() ) );
-        if ( length == 0 )
+        if ( labels.length() == 0 )
         {
             return NO_LABELS;
         }
+        int length = random.nextInt( min( 3, labels.length() ) ) + 1;
 
         String[] result = new String[length];
         for ( int i = 0; i < result.length; )

@@ -40,12 +40,12 @@ package org.neo4j.kernel.impl.cache;
 
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.lifecycle.Lifecycle;
+import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.kernel.monitoring.VmPauseMonitor;
 import org.neo4j.logging.Log;
 import org.neo4j.scheduler.JobScheduler;
 
-public class VmPauseMonitorComponent implements Lifecycle
+public class VmPauseMonitorComponent extends LifecycleAdapter
 {
     private final Config config;
     private final Log log;
@@ -57,11 +57,6 @@ public class VmPauseMonitorComponent implements Lifecycle
         this.config = config;
         this.log = log;
         this.jobScheduler = jobScheduler;
-    }
-
-    @Override
-    public void init()
-    {
     }
 
     @Override
@@ -80,11 +75,6 @@ public class VmPauseMonitorComponent implements Lifecycle
     {
         vmPauseMonitor.stop();
         vmPauseMonitor = null;
-    }
-
-    @Override
-    public void shutdown()
-    {
     }
 
 }

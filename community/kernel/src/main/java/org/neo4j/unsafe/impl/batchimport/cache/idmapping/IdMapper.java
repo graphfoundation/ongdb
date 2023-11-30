@@ -38,9 +38,10 @@
  */
 package org.neo4j.unsafe.impl.batchimport.cache.idmapping;
 
+import org.eclipse.collections.api.iterator.LongIterator;
+
 import java.util.function.LongFunction;
 
-import org.neo4j.collection.primitive.PrimitiveLongIterator;
 import org.neo4j.helpers.progress.ProgressListener;
 import org.neo4j.unsafe.impl.batchimport.cache.MemoryStatsVisitor;
 import org.neo4j.unsafe.impl.batchimport.input.Collector;
@@ -101,6 +102,7 @@ public interface IdMapper extends MemoryStatsVisitor.Visitable, AutoCloseable
     /**
      * Releases all resources used by this {@link IdMapper}.
      */
+    @Override
     void close();
 
     /**
@@ -111,5 +113,5 @@ public interface IdMapper extends MemoryStatsVisitor.Visitable, AutoCloseable
      */
     MemoryStatsVisitor.Visitable memoryEstimation( long numberOfNodes );
 
-    PrimitiveLongIterator leftOverDuplicateNodesIds();
+    LongIterator leftOverDuplicateNodesIds();
 }

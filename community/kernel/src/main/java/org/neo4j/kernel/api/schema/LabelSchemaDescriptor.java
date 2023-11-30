@@ -38,6 +38,8 @@
  */
 package org.neo4j.kernel.api.schema;
 
+import org.apache.commons.lang3.ArrayUtils;
+
 import java.util.Arrays;
 
 import org.neo4j.internal.kernel.api.TokenNameLookup;
@@ -45,6 +47,7 @@ import org.neo4j.internal.kernel.api.schema.SchemaComputer;
 import org.neo4j.internal.kernel.api.schema.SchemaProcessor;
 import org.neo4j.internal.kernel.api.schema.SchemaUtil;
 import org.neo4j.kernel.impl.locking.ResourceTypes;
+import org.neo4j.storageengine.api.EntityType;
 import org.neo4j.storageengine.api.lock.ResourceType;
 
 public class LabelSchemaDescriptor implements org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor
@@ -56,6 +59,12 @@ public class LabelSchemaDescriptor implements org.neo4j.internal.kernel.api.sche
     {
         this.labelId = labelId;
         this.propertyIds = propertyIds;
+    }
+
+    @Override
+    public boolean isAffected( long[] entityTokenIds )
+    {
+        return ArrayUtils.contains( entityTokenIds, labelId );
     }
 
     @Override
@@ -73,13 +82,8 @@ public class LabelSchemaDescriptor implements org.neo4j.internal.kernel.api.sche
     @Override
     public String userDescription( TokenNameLookup tokenNameLookup )
     {
-        return SchemaUtil.niceLabelAndProperties( tokenNameLookup, labelId, propertyIds );
-    }
-
-    @Override
-    public String keyName( TokenNameLookup tokenNameLookup )
-    {
-        return tokenNameLookup.labelGetName( labelId );
+        return String.format( ":%s(%s)", tokenNameLookup.labelGetName( labelId ),
+                SchemaUtil.niceProperties( tokenNameLookup, propertyIds ) );
     }
 
     @Override
@@ -101,9 +105,27 @@ public class LabelSchemaDescriptor implements org.neo4j.internal.kernel.api.sche
     }
 
     @Override
+    public EntityType entityType()
+    {
+        return EntityType.NODE;
+    }
+
+    @Override
+    public PropertySchemaType propertySchemaType()
+    {
+        return PropertySchemaType.COMPLETE_ALL_TOKENS;
+    }
+
+    @Override
     public int[] getPropertyIds()
     {
         return propertyIds;
+    }
+
+    @Override
+    public int[] getEntityTokenIds()
+    {
+        return new int[]{labelId};
     }
 
     @Override

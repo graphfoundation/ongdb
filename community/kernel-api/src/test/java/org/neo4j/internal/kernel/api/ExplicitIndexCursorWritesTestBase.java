@@ -65,7 +65,7 @@ public abstract class ExplicitIndexCursorWritesTestBase<G extends KernelAPIWrite
     public void shouldCreateExplicitNodeIndexEagerly() throws Exception
     {
         // When
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             ExplicitIndexWrite indexWrite = tx.indexWrite();
             HashMap<String,String> config = new HashMap<>();
@@ -87,7 +87,7 @@ public abstract class ExplicitIndexCursorWritesTestBase<G extends KernelAPIWrite
     public void shouldCreateExplicitNodeIndexLazily() throws Exception
     {
         // When
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             ExplicitIndexWrite indexWrite = tx.indexWrite();
             HashMap<String,String> config = new HashMap<>();
@@ -109,7 +109,7 @@ public abstract class ExplicitIndexCursorWritesTestBase<G extends KernelAPIWrite
     public void shouldAddNodeToExplicitIndex() throws Exception
     {
         long nodeId;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             nodeId = tx.dataWrite().nodeCreate();
             ExplicitIndexWrite indexWrite = tx.indexWrite();
@@ -134,7 +134,7 @@ public abstract class ExplicitIndexCursorWritesTestBase<G extends KernelAPIWrite
         long nodeId = addNodeToExplicitIndex();
 
         // When
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             ExplicitIndexWrite indexWrite = tx.indexWrite();
             indexWrite.nodeRemoveFromExplicitIndex( INDEX_NAME, nodeId );
@@ -158,14 +158,14 @@ public abstract class ExplicitIndexCursorWritesTestBase<G extends KernelAPIWrite
         long nodeId = addNodeToExplicitIndex();
 
         // When
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             ExplicitIndexWrite indexWrite = tx.indexWrite();
             indexWrite.nodeRemoveFromExplicitIndex( INDEX_NAME, nodeId );
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             ExplicitIndexWrite indexWrite = tx.indexWrite();
             indexWrite.nodeRemoveFromExplicitIndex( INDEX_NAME, nodeId );
@@ -189,7 +189,7 @@ public abstract class ExplicitIndexCursorWritesTestBase<G extends KernelAPIWrite
         long nodeId = addNodeToExplicitIndex();
 
         // When
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             ExplicitIndexWrite indexWrite = tx.indexWrite();
             indexWrite.nodeRemoveFromExplicitIndex( INDEX_NAME, nodeId + 1 );
@@ -211,7 +211,7 @@ public abstract class ExplicitIndexCursorWritesTestBase<G extends KernelAPIWrite
     public void shouldCreateExplicitRelationshipIndexEagerly() throws Exception
     {
         // When
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             ExplicitIndexWrite indexWrite = tx.indexWrite();
             HashMap<String,String> config = new HashMap<>();
@@ -233,7 +233,7 @@ public abstract class ExplicitIndexCursorWritesTestBase<G extends KernelAPIWrite
     public void shouldCreateExplicitRelationshipIndexLazily() throws Exception
     {
         // When
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             ExplicitIndexWrite indexWrite = tx.indexWrite();
             HashMap<String,String> config = new HashMap<>();
@@ -259,7 +259,7 @@ public abstract class ExplicitIndexCursorWritesTestBase<G extends KernelAPIWrite
         config.put( "type", "exact" );
         config.put( "provider", "lucene" );
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             ExplicitIndexWrite indexWrite = tx.indexWrite();
             indexWrite.nodeExplicitIndexCreateLazily( INDEX_NAME, config );
@@ -267,7 +267,7 @@ public abstract class ExplicitIndexCursorWritesTestBase<G extends KernelAPIWrite
         }
 
         // When
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             ExplicitIndexWrite indexWrite = tx.indexWrite();
             indexWrite.nodeExplicitIndexCreateLazily( INDEX_NAME, config );
@@ -293,7 +293,7 @@ public abstract class ExplicitIndexCursorWritesTestBase<G extends KernelAPIWrite
             ctx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             ExplicitIndexWrite indexWrite = tx.indexWrite();
             indexWrite.relationshipAddToExplicitIndex( INDEX_NAME, relId, KEY, VALUE );
@@ -317,7 +317,7 @@ public abstract class ExplicitIndexCursorWritesTestBase<G extends KernelAPIWrite
         long relId = addRelationshipToExplicitIndex();
 
         // When
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             ExplicitIndexWrite indexWrite = tx.indexWrite();
             indexWrite.relationshipRemoveFromExplicitIndex( INDEX_NAME, relId );
@@ -341,14 +341,14 @@ public abstract class ExplicitIndexCursorWritesTestBase<G extends KernelAPIWrite
         long relId = addRelationshipToExplicitIndex();
 
         // When
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             ExplicitIndexWrite indexWrite = tx.indexWrite();
             indexWrite.relationshipRemoveFromExplicitIndex( INDEX_NAME, relId );
             tx.success();
         }
 
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             ExplicitIndexWrite indexWrite = tx.indexWrite();
             indexWrite.relationshipRemoveFromExplicitIndex( INDEX_NAME, relId );
@@ -372,7 +372,7 @@ public abstract class ExplicitIndexCursorWritesTestBase<G extends KernelAPIWrite
         long relId = addRelationshipToExplicitIndex();
 
         // When
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             ExplicitIndexWrite indexWrite = tx.indexWrite();
             indexWrite.relationshipRemoveFromExplicitIndex( INDEX_NAME, relId + 1 );
@@ -393,7 +393,7 @@ public abstract class ExplicitIndexCursorWritesTestBase<G extends KernelAPIWrite
     private long addNodeToExplicitIndex() throws Exception
     {
         long nodeId;
-        try ( Transaction tx = session.beginTransaction() )
+        try ( Transaction tx = beginTransaction() )
         {
             nodeId = tx.dataWrite().nodeCreate();
             ExplicitIndexWrite indexWrite = tx.indexWrite();

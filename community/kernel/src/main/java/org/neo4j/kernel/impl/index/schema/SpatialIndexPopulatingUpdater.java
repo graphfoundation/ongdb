@@ -38,24 +38,22 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import java.io.IOException;
-
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.index.PropertyAccessor;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.PointValue;
 
 public class SpatialIndexPopulatingUpdater extends SpatialIndexCache<IndexUpdater> implements IndexUpdater
 {
-    SpatialIndexPopulatingUpdater( SpatialIndexPopulator populator, PropertyAccessor propertyAccessor )
+    SpatialIndexPopulatingUpdater( SpatialIndexPopulator populator, NodePropertyAccessor nodePropertyAccessor )
     {
-        super( new PartFactory( populator, propertyAccessor ) );
+        super( new PartFactory( populator, nodePropertyAccessor ) );
     }
 
     @Override
-    public void process( IndexEntryUpdate<?> update ) throws IOException, IndexEntryConflictException
+    public void process( IndexEntryUpdate<?> update ) throws IndexEntryConflictException
     {
         PointValue value = (PointValue) update.values()[0];
         switch ( update.updateMode() )
@@ -93,7 +91,7 @@ public class SpatialIndexPopulatingUpdater extends SpatialIndexCache<IndexUpdate
     }
 
     @Override
-    public void close() throws IOException, IndexEntryConflictException
+    public void close() throws IndexEntryConflictException
     {
         for ( IndexUpdater updater : this )
         {
@@ -104,18 +102,18 @@ public class SpatialIndexPopulatingUpdater extends SpatialIndexCache<IndexUpdate
     static class PartFactory implements Factory<IndexUpdater>
     {
         private final SpatialIndexPopulator populator;
-        private PropertyAccessor propertyAccessor;
+        private NodePropertyAccessor nodePropertyAccessor;
 
-        PartFactory( SpatialIndexPopulator populator, PropertyAccessor propertyAccessor )
+        PartFactory( SpatialIndexPopulator populator, NodePropertyAccessor nodePropertyAccessor )
         {
             this.populator = populator;
-            this.propertyAccessor = propertyAccessor;
+            this.nodePropertyAccessor = nodePropertyAccessor;
         }
 
         @Override
-        public IndexUpdater newSpatial( CoordinateReferenceSystem crs ) throws IOException
+        public IndexUpdater newSpatial( CoordinateReferenceSystem crs )
         {
-            return populator.select( crs ).newPopulatingUpdater( propertyAccessor );
+            return populator.select( crs ).newPopulatingUpdater( nodePropertyAccessor );
         }
     }
 }

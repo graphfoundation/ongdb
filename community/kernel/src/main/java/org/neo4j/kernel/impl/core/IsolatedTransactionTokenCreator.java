@@ -38,17 +38,16 @@
  */
 package org.neo4j.kernel.impl.core;
 
+import java.util.function.IntPredicate;
 import java.util.function.Supplier;
 
 import org.neo4j.internal.kernel.api.Kernel;
-import org.neo4j.internal.kernel.api.Session;
 import org.neo4j.internal.kernel.api.Transaction;
 import org.neo4j.internal.kernel.api.Transaction.Type;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.internal.kernel.api.exceptions.schema.IllegalTokenNameException;
 import org.neo4j.internal.kernel.api.exceptions.schema.TooManyLabelsException;
 import org.neo4j.internal.kernel.api.security.LoginContext;
-import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 
 /**
  * Creates a key within its own transaction, such that the command(s) for creating the key
@@ -57,31 +56,41 @@ import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
  */
 abstract class IsolatedTransactionTokenCreator implements TokenCreator
 {
-    protected final IdGeneratorFactory idGeneratorFactory;
     private final Supplier<Kernel> kernelSupplier;
 
-    IsolatedTransactionTokenCreator( Supplier<Kernel> kernelSupplier,
-            IdGeneratorFactory idGeneratorFactory )
+    IsolatedTransactionTokenCreator( Supplier<Kernel> kernelSupplier )
     {
         this.kernelSupplier = kernelSupplier;
-        this.idGeneratorFactory = idGeneratorFactory;
     }
 
     @Override
-    public synchronized int getOrCreate( String name ) throws KernelException
+    public synchronized int createToken( String name ) throws KernelException
     {
         Kernel kernel = kernelSupplier.get();
-        try ( Session session = kernel.beginSession( LoginContext.AUTH_DISABLED ) )
+        try ( Transaction tx = kernel.beginTransaction( Type.implicit, LoginContext.AUTH_DISABLED ) )
         {
-            try ( Transaction transaction = session.beginTransaction( Type.implicit ) )
-            {
-                int id = createKey( transaction, name );
-                transaction.success();
-                return id;
-            }
+            int id = createKey( tx, name );
+            tx.success();
+            return id;
         }
     }
 
-    abstract int createKey( Transaction transaction, String name )
-            throws IllegalTokenNameException, TooManyLabelsException;
+    @Override
+    public synchronized void createTokens( String[] names, int[] ids, IntPredicate filter ) throws KernelException
+    {
+        Kernel kernel = kernelSupplier.get();
+        try ( Transaction tx = kernel.beginTransaction( Type.implicit, LoginContext.AUTH_DISABLED ) )
+        {
+            for ( int i = 0; i < ids.length; i++ )
+            {
+                if ( filter.test( i ) )
+                {
+                    ids[i] = createKey( tx, names[i] );
+                }
+            }
+            tx.success();
+        }
+    }
+
+    abstract int createKey( Transaction transaction, String name ) throws IllegalTokenNameException, TooManyLabelsException;
 }

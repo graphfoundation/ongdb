@@ -38,22 +38,35 @@
  */
 package org.neo4j.kernel.impl.transaction.state;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import org.neo4j.kernel.NeoStoreDataSource;
+import org.neo4j.kernel.configuration.Config;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.TestDirectoryExtension;
+import org.neo4j.test.rule.TestDirectory;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-public class DataSourceManagerTest
+@ExtendWith( TestDirectoryExtension.class )
+class DataSourceManagerTest
 {
+
+    @Inject
+    private TestDirectory testDirectory;
+
     @Test
-    public void shouldCallListenersOnStart()
+    void shouldCallListenersOnStart()
     {
         // given
-        DataSourceManager manager = new DataSourceManager();
+        DataSourceManager manager = createDataSourceManager();
         DataSourceManager.Listener listener = mock( DataSourceManager.Listener.class );
         manager.register( mock( NeoStoreDataSource.class ) );
         manager.addListener( listener );
@@ -66,10 +79,10 @@ public class DataSourceManagerTest
     }
 
     @Test
-    public void shouldCallListenersWhenAddedIfManagerAlreadyStarted()
+    void shouldCallListenersWhenAddedIfManagerAlreadyStarted()
     {
         // given
-        DataSourceManager manager = new DataSourceManager();
+        DataSourceManager manager = createDataSourceManager();
         DataSourceManager.Listener listener = mock( DataSourceManager.Listener.class );
         manager.register( mock( NeoStoreDataSource.class ) );
         manager.start();
@@ -82,10 +95,10 @@ public class DataSourceManagerTest
     }
 
     @Test
-    public void shouldCallListenersOnDataSourceRegistrationIfManagerAlreadyStarted()
+    void shouldCallListenersOnDataSourceRegistrationIfManagerAlreadyStarted()
     {
         // given
-        DataSourceManager manager = new DataSourceManager();
+        DataSourceManager manager = createDataSourceManager();
         DataSourceManager.Listener listener = mock( DataSourceManager.Listener.class );
         manager.addListener( listener );
         manager.start();
@@ -98,10 +111,10 @@ public class DataSourceManagerTest
     }
 
     @Test
-    public void shouldSupportMultipleStartStopCycles() throws Throwable
+    void shouldSupportMultipleStartStopCycles() throws Throwable
     {
         // given
-        DataSourceManager manager = new DataSourceManager();
+        DataSourceManager manager = createDataSourceManager();
         NeoStoreDataSource dataSource = mock( NeoStoreDataSource.class );
         manager.register( dataSource );
         manager.init();
@@ -113,5 +126,31 @@ public class DataSourceManagerTest
 
         // then
         verify( dataSource, times( 2 ) ).start();
+    }
+
+    @Test
+    void provideAccessOnlyToActiveDatabase()
+    {
+        DataSourceManager manager = createDataSourceManager();
+        NeoStoreDataSource dataSource1 = mock( NeoStoreDataSource.class );
+        NeoStoreDataSource dataSource2 = mock( NeoStoreDataSource.class );
+        when( dataSource1.getDatabaseLayout() ).thenReturn( testDirectory.databaseLayout() );
+        when( dataSource2.getDatabaseLayout() ).thenReturn( testDirectory.databaseLayout( "somethingElse" ) );
+        manager.register( dataSource1 );
+        manager.register( dataSource2 );
+
+        assertEquals(dataSource1, manager.getDataSource() );
+    }
+
+    @Test
+    void illegalStateWhenActiveDatabaseNotFound()
+    {
+        DataSourceManager manager = createDataSourceManager();
+        assertThrows( IllegalStateException.class, manager::getDataSource );
+    }
+
+    private static DataSourceManager createDataSourceManager()
+    {
+        return new DataSourceManager( Config.defaults() );
     }
 }

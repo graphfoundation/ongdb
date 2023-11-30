@@ -48,8 +48,6 @@ import org.neo4j.server.rest.transactional.TransactionRegistry;
 
 public interface NeoServer
 {
-    void init();
-
     void start();
 
     void stop();

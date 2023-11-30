@@ -49,7 +49,7 @@ import org.neo4j.graphdb.traversal.BidirectionalTraversalDescription;
 import org.neo4j.graphdb.traversal.TraversalDescription;
 
 /**
- * The main access point to a running ONgDB instance. The most common way to instantiate a {@link GraphDatabaseService}
+ * The main access point to a running Neo4j instance. The most common way to instantiate a {@link GraphDatabaseService}
  * is as follows:
  * <pre>
  * <code>GraphDatabaseService graphDb = new GraphDatabaseFactory().newEmbeddedDatabase( new File("var/graphDb") );
@@ -76,7 +76,7 @@ public interface GraphDatabaseService
 
     /**
      * Creates a new node and returns it id.
-     * Please note: ONgDB reuses its internal ids when
+     * Please note: Neo4j reuses its internal ids when
      * nodes and relationships are deleted, which means it's bad practice to
      * refer to them this way. Instead, use application generated ids.
      *
@@ -95,7 +95,7 @@ public interface GraphDatabaseService
     Node createNode( Label... labels );
 
     /**
-     * Looks up a node by id. Please note: ONgDB reuses its internal ids when
+     * Looks up a node by id. Please note: Neo4j reuses its internal ids when
      * nodes and relationships are deleted, which means it's bad practice to
      * refer to them this way. Instead, use application generated ids.
      *
@@ -106,7 +106,7 @@ public interface GraphDatabaseService
     Node getNodeById( long id );
 
     /**
-     * Looks up a relationship by id. Please note: ONgDB reuses its internal ids
+     * Looks up a relationship by id. Please note: Neo4j reuses its internal ids
      * when nodes and relationships are deleted, which means it's bad practice
      * to refer to them this way. Instead, use application generated ids.
      *
@@ -263,7 +263,7 @@ public interface GraphDatabaseService
      *   <li>SUFFIX: The value must have a suffix matching the template.</li>
      *   <li>CONTAINS: The value must contain the template. Only exact matches are supported.</li>
      * </ul>
-     * Note that in ONgDB the Character 'A' will be treated the same way as the String 'A'.
+     * Note that in Neo4j the Character 'A' will be treated the same way as the String 'A'.
      * <p>
      * Please ensure that the returned {@link ResourceIterator} is closed correctly and as soon as possible
      * inside your transaction to avoid potential blocking of write operations.
@@ -373,7 +373,7 @@ public interface GraphDatabaseService
 
     /**
      * Shuts down Neo4j. After this method has been invoked, it's invalid to
-     * invoke any methods in the ONgDB API and all references to this instance
+     * invoke any methods in the Neo4j API and all references to this instance
      * of GraphDatabaseService should be discarded.
      */
     void shutdown();
@@ -535,7 +535,9 @@ public interface GraphDatabaseService
      * and is the entry point for managing indexes coupled with this database.
      *
      * @return the {@link IndexManager} for this database.
+     * @deprecated The {@link IndexManager} based indexes will be removed in the next major release. Please consider using schema indexes instead.
      */
+    @Deprecated
     IndexManager index();
 
     /**

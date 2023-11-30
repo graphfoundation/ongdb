@@ -38,6 +38,8 @@
  */
 package org.neo4j.consistency.store.synthetic;
 
+import org.apache.commons.lang3.exception.CloneFailedException;
+
 import org.neo4j.kernel.api.labelscan.NodeLabelRange;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
 
@@ -66,6 +68,12 @@ public class LabelScanDocument extends AbstractBaseRecord
     public NodeLabelRange getNodeLabelRange()
     {
         return nodeLabelRange;
+    }
+
+    @Override
+    public final AbstractBaseRecord clone()
+    {
+        throw new CloneFailedException( "Synthetic records cannot be cloned." );
     }
 
     @Override

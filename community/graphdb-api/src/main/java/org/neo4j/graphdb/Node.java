@@ -41,7 +41,7 @@ package org.neo4j.graphdb;
 /**
  * A node in the graph with properties and relationships to other entities.
  * Along with {@link Relationship relationships}, nodes are the core building
- * blocks of the ONgDB data representation model. Nodes are created by invoking
+ * blocks of the Neo4j data representation model. Nodes are created by invoking
  * the {@link GraphDatabaseService#createNode} method.
  * <p>
  * Node has three major groups of operations: operations that deal with
@@ -61,13 +61,13 @@ package org.neo4j.graphdb;
  * primitives (<code>int</code>, <code>byte</code>, <code>float</code>, etc),
  * <code>java.lang.String</code>s and arrays of primitives and Strings.
  * <p>
- * <b>Please note</b> that ONgDB does NOT accept arbitrary objects as property
+ * <b>Please note</b> that Neo4j does NOT accept arbitrary objects as property
  * values. {@link #setProperty(String, Object) setProperty()} takes a
  * <code>java.lang.Object</code> only to avoid an explosion of overloaded
  * <code>setProperty()</code> methods. For further documentation see
  * {@link PropertyContainer}.
  * <p>
- * A node's id is unique, but note the following: ONgDB reuses its internal ids
+ * A node's id is unique, but note the following: Neo4j reuses its internal ids
  * when nodes and relationships are deleted, which means it's bad practice to
  * refer to them this way. Instead, use application generated ids.
  */
@@ -235,7 +235,7 @@ public interface Node extends Entity
     /**
      * Returns the only relationship of a given type and direction that is
      * attached to this node, or <code>null</code>. This is a convenience method
-     * that is used in the commonly occuring situation where a node has exactly
+     * that is used in the commonly occurring situation where a node has exactly
      * zero or one relationships of a given type and direction to another node.
      * Typically this invariant is maintained by the rest of the code: if at any
      * time more than one such relationships exist, it is a fatal error that

@@ -53,7 +53,7 @@ import org.neo4j.io.fs.FileSystemAbstraction;
 import static org.neo4j.commandline.dbms.DiagnosticsReportCommand.PID_KEY;
 
 /**
- * Facilitates JMX Dump for current running ONgDB instance.
+ * Facilitates JMX Dump for current running Neo4j instance.
  */
 public class JMXDumper
 {
@@ -83,8 +83,8 @@ public class JMXDumper
         }
         else
         {
-            out.println( "No running instance of ONgDB was found. Online reports will be omitted." );
-            out.println( "If ONgDB is running but not detected, you can supply the process id of the running instance with --" + PID_KEY );
+            out.println( "No running instance of neo4j was found. Online reports will be omitted." );
+            out.println( "If neo4j is running but not detected, you can supply the process id of the running instance with --" + PID_KEY );
             return Optional.empty();
         }
     }
@@ -136,7 +136,7 @@ public class JMXDumper
 
     private Optional<Long> getPid()
     {
-        Path pidFile = this.homeDir.resolve( "run/ongdb.pid" );
+        Path pidFile = this.homeDir.resolve( "run/neo4j.pid" );
         if ( this.fs.fileExists( pidFile.toFile() ) )
         {
             // The file cannot be opened with write permissions on Windows

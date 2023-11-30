@@ -38,11 +38,12 @@
  */
 package org.neo4j.kernel.impl.index.labelscan;
 
+import org.eclipse.collections.api.iterator.LongIterator;
 import org.junit.Test;
 
 import java.io.IOException;
 
-import org.neo4j.collection.primitive.PrimitiveLongIterator;
+import org.neo4j.collection.PrimitiveLongResourceIterator;
 import org.neo4j.cursor.RawCursor;
 import org.neo4j.index.internal.gbptree.GBPTree;
 import org.neo4j.index.internal.gbptree.Hit;
@@ -54,7 +55,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.neo4j.collection.primitive.PrimitiveLongCollections.asArray;
+import static org.neo4j.collection.PrimitiveLongCollections.asArray;
 
 public class NativeLabelScanReaderTest
 {
@@ -79,7 +80,7 @@ public class NativeLabelScanReaderTest
         try ( NativeLabelScanReader reader = new NativeLabelScanReader( index ) )
         {
             // WHEN
-            PrimitiveLongIterator iterator = reader.nodesWithLabel( LABEL_ID );
+            LongIterator iterator = reader.nodesWithLabel( LABEL_ID );
 
             // THEN
             assertArrayEquals( new long[] {
@@ -111,8 +112,8 @@ public class NativeLabelScanReaderTest
             // first check test invariants
             verify( cursor1, never() ).close();
             verify( cursor2, never() ).close();
-            PrimitiveLongIterator first = reader.nodesWithLabel( LABEL_ID );
-            PrimitiveLongIterator second = reader.nodesWithLabel( LABEL_ID );
+            LongIterator first = reader.nodesWithLabel( LABEL_ID );
+            LongIterator second = reader.nodesWithLabel( LABEL_ID );
 
             // getting the second iterator should not have closed the first one
             verify( cursor1, never() ).close();
@@ -156,6 +157,38 @@ public class NativeLabelScanReaderTest
         verify( cursor2, times( 1 ) ).close();
     }
 
+    @Test
+    public void shouldStartFromGivenId() throws IOException
+    {
+        // given
+        GBPTree<LabelScanKey,LabelScanValue> index = mock( GBPTree.class );
+        RawCursor<Hit<LabelScanKey,LabelScanValue>,IOException> cursor = mock( RawCursor.class );
+        when( cursor.next() ).thenReturn( true, true, false );
+        when( cursor.get() ).thenReturn(
+                // range, bits
+                hit( 1, 0b0001_1000__0101_1110L ),
+                //                        ^--fromId, i.e. ids after this id should be visible
+                hit( 3, 0b0010_0000__1010_0001L ),
+                null );
+        when( index.seek( any( LabelScanKey.class ), any( LabelScanKey.class ) ) )
+                .thenReturn( cursor );
+
+        // when
+        long fromId = LabelScanValue.RANGE_SIZE + 3;
+        try ( NativeLabelScanReader reader = new NativeLabelScanReader( index );
+              PrimitiveLongResourceIterator iterator = reader.nodesWithAnyOfLabels( fromId, LABEL_ID ) )
+        {
+            // then
+            assertArrayEquals( new long[] {
+                            // base 1*64 = 64
+                            64 + 4, 64 + 6, 64 + 11, 64 + 12,
+                            // base 3*64 = 192
+                            192 + 0, 192 + 5, 192 + 7, 192 + 13 },
+
+                    asArray( iterator ) );
+        }
+    }
+
     private static Hit<LabelScanKey,LabelScanValue> hit( long baseNodeId, long bits )
     {
         LabelScanKey key = new LabelScanKey( LABEL_ID, baseNodeId );
@@ -164,7 +197,7 @@ public class NativeLabelScanReaderTest
         return new MutableHit<>( key, value );
     }
 
-    private void exhaust( PrimitiveLongIterator iterator )
+    private void exhaust( LongIterator iterator )
     {
         while ( iterator.hasNext() )
         {

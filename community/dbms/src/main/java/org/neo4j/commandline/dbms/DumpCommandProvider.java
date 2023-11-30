@@ -67,7 +67,7 @@ public class DumpCommandProvider extends AdminCommand.Provider
     {
         return "Dump a database into a single-file archive. The archive can be used by the load command. " +
                 "<destination-path> can be a file or directory (in which case a file called <database>.dump will " +
-                "be created). It is not possible to dump a database that is mounted in a running ONgDB server.";
+                "be created). It is not possible to dump a database that is mounted in a running Neo4j server.";
     }
 
     @Override
@@ -88,6 +88,6 @@ public class DumpCommandProvider extends AdminCommand.Provider
     @Nonnull
     public AdminCommand create( Path homeDir, Path configDir, OutsideWorld outsideWorld )
     {
-        return new DumpCommand( homeDir, configDir, new Dumper() );
+        return new DumpCommand( homeDir, configDir, new Dumper( outsideWorld.errorStream() ), outsideWorld.errorStream() );
     }
 }

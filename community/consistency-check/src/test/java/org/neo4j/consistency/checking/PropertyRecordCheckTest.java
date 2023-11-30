@@ -38,7 +38,7 @@
  */
 package org.neo4j.consistency.checking;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -59,16 +59,16 @@ import org.neo4j.values.storable.CoordinateReferenceSystem;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
-public class PropertyRecordCheckTest
+class PropertyRecordCheckTest
         extends RecordCheckTestBase<PropertyRecord, ConsistencyReport.PropertyConsistencyReport, PropertyRecordCheck>
 {
-    public PropertyRecordCheckTest()
+    PropertyRecordCheckTest()
     {
         super( new PropertyRecordCheck(), ConsistencyReport.PropertyConsistencyReport.class, new int[0] );
     }
 
     @Test
-    public void shouldNotReportAnythingForPropertyRecordNotInUse()
+    void shouldNotReportAnythingForPropertyRecordNotInUse()
     {
         // given
         PropertyRecord property = notInUse( new PropertyRecord( 42 ) );
@@ -81,7 +81,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldNotReportAnythingForPropertyWithoutBlocksThatDoesNotReferenceAnyOtherRecords()
+    void shouldNotReportAnythingForPropertyWithoutBlocksThatDoesNotReferenceAnyOtherRecords()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );
@@ -94,7 +94,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldReportPropertyKeyNotInUse()
+    void shouldReportPropertyKeyNotInUse()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );
@@ -111,7 +111,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldReportPreviousPropertyNotInUse()
+    void shouldReportPreviousPropertyNotInUse()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );
@@ -127,7 +127,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldReportNextPropertyNotInUse()
+    void shouldReportNextPropertyNotInUse()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );
@@ -143,7 +143,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldReportPreviousPropertyNotReferringBack()
+    void shouldReportPreviousPropertyNotReferringBack()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );
@@ -159,7 +159,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldReportNextPropertyNotReferringBack()
+    void shouldReportNextPropertyNotReferringBack()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );
@@ -175,7 +175,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldReportStringRecordNotInUse()
+    void shouldReportStringRecordNotInUse()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );
@@ -192,7 +192,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldReportArrayRecordNotInUse()
+    void shouldReportArrayRecordNotInUse()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );
@@ -210,7 +210,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldReportEmptyStringRecord()
+    void shouldReportEmptyStringRecord()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );
@@ -228,7 +228,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldReportUnknownGTypeGeometryRecord()
+    void shouldReportUnknownGTypeGeometryRecord()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );
@@ -243,7 +243,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldReport15DimensionalPointRecord()
+    void shouldReport15DimensionalPointRecord()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );
@@ -258,7 +258,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldReportUnknownCRSPointRecord()
+    void shouldReportUnknownCRSPointRecord()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );
@@ -273,7 +273,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldReportTooHighDateRecord()
+    void shouldReportTooHighDateRecord()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );
@@ -285,7 +285,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldReportTooHighLocalTimeRecord()
+    void shouldReportTooHighLocalTimeRecord()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );
@@ -297,7 +297,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldReportTooHighNanoLocalDateTimeRecord()
+    void shouldReportTooHighNanoLocalDateTimeRecord()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );
@@ -309,7 +309,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldReportTooHighEpochSecondLocalDateTimeRecord()
+    void shouldReportTooHighEpochSecondLocalDateTimeRecord()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );
@@ -321,7 +321,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldReportTooHighNanoDateTimeRecord()
+    void shouldReportTooHighNanoDateTimeRecord()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );
@@ -333,7 +333,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldReportTooHighEpochSecondDateTimeRecord()
+    void shouldReportTooHighEpochSecondDateTimeRecord()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );
@@ -345,7 +345,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldReportTooHighNanoDateTimeRecordWithNamedTZ()
+    void shouldReportTooHighNanoDateTimeRecordWithNamedTZ()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );
@@ -357,7 +357,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldReportTooHighEpochSecondDateTimeRecordWithNamedTZ()
+    void shouldReportTooHighEpochSecondDateTimeRecordWithNamedTZ()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );
@@ -369,7 +369,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldReportTooHighOffsetSecondDateTimeRecord()
+    void shouldReportTooHighOffsetSecondDateTimeRecord()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );
@@ -381,7 +381,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldReportTooHighNanoTimeRecord()
+    void shouldReportTooHighNanoTimeRecord()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );
@@ -393,7 +393,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldReportTooHighOffsetSecondTimeRecord()
+    void shouldReportTooHighOffsetSecondTimeRecord()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );
@@ -419,7 +419,7 @@ public class PropertyRecordCheckTest
     }
 
     @Test
-    public void shouldReportEmptyArrayRecord()
+    void shouldReportEmptyArrayRecord()
     {
         // given
         PropertyRecord property = inUse( new PropertyRecord( 42 ) );

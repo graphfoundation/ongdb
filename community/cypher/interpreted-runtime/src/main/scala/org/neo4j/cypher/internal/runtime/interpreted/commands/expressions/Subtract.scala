@@ -39,33 +39,24 @@
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.util.v3_4.CypherTypeException
+import org.neo4j.cypher.operations.CypherMath
 import org.neo4j.values.AnyValue
-import org.neo4j.values.storable.{DurationValue, NumberValue, TemporalValue}
+import org.neo4j.values.storable.Values
 
-case class Subtract(a: Expression, b: Expression) extends Arithmetics(a, b) {
+case class Subtract(a: Expression, b: Expression) extends Expression {
 
-  override def apply(ctx: ExecutionContext, state: QueryState): AnyValue = {
-    val aVal = a(ctx, state)
-    val bVal = b(ctx, state)
-
-    (aVal, bVal) match {
-      case (x: TemporalValue[_,_], y: DurationValue) => x.minus(y)
-      case (x: DurationValue, y: DurationValue) => x.sub(y)
-      case (x: TemporalValue[_,_], y: TemporalValue[_,_]) => throw new CypherTypeException("You cannot subtract a temporal instant from another. " +
-        "To obtain the duration, use 'duration.between(temporal1, temporal2)' instead.")
-      case _ => applyWithValues(aVal, bVal)
-    }
+  override def apply(ctx: ExecutionContext, state: QueryState): AnyValue = (a(ctx, state), b(ctx, state)) match {
+    case (x, y) if x == Values.NO_VALUE || y == Values.NO_VALUE => Values.NO_VALUE
+    case (x, y) => CypherMath.subtract(x, y)
   }
 
-  def calc(a: NumberValue, b: NumberValue) = a.minus(b)
+  override def rewrite(f: Expression => Expression): Expression = f(Subtract(a.rewrite(f), b.rewrite(f)))
 
-  def rewrite(f: (Expression) => Expression) = f(Subtract(a.rewrite(f), b.rewrite(f)))
+  override def arguments: Seq[Expression] = Seq(a, b)
 
-  def symbolTableDependencies = a.symbolTableDependencies ++ b.symbolTableDependencies
+  override def children: Seq[AstNode[_]] = Seq(a, b)
 
-  def throwTypeError(aType: String, bType: String): Nothing = {
-    throw new CypherTypeException("Cannot subtract `" + bType + "` from `" + aType + "`")
-  }
+  override def symbolTableDependencies: Set[String] = a.symbolTableDependencies ++ b.symbolTableDependencies
 }

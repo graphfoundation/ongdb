@@ -41,14 +41,13 @@ package org.neo4j.kernel.impl.storemigration;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.io.fs.FileHandle;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.store.format.RecordFormatSelector;
@@ -83,6 +82,7 @@ import org.neo4j.logging.LogProvider;
  */
 public class StoreUpgrader
 {
+    private final Pattern MIGRATION_LEFTOVERS_PATTERN = Pattern.compile( MIGRATION_LEFT_OVERS_DIRECTORY + "(_\\d*)?" );
     public static final String MIGRATION_DIRECTORY = "upgrade";
     public static final String MIGRATION_LEFT_OVERS_DIRECTORY = "upgrade_backup";
     private static final String MIGRATION_STATUS_FILE = "_status";
@@ -122,15 +122,15 @@ public class StoreUpgrader
         }
     }
 
-    public void migrateIfNeeded( File storeDirectory )
+    public void migrateIfNeeded( DatabaseLayout layout )
     {
-        File migrationDirectory = new File( storeDirectory, MIGRATION_DIRECTORY );
+        DatabaseLayout migrationStructure = DatabaseLayout.of( layout.databaseDirectory(), MIGRATION_DIRECTORY );
 
-        cleanupLegacyLeftOverDirsIn( storeDirectory );
+        cleanupLegacyLeftOverDirsIn( layout.databaseDirectory() );
 
-        File migrationStateFile = new File( migrationDirectory, MIGRATION_STATUS_FILE );
+        File migrationStateFile = migrationStructure.file( MIGRATION_STATUS_FILE );
         // if migration directory exists than we might have failed to move files into the store dir so do it again
-        if ( upgradableDatabase.hasCurrentVersion( storeDirectory ) && !fileSystem.fileExists( migrationStateFile ) )
+        if ( upgradableDatabase.hasCurrentVersion( layout ) && !fileSystem.fileExists( migrationStateFile ) )
         {
             // No migration needed
             return;
@@ -138,15 +138,15 @@ public class StoreUpgrader
 
         if ( isUpgradeAllowed() )
         {
-            migrateStore( storeDirectory, migrationDirectory, migrationStateFile );
+            migrateStore( layout, migrationStructure, migrationStateFile );
         }
-        else if ( !RecordFormatSelector.isStoreAndConfigFormatsCompatible( config, storeDirectory, pageCache, logProvider ) )
+        else if ( !RecordFormatSelector.isStoreAndConfigFormatsCompatible( config, layout, fileSystem, pageCache, logProvider ) )
         {
             throw new UpgradeNotAllowedByConfigurationException();
         }
     }
 
-    private void migrateStore( File storeDirectory, File migrationDirectory, File migrationStateFile )
+    private void migrateStore( DatabaseLayout dbDirectoryLayout, DatabaseLayout migrationLayout, File migrationStateFile )
     {
         // One or more participants would like to do migration
         progressMonitor.started( participants.size() );
@@ -157,10 +157,10 @@ public class StoreUpgrader
         // and it's just a matter of moving over the files to the storeDir.
         if ( MigrationStatus.migrating.isNeededFor( migrationStatus ) )
         {
-            versionToMigrateFrom = upgradableDatabase.checkUpgradeable( storeDirectory ).storeVersion();
-            cleanMigrationDirectory( migrationDirectory );
+            versionToMigrateFrom = upgradableDatabase.checkUpgradable( dbDirectoryLayout ).storeVersion();
+            cleanMigrationDirectory( migrationLayout.databaseDirectory() );
             MigrationStatus.migrating.setMigrationStatus( fileSystem, migrationStateFile, versionToMigrateFrom );
-            migrateToIsolatedDirectory( storeDirectory, migrationDirectory, versionToMigrateFrom );
+            migrateToIsolatedDirectory( dbDirectoryLayout, migrationLayout, versionToMigrateFrom );
             MigrationStatus.moving.setMigrationStatus( fileSystem, migrationStateFile, versionToMigrateFrom );
         }
 
@@ -168,11 +168,11 @@ public class StoreUpgrader
         {
             versionToMigrateFrom =
                     MigrationStatus.moving.maybeReadInfo( fileSystem, migrationStateFile, versionToMigrateFrom );
-            moveMigratedFilesToStoreDirectory( participants, migrationDirectory, storeDirectory,
+            moveMigratedFilesToStoreDirectory( participants, migrationLayout, dbDirectoryLayout,
                     versionToMigrateFrom, upgradableDatabase.currentVersion() );
         }
 
-        cleanup( participants, migrationDirectory );
+        cleanup( participants, migrationLayout );
 
         progressMonitor.completed();
     }
@@ -187,11 +187,10 @@ public class StoreUpgrader
         return config.get( GraphDatabaseSettings.allow_upgrade );
     }
 
-    private void cleanupLegacyLeftOverDirsIn( File storeDir )
+    private void cleanupLegacyLeftOverDirsIn( File databaseDirectory )
     {
-        final Pattern leftOverDirsPattern = Pattern.compile( MIGRATION_LEFT_OVERS_DIRECTORY + "(_\\d*)?" );
-        File[] leftOverDirs = storeDir.listFiles(
-                ( file, name ) -> file.isDirectory() && leftOverDirsPattern.matcher( name ).matches() );
+        File[] leftOverDirs = databaseDirectory.listFiles(
+                ( file, name ) -> file.isDirectory() && MIGRATION_LEFTOVERS_PATTERN.matcher( name ).matches() );
         if ( leftOverDirs != null )
         {
             for ( File leftOverDir : leftOverDirs )
@@ -201,13 +200,13 @@ public class StoreUpgrader
         }
     }
 
-    private void cleanup( Iterable<StoreMigrationParticipant> participants, File migrationDirectory )
+    private static void cleanup( Iterable<StoreMigrationParticipant> participants, DatabaseLayout migrationStructure )
     {
         try
         {
             for ( StoreMigrationParticipant participant : participants )
             {
-                participant.cleanup( migrationDirectory );
+                participant.cleanup( migrationStructure );
             }
         }
         catch ( IOException e )
@@ -216,14 +215,14 @@ public class StoreUpgrader
         }
     }
 
-    private void moveMigratedFilesToStoreDirectory( Iterable<StoreMigrationParticipant> participants,
-            File migrationDirectory, File storeDirectory, String versionToMigrateFrom, String versionToMigrateTo )
+    private static void moveMigratedFilesToStoreDirectory( Iterable<StoreMigrationParticipant> participants, DatabaseLayout migrationLayout,
+            DatabaseLayout directoryLayout, String versionToMigrateFrom, String versionToMigrateTo )
     {
         try
         {
             for ( StoreMigrationParticipant participant : participants )
             {
-                participant.moveMigratedFiles( migrationDirectory, storeDirectory, versionToMigrateFrom,
+                participant.moveMigratedFiles( migrationLayout, directoryLayout, versionToMigrateFrom,
                         versionToMigrateTo );
             }
         }
@@ -233,14 +232,14 @@ public class StoreUpgrader
         }
     }
 
-    private void migrateToIsolatedDirectory( File storeDir, File migrationDirectory, String versionToMigrateFrom )
+    private void migrateToIsolatedDirectory( DatabaseLayout directoryLayout, DatabaseLayout migrationLayout, String versionToMigrateFrom )
     {
         try
         {
             for ( StoreMigrationParticipant participant : participants )
             {
                 ProgressReporter progressReporter = progressMonitor.startSection( participant.getName() );
-                participant.migrate( storeDir, migrationDirectory, progressReporter, versionToMigrateFrom,
+                participant.migrate( directoryLayout, migrationLayout, progressReporter, versionToMigrateFrom,
                         upgradableDatabase.currentVersion() );
                 progressReporter.completed();
             }
@@ -258,17 +257,6 @@ public class StoreUpgrader
             if ( fileSystem.fileExists( migrationDirectory ) )
             {
                 fileSystem.deleteRecursively( migrationDirectory );
-            }
-            // We use the file system from the page cache here to make sure that the migration directory is clean
-            // even if we are using a block device.
-            try
-            {
-                pageCache.getCachedFileSystem().streamFilesRecursive( migrationDirectory )
-                        .forEach( FileHandle.HANDLE_DELETE );
-            }
-            catch ( NoSuchFileException e )
-            {
-                // This means that we had no files to clean, this is fine.
             }
         }
         catch ( IOException | UncheckedIOException e )
@@ -332,7 +320,7 @@ public class StoreUpgrader
 
         UnexpectedUpgradingStoreVersionException( String fileVersion, String currentVersion )
         {
-            super( String.format( MESSAGE, fileVersion, currentVersion, Version.getONgDBVersion() ) );
+            super( String.format( MESSAGE, fileVersion, currentVersion, Version.getNeo4jVersion() ) );
         }
     }
 

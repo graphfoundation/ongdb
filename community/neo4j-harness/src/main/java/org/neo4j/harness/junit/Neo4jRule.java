@@ -46,7 +46,9 @@ import java.io.File;
 import java.io.PrintStream;
 import java.net.URI;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
+import org.neo4j.function.Suppliers;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.config.Configuration;
 import org.neo4j.graphdb.config.Setting;
@@ -59,14 +61,14 @@ import org.neo4j.harness.TestServerBuilders;
  * {@link org.junit.Rule rule}.
  *
  * Note that it will try to start the web server on the standard 7474 port, but if that is not available
- * (typically because you already have an instance of ONgDB running) it will try other ports. Therefore it is necessary
+ * (typically because you already have an instance of Neo4j running) it will try other ports. Therefore it is necessary
  * for the test code to use {@link #httpURI()} and then {@link java.net.URI#resolve(String)} to create the URIs to be invoked.
  */
 public class Neo4jRule implements TestRule, TestServerBuilder
 {
     private TestServerBuilder builder;
     private ServerControls controls;
-    private PrintStream dumpLogsOnFailureTarget;
+    private Supplier<PrintStream> dumpLogsOnFailureTarget;
 
     Neo4jRule( TestServerBuilder builder )
     {
@@ -101,7 +103,7 @@ public class Neo4jRule implements TestRule, TestServerBuilder
                     {
                         if ( dumpLogsOnFailureTarget != null )
                         {
-                            sc.printLogs( dumpLogsOnFailureTarget );
+                            sc.printLogs( dumpLogsOnFailureTarget.get() );
                         }
 
                         throw t;
@@ -196,6 +198,12 @@ public class Neo4jRule implements TestRule, TestServerBuilder
 
     public Neo4jRule dumpLogsOnFailure( PrintStream out )
     {
+        dumpLogsOnFailureTarget = () -> out;
+        return this;
+    }
+
+    public Neo4jRule dumpLogsOnFailure( Supplier<PrintStream> out )
+    {
         dumpLogsOnFailureTarget = out;
         return this;
     }
@@ -224,7 +232,7 @@ public class Neo4jRule implements TestRule, TestServerBuilder
         {
             throw new IllegalStateException( "Cannot access instance URI before or after the test runs." );
         }
-        return controls.httpURI();
+        return controls.httpsURI().orElseThrow( () -> new IllegalStateException( "HTTPS connector is not configured" ) );
     }
 
     public GraphDatabaseService getGraphDatabaseService()

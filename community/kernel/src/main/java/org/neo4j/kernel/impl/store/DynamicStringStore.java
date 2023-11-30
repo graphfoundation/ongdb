@@ -58,7 +58,8 @@ public class DynamicStringStore extends AbstractDynamicStore
     public static final String TYPE_DESCRIPTOR = "StringPropertyStore";
 
     public DynamicStringStore(
-            File fileName,
+            File file,
+            File idFile,
             Config configuration,
             IdType idType,
             IdGeneratorFactory idGeneratorFactory,
@@ -69,7 +70,7 @@ public class DynamicStringStore extends AbstractDynamicStore
             String storeVersion,
             OpenOption... openOptions )
     {
-        super( fileName, configuration, idType, idGeneratorFactory, pageCache,
+        super( file, idFile, configuration, idType, idGeneratorFactory, pageCache,
                 logProvider, TYPE_DESCRIPTOR, dataSizeFromConfiguration, recordFormat, storeVersion, openOptions );
     }
 

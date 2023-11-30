@@ -39,64 +39,61 @@
 package org.neo4j.kernel.impl.index.schema;
 
 import java.io.File;
-import java.io.IOException;
 
 import org.neo4j.index.internal.gbptree.GBPTree;
-import org.neo4j.index.internal.gbptree.Layout;
 import org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector;
 import org.neo4j.internal.kernel.api.IndexCapability;
 import org.neo4j.internal.kernel.api.IndexLimitation;
 import org.neo4j.internal.kernel.api.IndexOrder;
 import org.neo4j.internal.kernel.api.IndexValueCapability;
+import org.neo4j.internal.kernel.api.TokenNameLookup;
+import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.index.IndexAccessor;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
 import org.neo4j.kernel.api.index.IndexPopulator;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
+import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 import org.neo4j.values.storable.ValueCategory;
 
 /**
  * Schema index provider for native indexes backed by e.g. {@link GBPTree}.
  */
-public class StringIndexProvider extends NativeIndexProvider<StringSchemaKey,NativeSchemaValue>
+public class StringIndexProvider extends NativeIndexProvider<StringIndexKey,NativeIndexValue,StringLayout>
 {
     public static final String KEY = "string";
     static final IndexCapability CAPABILITY = new StringIndexCapability();
-    private static final Descriptor STRING_PROVIDER_DESCRIPTOR = new Descriptor( KEY, "1.0" );
+    private static final IndexProviderDescriptor STRING_PROVIDER_DESCRIPTOR = new IndexProviderDescriptor( KEY, "1.0" );
 
     public StringIndexProvider( PageCache pageCache, FileSystemAbstraction fs,
             IndexDirectoryStructure.Factory directoryStructure, Monitor monitor, RecoveryCleanupWorkCollector recoveryCleanupWorkCollector,
             boolean readOnly )
     {
-        super( STRING_PROVIDER_DESCRIPTOR, 0, directoryStructure, pageCache, fs, monitor, recoveryCleanupWorkCollector, readOnly );
+        super( STRING_PROVIDER_DESCRIPTOR, directoryStructure, pageCache, fs, monitor, recoveryCleanupWorkCollector, readOnly );
     }
 
     @Override
-    Layout<StringSchemaKey,NativeSchemaValue> layout( SchemaIndexDescriptor descriptor )
+    StringLayout layout( StoreIndexDescriptor descriptor, File storeFile )
     {
         return new StringLayout();
     }
 
     @Override
-    protected IndexPopulator newIndexPopulator( File storeFile, Layout<StringSchemaKey,NativeSchemaValue> layout,
-                                                SchemaIndexDescriptor descriptor, long indexId,
-                                                IndexSamplingConfig samplingConfig )
+    protected IndexPopulator newIndexPopulator( File storeFile, StringLayout layout, StoreIndexDescriptor descriptor, ByteBufferFactory bufferFactory,
+            TokenNameLookup tokenNameLookup )
     {
-        return new StringSchemaIndexPopulator( pageCache, fs, storeFile, layout, monitor, descriptor, indexId, samplingConfig );
+        return new WorkSyncedNativeIndexPopulator<>( new StringIndexPopulator( pageCache, fs, storeFile, layout, monitor, descriptor, tokenNameLookup ) );
     }
 
     @Override
-    protected IndexAccessor newIndexAccessor( File storeFile, Layout<StringSchemaKey,NativeSchemaValue> layout, SchemaIndexDescriptor descriptor,
-            long indexId, IndexSamplingConfig samplingConfig ) throws IOException
+    protected IndexAccessor newIndexAccessor( File storeFile, StringLayout layout, StoreIndexDescriptor descriptor, boolean readOnly,
+            TokenNameLookup tokenNameLookup )
     {
-        return new StringSchemaIndexAccessor( pageCache, fs, storeFile, layout, recoveryCleanupWorkCollector, monitor, descriptor,
-                indexId, samplingConfig );
+        return new StringIndexAccessor( pageCache, fs, storeFile, layout, recoveryCleanupWorkCollector, monitor, descriptor, readOnly, tokenNameLookup );
     }
 
     @Override
-    public IndexCapability getCapability( SchemaIndexDescriptor schemaIndexDescriptor )
+    public IndexCapability getCapability( StoreIndexDescriptor descriptor )
     {
         return CAPABILITY;
     }
@@ -117,7 +114,7 @@ public class StringIndexProvider extends NativeIndexProvider<StringSchemaKey,Nat
         {
             if ( support( valueCategories ) )
             {
-                return ORDER_ASC;
+                return ORDER_BOTH;
             }
             return ORDER_NONE;
         }
@@ -134,6 +131,18 @@ public class StringIndexProvider extends NativeIndexProvider<StringSchemaKey,Nat
                 return IndexValueCapability.PARTIAL;
             }
             return IndexValueCapability.NO;
+        }
+
+        @Override
+        public boolean isFulltextIndex()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean isEventuallyConsistent()
+        {
+            return false;
         }
 
         @Override

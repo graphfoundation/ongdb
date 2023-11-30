@@ -40,7 +40,6 @@ package org.neo4j.values.storable;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -48,7 +47,6 @@ import org.neo4j.graphdb.spatial.CRS;
 import org.neo4j.graphdb.spatial.Coordinate;
 import org.neo4j.graphdb.spatial.Point;
 import org.neo4j.hashing.HashFunction;
-import org.neo4j.values.AnyValue;
 import org.neo4j.values.Comparison;
 import org.neo4j.values.ValueMapper;
 import org.neo4j.values.utils.InvalidValuesArgumentException;
@@ -57,10 +55,23 @@ import org.neo4j.values.virtual.MapValue;
 
 import static java.lang.String.format;
 import static java.util.Collections.singletonList;
+import static org.neo4j.values.utils.ValueMath.HASH_CONSTANT;
 
 public class PointValue extends ScalarValue implements Point, Comparable<PointValue>
 {
-    public static String[] ALLOWED_KEYS = new String[]{"crs", "x", "y", "z", "longitude", "latitude", "height", "srid"};
+    // WGS84 is the CRS w/ lowest table/code at the time of writing this. Update as more CRSs gets added.
+    public static final PointValue MIN_VALUE = new PointValue( CoordinateReferenceSystem.WGS84, -180D, -90 );
+    // Cartesian_3D is the CRS w/ highest table/code at the time of writing this. Update as more CRSs gets added.
+    public static final PointValue MAX_VALUE = new PointValue( CoordinateReferenceSystem.Cartesian_3D, Long.MAX_VALUE, Long.MAX_VALUE, Long.MAX_VALUE );
+
+    static final PointValue MIN_VALUE_WGS84 = new PointValue( CoordinateReferenceSystem.WGS84, -180D, -90 );
+    static final PointValue MAX_VALUE_WGS84 = new PointValue( CoordinateReferenceSystem.WGS84, 180D, 90 );
+    static final PointValue MIN_VALUE_WGS84_3D = new PointValue( CoordinateReferenceSystem.WGS84_3D, -180D, -90, Long.MIN_VALUE );
+    static final PointValue MAX_VALUE_WGS84_3D = new PointValue( CoordinateReferenceSystem.WGS84_3D, 180D, 90, Long.MAX_VALUE );
+    static final PointValue MIN_VALUE_CARTESIAN = new PointValue( CoordinateReferenceSystem.Cartesian, Long.MIN_VALUE, Long.MIN_VALUE );
+    static final PointValue MAX_VALUE_CARTESIAN = new PointValue( CoordinateReferenceSystem.Cartesian, Long.MAX_VALUE, Long.MAX_VALUE );
+    static final PointValue MIN_VALUE_CARTESIAN_3D = new PointValue( CoordinateReferenceSystem.Cartesian_3D, Long.MIN_VALUE, Long.MIN_VALUE, Long.MIN_VALUE );
+    static final PointValue MAX_VALUE_CARTESIAN_3D = new PointValue( CoordinateReferenceSystem.Cartesian_3D, Long.MAX_VALUE, Long.MAX_VALUE, Long.MAX_VALUE );
 
     private CoordinateReferenceSystem crs;
     private double[] coordinate;
@@ -146,7 +157,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
     @Override
     public int compareTo( PointValue other )
     {
-        int cmpCRS = this.crs.getCode() - other.crs.getCode();
+        int cmpCRS = Integer.compare( this.crs.getCode(), other.crs.getCode() );
         if ( cmpCRS != 0 )
         {
             return cmpCRS;
@@ -180,7 +191,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
     }
 
     @Override
-    Comparison unsafeTernaryCompareTo( Value otherValue )
+    public Comparison unsafeTernaryCompareTo( Value otherValue )
     {
         PointValue other = (PointValue) otherValue;
 
@@ -257,8 +268,8 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
     public int computeHash()
     {
         int result = 1;
-        result = 31 * result + NumberValues.hash( crs.getCode() );
-        result = 31 * result + NumberValues.hash( coordinate );
+        result = HASH_CONSTANT * result + NumberValues.hash( crs.getCode() );
+        result = HASH_CONSTANT * result + NumberValues.hash( coordinate );
         return result;
     }
 
@@ -385,10 +396,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
     public static PointValue fromMap( MapValue map )
     {
         PointBuilder fields = new PointBuilder();
-        for ( Map.Entry<String,AnyValue> entry : map.entrySet() )
-        {
-            fields.assign( entry.getKey().toLowerCase(), entry.getValue() );
-        }
+        map.foreach( ( key, value ) -> fields.assign( key.toLowerCase(), value ) );
         return fromInputFields( fields );
     }
 
@@ -553,7 +561,6 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
         private Double latitude;
         private Double height;
         private int srid = -1;
-        private boolean allowOpenMaps = true;
 
         @Override
         public void assign( String key, Object value )
@@ -596,10 +603,6 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
                 assignIntegral( key, value, i -> srid = i );
                 break;
             default:
-                if ( !allowOpenMaps )
-                {
-                    throwOnUnrecognizedKey( key );
-                }
             }
         }
 
@@ -665,11 +668,6 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
             {
                 throw new InvalidValuesArgumentException( String.format( "Cannot assign %s to field %s", value, key ) );
             }
-        }
-
-        private void throwOnUnrecognizedKey( String key )
-        {
-            throw new InvalidValuesArgumentException( String.format( "Unknown key '%s' for creating new point", key ) );
         }
 
         private <T extends Number> T assertConvertible( Supplier<T> func )

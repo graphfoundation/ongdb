@@ -43,18 +43,16 @@ import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.{CoercedPredicate, Predicate}
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, QueryState}
 import org.neo4j.cypher.internal.runtime.interpreted.symbols.TypeSafe
-import org.neo4j.cypher.internal.util.v3_4.InternalException
-import org.neo4j.cypher.internal.util.v3_4.symbols.CypherType
 import org.neo4j.values.AnyValue
-import org.neo4j.values.storable.{NumberValue, Values}
+import org.neo4j.values.storable.Values
+import org.neo4j.cypher.internal.v3_5.util.symbols.CypherType
 
 abstract class Expression extends TypeSafe with AstNode[Expression] {
 
   // WARNING: MUTABILITY IN IMMUTABLE CLASSES ...
   private var _owningPipe: Option[Pipe] = None
 
-  def owningPipe: Pipe = _owningPipe.getOrElse(
-    throw new InternalException("Expressions need to be registered with it's owning Pipe, so the profiling knows where to report db-hits"))
+  def owningPipe: Option[Pipe] = _owningPipe
 
   def registerOwningPipe(pipe: Pipe): Unit = visit {
     case x:Expression => x._owningPipe = Some(pipe)
@@ -75,11 +73,13 @@ abstract class Expression extends TypeSafe with AstNode[Expression] {
     }
   }
 
+  // TODO check overrides here
+
   // Expressions that do not get anything in their context from this expression.
-  def arguments:Seq[Expression]
+  def arguments: Seq[Expression]
 
   // Any expressions that this expression builds on
-  def children: Seq[AstNode[_]] = arguments
+  def children: Seq[AstNode[_]]
 
   def containsAggregate = exists(_.isInstanceOf[AggregationExpression])
 
@@ -99,19 +99,19 @@ abstract class Expression extends TypeSafe with AstNode[Expression] {
 case class CachedExpression(key:String, typ:CypherType) extends Expression {
   def apply(ctx: ExecutionContext, state: QueryState) = ctx(key)
 
-  def rewrite(f: (Expression) => Expression) = f(this)
+  override def rewrite(f: Expression => Expression): Expression = f(this)
 
-  def arguments = Seq()
+  override def arguments: Seq[Expression] = Seq.empty
 
-  def symbolTableDependencies = Set(key)
+  override def children: Seq[AstNode[_]] = Seq.empty
+
+  override def symbolTableDependencies: Set[String] = Set(key)
 
   override def toString = "Cached(%s of type %s)".format(key, typ)
 }
 
 abstract class Arithmetics(left: Expression, right: Expression) extends Expression {
-  def throwTypeError(aType: String, bType: String): Nothing
-
-  def apply(ctx: ExecutionContext, state: QueryState): AnyValue = {
+  override def apply(ctx: ExecutionContext, state: QueryState): AnyValue = {
     val aVal = left(ctx, state)
     val bVal = right(ctx, state)
 
@@ -121,18 +121,17 @@ abstract class Arithmetics(left: Expression, right: Expression) extends Expressi
   protected def applyWithValues(aVal: AnyValue, bVal: AnyValue): AnyValue = {
     (aVal, bVal) match {
       case (x, y) if x == Values.NO_VALUE || y == Values.NO_VALUE => Values.NO_VALUE
-      case (x: NumberValue, y: NumberValue) => calc(x, y)
-      case _ => throwTypeError(aVal.getTypeName, bVal.getTypeName)
+      case (x, y) => calc(x, y)
     }
   }
 
-  def calc(a: NumberValue, b: NumberValue): AnyValue
+  def calc(a: AnyValue, b: AnyValue): AnyValue
 
-  def arguments = Seq(left, right)
+  override def arguments: Seq[Expression] = Seq(left, right)
+
+  override def symbolTableDependencies: Set[String] = left.symbolTableDependencies ++ left.symbolTableDependencies
 }
 
-trait ExpressionWInnerExpression extends Expression {
-  def inner:Expression
-  def myType:CypherType
-  def expectedInnerType:CypherType
+trait ExtendedExpression extends Expression {
+  def legacy: Expression
 }

@@ -38,14 +38,15 @@
  */
 package org.neo4j.consistency.checking.full;
 
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import org.neo4j.collection.primitive.Primitive;
-import org.neo4j.collection.primitive.PrimitiveLongSet;
 import org.neo4j.helpers.collection.Visitor;
-import org.neo4j.kernel.api.index.PropertyAccessor;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.kernel.impl.store.NodeStore;
 import org.neo4j.kernel.impl.store.PropertyStore;
 import org.neo4j.kernel.impl.store.StoreAccess;
@@ -58,7 +59,7 @@ import org.neo4j.values.storable.Values;
 
 import static org.neo4j.kernel.impl.store.record.RecordLoad.FORCE;
 
-class PropertyReader implements PropertyAccessor
+class PropertyReader implements NodePropertyAccessor
 {
     private final PropertyStore propertyStore;
     private final NodeStore nodeStore;
@@ -101,7 +102,7 @@ class PropertyReader implements PropertyAccessor
             return false;
         }
 
-        PrimitiveLongSet visitedPropertyRecordIds = Primitive.longSet( 8 );
+        MutableLongSet visitedPropertyRecordIds = new LongHashSet( 8 );
         visitedPropertyRecordIds.add( firstPropertyRecordId );
         long nextProp = firstPropertyRecordId;
         while ( !Record.NO_NEXT_PROPERTY.is( nextProp ) )
@@ -126,7 +127,7 @@ class PropertyReader implements PropertyAccessor
     }
 
     @Override
-    public Value getPropertyValue( long nodeId, int propertyKeyId )
+    public Value getNodePropertyValue( long nodeId, int propertyKeyId )
     {
         NodeRecord nodeRecord = nodeStore.newRecord();
         if ( nodeStore.getRecord( nodeId, nodeRecord, FORCE ).inUse() )

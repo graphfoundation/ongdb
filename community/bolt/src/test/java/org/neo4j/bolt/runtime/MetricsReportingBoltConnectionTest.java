@@ -40,21 +40,16 @@ package org.neo4j.bolt.runtime;
 
 import org.junit.Test;
 
-import java.util.UUID;
-
 import org.neo4j.bolt.BoltChannel;
+import org.neo4j.bolt.testing.BoltTestUtil;
 import org.neo4j.bolt.v1.packstream.PackOutput;
-import org.neo4j.bolt.v1.runtime.BoltConnectionAuthFatality;
-import org.neo4j.bolt.v1.runtime.BoltProtocolBreachFatality;
-import org.neo4j.bolt.v1.runtime.BoltStateMachine;
 import org.neo4j.bolt.v1.runtime.Job;
-import org.neo4j.kernel.impl.logging.NullLogService;
+import org.neo4j.logging.internal.NullLogService;
 import org.neo4j.time.Clocks;
 
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 public class MetricsReportingBoltConnectionTest
 {
@@ -189,9 +184,7 @@ public class MetricsReportingBoltConnectionTest
 
     private static BoltConnection newConnection( BoltConnectionMetricsMonitor metricsMonitor )
     {
-        BoltChannel channel = mock( BoltChannel.class );
-        when( channel.id() ).thenReturn( UUID.randomUUID().toString() );
-
+        BoltChannel channel = BoltTestUtil.newTestBoltChannel();
         return new MetricsReportingBoltConnection( channel, mock( PackOutput.class ), mock( BoltStateMachine.class ), NullLogService.getInstance(),
                 mock( BoltConnectionLifetimeListener.class ), mock( BoltConnectionQueueMonitor.class ), metricsMonitor, Clocks.systemClock() );
     }

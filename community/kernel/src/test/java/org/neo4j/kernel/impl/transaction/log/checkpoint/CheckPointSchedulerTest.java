@@ -38,6 +38,7 @@
  */
 package org.neo4j.kernel.impl.transaction.log.checkpoint;
 
+import org.eclipse.collections.api.block.predicate.primitive.BooleanPredicate;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -51,11 +52,13 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 
 import org.neo4j.helpers.collection.Iterators;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.kernel.impl.store.UnderlyingStorageException;
 import org.neo4j.kernel.internal.DatabaseHealth;
+import org.neo4j.scheduler.Group;
 import org.neo4j.test.DoubleLatch;
 import org.neo4j.test.OnDemandJobScheduler;
 import org.neo4j.test.OtherThreadExecutor;
@@ -76,7 +79,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
-import static org.neo4j.scheduler.JobScheduler.Groups.checkPoint;
 
 public class CheckPointSchedulerTest
 {
@@ -113,7 +115,7 @@ public class CheckPointSchedulerTest
 
         // then
         assertNotNull( jobScheduler.getJob() );
-        verify( jobScheduler, times( 1 ) ).schedule( eq( checkPoint ), any( Runnable.class ),
+        verify( jobScheduler, times( 1 ) ).schedule( eq( Group.CHECKPOINT ), any( Runnable.class ),
                 eq( 20L ), eq( TimeUnit.MILLISECONDS ) );
     }
 
@@ -134,7 +136,7 @@ public class CheckPointSchedulerTest
         jobScheduler.runJob();
 
         // then
-        verify( jobScheduler, times( 2 ) ).schedule( eq( checkPoint ), any( Runnable.class ),
+        verify( jobScheduler, times( 2 ) ).schedule( eq( Group.CHECKPOINT ), any( Runnable.class ),
                 eq( 20L ), eq( TimeUnit.MILLISECONDS ) );
         verify( checkPointer, times( 1 ) ).checkPointIfNeeded( any( TriggerInfo.class ) );
         assertEquals( scheduledJob, jobScheduler.getJob() );
@@ -199,6 +201,12 @@ public class CheckPointSchedulerTest
 
             @Override
             public long tryCheckPoint( TriggerInfo triggerInfo )
+            {
+                throw new RuntimeException( "this should have not been called" );
+            }
+
+            @Override
+            public long tryCheckPoint( TriggerInfo triggerInfo, BooleanSupplier timeout )
             {
                 throw new RuntimeException( "this should have not been called" );
             }
@@ -295,7 +303,7 @@ public class CheckPointSchedulerTest
         checkpointerStarter.get();
 
         assertTrue( "Checkpointer should be created.", checkPointer.isCheckpointCreated() );
-        assertTrue( "Limiter should be enabled in the end.", ioLimiter.isLimitEnabled() );
+        assertTrue( "Limiter should be enabled in the end.", ioLimiter.isLimited() );
     }
 
     @Test
@@ -351,6 +359,12 @@ public class CheckPointSchedulerTest
         }
 
         @Override
+        public long tryCheckPoint( TriggerInfo triggerInfo, BooleanSupplier timeout )
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public long forceCheckPoint( TriggerInfo triggerInfo )
         {
             throw new UnsupportedOperationException();
@@ -385,7 +399,8 @@ public class CheckPointSchedulerTest
             limitEnabled = true;
         }
 
-        boolean isLimitEnabled()
+        @Override
+        public boolean isLimited()
         {
             return limitEnabled;
         }
@@ -408,7 +423,7 @@ public class CheckPointSchedulerTest
         public long checkPointIfNeeded( TriggerInfo triggerInfo )
         {
             latch.countDown();
-            while ( ioLimiter.isLimitEnabled() )
+            while ( ioLimiter.isLimited() )
             {
                 //spin while limiter enabled
             }
@@ -418,6 +433,12 @@ public class CheckPointSchedulerTest
 
         @Override
         public long tryCheckPoint( TriggerInfo triggerInfo )
+        {
+            throw new UnsupportedOperationException( "This should have not been called" );
+        }
+
+        @Override
+        public long tryCheckPoint( TriggerInfo triggerInfo, BooleanSupplier timeout )
         {
             throw new UnsupportedOperationException( "This should have not been called" );
         }

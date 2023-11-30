@@ -38,9 +38,6 @@
  */
 package org.neo4j.kernel.impl.index.schema.config;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.function.Consumer;
@@ -50,12 +47,10 @@ import org.neo4j.gis.spatial.index.Envelope;
 import org.neo4j.gis.spatial.index.curves.HilbertSpaceFillingCurve2D;
 import org.neo4j.gis.spatial.index.curves.HilbertSpaceFillingCurve3D;
 import org.neo4j.gis.spatial.index.curves.SpaceFillingCurve;
-import org.neo4j.index.internal.gbptree.GBPTree;
 import org.neo4j.index.internal.gbptree.Header;
-import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.PageCursor;
 
-import static org.neo4j.kernel.impl.index.schema.NativeSchemaIndexPopulator.BYTE_FAILED;
+import static org.neo4j.kernel.impl.index.schema.NativeIndexPopulator.BYTE_FAILED;
 
 /**
  * <p>
@@ -77,114 +72,30 @@ import static org.neo4j.kernel.impl.index.schema.NativeSchemaIndexPopulator.BYTE
  * the extents too big means than only a small area is used causing more points to map to fewer 1D
  * values and requiring more post filtering. If the extents are too small, many points will lie on
  * the edges, and also cause additional post-index filtering costs.</dd>
+ * </dl>
+ * </p>
+ * <p>If the settings are for an existing index, they are read from the GBPTree header, and in that case
+ * an additional field is maintained:
+ * <dl>
  *     <dt>failureMessage</dt>
- *         <dd>The settings are read from the GBPTree header structure, but when this is a FAILED index, there are no settings, but instead an error message
- * describing the failure. If that happens, code that triggered the read should check this field and react accordingly. If the the value is null, there
- * was no failure.</dd>
+ *         <dd>The settings are read from the GBPTree header structure, but when this is a FAILED index, there are no settings,
+ *         but instead an error message describing the failure. If that happens, code that triggered the read should check this
+ *         field and react accordingly. If the the value is null, there was no failure.</dd>
  * </dl>
  * </p>
  */
-public abstract class SpaceFillingCurveSettings
+public class SpaceFillingCurveSettings
 {
-    protected int dimensions;
+    private SpatialIndexType indexType = SpatialIndexType.SingleSpaceFillingCurve;
+    int dimensions;
     int maxLevels;
     Envelope extents;
 
-    static SpaceFillingCurveSettings fromConfig( int dimensions, int maxBits, Envelope extents )
+    SpaceFillingCurveSettings( int dimensions, Envelope extents, int maxLevels )
     {
-        return new SettingsFromConfig( dimensions, maxBits, extents );
-    }
-
-    public static SpaceFillingCurveSettings fromGBPTree( File indexFile, PageCache pageCache, Function<ByteBuffer,String> onError ) throws IOException
-    {
-        SettingsFromIndexHeader settings = new SettingsFromIndexHeader();
-        GBPTree.readHeader( pageCache, indexFile, settings.headerReader( onError ) );
-        if ( settings.isFailed() )
-        {
-            throw new IOException( settings.getFailureMessage() );
-        }
-        return settings;
-    }
-
-    private static class SettingsFromConfig extends SpaceFillingCurveSettings
-    {
-        private SettingsFromConfig( int dimensions, int maxBits, Envelope extents )
-        {
-            super( dimensions, extents, calcMaxLevels( dimensions, maxBits ) );
-        }
-
-        private static int calcMaxLevels( int dimensions, int maxBits )
-        {
-            int maxConfigured = maxBits / dimensions;
-            int maxSupported = (dimensions == 2) ? HilbertSpaceFillingCurve2D.MAX_LEVEL : HilbertSpaceFillingCurve3D.MAX_LEVEL;
-            return Math.min( maxConfigured, maxSupported );
-        }
-    }
-
-    private static class SettingsFromIndexHeader extends SpaceFillingCurveSettings
-    {
-        private String failureMessage;
-
-        private SettingsFromIndexHeader()
-        {
-            super( 0, null, 0 );
-        }
-
-        private void markAsFailed( String failureMessage )
-        {
-            this.failureMessage = failureMessage;
-        }
-
-        private void markAsSucceeded()
-        {
-            this.failureMessage = null;
-        }
-
-        /**
-         * The settings are read from the GBPTree header structure, but when this is a FAILED index, there are no settings, but instead an error message
-         * describing the failure. If that happens, code that triggered the read should check this field and react accordingly. If the the value is null, there
-         * was no failure.
-         */
-        private String getFailureMessage()
-        {
-            return failureMessage;
-        }
-
-        /**
-         * The settings are read from the GBPTree header structure, but when this is a FAILED index, there are no settings, but instead an error message
-         * describing the failure. If that happens, code that triggered the read should check this. If the value is true, calling getFailureMessage() will
-         * provide an error message describing the failure.
-         */
-        private boolean isFailed()
-        {
-            return failureMessage != null;
-        }
-
-        private Header.Reader headerReader( Function<ByteBuffer,String> onError )
-        {
-            return headerBytes ->
-            {
-                byte state = headerBytes.get();
-                if ( state == BYTE_FAILED )
-                {
-                    this.failureMessage = "Unexpectedly trying to read the header of a failed index: " + onError.apply( headerBytes );
-                }
-                else
-                {
-                    int typeId = headerBytes.getInt();
-                    SpatialIndexType indexType = SpatialIndexType.get( typeId );
-                    if ( indexType == null )
-                    {
-                        markAsFailed( "Unknown spatial index type in index header: " + typeId );
-                    }
-                    else
-                    {
-                        markAsSucceeded();
-                        indexType.readHeader( this, headerBytes );
-                    }
-                }
-            };
-        }
+        this.dimensions = dimensions;
+        this.extents = extents;
+        this.maxLevels = maxLevels;
     }
 
     public Consumer<PageCursor> headerWriter( byte initialIndexState )
@@ -192,16 +103,9 @@ public abstract class SpaceFillingCurveSettings
         return cursor ->
         {
             cursor.putByte( initialIndexState );
-            cursor.putInt( SpatialIndexType.SingleSpaceFillingCurve.id );
-            SpatialIndexType.SingleSpaceFillingCurve.writeHeader( this, cursor );
+            cursor.putInt( indexType.id );
+            indexType.writeHeader( this, cursor );
         };
-    }
-
-    private SpaceFillingCurveSettings( int dimensions, Envelope extents, int maxLevels )
-    {
-        this.dimensions = dimensions;
-        this.extents = extents;
-        this.maxLevels = maxLevels;
     }
 
     /**
@@ -271,14 +175,7 @@ public abstract class SpaceFillingCurveSettings
     @Override
     public boolean equals( Object obj )
     {
-        if ( obj instanceof SpaceFillingCurveSettings )
-        {
-            return equals( (SpaceFillingCurveSettings) obj );
-        }
-        else
-        {
-            return false;
-        }
+        return obj instanceof SpaceFillingCurveSettings && equals( (SpaceFillingCurveSettings) obj );
     }
 
     @Override
@@ -288,67 +185,84 @@ public abstract class SpaceFillingCurveSettings
                 Arrays.toString( extents.getMin() ), Arrays.toString( extents.getMax() ) );
     }
 
-    private enum SpatialIndexType
+    static class SettingsFromConfig extends SpaceFillingCurveSettings
     {
-        SingleSpaceFillingCurve( 1 )
-                {
-                    @Override
-                    public void writeHeader( SpaceFillingCurveSettings settings, PageCursor cursor )
-                    {
-                        cursor.putInt( settings.maxLevels );
-                        cursor.putInt( settings.dimensions );
-                        double[] min = settings.extents.getMin();
-                        double[] max = settings.extents.getMax();
-                        for ( int i = 0; i < settings.dimensions; i++ )
-                        {
-                            cursor.putLong( Double.doubleToLongBits( min[i] ) );
-                            cursor.putLong( Double.doubleToLongBits( max[i] ) );
-                        }
-                    }
-
-                    @Override
-                    public void readHeader( SettingsFromIndexHeader settings, ByteBuffer headerBytes )
-                    {
-                        try
-                        {
-                            settings.maxLevels = headerBytes.getInt();
-                            settings.dimensions = headerBytes.getInt();
-                            double[] min = new double[settings.dimensions];
-                            double[] max = new double[settings.dimensions];
-                            for ( int i = 0; i < settings.dimensions; i++ )
-                            {
-                                min[i] = headerBytes.getDouble();
-                                max[i] = headerBytes.getDouble();
-                            }
-                            settings.extents = new Envelope( min, max );
-                        }
-                        catch ( BufferUnderflowException e )
-                        {
-                            settings.markAsFailed( "Failed to read settings from GBPTree header: " + e.getMessage() );
-                        }
-                    }
-                };
-        private int id;
-
-        public abstract void writeHeader( SpaceFillingCurveSettings settings, PageCursor cursor );
-
-        public abstract void readHeader( SettingsFromIndexHeader settingsFromIndexHeader, ByteBuffer headerBytes );
-
-        SpatialIndexType( int id )
+        SettingsFromConfig( int dimensions, int maxBits, Envelope extents )
         {
-            this.id = id;
+            super( dimensions, extents, calcMaxLevels( dimensions, maxBits ) );
         }
 
-        static SpatialIndexType get( int id )
+        private static int calcMaxLevels( int dimensions, int maxBits )
         {
-            for ( SpatialIndexType type : values() )
+            int maxConfigured = maxBits / dimensions;
+            int maxSupported = (dimensions == 2) ? HilbertSpaceFillingCurve2D.MAX_LEVEL : HilbertSpaceFillingCurve3D.MAX_LEVEL;
+            return Math.min( maxConfigured, maxSupported );
+        }
+    }
+
+    static class SettingsFromIndexHeader extends SpaceFillingCurveSettings
+    {
+        private String failureMessage;
+
+        SettingsFromIndexHeader()
+        {
+            super( 0, null, 0 );
+        }
+
+        void markAsFailed( String failureMessage )
+        {
+            this.failureMessage = failureMessage;
+        }
+
+        private void markAsSucceeded()
+        {
+            this.failureMessage = null;
+        }
+
+        /**
+         * The settings are read from the GBPTree header structure, but when this is a FAILED index, there are no settings, but instead an error message
+         * describing the failure. If that happens, code that triggered the read should check this field and react accordingly. If the the value is null, there
+         * was no failure.
+         */
+        String getFailureMessage()
+        {
+            return failureMessage;
+        }
+
+        /**
+         * The settings are read from the GBPTree header structure, but when this is a FAILED index, there are no settings, but instead an error message
+         * describing the failure. If that happens, code that triggered the read should check this. If the value is true, calling getFailureMessage() will
+         * provide an error message describing the failure.
+         */
+        boolean isFailed()
+        {
+            return failureMessage != null;
+        }
+
+        Header.Reader headerReader( Function<ByteBuffer,String> onError )
+        {
+            return headerBytes ->
             {
-                if ( type.id == id )
+                byte state = headerBytes.get();
+                if ( state == BYTE_FAILED )
                 {
-                    return type;
+                    this.failureMessage = "Unexpectedly trying to read the header of a failed index: " + onError.apply( headerBytes );
                 }
-            }
-            return null;
+                else
+                {
+                    int typeId = headerBytes.getInt();
+                    SpatialIndexType indexType = SpatialIndexType.get( typeId );
+                    if ( indexType == null )
+                    {
+                        markAsFailed( "Unknown spatial index type in index header: " + typeId );
+                    }
+                    else
+                    {
+                        markAsSucceeded();
+                        indexType.readHeader( this, headerBytes );
+                    }
+                }
+            };
         }
     }
 }

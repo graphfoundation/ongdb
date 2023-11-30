@@ -45,9 +45,7 @@ import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.BytesRef;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.io.File;
@@ -58,7 +56,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.neo4j.helpers.TaskCoordinator;
 import org.neo4j.helpers.collection.MapUtil;
-import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
 import org.neo4j.kernel.api.impl.index.IndexReaderStub;
 import org.neo4j.kernel.api.impl.index.IndexWriterConfigs;
 import org.neo4j.kernel.api.impl.index.partition.PartitionSearcher;
@@ -69,37 +67,33 @@ import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
 import org.neo4j.storageengine.api.schema.IndexSample;
 import org.neo4j.values.storable.Values;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class NonUniqueDatabaseIndexSamplerTest
+class NonUniqueDatabaseIndexSamplerTest
 {
-    @Rule
-    public ExpectedException expectedException = ExpectedException.none();
-
     private final IndexSearcher indexSearcher = mock( IndexSearcher.class, Mockito.RETURNS_DEEP_STUBS );
     private final TaskCoordinator taskControl = new TaskCoordinator( 0, TimeUnit.MILLISECONDS );
     private final IndexSamplingConfig indexSamplingConfig = new IndexSamplingConfig( Config.defaults() );
 
     @Test
-    public void nonUniqueSamplingCancel() throws IndexNotFoundKernelException, IOException
+    void nonUniqueSamplingCancel() throws IOException
     {
         Terms terms = getTerms( "test", 1 );
         Map<String,Terms> fieldTermsMap = MapUtil.genericMap( "0string", terms, "id", terms, "0string", terms );
         IndexReaderStub indexReader = new IndexReaderStub( new SamplingFields( fieldTermsMap ) );
         when( indexSearcher.getIndexReader() ).thenReturn( indexReader );
 
-        expectedException.expect( IndexNotFoundKernelException.class );
-        expectedException.expectMessage( "Index dropped while sampling." );
-
         NonUniqueLuceneIndexSampler luceneIndexSampler = createSampler();
         taskControl.cancel();
-        luceneIndexSampler.sampleIndex();
+        IndexNotFoundKernelException notFoundKernelException = assertThrows( IndexNotFoundKernelException.class, luceneIndexSampler::sampleIndex );
+        assertEquals( notFoundKernelException.getMessage(), "Index dropped while sampling." );
     }
 
     @Test
-    public void nonUniqueIndexSampling() throws Exception
+    void nonUniqueIndexSampling() throws Exception
     {
         Terms aTerms = getTerms( "a", 1 );
         Terms idTerms = getTerms( "id", 2 );
@@ -113,7 +107,7 @@ public class NonUniqueDatabaseIndexSamplerTest
     }
 
     @Test
-    public void samplingOfLargeNumericValues() throws Exception
+    void samplingOfLargeNumericValues() throws Exception
     {
         try ( RAMDirectory dir = new RAMDirectory();
               WritableIndexPartition indexPartition = new WritableIndexPartition( new File( "testPartition" ), dir,
@@ -139,7 +133,7 @@ public class NonUniqueDatabaseIndexSamplerTest
         return new NonUniqueLuceneIndexSampler( indexSearcher, taskControl.newInstance(), indexSamplingConfig );
     }
 
-    private Terms getTerms( String value, int frequency ) throws IOException
+    private static Terms getTerms( String value, int frequency ) throws IOException
     {
         TermsEnum termsEnum = mock( TermsEnum.class );
         Terms terms = mock( Terms.class );
@@ -156,7 +150,7 @@ public class NonUniqueDatabaseIndexSamplerTest
         partition.getIndexWriter().addDocument( doc );
     }
 
-    private class SamplingFields extends Fields
+    private static class SamplingFields extends Fields
     {
 
         private Map<String,Terms> fieldTermsMap;

@@ -62,14 +62,13 @@ import org.neo4j.kernel.impl.transaction.log.LogVersionRepository;
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
 import org.neo4j.kernel.impl.util.ArrayQueueOutOfOrderSequence;
 import org.neo4j.kernel.impl.util.Bits;
-import org.neo4j.kernel.impl.util.CappedLogger;
 import org.neo4j.kernel.impl.util.OutOfOrderSequence;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.Logger;
-import org.neo4j.time.Clocks;
+import org.neo4j.logging.internal.CappedLogger;
+import org.neo4j.storageengine.api.StoreId;
 
 import static java.lang.String.format;
-import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.neo4j.io.pagecache.PagedFile.PF_SHARED_READ_LOCK;
 import static org.neo4j.io.pagecache.PagedFile.PF_SHARED_WRITE_LOCK;
 import static org.neo4j.kernel.impl.store.format.standard.MetaDataRecordFormat.FIELD_NOT_PRESENT;
@@ -87,7 +86,6 @@ public class MetaDataStore extends CommonAbstractStore<MetaDataRecord,NoStoreHea
      *  9 longs in header (long + in use), time | random | version | txid | store version | graph next prop | latest
      *  constraint tx | upgrade time | upgrade id
      */
-    public static final String DEFAULT_NAME = "neostore";
     // Positions of meta-data records
 
     public enum Position
@@ -169,18 +167,14 @@ public class MetaDataStore extends CommonAbstractStore<MetaDataRecord,NoStoreHea
     private final Object transactionCommittedLock = new Object();
     private final Object transactionClosedLock = new Object();
 
-    private final CappedLogger transactionCloseWaitLogger;
-
-    MetaDataStore( File fileName, Config conf,
+    MetaDataStore( File file, File idFile, Config conf,
             IdGeneratorFactory idGeneratorFactory,
             PageCache pageCache, LogProvider logProvider, RecordFormat<MetaDataRecord> recordFormat,
             String storeVersion,
             OpenOption... openOptions )
     {
-        super( fileName, conf, IdType.NEOSTORE_BLOCK, idGeneratorFactory, pageCache, logProvider,
+        super( file, idFile, conf, IdType.NEOSTORE_BLOCK, idGeneratorFactory, pageCache, logProvider,
                 TYPE_DESCRIPTOR, recordFormat, NoStoreHeaderFormat.NO_STORE_HEADER_FORMAT, storeVersion, openOptions );
-        this.transactionCloseWaitLogger = new CappedLogger( logProvider.getLog( MetaDataStore.class ) );
-        transactionCloseWaitLogger.setTimeLimit( 30, SECONDS, Clocks.systemClock() );
     }
 
     @Override
@@ -191,7 +185,7 @@ public class MetaDataStore extends CommonAbstractStore<MetaDataRecord,NoStoreHea
         long storeVersionAsLong = MetaDataStore.versionStringToLong( storeVersion );
         StoreId storeId = new StoreId( storeVersionAsLong );
 
-        storeFile = file;
+        pagedFile = file;
         setCreationTime( storeId.getCreationTime() );
         setRandomNumber( storeId.getRandomId() );
         // If metaDataStore.creationTime == metaDataStore.upgradeTime && metaDataStore.upgradeTransactionId == BASE_TX_ID
@@ -206,7 +200,7 @@ public class MetaDataStore extends CommonAbstractStore<MetaDataRecord,NoStoreHea
         setLatestConstraintIntroducingTx( 0 );
 
         flush();
-        storeFile = null;
+        pagedFile = null;
     }
 
     @Override
@@ -386,7 +380,7 @@ public class MetaDataStore extends CommonAbstractStore<MetaDataRecord,NoStoreHea
         assert pageId == pageIdForRecord( Position.UPGRADE_TRANSACTION_CHECKSUM.id );
         synchronized ( upgradeTransactionLock )
         {
-            try ( PageCursor cursor = storeFile.io( pageId, PF_SHARED_WRITE_LOCK ) )
+            try ( PageCursor cursor = pagedFile.io( pageId, PF_SHARED_WRITE_LOCK ) )
             {
                 if ( !cursor.next() )
                 {
@@ -477,7 +471,7 @@ public class MetaDataStore extends CommonAbstractStore<MetaDataRecord,NoStoreHea
         long version;
         synchronized ( logVersionLock )
         {
-            try ( PageCursor cursor = storeFile.io( pageId, PF_SHARED_WRITE_LOCK ) )
+            try ( PageCursor cursor = pagedFile.io( pageId, PF_SHARED_WRITE_LOCK ) )
             {
                 if ( cursor.next() )
                 {
@@ -590,7 +584,7 @@ public class MetaDataStore extends CommonAbstractStore<MetaDataRecord,NoStoreHea
         {
             throw new UnderlyingStorageException(
                     "Out of page bounds when reading all meta-data fields. The page in question is page " +
-                    cursor.getCurrentPageId() + " of file " + storageFileName.getAbsolutePath() + ", which is " +
+                    cursor.getCurrentPageId() + " of file " + storageFile.getAbsolutePath() + ", which is " +
                     cursor.getCurrentPageSize() + " bytes in size" );
         }
     }
@@ -630,7 +624,7 @@ public class MetaDataStore extends CommonAbstractStore<MetaDataRecord,NoStoreHea
 
     private void scanAllFields( int pf_flags, Visitor<PageCursor,IOException> visitor )
     {
-        try ( PageCursor cursor = storeFile.io( 0, pf_flags ) )
+        try ( PageCursor cursor = pagedFile.io( 0, pf_flags ) )
         {
             if ( cursor.next() )
             {
@@ -766,7 +760,7 @@ public class MetaDataStore extends CommonAbstractStore<MetaDataRecord,NoStoreHea
                 {
                     long pageId = pageIdForRecord( Position.LAST_TRANSACTION_ID.id );
                     assert pageId == pageIdForRecord( Position.LAST_TRANSACTION_CHECKSUM.id );
-                    try ( PageCursor cursor = storeFile.io( pageId, PF_SHARED_WRITE_LOCK ) )
+                    try ( PageCursor cursor = pagedFile.io( pageId, PF_SHARED_WRITE_LOCK ) )
                     {
                         if ( cursor.next() )
                         {
@@ -854,7 +848,7 @@ public class MetaDataStore extends CommonAbstractStore<MetaDataRecord,NoStoreHea
             assert pageId == pageIdForRecord( Position.LAST_CLOSED_TRANSACTION_LOG_BYTE_OFFSET.id );
             synchronized ( transactionClosedLock )
             {
-                try ( PageCursor cursor = storeFile.io( pageId, PF_SHARED_WRITE_LOCK ) )
+                try ( PageCursor cursor = pagedFile.io( pageId, PF_SHARED_WRITE_LOCK ) )
                 {
                     if ( cursor.next() )
                     {
@@ -869,19 +863,6 @@ public class MetaDataStore extends CommonAbstractStore<MetaDataRecord,NoStoreHea
                 }
             }
         }
-    }
-
-    @Override
-    public boolean closedTransactionIdIsOnParWithOpenedTransactionId()
-    {
-        boolean onPar = lastClosedTx.getHighestGapFreeNumber() == lastCommittingTxField.get();
-        if ( !onPar )
-        {   // Trigger some logging here, max logged every 30 secs or so
-            transactionCloseWaitLogger.info( format(
-                    "Waiting for all transactions to close...%n committed:  %s%n  committing: %s%n  closed:     %s",
-                    highestCommittedTransaction.get(), lastCommittingTxField, lastClosedTx ) );
-        }
-        return onPar;
     }
 
     public void logRecords( final Logger msgLog )
@@ -913,7 +894,6 @@ public class MetaDataStore extends CommonAbstractStore<MetaDataRecord,NoStoreHea
     @Override
     public <FAILURE extends Exception> void accept(
             org.neo4j.kernel.impl.store.RecordStore.Processor<FAILURE> processor, MetaDataRecord record )
-                    throws FAILURE
     {
         throw new UnsupportedOperationException();
     }

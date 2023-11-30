@@ -58,7 +58,6 @@ import org.neo4j.kernel.configuration.HttpConnector.Encryption;
 import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.configuration.ssl.LegacySslPolicyConfig;
 import org.neo4j.server.CommunityBootstrapper;
-import org.neo4j.server.configuration.ServerSettings;
 import org.neo4j.test.rule.SuppressOutput;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.server.ExclusiveServerTestBase;
@@ -66,7 +65,7 @@ import org.neo4j.test.server.ExclusiveServerTestBase;
 import static java.util.Arrays.asList;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.neo4j.bolt.v1.transport.integration.Neo4jWithSocket.DEFAULT_CONNECTOR_KEY;
-import static org.neo4j.server.AbstractNeoServer.ONGDB_IS_STARTING_MESSAGE;
+import static org.neo4j.server.AbstractNeoServer.NEO4J_IS_STARTING_MESSAGE;
 
 public class StartupLoggingIT extends ExclusiveServerTestBase
 {
@@ -89,7 +88,7 @@ public class StartupLoggingIT extends ExclusiveServerTestBase
         List<String> captured = suppressOutput.getOutputVoice().lines();
         assertThat( captured, containsAtLeastTheseLines(
                 warn( "Config file \\[nonexistent-file.conf\\] does not exist." ),
-                info( ONGDB_IS_STARTING_MESSAGE ),
+                info( NEO4J_IS_STARTING_MESSAGE ),
                 info( "Starting..." ),
                 info( "Started." ),
                 info( "Remote interface available at " + uri.toString() ),
@@ -102,11 +101,10 @@ public class StartupLoggingIT extends ExclusiveServerTestBase
     {
         Map<String,String> properties = new HashMap<>();
 
-        properties.put( GraphDatabaseSettings.data_directory.name(), testDir.graphDbDir().toString() );
-        properties.put( GraphDatabaseSettings.logs_directory.name(), testDir.graphDbDir().toString() );
-        properties.put( LegacySslPolicyConfig.certificates_directory.name(), testDir.graphDbDir().toString() );
+        properties.put( GraphDatabaseSettings.data_directory.name(), testDir.databaseDir().toString() );
+        properties.put( GraphDatabaseSettings.logs_directory.name(), testDir.databaseDir().toString() );
+        properties.put( LegacySslPolicyConfig.certificates_directory.name(), testDir.databaseDir().toString() );
         properties.put( GraphDatabaseSettings.allow_upgrade.name(), Settings.TRUE );
-        properties.put( ServerSettings.script_enabled.name(), Settings.TRUE );
 
         HttpConnector http = new HttpConnector( "http", Encryption.NONE );
         properties.put( http.type.name(), "HTTP" );

@@ -41,12 +41,12 @@ package org.neo4j.server.database;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import javax.servlet.http.HttpServletRequest;
 
 import org.neo4j.cypher.internal.javacompat.ExecutionEngine;
 import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.internal.kernel.api.security.LoginContext;
 import org.neo4j.kernel.GraphDatabaseQueryService;
 import org.neo4j.kernel.api.KernelTransaction;
@@ -59,6 +59,7 @@ import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
 import org.neo4j.kernel.impl.query.QueryExecutionEngine;
 import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.server.web.HttpHeaderUtils;
+import org.neo4j.values.virtual.VirtualValues;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -94,7 +95,7 @@ public class CypherExecutorTest
         CypherExecutor cypherExecutor = new CypherExecutor( database, logProvider );
         cypherExecutor.start();
 
-        cypherExecutor.createTransactionContext( QUERY, Collections.emptyMap(), request );
+        cypherExecutor.createTransactionContext( QUERY, VirtualValues.emptyMap(), request );
 
         verify( databaseQueryService ).beginTransaction( KernelTransaction.Type.implicit, AUTH_DISABLED );
         logProvider.assertNoLoggingOccurred();
@@ -109,7 +110,7 @@ public class CypherExecutorTest
         CypherExecutor cypherExecutor = new CypherExecutor( database, logProvider );
         cypherExecutor.start();
 
-        cypherExecutor.createTransactionContext( QUERY, Collections.emptyMap(), request );
+        cypherExecutor.createTransactionContext( QUERY, VirtualValues.emptyMap(), request );
 
         verify( databaseQueryService ).beginTransaction( KernelTransaction.Type.implicit, AUTH_DISABLED,
                 CUSTOM_TRANSACTION_TIMEOUT, TimeUnit.MILLISECONDS );
@@ -125,11 +126,11 @@ public class CypherExecutorTest
         CypherExecutor cypherExecutor = new CypherExecutor( database, logProvider );
         cypherExecutor.start();
 
-        cypherExecutor.createTransactionContext( QUERY, Collections.emptyMap(), request );
+        cypherExecutor.createTransactionContext( QUERY, VirtualValues.emptyMap(), request );
 
         verify( databaseQueryService ).beginTransaction( KernelTransaction.Type.implicit, AUTH_DISABLED );
-        logProvider.assertContainsMessageContaining( "Fail to parse `max-execution-time` header with value: 'not a " +
-                                                     "number'. Should be a positive number." );
+        logProvider.rawMessageMatcher().assertContains(
+                "Fail to parse `max-execution-time` header with value: 'not a number'. Should be a positive number." );
     }
 
     @Test
@@ -141,7 +142,7 @@ public class CypherExecutorTest
         CypherExecutor cypherExecutor = new CypherExecutor( database, logProvider );
         cypherExecutor.start();
 
-        cypherExecutor.createTransactionContext( QUERY, Collections.emptyMap(), request );
+        cypherExecutor.createTransactionContext( QUERY, VirtualValues.emptyMap(), request );
 
         verify( databaseQueryService ).beginTransaction( KernelTransaction.Type.implicit, AUTH_DISABLED );
         logProvider.assertNoLoggingOccurred();
@@ -164,14 +165,14 @@ public class CypherExecutorTest
         statement = mock( Statement.class );
         request = mock( HttpServletRequest.class );
 
-        InternalTransaction transaction = new TopLevelTransaction( kernelTransaction, () -> statement );
+        InternalTransaction transaction = new TopLevelTransaction( kernelTransaction );
 
         LoginContext loginContext = AUTH_DISABLED;
         KernelTransaction.Type type = KernelTransaction.Type.implicit;
         QueryRegistryOperations registryOperations = mock( QueryRegistryOperations.class );
         when( statement.queryRegistration() ).thenReturn( registryOperations );
         when( statementBridge.get() ).thenReturn( statement );
-        when( kernelTransaction.securityContext() ).thenReturn( loginContext.authorize( s -> -1 ) );
+        when( kernelTransaction.securityContext() ).thenReturn( loginContext.authorize( s -> -1, GraphDatabaseSettings.DEFAULT_DATABASE_NAME ) );
         when( kernelTransaction.transactionType() ).thenReturn( type  );
         when( database.getGraph() ).thenReturn( databaseFacade );
         when( databaseFacade.getDependencyResolver() ).thenReturn( resolver );

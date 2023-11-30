@@ -51,10 +51,11 @@ import org.neo4j.commandline.admin.IncorrectUsage;
 import org.neo4j.commandline.admin.OutsideWorld;
 import org.neo4j.commandline.arguments.Arguments;
 import org.neo4j.commandline.arguments.OptionalNamedArg;
+import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.os.OsBeanUtil;
 import org.neo4j.kernel.api.impl.index.storage.FailureStorage;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.index.labelscan.NativeLabelScanStore;
 import org.neo4j.kernel.impl.store.StoreType;
 import org.neo4j.kernel.internal.NativeIndexFileFilter;
 
@@ -81,8 +82,8 @@ public class MemoryRecommendationsCommand implements AdminCommand
     // And the page cache gets what's left, though always at least 100 MiB.
     // Heap never goes beyond 31 GiBs.
     private static final Bracket[] datapoints = {
-            new Bracket( 0.01, 0.005, 0.005 ),
-            new Bracket( 1.0, 0.5, 0.5 ),
+            new Bracket( 0.01, 0.007, 0.002 ),
+            new Bracket( 1.0, 0.65, 0.3 ),
             new Bracket( 2.0, 1, 0.5 ),
             new Bracket( 4.0, 1.5, 2 ),
             new Bracket( 6.0, 2, 3 ),
@@ -120,7 +121,7 @@ public class MemoryRecommendationsCommand implements AdminCommand
         long osMemory = recommendOsMemory( totalMemoryBytes );
         long heapMemory = recommendHeapMemory( totalMemoryBytes );
         long recommendation = totalMemoryBytes - osMemory - heapMemory;
-        recommendation = Math.max( mebiBytes( 100 ), recommendation );
+        recommendation = Math.max( mebiBytes( 8 ), recommendation );
         recommendation = Math.min( tebiBytes( 16 ), recommendation );
         return recommendation;
     }
@@ -221,9 +222,9 @@ public class MemoryRecommendationsCommand implements AdminCommand
         String pagecache = bytesToString( recommendPageCacheMemory( memory ) );
         boolean specificDb = arguments.has( ARG_DATABASE );
 
-        print( "# Memory settings recommendation from ongdb-admin memrec:" );
+        print( "# Memory settings recommendation from neo4j-admin memrec:" );
         print( "#" );
-        print( "# Assuming the system is dedicated to running ONgDB and has " + mem + " of memory," );
+        print( "# Assuming the system is dedicated to running Neo4j and has " + mem + " of memory," );
         print( "# we recommend a heap size of around " + heap + ", and a page cache of around " + pagecache + "," );
         print( "# and that about " + os + " is left for the operating system, and the native memory" );
         print( "# needed by Lucene and Netty." );
@@ -252,9 +253,10 @@ public class MemoryRecommendationsCommand implements AdminCommand
         }
         String databaseName = arguments.get( ARG_DATABASE );
         File configFile = configDir.resolve( Config.DEFAULT_CONFIG_FILE_NAME ).toFile();
-        File storeDir = getConfig( configFile, databaseName ).get( database_path );
-        long pageCacheSize = dbSpecificPageCacheSize( storeDir );
-        long luceneSize = dbSpecificLuceneSize( storeDir );
+        File databaseDirectory = getConfig( configFile, databaseName ).get( database_path );
+        DatabaseLayout layout = DatabaseLayout.of( databaseDirectory );
+        long pageCacheSize = dbSpecificPageCacheSize( layout );
+        long luceneSize = dbSpecificLuceneSize( databaseDirectory );
 
         print( "#" );
         print( "# The numbers below have been derived based on your current data volume in database and index configuration of database '" + databaseName +
@@ -264,14 +266,15 @@ public class MemoryRecommendationsCommand implements AdminCommand
         print( "# Data volume and native indexes: " + bytesToString( pageCacheSize ) );
     }
 
-    private long dbSpecificPageCacheSize( File storeDir )
+    private long dbSpecificPageCacheSize( DatabaseLayout databaseLayout )
     {
-        return sumStoreFiles( storeDir ) + sumIndexFiles( baseSchemaIndexFolder( storeDir ), getNativeIndexFileFilter( storeDir, false ) );
+        return sumStoreFiles( databaseLayout ) + sumIndexFiles( baseSchemaIndexFolder( databaseLayout.databaseDirectory() ),
+                getNativeIndexFileFilter( databaseLayout.databaseDirectory(), false ) );
     }
 
-    private long dbSpecificLuceneSize( File storeDir )
+    private long dbSpecificLuceneSize( File databaseDirectory )
     {
-        return sumIndexFiles( baseSchemaIndexFolder( storeDir ), getNativeIndexFileFilter( storeDir, true ) );
+        return sumIndexFiles( baseSchemaIndexFolder( databaseDirectory ), getNativeIndexFileFilter( databaseDirectory, true ) );
     }
 
     private FilenameFilter getNativeIndexFileFilter( File storeDir, boolean inverse )
@@ -295,7 +298,7 @@ public class MemoryRecommendationsCommand implements AdminCommand
         };
     }
 
-    private long sumStoreFiles( File storeDir )
+    private long sumStoreFiles( DatabaseLayout databaseLayout )
     {
         long total = 0;
         // Include store files
@@ -303,18 +306,19 @@ public class MemoryRecommendationsCommand implements AdminCommand
         {
             if ( type.isRecordStore() )
             {
-                File file = new File( storeDir, type.getStoreFile().storeFileName() );
-                total += sizeOfFileIfExists( file );
+                FileSystemAbstraction fileSystem = outsideWorld.fileSystem();
+                total += databaseLayout.file( type.getDatabaseFile() ).filter( fileSystem::fileExists ).mapToLong( fileSystem::getFileSize ).sum();
             }
         }
         // Include label index
-        total += sizeOfFileIfExists( new File( storeDir, NativeLabelScanStore.FILE_NAME ) );
+        total += sizeOfFileIfExists( databaseLayout.labelScanStore() );
         return total;
     }
 
     private long sizeOfFileIfExists( File file )
     {
-        return outsideWorld.fileSystem().fileExists( file ) ? outsideWorld.fileSystem().getFileSize( file ) : 0;
+        FileSystemAbstraction fileSystem = outsideWorld.fileSystem();
+        return fileSystem.fileExists( file ) ? fileSystem.getFileSize( file ) : 0;
     }
 
     private long sumIndexFiles( File file, FilenameFilter filter )
@@ -344,7 +348,14 @@ public class MemoryRecommendationsCommand implements AdminCommand
         {
             throw new CommandFailed( "Unable to find config file, tried: " + configFile.getAbsolutePath() );
         }
-        return Config.fromFile( configFile ).withHome( homeDir ).withSetting( active_database, databaseName ).withConnectorsDisabled().build();
+        try
+        {
+            return Config.fromFile( configFile ).withHome( homeDir ).withSetting( active_database, databaseName ).withConnectorsDisabled().build();
+        }
+        catch ( Exception e )
+        {
+            throw new CommandFailed( "Failed to read config file: " + configFile.getAbsolutePath(), e );
+        }
     }
 
     private void print( String text )

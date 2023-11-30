@@ -91,7 +91,7 @@ public abstract class RelationshipTraversalCursorTestBase<G extends KernelAPIRea
     }
 
     @Override
-    void createTestGraph( GraphDatabaseService graphDb )
+    public void createTestGraph( GraphDatabaseService graphDb )
     {
         RelationshipTestSupport.someGraph( graphDb );
         bareStartAndEnd( graphDb );

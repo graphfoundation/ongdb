@@ -43,7 +43,6 @@ import org.hamcrest.Description;
 import org.hamcrest.Factory;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
-import org.junit.Assert;
 
 import java.util.List;
 import java.util.Map;
@@ -56,6 +55,7 @@ import org.neo4j.server.rest.domain.JsonParseException;
 
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.core.IsNull.nullValue;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 public class PluginFunctionalTestHelper
@@ -92,7 +92,7 @@ public class PluginFunctionalTestHelper
     {
         String body = response.getEntity();
 
-        Assert.assertEquals( body, 200, response.getStatus() );
+        assertEquals( body, 200, response.getStatus() );
         return body;
     }
 

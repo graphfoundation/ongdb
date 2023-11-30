@@ -48,6 +48,7 @@ import java.io.IOException;
 
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
+import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.internal.kernel.api.security.LoginContext;
 
 /**
@@ -66,7 +67,6 @@ public abstract class KernelAPIReadTestBase<ReadSupport extends KernelAPIReadTes
 {
     protected static final TemporaryFolder folder = new TemporaryFolder();
     protected static KernelAPIReadTestSupport testSupport;
-    protected Session session;
     protected Transaction tx;
     protected Read read;
     protected ExplicitIndexRead indexRead;
@@ -85,7 +85,7 @@ public abstract class KernelAPIReadTestBase<ReadSupport extends KernelAPIReadTes
      *
      * @param graphDb a graph API which should be used to build the test graph
      */
-    abstract void createTestGraph( GraphDatabaseService graphDb );
+    public abstract void createTestGraph( GraphDatabaseService graphDb );
 
     @Before
     public void setupGraph() throws IOException, KernelException
@@ -97,13 +97,18 @@ public abstract class KernelAPIReadTestBase<ReadSupport extends KernelAPIReadTes
             testSupport.setup( folder.getRoot(), this::createTestGraph );
         }
         Kernel kernel = testSupport.kernelToTest();
-        session = kernel.beginSession( LoginContext.AUTH_DISABLED );
-        tx = session.beginTransaction( Transaction.Type.explicit );
+        tx = kernel.beginTransaction( Transaction.Type.implicit, LoginContext.AUTH_DISABLED );
         token = tx.token();
         read = tx.dataRead();
         indexRead = tx.indexRead();
         schemaRead = tx.schemaRead();
         cursors = new ManagedTestCursors( tx.cursors() );
+    }
+
+    protected Transaction beginTransaction() throws TransactionFailureException
+    {
+        Kernel kernel = testSupport.kernelToTest();
+        return kernel.beginTransaction( Transaction.Type.implicit, LoginContext.AUTH_DISABLED );
     }
 
     @Rule
@@ -114,7 +119,6 @@ public abstract class KernelAPIReadTestBase<ReadSupport extends KernelAPIReadTes
     {
         tx.success();
         tx.close();
-        session.close();
     }
 
     @AfterClass

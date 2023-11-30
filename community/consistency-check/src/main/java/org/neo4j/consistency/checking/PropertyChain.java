@@ -38,11 +38,14 @@
  */
 package org.neo4j.consistency.checking;
 
+import org.eclipse.collections.api.set.primitive.MutableIntSet;
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+import org.eclipse.collections.impl.set.mutable.primitive.IntHashSet;
+import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
+
 import java.util.Iterator;
 import java.util.function.Function;
 
-import org.neo4j.collection.primitive.Primitive;
-import org.neo4j.collection.primitive.PrimitiveIntSet;
 import org.neo4j.consistency.checking.full.MandatoryProperties;
 import org.neo4j.consistency.report.ConsistencyReport;
 import org.neo4j.consistency.store.RecordAccess;
@@ -75,22 +78,32 @@ public class PropertyChain<RECORD extends PrimitiveRecord, REPORT extends Consis
                 engine.report().propertyNotFirstInChain( firstProp );
             }
 
-            try ( PrimitiveIntSet keys = Primitive.intSet();
-                  MandatoryProperties.Check<RECORD,REPORT> mandatory = mandatoryProperties.apply( record ) )
+            final MutableIntSet keys = new IntHashSet();
+            final MutableLongSet propertyRecordIds = new LongHashSet( 8 );
+            propertyRecordIds.add( firstProp.getId() );
+            try ( MandatoryProperties.Check<RECORD,REPORT> mandatory = mandatoryProperties.apply( record ) )
             {
                 checkChainItem( firstProp, engine, keys, mandatory );
 
                 // Check the whole chain here. We also take the opportunity to check mandatory property constraints.
+                PropertyRecord prop = firstProp;
                 while ( props.hasNext() )
                 {
-                    checkChainItem( props.next(), engine, keys, mandatory );
+                    PropertyRecord nextProp = props.next();
+                    if ( !propertyRecordIds.add( nextProp.getId() ) )
+                    {
+                        engine.report().propertyChainContainsCircularReference( prop );
+                        break;
+                    }
+                    checkChainItem( nextProp, engine, keys, mandatory );
+                    prop = nextProp;
                 }
             }
         }
     }
 
     private void checkChainItem( PropertyRecord property, CheckerEngine<RECORD,REPORT> engine,
-            PrimitiveIntSet keys, MandatoryProperties.Check<RECORD,REPORT> mandatory )
+            MutableIntSet keys, MandatoryProperties.Check<RECORD,REPORT> mandatory )
     {
         if ( !property.inUse() )
         {

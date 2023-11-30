@@ -280,7 +280,7 @@ public class ProcedureJarLoaderTest
         catch ( ZipException expected )
         {
             // then
-            logProvider.assertContainsLogCallContaining(
+            logProvider.internalToStringMessageMatcher().assertContains(
                     escapeJava( String.format( "Plugin jar file: %s corrupted.", new File( theJar.toURI() ).toPath() ) ) );
         }
     }
@@ -308,7 +308,7 @@ public class ProcedureJarLoaderTest
         catch ( ZipException expected )
         {
             // then
-            logProvider.assertContainsLogCallContaining(
+            logProvider.internalToStringMessageMatcher().assertContains(
                     escapeJava( String.format( "Plugin jar file: %s corrupted.", fileWithSpacesInName.toPath() ) ) );
         }
     }

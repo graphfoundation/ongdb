@@ -38,59 +38,60 @@
  */
 package org.neo4j.values.virtual;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.helpers.collection.Iterators.iteratorsEqual;
 import static org.neo4j.values.storable.Values.longValue;
 import static org.neo4j.values.virtual.VirtualValues.EMPTY_LIST;
-import static org.neo4j.values.virtual.VirtualValues.drop;
 import static org.neo4j.values.virtual.VirtualValues.list;
-import static org.neo4j.values.virtual.VirtualValues.slice;
-import static org.neo4j.values.virtual.VirtualValues.take;
 
-public class ListSliceTest
+class ListSliceTest
 {
     @Test
-    public void shouldSliceList()
+    void shouldSliceList()
     {
         // Given
         ListValue inner = list( longValue( 5L ), longValue( 6L ), longValue( 7L ),
                 longValue( 8L ), longValue( 9L ), longValue( 10L ), longValue( 11L ) );
 
         // When
-        ListValue slice = slice( inner, 2, 4 );
+        ListValue slice = inner.slice(2, 4 );
 
         // Then
         ListValue expected = list( longValue( 7L ), longValue( 8L ) );
         assertEquals( expected, slice );
         assertEquals( expected.hashCode(), slice.hashCode() );
         assertArrayEquals( expected.asArray(), slice.asArray() );
+        assertTrue( iteratorsEqual(expected.iterator(), slice.iterator()) );
     }
 
     @Test
-    public void shouldReturnEmptyListIfEmptyRange()
+    void shouldReturnEmptyListIfEmptyRange()
     {
         // Given
         ListValue inner = list( longValue( 5L ), longValue( 6L ), longValue( 7L ),
                 longValue( 8L ), longValue( 9L ), longValue( 10L ), longValue( 11L ) );
 
         // When
-        ListValue slice = slice( inner, 4, 2 );
+        ListValue slice = inner.slice( 4, 2 );
 
         // Then
         assertEquals( slice, EMPTY_LIST );
+        assertTrue( iteratorsEqual(slice.iterator(), EMPTY_LIST.iterator()) );
     }
 
     @Test
-    public void shouldHandleExceedingRange()
+    void shouldHandleExceedingRange()
     {
         // Given
         ListValue inner = list( longValue( 5L ), longValue( 6L ), longValue( 7L ),
                 longValue( 8L ), longValue( 9L ), longValue( 10L ), longValue( 11L ) );
 
         // When
-        ListValue slice = slice( inner, 2, 400000 );
+        ListValue slice = inner.slice( 2, 400000 );
 
         // Then
         ListValue expected =
@@ -98,55 +99,59 @@ public class ListSliceTest
         assertEquals( expected, slice );
         assertEquals( expected.hashCode(), slice.hashCode() );
         assertArrayEquals( expected.asArray(), slice.asArray() );
+        assertTrue( iteratorsEqual(expected.iterator(), slice.iterator()) );
     }
 
     @Test
-    public void shouldHandleNegativeStart()
+    void shouldHandleNegativeStart()
     {
         // Given
         ListValue inner = list( longValue( 5L ), longValue( 6L ), longValue( 7L ),
                 longValue( 8L ), longValue( 9L ), longValue( 10L ), longValue( 11L ) );
 
         // When
-        ListValue slice = slice( inner, -2, 400000 );
+        ListValue slice = inner.slice( -2, 400000 );
 
         // Then
         assertEquals( inner, slice );
         assertEquals( inner.hashCode(), slice.hashCode() );
         assertArrayEquals( inner.asArray(), slice.asArray() );
+        assertTrue( iteratorsEqual(inner.iterator(), slice.iterator()) );
     }
 
     @Test
-    public void shouldBeAbleToDropFromList()
+    void shouldBeAbleToDropFromList()
     {
         // Given
         ListValue inner = list( longValue( 5L ), longValue( 6L ), longValue( 7L ),
                 longValue( 8L ), longValue( 9L ), longValue( 10L ), longValue( 11L ) );
 
         // When
-        ListValue drop = drop( inner, 4 );
+        ListValue drop = inner.drop( 4 );
 
         // Then
         ListValue expected = list( longValue( 9L ), longValue( 10L ), longValue( 11L ) );
         assertEquals( expected, drop );
         assertEquals( expected.hashCode(), drop.hashCode() );
         assertArrayEquals( expected.asArray(), drop.asArray() );
+        assertTrue( iteratorsEqual(expected.iterator(), drop.iterator()) );
     }
 
     @Test
-    public void shouldBeAbleToTakeFromList()
+    void shouldBeAbleToTakeFromList()
     {
         // Given
         ListValue inner = list( longValue( 5L ), longValue( 6L ), longValue( 7L ),
                 longValue( 8L ), longValue( 9L ), longValue( 10L ), longValue( 11L ) );
 
         // When
-        ListValue take = take( inner, 3 );
+        ListValue take = inner.take( 3 );
 
         // Then
         ListValue expected = list( longValue( 5L ), longValue( 6L ), longValue( 7L ) );
         assertEquals( expected, take );
         assertEquals( expected.hashCode(), take.hashCode() );
         assertArrayEquals( expected.asArray(), take.asArray() );
+        assertTrue( iteratorsEqual(expected.iterator(), take.iterator()) );
     }
 }

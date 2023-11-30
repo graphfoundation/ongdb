@@ -38,10 +38,11 @@
  */
 package org.neo4j.kernel.api.impl.labelscan;
 
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.eclipse.collections.api.iterator.LongIterator;
 import org.hamcrest.Matcher;
 import org.junit.After;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -52,6 +53,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -62,13 +64,14 @@ import java.util.Random;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.neo4j.collection.primitive.PrimitiveLongCollections;
-import org.neo4j.collection.primitive.PrimitiveLongIterator;
+import org.neo4j.collection.PrimitiveLongCollections;
 import org.neo4j.graphdb.ResourceIterator;
+import org.neo4j.helpers.Exceptions;
 import org.neo4j.helpers.collection.BoundedIterable;
+import org.neo4j.helpers.collection.Iterators;
 import org.neo4j.helpers.collection.PrefetchingIterator;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.pagecache.IOLimiter;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.api.labelscan.AllEntriesLabelScanReader;
 import org.neo4j.kernel.api.labelscan.LabelScanStore;
 import org.neo4j.kernel.api.labelscan.LabelScanWriter;
@@ -76,20 +79,21 @@ import org.neo4j.kernel.api.labelscan.NodeLabelRange;
 import org.neo4j.kernel.api.labelscan.NodeLabelUpdate;
 import org.neo4j.kernel.impl.api.scan.FullStoreChangeStream;
 import org.neo4j.kernel.lifecycle.LifeSupport;
+import org.neo4j.kernel.lifecycle.LifecycleException;
 import org.neo4j.storageengine.api.schema.LabelScanReader;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 
 import static java.util.Arrays.asList;
-import static java.util.stream.Collectors.toList;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.neo4j.collection.primitive.PrimitiveLongCollections.EMPTY_LONG_ARRAY;
+import static org.junit.Assert.fail;
+import static org.neo4j.collection.PrimitiveLongCollections.EMPTY_LONG_ARRAY;
 import static org.neo4j.helpers.collection.Iterators.iterator;
 import static org.neo4j.helpers.collection.Iterators.single;
 import static org.neo4j.kernel.api.labelscan.NodeLabelUpdate.labelChanges;
@@ -97,7 +101,7 @@ import static org.neo4j.kernel.impl.api.scan.FullStoreChangeStream.asStream;
 
 public abstract class LabelScanStoreTest
 {
-    private final TestDirectory testDirectory = TestDirectory.testDirectory();
+    protected final TestDirectory testDirectory = TestDirectory.testDirectory();
     private final ExpectedException expectedException = ExpectedException.none();
     protected final DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
     final RandomRule random = new RandomRule();
@@ -111,13 +115,6 @@ public abstract class LabelScanStoreTest
     private LifeSupport life;
     private TrackingMonitor monitor;
     private LabelScanStore store;
-    protected File dir;
-
-    @Before
-    public void clearDir()
-    {
-        dir = testDirectory.directory();
-    }
 
     @After
     public void shutdown()
@@ -129,7 +126,7 @@ public abstract class LabelScanStoreTest
     }
 
     protected abstract LabelScanStore createLabelScanStore( FileSystemAbstraction fileSystemAbstraction,
-            File rootFolder, FullStoreChangeStream fullStoreChangeStream, boolean usePersistentStore, boolean readOnly,
+            DatabaseLayout databaseLayout, FullStoreChangeStream fullStoreChangeStream, boolean usePersistentStore, boolean readOnly,
             LabelScanStore.Monitor monitor );
 
     @Test
@@ -141,22 +138,33 @@ public abstract class LabelScanStoreTest
     }
 
     @Test
-    public void forceShouldNotForceWriterOnReadOnlyScanStore()
+    public void forceShouldNotCheckpointTreeOnReadOnlyScanStore()
     {
+        MutableBoolean ioLimiterCalled = new MutableBoolean();
         createAndStartReadOnly();
-        store.force( IOLimiter.unlimited() );
+        store.force( ( previousStamp, recentlyCompletedIOs, flushable ) -> {
+            ioLimiterCalled.setTrue();
+            return 0;
+        } );
+        assertFalse( ioLimiterCalled.getValue() );
     }
 
     @Test
-    public void shouldStartIfLabelScanStoreIndexDoesNotExistInReadOnlyMode() throws IOException
+    public void shouldNotStartIfLabelScanStoreIndexDoesNotExistInReadOnlyMode()
     {
-        // WHEN
-        start( false, true );
-
-        // THEN
-
-        // no exception
-        assertTrue( store.isEmpty() );
+        try
+        {
+            // WHEN
+            start( false, true );
+            fail( "Should have failed" );
+        }
+        catch ( LifecycleException e )
+        {
+            // THEN
+            Throwable rootCause = Exceptions.rootCause( e );
+            assertTrue( rootCause instanceof NoSuchFileException );
+            assertTrue( e.getMessage().contains( "Cannot map non-existing file" ) );
+        }
     }
 
     @Test
@@ -166,12 +174,12 @@ public abstract class LabelScanStoreTest
         createAndStartReadOnly();
         try ( ResourceIterator<File> indexFiles = store.snapshotStoreFiles() )
         {
-            List<String> filesNames = indexFiles.stream().map( File::getName ).collect( toList() );
-            assertThat( "Should have at least index segment file.", filesNames, hasBareMinimumFileList() );
+            List<File> files = Iterators.asList( indexFiles );
+            assertThat( "Should have at least index segment file.", files, hasLabelScanStore() );
         }
     }
 
-    protected abstract Matcher<Iterable<? super String>> hasBareMinimumFileList();
+    protected abstract Matcher<Iterable<? super File>> hasLabelScanStore();
 
     @Test
     public void shouldUpdateIndexOnLabelChange() throws Exception
@@ -453,7 +461,7 @@ public abstract class LabelScanStoreTest
         // WHEN
         Set<Long> nodeSet = new TreeSet<>();
         LabelScanReader reader = store.newReader();
-        PrimitiveLongIterator nodes = reader.nodesWithLabel( labelId );
+        LongIterator nodes = reader.nodesWithLabel( labelId );
         while ( nodes.hasNext() )
         {
             nodeSet.add( nodes.next() );
@@ -490,13 +498,13 @@ public abstract class LabelScanStoreTest
         {
             assertArrayEquals(
                     new long[] {1, 2, 3, 4, 5, 6, 7},
-                    PrimitiveLongCollections.asArray( reader.nodesWithAnyOfLabels( labelId1, labelId2 ) ) );
+                    PrimitiveLongCollections.asArray( reader.nodesWithAnyOfLabels( new int[] {labelId1, labelId2} ) ) );
             assertArrayEquals(
                     new long[] {1, 2, 3, 4, 5, 8, 9},
-                    PrimitiveLongCollections.asArray( reader.nodesWithAnyOfLabels( labelId1, labelId3 ) ) );
+                    PrimitiveLongCollections.asArray( reader.nodesWithAnyOfLabels( new int[] {labelId1, labelId3} ) ) );
             assertArrayEquals(
                     new long[] {1, 2, 3, 4, 5, 6, 7, 8, 9},
-                    PrimitiveLongCollections.asArray( reader.nodesWithAnyOfLabels( labelId1, labelId2, labelId3 ) ) );
+                    PrimitiveLongCollections.asArray( reader.nodesWithAnyOfLabels( new int[] {labelId1, labelId2, labelId3} ) ) );
         }
     }
 
@@ -526,13 +534,13 @@ public abstract class LabelScanStoreTest
         {
             assertArrayEquals(
                     new long[] {2, 5},
-                    PrimitiveLongCollections.asArray( reader.nodesWithAllLabels( labelId1, labelId2 ) ) );
+                    PrimitiveLongCollections.asArray( reader.nodesWithAllLabels( new int[] {labelId1, labelId2} ) ) );
             assertArrayEquals(
                     new long[] {4, 5},
-                    PrimitiveLongCollections.asArray( reader.nodesWithAllLabels( labelId1, labelId3 ) ) );
+                    PrimitiveLongCollections.asArray( reader.nodesWithAllLabels( new int[] {labelId1, labelId3} ) ) );
             assertArrayEquals(
                     new long[] {5},
-                    PrimitiveLongCollections.asArray( reader.nodesWithAllLabels( labelId1, labelId2, labelId3 ) ) );
+                    PrimitiveLongCollections.asArray( reader.nodesWithAllLabels( new int[] {labelId1, labelId2, labelId3} ) ) );
         }
     }
 
@@ -562,7 +570,7 @@ public abstract class LabelScanStoreTest
     private void assertNodesForLabel( int labelId, long... expectedNodeIds )
     {
         Set<Long> nodeSet = new HashSet<>();
-        PrimitiveLongIterator nodes = store.newReader().nodesWithLabel( labelId );
+        LongIterator nodes = store.newReader().nodesWithLabel( labelId );
         while ( nodes.hasNext() )
         {
             nodeSet.add( nodes.next() );
@@ -606,7 +614,7 @@ public abstract class LabelScanStoreTest
         life = new LifeSupport();
         monitor = new TrackingMonitor();
 
-        store = createLabelScanStore( fileSystemRule.get(), dir, asStream( existingData ), usePersistentStore, readOnly,
+        store = createLabelScanStore( fileSystemRule.get(), testDirectory.databaseLayout(), asStream( existingData ), usePersistentStore, readOnly,
                 monitor );
         life.add( store );
 
@@ -614,15 +622,14 @@ public abstract class LabelScanStoreTest
         assertTrue( monitor.initCalled );
     }
 
-    private void scrambleIndexFilesAndRestart( List<NodeLabelUpdate> data,
-            boolean usePersistentStore, boolean readOnly ) throws IOException
+    private void scrambleIndexFilesAndRestart( List<NodeLabelUpdate> data, boolean usePersistentStore, boolean readOnly ) throws IOException
     {
         shutdown();
-        corruptIndex( fileSystemRule.get(), dir );
+        corruptIndex( fileSystemRule.get(), testDirectory.databaseLayout() );
         start( data, usePersistentStore, readOnly );
     }
 
-    protected abstract void corruptIndex( FileSystemAbstraction fileSystem, File rootFolder ) throws IOException;
+    protected abstract void corruptIndex( FileSystemAbstraction fileSystem, DatabaseLayout databaseLayout ) throws IOException;
 
     protected void scrambleFile( File file ) throws IOException
     {

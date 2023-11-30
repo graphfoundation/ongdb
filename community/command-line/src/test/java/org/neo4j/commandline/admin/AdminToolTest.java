@@ -38,7 +38,7 @@
  */
 package org.neo4j.commandline.admin;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
 import java.nio.file.Path;
@@ -57,14 +57,14 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-import static org.neo4j.commandline.Util.ongdbVersion;
+import static org.neo4j.commandline.Util.neo4jVersion;
 import static org.neo4j.commandline.admin.AdminTool.STATUS_ERROR;
 import static org.neo4j.commandline.admin.AdminTool.STATUS_SUCCESS;
 
-public class AdminToolTest
+class AdminToolTest
 {
     @Test
-    public void shouldExecuteTheCommand() throws CommandFailed, IncorrectUsage
+    void shouldExecuteTheCommand() throws CommandFailed, IncorrectUsage
     {
         AdminCommand command = mock( AdminCommand.class );
         new AdminTool( cannedCommand( "command", command ), new NullBlockerLocator(), new NullOutsideWorld(), false )
@@ -73,7 +73,7 @@ public class AdminToolTest
     }
 
     @Test
-    public void shouldExit0WhenEverythingWorks()
+    void shouldExit0WhenEverythingWorks()
     {
         OutsideWorld outsideWorld = mock( OutsideWorld.class );
         new AdminTool( new CannedLocator( new NullCommandProvider() ), new NullBlockerLocator(), outsideWorld, false )
@@ -82,7 +82,7 @@ public class AdminToolTest
     }
 
     @Test
-    public void shouldAddTheHelpCommandToThoseProvidedByTheLocator()
+    void shouldAddTheHelpCommandToThoseProvidedByTheLocator()
     {
         OutsideWorld outsideWorld = mock( OutsideWorld.class );
         new AdminTool( new NullCommandLocator(), new NullBlockerLocator(), outsideWorld, false )
@@ -91,17 +91,17 @@ public class AdminToolTest
     }
 
     @Test
-    public void shouldProvideFeedbackWhenNoCommandIsProvided()
+    void shouldProvideFeedbackWhenNoCommandIsProvided()
     {
         OutsideWorld outsideWorld = mock( OutsideWorld.class );
         new AdminTool( new NullCommandLocator(), new NullBlockerLocator(), outsideWorld, false ).execute( null, null );
         verify( outsideWorld ).stdErrLine( "you must provide a command" );
-        verify( outsideWorld ).stdErrLine( "usage: ongdb-admin <command>" );
+        verify( outsideWorld ).stdErrLine( "usage: neo4j-admin <command>" );
         verify( outsideWorld ).exit( STATUS_ERROR );
     }
 
     @Test
-    public void shouldProvideFeedbackIfTheCommandThrowsARuntimeException()
+    void shouldProvideFeedbackIfTheCommandThrowsARuntimeException()
     {
         OutsideWorld outsideWorld = mock( OutsideWorld.class );
         AdminCommand command = args ->
@@ -115,7 +115,7 @@ public class AdminToolTest
     }
 
     @Test
-    public void shouldPrintTheStacktraceWhenTheCommandThrowsARuntimeExceptionIfTheDebugFlagIsSet()
+    void shouldPrintTheStacktraceWhenTheCommandThrowsARuntimeExceptionIfTheDebugFlagIsSet()
     {
         OutsideWorld outsideWorld = mock( OutsideWorld.class );
         RuntimeException exception = new RuntimeException( "" );
@@ -129,7 +129,7 @@ public class AdminToolTest
     }
 
     @Test
-    public void shouldNotPrintTheStacktraceWhenTheCommandThrowsARuntimeExceptionIfTheDebugFlagIsNotSet()
+    void shouldNotPrintTheStacktraceWhenTheCommandThrowsARuntimeExceptionIfTheDebugFlagIsNotSet()
     {
         OutsideWorld outsideWorld = mock( OutsideWorld.class );
         RuntimeException exception = new RuntimeException( "" );
@@ -143,7 +143,7 @@ public class AdminToolTest
     }
 
     @Test
-    public void shouldProvideFeedbackIfTheCommandFails()
+    void shouldProvideFeedbackIfTheCommandFails()
     {
         OutsideWorld outsideWorld = mock( OutsideWorld.class );
         AdminCommand command = args ->
@@ -157,7 +157,7 @@ public class AdminToolTest
     }
 
     @Test
-    public void shouldPrintTheStacktraceWhenTheCommandFailsIfTheDebugFlagIsSet()
+    void shouldPrintTheStacktraceWhenTheCommandFailsIfTheDebugFlagIsSet()
     {
         OutsideWorld outsideWorld = mock( OutsideWorld.class );
         CommandFailed exception = new CommandFailed( "" );
@@ -171,7 +171,7 @@ public class AdminToolTest
     }
 
     @Test
-    public void shouldNotPrintTheStacktraceWhenTheCommandFailsIfTheDebugFlagIsNotSet()
+    void shouldNotPrintTheStacktraceWhenTheCommandFailsIfTheDebugFlagIsNotSet()
     {
         OutsideWorld outsideWorld = mock( OutsideWorld.class );
         CommandFailed exception = new CommandFailed( "" );
@@ -185,7 +185,7 @@ public class AdminToolTest
     }
 
     @Test
-    public void shouldProvideFeedbackIfTheCommandReportsAUsageProblem()
+    void shouldProvideFeedbackIfTheCommandReportsAUsageProblem()
     {
         OutsideWorld outsideWorld = mock( OutsideWorld.class );
         AdminCommand command = args ->
@@ -200,7 +200,7 @@ public class AdminToolTest
     }
 
     @Test
-    public void shouldBlockDumpIfABlockerSaysSo()
+    void shouldBlockDumpIfABlockerSaysSo()
     {
         OutsideWorld outsideWorld = mock( OutsideWorld.class );
         AdminCommand command = mock( AdminCommand.class );
@@ -221,7 +221,7 @@ public class AdminToolTest
     }
 
     @Test
-    public void shouldBlockDumpIfOneBlockerOutOfManySaysSo()
+    void shouldBlockDumpIfOneBlockerOutOfManySaysSo()
     {
         OutsideWorld outsideWorld = mock( OutsideWorld.class );
         AdminCommand command = mock( AdminCommand.class );
@@ -246,7 +246,7 @@ public class AdminToolTest
     }
 
     @Test
-    public void shouldNotBlockIfNoneOfTheBlockersBlock() throws CommandFailed, IncorrectUsage
+    void shouldNotBlockIfNoneOfTheBlockersBlock() throws CommandFailed, IncorrectUsage
     {
         AdminCommand command = mock( AdminCommand.class );
 
@@ -264,7 +264,7 @@ public class AdminToolTest
     }
 
     @Test
-    public void helpArgumentPrintsHelp()
+    void helpArgumentPrintsHelp()
     {
         AdminCommand command = mock( AdminCommand.class );
         OutsideWorld outsideWorld = mock( OutsideWorld.class );
@@ -274,12 +274,12 @@ public class AdminToolTest
 
         verifyNoMoreInteractions( command );
         verify( outsideWorld ).stdErrLine( "unrecognized command: --help" );
-        verify( outsideWorld ).stdErrLine( "usage: ongdb-admin <command>" );
+        verify( outsideWorld ).stdErrLine( "usage: neo4j-admin <command>" );
         verify( outsideWorld ).exit( STATUS_ERROR );
     }
 
     @Test
-    public void helpArgumentPrintsHelpForCommand()
+    void helpArgumentPrintsHelpForCommand()
     {
         AdminCommand command = mock( AdminCommand.class );
         OutsideWorld outsideWorld = mock( OutsideWorld.class );
@@ -289,12 +289,12 @@ public class AdminToolTest
 
         verifyNoMoreInteractions( command );
         verify( outsideWorld ).stdErrLine( "unknown argument: --help" );
-        verify( outsideWorld ).stdErrLine( "usage: ongdb-admin command " );
+        verify( outsideWorld ).stdErrLine( "usage: neo4j-admin command " );
         verify( outsideWorld ).exit( STATUS_ERROR );
     }
 
     @Test
-    public void versionArgumentPrintsVersion()
+    void versionArgumentPrintsVersion()
     {
         AdminCommand command = mock( AdminCommand.class );
         OutsideWorld outsideWorld = mock( OutsideWorld.class );
@@ -303,12 +303,12 @@ public class AdminToolTest
                 .execute( null, null, "--version" );
 
         verifyNoMoreInteractions( command );
-        verify( outsideWorld ).stdOutLine( "ongdb-admin " + ongdbVersion() );
+        verify( outsideWorld ).stdOutLine( "neo4j-admin " + neo4jVersion() );
         verify( outsideWorld ).exit( STATUS_SUCCESS );
     }
 
     @Test
-    public void versionArgumentPrintsVersionEvenWithCommand()
+    void versionArgumentPrintsVersionEvenWithCommand()
     {
         AdminCommand command = mock( AdminCommand.class );
         OutsideWorld outsideWorld = mock( OutsideWorld.class );
@@ -317,11 +317,11 @@ public class AdminToolTest
                 .execute( null, null, "command", "--version" );
 
         verifyNoMoreInteractions( command );
-        verify( outsideWorld ).stdOutLine( "ongdb-admin " + ongdbVersion() );
+        verify( outsideWorld ).stdOutLine( "neo4j-admin " + neo4jVersion() );
         verify( outsideWorld ).exit( STATUS_SUCCESS );
     }
 
-    private CannedLocator cannedCommand( final String name, AdminCommand command )
+    private static CannedLocator cannedCommand( final String name, AdminCommand command )
     {
         return new CannedLocator( new AdminCommand.Provider( name )
         {
@@ -379,7 +379,7 @@ public class AdminToolTest
 
     private static class NullCommandProvider extends AdminCommand.Provider
     {
-        protected NullCommandProvider()
+        NullCommandProvider()
         {
             super( "null" );
         }
@@ -411,9 +411,7 @@ public class AdminToolTest
         @Override
         public AdminCommand create( Path homeDir, Path configDir, OutsideWorld outsideWorld )
         {
-            return args ->
-            {
-            };
+            return args -> { };
         }
     }
 

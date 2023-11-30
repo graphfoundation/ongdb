@@ -41,7 +41,6 @@ package org.neo4j.helpers;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -49,6 +48,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
+@Deprecated
 public abstract class FutureAdapter<V> implements Future<V>
 {
     public static final Future<Void> VOID = CompletableFuture.completedFuture( null );
@@ -111,6 +111,7 @@ public abstract class FutureAdapter<V> implements Future<V>
         return new Present<>( value );
     }
 
+    @Deprecated
     public static <T> Future<T> latchGuardedValue( final Supplier<T> supplier, final CountDownLatch guardedByLatch,
                                                    final String jobDescription )
     {
@@ -142,6 +143,7 @@ public abstract class FutureAdapter<V> implements Future<V>
         };
     }
 
+    @Deprecated
     public static Future<Integer> processFuture( final Process process )
     {
         return new FutureAdapter<Integer>()
@@ -188,6 +190,7 @@ public abstract class FutureAdapter<V> implements Future<V>
         };
     }
 
+    @Deprecated
     public static <T> Future<T> future( final Callable<T> task )
     {
         ExecutorService executor = Executors.newSingleThreadExecutor();

@@ -42,7 +42,7 @@ import org.junit.Test;
 
 import java.io.File;
 
-import org.neo4j.kernel.api.index.IndexProvider.Descriptor;
+import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
 
 import static org.junit.Assert.assertEquals;
 import static org.neo4j.io.fs.FileUtils.path;
@@ -53,7 +53,7 @@ import static org.neo4j.kernel.api.index.IndexDirectoryStructure.directoriesBySu
 
 public class IndexDirectoryStructureTest
 {
-    private final Descriptor provider = new Descriptor( "test", "0.5" );
+    private final IndexProviderDescriptor provider = new IndexProviderDescriptor( "test", "0.5" );
     private final File databaseStoreDir = new File( "db" ).getAbsoluteFile();
     private final File baseIndexDirectory = baseSchemaIndexFolder( databaseStoreDir );
     private final long indexId = 15;
@@ -78,7 +78,7 @@ public class IndexDirectoryStructureTest
     public void shouldSeeCorrectDirectoriesForSubProvider()
     {
         IndexDirectoryStructure parentStructure = directoriesByProvider( databaseStoreDir ).forProvider( provider );
-        Descriptor subProvider = new Descriptor( "sub", "0.3" );
+        IndexProviderDescriptor subProvider = new IndexProviderDescriptor( "sub", "0.3" );
         assertCorrectDirectories( directoriesBySubProvider( parentStructure ).forProvider( subProvider ),
                 path( baseIndexDirectory, provider.getKey() + "-" + provider.getVersion() ),
                 path( baseIndexDirectory, provider.getKey() + "-" + provider.getVersion(),
@@ -88,7 +88,7 @@ public class IndexDirectoryStructureTest
     @Test
     public void shouldHandleWeirdCharactersInProviderKey()
     {
-        Descriptor providerWithWeirdName = new Descriptor( "native+lucene", "1.0" );
+        IndexProviderDescriptor providerWithWeirdName = new IndexProviderDescriptor( "native+lucene", "1.0" );
         assertCorrectDirectories( directoriesByProvider( databaseStoreDir ).forProvider( providerWithWeirdName ),
                 path( baseIndexDirectory, "native_lucene-1.0" ),
                 path( baseIndexDirectory, "native_lucene-1.0", String.valueOf( indexId ) ) );

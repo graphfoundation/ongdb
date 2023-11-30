@@ -53,7 +53,6 @@ import org.neo4j.values.storable.Values;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.unmodifiableList;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -132,14 +131,14 @@ public class RawBitsTest
     {
         // given
         List<Value> values = asValueObjects( objects );
-        List<NumberSchemaKey> schemaNumberKeys = asSchemaNumberKeys( values );
+        List<NumberIndexKey> numberIndexKeys = asNumberIndexKeys( values );
         Collections.shuffle( values );
-        Collections.shuffle( schemaNumberKeys );
+        Collections.shuffle( numberIndexKeys );
 
         // when
         values.sort( Values.COMPARATOR );
-        schemaNumberKeys.sort( layout );
-        List<Value> actual = asValues( schemaNumberKeys );
+        numberIndexKeys.sort( layout );
+        List<Value> actual = asValues( numberIndexKeys );
 
         // then
         assertSameOrder( actual, values );
@@ -150,18 +149,18 @@ public class RawBitsTest
     {
         // given
         List<Value> values = asValueObjects( objects );
-        List<NumberSchemaKey> schemaNumberKeys = asSchemaNumberKeys( values );
+        List<NumberIndexKey> numberIndexKeys = asNumberIndexKeys( values );
         values.sort( Values.COMPARATOR );
 
         // when
-        for ( NumberSchemaKey numberKey : schemaNumberKeys )
+        for ( NumberIndexKey numberKey : numberIndexKeys )
         {
-            List<NumberSchemaKey> withoutThisOne = new ArrayList<>( schemaNumberKeys );
+            List<NumberIndexKey> withoutThisOne = new ArrayList<>( numberIndexKeys );
             assertTrue( withoutThisOne.remove( numberKey ) );
             withoutThisOne = unmodifiableList( withoutThisOne );
             for ( int i = 0; i < withoutThisOne.size(); i++ )
             {
-                List<NumberSchemaKey> withThisOneInWrongPlace = new ArrayList<>( withoutThisOne );
+                List<NumberIndexKey> withThisOneInWrongPlace = new ArrayList<>( withoutThisOne );
                 withThisOneInWrongPlace.add( i, numberKey );
                 withThisOneInWrongPlace.sort( layout );
                 List<Value> actual = asValues( withThisOneInWrongPlace );
@@ -177,29 +176,29 @@ public class RawBitsTest
     {
         // given
         List<Value> values = asValueObjects( objects );
-        List<NumberSchemaKey> schemaNumberKeys = asSchemaNumberKeys( values );
+        List<NumberIndexKey> numberIndexKeys = asNumberIndexKeys( values );
 
         // when
         for ( int i = 0; i < values.size(); i++ )
         {
             Value value1 = values.get( i );
-            NumberSchemaKey schemaNumberKey1 = schemaNumberKeys.get( i );
+            NumberIndexKey numberIndexKey1 = numberIndexKeys.get( i );
             for ( int j = 0; j < values.size(); j++ )
             {
                 // then
                 Value value2 = values.get( j );
-                NumberSchemaKey schemaNumberKey2 = schemaNumberKeys.get( j );
+                NumberIndexKey numberIndexKey2 = numberIndexKeys.get( j );
                 assertEquals( Values.COMPARATOR.compare( value1, value2 ),
-                        layout.compare( schemaNumberKey1, schemaNumberKey2 ) );
+                        layout.compare( numberIndexKey1, numberIndexKey2 ) );
                 assertEquals( Values.COMPARATOR.compare( value2, value1 ),
-                        layout.compare( schemaNumberKey2, schemaNumberKey1 ) );
+                        layout.compare( numberIndexKey2, numberIndexKey1 ) );
             }
         }
     }
 
-    private List<Value> asValues( List<NumberSchemaKey> schemaNumberKeys )
+    private List<Value> asValues( List<NumberIndexKey> numberIndexKeys )
     {
-        return schemaNumberKeys.stream()
+        return numberIndexKeys.stream()
                 .map( k -> RawBits.asNumberValue( k.rawValueBits, k.type ) )
                 .collect( Collectors.toList() );
     }
@@ -233,15 +232,15 @@ public class RawBitsTest
         return values;
     }
 
-    private List<NumberSchemaKey> asSchemaNumberKeys( List<Value> values )
+    private List<NumberIndexKey> asNumberIndexKeys( List<Value> values )
     {
-        List<NumberSchemaKey> schemaNumberKeys = new ArrayList<>();
+        List<NumberIndexKey> numberIndexKeys = new ArrayList<>();
         for ( Value value : values )
         {
-            NumberSchemaKey key = new NumberSchemaKey();
-            key.from( 0, value );
-            schemaNumberKeys.add( key );
+            NumberIndexKey key = new NumberIndexKey();
+            key.from( value );
+            numberIndexKeys.add( key );
         }
-        return schemaNumberKeys;
+        return numberIndexKeys;
     }
 }

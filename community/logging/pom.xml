@@ -58,10 +58,7 @@
 
     <build>
         <plugins>
-            <!-- This module contains public API, run javadoc and revapi -->
-            <plugin>
-                <artifactId>maven-javadoc-plugin</artifactId>
-            </plugin>
+            <!-- This module contains public API, run revapi -->
             <plugin>
                 <groupId>org.revapi</groupId>
                 <artifactId>revapi-maven-plugin</artifactId>
@@ -75,7 +72,6 @@
             <artifactId>ongdb-io</artifactId>
             <version>${project.version}</version>
         </dependency>
-
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>ongdb-common</artifactId>
@@ -91,8 +87,20 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-migrationsupport</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
         </dependency>
         <dependency>
             <groupId>org.hamcrest</groupId>
@@ -108,7 +116,7 @@
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
+            <artifactId>commons-text</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

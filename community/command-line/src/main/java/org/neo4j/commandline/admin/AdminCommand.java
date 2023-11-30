@@ -50,7 +50,7 @@ import org.neo4j.helpers.Service;
 import org.neo4j.helpers.collection.Iterables;
 
 /**
- * To create a command for {@code ongdb-admin}:
+ * To create a command for {@code neo4j-admin}:
  * <ol>
  *   <li>implement {@code AdminCommand}</li>
  *   <li>create a concrete subclass of {@code AdminCommand.Provider} which instantiates the command</li>
@@ -130,7 +130,7 @@ public interface AdminCommand
     interface Blocker
     {
         /**
-         * @param homeDir   the home of the ONgDB installation.
+         * @param homeDir   the home of the Neo4j installation.
          * @param configDir the directory where configuration files can be found.
          * @return A boolean representing whether or not this command should be blocked from running.
          */

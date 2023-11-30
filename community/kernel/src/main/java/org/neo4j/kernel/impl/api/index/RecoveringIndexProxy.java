@@ -39,17 +39,20 @@
 package org.neo4j.kernel.impl.api.index;
 
 import java.io.File;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.internal.kernel.api.InternalIndexState;
+import org.neo4j.storageengine.api.schema.CapableIndexDescriptor;
 import org.neo4j.storageengine.api.schema.PopulationProgress;
 import org.neo4j.values.storable.Value;
 
 public class RecoveringIndexProxy extends AbstractSwallowingIndexProxy
 {
-    RecoveringIndexProxy( IndexMeta indexMeta )
+    RecoveringIndexProxy( CapableIndexDescriptor capableIndexDescriptor )
     {
-        super( indexMeta, null );
+        super( capableIndexDescriptor, null );
     }
 
     @Override
@@ -59,7 +62,7 @@ public class RecoveringIndexProxy extends AbstractSwallowingIndexProxy
     }
 
     @Override
-    public boolean awaitStoreScanCompleted()
+    public boolean awaitStoreScanCompleted( long time, TimeUnit unit )
     {
         throw unsupportedOperation( "Cannot await population on a recovering index." );
     }
@@ -86,6 +89,12 @@ public class RecoveringIndexProxy extends AbstractSwallowingIndexProxy
     public ResourceIterator<File> snapshotFiles()
     {
         throw unsupportedOperation( "Cannot snapshot a recovering index." );
+    }
+
+    @Override
+    public Map<String,Value> indexConfig()
+    {
+        throw unsupportedOperation( "Cannot get index configuration from recovering index." );
     }
 
     @Override

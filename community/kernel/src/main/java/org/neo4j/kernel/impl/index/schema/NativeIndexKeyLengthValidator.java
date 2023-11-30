@@ -42,7 +42,7 @@ import org.neo4j.index.internal.gbptree.Layout;
 import org.neo4j.kernel.impl.api.AbstractIndexKeyLengthValidator;
 import org.neo4j.values.storable.Value;
 
-public class NativeIndexKeyLengthValidator<KEY extends NativeSchemaKey,VALUE extends NativeSchemaValue> extends AbstractIndexKeyLengthValidator
+public class NativeIndexKeyLengthValidator<KEY extends NativeIndexKey,VALUE extends NativeIndexValue> extends AbstractIndexKeyLengthValidator
 {
     private final Layout<KEY,VALUE> layout;
 
@@ -56,7 +56,7 @@ public class NativeIndexKeyLengthValidator<KEY extends NativeSchemaKey,VALUE ext
     protected int indexKeyLength( Value value )
     {
         KEY key = layout.newKey();
-        key.from( 0, value );
+        key.initFromValue( 0, value, NativeIndexKey.Inclusion.NEUTRAL );
         return layout.keySize( key );
     }
 }

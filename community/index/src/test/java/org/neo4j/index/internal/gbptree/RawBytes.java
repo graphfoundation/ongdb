@@ -49,4 +49,9 @@ class RawBytes
     {
         return Arrays.toString( bytes );
     }
+
+    void copyFrom( RawBytes source )
+    {
+        bytes = source.bytes.clone();
+    }
 }

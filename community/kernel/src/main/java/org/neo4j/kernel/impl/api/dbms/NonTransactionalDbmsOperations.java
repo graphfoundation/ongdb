@@ -39,15 +39,21 @@
 package org.neo4j.kernel.impl.api.dbms;
 
 import org.neo4j.collection.RawIterator;
+import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
+import org.neo4j.internal.kernel.api.procs.ProcedureCallContext;
 import org.neo4j.internal.kernel.api.procs.QualifiedName;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
 import org.neo4j.kernel.api.ResourceTracker;
 import org.neo4j.kernel.api.dbms.DbmsOperations;
 import org.neo4j.kernel.api.proc.BasicContext;
-import org.neo4j.kernel.api.proc.Context;
 import org.neo4j.kernel.impl.proc.Procedures;
-import org.neo4j.values.AnyValue;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
+
+import static org.neo4j.kernel.api.proc.Context.DATABASE_API;
+import static org.neo4j.kernel.api.proc.Context.DEPENDENCY_RESOLVER;
+import static org.neo4j.kernel.api.proc.Context.PROCEDURE_CALL_CONTEXT;
+import static org.neo4j.kernel.api.proc.Context.SECURITY_CONTEXT;
 
 public class NonTransactionalDbmsOperations implements DbmsOperations
 {
@@ -60,40 +66,29 @@ public class NonTransactionalDbmsOperations implements DbmsOperations
     }
 
     @Override
-    public RawIterator<Object[],ProcedureException> procedureCallDbms(
-            QualifiedName name,
-            Object[] input,
-            SecurityContext securityContext,
-            ResourceTracker resourceTracker
-    ) throws ProcedureException
+    public RawIterator<Object[],ProcedureException> procedureCallDbms( QualifiedName name, Object[] input, DependencyResolver dependencyResolver,
+            SecurityContext securityContext, ResourceTracker resourceTracker, ProcedureCallContext procedureCallContext ) throws ProcedureException
     {
-        BasicContext ctx = new BasicContext();
-        ctx.put( Context.SECURITY_CONTEXT, securityContext );
+        BasicContext ctx = createContext( securityContext, dependencyResolver, procedureCallContext );
         return procedures.callProcedure( ctx, name, input, resourceTracker );
     }
 
     @Override
-    public RawIterator<Object[],ProcedureException> procedureCallDbms(
-            int id,
-            Object[] input,
-            SecurityContext securityContext,
-            ResourceTracker resourceTracker
-    ) throws ProcedureException
+    public RawIterator<Object[],ProcedureException> procedureCallDbms( int id, Object[] input, DependencyResolver dependencyResolver,
+            SecurityContext securityContext, ResourceTracker resourceTracker, ProcedureCallContext procedureCallContext ) throws ProcedureException
     {
-        BasicContext ctx = new BasicContext();
-        ctx.put( Context.SECURITY_CONTEXT, securityContext );
+        BasicContext ctx = createContext( securityContext, dependencyResolver, procedureCallContext );
         return procedures.callProcedure( ctx, id, input, resourceTracker );
     }
 
-    @Override
-    public AnyValue functionCallDbms(
-            QualifiedName name,
-            AnyValue[] input,
-            SecurityContext securityContext
-    ) throws ProcedureException
+    private static BasicContext createContext( SecurityContext securityContext, DependencyResolver dependencyResolver,
+            ProcedureCallContext procedureCallContext )
     {
         BasicContext ctx = new BasicContext();
-        ctx.put( Context.SECURITY_CONTEXT, securityContext );
-        return procedures.callFunction( ctx, name, input );
+        ctx.put( SECURITY_CONTEXT, securityContext );
+        ctx.put( PROCEDURE_CALL_CONTEXT, procedureCallContext );
+        ctx.put( DEPENDENCY_RESOLVER, dependencyResolver );
+        ctx.put( DATABASE_API, dependencyResolver.resolveDependency( GraphDatabaseAPI.class ) );
+        return ctx;
     }
 }

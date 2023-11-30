@@ -38,19 +38,10 @@
  */
 package org.neo4j.kernel.monitoring;
 
-import org.junit.Assert;
 import org.junit.Test;
-
-import java.io.ByteArrayOutputStream;
-import java.io.OutputStream;
-import java.io.PrintStream;
-
-import org.neo4j.logging.FormattedLogProvider;
-import org.neo4j.logging.LogProvider;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -168,28 +159,46 @@ public class MonitorsTest
     }
 
     @Test
-    public void exceptionsInHandlersAreLogged()
+    public void multipleListenersRegistration()
     {
-        // given
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        OutputStream outputStream = new PrintStream( byteArrayOutputStream );
-        LogProvider logProvider = FormattedLogProvider.toOutputStream( outputStream );
-        Monitors monitors = new Monitors( logProvider );
+        Monitors monitors = new Monitors();
+        MyMonitor listener1 = mock( MyMonitor.class );
+        MyMonitor listener2 = mock( MyMonitor.class );
 
-        // and
-        MyMonitor listener = mock( MyMonitor.class );
-        RuntimeException runtimeException = new RuntimeException( "Exception message" );
-        doThrow( runtimeException ).when( listener ).aVoid();
-        monitors.addMonitorListener( listener );
+        assertFalse( monitors.hasListeners( MyMonitor.class ) );
 
-        // when
-        MyMonitor monitor = monitors.newMonitor( MyMonitor.class );
-        monitor.aVoid();
+        monitors.addMonitorListener( listener1 );
+        monitors.addMonitorListener( listener2 );
+        assertTrue( monitors.hasListeners( MyMonitor.class ) );
 
-        // then
-        String logOutput = byteArrayOutputStream.toString();
-        assertTrue( logOutput.contains( "RuntimeException: Exception message" ) );
-        assertTrue( logOutput.contains( this.getClass().getName() ) );
-        assertTrue( logOutput.contains( "Encountered exception while handling listener for monitor method aVoid" ) );
+        monitors.removeMonitorListener( listener1 );
+        assertTrue( monitors.hasListeners( MyMonitor.class ) );
+
+        monitors.removeMonitorListener( listener2 );
+        assertFalse( monitors.hasListeners( MyMonitor.class ) );
+    }
+
+    @Test
+    public void eventShouldBubbleUp()
+    {
+        Monitors parent = new Monitors();
+        MyMonitor parentListener = mock( MyMonitor.class );
+        parent.addMonitorListener( parentListener );
+
+        Monitors child = new Monitors( parent );
+        MyMonitor childListener = mock( MyMonitor.class );
+        child.addMonitorListener( childListener );
+
+        // Calls on monitors from parent should not reach child listeners
+        MyMonitor parentMonitor = parent.newMonitor( MyMonitor.class );
+        parentMonitor.aVoid();
+        verify( parentListener, times( 1 ) ).aVoid();
+        verifyZeroInteractions( childListener );
+
+        // Calls on monitors from child should reach both listeners
+        MyMonitor childMonitor = child.newMonitor( MyMonitor.class );
+        childMonitor.aVoid();
+        verify( parentListener, times( 2 ) ).aVoid();
+        verify( childListener, times( 1 ) ).aVoid();
     }
 }

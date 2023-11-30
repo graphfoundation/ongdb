@@ -208,11 +208,13 @@ public final class PathImpl implements Path
             int index;
             Iterator<Relationship> relationshipIterator = relationships.iterator();
 
+            @Override
             public boolean hasNext()
             {
                 return index <= path.length;
             }
 
+            @Override
             public Node next()
             {
                 if ( current == null )
@@ -240,6 +242,7 @@ public final class PathImpl implements Path
                 }
             }
 
+            @Override
             public void remove()
             {
                 throw new UnsupportedOperationException();
@@ -267,11 +270,13 @@ public final class PathImpl implements Path
             Iterator<? extends PropertyContainer> current = nodes().iterator();
             Iterator<? extends PropertyContainer> next = relationships().iterator();
 
+            @Override
             public boolean hasNext()
             {
                 return current.hasNext();
             }
 
+            @Override
             public PropertyContainer next()
             {
                 try
@@ -286,6 +291,7 @@ public final class PathImpl implements Path
                 }
             }
 
+            @Override
             public void remove()
             {
                 next.remove();

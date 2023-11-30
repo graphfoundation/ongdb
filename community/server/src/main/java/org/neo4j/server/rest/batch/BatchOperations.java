@@ -65,7 +65,7 @@ import org.neo4j.server.web.WebServer;
 
 public abstract class BatchOperations
 {
-    private static final Pattern PLACHOLDER_PATTERN = Pattern.compile( "\\{(\\d{1,10})}" );
+    private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile( "\\{(\\d{1,10})}" );
 
     protected static final String ID_KEY = "id";
     protected static final String METHOD_KEY = "method";
@@ -131,7 +131,7 @@ public abstract class BatchOperations
         {
             return str;
         }
-        Matcher matcher = PLACHOLDER_PATTERN.matcher( str );
+        Matcher matcher = PLACEHOLDER_PATTERN.matcher( str );
         StringBuffer sb = new StringBuffer();
         String replacement = null;
         while ( matcher.find() )
@@ -168,7 +168,7 @@ public abstract class BatchOperations
     protected void parseAndPerform( UriInfo uriInfo, HttpHeaders httpHeaders, HttpServletRequest req,
                                     InputStream body, Map<Integer, String> locations ) throws IOException, ServletException
     {
-        JsonParser jp = jsonFactory.createJsonParser(body);
+        JsonParser jp = jsonFactory.createJsonParser( body);
         JsonToken token;
         RequestData requestData = RequestData.from( req );
 

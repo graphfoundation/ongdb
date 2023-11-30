@@ -39,31 +39,27 @@
 package org.neo4j.kernel.api.impl.schema.sampler;
 
 import org.apache.lucene.search.IndexSearcher;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.util.concurrent.TimeUnit;
 
 import org.neo4j.helpers.TaskCoordinator;
-import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
 import org.neo4j.storageengine.api.schema.IndexSample;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class UniqueDatabaseIndexSamplerTest
+class UniqueDatabaseIndexSamplerTest
 {
-    @Rule
-    public ExpectedException expectedException = ExpectedException.none();
-
     private final IndexSearcher indexSearcher = mock( IndexSearcher.class, Mockito.RETURNS_DEEP_STUBS );
     private final TaskCoordinator taskControl = new TaskCoordinator( 0, TimeUnit.MILLISECONDS );
 
     @Test
-    public void uniqueSamplingUseDocumentsNumber() throws IndexNotFoundKernelException
+    void uniqueSamplingUseDocumentsNumber() throws IndexNotFoundKernelException
     {
         when( indexSearcher.getIndexReader().numDocs() ).thenReturn( 17 );
 
@@ -73,7 +69,7 @@ public class UniqueDatabaseIndexSamplerTest
     }
 
     @Test
-    public void uniqueSamplingCancel() throws IndexNotFoundKernelException
+    void uniqueSamplingCancel()
     {
         when( indexSearcher.getIndexReader().numDocs() ).thenAnswer( invocation ->
         {
@@ -81,11 +77,9 @@ public class UniqueDatabaseIndexSamplerTest
             return 17;
         } );
 
-        expectedException.expect( IndexNotFoundKernelException.class );
-        expectedException.expectMessage( "Index dropped while sampling." );
-
         UniqueLuceneIndexSampler sampler = new UniqueLuceneIndexSampler( indexSearcher, taskControl.newInstance() );
-        sampler.sampleIndex();
+        IndexNotFoundKernelException notFoundKernelException = assertThrows( IndexNotFoundKernelException.class, sampler::sampleIndex );
+        assertEquals( notFoundKernelException.getMessage(), "Index dropped while sampling." );
     }
 
 }

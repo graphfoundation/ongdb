@@ -52,9 +52,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
-import org.neo4j.graphdb.DatabaseShutdownException;
 import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.NotInTransactionException;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
@@ -77,7 +75,7 @@ import static org.neo4j.helpers.collection.Iterators.iteratorsEqual;
  * <p>
  * This base class takes care of converting all "normal" java types such as
  * number types, booleans, strings, arrays and lists. It leaves to the extending
- * class to handle ONgDB specific types such as nodes, edges and points.
+ * class to handle neo4j specific types such as nodes, edges and points.
  *
  * @param <E> the exception thrown on error.
  */
@@ -287,11 +285,13 @@ public abstract class BaseToObjectValueWriter<E extends Exception> implements An
                     Iterator<? extends PropertyContainer> current = nodes().iterator();
                     Iterator<? extends PropertyContainer> next = relationships().iterator();
 
+                    @Override
                     public boolean hasNext()
                     {
                         return current.hasNext();
                     }
 
+                    @Override
                     public PropertyContainer next()
                     {
                         try
@@ -306,6 +306,7 @@ public abstract class BaseToObjectValueWriter<E extends Exception> implements An
                         }
                     }
 
+                    @Override
                     public void remove()
                     {
                         next.remove();

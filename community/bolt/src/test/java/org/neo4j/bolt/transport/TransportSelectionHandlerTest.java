@@ -61,7 +61,7 @@ public class TransportSelectionHandlerTest
         // Given
         ChannelHandlerContext context = channelHandlerContextMock();
         AssertableLogProvider logging = new AssertableLogProvider();
-        TransportSelectionHandler handler = new TransportSelectionHandler( null, null, false, false, logging, null, null );
+        TransportSelectionHandler handler = new TransportSelectionHandler( null, null, false, false, logging, null );
 
         // When
         Throwable cause = new Throwable( "Oh no!" );
@@ -79,7 +79,7 @@ public class TransportSelectionHandlerTest
         // Given
         ChannelHandlerContext context = channelHandlerContextMock();
         AssertableLogProvider logging = new AssertableLogProvider();
-        TransportSelectionHandler handler = new TransportSelectionHandler( null, null, false, false, logging, null, null );
+        TransportSelectionHandler handler = new TransportSelectionHandler( null, null, false, false, logging, null );
 
         IOException connResetError = new IOException( "Connection reset by peer" );
 

@@ -53,6 +53,7 @@ import org.neo4j.io.pagecache.tracing.cursor.context.VersionContextSupplier;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.logging.Log;
 import org.neo4j.memory.GlobalMemoryTracker;
+import org.neo4j.scheduler.JobScheduler;
 
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.mapped_memory_page_size;
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.pagecache_memory;
@@ -68,7 +69,8 @@ public class ConfiguringPageCacheFactory
     private final Log log;
     private final VersionContextSupplier versionContextSupplier;
     private PageCache pageCache;
-    private PageCursorTracerSupplier pageCursorTracerSupplier;
+    private final PageCursorTracerSupplier pageCursorTracerSupplier;
+    private final JobScheduler scheduler;
 
     /**
      * Construct configuring page cache factory
@@ -79,10 +81,11 @@ public class ConfiguringPageCacheFactory
      * thread local page cache statistics
      * @param log page cache factory log
      * @param versionContextSupplier cursor context factory
+     * @param scheduler job scheduler to execute page cache jobs
      */
     public ConfiguringPageCacheFactory( FileSystemAbstraction fs, Config config, PageCacheTracer pageCacheTracer,
             PageCursorTracerSupplier pageCursorTracerSupplier, Log log,
-            VersionContextSupplier versionContextSupplier )
+            VersionContextSupplier versionContextSupplier, JobScheduler scheduler )
     {
         this.fs = fs;
         this.versionContextSupplier = versionContextSupplier;
@@ -90,6 +93,7 @@ public class ConfiguringPageCacheFactory
         this.pageCacheTracer = pageCacheTracer;
         this.log = log;
         this.pageCursorTracerSupplier = pageCursorTracerSupplier;
+        this.scheduler = scheduler;
     }
 
     public synchronized PageCache getOrCreatePageCache()
@@ -107,7 +111,7 @@ public class ConfiguringPageCacheFactory
         checkPageSize( config );
         MemoryAllocator memoryAllocator = buildMemoryAllocator( config );
         return new MuninnPageCache( swapperFactory, memoryAllocator, pageCacheTracer, pageCursorTracerSupplier,
-                versionContextSupplier );
+                versionContextSupplier, scheduler );
     }
 
     private MemoryAllocator buildMemoryAllocator( Config config )
@@ -119,7 +123,7 @@ public class ConfiguringPageCacheFactory
             log.warn( "The " + pagecache_memory.name() + " setting has not been configured. It is recommended that this " +
                       "setting is always explicitly configured, to ensure the system has a balanced configuration. " +
                       "Until then, a computed heuristic value of " + heuristic + " bytes will be used instead. " +
-                      "Run `ongdb-admin memrec` for memory configuration suggestions." );
+                      "Run `neo4j-admin memrec` for memory configuration suggestions." );
             pageCacheMemorySetting = "" + heuristic;
         }
 

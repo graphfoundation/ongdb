@@ -39,6 +39,7 @@
 package org.neo4j.index.internal.gbptree;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 import org.neo4j.io.pagecache.PageCursor;
 
@@ -65,7 +66,12 @@ public class SimpleByteArrayLayout extends TestLayout<RawBytes,RawBytes>
     @Override
     public RawBytes copyKey( RawBytes rawBytes, RawBytes into )
     {
-        into.bytes = rawBytes.bytes.clone();
+        return copyKey( rawBytes, into, rawBytes.bytes.length );
+    }
+
+    private RawBytes copyKey( RawBytes rawBytes, RawBytes into, int length )
+    {
+        into.bytes = Arrays.copyOf( rawBytes.bytes, length );
         return into;
     }
 
@@ -125,6 +131,34 @@ public class SimpleByteArrayLayout extends TestLayout<RawBytes,RawBytes>
     public boolean fixedSize()
     {
         return false;
+    }
+
+    @Override
+    public void minimalSplitter( RawBytes left, RawBytes right, RawBytes into )
+    {
+        long leftSeed = keySeed( left );
+        long rightSeed = keySeed( right );
+        if ( useFirstLongAsSeed && leftSeed != rightSeed )
+        {
+            // Minimal splitter is first 8B (seed)
+            copyKey( right, into, Long.BYTES );
+        }
+        else
+        {
+            // They had the same seed. Need to look at entire array
+            int maxLength = Math.min( left.bytes.length, right.bytes.length );
+            int firstIndexToDiffer = 0;
+            for ( ; firstIndexToDiffer < maxLength; firstIndexToDiffer++ )
+            {
+                if ( left.bytes[firstIndexToDiffer] != right.bytes[firstIndexToDiffer] )
+                {
+                    break;
+                }
+            }
+            // Convert from index to length
+            int targetLength = firstIndexToDiffer + 1;
+            copyKey( right, into, targetLength );
+        }
     }
 
     @Override

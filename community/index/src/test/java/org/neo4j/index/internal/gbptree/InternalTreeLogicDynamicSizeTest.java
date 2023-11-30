@@ -43,7 +43,9 @@ import org.junit.Test;
 
 import java.io.IOException;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.neo4j.index.internal.gbptree.TreeNode.Type.INTERNAL;
 
 public class InternalTreeLogicDynamicSizeTest extends InternalTreeLogicTestBase<RawBytes,RawBytes>
 {
@@ -54,7 +56,9 @@ public class InternalTreeLogicDynamicSizeTest extends InternalTreeLogicTestBase<
         {
             long baseSeed = layout.keySeed( base );
             long addSeed = layout.keySeed( add );
-            return layout.value( baseSeed + addSeed );
+            RawBytes merged = layout.value( baseSeed + addSeed );
+            base.copyFrom( merged );
+            return ValueMerger.MergeResult.MERGED;
         };
     }
 
@@ -114,5 +118,24 @@ public class InternalTreeLogicDynamicSizeTest extends InternalTreeLogicTestBase<
         {
             assertThat( e.getMessage(), CoreMatchers.containsString( "Index key-value size it to large. Please see index documentation for limitations." ) );
         }
+    }
+
+    @Test
+    public void storeOnlyMinimalKeyDividerInInternal() throws IOException
+    {
+        // given
+        initialize();
+        long key = 0;
+        while ( numberOfRootSplits == 0 )
+        {
+            insert( key( key ), value( key ) );
+            key++;
+        }
+
+        // when
+        RawBytes rawBytes = keyAt( root.id(), 0, INTERNAL );
+
+        // then
+        assertEquals( "expected no tail on internal key but was " + rawBytes.toString(), Long.BYTES, rawBytes.bytes.length );
     }
 }

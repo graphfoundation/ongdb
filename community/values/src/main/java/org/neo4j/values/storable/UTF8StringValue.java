@@ -45,6 +45,7 @@ import java.util.regex.Pattern;
 import org.neo4j.hashing.HashFunction;
 
 import static org.neo4j.values.storable.Values.utf8Value;
+import static org.neo4j.values.utils.ValueMath.HASH_CONSTANT;
 
 /*
  * Just as a normal StringValue but is backed by a byte array and does string
@@ -87,7 +88,8 @@ public final class UTF8StringValue extends StringValue
             {
                 return false;
             }
-            for ( int i = offset, j = other.offset; i < byteLength; i++, j++ )
+            final int max = offset + byteLength;
+            for ( int i = offset, j = other.offset; i < max; i++, j++ )
             {
                 if ( bytes[i] != other.bytes[j] )
                 {
@@ -162,15 +164,13 @@ public final class UTF8StringValue extends StringValue
             return 0;
         }
 
-        CodePointCursor cpc = new CodePointCursor();
-        cpc.values = bytes;
-        cpc.i = offset;
+        CodePointCursor cpc = new CodePointCursor( bytes, offset );
         int hash = 1;
         int len = offset + byteLength;
 
         while ( cpc.i < len )
         {
-            hash = 31 * hash + (int) cpc.nextCodePoint();
+            hash = HASH_CONSTANT * hash + (int) cpc.nextCodePoint();
         }
         return hash;
     }
@@ -178,9 +178,7 @@ public final class UTF8StringValue extends StringValue
     @Override
     public long updateHash( HashFunction hashFunction, long hash )
     {
-        CodePointCursor cpc = new CodePointCursor();
-        cpc.values = bytes;
-        cpc.i = offset;
+        CodePointCursor cpc = new CodePointCursor( bytes, offset );
         int len = offset + byteLength;
 
         while ( cpc.i < len )
@@ -197,21 +195,19 @@ public final class UTF8StringValue extends StringValue
         return hashFunction.update( hash, cpc.codePointCount );
     }
 
-    public TextValue plus( UTF8StringValue other )
+    public static class CodePointCursor
     {
-        byte[] newBytes = new byte[byteLength + other.byteLength];
-        System.arraycopy( bytes, offset, newBytes, 0, byteLength );
-        System.arraycopy( other.bytes, other.offset, newBytes, byteLength, other.byteLength );
-        return utf8Value( newBytes );
-    }
+        private byte[] values;
+        private int i;
+        private int codePointCount;
 
-    private static class CodePointCursor
-    {
-        byte[] values;
-        int i;
-        int codePointCount;
+        public CodePointCursor( byte[] values, int offset )
+        {
+            this.values = values;
+            this.i = offset;
+        }
 
-        long nextCodePoint()
+        public long nextCodePoint()
         {
             codePointCount++;
             byte b = values[i];
@@ -250,7 +246,7 @@ public final class UTF8StringValue extends StringValue
         }
         if ( length == 0 )
         {
-            return StringValue.EMTPY;
+            return StringValue.EMPTY;
         }
 
         int end = start + length;
@@ -288,7 +284,7 @@ public final class UTF8StringValue extends StringValue
         }
         if ( byteStart < 0 )
         {
-            return StringValue.EMTPY;
+            return StringValue.EMPTY;
         }
         return new UTF8StringValue( values, byteStart, byteEnd - byteStart );
     }
@@ -307,7 +303,7 @@ public final class UTF8StringValue extends StringValue
         int endIndex = trimRightIndex();
         if ( startIndex > endIndex )
         {
-            return StringValue.EMTPY;
+            return StringValue.EMPTY;
         }
 
         return new UTF8StringValue( values, startIndex, Math.max( endIndex + 1 - startIndex, 0 ) );
@@ -325,7 +321,7 @@ public final class UTF8StringValue extends StringValue
         int startIndex = trimLeftIndex();
         if ( startIndex >= values.length )
         {
-            return StringValue.EMTPY;
+            return StringValue.EMPTY;
         }
         return new UTF8StringValue( values, startIndex, values.length - startIndex );
     }
@@ -342,9 +338,126 @@ public final class UTF8StringValue extends StringValue
         int endIndex = trimRightIndex();
         if ( endIndex < 0 )
         {
-            return StringValue.EMTPY;
+            return StringValue.EMPTY;
         }
         return new UTF8StringValue( values, offset, endIndex + 1 - offset );
+    }
+
+    @Override
+    public TextValue plus( TextValue other )
+    {
+        if ( other instanceof UTF8StringValue )
+        {
+            UTF8StringValue rhs = (UTF8StringValue) other;
+            byte[] newBytes = new byte[byteLength + rhs.byteLength];
+            System.arraycopy( bytes, offset, newBytes, 0, byteLength );
+            System.arraycopy( rhs.bytes, rhs.offset, newBytes, byteLength, rhs.byteLength );
+            return utf8Value( newBytes );
+        }
+
+        return Values.stringValue( stringValue() + other.stringValue() );
+    }
+
+    @Override
+    public boolean startsWith( TextValue other )
+    {
+
+        if ( other instanceof UTF8StringValue )
+        {
+            UTF8StringValue suffix = (UTF8StringValue) other;
+            return startsWith( suffix, 0 );
+        }
+
+        return value().startsWith( other.stringValue() );
+    }
+
+    @Override
+    public boolean endsWith( TextValue other )
+    {
+
+        if ( other instanceof UTF8StringValue )
+        {
+            UTF8StringValue suffix = (UTF8StringValue) other;
+            return startsWith( suffix, byteLength - suffix.byteLength );
+        }
+
+        return value().endsWith( other.stringValue() );
+    }
+
+    @SuppressWarnings( "StatementWithEmptyBody" )
+    @Override
+    public boolean contains( TextValue other )
+    {
+
+        if ( other instanceof UTF8StringValue )
+        {
+            final UTF8StringValue substring = (UTF8StringValue) other;
+            if ( byteLength == 0 )
+            {
+                return substring.byteLength == 0;
+            }
+            if ( substring.byteLength == 0 )
+            {
+                return true;
+            }
+            if ( substring.byteLength > byteLength )
+            {
+                return false;
+            }
+
+            final byte first = substring.bytes[substring.offset];
+            final int max = offset + byteLength - substring.byteLength;
+            for ( int pos = offset; pos <= max; pos++ )
+            {
+                //find first byte
+                if ( bytes[pos] != first )
+                {
+                    while ( ++pos <= max && bytes[pos] != first )
+                    {
+                        //do nothing
+                    }
+                }
+
+                //Now we have the first byte match, look at the rest
+                if ( pos <= max )
+                {
+                    int i = pos + 1;
+                    final int end = pos + substring.byteLength;
+                    for ( int j = substring.offset + 1; i < end && bytes[i] == substring.bytes[j]; j++, i++ )
+                    {
+                        //do nothing
+                    }
+
+                    if ( i == end )
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        return value().contains( other.stringValue() );
+    }
+
+    private boolean startsWith( UTF8StringValue prefix, int startPos )
+    {
+        int thisOffset = offset + startPos;
+        int prefixOffset = prefix.offset;
+        int prefixCount = prefix.byteLength;
+        if ( startPos < 0 || prefixCount > byteLength )
+        {
+            return false;
+        }
+
+        while ( --prefixCount >= 0 )
+        {
+            if ( bytes[thisOffset++] != prefix.bytes[prefixOffset++] )
+            {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
@@ -354,7 +467,7 @@ public final class UTF8StringValue extends StringValue
 
         if ( values.length == 0 || byteLength == 0 )
         {
-            return StringValue.EMTPY;
+            return StringValue.EMPTY;
         }
 
         int i = offset, len = offset + byteLength;
@@ -414,56 +527,23 @@ public final class UTF8StringValue extends StringValue
     public static int byteArrayCompare( byte[] value1, int value1Offset, int value1Length,
             byte[] value2, int value2Offset, int value2Length )
     {
-        int len1 = value1Length;
-        int len2 = value2Length;
-        int lim = Math.min( len1, len2 );
-        int i = 0;
-        while ( i < lim )
+        int lim = Math.min( value1Length, value2Length );
+        for ( int i = 0; i < lim; i++ )
         {
-            int b1 = ((int) value1[i + value1Offset]) & 0xFF;
-            int b2 = ((int) value2[i + value2Offset]) & 0xFF;
+            byte b1 = value1[i + value1Offset];
+            byte b2 = value2[i + value2Offset];
             if ( b1 != b2 )
             {
-                return b1 - b2;
+                return (((int) b1) & 0xFF) - (((int) b2) & 0xFF);
             }
-            i++;
         }
-        return len1 - len2;
+        return value1Length - value2Length;
     }
 
     @Override
     Matcher matcher( Pattern pattern )
     {
         return pattern.matcher( value() ); // TODO: can we do better here?
-    }
-
-    private static int codePointAt( byte[] bytes, int i )
-    {
-        assert i < bytes.length;
-        byte b = bytes[i];
-        if ( b >= 0 )
-        {
-            return b;
-        }
-        int bytesNeeded = 0;
-        while ( b < 0 )
-        {
-            bytesNeeded++;
-            b = (byte) (b << 1);
-        }
-        switch ( bytesNeeded )
-        {
-        case 2:
-            return (b << 4) | (bytes[i + 1] & HIGH_BIT_MASK);
-        case 3:
-            return (b << 9) | ((bytes[i + 1] & HIGH_BIT_MASK) << 6) | (bytes[i + 2] & HIGH_BIT_MASK);
-        case 4:
-            return (b << 14) | ((bytes[i + 1] & HIGH_BIT_MASK) << 12) |
-                   ((bytes[i + 2] & HIGH_BIT_MASK) << 6)
-                   | (bytes[i + 3] & HIGH_BIT_MASK);
-        default:
-            throw new IllegalArgumentException( "Malformed UTF8 value " + bytesNeeded );
-        }
     }
 
     /**
@@ -558,22 +638,21 @@ public final class UTF8StringValue extends StringValue
         return bytes;
     }
 
-    static int codePoint( byte[] bytes, byte currentByte, int i, int bytesNeeded )
+    private static int codePoint( byte[] bytes, byte currentByte, int i, int bytesNeeded )
     {
         int codePoint;
-        byte[] values = bytes;
         switch ( bytesNeeded )
         {
         case 2:
-            codePoint = (currentByte << 4) | (values[i + 1] & HIGH_BIT_MASK);
+            codePoint = (currentByte << 4) | (bytes[i + 1] & HIGH_BIT_MASK);
             break;
         case 3:
-            codePoint = (currentByte << 9) | ((values[i + 1] & HIGH_BIT_MASK) << 6) | (values[i + 2] & HIGH_BIT_MASK);
+            codePoint = (currentByte << 9) | ((bytes[i + 1] & HIGH_BIT_MASK) << 6) | (bytes[i + 2] & HIGH_BIT_MASK);
             break;
         case 4:
-            codePoint = (currentByte << 14) | ((values[i + 1] & HIGH_BIT_MASK) << 12) |
-                        ((values[i + 2] & HIGH_BIT_MASK) << 6)
-                        | (values[i + 3] & HIGH_BIT_MASK);
+            codePoint = (currentByte << 14) | ((bytes[i + 1] & HIGH_BIT_MASK) << 12) |
+                        ((bytes[i + 2] & HIGH_BIT_MASK) << 6)
+                        | (bytes[i + 3] & HIGH_BIT_MASK);
             break;
         default:
             throw new IllegalArgumentException( "Malformed UTF8 value" );

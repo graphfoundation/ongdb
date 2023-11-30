@@ -82,7 +82,7 @@ public final class Suppliers
             @Override
             public T get()
             {
-                if ( instance != null )
+                if ( isInitialised() )
                 {
                     return instance;
                 }
@@ -95,6 +95,12 @@ public final class Suppliers
                     }
                 }
                 return instance;
+            }
+
+            @Override
+            public boolean isInitialised()
+            {
+                return instance != null;
             }
         };
     }
@@ -187,5 +193,6 @@ public final class Suppliers
 
     public interface Lazy<T> extends Supplier<T>
     {
+        boolean isInitialised();
     }
 }

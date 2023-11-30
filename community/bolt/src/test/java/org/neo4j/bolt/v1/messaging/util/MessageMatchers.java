@@ -51,19 +51,18 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.neo4j.bolt.logging.NullBoltMessageLogger;
+import org.neo4j.bolt.messaging.Neo4jPack;
+import org.neo4j.bolt.messaging.RequestMessage;
+import org.neo4j.bolt.messaging.ResponseMessage;
 import org.neo4j.bolt.v1.messaging.BoltRequestMessageWriter;
 import org.neo4j.bolt.v1.messaging.BoltResponseMessageReader;
 import org.neo4j.bolt.v1.messaging.BoltResponseMessageRecorder;
-import org.neo4j.bolt.v1.messaging.BoltResponseMessageWriter;
-import org.neo4j.bolt.v1.messaging.Neo4jPack;
+import org.neo4j.bolt.v1.messaging.BoltResponseMessageWriterV1;
 import org.neo4j.bolt.v1.messaging.RecordingByteChannel;
-import org.neo4j.bolt.v1.messaging.message.FailureMessage;
-import org.neo4j.bolt.v1.messaging.message.IgnoredMessage;
-import org.neo4j.bolt.v1.messaging.message.RecordMessage;
-import org.neo4j.bolt.v1.messaging.message.RequestMessage;
-import org.neo4j.bolt.v1.messaging.message.ResponseMessage;
-import org.neo4j.bolt.v1.messaging.message.SuccessMessage;
+import org.neo4j.bolt.v1.messaging.response.FailureMessage;
+import org.neo4j.bolt.v1.messaging.response.IgnoredMessage;
+import org.neo4j.bolt.v1.messaging.response.RecordMessage;
+import org.neo4j.bolt.v1.messaging.response.SuccessMessage;
 import org.neo4j.bolt.v1.packstream.BufferedChannelInput;
 import org.neo4j.bolt.v1.packstream.BufferedChannelOutput;
 import org.neo4j.bolt.v1.transport.integration.TestNotification;
@@ -73,10 +72,9 @@ import org.neo4j.graphdb.Notification;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.spatial.Point;
 import org.neo4j.kernel.api.exceptions.Status;
-import org.neo4j.kernel.impl.logging.NullLogService;
 import org.neo4j.kernel.impl.util.BaseToObjectValueWriter;
 import org.neo4j.kernel.impl.util.HexPrinter;
-import org.neo4j.values.AnyValue;
+import org.neo4j.logging.internal.NullLogService;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.virtual.MapValue;
 
@@ -97,11 +95,11 @@ public class MessageMatchers
     {
         Deserializer deserializer = new Deserializer();
         HashMap<String,Object> map = new HashMap<>( mapValue.size() );
-        for ( Map.Entry<String,AnyValue> entry : mapValue.entrySet() )
-        {
-            entry.getValue().writeTo( deserializer );
-            map.put( entry.getKey(), deserializer.value() );
-        }
+        mapValue.foreach( ( key, value ) -> {
+            value.writeTo( deserializer );
+            map.put( key, deserializer.value() );
+        } );
+
         return map;
     }
 
@@ -329,12 +327,11 @@ public class MessageMatchers
     {
         RecordingByteChannel rawData = new RecordingByteChannel();
         BufferedChannelOutput output = new BufferedChannelOutput( rawData );
-        BoltResponseMessageWriter writer = new BoltResponseMessageWriter( neo4jPack, output,
-                NullLogService.getInstance(), NullBoltMessageLogger.getInstance() );
+        BoltResponseMessageWriterV1 writer = new BoltResponseMessageWriterV1( neo4jPack::newPacker, output, NullLogService.getInstance() );
 
         for ( ResponseMessage message : messages )
         {
-            message.dispatch( writer );
+            writer.write( message );
         }
         writer.flush();
 

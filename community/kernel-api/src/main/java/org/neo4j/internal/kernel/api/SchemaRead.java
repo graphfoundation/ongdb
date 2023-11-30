@@ -42,76 +42,59 @@ import java.util.Iterator;
 import java.util.function.Function;
 
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
 import org.neo4j.internal.kernel.api.exceptions.schema.SchemaKernelException;
 import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
 import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
-import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
 import org.neo4j.register.Register;
-import org.neo4j.storageengine.api.schema.PopulationProgress;
 import org.neo4j.values.storable.Value;
 
 /**
  * Surface for getting schema information, such as fetching specific indexes or constraints.
  */
-public interface SchemaRead
+public interface SchemaRead extends SchemaReadCore
 {
     /**
      * Acquire a reference to the index mapping the given {@code label} and {@code properties}.
      *
      * @param label the index label
      * @param properties the index properties
-     * @return the IndexReference, or {@link CapableIndexReference#NO_INDEX} if such an index does not exist.
+     * @return the IndexReference, or {@link IndexReference#NO_INDEX} if such an index does not exist.
      */
-    CapableIndexReference index( int label, int... properties );
+    IndexReference index( int label, int... properties );
 
     /**
-     * Returns all indexes associated with the given label
+     * Acquire an index reference of the given {@code label} and {@code properties}. This method does not assert
+     * that the created reference points to a valid online index.
      *
-     * @param labelId The id of the label which associated indexes you are looking for
-     * @return The indexes associated with the given label
+     * @param label the index label
+     * @param properties the index properties
+     * @return a IndexReference for the given label and properties
      */
-    Iterator<IndexReference> indexesGetForLabel( int labelId );
+    IndexReference indexReferenceUnchecked( int label, int... properties );
 
     /**
-     * Returns all indexes used in the database
+     * Acquire an index reference of the given {@link SchemaDescriptor}. This method does not assert
+     * that the created reference points to a valid online index.
      *
-     * @return all indexes used in the database
+     * @param schema {@link SchemaDescriptor} for the index.
+     * @return a IndexReference for the given schema.
      */
-    Iterator<IndexReference> indexesGetAll();
+    IndexReference indexReferenceUnchecked( SchemaDescriptor schema );
 
     /**
-     * Retrieves the state of an index
+     * Returns the index with the given name
      *
-     * @param index the index which state to retrieve
-     * @return The state of the provided index
-     * @throws IndexNotFoundKernelException if the index was not found in the database
+     * @param name The name of the index you are looking for
+     * @return The index associated with the given name
      */
-    InternalIndexState indexGetState( IndexReference index ) throws IndexNotFoundKernelException;
-
-    /**
-     * Retrives the population progress of the index
-     *
-     * @param index The index whose progress to retrieve
-     * @return The population progress of the given index
-     * @throws IndexNotFoundKernelException if the index was not found in the database
-     */
-    PopulationProgress indexGetPopulationProgress( IndexReference index ) throws
-            IndexNotFoundKernelException;
+    IndexReference indexGetForName( String name );
 
     /**
      * Get the index id (the id or the schema rule record) for a committed index
      * - throws exception for indexes that aren't committed.
      */
     long indexGetCommittedId( IndexReference index ) throws SchemaKernelException;
-
-    /**
-     * Returns the failure description of a failed index.
-     *
-     * @param index the failed index
-     * @return The failure message from the index
-     * @throws IndexNotFoundKernelException if the index was not found in the database
-     */
-    String indexGetFailure( IndexReference index ) throws IndexNotFoundKernelException;
 
     /**
      * Computes the selectivity of the unique values.
@@ -136,10 +119,25 @@ public interface SchemaRead
      *
      * @param index The index of interest
      * @param nodeId node id to match.
+     * @param propertyKeyId the indexed property to look at (composite indexes apply to more than one property, so we need to specify this)
      * @param value the property value
      * @return number of index entries for the given {@code nodeId} and {@code value}.
      */
-    long nodesCountIndexed( IndexReference index, long nodeId, Value value ) throws KernelException;
+    long nodesCountIndexed( IndexReference index, long nodeId, int propertyKeyId, Value value ) throws KernelException;
+
+    /**
+     * Returns how many updates that have been applied to the index since the last sampling, and total index size at the last sampling.
+     *
+     * Results are written to a {@link Register.DoubleLongRegister}, writing the update count into the first long, and
+     * the size into the second.
+     *
+     * @param index The index of interest
+     * @param target A {@link Register.DoubleLongRegister} to which to write the update count and size.
+     * @return {@code target}
+     * @throws IndexNotFoundKernelException if the index does not exist.
+     */
+    Register.DoubleLongRegister indexUpdatesAndSize( IndexReference index, Register.DoubleLongRegister target )
+            throws IndexNotFoundKernelException;
 
     /**
      * Returns the number of unique entries and the total number of entries in an index.
@@ -152,22 +150,9 @@ public interface SchemaRead
      * @return {@code target}
      * @throws IndexNotFoundKernelException if the index does not exist.
      */
-    Register.DoubleLongRegister indexUpdatesAndSize( IndexReference index, Register.DoubleLongRegister target )
-            throws IndexNotFoundKernelException;
-
-    /**
-     * Returns the last recorded size of an index, and how many updates that have been applied to the index since then.
-     *
-     * Results are written to a {@link Register.DoubleLongRegister}, writing the update count into the first long, and
-     * the size into the second.
-     *
-     * @param index The index of interest
-     * @param target A {@link Register.DoubleLongRegister} to which to write the update count and size.
-     * @return {@code target}
-     * @throws IndexNotFoundKernelException if the index does not exist.
-     */
     Register.DoubleLongRegister indexSample( IndexReference index, Register.DoubleLongRegister target )
             throws IndexNotFoundKernelException;
+
     /**
      * Finds all constraints for the given schema
      *
@@ -185,27 +170,15 @@ public interface SchemaRead
     boolean constraintExists( ConstraintDescriptor descriptor );
 
     /**
-     * Finds all constraints for the given label
-     *
-     * @param labelId The id of the label
-     * @return All constraints for the given label
+     * Produce a snapshot of the current schema, which can be accessed without acquiring any schema locks.
+     * <p>
+     * This is useful for inspecting schema elements when you have no intention of updating the schema,
+     * and where waiting on schema locks from, for instance, constraint creating transactions,
+     * would be inconvenient.
+     * <p>
+     * The snapshot observes transaction state of the current transaction.
      */
-    Iterator<ConstraintDescriptor> constraintsGetForLabel( int labelId );
-
-    /**
-     * Find all constraints in the database
-     *
-     * @return An iterator of all the constraints in the database.
-     */
-    Iterator<ConstraintDescriptor> constraintsGetAll();
-
-    /**
-     * Get all constraints applicable to relationship type.
-     *
-     * @param typeId the id of the relationship type
-     * @return An iterator of constraints associated with the given type.
-     */
-    Iterator<ConstraintDescriptor> constraintsGetForRelationshipType( int typeId );
+    SchemaReadCore snapshot();
 
     /**
      * Get the owning constraint for a constraint index or <tt>null</tt> if the index does not have an owning
@@ -222,15 +195,6 @@ public interface SchemaRead
      * @return the state associated with the key or a new value if non-existing
      */
     <K, V> V schemaStateGetOrCreate( K key, Function<K, V> creator );
-
-    /**
-     * Returns the state associated with the key or <tt>null</tt> if nothing assocated with key
-     * @param key The key to access
-     * @param <K> The type of the key
-     * @param <V> The type of the assocated value
-     * @return The value associated with the given key or <tt>null</tt>
-     */
-    <K, V> V schemaStateGet( K key );
 
     /**
      * Flush the schema state

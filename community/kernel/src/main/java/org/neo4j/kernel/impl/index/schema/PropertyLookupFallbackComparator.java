@@ -41,21 +41,21 @@ package org.neo4j.kernel.impl.index.schema;
 import java.util.Comparator;
 
 import org.neo4j.internal.kernel.api.exceptions.EntityNotFoundException;
-import org.neo4j.kernel.api.index.PropertyAccessor;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.values.storable.Values;
 
 /**
- * Compares {@link NativeSchemaKey}, but will consult {@link PropertyAccessor} on coming across a comparison of zero.
+ * Compares {@link NativeIndexKey}, but will consult {@link NodePropertyAccessor} on coming across a comparison of zero.
  * This is useful for e.g. spatial keys which are indexed lossily.
  * @param <KEY> type of index key.
  */
-class PropertyLookupFallbackComparator<KEY extends NativeSchemaKey<KEY>> implements Comparator<KEY>
+class PropertyLookupFallbackComparator<KEY extends NativeIndexKey<KEY>,VALUE extends NativeIndexValue> implements Comparator<KEY>
 {
-    private final SchemaLayout<KEY> schemaLayout;
-    private final PropertyAccessor propertyAccessor;
+    private final IndexLayout<KEY,VALUE> schemaLayout;
+    private final NodePropertyAccessor propertyAccessor;
     private final int propertyKeyId;
 
-    PropertyLookupFallbackComparator( SchemaLayout<KEY> schemaLayout, PropertyAccessor propertyAccessor, int propertyKeyId )
+    PropertyLookupFallbackComparator( IndexLayout<KEY,VALUE> schemaLayout, NodePropertyAccessor propertyAccessor, int propertyKeyId )
     {
         this.schemaLayout = schemaLayout;
         this.propertyAccessor = propertyAccessor;
@@ -73,8 +73,8 @@ class PropertyLookupFallbackComparator<KEY extends NativeSchemaKey<KEY>> impleme
         try
         {
             return Values.COMPARATOR.compare(
-                    propertyAccessor.getPropertyValue( k1.getEntityId(), propertyKeyId ),
-                    propertyAccessor.getPropertyValue( k2.getEntityId(), propertyKeyId ) );
+                    propertyAccessor.getNodePropertyValue( k1.getEntityId(), propertyKeyId ),
+                    propertyAccessor.getNodePropertyValue( k2.getEntityId(), propertyKeyId ) );
         }
         catch ( EntityNotFoundException e )
         {

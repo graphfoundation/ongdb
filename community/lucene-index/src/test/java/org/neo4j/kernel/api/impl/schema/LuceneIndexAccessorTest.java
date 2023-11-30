@@ -38,13 +38,18 @@
  */
 package org.neo4j.kernel.api.impl.schema;
 
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
+import java.lang.reflect.InvocationHandler;
+
+import org.neo4j.kernel.impl.annotations.ReporterFactories;
+import org.neo4j.kernel.impl.annotations.ReporterFactory;
+import org.neo4j.storageengine.api.schema.IndexDescriptor;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -56,7 +61,7 @@ public class LuceneIndexAccessorTest
     @Mock
     private SchemaIndex schemaIndex;
     @Mock
-    private SchemaIndexDescriptor schemaIndexDescriptor;
+    private IndexDescriptor schemaIndexDescriptor;
     private LuceneIndexAccessor accessor;
 
     @Before
@@ -77,5 +82,32 @@ public class LuceneIndexAccessorTest
     {
         when( schemaIndex.isValid() ).thenReturn( true );
         assertFalse( accessor.isDirty() );
+    }
+
+    @Test
+    public void indexIsNotConsistentWhenIndexIsNotValid()
+    {
+        when( schemaIndex.isValid() ).thenReturn( false );
+        assertFalse( accessor.consistencyCheck( ReporterFactories.noopReporterFactory() ) );
+    }
+
+    @Test
+    public void indexIsConsistentWhenIndexIsValid()
+    {
+        when( schemaIndex.isValid() ).thenReturn( true );
+        assertTrue( accessor.consistencyCheck( ReporterFactories.noopReporterFactory() ) );
+    }
+
+    @Test
+    public void indexReportInconsistencyToVisitor()
+    {
+        when( schemaIndex.isValid() ).thenReturn( false );
+        MutableBoolean called = new MutableBoolean();
+        final InvocationHandler handler = ( proxy, method, args ) -> {
+            called.setTrue();
+            return null;
+        };
+        assertFalse( "Expected index to be inconsistent", accessor.consistencyCheck( new ReporterFactory( handler ) ) );
+        assertTrue( "Expected visitor to be called", called.booleanValue() );
     }
 }

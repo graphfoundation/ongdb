@@ -38,12 +38,12 @@
  */
 package org.neo4j.logging;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class DuplicatingLogTest
+class DuplicatingLogTest
 {
     @Test
-    public void shouldOutputToMultipleLogs()
+    void shouldOutputToMultipleLogs()
     {
         // Given
         AssertableLogProvider logProvider = new AssertableLogProvider();
@@ -63,7 +63,7 @@ public class DuplicatingLogTest
     }
 
     @Test
-    public void shouldBulkOutputToMultipleLogs()
+    void shouldBulkOutputToMultipleLogs()
     {
         // Given
         AssertableLogProvider logProvider = new AssertableLogProvider();
@@ -83,7 +83,7 @@ public class DuplicatingLogTest
     }
 
     @Test
-    public void shouldRemoveLogFromDuplication()
+    void shouldRemoveLogFromDuplication()
     {
         // Given
         AssertableLogProvider logProvider = new AssertableLogProvider();
@@ -106,7 +106,7 @@ public class DuplicatingLogTest
     }
 
     @Test
-    public void shouldRemoveLoggersFromDuplication()
+    void shouldRemoveLoggersFromDuplication()
     {
         // Given
         AssertableLogProvider logProvider = new AssertableLogProvider();

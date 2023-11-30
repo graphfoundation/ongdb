@@ -42,11 +42,9 @@ import java.util.Timer;
 
 import org.neo4j.ext.udc.UdcSettings;
 import org.neo4j.helpers.HostnamePort;
-import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.core.StartupStatistics;
 import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
-import org.neo4j.kernel.lifecycle.Lifecycle;
+import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.udc.UsageData;
 
 /**
@@ -58,29 +56,19 @@ import org.neo4j.udc.UsageData;
  * testing and short-run applications. Subsequent updates are made at regular
  * intervals. Both times are specified in milliseconds.
  */
-public class UdcKernelExtension implements Lifecycle
+public class UdcKernelExtension extends LifecycleAdapter
 {
     private Timer timer;
-    private IdGeneratorFactory idGeneratorFactory;
-    private StartupStatistics startupStats;
     private final UsageData usageData;
     private final Config config;
-    private final DataSourceManager xadsm;
+    private final DataSourceManager dataSourceManager;
 
-    public UdcKernelExtension( Config config, DataSourceManager xadsm, IdGeneratorFactory idGeneratorFactory,
-            StartupStatistics startupStats, UsageData usageData, Timer timer )
+    UdcKernelExtension( Config config, DataSourceManager dataSourceManager, UsageData usageData, Timer timer )
     {
         this.config = config;
-        this.xadsm = xadsm;
-        this.idGeneratorFactory = idGeneratorFactory;
-        this.startupStats = startupStats;
+        this.dataSourceManager = dataSourceManager;
         this.usageData = usageData;
         this.timer = timer;
-    }
-
-    @Override
-    public void init()
-    {
     }
 
     @Override
@@ -95,8 +83,7 @@ public class UdcKernelExtension implements Lifecycle
         int interval = config.get( UdcSettings.interval );
         HostnamePort hostAddress = config.get(UdcSettings.udc_host);
 
-        UdcInformationCollector collector = new DefaultUdcInformationCollector( config, xadsm, idGeneratorFactory,
-                startupStats, usageData );
+        UdcInformationCollector collector = new DefaultUdcInformationCollector( config, dataSourceManager, usageData );
         UdcTimerTask task = new UdcTimerTask( hostAddress, collector );
 
         timer.scheduleAtFixedRate( task, firstDelay, interval );
@@ -112,8 +99,4 @@ public class UdcKernelExtension implements Lifecycle
         }
     }
 
-    @Override
-    public void shutdown()
-    {
-    }
 }

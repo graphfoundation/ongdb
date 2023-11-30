@@ -55,7 +55,7 @@ public class StubNodeLabelIndexCursor implements NodeLabelIndexCursor
         this.lookup = lookup;
     }
 
-    void initalize( int label )
+    void initialize( int label )
     {
         this.label = label;
         this.offset = -1;

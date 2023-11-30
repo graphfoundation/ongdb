@@ -43,18 +43,18 @@ import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.True
 import org.neo4j.cypher.internal.runtime.interpreted.commands.values.KeyToken
 import org.neo4j.cypher.internal.runtime.interpreted.GraphElementPropertyFunctions
 import org.neo4j.cypher.internal.runtime.interpreted.symbols.TypeSafe
-import org.neo4j.cypher.internal.util.v3_4.UnNamedNameGenerator
-import org.neo4j.cypher.internal.util.v3_4.symbols._
-import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection
-import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection.{INCOMING, OUTGOING}
+import org.neo4j.cypher.internal.v3_5.util.UnNamedNameGenerator
+import org.neo4j.cypher.internal.v3_5.util.symbols._
+import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection.{INCOMING, OUTGOING}
 
 import scala.collection.{Map, Seq}
 trait Pattern extends TypeSafe with AstNode[Pattern] {
   def possibleStartPoints: Seq[(String,CypherType)]
   def relTypes:Seq[String]
 
-  protected def leftArrow(dir: SemanticDirection) = if (dir == INCOMING) "<-" else "-"
-  protected def rightArrow(dir: SemanticDirection) = if (dir == OUTGOING) "->" else "-"
+  protected def leftArrow(dir: SemanticDirection): String = if (dir == INCOMING) "<-" else "-"
+  protected def rightArrow(dir: SemanticDirection): String = if (dir == OUTGOING) "->" else "-"
 
   def rewrite( f : Expression => Expression) : Pattern
 
@@ -84,26 +84,26 @@ trait RelationshipPattern {
 
 case class SingleNode(name: String,
                       labels: Seq[KeyToken] = Seq.empty,
-                      properties: Map[String, Expression]=Map.empty) extends Pattern with GraphElementPropertyFunctions {
-  def possibleStartPoints = Seq(name -> CTNode)
+                      properties: Map[String, Expression] = Map.empty) extends Pattern with GraphElementPropertyFunctions {
+  override def possibleStartPoints: Seq[(String, CypherType)] = Seq(name -> CTNode)
 
   def predicate = True()
 
-  def rels = Seq.empty
+  override def rels: Seq[String] = Seq.empty
 
-  def relTypes = Seq.empty
+  override def relTypes: Seq[String] = Seq.empty
 
-  def rewrite(f: (Expression) => Expression) = SingleNode(name, labels.map(_.typedRewrite[KeyToken](f)), properties.rewrite(f))
+  override def rewrite(f: Expression => Expression) = SingleNode(name, labels.map(_.typedRewrite[KeyToken](f)), properties.rewrite(f))
 
-  def children = Seq.empty
+  override def children: Seq[AstNode[_]] = labels ++ properties.values
 
-  def symbolTableDependencies = properties.symboltableDependencies
+  override def symbolTableDependencies: Set[String] = properties.symboltableDependencies
 
   override def toString: String = {
     val namePart = if (UnNamedNameGenerator.notNamed(name)) s"${name.drop(9)}" else name
     val labelPart = if (labels.isEmpty) "" else labels.mkString(":", ":", "")
     val props = if (properties.isEmpty) "" else " " + toString(properties)
-    "(%s%s%s)".format(namePart, labelPart, props)
+    s"($namePart$labelPart$props)"
   }
 }
 
@@ -122,7 +122,7 @@ case class RelatedTo(left: SingleNode,
                      direction: SemanticDirection,
                      properties: Map[String, Expression])
   extends Pattern with RelationshipPattern with GraphElementPropertyFunctions {
-  override def toString = left + leftArrow(direction) + relInfo + rightArrow(direction) + right
+  override def toString: String = left + leftArrow(direction) + relInfo + rightArrow(direction) + right
 
   private def relInfo: String = {
     var info = relName
@@ -132,19 +132,19 @@ case class RelatedTo(left: SingleNode,
     if (info == "") "" else "[" + info + "]"
   }
 
-  val possibleStartPoints: Seq[(String, CypherType)] = left.possibleStartPoints ++ right.possibleStartPoints :+ relName->CTRelationship
+  override val possibleStartPoints: Seq[(String, CypherType)] = left.possibleStartPoints ++ right.possibleStartPoints :+ relName->CTRelationship
 
-  def rewrite(f: (Expression) => Expression) =
+  override def rewrite(f: Expression => Expression) =
     new RelatedTo(left.rewrite(f), right.rewrite(f), relName, relTypes, direction, properties.rewrite(f))
 
-  def rels = Seq(relName)
+  override def rels: Seq[String] = Seq(relName)
 
-  def symbolTableDependencies =
+  override def symbolTableDependencies: Set[String] =
       properties.symboltableDependencies ++
       left.symbolTableDependencies ++
       right.symbolTableDependencies
 
-  def children = Seq.empty
+  override def children: Seq[AstNode[_]] = Seq(left, right)
 
   def changeEnds(left: SingleNode = this.left, right: SingleNode = this.right): RelatedTo =
     copy(left = left, right = right)
@@ -176,12 +176,12 @@ case class VarLengthRelatedTo(pathName: String,
 
   override def toString: String = pathName + "=" + left + leftArrow(direction) + relInfo + rightArrow(direction) + right
 
-  def symbolTableDependencies =
+  override def symbolTableDependencies: Set[String] =
     properties.symboltableDependencies ++
       left.symbolTableDependencies ++
       right.symbolTableDependencies
 
-  def cloneWithOtherName(newName: String) = copy(pathName = newName)
+  override def cloneWithOtherName(newName: String): PathPattern = copy(pathName = newName)
 
   private def relInfo: String = {
     var info = relTypes.mkString("|")
@@ -208,11 +208,11 @@ case class VarLengthRelatedTo(pathName: String,
       right.possibleStartPoints :+
       pathName -> CTPath
 
-  def rels = Seq()
+  override def rels: Seq[String] = Seq()
 
-  def children = Seq.empty
+  override def children: Seq[AstNode[_]] = Seq(left, right) ++ properties.values
 
-  def changeEnds(left: SingleNode = this.left, right: SingleNode = this.right): VarLengthRelatedTo =
+  override def changeEnds(left: SingleNode = this.left, right: SingleNode = this.right): VarLengthRelatedTo =
     copy(left = left, right = right)
 }
 
@@ -231,9 +231,9 @@ case class ShortestPath(pathName: String,
 
   private def algo = if (single) "singleShortestPath" else "allShortestPath"
 
-  def cloneWithOtherName(newName: String) = copy(pathName = newName)
+  override def cloneWithOtherName(newName: String): ShortestPath = copy(pathName = newName)
 
-  def symbolTableDependencies =
+  override def symbolTableDependencies: Set[String] =
       Set(left.name, right.name)
 
   private def relInfo: String = {
@@ -246,15 +246,15 @@ case class ShortestPath(pathName: String,
     info + "]"
   }
 
-  lazy val possibleStartPoints: Seq[(String, NodeType)] = left.possibleStartPoints ++ right.possibleStartPoints
+  override lazy val possibleStartPoints: Seq[(String, CypherType)] = left.possibleStartPoints ++ right.possibleStartPoints
 
-  def rewrite(f: Expression => Expression) =
-    new ShortestPath(pathName, left.rewrite(f), right.rewrite(f), relTypes, dir, allowZeroLength, maxDepth, single, relIterator)
+  override def rewrite(f: Expression => Expression) =
+    ShortestPath(pathName, left.rewrite(f), right.rewrite(f), relTypes, dir, allowZeroLength, maxDepth, single, relIterator)
 
-  def rels = Seq()
+  override def rels: Seq[String] = Seq()
 
-  def children = Seq.empty
+  override def children: Seq[AstNode[_]] = Seq(left, right)
 
-  def changeEnds(left: SingleNode = this.left, right: SingleNode = this.right): ShortestPath =
+  override def changeEnds(left: SingleNode = this.left, right: SingleNode = this.right): ShortestPath =
     copy(left = left, right = right)
 }

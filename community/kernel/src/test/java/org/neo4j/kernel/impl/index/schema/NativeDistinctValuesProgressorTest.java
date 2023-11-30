@@ -52,7 +52,8 @@ import java.util.Map;
 
 import org.neo4j.cursor.RawCursor;
 import org.neo4j.index.internal.gbptree.Hit;
-import org.neo4j.test.Randoms;
+import org.neo4j.internal.kernel.api.IndexOrder;
+import org.neo4j.internal.kernel.api.IndexQuery;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
@@ -60,7 +61,8 @@ import org.neo4j.values.storable.Values;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.neo4j.kernel.impl.index.schema.NativeSchemaValue.INSTANCE;
+import static org.neo4j.kernel.impl.index.schema.NativeIndexKey.Inclusion.NEUTRAL;
+import static org.neo4j.kernel.impl.index.schema.NativeIndexValue.INSTANCE;
 import static org.neo4j.values.storable.Values.stringValue;
 
 public class NativeDistinctValuesProgressorTest
@@ -79,8 +81,9 @@ public class NativeDistinctValuesProgressorTest
         GatheringNodeValueClient client = new GatheringNodeValueClient();
 
         // when
-        NativeDistinctValuesProgressor<StringSchemaKey,NativeSchemaValue> progressor =
+        NativeDistinctValuesProgressor<StringIndexKey,NativeIndexValue> progressor =
                 new NativeDistinctValuesProgressor<>( source, client, new ArrayList<>(), layout, layout::compareValue );
+        client.initialize( null, progressor, new IndexQuery[0], IndexOrder.NONE, true );
         Map<Value,MutableInt> expectedCounts = asDistinctCounts( strings );
 
         // then
@@ -123,30 +126,31 @@ public class NativeDistinctValuesProgressorTest
         for ( int i = 0; i < strings.length; i++ )
         {
             // Potential for a lot of duplicates
-            strings[i] = stringValue( random.randoms().string( 1, 3, Randoms.CS_DIGITS ) );
+            strings[i] = stringValue( String.valueOf( random.nextInt( 1_000 ) ) );
         }
         Arrays.sort( strings, Values.COMPARATOR );
         return strings;
     }
 
-    private Collection<Hit<StringSchemaKey,NativeSchemaValue>> asHitData( Value[] strings )
+    private Collection<Hit<StringIndexKey,NativeIndexValue>> asHitData( Value[] strings )
     {
-        Collection<Hit<StringSchemaKey,NativeSchemaValue>> data = new ArrayList<>( strings.length );
+        Collection<Hit<StringIndexKey,NativeIndexValue>> data = new ArrayList<>( strings.length );
         for ( int i = 0; i < strings.length; i++ )
         {
-            StringSchemaKey key = layout.newKey();
-            key.from( i, strings[i] );
+            StringIndexKey key = layout.newKey();
+            key.initialize( i );
+            key.initFromValue( 0, strings[i], NEUTRAL );
             data.add( new SimpleHit<>( key, INSTANCE ) );
         }
         return data;
     }
 
-    private static class DataCursor implements RawCursor<Hit<StringSchemaKey,NativeSchemaValue>,IOException>
+    private static class DataCursor implements RawCursor<Hit<StringIndexKey,NativeIndexValue>,IOException>
     {
-        private final Iterator<Hit<StringSchemaKey,NativeSchemaValue>> iterator;
-        private Hit<StringSchemaKey,NativeSchemaValue> current;
+        private final Iterator<Hit<StringIndexKey,NativeIndexValue>> iterator;
+        private Hit<StringIndexKey,NativeIndexValue> current;
 
-        DataCursor( Collection<Hit<StringSchemaKey,NativeSchemaValue>> data )
+        DataCursor( Collection<Hit<StringIndexKey,NativeIndexValue>> data )
         {
             this.iterator = data.iterator();
         }
@@ -169,7 +173,7 @@ public class NativeDistinctValuesProgressorTest
         }
 
         @Override
-        public Hit<StringSchemaKey,NativeSchemaValue> get()
+        public Hit<StringIndexKey,NativeIndexValue> get()
         {
             return current;
         }

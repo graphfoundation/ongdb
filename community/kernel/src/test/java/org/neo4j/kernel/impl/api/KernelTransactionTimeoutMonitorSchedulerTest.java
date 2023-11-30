@@ -38,11 +38,15 @@
  */
 package org.neo4j.kernel.impl.api;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.util.concurrent.TimeUnit;
 
+import org.neo4j.kernel.impl.api.transaciton.monitor.KernelTransactionMonitor;
+import org.neo4j.kernel.impl.api.transaciton.monitor.KernelTransactionMonitorScheduler;
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobHandle;
 import org.neo4j.scheduler.JobScheduler;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -51,26 +55,25 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.neo4j.scheduler.JobScheduler.Groups.transactionTimeoutMonitor;
 
-public class KernelTransactionTimeoutMonitorSchedulerTest
+class KernelTransactionTimeoutMonitorSchedulerTest
 {
 
-    private final KernelTransactionTimeoutMonitor transactionMonitor = mock( KernelTransactionTimeoutMonitor.class );
+    private final KernelTransactionMonitor transactionMonitor = mock( KernelTransactionMonitor.class );
     private final JobScheduler jobScheduler = mock( JobScheduler.class );
 
     @Test
-    public void startJobTransactionMonitor()
+    void startJobTransactionMonitor()
     {
-        JobScheduler.JobHandle jobHandle = Mockito.mock( JobScheduler.JobHandle.class );
-        when( jobScheduler.scheduleRecurring( eq(transactionTimeoutMonitor), eq( transactionMonitor), anyLong(),
+        JobHandle jobHandle = Mockito.mock( JobHandle.class );
+        when( jobScheduler.scheduleRecurring( eq(Group.TRANSACTION_TIMEOUT_MONITOR ), eq( transactionMonitor), anyLong(),
                 any(TimeUnit.class) )).thenReturn( jobHandle );
 
         KernelTransactionMonitorScheduler monitorScheduler =
                 new KernelTransactionMonitorScheduler( transactionMonitor, jobScheduler, 7 );
 
         monitorScheduler.start();
-        verify(jobScheduler).scheduleRecurring( transactionTimeoutMonitor, transactionMonitor,
+        verify(jobScheduler).scheduleRecurring( Group.TRANSACTION_TIMEOUT_MONITOR, transactionMonitor,
                 7, TimeUnit.MILLISECONDS );
 
         monitorScheduler.stop();

@@ -38,7 +38,6 @@
  */
 package org.neo4j.io;
 
-import java.io.IOException;
 import java.io.OutputStream;
 
 public class NullOutputStream extends OutputStream

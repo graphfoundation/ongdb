@@ -38,47 +38,20 @@
  */
 package org.neo4j.io.fs;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.nio.file.FileStore;
 import java.nio.file.FileSystem;
-import java.nio.file.Path;
-import java.nio.file.PathMatcher;
-import java.nio.file.WatchService;
-import java.nio.file.attribute.UserPrincipalLookupService;
-import java.nio.file.spi.FileSystemProvider;
-import java.util.Set;
 
-import org.neo4j.graphdb.mockfs.CloseTrackingFileSystem;
-
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-public class DelegateFileSystemAbstractionTest
+class DelegateFileSystemAbstractionTest
 {
 
     @Test
-    public void closeAllResourcesOnClose() throws Exception
-    {
-        TrackableFileSystem fileSystem = new TrackableFileSystem();
-        CloseTrackingFileSystem closeTrackingFileSystem = new CloseTrackingFileSystem();
-
-        try ( DelegateFileSystemAbstraction fileSystemAbstraction = new DelegateFileSystemAbstraction( fileSystem ) )
-        {
-            fileSystemAbstraction.getOrCreateThirdPartyFileSystem( CloseTrackingFileSystem.class,
-                    closeTrackingFileSystemClass -> closeTrackingFileSystem );
-        }
-
-        assertFalse( fileSystem.isOpen() );
-        assertTrue( closeTrackingFileSystem.isClosed() );
-    }
-
-    @Test
-    public void delegatedFileSystemWatcher() throws IOException
+    void delegatedFileSystemWatcher() throws IOException
     {
         FileSystem fileSystem = mock(FileSystem.class);
         try ( DelegateFileSystemAbstraction abstraction = new DelegateFileSystemAbstraction( fileSystem ) )
@@ -87,83 +60,5 @@ public class DelegateFileSystemAbstractionTest
         }
 
         verify( fileSystem ).newWatchService();
-    }
-
-    private static class TrackableFileSystem extends FileSystem
-    {
-
-        private boolean closed;
-
-        @Override
-        public FileSystemProvider provider()
-        {
-            return null;
-        }
-
-        @Override
-        public void close()
-        {
-            closed = true;
-        }
-
-        @Override
-        public boolean isOpen()
-        {
-            return !closed;
-        }
-
-        @Override
-        public boolean isReadOnly()
-        {
-            return false;
-        }
-
-        @Override
-        public String getSeparator()
-        {
-            return null;
-        }
-
-        @Override
-        public Iterable<Path> getRootDirectories()
-        {
-            return null;
-        }
-
-        @Override
-        public Iterable<FileStore> getFileStores()
-        {
-            return null;
-        }
-
-        @Override
-        public Set<String> supportedFileAttributeViews()
-        {
-            return null;
-        }
-
-        @Override
-        public Path getPath( String first, String... more )
-        {
-            return null;
-        }
-
-        @Override
-        public PathMatcher getPathMatcher( String syntaxAndPattern )
-        {
-            return null;
-        }
-
-        @Override
-        public UserPrincipalLookupService getUserPrincipalLookupService()
-        {
-            return null;
-        }
-
-        @Override
-        public WatchService newWatchService()
-        {
-            return null;
-        }
     }
 }

@@ -40,6 +40,7 @@ package org.neo4j.bolt.transport;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
@@ -86,7 +87,7 @@ public class NettyServer extends LifecycleAdapter
      */
     public interface ProtocolInitializer
     {
-        ChannelInitializer<io.netty.channel.socket.SocketChannel> channelInitializer();
+        ChannelInitializer<Channel> channelInitializer();
         ListenSocketAddress address();
     }
 
@@ -124,11 +125,8 @@ public class NettyServer extends LifecycleAdapter
             {
                 ProtocolInitializer protocolInitializer = bootstrapEntry.getValue();
                 BoltConnector boltConnector = bootstrapEntry.getKey();
-                ChannelFuture channelFuture =
-                        new ServerBootstrap().option( ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT )
-                                .group( bossGroup, selectorGroup ).channel( configurationProvider.getChannelClass() )
-                                .childHandler( protocolInitializer.channelInitializer() )
-                                .bind( protocolInitializer.address().socketAddress() ).sync();
+                ServerBootstrap serverBootstrap = createServerBootstrap( configurationProvider, protocolInitializer );
+                ChannelFuture channelFuture = serverBootstrap.bind( protocolInitializer.address().socketAddress() ).sync();
                 InetSocketAddress localAddress = (InetSocketAddress) channelFuture.channel().localAddress();
                 connectionRegister.register( boltConnector.key(), localAddress );
                 String host = protocolInitializer.address().getHostname();
@@ -159,5 +157,16 @@ public class NettyServer extends LifecycleAdapter
     {
         bossGroup.shutdownGracefully();
         selectorGroup.shutdownGracefully();
+    }
+
+    private ServerBootstrap createServerBootstrap( ServerConfigurationProvider configurationProvider, ProtocolInitializer protocolInitializer )
+    {
+        return new ServerBootstrap()
+                .group( bossGroup, selectorGroup )
+                .channel( configurationProvider.getChannelClass() )
+                .option( ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT )
+                .option( ChannelOption.SO_REUSEADDR, true )
+                .childOption( ChannelOption.SO_KEEPALIVE, true )
+                .childHandler( protocolInitializer.channelInitializer() );
     }
 }

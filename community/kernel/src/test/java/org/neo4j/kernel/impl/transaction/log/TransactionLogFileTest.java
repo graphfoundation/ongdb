@@ -91,7 +91,7 @@ public class TransactionLogFileTest
     public void skipLogFileWithoutHeader() throws IOException
     {
         FileSystemAbstraction fs = fileSystemRule.get();
-        LogFiles logFiles = LogFilesBuilder.builder( directory.directory(), fs )
+        LogFiles logFiles = LogFilesBuilder.builder( directory.databaseLayout(), fs )
                                            .withTransactionIdStore( transactionIdStore )
                                            .withLogVersionRepository( logVersionRepository ).build();
         life.add( logFiles );
@@ -115,7 +115,7 @@ public class TransactionLogFileTest
         // GIVEN
         String name = "log";
         FileSystemAbstraction fs = fileSystemRule.get();
-        LogFiles logFiles = LogFilesBuilder.builder( directory.directory(), fs )
+        LogFiles logFiles = LogFilesBuilder.builder( directory.databaseLayout(), fs )
                 .withTransactionIdStore( transactionIdStore )
                 .withLogVersionRepository( logVersionRepository ).build();
 
@@ -125,7 +125,7 @@ public class TransactionLogFileTest
         life.shutdown();
 
         // THEN
-        File file =  LogFilesBuilder.logFilesBasedOnlyBuilder( directory.directory(), fs ).build().getLogFileForVersion( 1L );
+        File file =  LogFilesBuilder.logFilesBasedOnlyBuilder( directory.databaseDir(), fs ).build().getLogFileForVersion( 1L );
         LogHeader header = readLogHeader( fs, file );
         assertEquals( 1L, header.logVersion );
         assertEquals( 2L, header.lastCommittedTxId );
@@ -137,7 +137,7 @@ public class TransactionLogFileTest
         // GIVEN
         String name = "log";
         FileSystemAbstraction fs = fileSystemRule.get();
-        LogFiles logFiles = LogFilesBuilder.builder( directory.directory(), fs )
+        LogFiles logFiles = LogFilesBuilder.builder( directory.databaseLayout(), fs )
                 .withTransactionIdStore( transactionIdStore )
                 .withLogVersionRepository( logVersionRepository ).build();
         life.start();
@@ -166,7 +166,7 @@ public class TransactionLogFileTest
     {
         // GIVEN
         FileSystemAbstraction fs = fileSystemRule.get();
-        LogFiles logFiles = LogFilesBuilder.builder( directory.directory(), fs )
+        LogFiles logFiles = LogFilesBuilder.builder( directory.databaseLayout(), fs )
                 .withTransactionIdStore( transactionIdStore )
                 .withLogVersionRepository( logVersionRepository ).build();
         life.start();
@@ -212,7 +212,7 @@ public class TransactionLogFileTest
         // GIVEN
         String name = "log";
         FileSystemAbstraction fs = fileSystemRule.get();
-        LogFiles logFiles = LogFilesBuilder.builder( directory.directory(), fs )
+        LogFiles logFiles = LogFilesBuilder.builder( directory.databaseLayout(), fs )
                 .withTransactionIdStore( transactionIdStore )
                 .withLogVersionRepository( logVersionRepository ).build();
         life.start();
@@ -246,9 +246,8 @@ public class TransactionLogFileTest
     public void shouldCloseChannelInFailedAttemptToReadHeaderAfterOpen() throws Exception
     {
         // GIVEN a file which returns 1/2 log header size worth of bytes
-        File directory = new File( "/dir" );
         FileSystemAbstraction fs = mock( FileSystemAbstraction.class );
-        LogFiles logFiles = LogFilesBuilder.builder( directory, fs )
+        LogFiles logFiles = LogFilesBuilder.builder( directory.databaseLayout(), fs )
                 .withTransactionIdStore( transactionIdStore )
                 .withLogVersionRepository( logVersionRepository ).build();
         int logVersion = 0;
@@ -272,12 +271,11 @@ public class TransactionLogFileTest
     }
 
     @Test
-    public void shouldSuppressFailueToCloseChannelInFailedAttemptToReadHeaderAfterOpen() throws Exception
+    public void shouldSuppressFailureToCloseChannelInFailedAttemptToReadHeaderAfterOpen() throws Exception
     {
         // GIVEN a file which returns 1/2 log header size worth of bytes
-        File directory = new File( "/dir" );
         FileSystemAbstraction fs = mock( FileSystemAbstraction.class );
-        LogFiles logFiles = LogFilesBuilder.builder( directory, fs )
+        LogFiles logFiles = LogFilesBuilder.builder( directory.databaseLayout(), fs )
                 .withTransactionIdStore( transactionIdStore )
                 .withLogVersionRepository( logVersionRepository ).build();
         int logVersion = 0;
@@ -303,14 +301,14 @@ public class TransactionLogFileTest
         }
     }
 
-    private byte[] readBytes( ReadableClosableChannel reader, int length ) throws IOException
+    private static byte[] readBytes( ReadableClosableChannel reader, int length ) throws IOException
     {
         byte[] result = new byte[length];
         reader.get( result, length );
         return result;
     }
 
-    private byte[] someBytes( int length )
+    private static byte[] someBytes( int length )
     {
         byte[] result = new byte[length];
         for ( int i = 0; i < length; i++ )

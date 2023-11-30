@@ -41,6 +41,7 @@ package org.neo4j.tooling;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 
 import org.neo4j.csv.reader.CharSeeker;
 import org.neo4j.csv.reader.CharSeekers;
@@ -49,14 +50,14 @@ import org.neo4j.csv.reader.Readables;
 import org.neo4j.helpers.Args;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.Settings;
-import org.neo4j.kernel.impl.logging.SimpleLogService;
 import org.neo4j.kernel.impl.store.format.RecordFormatSelector;
-import org.neo4j.kernel.impl.scheduler.CentralJobScheduler;
 import org.neo4j.kernel.lifecycle.Lifespan;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.NullLogProvider;
+import org.neo4j.logging.internal.SimpleLogService;
 import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.unsafe.impl.batchimport.BatchImporter;
 import org.neo4j.unsafe.impl.batchimport.BatchImporterFactory;
@@ -69,9 +70,12 @@ import org.neo4j.unsafe.impl.batchimport.input.csv.Configuration;
 import org.neo4j.unsafe.impl.batchimport.input.csv.DataFactories;
 import org.neo4j.unsafe.impl.batchimport.input.csv.Header;
 import org.neo4j.unsafe.impl.batchimport.input.csv.IdType;
+import org.neo4j.unsafe.impl.batchimport.staging.ExecutionMonitor;
+import org.neo4j.unsafe.impl.batchimport.staging.SpectrumExecutionMonitor;
 
 import static java.lang.System.currentTimeMillis;
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.dense_node_threshold;
+import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createScheduler;
 import static org.neo4j.unsafe.impl.batchimport.AdditionalInitialIds.EMPTY;
 import static org.neo4j.unsafe.impl.batchimport.ImportLogic.NO_MONITOR;
 import static org.neo4j.unsafe.impl.batchimport.staging.ExecutionMonitors.defaultVisible;
@@ -185,10 +189,12 @@ public class QuickImport
             else
             {
                 System.out.println( "Seed " + randomSeed );
-                final JobScheduler jobScheduler = life.add( new CentralJobScheduler() );
-                consumer = BatchImporterFactory.withHighestPriority().instantiate( dir, fileSystem, null, importConfig,
-                        new SimpleLogService( logging, logging ), defaultVisible( jobScheduler ), EMPTY, dbConfig,
-                        RecordFormatSelector.selectForConfig( dbConfig, logging ), NO_MONITOR );
+                final JobScheduler jobScheduler = life.add( createScheduler() );
+                boolean verbose = args.getBoolean( "v" );
+                ExecutionMonitor monitor = verbose ? new SpectrumExecutionMonitor( 2, TimeUnit.SECONDS, System.out, 100 ) : defaultVisible( jobScheduler );
+                consumer = BatchImporterFactory.withHighestPriority().instantiate( DatabaseLayout.of( dir ), fileSystem, null, importConfig,
+                        new SimpleLogService( logging, logging ), monitor, EMPTY, dbConfig,
+                        RecordFormatSelector.selectForConfig( dbConfig, logging ), NO_MONITOR, jobScheduler );
                 ImportTool.printOverview( dir, Collections.emptyList(), Collections.emptyList(), importConfig, System.out );
             }
             consumer.doImport( input );

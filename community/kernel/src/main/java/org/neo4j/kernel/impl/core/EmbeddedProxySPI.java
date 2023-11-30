@@ -64,6 +64,4 @@ public interface EmbeddedProxySPI
     GraphPropertiesProxy newGraphPropertiesProxy();
 
     RelationshipType getRelationshipTypeById( int type );
-
-    int getRelationshipTypeIdByName( String typeName );
 }

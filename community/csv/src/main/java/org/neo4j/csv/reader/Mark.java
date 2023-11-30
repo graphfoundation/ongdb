@@ -110,6 +110,6 @@ public class Mark
     @Override
     public String toString()
     {
-        return format( "Mark[from:%d, to:%d, qutoed:%b]", startPosition, position, quoted);
+        return format( "Mark[from:%d, to:%d, quoted:%b]", startPosition, position, quoted);
     }
 }

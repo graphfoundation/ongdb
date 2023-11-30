@@ -187,6 +187,7 @@ public abstract class StringValue extends TextValue
         return mapper.mapString( this );
     }
 
+    //NOTE: this doesn't respect code point order for code points that doesn't fit 16bits
     @Override
     public int compareTo( TextValue other )
     {
@@ -195,7 +196,7 @@ public abstract class StringValue extends TextValue
         return thisString.compareTo( thatString );
     }
 
-    static TextValue EMTPY = new StringValue()
+    static TextValue EMPTY = new StringValue()
     {
         @Override
         protected int computeHash()
@@ -243,6 +244,30 @@ public abstract class StringValue extends TextValue
         public TextValue reverse()
         {
             return this;
+        }
+
+        @Override
+        public TextValue plus( TextValue other )
+        {
+            return other;
+        }
+
+        @Override
+        public boolean startsWith( TextValue other )
+        {
+            return other.length() == 0;
+        }
+
+        @Override
+        public boolean endsWith( TextValue other )
+        {
+            return other.length() == 0;
+        }
+
+        @Override
+        public boolean contains( TextValue other )
+        {
+            return other.length() == 0;
         }
 
         @Override

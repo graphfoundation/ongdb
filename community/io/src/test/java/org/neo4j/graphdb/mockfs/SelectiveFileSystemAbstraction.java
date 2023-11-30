@@ -47,7 +47,6 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.file.CopyOption;
-import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.neo4j.io.IOUtils;
@@ -121,9 +120,9 @@ public class SelectiveFileSystemAbstraction implements FileSystemAbstraction
     }
 
     @Override
-    public boolean fileExists( File fileName )
+    public boolean fileExists( File file )
     {
-        return chooseFileSystem( fileName ).fileExists( fileName );
+        return chooseFileSystem( file ).fileExists( file );
     }
 
     @Override
@@ -202,13 +201,6 @@ public class SelectiveFileSystemAbstraction implements FileSystemAbstraction
     public void copyRecursively( File fromDirectory, File toDirectory ) throws IOException
     {
         chooseFileSystem( fromDirectory ).copyRecursively( fromDirectory, toDirectory );
-    }
-
-    @Override
-    public <K extends ThirdPartyFileSystem> K getOrCreateThirdPartyFileSystem( Class<K> clazz, Function<Class<K>, K>
-            creator )
-    {
-        return defaultFileSystem.getOrCreateThirdPartyFileSystem( clazz, creator );
     }
 
     @Override

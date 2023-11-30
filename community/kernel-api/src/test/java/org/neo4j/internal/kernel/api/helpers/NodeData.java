@@ -51,7 +51,6 @@ class NodeData
 
     NodeData( long id, long[] labels, Map<Integer,Value> properties )
     {
-
         this.id = id;
         this.labels = labels;
         this.properties = properties;

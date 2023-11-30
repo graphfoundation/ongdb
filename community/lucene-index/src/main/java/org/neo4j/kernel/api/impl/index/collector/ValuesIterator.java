@@ -38,14 +38,15 @@
  */
 package org.neo4j.kernel.api.impl.index.collector;
 
-import org.neo4j.collection.primitive.PrimitiveLongCollections;
-import org.neo4j.collection.primitive.PrimitiveLongIterator;
+import org.eclipse.collections.api.iterator.LongIterator;
+
+import org.neo4j.collection.PrimitiveLongCollections;
 
 /**
  * Document values iterators that are primitive long iterators that can access value by field from document
  * and provides information about how many items remains in the underlying source.
  */
-public interface ValuesIterator extends PrimitiveLongIterator, DocValuesAccess
+public interface ValuesIterator extends DocValuesAccess, LongIterator
 {
     int remaining();
 
@@ -88,6 +89,7 @@ public interface ValuesIterator extends PrimitiveLongIterator, DocValuesAccess
          *
          * @return The score of the value, or 0 if scoring is not kept or applicable.
          */
+        @Override
         public abstract float currentScore();
 
         Adapter( int size )
@@ -98,6 +100,7 @@ public interface ValuesIterator extends PrimitiveLongIterator, DocValuesAccess
         /**
          * @return the number of docs left in this iterator.
          */
+        @Override
         public int remaining()
         {
             return size - index;

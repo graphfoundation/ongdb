@@ -38,11 +38,11 @@
  */
 package org.neo4j.server;
 
-import java.io.IOException;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.io.IOException;
 
 import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.server.helpers.ServerHelper;
@@ -74,6 +74,6 @@ public class NeoServerShutdownLoggingIT extends ExclusiveServerTestBase
     public void shouldLogShutdown()
     {
         server.stop();
-        logProvider.assertContainsMessageContaining( "Stopped." );
+        logProvider.rawMessageMatcher().assertContains( "Stopped." );
     }
 }

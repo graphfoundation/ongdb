@@ -30,12 +30,14 @@
         <module>collections</module>
         <module>graphdb-api</module>
         <module>unsafe</module>
-        <module>primitive-collections</module>
+        <module>concurrent</module>
         <module>io</module>
         <module>logging</module>
         <module>configuration</module>
         <module>procedure-api</module>
+        <module>diagnostics</module>
         <module>values</module>
+        <module>random-values</module>
         <module>kernel-api</module>
         <module>csv</module>
         <module>lucene-index-upgrade</module>
@@ -50,19 +52,22 @@
         <module>dbms</module>
         <module>graph-algo</module>
         <module>codegen</module>
+        <module>legacy</module>
         <module>security</module>
         <module>neo4j-slf4j</module>
         <module>udc</module>
+        <module>fulltext-index</module>
+        <module>data-collector</module>
         <module>bolt</module>
         <module>consistency-check</module>
         <module>neo4j</module>
         <module>neo4j-community</module>
         <module>server-api</module>
-        <module>shell</module>
         <module>server</module>
         <module>server-plugin-test</module>
         <module>neo4j-harness</module>
         <module>procedure-compiler</module>
+        <module>community-it</module>
         <module>push-to-cloud</module>
     </modules>
 

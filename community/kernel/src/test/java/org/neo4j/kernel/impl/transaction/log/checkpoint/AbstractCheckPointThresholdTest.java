@@ -55,7 +55,7 @@ public class AbstractCheckPointThresholdTest
 
         final AtomicReference<String> calledWith = new AtomicReference<>();
         // When
-        threshold.isCheckPointingNeeded( 42, calledWith::set );
+        threshold.isCheckPointingNeeded( 42, 99, calledWith::set );
 
         // Then
         assertEquals( description, calledWith.get() );
@@ -68,7 +68,7 @@ public class AbstractCheckPointThresholdTest
         AbstractCheckPointThreshold threshold = new TheAbstractCheckPointThreshold( false, null );
 
         // When
-        threshold.isCheckPointingNeeded( 42, s ->
+        threshold.isCheckPointingNeeded( 42, 1, s ->
         {
             throw new IllegalStateException( "nooooooooo!" );
         } );
@@ -106,7 +106,7 @@ public class AbstractCheckPointThresholdTest
         }
 
         @Override
-        protected boolean thresholdReached( long lastCommittedTransactionId )
+        protected boolean thresholdReached( long lastCommittedTransactionId, long lastCommittedTransactionLogVersion )
         {
             return reached;
         }

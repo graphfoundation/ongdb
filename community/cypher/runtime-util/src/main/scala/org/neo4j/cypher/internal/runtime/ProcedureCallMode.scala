@@ -38,7 +38,8 @@
  */
 package org.neo4j.cypher.internal.runtime
 
-import org.neo4j.cypher.internal.v3_4.logical.plans._
+import org.neo4j.cypher.internal.v3_5.logical.plans._
+import org.neo4j.internal.kernel.api.procs.ProcedureCallContext
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -53,8 +54,8 @@ object ProcedureCallMode {
 sealed trait ProcedureCallMode {
   val queryType: InternalQueryType
 
-  def callProcedure(ctx: QueryContext, id: Int, args: Seq[Any]): Iterator[Array[AnyRef]]
-  def callProcedure(ctx: QueryContext, name: QualifiedName, args: Seq[Any]): Iterator[Array[AnyRef]]
+  def callProcedure(ctx: QueryContext, id: Int, args: Seq[Any], context: ProcedureCallContext): Iterator[Array[AnyRef]]
+  def callProcedure(ctx: QueryContext, name: QualifiedName, args: Seq[Any], context: ProcedureCallContext): Iterator[Array[AnyRef]]
 
   val allowed: Array[String]
 }
@@ -62,11 +63,11 @@ sealed trait ProcedureCallMode {
 case class LazyReadOnlyCallMode(allowed: Array[String]) extends ProcedureCallMode {
   override val queryType: InternalQueryType = READ_ONLY
 
-  override def callProcedure(ctx: QueryContext, id: Int, args: Seq[Any]): Iterator[Array[AnyRef]] =
-    ctx.callReadOnlyProcedure(id, args, allowed)
+  override def callProcedure(ctx: QueryContext, id: Int, args: Seq[Any], context: ProcedureCallContext): Iterator[Array[AnyRef]] =
+    ctx.callReadOnlyProcedure(id, args, allowed, context)
 
-  override def callProcedure(ctx: QueryContext, name: QualifiedName, args: Seq[Any]): Iterator[Array[AnyRef]] =
-    ctx.callReadOnlyProcedure(name, args, allowed)
+  override def callProcedure(ctx: QueryContext, name: QualifiedName, args: Seq[Any], context: ProcedureCallContext): Iterator[Array[AnyRef]] =
+    ctx.callReadOnlyProcedure(name, args, allowed, context)
 }
 
 case class EagerReadWriteCallMode(allowed: Array[String]) extends ProcedureCallMode {
@@ -80,11 +81,13 @@ case class EagerReadWriteCallMode(allowed: Array[String]) extends ProcedureCallM
     builder.result().iterator
   }
 
-  override def callProcedure(ctx: QueryContext, id: Int, args: Seq[Any]): Iterator[Array[AnyRef]] = call(ctx.callReadWriteProcedure(id, args, allowed))
+  override def callProcedure(ctx: QueryContext, id: Int, args: Seq[Any], context: ProcedureCallContext): Iterator[Array[AnyRef]] =
+    call(ctx.callReadWriteProcedure(id, args, allowed, context))
 
   override def callProcedure(ctx: QueryContext,
                              name: QualifiedName,
-                             args: Seq[Any]): Iterator[Array[AnyRef]] = call(ctx.callReadWriteProcedure(name, args, allowed))
+                             args: Seq[Any],
+                             context: ProcedureCallContext): Iterator[Array[AnyRef]] = call(ctx.callReadWriteProcedure(name, args, allowed, context))
 }
 
 case class SchemaWriteCallMode(allowed: Array[String]) extends ProcedureCallMode {
@@ -98,26 +101,26 @@ case class SchemaWriteCallMode(allowed: Array[String]) extends ProcedureCallMode
     builder.result().iterator
   }
 
-  override def callProcedure(ctx: QueryContext, id: Int, args: Seq[Any]): Iterator[Array[AnyRef]] = call(ctx
-                                                                                                           .callSchemaWriteProcedure(
-                                                                                                             id, args,
-                                                                                                             allowed))
+  override def callProcedure(ctx: QueryContext, id: Int, args: Seq[Any], context: ProcedureCallContext): Iterator[Array[AnyRef]] =
+    call(ctx.callSchemaWriteProcedure(id, args, allowed, context))
 
   override def callProcedure(ctx: QueryContext,
                              name: QualifiedName,
-                             args: Seq[Any]): Iterator[Array[AnyRef]] =  call(ctx.callSchemaWriteProcedure(name, args, allowed))
+                             args: Seq[Any],
+                             context: ProcedureCallContext): Iterator[Array[AnyRef]] =  call(ctx.callSchemaWriteProcedure(name, args, allowed, context))
 }
 
 case class DbmsCallMode(allowed: Array[String]) extends ProcedureCallMode {
   override val queryType: InternalQueryType = DBMS
 
-  override def callProcedure(ctx: QueryContext, id: Int, args: Seq[Any]): Iterator[Array[AnyRef]] =
-    call(ctx.callDbmsProcedure(id, args, allowed))
+  override def callProcedure(ctx: QueryContext, id: Int, args: Seq[Any], context: ProcedureCallContext): Iterator[Array[AnyRef]] =
+    call(ctx.callDbmsProcedure(id, args, allowed, context))
 
   override def callProcedure(ctx: QueryContext,
                              name: QualifiedName,
-                             args: Seq[Any]): Iterator[Array[AnyRef]] =
-    call(ctx.callDbmsProcedure(name, args, allowed))
+                             args: Seq[Any],
+                             context: ProcedureCallContext): Iterator[Array[AnyRef]] =
+    call(ctx.callDbmsProcedure(name, args, allowed, context))
 
 
   private def call(iterator: Iterator[Array[AnyRef]]) = {

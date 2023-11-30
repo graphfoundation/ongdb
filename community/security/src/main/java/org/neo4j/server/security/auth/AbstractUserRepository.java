@@ -234,4 +234,16 @@ public abstract class AbstractUserRepository extends LifecycleAdapter implements
      * @throws IOException
      */
     protected abstract ListSnapshot<User> readPersistedUsers() throws IOException;
+
+    @Override
+    public void purge() throws IOException
+    {
+        clear(); // Clear all cached data
+    }
+
+    @Override
+    public void markAsMigrated() throws IOException
+    {
+        clear(); // Clear all cached data
+    }
 }

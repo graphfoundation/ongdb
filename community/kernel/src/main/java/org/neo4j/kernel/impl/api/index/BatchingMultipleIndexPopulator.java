@@ -38,7 +38,7 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -56,8 +56,11 @@ import org.neo4j.kernel.api.exceptions.index.IndexPopulationFailedKernelExceptio
 import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.impl.api.SchemaState;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.storageengine.api.EntityType;
 import org.neo4j.util.FeatureToggles;
 
+import static java.lang.Integer.min;
+import static java.lang.String.format;
 import static java.util.stream.Collectors.joining;
 import static org.neo4j.helpers.NamedThreadFactory.daemon;
 
@@ -69,7 +72,7 @@ import static org.neo4j.helpers.NamedThreadFactory.daemon;
  * updates are inserted in the queue. When store scan notices that queue size has reached {@link #QUEUE_THRESHOLD} than
  * it drains all batched updates and waits for all submitted to the executor tasks to complete and flushes updates from
  * the queue using {@link MultipleIndexUpdater}. If queue size never reaches {@link #QUEUE_THRESHOLD} than all queued
- * concurrent updates are flushed after the store scan in {@link #flipAfterPopulation()}.
+ * concurrent updates are flushed after the store scan in {@link MultipleIndexPopulator#flipAfterPopulation(boolean)}.
  * <p>
  * Inner {@link ExecutorService executor} is shut down after the store scan completes.
  */
@@ -77,13 +80,15 @@ public class BatchingMultipleIndexPopulator extends MultipleIndexPopulator
 {
     static final String TASK_QUEUE_SIZE_NAME = "task_queue_size";
     static final String AWAIT_TIMEOUT_MINUTES_NAME = "await_timeout_minutes";
-    private static final String MAXIMUM_NUMBER_OF_WORKERS_NAME = "population_workers_maximum";
+    public static final String MAXIMUM_NUMBER_OF_WORKERS_NAME = "population_workers_maximum";
 
     private static final String EOL = System.lineSeparator();
     private static final String FLUSH_THREAD_NAME_PREFIX = "Index Population Flush Thread";
 
+    // Maximum number of workers processing batches of updates from the scan. It is capped because there's only a single
+    // thread generating updates and it generally cannot saturate all the workers anyway.
     private final int MAXIMUM_NUMBER_OF_WORKERS = FeatureToggles.getInteger( getClass(), MAXIMUM_NUMBER_OF_WORKERS_NAME,
-            Runtime.getRuntime().availableProcessors() - 1 );
+            min( 8, Runtime.getRuntime().availableProcessors() - 1 ) );
     private final int TASK_QUEUE_SIZE = FeatureToggles.getInteger( getClass(), TASK_QUEUE_SIZE_NAME,
             getNumberOfPopulationWorkers() * 2 );
     private final int AWAIT_TIMEOUT_MINUTES = FeatureToggles.getInteger( getClass(), AWAIT_TIMEOUT_MINUTES_NAME, 30 );
@@ -93,14 +98,15 @@ public class BatchingMultipleIndexPopulator extends MultipleIndexPopulator
 
     /**
      * Creates a new multi-threaded populator for the given store view.
-     *
-     * @param storeView the view of the store as a visitable of nodes
+     *  @param storeView the view of the store as a visitable of nodes
      * @param logProvider the log provider
+     * @param type entity type to populate
      * @param schemaState the schema state
      */
-    BatchingMultipleIndexPopulator( IndexStoreView storeView, LogProvider logProvider, SchemaState schemaState )
+    BatchingMultipleIndexPopulator( IndexStoreView storeView, LogProvider logProvider, EntityType type,
+                                    SchemaState schemaState )
     {
-        super( storeView, logProvider, schemaState );
+        super( storeView, logProvider, type, schemaState );
         this.executor = createThreadPool();
     }
 
@@ -117,25 +123,22 @@ public class BatchingMultipleIndexPopulator extends MultipleIndexPopulator
     BatchingMultipleIndexPopulator( IndexStoreView storeView, ExecutorService executor, LogProvider logProvider,
                                     SchemaState schemaState )
     {
-        super( storeView, logProvider, schemaState );
+        super( storeView, logProvider, EntityType.NODE, schemaState );
         this.executor = executor;
     }
 
     @Override
-    public StoreScan<IndexPopulationFailedKernelException> indexAllNodes()
+    public StoreScan<IndexPopulationFailedKernelException> indexAllEntities()
     {
-        StoreScan<IndexPopulationFailedKernelException> storeScan = super.indexAllNodes();
+        StoreScan<IndexPopulationFailedKernelException> storeScan = super.indexAllEntities();
         return new BatchingStoreScan<>( storeScan );
     }
 
     @Override
-    protected void populateFromQueue( long currentlyIndexedNodeId )
+    protected void flushAll()
     {
-        log.debug( "Populating from queue." + EOL + this );
-        flushAll();
+        super.flushAll();
         awaitCompletion();
-        super.populateFromQueue( currentlyIndexedNodeId );
-        log.debug( "Drained queue and all batched updates." + EOL + this );
     }
 
     @Override
@@ -147,7 +150,7 @@ public class BatchingMultipleIndexPopulator extends MultipleIndexPopulator
                 .collect( joining( ", ", "[", "]" ) );
 
         return "BatchingMultipleIndexPopulator{activeTasks=" + activeTasks + ", executor=" + executor + ", " +
-               "batchedUpdates = " + updatesString + ", queuedUpdates = " + queue.size() + "}";
+               "batchedUpdates = " + updatesString + ", queuedUpdates = " + updatesQueue.size() + "}";
     }
 
     /**
@@ -174,20 +177,34 @@ public class BatchingMultipleIndexPopulator extends MultipleIndexPopulator
 
     /**
      * Insert the given batch of updates into the index defined by the given {@link IndexPopulation}.
+     * Called from {@link MultipleIndexPopulator#flush(IndexPopulation)}.
      *
      * @param population the index population.
      */
     @Override
-    protected void flush( IndexPopulation population )
+    void doFlush( IndexPopulation population )
     {
         activeTasks.incrementAndGet();
-        Collection<IndexEntryUpdate<?>> batch = population.takeCurrentBatch();
+        List<IndexEntryUpdate<?>> batch = population.takeCurrentBatch();
 
         executor.execute( () ->
         {
             try
             {
+                String batchDescription = "EMPTY";
+                if ( PRINT_DEBUG )
+                {
+                    if ( !batch.isEmpty() )
+                    {
+                        batchDescription = format( "[%d, %d - %d]", batch.size(), batch.get( 0 ).getEntityId(), batch.get( batch.size() - 1 ).getEntityId() );
+                    }
+                    log.info( "Applying scan batch %s", batchDescription );
+                }
                 population.populator.add( batch );
+                if ( PRINT_DEBUG )
+                {
+                    log.info( "Applied scan batch %s", batchDescription );
+                }
             }
             catch ( Throwable failure )
             {
@@ -281,6 +298,13 @@ public class BatchingMultipleIndexPopulator extends MultipleIndexPopulator
         return Math.max( 2, MAXIMUM_NUMBER_OF_WORKERS );
     }
 
+    @Override
+    public void close( boolean populationCompletedSuccessfully )
+    {
+        super.close( populationCompletedSuccessfully );
+        shutdownExecutor( !populationCompletedSuccessfully );
+    }
+
     /**
      * A delegating {@link StoreScan} implementation that flushes all pending updates and terminates the executor after
      * the delegate store scan completes.
@@ -297,26 +321,10 @@ public class BatchingMultipleIndexPopulator extends MultipleIndexPopulator
         @Override
         public void run() throws E
         {
-            try
-            {
-                super.run();
-                log.info( "Completed node store scan. " +
-                          "Flushing all pending updates." + EOL + BatchingMultipleIndexPopulator.this );
-                flushAll();
-            }
-            catch ( Throwable scanError )
-            {
-                try
-                {
-                    shutdownExecutor( true );
-                }
-                catch ( Throwable error )
-                {
-                    scanError.addSuppressed( error );
-                }
-                throw scanError;
-            }
-            shutdownExecutor( false );
+            super.run();
+            log.info( "Completed node store scan. " +
+                      "Flushing all pending updates." + EOL + BatchingMultipleIndexPopulator.this );
+            flushAll();
         }
     }
 }

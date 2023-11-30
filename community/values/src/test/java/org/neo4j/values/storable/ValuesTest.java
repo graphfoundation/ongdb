@@ -38,9 +38,9 @@
  */
 package org.neo4j.values.storable;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.neo4j.values.storable.Values.booleanArray;
 import static org.neo4j.values.storable.Values.booleanValue;
 import static org.neo4j.values.storable.Values.byteArray;
@@ -61,14 +61,14 @@ import static org.neo4j.values.storable.Values.stringArray;
 import static org.neo4j.values.storable.Values.stringValue;
 import static org.neo4j.values.utils.AnyValueTestUtil.assertEqual;
 
-public class ValuesTest
+class ValuesTest
 {
     @Test
-    public void shouldBeEqualToItself()
+    void shouldBeEqualToItself()
     {
         assertEqual( booleanValue( false ), booleanValue( false ) );
-        assertEqual( byteValue( (byte)0 ), byteValue( (byte)0 ) );
-        assertEqual( shortValue( (short)0 ), shortValue( (short)0 ) );
+        assertEqual( byteValue( (byte) 0 ), byteValue( (byte) 0 ) );
+        assertEqual( shortValue( (short) 0 ), shortValue( (short) 0 ) );
         assertEqual( intValue( 0 ), intValue( 0 ) );
         assertEqual( longValue( 0 ), longValue( 0 ) );
         assertEqual( floatValue( 0.0f ), floatValue( 0.0f ) );
@@ -76,8 +76,8 @@ public class ValuesTest
         assertEqual( stringValue( "" ), stringValue( "" ) );
 
         assertEqual( booleanValue( true ), booleanValue( true ) );
-        assertEqual( byteValue( (byte)1 ), byteValue( (byte)1 ) );
-        assertEqual( shortValue( (short)1 ), shortValue( (short)1 ) );
+        assertEqual( byteValue( (byte) 1 ), byteValue( (byte) 1 ) );
+        assertEqual( shortValue( (short) 1 ), shortValue( (short) 1 ) );
         assertEqual( intValue( 1 ), intValue( 1 ) );
         assertEqual( longValue( 1 ), longValue( 1 ) );
         assertEqual( floatValue( 1.0f ), floatValue( 1.0f ) );
@@ -107,24 +107,11 @@ public class ValuesTest
     }
 
     @Test
-    public void pointValueShouldRequireConsistentInput()
+    void pointValueShouldRequireConsistentInput()
     {
-        assertThrowsIllegalArgument( CoordinateReferenceSystem.Cartesian, 1, 2, 3 );
-        assertThrowsIllegalArgument( CoordinateReferenceSystem.Cartesian_3D, 1, 2 );
-        assertThrowsIllegalArgument( CoordinateReferenceSystem.WGS84, 1, 2, 3 );
-        assertThrowsIllegalArgument( CoordinateReferenceSystem.WGS84_3D, 1, 2 );
-    }
-
-    private void assertThrowsIllegalArgument( CoordinateReferenceSystem crs, double... coordinates )
-    {
-        try
-        {
-            Values.pointValue( crs, coordinates );
-            fail( "exception expected" );
-        }
-        catch ( IllegalArgumentException e )
-        {
-            // this is what we want
-        }
+        assertThrows( IllegalArgumentException.class, () -> Values.pointValue( CoordinateReferenceSystem.Cartesian, 1, 2, 3 ) );
+        assertThrows( IllegalArgumentException.class, () -> Values.pointValue( CoordinateReferenceSystem.Cartesian_3D, 1, 2 ) );
+        assertThrows( IllegalArgumentException.class, () -> Values.pointValue( CoordinateReferenceSystem.WGS84, 1, 2, 3 ) );
+        assertThrows( IllegalArgumentException.class, () -> Values.pointValue( CoordinateReferenceSystem.WGS84_3D, 1, 2 ) );
     }
 }

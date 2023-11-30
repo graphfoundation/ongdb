@@ -39,16 +39,16 @@
 package org.neo4j.kernel.impl.api.index;
 
 import java.io.File;
+import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.neo4j.graphdb.ResourceIterator;
-import org.neo4j.internal.kernel.api.IndexCapability;
 import org.neo4j.internal.kernel.api.InternalIndexState;
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
 import org.neo4j.kernel.impl.api.index.updater.SwallowingIndexUpdater;
+import org.neo4j.storageengine.api.schema.CapableIndexDescriptor;
 import org.neo4j.storageengine.api.schema.IndexReader;
 import org.neo4j.storageengine.api.schema.PopulationProgress;
 import org.neo4j.values.storable.Value;
@@ -80,11 +80,6 @@ public class IndexProxyAdapter implements IndexProxy
     }
 
     @Override
-    public IndexCapability getIndexCapability()
-    {
-        return null;
-    }
-
     public void force( IOLimiter ioLimiter )
     {
     }
@@ -100,19 +95,7 @@ public class IndexProxyAdapter implements IndexProxy
     }
 
     @Override
-    public SchemaIndexDescriptor getDescriptor()
-    {
-        return null;
-    }
-
-    @Override
-    public LabelSchemaDescriptor schema()
-    {
-        return null;
-    }
-
-    @Override
-    public IndexProvider.Descriptor getProviderDescriptor()
+    public CapableIndexDescriptor getDescriptor()
     {
         return null;
     }
@@ -124,7 +107,7 @@ public class IndexProxyAdapter implements IndexProxy
     }
 
     @Override
-    public boolean awaitStoreScanCompleted()
+    public boolean awaitStoreScanCompleted( long time, TimeUnit unit )
     {
         throw new UnsupportedOperationException();
     }
@@ -145,15 +128,15 @@ public class IndexProxyAdapter implements IndexProxy
     }
 
     @Override
-    public long getIndexId()
-    {
-        return 1;
-    }
-
-    @Override
     public ResourceIterator<File> snapshotFiles()
     {
         return emptyResourceIterator();
+    }
+
+    @Override
+    public Map<String,Value> indexConfig()
+    {
+        return Collections.emptyMap();
     }
 
     @Override

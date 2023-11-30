@@ -38,39 +38,39 @@
  */
 package org.neo4j.cypher.internal.runtime.planDescription
 
-import org.neo4j.cypher.internal.frontend.v3_4.PlannerName
-import org.neo4j.cypher.internal.planner.v3_4.spi.PlanningAttributes.{Cardinalities, ReadOnlies}
+import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.{Cardinalities, ProvidedOrders}
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments._
-import org.neo4j.cypher.internal.util.v3_4.InternalException
-import org.neo4j.cypher.internal.v3_4.expressions.{FunctionInvocation, FunctionName, LabelToken, MapExpression, Namespace, PropertyKeyName, PropertyKeyToken, Expression => ASTExpression}
-import org.neo4j.cypher.internal.v3_4.functions.Point
-import org.neo4j.cypher.internal.v3_4.logical.plans
-import org.neo4j.cypher.internal.v3_4.logical.plans._
+import org.neo4j.cypher.internal.v3_5.expressions.functions.Point
+import org.neo4j.cypher.internal.v3_5.expressions.{FunctionInvocation, FunctionName, LabelToken, MapExpression, Namespace, PropertyKeyToken, Expression => ASTExpression}
+import org.neo4j.cypher.internal.v3_5.frontend.PlannerName
+import org.neo4j.cypher.internal.v3_5.logical.plans
+import org.neo4j.cypher.internal.v3_5.logical.plans._
+import org.neo4j.cypher.internal.v3_5.util.InternalException
 
-object LogicalPlan2PlanDescription extends ((LogicalPlan, PlannerName, ReadOnlies, Cardinalities) => InternalPlanDescription) {
+object LogicalPlan2PlanDescription {
 
-  override def apply(input: LogicalPlan,
+  def apply(input: LogicalPlan,
                      plannerName: PlannerName,
-                     readOnlies: ReadOnlies,
-                     cardinalities: Cardinalities): InternalPlanDescription = {
-    val readOnly = readOnlies.get(input.id)
-    new LogicalPlan2PlanDescription(readOnly, cardinalities).create(input)
+                     readOnly: Boolean,
+                     cardinalities: Cardinalities,
+                     providedOrders: ProvidedOrders): InternalPlanDescription = {
+    new LogicalPlan2PlanDescription(readOnly, cardinalities, providedOrders).create(input)
       .addArgument(Version("CYPHER "+plannerName.version))
-      .addArgument(RuntimeVersion("3.4"))
+      .addArgument(RuntimeVersion("3.5"))
       .addArgument(Planner(plannerName.toTextOutput))
       .addArgument(PlannerImpl(plannerName.name))
       .addArgument(PlannerVersion(plannerName.version))
   }
 }
 
-case class LogicalPlan2PlanDescription(readOnly: Boolean, cardinalities: Cardinalities)
+case class LogicalPlan2PlanDescription(readOnly: Boolean, cardinalities: Cardinalities, providedOrders: ProvidedOrders)
   extends TreeBuilder[InternalPlanDescription] {
 
   override protected def build(plan: LogicalPlan): InternalPlanDescription = {
     assert(plan.isLeaf)
 
     val id = plan.id
-    val variables = plan.availableSymbols
+    val variables = plan.availableSymbols ++ plan.availableCachedNodeProperties.values.map(_.asCanonicalStringVal)
 
     val result: InternalPlanDescription = plan match {
       case _: AllNodesScan =>
@@ -82,12 +82,12 @@ case class LogicalPlan2PlanDescription(readOnly: Boolean, cardinalities: Cardina
       case NodeByIdSeek(_, _, _) =>
         PlanDescriptionImpl(id, "NodeByIdSeek", NoChildren, Seq(), variables)
 
-      case NodeIndexSeek(_, label, propertyKeys, valueExpr, _) =>
-        val (indexMode, indexDesc) = getDescriptions(label, propertyKeys, valueExpr, unique = false, readOnly)
+      case NodeIndexSeek(_, label, properties, valueExpr, _, _) =>
+        val (indexMode, indexDesc) = getDescriptions(label, properties.map(_.propertyKeyToken), valueExpr, unique = false, readOnly)
         PlanDescriptionImpl(id, indexMode, NoChildren, Seq(indexDesc), variables)
 
-      case NodeUniqueIndexSeek(_, label, propertyKeys, valueExpr, _) =>
-        val (indexMode, indexDesc) = getDescriptions(label, propertyKeys, valueExpr, unique = true, readOnly)
+      case NodeUniqueIndexSeek(_, label, properties, valueExpr, _, _) =>
+        val (indexMode, indexDesc) = getDescriptions(label, properties.map(_.propertyKeyToken), valueExpr, unique = true, readOnly)
         PlanDescriptionImpl(id, indexMode, NoChildren, Seq(indexDesc), variables)
 
       case ProduceResult(_, _) =>
@@ -110,20 +110,24 @@ case class LogicalPlan2PlanDescription(readOnly: Boolean, cardinalities: Cardina
         val arguments = Seq(CountNodesExpression(variable, labelNames.map(l => l.map(_.name))))
         PlanDescriptionImpl(id, "NodeCountFromCountStore", NoChildren, arguments, variables)
 
-      case NodeIndexContainsScan(_, label, propertyKey, valueExpr, _) =>
-        val arguments = Seq(Index(label.name, Seq(propertyKey.name)), Expression(valueExpr))
+      case NodeIndexContainsScan(_, label, property, valueExpr, _, _) =>
+        val arguments = Seq(Index(label.name, Seq(property.propertyKeyToken.name)), Expression(valueExpr))
         PlanDescriptionImpl(id, "NodeIndexContainsScan", NoChildren, arguments, variables)
 
-      case NodeIndexEndsWithScan(_, label, propertyKey, valueExpr, _) =>
-        val arguments = Seq(Index(label.name, Seq(propertyKey.name)), Expression(valueExpr))
+      case NodeIndexEndsWithScan(_, label, property, valueExpr, _, _) =>
+        val arguments = Seq(Index(label.name, Seq(property.propertyKeyToken.name)), Expression(valueExpr))
         PlanDescriptionImpl(id, "NodeIndexEndsWithScan", NoChildren, arguments, variables)
 
-      case NodeIndexScan(_, label, propertyKey, _) =>
-        PlanDescriptionImpl(id, "NodeIndexScan", NoChildren, Seq(Index(label.name, Seq(propertyKey.name))), variables)
+      case NodeIndexScan(_, label, property, _, _) =>
+        PlanDescriptionImpl(id, "NodeIndexScan", NoChildren, Seq(Index(label.name, Seq(property.propertyKeyToken.name))), variables)
 
       case ProcedureCall(_, call) =>
         val signature = Signature(call.qualifiedName, call.callArguments, call.callResultTypes)
         PlanDescriptionImpl(id, "ProcedureCall", NoChildren, Seq(signature), variables)
+
+      case StandAloneProcedureCall(signature, args, resultSymbols, callResultIndices) =>
+        val signatureDesc = Signature(signature.name, Seq.empty, resultSymbols)
+        PlanDescriptionImpl(id, "ProcedureCall", NoChildren, Seq(signatureDesc), resultSymbols.map(_._1).toSet)
 
       case RelationshipCountFromCountStore(ident, startLabel, typeNames, endLabel, _) =>
         val exp = CountRelationshipsExpression(ident, startLabel.map(_.name), typeNames.map(_.name),
@@ -133,10 +137,40 @@ case class LogicalPlan2PlanDescription(readOnly: Boolean, cardinalities: Cardina
       case _: UndirectedRelationshipByIdSeek =>
         PlanDescriptionImpl(id, "UndirectedRelationshipByIdSeek", NoChildren, Seq.empty, variables)
 
+      case _: CreateIndex =>
+        PlanDescriptionImpl(id, "CreateIndex", NoChildren, Seq.empty, variables)
+
+      case _: DropIndex =>
+        PlanDescriptionImpl(id, "DropIndex", NoChildren, Seq.empty, variables)
+
+      case _: CreateUniquePropertyConstraint =>
+        PlanDescriptionImpl(id, "CreateUniquePropertyConstraint", NoChildren, Seq.empty, variables)
+
+      case _: CreateNodeKeyConstraint =>
+        PlanDescriptionImpl(id, "CreateNodeKeyConstraint", NoChildren, Seq.empty, variables)
+
+      case _: CreateNodePropertyExistenceConstraint =>
+        PlanDescriptionImpl(id, "CreateNodePropertyExistenceConstraint", NoChildren, Seq.empty, variables)
+
+      case _: CreateRelationshipPropertyExistenceConstraint =>
+        PlanDescriptionImpl(id, "CreateRelationshipPropertyExistenceConstraint", NoChildren, Seq.empty, variables)
+
+      case _: DropUniquePropertyConstraint =>
+        PlanDescriptionImpl(id, "DropUniquePropertyConstraint", NoChildren, Seq.empty, variables)
+
+      case _: DropNodeKeyConstraint =>
+        PlanDescriptionImpl(id, "DropNodeKeyConstraint", NoChildren, Seq.empty, variables)
+
+      case _: DropNodePropertyExistenceConstraint =>
+        PlanDescriptionImpl(id, "DropNodePropertyExistenceConstraint", NoChildren, Seq.empty, variables)
+
+      case _: DropRelationshipPropertyExistenceConstraint =>
+        PlanDescriptionImpl(id, "DropRelationshipPropertyExistenceConstraint", NoChildren, Seq.empty, variables)
+
       case x => throw new InternalException(s"Unknown plan type: ${x.getClass.getSimpleName}. Missing a case?")
     }
 
-    result.addArgument(EstimatedRows(cardinalities.get(plan.id).amount))
+    addPlanningAttributes(result, plan)
   }
 
   override protected def build(plan: LogicalPlan, source: InternalPlanDescription): InternalPlanDescription = {
@@ -144,7 +178,7 @@ case class LogicalPlan2PlanDescription(readOnly: Boolean, cardinalities: Cardina
     assert(plan.rhs.isEmpty)
 
     val id = plan.id
-    val variables = plan.availableSymbols
+    val variables = plan.availableSymbols ++ plan.availableCachedNodeProperties.values.map(_.asCanonicalStringVal)
     val children = if (source.isInstanceOf[ArgumentPlanDescription]) NoChildren else SingleChild(source)
 
     val result: InternalPlanDescription = plan match {
@@ -158,11 +192,8 @@ case class LogicalPlan2PlanDescription(readOnly: Boolean, cardinalities: Cardina
         PlanDescriptionImpl(id, "EagerAggregation", children, Seq(KeyNames(groupingExpressions.keySet.toIndexedSeq)),
                             variables)
 
-      case _: CreateNode =>
-        PlanDescriptionImpl(id, "CreateNode", children, Seq.empty, variables)
-
-      case _: CreateRelationship =>
-        PlanDescriptionImpl(id, "CreateRelationship", children, Seq.empty, variables)
+      case _: Create =>
+        PlanDescriptionImpl(id, "Create", children, Seq.empty, variables)
 
       case _: DeleteExpression | _: DeleteNode | _: DeletePath | _: DeleteRelationship =>
         PlanDescriptionImpl(id, "Delete", children, Seq.empty, variables)
@@ -189,9 +220,9 @@ case class LogicalPlan2PlanDescription(readOnly: Boolean, cardinalities: Cardina
                               CountRelationshipsExpression(id, start.map(_.name), types.map(_.name), end.map(_.name))),
                             variables)
 
-      case NodeUniqueIndexSeek(id, label, propKeys, value, arguments) =>
+      case NodeUniqueIndexSeek(id, label, properties, value, arguments, _) =>
         PlanDescriptionImpl(id = plan.id, "NodeUniqueIndexSeek", NoChildren,
-                            Seq(Index(label.name, propKeys.map(_.name))), variables)
+                            Seq(Index(label.name, properties.map(_.propertyKeyToken.name))), variables)
 
       case _: ErrorPlan =>
         PlanDescriptionImpl(id, "Error", children, Seq.empty, variables)
@@ -226,8 +257,8 @@ case class LogicalPlan2PlanDescription(readOnly: Boolean, cardinalities: Cardina
         val expressions = Expressions(expr)
         PlanDescriptionImpl(id, "Projection", children, Seq(expressions), variables)
 
-      case Selection(predicates, _) =>
-        PlanDescriptionImpl(id, "Filter", children, predicates.map(Expression), variables)
+      case Selection(predicate, _) =>
+        PlanDescriptionImpl(id, "Filter", children, predicate.exprs.map(Expression).toSeq, variables)
 
       case Skip(_, count) =>
         PlanDescriptionImpl(id, name = "Skip", children, Seq(Expression(count)), variables)
@@ -274,15 +305,18 @@ case class LogicalPlan2PlanDescription(readOnly: Boolean, cardinalities: Cardina
         PlanDescriptionImpl(id, "SetLabels", children, Seq.empty, variables)
 
       case _: SetNodePropertiesFromMap =>
-        PlanDescriptionImpl(id, "SetNodePropertyFromMap", children, Seq.empty, variables)
+        PlanDescriptionImpl(id, "SetNodePropertiesFromMap", children, Seq.empty, variables)
+
+      case _: SetPropertiesFromMap =>
+        PlanDescriptionImpl(id, "SetPropertiesFromMap", children, Seq.empty, variables)
 
       case _: SetProperty |
            _: SetNodeProperty |
-           _: SetRelationshipPropery =>
+           _: SetRelationshipProperty =>
         PlanDescriptionImpl(id, "SetProperty", children, Seq.empty, variables)
 
       case _: SetRelationshipPropertiesFromMap =>
-        PlanDescriptionImpl(id, "SetRelationshipPropertyFromMap", children, Seq.empty, variables)
+        PlanDescriptionImpl(id, "SetRelationshipPropertiesFromMap", children, Seq.empty, variables)
 
       case Sort(_, orderBy) =>
         PlanDescriptionImpl(id, "Sort", children, Seq(KeyNames(orderBy.map(_.id))), variables)
@@ -311,7 +345,7 @@ case class LogicalPlan2PlanDescription(readOnly: Boolean, cardinalities: Cardina
       case x => throw new InternalException(s"Unknown plan type: ${x.getClass.getSimpleName}. Missing a case?")
     }
 
-    result.addArgument(EstimatedRows(cardinalities.get(plan.id).amount))
+    addPlanningAttributes(result, plan)
   }
 
   override protected def build(plan: LogicalPlan, lhs: InternalPlanDescription,
@@ -320,7 +354,7 @@ case class LogicalPlan2PlanDescription(readOnly: Boolean, cardinalities: Cardina
     assert(plan.rhs.nonEmpty)
 
     val id = plan.id
-    val variables = plan.availableSymbols
+    val variables = plan.availableSymbols ++ plan.availableCachedNodeProperties.values.map(_.asCanonicalStringVal)
     val children = TwoChildren(lhs, rhs)
 
     val result: InternalPlanDescription = plan match {
@@ -399,7 +433,19 @@ case class LogicalPlan2PlanDescription(readOnly: Boolean, cardinalities: Cardina
       case x => throw new InternalException(s"Unknown plan type: ${x.getClass.getSimpleName}. Missing a case?")
     }
 
-    result.addArgument(EstimatedRows(cardinalities.get(plan.id).amount))
+    addPlanningAttributes(result, plan)
+  }
+
+  private def addPlanningAttributes(description: InternalPlanDescription, plan: LogicalPlan): InternalPlanDescription = {
+    val withEstRows = if (cardinalities.isDefinedAt(plan.id))
+      description.addArgument(EstimatedRows(cardinalities.get(plan.id).amount))
+    else
+      description
+
+    if (providedOrders.isDefinedAt(plan.id) && !providedOrders(plan.id).isEmpty)
+      withEstRows.addArgument(Order(providedOrders(plan.id)))
+    else
+      withEstRows
   }
 
   private def getDescriptions(label: LabelToken,
@@ -431,7 +477,7 @@ case class LogicalPlan2PlanDescription(readOnly: Boolean, cardinalities: Cardina
           case PointDistanceSeekRangeWrapper(PointDistanceRange(point, distance, inclusive)) =>
             val funcName = Point.name
             val poi = point match {
-              case FunctionInvocation(Namespace(List()), FunctionName(funcName), _, Seq(MapExpression(args))) =>
+              case FunctionInvocation(Namespace(List()), FunctionName(funcName), _, Seq(MapExpression(args)),_) =>
                 s"point(${args.map(_._1.name).mkString(",")})"
               case _ => point.toString
             }

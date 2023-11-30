@@ -60,13 +60,12 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.neo4j.index.internal.gbptree.TreeNodeDynamicSize.keyValueSizeCapFromPageSize;
 import static org.neo4j.io.pagecache.PageCache.PAGE_SIZE;
-import static org.neo4j.test.Randoms.CSA_LETTERS_AND_DIGITS;
 import static org.neo4j.test.rule.PageCacheRule.config;
 
 public class LargeDynamicKeysIT
 {
     @Rule
-    public final PageCacheAndDependenciesRule storage = new PageCacheAndDependenciesRule( DefaultFileSystemRule::new, getClass() );
+    public final PageCacheAndDependenciesRule storage = new PageCacheAndDependenciesRule().with( new DefaultFileSystemRule() );
 
     @Rule
     public final RandomRule random = new RandomRule();
@@ -143,7 +142,7 @@ public class LargeDynamicKeysIT
                     String string;
                     do
                     {
-                        string = random.string( minKeySize, maxKeySize, CSA_LETTERS_AND_DIGITS );
+                        string = random.nextAlphaNumericString( minKeySize, maxKeySize );
                     }
                     while ( !generatedStrings.add( string ) );
                     RawBytes key = new RawBytes();

@@ -38,12 +38,13 @@
  */
 package org.neo4j.kernel.impl.api;
 
+import org.eclipse.collections.api.map.primitive.MutableObjectIntMap;
+import org.eclipse.collections.impl.map.mutable.primitive.ObjectIntHashMap;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 
-import java.io.File;
 import java.util.ArrayList;
-import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -51,7 +52,6 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.index.IndexManager;
 import org.neo4j.graphdb.mockfs.EphemeralFileSystemAbstraction;
-import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.kernel.impl.index.IndexCommand.AddNodeCommand;
 import org.neo4j.kernel.impl.index.IndexCommand.AddRelationshipCommand;
 import org.neo4j.kernel.impl.index.IndexConfigStore;
@@ -63,6 +63,7 @@ import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
 import org.neo4j.kernel.impl.util.SynchronizedArrayIdOrderingQueue;
 import org.neo4j.kernel.lifecycle.LifeRule;
 import org.neo4j.test.Race;
+import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
 
 import static org.junit.Assert.assertTrue;
@@ -79,17 +80,19 @@ import static org.neo4j.storageengine.api.TransactionApplicationMode.INTERNAL;
 
 public class ExplicitBatchIndexApplierTest
 {
+    private final LifeRule life = new LifeRule( true );
+    private final EphemeralFileSystemRule fs = new EphemeralFileSystemRule();
+    private final TestDirectory testDirectory = TestDirectory.testDirectory( fs );
+
     @Rule
-    public final LifeRule life = new LifeRule( true );
-    @Rule
-    public final EphemeralFileSystemRule fs = new EphemeralFileSystemRule();
+    public final RuleChain ruleChain = RuleChain.outerRule( fs ).around( testDirectory ).around( life );
 
     @Test
     public void shouldOnlyCreateOneApplierPerProvider() throws Exception
     {
         // GIVEN
-        Map<String,Integer> names = MapUtil.genericMap( "first", 0, "second", 1 );
-        Map<String,Integer> keys = MapUtil.genericMap( "key", 0 );
+        MutableObjectIntMap<String> names = ObjectIntHashMap.newWithKeysValues( "first", 0, "second", 1 );
+        MutableObjectIntMap<String> keys = ObjectIntHashMap.newWithKeysValues( "key", 0 );
         String applierName = "test-applier";
         Commitment commitment = mock( Commitment.class );
         when( commitment.hasExplicitIndexChanges() ).thenReturn( true );
@@ -120,8 +123,8 @@ public class ExplicitBatchIndexApplierTest
     public void shouldOrderTransactionsMakingExplicitIndexChanges() throws Throwable
     {
         // GIVEN
-        Map<String,Integer> names = MapUtil.genericMap( "first", 0, "second", 1 );
-        Map<String,Integer> keys = MapUtil.genericMap( "key", 0 );
+        MutableObjectIntMap<String> names = ObjectIntHashMap.newWithKeysValues( "first", 0, "second", 1 );
+        MutableObjectIntMap<String> keys = ObjectIntHashMap.newWithKeysValues( "key", 0 );
         String applierName = "test-applier";
         ExplicitIndexApplierLookup applierLookup = mock( ExplicitIndexApplierLookup.class );
         TransactionApplier transactionApplier = mock( TransactionApplier.class );
@@ -129,7 +132,7 @@ public class ExplicitBatchIndexApplierTest
         IndexConfigStore config = newIndexConfigStore( names, applierName );
 
         // WHEN multiple explicit index transactions are running, they should be done in order
-        SynchronizedArrayIdOrderingQueue queue = new SynchronizedArrayIdOrderingQueue( 10 );
+        SynchronizedArrayIdOrderingQueue queue = new SynchronizedArrayIdOrderingQueue();
         final AtomicLong lastAppliedTxId = new AtomicLong( -1 );
         Race race = new Race();
         for ( long i = 0; i < 100; i++ )
@@ -181,24 +184,23 @@ public class ExplicitBatchIndexApplierTest
         return command;
     }
 
-    private static IndexDefineCommand definitions( Map<String,Integer> names, Map<String,Integer> keys )
+    private static IndexDefineCommand definitions( MutableObjectIntMap<String> names, MutableObjectIntMap<String> keys )
     {
         IndexDefineCommand definitions = new IndexDefineCommand();
         definitions.init( names, keys );
         return definitions;
     }
 
-    private IndexConfigStore newIndexConfigStore( Map<String,Integer> names, String providerName )
+    private IndexConfigStore newIndexConfigStore( MutableObjectIntMap<String> names, String providerName )
     {
-        File dir = new File( "conf" );
         EphemeralFileSystemAbstraction fileSystem = fs.get();
-        fileSystem.mkdirs( dir );
-        IndexConfigStore store = life.add( new IndexConfigStore( dir, fileSystem ) );
-        for ( Map.Entry<String,Integer> name : names.entrySet() )
+        IndexConfigStore store = life.add( new IndexConfigStore( testDirectory.databaseLayout(), fileSystem ) );
+
+        names.forEachKey( name ->
         {
-            store.set( Node.class, name.getKey(), stringMap( IndexManager.PROVIDER, providerName ) );
-            store.set( Relationship.class, name.getKey(), stringMap( IndexManager.PROVIDER, providerName ) );
-        }
+            store.set( Node.class, name, stringMap( IndexManager.PROVIDER, providerName ) );
+            store.set( Relationship.class, name, stringMap( IndexManager.PROVIDER, providerName ) );
+        } );
         return store;
     }
 }

@@ -40,8 +40,8 @@ package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Predicate
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.NodeValue
 
@@ -67,7 +67,9 @@ case class OptionalExpandIntoPipe(source: Pipe, fromName: String, relName: Strin
             val toNode = getRowNode(row, toName)
 
             toNode match {
-              case Values.NO_VALUE => Iterator.single(row.set(relName, Values.NO_VALUE))
+              case Values.NO_VALUE =>
+                row.set(relName, Values.NO_VALUE)
+                Iterator.single(row)
               case n: NodeValue =>
                 val relationships = relCache.get(fromNode, n, dir)
                   .getOrElse(findRelationships(state.query, fromNode, n, relCache, dir, types.types(state.query)))
@@ -81,11 +83,16 @@ case class OptionalExpandIntoPipe(source: Pipe, fromName: String, relName: Strin
                   }
                 }
 
-                if (filteredRows.isEmpty) Iterator.single(row.set(relName, Values.NO_VALUE))
+                if (filteredRows.isEmpty) {
+                  row.set(relName, Values.NO_VALUE)
+                  Iterator.single(row)
+                }
                 else filteredRows
             }
 
-          case Values.NO_VALUE => Iterator(row.set(relName, Values.NO_VALUE))
+          case Values.NO_VALUE =>
+            row.set(relName, Values.NO_VALUE)
+            Iterator(row)
         }
     }
   }

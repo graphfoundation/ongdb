@@ -128,6 +128,19 @@ public interface Layout<KEY, VALUE> extends Comparator<KEY>
      * @return true if keys and values are fixed size, otherwise true.
      */
     boolean fixedSize();
+
+    /**
+     * Find shortest key (best effort) that separate left from right in sort order
+     * and initialize into with result.
+     * @param left key that is less than right
+     * @param right key that is greater than left.
+     * @param into will be initialized with result.
+     */
+    default void minimalSplitter( KEY left, KEY right, KEY into )
+    {
+        copyKey( right, into );
+    }
+
     /**
      * Used as verification when loading an index after creation, to verify that the same layout is used,
      * as the one it was initially created with.
@@ -223,9 +236,8 @@ public interface Layout<KEY, VALUE> extends Comparator<KEY>
         @Override
         public String toString()
         {
-            return format( "%s[version:%d.%d, identifier:%d, keySize:%d, valueSize:%d, fixedSize:%b]",
-                    getClass().getSimpleName(), majorVersion(), minorVersion(), identifier(),
-                    keySize( null ), valueSize( null ), fixedSize() );
+            return format( "%s[version:%d.%d, identifier:%d, fixedSize:%b]",
+                    getClass().getSimpleName(), majorVersion(), minorVersion(), identifier(), fixedSize() );
         }
 
         @Override

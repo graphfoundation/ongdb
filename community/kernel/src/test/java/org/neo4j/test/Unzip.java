@@ -62,10 +62,9 @@ public class Unzip
             throw new FileNotFoundException( "Could not find resource '" + resource + "' to unzip" );
         }
 
-        try
+        try ( ZipInputStream zipStream = new ZipInputStream( source ) )
         {
-            ZipInputStream zipStream = new ZipInputStream( source );
-            ZipEntry entry = null;
+            ZipEntry entry;
             byte[] scratch = new byte[8096];
             while ( (entry = zipStream.getNextEntry()) != null )
             {
@@ -75,8 +74,7 @@ public class Unzip
                 }
                 else
                 {
-                    try ( OutputStream file = new BufferedOutputStream(
-                            new FileOutputStream( new File( targetDirectory, entry.getName() ) ) ) )
+                    try ( OutputStream file = new BufferedOutputStream( new FileOutputStream( new File( targetDirectory, entry.getName() ) ) ) )
                     {
                         long toCopy = entry.getSize();
                         while ( toCopy > 0 )

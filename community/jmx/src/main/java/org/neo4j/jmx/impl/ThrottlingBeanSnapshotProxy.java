@@ -49,12 +49,14 @@ import java.util.Set;
 import static java.lang.reflect.Proxy.newProxyInstance;
 import static java.util.Arrays.stream;
 import static java.util.stream.Collectors.toSet;
+import static org.neo4j.util.Preconditions.checkArgument;
 import static org.neo4j.util.Preconditions.requirePositive;
 
 /**
  * The purpose of this proxy is to take a snapshot of all MBean attributes and return those cached values to prevent excessive resource consumption
  * in case of frequent calls and expensive attribute calculations. Snapshot is updated no earlier than {@link #updateInterval} ms after previous update.
  */
+@Deprecated
 class ThrottlingBeanSnapshotProxy implements InvocationHandler
 {
     private final Set<Method> getters;
@@ -113,10 +115,7 @@ class ThrottlingBeanSnapshotProxy implements InvocationHandler
         {
             return target;
         }
-        if ( !iface.isInterface() )
-        {
-            throw new IllegalArgumentException( iface + " is not an interface" );
-        }
+        checkArgument( iface.isInterface(), "%s is not an interface", iface );
         requirePositive( updateInterval );
         final ThrottlingBeanSnapshotProxy proxy = new ThrottlingBeanSnapshotProxy( iface, target, updateInterval, clock );
         return iface.cast( newProxyInstance( iface.getClassLoader(), new Class[] {iface}, proxy ) );

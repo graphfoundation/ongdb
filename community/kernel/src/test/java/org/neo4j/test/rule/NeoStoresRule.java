@@ -38,7 +38,6 @@
  */
 package org.neo4j.test.rule;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.function.Function;
 
@@ -60,6 +59,8 @@ import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.NullLog;
 import org.neo4j.logging.NullLogProvider;
+import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.scheduler.ThreadPoolJobScheduler;
 
 import static org.neo4j.helpers.collection.MapUtil.stringMap;
 import static org.neo4j.io.pagecache.tracing.PageCacheTracer.NULL;
@@ -75,6 +76,7 @@ public class NeoStoresRule extends ExternalResource
     // Custom components which are managed by this rule if user doesn't supply them
     private EphemeralFileSystemAbstraction ruleFs;
     private PageCache rulePageCache;
+    private JobScheduler jobScheduler;
 
     private final StoreType[] stores;
 
@@ -90,14 +92,13 @@ public class NeoStoresRule extends ExternalResource
     }
 
     private NeoStores open( FileSystemAbstraction fs, PageCache pageCache, RecordFormats format,
-            Function<FileSystemAbstraction,IdGeneratorFactory> idGeneratorFactory, String... config )
-                    throws IOException
+            Function<FileSystemAbstraction,IdGeneratorFactory> idGeneratorFactory, String... config ) throws IOException
     {
         assert neoStores == null : "Already opened";
-        TestDirectory testDirectory = TestDirectory.testDirectory( testClass, fs );
-        File storeDir = testDirectory.makeGraphDbDir();
+        TestDirectory testDirectory = TestDirectory.testDirectory( fs );
+        testDirectory.prepareDirectory( testClass, null );
         Config configuration = configOf( config );
-        StoreFactory storeFactory = new StoreFactory( storeDir, configuration, idGeneratorFactory.apply( fs ),
+        StoreFactory storeFactory = new StoreFactory( testDirectory.databaseLayout(), configuration, idGeneratorFactory.apply( fs ),
                 pageCache, fs, format, NullLogProvider.getInstance(), EmptyVersionContextSupplier.EMPTY );
         return neoStores = stores.length == 0
                 ? storeFactory.openAllNeoStores( true )
@@ -112,20 +113,12 @@ public class NeoStoresRule extends ExternalResource
     @Override
     protected void after( boolean successful ) throws Throwable
     {
-        IOUtils.closeAll( neoStores, rulePageCache );
+        IOUtils.closeAll( neoStores, rulePageCache, jobScheduler );
         neoStores = null;
         if ( ruleFs != null )
         {
             ruleFs.close();
         }
-    }
-
-    private static PageCache getOrCreatePageCache( Config config, FileSystemAbstraction fs )
-    {
-        Log log = NullLog.getInstance();
-        ConfiguringPageCacheFactory pageCacheFactory = new ConfiguringPageCacheFactory( fs, config, NULL,
-                PageCursorTracerSupplier.NULL, log, EmptyVersionContextSupplier.EMPTY );
-        return pageCacheFactory.getOrCreatePageCache();
     }
 
     public class Builder
@@ -179,7 +172,8 @@ public class NeoStoresRule extends ExternalResource
             Config dbConfig = configOf( config );
             if ( pageCache == null )
             {
-                pageCache = rulePageCache( dbConfig, fs );
+                jobScheduler = new ThreadPoolJobScheduler();
+                pageCache = rulePageCache( dbConfig, fs, jobScheduler );
             }
             if ( format == null )
             {
@@ -193,13 +187,21 @@ public class NeoStoresRule extends ExternalResource
         }
     }
 
-    private PageCache rulePageCache( Config dbConfig, FileSystemAbstraction fs )
+    private PageCache rulePageCache( Config dbConfig, FileSystemAbstraction fs, JobScheduler scheduler )
     {
-        return rulePageCache = getOrCreatePageCache( dbConfig, fs );
+        return rulePageCache = getOrCreatePageCache( dbConfig, fs, scheduler );
     }
 
     private EphemeralFileSystemAbstraction ruleFs()
     {
         return ruleFs = new EphemeralFileSystemAbstraction();
+    }
+
+    private static PageCache getOrCreatePageCache( Config config, FileSystemAbstraction fs, JobScheduler jobScheduler )
+    {
+        Log log = NullLog.getInstance();
+        ConfiguringPageCacheFactory pageCacheFactory = new ConfiguringPageCacheFactory( fs, config, NULL,
+                PageCursorTracerSupplier.NULL, log, EmptyVersionContextSupplier.EMPTY, jobScheduler );
+        return pageCacheFactory.getOrCreatePageCache();
     }
 }

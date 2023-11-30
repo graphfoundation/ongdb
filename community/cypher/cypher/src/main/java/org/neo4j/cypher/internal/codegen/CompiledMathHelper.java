@@ -38,12 +38,13 @@
  */
 package org.neo4j.cypher.internal.codegen;
 
+import org.neo4j.cypher.internal.v3_5.util.ArithmeticException;
+import org.neo4j.cypher.internal.v3_5.util.CypherTypeException;
+
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.neo4j.cypher.internal.util.v3_4.ArithmeticException;
-import org.neo4j.cypher.internal.util.v3_4.CypherTypeException;
 import org.neo4j.kernel.impl.util.ValueUtils;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.storable.ArrayValue;
@@ -97,11 +98,11 @@ public final class CompiledMathHelper
             }
             else if ( rhs instanceof AnyValue )
             {
-                return VirtualValues.appendToList( (ListValue) lhs, (AnyValue) rhs );
+                return ((ListValue) lhs).append( (AnyValue) rhs );
             }
             else
             {
-                return VirtualValues.appendToList( (ListValue) lhs, ValueUtils.of( rhs ) );
+                return ((ListValue) lhs).append( ValueUtils.of( rhs ) );
             }
         }
         else if ( rhs instanceof ListValue )
@@ -112,11 +113,11 @@ public final class CompiledMathHelper
             }
             else if ( lhs instanceof AnyValue )
             {
-                return VirtualValues.prependToList( (ListValue) rhs, (AnyValue) lhs );
+                return ( (ListValue) rhs).prepend( (AnyValue) lhs );
             }
             else
             {
-                return VirtualValues.prependToList( (ListValue) rhs, ValueUtils.of( lhs ) );
+                return ((ListValue) rhs).prepend( ValueUtils.of( lhs ) );
             }
         }
         else if ( lhs instanceof List<?> && rhs instanceof List<?> )
@@ -540,6 +541,35 @@ public final class CompiledMathHelper
         AnyValue rhsValue = rhs instanceof AnyValue ? (AnyValue) rhs : Values.of( rhs );
 
         throw new CypherTypeException( String.format( "Cannot calculate modulus of `%s` and `%s`", lhsValue.getTypeName(), rhsValue.getTypeName() ), null );
+    }
+
+    public static Object pow( Object lhs, Object rhs )
+    {
+        if ( lhs == null || rhs == null || lhs == Values.NO_VALUE || rhs == Values.NO_VALUE )
+        {
+            return null;
+        }
+
+        // Handle NumberValues
+        if ( lhs instanceof NumberValue )
+        {
+            lhs = ((NumberValue) lhs).asObject();
+        }
+        if ( rhs instanceof NumberValue )
+        {
+            rhs = ((NumberValue) rhs).asObject();
+        }
+
+        // now we have Numbers
+        if ( lhs instanceof Number && rhs instanceof Number )
+        {
+            return Math.pow( ((Number) lhs).doubleValue(), ((Number) rhs).doubleValue() );
+        }
+
+        AnyValue lhsValue = lhs instanceof AnyValue ? (AnyValue) lhs : Values.of( lhs );
+        AnyValue rhsValue = rhs instanceof AnyValue ? (AnyValue) rhs : Values.of( rhs );
+
+        throw new CypherTypeException( String.format( "Cannot raise `%s` to the power of `%s`", lhsValue.getTypeName(), rhsValue.getTypeName() ), null );
     }
 
     public static int transformToInt( Object value )

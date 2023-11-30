@@ -38,14 +38,21 @@
  */
 package org.neo4j.kernel.api;
 
+import java.util.Map;
+
 import org.neo4j.graphdb.NotInTransactionException;
+import org.neo4j.internal.kernel.api.Kernel;
 import org.neo4j.internal.kernel.api.NodeCursor;
 import org.neo4j.internal.kernel.api.PropertyCursor;
 import org.neo4j.internal.kernel.api.RelationshipScanCursor;
 import org.neo4j.internal.kernel.api.Transaction;
+import org.neo4j.internal.kernel.api.exceptions.schema.SchemaKernelException;
+import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
 import org.neo4j.internal.kernel.api.security.AuthSubject;
+import org.neo4j.internal.kernel.api.security.LoginContext;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
 import org.neo4j.kernel.impl.api.ClockContext;
+import org.neo4j.storageengine.api.schema.IndexDescriptor;
 
 /**
  * Extends the outwards-facing {@link org.neo4j.internal.kernel.api.Transaction} with additional functionality
@@ -73,6 +80,15 @@ public interface KernelTransaction extends Transaction, AssertOpen
     Statement acquireStatement();
 
     /**
+     * Create unique index which will be used to support uniqueness constraint.
+     *
+     * @param schema schema to create unique index for.
+     * @param provider index provider identifier
+     * @return IndexDescriptor for the index to be created.
+     */
+    IndexDescriptor indexUniqueCreate( SchemaDescriptor schema, String provider ) throws SchemaKernelException;
+
+    /**
      * @return the security context this transaction is currently executing in.
      * @throws NotInTransactionException if the transaction is closed.
      */
@@ -95,7 +111,7 @@ public interface KernelTransaction extends Transaction, AssertOpen
 
     /**
      * @return start time of this transaction, i.e. basically {@link System#currentTimeMillis()} when user called
-     * {@link org.neo4j.internal.kernel.api.Session#beginTransaction(Type)}.
+     * {@link Kernel#beginTransaction(Type, LoginContext)}.
      */
     long startTime();
 
@@ -178,6 +194,25 @@ public interface KernelTransaction extends Transaction, AssertOpen
      * API call is made while this cursor is used, it might get corrupted and return wrong results.
      */
     PropertyCursor ambientPropertyCursor();
+
+    /**
+     * Attaches a map of data to this transaction.
+     * The data will be printed when listing queries and inserted in to the query log.
+     * @param metaData The data to add.
+     */
+    void setMetaData( Map<String, Object> metaData );
+
+    /**
+     * Get a map of data that is attached to this transaction.
+     * In cases when no metadata was set before, an empty map is returned.
+     */
+    Map<String, Object> getMetaData();
+
+    /**
+     * @return whether or not this transaction is a schema transaction. Type of transaction is decided
+     * on first write operation, be it data or schema operation.
+     */
+    boolean isSchemaTransaction();
 
     @FunctionalInterface
     interface Revertable extends AutoCloseable

@@ -38,8 +38,11 @@
  */
 package org.neo4j.internal.kernel.api.schema;
 
-import java.util.Optional;
+import org.apache.commons.lang3.ArrayUtils;
+
 import java.util.function.Predicate;
+
+import org.neo4j.storageengine.api.EntityType;
 
 public class SchemaDescriptorPredicates
 {
@@ -51,8 +54,8 @@ public class SchemaDescriptorPredicates
     {
         return supplier ->
         {
-            Optional<Integer> labelOpt = supplier.schema().computeWith( getLabel );
-            return labelOpt.isPresent() && labelOpt.get() == labelId;
+            SchemaDescriptor schema = supplier.schema();
+            return schema.entityType() == EntityType.NODE && ArrayUtils.contains( schema.getEntityTokenIds(), labelId );
         };
     }
 
@@ -60,8 +63,8 @@ public class SchemaDescriptorPredicates
     {
         return supplier ->
         {
-            Optional<Integer> relTypeOpt = supplier.schema().computeWith( getRelType );
-            return relTypeOpt.isPresent() && relTypeOpt.get() == relTypeId;
+            SchemaDescriptor schema = supplier.schema();
+            return schema.entityType() == EntityType.RELATIONSHIP && ArrayUtils.contains( schema.getEntityTokenIds(), relTypeId );
         };
     }
 
@@ -72,14 +75,14 @@ public class SchemaDescriptorPredicates
 
     public static boolean hasLabel( SchemaDescriptorSupplier supplier, int labelId )
     {
-        Optional<Integer> labelOpt = supplier.schema().computeWith( getLabel );
-        return labelOpt.isPresent() && labelOpt.get() == labelId;
+        SchemaDescriptor schema = supplier.schema();
+        return schema.entityType() == EntityType.NODE && ArrayUtils.contains( schema.getEntityTokenIds(), labelId );
     }
 
     public static boolean hasRelType( SchemaDescriptorSupplier supplier, int relTypeId )
     {
-        Optional<Integer> relTypeOpt = supplier.schema().computeWith( getRelType );
-        return relTypeOpt.isPresent() && relTypeOpt.get() == relTypeId;
+        SchemaDescriptor schema = supplier.schema();
+        return schema.entityType() == EntityType.RELATIONSHIP && ArrayUtils.contains( schema.getEntityTokenIds(), relTypeId );
     }
 
     public static boolean hasProperty( SchemaDescriptorSupplier supplier, int propertyId )
@@ -94,34 +97,4 @@ public class SchemaDescriptorPredicates
         }
         return false;
     }
-
-    private static SchemaComputer<Optional<Integer>> getLabel = new SchemaComputer<Optional<Integer>>()
-    {
-        @Override
-        public Optional<Integer> computeSpecific( LabelSchemaDescriptor schema )
-        {
-            return Optional.of( schema.getLabelId() );
-        }
-
-        @Override
-        public Optional<Integer> computeSpecific( RelationTypeSchemaDescriptor schema )
-        {
-            return Optional.empty();
-        }
-    };
-
-    private static SchemaComputer<Optional<Integer>> getRelType = new SchemaComputer<Optional<Integer>>()
-    {
-        @Override
-        public Optional<Integer> computeSpecific( LabelSchemaDescriptor schema )
-        {
-            return Optional.empty();
-        }
-
-        @Override
-        public Optional<Integer> computeSpecific( RelationTypeSchemaDescriptor schema )
-        {
-            return Optional.of( schema.getRelTypeId() );
-        }
-    };
 }

@@ -38,6 +38,7 @@
  */
 package org.neo4j.kernel.impl.store.record;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
@@ -65,18 +66,18 @@ public class PropertyRecord extends AbstractBaseRecord implements Iterable<Prope
     private long nextProp;
     private long prevProp;
     // Holds the purely physical representation of the loaded properties in this record. This is so that
-    // StorePropertyCursor is able to use this raw data without the rather heavy and bloated data structures
+    // RecordPropertyCursor is able to use this raw data without the rather heavy and bloated data structures
     // of PropertyBlock and thereabouts. So when a property record is loaded only these blocks are read,
     // the construction of all PropertyBlock instances are loaded lazily when they are first needed, loaded
     // by ensureBlocksLoaded().
     // Modifications to a property record are still done on the PropertyBlock abstraction and so it's also
     // that data that gets written to the log and record when it's time to do so.
-    private final long[] blocks = new long[PropertyType.getPayloadSizeLongs()];
+    private long[] blocks = new long[PropertyType.getPayloadSizeLongs()];
     private int blocksCursor;
 
     // These MUST ONLY be populated if we're accessing PropertyBlocks. On just loading this record only the
     // next/prev and blocks should be filled.
-    private final PropertyBlock[] blockRecords =
+    private PropertyBlock[] blockRecords =
             new PropertyBlock[PropertyType.getPayloadSizeLongs() /*we can have at most these many*/];
     private boolean blocksLoaded;
     private int blockRecordsCursor;
@@ -157,6 +158,11 @@ public class PropertyRecord extends AbstractBaseRecord implements Iterable<Prope
             return entityId;
         }
         return -1;
+    }
+
+    public long getEntityId()
+    {
+        return entityId;
     }
 
     /**
@@ -381,27 +387,22 @@ public class PropertyRecord extends AbstractBaseRecord implements Iterable<Prope
     @Override
     public PropertyRecord clone()
     {
-        PropertyRecord result = (PropertyRecord) new PropertyRecord( getId() ).initialize( inUse() );
-        result.nextProp = nextProp;
-        result.prevProp = prevProp;
-        result.entityId = entityId;
-        result.entityType = entityType;
-        System.arraycopy( blocks, 0, result.blocks, 0, blocks.length );
-        result.blocksCursor = blocksCursor;
+        PropertyRecord clone = (PropertyRecord) super.clone();
+        clone.blocks = blocks.clone();
+        clone.blockRecords = blockRecords.clone();
         for ( int i = 0; i < blockRecordsCursor; i++ )
         {
-            result.blockRecords[i] = blockRecords[i].clone();
+            clone.blockRecords[i] = clone.blockRecords[i].clone();
         }
-        result.blockRecordsCursor = blockRecordsCursor;
-        result.blocksLoaded = blocksLoaded;
         if ( deletedRecords != null )
         {
+            clone.deletedRecords = new ArrayList<>( deletedRecords.size() );
             for ( DynamicRecord deletedRecord : deletedRecords )
             {
-                result.addDeletedRecord( deletedRecord.clone() );
+                clone.deletedRecords.add( deletedRecord.clone() );
             }
         }
-        return result;
+        return clone;
     }
 
     public long[] getBlocks()

@@ -38,18 +38,21 @@
  */
 package org.neo4j.cypher.internal.javacompat;
 
-import org.neo4j.cypher.internal.CommunityCompatibilityFactory;
+import org.neo4j.cypher.internal.CommunityCompilerFactory;
+import org.neo4j.cypher.internal.CypherConfiguration;
+import org.neo4j.cypher.internal.compatibility.CypherRuntimeConfiguration;
+import org.neo4j.cypher.internal.compiler.v3_5.CypherPlannerConfiguration;
 import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.Service;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.logging.LogService;
 import org.neo4j.kernel.impl.query.QueryEngineProvider;
 import org.neo4j.kernel.impl.query.QueryExecutionEngine;
 import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.logging.internal.LogService;
 
 @Service.Implementation( QueryEngineProvider.class )
 public class CommunityCypherEngineProvider extends QueryEngineProvider
@@ -75,30 +78,33 @@ public class CommunityCypherEngineProvider extends QueryEngineProvider
         LogService logService = resolver.resolveDependency( LogService.class );
         Monitors monitors = resolver.resolveDependency( Monitors.class );
         Config config = resolver.resolveDependency( Config.class );
+        CypherConfiguration cypherConfig = CypherConfiguration.fromConfig( config );
+        CypherPlannerConfiguration plannerConfig = cypherConfig.toCypherPlannerConfiguration( config );
+        CypherRuntimeConfiguration runtimeConfig = cypherConfig.toCypherRuntimeConfiguration();
         LogProvider logProvider = logService.getInternalLogProvider();
-        CommunityCompatibilityFactory compatibilityFactory =
-                new CommunityCompatibilityFactory( queryService, monitors, logProvider );
-        deps.satisfyDependencies( compatibilityFactory );
-        return createEngine( queryService, config, logProvider, compatibilityFactory );
+        CommunityCompilerFactory compilerFactory =
+                new CommunityCompilerFactory( queryService, monitors, logProvider, plannerConfig, runtimeConfig );
+        deps.satisfyDependencies( compilerFactory );
+        return createEngine( queryService, config, logProvider, compilerFactory );
     }
 
     private QueryExecutionEngine createEngine( GraphDatabaseCypherService queryService, Config config,
-            LogProvider logProvider, CommunityCompatibilityFactory compatibilityFactory )
+                                               LogProvider logProvider, CommunityCompilerFactory compilerFactory )
     {
         return config.get( GraphDatabaseSettings.snapshot_query ) ?
-               snapshotEngine( queryService, config, logProvider, compatibilityFactory ) :
-               standardEngine( queryService, logProvider, compatibilityFactory );
+               snapshotEngine( queryService, config, logProvider, compilerFactory ) :
+               standardEngine( queryService, logProvider, compilerFactory );
     }
 
     private SnapshotExecutionEngine snapshotEngine( GraphDatabaseCypherService queryService, Config config,
-            LogProvider logProvider, CommunityCompatibilityFactory compatibilityFactory )
+                                                    LogProvider logProvider, CommunityCompilerFactory compilerFactory )
     {
-        return new SnapshotExecutionEngine( queryService, config, logProvider, compatibilityFactory );
+        return new SnapshotExecutionEngine( queryService, config, logProvider, compilerFactory );
     }
 
     private ExecutionEngine standardEngine( GraphDatabaseCypherService queryService, LogProvider logProvider,
-            CommunityCompatibilityFactory compatibilityFactory )
+                                            CommunityCompilerFactory compilerFactory )
     {
-        return new ExecutionEngine( queryService, logProvider, compatibilityFactory );
+        return new ExecutionEngine( queryService, logProvider, compilerFactory );
     }
 }

@@ -42,7 +42,9 @@ import java.util.Arrays;
 import java.util.function.Function;
 
 import org.neo4j.function.ThrowingConsumer;
-import org.neo4j.helpers.Exceptions;
+import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.kernel.impl.annotations.ReporterFactory;
+import org.neo4j.kernel.impl.index.schema.ConsistencyCheckable;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.ValueGroup;
 
@@ -87,15 +89,7 @@ public abstract class FusionIndexBase<T>
      */
     public static <T, E extends Exception> void forAll( ThrowingConsumer<T,E> consumer, Iterable<T> subjects ) throws E
     {
-        E exception = null;
-        for ( T instance : subjects )
-        {
-            exception = consume( exception, consumer, instance );
-        }
-        if ( exception != null )
-        {
-            throw exception;
-        }
+        Iterables.safeForAll( consumer, subjects );
     }
 
     /**
@@ -122,16 +116,13 @@ public abstract class FusionIndexBase<T>
         forAll( consumer, Arrays.asList( subjects ) );
     }
 
-    private static <E extends Exception, T> E consume( E exception, ThrowingConsumer<T,E> consumer, T instance )
+    public static <T extends ConsistencyCheckable> boolean consistencyCheck( Iterable<T> checkables, ReporterFactory reporterFactory )
     {
-        try
+        boolean result = true;
+        for ( ConsistencyCheckable part : checkables )
         {
-            consumer.accept( instance );
+            result &= part.consistencyCheck( reporterFactory );
         }
-        catch ( Exception e )
-        {
-            exception = Exceptions.chain( exception, (E) e );
-        }
-        return exception;
+        return result;
     }
 }

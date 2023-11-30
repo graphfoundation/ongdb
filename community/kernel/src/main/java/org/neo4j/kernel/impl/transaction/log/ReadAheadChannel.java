@@ -46,8 +46,6 @@ import org.neo4j.storageengine.api.ReadPastEndException;
 
 import static java.lang.Math.min;
 import static java.lang.Math.toIntExact;
-import static java.lang.System.arraycopy;
-
 import static org.neo4j.io.ByteUnit.kibiBytes;
 
 /**
@@ -70,10 +68,15 @@ public class ReadAheadChannel<T extends StoreChannel> implements ReadableClosabl
 
     public ReadAheadChannel( T channel, int readAheadSize )
     {
-        this.aheadBuffer = ByteBuffer.allocate( readAheadSize );
+        this( channel, ByteBuffer.allocate( readAheadSize ) );
+    }
+
+    public ReadAheadChannel( T channel, ByteBuffer byteBuffer )
+    {
+        this.aheadBuffer = byteBuffer;
         this.aheadBuffer.position( aheadBuffer.capacity() );
         this.channel = channel;
-        this.readAheadSize = readAheadSize;
+        this.readAheadSize = byteBuffer.capacity();
     }
 
     /**
@@ -161,7 +164,7 @@ public class ReadAheadChannel<T extends StoreChannel> implements ReadableClosabl
 
         // We ran out, try to read some more
         // start by copying the remaining bytes to the beginning
-        compactToBeginningOfBuffer( remaining );
+        aheadBuffer.compact();
 
         while ( aheadBuffer.position() < aheadBuffer.capacity() )
         {   // read from the current channel to try and fill the buffer
@@ -201,19 +204,6 @@ public class ReadAheadChannel<T extends StoreChannel> implements ReadableClosabl
     protected T next( T channel ) throws IOException
     {
         return channel;
-    }
-
-    /*
-     * Moves bytes between aheadBuffer.position() and aheadBuffer.capacity() to the beginning of aheadBuffer. At the
-     * end of this call the aheadBuffer is positioned in end of that moved content.
-     * This is to be used in preparation of reading more content in from the channel without having exhausted all
-     * previous bytes.
-     */
-    private void compactToBeginningOfBuffer( int remaining )
-    {
-        arraycopy( aheadBuffer.array(), aheadBuffer.position(), aheadBuffer.array(), 0, remaining );
-        aheadBuffer.clear();
-        aheadBuffer.position( remaining );
     }
 
     @Override

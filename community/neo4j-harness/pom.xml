@@ -78,12 +78,30 @@
             <scope>provided</scope>
             <optional>true</optional>
         </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-migrationsupport</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>ongdb-common</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb.community</groupId>
+            <artifactId>it-test-support</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
@@ -142,5 +160,11 @@
             <artifactId>ongdb-kernel</artifactId>
             <version>${project.version}</version>
         </dependency>
+
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+        </dependency>
+
     </dependencies>
 </project>

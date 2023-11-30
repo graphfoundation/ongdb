@@ -51,12 +51,26 @@ public interface Write
 {
     /**
      * Create a node.
+     *
      * @return The internal id of the created node
      */
     long nodeCreate();
 
     /**
+     * Create a node, and assign it the given array of labels.
+     * <p>
+     * This method differs from a {@link #nodeCreate()} and {@link #nodeAddLabel(long, int)} sequence, in that we will
+     * avoid taking the "unlabelled node lock" of the {@code nodeCreate}, and we will avoid taking the exclusive node
+     * lock in the {@code nodeAddLabel} method.
+     *
+     * @param labels The labels to assign to the newly created node.
+     * @return The internal id of the created node.
+     */
+    long nodeCreateWithLabels( int[] labels ) throws ConstraintValidationException;
+
+    /**
      * Delete a node.
+     *
      * @param node the internal id of the node to delete
      * @return returns true if it deleted a node or false if no node was found for this id
      */
@@ -64,6 +78,7 @@ public interface Write
 
     /**
      * Deletes the node and all relationships connecting the node
+     *
      * @param node the node to delete
      * @return the number of deleted relationships
      */
@@ -71,6 +86,7 @@ public interface Write
 
     /**
      * Create a relationship between two nodes.
+     *
      * @param sourceNode the source internal node id
      * @param relationshipType the type of the relationship to create
      * @param targetNode the target internal node id
@@ -80,11 +96,14 @@ public interface Write
 
     /**
      * Delete a relationship
+     *
      * @param relationship the internal id of the relationship to delete
      */
     boolean relationshipDelete( long relationship ) throws AutoIndexingKernelException;
+
     /**
      * Add a label to a node
+     *
      * @param node the internal node id
      * @param nodeLabel the internal id of the label to add
      * @return {@code true} if a label was added otherwise {@code false}
@@ -94,6 +113,7 @@ public interface Write
 
     /**
      * Remove a label from a node
+     *
      * @param node the internal node id
      * @param nodeLabel the internal id of the label to remove
      * @return {@code true} if node was removed otherwise {@code false}
@@ -102,6 +122,7 @@ public interface Write
 
     /**
      * Set a property on a node
+     *
      * @param node the internal node id
      * @param propertyKey the property key id
      * @param value the value to set
@@ -112,6 +133,7 @@ public interface Write
 
     /**
      * Remove a property from a node
+     *
      * @param node the internal node id
      * @param propertyKey the property key id
      * @return The removed value, or Values.NO_VALUE if the node did not have the property before
@@ -120,23 +142,28 @@ public interface Write
 
     /**
      * Set a property on a relationship
+     *
      * @param relationship the internal relationship id
      * @param propertyKey the property key id
      * @param value the value to set
      * @return The replaced value, or Values.NO_VALUE if the relationship did not have the property before
      */
-    Value relationshipSetProperty( long relationship, int propertyKey, Value value ) throws EntityNotFoundException, AutoIndexingKernelException;
+    Value relationshipSetProperty( long relationship, int propertyKey, Value value )
+            throws EntityNotFoundException, AutoIndexingKernelException;
 
     /**
      * Remove a property from a relationship
+     *
      * @param relationship the internal relationship id
      * @param propertyKey the property key id
      * @return The removed value, or Values.NO_VALUE if the relationship did not have the property before
      */
-    Value relationshipRemoveProperty( long relationship, int propertyKey ) throws EntityNotFoundException, AutoIndexingKernelException;
+    Value relationshipRemoveProperty( long relationship, int propertyKey )
+            throws EntityNotFoundException, AutoIndexingKernelException;
 
     /**
      * Set a property on the graph
+     *
      * @param propertyKey the property key id
      * @param value the value to set
      * @return The replaced value, or Values.NO_VALUE if the graph did not have the property before
@@ -145,6 +172,7 @@ public interface Write
 
     /**
      * Remove a property from the graph
+     *
      * @param propertyKey the property key id
      * @return The removed value, or Values.NO_VALUE if the graph did not have the property before
      */

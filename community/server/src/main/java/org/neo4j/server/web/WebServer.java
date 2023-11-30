@@ -45,7 +45,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Consumer;
 import javax.servlet.Filter;
 import javax.servlet.ServletException;
@@ -59,9 +58,9 @@ import org.neo4j.ssl.SslPolicy;
 
 public interface WebServer
 {
-    void setAddress( ListenSocketAddress address );
+    void setHttpAddress( ListenSocketAddress address );
 
-    void setHttpsAddress( Optional<ListenSocketAddress> address );
+    void setHttpsAddress( ListenSocketAddress address );
 
     void setSslPolicy( SslPolicy sslPolicy );
 

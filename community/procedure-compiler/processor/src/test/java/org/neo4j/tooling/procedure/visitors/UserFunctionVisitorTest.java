@@ -42,6 +42,7 @@ import com.google.testing.compile.CompilationRule;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.jupiter.api.condition.JRE;
 
 import java.util.stream.Stream;
 import javax.lang.model.element.Element;
@@ -147,8 +148,9 @@ public class UserFunctionVisitorTest
 
         Stream<CompilationMessage> errors = visitor.visit( function );
 
+        String errorMessage = JRE.JAVA_11.isCurrentVersion() ? "@org.neo4j.procedure.Name usage error: missing on parameter <oops>"
+                                                             : "@org.neo4j.procedure.Name usage error: missing on parameter <arg1>";
         assertThat( errors ).hasSize( 1 ).extracting( CompilationMessage::getCategory, CompilationMessage::getContents )
-                .contains( tuple( Diagnostic.Kind.ERROR,
-                        "@org.neo4j.procedure.Name usage error: missing on parameter <arg1>" ) );
+                .contains( tuple( Diagnostic.Kind.ERROR, errorMessage ) );
     }
 }

@@ -61,7 +61,6 @@ import static org.neo4j.kernel.impl.transaction.log.LogVersionBridge.NO_MORE_CHA
 
 public class ReadAheadLogChannelTest
 {
-
     @Rule
     public final DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
     @Rule

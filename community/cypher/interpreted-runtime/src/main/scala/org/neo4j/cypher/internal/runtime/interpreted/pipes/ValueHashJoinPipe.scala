@@ -40,7 +40,7 @@ package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
 
@@ -49,6 +49,9 @@ import scala.collection.mutable
 case class ValueHashJoinPipe(lhsExpression: Expression, rhsExpression: Expression, left: Pipe, right: Pipe)
                             (val id: Id = Id.INVALID_ID)
   extends PipeWithSource(left) {
+
+  lhsExpression.registerOwningPipe(this)
+  rhsExpression.registerOwningPipe(this)
 
   override protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
 
@@ -65,12 +68,15 @@ case class ValueHashJoinPipe(lhsExpression: Expression, rhsExpression: Expressio
     if (table.isEmpty)
       return Iterator.empty
 
-    val result = for {context: ExecutionContext <- rhsIterator
-                      joinKey = rhsExpression(context, state) if joinKey != Values.NO_VALUE}
+    val result = for {rhsRow <- rhsIterator
+                      joinKey = rhsExpression(rhsRow, state) if joinKey != Values.NO_VALUE}
       yield {
-
-        val seq = table.getOrElse(joinKey, mutable.MutableList.empty)
-        seq.map(context.mergeWith)
+        val lhsRows = table.getOrElse(joinKey, mutable.MutableList.empty)
+        lhsRows.map { lhsRow =>
+          val outputRow = lhsRow.createClone()
+          outputRow.mergeWith(rhsRow, state.query)
+          outputRow
+        }
       }
 
     result.flatten

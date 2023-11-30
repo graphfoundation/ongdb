@@ -52,7 +52,7 @@ import org.neo4j.graphdb.TransactionTerminatedException;
 import org.neo4j.graphdb.TransientFailureException;
 
 /**
- * ONgDB transaction template that automates the retry-on-exception logic. It uses the builder
+ * Neo4j transaction template that automates the retry-on-exception logic. It uses the builder
  * pattern for configuration, with copy-semantics, so you can iteratively build up instances for
  * different scenarios.
  * <p>

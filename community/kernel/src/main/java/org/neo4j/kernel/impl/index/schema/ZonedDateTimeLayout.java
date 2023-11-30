@@ -44,17 +44,17 @@ import org.neo4j.io.pagecache.PageCursor;
 /**
  * {@link Layout} for absolute date times.
  */
-class ZonedDateTimeLayout extends SchemaLayout<ZonedDateTimeSchemaKey>
+class ZonedDateTimeLayout extends IndexLayout<ZonedDateTimeIndexKey,NativeIndexValue>
 {
     // A 1 signals a named time zone is stored, a 0 that an offset is stored
-    private static final int ZONE_ID_FLAG = 0x0100_0000;
+    static final int ZONE_ID_FLAG = 0x0100_0000;
     // Mask for offsets to remove to not collide with the flag for negative numbers
     // It is 24 bits which allows to store all possible minute offsets
-    private static final int ZONE_ID_MASK = 0x00FF_FFFF;
+    static final int ZONE_ID_MASK = 0x00FF_FFFF;
     // This is used to determine if the value is negative (after applying the bitmask)
-    private static final int ZONE_ID_HIGH = 0x0080_0000;
+    static final int ZONE_ID_HIGH = 0x0080_0000;
     // This is ised to restore masked negative offsets to their real value
-    private static final int ZONE_ID_EXT =  0xFF00_0000;
+    static final int ZONE_ID_EXT =  0xFF00_0000;
 
     ZonedDateTimeLayout()
     {
@@ -62,13 +62,13 @@ class ZonedDateTimeLayout extends SchemaLayout<ZonedDateTimeSchemaKey>
     }
 
     @Override
-    public ZonedDateTimeSchemaKey newKey()
+    public ZonedDateTimeIndexKey newKey()
     {
-        return new ZonedDateTimeSchemaKey();
+        return new ZonedDateTimeIndexKey();
     }
 
     @Override
-    public ZonedDateTimeSchemaKey copyKey( ZonedDateTimeSchemaKey key, ZonedDateTimeSchemaKey into )
+    public ZonedDateTimeIndexKey copyKey( ZonedDateTimeIndexKey key, ZonedDateTimeIndexKey into )
     {
         into.epochSecondUTC = key.epochSecondUTC;
         into.nanoOfSecond = key.nanoOfSecond;
@@ -80,13 +80,13 @@ class ZonedDateTimeLayout extends SchemaLayout<ZonedDateTimeSchemaKey>
     }
 
     @Override
-    public int keySize( ZonedDateTimeSchemaKey key )
+    public int keySize( ZonedDateTimeIndexKey key )
     {
-        return ZonedDateTimeSchemaKey.SIZE;
+        return ZonedDateTimeIndexKey.SIZE;
     }
 
     @Override
-    public void writeKey( PageCursor cursor, ZonedDateTimeSchemaKey key )
+    public void writeKey( PageCursor cursor, ZonedDateTimeIndexKey key )
     {
         cursor.putLong( key.epochSecondUTC );
         cursor.putInt( key.nanoOfSecond );
@@ -102,7 +102,7 @@ class ZonedDateTimeLayout extends SchemaLayout<ZonedDateTimeSchemaKey>
     }
 
     @Override
-    public void readKey( PageCursor cursor, ZonedDateTimeSchemaKey into, int keySize )
+    public void readKey( PageCursor cursor, ZonedDateTimeIndexKey into, int keySize )
     {
         into.epochSecondUTC = cursor.getLong();
         into.nanoOfSecond = cursor.getInt();
@@ -120,7 +120,7 @@ class ZonedDateTimeLayout extends SchemaLayout<ZonedDateTimeSchemaKey>
         into.setEntityId( cursor.getLong() );
     }
 
-    private int asZoneOffset( int encodedZone )
+    static int asZoneOffset( int encodedZone )
     {
         if ( (ZONE_ID_HIGH & encodedZone) == ZONE_ID_HIGH )
         {
@@ -132,12 +132,12 @@ class ZonedDateTimeLayout extends SchemaLayout<ZonedDateTimeSchemaKey>
         }
     }
 
-    private short asZoneId( int encodedZone )
+    static short asZoneId( int encodedZone )
     {
         return (short) ( encodedZone & ZONE_ID_MASK );
     }
 
-    private boolean isZoneId( int encodedZone )
+    static boolean isZoneId( int encodedZone )
     {
         return ( encodedZone & ZONE_ID_FLAG ) != 0;
     }

@@ -38,55 +38,57 @@
  */
 package org.neo4j.kernel.impl.transaction.state;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
 import org.neo4j.kernel.api.index.IndexProvider;
+import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.impl.api.index.IndexProviderNotFoundException;
+import org.neo4j.kernel.impl.util.Dependencies;
 
-import static java.util.Collections.singletonList;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class DefaultIndexProviderMapTest
+class DefaultIndexProviderMapTest
 {
     @Test
-    public void shouldNotSupportMultipleProvidersWithSameDescriptor()
+    void shouldNotSupportMultipleProvidersWithSameDescriptor()
     {
         // given
-        IndexProvider.Descriptor descriptor = new IndexProvider.Descriptor( "provider", "1.2" );
+        IndexProviderDescriptor descriptor = new IndexProviderDescriptor( "provider", "1.2" );
         IndexProvider provider1 = mock( IndexProvider.class );
         when( provider1.getProviderDescriptor() ).thenReturn( descriptor );
         IndexProvider provider2 = mock( IndexProvider.class );
         when( provider2.getProviderDescriptor() ).thenReturn( descriptor );
 
+        Dependencies dependencies = new Dependencies();
+        dependencies.satisfyDependency( provider1 );
+        dependencies.satisfyDependency( provider2 );
+
         // when
-        try
-        {
-            new DefaultIndexProviderMap( provider1, singletonList( provider2 ) );
-            fail( "Should have failed" );
-        }
-        catch ( IllegalArgumentException e )
-        {
-            // then good
-        }
+        assertThrows( IllegalArgumentException.class, () -> createDefaultProviderMap( dependencies, descriptor ).init() );
     }
 
     @Test
-    public void shouldThrowOnLookupOnUnknownProvider()
+    void shouldThrowOnLookupOnUnknownProvider()
     {
         // given
         IndexProvider provider = mock( IndexProvider.class );
-        when( provider.getProviderDescriptor() ).thenReturn( new IndexProvider.Descriptor( "provider", "1.2" ) );
+        IndexProviderDescriptor descriptor = new IndexProviderDescriptor( "provider", "1.2" );
+        when( provider.getProviderDescriptor() ).thenReturn( descriptor );
+        Dependencies dependencies = new Dependencies();
+        dependencies.satisfyDependency( provider );
 
         // when
-        try
-        {
-            new DefaultIndexProviderMap( provider ).lookup( new IndexProvider.Descriptor( "provider2", "1.2" ) );
-            fail( "Should have failed" );
-        }
-        catch ( IllegalArgumentException e )
-        {
-            // then good
-        }
+        DefaultIndexProviderMap defaultIndexProviderMap = createDefaultProviderMap( dependencies, descriptor );
+        defaultIndexProviderMap.init();
+        assertThrows( IndexProviderNotFoundException.class, () -> defaultIndexProviderMap.lookup( new IndexProviderDescriptor( "provider2", "1.2" ) ) );
+    }
+
+    private static DefaultIndexProviderMap createDefaultProviderMap( Dependencies dependencies, IndexProviderDescriptor descriptor )
+    {
+        return new DefaultIndexProviderMap( dependencies, Config.defaults( GraphDatabaseSettings.default_schema_provider, descriptor.name() ) );
     }
 }

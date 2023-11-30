@@ -58,9 +58,8 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-primitive-collections</artifactId>
-            <version>${project.version}</version>
+            <groupId>com.google.code.findbugs</groupId>
+            <artifactId>annotations</artifactId>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
@@ -83,8 +82,17 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-diagnostics</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.collections</groupId>
+            <artifactId>eclipse-collections</artifactId>
         </dependency>
 
         <!-- Test dependencies -->
@@ -95,10 +103,24 @@
             <scope>test</scope>
             <type>test-jar</type>
         </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-random-values</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
 
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-migrationsupport</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
         </dependency>
         <dependency>
             <groupId>org.hamcrest</groupId>
@@ -107,6 +129,10 @@
         <dependency>
             <groupId>org.hamcrest</groupId>
             <artifactId>hamcrest-library</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
         </dependency>
     </dependencies>
 
