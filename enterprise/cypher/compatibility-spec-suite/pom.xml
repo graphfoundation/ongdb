@@ -10,12 +10,12 @@
         <relativePath>../</relativePath>
     </parent>
 
-    <artifactId>ongdb-geequel-compatibility-spec-suite</artifactId>
+    <artifactId>ongdb-enterprise-geequel-compatibility-spec-suite</artifactId>
     <version>1.1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>ONgDB - Geequel Compatibility Specification Suite</name>
-    <description>ONgDB query language compatibility suite</description>
+    <name>ONgDB - Enterprise Geequel Compatibility Specification Suite</name>
+    <description>ONgDB enterprise edition query language compatibility suite</description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
     <scm>
