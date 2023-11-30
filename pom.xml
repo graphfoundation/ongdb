@@ -605,6 +605,31 @@
                     </executions>
                 </plugin>
 
+                <!-- Scala style check settings -->
+                <plugin>
+                    <groupId>org.scalastyle</groupId>
+                    <artifactId>scalastyle-maven-plugin</artifactId>
+                    <version>1.0.0</version>
+                    <configuration>
+                        <verbose>false</verbose>
+                        <failOnWarning>false</failOnWarning>
+                        <failOnViolation>true</failOnViolation>
+                        <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                        <inputEncoding>UTF-8</inputEncoding>
+                        <sourceDirectory>${basedir}/src/main/scala</sourceDirectory>
+                        <testSourceDirectory>${basedir}/src/test/scala</testSourceDirectory>
+                        <outputEncoding>UTF-8</outputEncoding>
+                        <outputFile>${basedir}/target/scalastyle-output.xml</outputFile>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+
                 <!-- Enforce naming if packages -->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
