@@ -42,7 +42,6 @@
                 </property>
             </activation>
             <modules>
-                <module>spec-suite-tools</module>
                 <module>physical-planning</module>
                 <module>slotted-runtime</module>
                 <module>morsel-runtime</module>
