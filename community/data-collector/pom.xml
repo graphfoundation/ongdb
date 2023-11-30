@@ -79,7 +79,7 @@
             <artifactId>scala-reflect</artifactId>
         </dependency>
 
-        <!-- neo4j -->
+        <!-- ongdb -->
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>

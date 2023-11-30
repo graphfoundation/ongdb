@@ -101,7 +101,7 @@
             <artifactId>scalacheck_2.11</artifactId>
         </dependency>
 
-        <!-- neo4j -->
+        <!-- ongdb -->
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
@@ -114,7 +114,7 @@
             <version>${project.version}</version>
         </dependency>
 
-        <!-- neo4j testing -->
+        <!-- ongdb testing -->
 
         <dependency>
             <groupId>org.graphfoundation.ongdb.community</groupId>

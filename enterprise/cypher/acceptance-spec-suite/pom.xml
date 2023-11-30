@@ -124,7 +124,7 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- neo4j -->
+        <!-- ongdb -->
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>

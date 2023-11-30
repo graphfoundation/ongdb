@@ -121,7 +121,7 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- neo4j -->
+            <!-- ongdb -->
             <dependency>
                 <groupId>org.graphfoundation.ongdb</groupId>
                 <artifactId>ongdb-kernel</artifactId>

@@ -69,7 +69,7 @@
 
         <!-- shared versions are defined in the parent pom -->
 
-        <!-- neo4j -->
+        <!-- ongdb -->
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>

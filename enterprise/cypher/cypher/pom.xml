@@ -98,7 +98,7 @@
             <artifactId>scalacheck_2.11</artifactId>
         </dependency>
 
-        <!-- neo4j -->
+        <!-- ongdb -->
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
