@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>parent</artifactId>
@@ -8,27 +10,25 @@
         <relativePath>../..</relativePath>
     </parent>
 
-    <modelVersion>4.0.0</modelVersion>
     <groupId>org.graphfoundation.ongdb.app</groupId>
     <artifactId>ongdb-server-enterprise</artifactId>
     <version>1.1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
 
     <name>ONgDB - Enterprise Server</name>
     <description>Standalone ONgDB server application.</description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
-
-    <packaging>jar</packaging>
-
-    <properties>
-        <license-text.header>headers/AGPL-3-header.txt</license-text.header>
-        <moduleName>org.neo4j.server.enterprise</moduleName>
-    </properties>
 
     <scm>
         <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
         <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
         <url>https://github.com/graphfoundation/ongdb.git</url>
     </scm>
+
+    <properties>
+        <license-text.header>headers/AGPL-3-header.txt</license-text.header>
+        <moduleName>org.neo4j.server.enterprise</moduleName>
+    </properties>
 
     <licenses>
         <license>

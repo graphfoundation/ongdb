@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
                       http://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -5,17 +6,24 @@
 
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
-        <artifactId>cypher-parent</artifactId>
+        <artifactId>geequel-parent</artifactId>
         <version>1.1.0-SNAPSHOT</version>
         <relativePath>../../community/cypher/</relativePath>
     </parent>
 
-    <artifactId>cypher-enterprise-parent</artifactId>
+    <artifactId>geequel-enterprise-parent</artifactId>
     <version>1.1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
+
     <name>ONgDB - Enterprise Geequel Build</name>
     <description>Project that builds the ONgDB Geequel modules as part of the Enterprise distribution.</description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
+
+    <scm>
+        <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
+        <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+        <url>https://github.com/graphfoundation/ongdb.git</url>
+    </scm>
 
     <properties>
         <licensing.prepend.text>licensing/notice-agpl-prefix.txt</licensing.prepend.text>
@@ -24,12 +32,6 @@
         <junit-plattform-runner.version>1.1.0</junit-plattform-runner.version>
         <junit-jupiter.version>5.1.0</junit-jupiter.version>
     </properties>
-
-    <scm>
-        <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
-        <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
-        <url>https://github.com/graphfoundation/ongdb.git</url>
-    </scm>
 
     <profiles>
         <profile>
@@ -41,12 +43,12 @@
             </activation>
             <modules>
                 <module>spec-suite-tools</module>
-                <module>acceptance-spec-suite</module>
-                <module>compatibility-spec-suite</module>
                 <module>physical-planning</module>
                 <module>slotted-runtime</module>
                 <module>morsel-runtime</module>
                 <module>cypher</module>
+                <module>acceptance-spec-suite</module>
+                <module>compatibility-spec-suite</module>
             </modules>
         </profile>
     </profiles>

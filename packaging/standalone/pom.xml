@@ -6,18 +6,15 @@
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>parent</artifactId>
         <version>1.1.0-SNAPSHOT</version>
-
         <relativePath>../..</relativePath>
     </parent>
 
     <groupId>org.graphfoundation.ongdb.assembly</groupId>
     <artifactId>ongdb-standalone</artifactId>
+    <version>1.1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>ONgDB - Server Assembler</name>
-
-    <version>1.1.0-SNAPSHOT</version>
-
     <description>This project assembles the ONgDB stand-alone distribution,
         pulling together all the deliverable artifacts and packaging them
         into a downloadable installer.
@@ -29,11 +26,6 @@
         <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
         <url>https://github.com/graphfoundation/ongdb.git</url>
     </scm>
-
-    <modules>
-        <module>standalone-community</module>
-        <module>standalone-enterprise</module>
-    </modules>
 
     <properties>
         <!-- other filter properties -->
@@ -51,6 +43,11 @@
         <ongdb.datadir>${ongdb.home}/data</ongdb.datadir>
         <ongdb.logdir>${ongdb.datadir}/log</ongdb.logdir>
     </properties>
+
+    <modules>
+        <module>standalone-community</module>
+        <module>standalone-enterprise</module>
+    </modules>
 
     <licenses>
         <license>

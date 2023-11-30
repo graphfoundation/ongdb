@@ -1,30 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>parent</artifactId>
         <version>1.1.0-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
+
     <artifactId>ongdb-cluster</artifactId>
     <version>1.1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
 
     <name>ONgDB - Clustering Infrastructure</name>
     <description>Library implementing Paxos and Heartbeat components required for High Availability ONgDB</description>
-    <packaging>jar</packaging>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
-
-    <properties>
-        <license-text.header>headers/AGPL-3-header.txt</license-text.header>
-        <moduleName>org.neo4j.cluster</moduleName>
-    </properties>
 
     <scm>
         <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
         <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
         <url>https://github.com/graphfoundation/ongdb.git</url>
     </scm>
+
+    <properties>
+        <license-text.header>headers/AGPL-3-header.txt</license-text.header>
+        <moduleName>org.neo4j.cluster</moduleName>
+    </properties>
 
     <licenses>
         <license>

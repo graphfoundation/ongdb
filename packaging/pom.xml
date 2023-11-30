@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>parent</artifactId>
@@ -9,25 +11,24 @@
         <relativePath>..</relativePath>
     </parent>
 
-    <modelVersion>4.0.0</modelVersion>
     <groupId>org.graphfoundation.ongdb.build</groupId>
     <artifactId>packaging-build</artifactId>
     <version>1.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
 
     <name>ONgDB - Packaging Build</name>
-    <packaging>pom</packaging>
     <description>Project that builds ONgDB Packages.</description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
-
-    <properties>
-        <license-text.header>headers/AGPL-3-header.txt</license-text.header>
-    </properties>
 
     <scm>
         <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
         <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
         <url>https://github.com/graphfoundation/ongdb.git</url>
     </scm>
+
+    <properties>
+        <license-text.header>headers/AGPL-3-header.txt</license-text.header>
+    </properties>
 
     <modules>
         <module>standalone</module>

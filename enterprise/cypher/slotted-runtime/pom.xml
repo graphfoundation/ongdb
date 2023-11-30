@@ -1,33 +1,33 @@
-<?xml version="1.0"?>
-
-
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
-        <artifactId>cypher-enterprise-parent</artifactId>
+        <artifactId>geequel-enterprise-parent</artifactId>
         <version>1.1.0-SNAPSHOT</version>
         <relativePath>../</relativePath>
     </parent>
 
-    <modelVersion>4.0.0</modelVersion>
     <artifactId>ongdb-geequel-slotted-runtime</artifactId>
-    <packaging>jar</packaging>
     <version>1.1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
     <name>ONgDB - Geequel Slotted Runtime</name>
     <description>Planner for the physical query plans</description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
-
-    <properties>
-        <license-text.header>headers/AGPL-3-header.txt</license-text.header>
-        <moduleName>org.neo4j.cypher.internal.compatibility.v3_4.runtime.slotted</moduleName>
-    </properties>
 
     <scm>
         <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
         <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
         <url>https://github.com/graphfoundation/ongdb.git</url>
     </scm>
+
+    <properties>
+        <license-text.header>headers/AGPL-3-header.txt</license-text.header>
+        <moduleName>org.neo4j.cypher.internal.compatibility.v3_4.runtime.slotted</moduleName>
+    </properties>
 
     <licenses>
         <license>
@@ -98,7 +98,7 @@
             <artifactId>scalacheck_2.11</artifactId>
         </dependency>
 
-        <!-- neo4j -->
+        <!-- ongdb -->
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
@@ -203,7 +203,7 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- ongdb-cypher re-include excluded (with correct version) -->
+        <!-- ongdb-geequel re-include excluded (with correct version) -->
 
         <dependency>
             <groupId>org.parboiled</groupId>
