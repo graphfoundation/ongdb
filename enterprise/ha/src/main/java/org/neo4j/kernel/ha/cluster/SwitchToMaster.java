@@ -54,7 +54,7 @@ import org.neo4j.kernel.ha.com.master.Master;
 import org.neo4j.kernel.ha.com.master.MasterServer;
 import org.neo4j.kernel.ha.com.master.SlaveFactory;
 import org.neo4j.kernel.ha.id.HaIdGeneratorFactory;
-import org.neo4j.kernel.impl.logging.LogService;
+import  org.neo4j.logging.internal.LogService;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.logging.Log;
 

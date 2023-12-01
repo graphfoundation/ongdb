@@ -38,7 +38,7 @@ import java.io.File;
 import java.io.IOException;
 
 import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.kernel.impl.logging.LogService;
+import  org.neo4j.logging.internal.LogService;
 import org.neo4j.logging.Log;
 
 import static org.neo4j.com.storecopy.StoreUtil.cleanStoreDir;

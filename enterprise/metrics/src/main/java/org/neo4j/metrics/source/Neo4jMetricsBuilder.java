@@ -45,7 +45,7 @@ import org.neo4j.kernel.ha.cluster.member.ClusterMembers;
 import org.neo4j.kernel.impl.api.LogRotationMonitor;
 import org.neo4j.kernel.impl.factory.Edition;
 import org.neo4j.kernel.impl.factory.OperationalMode;
-import org.neo4j.kernel.impl.logging.LogService;
+import  org.neo4j.logging.internal.LogService;
 import org.neo4j.kernel.impl.spi.KernelContext;
 import org.neo4j.kernel.impl.store.stats.StoreEntityCounters;
 import org.neo4j.kernel.impl.transaction.TransactionCounters;

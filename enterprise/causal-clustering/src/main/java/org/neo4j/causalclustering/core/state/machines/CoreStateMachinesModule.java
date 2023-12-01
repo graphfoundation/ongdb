@@ -79,7 +79,7 @@ import org.neo4j.kernel.impl.enterprise.id.EnterpriseIdTypeConfigurationProvider
 import org.neo4j.graphdb.factory.module.edition.CommunityEditionModule;
 import org.neo4j.graphdb.factory.module.PlatformModule;
 import org.neo4j.kernel.impl.locking.Locks;
-import org.neo4j.kernel.impl.logging.LogService;
+import  org.neo4j.logging.internal.LogService;
 import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.store.id.IdType;
 import org.neo4j.kernel.impl.store.id.configuration.IdTypeConfigurationProvider;

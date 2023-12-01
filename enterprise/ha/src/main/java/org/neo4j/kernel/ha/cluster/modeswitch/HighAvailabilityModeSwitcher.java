@@ -56,7 +56,7 @@ import org.neo4j.kernel.ha.cluster.SwitchToMaster;
 import org.neo4j.kernel.ha.cluster.SwitchToSlave;
 import org.neo4j.kernel.ha.store.HighAvailabilityStoreFailureException;
 import org.neo4j.kernel.ha.store.UnableToCopyStoreFromOldMasterException;
-import org.neo4j.kernel.impl.logging.LogService;
+import  org.neo4j.logging.internal.LogService;
 import org.neo4j.kernel.impl.store.MismatchingStoreIdException;
 import org.neo4j.kernel.impl.store.StoreId;
 import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
