@@ -61,7 +61,7 @@ import org.neo4j.metrics.source.server.ServerThreadView;
 import org.neo4j.metrics.source.server.ServerThreadViewSetter;
 import org.neo4j.server.CommunityNeoServer;
 import org.neo4j.server.database.Database;
-import org.neo4j.server.database.LifecycleManagingDatabase.GraphFactory;
+import org.neo4j.server.database.GraphFactory;
 import org.neo4j.server.enterprise.modules.EnterpriseAuthorizationModule;
 import org.neo4j.server.enterprise.modules.JMXManagementModule;
 import org.neo4j.server.modules.AuthorizationModule;

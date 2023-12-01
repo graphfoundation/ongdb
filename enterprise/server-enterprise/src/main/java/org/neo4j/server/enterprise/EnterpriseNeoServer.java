@@ -46,7 +46,7 @@ import org.neo4j.kernel.impl.factory.GraphDatabaseFacadeFactory.Dependencies;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.server.database.Database.Factory;
 import org.neo4j.server.database.LifecycleManagingDatabase;
-import org.neo4j.server.database.LifecycleManagingDatabase.GraphFactory;
+import org.neo4j.server.database.GraphFactory;
 
 /**
  * Normally our naming convention would call this OpenEnterpriseNeoServer - but in this case, ONgDB already has a class with this name, so we are just calling
