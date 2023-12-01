@@ -41,7 +41,6 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.enterprise.EnterpriseGraphDatabase;
 import org.neo4j.kernel.impl.factory.Edition;
-import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
 
 import static org.neo4j.kernel.configuration.Settings.FALSE;
 
@@ -67,10 +66,8 @@ public class EnterpriseGraphDatabaseFactory extends GraphDatabaseFactory
             @Override
             public GraphDatabaseService newDatabase( Config config )
             {
-                config.augment( GraphDatabaseFacadeFactory.Configuration.ephemeral, FALSE );
-                return new EnterpriseGraphDatabase( storeDir,
-                        config,
-                        state.databaseDependencies() );
+                config.augment( GraphDatabaseSettings.ephemeral, FALSE );
+                return new EnterpriseGraphDatabase( storeDir, config, state.databaseDependencies() );
             }
         };
     }
