@@ -26,7 +26,7 @@ import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.factory.DatabaseInfo;
 import org.neo4j.kernel.impl.factory.EditionModule;
 import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
-import org.neo4j.kernel.impl.factory.GraphDatabaseFacadeFactory.Dependencies;
+import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory.Dependencies;
 import org.neo4j.kernel.impl.factory.PlatformModule;
 
 public class OpenEnterpriseReadReplicaGraphDatabase extends ReadReplicaGraphDatabase
