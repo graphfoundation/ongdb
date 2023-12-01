@@ -63,7 +63,7 @@ import org.neo4j.kernel.impl.store.stats.IdBasedStoreEntityCounters;
 import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFiles;
 
 /**
- * This implementation of {@link EditionModule} creates the implementations of services
+ * This implementation of {@link AbstractEditionModule} creates the implementations of services
  * that are specific to the Enterprise edition, without HA
  */
 public class EnterpriseEditionModule extends CommunityEditionModule
