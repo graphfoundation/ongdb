@@ -38,7 +38,7 @@ import java.io.File;
 import java.util.Map;
 
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.factory.GraphDatabaseFacadeFactory;
+import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
 import org.neo4j.logging.FormattedLogProvider;
 import org.neo4j.server.AbstractNeoServer;
 import org.neo4j.server.enterprise.OpenEnterpriseNeoServer;

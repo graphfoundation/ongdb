@@ -79,7 +79,7 @@
         <!-- ONgDB dependencies -->
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-kernel</artifactId>
+            <artifactId>ongdb</artifactId>
             <version>${project.version}</version>
         </dependency>
 

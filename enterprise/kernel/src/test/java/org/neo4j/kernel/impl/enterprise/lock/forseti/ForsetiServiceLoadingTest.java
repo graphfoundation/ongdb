@@ -37,7 +37,7 @@ package org.neo4j.kernel.impl.enterprise.lock.forseti;
 import org.junit.Rule;
 import org.junit.Test;
 
-import org.neo4j.kernel.impl.factory.GraphDatabaseFacadeFactory;
+import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
 import org.neo4j.kernel.impl.locking.Locks;
 import org.neo4j.kernel.impl.locking.community.CommunityLockManger;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
