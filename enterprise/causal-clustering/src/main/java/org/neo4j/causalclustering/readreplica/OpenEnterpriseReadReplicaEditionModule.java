@@ -23,7 +23,7 @@ import org.neo4j.causalclustering.handlers.SecurePipelineWrapperFactory;
 import org.neo4j.causalclustering.identity.MemberId;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.ssl.SslPolicyLoader;
-import org.neo4j.kernel.impl.factory.PlatformModule;
+import org.neo4j.graphdb.factory.module.PlatformModule;
 import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.ssl.SslPolicy;
