@@ -154,7 +154,7 @@ import static java.util.Collections.singletonList;
 import static org.neo4j.causalclustering.core.CausalClusteringSettings.raft_messages_log_path;
 
 /**
- * This implementation of {@link org.neo4j.kernel.impl.factory.EditionModule} creates the implementations of services
+ * This implementation of {@link org.neo4j.graphdb.factory.module.edition.AbstractEditionModule} creates the implementations of services
  * that are specific to the Enterprise Core edition that provides a core cluster.
  */
 public class EnterpriseCoreEditionModule extends EditionModule

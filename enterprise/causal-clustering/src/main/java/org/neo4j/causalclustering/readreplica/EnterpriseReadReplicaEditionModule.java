@@ -158,7 +158,7 @@ import static org.neo4j.causalclustering.core.CausalClusteringSettings.transacti
 import static org.neo4j.causalclustering.discovery.ResolutionResolverFactory.chooseResolver;
 
 /**
- * This implementation of {@link org.neo4j.kernel.impl.factory.EditionModule} creates the implementations of services
+ * This implementation of {@link org.neo4j.graphdb.factory.module.edition.AbstractEditionModule} creates the implementations of services
  * that are specific to the Enterprise Read Replica edition.
  */
 public class EnterpriseReadReplicaEditionModule extends EditionModule

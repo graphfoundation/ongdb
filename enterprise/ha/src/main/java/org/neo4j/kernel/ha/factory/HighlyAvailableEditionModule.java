@@ -199,7 +199,7 @@ import static java.lang.reflect.Proxy.newProxyInstance;
 import static org.neo4j.kernel.impl.transaction.log.TransactionMetadataCache.TransactionMetadata;
 
 /**
- * This implementation of {@link org.neo4j.kernel.impl.factory.EditionModule} creates the implementations of services
+ * This implementation of {@link org.neo4j.graphdb.factory.module.edition.AbstractEditionModule} creates the implementations of services
  * that are specific to the Enterprise edition.
  */
 public class HighlyAvailableEditionModule
