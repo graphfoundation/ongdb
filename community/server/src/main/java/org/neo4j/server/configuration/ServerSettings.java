@@ -91,7 +91,7 @@ public class ServerSettings implements LoadableConfig
             setting( "dbms.security.http_authorization_classes", STRING_LIST, EMPTY );
 
     @Description( "Number of Neo4j worker threads. This setting is only valid for REST, and does not influence bolt-server. " +
-            "It sets the amount of worker threads for the Jetty server used by neo4j-server. " +
+            "It sets the amount of worker threads for the Jetty server used by ongdb-server. " +
             "This option can be tuned when you plan to execute multiple, concurrent REST requests, " +
             "with the aim of getting more throughput from the database. " +
             "Your OS might enforce a lower limit than the maximum value specified here." )
