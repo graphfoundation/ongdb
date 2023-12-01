@@ -6,22 +6,13 @@ libraries. For an overview of the licenses see the NOTICE.txt file.
 Apache Software License, Version 2.0
   Apache Commons Lang
   Caffeine cache
-  casbah-commons
-  casbah-core
-  casbah-query
   error-prone annotations
   Gherkin Repackaged Dependencies
-  Joda convert
-  Joda-Time
-  MongoDB Java Driver
-  nscala-time
   openCypher TCK API
   openCypher TCK Features and Graphs
   org.apiguardian:apiguardian-api
   parboiled-core
   parboiled-scala
-  salat-core
-  salat-util
 ------------------------------------------------------------------------------
 
                                  Apache License
@@ -409,7 +400,6 @@ This Agreement is governed by the laws of the State of New York and the intellec
 MIT License
   Checker Qual
   Gherkin
-  SLF4J API Module
 ------------------------------------------------------------------------------
 
 The MIT License

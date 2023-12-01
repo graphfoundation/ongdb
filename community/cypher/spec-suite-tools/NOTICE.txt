@@ -45,22 +45,13 @@ Third-party licenses
 Apache Software License, Version 2.0
   Apache Commons Lang
   Caffeine cache
-  casbah-commons
-  casbah-core
-  casbah-query
   error-prone annotations
   Gherkin Repackaged Dependencies
-  Joda convert
-  Joda-Time
-  MongoDB Java Driver
-  nscala-time
   openCypher TCK API
   openCypher TCK Features and Graphs
   org.apiguardian:apiguardian-api
   parboiled-core
   parboiled-scala
-  salat-core
-  salat-util
 
 BSD - Scala License
   Scala Library
@@ -80,7 +71,6 @@ Eclipse Public License - v 1.0
 MIT License
   Checker Qual
   Gherkin
-  SLF4J API Module
 
 Dependencies with multiple licenses
 -----------------------------------
