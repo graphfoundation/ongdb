@@ -49,7 +49,7 @@ import org.neo4j.cluster.InstanceId;
 import org.neo4j.com.ComException;
 import org.neo4j.com.RequestContext;
 import org.neo4j.com.Response;
-import org.neo4j.kernel.AvailabilityGuard;
+import org.neo4j.kernel.availability.AvailabilityGuard;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.ha.UpdatePuller.Condition;
 import org.neo4j.kernel.ha.com.RequestContextFactory;

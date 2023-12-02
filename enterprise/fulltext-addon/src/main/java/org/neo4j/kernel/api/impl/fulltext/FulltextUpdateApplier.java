@@ -59,7 +59,7 @@ import org.neo4j.graphdb.ResourceIterable;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.event.PropertyEntry;
 import org.neo4j.helpers.collection.CollectorsUtil;
-import org.neo4j.kernel.AvailabilityGuard;
+import org.neo4j.kernel.availability.AvailabilityGuard;
 import org.neo4j.kernel.api.impl.schema.writer.PartitionedIndexWriter;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.logging.Log;

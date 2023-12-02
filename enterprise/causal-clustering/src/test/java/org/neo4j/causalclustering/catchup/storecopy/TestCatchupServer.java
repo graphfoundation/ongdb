@@ -61,7 +61,7 @@ import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.helpers.ListenSocketAddress;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.kernel.AvailabilityGuard;
+import org.neo4j.kernel.availability.AvailabilityGuard;
 import org.neo4j.kernel.NeoStoreDataSource;
 import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;

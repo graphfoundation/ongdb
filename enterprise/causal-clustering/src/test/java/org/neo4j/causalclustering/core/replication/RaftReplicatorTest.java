@@ -57,7 +57,7 @@ import org.neo4j.causalclustering.identity.MemberId;
 import org.neo4j.causalclustering.messaging.Message;
 import org.neo4j.causalclustering.messaging.Outbound;
 import org.neo4j.graphdb.DatabaseShutdownException;
-import org.neo4j.kernel.AvailabilityGuard;
+import org.neo4j.kernel.availability.AvailabilityGuard;
 import org.neo4j.logging.NullLog;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.time.Clocks;

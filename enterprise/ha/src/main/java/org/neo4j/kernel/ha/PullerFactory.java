@@ -36,7 +36,7 @@ package org.neo4j.kernel.ha;
 
 import org.neo4j.cluster.InstanceId;
 import org.neo4j.graphdb.DependencyResolver;
-import org.neo4j.kernel.AvailabilityGuard;
+import org.neo4j.kernel.availability.AvailabilityGuard;
 import org.neo4j.kernel.ha.cluster.HighAvailabilityMemberStateMachine;
 import org.neo4j.kernel.ha.com.RequestContextFactory;
 import org.neo4j.kernel.ha.com.master.Master;

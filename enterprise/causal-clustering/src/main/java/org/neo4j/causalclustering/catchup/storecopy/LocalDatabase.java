@@ -43,7 +43,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.neo4j.causalclustering.identity.StoreId;
-import org.neo4j.kernel.AvailabilityGuard;
+import org.neo4j.kernel.availability.AvailabilityGuard;
 import org.neo4j.kernel.AvailabilityGuard.AvailabilityRequirement;
 import org.neo4j.kernel.NeoStoreDataSource;
 import org.neo4j.kernel.impl.api.TransactionCommitProcess;

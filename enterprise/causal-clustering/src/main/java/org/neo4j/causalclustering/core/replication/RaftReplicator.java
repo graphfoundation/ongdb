@@ -48,7 +48,7 @@ import org.neo4j.causalclustering.helper.TimeoutStrategy;
 import org.neo4j.causalclustering.identity.MemberId;
 import org.neo4j.causalclustering.messaging.Outbound;
 import org.neo4j.graphdb.DatabaseShutdownException;
-import org.neo4j.kernel.AvailabilityGuard;
+import org.neo4j.kernel.availability.AvailabilityGuard;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;

@@ -35,7 +35,7 @@
 package org.neo4j.kernel.ha.cluster.modeswitch;
 
 import org.neo4j.function.Factory;
-import org.neo4j.kernel.AvailabilityGuard;
+import org.neo4j.kernel.availability.AvailabilityGuard;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.ha.DelegateInvocationHandler;
 import org.neo4j.kernel.ha.com.RequestContextFactory;

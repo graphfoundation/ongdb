@@ -49,7 +49,7 @@ import org.neo4j.com.ComException;
 import org.neo4j.com.RequestContext;
 import org.neo4j.com.Response;
 import org.neo4j.graphdb.TransientDatabaseFailureException;
-import org.neo4j.kernel.AvailabilityGuard;
+import org.neo4j.kernel.availability.AvailabilityGuard;
 import org.neo4j.kernel.AvailabilityGuard.UnavailableException;
 import org.neo4j.kernel.DeadlockDetectedException;
 import org.neo4j.kernel.ha.com.RequestContextFactory;

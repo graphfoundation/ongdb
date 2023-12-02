@@ -50,7 +50,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.neo4j.com.RequestContext;
 import org.neo4j.com.Response;
-import org.neo4j.kernel.AvailabilityGuard;
+import org.neo4j.kernel.availability.AvailabilityGuard;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.ha.com.RequestContextFactory;
 import org.neo4j.kernel.ha.com.master.Master;

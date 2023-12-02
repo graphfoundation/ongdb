@@ -40,7 +40,7 @@ import org.mockito.InOrder;
 import java.io.File;
 import java.time.Clock;
 
-import org.neo4j.kernel.AvailabilityGuard;
+import org.neo4j.kernel.availability.AvailabilityGuard;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
 import org.neo4j.kernel.impl.util.watcher.FileSystemWatcherService;

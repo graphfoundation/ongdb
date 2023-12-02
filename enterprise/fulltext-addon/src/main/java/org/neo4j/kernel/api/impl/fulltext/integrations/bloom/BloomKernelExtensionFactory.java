@@ -40,7 +40,7 @@ import java.util.function.Supplier;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.helpers.Service;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.AvailabilityGuard;
+import org.neo4j.kernel.availability.AvailabilityGuard;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.extension.KernelExtensionFactory;
 import  org.neo4j.logging.internal.LogService;
