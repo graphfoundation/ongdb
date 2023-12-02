@@ -34,7 +34,7 @@
  */
 package org.neo4j.kernel.ha.lock.trace;
 
-import org.neo4j.kernel.impl.locking.LockTracer;
+import org.neo4j.storageengine.api.lock.LockTracer;
 import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.kernel.monitoring.tracing.DefaultTracerFactory;
 import org.neo4j.scheduler.JobScheduler;

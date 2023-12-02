@@ -59,7 +59,7 @@ import org.neo4j.kernel.ha.cluster.DefaultConversationSPI;
 import org.neo4j.kernel.ha.com.master.MasterImpl.Monitor;
 import org.neo4j.kernel.ha.com.master.MasterImpl.SPI;
 import org.neo4j.kernel.ha.lock.LockResult;
-import org.neo4j.kernel.impl.locking.LockTracer;
+import org.neo4j.storageengine.api.lock.LockTracer;
 import org.neo4j.kernel.impl.locking.Locks.Client;
 import org.neo4j.kernel.impl.locking.ResourceTypes;
 import org.neo4j.storageengine.api.StoreId;

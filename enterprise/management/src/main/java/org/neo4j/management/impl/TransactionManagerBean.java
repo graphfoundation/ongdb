@@ -41,7 +41,7 @@ import org.neo4j.jmx.impl.ManagementBeanProvider;
 import org.neo4j.jmx.impl.ManagementData;
 import org.neo4j.jmx.impl.Neo4jMBean;
 import org.neo4j.kernel.NeoStoreDataSource;
-import org.neo4j.kernel.impl.transaction.TransactionStats;
+import org.neo4j.kernel.impl.transaction.stats.DatabaseTransactionStats;
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
 import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
 import org.neo4j.management.TransactionManager;
@@ -62,13 +62,13 @@ public final class TransactionManagerBean extends ManagementBeanProvider
 
     private static class TransactionManagerImpl extends Neo4jMBean implements TransactionManager
     {
-        private final TransactionStats txMonitor;
+        private final DatabaseTransactionStats txMonitor;
         private final DataSourceManager xadsm;
 
         TransactionManagerImpl( ManagementData management ) throws NotCompliantMBeanException
         {
             super( management );
-            this.txMonitor = management.resolveDependency( TransactionStats.class );
+            this.txMonitor = management.resolveDependency( DatabaseTransactionStats.class );
             this.xadsm = management.resolveDependency( DataSourceManager.class );
         }
 

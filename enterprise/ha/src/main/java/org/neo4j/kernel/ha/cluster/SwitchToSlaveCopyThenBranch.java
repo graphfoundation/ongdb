@@ -69,7 +69,7 @@ import org.neo4j.kernel.ha.store.UnableToCopyStoreFromOldMasterException;
 import  org.neo4j.logging.internal.LogService;
 import org.neo4j.kernel.impl.store.MismatchingStoreIdException;
 import org.neo4j.storageengine.api.StoreId;
-import org.neo4j.kernel.impl.transaction.TransactionStats;
+import org.neo4j.kernel.impl.transaction.stats.DatabaseTransactionStats;
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.monitoring.Monitors;
@@ -100,7 +100,7 @@ public class SwitchToSlaveCopyThenBranch extends SwitchToSlave
                                         UpdatePuller updatePuller,
                                         PageCache pageCache,
                                         Monitors monitors,
-                                        TransactionStats transactionCounters )
+                                        DatabaseTransactionStats transactionCounters )
     {
         this( storeDir,
                 logService,
@@ -143,7 +143,7 @@ public class SwitchToSlaveCopyThenBranch extends SwitchToSlave
                                  UpdatePuller updatePuller,
                                  PageCache pageCache,
                                  Monitors monitors,
-                                 TransactionStats transactionCounters )
+                                 DatabaseTransactionStats transactionCounters )
     {
         super( idGeneratorFactory, resolver, monitors, requestContextFactory, masterDelegateHandler,
                 clusterMemberAvailability, masterClientResolver, monitor, pullerFactory, updatePuller,

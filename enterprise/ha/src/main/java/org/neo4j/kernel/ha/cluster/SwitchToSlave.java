@@ -86,7 +86,7 @@ import  org.neo4j.logging.internal.LogService;
 import org.neo4j.kernel.impl.store.MismatchingStoreIdException;
 import org.neo4j.storageengine.api.StoreId;
 import org.neo4j.kernel.impl.store.TransactionId;
-import org.neo4j.kernel.impl.transaction.TransactionStats;
+import org.neo4j.kernel.impl.transaction.stats.DatabaseTransactionStats;
 import org.neo4j.kernel.impl.transaction.log.MissingLogDataException;
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
 import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
@@ -140,7 +140,7 @@ public abstract class SwitchToSlave
 
     private final Supplier<NeoStoreDataSource> neoDataSourceSupplier;
     private final Supplier<TransactionIdStore> transactionIdStoreSupplier;
-    private final TransactionStats transactionCounters;
+    private final DatabaseTransactionStats transactionCounters;
 
     SwitchToSlave( HaIdGeneratorFactory idGeneratorFactory, DependencyResolver resolver, Monitors monitors,
                    RequestContextFactory requestContextFactory, DelegateInvocationHandler<Master>
@@ -148,7 +148,7 @@ public abstract class SwitchToSlave
                    MasterClientResolver masterClientResolver, Monitor monitor, PullerFactory pullerFactory,
                    UpdatePuller updatePuller, Function<Slave, SlaveServer> slaveServerFactory, Config config,
                    LogService logService, PageCache pageCache, File storeDir,
-                   Supplier<TransactionIdStore> transactionIdStoreSupplier, TransactionStats
+                   Supplier<TransactionIdStore> transactionIdStoreSupplier, DatabaseTransactionStats
                            transactionCounters, Supplier<NeoStoreDataSource> neoDataSourceSupplier, StoreCopyClient storeCopyClient )
     {
         this.idGeneratorFactory = idGeneratorFactory;
