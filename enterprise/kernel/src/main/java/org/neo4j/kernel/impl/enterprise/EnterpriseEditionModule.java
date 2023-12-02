@@ -78,7 +78,7 @@ public class EnterpriseEditionModule extends CommunityEditionModule
     public EnterpriseEditionModule( PlatformModule platformModule )
     {
         super( platformModule );
-        platformModule.dependencies.satisfyDependency( new IdBasedStoreEntityCounters( this.idGeneratorFactory ) );
+        platformModule.dependencies.satisfyDependency( IdBasedStoreEntityCounters.class );
         ioLimiter = new ConfigurableIOLimiter( platformModule.config );
         platformModule.dependencies.satisfyDependency( createSessionTracker() );
     }
