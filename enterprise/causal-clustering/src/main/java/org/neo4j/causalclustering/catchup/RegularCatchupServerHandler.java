@@ -78,9 +78,8 @@ public class RegularCatchupServerHandler implements CatchupServerHandler
     public RegularCatchupServerHandler( Monitors monitors, LogProvider logProvider, Supplier<StoreId> storeIdSupplier,
             Supplier<TransactionIdStore> transactionIdStoreSupplier, Supplier<LogicalTransactionStore> logicalTransactionStoreSupplier,
             Supplier<NeoStoreDataSource> dataSourceSupplier, BooleanSupplier dataSourceAvailabilitySupplier, FileSystemAbstraction fs, PageCache pageCache,
-            StoreCopyCheckPointMutex storeCopyCheckPointMutex, CoreSnapshotService snapshotService, Supplier<CheckPointer> checkPointerSupplier )
+            CoreSnapshotService snapshotService, Supplier<CheckPointer> checkPointerSupplier )
     {
-
         this.monitors = monitors;
         this.logProvider = logProvider;
         this.storeIdSupplier = storeIdSupplier;
@@ -90,7 +89,7 @@ public class RegularCatchupServerHandler implements CatchupServerHandler
         this.dataSourceAvailabilitySupplier = dataSourceAvailabilitySupplier;
         this.fs = fs;
         this.pageCache = pageCache;
-        this.storeCopyCheckPointMutex = storeCopyCheckPointMutex;
+        this.storeCopyCheckPointMutex = dataSourceSupplier.get().getStoreCopyCheckPointMutex();
         this.snapshotService = snapshotService;
         this.checkPointerSupplier = checkPointerSupplier;
     }

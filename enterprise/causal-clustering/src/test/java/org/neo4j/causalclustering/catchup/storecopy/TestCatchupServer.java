@@ -110,7 +110,7 @@ class TestCatchupServer extends Server
 
         RegularCatchupServerHandler catchupServerHandler = new RegularCatchupServerHandler( new Monitors(), logProvider,
                 () -> storeId, dependencies.provideDependency( TransactionIdStore.class ), dependencies.provideDependency( LogicalTransactionStore.class ),
-                dataSource, availability, fileSystem, pageCache, storeCopyCheckPointMutex, null, checkPointer );
+                dataSource, availability, fileSystem, pageCache, null, checkPointer );
 
         NettyPipelineBuilderFactory pipelineBuilder = new NettyPipelineBuilderFactory( VoidPipelineWrapperFactory.VOID_WRAPPER );
         CatchupProtocolServerInstaller.Factory catchupProtocolServerInstaller = new CatchupProtocolServerInstaller.Factory( pipelineBuilder, logProvider,
