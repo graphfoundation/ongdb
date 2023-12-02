@@ -34,6 +34,8 @@
  */
 package org.neo4j.kernel.impl.enterprise.lock.forseti;
 
+import org.eclipse.collections.api.iterator.IntIterator;
+
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -47,7 +49,6 @@ import java.util.stream.Stream;
 
 import org.neo4j.collection.pool.Pool;
 import org.neo4j.collection.primitive.Primitive;
-import org.neo4j.collection.primitive.PrimitiveIntIterator;
 import org.neo4j.collection.primitive.PrimitiveLongIntMap;
 import org.neo4j.collection.primitive.PrimitiveLongVisitor;
 import org.neo4j.graphdb.TransactionFailureException;
@@ -1090,7 +1091,7 @@ public class ForsetiClient implements Locks.Client
     String describeWaitList()
     {
         StringBuilder sb = new StringBuilder( format( "%nClient[%d] waits for [", id() ) );
-        PrimitiveIntIterator iter = waitList.iterator();
+        IntIterator iter = waitList.iterator();
         for ( boolean first = true; iter.hasNext(); )
         {
             int next = iter.next();
