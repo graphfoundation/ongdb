@@ -45,9 +45,10 @@ import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelExcept
 import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
 import org.neo4j.kernel.impl.api.index.IndexingService;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingMode;
+import org.neo4j.kernel.impl.core.TokenHolders;
 import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
 import org.neo4j.management.IndexSamplingManager;
-import org.neo4j.storageengine.api.StoreReadLayer;
+import org.neo4j.storageengine.api.StorageEngine;
 
 @Service.Implementation( ManagementBeanProvider.class )
 public final class IndexSamplingManagerBean extends ManagementBeanProvider
@@ -104,13 +105,15 @@ public final class IndexSamplingManagerBean extends ManagementBeanProvider
     {
         private static class State
         {
-            final StoreReadLayer storeLayer;
+            final StorageEngine storageEngine;
             final IndexingService indexingService;
+            final TokenHolders tokenHolders;
 
-            State( StoreReadLayer storeLayer, IndexingService indexingService )
+            State( StorageEngine storageEngine, IndexingService indexingService, TokenHolders tokenHolders )
             {
-                this.storeLayer = storeLayer;
+                this.storageEngine = storageEngine;
                 this.indexingService = indexingService;
+                this.tokenHolders = tokenHolders;
             }
         }
         private volatile State state;
@@ -118,8 +121,9 @@ public final class IndexSamplingManagerBean extends ManagementBeanProvider
         @Override
         public void registered( NeoStoreDataSource dataSource )
         {
-            state = new State( dataSource.getStoreLayer(),
-                    dataSource.getDependencyResolver().resolveDependency( IndexingService.class ) );
+            state = new State( dataSource.getDependencyResolver().resolveDependency( StorageEngine.class ),
+                               dataSource.getDependencyResolver().resolveDependency( IndexingService.class ),
+                               dataSource.getDependencyResolver().resolveDependency( TokenHolders.class ) );
         }
 
         @Override
@@ -135,8 +139,8 @@ public final class IndexSamplingManagerBean extends ManagementBeanProvider
             State state = this.state;
             if ( state != null )
             {
-                labelKeyId = state.storeLayer.labelGetForName( labelKey );
-                propertyKeyId = state.storeLayer.propertyKeyGetForName( propertyKey );
+                labelKeyId = state.tokenHolders.labelTokens().getIdByName( labelKey );
+                propertyKeyId = state.tokenHolders.propertyKeyTokens().getIdByName( propertyKey );
             }
             if ( state == null || labelKeyId == -1 || propertyKeyId == -1 )
             {

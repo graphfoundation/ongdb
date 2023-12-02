@@ -59,8 +59,9 @@ import org.neo4j.storageengine.api.NodeItem;
 import org.neo4j.storageengine.api.PropertyItem;
 import org.neo4j.storageengine.api.RelationshipItem;
 import org.neo4j.storageengine.api.StorageProperty;
+import org.neo4j.storageengine.api.StorageReader;
 import org.neo4j.storageengine.api.StorageStatement;
-import org.neo4j.storageengine.api.StoreReadLayer;
+import org.neo4j.storageengine.api.StorageEngine;
 import org.neo4j.storageengine.api.txstate.ReadableTransactionState;
 import org.neo4j.storageengine.api.txstate.TxStateVisitor;
 
@@ -71,9 +72,9 @@ import static org.neo4j.internal.kernel.api.exceptions.schema.ConstraintValidati
 
 class PropertyExistenceEnforcer
 {
-    static PropertyExistenceEnforcer getOrCreatePropertyExistenceEnforcerFrom( StoreReadLayer storeLayer )
+    static PropertyExistenceEnforcer getOrCreatePropertyExistenceEnforcerFrom( StorageEngine storageEngine )
     {
-        return storeLayer.getOrCreateSchemaDependantState( PropertyExistenceEnforcer.class, FACTORY );
+        return storageEngine.getOrCreateSchemaDependantState( PropertyExistenceEnforcer.class, FACTORY );
     }
 
     private final List<LabelSchemaDescriptor> nodeConstraints;
@@ -115,43 +116,46 @@ class PropertyExistenceEnforcer
         return values;
     }
 
-    TxStateVisitor decorate( TxStateVisitor visitor, ReadableTransactionState txState, StoreReadLayer storeLayer )
+    TxStateVisitor decorate( TxStateVisitor visitor, ReadableTransactionState txState, StorageEngine storageEngine )
     {
-        return new Decorator( visitor, txState, storeLayer );
+        return new Decorator( visitor, txState, storageEngine );
     }
 
     private static final PropertyExistenceEnforcer NO_CONSTRAINTS = new PropertyExistenceEnforcer(
             emptyList(), emptyList() )
     {
         @Override
-        TxStateVisitor decorate( TxStateVisitor visitor, ReadableTransactionState txState, StoreReadLayer storeLayer )
+        TxStateVisitor decorate( TxStateVisitor visitor, ReadableTransactionState txState, StorageEngine storageEngine )
         {
             return visitor;
         }
     };
-    private static final Function<StoreReadLayer,PropertyExistenceEnforcer> FACTORY = storeLayer ->
+    private static final Function<StorageEngine,PropertyExistenceEnforcer> FACTORY = storageEngine ->
     {
         List<LabelSchemaDescriptor> nodes = new ArrayList<>();
         List<RelationTypeSchemaDescriptor> relationships = new ArrayList<>();
-        for ( Iterator<ConstraintDescriptor> constraints = storeLayer.constraintsGetAll(); constraints.hasNext(); )
+        try ( StorageReader storageReader = storageEngine.newReader() )
         {
-            ConstraintDescriptor constraint = constraints.next();
-            if ( constraint.enforcesPropertyExistence() )
+            for ( Iterator<ConstraintDescriptor> constraints = storageReader.constraintsGetAll(); constraints.hasNext(); )
             {
-                constraint.schema().processWith( new SchemaProcessor()
+                ConstraintDescriptor constraint = constraints.next();
+                if ( constraint.enforcesPropertyExistence() )
                 {
-                    @Override
-                    public void processSpecific( LabelSchemaDescriptor schema )
+                    constraint.schema().processWith( new SchemaProcessor()
                     {
-                        nodes.add( schema );
-                    }
+                        @Override
+                        public void processSpecific( LabelSchemaDescriptor schema )
+                        {
+                            nodes.add( schema );
+                        }
 
-                    @Override
-                    public void processSpecific( RelationTypeSchemaDescriptor schema )
-                    {
-                        relationships.add( schema );
-                    }
-                } );
+                        @Override
+                        public void processSpecific( RelationTypeSchemaDescriptor schema )
+                        {
+                            relationships.add( schema );
+                        }
+                    } );
+                }
             }
         }
         if ( nodes.isEmpty() && relationships.isEmpty() )
@@ -164,15 +168,15 @@ class PropertyExistenceEnforcer
     private class Decorator extends TxStateVisitor.Delegator
     {
         private final ReadableTransactionState txState;
-        private final StoreReadLayer storeLayer;
+        private final StorageEngine storageEngine;
         private final PrimitiveIntSet propertyKeyIds = Primitive.intSet();
         private StorageStatement storageStatement;
 
-        Decorator( TxStateVisitor next, ReadableTransactionState txState, StoreReadLayer storeLayer )
+        Decorator( TxStateVisitor next, ReadableTransactionState txState, StorageEngine storageEngine )
         {
             super( next );
             this.txState = txState;
-            this.storeLayer = storeLayer;
+            this.storageEngine = storageEngine;
         }
 
         @Override
@@ -327,7 +331,7 @@ class PropertyExistenceEnforcer
 
         private StorageStatement storeStatement()
         {
-            return storageStatement == null ? storageStatement = storeLayer.newStatement() : storageStatement;
+            return storageStatement == null ? storageStatement = storageEngine.newStatement() : storageStatement;
         }
     }
 

@@ -67,7 +67,7 @@ import org.neo4j.kernel.impl.store.record.IndexRule;
 import org.neo4j.kernel.lifecycle.Lifespan;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.NullLogProvider;
-import org.neo4j.storageengine.api.Token;
+import org.neo4j.internal.kernel.api.Token;
 
 import static org.neo4j.io.pagecache.impl.muninn.StandalonePageCacheFactory.createPageCache;
 

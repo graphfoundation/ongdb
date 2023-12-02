@@ -40,7 +40,7 @@ import org.neo4j.kernel.impl.core.LabelTokenHolder;
 import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.store.id.IdType;
 import org.neo4j.kernel.impl.util.Dependencies;
-import org.neo4j.storageengine.api.Token;
+import org.neo4j.internal.kernel.api.Token;
 
 public class ReplicatedLabelTokenHolder extends ReplicatedTokenHolder<Token> implements LabelTokenHolder
 {

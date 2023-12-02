@@ -43,10 +43,11 @@ import java.util.function.Function;
 
 import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
 import org.neo4j.kernel.api.schema.constaints.ConstraintDescriptorFactory;
-import org.neo4j.kernel.api.schema.constaints.NodeKeyConstraintDescriptor;
+import org.neo4j.kernel.api.schema.constraints.NodeKeyConstraintDescriptor;
 import org.neo4j.kernel.api.schema.constaints.RelExistenceConstraintDescriptor;
 import org.neo4j.kernel.api.schema.constaints.UniquenessConstraintDescriptor;
-import org.neo4j.storageengine.api.StoreReadLayer;
+import org.neo4j.storageengine.api.StorageEngine;
+import org.neo4j.storageengine.api.StorageReader;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -61,34 +62,32 @@ public class PropertyExistenceEnforcerTest
     {
         UniquenessConstraintDescriptor uniquenessConstraint = ConstraintDescriptorFactory.uniqueForLabel( 1, 1, 70, 8 );
         NodeKeyConstraintDescriptor nodeKeyConstraint = ConstraintDescriptorFactory.nodeKeyForLabel( 2, 12, 7, 13 );
-        RelExistenceConstraintDescriptor relTypeConstraint =
-                ConstraintDescriptorFactory.existsForRelType( 3, 5, 13, 8 );
-        List<ConstraintDescriptor> descriptors =
-                Arrays.asList( uniquenessConstraint, nodeKeyConstraint, relTypeConstraint );
+        RelExistenceConstraintDescriptor relTypeConstraint = ConstraintDescriptorFactory.existsForRelType( 3, 5, 13, 8 );
+        List<ConstraintDescriptor> descriptors = Arrays.asList( uniquenessConstraint, nodeKeyConstraint, relTypeConstraint );
 
-        StoreReadLayer storeReadLayer = prepareStoreReadLayerMock( descriptors );
+        StorageEngine storageEngine = prepareStoreReadLayerMock( descriptors );
 
-        PropertyExistenceEnforcer.getOrCreatePropertyExistenceEnforcerFrom( storeReadLayer );
+        PropertyExistenceEnforcer.getOrCreatePropertyExistenceEnforcerFrom( storageEngine );
 
-        assertArrayEquals( "Property ids should remain untouched.", new int[]{1, 70, 8},
-                uniquenessConstraint.schema().getPropertyIds() );
-        assertArrayEquals( "Property ids should remain untouched.", new int[]{12, 7, 13},
-                nodeKeyConstraint.schema().getPropertyIds() );
-        assertArrayEquals( "Property ids should remain untouched.", new int[]{5, 13, 8},
-                relTypeConstraint.schema().getPropertyIds() );
+        assertArrayEquals( "Property ids should remain untouched.", new int[]{1, 70, 8}, uniquenessConstraint.schema().getPropertyIds() );
+        assertArrayEquals( "Property ids should remain untouched.", new int[]{12, 7, 13}, nodeKeyConstraint.schema().getPropertyIds() );
+        assertArrayEquals( "Property ids should remain untouched.", new int[]{5, 13, 8}, relTypeConstraint.schema().getPropertyIds() );
     }
 
     @SuppressWarnings( "unchecked" )
-    private StoreReadLayer prepareStoreReadLayerMock( List<ConstraintDescriptor> descriptors )
+    private StorageEngine prepareStoreReadLayerMock( List<ConstraintDescriptor> descriptors )
     {
-        StoreReadLayer storeReadLayer = Mockito.mock( StoreReadLayer.class );
-        when( storeReadLayer.constraintsGetAll() ).thenReturn( descriptors.iterator() );
-        when( storeReadLayer.getOrCreateSchemaDependantState( eq( PropertyExistenceEnforcer.class ),
-                any( Function.class) ) ).thenAnswer( invocation ->
+        StorageEngine storageEngine = Mockito.mock( StorageEngine.class );
+        try ( StorageReader storageReader = storageEngine.newReader() )
         {
-            Function<StoreReadLayer,PropertyExistenceEnforcer> function = invocation.getArgument( 1 );
-            return function.apply( storeReadLayer );
-        } );
-        return storeReadLayer;
+            when( storageReader.constraintsGetAll() ).thenReturn( descriptors.iterator() );
+            when( storageReader.getOrCreateSchemaDependantState( eq( PropertyExistenceEnforcer.class ),
+                    any( Function.class) ) ).thenAnswer( invocation ->
+            {
+                Function<StorageEngine,PropertyExistenceEnforcer> function = invocation.getArgument( 1 );
+                return function.apply( storageEngine );
+            } );
+        }
+        return storageEngine;
     }
 }

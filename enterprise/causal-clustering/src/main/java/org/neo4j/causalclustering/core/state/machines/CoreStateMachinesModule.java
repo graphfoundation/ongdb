@@ -87,7 +87,7 @@ import org.neo4j.kernel.impl.store.stats.IdBasedStoreEntityCounters;
 import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.logging.LogProvider;
-import org.neo4j.storageengine.api.Token;
+import org.neo4j.internal.kernel.api.Token;
 
 import static org.neo4j.causalclustering.core.CausalClusteringSettings.array_block_id_allocation_size;
 import static org.neo4j.causalclustering.core.CausalClusteringSettings.id_alloc_state_size;

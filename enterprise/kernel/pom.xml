@@ -82,6 +82,11 @@
             <artifactId>ongdb</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-legacy</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <!-- ONgDB test dependencies -->
         <dependency>

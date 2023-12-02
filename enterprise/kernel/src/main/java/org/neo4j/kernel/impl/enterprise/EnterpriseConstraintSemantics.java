@@ -46,15 +46,15 @@ import org.neo4j.internal.kernel.api.exceptions.schema.ConstraintValidationExcep
 import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
 import org.neo4j.internal.kernel.api.schema.RelationTypeSchemaDescriptor;
 import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
-import org.neo4j.kernel.api.exceptions.schema.CreateConstraintFailureException;
+import org.neo4j.internal.kernel.api.exceptions.schema.CreateConstraintFailureException;
 import org.neo4j.kernel.api.exceptions.schema.NodePropertyExistenceException;
 import org.neo4j.kernel.api.exceptions.schema.RelationshipPropertyExistenceException;
-import org.neo4j.kernel.api.schema.constaints.NodeKeyConstraintDescriptor;
+import org.neo4j.kernel.api.schema.constraints.NodeKeyConstraintDescriptor;
 import org.neo4j.kernel.impl.constraints.StandardConstraintSemantics;
 import org.neo4j.kernel.impl.store.record.ConstraintRule;
 import org.neo4j.storageengine.api.NodeItem;
 import org.neo4j.storageengine.api.RelationshipItem;
-import org.neo4j.storageengine.api.StoreReadLayer;
+import org.neo4j.storageengine.api.StorageEngine;
 import org.neo4j.storageengine.api.txstate.ReadableTransactionState;
 import org.neo4j.storageengine.api.txstate.TxStateVisitor;
 
@@ -214,8 +214,7 @@ public class EnterpriseConstraintSemantics extends StandardConstraintSemantics
     }
 
     @Override
-    public TxStateVisitor decorateTxStateVisitor( StoreReadLayer storeLayer, ReadableTransactionState txState,
-            TxStateVisitor visitor )
+    public TxStateVisitor decorateTxStateVisitor( StorageEngine storageEngine, ReadableTransactionState txState, TxStateVisitor visitor )
     {
         if ( !txState.hasDataChanges() )
         {
@@ -226,7 +225,7 @@ public class EnterpriseConstraintSemantics extends StandardConstraintSemantics
             // we just built when the schema changing transaction commits.
             return visitor;
         }
-        return getOrCreatePropertyExistenceEnforcerFrom( storeLayer )
-                .decorate( visitor, txState, storeLayer );
+        return getOrCreatePropertyExistenceEnforcerFrom( storageEngine )
+                .decorate( visitor, txState, storageEngine );
     }
 }

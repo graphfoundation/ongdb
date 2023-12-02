@@ -53,7 +53,7 @@ import org.neo4j.kernel.impl.util.collection.NoSuchEntryException;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.storageengine.api.StorageCommand;
-import org.neo4j.storageengine.api.Token;
+import org.neo4j.internal.kernel.api.Token;
 import org.neo4j.storageengine.api.TokenFactory;
 import org.neo4j.storageengine.api.TransactionApplicationMode;
 

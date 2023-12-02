@@ -50,7 +50,7 @@ import org.neo4j.graphdb.QueryExecutionException;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.kernel.api.exceptions.ConstraintViolationTransactionFailureException;
-import org.neo4j.kernel.api.exceptions.schema.CreateConstraintFailureException;
+import org.neo4j.internal.kernel.api.exceptions.schema.CreateConstraintFailureException;
 import org.neo4j.kernel.impl.newapi.Operations;
 import org.neo4j.test.rule.DatabaseRule;
 import org.neo4j.test.rule.EnterpriseDatabaseRule;

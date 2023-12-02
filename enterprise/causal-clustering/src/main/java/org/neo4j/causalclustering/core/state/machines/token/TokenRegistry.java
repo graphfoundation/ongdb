@@ -37,7 +37,7 @@ package org.neo4j.causalclustering.core.state.machines.token;
 import java.util.List;
 
 import org.neo4j.kernel.impl.core.InMemoryTokenCache;
-import org.neo4j.storageengine.api.Token;
+import org.neo4j.internal.kernel.api.Token;
 
 public class TokenRegistry<TOKEN extends Token>
 {

@@ -43,7 +43,7 @@ import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelExcept
 import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
 import org.neo4j.kernel.impl.api.index.IndexingService;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingMode;
-import org.neo4j.storageengine.api.StoreReadLayer;
+import org.neo4j.kernel.impl.core.TokenHolders;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -60,20 +60,20 @@ public class IndexSamplingManagerBeanTest
     public static final String NON_EXISTING_PROPERTY = "bogusProp";
     public static final int PROPERTY_ID = 43;
     private NeoStoreDataSource dataSource;
-    private StoreReadLayer storeReadLayer;
+    private TokenHolders tokenHolders;
     private IndexingService indexingService;
 
     @Before
     public void setup()
     {
         dataSource = mock( NeoStoreDataSource.class );
-        storeReadLayer = mock( StoreReadLayer.class );
+        tokenHolders = mock( TokenHolders.class );
         indexingService = mock( IndexingService.class );
         when( dataSource.getStoreLayer() ).thenReturn( storeReadLayer );
-        when( storeReadLayer.labelGetForName( EXISTING_LABEL ) ).thenReturn( LABEL_ID );
-        when( storeReadLayer.propertyKeyGetForName( EXISTING_PROPERTY ) ).thenReturn( PROPERTY_ID );
-        when( storeReadLayer.propertyKeyGetForName( NON_EXISTING_PROPERTY ) ).thenReturn( -1 );
-        when( storeReadLayer.labelGetForName( NON_EXISTING_LABEL ) ).thenReturn( -1 );
+        when( tokenHolders.labelGetForName( EXISTING_LABEL ) ).thenReturn( LABEL_ID );
+        when( tokenHolders.propertyKeyGetForName( EXISTING_PROPERTY ) ).thenReturn( PROPERTY_ID );
+        when( tokenHolders.propertyKeyGetForName( NON_EXISTING_PROPERTY ) ).thenReturn( -1 );
+        when( tokenHolders.labelGetForName( NON_EXISTING_LABEL ) ).thenReturn( -1 );
         DependencyResolver resolver = mock( DependencyResolver.class );
         when( resolver.resolveDependency( IndexingService.class ) ).thenReturn( indexingService );
         when( dataSource.getDependencyResolver() ).thenReturn( resolver );

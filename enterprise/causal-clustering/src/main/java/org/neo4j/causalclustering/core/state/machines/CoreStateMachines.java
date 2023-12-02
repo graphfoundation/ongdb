@@ -55,7 +55,7 @@ import org.neo4j.causalclustering.core.state.machines.locks.ReplicatedLockTokenR
 import org.neo4j.causalclustering.core.state.machines.locks.ReplicatedLockTokenStateMachine;
 import org.neo4j.kernel.impl.api.TransactionCommitProcess;
 import org.neo4j.kernel.impl.core.RelationshipTypeToken;
-import org.neo4j.storageengine.api.Token;
+import org.neo4j.internal.kernel.api.Token;
 
 import static java.lang.Math.max;
 

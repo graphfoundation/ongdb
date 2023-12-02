@@ -52,7 +52,7 @@ import org.neo4j.kernel.impl.transaction.tracing.CommitEvent;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.storageengine.api.StorageCommand;
 import org.neo4j.storageengine.api.StorageEngine;
-import org.neo4j.storageengine.api.Token;
+import org.neo4j.internal.kernel.api.Token;
 import org.neo4j.storageengine.api.TransactionApplicationMode;
 
 import static java.util.Collections.singletonList;
