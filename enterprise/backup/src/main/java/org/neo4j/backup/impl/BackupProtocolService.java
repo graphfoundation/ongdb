@@ -77,7 +77,7 @@ import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
 import  org.neo4j.logging.internal.LogService;
 import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.impl.store.MismatchingStoreIdException;
-import org.neo4j.kernel.impl.store.StoreId;
+import org.neo4j.storageengine.api.StoreId;
 import org.neo4j.kernel.impl.store.UnexpectedStoreVersionException;
 import org.neo4j.kernel.impl.store.id.IdGeneratorImpl;
 import org.neo4j.kernel.impl.storemigration.UpgradeNotAllowedByConfigurationException;

@@ -104,7 +104,7 @@ class TestCatchupServer extends Server
         PageCache pageCache = graphDb.getDependencyResolver().resolveDependency( PageCache.class );
         LogProvider logProvider = NullLogProvider.getInstance();
 
-        org.neo4j.kernel.impl.store.StoreId kernelStoreId = dataSource.get().getStoreId();
+        org.neo4j.storageengine.api.StoreId kernelStoreId = dataSource.get().getStoreId();
         StoreId storeId = new StoreId( kernelStoreId.getCreationTime(), kernelStoreId.getRandomId(), kernelStoreId.getUpgradeTime(),
                 kernelStoreId.getUpgradeId() );
 

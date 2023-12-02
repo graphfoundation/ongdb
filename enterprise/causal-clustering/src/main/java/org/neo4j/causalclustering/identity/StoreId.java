@@ -41,10 +41,10 @@ import java.util.Objects;
 public final class StoreId
 {
     public static final StoreId DEFAULT = new StoreId(
-            org.neo4j.kernel.impl.store.StoreId.DEFAULT.getCreationTime(),
-            org.neo4j.kernel.impl.store.StoreId.DEFAULT.getRandomId(),
-            org.neo4j.kernel.impl.store.StoreId.DEFAULT.getUpgradeTime(),
-            org.neo4j.kernel.impl.store.StoreId.DEFAULT.getUpgradeId() );
+            org.neo4j.storageengine.api.StoreId.DEFAULT.getCreationTime(),
+            org.neo4j.storageengine.api.StoreId.DEFAULT.getRandomId(),
+            org.neo4j.storageengine.api.StoreId.DEFAULT.getUpgradeTime(),
+            org.neo4j.storageengine.api.StoreId.DEFAULT.getUpgradeId() );
 
     public static boolean isDefault( StoreId storeId )
     {
@@ -87,7 +87,7 @@ public final class StoreId
         return upgradeId;
     }
 
-    public boolean equalToKernelStoreId( org.neo4j.kernel.impl.store.StoreId kenelStoreId )
+    public boolean equalToKernelStoreId( org.neo4j.storageengine.api.StoreId kenelStoreId )
     {
         return creationTime == kenelStoreId.getCreationTime() &&
                randomId == kenelStoreId.getRandomId() &&

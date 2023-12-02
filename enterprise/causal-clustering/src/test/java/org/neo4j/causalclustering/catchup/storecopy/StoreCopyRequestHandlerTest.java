@@ -84,7 +84,7 @@ public class StoreCopyRequestHandlerTest
         StoreCopyRequestHandler storeCopyRequestHandler =
                 new NiceStoreCopyRequestHandler( catchupServerProtocol, () -> neoStoreDataSource, () -> checkPointer, new StoreFileStreamingProtocol(),
                         pageCache, fileSystemAbstraction, NullLogProvider.getInstance() );
-        when( neoStoreDataSource.getStoreId() ).thenReturn( new org.neo4j.kernel.impl.store.StoreId( 1, 2, 5, 3, 4 ) );
+        when( neoStoreDataSource.getStoreId() ).thenReturn( new org.neo4j.storageengine.api.StoreId( 1, 2, 5, 3, 4 ) );
         embeddedChannel = new EmbeddedChannel( storeCopyRequestHandler );
     }
 

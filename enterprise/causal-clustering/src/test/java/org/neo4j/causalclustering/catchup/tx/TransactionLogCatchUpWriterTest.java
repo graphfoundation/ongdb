@@ -133,7 +133,7 @@ public class TransactionLogCatchUpWriterTest
 
     private void createTransactionLogWithCheckpoint( Config config, boolean logsInStoreDir ) throws IOException
     {
-        org.neo4j.kernel.impl.store.StoreId storeId = simulateStoreCopy();
+        org.neo4j.storageengine.api.StoreId storeId = simulateStoreCopy();
 
         int fromTxId = 37;
         int endTxId = fromTxId + 5;
@@ -199,10 +199,10 @@ public class TransactionLogCatchUpWriterTest
         }
     }
 
-    private org.neo4j.kernel.impl.store.StoreId simulateStoreCopy() throws IOException
+    private org.neo4j.storageengine.api.StoreId simulateStoreCopy() throws IOException
     {
         // create an empty store
-        org.neo4j.kernel.impl.store.StoreId storeId;
+        org.neo4j.storageengine.api.StoreId storeId;
         NeoStoreDataSource ds = dsRule.getDataSource( storeDir, fs, pageCache );
         try ( Lifespan ignored = new Lifespan( ds ) )
         {
@@ -216,7 +216,7 @@ public class TransactionLogCatchUpWriterTest
         return storeId;
     }
 
-    private StoreId toCasualStoreId( org.neo4j.kernel.impl.store.StoreId storeId )
+    private StoreId toCasualStoreId( org.neo4j.storageengine.api.StoreId storeId )
     {
         return new StoreId( storeId.getCreationTime(), storeId.getRandomId(), storeId.getUpgradeTime(), storeId.getUpgradeId() );
     }

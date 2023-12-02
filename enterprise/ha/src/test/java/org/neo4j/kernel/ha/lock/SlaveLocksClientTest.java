@@ -83,7 +83,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.neo4j.com.ResourceReleaser.NO_OP;
 import static org.neo4j.kernel.impl.locking.ResourceTypes.NODE;
-import static org.neo4j.kernel.impl.store.StoreId.DEFAULT;
+import static org.neo4j.storageengine.api.StoreId.DEFAULT;
 import static org.neo4j.logging.AssertableLogProvider.inLog;
 import static org.neo4j.logging.NullLog.getInstance;
 
