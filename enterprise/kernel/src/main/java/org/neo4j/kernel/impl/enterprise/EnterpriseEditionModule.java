@@ -40,12 +40,11 @@ import org.neo4j.function.Predicates;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.kernel.api.bolt.BoltConnectionTracker;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
-import org.neo4j.kernel.api.security.UserManagerSupplier;
+import org.neo4j.kernel.api.security.SecurityModule;
+import org.neo4j.kernel.api.security.provider.NoAuthSecurityProvider;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.enterprise.api.security.EnterpriseAuthManager;
 import org.neo4j.kernel.enterprise.builtinprocs.EnterpriseBuiltInDbmsProcedures;
 import org.neo4j.kernel.impl.constraints.ConstraintSemantics;
-import org.neo4j.kernel.impl.enterprise.configuration.EnterpriseEditionSettings;
 import org.neo4j.kernel.impl.enterprise.id.EnterpriseIdTypeConfigurationProvider;
 import org.neo4j.kernel.impl.enterprise.transaction.log.checkpoint.ConfigurableIOLimiter;
 import org.neo4j.graphdb.factory.module.edition.CommunityEditionModule;
@@ -61,6 +60,8 @@ import org.neo4j.kernel.impl.proc.Procedures;
 import org.neo4j.kernel.impl.store.id.configuration.IdTypeConfigurationProvider;
 import org.neo4j.kernel.impl.store.stats.IdBasedStoreEntityCounters;
 import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFiles;
+
+import static org.neo4j.kernel.impl.enterprise.configuration.EnterpriseEditionSettings.ENTERPRISE_SECURITY_MODULE_ID;
 
 /**
  * This implementation of {@link AbstractEditionModule} creates the implementations of services
@@ -122,23 +123,21 @@ public class EnterpriseEditionModule extends CommunityEditionModule
     }
 
     @Override
-    public void setupSecurityModule( PlatformModule platformModule, Procedures procedures )
-    {
-        EnterpriseEditionModule.setupEnterpriseSecurityModule( platformModule, procedures );
-    }
-
-    public static void setupEnterpriseSecurityModule( PlatformModule platformModule, Procedures procedures )
+    public void createSecurityModule( PlatformModule platformModule, Procedures procedures )
     {
         if ( platformModule.config.get( GraphDatabaseSettings.auth_enabled ) )
         {
-            setupSecurityModule( platformModule,
-                    platformModule.logging.getUserLog( EnterpriseEditionModule.class ),
-                    procedures, platformModule.config.get( EnterpriseEditionSettings.security_module ) );
+            SecurityModule securityModule = setupSecurityModule( platformModule, this,
+                                                                 platformModule.logging.getUserLog( getClass() ),
+                                                                 procedures, ENTERPRISE_SECURITY_MODULE_ID );
+            platformModule.life.add( securityModule );
+            this.securityProvider = securityModule;
         }
         else
         {
-            platformModule.life.add( platformModule.dependencies.satisfyDependency( EnterpriseAuthManager.NO_AUTH ) );
-            platformModule.life.add( platformModule.dependencies.satisfyDependency( UserManagerSupplier.NO_AUTH ) );
+            NoAuthSecurityProvider noAuthSecurityProvider = NoAuthSecurityProvider.INSTANCE;
+            platformModule.life.add( noAuthSecurityProvider );
+            this.securityProvider = noAuthSecurityProvider;
         }
     }
 }

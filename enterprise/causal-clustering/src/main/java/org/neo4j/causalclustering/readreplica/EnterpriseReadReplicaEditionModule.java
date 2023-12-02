@@ -161,7 +161,7 @@ import static org.neo4j.causalclustering.discovery.ResolutionResolverFactory.cho
  * This implementation of {@link org.neo4j.graphdb.factory.module.edition.AbstractEditionModule} creates the implementations of services
  * that are specific to the Enterprise Read Replica edition.
  */
-public class EnterpriseReadReplicaEditionModule extends EditionModule
+public class EnterpriseReadReplicaEditionModule extends EnterpriseEditionModule
 {
     public EnterpriseReadReplicaEditionModule( final PlatformModule platformModule, final DiscoveryServiceFactory discoveryServiceFactory, MemberId myself )
     {
@@ -421,12 +421,6 @@ public class EnterpriseReadReplicaEditionModule extends EditionModule
     protected BoltConnectionTracker createSessionTracker()
     {
         return new StandardBoltConnectionTracker();
-    }
-
-    @Override
-    public void setupSecurityModule( PlatformModule platformModule, Procedures procedures )
-    {
-        EnterpriseEditionModule.setupEnterpriseSecurityModule( platformModule, procedures );
     }
 
     private static TopologyServiceRetryStrategy resolveStrategy( Config config, LogProvider logProvider )

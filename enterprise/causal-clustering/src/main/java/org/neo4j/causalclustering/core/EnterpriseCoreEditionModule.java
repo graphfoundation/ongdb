@@ -157,7 +157,7 @@ import static org.neo4j.causalclustering.core.CausalClusteringSettings.raft_mess
  * This implementation of {@link org.neo4j.graphdb.factory.module.edition.AbstractEditionModule} creates the implementations of services
  * that are specific to the Enterprise Core edition that provides a core cluster.
  */
-public class EnterpriseCoreEditionModule extends EditionModule
+public class EnterpriseCoreEditionModule extends EnterpriseEditionModule
 {
     private final ConsensusModule consensusModule;
     private final ReplicationModule replicationModule;
@@ -508,12 +508,6 @@ public class EnterpriseCoreEditionModule extends EditionModule
     protected BoltConnectionTracker createSessionTracker()
     {
         return new StandardBoltConnectionTracker();
-    }
-
-    @Override
-    public void setupSecurityModule( PlatformModule platformModule, Procedures procedures )
-    {
-        EnterpriseEditionModule.setupEnterpriseSecurityModule( platformModule, procedures );
     }
 
     public void disableCatchupServer() throws Throwable

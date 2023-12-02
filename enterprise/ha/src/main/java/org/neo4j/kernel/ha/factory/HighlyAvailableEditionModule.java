@@ -81,6 +81,8 @@ import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.AvailabilityGuard;
 import org.neo4j.kernel.NeoStoreDataSource;
 import org.neo4j.kernel.api.bolt.BoltConnectionTracker;
+import org.neo4j.kernel.api.security.SecurityModule;
+import org.neo4j.kernel.api.security.provider.NoAuthSecurityProvider;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.configuration.ssl.SslPolicyLoader;
@@ -196,14 +198,14 @@ import org.neo4j.udc.UsageData;
 import org.neo4j.udc.UsageDataKeys;
 
 import static java.lang.reflect.Proxy.newProxyInstance;
+import static org.neo4j.kernel.impl.enterprise.configuration.EnterpriseEditionSettings.ENTERPRISE_SECURITY_MODULE_ID;
 import static org.neo4j.kernel.impl.transaction.log.TransactionMetadataCache.TransactionMetadata;
 
 /**
  * This implementation of {@link org.neo4j.graphdb.factory.module.edition.AbstractEditionModule} creates the implementations of services
  * that are specific to the Enterprise edition.
  */
-public class HighlyAvailableEditionModule
-        extends EditionModule
+public class HighlyAvailableEditionModule extends CommunityEditionModule
 {
     private HighAvailabilityMemberStateMachine memberStateMachine;
     public ClusterMembers members;
@@ -930,8 +932,20 @@ public class HighlyAvailableEditionModule
     }
 
     @Override
-    public void setupSecurityModule( PlatformModule platformModule, Procedures procedures )
+    public void createSecurityModule( PlatformModule platformModule, Procedures procedures )
     {
-        EnterpriseEditionModule.setupEnterpriseSecurityModule( platformModule, procedures );
-    }
+        if ( platformModule.config.get( GraphDatabaseSettings.auth_enabled ) )
+        {
+            SecurityModule securityModule = setupSecurityModule( platformModule, this,
+                                                                 platformModule.logging.getUserLog( getClass() ),
+                                                                 procedures, ENTERPRISE_SECURITY_MODULE_ID );
+            platformModule.life.add( securityModule );
+            this.securityProvider = securityModule;
+        }
+        else
+        {
+            NoAuthSecurityProvider noAuthSecurityProvider = NoAuthSecurityProvider.INSTANCE;
+            platformModule.life.add( noAuthSecurityProvider );
+            this.securityProvider = noAuthSecurityProvider;
+        }    }
 }
