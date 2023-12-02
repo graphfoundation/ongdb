@@ -54,7 +54,8 @@ import org.neo4j.kernel.api.exceptions.InvalidArgumentsException;
 import org.neo4j.kernel.api.explicitindex.AutoIndexing;
 import org.neo4j.kernel.api.query.ExecutingQuery;
 import org.neo4j.kernel.api.query.QuerySnapshot;
-import org.neo4j.kernel.api.txstate.ExplicitIndexTransactionState;
+import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.impl.api.KernelAuxTransactionStateManager;
 import org.neo4j.kernel.impl.api.KernelTransactionImplementation;
 import org.neo4j.kernel.impl.api.SchemaState;
 import org.neo4j.kernel.impl.api.SchemaWriteGuard;
@@ -67,9 +68,11 @@ import org.neo4j.kernel.impl.api.index.IndexProviderMap;
 import org.neo4j.kernel.impl.api.index.IndexingService;
 import org.neo4j.kernel.impl.api.state.ConstraintIndexCreator;
 import org.neo4j.kernel.impl.constraints.StandardConstraintSemantics;
+import org.neo4j.kernel.impl.core.TokenHolders;
 import org.neo4j.kernel.impl.factory.CanWrite;
 import org.neo4j.kernel.impl.index.ExplicitIndexStore;
 import org.neo4j.kernel.impl.locking.ActiveLock;
+import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.storageengine.api.lock.LockTracer;
 import org.neo4j.kernel.impl.locking.ResourceTypes;
 import org.neo4j.kernel.impl.newapi.DefaultCursors;
@@ -229,18 +232,18 @@ public class TransactionStatusResultTest
         @Override
         public TransactionExecutionStatistic transactionStatistic()
         {
-            KernelTransactionImplementation transaction = new KernelTransactionImplementation(
+            KernelTransactionImplementation transaction = new KernelTransactionImplementation( Config.defaults(),
                         mock( StatementOperationParts.class ), mock( SchemaWriteGuard.class ), new TransactionHooks(),
                         mock( ConstraintIndexCreator.class ), new Procedures(), TransactionHeaderInformationFactory.DEFAULT,
-                        mock( TransactionCommitProcess.class ), new DatabaseTransactionStats(), () -> mock( ExplicitIndexTransactionState.class ),
+                        mock( TransactionCommitProcess.class ), new DatabaseTransactionStats(), mock( KernelAuxTransactionStateManager.class ),
                         mock( Pool.class ), Clocks.fakeClock(),
                         new AtomicReference<>( CpuClock.NOT_AVAILABLE ), new AtomicReference<>( HeapAllocation.NOT_AVAILABLE ),
                         TransactionTracer.NULL,
                         LockTracer.NONE, PageCursorTracerSupplier.NULL,
                         mock( StorageEngine.class, RETURNS_MOCKS ), new CanWrite(),
-                        mock( DefaultCursors.class ), AutoIndexing.UNSUPPORTED, mock( ExplicitIndexStore.class ),
+                        AutoIndexing.UNSUPPORTED, mock( ExplicitIndexStore.class ),
                         EmptyVersionContextSupplier.EMPTY, ON_HEAP, new StandardConstraintSemantics(), mock( SchemaState.class),
-                        mock( IndexingService.class ), mock( IndexProviderMap.class ) )
+                        mock( IndexingService.class ), mock( TokenHolders.class ), mock( Dependencies.class ) )
             {
                 @Override
                 public Statistics getStatistics()
