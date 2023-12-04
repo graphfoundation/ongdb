@@ -45,7 +45,6 @@
         <module>neo4j-harness-enterprise</module>
         <module>deferred-locks</module>
         <module>procedure-compiler-enterprise-tests</module>
-        <module>fulltext-addon</module>
     </modules>
 
     <profiles>
