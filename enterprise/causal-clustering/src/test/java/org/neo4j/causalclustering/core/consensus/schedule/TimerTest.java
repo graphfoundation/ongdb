@@ -37,7 +37,9 @@ package org.neo4j.causalclustering.core.consensus.schedule;
 import org.junit.Rule;
 import org.junit.Test;
 
-import org.neo4j.concurrent.BinaryLatch;
+import org.neo4j.kernel.impl.scheduler.JobSchedulerFactory;
+import org.neo4j.scheduler.Group;
+import org.neo4j.util.concurrent.BinaryLatch;
 import org.neo4j.kernel.impl.scheduler.CentralJobScheduler;
 import org.neo4j.kernel.lifecycle.LifeRule;
 import org.neo4j.scheduler.JobScheduler;
@@ -57,8 +59,7 @@ public class TimerTest
     public void shouldHandleConcurrentResetAndInvocationOfHandler()
     {
         // given
-        CentralJobScheduler scheduler = lifeRule.add( new CentralJobScheduler() );
-        JobScheduler.Group group = new JobScheduler.Group( "test" );
+        JobScheduler scheduler = lifeRule.add( JobSchedulerFactory.createInitialisedScheduler() );
 
         BinaryLatch invoked = new BinaryLatch();
         BinaryLatch done = new BinaryLatch();
@@ -69,7 +70,7 @@ public class TimerTest
             done.await();
         };
 
-        Timer timer = new Timer( () -> "test", scheduler, getInstance(), group, handler );
+        Timer timer = new Timer( () -> "test", scheduler, getInstance(), Group.TESTING, handler );
         timer.set( new FixedTimeout( 0, SECONDS ) );
         invoked.await();
 

@@ -36,6 +36,8 @@ package org.neo4j.causalclustering.core.consensus.schedule;
 
 import org.neo4j.causalclustering.core.consensus.schedule.TimerService.TimerName;
 import org.neo4j.logging.Log;
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobHandle;
 import org.neo4j.scheduler.JobScheduler;
 
 import static java.lang.String.format;
@@ -51,12 +53,12 @@ public class Timer
     private final TimerName name;
     private final JobScheduler scheduler;
     private final Log log;
-    private final JobScheduler.Group group;
+    private final Group group;
     private final TimeoutHandler handler;
 
     private Timeout timeout;
     private Delay delay;
-    private JobScheduler.JobHandle job;
+    private JobHandle job;
     private long activeJobId;
 
     /**
@@ -67,7 +69,7 @@ public class Timer
      * @param group The scheduler group used.
      * @param handler The timeout handler.
      */
-    Timer( TimerName name, JobScheduler scheduler, Log log, JobScheduler.Group group, TimeoutHandler handler )
+    Timer( TimerName name, JobScheduler scheduler, Log log, Group group, TimeoutHandler handler )
     {
         this.name = name;
         this.scheduler = scheduler;
@@ -141,7 +143,7 @@ public class Timer
      */
     public void cancel( CancelMode cancelMode )
     {
-        JobScheduler.JobHandle job;
+        JobHandle job;
 
         synchronized ( this )
         {
