@@ -38,9 +38,11 @@ import java.util.Iterator;
 import java.util.function.BiPredicate;
 
 import org.neo4j.cursor.Cursor;
+import org.neo4j.internal.kernel.api.CursorFactory;
 import org.neo4j.internal.kernel.api.NodeCursor;
 import org.neo4j.internal.kernel.api.NodeLabelIndexCursor;
 import org.neo4j.internal.kernel.api.PropertyCursor;
+import org.neo4j.internal.kernel.api.Read;
 import org.neo4j.internal.kernel.api.RelationshipScanCursor;
 import org.neo4j.internal.kernel.api.exceptions.schema.ConstraintValidationException;
 import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
@@ -52,9 +54,7 @@ import org.neo4j.kernel.api.exceptions.schema.RelationshipPropertyExistenceExcep
 import org.neo4j.kernel.api.schema.constraints.NodeKeyConstraintDescriptor;
 import org.neo4j.kernel.impl.constraints.StandardConstraintSemantics;
 import org.neo4j.kernel.impl.store.record.ConstraintRule;
-import org.neo4j.storageengine.api.NodeItem;
-import org.neo4j.storageengine.api.RelationshipItem;
-import org.neo4j.storageengine.api.StorageEngine;
+import org.neo4j.storageengine.api.StorageReader;
 import org.neo4j.storageengine.api.txstate.ReadableTransactionState;
 import org.neo4j.storageengine.api.txstate.TxStateVisitor;
 
@@ -86,16 +86,15 @@ public class EnterpriseConstraintSemantics extends StandardConstraintSemantics
         return ConstraintRule.constraintRule( ruleId, descriptor );
     }
 
-    @Override
-    public void validateNodePropertyExistenceConstraint( Iterator<Cursor<NodeItem>> allNodes,
-            LabelSchemaDescriptor descriptor, BiPredicate<NodeItem,Integer> hasPropertyCheck )
+    public void validateNodePropertyExistenceConstraint( Iterator<Cursor<NodeCursor>> allNodes,
+            LabelSchemaDescriptor descriptor, BiPredicate<NodeCursor,Integer> hasPropertyCheck )
             throws CreateConstraintFailureException
     {
         while ( allNodes.hasNext() )
         {
-            try ( Cursor<NodeItem> cursor = allNodes.next() )
+            try ( Cursor<NodeCursor> cursor = allNodes.next() )
             {
-                NodeItem node = cursor.get();
+                NodeCursor node = cursor.get();
                 for ( int propertyKey : descriptor.getPropertyIds() )
                 {
                     validateNodePropertyExistenceConstraint( node, propertyKey, descriptor, hasPropertyCheck );
@@ -128,9 +127,8 @@ public class EnterpriseConstraintSemantics extends StandardConstraintSemantics
         }
     }
 
-    @Override
-    public void validateNodeKeyConstraint( Iterator<Cursor<NodeItem>> allNodes,
-            LabelSchemaDescriptor descriptor, BiPredicate<NodeItem,Integer> hasPropertyCheck )
+    public void validateNodeKeyConstraint( Iterator<Cursor<NodeCursor>> allNodes,
+            LabelSchemaDescriptor descriptor, BiPredicate<NodeCursor,Integer> hasPropertyCheck )
             throws CreateConstraintFailureException
     {
         validateNodePropertyExistenceConstraint( allNodes, descriptor, hasPropertyCheck );
@@ -143,14 +141,14 @@ public class EnterpriseConstraintSemantics extends StandardConstraintSemantics
         validateNodePropertyExistenceConstraint( allNodes, nodeCursor, propertyCursor, descriptor );
     }
 
-    private void validateNodePropertyExistenceConstraint( NodeItem node, int propertyKey,
-            LabelSchemaDescriptor descriptor, BiPredicate<NodeItem,Integer> hasPropertyCheck ) throws
+    private void validateNodePropertyExistenceConstraint( NodeCursor node, int propertyKey,
+            LabelSchemaDescriptor descriptor, BiPredicate<NodeCursor,Integer> hasPropertyCheck ) throws
             CreateConstraintFailureException
     {
         if ( !hasPropertyCheck.test( node, propertyKey ) )
         {
             throw createConstraintFailure(
-                    new NodePropertyExistenceException( descriptor, VERIFICATION, node.id() ) );
+                    new NodePropertyExistenceException( descriptor, VERIFICATION, node.nodeReference() ) );
         }
     }
 
@@ -166,21 +164,20 @@ public class EnterpriseConstraintSemantics extends StandardConstraintSemantics
         return false;
     }
 
-    @Override
-    public void validateRelationshipPropertyExistenceConstraint( Cursor<RelationshipItem> allRelationships,
-            RelationTypeSchemaDescriptor descriptor, BiPredicate<RelationshipItem,Integer> hasPropertyCheck )
+    public void validateRelationshipPropertyExistenceConstraint( Cursor<RelationshipScanCursor> allRelationships,
+            RelationTypeSchemaDescriptor descriptor, BiPredicate<RelationshipScanCursor,Integer> hasPropertyCheck )
             throws CreateConstraintFailureException
     {
         while ( allRelationships.next() )
         {
-            RelationshipItem relationship = allRelationships.get();
+            RelationshipScanCursor relationship = allRelationships.get();
             for ( int propertyId : descriptor.getPropertyIds() )
             {
                 if ( relationship.type() == descriptor.getRelTypeId() &&
                      !hasPropertyCheck.test( relationship, propertyId ) )
                 {
                     throw createConstraintFailure(
-                            new RelationshipPropertyExistenceException( descriptor, VERIFICATION, relationship.id() ) );
+                            new RelationshipPropertyExistenceException( descriptor, VERIFICATION, relationship.relationshipReference() ) );
                 }
             }
         }
@@ -214,9 +211,10 @@ public class EnterpriseConstraintSemantics extends StandardConstraintSemantics
     }
 
     @Override
-    public TxStateVisitor decorateTxStateVisitor( StorageEngine storageEngine, ReadableTransactionState txState, TxStateVisitor visitor )
+    public TxStateVisitor decorateTxStateVisitor( StorageReader storageReader, Read read, CursorFactory cursorFactory, ReadableTransactionState state,
+                                                  TxStateVisitor visitor )
     {
-        if ( !txState.hasDataChanges() )
+        if ( !state.hasDataChanges() )
         {
             // If there are no data changes, there is no need to enforce constraints. Since there is no need to
             // enforce constraints, there is no need to build up the state required to be able to enforce constraints.
@@ -225,7 +223,6 @@ public class EnterpriseConstraintSemantics extends StandardConstraintSemantics
             // we just built when the schema changing transaction commits.
             return visitor;
         }
-        return getOrCreatePropertyExistenceEnforcerFrom( storageEngine )
-                .decorate( visitor, txState, storageEngine );
+        return getOrCreatePropertyExistenceEnforcerFrom( storageReader ).decorate( visitor, state, storageReader );
     }
 }

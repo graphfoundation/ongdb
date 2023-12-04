@@ -65,9 +65,7 @@ public class PropertyExistenceEnforcerTest
         RelExistenceConstraintDescriptor relTypeConstraint = ConstraintDescriptorFactory.existsForRelType( 3, 5, 13, 8 );
         List<ConstraintDescriptor> descriptors = Arrays.asList( uniquenessConstraint, nodeKeyConstraint, relTypeConstraint );
 
-        StorageEngine storageEngine = prepareStoreReadLayerMock( descriptors );
-
-        PropertyExistenceEnforcer.getOrCreatePropertyExistenceEnforcerFrom( storageEngine );
+        prepareStoreReadLayerMock( descriptors );
 
         assertArrayEquals( "Property ids should remain untouched.", new int[]{1, 70, 8}, uniquenessConstraint.schema().getPropertyIds() );
         assertArrayEquals( "Property ids should remain untouched.", new int[]{12, 7, 13}, nodeKeyConstraint.schema().getPropertyIds() );
@@ -87,6 +85,7 @@ public class PropertyExistenceEnforcerTest
                 Function<StorageEngine,PropertyExistenceEnforcer> function = invocation.getArgument( 1 );
                 return function.apply( storageEngine );
             } );
+            PropertyExistenceEnforcer.getOrCreatePropertyExistenceEnforcerFrom( storageReader );
         }
         return storageEngine;
     }
