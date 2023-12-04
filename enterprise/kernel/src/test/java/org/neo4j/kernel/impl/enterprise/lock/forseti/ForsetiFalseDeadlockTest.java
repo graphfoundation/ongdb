@@ -48,7 +48,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
-import org.neo4j.concurrent.BinaryLatch;
+import org.neo4j.util.concurrent.BinaryLatch;
 import org.neo4j.function.ThrowingAction;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.storageengine.api.lock.LockTracer;

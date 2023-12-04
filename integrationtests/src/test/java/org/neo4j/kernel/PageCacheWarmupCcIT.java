@@ -48,7 +48,7 @@ import org.neo4j.causalclustering.discovery.ClusterMember;
 import org.neo4j.causalclustering.discovery.CoreClusterMember;
 import org.neo4j.causalclustering.discovery.ReadReplica;
 import org.neo4j.causalclustering.upstream.strategies.LeaderOnlyStrategy;
-import org.neo4j.concurrent.BinaryLatch;
+import org.neo4j.util.concurrent.BinaryLatch;
 import org.neo4j.ext.udc.UdcSettings;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;

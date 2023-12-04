@@ -36,7 +36,7 @@ package org.neo4j.kernel;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.neo4j.concurrent.BinaryLatch;
+import org.neo4j.util.concurrent.BinaryLatch;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
