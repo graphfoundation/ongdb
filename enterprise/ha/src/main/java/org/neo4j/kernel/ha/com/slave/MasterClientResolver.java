@@ -174,8 +174,8 @@ public class MasterClientResolver implements MasterClientFactory, ComExceptionHa
         {
             return life.add( new MasterClient214(  destinationHostNameOrIp, destinationPort, originHostNameOrIp,
                     logProvider, storeId, readTimeoutMillis, lockReadTimeout, maxConcurrentChannels, chunkSize,
-                    responseUnpacker, monitors.newMonitor( ByteCounterMonitor.class, MasterClient320.class ),
-                    monitors.newMonitor( RequestMonitor.class, MasterClient320.class ), logEntryReader.get() ) );
+                    responseUnpacker, monitors.newMonitor( ByteCounterMonitor.class, MasterClient320.class.getName() ),
+                    monitors.newMonitor( RequestMonitor.class, MasterClient320.class.getName() ), logEntryReader.get() ) );
         }
     }
 
@@ -193,8 +193,8 @@ public class MasterClientResolver implements MasterClientFactory, ComExceptionHa
         {
             return life.add( new MasterClient310(  destinationHostNameOrIp, destinationPort, originHostNameOrIp,
                     logProvider, storeId, readTimeoutMillis, lockReadTimeout, maxConcurrentChannels, chunkSize,
-                    responseUnpacker, monitors.newMonitor( ByteCounterMonitor.class, MasterClient320.class ),
-                    monitors.newMonitor( RequestMonitor.class, MasterClient320.class ), logEntryReader.get() ) );
+                    responseUnpacker, monitors.newMonitor( ByteCounterMonitor.class, MasterClient320.class.getName() ),
+                    monitors.newMonitor( RequestMonitor.class, MasterClient320.class.getName() ), logEntryReader.get() ) );
         }
     }
 
@@ -212,8 +212,8 @@ public class MasterClientResolver implements MasterClientFactory, ComExceptionHa
         {
             return life.add( new MasterClient320(  destinationHostNameOrIp, destinationPort, originHostNameOrIp,
                     logProvider, storeId, readTimeoutMillis, lockReadTimeout, maxConcurrentChannels, chunkSize,
-                    responseUnpacker, monitors.newMonitor( ByteCounterMonitor.class, MasterClient320.class ),
-                    monitors.newMonitor( RequestMonitor.class, MasterClient320.class ), logEntryReader.get() ) );
+                    responseUnpacker, monitors.newMonitor( ByteCounterMonitor.class, MasterClient320.class.getName() ),
+                    monitors.newMonitor( RequestMonitor.class, MasterClient320.class.getName() ), logEntryReader.get() ) );
         }
     }
 }

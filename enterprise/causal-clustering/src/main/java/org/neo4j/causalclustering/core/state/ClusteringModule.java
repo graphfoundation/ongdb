@@ -51,6 +51,7 @@ import org.neo4j.causalclustering.identity.ClusterId;
 import org.neo4j.causalclustering.identity.DatabaseName;
 import org.neo4j.causalclustering.identity.MemberId;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.graphdb.factory.module.PlatformModule;
 import org.neo4j.kernel.impl.util.Dependencies;
@@ -69,7 +70,7 @@ public class ClusteringModule
     private final ClusterBinder clusterBinder;
 
     public ClusteringModule( DiscoveryServiceFactory discoveryServiceFactory, MemberId myself,
-            PlatformModule platformModule, File clusterStateDirectory )
+            PlatformModule platformModule, File clusterStateDirectory, DatabaseLayout databaseLayout )
     {
         LifeSupport life = platformModule.life;
         Config config = platformModule.config;
@@ -88,7 +89,7 @@ public class ClusteringModule
         dependencies.satisfyDependency( topologyService ); // for tests
 
         CoreBootstrapper coreBootstrapper =
-                new CoreBootstrapper( platformModule.storeDir, platformModule.pageCache, fileSystem, config, logProvider );
+                new CoreBootstrapper( databaseLayout, platformModule.pageCache, fileSystem, config, logProvider );
 
         SimpleStorage<ClusterId> clusterIdStorage =
                 new SimpleFileStorage<>( fileSystem, clusterStateDirectory, CLUSTER_ID_NAME, new ClusterId.Marshal(),

@@ -69,13 +69,13 @@ import org.neo4j.helpers.progress.ProgressMonitorFactory;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.FileUtils;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.extension.KernelExtensionFactory;
 import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
 import  org.neo4j.logging.internal.LogService;
-import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.impl.store.MismatchingStoreIdException;
 import org.neo4j.storageengine.api.StoreId;
 import org.neo4j.kernel.impl.store.UnexpectedStoreVersionException;
@@ -141,13 +141,13 @@ public class BackupProtocolService
         this.pageCache = pageCache;
     }
 
-    public BackupOutcome doFullBackup( final String sourceHostNameOrIp, final int sourcePort, Path targetDirectory,
+    public BackupOutcome doFullBackup( final String sourceHostNameOrIp, final int sourcePort, DatabaseLayout targetLayout,
                                        ConsistencyCheck consistencyCheck, Config tuningConfiguration,
                                        final long timeout, final boolean forensics )
     {
         try ( FileSystemAbstraction fileSystem = fileSystemSupplier.get() )
         {
-            return fullBackup( fileSystem, sourceHostNameOrIp, sourcePort, targetDirectory, consistencyCheck,
+            return fullBackup( fileSystem, sourceHostNameOrIp, sourcePort, targetLayout, consistencyCheck,
                     tuningConfiguration, timeout, forensics );
         }
         catch ( IOException e )
@@ -157,21 +157,21 @@ public class BackupProtocolService
     }
 
     private BackupOutcome fullBackup( FileSystemAbstraction fileSystem, String sourceHostNameOrIp, int sourcePort,
-            Path targetDirectory, ConsistencyCheck consistencyCheck, Config tuningConfiguration, long timeout, boolean forensics )
+            DatabaseLayout targetLayout, ConsistencyCheck consistencyCheck, Config tuningConfiguration, long timeout, boolean forensics )
     {
         try
         {
-            if ( !directoryIsEmpty( targetDirectory ) )
+            if ( !directoryIsEmpty( targetLayout ) )
             {
                 throw new RuntimeException(
-                        "Can only perform a full backup into an empty directory but " + targetDirectory +
+                        "Can only perform a full backup into an empty directory but " + targetLayout +
                         " is not empty" );
             }
             long timestamp = System.currentTimeMillis();
             long lastCommittedTx = -1;
-            StoreCopyClient storeCopier = new StoreCopyClient( targetDirectory.toFile(), tuningConfiguration,
+            StoreCopyClient storeCopier = new StoreCopyClient( targetLayout, tuningConfiguration,
                     loadKernelExtensions(), logProvider, fileSystem, pageCache,
-                    monitors.newMonitor( StoreCopyClientMonitor.class, getClass() ), forensics );
+                    monitors.newMonitor( StoreCopyClientMonitor.class, getClass().getName() ), forensics );
             FullBackupStoreCopyRequester storeCopyRequester =
                     new FullBackupStoreCopyRequester( sourceHostNameOrIp, sourcePort, timeout, forensics, monitors );
             storeCopier.copyStore(
@@ -179,11 +179,11 @@ public class BackupProtocolService
                     CancellationRequest.NEVER_CANCELLED,
                     MoveAfterCopy.moveReplaceExisting() );
 
-            tuningConfiguration.augment( logs_directory, targetDirectory.toRealPath().toString() );
+            tuningConfiguration.augment( logs_directory, targetLayout.databaseDirectory().toPath().toString() );
             File debugLogFile = tuningConfiguration.get( store_internal_log_path );
             bumpDebugDotLogFileVersion( debugLogFile, timestamp );
-            boolean consistent = checkDbConsistency( fileSystem, targetDirectory, consistencyCheck, tuningConfiguration, pageCache );
-            clearIdFiles( fileSystem, targetDirectory );
+            boolean consistent = checkDbConsistency( fileSystem, targetLayout, consistencyCheck, tuningConfiguration, pageCache );
+            clearIdFiles( fileSystem, targetLayout.databaseDirectory().toPath() );
             return new BackupOutcome( lastCommittedTx, consistent );
         }
         catch ( RuntimeException e )
@@ -197,13 +197,13 @@ public class BackupProtocolService
     }
 
     public BackupOutcome doIncrementalBackup(
-            String sourceHostNameOrIp, int sourcePort, Path targetDirectory, ConsistencyCheck consistencyCheck,
+            String sourceHostNameOrIp, int sourcePort, DatabaseLayout targetLayout, ConsistencyCheck consistencyCheck,
             long timeout, Config config )
             throws IncrementalBackupNotPossibleException
     {
         try ( FileSystemAbstraction fileSystem = fileSystemSupplier.get() )
         {
-            return incrementalBackup( fileSystem, sourceHostNameOrIp, sourcePort, targetDirectory, consistencyCheck,
+            return incrementalBackup( fileSystem, sourceHostNameOrIp, sourcePort, targetLayout, consistencyCheck,
                     timeout, config );
         }
         catch ( IOException e )
@@ -213,20 +213,20 @@ public class BackupProtocolService
     }
 
     private BackupOutcome incrementalBackup( FileSystemAbstraction fileSystem, String sourceHostNameOrIp,
-            int sourcePort, Path targetDirectory, ConsistencyCheck consistencyCheck, long timeout, Config config )
+            int sourcePort, DatabaseLayout targetLayout, ConsistencyCheck consistencyCheck, long timeout, Config config )
     {
         try
         {
-            if ( !directoryContainsDb( targetDirectory ) )
+            if ( !directoryContainsDb( targetLayout ) )
             {
-                throw new RuntimeException( targetDirectory + " doesn't contain a database" );
+                throw new RuntimeException( targetLayout + " doesn't contain a database" );
             }
 
             Map<String,String> temporaryDbConfig = getTemporaryDbConfig();
             config.augment( temporaryDbConfig );
 
             Map<String,String> configParams = config.getRaw();
-            GraphDatabaseAPI targetDb = startTemporaryDb( targetDirectory, pageCache, configParams );
+            GraphDatabaseAPI targetDb = startTemporaryDb( targetLayout.databaseDirectory().toPath(), pageCache, configParams );
             long backupStartTime = System.currentTimeMillis();
             long lastCommittedTx;
             try
@@ -237,11 +237,11 @@ public class BackupProtocolService
             {
                 targetDb.shutdown();
             }
-            config.augment( logs_directory, targetDirectory.toRealPath().toString() );
+            config.augment( logs_directory, targetLayout.databaseDirectory().toPath().toString() );
             File debugLogFile = config.get( store_internal_log_path );
             bumpDebugDotLogFileVersion( debugLogFile, backupStartTime );
-            boolean consistent = checkDbConsistency( fileSystem, targetDirectory, consistencyCheck, config, pageCache );
-            clearIdFiles( fileSystem, targetDirectory );
+            boolean consistent = checkDbConsistency( fileSystem, targetLayout, consistencyCheck, config, pageCache );
+            clearIdFiles( fileSystem, targetLayout.databaseDirectory().toPath() );
             return new BackupOutcome( lastCommittedTx, consistent );
         }
         catch ( IOException e )
@@ -250,13 +250,13 @@ public class BackupProtocolService
         }
     }
 
-    private boolean checkDbConsistency( FileSystemAbstraction fileSystem, Path targetDirectory,
+    private boolean checkDbConsistency( FileSystemAbstraction fileSystem, DatabaseLayout databaseLayout,
             ConsistencyCheck consistencyCheck, Config tuningConfiguration, PageCache pageCache )
     {
         boolean consistent = false;
         try
         {
-            consistent = consistencyCheck.runFull( targetDirectory, tuningConfiguration,
+            consistent = consistencyCheck.runFull( databaseLayout, tuningConfiguration,
                     ProgressMonitorFactory.textual( logDestination ), logProvider, fileSystem, pageCache, false,
                             new ConsistencyFlags( tuningConfiguration ) );
         }
@@ -278,22 +278,22 @@ public class BackupProtocolService
     }
 
     public BackupOutcome doIncrementalBackupOrFallbackToFull( String sourceHostNameOrIp, int sourcePort,
-                                                              Path targetDirectory,
+                                                              DatabaseLayout databaseLayout,
                                                               ConsistencyCheck consistencyCheck, Config config,
                                                               long timeout, boolean forensics )
     {
         try ( FileSystemAbstraction fileSystem = fileSystemSupplier.get() )
         {
-            if ( directoryIsEmpty( targetDirectory ) )
+            if ( directoryIsEmpty( databaseLayout ) )
             {
                 log.info( "Previous backup not found, a new full backup will be performed." );
-                return fullBackup( fileSystem, sourceHostNameOrIp, sourcePort, targetDirectory, consistencyCheck,
+                return fullBackup( fileSystem, sourceHostNameOrIp, sourcePort, databaseLayout, consistencyCheck,
                         config, timeout, forensics );
             }
             try
             {
                 log.info( "Previous backup found, trying incremental backup." );
-                return incrementalBackup( fileSystem, sourceHostNameOrIp, sourcePort, targetDirectory,
+                return incrementalBackup( fileSystem, sourceHostNameOrIp, sourcePort, databaseLayout,
                         consistencyCheck, timeout, config );
             }
             catch ( IncrementalBackupNotPossibleException e )
@@ -302,8 +302,8 @@ public class BackupProtocolService
                 {
                     log.warn( "Attempt to do incremental backup failed.", e );
                     log.info( "Existing backup is too far out of date, a new full backup will be performed." );
-                    FileUtils.deletePathRecursively( targetDirectory );
-                    return fullBackup( fileSystem, sourceHostNameOrIp, sourcePort, targetDirectory, consistencyCheck,
+                    FileUtils.deletePathRecursively( databaseLayout.databaseDirectory().toPath() );
+                    return fullBackup( fileSystem, sourceHostNameOrIp, sourcePort, databaseLayout, consistencyCheck,
                             config, timeout, forensics );
                 }
                 catch ( Exception fullBackupFailure )
@@ -347,14 +347,15 @@ public class BackupProtocolService
         return anonymous( transactionIdStore.getLastCommittedTransactionId() );
     }
 
-    private boolean directoryContainsDb( Path targetDirectory )
+    private boolean directoryContainsDb( DatabaseLayout databaseLayout )
     {
-        return Files.isRegularFile( targetDirectory.resolve( MetaDataStore.DEFAULT_NAME ) );
+        return Files.isRegularFile( databaseLayout.metadataStore().toPath() );
     }
 
-    private boolean directoryIsEmpty( Path dir ) throws IOException
+    private boolean directoryIsEmpty( DatabaseLayout databaseLayout ) throws IOException
     {
-        return Files.notExists( dir ) || Files.isDirectory( dir ) && FileUtils.countFilesInDirectoryPath( dir ) == 0;
+        Path path = databaseLayout.databaseDirectory().toPath();
+        return Files.notExists( path ) || Files.isDirectory( path ) && FileUtils.countFilesInDirectoryPath( path ) == 0;
     }
 
     static GraphDatabaseAPI startTemporaryDb(
@@ -389,8 +390,8 @@ public class BackupProtocolService
         Monitors monitors = resolver.resolveDependency( Monitors.class );
         LogProvider logProvider = resolver.resolveDependency( LogService.class ).getInternalLogProvider();
         BackupClient client = new BackupClient( sourceHostNameOrIp, sourcePort, null, logProvider, targetDb.storeId(),
-                timeout, unpacker, monitors.newMonitor( ByteCounterMonitor.class, BackupClient.class ),
-                monitors.newMonitor( RequestMonitor.class, BackupClient.class ), new VersionAwareLogEntryReader<>() );
+                timeout, unpacker, monitors.newMonitor( ByteCounterMonitor.class, BackupClient.class.getName() ),
+                monitors.newMonitor( RequestMonitor.class, BackupClient.class.getName() ), new VersionAwareLogEntryReader<>() );
 
         try ( Lifespan lifespan = new Lifespan( unpacker, client ) )
         {

@@ -54,6 +54,7 @@ import org.neo4j.graphdb.TransientTransactionFailureException;
 import org.neo4j.graphdb.factory.TestHighlyAvailableGraphDatabaseFactory;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseFileNames;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.ha.HaSettings;
@@ -416,7 +417,7 @@ public class ClusterIT
         try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction();
               PageCache pageCache = createPageCache( fileSystem ) )
         {
-            File neoStore = new File( storeDir, MetaDataStore.DEFAULT_NAME );
+            File neoStore = new File( storeDir, DatabaseFileNames.METADATA_STORE );
             MetaDataStore.setRecord( pageCache, neoStore, LAST_TRANSACTION_COMMIT_TIMESTAMP,
                     MetaDataStore.BASE_TX_COMMIT_TIMESTAMP );
         }

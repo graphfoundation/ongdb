@@ -45,6 +45,7 @@ import org.neo4j.causalclustering.catchup.storecopy.StoreFiles;
 import org.neo4j.causalclustering.catchup.storecopy.StoreIdDownloadFailedException;
 import org.neo4j.causalclustering.identity.StoreId;
 import org.neo4j.helpers.AdvertisedSocketAddress;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.util.OptionalHostnamePort;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
@@ -69,7 +70,7 @@ class CausalClusteringBackupStrategy extends LifecycleAdapter implements BackupS
     }
 
     @Override
-    public Fallible<BackupStageOutcome> performFullBackup( Path desiredBackupLocation, Config config,
+    public Fallible<BackupStageOutcome> performFullBackup( DatabaseLayout backupDatabaseLayout, Config config,
                                                            OptionalHostnamePort userProvidedAddress )
     {
         AdvertisedSocketAddress fromAddress = addressResolver.resolveCorrectCCAddress( config, userProvidedAddress );
@@ -85,7 +86,7 @@ class CausalClusteringBackupStrategy extends LifecycleAdapter implements BackupS
             return new Fallible<>( BackupStageOutcome.WRONG_PROTOCOL, e );
         }
 
-        Optional<StoreId> expectedStoreId = readLocalStoreId( desiredBackupLocation.toFile() );
+        Optional<StoreId> expectedStoreId = readLocalStoreId( backupDatabaseLayout );
         if ( expectedStoreId.isPresent() )
         {
             return new Fallible<>( BackupStageOutcome.FAILURE, new StoreIdDownloadFailedException(
@@ -94,7 +95,7 @@ class CausalClusteringBackupStrategy extends LifecycleAdapter implements BackupS
 
         try
         {
-            backupDelegator.copy( fromAddress, storeId, desiredBackupLocation );
+            backupDelegator.copy( fromAddress, storeId, backupDatabaseLayout );
             return new Fallible<>( BackupStageOutcome.SUCCESS, null );
         }
         catch ( StoreCopyFailedException e )
@@ -104,7 +105,7 @@ class CausalClusteringBackupStrategy extends LifecycleAdapter implements BackupS
     }
 
     @Override
-    public Fallible<BackupStageOutcome> performIncrementalBackup( Path desiredBackupLocation, Config config,
+    public Fallible<BackupStageOutcome> performIncrementalBackup( DatabaseLayout backupDatabaseLayout, Config config,
                                                                   OptionalHostnamePort userProvidedAddress )
     {
         AdvertisedSocketAddress fromAddress = addressResolver.resolveCorrectCCAddress( config, userProvidedAddress );
@@ -119,13 +120,13 @@ class CausalClusteringBackupStrategy extends LifecycleAdapter implements BackupS
         {
             return new Fallible<>( BackupStageOutcome.WRONG_PROTOCOL, e );
         }
-        Optional<StoreId> expectedStoreId = readLocalStoreId( desiredBackupLocation.toFile() );
+        Optional<StoreId> expectedStoreId = readLocalStoreId( backupDatabaseLayout.idNodeStore() );
         if ( !expectedStoreId.isPresent() || !expectedStoreId.get().equals( storeId ) )
         {
             return new Fallible<>( BackupStageOutcome.FAILURE,
                     new StoreIdDownloadFailedException( format( "Remote store id was %s but local is %s", storeId, expectedStoreId ) ) );
         }
-        return catchup( fromAddress, storeId, desiredBackupLocation );
+        return catchup( fromAddress, storeId, backupDatabaseLayout );
     }
 
     @Override
@@ -142,11 +143,11 @@ class CausalClusteringBackupStrategy extends LifecycleAdapter implements BackupS
         super.stop();
     }
 
-    private Optional<StoreId> readLocalStoreId( File backupLocation )
+    private Optional<StoreId> readLocalStoreId( DatabaseLayout databaseLayout )
     {
         try
         {
-            return Optional.of( storeFiles.readStoreId( backupLocation ) );
+            return Optional.of( storeFiles.readStoreId( databaseLayout ) );
         }
         catch ( IOException e )
         {
@@ -154,12 +155,12 @@ class CausalClusteringBackupStrategy extends LifecycleAdapter implements BackupS
         }
     }
 
-    private Fallible<BackupStageOutcome> catchup( AdvertisedSocketAddress fromAddress, StoreId storeId, Path backupTarget )
+    private Fallible<BackupStageOutcome> catchup( AdvertisedSocketAddress fromAddress, StoreId storeId, DatabaseLayout backupDatabaseLayout )
     {
         CatchupResult catchupResult;
         try
         {
-            catchupResult = backupDelegator.tryCatchingUp( fromAddress, storeId, backupTarget );
+            catchupResult = backupDelegator.tryCatchingUp( fromAddress, storeId, backupDatabaseLayout );
         }
         catch ( StoreCopyFailedException e )
         {

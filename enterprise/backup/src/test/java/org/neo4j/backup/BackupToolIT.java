@@ -42,7 +42,6 @@ import org.junit.rules.ExpectedException;
 
 import java.io.File;
 import java.io.PrintStream;
-import java.nio.file.Path;
 
 import org.neo4j.backup.impl.BackupProtocolService;
 import org.neo4j.backup.impl.ConsistencyCheck;
@@ -50,6 +49,7 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.HostnamePort;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.impl.muninn.StandalonePageCacheFactory;
 import org.neo4j.kernel.configuration.Config;
@@ -59,6 +59,8 @@ import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.impl.store.format.standard.StandardV2_3;
 import org.neo4j.kernel.impl.store.format.standard.StandardV3_4;
 import org.neo4j.ports.allocation.PortAuthority;
+import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.scheduler.ThreadPoolJobScheduler;
 import org.neo4j.test.TestGraphDatabaseFactory;
 import org.neo4j.test.rule.EmbeddedDatabaseRule;
 import org.neo4j.test.rule.TestDirectory;
@@ -77,15 +79,19 @@ public class BackupToolIT
 
     private DefaultFileSystemAbstraction fs;
     private PageCache pageCache;
-    private Path backupDir;
+    private File backupDir;
+    private DatabaseLayout backupDatabaseLayout;
     private BackupTool backupTool;
+    private JobScheduler jobScheduler;
 
     @Before
     public void setUp()
     {
-        backupDir = testDirectory.directory( "backups/graph.db" ).toPath();
+        backupDir = testDirectory.directory( "backups/graph.db" );
+        backupDatabaseLayout = DatabaseLayout.of( backupDir );
         fs = new DefaultFileSystemAbstraction();
-        pageCache = StandalonePageCacheFactory.createPageCache( fs );
+        jobScheduler = new ThreadPoolJobScheduler();
+        pageCache = StandalonePageCacheFactory.createPageCache( fs, jobScheduler );
         backupTool = new BackupTool( new BackupProtocolService(), mock( PrintStream.class ) );
     }
 
@@ -93,6 +99,7 @@ public class BackupToolIT
     public void tearDown() throws Exception
     {
         pageCache.close();
+        jobScheduler.close();
         fs.close();
     }
 
@@ -111,7 +118,7 @@ public class BackupToolIT
             expected.expectMessage( "Failed to perform backup because existing backup is from a different version." );
 
             // Perform backup
-            backupTool.executeBackup( new HostnamePort( "localhost", backupPort ), backupDir,
+            backupTool.executeBackup( new HostnamePort( "localhost", backupPort ), backupDatabaseLayout,
                     ConsistencyCheck.NONE, Config.defaults( GraphDatabaseSettings.record_format, StandardV3_4.NAME ),
                     20L * 60L * 1000L, false );
         }
@@ -140,8 +147,8 @@ public class BackupToolIT
 
     private File createNeoStoreFile() throws Exception
     {
-        fs.mkdirs( backupDir.toFile() );
-        File neoStoreFile = new File( backupDir.toFile(), MetaDataStore.DEFAULT_NAME );
+        fs.mkdirs( backupDir );
+        File neoStoreFile = backupDatabaseLayout.metadataStore();
         fs.create( neoStoreFile ).close();
         return neoStoreFile;
     }

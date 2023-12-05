@@ -51,6 +51,7 @@ import org.neo4j.causalclustering.identity.StoreId;
 import org.neo4j.com.storecopy.StoreCopyClientMonitor;
 import org.neo4j.helpers.AdvertisedSocketAddress;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.monitoring.Monitors;
@@ -105,51 +106,51 @@ public class RemoteStore
      * they end and pull from there, excluding the last one so that we do not
      * get duplicate entries.
      */
-    public CatchupResult tryCatchingUp( AdvertisedSocketAddress from, StoreId expectedStoreId, File storeDir, boolean keepTxLogsInDir )
+    public CatchupResult tryCatchingUp( AdvertisedSocketAddress from, StoreId expectedStoreId, DatabaseLayout databaseLayout, boolean keepTxLogsInDir )
             throws StoreCopyFailedException, IOException
     {
-        CommitState commitState = commitStateHelper.getStoreState( storeDir );
+        CommitState commitState = commitStateHelper.getStoreState( databaseLayout );
         log.info( "Store commit state: " + commitState );
 
         if ( commitState.transactionLogIndex().isPresent() )
         {
-            return pullTransactions( from, expectedStoreId, storeDir, commitState.transactionLogIndex().get() + 1, false, keepTxLogsInDir );
+            return pullTransactions( from, expectedStoreId, databaseLayout, commitState.transactionLogIndex().get() + 1, false, keepTxLogsInDir );
         }
         else
         {
             CatchupResult catchupResult;
             if ( commitState.metaDataStoreIndex() == BASE_TX_ID )
             {
-                return pullTransactions( from, expectedStoreId, storeDir, commitState.metaDataStoreIndex() + 1, false, keepTxLogsInDir );
+                return pullTransactions( from, expectedStoreId, databaseLayout, commitState.metaDataStoreIndex() + 1, false, keepTxLogsInDir );
             }
             else
             {
-                catchupResult = pullTransactions( from, expectedStoreId, storeDir, commitState.metaDataStoreIndex(), false, keepTxLogsInDir );
+                catchupResult = pullTransactions( from, expectedStoreId, databaseLayout, commitState.metaDataStoreIndex(), false, keepTxLogsInDir );
                 if ( catchupResult == E_TRANSACTION_PRUNED )
                 {
-                    return pullTransactions( from, expectedStoreId, storeDir, commitState.metaDataStoreIndex() + 1, false, keepTxLogsInDir );
+                    return pullTransactions( from, expectedStoreId, databaseLayout, commitState.metaDataStoreIndex() + 1, false, keepTxLogsInDir );
                 }
             }
             return catchupResult;
         }
     }
 
-    public void copy( CatchupAddressProvider addressProvider, StoreId expectedStoreId, File destDir )
+    public void copy( CatchupAddressProvider addressProvider, StoreId expectedStoreId, DatabaseLayout databaseLayout )
             throws StoreCopyFailedException
     {
         try
         {
             long lastFlushedTxId;
-            StreamToDiskProvider streamToDiskProvider = new StreamToDiskProvider( destDir, fs, pageCache, monitors );
+            StreamToDiskProvider streamToDiskProvider = new StreamToDiskProvider( databaseLayout, fs, pageCache, monitors );
             lastFlushedTxId = storeCopyClient.copyStoreFiles( addressProvider, expectedStoreId, streamToDiskProvider,
                         () -> new MaximumTotalTime( config.get( CausalClusteringSettings.store_copy_max_retry_time_per_request ).getSeconds(),
-                                TimeUnit.SECONDS ), destDir );
+                                TimeUnit.SECONDS ), databaseLayout );
 
             log.info( "Store files need to be recovered starting from: %d", lastFlushedTxId );
 
             // Even for cluster store copy, we still write the transaction logs into the store directory itself
             // because the destination directory is temporary. We will copy them to the correct place later.
-            CatchupResult catchupResult = pullTransactions( addressProvider.primary(), expectedStoreId, destDir,
+            CatchupResult catchupResult = pullTransactions( addressProvider.primary(), expectedStoreId, databaseLayout,
                     lastFlushedTxId, true, true );
             if ( catchupResult != SUCCESS_END_OF_STREAM )
             {
@@ -162,7 +163,7 @@ public class RemoteStore
         }
     }
 
-    private CatchupResult pullTransactions( AdvertisedSocketAddress from, StoreId expectedStoreId, File storeDir, long fromTxId,
+    private CatchupResult pullTransactions( AdvertisedSocketAddress from, StoreId expectedStoreId, DatabaseLayout databaseLayout, long fromTxId,
             boolean asPartOfStoreCopy, boolean keepTxLogsInStoreDir )
             throws IOException, StoreCopyFailedException
     {
@@ -170,7 +171,7 @@ public class RemoteStore
                 monitors.newMonitor( StoreCopyClientMonitor.class );
         storeCopyClientMonitor.startReceivingTransactions( fromTxId );
         long previousTxId = fromTxId - 1;
-        try ( TransactionLogCatchUpWriter writer = transactionLogFactory.create( storeDir, fs, pageCache, config,
+        try ( TransactionLogCatchUpWriter writer = transactionLogFactory.create( databaseLayout, fs, pageCache, config,
                 logProvider, fromTxId, asPartOfStoreCopy, keepTxLogsInStoreDir ) )
         {
             log.info( "Pulling transactions from %s starting with txId: %d", from, fromTxId );

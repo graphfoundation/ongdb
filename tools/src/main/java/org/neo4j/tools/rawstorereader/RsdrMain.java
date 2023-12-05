@@ -49,11 +49,11 @@ import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.OpenMode;
 import org.neo4j.io.fs.StoreChannel;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.store.InvalidRecordException;
-import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.impl.store.NeoStores;
 import org.neo4j.kernel.impl.store.RecordStore;
 import org.neo4j.kernel.impl.store.StoreFactory;
@@ -103,7 +103,8 @@ public class RsdrMain
             Config config = buildConfig();
             try ( PageCache pageCache = createPageCache( fileSystem, config ) )
             {
-                File neoStore = new File( storedir, MetaDataStore.DEFAULT_NAME );
+                DatabaseLayout databaseLayout = DatabaseLayout.of( storedir );
+                File neoStore = databaseLayout.metadataStore();
                 StoreFactory factory = openStore( fileSystem, neoStore, config, pageCache );
                 NeoStores neoStores = factory.openAllNeoStores();
                 interact( fileSystem, neoStores );

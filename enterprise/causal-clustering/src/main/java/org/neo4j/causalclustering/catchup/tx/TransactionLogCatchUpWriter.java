@@ -38,6 +38,8 @@ import java.io.File;
 import java.io.IOException;
 
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseFileNames;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.store.MetaDataStore;
@@ -63,18 +65,18 @@ public class TransactionLogCatchUpWriter implements TxPullResponseListener, Auto
     private final boolean asPartOfStoreCopy;
     private final TransactionLogWriter writer;
     private final LogFiles logFiles;
-    private final File storeDir;
+    private final DatabaseLayout databaseLayout;
 
     private long lastTxId = -1;
     private long expectedTxId;
 
-    TransactionLogCatchUpWriter( File storeDir, FileSystemAbstraction fs, PageCache pageCache, Config config,
-            LogProvider logProvider, long fromTxId, boolean asPartOfStoreCopy, boolean keepTxLogsInStoreDir ) throws IOException
+    TransactionLogCatchUpWriter( DatabaseLayout databaseLayout, FileSystemAbstraction fs, PageCache pageCache, Config config,
+                LogProvider logProvider, long fromTxId, boolean asPartOfStoreCopy, boolean keepTxLogsInStoreDir ) throws IOException
     {
         this.pageCache = pageCache;
         this.log = logProvider.getLog( getClass() );
         this.asPartOfStoreCopy = asPartOfStoreCopy;
-        LogFilesBuilder logFilesBuilder = LogFilesBuilder.activeFilesBuilder( storeDir, fs, pageCache )
+        LogFilesBuilder logFilesBuilder = LogFilesBuilder.activeFilesBuilder( databaseLayout, fs, pageCache )
                 .withLastCommittedTransactionIdSupplier( () -> fromTxId - 1 );
         if ( !keepTxLogsInStoreDir )
         {
@@ -83,7 +85,7 @@ public class TransactionLogCatchUpWriter implements TxPullResponseListener, Auto
         this.logFiles = logFilesBuilder.build();
         this.lifespan.add( logFiles );
         this.writer = new TransactionLogWriter( new LogEntryWriter( logFiles.getLogFile().getWriter() ) );
-        this.storeDir = storeDir;
+        this.databaseLayout = databaseLayout;
         this.expectedTxId = fromTxId;
     }
 
@@ -129,10 +131,9 @@ public class TransactionLogCatchUpWriter implements TxPullResponseListener, Auto
             // Recovery will treat that as last checkpoint and will not try to recover store till new
             // last closed transaction offset will not overcome old one. Till that happens it will be
             // impossible for recovery process to restore the store
-            File neoStore = new File( storeDir, MetaDataStore.DEFAULT_NAME );
             MetaDataStore.setRecord(
                     pageCache,
-                    neoStore,
+                    databaseLayout.metadataStore(),
                     MetaDataStore.Position.LAST_CLOSED_TRANSACTION_LOG_BYTE_OFFSET,
                     LOG_HEADER_SIZE );
         }
@@ -141,8 +142,7 @@ public class TransactionLogCatchUpWriter implements TxPullResponseListener, Auto
 
         if ( lastTxId != -1 )
         {
-            File neoStoreFile = new File( storeDir, MetaDataStore.DEFAULT_NAME );
-            MetaDataStore.setRecord( pageCache, neoStoreFile, LAST_TRANSACTION_ID, lastTxId );
+            MetaDataStore.setRecord( pageCache, databaseLayout.metadataStore(), LAST_TRANSACTION_ID, lastTxId );
         }
     }
 }

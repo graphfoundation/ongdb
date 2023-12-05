@@ -56,6 +56,7 @@ import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
 import org.neo4j.graphdb.factory.module.PlatformModule;
 import  org.neo4j.logging.internal.LogService;
 import org.neo4j.kernel.monitoring.tracing.Tracers;
+import org.neo4j.scheduler.JobScheduler;
 
 /**
  * A PageCache implementation that delegates to another page cache, whose life cycle is managed elsewhere.
@@ -121,21 +122,9 @@ public class ExternallyManagedPageCache implements PageCache
     }
 
     @Override
-    public FileSystemAbstraction getCachedFileSystem()
-    {
-        return delegate.getCachedFileSystem();
-    }
-
-    @Override
     public void reportEvents()
     {
         delegate.reportEvents();
-    }
-
-    @Override
-    public boolean fileSystemSupportsFileOperations()
-    {
-        return delegate.fileSystemSupportsFileOperations();
     }
 
     /**
@@ -163,14 +152,13 @@ public class ExternallyManagedPageCache implements PageCache
             return new GraphDatabaseFacadeFactory( DatabaseInfo.ENTERPRISE, EnterpriseEditionModule::new )
             {
                 @Override
-                protected PlatformModule createPlatform( File storeDir, Config config, Dependencies dependencies,
-                        GraphDatabaseFacade graphDatabaseFacade )
+                protected PlatformModule createPlatform( File storeDir, Config config, Dependencies dependencies )
                 {
-                    return new PlatformModule( storeDir, config, databaseInfo, dependencies, graphDatabaseFacade )
+                    return new PlatformModule( storeDir, config, databaseInfo, dependencies )
                     {
                         @Override
                         protected PageCache createPageCache( FileSystemAbstraction fileSystem, Config config,
-                                LogService logging, Tracers tracers, VersionContextSupplier versionContextSupplier )
+                                LogService logging, Tracers tracers, VersionContextSupplier versionContextSupplier, JobScheduler jobScheduler )
                         {
                             return new ExternallyManagedPageCache( delegatePageCache );
                         }

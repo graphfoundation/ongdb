@@ -82,6 +82,11 @@
             <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>ongdb-io</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-io</artifactId>
+            <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>

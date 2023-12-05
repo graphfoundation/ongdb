@@ -20,6 +20,7 @@ import org.neo4j.causalclustering.core.state.ClusteringModule;
 import org.neo4j.causalclustering.discovery.DiscoveryServiceFactory;
 import org.neo4j.causalclustering.handlers.DuplexPipelineWrapperFactory;
 import org.neo4j.causalclustering.handlers.SecurePipelineWrapperFactory;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.api.bolt.BoltConnectionTracker;
 import org.neo4j.kernel.impl.enterprise.EnterpriseEditionModule;
 import org.neo4j.kernel.impl.enterprise.StandardBoltConnectionTracker;
@@ -39,16 +40,15 @@ public class OpenEnterpriseCoreEditionModule extends EnterpriseCoreEditionModule
         return new StandardBoltConnectionTracker();
     }
 
-    public void setupSecurityModule( PlatformModule platformModule, Procedures procedures )
+    public void setupSecurityModule( PlatformModule platformModule, Procedures procedures, DatabaseLayout databaseLayout )
     {
-        EnterpriseEditionModule.setupEnterpriseSecurityModule( platformModule, procedures );
+        EnterpriseEditionModule.setupEnterpriseSecurityModule( platformModule, procedures, databaseLayout );
     }
 
     protected ClusteringModule getClusteringModule( PlatformModule platformModule, DiscoveryServiceFactory discoveryServiceFactory,
-                                                    ClusterStateDirectory clusterStateDirectory, IdentityModule identityModule, Dependencies dependencies )
+            ClusterStateDirectory clusterStateDirectory, IdentityModule identityModule, Dependencies dependencies, DatabaseLayout databaseLayout )
     {
-        return new ClusteringModule( discoveryServiceFactory, identityModule.myself(),
-                                     platformModule, clusterStateDirectory.get() );
+        return new ClusteringModule( discoveryServiceFactory, identityModule.myself(), platformModule, clusterStateDirectory.get(), databaseLayout );
     }
 
     protected DuplexPipelineWrapperFactory pipelineWrapperFactory()

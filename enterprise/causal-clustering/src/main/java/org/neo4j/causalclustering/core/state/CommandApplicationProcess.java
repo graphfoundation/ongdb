@@ -97,7 +97,7 @@ public class CommandApplicationProcess
         this.dbHealth = dbHealth;
         this.coreState = coreState;
         this.inFlightCache = inFlightCache;
-        this.commitIndexMonitor = monitors.newMonitor( RaftLogCommitIndexMonitor.class, getClass() );
+        this.commitIndexMonitor = monitors.newMonitor( RaftLogCommitIndexMonitor.class, getClass().getName() );
         this.batcher = new CommandBatcher( maxBatchSize, this::applyBatch );
         this.batchStat = StatUtil.create( "BatchSize", log, 4096, true );
     }

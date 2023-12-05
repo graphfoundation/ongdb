@@ -44,6 +44,7 @@ import org.neo4j.backup.impl.BackupOutcome;
 import org.neo4j.backup.impl.BackupProtocolService;
 import org.neo4j.backup.impl.BackupServer;
 import org.neo4j.backup.impl.ConsistencyCheck;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 
@@ -121,9 +122,8 @@ public class OnlineBackup
      */
     public OnlineBackup backup( File targetDirectory )
     {
-        Path dir = targetDirectory.toPath();
         outcome = new BackupProtocolService( out ).doIncrementalBackupOrFallbackToFull(
-                hostNameOrIp, port, dir, getConsistencyCheck( true ), defaultConfig(), timeoutMillis, forensics );
+                hostNameOrIp, port, DatabaseLayout.of( targetDirectory ), getConsistencyCheck( true ), defaultConfig(), timeoutMillis, forensics );
         return this;
     }
 
@@ -157,7 +157,7 @@ public class OnlineBackup
     public OnlineBackup backup( File targetDirectory, boolean verification )
     {
         outcome = new BackupProtocolService( out ).doIncrementalBackupOrFallbackToFull(
-                hostNameOrIp, port, targetDirectory.toPath(), getConsistencyCheck( verification ), defaultConfig(),
+                hostNameOrIp, port, DatabaseLayout.of( targetDirectory ), getConsistencyCheck( verification ), defaultConfig(),
                 timeoutMillis, forensics );
         return this;
     }
@@ -191,7 +191,7 @@ public class OnlineBackup
     public OnlineBackup backup( File targetDirectory, Config tuningConfiguration )
     {
         outcome = new BackupProtocolService( out ).doIncrementalBackupOrFallbackToFull(
-                hostNameOrIp, port, targetDirectory.toPath(), getConsistencyCheck( true ), tuningConfiguration,
+                hostNameOrIp, port, DatabaseLayout.of( targetDirectory ), getConsistencyCheck( true ), tuningConfiguration,
                 timeoutMillis, forensics );
         return this;
     }
@@ -228,7 +228,7 @@ public class OnlineBackup
     public OnlineBackup backup( File targetDirectory, Config tuningConfiguration, boolean verification )
     {
         outcome = new BackupProtocolService( out ).doIncrementalBackupOrFallbackToFull(
-                hostNameOrIp, port, targetDirectory.toPath(), getConsistencyCheck( verification ), tuningConfiguration,
+                hostNameOrIp, port, DatabaseLayout.of( targetDirectory ), getConsistencyCheck( verification ), tuningConfiguration,
                 timeoutMillis, forensics );
         return this;
     }
@@ -269,7 +269,7 @@ public class OnlineBackup
     @Deprecated
     public OnlineBackup full( String targetDirectory )
     {
-        outcome = new BackupProtocolService( out ).doFullBackup( hostNameOrIp, port, Paths.get( targetDirectory ),
+        outcome = new BackupProtocolService( out ).doFullBackup( hostNameOrIp, port, DatabaseLayout.of( Paths.get( targetDirectory ).toFile() ),
                 getConsistencyCheck( true ), defaultConfig(), timeoutMillis, forensics );
         return this;
     }
@@ -290,7 +290,7 @@ public class OnlineBackup
     @Deprecated
     public OnlineBackup full( String targetDirectory, boolean verification )
     {
-        outcome = new BackupProtocolService( out ).doFullBackup( hostNameOrIp, port, Paths.get( targetDirectory ),
+        outcome = new BackupProtocolService( out ).doFullBackup( hostNameOrIp, port, DatabaseLayout.of( Paths.get( targetDirectory ).toFile() ),
                 getConsistencyCheck( verification ), defaultConfig(), timeoutMillis, forensics );
         return this;
     }
@@ -313,7 +313,7 @@ public class OnlineBackup
     @Deprecated
     public OnlineBackup full( String targetDirectory, boolean verification, Config tuningConfiguration )
     {
-        outcome = new BackupProtocolService( out ).doFullBackup( hostNameOrIp, port, Paths.get( targetDirectory ),
+        outcome = new BackupProtocolService( out ).doFullBackup( hostNameOrIp, port, DatabaseLayout.of( Paths.get( targetDirectory ).toFile() ),
                 getConsistencyCheck( verification ), tuningConfiguration, timeoutMillis, forensics );
         return this;
     }
@@ -335,7 +335,7 @@ public class OnlineBackup
     public OnlineBackup incremental( String targetDirectory )
     {
         outcome = new BackupProtocolService( out ).doIncrementalBackup(
-                hostNameOrIp, port, Paths.get( targetDirectory ), getConsistencyCheck( false ), timeoutMillis,
+                hostNameOrIp, port, DatabaseLayout.of( Paths.get( targetDirectory ).toFile() ), getConsistencyCheck( false ), timeoutMillis,
                 defaultConfig() );
         return this;
     }
@@ -358,7 +358,7 @@ public class OnlineBackup
     public OnlineBackup incremental( String targetDirectory, boolean verification )
     {
         outcome = new BackupProtocolService( out ).doIncrementalBackup(
-                hostNameOrIp, port, Paths.get( targetDirectory ), getConsistencyCheck( verification ), timeoutMillis,
+                hostNameOrIp, port, DatabaseLayout.of( Paths.get( targetDirectory ).toFile() ), getConsistencyCheck( verification ), timeoutMillis,
                 defaultConfig() );
         return this;
     }

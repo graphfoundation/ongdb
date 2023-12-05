@@ -58,7 +58,7 @@ import org.neo4j.kernel.impl.transaction.log.checkpoint.StoreCopyCheckPointMutex
 import org.neo4j.storageengine.api.StoreFileMetadata;
 
 import static org.neo4j.com.RequestContext.anonymous;
-import static org.neo4j.io.fs.FileUtils.getMostCanonicalFile;
+import static org.neo4j.io.fs.FileUtils.getCanonicalFile;
 import static org.neo4j.io.fs.FileUtils.relativePath;
 
 /**
@@ -146,7 +146,7 @@ public class StoreCopyServer
         this.checkPointer = checkPointer;
         this.fileSystem = fileSystem;
         this.mutex = mutex;
-        this.storeDirectory = getMostCanonicalFile( storeDirectory );
+        this.storeDirectory = getCanonicalFile( storeDirectory );
         this.monitor = monitor;
         this.pageCache = pageCache;
     }

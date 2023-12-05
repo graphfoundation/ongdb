@@ -56,8 +56,9 @@ import org.neo4j.helpers.Args;
 import org.neo4j.helpers.HostnamePort;
 import org.neo4j.helpers.Service;
 import org.neo4j.helpers.collection.MapUtil;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.logging.SimpleLogService;
+import org.neo4j.logging.internal.SimpleLogService;
 import org.neo4j.kernel.impl.store.MismatchingStoreIdException;
 import org.neo4j.kernel.impl.store.UnexpectedStoreVersionException;
 import org.neo4j.logging.FormattedLogProvider;
@@ -162,7 +163,7 @@ public class BackupTool
 
         HostnamePort hostnamePort = newHostnamePort( backupURI );
 
-        return executeBackup( hostnamePort, to, consistencyCheck, tuningConfiguration, timeout, forensics );
+        return executeBackup( hostnamePort, DatabaseLayout.of( to.toFile() ), consistencyCheck, tuningConfiguration, timeout, forensics );
     }
 
     private static ConsistencyCheck parseConsistencyChecker( Args args )
@@ -204,10 +205,10 @@ public class BackupTool
 
         HostnamePort hostnamePort = newHostnamePort( backupURI );
 
-        return executeBackup( hostnamePort, to, consistencyCheck, tuningConfiguration, timeout, forensics );
+        return executeBackup( hostnamePort, DatabaseLayout.of( to.toFile() ), consistencyCheck, tuningConfiguration, timeout, forensics );
     }
 
-    BackupOutcome executeBackup( HostnamePort hostnamePort, Path to, ConsistencyCheck consistencyCheck,
+    BackupOutcome executeBackup( HostnamePort hostnamePort, DatabaseLayout to, ConsistencyCheck consistencyCheck,
                                  Config config, long timeout, boolean forensics ) throws ToolFailureException
     {
         try

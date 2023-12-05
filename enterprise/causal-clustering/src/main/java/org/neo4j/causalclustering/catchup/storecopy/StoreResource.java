@@ -64,15 +64,12 @@ class StoreResource
 
     ReadableByteChannel open() throws IOException
     {
-        if ( !pageCache.fileSystemSupportsFileOperations() )
+        Optional<PagedFile> existingMapping = pageCache.getExistingMapping( file );
+        if ( existingMapping.isPresent() )
         {
-            Optional<PagedFile> existingMapping = pageCache.getExistingMapping( file );
-            if ( existingMapping.isPresent() )
+            try ( PagedFile pagedFile = existingMapping.get() )
             {
-                try ( PagedFile pagedFile = existingMapping.get() )
-                {
-                    return pagedFile.openReadableByteChannel();
-                }
+                return pagedFile.openReadableByteChannel();
             }
         }
 

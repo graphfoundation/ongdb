@@ -39,6 +39,8 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.StandardCopyOption;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -46,6 +48,7 @@ import java.util.stream.Stream;
 import org.neo4j.causalclustering.identity.StoreId;
 import org.neo4j.io.fs.FileHandle;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
@@ -61,8 +64,8 @@ public class StoreFiles
     };
 
     private final FilenameFilter fileFilter;
-    private FileSystemAbstraction fs;
-    private PageCache pageCache;
+    private final FileSystemAbstraction fs;
+    private final PageCache pageCache;
 
     public StoreFiles( FileSystemAbstraction fs, PageCache pageCache )
     {
@@ -135,7 +138,7 @@ public class StoreFiles
         }
     }
 
-    public boolean isEmpty( File storeDir, List<File> filesToLookFor ) throws IOException
+    public boolean isEmpty( File storeDir, Collection<File> filesToLookFor ) throws IOException
     {
         // 'files' can be null if the directory doesn't exist. This is fine, we just ignore it then.
         File[] files = fs.listFiles( storeDir, fileFilter );
@@ -162,9 +165,9 @@ public class StoreFiles
         return true;
     }
 
-    public StoreId readStoreId( File storeDir ) throws IOException
+    public StoreId readStoreId( DatabaseLayout databaseLayout ) throws IOException
     {
-        File neoStoreFile = new File( storeDir, MetaDataStore.DEFAULT_NAME );
+        File neoStoreFile = databaseLayout.metadataStore();
         org.neo4j.storageengine.api.StoreId kernelStoreId = MetaDataStore.getStoreId( pageCache, neoStoreFile );
         return new StoreId( kernelStoreId.getCreationTime(), kernelStoreId.getRandomId(),
                 kernelStoreId.getUpgradeTime(), kernelStoreId.getUpgradeId() );

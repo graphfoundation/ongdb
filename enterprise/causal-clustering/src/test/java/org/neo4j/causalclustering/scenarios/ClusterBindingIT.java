@@ -55,6 +55,7 @@ import org.neo4j.causalclustering.discovery.CoreClusterMember;
 import org.neo4j.causalclustering.identity.ClusterId;
 import org.neo4j.graphdb.Node;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseFileNames;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.impl.muninn.StandalonePageCacheFactory;
 import org.neo4j.kernel.impl.store.MetaDataStore;
@@ -290,7 +291,7 @@ public class ClusterBindingIT
 
     private void changeStoreId( File storeDir ) throws IOException
     {
-        File neoStoreFile = new File( storeDir, MetaDataStore.DEFAULT_NAME );
+        File neoStoreFile = new File( storeDir, DatabaseFileNames.METADATA_STORE );
         try ( PageCache pageCache = StandalonePageCacheFactory.createPageCache( fs ) )
         {
             MetaDataStore.setRecord( pageCache, neoStoreFile, RANDOM_NUMBER, System.currentTimeMillis() );

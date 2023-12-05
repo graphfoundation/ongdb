@@ -76,6 +76,7 @@ import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.graphdb.security.WriteOperationsNotAllowedException;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseFileNames;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.monitoring.PageCacheCounters;
 import org.neo4j.kernel.availability.AvailabilityGuard;
@@ -500,7 +501,7 @@ public class ReadReplicaReplicationIT
 
     private void changeStoreId( ReadReplica replica ) throws IOException
     {
-        File neoStoreFile = new File( replica.storeDir(), MetaDataStore.DEFAULT_NAME );
+        File neoStoreFile = new File( replica.storeDir(), DatabaseFileNames.METADATA_STORE );
         PageCache pageCache = replica.database().getDependencyResolver().resolveDependency( PageCache.class );
         MetaDataStore.setRecord( pageCache, neoStoreFile, TIME, System.currentTimeMillis() );
     }

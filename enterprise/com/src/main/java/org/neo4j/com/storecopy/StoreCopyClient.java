@@ -51,6 +51,8 @@ import org.neo4j.helpers.CancellationRequest;
 import org.neo4j.helpers.collection.Visitor;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.FileUtils;
+import org.neo4j.io.layout.DatabaseFileNames;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.Settings;
@@ -87,7 +89,7 @@ public class StoreCopyClient
 
     /**
      * This is built as a pluggable interface to allow backup and HA to use this code independently of each other,
-     * each implements it's own version of how to copy a store from a remote location.
+     * each implements its own version of how to copy a store from a remote location.
      */
     public interface StoreCopyRequester
     {
@@ -96,7 +98,7 @@ public class StoreCopyClient
         void done();
     }
 
-    private final File storeDir;
+    private final DatabaseLayout databaseLayout;
     private final Config config;
     private final Iterable<KernelExtensionFactory<?>> kernelExtensions;
     private final Log log;
@@ -106,17 +108,17 @@ public class StoreCopyClient
     private final boolean forensics;
     private final FileMoveProvider fileMoveProvider;
 
-    public StoreCopyClient( File storeDir, Config config, Iterable<KernelExtensionFactory<?>> kernelExtensions, LogProvider logProvider,
+    public StoreCopyClient( DatabaseLayout databaseLayout, Config config, Iterable<KernelExtensionFactory<?>> kernelExtensions, LogProvider logProvider,
             FileSystemAbstraction fs, PageCache pageCache, StoreCopyClientMonitor monitor, boolean forensics )
     {
-        this( storeDir, config, kernelExtensions, logProvider, fs, pageCache, monitor, forensics, new FileMoveProvider( pageCache,
+        this( databaseLayout, config, kernelExtensions, logProvider, fs, pageCache, monitor, forensics, new FileMoveProvider( pageCache,
                 fs ) );
     }
 
-    public StoreCopyClient( File storeDir, Config config, Iterable<KernelExtensionFactory<?>> kernelExtensions, LogProvider logProvider,
+    public StoreCopyClient( DatabaseLayout databaseLayout, Config config, Iterable<KernelExtensionFactory<?>> kernelExtensions, LogProvider logProvider,
             FileSystemAbstraction fs, PageCache pageCache, StoreCopyClientMonitor monitor, boolean forensics, FileMoveProvider fileMoveProvider )
     {
-        this.storeDir = storeDir;
+        this.databaseLayout = databaseLayout;
         this.config = config;
         this.kernelExtensions = kernelExtensions;
         this.log = logProvider.getLog( getClass() );
@@ -130,7 +132,7 @@ public class StoreCopyClient
     public void copyStore( StoreCopyRequester requester, CancellationRequest cancellationRequest, MoveAfterCopy moveAfterCopy ) throws Exception
     {
         // Create a temp directory (or clean if present)
-        File tempStore = new File( storeDir, StoreUtil.TEMP_COPY_DIRECTORY_NAME );
+        File tempStore = databaseLayout.file( StoreUtil.TEMP_COPY_DIRECTORY_NAME );
         try
         {
             // The ToFileStoreWriter will add FileMoveActions for *RecordStores* that have to be
@@ -148,7 +150,7 @@ public class StoreCopyClient
                 monitor.finishReceivingStoreFiles();
                 // Update highest archived log id
                 // Write transactions that happened during the copy to the currently active logical log
-                writeTransactionsToActiveLogFile( tempStore, response );
+                writeTransactionsToActiveLogFile( DatabaseLayout.of( tempStore ), response );
             }
             finally
             {
@@ -164,7 +166,7 @@ public class StoreCopyClient
             // All is well, move the streamed files to the real store directory.
             // Start with the files written through the page cache. Should only be record store files.
             // Note that the stream is lazy, so the file system traversal won't happen until *after* the store files
-            // have been moved. Thus we ensure that we only attempt to move them once.
+            // have been moved. Thus, we ensure that we only attempt to move them once.
             moveFromTemporaryLocationToCorrect( moveActions, tempStore, moveAfterCopy );
         }
         finally
@@ -177,12 +179,12 @@ public class StoreCopyClient
     private void moveFromTemporaryLocationToCorrect(
             List<FileMoveAction> storeFileMoveActions, File tempStore, MoveAfterCopy moveAfterCopy ) throws Exception
     {
-        LogFiles logFiles = LogFilesBuilder.activeFilesBuilder( storeDir, fs, pageCache ).withConfig( config ).build();
+        LogFiles logFiles = LogFilesBuilder.activeFilesBuilder( databaseLayout, fs, pageCache ).withConfig( config ).build();
 
         Stream<FileMoveAction> moveActionStream =
                 Stream.concat( storeFileMoveActions.stream(), fileMoveProvider.traverseForMoving( tempStore ) );
         Function<File,File> destinationMapper =
-                file -> logFiles.isLogFile( file ) ? logFiles.logFilesDirectory() : storeDir;
+                file -> logFiles.isLogFile( file ) ? logFiles.logFilesDirectory() : databaseLayout.databaseDirectory();
         moveAfterCopy.move( moveActionStream, tempStore, destinationMapper );
     }
 
@@ -194,13 +196,13 @@ public class StoreCopyClient
         monitor.finishRecoveringStore();
     }
 
-    private void writeTransactionsToActiveLogFile( File tempStoreDir, Response<?> response ) throws Exception
+    private void writeTransactionsToActiveLogFile( DatabaseLayout databaseLayout, Response<?> response ) throws Exception
     {
         LifeSupport life = new LifeSupport();
         try
         {
             // Start the log and appender
-            LogFiles logFiles = LogFilesBuilder.activeFilesBuilder( tempStoreDir, fs, pageCache ).build();
+            LogFiles logFiles = LogFilesBuilder.activeFilesBuilder( databaseLayout, fs, pageCache ).build();
             life.add( logFiles );
             life.start();
 
@@ -259,7 +261,7 @@ public class StoreCopyClient
                 // Recovery will treat that as last checkpoint and will not try to recover store till new
                 // last closed transaction offset will not overcome old one. Till that happens it will be
                 // impossible for recovery process to restore the store
-                File neoStore = new File( tempStoreDir, MetaDataStore.DEFAULT_NAME );
+                File neoStore = databaseLayout.metadataStore();
                 MetaDataStore.setRecord( pageCache, neoStore, MetaDataStore.Position.LAST_CLOSED_TRANSACTION_LOG_BYTE_OFFSET, LOG_HEADER_SIZE );
             }
         }

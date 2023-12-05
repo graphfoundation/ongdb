@@ -39,10 +39,12 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.neo4j.causalclustering.identity.StoreId;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.availability.AvailabilityGuard;
 import org.neo4j.kernel.AvailabilityGuard.AvailabilityRequirement;
 import org.neo4j.kernel.NeoStoreDataSource;
@@ -69,7 +71,7 @@ public class LocalDatabase implements Lifecycle
     private static final AvailabilityRequirement NOT_COPYING_STORE =
             availabilityRequirement( "Database is stopped to copy store from another cluster member" );
 
-    private final File storeDir;
+    private final DatabaseLayout databaseLayout;
 
     private final StoreFiles storeFiles;
     private final DataSourceManager dataSourceManager;
@@ -83,9 +85,9 @@ public class LocalDatabase implements Lifecycle
     private volatile AvailabilityRequirement currentRequirement;
 
     private volatile TransactionCommitProcess localCommit;
-    private LogFiles logFiles;
+    private final LogFiles logFiles;
 
-    public LocalDatabase( File storeDir,
+    public LocalDatabase( DatabaseLayout databaseLayout,
             StoreFiles storeFiles,
             LogFiles logFiles,
             DataSourceManager dataSourceManager,
@@ -94,7 +96,7 @@ public class LocalDatabase implements Lifecycle
             AvailabilityGuard availabilityGuard,
             LogProvider logProvider )
     {
-        this.storeDir = storeDir;
+        this.databaseLayout = databaseLayout;
         this.storeFiles = storeFiles;
         this.logFiles = logFiles;
         this.dataSourceManager = dataSourceManager;
@@ -173,7 +175,7 @@ public class LocalDatabase implements Lifecycle
     {
         try
         {
-            return storeFiles.readStoreId( storeDir );
+            return storeFiles.readStoreId( databaseLayout );
         }
         catch ( IOException e )
         {
@@ -203,29 +205,24 @@ public class LocalDatabase implements Lifecycle
 
     public void delete() throws IOException
     {
-        storeFiles.delete( storeDir, logFiles );
+        storeFiles.delete( databaseLayout.databaseDirectory(), logFiles );
     }
 
     public boolean isEmpty() throws IOException
     {
-        List<File> filesToLookFor = Arrays.stream( StoreType.values() )
-                .map( StoreType::getStoreFile )
-                .filter( Objects::nonNull )
-                .map( StoreFile::storeFileName )
-                .map( name -> new File( storeDir, name ) )
-                .collect( Collectors.toList() );
-        return storeFiles.isEmpty( storeDir, filesToLookFor );
+        Set<File> filesToLookFor = databaseLayout.storeFiles();
+        return storeFiles.isEmpty( databaseLayout.databaseDirectory(), filesToLookFor );
     }
 
-    public File storeDir()
+    public DatabaseLayout storeDir()
     {
-        return storeDir;
+        return databaseLayout;
     }
 
     void replaceWith( File sourceDir ) throws IOException
     {
-        storeFiles.delete( storeDir, logFiles );
-        storeFiles.moveTo( sourceDir, storeDir, logFiles );
+        storeFiles.delete( databaseLayout.databaseDirectory(), logFiles );
+        storeFiles.moveTo( sourceDir, databaseLayout.databaseDirectory(), logFiles );
     }
 
     public NeoStoreDataSource dataSource()

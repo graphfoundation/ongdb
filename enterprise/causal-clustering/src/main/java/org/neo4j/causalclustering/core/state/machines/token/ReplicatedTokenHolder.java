@@ -41,6 +41,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import org.neo4j.causalclustering.core.replication.Replicator;
+import org.neo4j.internal.kernel.api.NamedToken;
 import org.neo4j.internal.kernel.api.exceptions.schema.ConstraintValidationException;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.internal.kernel.api.exceptions.schema.CreateConstraintFailureException;
@@ -49,27 +50,28 @@ import org.neo4j.kernel.impl.api.state.TxState;
 import org.neo4j.kernel.impl.core.NonUniqueTokenException;
 import org.neo4j.kernel.impl.core.TokenHolder;
 import org.neo4j.kernel.impl.core.TokenNotFoundException;
+import org.neo4j.kernel.impl.core.TokenRegistry;
 import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.store.id.IdType;
 import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.storageengine.api.StorageCommand;
 import org.neo4j.storageengine.api.StorageEngine;
-import org.neo4j.storageengine.api.StorageStatement;
+import org.neo4j.storageengine.api.StorageReader;
 import org.neo4j.internal.kernel.api.Token;
 import org.neo4j.storageengine.api.lock.ResourceLocker;
 
-abstract class ReplicatedTokenHolder<TOKEN extends Token> implements TokenHolder<TOKEN>
+abstract class ReplicatedTokenHolder implements TokenHolder
 {
     protected final Dependencies dependencies;
 
     private final Replicator replicator;
-    private final TokenRegistry<TOKEN> tokenRegistry;
+    private final TokenRegistry tokenRegistry;
     private final IdGeneratorFactory idGeneratorFactory;
     private final IdType tokenIdType;
     private final TokenType type;
 
     // TODO: Clean up all the resolving, which now happens every time with special selection strategies.
-    ReplicatedTokenHolder( TokenRegistry<TOKEN> tokenRegistry, Replicator replicator,
+    ReplicatedTokenHolder( TokenRegistry tokenRegistry, Replicator replicator,
                            IdGeneratorFactory idGeneratorFactory, IdType tokenIdType,
                            Dependencies dependencies, TokenType type )
     {
@@ -82,15 +84,15 @@ abstract class ReplicatedTokenHolder<TOKEN extends Token> implements TokenHolder
     }
 
     @Override
-    public void setInitialTokens( List<TOKEN> tokens ) throws NonUniqueTokenException
+    public void setInitialTokens( List<NamedToken> tokens ) throws NonUniqueTokenException
     {
         tokenRegistry.setInitialTokens( tokens );
     }
 
     @Override
-    public void addToken( TOKEN token ) throws NonUniqueTokenException
+    public void addToken( NamedToken token ) throws NonUniqueTokenException
     {
-        tokenRegistry.addToken( token );
+        tokenRegistry.put( token );
     }
 
     @Override
@@ -130,9 +132,9 @@ abstract class ReplicatedTokenHolder<TOKEN extends Token> implements TokenHolder
         TransactionState txState = new TxState();
         int tokenId = Math.toIntExact( idGeneratorFactory.get( tokenIdType ).nextId() );
         createToken( txState, tokenName, tokenId );
-        try ( StorageStatement statement = storageEngine.storeReadLayer().newStatement() )
+        try ( StorageReader storageReader = storageEngine.newReader() )
         {
-            storageEngine.createCommands( commands, txState, statement, ResourceLocker.NONE, Long.MAX_VALUE );
+            storageEngine.createCommands( commands, txState, storageReader, ResourceLocker.NONE, Long.MAX_VALUE, null );
         }
         catch ( CreateConstraintFailureException | TransactionFailureException | ConstraintValidationException e )
         {
@@ -145,9 +147,9 @@ abstract class ReplicatedTokenHolder<TOKEN extends Token> implements TokenHolder
     protected abstract void createToken( TransactionState txState, String tokenName, int tokenId );
 
     @Override
-    public TOKEN getTokenById( int id ) throws TokenNotFoundException
+    public NamedToken getTokenById( int id ) throws TokenNotFoundException
     {
-        TOKEN result = getTokenByIdOrNull( id );
+        NamedToken result = getTokenByIdOrNull( id );
         if ( result == null )
         {
             throw new TokenNotFoundException( "Token for id " + id );
@@ -155,8 +157,7 @@ abstract class ReplicatedTokenHolder<TOKEN extends Token> implements TokenHolder
         return result;
     }
 
-    @Override
-    public TOKEN getTokenByIdOrNull( int id )
+    public NamedToken getTokenByIdOrNull( int id )
     {
         return tokenRegistry.getToken( id );
     }
@@ -173,7 +174,7 @@ abstract class ReplicatedTokenHolder<TOKEN extends Token> implements TokenHolder
     }
 
     @Override
-    public Iterable<TOKEN> getAllTokens()
+    public Iterable<NamedToken> getAllTokens()
     {
         return tokenRegistry.allTokens();
     }

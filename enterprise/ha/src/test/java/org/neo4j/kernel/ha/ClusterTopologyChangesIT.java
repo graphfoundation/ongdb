@@ -60,7 +60,7 @@ import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.ha.cluster.HighAvailabilityMemberState;
 import org.neo4j.kernel.impl.ha.ClusterManager;
 import org.neo4j.kernel.impl.ha.ClusterManager.RepairKit;
-import org.neo4j.kernel.impl.logging.SimpleLogService;
+import org.neo4j.logging.internal.SimpleLogService;
 import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.monitoring.Monitors;

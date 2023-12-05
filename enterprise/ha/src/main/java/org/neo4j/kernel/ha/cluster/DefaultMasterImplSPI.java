@@ -51,9 +51,7 @@ import org.neo4j.kernel.ha.com.master.MasterImpl;
 import org.neo4j.kernel.ha.id.IdAllocation;
 import org.neo4j.kernel.impl.api.TransactionCommitProcess;
 import org.neo4j.kernel.impl.api.TransactionToApply;
-import org.neo4j.kernel.impl.core.LabelTokenHolder;
-import org.neo4j.kernel.impl.core.PropertyKeyTokenHolder;
-import org.neo4j.kernel.impl.core.RelationshipTypeTokenHolder;
+import org.neo4j.kernel.impl.core.TokenHolder;
 import org.neo4j.storageengine.api.StoreId;
 import org.neo4j.kernel.impl.store.id.IdGenerator;
 import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
@@ -78,9 +76,9 @@ public class DefaultMasterImplSPI implements MasterImpl.SPI
     private final GraphDatabaseAPI graphDb;
     private final TransactionChecksumLookup txChecksumLookup;
     private final FileSystemAbstraction fileSystem;
-    private final LabelTokenHolder labels;
-    private final PropertyKeyTokenHolder propertyKeyTokenHolder;
-    private final RelationshipTypeTokenHolder relationshipTypeTokenHolder;
+    private final TokenHolder labels;
+    private final TokenHolder propertyKeyTokenHolder;
+    private final TokenHolder relationshipTypeTokenHolder;
     private final IdGeneratorFactory idGeneratorFactory;
     private final NeoStoreDataSource neoStoreDataSource;
     private final File storeDir;
@@ -95,8 +93,8 @@ public class DefaultMasterImplSPI implements MasterImpl.SPI
     public DefaultMasterImplSPI( final GraphDatabaseAPI graphDb,
                                  FileSystemAbstraction fileSystemAbstraction,
                                  Monitors monitors,
-                                 LabelTokenHolder labels, PropertyKeyTokenHolder propertyKeyTokenHolder,
-                                 RelationshipTypeTokenHolder relationshipTypeTokenHolder,
+                                 TokenHolder labels, TokenHolder propertyKeyTokenHolder,
+                                 TokenHolder relationshipTypeTokenHolder,
                                  IdGeneratorFactory idGeneratorFactory,
                                  TransactionCommitProcess transactionCommitProcess,
                                  CheckPointer checkPointer,
@@ -117,7 +115,7 @@ public class DefaultMasterImplSPI implements MasterImpl.SPI
         this.checkPointer = checkPointer;
         this.neoStoreDataSource = neoStoreDataSource;
         this.mutex = mutex;
-        this.storeDir = graphDb.getStoreDir();
+        this.storeDir = graphDb.databaseLayout().getStoreLayout().storeDirectory();
         this.txChecksumLookup = new TransactionChecksumLookup( transactionIdStore, logicalTransactionStore );
         this.responsePacker = new ResponsePacker( logicalTransactionStore, transactionIdStore, graphDb::storeId );
         this.monitors = monitors;
@@ -183,8 +181,7 @@ public class DefaultMasterImplSPI implements MasterImpl.SPI
     public RequestContext flushStoresAndStreamStoreFiles( StoreWriter writer )
     {
         StoreCopyServer streamer = new StoreCopyServer( neoStoreDataSource, checkPointer, fileSystem, storeDir,
-                monitors.newMonitor( StoreCopyServer.Monitor.class, StoreCopyServer.class ),
-                pageCache, mutex );
+                monitors.newMonitor( StoreCopyServer.Monitor.class ), pageCache, mutex );
         return streamer.flushStoresAndStreamStoreFiles( STORE_COPY_CHECKPOINT_TRIGGER, writer, false );
     }
 

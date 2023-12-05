@@ -61,7 +61,10 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.factory.GraphDatabaseBuilder;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.graphdb.factory.module.edition.AbstractEditionModule;
 import org.neo4j.graphdb.index.Index;
+import org.neo4j.io.layout.DatabaseFileNames;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.StoreLockException;
 import org.neo4j.kernel.configuration.Config;
@@ -70,17 +73,14 @@ import org.neo4j.kernel.impl.api.TransactionHeaderInformation;
 import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
 import org.neo4j.graphdb.factory.module.edition.CommunityEditionModule;
 import org.neo4j.kernel.impl.factory.DatabaseInfo;
-import org.neo4j.graphdb.factory.module.edition.AbstractEditionModule;
 import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
 import org.neo4j.graphdb.factory.module.PlatformModule;
 import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.impl.store.MetaDataStore.Position;
 import org.neo4j.kernel.impl.store.MismatchingStoreIdException;
-import org.neo4j.kernel.impl.store.StoreFile;
 import org.neo4j.kernel.impl.store.format.highlimit.HighLimit;
 import org.neo4j.kernel.impl.store.format.standard.Standard;
 import org.neo4j.kernel.impl.store.id.IdGeneratorImpl;
-import org.neo4j.kernel.impl.storemigration.StoreFileType;
 import org.neo4j.kernel.impl.transaction.TransactionHeaderInformationFactory;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
@@ -123,6 +123,7 @@ public class BackupIT
     private File serverPath;
     private File otherServerPath;
     private File backupPath;
+    private DatabaseLayout backupDatabaseLayout;
     private List<ServerInterface> servers;
 
     @Parameters( name = "{0}" )
@@ -138,6 +139,7 @@ public class BackupIT
         serverPath = testDir.directory( "server" );
         otherServerPath = testDir.directory( "server2" );
         backupPath = testDir.directory( "backedup-serverdb" );
+        backupDatabaseLayout = DatabaseLayout.of( backupPath );
     }
 
     @After
@@ -394,7 +396,7 @@ public class BackupIT
 
     private long getLastCommittedTx( String path, PageCache pageCache ) throws IOException
     {
-        File neoStore = new File( path, MetaDataStore.DEFAULT_NAME );
+        File neoStore = new File( path, DatabaseFileNames.METADATA_STORE );
         return MetaDataStore.getRecord( pageCache, neoStore, Position.LAST_TRANSACTION_ID );
     }
 
@@ -497,12 +499,12 @@ public class BackupIT
 
             OnlineBackup backup = OnlineBackup.from( "127.0.0.1", backupPort );
             backup.full( backupPath.getPath() );
-            ensureStoresHaveIdFiles( backupPath );
+            ensureStoresHaveIdFiles( backupDatabaseLayout );
 
             DbRepresentation representation = addLotsOfData( db );
             backup.incremental( backupPath.getPath() );
             assertEquals( representation, getDbRepresentation() );
-            ensureStoresHaveIdFiles( backupPath );
+            ensureStoresHaveIdFiles( backupDatabaseLayout );
         }
         finally
         {
@@ -538,17 +540,13 @@ public class BackupIT
         }
     }
 
-    private void ensureStoresHaveIdFiles( File path ) throws IOException
+    private void ensureStoresHaveIdFiles( DatabaseLayout databaseLayout ) throws IOException
     {
-        for ( StoreFile file : StoreFile.values() )
+        for ( File idFile : databaseLayout.idFiles() )
         {
-            if ( file.isRecordStore() )
-            {
-                File idFile = new File( path, file.fileName( StoreFileType.ID ) );
-                assertTrue( "Missing id file " + idFile, idFile.exists() );
-                assertTrue( "Id file " + idFile + " had 0 highId",
-                        IdGeneratorImpl.readHighId( fileSystemRule.get(), idFile ) > 0 );
-            }
+            assertTrue( "Missing id file " + idFile, idFile.exists() );
+            assertTrue( "Id file " + idFile + " had 0 highId",
+                    IdGeneratorImpl.readHighId( fileSystemRule.get(), idFile ) > 0 );
         }
     }
 
@@ -587,8 +585,7 @@ public class BackupIT
 
     private long lastTxChecksumOf( File storeDir, PageCache pageCache ) throws IOException
     {
-        File neoStore = new File( storeDir, MetaDataStore.DEFAULT_NAME );
-        return MetaDataStore.getRecord( pageCache, neoStore, Position.LAST_TRANSACTION_CHECKSUM );
+        return MetaDataStore.getRecord( pageCache, DatabaseLayout.of( storeDir ).metadataStore(), Position.LAST_TRANSACTION_CHECKSUM );
     }
 
     private ServerInterface startServer( File path, int backupPort )
@@ -639,7 +636,7 @@ public class BackupIT
             protected GraphDatabaseService newDatabase( File storeDir, Config config,
                     GraphDatabaseFacadeFactory.Dependencies dependencies )
             {
-                Function<PlatformModule,EditionModule> factory =
+                Function<PlatformModule,AbstractEditionModule> factory =
                         platformModule -> new CommunityEditionModule( platformModule )
                         {
 

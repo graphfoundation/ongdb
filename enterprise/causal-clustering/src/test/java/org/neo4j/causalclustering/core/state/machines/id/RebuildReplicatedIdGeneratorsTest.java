@@ -43,6 +43,7 @@ import org.neo4j.collection.primitive.PrimitiveLongCollections;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.FileUtils;
+import org.neo4j.io.layout.DatabaseFileNames;
 import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.enterprise.id.EnterpriseIdTypeConfigurationProvider;
@@ -78,7 +79,7 @@ public class RebuildReplicatedIdGeneratorsTest
     {
         DefaultFileSystemAbstraction fileSystem = fileSystemRule.get();
         File stickyGenerator = new File( testDirectory.graphDbDir(), "stickyGenerator" );
-        File nodeStoreIdGenerator = new File( testDirectory.graphDbDir(), MetaDataStore.DEFAULT_NAME + NODE_STORE_NAME + ".id" );
+        File nodeStoreIdGenerator = new File( testDirectory.graphDbDir(), DatabaseFileNames.METADATA_STORE + NODE_STORE_NAME + ".id" );
 
         StoreFactory storeFactory = new StoreFactory( testDirectory.graphDbDir(), Config.defaults(),
                 getIdGenerationFactory( fileSystem ), pageCacheRule.getPageCache( fileSystem ), fileSystem,

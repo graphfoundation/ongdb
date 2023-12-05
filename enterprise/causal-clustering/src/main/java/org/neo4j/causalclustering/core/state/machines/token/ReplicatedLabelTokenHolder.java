@@ -34,18 +34,23 @@
  */
 package org.neo4j.causalclustering.core.state.machines.token;
 
+import java.util.List;
+
 import org.neo4j.causalclustering.core.replication.Replicator;
+import org.neo4j.internal.kernel.api.NamedToken;
 import org.neo4j.kernel.api.txstate.TransactionState;
-import org.neo4j.kernel.impl.core.LabelTokenHolder;
+import org.neo4j.kernel.impl.core.NonUniqueTokenException;
+import org.neo4j.kernel.impl.core.TokenHolder;
+import org.neo4j.kernel.impl.core.TokenRegistry;
 import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.store.id.IdType;
 import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.internal.kernel.api.Token;
 
-public class ReplicatedLabelTokenHolder extends ReplicatedTokenHolder<Token> implements LabelTokenHolder
+public class ReplicatedLabelTokenHolder extends ReplicatedTokenHolder implements TokenHolder
 {
-    public ReplicatedLabelTokenHolder( TokenRegistry<Token> registry, Replicator replicator,
-            IdGeneratorFactory idGeneratorFactory, Dependencies dependencies )
+    public ReplicatedLabelTokenHolder( TokenRegistry registry, Replicator replicator,
+                                       IdGeneratorFactory idGeneratorFactory, Dependencies dependencies )
     {
         super( registry, replicator, idGeneratorFactory, IdType.LABEL_TOKEN, dependencies, TokenType.LABEL );
     }
@@ -54,5 +59,29 @@ public class ReplicatedLabelTokenHolder extends ReplicatedTokenHolder<Token> imp
     protected void createToken( TransactionState txState, String tokenName, int tokenId )
     {
         txState.labelDoCreateForName( tokenName, tokenId );
+    }
+
+    @Override
+    public void setInitialTokens( List<NamedToken> tokens ) throws NonUniqueTokenException
+    {
+
+    }
+
+    @Override
+    public void addToken( NamedToken token ) throws NonUniqueTokenException
+    {
+
+    }
+
+    @Override
+    public void getOrCreateIds( String[] names, int[] ids )
+    {
+
+    }
+
+    @Override
+    public boolean getIdsByNames( String[] names, int[] ids )
+    {
+        return false;
     }
 }

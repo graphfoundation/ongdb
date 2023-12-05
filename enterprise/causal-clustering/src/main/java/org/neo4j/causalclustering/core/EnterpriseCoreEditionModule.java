@@ -111,6 +111,7 @@ import org.neo4j.helpers.SocketAddress;
 import org.neo4j.helpers.collection.Pair;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.availability.DatabaseAvailability;
 import org.neo4j.kernel.api.bolt.BoltConnectionTracker;
@@ -211,8 +212,7 @@ public class EnterpriseCoreEditionModule extends EnterpriseEditionModule
         procedures.registerProcedure( ReplicationBenchmarkProcedure.class );
     }
 
-    public EnterpriseCoreEditionModule( final PlatformModule platformModule,
-            final DiscoveryServiceFactory discoveryServiceFactory )
+    public EnterpriseCoreEditionModule( final PlatformModule platformModule, final DiscoveryServiceFactory discoveryServiceFactory )
     {
         final Dependencies dependencies = platformModule.dependencies;
         config = platformModule.config;
@@ -366,12 +366,11 @@ public class EnterpriseCoreEditionModule extends EnterpriseEditionModule
         return new UpstreamDatabaseStrategySelector( defaultStrategy, loader, logProvider );
     }
 
-    private LogFiles buildLocalDatabaseLogFiles( PlatformModule platformModule, FileSystemAbstraction fileSystem,
-            File storeDir )
+    private LogFiles buildLocalDatabaseLogFiles( PlatformModule platformModule, FileSystemAbstraction fileSystem, DatabaseLayout databaseLayout )
     {
         try
         {
-            return LogFilesBuilder.activeFilesBuilder( storeDir, fileSystem, platformModule.pageCache ).withConfig( config ).build();
+            return LogFilesBuilder.activeFilesBuilder( databaseLayout, fileSystem, platformModule.pageCache ).withConfig( config ).build();
         }
         catch ( IOException e )
         {
@@ -379,13 +378,10 @@ public class EnterpriseCoreEditionModule extends EnterpriseEditionModule
         }
     }
 
-    protected ClusteringModule getClusteringModule( PlatformModule platformModule,
-                                                  DiscoveryServiceFactory discoveryServiceFactory,
-                                                  ClusterStateDirectory clusterStateDirectory,
-                                                  IdentityModule identityModule, Dependencies dependencies )
+    protected ClusteringModule getClusteringModule( PlatformModule platformModule, DiscoveryServiceFactory discoveryServiceFactory,
+            ClusterStateDirectory clusterStateDirectory, IdentityModule identityModule, Dependencies dependencies, DatabaseLayout databaseLayout )
     {
-        return new ClusteringModule( discoveryServiceFactory, identityModule.myself(),
-                platformModule, clusterStateDirectory.get() );
+        return new ClusteringModule( discoveryServiceFactory, identityModule.myself(), platformModule, clusterStateDirectory.get(), databaseLayout );
     }
 
     protected DuplexPipelineWrapperFactory pipelineWrapperFactory()
@@ -394,8 +390,7 @@ public class EnterpriseCoreEditionModule extends EnterpriseEditionModule
     }
 
     @Override
-    protected void createIdComponents( PlatformModule platformModule, Dependencies dependencies,
-            IdGeneratorFactory editionIdGeneratorFactory )
+    protected void createIdComponents( PlatformModule platformModule, Dependencies dependencies, IdGeneratorFactory editionIdGeneratorFactory )
     {
         super.createIdComponents( platformModule, dependencies, editionIdGeneratorFactory );
         this.idGeneratorFactory =

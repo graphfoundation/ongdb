@@ -245,7 +245,7 @@ public class BackupStrategyWrapperTest
     {
         // given backup exists
         desiredBackupLocation = testDirectory.directory( "some-preexisting-backup" ).toPath();
-        when( backupCopyService.backupExists( desiredBackupLocation ) ).thenReturn( true );
+        when( backupCopyService.backupExists( testDirectory.databaseLayout() ) ).thenReturn( true );
 
         // and fallback to full flag has been set
         requiredArguments = requiredArguments( true );
@@ -378,7 +378,7 @@ public class BackupStrategyWrapperTest
     public void successfulFullBackupsAreRecoveredEvenIfNoBackupExisted()
     {
         // given a backup exists
-        when( backupCopyService.backupExists( desiredBackupLocation ) ).thenReturn( false );
+        when( backupCopyService.backupExists( testDirectory.databaseLayout() ) ).thenReturn( false );
         when( backupCopyService.findAnAvailableLocationForNewFullBackup( desiredBackupLocation ) )
                 .thenReturn( desiredBackupLocation );
 
@@ -536,6 +536,6 @@ public class BackupStrategyWrapperTest
 
     private static ConsistencyFlags consistencyFlags()
     {
-        return new ConsistencyFlags( true, true, true, true );
+        return new ConsistencyFlags( true, true, true, true, true );
     }
 }

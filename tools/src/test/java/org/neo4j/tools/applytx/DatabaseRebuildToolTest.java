@@ -52,6 +52,7 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
@@ -190,7 +191,7 @@ public class DatabaseRebuildToolTest
         try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction();
               PageCache pageCache = createPageCache( fileSystem ) )
         {
-            return MetaDataStore.getRecord( pageCache, new File( storeDir, MetaDataStore.DEFAULT_NAME ),
+            return MetaDataStore.getRecord( pageCache, DatabaseLayout.of( storeDir ).metadataStore(),
                     MetaDataStore.Position.LAST_TRANSACTION_ID );
         }
         catch ( IOException e )

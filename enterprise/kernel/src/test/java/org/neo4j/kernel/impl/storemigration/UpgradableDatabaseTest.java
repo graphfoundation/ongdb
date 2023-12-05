@@ -51,6 +51,7 @@ import java.util.Collections;
 
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseFileNames;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.impl.store.format.RecordFormatSelector;
@@ -217,7 +218,7 @@ public class UpgradableDatabaseTest
             // doesn't matter which version we pick we are changing it to the wrong one...
             MigrationTestUtils.findFormatStoreDirectoryForVersion( StandardV2_3.STORE_VERSION, workingDirectory );
             changeVersionNumber( fileSystem, new File( workingDirectory, neostoreFilename ), version );
-            File metadataStore = new File( workingDirectory, MetaDataStore.DEFAULT_NAME );
+            File metadataStore = new File( workingDirectory, DatabaseFileNames.METADATA_STORE );
             PageCache pageCache = pageCacheRule.getPageCache( fileSystem );
             MetaDataStore.setRecord( pageCache, metadataStore, STORE_VERSION, MetaDataStore.versionStringToLong( version ) );
             VersionAwareLogEntryReader<ReadableClosablePositionAwareChannel> logEntryReader = new VersionAwareLogEntryReader<>();

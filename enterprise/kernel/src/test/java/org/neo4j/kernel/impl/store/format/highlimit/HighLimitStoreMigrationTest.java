@@ -43,6 +43,8 @@ import java.io.File;
 import java.io.IOException;
 
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseFileNames;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.logging.NullLogService;
@@ -113,7 +115,8 @@ public class HighLimitStoreMigrationTest
     private File createNeoStoreFile( FileSystemAbstraction fileSystem, File storeDir ) throws IOException
     {
         fileSystem.mkdir( storeDir );
-        File neoStoreFile = new File( storeDir, MetaDataStore.DEFAULT_NAME );
+        DatabaseLayout databaseLayout = testDirectory.databaseLayout( storeDir );
+        File neoStoreFile = databaseLayout.metadataStore();
         fileSystem.create( neoStoreFile ).close();
         return neoStoreFile;
     }

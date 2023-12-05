@@ -42,8 +42,7 @@ import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.store.id.IdType;
 import org.neo4j.kernel.impl.util.Dependencies;
 
-public class ReplicatedRelationshipTypeTokenHolder extends
-        ReplicatedTokenHolder<RelationshipTypeToken> implements RelationshipTypeTokenHolder
+public class ReplicatedRelationshipTypeTokenHolder extends ReplicatedTokenHolder<RelationshipTypeToken> implements RelationshipTypeTokenHolder
 {
     public ReplicatedRelationshipTypeTokenHolder( TokenRegistry<RelationshipTypeToken> registry,
             RaftReplicator replicator, IdGeneratorFactory idGeneratorFactory, Dependencies dependencies )

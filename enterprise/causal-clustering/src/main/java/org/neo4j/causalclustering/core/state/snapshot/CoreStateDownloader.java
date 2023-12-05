@@ -73,7 +73,7 @@ public class CoreStateDownloader
     private final StoreCopyProcess storeCopyProcess;
     private final CoreStateMachines coreStateMachines;
     private final CoreSnapshotService snapshotService;
-    private CommitStateHelper commitStateHelper;
+    private final CommitStateHelper commitStateHelper;
 
     public CoreStateDownloader( LocalDatabase localDatabase, Suspendable suspendOnStoreCopy, RemoteStore remoteStore,
                                 CatchUpClient catchUpClient, LogProvider logProvider, StoreCopyProcess storeCopyProcess,
