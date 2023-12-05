@@ -63,10 +63,10 @@ import static org.neo4j.util.FeatureToggles.flag;
 
 abstract class MuninnPageCursor extends PageCursor
 {
-    private static final boolean usePreciseCursorErrorStackTraces =
+    static final boolean usePreciseCursorErrorStackTraces =
             flag( MuninnPageCursor.class, "usePreciseCursorErrorStackTraces", false );
 
-    private static final boolean boundsCheck = flag( MuninnPageCursor.class, "boundsCheck", true );
+    static final boolean boundsCheck = flag( MuninnPageCursor.class, "boundsCheck", true );
 
     // Size of the respective primitive types in bytes.
     private static final int SIZE_OF_BYTE = Byte.BYTES;
