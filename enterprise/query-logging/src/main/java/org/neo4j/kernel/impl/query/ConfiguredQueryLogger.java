@@ -45,6 +45,7 @@ import org.neo4j.kernel.api.query.QuerySnapshot;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.logging.Log;
 
+import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 class ConfiguredQueryLogger implements QueryLogger
@@ -124,7 +125,7 @@ class ConfiguredQueryLogger implements QueryLogger
         }
 
         StringBuilder result = new StringBuilder();
-        result.append( query.elapsedTimeMillis() ).append( " ms: " );
+        result.append( MICROSECONDS.toMillis( query.elapsedTimeMicros() ) ).append( " ms: " );
         if ( logDetailedTime )
         {
             QueryLogFormatter.formatDetailedTime( result, query );

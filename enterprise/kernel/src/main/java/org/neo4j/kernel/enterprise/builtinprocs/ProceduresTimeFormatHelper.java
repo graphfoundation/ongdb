@@ -61,5 +61,4 @@ public class ProceduresTimeFormatHelper
         final long ms = l - HOURS.toMillis( hr ) - MINUTES.toMillis( min ) - SECONDS.toMillis( sec );
         return String.format( "%02d:%02d:%02d.%03d", hr, min, sec, ms );
     }
-
 }

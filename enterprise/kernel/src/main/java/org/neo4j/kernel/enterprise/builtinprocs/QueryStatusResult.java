@@ -54,6 +54,7 @@ import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.virtual.MapValue;
 
 import static java.util.Collections.singletonList;
+import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static org.neo4j.kernel.enterprise.builtinprocs.ProceduresTimeFormatHelper.formatInterval;
 import static org.neo4j.kernel.enterprise.builtinprocs.ProceduresTimeFormatHelper.formatTime;
 import static org.neo4j.kernel.enterprise.builtinprocs.QueryId.ofInternalId;
@@ -115,7 +116,7 @@ public class QueryStatusResult
         this.query = query.queryText();
         this.parameters = asRawMap( query.queryParameters(), new ParameterWriter( manager ) );
         this.startTime = formatTime( query.startTimestampMillis(), zoneId );
-        this.elapsedTimeMillis = query.elapsedTimeMillis();
+        this.elapsedTimeMillis = MICROSECONDS.toMillis( query.elapsedTimeMicros() );
         this.elapsedTime = formatInterval( elapsedTimeMillis );
         ClientConnectionInfo clientConnection = query.clientConnection();
         this.connectionDetails = clientConnection.asConnectionDetails();
@@ -123,12 +124,12 @@ public class QueryStatusResult
         this.clientAddress = clientConnection.clientAddress();
         this.requestUri = clientConnection.requestURI();
         this.metaData = query.transactionAnnotationData();
-        this.cpuTimeMillis = query.cpuTimeMillis();
+        this.cpuTimeMillis = MICROSECONDS.toMillis( query.cpuTimeMicros() );
         this.status = query.status();
         this.resourceInformation = query.resourceInformation();
         this.activeLockCount = query.activeLockCount();
-        this.waitTimeMillis = query.waitTimeMillis();
-        this.idleTimeMillis = query.idleTimeMillis();
+        this.waitTimeMillis = MICROSECONDS.toMillis( query.waitTimeMicros() );
+        this.idleTimeMillis = MICROSECONDS.toMillis( query.idleTimeMicros() );
         this.planner = query.planner();
         this.runtime = query.runtime();
         this.indexes = query.indexes();

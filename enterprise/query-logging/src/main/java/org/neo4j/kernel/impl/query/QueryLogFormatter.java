@@ -44,6 +44,8 @@ import org.neo4j.values.AnyValue;
 import org.neo4j.values.utils.PrettyPrinter;
 import org.neo4j.values.virtual.MapValue;
 
+import static java.util.concurrent.TimeUnit.MICROSECONDS;
+
 class QueryLogFormatter
 {
     private QueryLogFormatter()
@@ -67,13 +69,9 @@ class QueryLogFormatter
 
     static void formatDetailedTime( StringBuilder result, QuerySnapshot query )
     {
-        result.append( "(planning: " ).append( query.planningTimeMillis() );
-        Long cpuTime = query.cpuTimeMillis();
-        if ( cpuTime != null )
-        {
-            result.append( ", cpu: " ).append( cpuTime );
-        }
-        result.append( ", waiting: " ).append( query.waitTimeMillis() );
+        result.append( "(planning: " ).append( MICROSECONDS.toMillis( query.compilationTimeMicros() ) );
+        result.append( ", cpu: " ).append( MICROSECONDS.toMillis( query.cpuTimeMicros() ) );
+        result.append( ", waiting: " ).append( MICROSECONDS.toMillis( query.waitTimeMicros() ) );
         result.append( ") - " );
     }
 
