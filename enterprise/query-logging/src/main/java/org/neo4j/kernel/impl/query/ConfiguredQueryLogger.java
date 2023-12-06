@@ -83,6 +83,12 @@ class ConfiguredQueryLogger implements QueryLogger
     }
 
     @Override
+    public void failure( ExecutingQuery query, String reason )
+    {
+        log.error( logEntry( query.snapshot() ), reason );
+    }
+
+    @Override
     public void success( ExecutingQuery query )
     {
         if ( NANOSECONDS.toMillis( query.elapsedNanos() ) >= thresholdMillis )
