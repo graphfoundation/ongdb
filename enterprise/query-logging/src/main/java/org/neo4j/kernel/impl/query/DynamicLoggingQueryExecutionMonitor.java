@@ -49,6 +49,7 @@ import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.logging.FormattedLog;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.RotatingFileOutputStreamSupplier;
+import org.neo4j.scheduler.Group;
 import org.neo4j.scheduler.JobScheduler;
 
 import static org.neo4j.io.file.Files.createOrOpenAsOutputStream;
@@ -199,7 +200,7 @@ class DynamicLoggingQueryExecutionMonitor extends LifecycleAdapter implements Qu
         RotatingFileOutputStreamSupplier rotatingSupplier = new RotatingFileOutputStreamSupplier(
                 fileSystem, currentQueryLogFile,
                 rotationThreshold, 0, maxArchives,
-                scheduler.executor( JobScheduler.Groups.queryLogRotation ) );
+                scheduler.executor( Group.LOG_ROTATION ) );
         log = logBuilder.toOutputStream( rotatingSupplier );
         closable = rotatingSupplier;
     }
