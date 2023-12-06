@@ -47,8 +47,8 @@ import org.neo4j.jmx.impl.ManagementBeanProvider;
 import org.neo4j.jmx.impl.ManagementData;
 import org.neo4j.jmx.impl.Neo4jMBean;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.info.DiagnosticsManager;
-import org.neo4j.kernel.info.DiagnosticsProvider;
+import org.neo4j.internal.diagnostics.DiagnosticsManager;
+import org.neo4j.internal.diagnostics.DiagnosticsProvider;
 import org.neo4j.logging.FormattedLog;
 import org.neo4j.management.Diagnostics;
 
@@ -74,9 +74,8 @@ public class DiagnosticsBean extends ManagementBeanProvider
         DiagnosticsImpl( ManagementData management ) throws NotCompliantMBeanException
         {
             super( management );
-            DependencyResolver resolver = management.getKernelData().graphDatabase().getDependencyResolver();
-            config = resolver.resolveDependency( Config.class );
-            this.diagnostics = resolver.resolveDependency( DiagnosticsManager.class );
+            config = management.resolveDependency( Config.class );
+            this.diagnostics = management.resolveDependency( DiagnosticsManager.class );
         }
 
         @Override

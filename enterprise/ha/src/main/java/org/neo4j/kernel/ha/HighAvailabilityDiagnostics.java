@@ -37,14 +37,13 @@ package org.neo4j.kernel.ha;
 import org.neo4j.cluster.client.ClusterClient;
 import org.neo4j.kernel.ha.cluster.HighAvailabilityMemberStateMachine;
 import org.neo4j.kernel.info.DiagnosticsPhase;
-import org.neo4j.kernel.info.DiagnosticsProvider;
+import org.neo4j.internal.diagnostics.DiagnosticsProvider;
 import org.neo4j.logging.Logger;
 
 /**
  * TODO
  */
-public class HighAvailabilityDiagnostics
-        implements DiagnosticsProvider
+public class HighAvailabilityDiagnostics implements DiagnosticsProvider
 {
     private final HighAvailabilityMemberStateMachine memberStateMachine;
     private final ClusterClient clusterClient;
