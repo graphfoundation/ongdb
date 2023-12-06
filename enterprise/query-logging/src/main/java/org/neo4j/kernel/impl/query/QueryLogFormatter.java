@@ -37,6 +37,7 @@ package org.neo4j.kernel.impl.query;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.StringJoiner;
 
 import org.neo4j.helpers.Strings;
 import org.neo4j.kernel.api.query.QuerySnapshot;
@@ -82,29 +83,26 @@ class QueryLogFormatter
 
     static void formatMapValue( StringBuilder result, MapValue params, Collection<String> obfuscate )
     {
-        result.append( '{' );
+        final StringJoiner mapJoiner = new StringJoiner( ", ", "{", "}" );
         if ( params != null )
         {
-            String sep = "";
-            for ( Map.Entry<String,AnyValue> entry : params.entrySet() )
+            params.foreach( ( key, value ) ->
             {
-                result
-                        .append( sep )
-                        .append( entry.getKey() )
-                        .append( ": " );
+                StringJoiner kvJoiner = new StringJoiner( ": " );
+                kvJoiner.add( key );
 
-                if ( obfuscate.contains( entry.getKey() ) )
+                if ( obfuscate.contains( key ) )
                 {
-                    result.append( "******" );
+                    kvJoiner.add( "******" );
                 }
                 else
                 {
-                    result.append( formatAnyValue( entry.getValue() ));
+                    kvJoiner.add( formatAnyValue( value ) );
                 }
-                sep = ", ";
-            }
+                mapJoiner.add( kvJoiner.toString() );
+            } );
         }
-        result.append( "}" );
+        result.append( mapJoiner );
     }
 
     static String formatAnyValue( AnyValue value )
