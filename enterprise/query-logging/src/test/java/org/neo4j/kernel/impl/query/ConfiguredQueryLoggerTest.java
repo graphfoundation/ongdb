@@ -37,6 +37,7 @@ package org.neo4j.kernel.impl.query;
 import org.junit.Rule;
 import org.junit.Test;
 
+import java.net.SocketAddress;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -48,8 +49,8 @@ import org.neo4j.io.pagecache.tracing.cursor.PageCursorCounters;
 import org.neo4j.kernel.api.query.ExecutingQuery;
 import org.neo4j.kernel.api.query.PlannerInfo;
 import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.impl.query.clientconnection.BoltConnectionInfo;
 import org.neo4j.kernel.impl.query.clientconnection.ClientConnectionInfo;
-import org.neo4j.kernel.impl.query.clientconnection.ShellConnectionInfo;
 import org.neo4j.kernel.impl.util.ValueUtils;
 import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.logging.LogProvider;
@@ -69,9 +70,10 @@ import static org.neo4j.logging.AssertableLogProvider.inLog;
 
 public class ConfiguredQueryLoggerTest
 {
-    private static final ClientConnectionInfo SESSION_1 = new ShellConnectionInfo( "{session one}" );
-    private static final ClientConnectionInfo SESSION_2 = new ShellConnectionInfo( "{session two}" );
-    private static final ClientConnectionInfo SESSION_3 = new ShellConnectionInfo( "{session three}" );
+    private static final TestSocketAddress TEST_ADDRESS = new TestSocketAddress();
+    private static final ClientConnectionInfo SESSION_1 = new BoltConnectionInfo( "1", "{session one}", "client", TEST_ADDRESS, TEST_ADDRESS );
+    private static final ClientConnectionInfo SESSION_2 = new BoltConnectionInfo( "2", "{session two}", "client", TEST_ADDRESS, TEST_ADDRESS );
+    private static final ClientConnectionInfo SESSION_3 = new BoltConnectionInfo( "3", "{session three}", "client", TEST_ADDRESS, TEST_ADDRESS );
     private static final String QUERY_1 = "MATCH (n) RETURN n";
     private static final String QUERY_2 = "MATCH (a)--(b) RETURN b.name";
     private static final String QUERY_3 = "MATCH (c)-[:FOO]->(d) RETURN d.size";
@@ -621,5 +623,14 @@ public class ConfiguredQueryLoggerTest
                 clock,
                 cpuClock,
                 heapAllocation );
+    }
+
+    private static class TestSocketAddress extends SocketAddress
+    {
+        @Override
+        public String toString()
+        {
+            return "TestSocketAddress";
+        }
     }
 }
