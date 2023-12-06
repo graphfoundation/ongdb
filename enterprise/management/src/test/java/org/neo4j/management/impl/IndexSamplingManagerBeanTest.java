@@ -70,10 +70,10 @@ public class IndexSamplingManagerBeanTest
         tokenHolders = mock( TokenHolders.class );
         indexingService = mock( IndexingService.class );
         when( dataSource.getStoreLayer() ).thenReturn( storeReadLayer );
-        when( tokenHolders.labelGetForName( EXISTING_LABEL ) ).thenReturn( LABEL_ID );
-        when( tokenHolders.propertyKeyGetForName( EXISTING_PROPERTY ) ).thenReturn( PROPERTY_ID );
-        when( tokenHolders.propertyKeyGetForName( NON_EXISTING_PROPERTY ) ).thenReturn( -1 );
-        when( tokenHolders.labelGetForName( NON_EXISTING_LABEL ) ).thenReturn( -1 );
+        when( tokenHolders.labelTokens().getIdByName( EXISTING_LABEL ) ).thenReturn( LABEL_ID );
+        when( tokenHolders.propertyKeyTokens().getIdByName( EXISTING_PROPERTY ) ).thenReturn( PROPERTY_ID );
+        when( tokenHolders.propertyKeyTokens().getIdByName( NON_EXISTING_PROPERTY ) ).thenReturn( -1 );
+        when( tokenHolders.labelTokens().getIdByName( NON_EXISTING_LABEL ) ).thenReturn( -1 );
         DependencyResolver resolver = mock( DependencyResolver.class );
         when( resolver.resolveDependency( IndexingService.class ) ).thenReturn( indexingService );
         when( dataSource.getDependencyResolver() ).thenReturn( resolver );
