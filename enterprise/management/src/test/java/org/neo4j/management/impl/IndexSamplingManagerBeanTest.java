@@ -62,18 +62,17 @@ public class IndexSamplingManagerBeanTest
     public static final String NON_EXISTING_PROPERTY = "bogusProp";
     public static final int PROPERTY_ID = 43;
     private NeoStoreDataSource dataSource;
-    private TokenHolders tokenHolders;
     private IndexingService indexingService;
 
     @Before
     public void setup()
     {
         dataSource = mock( NeoStoreDataSource.class );
-        tokenHolders = mock( TokenHolders.class );
         indexingService = mock( IndexingService.class );
         StorageEngine storageEngine = mock( StorageEngine.class );
         StorageReader storageReader = mock( StorageReader.class );
         when( storageEngine.newReader() ).thenReturn( storageReader );
+        TokenHolders tokenHolders = mock( TokenHolders.class );
         when( tokenHolders.labelTokens().getIdByName( EXISTING_LABEL ) ).thenReturn( LABEL_ID );
         when( tokenHolders.propertyKeyTokens().getIdByName( EXISTING_PROPERTY ) ).thenReturn( PROPERTY_ID );
         when( tokenHolders.propertyKeyTokens().getIdByName( NON_EXISTING_PROPERTY ) ).thenReturn( -1 );
