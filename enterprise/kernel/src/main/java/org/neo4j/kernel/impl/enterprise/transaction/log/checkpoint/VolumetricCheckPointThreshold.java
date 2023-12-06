@@ -48,9 +48,9 @@ public class VolumetricCheckPointThreshold extends AbstractCheckPointThreshold
     }
 
     @Override
-    protected boolean thresholdReached( long lastCommittedTransactionId )
+    protected boolean thresholdReached( long lastCommittedTransactionId, long lastCommittedTransactionLogVersion )
     {
-        return logPruning.mightHaveLogsToPrune();
+        return logPruning.mightHaveLogsToPrune( lastCommittedTransactionLogVersion );
     }
 
     @Override
