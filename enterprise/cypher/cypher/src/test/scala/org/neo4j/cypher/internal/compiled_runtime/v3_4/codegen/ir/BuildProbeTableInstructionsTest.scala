@@ -50,7 +50,7 @@ import org.neo4j.cypher.internal.frontend.v3_4.semantics.SemanticTable
 import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.cypher.internal.runtime.interpreted.TransactionalContextWrapper
 import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 import org.neo4j.graphdb.Node
 import org.neo4j.internal.kernel.api._
 import org.neo4j.internal.kernel.api.helpers.StubNodeCursor

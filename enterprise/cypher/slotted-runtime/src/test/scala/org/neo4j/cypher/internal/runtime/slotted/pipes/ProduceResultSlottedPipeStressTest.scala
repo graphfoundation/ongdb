@@ -43,7 +43,7 @@ import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QuerySta
 import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
 import org.neo4j.cypher.internal.util.v3_4.attribution.Id
 import org.neo4j.cypher.internal.util.v3_4.symbols.CTNode
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 import org.neo4j.cypher.result.QueryResult
 import org.neo4j.cypher.result.QueryResult.Record
 import org.neo4j.values.AnyValue

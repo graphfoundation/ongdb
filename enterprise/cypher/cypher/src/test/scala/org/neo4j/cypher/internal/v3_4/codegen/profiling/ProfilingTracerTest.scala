@@ -36,7 +36,7 @@ package org.neo4j.cypher.internal.v3_4.codegen.profiling
 
 import org.neo4j.cypher.internal.planner.v3_4.spi.{EmptyKernelStatisticProvider, KernelStatisticProvider}
 import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 import org.neo4j.io.pagecache.tracing.cursor.DefaultPageCursorTracer
 
 class ProfilingTracerTest extends CypherFunSuite {

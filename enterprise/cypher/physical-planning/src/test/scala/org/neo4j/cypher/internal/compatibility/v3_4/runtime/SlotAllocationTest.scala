@@ -40,7 +40,7 @@ import org.neo4j.cypher.internal.frontend.v3_4.semantics.{ExpressionTypeInfo, Se
 import org.neo4j.cypher.internal.ir.v3_4.{PlannerQuery, VarPatternLength}
 import org.neo4j.cypher.internal.util.v3_4.LabelId
 import org.neo4j.cypher.internal.util.v3_4.symbols._
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 import org.neo4j.cypher.internal.v3_4.expressions._
 import org.neo4j.cypher.internal.v3_4.logical.plans.{Ascending, _}
 import org.neo4j.cypher.internal.v3_4.logical.{plans => logicalPlans}
