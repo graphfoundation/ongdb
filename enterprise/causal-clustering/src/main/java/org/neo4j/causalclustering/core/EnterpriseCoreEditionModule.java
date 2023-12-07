@@ -113,6 +113,7 @@ import org.neo4j.helpers.collection.Pair;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
+import org.neo4j.io.layout.StoreLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.net.NetworkConnectionTracker;
 import org.neo4j.kernel.availability.DatabaseAvailability;
@@ -131,6 +132,7 @@ import org.neo4j.kernel.impl.factory.DatabaseInfo;
 import org.neo4j.graphdb.factory.module.PlatformModule;
 import org.neo4j.kernel.impl.factory.StatementLocksFactorySelector;
 import org.neo4j.kernel.impl.index.IndexConfigStore;
+import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
 import  org.neo4j.logging.internal.LogService;
 import org.neo4j.kernel.impl.pagecache.PageCacheWarmer;
 import org.neo4j.kernel.impl.proc.Procedures;
@@ -142,8 +144,6 @@ import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFiles;
 import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.kernel.internal.DatabaseHealth;
-import org.neo4j.kernel.internal.DefaultKernelData;
-import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.internal.KernelData;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.lifecycle.LifecycleStatus;
@@ -224,11 +224,11 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
         config = platformModule.config;
         final LogService logging = platformModule.logging;
         final FileSystemAbstraction fileSystem = platformModule.fileSystem;
-        final File storeDir = platformModule.storeDir;
+        final DatabaseLayout databaseLayout = platformModule.storeLayout.databaseLayout( config.get( GraphDatabaseSettings.active_database ) );
         final LifeSupport life = platformModule.life;
 
         final File dataDir = config.get( GraphDatabaseSettings.data_directory );
-        final ClusterStateDirectory clusterStateDirectory = new ClusterStateDirectory( dataDir, storeDir, false );
+        final ClusterStateDirectory clusterStateDirectory = new ClusterStateDirectory( dataDir, databaseLayout.databaseDirectory(), false );
         try
         {
             clusterStateDirectory.initialize( fileSystem );
@@ -434,8 +434,8 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
         statementLocksFactory = new StatementLocksFactorySelector( lockManager, config, logging ).select();
 
         dependencies.satisfyDependency(
-                createKernelData( platformModule.fileSystem, platformModule.pageCache, platformModule.storeDir,
-                        config, platformModule.graphDatabaseFacade, life ) );
+                createKernelData( platformModule.fileSystem, platformModule.pageCache, platformModule.storeLayout,
+                        config, platformModule.dataSourceManager, life ) );
 
         ioLimiter = new ConfigurableIOLimiter( platformModule.config );
 
@@ -481,10 +481,10 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
         return SchemaWriteGuard.ALLOW_ALL_WRITES;
     }
 
-    private KernelData createKernelData( FileSystemAbstraction fileSystem, PageCache pageCache, File storeDir,
-            Config config, GraphDatabaseAPI graphAPI, LifeSupport life )
+    private KernelData createKernelData( FileSystemAbstraction fileSystem, PageCache pageCache, StoreLayout storeLayout,
+            Config config, DataSourceManager dataSourceManager, LifeSupport life )
     {
-        DefaultKernelData kernelData = new DefaultKernelData( fileSystem, pageCache, storeDir, config, graphAPI );
+        KernelData kernelData = new KernelData( fileSystem, pageCache, storeLayout.storeDirectory(), config, dataSourceManager );
         return life.add( kernelData );
     }
 
