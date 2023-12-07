@@ -36,33 +36,20 @@ package org.neo4j.kernel.impl.enterprise;
 
 import org.junit.Test;
 
-import org.neo4j.kernel.api.bolt.ManagedBoltStateMachine;
+import org.neo4j.kernel.api.net.NetworkConnectionTracker;
 
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
 
-import static org.neo4j.helpers.collection.Iterators.asSet;
-
-public class StandardBoltConnectionTrackerTest
+public class StandardNetworkConnectionTrackerTest
 {
-    @Test
-    public void shouldTrackConnectionsAndTheirOwners()
-    {
-        // given
-        StandardBoltConnectionTracker tracker = new StandardBoltConnectionTracker();
-        ManagedBoltStateMachine owner1machine1 = mock( ManagedBoltStateMachine.class );
-        ManagedBoltStateMachine owner1machine2 = mock( ManagedBoltStateMachine.class );
-        ManagedBoltStateMachine owner2machine1 = mock( ManagedBoltStateMachine.class );
-        ManagedBoltStateMachine owner2machine2 = mock( ManagedBoltStateMachine.class );
-        tracker.onRegister( owner1machine1, "owner1" );
-        tracker.onRegister( owner1machine2, "owner1" );
-        tracker.onRegister( owner2machine1, "owner2" );
-        tracker.onRegister( owner2machine2, "owner2" );
+    private final NetworkConnectionTracker tracker = new StandardNetworkConnectionTracker();
 
-        // then
-        assertEquals( asSet( owner1machine1, owner1machine2, owner2machine1, owner2machine2 ),
-                tracker.getActiveConnections() );
-        assertEquals( asSet( owner1machine1, owner1machine2 ), tracker.getActiveConnections( "owner1" ) );
-        assertEquals( asSet( owner2machine1, owner2machine2 ), tracker.getActiveConnections( "owner2" ) );
+    @Test
+    public void shouldTrackNewConnections()
+    {
+        assertThat( tracker.newConnectionId( "owner" ), equalTo( "owner-1" ) );
+        assertThat( tracker.newConnectionId( "owner" ), equalTo( "owner-2" ) );
+        assertThat( tracker.newConnectionId( "owner" ), equalTo( "owner-3" ) );
     }
 }

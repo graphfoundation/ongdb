@@ -36,7 +36,7 @@ package org.neo4j.kernel.enterprise.api.security;
 
 import java.util.Collections;
 import java.util.Set;
-import java.util.function.Function;
+import java.util.function.ToIntFunction;
 
 import org.neo4j.internal.kernel.api.security.AuthSubject;
 import org.neo4j.internal.kernel.api.security.LoginContext;
@@ -45,7 +45,8 @@ public interface EnterpriseLoginContext extends LoginContext
 {
     Set<String> roles();
 
-    EnterpriseSecurityContext authorize( Function<String, Integer> propertyIdLookup );
+    @Override
+    EnterpriseSecurityContext authorize( ToIntFunction<String> propertyIdLookup, String dbName );
 
     EnterpriseLoginContext AUTH_DISABLED = new EnterpriseLoginContext()
     {
@@ -62,7 +63,7 @@ public interface EnterpriseLoginContext extends LoginContext
         }
 
         @Override
-        public EnterpriseSecurityContext authorize( Function<String, Integer> propertyIdLookup )
+        public EnterpriseSecurityContext authorize( ToIntFunction<String> propertyIdLookup, String dbName )
         {
             return EnterpriseSecurityContext.AUTH_DISABLED;
         }

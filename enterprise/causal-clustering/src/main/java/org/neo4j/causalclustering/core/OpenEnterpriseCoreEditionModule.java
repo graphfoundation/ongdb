@@ -21,9 +21,7 @@ import org.neo4j.causalclustering.discovery.DiscoveryServiceFactory;
 import org.neo4j.causalclustering.handlers.DuplexPipelineWrapperFactory;
 import org.neo4j.causalclustering.handlers.SecurePipelineWrapperFactory;
 import org.neo4j.io.layout.DatabaseLayout;
-import org.neo4j.kernel.api.bolt.BoltConnectionTracker;
 import org.neo4j.kernel.impl.enterprise.EnterpriseEditionModule;
-import org.neo4j.kernel.impl.enterprise.StandardBoltConnectionTracker;
 import org.neo4j.graphdb.factory.module.PlatformModule;
 import org.neo4j.kernel.impl.proc.Procedures;
 import org.neo4j.kernel.impl.util.Dependencies;
@@ -33,11 +31,6 @@ public class OpenEnterpriseCoreEditionModule extends EnterpriseCoreEditionModule
     OpenEnterpriseCoreEditionModule( PlatformModule platformModule, DiscoveryServiceFactory discoveryServiceFactory )
     {
         super( platformModule, discoveryServiceFactory );
-    }
-
-    protected BoltConnectionTracker createSessionTracker()
-    {
-        return new StandardBoltConnectionTracker();
     }
 
     public void setupSecurityModule( PlatformModule platformModule, Procedures procedures, DatabaseLayout databaseLayout )

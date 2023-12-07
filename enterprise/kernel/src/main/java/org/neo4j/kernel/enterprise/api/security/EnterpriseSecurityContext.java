@@ -36,7 +36,6 @@ package org.neo4j.kernel.enterprise.api.security;
 
 import java.util.Collections;
 import java.util.Set;
-import java.util.function.Function;
 
 import org.neo4j.internal.kernel.api.security.AccessMode;
 import org.neo4j.internal.kernel.api.security.AuthSubject;
@@ -61,12 +60,6 @@ public class EnterpriseSecurityContext extends SecurityContext
     public boolean isAdmin()
     {
         return isAdmin;
-    }
-
-    @Override
-    public EnterpriseSecurityContext authorize( Function<String, Integer> propertyIdLookup )
-    {
-        return this;
     }
 
     @Override

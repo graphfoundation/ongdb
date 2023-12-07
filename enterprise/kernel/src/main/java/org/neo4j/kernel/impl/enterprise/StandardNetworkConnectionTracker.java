@@ -34,45 +34,47 @@
  */
 package org.neo4j.kernel.impl.enterprise;
 
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.neo4j.kernel.api.bolt.BoltConnectionTracker;
-import org.neo4j.kernel.api.bolt.ManagedBoltStateMachine;
+import org.neo4j.kernel.api.net.NetworkConnectionIdGenerator;
+import org.neo4j.kernel.api.net.NetworkConnectionTracker;
+import org.neo4j.kernel.api.net.TrackedNetworkConnection;
 
-import static java.util.stream.Collectors.toSet;
-
-public class StandardBoltConnectionTracker implements BoltConnectionTracker
+public class StandardNetworkConnectionTracker implements NetworkConnectionTracker
 {
-    private Map<ManagedBoltStateMachine,String> sessions = new ConcurrentHashMap<>();
+    NetworkConnectionIdGenerator idGenerator = new NetworkConnectionIdGenerator();
+    Map<String,TrackedNetworkConnection> connectionsById = new ConcurrentHashMap<>();
 
     @Override
-    public void onRegister( ManagedBoltStateMachine machine, String owner )
+    public String newConnectionId( String connector )
     {
-        sessions.put( machine, owner );
+        return idGenerator.newConnectionId( connector );
     }
 
     @Override
-    public void onTerminate( ManagedBoltStateMachine machine )
+    public void add( TrackedNetworkConnection connection )
     {
-        sessions.remove( machine );
+        connectionsById.put( connection.id(), connection );
     }
 
     @Override
-    public Set<ManagedBoltStateMachine> getActiveConnections()
+    public void remove( TrackedNetworkConnection connection )
     {
-        return new HashSet<>( sessions.keySet() );
+        connectionsById.remove( connection.id() );
     }
 
     @Override
-    public Set<ManagedBoltStateMachine> getActiveConnections( String owner )
+    public TrackedNetworkConnection get( String id )
     {
-        return sessions
-                .entrySet()
-                .stream()
-                .filter( entry -> entry.getValue().equals( owner ) )
-                .map( Map.Entry::getKey ).collect( toSet() );
+        return connectionsById.get( id );
+    }
+
+    @Override
+    public List<TrackedNetworkConnection> activeConnections()
+    {
+        return new ArrayList<>( connectionsById.values() );
     }
 }

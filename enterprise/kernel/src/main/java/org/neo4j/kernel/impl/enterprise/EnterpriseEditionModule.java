@@ -38,8 +38,8 @@ import java.util.function.Predicate;
 
 import org.neo4j.function.Predicates;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.kernel.api.bolt.BoltConnectionTracker;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
+import org.neo4j.kernel.api.net.NetworkConnectionTracker;
 import org.neo4j.kernel.api.security.SecurityModule;
 import org.neo4j.kernel.api.security.provider.NoAuthSecurityProvider;
 import org.neo4j.kernel.configuration.Config;
@@ -80,7 +80,7 @@ public class EnterpriseEditionModule extends CommunityEditionModule
         super( platformModule );
         platformModule.dependencies.satisfyDependency( IdBasedStoreEntityCounters.class );
         ioLimiter = new ConfigurableIOLimiter( platformModule.config );
-        platformModule.dependencies.satisfyDependency( createSessionTracker() );
+        platformModule.dependencies.satisfyDependency( createConnectionTracker() );
     }
 
     @Override
@@ -111,9 +111,9 @@ public class EnterpriseEditionModule extends CommunityEditionModule
     }
 
     @Override
-    protected BoltConnectionTracker createSessionTracker()
+    protected NetworkConnectionTracker createConnectionTracker()
     {
-        return new StandardBoltConnectionTracker();
+        return new StandardNetworkConnectionTracker();
     }
 
     @Override
