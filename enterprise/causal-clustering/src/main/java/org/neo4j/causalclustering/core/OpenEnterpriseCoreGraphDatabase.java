@@ -36,7 +36,7 @@ public class OpenEnterpriseCoreGraphDatabase extends CoreGraphDatabase
 
     public OpenEnterpriseCoreGraphDatabase( File storeDir, Config config, Dependencies dependencies, DiscoveryServiceFactory discoveryServiceFactory )
     {
-        Function<PlatformModule,EditionModule> factory = platformModule -> new OpenEnterpriseCoreEditionModule( platformModule, discoveryServiceFactory );
+        Function<PlatformModule,AbstractEditionModule> factory = platformModule -> new OpenEnterpriseCoreEditionModule( platformModule, discoveryServiceFactory );
 
         (new GraphDatabaseFacadeFactory( DatabaseInfo.CORE, factory )).initFacade( storeDir, config, dependencies, this );
     }

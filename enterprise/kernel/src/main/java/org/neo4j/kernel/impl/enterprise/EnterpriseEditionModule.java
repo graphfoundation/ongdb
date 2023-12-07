@@ -125,19 +125,24 @@ public class EnterpriseEditionModule extends CommunityEditionModule
     @Override
     public void createSecurityModule( PlatformModule platformModule, Procedures procedures )
     {
+        createSecurityModule( this, platformModule, procedures );
+    }
+
+    public static void createSecurityModule( AbstractEditionModule editionModule, PlatformModule platformModule, Procedures procedures )
+    {
         if ( platformModule.config.get( GraphDatabaseSettings.auth_enabled ) )
         {
-            SecurityModule securityModule = setupSecurityModule( platformModule, this,
-                                                                 platformModule.logging.getUserLog( getClass() ),
+            SecurityModule securityModule = setupSecurityModule( platformModule, editionModule,
+                                                                 platformModule.logging.getUserLog( editionModule.getClass() ),
                                                                  procedures, ENTERPRISE_SECURITY_MODULE_ID );
             platformModule.life.add( securityModule );
-            this.securityProvider = securityModule;
+            editionModule.setSecurityProvider( securityModule );
         }
         else
         {
             NoAuthSecurityProvider noAuthSecurityProvider = NoAuthSecurityProvider.INSTANCE;
             platformModule.life.add( noAuthSecurityProvider );
-            this.securityProvider = noAuthSecurityProvider;
+            editionModule.setSecurityProvider( noAuthSecurityProvider );
         }
     }
 }

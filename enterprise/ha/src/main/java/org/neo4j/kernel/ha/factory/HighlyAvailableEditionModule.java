@@ -946,5 +946,6 @@ public class HighlyAvailableEditionModule extends CommunityEditionModule
             NoAuthSecurityProvider noAuthSecurityProvider = NoAuthSecurityProvider.INSTANCE;
             platformModule.life.add( noAuthSecurityProvider );
             this.securityProvider = noAuthSecurityProvider;
-        }    }
+        }
+    }
 }

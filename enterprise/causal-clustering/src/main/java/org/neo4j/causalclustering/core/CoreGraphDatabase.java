@@ -50,6 +50,8 @@ import org.neo4j.graphdb.factory.module.PlatformModule;
 
 public class CoreGraphDatabase extends GraphDatabaseFacade
 {
+    private EnterpriseCoreEditionModule editionModule;
+
     protected CoreGraphDatabase()
     {
     }
@@ -62,8 +64,11 @@ public class CoreGraphDatabase extends GraphDatabaseFacade
     public CoreGraphDatabase( File storeDir, Config config,
             GraphDatabaseFacadeFactory.Dependencies dependencies, DiscoveryServiceFactory discoveryServiceFactory )
     {
-        Function<PlatformModule,EditionModule> factory =
-                platformModule -> new EnterpriseCoreEditionModule( platformModule, discoveryServiceFactory );
+        Function<PlatformModule,AbstractEditionModule> factory = platformModule ->
+        {
+            editionModule = new EnterpriseCoreEditionModule( platformModule, discoveryServiceFactory );
+            return editionModule;
+        };
         new GraphDatabaseFacadeFactory( DatabaseInfo.CORE, factory ).initFacade( storeDir, config, dependencies, this );
     }
 
@@ -74,6 +79,6 @@ public class CoreGraphDatabase extends GraphDatabaseFacade
 
     public void disableCatchupServer() throws Throwable
     {
-        ((EnterpriseCoreEditionModule) editionModule).disableCatchupServer();
+        editionModule.disableCatchupServer();
     }
 }

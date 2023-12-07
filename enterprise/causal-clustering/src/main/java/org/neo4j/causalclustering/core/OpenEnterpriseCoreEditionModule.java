@@ -15,33 +15,16 @@
  */
 package org.neo4j.causalclustering.core;
 
-import org.neo4j.causalclustering.core.state.ClusterStateDirectory;
-import org.neo4j.causalclustering.core.state.ClusteringModule;
 import org.neo4j.causalclustering.discovery.DiscoveryServiceFactory;
 import org.neo4j.causalclustering.handlers.DuplexPipelineWrapperFactory;
 import org.neo4j.causalclustering.handlers.SecurePipelineWrapperFactory;
-import org.neo4j.io.layout.DatabaseLayout;
-import org.neo4j.kernel.impl.enterprise.EnterpriseEditionModule;
 import org.neo4j.graphdb.factory.module.PlatformModule;
-import org.neo4j.kernel.impl.proc.Procedures;
-import org.neo4j.kernel.impl.util.Dependencies;
 
 public class OpenEnterpriseCoreEditionModule extends EnterpriseCoreEditionModule
 {
     OpenEnterpriseCoreEditionModule( PlatformModule platformModule, DiscoveryServiceFactory discoveryServiceFactory )
     {
         super( platformModule, discoveryServiceFactory );
-    }
-
-    public void setupSecurityModule( PlatformModule platformModule, Procedures procedures, DatabaseLayout databaseLayout )
-    {
-        EnterpriseEditionModule.setupEnterpriseSecurityModule( platformModule, procedures, databaseLayout );
-    }
-
-    protected ClusteringModule getClusteringModule( PlatformModule platformModule, DiscoveryServiceFactory discoveryServiceFactory,
-            ClusterStateDirectory clusterStateDirectory, IdentityModule identityModule, Dependencies dependencies, DatabaseLayout databaseLayout )
-    {
-        return new ClusteringModule( discoveryServiceFactory, identityModule.myself(), platformModule, clusterStateDirectory.get(), databaseLayout );
     }
 
     protected DuplexPipelineWrapperFactory pipelineWrapperFactory()

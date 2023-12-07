@@ -106,6 +106,7 @@ import org.neo4j.com.storecopy.StoreUtil;
 import org.neo4j.function.Predicates;
 import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.graphdb.factory.module.edition.DefaultEditionModule;
 import org.neo4j.helpers.AdvertisedSocketAddress;
 import org.neo4j.helpers.SocketAddress;
 import org.neo4j.helpers.collection.Pair;
@@ -157,7 +158,7 @@ import static org.neo4j.causalclustering.core.CausalClusteringSettings.raft_mess
  * This implementation of {@link org.neo4j.graphdb.factory.module.edition.AbstractEditionModule} creates the implementations of services
  * that are specific to the Enterprise Core edition that provides a core cluster.
  */
-public class EnterpriseCoreEditionModule extends EnterpriseEditionModule
+public class EnterpriseCoreEditionModule extends DefaultEditionModule
 {
     private final ConsensusModule consensusModule;
     private final ReplicationModule replicationModule;
@@ -209,6 +210,12 @@ public class EnterpriseCoreEditionModule extends EnterpriseEditionModule
         procedures.register( new InstalledProtocolsProcedure( clientInstalledProtocols, serverInstalledProtocols ) );
         procedures.registerComponent( Replicator.class, x -> replicationModule.getReplicator(), false );
         procedures.registerProcedure( ReplicationBenchmarkProcedure.class );
+    }
+
+    @Override
+    public void createSecurityModule( PlatformModule platformModule, Procedures procedures )
+    {
+        EnterpriseEditionModule.createSecurityModule( this, platformModule, procedures );
     }
 
     public EnterpriseCoreEditionModule( final PlatformModule platformModule, final DiscoveryServiceFactory discoveryServiceFactory )
