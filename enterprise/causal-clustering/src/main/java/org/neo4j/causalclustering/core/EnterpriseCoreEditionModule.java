@@ -107,6 +107,7 @@ import org.neo4j.function.Predicates;
 import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.graphdb.factory.module.edition.DefaultEditionModule;
+import org.neo4j.graphdb.factory.module.id.IdContextFactoryBuilder;
 import org.neo4j.helpers.AdvertisedSocketAddress;
 import org.neo4j.helpers.SocketAddress;
 import org.neo4j.helpers.collection.Pair;
@@ -317,7 +318,7 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
                 platformModule, clusterStateDirectory.get(), config, replicationModule.getReplicator(),
                 consensusModule.raftMachine(), dependencies, localDatabase );
 
-        this.idTypeConfigurationProvider = coreStateMachinesModule.idTypeConfigurationProvider;
+        this.idContextFactory = IdContextFactoryBuilder.of( coreStateMachinesModule.idTypeConfigurationProvider, platformModule.jobScheduler ).build();
 
         createIdComponents( platformModule, dependencies, coreStateMachinesModule.idGeneratorFactory );
         dependencies.satisfyDependency( idGeneratorFactory );

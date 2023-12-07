@@ -38,7 +38,10 @@ import java.util.function.Predicate;
 
 import org.neo4j.function.Predicates;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.graphdb.factory.module.id.IdContextFactory;
+import org.neo4j.graphdb.factory.module.id.IdContextFactoryBuilder;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
+import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.api.net.NetworkConnectionTracker;
 import org.neo4j.kernel.api.security.SecurityModule;
 import org.neo4j.kernel.api.security.provider.NoAuthSecurityProvider;
@@ -99,9 +102,11 @@ public class EnterpriseEditionModule extends CommunityEditionModule
     }
 
     @Override
-    protected IdTypeConfigurationProvider createIdTypeConfigurationProvider( Config config )
+    protected IdContextFactory createIdContextFactory( PlatformModule platformModule, FileSystemAbstraction fileSystem )
     {
-        return new EnterpriseIdTypeConfigurationProvider( config );
+        return IdContextFactoryBuilder.of( new EnterpriseIdTypeConfigurationProvider( platformModule.config ), platformModule.jobScheduler )
+                .withFileSystem( fileSystem )
+                .build();
     }
 
     @Override
