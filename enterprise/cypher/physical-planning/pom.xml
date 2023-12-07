@@ -142,7 +142,7 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-geequel-planner-3.4</artifactId>
+            <artifactId>ongdb-geequel-planner-3.5</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -150,7 +150,7 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-geequel-planner-3.4</artifactId>
+            <artifactId>ongdb-geequel-planner-3.5</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
@@ -166,7 +166,7 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-geequel-util-3.4</artifactId>
+            <artifactId>ongdb-util-3.5</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
