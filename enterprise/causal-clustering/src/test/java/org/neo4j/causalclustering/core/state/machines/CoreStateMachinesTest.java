@@ -166,19 +166,11 @@ public class CoreStateMachinesTest
         }
     }
 
-    @SuppressWarnings( "unchecked" )
     private final ReplicatedTransactionStateMachine txSM = mock( ReplicatedTransactionStateMachine.class );
-    @SuppressWarnings( "unchecked" )
-    private final ReplicatedTokenStateMachine<Token> labelTokenSM = mock( ReplicatedTokenStateMachine.class );
-    @SuppressWarnings( "unchecked" )
-    private final ReplicatedTokenStateMachine<RelationshipTypeToken> relationshipTypeTokenSM =
-            mock( ReplicatedTokenStateMachine.class );
-    @SuppressWarnings( "unchecked" )
-    private final ReplicatedTokenStateMachine<Token> propertyKeyTokenSM = mock( ReplicatedTokenStateMachine.class );
-    @SuppressWarnings( "unchecked" )
-    private final ReplicatedLockTokenStateMachine lockTokenSM =
-            mock( ReplicatedLockTokenStateMachine.class );
-    @SuppressWarnings( "unchecked" )
+    private final ReplicatedTokenStateMachine labelTokenSM = mock( ReplicatedTokenStateMachine.class );
+    private final ReplicatedTokenStateMachine relationshipTypeTokenSM = mock( ReplicatedTokenStateMachine.class );
+    private final ReplicatedTokenStateMachine propertyKeyTokenSM = mock( ReplicatedTokenStateMachine.class );
+    private final ReplicatedLockTokenStateMachine lockTokenSM = mock( ReplicatedLockTokenStateMachine.class );
     private final ReplicatedIdAllocationStateMachine idAllocationSM = mock( ReplicatedIdAllocationStateMachine.class );
     private final DummyMachine dummySM = mock( DummyMachine.class );
     private final RecoverConsensusLogIndex recoverConsensusLogIndex = mock( RecoverConsensusLogIndex.class );
@@ -194,7 +186,6 @@ public class CoreStateMachinesTest
         when( relationshipTypeTokenRequest.type() ).thenReturn( TokenType.RELATIONSHIP );
     }
 
-    @SuppressWarnings( "unchecked" )
     private final ReplicatedLockTokenRequest lockTokenRequest = mock( ReplicatedLockTokenRequest.class );
 
     @SuppressWarnings( "unchecked" )

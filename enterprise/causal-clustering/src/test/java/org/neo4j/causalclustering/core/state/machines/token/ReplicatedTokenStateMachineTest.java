@@ -44,6 +44,8 @@ import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier
 import org.neo4j.kernel.impl.api.TransactionCommitProcess;
 import org.neo4j.kernel.impl.api.TransactionRepresentationCommitProcess;
 import org.neo4j.kernel.impl.api.TransactionToApply;
+import org.neo4j.kernel.impl.core.TokenHolder;
+import org.neo4j.kernel.impl.core.TokenRegistry;
 import org.neo4j.kernel.impl.store.record.LabelTokenRecord;
 import org.neo4j.kernel.impl.transaction.TransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.command.Command;
@@ -71,9 +73,9 @@ public class ReplicatedTokenStateMachineTest
     public void shouldCreateTokenId()
     {
         // given
-        TokenRegistry<Token> registry = new TokenRegistry<>( "Label" );
-        ReplicatedTokenStateMachine<Token> stateMachine = new ReplicatedTokenStateMachine<>( registry,
-                new Token.Factory(), NullLogProvider.getInstance(), EmptyVersionContextSupplier.EMPTY );
+        TokenRegistry registry = new TokenRegistry( TokenHolder.TYPE_LABEL );
+        ReplicatedTokenStateMachine stateMachine = new ReplicatedTokenStateMachine( registry,
+                NullLogProvider.getInstance(), EmptyVersionContextSupplier.EMPTY );
         stateMachine.installCommitProcess( mock( TransactionCommitProcess.class ), -1 );
 
         // when
@@ -88,9 +90,9 @@ public class ReplicatedTokenStateMachineTest
     public void shouldAllocateTokenIdToFirstReplicateRequest()
     {
         // given
-        TokenRegistry<Token> registry = new TokenRegistry<>( "Label" );
-        ReplicatedTokenStateMachine<Token> stateMachine = new ReplicatedTokenStateMachine<>( registry,
-                new Token.Factory(), NullLogProvider.getInstance(), EmptyVersionContextSupplier.EMPTY );
+        TokenRegistry registry = new TokenRegistry( TokenHolder.TYPE_LABEL );
+        ReplicatedTokenStateMachine stateMachine = new ReplicatedTokenStateMachine( registry,
+                NullLogProvider.getInstance(), EmptyVersionContextSupplier.EMPTY );
 
         stateMachine.installCommitProcess( mock( TransactionCommitProcess.class ), -1 );
 
@@ -114,9 +116,8 @@ public class ReplicatedTokenStateMachineTest
         int logIndex = 1;
 
         StubTransactionCommitProcess commitProcess = new StubTransactionCommitProcess( null, null );
-        ReplicatedTokenStateMachine<Token> stateMachine = new ReplicatedTokenStateMachine<>(
-                new TokenRegistry<>( "Token" ), new Token.Factory(),
-                NullLogProvider.getInstance(), EmptyVersionContextSupplier.EMPTY );
+        ReplicatedTokenStateMachine stateMachine = new ReplicatedTokenStateMachine(
+                new TokenRegistry( TokenHolder.TYPE_LABEL ), NullLogProvider.getInstance(), EmptyVersionContextSupplier.EMPTY );
         stateMachine.installCommitProcess( commitProcess, -1 );
 
         // when

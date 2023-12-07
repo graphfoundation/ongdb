@@ -69,17 +69,15 @@ public class ReplicatedTokenStateMachine implements StateMachine<ReplicatedToken
     private TransactionCommitProcess commitProcess;
 
     private final TokenRegistry tokenRegistry;
-    private final TokenCreator tokenCreator;
     private final VersionContext versionContext;
 
     private final Log log;
     private long lastCommittedIndex = -1;
 
-    public ReplicatedTokenStateMachine( TokenRegistry tokenRegistry, TokenCreator tokenCreator,
+    public ReplicatedTokenStateMachine( TokenRegistry tokenRegistry,
             LogProvider logProvider, VersionContextSupplier versionContextSupplier )
     {
         this.tokenRegistry = tokenRegistry;
-        this.tokenCreator = tokenCreator;
         this.versionContext = versionContextSupplier.getVersionContext();
         this.log = logProvider.getLog( getClass() );
     }
@@ -115,14 +113,7 @@ public class ReplicatedTokenStateMachine implements StateMachine<ReplicatedToken
                 throw new IllegalStateException( "Commands did not contain token command" );
             }
 
-            try
-            {
-                tokenRegistry.put( new NamedToken( tokenRequest.tokenName(), tokenCreator.createToken( tokenRequest.tokenName() ) ) );
-            }
-            catch ( KernelException e )
-            {
-                throw new IllegalStateException( "Token was not unique" );
-            }
+            tokenRegistry.put( new NamedToken( tokenRequest.tokenName(), tokenId ) );
         }
 
         callback.accept( Result.of( tokenId ) );

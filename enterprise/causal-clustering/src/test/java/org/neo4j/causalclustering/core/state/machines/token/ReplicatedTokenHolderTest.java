@@ -39,6 +39,9 @@ import org.junit.Test;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
+import org.neo4j.internal.kernel.api.NamedToken;
+import org.neo4j.kernel.impl.core.TokenHolder;
+import org.neo4j.kernel.impl.core.TokenRegistry;
 import org.neo4j.kernel.impl.store.id.IdGenerator;
 import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.store.id.IdType;
@@ -47,9 +50,7 @@ import org.neo4j.kernel.impl.transaction.command.Command;
 import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.storageengine.api.StorageCommand;
 import org.neo4j.storageengine.api.StorageEngine;
-import org.neo4j.storageengine.api.StorageStatement;
-import org.neo4j.storageengine.api.StorageEngine;
-import org.neo4j.storageengine.api.Token;
+import org.neo4j.storageengine.api.StorageReader;
 import org.neo4j.storageengine.api.lock.ResourceLocker;
 import org.neo4j.storageengine.api.txstate.ReadableTransactionState;
 import org.neo4j.storageengine.api.txstate.TxStateVisitor;
@@ -67,31 +68,31 @@ import static org.mockito.Mockito.when;
 
 public class ReplicatedTokenHolderTest
 {
-    private Dependencies dependencies = mock( Dependencies.class );
+    private final Dependencies dependencies = mock( Dependencies.class );
 
     @Test
     public void shouldStoreInitialTokens()
     {
         // given
-        TokenRegistry<Token> registry = new TokenRegistry<>( "Label" );
-        ReplicatedTokenHolder<Token> tokenHolder = new ReplicatedLabelTokenHolder( registry, null,
+        TokenRegistry registry = new TokenRegistry( TokenHolder.TYPE_LABEL );
+        ReplicatedTokenHolder tokenHolder = new ReplicatedLabelTokenHolder( registry, null,
                 null, dependencies );
 
         // when
-        tokenHolder.setInitialTokens( asList( new Token( "name1", 1 ), new Token( "name2", 2 ) ) );
+        tokenHolder.setInitialTokens( asList( new NamedToken( "name1", 1 ), new NamedToken( "name2", 2 ) ) );
 
         // then
-        assertThat( tokenHolder.getAllTokens(), hasItems( new Token( "name1", 1 ), new Token( "name2", 2 ) ) );
+        assertThat( tokenHolder.getAllTokens(), hasItems( new NamedToken( "name1", 1 ), new NamedToken( "name2", 2 ) ) );
     }
 
     @Test
     public void shouldReturnExistingTokenId()
     {
         // given
-        TokenRegistry<Token> registry = new TokenRegistry<>( "Label" );
-        ReplicatedTokenHolder<Token> tokenHolder = new ReplicatedLabelTokenHolder( registry, null,
+        TokenRegistry registry = new TokenRegistry( TokenHolder.TYPE_LABEL );
+        ReplicatedTokenHolder tokenHolder = new ReplicatedLabelTokenHolder( registry, null,
                 null, dependencies );
-        tokenHolder.setInitialTokens( asList( new Token( "name1", 1 ), new Token( "name2", 2 ) ) );
+        tokenHolder.setInitialTokens( asList( new NamedToken( "name1", 1 ), new NamedToken( "name2", 2 ) ) );
 
         // when
         Integer tokenId = tokenHolder.getOrCreateId( "name1" );
@@ -113,9 +114,9 @@ public class ReplicatedTokenHolderTest
 
         when( idGeneratorFactory.get( any( IdType.class ) ) ).thenReturn( idGenerator );
 
-        TokenRegistry<Token> registry = new TokenRegistry<>( "Label" );
+        TokenRegistry registry = new TokenRegistry( TokenHolder.TYPE_LABEL );
         int generatedTokenId = 1;
-        ReplicatedTokenHolder<Token> tokenHolder = new ReplicatedLabelTokenHolder( registry,
+        ReplicatedTokenHolder tokenHolder = new ReplicatedLabelTokenHolder( registry,
                 ( content, trackResult ) ->
                 {
                     CompletableFuture<Object> completeFuture = new CompletableFuture<>();
@@ -131,7 +132,6 @@ public class ReplicatedTokenHolderTest
         assertThat( tokenId, equalTo( generatedTokenId ));
     }
 
-    @SuppressWarnings( "unchecked" )
     private StorageEngine mockedStorageEngine() throws Exception
     {
         StorageEngine storageEngine = mock( StorageEngine.class );
@@ -142,7 +142,7 @@ public class ReplicatedTokenHolderTest
             txState.accept( new TxStateVisitor.Adapter()
             {
                 @Override
-                public void visitCreatedLabelToken( String name, int id )
+                public void visitCreatedLabelToken( long id, String name )
                 {
                     LabelTokenRecord before = new LabelTokenRecord( id );
                     LabelTokenRecord after = before.clone();
@@ -152,13 +152,10 @@ public class ReplicatedTokenHolderTest
             } );
             return null;
         } ).when( storageEngine ).createCommands( anyCollection(), any( ReadableTransactionState.class ),
-                any( StorageStatement.class ), any( ResourceLocker.class ), anyLong() );
+                any( StorageReader.class ), any( ResourceLocker.class ), anyLong(), any( TxStateVisitor.Decorator.class ) );
 
-        StoreReadLayer readLayer = mock( StoreReadLayer.class );
-        StorageStatement statement = mock( StorageStatement.class );
-        when( readLayer.newStatement() ).thenReturn( statement );
-        when( storageEngine.storeReadLayer() ).thenReturn( readLayer );
+        StorageReader storageReader = mock( StorageReader.class );
+        when( storageEngine.newReader() ).thenReturn( storageReader );
         return storageEngine;
     }
-
 }

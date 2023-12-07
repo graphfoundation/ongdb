@@ -60,7 +60,6 @@ abstract class ReplicatedTokenHolder extends AbstractTokenHolderBase implements 
 {
     protected final Dependencies dependencies;
 
-    private final TokenRegistry tokenRegistry;
     private final Replicator replicator;
     private final IdGeneratorFactory idGeneratorFactory;
     private final IdType tokenIdType;
@@ -72,7 +71,6 @@ abstract class ReplicatedTokenHolder extends AbstractTokenHolderBase implements 
                            Dependencies dependencies, TokenType type )
     {
         super( tokenRegistry );
-        this.tokenRegistry = tokenRegistry;
         this.replicator = replicator;
         this.idGeneratorFactory = idGeneratorFactory;
         this.tokenIdType = tokenIdType;
@@ -81,18 +79,16 @@ abstract class ReplicatedTokenHolder extends AbstractTokenHolderBase implements 
     }
 
     @Override
-    public int getOrCreateId( String tokenName )
+    public void getOrCreateIds( String[] names, int[] ids )
     {
-        Integer tokenId = tokenRegistry.getId( tokenName );
-        if ( tokenId != null )
+        for ( int i = 0; i < names.length; i++ )
         {
-            return tokenId;
+            ids[i] = getOrCreateId( names[i] );
         }
-
-        return requestToken( tokenName );
     }
 
-    private int requestToken( String tokenName )
+    @Override
+    public int createToken( String tokenName )
     {
         ReplicatedTokenRequest tokenRequest = new ReplicatedTokenRequest( type, tokenName, createCommands( tokenName ) );
         try

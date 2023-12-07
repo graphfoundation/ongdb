@@ -37,6 +37,9 @@ package org.neo4j.kernel.ha.cluster;
 import java.io.File;
 import java.io.IOException;
 
+import org.neo4j.causalclustering.core.state.machines.token.ReplicatedLabelTokenHolder;
+import org.neo4j.causalclustering.core.state.machines.token.ReplicatedPropertyKeyTokenHolder;
+import org.neo4j.causalclustering.core.state.machines.token.ReplicatedRelationshipTypeTokenHolder;
 import org.neo4j.com.RequestContext;
 import org.neo4j.com.Response;
 import org.neo4j.com.storecopy.ResponsePacker;
@@ -76,9 +79,9 @@ public class DefaultMasterImplSPI implements MasterImpl.SPI
     private final GraphDatabaseAPI graphDb;
     private final TransactionChecksumLookup txChecksumLookup;
     private final FileSystemAbstraction fileSystem;
-    private final TokenHolder labels;
-    private final TokenHolder propertyKeyTokenHolder;
-    private final TokenHolder relationshipTypeTokenHolder;
+    private final ReplicatedLabelTokenHolder labels;
+    private final ReplicatedPropertyKeyTokenHolder propertyKeyTokenHolder;
+    private final ReplicatedRelationshipTypeTokenHolder relationshipTypeTokenHolder;
     private final IdGeneratorFactory idGeneratorFactory;
     private final NeoStoreDataSource neoStoreDataSource;
     private final File storeDir;
@@ -93,8 +96,9 @@ public class DefaultMasterImplSPI implements MasterImpl.SPI
     public DefaultMasterImplSPI( final GraphDatabaseAPI graphDb,
                                  FileSystemAbstraction fileSystemAbstraction,
                                  Monitors monitors,
-                                 TokenHolder labels, TokenHolder propertyKeyTokenHolder,
-                                 TokenHolder relationshipTypeTokenHolder,
+                                 ReplicatedLabelTokenHolder labels,
+                                 ReplicatedPropertyKeyTokenHolder propertyKeyTokenHolder,
+                                 ReplicatedRelationshipTypeTokenHolder relationshipTypeTokenHolder,
                                  IdGeneratorFactory idGeneratorFactory,
                                  TransactionCommitProcess transactionCommitProcess,
                                  CheckPointer checkPointer,
@@ -205,7 +209,7 @@ public class DefaultMasterImplSPI implements MasterImpl.SPI
 
     private static class LoggingStoreCopyServerMonitor implements StoreCopyServer.Monitor
     {
-        private Log log;
+        private final Log log;
 
         LoggingStoreCopyServerMonitor( Log log )
         {

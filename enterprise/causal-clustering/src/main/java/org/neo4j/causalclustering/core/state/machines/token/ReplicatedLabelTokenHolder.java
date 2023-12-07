@@ -47,7 +47,7 @@ import org.neo4j.kernel.impl.store.id.IdType;
 import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.internal.kernel.api.Token;
 
-public class ReplicatedLabelTokenHolder extends ReplicatedTokenHolder implements TokenHolder
+public class ReplicatedLabelTokenHolder extends ReplicatedTokenHolder
 {
     public ReplicatedLabelTokenHolder( TokenRegistry registry, Replicator replicator,
                                        IdGeneratorFactory idGeneratorFactory, Dependencies dependencies )
@@ -59,29 +59,5 @@ public class ReplicatedLabelTokenHolder extends ReplicatedTokenHolder implements
     protected void createToken( TransactionState txState, String tokenName, int tokenId )
     {
         txState.labelDoCreateForName( tokenName, tokenId );
-    }
-
-    @Override
-    public void setInitialTokens( List<NamedToken> tokens ) throws NonUniqueTokenException
-    {
-
-    }
-
-    @Override
-    public void addToken( NamedToken token ) throws NonUniqueTokenException
-    {
-
-    }
-
-    @Override
-    public void getOrCreateIds( String[] names, int[] ids )
-    {
-
-    }
-
-    @Override
-    public boolean getIdsByNames( String[] names, int[] ids )
-    {
-        return false;
     }
 }
