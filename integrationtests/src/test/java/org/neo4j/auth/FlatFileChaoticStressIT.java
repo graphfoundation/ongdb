@@ -45,6 +45,7 @@ import java.util.stream.IntStream;
 
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.api.exceptions.InvalidArgumentsException;
+import org.neo4j.string.UTF8;
 import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
 
 public class FlatFileChaoticStressIT extends FlatFileStressBase
@@ -114,7 +115,7 @@ public class FlatFileChaoticStressIT extends FlatFileStressBase
         private void createUser()
         {
             String username = randomUser();
-            String password = deviousPassword();
+            byte[] password = deviousPassword();
             try
             {
                 flatFileRealm.newUser( username, password, false );
@@ -149,7 +150,7 @@ public class FlatFileChaoticStressIT extends FlatFileStressBase
         private void changePassword()
         {
             String username = randomUser();
-            String password = deviousPassword();
+            byte[] password = deviousPassword();
             try
             {
                 flatFileRealm.setUserPassword( username, password, false );
@@ -271,9 +272,10 @@ public class FlatFileChaoticStressIT extends FlatFileStressBase
 
         // ______________ HELPERS ______________
 
-        private String deviousPassword()
+        private byte[] deviousPassword()
         {
-            return random.nextBoolean() ? "123" : "321";
+            String password = random.nextBoolean() ? "123" : "321";
+            return UTF8.encode( password );
         }
 
         private String randomUser()

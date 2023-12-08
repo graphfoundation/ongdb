@@ -42,6 +42,7 @@ import org.neo4j.kernel.api.exceptions.InvalidArgumentsException;
 import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Name;
 import org.neo4j.procedure.Procedure;
+import org.neo4j.string.UTF8;
 
 import static org.neo4j.procedure.Mode.DBMS;
 
@@ -56,7 +57,8 @@ public class UserManagementProcedures extends AuthProceduresBase
             throws InvalidArgumentsException, IOException
     {
         securityContext.assertCredentialsNotExpired();
-        userManager.newUser( username, password, requirePasswordChange );
+        byte[] passwordEncoded = password == null ? null : UTF8.encode( password );
+        userManager.newUser( username, passwordEncoded, requirePasswordChange );
     }
 
     @Deprecated
@@ -197,7 +199,8 @@ public class UserManagementProcedures extends AuthProceduresBase
     private void setUserPassword( String username, String newPassword, boolean requirePasswordChange )
             throws IOException, InvalidArgumentsException
     {
-        userManager.setUserPassword( username, newPassword, requirePasswordChange );
+        byte[] newPasswordEncoded = newPassword == null ? null : UTF8.encode( newPassword );
+        userManager.setUserPassword( username, newPasswordEncoded, requirePasswordChange );
         if ( securityContext.subject().hasUsername( username ) )
         {
             securityContext.subject().setPasswordChangeNoLongerRequired();

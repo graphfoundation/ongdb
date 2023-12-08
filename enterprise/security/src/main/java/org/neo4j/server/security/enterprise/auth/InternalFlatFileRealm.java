@@ -65,15 +65,18 @@ import org.neo4j.kernel.api.security.AuthToken;
 import org.neo4j.internal.kernel.api.security.AuthenticationResult;
 import org.neo4j.kernel.api.security.PasswordPolicy;
 import org.neo4j.kernel.api.security.exception.InvalidAuthTokenException;
-import org.neo4j.kernel.impl.security.Credential;
 import org.neo4j.kernel.impl.security.User;
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobHandle;
 import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.server.security.auth.AuthenticationStrategy;
+import org.neo4j.server.security.auth.LegacyCredential;
 import org.neo4j.server.security.auth.ListSnapshot;
 import org.neo4j.server.security.auth.UserRepository;
 import org.neo4j.server.security.auth.exception.ConcurrentModificationException;
 import org.neo4j.server.security.enterprise.auth.plugin.api.PredefinedRoles;
 import org.neo4j.server.security.enterprise.configuration.SecuritySettings;
+import org.neo4j.string.UTF8;
 
 import static java.lang.String.format;
 import static java.util.Collections.emptySet;
@@ -90,7 +93,7 @@ public class InternalFlatFileRealm extends AuthorizingRealm implements RealmLife
      */
     static final String IS_SUSPENDED = "is_suspended";
 
-    private static int MAX_READ_ATTEMPTS = 10;
+    private static final int MAX_READ_ATTEMPTS = 10;
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -101,7 +104,7 @@ public class InternalFlatFileRealm extends AuthorizingRealm implements RealmLife
     private final boolean authenticationEnabled;
     private final boolean authorizationEnabled;
     private final JobScheduler jobScheduler;
-    private volatile JobScheduler.JobHandle reloadJobHandle;
+    private volatile JobHandle reloadJobHandle;
 
     public InternalFlatFileRealm( UserRepository userRepository, RoleRepository roleRepository,
             PasswordPolicy passwordPolicy, AuthenticationStrategy authenticationStrategy,
@@ -163,7 +166,7 @@ public class InternalFlatFileRealm extends AuthorizingRealm implements RealmLife
     protected void scheduleNextFileReload()
     {
         reloadJobHandle = jobScheduler.schedule(
-                JobScheduler.Groups.nativeSecurity,
+                Group.NATIVE_SECURITY,
                 this::readFilesFromDisk,
                 10, TimeUnit.SECONDS );
     }
@@ -233,7 +236,7 @@ public class InternalFlatFileRealm extends AuthorizingRealm implements RealmLife
         {
             if ( userRepository.numberOfUsers() == 0 )
             {
-                User neo4j = newUser( INITIAL_USER_NAME, "ongdb", true );
+                User neo4j = newUser( INITIAL_USER_NAME, UTF8.encode( INITIAL_PASSWORD ), true );
                 if ( initialUserRepository.numberOfUsers() > 0 )
                 {
                     User initUser = initialUserRepository.getUserByName( INITIAL_USER_NAME );
@@ -396,11 +399,11 @@ public class InternalFlatFileRealm extends AuthorizingRealm implements RealmLife
         ShiroAuthToken shiroAuthToken = (ShiroAuthToken) token;
 
         String username;
-        String password;
+        byte[] password;
         try
         {
             username = AuthToken.safeCast( AuthToken.PRINCIPAL, shiroAuthToken.getAuthTokenMap() );
-            password = AuthToken.safeCast( AuthToken.CREDENTIALS, shiroAuthToken.getAuthTokenMap() );
+            password = AuthToken.safeCastCredentials( AuthToken.CREDENTIALS, shiroAuthToken.getAuthTokenMap() );
         }
         catch ( InvalidAuthTokenException e )
         {
@@ -459,15 +462,14 @@ public class InternalFlatFileRealm extends AuthorizingRealm implements RealmLife
     }
 
     @Override
-    public User newUser( String username, String initialPassword, boolean requirePasswordChange )
-            throws IOException, InvalidArgumentsException
+    public User newUser( String username, byte[] initialPassword, boolean requirePasswordChange ) throws IOException, InvalidArgumentsException
     {
         userRepository.assertValidUsername( username );
         passwordPolicy.validatePassword( initialPassword );
 
         User user = new User.Builder()
                 .withName( username )
-                .withCredentials( Credential.forPassword( initialPassword ) )
+                .withCredentials( LegacyCredential.forPassword( initialPassword ) )
                 .withRequiredPasswordChange( requirePasswordChange )
                 .build();
         synchronized ( this )
@@ -624,8 +626,7 @@ public class InternalFlatFileRealm extends AuthorizingRealm implements RealmLife
     }
 
     @Override
-    public void setUserPassword( String username, String password, boolean requirePasswordChange )
-            throws IOException, InvalidArgumentsException
+    public void setUserPassword( String username, byte[] password, boolean requirePasswordChange ) throws IOException, InvalidArgumentsException
     {
         User existingUser = getUser( username );
         passwordPolicy.validatePassword( password );
@@ -637,7 +638,7 @@ public class InternalFlatFileRealm extends AuthorizingRealm implements RealmLife
         try
         {
             User updatedUser = existingUser.augment()
-                    .withCredentials( Credential.forPassword( password ) )
+                    .withCredentials( LegacyCredential.forPassword( password ) )
                     .withRequiredPasswordChange( requirePasswordChange )
                     .build();
             synchronized ( this )
