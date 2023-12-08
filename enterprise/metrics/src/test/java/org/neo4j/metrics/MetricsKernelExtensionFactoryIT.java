@@ -96,7 +96,7 @@ public class MetricsKernelExtensionFactoryIT
     {
         outputPath = clusterRule.directory( "metrics" );
         Map<String, String> config = stringMap(
-                MetricsSettings.neoEnabled.name(), Settings.TRUE,
+                MetricsSettings.ongEnabled.name(), Settings.TRUE,
                 metricsEnabled.name(), Settings.TRUE,
                 csvEnabled.name(), Settings.TRUE,
                 cypher_min_replan_interval.name(), "0m",
@@ -251,11 +251,11 @@ public class MetricsKernelExtensionFactoryIT
         File disabledTracerDb = clusterRule.directory( "disabledTracerDb" );
         GraphDatabaseBuilder builder = new EnterpriseGraphDatabaseFactory().newEmbeddedDatabaseBuilder( disabledTracerDb );
         GraphDatabaseService nullTracerDatabase =
-                builder.setConfig( MetricsSettings.neoEnabled, Settings.TRUE ).setConfig( csvEnabled, Settings.TRUE )
-                        .setConfig( csvPath, outputPath.getAbsolutePath() )
-                        .setConfig( GraphDatabaseFacadeFactory.Configuration.tracer, "null" ) // key point!
-                        .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
-                        .newGraphDatabase();
+                builder.setConfig( MetricsSettings.ongEnabled, Settings.TRUE ).setConfig( csvEnabled, Settings.TRUE )
+                       .setConfig( csvPath, outputPath.getAbsolutePath() )
+                       .setConfig( GraphDatabaseFacadeFactory.Configuration.tracer, "null" ) // key point!
+                       .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
+                       .newGraphDatabase();
         try ( Transaction tx = nullTracerDatabase.beginTx() )
         {
             Node node = nullTracerDatabase.createNode();

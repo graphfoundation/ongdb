@@ -119,34 +119,34 @@ public class Neo4jMetricsBuilder
     public boolean build()
     {
         boolean result = false;
-        if ( config.get( MetricsSettings.neoTxEnabled ) )
+        if ( config.get( MetricsSettings.ongTxEnabled ) )
         {
             life.add( new TransactionMetrics( registry, dependencies.transactionIdStore(),
                     dependencies.transactionCounters() ) );
             result = true;
         }
 
-        if ( config.get( MetricsSettings.neoPageCacheEnabled ) )
+        if ( config.get( MetricsSettings.ongPageCacheEnabled ) )
         {
             life.add( new PageCacheMetrics( registry, dependencies.pageCacheCounters() ) );
             result = true;
         }
 
-        if ( config.get( MetricsSettings.neoCheckPointingEnabled ) )
+        if ( config.get( MetricsSettings.ongCheckPointingEnabled ) )
         {
             life.add( new CheckPointingMetrics( reporter, registry, dependencies.monitors(),
                     dependencies.checkPointerMonitor() ) );
             result = true;
         }
 
-        if ( config.get( MetricsSettings.neoLogRotationEnabled ) )
+        if ( config.get( MetricsSettings.ongLogRotationEnabled ) )
         {
             life.add( new LogRotationMetrics( reporter, registry, dependencies.monitors(),
                     dependencies.logRotationMonitor() ) );
             result = true;
         }
 
-        if ( config.get( MetricsSettings.neoCountsEnabled ) )
+        if ( config.get( MetricsSettings.ongCountsEnabled ) )
         {
             if ( kernelContext.databaseInfo().edition != Edition.community &&
                     kernelContext.databaseInfo().edition != Edition.unknown )
@@ -156,13 +156,13 @@ public class Neo4jMetricsBuilder
             }
         }
 
-        if ( config.get( MetricsSettings.neoNetworkEnabled ) )
+        if ( config.get( MetricsSettings.ongNetworkEnabled ) )
         {
             life.add( new NetworkMetrics( registry, dependencies.monitors() ) );
             result = true;
         }
 
-        if ( config.get( MetricsSettings.neoClusterEnabled ) )
+        if ( config.get( MetricsSettings.ongClusterEnabled ) )
         {
             if ( kernelContext.databaseInfo().operationalMode == OperationalMode.ha )
             {
@@ -171,7 +171,7 @@ public class Neo4jMetricsBuilder
             }
         }
 
-        if ( config.get( MetricsSettings.cypherPlanningEnabled ) )
+        if ( config.get( MetricsSettings.geequelPlanningEnabled ) )
         {
             life.add( new CypherMetrics( registry, dependencies.monitors() ) );
             result = true;
@@ -224,7 +224,7 @@ public class Neo4jMetricsBuilder
             }
         }
 
-        if ( config.get( MetricsSettings.neoServerEnabled ) )
+        if ( config.get( MetricsSettings.ongServerEnabled ) )
         {
             life.add( new ServerMetrics( registry, logService, kernelContext.dependencySatisfier() ) );
             result = true;

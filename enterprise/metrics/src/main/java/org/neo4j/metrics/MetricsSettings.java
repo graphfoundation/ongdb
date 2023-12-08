@@ -75,68 +75,66 @@ public class MetricsSettings implements LoadableConfig
     public static final Setting<Boolean> metricsEnabled = setting( "metrics.enabled", BOOLEAN, TRUE );
 
     @Description( "The default enablement value for all ONgDB specific support metrics. Set this to `false` to turn " +
-                  "off all ONgDB specific metrics by default. The individual `metrics.neo4j.*` metrics can then be " +
+                  "off all ONgDB specific metrics by default. The individual `metrics.ongdb.*` metrics can then be " +
                   "turned on selectively." )
-    public static final Setting<Boolean> neoEnabled = buildSetting( "metrics.neo4j.enabled", BOOLEAN ).inherits( metricsEnabled ).build();
+    public static final Setting<Boolean> ongEnabled = buildSetting( "metrics.ongdb.enabled", BOOLEAN ).inherits( metricsEnabled ).build();
 
     @Description( "Enable reporting metrics about transactions; number of transactions started, committed, etc." )
-    public static final Setting<Boolean> neoTxEnabled = buildSetting( "metrics.neo4j.tx.enabled", BOOLEAN ).inherits( neoEnabled ).build();
+    public static final Setting<Boolean> ongTxEnabled = buildSetting( "metrics.ongdb.tx.enabled", BOOLEAN ).inherits( ongEnabled ).build();
 
     @Description( "Enable reporting metrics about the ONgDB page cache; page faults, evictions, flushes, exceptions, " +
                   "etc." )
-    public static final Setting<Boolean> neoPageCacheEnabled = buildSetting(
-            "metrics.neo4j.pagecache.enabled", BOOLEAN ).inherits( neoEnabled ).build();
+    public static final Setting<Boolean> ongPageCacheEnabled = buildSetting(
+            "metrics.ongdb.pagecache.enabled", BOOLEAN ).inherits( ongEnabled ).build();
 
     @Description( "Enable reporting metrics about approximately how many entities are in the database; nodes, " +
                   "relationships, properties, etc." )
-    public static final Setting<Boolean> neoCountsEnabled = buildSetting(
-            "metrics.neo4j.counts.enabled", BOOLEAN ).inherits( neoEnabled ).build();
+    public static final Setting<Boolean> ongCountsEnabled = buildSetting(
+            "metrics.ongdb.counts.enabled", BOOLEAN ).inherits( ongEnabled ).build();
 
     @Description( "Enable reporting metrics about the network usage." )
-    public static final Setting<Boolean> neoNetworkEnabled = buildSetting(
-            "metrics.neo4j.network.enabled", BOOLEAN ).inherits( neoEnabled ).build();
+    public static final Setting<Boolean> ongNetworkEnabled = buildSetting(
+            "metrics.ongdb.network.enabled", BOOLEAN ).inherits( ongEnabled ).build();
 
     @Description( "Enable reporting metrics about Causal Clustering mode." )
     public static final Setting<Boolean> causalClusteringEnabled = buildSetting(
-            "metrics.neo4j.causal_clustering.enabled", BOOLEAN ).inherits( neoEnabled ).build();
+            "metrics.ongdb.causal_clustering.enabled", BOOLEAN ).inherits( ongEnabled ).build();
 
-    @Description( "Enable reporting metrics about ONgDB check pointing; when it occurs and how much time it takes to " +
-                  "complete." )
-    public static final Setting<Boolean> neoCheckPointingEnabled = buildSetting(
-            "metrics.neo4j.checkpointing.enabled", BOOLEAN ).inherits( neoEnabled ).build();
+    @Description( "Enable reporting metrics about ONgDB check pointing; when it occurs and how much time it takes to complete." )
+    public static final Setting<Boolean> ongCheckPointingEnabled = buildSetting(
+            "metrics.ongdb.checkpointing.enabled", BOOLEAN ).inherits( ongEnabled ).build();
 
-    @Description( "Enable reporting metrics about the ONgDB log rotation; when it occurs and how much time it takes to "
-                  + "complete." )
-    public static final Setting<Boolean> neoLogRotationEnabled = buildSetting(
-            "metrics.neo4j.logrotation.enabled", BOOLEAN ).inherits( neoEnabled ).build();
+    @Description( "Enable reporting metrics about the ONgDB log rotation; when it occurs and how much time it takes to complete." )
+    public static final Setting<Boolean> ongLogRotationEnabled = buildSetting(
+            "metrics.ongdb.logrotation.enabled", BOOLEAN ).inherits( ongEnabled ).build();
 
     @Description( "Enable reporting metrics about HA cluster info." )
-    public static final Setting<Boolean> neoClusterEnabled = buildSetting(
-            "metrics.neo4j.cluster.enabled", BOOLEAN ).inherits( neoEnabled ).build();
+    public static final Setting<Boolean> ongClusterEnabled = buildSetting(
+            "metrics.ongdb.cluster.enabled", BOOLEAN ).inherits( ongEnabled ).build();
 
     @Description( "Enable reporting metrics about Server threading info." )
-    public static final Setting<Boolean> neoServerEnabled = buildSetting(
-            "metrics.neo4j.server.enabled", BOOLEAN ).inherits( neoEnabled ).build();
+    public static final Setting<Boolean> ongServerEnabled = buildSetting(
+            "metrics.ongdb.server.enabled", BOOLEAN ).inherits( ongEnabled ).build();
 
     @Description( "Enable reporting metrics about the duration of garbage collections" )
     public static final Setting<Boolean> jvmGcEnabled =
-            buildSetting( "metrics.jvm.gc.enabled", BOOLEAN ).inherits( neoEnabled ).build();
+            buildSetting( "metrics.jvm.gc.enabled", BOOLEAN ).inherits( ongEnabled ).build();
 
     @Description( "Enable reporting metrics about the memory usage." )
-    public static final Setting<Boolean> jvmMemoryEnabled = buildSetting( "metrics.jvm.memory.enabled", BOOLEAN ).inherits( neoEnabled ).build();
+    public static final Setting<Boolean> jvmMemoryEnabled = buildSetting( "metrics.jvm.memory.enabled", BOOLEAN ).inherits( ongEnabled ).build();
 
     @Description( "Enable reporting metrics about the buffer pools." )
-    public static final Setting<Boolean> jvmBuffersEnabled = buildSetting( "metrics.jvm.buffers.enabled", BOOLEAN ).inherits( neoEnabled ).build();
+    public static final Setting<Boolean> jvmBuffersEnabled = buildSetting( "metrics.jvm.buffers.enabled", BOOLEAN ).inherits( ongEnabled ).build();
 
     @Description( "Enable reporting metrics about the current number of threads running." )
-    public static final Setting<Boolean> jvmThreadsEnabled = buildSetting( "metrics.jvm.threads.enabled", BOOLEAN ).inherits( neoEnabled ).build();
+    public static final Setting<Boolean> jvmThreadsEnabled = buildSetting( "metrics.jvm.threads.enabled", BOOLEAN ).inherits( ongEnabled ).build();
 
     @Description( "Enable reporting metrics about number of occurred replanning events." )
-    public static final Setting<Boolean> cypherPlanningEnabled =
-            buildSetting( "metrics.cypher.replanning.enabled", BOOLEAN ).inherits( neoEnabled ).build();
+    public static final Setting<Boolean> geequelPlanningEnabled =
+            buildSetting( "metrics.geequel.replanning.enabled", BOOLEAN ).inherits( ongEnabled ).build();
 
     @Description( "Enable reporting metrics about Bolt Protocol message processing." )
-    public static final Setting<Boolean> boltMessagesEnabled = buildSetting( "metrics.bolt.messages.enabled", BOOLEAN ).inherits( neoEnabled ).build();
+    public static final Setting<Boolean> boltMessagesEnabled = buildSetting( "metrics.bolt.messages.enabled", BOOLEAN ).inherits( ongEnabled ).build();
 
     // CSV settings
     @Description( "Set to `true` to enable exporting metrics to CSV files" )

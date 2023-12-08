@@ -47,9 +47,9 @@ import static com.codahale.metrics.MetricRegistry.name;
 @Documented( ".Cypher Metrics" )
 public class CypherMetrics extends LifecycleAdapter
 {
-    private static final String NAME_PREFIX = "ongdb.cypher";
+    private static final String NAME_PREFIX = "ongdb.geequel";
 
-    @Documented( "The total number of times Cypher has decided to re-plan a query" )
+    @Documented( "The total number of times Geequel has decided to re-plan a query" )
     public static final String REPLAN_EVENTS = name( NAME_PREFIX, "replan_events" );
 
     @Documented( "The total number of seconds waited between query replans" )

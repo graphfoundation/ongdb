@@ -96,7 +96,7 @@ public class PageCacheWarmupEnterpriseEditionIT extends PageCacheWarmupTestSuppo
         long pagesInMemory = waitForCacheProfile( db );
 
         db.restartDatabase(
-                MetricsSettings.neoPageCacheEnabled.name(), Settings.TRUE,
+                MetricsSettings.ongPageCacheEnabled.name(), Settings.TRUE,
                 MetricsSettings.csvEnabled.name(), Settings.TRUE,
                 MetricsSettings.csvInterval.name(), "100ms",
                 MetricsSettings.csvPath.name(), metricsDirectory.getAbsolutePath() );
@@ -131,7 +131,7 @@ public class PageCacheWarmupEnterpriseEditionIT extends PageCacheWarmupTestSuppo
         };
         db.restartDatabase( useBackupDir,
                             OnlineBackupSettings.online_backup_enabled.name(), Settings.FALSE,
-                            MetricsSettings.neoPageCacheEnabled.name(), Settings.TRUE,
+                            MetricsSettings.ongPageCacheEnabled.name(), Settings.TRUE,
                             MetricsSettings.csvEnabled.name(), Settings.TRUE,
                             MetricsSettings.csvInterval.name(), "100ms",
                             MetricsSettings.csvPath.name(), metricsDirectory.getAbsolutePath() );
@@ -205,7 +205,7 @@ public class PageCacheWarmupEnterpriseEditionIT extends PageCacheWarmupTestSuppo
         File metricsDirectory = dir.cleanDirectory( "metrics" );
         db.ensureStarted(
                 OnlineBackupSettings.online_backup_enabled.name(), Settings.FALSE,
-                MetricsSettings.neoPageCacheEnabled.name(), Settings.TRUE,
+                MetricsSettings.ongPageCacheEnabled.name(), Settings.TRUE,
                 MetricsSettings.csvEnabled.name(), Settings.TRUE,
                 MetricsSettings.csvInterval.name(), "100ms",
                 MetricsSettings.csvPath.name(), metricsDirectory.getAbsolutePath() );
