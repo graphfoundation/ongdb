@@ -54,6 +54,7 @@ import org.neo4j.causalclustering.helper.Suspendable;
 import org.neo4j.causalclustering.identity.MemberId;
 import org.neo4j.causalclustering.identity.StoreId;
 import org.neo4j.helpers.AdvertisedSocketAddress;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.logging.NullLogProvider;
 
 import static org.junit.Assert.assertFalse;
@@ -73,9 +74,9 @@ public class CoreStateDownloaderTest
     private final RemoteStore remoteStore = mock( RemoteStore.class );
     private final CatchUpClient catchUpClient = mock( CatchUpClient.class );
     private final StoreCopyProcess storeCopyProcess = mock( StoreCopyProcess.class );
-    private CoreSnapshotService snapshotService = mock( CoreSnapshotService.class );
-    private TopologyService topologyService = mock( TopologyService.class );
-    private CommitStateHelper commitStateHelper = mock( CommitStateHelper.class );
+    private final CoreSnapshotService snapshotService = mock( CoreSnapshotService.class );
+    private final TopologyService topologyService = mock( TopologyService.class );
+    private final CommitStateHelper commitStateHelper = mock( CommitStateHelper.class );
     private final CoreStateMachines coreStateMachines = mock( CoreStateMachines.class );
 
     private final NullLogProvider logProvider = NullLogProvider.getInstance();
@@ -84,7 +85,7 @@ public class CoreStateDownloaderTest
     private final AdvertisedSocketAddress remoteAddress = new AdvertisedSocketAddress( "remoteAddress", 1234 );
     private final CatchupAddressProvider catchupAddressProvider = CatchupAddressProvider.fromSingleAddress( remoteAddress );
     private final StoreId storeId = new StoreId( 1, 2, 3, 4 );
-    private final File storeDir = new File( "graph.db" );
+    private final DatabaseLayout databaseLayout = DatabaseLayout.of( new File( "graph.db" ) );
 
     private final CoreStateDownloader downloader =
             new CoreStateDownloader( localDatabase, startStopLife, remoteStore, catchUpClient, logProvider, storeCopyProcess, coreStateMachines,
@@ -94,7 +95,7 @@ public class CoreStateDownloaderTest
     public void commonMocking()
     {
         when( localDatabase.storeId() ).thenReturn( storeId );
-        when( localDatabase.storeDir() ).thenReturn( storeDir );
+        when( localDatabase.databaseLayout() ).thenReturn( databaseLayout );
         when( topologyService.findCatchupAddress( remoteMember ) ).thenReturn( Optional.of( remoteAddress ) );
     }
 
@@ -152,13 +153,13 @@ public class CoreStateDownloaderTest
         // given
         when( localDatabase.isEmpty() ).thenReturn( false );
         when( remoteStore.getStoreId( remoteAddress ) ).thenReturn( storeId );
-        when( remoteStore.tryCatchingUp( remoteAddress, storeId, storeDir, false ) ).thenReturn( SUCCESS_END_OF_STREAM );
+        when( remoteStore.tryCatchingUp( remoteAddress, storeId, databaseLayout, false ) ).thenReturn( SUCCESS_END_OF_STREAM );
 
         // when
         downloader.downloadSnapshot( catchupAddressProvider );
 
         // then
-        verify( remoteStore ).tryCatchingUp( remoteAddress, storeId, storeDir, false );
+        verify( remoteStore ).tryCatchingUp( remoteAddress, storeId, databaseLayout, false );
         verify( remoteStore, never() ).copy( any(), any(), any() );
     }
 
@@ -168,13 +169,13 @@ public class CoreStateDownloaderTest
         // given
         when( localDatabase.isEmpty() ).thenReturn( false );
         when( remoteStore.getStoreId( remoteAddress ) ).thenReturn( storeId );
-        when( remoteStore.tryCatchingUp( remoteAddress, storeId, storeDir, false ) ).thenReturn( E_TRANSACTION_PRUNED );
+        when( remoteStore.tryCatchingUp( remoteAddress, storeId, databaseLayout, false ) ).thenReturn( E_TRANSACTION_PRUNED );
 
         // when
         downloader.downloadSnapshot( catchupAddressProvider );
 
         // then
-        verify( remoteStore ).tryCatchingUp( remoteAddress, storeId, storeDir, false );
+        verify( remoteStore ).tryCatchingUp( remoteAddress, storeId, databaseLayout, false );
         verify( storeCopyProcess ).replaceWithStoreFrom( catchupAddressProvider, storeId );
     }
 }

@@ -60,6 +60,7 @@ import org.neo4j.causalclustering.upstream.UpstreamDatabaseStrategySelector;
 import org.neo4j.helpers.AdvertisedSocketAddress;
 import org.neo4j.helpers.Service;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.lifecycle.Lifecycle;
@@ -77,20 +78,19 @@ import static org.mockito.Mockito.when;
 
 public class ReadReplicaStartupProcessTest
 {
-    private ConstantTimeTimeoutStrategy retryStrategy = new ConstantTimeTimeoutStrategy( 1, MILLISECONDS );
-    private StoreCopyProcess storeCopyProcess = mock( StoreCopyProcess.class );
-    private RemoteStore remoteStore = mock( RemoteStore.class );
-    private final PageCache pageCache = mock( PageCache.class );
-    private LocalDatabase localDatabase = mock( LocalDatabase.class );
-    private TopologyService topologyService = mock( TopologyService.class );
-    private CoreTopology clusterTopology = mock( CoreTopology.class );
-    private Lifecycle txPulling = mock( Lifecycle.class );
+    private final ConstantTimeTimeoutStrategy retryStrategy = new ConstantTimeTimeoutStrategy( 1, MILLISECONDS );
+    private final StoreCopyProcess storeCopyProcess = mock( StoreCopyProcess.class );
+    private final RemoteStore remoteStore = mock( RemoteStore.class );
+    private final LocalDatabase localDatabase = mock( LocalDatabase.class );
+    private final TopologyService topologyService = mock( TopologyService.class );
+    private final CoreTopology clusterTopology = mock( CoreTopology.class );
+    private final Lifecycle txPulling = mock( Lifecycle.class );
 
-    private MemberId memberId = new MemberId( UUID.randomUUID() );
-    private AdvertisedSocketAddress fromAddress = new AdvertisedSocketAddress( "127.0.0.1", 123 );
-    private StoreId localStoreId = new StoreId( 1, 2, 3, 4 );
-    private StoreId otherStoreId = new StoreId( 5, 6, 7, 8 );
-    private File storeDir = new File( "store-dir" );
+    private final MemberId memberId = new MemberId( UUID.randomUUID() );
+    private final AdvertisedSocketAddress fromAddress = new AdvertisedSocketAddress( "127.0.0.1", 123 );
+    private final StoreId localStoreId = new StoreId( 1, 2, 3, 4 );
+    private final StoreId otherStoreId = new StoreId( 5, 6, 7, 8 );
+    private final DatabaseLayout databaseLayout = DatabaseLayout.of( new File( "store-dir" ) );
 
     @Before
     public void commonMocking() throws IOException
@@ -100,8 +100,7 @@ public class ReadReplicaStartupProcessTest
 
         FileSystemAbstraction fileSystemAbstraction = mock( FileSystemAbstraction.class );
         when( fileSystemAbstraction.streamFilesRecursive( any( File.class ) ) ).thenAnswer( f -> Stream.empty() );
-        when( pageCache.getCachedFileSystem() ).thenReturn( fileSystemAbstraction );
-        when( localDatabase.storeDir() ).thenReturn( storeDir );
+        when( localDatabase.databaseLayout() ).thenReturn( databaseLayout );
         when( localDatabase.storeId() ).thenReturn( localStoreId );
         when( topologyService.allCoreServers() ).thenReturn( clusterTopology );
         when( clusterTopology.members() ).thenReturn( members );

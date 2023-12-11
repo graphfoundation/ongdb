@@ -41,8 +41,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 
-import org.neo4j.io.fs.FileHandle;
 import org.neo4j.io.pagecache.PageCache;
+import org.neo4j.io.pagecache.PagedFile;
 
 public interface FileMoveAction
 {
@@ -57,11 +57,11 @@ public interface FileMoveAction
             @Override
             public void move( File toDir, CopyOption... copyOptions ) throws IOException
             {
-                Optional<FileHandle> handle = pageCache.getCachedFileSystem().streamFilesRecursive( file ).findAny();
+                Optional<PagedFile> handle = pageCache.getExistingMapping( file );
                 boolean directoryExistsInCachedSystem = handle.isPresent();
                 if ( directoryExistsInCachedSystem )
                 {
-                    handle.get().rename( new File( toDir, file.getName() ), copyOptions );
+                    handle.get().file().renameTo( new File( toDir, file.getName() ) );
                 }
             }
 

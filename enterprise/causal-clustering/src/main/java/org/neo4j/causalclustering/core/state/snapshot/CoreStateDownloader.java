@@ -118,7 +118,7 @@ public class CoreStateDownloader
          *  guarantee that there are later transactions and we need at least one transaction in
          *  the log to figure out the Raft log index (see {@link RecoverConsensusLogIndex}).
          */
-        if ( commitStateHelper.hasTxLogs( localDatabase.storeDir() ) )
+        if ( commitStateHelper.hasTxLogs( localDatabase.databaseLayout() ) )
         {
             log.info( "Recovering local database" );
             ensure( localDatabase::start, "start local database" );
@@ -181,7 +181,7 @@ public class CoreStateDownloader
             CatchupResult catchupResult;
             try
             {
-                catchupResult = remoteStore.tryCatchingUp( primary, localStoreId, localDatabase.storeDir(), false );
+                catchupResult = remoteStore.tryCatchingUp( primary, localStoreId, localDatabase.databaseLayout(), false );
             }
             catch ( StoreCopyFailedException e )
             {

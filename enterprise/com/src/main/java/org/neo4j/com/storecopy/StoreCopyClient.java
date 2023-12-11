@@ -51,7 +51,6 @@ import org.neo4j.helpers.CancellationRequest;
 import org.neo4j.helpers.collection.Visitor;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.FileUtils;
-import org.neo4j.io.layout.DatabaseFileNames;
 import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.configuration.Config;
@@ -111,8 +110,7 @@ public class StoreCopyClient
     public StoreCopyClient( DatabaseLayout databaseLayout, Config config, Iterable<KernelExtensionFactory<?>> kernelExtensions, LogProvider logProvider,
             FileSystemAbstraction fs, PageCache pageCache, StoreCopyClientMonitor monitor, boolean forensics )
     {
-        this( databaseLayout, config, kernelExtensions, logProvider, fs, pageCache, monitor, forensics, new FileMoveProvider( pageCache,
-                fs ) );
+        this( databaseLayout, config, kernelExtensions, logProvider, fs, pageCache, monitor, forensics, new FileMoveProvider( fs ) );
     }
 
     public StoreCopyClient( DatabaseLayout databaseLayout, Config config, Iterable<KernelExtensionFactory<?>> kernelExtensions, LogProvider logProvider,
