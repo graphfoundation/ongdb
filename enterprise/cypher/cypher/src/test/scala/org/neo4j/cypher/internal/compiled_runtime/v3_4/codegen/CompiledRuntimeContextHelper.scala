@@ -46,7 +46,7 @@ import org.neo4j.cypher.internal.planner.v3_4.spi.PlanContext
 import org.neo4j.cypher.internal.runtime.vectorized.dispatcher.SingleThreadedExecutor
 import org.neo4j.cypher.internal.util.v3_4.attribution.{IdGen, SequentialIdGen}
 import org.neo4j.cypher.internal.util.v3_4.{CypherException, InputPosition, InternalException}
-import org.neo4j.cypher.internal.v3_4.executionplan.GeneratedQuery
+import org.neo4j.cypher.internal.v3_5.executionplan.GeneratedQuery
 import org.scalatest.mock.MockitoSugar
 
 object CompiledRuntimeContextHelper extends MockitoSugar {

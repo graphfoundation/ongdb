@@ -52,7 +52,7 @@ import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
 import org.neo4j.cypher.internal.runtime.{ExecutionMode, QueryContext, QueryTransactionalContext}
 import org.neo4j.cypher.internal.spi.v3_4.codegen.Methods.{newNodeProxyById, newRelationshipProxyById}
 import org.neo4j.cypher.internal.util.v3_4.CypherExecutionException
-import org.neo4j.cypher.internal.v3_4.codegen.QueryExecutionTracer
+import org.neo4j.cypher.internal.v3_5.codegen.QueryExecutionTracer
 import org.neo4j.graphdb.{Direction, Node, Relationship}
 import org.neo4j.internal.kernel.api._
 import org.neo4j.internal.kernel.api.exceptions.{EntityNotFoundException, KernelException}
