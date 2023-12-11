@@ -49,7 +49,7 @@ import org.neo4j.causalclustering.core.state.storage.SimpleStorage;
 import org.neo4j.causalclustering.discovery.CoreTopology;
 import org.neo4j.causalclustering.discovery.CoreTopologyService;
 import org.neo4j.function.ThrowingAction;
-import org.neo4j.kernel.impl.util.CappedLogger;
+import org.neo4j.logging.internal.CappedLogger;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
 

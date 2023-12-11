@@ -43,7 +43,7 @@ import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.TransactionFailureException;
 import org.neo4j.helper.Workload;
-import org.neo4j.kernel.impl.util.CappedLogger;
+import org.neo4j.logging.internal.CappedLogger;
 import org.neo4j.logging.Log;
 import org.neo4j.test.Randoms;
 
