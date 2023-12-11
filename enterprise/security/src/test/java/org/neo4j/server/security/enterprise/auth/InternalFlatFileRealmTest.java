@@ -50,9 +50,10 @@ import java.time.Clock;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Function;
+import java.util.function.ToIntFunction;
 
 import org.neo4j.commandline.admin.security.SetDefaultAdminCommand;
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.internal.kernel.api.security.AuthenticationResult;
 import org.neo4j.kernel.api.exceptions.InvalidArgumentsException;
 import org.neo4j.kernel.api.security.PasswordPolicy;
@@ -93,7 +94,7 @@ public class InternalFlatFileRealmTest
 
     private MultiRealmAuthManager authManager;
     private TestRealm testRealm;
-    private Function<String, Integer> token = s -> -1;
+    private final ToIntFunction<String> token = s -> -1;
 
     @Before
     public void setup() throws Throwable
@@ -142,11 +143,11 @@ public class InternalFlatFileRealmTest
         EnterpriseLoginContext mike = authManager.login( authToken( "mike", "123" ) );
         assertThat( mike.subject().getAuthenticationResult(), equalTo( AuthenticationResult.SUCCESS ) );
 
-        mike.authorize( token ).mode().allowsReads();
+        mike.authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME ).mode().allowsReads();
         assertThat( "Test realm did not receive a call", testRealm.takeAuthorizationFlag(), is( true ) );
 
         // When
-        mike.authorize( token ).mode().allowsWrites();
+        mike.authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME ).mode().allowsWrites();
 
         // Then
         assertThat( "Test realm did not receive a call", testRealm.takeAuthorizationFlag(), is( true ) );

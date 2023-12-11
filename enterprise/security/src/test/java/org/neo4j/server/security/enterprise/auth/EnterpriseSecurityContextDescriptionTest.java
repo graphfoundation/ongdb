@@ -39,8 +39,9 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import java.time.Clock;
-import java.util.function.Function;
+import java.util.function.ToIntFunction;
 
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.internal.kernel.api.security.AccessMode;
 import org.neo4j.kernel.api.security.exception.InvalidAuthTokenException;
 import org.neo4j.kernel.configuration.Config;
@@ -62,7 +63,7 @@ public class EnterpriseSecurityContextDescriptionTest
             new RateLimitedAuthenticationStrategy( Clock.systemUTC(), Config.defaults() ) );
 
     private EnterpriseUserManager manager;
-    private Function<String, Integer> token = s -> -1;
+    private final ToIntFunction<String> token = s -> -1;
 
     @Before
     public void setUp() throws Throwable
@@ -139,6 +140,6 @@ public class EnterpriseSecurityContextDescriptionTest
 
     private EnterpriseSecurityContext context() throws InvalidAuthTokenException
     {
-        return authManagerRule.getManager().login( authToken( "mats", "foo" ) ).authorize( token );
+        return authManagerRule.getManager().login( authToken( "mats", "foo" ) ).authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
     }
 }

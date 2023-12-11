@@ -52,8 +52,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
+import java.util.function.ToIntFunction;
 
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.kernel.api.security.exception.InvalidAuthTokenException;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.enterprise.api.security.EnterpriseLoginContext;
@@ -77,7 +78,7 @@ public class LdapCachingTest
     private TestRealm testRealm;
     private FakeTicker fakeTicker;
 
-    private Function<String, Integer> token;
+    private ToIntFunction<String> token;
 
     @Before
     public void setup() throws Throwable
@@ -140,11 +141,11 @@ public class LdapCachingTest
     {
         // Given
         EnterpriseLoginContext mike = authManager.login( authToken( "mike", "123" ) );
-        mike.authorize( token ).mode().allowsReads();
+        mike.authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME ).mode().allowsReads();
         assertThat( "Test realm did not receive a call", testRealm.takeAuthorizationFlag(), is( true ) );
 
         // When
-        mike.authorize( token ).mode().allowsWrites();
+        mike.authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME ).mode().allowsWrites();
 
         // Then
         assertThat( "Test realm received a call", testRealm.takeAuthorizationFlag(), is( false ) );
@@ -155,19 +156,19 @@ public class LdapCachingTest
     {
         // Given
         EnterpriseLoginContext mike = authManager.login( authToken( "mike", "123" ) );
-        mike.authorize( token ).mode().allowsReads();
+        mike.authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME ).mode().allowsReads();
         assertThat( "Test realm did not receive a call", testRealm.takeAuthorizationFlag(), is( true ) );
 
         // When
         fakeTicker.advance( 99, TimeUnit.MILLISECONDS );
-        mike.authorize( token ).mode().allowsWrites();
+        mike.authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME ).mode().allowsWrites();
 
         // Then
         assertThat( "Test realm received a call", testRealm.takeAuthorizationFlag(), is( false ) );
 
         // When
         fakeTicker.advance( 2, TimeUnit.MILLISECONDS );
-        mike.authorize( token ).mode().allowsWrites();
+        mike.authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME ).mode().allowsWrites();
 
         // Then
         assertThat( "Test realm did not received a call", testRealm.takeAuthorizationFlag(), is( true ) );

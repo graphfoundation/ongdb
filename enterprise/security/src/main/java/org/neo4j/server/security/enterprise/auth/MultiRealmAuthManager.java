@@ -58,8 +58,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.function.IntPredicate;
+import java.util.function.ToIntFunction;
 
 import org.neo4j.collection.primitive.Primitive;
 import org.neo4j.collection.primitive.PrimitiveIntSet;
@@ -322,31 +322,32 @@ class MultiRealmAuthManager implements EnterpriseAuthAndUserManager
         return infoList;
     }
 
-    IntPredicate getPropertyPermissions( Set<String> roles, Function<String, Integer> tokenLookup )
+    IntPredicate getPropertyPermissions( Set<String> roles, ToIntFunction<String> propertyIdLookup )
     {
         if ( propertyAuthorization )
         {
-            PrimitiveIntSet blackListed = Primitive.intSet();
-            for ( String role : roles )
+            try (PrimitiveIntSet blackListed = Primitive.intSet() )
             {
-                if ( roleToPropertyBlacklist.containsKey( role ) )
+                for ( String role : roles )
                 {
-                    assert roleToPropertyBlacklist.get( role ) != null : "Blacklist has to contain properties";
-                    for ( String propName : roleToPropertyBlacklist.get( role ) )
+                    if ( roleToPropertyBlacklist.containsKey( role ) )
                     {
-
-                        try
+                        assert roleToPropertyBlacklist.get( role ) != null : "Blacklist has to contain properties";
+                        for ( String propName : roleToPropertyBlacklist.get( role ) )
                         {
-                            blackListed.add( tokenLookup.apply( propName ) );
-                        }
-                        catch ( Exception e )
-                        {
-                            securityLog.error( "Error in setting up property permissions, '" + propName + "' is not a valid property name." );
+                            try
+                            {
+                                blackListed.add( propertyIdLookup.applyAsInt( propName ) );
+                            }
+                            catch ( Exception e )
+                            {
+                                securityLog.error( "Error in setting up property permissions, '" + propName + "' is not a valid property name." );
+                            }
                         }
                     }
                 }
+                return property -> !blackListed.contains( property );
             }
-            return property -> !blackListed.contains( property );
         }
         else
         {
