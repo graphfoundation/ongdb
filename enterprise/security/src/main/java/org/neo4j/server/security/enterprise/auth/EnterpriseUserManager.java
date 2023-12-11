@@ -164,7 +164,7 @@ public interface EnterpriseUserManager extends UserManager
         }
 
         @Override
-        public User newUser( String username, String initialPassword, boolean requirePasswordChange )
+        public User newUser( String username, byte[] initialPassword, boolean requirePasswordChange )
         {
             return null;
         }
@@ -188,7 +188,7 @@ public interface EnterpriseUserManager extends UserManager
         }
 
         @Override
-        public void setUserPassword( String username, String password, boolean requirePasswordChange )
+        public void setUserPassword( String username, byte[] password, boolean requirePasswordChange )
         {
         }
 
