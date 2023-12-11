@@ -50,6 +50,7 @@ import org.neo4j.kernel.impl.api.security.OverriddenAccessMode;
 import org.neo4j.kernel.impl.api.security.RestrictedAccessMode;
 import org.neo4j.server.security.auth.InMemoryUserRepository;
 import org.neo4j.server.security.auth.RateLimitedAuthenticationStrategy;
+import org.neo4j.string.UTF8;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -70,7 +71,7 @@ public class EnterpriseSecurityContextDescriptionTest
     {
         authManagerRule.getManager().start();
         manager = authManagerRule.getManager().getUserManager();
-        manager.newUser( "mats", "foo", false );
+        manager.newUser( "mats", UTF8.encode( "foo" ), false );
     }
 
     @Test

@@ -66,11 +66,13 @@ import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.server.security.auth.AuthenticationStrategy;
 import org.neo4j.server.security.auth.BasicPasswordPolicy;
 import org.neo4j.server.security.auth.InMemoryUserRepository;
+import org.neo4j.server.security.auth.LegacyCredential;
 import org.neo4j.server.security.auth.ListSnapshot;
 import org.neo4j.server.security.auth.RateLimitedAuthenticationStrategy;
 import org.neo4j.server.security.auth.UserRepository;
 import org.neo4j.server.security.enterprise.auth.plugin.api.PredefinedRoles;
 import org.neo4j.server.security.enterprise.log.SecurityLog;
+import org.neo4j.string.UTF8;
 import org.neo4j.time.Clocks;
 
 import static org.hamcrest.Matchers.contains;
@@ -117,7 +119,7 @@ public class InternalFlatFileRealmTest
         authManager.init();
         authManager.start();
 
-        authManager.getUserManager().newUser( "mike", "123", false );
+        authManager.getUserManager().newUser( "mike", UTF8.encode( "123" ), false );
     }
 
     @Test
@@ -329,8 +331,7 @@ public class InternalFlatFileRealmTest
 
     private User newUser( String userName, String password, boolean pwdChange )
     {
-        return new User.Builder( userName, Credential.forPassword( password ) ).withRequiredPasswordChange( pwdChange )
-            .build();
+        return new User.Builder( userName, LegacyCredential.forPassword( password ) ).withRequiredPasswordChange( pwdChange ).build();
     }
 
     private void assertSetUsersAndRolesNTimes( boolean usersChanged, boolean rolesChanged,

@@ -64,6 +64,7 @@ import org.neo4j.server.security.auth.InMemoryUserRepository;
 import org.neo4j.server.security.auth.RateLimitedAuthenticationStrategy;
 import org.neo4j.server.security.enterprise.configuration.SecuritySettings;
 import org.neo4j.server.security.enterprise.log.SecurityLog;
+import org.neo4j.string.UTF8;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -106,8 +107,8 @@ public class LdapCachingTest
         authManager.init();
         authManager.start();
 
-        authManager.getUserManager().newUser( "mike", "123", false );
-        authManager.getUserManager().newUser( "mats", "456", false );
+        authManager.getUserManager().newUser( "mike", UTF8.encode( "123" ), false );
+        authManager.getUserManager().newUser( "mats", UTF8.encode( "456" ), false );
     }
 
     private Config getLdapConfig()

@@ -68,6 +68,7 @@ import org.neo4j.server.security.auth.InitialUserTest;
 import org.neo4j.server.security.auth.UserRepository;
 import org.neo4j.server.security.enterprise.auth.plugin.api.PredefinedRoles;
 import org.neo4j.server.security.enterprise.log.SecurityLog;
+import org.neo4j.string.UTF8;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
@@ -344,7 +345,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
         manager.start();
 
         // When
-        userManager.newUser( "foo", "bar", true );
+        userManager.newUser( "foo", UTF8.encode( "bar" ), true );
 
         // Then
         User user = users.getUserByName( "foo" );
@@ -447,7 +448,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
         final User user = newUser( "jake", "abc123", false );
         users.create( user );
         manager.start();
-        when( authStrategy.authenticate( user, "abc123" ) ).thenReturn( AuthenticationResult.SUCCESS );
+        when( authStrategy.authenticate( user, UTF8.encode( "abc123" ) ) ).thenReturn( AuthenticationResult.SUCCESS );
 
         // When
         userManager.activateUser( "jake", false );
@@ -504,7 +505,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
         manager.start();
 
         // When
-        userManager.setUserPassword( "jake", "hello, world!", false );
+        userManager.setUserPassword( "jake", UTF8.encode( "hello, world!" ), false );
 
         // Then
         User user = userManager.getUser( "jake" );
@@ -537,7 +538,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
         // When
         try
         {
-            userManager.setUserPassword( "unknown", "hello, world!", false );
+            userManager.setUserPassword( "unknown", UTF8.encode( "hello, world!" ), false );
             fail( "exception expected" );
         }
         catch ( InvalidArgumentsException e )
@@ -548,23 +549,23 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
 
     private void createTestUsers() throws Throwable
     {
-        userManager.newUser( "morpheus", "abc123", false );
+        userManager.newUser( "morpheus", UTF8.encode( "abc123" ), false );
         userManager.newRole( "admin", "morpheus" );
         setMockAuthenticationStrategyResult( "morpheus", "abc123", AuthenticationResult.SUCCESS );
 
-        userManager.newUser( "trinity", "abc123", false );
+        userManager.newUser( "trinity", UTF8.encode( "abc123" ), false );
         userManager.newRole( "architect", "trinity" );
         setMockAuthenticationStrategyResult( "trinity", "abc123", AuthenticationResult.SUCCESS );
 
-        userManager.newUser( "tank", "abc123", false );
+        userManager.newUser( "tank", UTF8.encode( "abc123" ), false );
         userManager.newRole( "publisher", "tank" );
         setMockAuthenticationStrategyResult( "tank", "abc123", AuthenticationResult.SUCCESS );
 
-        userManager.newUser( "neo", "abc123", false );
+        userManager.newUser( "neo", UTF8.encode( "abc123" ), false );
         userManager.newRole( "reader", "neo" );
         setMockAuthenticationStrategyResult( "neo", "abc123", AuthenticationResult.SUCCESS );
 
-        userManager.newUser( "smith", "abc123", false );
+        userManager.newUser( "smith", UTF8.encode( "abc123" ), false );
         userManager.newRole( "agent", "smith" );
         setMockAuthenticationStrategyResult( "smith", "abc123", AuthenticationResult.SUCCESS );
     }
@@ -578,7 +579,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
 
         // When
         SecurityContext securityContext = manager.login( authToken( "ongdb", "ongdb" ) ).authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
-        userManager.setUserPassword( "ongdb", "1234", false );
+        userManager.setUserPassword( "ongdb", UTF8.encode( "1234" ), false );
         securityContext.subject().logout();
 
         setMockAuthenticationStrategyResult( "ongdb", "1234", AuthenticationResult.SUCCESS );
@@ -711,7 +712,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
     private void setMockAuthenticationStrategyResult( String username, String password, AuthenticationResult result )
     {
         final User user = users.getUserByName( username );
-        when( authStrategy.authenticate( user, password ) ).thenReturn( result );
+        when( authStrategy.authenticate( user, UTF8.encode( password ) ) ).thenReturn( result );
     }
 
     @Override
