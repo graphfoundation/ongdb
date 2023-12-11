@@ -35,15 +35,28 @@
 package org.neo4j.cypher.internal.spi.v3_4.codegen
 
 import java.util
-
 import org.neo4j.codegen.FieldReference.field
 import org.neo4j.codegen.Parameter.param
 import org.neo4j.codegen._
 import org.neo4j.cypher.internal.util.v3_4.symbols
 import org.neo4j.cypher.internal.codegen.CompiledEquivalenceUtils
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.compatibility.v3_4.runtime.compiled.codegen.ir.expressions._
 import org.neo4j.cypher.internal.compatibility.v3_4.runtime.compiled.codegen.spi._
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenContext
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.AnyValueType
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CodeGenType
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CypherCodeGenType
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ReferenceType
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.RepresentationType
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ValueType
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.Ascending
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.Descending
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.HashableTupleDescriptor
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.OrderableTupleDescriptor
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.SimpleTupleDescriptor
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.SortItem
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.SortOrder
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.TupleDescriptor
 import org.neo4j.cypher.internal.compiler.v3_4.common.CypherOrderability
 import org.neo4j.cypher.internal.frontend.v3_4.helpers._
 import org.neo4j.values.storable.{Value, Values}

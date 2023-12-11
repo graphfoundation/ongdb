@@ -37,15 +37,27 @@ package org.neo4j.cypher.internal.compiled_runtime.v3_4.codegen.ir
 import java.util
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.BiConsumer
-
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
 import org.neo4j.collection.primitive.PrimitiveLongIterator
 import org.neo4j.cypher.internal.compatibility.v3_4.runtime.compiled.codegen.ir._
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.compiled.codegen.ir.expressions.{CodeGenType, NodeProjection}
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.compiled.codegen.{CodeGenContext, JoinTableMethod, Variable}
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenContext
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.JoinTableMethod
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.Variable
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.AcceptVisitor
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.BuildCountingProbeTable
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.BuildProbeTable
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.BuildRecordingProbeTable
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.GetMatchesFromProbeTable
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.Instruction
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.MethodInvocation
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.ScanAllNodes
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.WhileLoop
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CodeGenType
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.NodeProjection
 import org.neo4j.cypher.internal.frontend.v3_4.semantics.SemanticTable
 import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.cypher.internal.runtime.interpreted.TransactionalContextWrapper
@@ -258,7 +270,7 @@ class BuildProbeTableInstructionsTest extends CypherFunSuite with CodeGenSugar {
                                                  action = acceptVisitor)
 
     val probeTheTableWhileLoop = probeVars.foldRight[Instruction](probeTheTable){
-      case (variable, instruction) => WhileLoop(variable, ScanAllNodes("scanOp" + counter.incrementAndGet()), instruction)
+      case (variable, instruction) => ir.WhileLoop(variable, ScanAllNodes("scanOp" + counter.incrementAndGet()), instruction)
     }
     Seq(buildProbeTableMethod, probeTheTableWhileLoop)
   }

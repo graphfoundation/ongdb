@@ -35,8 +35,10 @@
 package org.neo4j.cypher.internal.runtime.slotted.pipes
 
 import java.util.Comparator
-
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.{LongSlot, RefSlot, Slot, SlotConfiguration}
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.LongSlot
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.RefSlot
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.Slot
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotConfiguration
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, PipeWithSource, QueryState}
 import org.neo4j.cypher.internal.util.v3_4.attribution.Id

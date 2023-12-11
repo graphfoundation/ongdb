@@ -35,6 +35,24 @@
 package org.neo4j.cypher.internal.runtime.slotted.expressions
 
 import org.neo4j.cypher.internal.compatibility.v3_4.runtime.{ast => runtimeAst}
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.GetDegreePrimitive
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.IdFromSlot
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.IsPrimitiveNull
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NodeFromSlot
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NodeProperty
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NodePropertyExists
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NodePropertyExistsLate
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NodePropertyLate
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NullCheck
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NullCheckProperty
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NullCheckVariable
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.PrimitiveEquals
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.ReferenceFromSlot
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RelationshipFromSlot
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RelationshipProperty
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RelationshipPropertyExists
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RelationshipPropertyExistsLate
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RelationshipPropertyLate
 import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.{ExpressionConverter, ExpressionConverters}
 import org.neo4j.cypher.internal.runtime.interpreted.commands.{expressions => commands}
 import org.neo4j.cypher.internal.runtime.slotted.{expressions => runtimeExpression}
@@ -45,48 +63,48 @@ import org.neo4j.cypher.internal.v3_4.{expressions => ast}
 object SlottedExpressionConverters extends ExpressionConverter {
   override def toCommandExpression(expression: ast.Expression, self: ExpressionConverters): Option[commands.Expression] =
     expression match {
-      case runtimeAst.NodeFromSlot(offset, _) =>
+      case NodeFromSlot(offset, _) =>
         Some(runtimeExpression.NodeFromSlot(offset))
-      case runtimeAst.RelationshipFromSlot(offset, _) =>
+      case RelationshipFromSlot(offset, _) =>
         Some(runtimeExpression.RelationshipFromSlot(offset))
-      case runtimeAst.ReferenceFromSlot(offset, _) =>
+      case ReferenceFromSlot(offset, _) =>
         Some(runtimeExpression.ReferenceFromSlot(offset))
-      case runtimeAst.NodeProperty(offset, token, _) =>
+      case NodeProperty(offset, token, _) =>
         Some(runtimeExpression.NodeProperty(offset, token))
-      case runtimeAst.RelationshipProperty(offset, token, _) =>
+      case RelationshipProperty(offset, token, _) =>
         Some(runtimeExpression.RelationshipProperty(offset, token))
-      case runtimeAst.IdFromSlot(offset) =>
+      case IdFromSlot(offset) =>
         Some(runtimeExpression.IdFromSlot(offset))
-      case runtimeAst.NodePropertyLate(offset, propKey, _) =>
+      case NodePropertyLate(offset, propKey, _) =>
         Some(runtimeExpression.NodePropertyLate(offset, propKey))
-      case runtimeAst.RelationshipPropertyLate(offset, propKey, _) =>
+      case RelationshipPropertyLate(offset, propKey, _) =>
         Some(runtimeExpression.RelationshipPropertyLate(offset, propKey))
-      case runtimeAst.PrimitiveEquals(a, b) =>
+      case PrimitiveEquals(a, b) =>
         val lhs = self.toCommandExpression(a)
         val rhs = self.toCommandExpression(b)
         Some(runtimeExpression.PrimitiveEquals(lhs, rhs))
-      case runtimeAst.GetDegreePrimitive(offset, typ, direction) =>
+      case GetDegreePrimitive(offset, typ, direction) =>
         Some(runtimeExpression.GetDegreePrimitive(offset, typ, direction))
-      case runtimeAst.NodePropertyExists(offset, token, _) =>
+      case NodePropertyExists(offset, token, _) =>
         Some(runtimeExpression.NodePropertyExists(offset, token))
-      case runtimeAst.NodePropertyExistsLate(offset, token, _) =>
+      case NodePropertyExistsLate(offset, token, _) =>
         Some(runtimeExpression.NodePropertyExistsLate(offset, token))
-      case runtimeAst.RelationshipPropertyExists(offset, token, _) =>
+      case RelationshipPropertyExists(offset, token, _) =>
         Some(runtimeExpression.RelationshipPropertyExists(offset, token))
-      case runtimeAst.RelationshipPropertyExistsLate(offset, token, _) =>
+      case RelationshipPropertyExistsLate(offset, token, _) =>
         Some(runtimeExpression.RelationshipPropertyExistsLate(offset, token))
-      case runtimeAst.NullCheck(offset, inner) =>
+      case NullCheck(offset, inner) =>
         val a = self.toCommandExpression(inner)
         Some(runtimeExpression.NullCheck(offset, a))
-      case runtimeAst.NullCheckVariable(offset, inner) =>
+      case NullCheckVariable(offset, inner) =>
         val a = self.toCommandExpression(inner)
         Some(runtimeExpression.NullCheck(offset, a))
-      case runtimeAst.NullCheckProperty(offset, inner) =>
+      case NullCheckProperty(offset, inner) =>
         val a = self.toCommandExpression(inner)
         Some(runtimeExpression.NullCheck(offset, a))
       case e: ast.PathExpression =>
         Some(toCommandProjectedPath(e, self))
-      case runtimeAst.IsPrimitiveNull(offset) =>
+      case IsPrimitiveNull(offset) =>
         Some(runtimeExpression.IsPrimitiveNull(offset))
       case _ =>
         None

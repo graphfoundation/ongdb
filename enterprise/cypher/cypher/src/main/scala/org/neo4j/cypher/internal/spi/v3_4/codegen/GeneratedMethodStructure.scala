@@ -36,7 +36,6 @@ package org.neo4j.cypher.internal.spi.v3_4.codegen
 
 import java.util.stream.{DoubleStream, IntStream, LongStream}
 import java.util.{PrimitiveIterator, ArrayList => JArrayList, HashMap => JHashMap, HashSet => JHashSet, Iterator => JIterator, Map => JMap, Set => JSet}
-
 import org.neo4j.codegen.Expression.{invoke, not, or, _}
 import org.neo4j.codegen.MethodReference.methodReference
 import org.neo4j.codegen._
@@ -44,9 +43,38 @@ import org.neo4j.collection.primitive._
 import org.neo4j.collection.primitive.hopscotch.LongKeyIntValueTable
 import org.neo4j.cypher.internal.codegen.CompiledConversionUtils.CompositeKey
 import org.neo4j.cypher.internal.codegen._
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.compiled.codegen.ir.expressions.{AnyValueType, BoolType, CodeGenType, CypherCodeGenType, FloatType, ListReferenceType, LongType, ReferenceType, RepresentationType, Parameter => _}
 import org.neo4j.cypher.internal.compatibility.v3_4.runtime.compiled.codegen.spi._
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.compiled.codegen.{CodeGenContext, QueryExecutionEvent}
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenContext
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.QueryExecutionEvent
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.AnyValueType
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.BoolType
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CodeGenType
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CypherCodeGenType
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.FloatType
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ListReferenceType
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.LongType
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ReferenceType
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.RepresentationType
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.{Parameter => _}
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.Comparator
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.CountingJoinTableType
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.Equal
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.FullSortTableDescriptor
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.GreaterThan
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.GreaterThanEqual
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.HashableTupleDescriptor
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.JoinTableType
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.LessThan
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.LessThanEqual
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.LongToCountTable
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.LongToListTable
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.LongsToCountTable
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.LongsToListTable
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.MethodStructure
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.RecordingJoinTableType
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.SortTableDescriptor
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.TopTableDescriptor
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.TupleDescriptor
 import org.neo4j.cypher.internal.frontend.v3_4.helpers._
 import org.neo4j.cypher.internal.spi.v3_4.codegen.GeneratedMethodStructure.CompletableFinalizer
 import org.neo4j.cypher.internal.spi.v3_4.codegen.Methods._

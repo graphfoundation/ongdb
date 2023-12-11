@@ -35,8 +35,8 @@
 package org.neo4j.cypher.internal.compiled_runtime.v3_4
 
 import org.neo4j.cypher.internal.compatibility.v3_4.WrappedMonitors
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.compiled.BuildCompiledExecutionPlan
 import org.neo4j.cypher.internal.compatibility.v3_4.runtime.executionplan.NewRuntimeSuccessRateMonitor
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.BuildCompiledExecutionPlan
 import org.neo4j.cypher.internal.compiler.v3_4.NotImplementedPlanContext
 import org.neo4j.cypher.internal.compiler.v3_4.phases.LogicalPlanState
 import org.neo4j.cypher.internal.compiler.v3_4.planner.{CantCompileQueryException, HardcodedGraphStatistics}

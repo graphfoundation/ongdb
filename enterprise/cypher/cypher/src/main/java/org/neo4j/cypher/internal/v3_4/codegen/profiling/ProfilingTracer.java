@@ -37,7 +37,7 @@ package org.neo4j.cypher.internal.v3_4.codegen.profiling;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.compiled.codegen.QueryExecutionEvent;
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.QueryExecutionEvent;
 import org.neo4j.cypher.internal.planner.v3_4.spi.KernelStatisticProvider;
 import org.neo4j.cypher.internal.util.v3_4.attribution.Id;
 import org.neo4j.cypher.internal.v3_4.codegen.QueryExecutionTracer;
