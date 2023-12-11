@@ -53,14 +53,15 @@ import org.neo4j.helpers.Service;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.kernel.api.security.AuthManager;
 import org.neo4j.kernel.api.security.SecurityModule;
+import org.neo4j.kernel.api.security.UserManagerSupplier;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.enterprise.api.security.EnterpriseAuthManager;
 import org.neo4j.kernel.enterprise.api.security.EnterpriseSecurityContext;
 import org.neo4j.kernel.impl.enterprise.configuration.EnterpriseEditionSettings;
 import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
 import org.neo4j.kernel.impl.proc.Procedures;
-import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.server.security.auth.AuthenticationStrategy;
@@ -99,7 +100,6 @@ public class EnterpriseSecurityModule extends SecurityModule
         LogProvider logProvider = dependencies.logService().getUserLogProvider();
         JobScheduler jobScheduler = dependencies.scheduler();
         FileSystemAbstraction fileSystem = dependencies.fileSystem();
-        LifeSupport life = dependencies.lifeSupport();
 
         SecurityLog securityLog = SecurityLog.create(
                 config,
@@ -138,6 +138,18 @@ public class EnterpriseSecurityModule extends SecurityModule
         }
 
         procedures.registerProcedure( SecurityProcedures.class, true );
+    }
+
+    @Override
+    public AuthManager authManager()
+    {
+        return null;
+    }
+
+    @Override
+    public UserManagerSupplier userManagerSupplier()
+    {
+        return null;
     }
 
     private EnterpriseSecurityContext asEnterprise( SecurityContext securityContext )
