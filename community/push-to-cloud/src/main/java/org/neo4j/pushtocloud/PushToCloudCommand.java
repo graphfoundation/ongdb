@@ -417,7 +417,7 @@ public class PushToCloudCommand implements AdminCommand
         {
             return Config.builder()
                          .withFile( configFile )
-                         .withSetting( GraphDatabaseSettings.neo4j_home, homeDir.toAbsolutePath().toString() )
+                         .withSetting( GraphDatabaseSettings.ongdb_home, homeDir.toAbsolutePath().toString() )
                          .build();
         }
         catch ( Exception e )

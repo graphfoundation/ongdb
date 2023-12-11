@@ -368,6 +368,6 @@ class CheckConsistencyCommandTest
 
     private static File getDatabasesFolder( Path homeDir )
     {
-        return Config.defaults( GraphDatabaseSettings.neo4j_home, homeDir.toAbsolutePath().toString() ).get( GraphDatabaseSettings.databases_root_path );
+        return Config.defaults( GraphDatabaseSettings.ongdb_home, homeDir.toAbsolutePath().toString() ).get( GraphDatabaseSettings.databases_root_path );
     }
 }

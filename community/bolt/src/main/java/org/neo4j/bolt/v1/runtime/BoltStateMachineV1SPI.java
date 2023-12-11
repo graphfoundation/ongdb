@@ -67,7 +67,7 @@ public class BoltStateMachineV1SPI implements BoltStateMachineSPI
         this.errorReporter = new ErrorReporter( logging );
         this.authentication = authentication;
         this.transactionSpi = transactionStateMachineSPI;
-        this.version = BOLT_SERVER_VERSION_PREFIX + Version.getNeo4jVersion();
+        this.version = BOLT_SERVER_VERSION_PREFIX + Version.getONgDBVersion();
     }
 
     @Override

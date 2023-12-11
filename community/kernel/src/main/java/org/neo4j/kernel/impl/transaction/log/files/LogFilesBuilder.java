@@ -213,7 +213,7 @@ public class LogFilesBuilder
         // try to use absolute position only for default database. For other databases use database directory
         if ( tryConfigureDefaultDatabaseLogsDirectory() )
         {
-            File neo4jHome = config.get( GraphDatabaseSettings.neo4j_home );
+            File neo4jHome = config.get( GraphDatabaseSettings.ongdb_home );
             File databasePath = config.get( database_path );
             File logicalLogsLocation = config.get( GraphDatabaseSettings.logical_logs_location );
             if ( databaseLayout.getStoreLayout().storeDirectory().equals( neo4jHome ) && databasePath.equals( logicalLogsLocation ) )

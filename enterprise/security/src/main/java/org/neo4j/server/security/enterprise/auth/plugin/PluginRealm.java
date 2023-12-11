@@ -81,7 +81,7 @@ public class PluginRealm extends AuthorizingRealm implements RealmLifecycle, Shi
     private final Clock clock;
     private final SecureHasher secureHasher;
 
-    private AuthProviderOperations authProviderOperations = new PluginRealmOperations();
+    private final AuthProviderOperations authProviderOperations = new PluginRealmOperations();
 
     public PluginRealm( Config config, SecurityLog securityLog, Clock clock, SecureHasher secureHasher )
     {
@@ -406,7 +406,7 @@ public class PluginRealm extends AuthorizingRealm implements RealmLifecycle, Shi
 
     private class PluginRealmOperations implements AuthProviderOperations
     {
-        private Log innerLog = new Log()
+        private final Log innerLog = new Log()
         {
             private String withPluginName( String msg )
             {
@@ -445,19 +445,19 @@ public class PluginRealm extends AuthorizingRealm implements RealmLifecycle, Shi
         };
 
         @Override
-        public Path neo4jHome()
+        public Path ongdbHome()
         {
             return config.get( GraphDatabaseSettings.ongdb_home ).getAbsoluteFile().toPath();
         }
 
         @Override
-        public Optional<Path> neo4jConfigFile()
+        public Optional<Path> ongdbConfigFile()
         {
             return Optional.empty();
         }
 
         @Override
-        public String neo4jVersion()
+        public String ongdbVersion()
         {
             return Version.getONgDBVersion();
         }

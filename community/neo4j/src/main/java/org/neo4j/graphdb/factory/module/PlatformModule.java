@@ -174,7 +174,7 @@ public class PlatformModule
 
         this.storeLayout = StoreLayout.of( providedStoreDir );
 
-        config.augmentDefaults( GraphDatabaseSettings.neo4j_home, storeLayout.storeDirectory().getPath() );
+        config.augmentDefaults( GraphDatabaseSettings.ongdb_home, storeLayout.storeDirectory().getPath() );
         this.config = dependencies.satisfyDependency( config );
 
         fileSystem = dependencies.satisfyDependency( createFileSystemAbstraction() );
@@ -289,7 +289,7 @@ public class PlatformModule
 
     private static void publishPlatformInfo( UsageData sysInfo )
     {
-        sysInfo.set( UsageDataKeys.version, Version.getNeo4jVersion() );
+        sysInfo.set( UsageDataKeys.version, Version.getONgDBVersion() );
         sysInfo.set( UsageDataKeys.revision, Version.getKernelVersion() );
     }
 

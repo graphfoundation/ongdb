@@ -289,8 +289,8 @@ public class GraphDatabaseFacadeFactory
 
         ProcedureConfig procedureConfig = new ProcedureConfig( platform.config );
         Procedures procedures =
-                new Procedures( facade, new SpecialBuiltInProcedures( Version.getNeo4jVersion(), platform.databaseInfo.edition.toString() ), pluginDir,
-                        internalLog, procedureConfig );
+                new Procedures( facade, new SpecialBuiltInProcedures( Version.getONgDBVersion(), platform.databaseInfo.edition.toString() ), pluginDir,
+                                internalLog, procedureConfig );
         platform.life.add( procedures );
         platform.dependencies.satisfyDependency( procedures );
 

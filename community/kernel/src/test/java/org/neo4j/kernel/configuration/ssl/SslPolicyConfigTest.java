@@ -75,7 +75,7 @@ public class SslPolicyConfigTest
 
         File homeDir = testDirectory.directory( "home" );
 
-        params.put( GraphDatabaseSettings.neo4j_home.name(), homeDir.getAbsolutePath() );
+        params.put( GraphDatabaseSettings.ongdb_home.name(), homeDir.getAbsolutePath() );
         params.put( policyConfig.base_directory.name(), "certificates/XYZ" );
         Config config = Config.defaults( params );
 
@@ -121,7 +121,7 @@ public class SslPolicyConfigTest
 
         File homeDir = testDirectory.directory( "home" );
 
-        params.put( GraphDatabaseSettings.neo4j_home.name(), homeDir.getAbsolutePath() );
+        params.put( GraphDatabaseSettings.ongdb_home.name(), homeDir.getAbsolutePath() );
         params.put( policyConfig.base_directory.name(), "certificates/XYZ" );
 
         File privateKey = testDirectory.directory( "/path/to/my.key" );
@@ -182,7 +182,7 @@ public class SslPolicyConfigTest
 
         File homeDir = testDirectory.directory( "home" );
 
-        params.put( GraphDatabaseSettings.neo4j_home.name(), homeDir.getAbsolutePath() );
+        params.put( GraphDatabaseSettings.ongdb_home.name(), homeDir.getAbsolutePath() );
         params.put( policyConfig.base_directory.name(), "certificates" );
 
         params.put( policyConfig.private_key.name(), "my.key" );

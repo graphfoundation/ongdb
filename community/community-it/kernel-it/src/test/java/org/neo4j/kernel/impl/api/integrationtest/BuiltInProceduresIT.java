@@ -375,7 +375,7 @@ public class BuiltInProceduresIT extends KernelIntegrationTest
                         ProcedureCallContext.EMPTY );
 
         // Then
-        assertThat( asList( stream ), contains( equalTo( new Object[]{"ONgDB Kernel", singletonList( Version.getNeo4jVersion() ), "community"} ) ) );
+        assertThat( asList( stream ), contains( equalTo( new Object[]{"ONgDB Kernel", singletonList( Version.getONgDBVersion() ), "community"} ) ) );
 
         commit();
     }
