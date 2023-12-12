@@ -252,7 +252,7 @@ public class MetricsKernelExtensionFactoryIT
         GraphDatabaseService nullTracerDatabase =
                 builder.setConfig( MetricsSettings.neoEnabled, Settings.TRUE ).setConfig( csvEnabled, Settings.TRUE )
                         .setConfig( csvPath, outputPath.getAbsolutePath() )
-                        .setConfig( GraphDatabaseFacadeFactory.Configuration.tracer, "null" ) // key point!
+                        .setConfig( GraphDatabaseSettings.tracer, "null" ) // key point!
                         .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
                         .newGraphDatabase();
         try ( Transaction tx = nullTracerDatabase.beginTx() )

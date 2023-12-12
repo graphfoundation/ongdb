@@ -39,7 +39,7 @@ import org.junit.Test;
 
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.test.TestGraphDatabaseFactory;
 import org.neo4j.test.rule.TestDirectory;
@@ -55,7 +55,7 @@ public class PageCacheFlushTracingTest
         AssertableLogProvider logProvider = new AssertableLogProvider( true );
         GraphDatabaseService database = new TestGraphDatabaseFactory().setInternalLogProvider( logProvider )
                                             .newEmbeddedDatabaseBuilder( testDirectory.directory() )
-                                            .setConfig( GraphDatabaseFacadeFactory.Configuration.tracer, "verbose" )
+                                            .setConfig( GraphDatabaseSettings.tracer, "verbose" )
                                             .newGraphDatabase();
         try ( Transaction transaction = database.beginTx() )
         {
