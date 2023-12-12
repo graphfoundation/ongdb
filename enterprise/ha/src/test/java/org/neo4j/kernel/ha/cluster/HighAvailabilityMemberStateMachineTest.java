@@ -66,7 +66,7 @@ import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.PagedFile;
 import org.neo4j.kernel.availability.AvailabilityGuard;
-import org.neo4j.kernel.AvailabilityGuard.AvailabilityRequirement;
+import org.neo4j.kernel.availability.AvailabilityRequirement;
 import org.neo4j.kernel.NeoStoreDataSource;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.ha.DelegateInvocationHandler;
