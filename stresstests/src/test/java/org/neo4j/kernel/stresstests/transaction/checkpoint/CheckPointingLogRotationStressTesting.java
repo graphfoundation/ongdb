@@ -45,16 +45,17 @@ import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.FileUtils;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
-import org.neo4j.kernel.impl.logging.NullLogService;
+import org.neo4j.logging.internal.NullLogService;
 import org.neo4j.kernel.impl.store.format.RecordFormatSelector;
 import org.neo4j.kernel.stresstests.transaction.checkpoint.tracers.TimerTransactionTracer;
 import org.neo4j.kernel.stresstests.transaction.checkpoint.workload.Workload;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.scheduler.JobScheduler;
-import org.neo4j.scheduler.JobSchedulerAdapter;
+import org.neo4j.scheduler.ThreadPoolJobScheduler;
 import org.neo4j.test.TestGraphDatabaseFactory;
 import org.neo4j.unsafe.impl.batchimport.ParallelBatchImporter;
 import org.neo4j.unsafe.impl.batchimport.staging.ExecutionMonitors;
@@ -81,27 +82,7 @@ public class CheckPointingLogRotationStressTesting
     private static final String DEFAULT_PAGE_CACHE_MEMORY = "4g";
 
     private static final int CHECK_POINT_INTERVAL_MINUTES = 1;
-    private JobScheduler jobScheduler = new JobSchedulerAdapter()
-    {
-        @Override
-        public JobHandle schedule( Group group, Runnable job )
-        {
-            return new JobHandle()
-            {
-                @Override
-                public void cancel( boolean mayInterruptIfRunning )
-                {
-
-                }
-
-                @Override
-                public void waitTermination()
-                {
-
-                }
-            };
-        }
-    };
+    private final JobScheduler jobScheduler = new ThreadPoolJobScheduler();
 
     @Test
     public void shouldBehaveCorrectlyUnderStress() throws Throwable
@@ -117,9 +98,9 @@ public class CheckPointingLogRotationStressTesting
         try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction() )
         {
             Config dbConfig = Config.defaults();
-            new ParallelBatchImporter( ensureExistsAndEmpty( storeDir ), fileSystem, null, DEFAULT,
+            new ParallelBatchImporter( DatabaseLayout.of( ensureExistsAndEmpty( storeDir ) ), fileSystem, null, DEFAULT,
                     NullLogService.getInstance(), ExecutionMonitors.defaultVisible( jobScheduler ), EMPTY, dbConfig,
-                    RecordFormatSelector.selectForConfig( dbConfig, NullLogProvider.getInstance() ), NO_MONITOR )
+                    RecordFormatSelector.selectForConfig( dbConfig, NullLogProvider.getInstance() ), NO_MONITOR, jobScheduler )
                     .doImport( new NodeCountInputs( nodeCount ) );
         }
 

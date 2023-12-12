@@ -191,27 +191,6 @@ public class StoreCopyServer
                     boolean isLogFile = meta.isLogFile();
                     int recordSize = meta.recordSize();
 
-                    if ( !pageCache.fileSystemSupportsFileOperations() )
-                    {
-                        // Read from paged file if mapping exists. Otherwise read through file system.
-                        // A file is mapped if it is a store, and we have a running database, which will be the case for
-                        // both online backup, and when we are the master of an HA cluster.
-                        final Optional<PagedFile> optionalPagedFile = pageCache.getExistingMapping( file );
-                        if ( optionalPagedFile.isPresent() )
-                        {
-                            try ( PagedFile pagedFile = optionalPagedFile.get() )
-                            {
-                                long fileSize = pagedFile.fileSize();
-                                try ( ReadableByteChannel fileChannel = pagedFile.openReadableByteChannel() )
-                                {
-                                    doWrite( writer, temporaryBuffer, file, recordSize, fileChannel, fileSize,
-                                            storeCopyIdentifier, false );
-                                }
-                                continue;
-                            }
-                        }
-                    }
-
                     try ( ReadableByteChannel fileChannel = fileSystem.open( file, OpenMode.READ ) )
                     {
                         long fileSize = fileSystem.getFileSize( file );

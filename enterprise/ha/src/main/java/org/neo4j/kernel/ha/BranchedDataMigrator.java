@@ -45,12 +45,10 @@ import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 public class BranchedDataMigrator extends LifecycleAdapter
 {
     private final File storeDir;
-    private final PageCache pageCache;
 
-    public BranchedDataMigrator( File storeDir, PageCache pageCache )
+    public BranchedDataMigrator( File storeDir )
     {
         this.storeDir = storeDir;
-        this.pageCache = pageCache;
     }
 
     @Override
@@ -85,7 +83,6 @@ public class BranchedDataMigrator extends LifecycleAdapter
             try
             {
                 FileUtils.moveFile( oldBranchedDir, targetDir );
-                StoreUtil.moveAwayDbWithPageCache( oldBranchedDir, targetDir, pageCache, f -> true );
             }
             catch ( IOException e )
             {

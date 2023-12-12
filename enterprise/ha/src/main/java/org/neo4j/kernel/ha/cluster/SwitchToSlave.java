@@ -58,6 +58,7 @@ import org.neo4j.com.storecopy.TransactionCommittingResponseUnpacker;
 import org.neo4j.com.storecopy.TransactionObligationFulfiller;
 import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.helpers.CancellationRequest;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.NeoStoreDataSource;
 import org.neo4j.kernel.configuration.Config;
@@ -135,7 +136,7 @@ public abstract class SwitchToSlave
     private final MasterClientResolver masterClientResolver;
     private final PullerFactory updatePullerFactory;
     protected final Monitor monitor;
-    protected final File storeDir;
+    protected final DatabaseLayout databaseLayout;
     protected final PageCache pageCache;
 
     private final Supplier<NeoStoreDataSource> neoDataSourceSupplier;
@@ -147,7 +148,7 @@ public abstract class SwitchToSlave
                            masterDelegateHandler, ClusterMemberAvailability clusterMemberAvailability,
                    MasterClientResolver masterClientResolver, Monitor monitor, PullerFactory pullerFactory,
                    UpdatePuller updatePuller, Function<Slave, SlaveServer> slaveServerFactory, Config config,
-                   LogService logService, PageCache pageCache, File storeDir,
+                   LogService logService, PageCache pageCache, DatabaseLayout databaseLayout,
                    Supplier<TransactionIdStore> transactionIdStoreSupplier, DatabaseTransactionStats
                            transactionCounters, Supplier<NeoStoreDataSource> neoDataSourceSupplier, StoreCopyClient storeCopyClient )
     {
@@ -166,7 +167,7 @@ public abstract class SwitchToSlave
         this.slaveServerFactory = slaveServerFactory;
         this.config = config;
         this.pageCache = pageCache;
-        this.storeDir = storeDir;
+        this.databaseLayout = databaseLayout;
         this.transactionIdStoreSupplier = transactionIdStoreSupplier;
         this.transactionCounters = transactionCounters;
         this.neoDataSourceSupplier = neoDataSourceSupplier;
@@ -444,7 +445,7 @@ public abstract class SwitchToSlave
     private void copyStoreFromMasterIfNeeded( URI masterUri, URI me, CancellationRequest cancellationRequest )
             throws Throwable
     {
-        if ( !isStorePresent( pageCache, storeDir ) )
+        if ( !isStorePresent( pageCache, databaseLayout ) )
         {
             boolean success = false;
             monitor.storeCopyStarted();
@@ -506,7 +507,7 @@ public abstract class SwitchToSlave
     void cleanStoreDir() throws IOException
     {
         // Tests verify that this method is called
-        StoreUtil.cleanStoreDir( storeDir, pageCache );
+        StoreUtil.cleanStoreDir( databaseLayout.databaseDirectory() );
     }
 
     void stopServices() throws Exception
@@ -555,7 +556,7 @@ public abstract class SwitchToSlave
             MoveAfterCopy moveAfterCopyWithLogging = ( moves, fromDirectory, toDirectory ) ->
             {
                 userLog.info( "Copied store from master to " + fromDirectory );
-                msgLog.info( "Starting post copy operation to move store from " + fromDirectory + " to " + storeDir );
+                msgLog.info( "Starting post copy operation to move store from " + fromDirectory + " to " + databaseLayout );
                 moveAfterCopy.move( moves, fromDirectory, toDirectory );
             };
             storeCopyClient.copyStore(

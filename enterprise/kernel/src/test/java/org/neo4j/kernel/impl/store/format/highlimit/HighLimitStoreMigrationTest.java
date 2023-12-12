@@ -43,20 +43,22 @@ import java.io.File;
 import java.io.IOException;
 
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.layout.DatabaseFileNames;
 import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.logging.NullLogService;
+import org.neo4j.logging.internal.NullLogService;
 import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.impl.store.StoreType;
 import org.neo4j.kernel.impl.store.format.CapabilityType;
 import org.neo4j.kernel.impl.store.format.highlimit.v300.HighLimitV3_0_0;
 import org.neo4j.kernel.impl.storemigration.participant.StoreMigrator;
 import org.neo4j.kernel.impl.util.monitoring.ProgressReporter;
+import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.scheduler.ThreadPoolJobScheduler;
 import org.neo4j.test.rule.PageCacheRule;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.rule.fs.DefaultFileSystemRule;
+import org.neo4j.unsafe.impl.batchimport.input.csv.Data;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -85,37 +87,34 @@ public class HighLimitStoreMigrationTest
         FileSystemAbstraction fileSystem = fileSystemRule.get();
         PageCache pageCache = pageCacheRule.getPageCache( fileSystem );
 
-        StoreMigrator migrator = new StoreMigrator( fileSystem, pageCache, Config.defaults(), NullLogService.getInstance() );
+        JobScheduler jobScheduler = new ThreadPoolJobScheduler();
+        StoreMigrator migrator = new StoreMigrator( fileSystem, pageCache, Config.defaults(), NullLogService.getInstance(), jobScheduler );
 
-        File storeDir = new File( testDirectory.graphDbDir(), "storeDir" );
-        File migrationDir = new File( testDirectory.graphDbDir(), "migrationDir" );
-        fileSystem.mkdir( migrationDir );
-        fileSystem.mkdir( storeDir );
+        DatabaseLayout databaseLayout = testDirectory.databaseLayout();
+        DatabaseLayout migrationLayout = testDirectory.databaseLayout( "migration" );
 
-        prepareNeoStoreFile( fileSystem, storeDir, HighLimitV3_0_0.STORE_VERSION, pageCache );
+        prepareNeoStoreFile( fileSystem, databaseLayout, HighLimitV3_0_0.STORE_VERSION, pageCache );
 
         ProgressReporter progressMonitor = mock( ProgressReporter.class );
 
-        migrator.migrate( storeDir, migrationDir, progressMonitor, HighLimitV3_0_0.STORE_VERSION, HighLimit.STORE_VERSION );
+        migrator.migrate( databaseLayout, migrationLayout, progressMonitor, HighLimitV3_0_0.STORE_VERSION, HighLimit.STORE_VERSION );
 
-        int newStoreFilesCount = fileSystem.listFiles( migrationDir ).length;
+        int newStoreFilesCount = fileSystem.listFiles( migrationLayout.databaseDirectory() ).length;
         assertThat( "Store should be migrated and new store files should be created.",
-                newStoreFilesCount, Matchers.greaterThanOrEqualTo( StoreType.values().length ) );
+                    newStoreFilesCount, Matchers.greaterThanOrEqualTo( StoreType.values().length ) );
     }
 
-    private File prepareNeoStoreFile( FileSystemAbstraction fileSystem, File storeDir, String storeVersion,
+    private File prepareNeoStoreFile( FileSystemAbstraction fileSystem, DatabaseLayout databaseLayout, String storeVersion,
             PageCache pageCache ) throws IOException
     {
-        File neoStoreFile = createNeoStoreFile( fileSystem, storeDir );
+        File neoStoreFile = createNeoStoreFile( fileSystem, databaseLayout );
         long value = MetaDataStore.versionStringToLong( storeVersion );
         MetaDataStore.setRecord( pageCache, neoStoreFile, STORE_VERSION, value );
         return neoStoreFile;
     }
 
-    private File createNeoStoreFile( FileSystemAbstraction fileSystem, File storeDir ) throws IOException
+    private File createNeoStoreFile( FileSystemAbstraction fileSystem, DatabaseLayout databaseLayout ) throws IOException
     {
-        fileSystem.mkdir( storeDir );
-        DatabaseLayout databaseLayout = testDirectory.databaseLayout( storeDir );
         File neoStoreFile = databaseLayout.metadataStore();
         fileSystem.create( neoStoreFile ).close();
         return neoStoreFile;

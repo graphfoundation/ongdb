@@ -62,6 +62,7 @@ import org.neo4j.function.Suppliers;
 import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.helpers.collection.Iterables;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.PagedFile;
 import org.neo4j.kernel.availability.AvailabilityGuard;
@@ -85,7 +86,7 @@ import org.neo4j.kernel.ha.com.slave.MasterClient;
 import org.neo4j.kernel.ha.com.slave.MasterClientResolver;
 import org.neo4j.kernel.ha.com.slave.SlaveServer;
 import org.neo4j.kernel.ha.id.HaIdGeneratorFactory;
-import org.neo4j.kernel.impl.logging.NullLogService;
+import org.neo4j.logging.internal.NullLogService;
 import org.neo4j.storageengine.api.StoreId;
 import org.neo4j.kernel.impl.store.TransactionId;
 import org.neo4j.kernel.impl.transaction.SimpleTransactionIdStore;
@@ -568,19 +569,19 @@ public class HighAvailabilityMemberStateMachineTest
 
         TransactionIdStore transactionIdStoreMock = mock( TransactionIdStore.class );
         when( transactionIdStoreMock.getLastCommittedTransaction() ).thenReturn( new TransactionId( 0, 0, 0 ) );
-        SwitchToSlaveCopyThenBranch switchToSlave = new SwitchToSlaveCopyThenBranch( new File( "" ), NullLogService.getInstance(),
-                mock( FileSystemAbstraction.class ),
-                config, dependencyResolver,
-                mock( HaIdGeneratorFactory.class ),
-                handler,
-                mock( ClusterMemberAvailability.class ), mock( RequestContextFactory.class ),
-                mock( PullerFactory.class, RETURNS_MOCKS ),
-                Iterables.empty(), masterClientResolver,
-                monitor,
-                new StoreCopyClientMonitor.Adapter(),
-                Suppliers.singleton( dataSource ),
-                Suppliers.singleton( transactionIdStoreMock ),
-                slave ->
+        SwitchToSlaveCopyThenBranch switchToSlave = new SwitchToSlaveCopyThenBranch( DatabaseLayout.of( new File( "" ) ), NullLogService.getInstance(),
+                                                                                     mock( FileSystemAbstraction.class ),
+                                                                                     config, dependencyResolver,
+                                                                                     mock( HaIdGeneratorFactory.class ),
+                                                                                     handler,
+                                                                                     mock( ClusterMemberAvailability.class ), mock( RequestContextFactory.class ),
+                                                                                     mock( PullerFactory.class, RETURNS_MOCKS ),
+                                                                                     Iterables.empty(), masterClientResolver,
+                                                                                     monitor,
+                                                                                     new StoreCopyClientMonitor.Adapter(),
+                                                                                     Suppliers.singleton( dataSource ),
+                                                                                     Suppliers.singleton( transactionIdStoreMock ),
+                                                                                     slave ->
                 {
                     SlaveServer mock = mock( SlaveServer.class );
                     when( mock.getSocketAddress() ).thenReturn( new InetSocketAddress( "localhost", 123 ) );

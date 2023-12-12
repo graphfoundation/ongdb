@@ -56,6 +56,7 @@ import org.neo4j.com.storecopy.TransactionObligationFulfiller;
 import org.neo4j.function.Suppliers;
 import org.neo4j.helpers.CancellationRequest;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.PagedFile;
 import org.neo4j.kernel.NeoStoreDataSource;
@@ -78,8 +79,9 @@ import org.neo4j.kernel.ha.com.slave.MasterClientResolver;
 import org.neo4j.kernel.ha.com.slave.SlaveServer;
 import org.neo4j.kernel.ha.id.HaIdGeneratorFactory;
 import org.neo4j.kernel.impl.index.IndexConfigStore;
-import org.neo4j.kernel.impl.logging.NullLogService;
+import org.neo4j.logging.internal.NullLogService;
 import org.neo4j.kernel.impl.store.MismatchingStoreIdException;
+import org.neo4j.scheduler.Group;
 import org.neo4j.storageengine.api.StoreId;
 import org.neo4j.kernel.impl.store.TransactionId;
 import org.neo4j.kernel.impl.transaction.stats.DatabaseTransactionStats;
@@ -276,7 +278,7 @@ public class SwitchToSlaveBranchThenCopyTest
 
         verify( updatePuller ).tryPullUpdates();
         verify( communicationLife ).add( pullerScheduler );
-        verify( jobScheduler ).scheduleRecurring( eq( JobScheduler.Groups.pullUpdates ), any( Runnable.class ),
+        verify( jobScheduler ).scheduleRecurring( eq( Group.PULL_UPDATES ), any( Runnable.class ),
                 eq( 10L ), eq( 10L ), eq( TimeUnit.MILLISECONDS ) );
     }
 
@@ -294,7 +296,6 @@ public class SwitchToSlaveBranchThenCopyTest
         FileSystemAbstraction fileSystemAbstraction = mock( FileSystemAbstraction.class );
         when( fileSystemAbstraction.streamFilesRecursive( any( File.class ) ) )
                 .thenAnswer( f -> Stream.empty() );
-        when( pageCacheMock.getCachedFileSystem() ).thenReturn( fileSystemAbstraction );
 
         StoreCopyClient storeCopyClient = mock( StoreCopyClient.class );
 
@@ -342,7 +343,7 @@ public class SwitchToSlaveBranchThenCopyTest
         when( masterClientResolver.instantiate( anyString(), anyInt(), anyString(), any( Monitors.class ),
                 argThat( storeId -> true ), any( LifeSupport.class ) ) ).thenReturn( masterClient );
 
-        return spy( new SwitchToSlaveBranchThenCopy( new File( "" ), NullLogService.getInstance(),
+        return spy( new SwitchToSlaveBranchThenCopy( DatabaseLayout.of( new File( "" ) ), NullLogService.getInstance(),
                 configMock(), resolver,
                 mock( HaIdGeneratorFactory.class ),
                 mock( DelegateInvocationHandler.class ),

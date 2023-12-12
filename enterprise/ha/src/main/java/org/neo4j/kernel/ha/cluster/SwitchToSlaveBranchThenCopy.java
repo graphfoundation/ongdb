@@ -46,6 +46,7 @@ import org.neo4j.com.storecopy.StoreCopyClientMonitor;
 import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.helpers.CancellationRequest;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.NeoStoreDataSource;
 import org.neo4j.kernel.configuration.Config;
@@ -77,7 +78,7 @@ public class SwitchToSlaveBranchThenCopy extends SwitchToSlave
 {
     private final LogService logService;
 
-    public SwitchToSlaveBranchThenCopy( File storeDir,
+    public SwitchToSlaveBranchThenCopy( DatabaseLayout databaseLayout,
                                         LogService logService,
                                         FileSystemAbstraction fileSystemAbstraction,
                                         Config config,
@@ -99,7 +100,7 @@ public class SwitchToSlaveBranchThenCopy extends SwitchToSlave
                                         Monitors monitors,
                                         DatabaseTransactionStats transactionCounters )
     {
-        this( storeDir,
+        this( databaseLayout,
                 logService,
                 config,
                 resolver,
@@ -110,7 +111,7 @@ public class SwitchToSlaveBranchThenCopy extends SwitchToSlave
                 pullerFactory,
                 masterClientResolver,
                 monitor,
-                new StoreCopyClient( storeDir, config, kernelExtensions, logService.getUserLogProvider(),
+                new StoreCopyClient( databaseLayout, config, kernelExtensions, logService.getUserLogProvider(),
                         fileSystemAbstraction, pageCache, storeCopyMonitor, false ),
                 neoDataSourceSupplier,
                 transactionIdStoreSupplier,
@@ -121,7 +122,7 @@ public class SwitchToSlaveBranchThenCopy extends SwitchToSlave
                 transactionCounters );
     }
 
-    SwitchToSlaveBranchThenCopy( File storeDir,
+    SwitchToSlaveBranchThenCopy( DatabaseLayout databaseLayout,
                                          LogService logService,
                                          Config config,
                                          DependencyResolver resolver,
@@ -143,7 +144,7 @@ public class SwitchToSlaveBranchThenCopy extends SwitchToSlave
     {
         super( idGeneratorFactory, resolver, monitors, requestContextFactory, masterDelegateHandler,
                 clusterMemberAvailability, masterClientResolver, monitor, pullerFactory, updatePuller,
-                slaveServerFactory, config, logService, pageCache, storeDir, transactionIdStoreSupplier,
+                slaveServerFactory, config, logService, pageCache, databaseLayout, transactionIdStoreSupplier,
                 transactionCounters, neoDataSourceSupplier, storeCopyClient );
         this.logService = logService;
     }
@@ -196,6 +197,6 @@ public class SwitchToSlaveBranchThenCopy extends SwitchToSlave
     void stopServicesAndHandleBranchedStore( BranchedDataPolicy branchPolicy ) throws Throwable
     {
         stopServices();
-        branchPolicy.handle( storeDir, pageCache, logService );
+        branchPolicy.handle( databaseLayout.databaseDirectory(), pageCache, logService );
     }
 }

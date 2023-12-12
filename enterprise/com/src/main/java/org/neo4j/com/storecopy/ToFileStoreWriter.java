@@ -84,18 +84,6 @@ public class ToFileStoreWriter implements StoreWriter
             monitor.startReceivingStoreFile( fullFilePath );
             try
             {
-                // Note that we don't bother checking if the page cache already has a mapping for the given file.
-                // The reason is that we are copying to a temporary store location, and then we'll move the files later.
-                if ( !pageCache.fileSystemSupportsFileOperations() && StoreType.canBeManagedByPageCache( file.getName() ) )
-                {
-                    int filePageSize = filePageSize( requiredElementAlignment );
-                    try ( PagedFile pagedFile = pageCache.map( file, filePageSize, CREATE, WRITE ) )
-                    {
-                        final long written = writeDataThroughPageCache( pagedFile, data, temporaryBuffer, hasData );
-                        addPageCacheMoveAction( file );
-                        return written;
-                    }
-                }
                 // We don't add file move actions for these files. The reason is that we will perform the file moves
                 // *after* we have done recovery on the store, and this may delete some files, and add other files.
                 return writeDataThroughFileSystem( file, data, temporaryBuffer, hasData );
@@ -131,15 +119,6 @@ public class ToFileStoreWriter implements StoreWriter
             boolean hasData ) throws IOException
     {
         try ( StoreChannel channel = fs.create( file ) )
-        {
-            return writeData( data, temporaryBuffer, hasData, channel );
-        }
-    }
-
-    private long writeDataThroughPageCache( PagedFile pagedFile, ReadableByteChannel data, ByteBuffer temporaryBuffer,
-            boolean hasData ) throws IOException
-    {
-        try ( WritableByteChannel channel = pagedFile.openWritableByteChannel() )
         {
             return writeData( data, temporaryBuffer, hasData, channel );
         }

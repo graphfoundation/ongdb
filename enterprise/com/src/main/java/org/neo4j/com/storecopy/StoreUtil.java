@@ -82,15 +82,12 @@ public class StoreUtil
     {
     }
 
-    public static void cleanStoreDir( File storeDir, PageCache pageCache ) throws IOException
+    public static void cleanStoreDir( File storeDir ) throws IOException
     {
         for ( File file : relevantDbFiles( storeDir ) )
         {
             FileUtils.deleteRecursively( file );
         }
-
-        pageCache.getCachedFileSystem().streamFilesRecursive( storeDir )
-                .filter( fh -> DEEP_STORE_FILE_FILTER.accept( fh.getFile() ) ).forEach( HANDLE_DELETE );
     }
 
     public static File newBranchedDataDir( File storeDir )
@@ -100,36 +97,17 @@ public class StoreUtil
         return result;
     }
 
-    public static void moveAwayDb( File storeDir, File branchedDataDir, PageCache pageCache ) throws IOException
+    public static void moveAwayDb( File storeDir, File branchedDataDir ) throws IOException
     {
         for ( File file : relevantDbFiles( storeDir ) )
         {
             FileUtils.moveFileToDirectory( file, branchedDataDir );
         }
-
-        moveAwayDbWithPageCache( storeDir, branchedDataDir, pageCache, DEEP_STORE_FILE_FILTER );
     }
 
-    public static void moveAwayDbWithPageCache( File from, File to, PageCache pageCache, FileFilter filter )
-    {
-        final Stream<FileHandle> fileHandleStream;
-        try
-        {
-            fileHandleStream = pageCache.getCachedFileSystem().streamFilesRecursive( from );
-        }
-        catch ( IOException e )
-        {
-            // Directory does not exist, has possibly been moved with file system previous to this call.
-            return;
-        }
-        final Consumer<FileHandle> handleRename = FileHandle.handleRenameBetweenDirectories( from, to );
-        fileHandleStream.filter( fh -> filter.accept( fh.getFile() ) ).forEach( handleRename );
-    }
-
-    public static void deleteRecursive( File storeDir, PageCache pageCache ) throws IOException
+    public static void deleteRecursive( File storeDir ) throws IOException
     {
         FileUtils.deleteRecursively( storeDir );
-        pageCache.getCachedFileSystem().streamFilesRecursive( storeDir ).forEach( HANDLE_DELETE );
     }
 
     public static boolean isBranchedDataDirectory( File file )

@@ -38,7 +38,6 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.TreeSet;
@@ -47,11 +46,12 @@ import java.util.stream.Collectors;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracerSupplier;
 import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.logging.NullLogService;
+import org.neo4j.logging.internal.NullLogService;
 import org.neo4j.kernel.impl.pagecache.ConfiguringPageCacheFactory;
 import org.neo4j.kernel.impl.store.format.StoreVersion;
 import org.neo4j.kernel.impl.store.format.highlimit.v300.HighLimitV3_0_0;
@@ -59,6 +59,8 @@ import org.neo4j.kernel.impl.storemigration.StoreVersionCheck;
 import org.neo4j.kernel.impl.storemigration.StoreVersionCheck.Result;
 import org.neo4j.kernel.impl.util.monitoring.ProgressReporter;
 import org.neo4j.logging.NullLog;
+import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.scheduler.ThreadPoolJobScheduler;
 import org.neo4j.test.TestGraphDatabaseFactory;
 import org.neo4j.test.rule.TestDirectory;
 
@@ -69,8 +71,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.pagecache_memory;
 import static org.neo4j.io.pagecache.tracing.PageCacheTracer.NULL;
-import static org.neo4j.kernel.impl.store.StoreFile.NEO_STORE;
-import static org.neo4j.kernel.impl.storemigration.StoreFileType.STORE;
 
 public class StoreMigratorTest
 {
@@ -81,8 +81,8 @@ public class StoreMigratorTest
     public void shouldNotDoActualStoreMigrationBetween3_0_5_and_next() throws Exception
     {
         // GIVEN a store in vE.H.0 format
-        File storeDir = directory.directory();
-        new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( storeDir )
+        DatabaseLayout databaseLayout = directory.databaseLayout();
+        new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( databaseLayout.databaseDirectory() )
                 // The format should be vE.H.0, HighLimit.NAME may point to a different version in future versions
                 .setConfig( GraphDatabaseSettings.record_format, HighLimitV3_0_0.NAME )
                 .newGraphDatabase()
@@ -90,23 +90,22 @@ public class StoreMigratorTest
         Config config = Config.defaults( pagecache_memory, "8m" );
 
         try ( FileSystemAbstraction fs = new DefaultFileSystemAbstraction();
+              JobScheduler jobScheduler = new ThreadPoolJobScheduler();
               PageCache pageCache = new ConfiguringPageCacheFactory( fs, config, NULL,
-                      PageCursorTracerSupplier.NULL, NullLog.getInstance(), EmptyVersionContextSupplier.EMPTY )
+                      PageCursorTracerSupplier.NULL, NullLog.getInstance(), EmptyVersionContextSupplier.EMPTY, jobScheduler )
                      .getOrCreatePageCache() )
         {
             // For test code sanity
             String fromStoreVersion = StoreVersion.HIGH_LIMIT_V3_0_0.versionString();
             Result hasVersionResult = new StoreVersionCheck( pageCache ).hasVersion(
-                    new File( storeDir, NEO_STORE.fileName( STORE ) ), fromStoreVersion );
+                    databaseLayout.metadataStore(), fromStoreVersion );
             assertTrue( hasVersionResult.actualVersion, hasVersionResult.outcome.isSuccessful() );
 
             // WHEN
-            StoreMigrator migrator = new StoreMigrator( fs, pageCache, config, NullLogService.getInstance()
-            );
+            StoreMigrator migrator = new StoreMigrator( fs, pageCache, config, NullLogService.getInstance(), jobScheduler );
             ProgressReporter monitor = mock( ProgressReporter.class );
-            File migrationDir = new File( storeDir, "migration" );
-            fs.mkdirs( migrationDir );
-            migrator.migrate( storeDir, migrationDir, monitor, fromStoreVersion,
+            DatabaseLayout migrationLayout = directory.databaseLayout( "migration" );
+            migrator.migrate( databaseLayout, migrationLayout, monitor, fromStoreVersion,
                     StoreVersion.HIGH_LIMIT_V3_0_6.versionString() );
 
             // THEN

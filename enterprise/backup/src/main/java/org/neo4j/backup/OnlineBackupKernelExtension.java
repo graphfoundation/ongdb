@@ -106,7 +106,7 @@ public class OnlineBackupKernelExtension implements Lifecycle
         {
             TransactionIdStore transactionIdStore = transactionIdStoreSupplier.get();
             StoreCopyServer copier = new StoreCopyServer( neoStoreDataSource, checkPointerSupplier.get(),
-                    fileSystemAbstraction, graphDatabaseAPI.getStoreDir(),
+                    fileSystemAbstraction, graphDatabaseAPI.databaseLayout().databaseDirectory(),
                     monitors.newMonitor( StoreCopyServer.Monitor.class ), pageCache, storeCopyCheckPointMutex );
             LogicalTransactionStore logicalTransactionStore = logicalTransactionStoreSupplier.get();
             LogFileInformation logFileInformation = logFileInformationSupplier.get();

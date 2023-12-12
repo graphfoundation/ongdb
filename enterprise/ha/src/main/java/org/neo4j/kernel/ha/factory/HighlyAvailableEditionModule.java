@@ -77,6 +77,7 @@ import org.neo4j.internal.kernel.api.Kernel;
 import org.neo4j.internal.kernel.api.exceptions.InvalidTransactionTypeKernelException;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.net.NetworkConnectionTracker;
 import org.neo4j.kernel.availability.AvailabilityGuard;
@@ -220,8 +221,8 @@ public class HighlyAvailableEditionModule extends CommunityEditionModule
         final LifeSupport clusteringLife = new LifeSupport();
 
         final FileSystemAbstraction fs = platformModule.fileSystem;
-        final File storeDir = platformModule.storeDir;
         final Config config = platformModule.config;
+        final DatabaseLayout databaseLayout = platformModule.storeLayout.databaseLayout( config.get( GraphDatabaseSettings.active_database ));
         final Dependencies dependencies = platformModule.dependencies;
         final LogService logging = platformModule.logging;
         final Monitors monitors = platformModule.monitors;
@@ -230,7 +231,7 @@ public class HighlyAvailableEditionModule extends CommunityEditionModule
 
         idTypeConfigurationProvider = new EnterpriseIdTypeConfigurationProvider( config );
 
-        watcherService = createFileSystemWatcherService( platformModule.fileSystem, storeDir, logging,
+        watcherService = createFileSystemWatcherService( platformModule.fileSystem, databaseLayout, logging,
                 platformModule.jobScheduler, config, fileWatcherFileNameFilter() );
         dependencies.satisfyDependencies( watcherService );
         life.add( watcherService );
@@ -238,7 +239,7 @@ public class HighlyAvailableEditionModule extends CommunityEditionModule
         // Set Netty logger
         InternalLoggerFactory.setDefaultFactory( new NettyLoggerFactory( logging.getInternalLogProvider() ) );
 
-        life.add( new BranchedDataMigrator( platformModule.storeDir, platformModule.pageCache ) );
+        life.add( new BranchedDataMigrator( databaseLayout.databaseDirectory() ) );
         DelegateInvocationHandler<Master> masterDelegateInvocationHandler =
                 new DelegateInvocationHandler<>( Master.class );
         Master master = (Master) newProxyInstance( Master.class.getClassLoader(), new Class[]{Master.class},
@@ -434,7 +435,7 @@ public class HighlyAvailableEditionModule extends CommunityEditionModule
 
         SwitchToSlave switchToSlaveInstance = chooseSwitchToSlaveStrategy( platformModule, config, dependencies, logging, monitors,
                 masterDelegateInvocationHandler, requestContextFactory, clusterMemberAvailability,
-                masterClientResolver, updatePullerProxy, pullerFactory, slaveServerFactory, editionIdGeneratorFactory );
+                masterClientResolver, updatePullerProxy, pullerFactory, slaveServerFactory, editionIdGeneratorFactory, databaseLayout );
 
         final Factory<MasterImpl.SPI> masterSPIFactory =
                 () -> new DefaultMasterImplSPI( platformModule.graphDatabaseFacade, platformModule.fileSystem,
@@ -525,7 +526,7 @@ public class HighlyAvailableEditionModule extends CommunityEditionModule
 
         dependencies.satisfyDependency(
                 createKernelData( config, platformModule.graphDatabaseFacade, members, fs, platformModule.pageCache,
-                        storeDir, lastUpdateTime, lastTxIdGetter, life ) );
+                        databaseLayout, lastUpdateTime, lastTxIdGetter, life ) );
 
         commitProcessFactory = createCommitProcessFactory( dependencies, logging, monitors, config, paxosLife,
                 clusterClient, members, platformModule.jobScheduler, master, requestContextFactory,
@@ -598,16 +599,16 @@ public class HighlyAvailableEditionModule extends CommunityEditionModule
         );
     }
 
-    private SwitchToSlave chooseSwitchToSlaveStrategy( PlatformModule platformModule, Config config, Dependencies
-            dependencies, LogService logging, Monitors monitors, DelegateInvocationHandler<Master>
-            masterDelegateInvocationHandler, RequestContextFactory requestContextFactory, ClusterMemberAvailability
-            clusterMemberAvailability, MasterClientResolver masterClientResolver, UpdatePuller updatePullerProxy,
-            PullerFactory pullerFactory, Function<Slave, SlaveServer> slaveServerFactory, HaIdGeneratorFactory idGeneratorFactory )
+    private SwitchToSlave chooseSwitchToSlaveStrategy( PlatformModule platformModule, Config config, Dependencies dependencies,
+            LogService logging, Monitors monitors, DelegateInvocationHandler<Master> masterDelegateInvocationHandler,
+            RequestContextFactory requestContextFactory, ClusterMemberAvailability clusterMemberAvailability, MasterClientResolver masterClientResolver,
+            UpdatePuller updatePullerProxy, PullerFactory pullerFactory, Function<Slave,SlaveServer> slaveServerFactory,
+            HaIdGeneratorFactory idGeneratorFactory, DatabaseLayout databaseLayout )
     {
         switch ( config.get( HaSettings.branched_data_copying_strategy ) )
         {
             case branch_then_copy:
-                return new SwitchToSlaveBranchThenCopy( platformModule.storeDir, logging,
+                return new SwitchToSlaveBranchThenCopy( databaseLayout, logging,
                         platformModule.fileSystem, config, dependencies, idGeneratorFactory,
                         masterDelegateInvocationHandler, clusterMemberAvailability, requestContextFactory,
                         pullerFactory,
@@ -619,7 +620,7 @@ public class HighlyAvailableEditionModule extends CommunityEditionModule
                         slaveServerFactory, updatePullerProxy, platformModule.pageCache,
                         monitors, platformModule.transactionMonitor );
             case copy_then_branch:
-                return new SwitchToSlaveCopyThenBranch( platformModule.storeDir, logging,
+                return new SwitchToSlaveCopyThenBranch( databaseLayout, logging,
                         platformModule.fileSystem, config, dependencies, idGeneratorFactory,
                         masterDelegateInvocationHandler, clusterMemberAvailability, requestContextFactory,
                         pullerFactory,
