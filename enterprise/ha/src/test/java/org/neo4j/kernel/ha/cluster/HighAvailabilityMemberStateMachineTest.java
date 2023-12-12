@@ -676,7 +676,7 @@ public class HighAvailabilityMemberStateMachineTest
 
     private static DataSourceManager neoStoreDataSourceSupplierMock()
     {
-        DataSourceManager dataSourceManager = new DataSourceManager();
+        DataSourceManager dataSourceManager = new DataSourceManager( Config.defaults() );
         dataSourceManager.register( mock( NeoStoreDataSource.class ) );
         return dataSourceManager;
     }
