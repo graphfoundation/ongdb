@@ -215,9 +215,9 @@ class PropertyExistenceConstraintAcceptanceTest
   }
 
   test("should not use countStore short cut when no constraint exist") {
-    val plan = execute("MATCH (n:X) RETURN count(n.foo)")
+    val result = execute("MATCH (n:X) RETURN count(n.foo)")
 
-    plan shouldNot use("NodeCountFromCountStore")
+    result.executionPlanDescription() shouldNot includeSomewhere.aPlan("NodeCountFromCountStore")
   }
 
   test("should use countStore short cut when constraint exist") {
@@ -225,7 +225,7 @@ class PropertyExistenceConstraintAcceptanceTest
 
     val result = execute("MATCH (n:X) RETURN count(n.foo)")
 
-    result should use("NodeCountFromCountStore")
+    result.executionPlanDescription() should includeSomewhere.aPlan("NodeCountFromCountStore")
   }
 
   private def numberOfNodes = executeScalar[Long]("match (n) return count(n)")
