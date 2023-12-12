@@ -44,6 +44,7 @@ import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.availability.AvailabilityGuard;
 import org.neo4j.kernel.availability.AvailabilityRequirement;
 import org.neo4j.kernel.NeoStoreDataSource;
+import org.neo4j.kernel.availability.DescriptiveAvailabilityRequirement;
 import org.neo4j.kernel.impl.api.TransactionCommitProcess;
 import org.neo4j.kernel.impl.api.TransactionRepresentationCommitProcess;
 import org.neo4j.kernel.impl.store.StoreFile;
@@ -57,14 +58,12 @@ import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.storageengine.api.StorageEngine;
 
-import static org.neo4j.kernel.AvailabilityGuard.availabilityRequirement;
-
 public class LocalDatabase implements Lifecycle
 {
     private static final AvailabilityRequirement NOT_STOPPED =
-            availabilityRequirement( "Database is stopped" );
+            new DescriptiveAvailabilityRequirement( "Database is stopped" );
     private static final AvailabilityRequirement NOT_COPYING_STORE =
-            availabilityRequirement( "Database is stopped to copy store from another cluster member" );
+            new DescriptiveAvailabilityRequirement( "Database is stopped to copy store from another cluster member" );
 
     private final DatabaseLayout databaseLayout;
 
