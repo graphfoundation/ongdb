@@ -48,7 +48,7 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.Cod
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.Namer
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.Instruction
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.setStaticField
-import org.neo4j.cypher.internal.compiler.v3_4.planner.LogicalPlanConstructionTestSupport
+import org.neo4j.cypher.internal.compiler.v3_5.planner.LogicalPlanConstructionTestSupport
 import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
 import org.neo4j.cypher.internal.planner.v3_5.spi.{CostBasedPlannerName, GraphStatistics, PlanContext}
 import org.neo4j.cypher.internal.runtime.interpreted.TransactionBoundQueryContext.IndexSearchMonitor

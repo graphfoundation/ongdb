@@ -44,8 +44,8 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.RefSlot
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotAllocation
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotConfiguration
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlottedRewriter
-import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.Metrics
-import org.neo4j.cypher.internal.compiler.v3_4.planner.{HardcodedGraphStatistics, LogicalPlanningTestSupport2}
+import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.Metrics
+import org.neo4j.cypher.internal.compiler.v3_5.planner.{HardcodedGraphStatistics, LogicalPlanningTestSupport2}
 import org.neo4j.cypher.internal.frontend.v3_4.phases.Monitors
 import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
 import org.neo4j.cypher.internal.ir.v3_4.VarPatternLength

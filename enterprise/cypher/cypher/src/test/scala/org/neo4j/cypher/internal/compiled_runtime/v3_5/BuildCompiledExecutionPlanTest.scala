@@ -39,7 +39,7 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.NewRun
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.BuildCompiledExecutionPlan
 import org.neo4j.cypher.internal.compiler.v3_4.NotImplementedPlanContext
 import org.neo4j.cypher.internal.compiler.v3_4.phases.LogicalPlanState
-import org.neo4j.cypher.internal.compiler.v3_4.planner.{CantCompileQueryException, HardcodedGraphStatistics}
+import org.neo4j.cypher.internal.compiler.v3_5.planner.{CantCompileQueryException, HardcodedGraphStatistics}
 import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
 import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.{Cardinalities, Solveds}
 import org.neo4j.cypher.internal.planner.v3_5.spi.{CostBasedPlannerName, GraphStatistics}

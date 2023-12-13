@@ -43,7 +43,7 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.phases.CompilationSt
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenConfiguration
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenerator
 import org.neo4j.cypher.internal.compiler.v3_4.phases.LogicalPlanState
-import org.neo4j.cypher.internal.compiler.v3_4.planner.CantCompileQueryException
+import org.neo4j.cypher.internal.compiler.v3_5.planner.CantCompileQueryException
 import org.neo4j.cypher.internal.frontend.v3_4.PlannerName
 import org.neo4j.cypher.internal.frontend.v3_4.phases.CompilationPhaseTracer.CompilationPhase.CODE_GENERATION
 import org.neo4j.cypher.internal.frontend.v3_4.phases.Phase

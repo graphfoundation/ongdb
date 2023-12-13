@@ -41,7 +41,7 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.Var
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CodeGenExpression
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CodeGenExpression
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CodeGenType
-import org.neo4j.cypher.internal.compiler.v3_4.planner.CantCompileQueryException
+import org.neo4j.cypher.internal.compiler.v3_5.planner.CantCompileQueryException
 import org.neo4j.cypher.internal.v3_4.{expressions => ast}
 import org.neo4j.cypher.internal.v3_4.{functions => astFunctions}
 
