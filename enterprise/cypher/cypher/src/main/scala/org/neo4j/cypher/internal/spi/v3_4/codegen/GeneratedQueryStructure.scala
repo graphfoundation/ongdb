@@ -44,9 +44,9 @@ import org.neo4j.codegen.source.SourceCode.SOURCECODE
 import org.neo4j.codegen.source.{SourceCode, SourceVisitor}
 import org.neo4j.codegen._
 import org.neo4j.cypher.internal.codegen.{PrimitiveNodeStream, PrimitiveRelationshipStream}
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.compiled.codegen._
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.compiled.codegen.ir.expressions._
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.executionplan.{Completable, Provider}
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen._
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions._
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.{Completable, Provider}
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ByteCodeMode
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenConfiguration
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenContext

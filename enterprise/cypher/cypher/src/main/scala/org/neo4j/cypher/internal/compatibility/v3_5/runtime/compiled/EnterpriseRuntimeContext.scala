@@ -35,7 +35,7 @@
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled
 
 import java.time.Clock
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.CommunityRuntimeContext
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.CommunityRuntimeContext
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.CodeStructure
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.CodeStructure
 import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.{ExpressionEvaluator, Metrics, MetricsFactory, QueryGraphSolver}

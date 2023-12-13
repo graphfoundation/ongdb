@@ -34,7 +34,7 @@
  */
 package org.neo4j.cypher
 
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.{CompiledRuntimeName, InterpretedRuntimeName, RuntimeName, SlottedRuntimeName}
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.{CompiledRuntimeName, InterpretedRuntimeName, RuntimeName, SlottedRuntimeName}
 import org.neo4j.cypher.internal.compiler.v3_4._
 import org.neo4j.cypher.internal.frontend.v3_4.PlannerName
 import org.neo4j.cypher.internal.planner.v3_5.spi.{CostBasedPlannerName, DPPlannerName, IDPPlannerName}

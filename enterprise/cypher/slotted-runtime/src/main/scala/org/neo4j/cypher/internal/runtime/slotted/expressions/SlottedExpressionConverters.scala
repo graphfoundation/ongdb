@@ -34,7 +34,7 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.expressions
 
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.{ast => runtimeAst}
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.{ast => runtimeAst}
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.GetDegreePrimitive
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.IdFromSlot
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.IsPrimitiveNull

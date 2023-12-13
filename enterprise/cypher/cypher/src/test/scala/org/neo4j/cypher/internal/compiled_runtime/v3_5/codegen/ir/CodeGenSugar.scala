@@ -37,8 +37,8 @@ package org.neo4j.cypher.internal.compiled_runtime.v3_5.codegen.ir
 import java.util.concurrent.atomic.AtomicInteger
 import org.mockito.Mockito._
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.ExecutionPlanBuilder.tracer
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.compiled.codegen._
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.executionplan.Provider
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen._
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.Provider
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.CompiledExecutionResult
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.CompiledPlan
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ByteCodeMode

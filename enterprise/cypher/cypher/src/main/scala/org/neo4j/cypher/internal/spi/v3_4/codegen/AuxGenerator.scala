@@ -40,8 +40,8 @@ import org.neo4j.codegen.Parameter.param
 import org.neo4j.codegen._
 import org.neo4j.cypher.internal.v3_5.util.symbols
 import org.neo4j.cypher.internal.codegen.CompiledEquivalenceUtils
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.compiled.codegen.ir.expressions._
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.compiled.codegen.spi._
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions._
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi._
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.AnyValueType
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CodeGenType

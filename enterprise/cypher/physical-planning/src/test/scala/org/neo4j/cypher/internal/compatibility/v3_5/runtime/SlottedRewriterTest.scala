@@ -36,7 +36,7 @@ package org.neo4j.cypher.internal.compatibility.v3_5.runtime
 
 import org.mockito.Mockito._
 import PhysicalPlanningAttributes.SlotConfigurations
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.ast._
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast._
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.IdFromSlot
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.IsPrimitiveNull
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NodeFromSlot

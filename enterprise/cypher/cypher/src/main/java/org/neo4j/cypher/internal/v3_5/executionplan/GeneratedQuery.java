@@ -34,7 +34,7 @@
  */
 package org.neo4j.cypher.internal.v3_5.executionplan;
 
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.executionplan.Provider;
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.Provider;
 import org.neo4j.cypher.internal.runtime.ExecutionMode;
 import org.neo4j.cypher.internal.runtime.QueryContext;
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription;

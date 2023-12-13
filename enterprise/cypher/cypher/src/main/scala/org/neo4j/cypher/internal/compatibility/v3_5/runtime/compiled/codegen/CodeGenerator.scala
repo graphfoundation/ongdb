@@ -36,10 +36,10 @@ package org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen
 
 import java.time.Clock
 import java.util
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.CompiledRuntimeName
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.CompiledRuntimeName
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.ExecutionPlanBuilder.DescriptionProvider
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.compiled.codegen.ir._
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.executionplan.{PlanFingerprint, Provider}
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir._
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.{PlanFingerprint, Provider}
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.CompiledExecutionResult
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.CompiledPlan
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.RunnablePlan

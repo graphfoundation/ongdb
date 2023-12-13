@@ -36,7 +36,7 @@ package org.neo4j.cypher.internal.compiled_runtime.v3_5.codegen.ir
 
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.executionplan.Provider
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.Provider
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.Variable
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.AcceptVisitor
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.ScanAllNodes

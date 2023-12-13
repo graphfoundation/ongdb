@@ -34,8 +34,8 @@
  */
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir
 
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.compiled.codegen._
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.compiled.codegen.spi._
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen._
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi._
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.Variable
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.JoinTableType

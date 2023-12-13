@@ -34,10 +34,10 @@
  */
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen
 
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.compiled.codegen.ir._
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir._
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.aggregation.AggregationConverter.aggregateExpressionConverter
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ExpressionConverter.createExpression
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.compiled.codegen.ir.expressions._
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions._
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.AcceptVisitor
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.AggregationInstruction
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.ApplyInstruction

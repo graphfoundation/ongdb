@@ -26,7 +26,7 @@
 
     <properties>
         <license-text.header>headers/AGPL-3-header.txt</license-text.header>
-        <moduleName>org.neo4j.cypher.internal.compatibility.v3_4.runtime</moduleName>
+        <moduleName>org.neo4j.cypher.internal.compatibility.v3_5.runtime</moduleName>
     </properties>
 
     <licenses>

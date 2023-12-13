@@ -35,7 +35,7 @@
 package org.neo4j.cypher.internal.compiled_runtime.v3_5.codegen
 
 import java.time.Clock
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.executionplan.{PlanFingerprint, PlanFingerprintReference}
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.{PlanFingerprint, PlanFingerprintReference}
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.EnterpriseRuntimeContext
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.CodeStructure
 import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.{Metrics, QueryGraphSolver}

@@ -42,7 +42,7 @@ import org.mockito.Mockito._
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
 import org.neo4j.collection.primitive.PrimitiveLongIterator
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.compiled.codegen.ir._
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir._
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.JoinTableMethod
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.Variable
