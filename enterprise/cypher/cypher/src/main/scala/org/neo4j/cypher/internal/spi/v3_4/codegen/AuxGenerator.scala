@@ -57,7 +57,7 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.SortItem
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.SortOrder
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.TupleDescriptor
-import org.neo4j.cypher.internal.compiler.v3_4.common.CypherOrderability
+import org.neo4j.cypher.internal.compiler.v3_5.common.CypherOrderability
 import org.neo4j.cypher.internal.v3_5.frontend.helpers._
 import org.neo4j.values.storable.{Value, Values}
 import org.neo4j.values.{AnyValue, AnyValues}

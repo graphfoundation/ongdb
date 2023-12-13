@@ -35,11 +35,11 @@
 package org.neo4j.cypher.internal
 
 import org.neo4j.cypher.CypherPlanner
-import org.neo4j.cypher.internal.compatibility.v3_4.Compatibility
+import org.neo4j.cypher.internal.compatibility.v3_5.Compatibility
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.EnterpriseRuntimeContextCreator
 import org.neo4j.cypher.internal.compatibility.{v2_3, v3_1, v3_3 => v3_3compat}
-import org.neo4j.cypher.internal.compiler.v3_4._
+import org.neo4j.cypher.internal.compiler.v3_5._
 import org.neo4j.cypher.internal.runtime.vectorized.dispatcher.{ParallelDispatcher, SingleThreadedExecutor}
 import org.neo4j.cypher.internal.spi.v3_4.codegen.GeneratedQueryStructure
 import org.neo4j.graphdb.factory.GraphDatabaseSettings

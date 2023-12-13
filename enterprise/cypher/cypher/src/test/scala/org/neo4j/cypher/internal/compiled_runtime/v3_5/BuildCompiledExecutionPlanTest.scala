@@ -34,11 +34,11 @@
  */
 package org.neo4j.cypher.internal.compiled_runtime.v3_5
 
-import org.neo4j.cypher.internal.compatibility.v3_4.WrappedMonitors
+import org.neo4j.cypher.internal.compatibility.v3_5.WrappedMonitors
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.NewRuntimeSuccessRateMonitor
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.BuildCompiledExecutionPlan
-import org.neo4j.cypher.internal.compiler.v3_4.NotImplementedPlanContext
-import org.neo4j.cypher.internal.compiler.v3_4.phases.LogicalPlanState
+import org.neo4j.cypher.internal.compiler.v3_5.NotImplementedPlanContext
+import org.neo4j.cypher.internal.compiler.v3_5.phases.LogicalPlanState
 import org.neo4j.cypher.internal.compiler.v3_5.planner.{CantCompileQueryException, HardcodedGraphStatistics}
 import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
 import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.{Cardinalities, Solveds}

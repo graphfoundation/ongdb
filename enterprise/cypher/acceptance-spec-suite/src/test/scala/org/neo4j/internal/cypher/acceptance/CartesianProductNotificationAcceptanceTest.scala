@@ -39,8 +39,8 @@ import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito.{verify, _}
 import org.neo4j.cypher.GraphDatabaseTestSupport
 import org.neo4j.cypher.internal.compatibility.LatestRuntimeVariablePlannerCompatibility
-import org.neo4j.cypher.internal.compatibility.v3_4.WrappedMonitors
-import org.neo4j.cypher.internal.compiler.v3_4._
+import org.neo4j.cypher.internal.compatibility.v3_5.WrappedMonitors
+import org.neo4j.cypher.internal.compiler.v3_5._
 import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.{CachedMetricsFactory, SimpleMetricsFactory}
 import org.neo4j.cypher.internal.v3_5.frontend.helpers.rewriting.RewriterStepSequencer
 import org.neo4j.cypher.internal.v3_5.frontend.notification.CartesianProductNotification

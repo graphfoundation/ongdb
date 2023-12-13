@@ -50,7 +50,7 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.RepresentationType
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ValueType
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ValueType
-import org.neo4j.cypher.internal.compiler.v3_4.helpers.IsList
+import org.neo4j.cypher.internal.compiler.v3_5.helpers.IsList
 import org.neo4j.cypher.internal.runtime.interpreted.IsMap
 import org.neo4j.cypher.internal.v3_5.util.symbols._
 

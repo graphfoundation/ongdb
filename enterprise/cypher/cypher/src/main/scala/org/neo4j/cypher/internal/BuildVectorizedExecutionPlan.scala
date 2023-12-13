@@ -37,9 +37,9 @@ package org.neo4j.cypher.internal
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotAllocation
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlottedRewriter
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.EnterpriseRuntimeContext
-import org.neo4j.cypher.internal.compiler.v3_4.phases.LogicalPlanState
+import org.neo4j.cypher.internal.compiler.v3_5.phases.LogicalPlanState
 import org.neo4j.cypher.internal.compiler.v3_5.planner.CantCompileQueryException
-import org.neo4j.cypher.internal.compiler.v3_4.{CacheCheckResult, FineToReuse}
+import org.neo4j.cypher.internal.compiler.v3_5.{CacheCheckResult, FineToReuse}
 import org.neo4j.cypher.internal.v3_5.frontend.PlannerName
 import org.neo4j.cypher.internal.v3_5.frontend.notification.ExperimentalFeatureNotification
 import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer.CompilationPhase

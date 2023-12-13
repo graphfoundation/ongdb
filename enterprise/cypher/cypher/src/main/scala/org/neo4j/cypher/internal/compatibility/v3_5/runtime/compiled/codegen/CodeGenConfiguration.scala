@@ -58,13 +58,13 @@ case object ByteCodeMode extends CodeGenMode
  *
   * @param mode The mode of code generation
   * @param showSource if `true` source code is stored and returned
-  * @param packageName The name of the v3_4 the produced code should belong to
+  * @param packageName The name of the v3_5 the produced code should belong to
   */
 case class CodeGenConfiguration(mode: CodeGenMode = CodeGenMode.default,
                                 showSource: Boolean = false,
                                 showByteCode: Boolean = false,
                                 saveSource: Option[Path] = None,
-                                packageName: String = "org.neo4j.cypher.internal.compiler.v3_4.generated"
+                                packageName: String = "org.neo4j.cypher.internal.compiler.v3_5.generated"
                                )
 
 object CodeGenConfiguration {
