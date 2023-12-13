@@ -34,7 +34,7 @@
  */
 package org.neo4j.cypher.internal.queryReduction.ast
 
-import org.neo4j.cypher.internal.frontend.v3_4.ast._
+import org.neo4j.cypher.internal.v3_5.frontend.ast._
 import org.neo4j.cypher.internal.v3_5.util._
 import org.neo4j.cypher.internal.v3_5.expressions.{BinaryOperatorExpression, _}
 

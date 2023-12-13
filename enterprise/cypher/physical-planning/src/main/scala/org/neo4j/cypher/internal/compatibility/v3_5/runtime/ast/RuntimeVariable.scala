@@ -34,8 +34,8 @@
  */
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast
 
-import org.neo4j.cypher.internal.frontend.v3_4.SemanticCheck
-import org.neo4j.cypher.internal.frontend.v3_4.semantics.{SemanticCheckResult, SemanticCheckableExpression}
+import org.neo4j.cypher.internal.v3_5.frontend.SemanticCheck
+import org.neo4j.cypher.internal.v3_5.frontend.semantics.{SemanticCheckResult, SemanticCheckableExpression}
 import org.neo4j.cypher.internal.v3_5.util.{InputPosition, InternalException}
 import org.neo4j.cypher.internal.v3_5.expressions.{LogicalVariable, Expression => ASTExpression}
 

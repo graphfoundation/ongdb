@@ -34,7 +34,7 @@
  */
 package org.neo4j.internal.cypher.acceptance
 
-import org.neo4j.cypher.internal.frontend.v3_4.helpers.StringHelper.RichString
+import org.neo4j.cypher.internal.v3_5.frontend.helpers.StringHelper.RichString
 import org.neo4j.cypher.internal.planner.v3_5.spi.GraphStatistics
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments.{DbHits, EstimatedRows, Rows, Signature}
 import org.neo4j.cypher.internal.runtime.planDescription.{Argument, InternalPlanDescription}

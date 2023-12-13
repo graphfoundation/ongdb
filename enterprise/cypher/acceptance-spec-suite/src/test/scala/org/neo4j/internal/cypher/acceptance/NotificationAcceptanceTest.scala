@@ -35,7 +35,7 @@
 package org.neo4j.internal.cypher.acceptance
 
 import org.neo4j.cypher.ExecutionEngineFunSuite
-import org.neo4j.cypher.internal.frontend.v3_4.notification._
+import org.neo4j.cypher.internal.v3_5.frontend.notification._
 import org.neo4j.cypher.internal.javacompat.NotificationAcceptanceTest.ChangedResults
 import org.neo4j.graphdb
 import org.neo4j.graphdb.config.Setting

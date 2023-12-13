@@ -75,7 +75,7 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.SortTableDescriptor
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.TopTableDescriptor
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.TupleDescriptor
-import org.neo4j.cypher.internal.frontend.v3_4.helpers._
+import org.neo4j.cypher.internal.v3_5.frontend.helpers._
 import org.neo4j.cypher.internal.spi.v3_4.codegen.GeneratedMethodStructure.CompletableFinalizer
 import org.neo4j.cypher.internal.spi.v3_4.codegen.Methods._
 import org.neo4j.cypher.internal.spi.v3_4.codegen.Templates._
