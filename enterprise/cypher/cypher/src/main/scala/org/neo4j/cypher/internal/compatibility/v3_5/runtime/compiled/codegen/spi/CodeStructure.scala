@@ -38,7 +38,7 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.Cod
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenConfiguration
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenContext
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 
 /**
  * This constitutes the SPI for code generation.

@@ -59,11 +59,11 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RuntimeProperty
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RuntimeVariable
 import org.neo4j.cypher.internal.compiler.v3_4.planner.CantCompileQueryException
 import org.neo4j.cypher.internal.planner.v3_4.spi.TokenContext
-import org.neo4j.cypher.internal.util.v3_4.AssertionUtils.ifAssertionsEnabled
-import org.neo4j.cypher.internal.util.v3_4.Foldable._
-import org.neo4j.cypher.internal.util.v3_4.attribution.SameId
-import org.neo4j.cypher.internal.util.v3_4.symbols._
-import org.neo4j.cypher.internal.util.v3_4.{InternalException, Rewriter, topDown}
+import org.neo4j.cypher.internal.v3_5.util.AssertionUtils.ifAssertionsEnabled
+import org.neo4j.cypher.internal.v3_5.util.Foldable._
+import org.neo4j.cypher.internal.v3_5.util.attribution.SameId
+import org.neo4j.cypher.internal.v3_5.util.symbols._
+import org.neo4j.cypher.internal.v3_5.util.{InternalException, Rewriter, topDown}
 import org.neo4j.cypher.internal.v3_4.expressions.{FunctionInvocation, _}
 import org.neo4j.cypher.internal.v3_4.logical.plans.{LogicalPlan, NestedPlanExpression, Projection, VarExpand, _}
 import org.neo4j.cypher.internal.v3_4.{expressions, functions => frontendFunctions}

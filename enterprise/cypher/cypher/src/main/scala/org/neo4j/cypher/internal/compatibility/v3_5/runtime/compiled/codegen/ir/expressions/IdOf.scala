@@ -39,7 +39,7 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.Cod
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.Variable
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.Variable
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.MethodStructure
-import org.neo4j.cypher.internal.util.v3_4.symbols
+import org.neo4j.cypher.internal.v3_5.util.symbols
 
 case class IdOf(variable: Variable) extends CodeGenExpression {
 

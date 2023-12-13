@@ -39,8 +39,8 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.LongSlot
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.RefSlot
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.Slot
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.{AssertionUtils, InternalException, ParameterWrongTypeException}
-import org.neo4j.cypher.internal.util.v3_4.symbols.{CTNode, CTRelationship, CypherType}
+import org.neo4j.cypher.internal.v3_5.util.{AssertionUtils, InternalException, ParameterWrongTypeException}
+import org.neo4j.cypher.internal.v3_5.util.symbols.{CTNode, CTRelationship, CypherType}
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.{VirtualNodeValue, VirtualRelationshipValue, VirtualValues}

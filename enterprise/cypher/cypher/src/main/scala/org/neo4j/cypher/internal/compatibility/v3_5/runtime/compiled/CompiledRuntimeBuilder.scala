@@ -34,7 +34,7 @@
  */
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled
 
-import org.neo4j.cypher.internal.util.v3_4.InvalidArgumentException
+import org.neo4j.cypher.internal.v3_5.util.InvalidArgumentException
 import org.neo4j.cypher.internal.compatibility.v3_4.runtime.phases.CompilationState
 import org.neo4j.cypher.internal.compatibility.v3_4.runtime.{CompiledRuntimeName, _}
 import org.neo4j.cypher.internal.compiler.v3_4.phases.LogicalPlanState

@@ -52,7 +52,7 @@ import org.neo4j.cypher.internal.runtime.interpreted.pipes.Pipe
 import org.neo4j.cypher.internal.runtime.slotted.{SlottedExecutionResultBuilderFactory, SlottedPipeBuilder}
 import org.neo4j.cypher.internal.runtime.slotted.expressions.SlottedExpressionConverters
 import org.neo4j.cypher.internal.runtime.{ExecutionMode, InternalExecutionResult, QueryContext}
-import org.neo4j.cypher.internal.util.v3_4.CypherException
+import org.neo4j.cypher.internal.v3_5.util.CypherException
 import org.neo4j.cypher.internal.v3_5.logical.plans.{IndexUsage, LogicalPlan}
 import org.neo4j.values.virtual.MapValue
 

@@ -47,8 +47,8 @@ import org.neo4j.cypher.internal.frontend.v3_4.notification.CartesianProductNoti
 import org.neo4j.cypher.internal.frontend.v3_4.phases.{CompilationPhaseTracer, InternalNotificationLogger, devNullLogger}
 import org.neo4j.cypher.internal.planner.v3_4.spi.{IDPPlannerName, PlanContext}
 import org.neo4j.cypher.internal.runtime.interpreted.{CSVResources, TransactionBoundPlanContext, TransactionalContextWrapper}
-import org.neo4j.cypher.internal.util.v3_4.InputPosition
-import org.neo4j.cypher.internal.util.v3_4.attribution.SequentialIdGen
+import org.neo4j.cypher.internal.v3_5.util.InputPosition
+import org.neo4j.cypher.internal.v3_5.util.attribution.SequentialIdGen
 import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 import org.neo4j.kernel.api.{KernelTransaction, Statement}
 import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge

@@ -39,7 +39,7 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.RefSlot
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotConfiguration
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.{QueryState => OldQueryState}
 import org.neo4j.cypher.internal.runtime.vectorized.{Iteration, Morsel, QueryState}
-import org.neo4j.cypher.internal.util.v3_4.symbols.{CTAny, CTNode}
+import org.neo4j.cypher.internal.v3_5.util.symbols.{CTAny, CTNode}
 import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values

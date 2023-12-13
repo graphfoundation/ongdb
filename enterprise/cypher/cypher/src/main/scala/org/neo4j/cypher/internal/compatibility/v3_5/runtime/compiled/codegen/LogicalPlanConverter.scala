@@ -80,9 +80,9 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.SortItem
 import org.neo4j.cypher.internal.compiler.v3_4.planner.CantCompileQueryException
 import org.neo4j.cypher.internal.planner.v3_4.spi.PlanningAttributes.Cardinalities
-import org.neo4j.cypher.internal.util.v3_4.Eagerly.immutableMapValues
-import org.neo4j.cypher.internal.util.v3_4.Foldable._
-import org.neo4j.cypher.internal.util.v3_4.{InternalException, One, ZeroOneOrMany, symbols}
+import org.neo4j.cypher.internal.v3_5.util.Eagerly.immutableMapValues
+import org.neo4j.cypher.internal.v3_5.util.Foldable._
+import org.neo4j.cypher.internal.v3_5.util.{InternalException, One, ZeroOneOrMany, symbols}
 import org.neo4j.cypher.internal.v3_4.expressions.{Expression, FunctionInvocation}
 import org.neo4j.cypher.internal.v3_4.logical.plans
 import org.neo4j.cypher.internal.v3_4.logical.plans.ColumnOrder

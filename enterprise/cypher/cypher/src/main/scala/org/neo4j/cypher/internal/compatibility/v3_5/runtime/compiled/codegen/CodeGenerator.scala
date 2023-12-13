@@ -54,8 +54,8 @@ import org.neo4j.cypher.internal.planner.v3_4.spi.{InstrumentedGraphStatistics, 
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments.{Runtime, RuntimeImpl}
 import org.neo4j.cypher.internal.runtime.planDescription.{InternalPlanDescription, LogicalPlan2PlanDescription}
 import org.neo4j.cypher.internal.runtime.{ExecutionMode, InternalExecutionResult, QueryContext}
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.cypher.internal.util.v3_4.{Eagerly, TaskCloser}
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.{Eagerly, TaskCloser}
 import org.neo4j.cypher.internal.v3_4.logical.plans.{LogicalPlan, ProduceResult}
 import org.neo4j.cypher.internal.v3_5.codegen.QueryExecutionTracer
 import org.neo4j.cypher.internal.v3_5.executionplan.GeneratedQuery

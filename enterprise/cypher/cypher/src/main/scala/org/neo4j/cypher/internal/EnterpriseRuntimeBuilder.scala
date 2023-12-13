@@ -39,7 +39,7 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.EnterpriseR
 import org.neo4j.cypher.internal.compiler.v3_4.phases.LogicalPlanState
 import org.neo4j.cypher.internal.frontend.v3_4.notification.RuntimeUnsupportedNotification
 import org.neo4j.cypher.internal.frontend.v3_4.phases.{Do, If, Transformer}
-import org.neo4j.cypher.internal.util.v3_4.InvalidArgumentException
+import org.neo4j.cypher.internal.v3_5.util.InvalidArgumentException
 
 import scala.util.{Failure, Success}
 

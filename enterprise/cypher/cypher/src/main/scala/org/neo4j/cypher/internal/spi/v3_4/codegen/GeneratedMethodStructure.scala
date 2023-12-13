@@ -79,9 +79,9 @@ import org.neo4j.cypher.internal.frontend.v3_4.helpers._
 import org.neo4j.cypher.internal.spi.v3_4.codegen.GeneratedMethodStructure.CompletableFinalizer
 import org.neo4j.cypher.internal.spi.v3_4.codegen.Methods._
 import org.neo4j.cypher.internal.spi.v3_4.codegen.Templates._
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.cypher.internal.util.v3_4.symbols.{CTInteger, CTNode, CTRelationship, ListType}
-import org.neo4j.cypher.internal.util.v3_4.{ParameterNotFoundException, symbols}
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.symbols.{CTInteger, CTNode, CTRelationship, ListType}
+import org.neo4j.cypher.internal.v3_5.util.{ParameterNotFoundException, symbols}
 import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection
 import org.neo4j.graphdb.Direction
 import org.neo4j.internal.kernel.api._

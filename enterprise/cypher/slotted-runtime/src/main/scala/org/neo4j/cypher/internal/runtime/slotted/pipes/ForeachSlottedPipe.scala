@@ -39,7 +39,7 @@ import org.neo4j.cypher.internal.runtime.slotted.helpers.SlottedPipeBuilderUtils
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, PipeWithSource, QueryState}
 import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, ListSupport}
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 
 import scala.collection.JavaConverters._
 

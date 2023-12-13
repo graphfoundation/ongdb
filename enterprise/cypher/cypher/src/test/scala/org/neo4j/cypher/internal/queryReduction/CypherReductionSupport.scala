@@ -60,8 +60,8 @@ import org.neo4j.cypher.internal.runtime.interpreted.{CSVResources, TransactionB
 import org.neo4j.cypher.internal.runtime.vectorized.dispatcher.SingleThreadedExecutor
 import org.neo4j.cypher.internal.runtime.{InternalExecutionResult, NormalMode}
 import org.neo4j.cypher.internal.spi.v3_4.codegen.GeneratedQueryStructure
-import org.neo4j.cypher.internal.util.v3_4.attribution.SequentialIdGen
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.{CypherFunSuite, CypherTestSupport}
+import org.neo4j.cypher.internal.v3_5.util.attribution.SequentialIdGen
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.{CypherFunSuite, CypherTestSupport}
 import org.neo4j.cypher.internal.{CompilerEngineDelegator, ExecutionPlan, RewindableExecutionResult}
 import org.neo4j.internal.kernel.api.Transaction
 import org.neo4j.internal.kernel.api.security.LoginContext

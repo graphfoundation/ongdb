@@ -52,9 +52,9 @@ import org.neo4j.cypher.internal.runtime.interpreted.pipes.{ColumnOrder => _, _}
 import org.neo4j.cypher.internal.runtime.slotted.helpers.SlottedPipeBuilderUtils
 import org.neo4j.cypher.internal.runtime.slotted.pipes._
 import org.neo4j.cypher.internal.runtime.slotted.{expressions => slottedExpressions}
-import org.neo4j.cypher.internal.util.v3_4.AssertionUtils._
-import org.neo4j.cypher.internal.util.v3_4.InternalException
-import org.neo4j.cypher.internal.util.v3_4.symbols._
+import org.neo4j.cypher.internal.v3_5.util.AssertionUtils._
+import org.neo4j.cypher.internal.v3_5.util.InternalException
+import org.neo4j.cypher.internal.v3_5.util.symbols._
 import org.neo4j.cypher.internal.v3_5.expressions.{Equals, SignedDecimalIntegerLiteral}
 import org.neo4j.cypher.internal.v3_5.logical.plans
 import org.neo4j.cypher.internal.v3_5.logical.plans._

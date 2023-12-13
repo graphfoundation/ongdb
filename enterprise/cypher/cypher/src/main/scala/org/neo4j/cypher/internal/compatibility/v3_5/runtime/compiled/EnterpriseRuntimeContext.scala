@@ -43,8 +43,8 @@ import org.neo4j.cypher.internal.compiler.v3_4.{ContextCreator, CypherCompilerCo
 import org.neo4j.cypher.internal.frontend.v3_4.phases.{CompilationPhaseTracer, InternalNotificationLogger, Monitors}
 import org.neo4j.cypher.internal.planner.v3_4.spi.PlanContext
 import org.neo4j.cypher.internal.runtime.vectorized.dispatcher.Dispatcher
-import org.neo4j.cypher.internal.util.v3_4.attribution.IdGen
-import org.neo4j.cypher.internal.util.v3_4.{CypherException, InputPosition}
+import org.neo4j.cypher.internal.v3_5.util.attribution.IdGen
+import org.neo4j.cypher.internal.v3_5.util.{CypherException, InputPosition}
 import org.neo4j.cypher.internal.v3_5.executionplan.GeneratedQuery
 
 class EnterpriseRuntimeContext(override val exceptionCreator: (String, InputPosition) => CypherException,

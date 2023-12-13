@@ -40,7 +40,7 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.Var
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.Variable
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.MethodStructure
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.MethodStructure
-import org.neo4j.cypher.internal.util.v3_4.symbols._
+import org.neo4j.cypher.internal.v3_5.util.symbols._
 
 case class NodeProjection(nodeIdVar: Variable) extends CodeGenExpression {
 

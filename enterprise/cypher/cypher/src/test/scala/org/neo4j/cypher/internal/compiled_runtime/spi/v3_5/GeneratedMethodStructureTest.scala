@@ -56,7 +56,7 @@ import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
 import org.neo4j.cypher.internal.runtime.{ExecutionMode, QueryContext}
 import org.neo4j.cypher.internal.spi.v3_4.codegen.GeneratedQueryStructure.typeRef
 import org.neo4j.cypher.internal.spi.v3_4.codegen._
-import org.neo4j.cypher.internal.util.v3_4.symbols
+import org.neo4j.cypher.internal.v3_5.util.symbols
 import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection
 import org.neo4j.cypher.internal.v3_5.codegen.QueryExecutionTracer

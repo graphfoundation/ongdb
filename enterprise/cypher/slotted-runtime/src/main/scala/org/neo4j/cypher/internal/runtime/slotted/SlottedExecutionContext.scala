@@ -39,9 +39,9 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.RefSlot
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotConfiguration
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.slotted.helpers.NullChecker.entityIsNull
-import org.neo4j.cypher.internal.util.v3_4.AssertionUtils._
-import org.neo4j.cypher.internal.util.v3_4.InternalException
-import org.neo4j.cypher.internal.util.v3_4.symbols.{CTNode, CTRelationship}
+import org.neo4j.cypher.internal.v3_5.util.AssertionUtils._
+import org.neo4j.cypher.internal.v3_5.util.InternalException
+import org.neo4j.cypher.internal.v3_5.util.symbols.{CTNode, CTRelationship}
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual._

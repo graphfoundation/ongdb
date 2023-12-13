@@ -42,8 +42,8 @@ import org.neo4j.cypher.internal.javacompat.GraphDatabaseCypherService
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments.{Planner => IPDPlanner, Runtime => IPDRuntime, RuntimeVersion => IPDRuntimeVersion, PlannerVersion => IPDPlannerVersion}
 import org.neo4j.cypher.internal.runtime.InternalExecutionResult
-import org.neo4j.cypher.internal.util.v3_4.Eagerly
-import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherTestSupport
+import org.neo4j.cypher.internal.v3_5.util.Eagerly
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherTestSupport
 import org.neo4j.cypher.internal.v3_4.logical.plans.LogicalPlan
 import org.neo4j.graphdb.Result
 import org.neo4j.graphdb.config.Setting

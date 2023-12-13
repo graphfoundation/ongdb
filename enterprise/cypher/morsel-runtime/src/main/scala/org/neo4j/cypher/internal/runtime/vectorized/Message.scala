@@ -35,7 +35,7 @@
 package org.neo4j.cypher.internal.runtime.vectorized
 
 import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.InternalException
+import org.neo4j.cypher.internal.v3_5.util.InternalException
 
 sealed trait Message {
   def iterationState: Iteration

@@ -36,7 +36,7 @@ package org.neo4j.cypher.internal.queryReduction
 
 import org.neo4j.cypher.internal.runtime.InternalExecutionResult
 import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.util.v3_4.ArithmeticException
+import org.neo4j.cypher.internal.v3_5.util.ArithmeticException
 
 import scala.util.{Failure, Success, Try}
 

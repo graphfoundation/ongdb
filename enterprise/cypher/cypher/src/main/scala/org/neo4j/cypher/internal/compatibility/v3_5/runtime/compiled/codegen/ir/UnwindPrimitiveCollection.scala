@@ -46,7 +46,7 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ListReferenceType
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.MethodStructure
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.MethodStructure
-import org.neo4j.cypher.internal.util.v3_4.symbols
+import org.neo4j.cypher.internal.v3_5.util.symbols
 
 case class UnwindPrimitiveCollection(opName: String, collection: CodeGenExpression) extends LoopDataGenerator {
   override def init[E](generator: MethodStructure[E])(implicit context: CodeGenContext): Unit =

@@ -51,9 +51,9 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RelationshipProp
 import org.neo4j.cypher.internal.frontend.v3_4.ast._
 import org.neo4j.cypher.internal.ir.v3_4.PlannerQuery
 import org.neo4j.cypher.internal.planner.v3_4.spi.TokenContext
-import org.neo4j.cypher.internal.util.v3_4.attribution.{Id, SequentialIdGen}
-import org.neo4j.cypher.internal.util.v3_4.NonEmptyList
-import org.neo4j.cypher.internal.util.v3_4.symbols._
+import org.neo4j.cypher.internal.v3_5.util.attribution.{Id, SequentialIdGen}
+import org.neo4j.cypher.internal.v3_5.util.NonEmptyList
+import org.neo4j.cypher.internal.v3_5.util.symbols._
 import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 import org.neo4j.cypher.internal.v3_4.expressions._
 import org.neo4j.cypher.internal.v3_4.logical.plans.{AllNodesScan, ProduceResult, Selection, _}

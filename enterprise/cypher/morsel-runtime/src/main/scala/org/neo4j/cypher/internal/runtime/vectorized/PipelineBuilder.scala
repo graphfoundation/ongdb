@@ -43,7 +43,7 @@ import org.neo4j.cypher.internal.runtime.interpreted.pipes.{LazyLabel, LazyTypes
 import org.neo4j.cypher.internal.runtime.slotted.SlottedPipeBuilder.translateColumnOrder
 import org.neo4j.cypher.internal.runtime.vectorized.expressions.AggregationExpressionOperator
 import org.neo4j.cypher.internal.runtime.vectorized.operators._
-import org.neo4j.cypher.internal.util.v3_4.InternalException
+import org.neo4j.cypher.internal.v3_5.util.InternalException
 import org.neo4j.cypher.internal.v3_4.logical.plans
 import org.neo4j.cypher.internal.v3_4.logical.plans._
 

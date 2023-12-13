@@ -39,7 +39,7 @@ import org.neo4j.cypher.internal.planner.v3_4.spi.GraphStatistics
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments.{DbHits, EstimatedRows, Rows, Signature}
 import org.neo4j.cypher.internal.runtime.planDescription.{Argument, InternalPlanDescription}
 import org.neo4j.cypher.internal.runtime.{CreateTempFileTestSupport, InternalExecutionResult}
-import org.neo4j.cypher.internal.util.v3_4.symbols._
+import org.neo4j.cypher.internal.v3_5.util.symbols._
 import org.neo4j.cypher.internal.v3_4.logical.plans.QualifiedName
 import org.neo4j.cypher.{ExecutionEngineFunSuite, ProfilerStatisticsNotReadyException, TxCounts}
 import org.neo4j.graphdb.QueryExecutionException

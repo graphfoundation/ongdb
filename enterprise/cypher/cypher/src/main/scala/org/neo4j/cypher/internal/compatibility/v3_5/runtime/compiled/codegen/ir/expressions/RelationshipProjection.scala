@@ -39,7 +39,7 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.Cod
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.Variable
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.Variable
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.MethodStructure
-import org.neo4j.cypher.internal.util.v3_4.symbols._
+import org.neo4j.cypher.internal.v3_5.util.symbols._
 
 case class RelationshipProjection(relId: Variable) extends CodeGenExpression {
   assert(relId.codeGenType.asInstanceOf[CypherCodeGenType].ct == CTRelationship)

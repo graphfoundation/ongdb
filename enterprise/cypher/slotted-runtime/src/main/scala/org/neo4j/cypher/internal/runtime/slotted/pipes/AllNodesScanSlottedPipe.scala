@@ -40,7 +40,7 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotConfiguration
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, QueryState}
 import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 
 case class AllNodesScanSlottedPipe(ident: String, slots: SlotConfiguration, argumentSize: Size)
                                   (val id: Id = Id.INVALID_ID) extends Pipe {

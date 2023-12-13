@@ -35,7 +35,7 @@
 package org.neo4j.cypher.internal.queryReduction.ast
 
 import org.neo4j.cypher.internal.frontend.v3_4.ast._
-import org.neo4j.cypher.internal.util.v3_4._
+import org.neo4j.cypher.internal.v3_5.util._
 import org.neo4j.cypher.internal.v3_4.expressions._
 
 object domainsOf {

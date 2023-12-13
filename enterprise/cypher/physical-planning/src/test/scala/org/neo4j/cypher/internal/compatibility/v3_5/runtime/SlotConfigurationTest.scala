@@ -34,8 +34,8 @@
  */
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime
 
-import org.neo4j.cypher.internal.util.v3_4.InternalException
-import org.neo4j.cypher.internal.util.v3_4.symbols._
+import org.neo4j.cypher.internal.v3_5.util.InternalException
+import org.neo4j.cypher.internal.v3_5.util.symbols._
 import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 
 class SlotConfigurationTest extends CypherFunSuite {

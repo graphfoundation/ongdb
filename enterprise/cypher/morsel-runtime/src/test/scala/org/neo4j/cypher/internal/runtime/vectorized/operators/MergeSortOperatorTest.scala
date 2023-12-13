@@ -38,7 +38,7 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.LongSlot
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotConfiguration
 import org.neo4j.cypher.internal.runtime.slotted.pipes.Ascending
 import org.neo4j.cypher.internal.runtime.vectorized._
-import org.neo4j.cypher.internal.util.v3_4.symbols.CTNode
+import org.neo4j.cypher.internal.v3_5.util.symbols.CTNode
 import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 import org.neo4j.values.AnyValue
 

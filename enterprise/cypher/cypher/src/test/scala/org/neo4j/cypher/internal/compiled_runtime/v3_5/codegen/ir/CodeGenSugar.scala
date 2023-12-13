@@ -56,8 +56,8 @@ import org.neo4j.cypher.internal.runtime.interpreted.{TransactionBoundQueryConte
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
 import org.neo4j.cypher.internal.runtime.{ExecutionMode, InternalExecutionResult, NormalMode, QueryContext}
 import org.neo4j.cypher.internal.spi.v3_4.codegen.GeneratedQueryStructure
-import org.neo4j.cypher.internal.util.v3_4.TaskCloser
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.TaskCloser
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 import org.neo4j.cypher.internal.v3_4.logical.plans.LogicalPlan
 import org.neo4j.cypher.internal.v3_5.codegen.QueryExecutionTracer
 import org.neo4j.cypher.internal.v3_5.executionplan.GeneratedQuery
