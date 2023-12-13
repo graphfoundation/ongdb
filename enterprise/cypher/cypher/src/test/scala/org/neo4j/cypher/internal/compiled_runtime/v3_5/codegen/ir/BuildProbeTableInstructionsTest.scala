@@ -58,7 +58,7 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.WhileLoop
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CodeGenType
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.NodeProjection
-import org.neo4j.cypher.internal.frontend.v3_4.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
 import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.cypher.internal.runtime.interpreted.TransactionalContextWrapper
 import org.neo4j.cypher.internal.v3_5.util.attribution.Id

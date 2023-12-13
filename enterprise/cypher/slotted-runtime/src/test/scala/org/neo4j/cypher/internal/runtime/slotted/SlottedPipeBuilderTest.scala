@@ -47,7 +47,7 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlottedRewriter
 import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.Metrics
 import org.neo4j.cypher.internal.compiler.v3_4.planner.{HardcodedGraphStatistics, LogicalPlanningTestSupport2}
 import org.neo4j.cypher.internal.frontend.v3_4.phases.Monitors
-import org.neo4j.cypher.internal.frontend.v3_4.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
 import org.neo4j.cypher.internal.ir.v3_4.VarPatternLength
 import org.neo4j.cypher.internal.planner.v3_4.spi.{IDPPlannerName, PlanContext}
 import org.neo4j.cypher.internal.runtime.interpreted.commands

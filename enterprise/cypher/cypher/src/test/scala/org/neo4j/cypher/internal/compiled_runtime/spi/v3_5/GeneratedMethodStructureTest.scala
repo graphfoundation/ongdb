@@ -51,7 +51,7 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.LongsToListTable
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.SimpleTupleDescriptor
 import org.neo4j.cypher.internal.frontend.v3_4.helpers._
-import org.neo4j.cypher.internal.frontend.v3_4.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
 import org.neo4j.cypher.internal.runtime.{ExecutionMode, QueryContext}
 import org.neo4j.cypher.internal.spi.v3_4.codegen.GeneratedQueryStructure.typeRef
