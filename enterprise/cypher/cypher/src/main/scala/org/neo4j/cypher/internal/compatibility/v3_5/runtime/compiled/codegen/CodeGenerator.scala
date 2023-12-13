@@ -56,7 +56,7 @@ import org.neo4j.cypher.internal.runtime.planDescription.{InternalPlanDescriptio
 import org.neo4j.cypher.internal.runtime.{ExecutionMode, InternalExecutionResult, QueryContext}
 import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 import org.neo4j.cypher.internal.v3_5.util.{Eagerly, TaskCloser}
-import org.neo4j.cypher.internal.v3_4.logical.plans.{LogicalPlan, ProduceResult}
+import org.neo4j.cypher.internal.v3_5.logical.plans.{LogicalPlan, ProduceResult}
 import org.neo4j.cypher.internal.v3_5.codegen.QueryExecutionTracer
 import org.neo4j.cypher.internal.v3_5.executionplan.GeneratedQuery
 import org.neo4j.cypher.internal.v3_5.executionplan.GeneratedQueryExecution

@@ -44,8 +44,8 @@ import org.neo4j.cypher.internal.runtime.slotted.SlottedPipeBuilder.translateCol
 import org.neo4j.cypher.internal.runtime.vectorized.expressions.AggregationExpressionOperator
 import org.neo4j.cypher.internal.runtime.vectorized.operators._
 import org.neo4j.cypher.internal.v3_5.util.InternalException
-import org.neo4j.cypher.internal.v3_4.logical.plans
-import org.neo4j.cypher.internal.v3_4.logical.plans._
+import org.neo4j.cypher.internal.v3_5.logical.plans
+import org.neo4j.cypher.internal.v3_5.logical.plans._
 
 class PipelineBuilder(slotConfigurations: SlotConfigurations, converters: ExpressionConverters)
   extends TreeBuilder[Pipeline] {

@@ -43,7 +43,7 @@ import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments
 import org.neo4j.cypher.internal.spi.v3_4
 import org.neo4j.cypher.internal.v3_5.util.TaskCloser
-import org.neo4j.cypher.internal.v3_4.logical.plans.IndexUsage
+import org.neo4j.cypher.internal.v3_5.logical.plans.IndexUsage
 import org.neo4j.cypher.internal.v3_5.codegen.QueryExecutionTracer
 import org.neo4j.cypher.internal.v3_5.codegen.profiling.ProfilingTracer
 import org.neo4j.values.virtual.MapValue

@@ -42,7 +42,7 @@ import java.util.Collections.emptyMap
 import org.neo4j.cypher._
 import org.neo4j.cypher.internal.frontend.v3_4.helpers.StringHelper.RichString
 import org.neo4j.cypher.internal.runtime.CreateTempFileTestSupport
-import org.neo4j.cypher.internal.v3_4.logical.plans.NodeIndexSeek
+import org.neo4j.cypher.internal.v3_5.logical.plans.NodeIndexSeek
 import org.neo4j.graphdb.QueryExecutionException
 import org.neo4j.graphdb.config.Configuration
 import org.neo4j.graphdb.factory.GraphDatabaseSettings

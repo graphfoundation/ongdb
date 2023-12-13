@@ -42,8 +42,8 @@ import org.neo4j.cypher.internal.v3_5.util.LabelId
 import org.neo4j.cypher.internal.v3_5.util.symbols._
 import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_4.logical.plans.{Ascending, _}
-import org.neo4j.cypher.internal.v3_4.logical.{plans => logicalPlans}
+import org.neo4j.cypher.internal.v3_5.logical.plans.{Ascending, _}
+import org.neo4j.cypher.internal.v3_5.logical.{plans => logicalPlans}
 
 //noinspection NameBooleanParameters
 class SlotAllocationTest extends CypherFunSuite with LogicalPlanningTestSupport2 {
