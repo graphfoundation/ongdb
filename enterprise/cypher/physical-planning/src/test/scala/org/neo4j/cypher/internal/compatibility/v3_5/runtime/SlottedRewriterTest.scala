@@ -50,7 +50,7 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.ReferenceFromSlo
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RelationshipPropertyLate
 import org.neo4j.cypher.internal.frontend.v3_4.ast._
 import org.neo4j.cypher.internal.ir.v3_4.PlannerQuery
-import org.neo4j.cypher.internal.planner.v3_4.spi.TokenContext
+import org.neo4j.cypher.internal.planner.v3_5.spi.TokenContext
 import org.neo4j.cypher.internal.v3_5.util.attribution.{Id, SequentialIdGen}
 import org.neo4j.cypher.internal.v3_5.util.NonEmptyList
 import org.neo4j.cypher.internal.v3_5.util.symbols._

@@ -42,7 +42,7 @@ import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.{Metrics, QueryGr
 import org.neo4j.cypher.internal.compiler.v3_4.{CypherCompilerConfiguration, NotImplementedPlanContext, UpdateStrategy}
 import org.neo4j.cypher.internal.frontend.v3_4.phases.CompilationPhaseTracer.NO_TRACING
 import org.neo4j.cypher.internal.frontend.v3_4.phases.{CompilationPhaseTracer, InternalNotificationLogger, Monitors, devNullLogger}
-import org.neo4j.cypher.internal.planner.v3_4.spi.PlanContext
+import org.neo4j.cypher.internal.planner.v3_5.spi.PlanContext
 import org.neo4j.cypher.internal.runtime.vectorized.dispatcher.SingleThreadedExecutor
 import org.neo4j.cypher.internal.v3_5.util.attribution.{IdGen, SequentialIdGen}
 import org.neo4j.cypher.internal.v3_5.util.{CypherException, InputPosition, InternalException}

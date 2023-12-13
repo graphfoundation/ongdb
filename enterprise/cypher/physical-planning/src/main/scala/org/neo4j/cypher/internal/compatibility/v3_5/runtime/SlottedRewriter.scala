@@ -58,7 +58,7 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RelationshipProp
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RuntimeProperty
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RuntimeVariable
 import org.neo4j.cypher.internal.compiler.v3_4.planner.CantCompileQueryException
-import org.neo4j.cypher.internal.planner.v3_4.spi.TokenContext
+import org.neo4j.cypher.internal.planner.v3_5.spi.TokenContext
 import org.neo4j.cypher.internal.v3_5.util.AssertionUtils.ifAssertionsEnabled
 import org.neo4j.cypher.internal.v3_5.util.Foldable._
 import org.neo4j.cypher.internal.v3_5.util.attribution.SameId
