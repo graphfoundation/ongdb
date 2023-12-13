@@ -35,18 +35,15 @@
 package org.neo4j.cypher.internal.runtime.slotted
 
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotAllocation.PhysicalPlan
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime._
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.executionplan.builders.prepare.KeyTokenResolver
-import org.neo4j.cypher.internal.compatibility.v3_4.runtime.pipes.DropResultPipe
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.LongSlot
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.RefSlot
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.Slot
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotConfiguration
 import org.neo4j.cypher.internal.frontend.v3_4.phases.Monitors
-import org.neo4j.cypher.internal.frontend.v3_4.semantics.SemanticTable
-import org.neo4j.cypher.internal.ir.v3_4.VarPatternLength
-import org.neo4j.cypher.internal.planner.v3_4.spi.PlanContext
+import org.neo4j.cypher.internal.ir.v3_5.VarPatternLength
+import org.neo4j.cypher.internal.planner.v3_5.spi.PlanContext
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.commands.KeyTokenResolver
 import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.ExpressionConverters
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{AggregationExpression, Expression}
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.{Predicate, True}
@@ -58,10 +55,11 @@ import org.neo4j.cypher.internal.runtime.slotted.{expressions => slottedExpressi
 import org.neo4j.cypher.internal.util.v3_4.AssertionUtils._
 import org.neo4j.cypher.internal.util.v3_4.InternalException
 import org.neo4j.cypher.internal.util.v3_4.symbols._
-import org.neo4j.cypher.internal.v3_4.expressions.{Equals, SignedDecimalIntegerLiteral}
-import org.neo4j.cypher.internal.v3_4.logical.plans
-import org.neo4j.cypher.internal.v3_4.logical.plans._
-import org.neo4j.cypher.internal.v3_4.{expressions => frontEndAst}
+import org.neo4j.cypher.internal.v3_5.expressions.{Equals, SignedDecimalIntegerLiteral}
+import org.neo4j.cypher.internal.v3_5.logical.plans
+import org.neo4j.cypher.internal.v3_5.logical.plans._
+import org.neo4j.cypher.internal.v3_5.{expressions => frontEndAst}
+import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
 
 class SlottedPipeBuilder(fallback: PipeBuilder,
                          expressionConverters: ExpressionConverters,
@@ -72,13 +70,12 @@ class SlottedPipeBuilder(fallback: PipeBuilder,
                         (implicit context: PipeExecutionBuilderContext, planContext: PlanContext)
   extends PipeBuilder {
 
-  private val convertExpressions: (frontEndAst.Expression) => commandExpressions.Expression =
-    rewriteAstExpression andThen expressionConverters.toCommandExpression
-
   override def build(plan: LogicalPlan): Pipe = {
     implicit val table: SemanticTable = context.semanticTable
 
     val id = plan.id
+    val convertExpressions: (frontEndAst.Expression) => commandExpressions.Expression =
+      rewriteAstExpression andThen (e => expressionConverters.toCommandExpression(id, e));
     val slots = physicalPlan.slotConfigurations(plan.id)
     val argumentSize = physicalPlan.argumentSizes(plan.id)
     generateSlotAccessorFunctions(slots)
@@ -113,7 +110,7 @@ class SlottedPipeBuilder(fallback: PipeBuilder,
     pipe
   }
 
-  private def generateSlotAccessorFunctions(slots: SlotConfiguration) = {
+  private def generateSlotAccessorFunctions(slots: SlotConfiguration): Unit = {
     slots.foreachSlot {
       case (key, slot) =>
         val getter = SlottedPipeBuilderUtils.makeGetValueFromSlotFunctionFor(slot)

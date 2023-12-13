@@ -34,7 +34,7 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted
 
-import org.neo4j.collection.primitive.PrimitiveLongSet
+import org.eclipse.collections.api.set.primitive.LongSet
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotConfiguration
 import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.{InCheckContainer, SingleThreadedLRUCache}
@@ -49,26 +49,22 @@ class SlottedQueryState(query: QueryContext,
                         resources: ExternalCSVResource,
                         params: MapValue,
                         decorator: PipeDecorator = NullPipeDecorator,
-                        timeReader: TimeReader = new TimeReader,
                         initialContext: Option[ExecutionContext] = None,
-                        triadicState: mutable.Map[String, PrimitiveLongSet] = mutable.Map.empty,
+                        triadicState: mutable.Map[String, LongSet] = mutable.Map.empty,
                         repeatableReads: mutable.Map[Pipe, Seq[ExecutionContext]] = mutable.Map.empty,
-                        cachedIn: SingleThreadedLRUCache[Any, InCheckContainer] =
-                        new SingleThreadedLRUCache(maxSize = 16))
-  extends QueryState(query, resources, params, decorator, timeReader, initialContext, triadicState,
-    repeatableReads, cachedIn) {
-
-  override def createOrGetInitialContext(factory: ExecutionContextFactory): ExecutionContext =
-    initialContext.getOrElse(factory.newExecutionContext())
+                        cachedIn: SingleThreadedLRUCache[Any, InCheckContainer] = new SingleThreadedLRUCache(maxSize = 16),
+                        lenientCreateRelationship: Boolean = false)
+  extends QueryState(query, resources, params, decorator, initialContext, triadicState,
+    repeatableReads, cachedIn, lenientCreateRelationship) {
 
   override def withDecorator(decorator: PipeDecorator) =
-    new SlottedQueryState(query, resources, params, decorator, timeReader, initialContext, triadicState, repeatableReads, cachedIn)
+    new SlottedQueryState(query, resources, params, decorator, initialContext, triadicState, repeatableReads, cachedIn)
 
   override def withInitialContext(initialContext: ExecutionContext) =
-    new SlottedQueryState(query, resources, params, decorator, timeReader, Some(initialContext), triadicState, repeatableReads, cachedIn)
+    new SlottedQueryState(query, resources, params, decorator, Some(initialContext), triadicState, repeatableReads, cachedIn)
 
   override def withQueryContext(query: QueryContext) =
-    new SlottedQueryState(query, resources, params, decorator, timeReader, initialContext, triadicState, repeatableReads, cachedIn)
+    new SlottedQueryState(query, resources, params, decorator, initialContext, triadicState, repeatableReads, cachedIn)
 }
 
 case class SlottedExecutionContextFactory(slots: SlotConfiguration) extends ExecutionContextFactory {

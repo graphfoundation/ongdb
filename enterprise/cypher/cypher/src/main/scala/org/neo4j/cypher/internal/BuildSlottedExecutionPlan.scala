@@ -37,6 +37,7 @@ package org.neo4j.cypher.internal
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotAllocation
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlottedRewriter
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.EnterpriseRuntimeContext
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.phases.CompilationState
 import org.neo4j.cypher.internal.compiler.v3_4.CacheCheckResult
 import org.neo4j.cypher.internal.compiler.v3_4.phases.{CompilationContains, LogicalPlanState}
 import org.neo4j.cypher.internal.compiler.v3_4.planner.CantCompileQueryException
@@ -52,7 +53,7 @@ import org.neo4j.cypher.internal.runtime.slotted.{SlottedExecutionResultBuilderF
 import org.neo4j.cypher.internal.runtime.slotted.expressions.SlottedExpressionConverters
 import org.neo4j.cypher.internal.runtime.{ExecutionMode, InternalExecutionResult, QueryContext}
 import org.neo4j.cypher.internal.util.v3_4.CypherException
-import org.neo4j.cypher.internal.v3_4.logical.plans.{IndexUsage, LogicalPlan}
+import org.neo4j.cypher.internal.v3_5.logical.plans.{IndexUsage, LogicalPlan}
 import org.neo4j.values.virtual.MapValue
 
 import scala.util.{Failure, Success}
@@ -103,12 +104,10 @@ object BuildSlottedExecutionPlan extends Phase[EnterpriseRuntimeContext, Logical
       from.solveds.mapTo(readOnlies, _.readOnly)
       val pipeBuildContext = PipeExecutionBuilderContext(context.metrics.cardinality, from.semanticTable(),
                                                          from.plannerName, readOnlies, from.cardinalities)
-      val pipeInfo = executionPlanBuilder
-        .build(from.periodicCommit, logicalPlan)(pipeBuildContext, context.planContext)
+      val pipeInfo = executionPlanBuilder.build(from.periodicCommit, logicalPlan)(pipeBuildContext, context.planContext)
       val PipeInfo(pipe: Pipe, updating, periodicCommitInfo, fp, planner) = pipeInfo
       val columns = from.statement().returnColumns
-      val resultBuilderFactory =
-        new SlottedExecutionResultBuilderFactory(pipeInfo, columns, logicalPlan, physicalPlan.slotConfigurations)
+      val resultBuilderFactory = new SlottedExecutionResultBuilderFactory(pipeInfo, false, columns, logicalPlan)
       val func = BuildInterpretedExecutionPlan.getExecutionPlanFunction(periodicCommitInfo, updating,
                                                                         resultBuilderFactory,
                                                                         context.notificationLogger,

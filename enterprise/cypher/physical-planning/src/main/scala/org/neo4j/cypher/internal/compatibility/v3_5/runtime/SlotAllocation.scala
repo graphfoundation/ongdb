@@ -36,17 +36,15 @@ package org.neo4j.cypher.internal.compatibility.v3_5.runtime
 
 import PhysicalPlanningAttributes.{ArgumentSizes, SlotConfigurations}
 import SlotConfiguration.Size
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.PhysicalPlanningAttributes.ArgumentSizes
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.PhysicalPlanningAttributes.SlotConfigurations
-import org.neo4j.cypher.internal.frontend.v3_4.ast.ProcedureResultItem
-import org.neo4j.cypher.internal.frontend.v3_4.semantics.SemanticTable
-import org.neo4j.cypher.internal.ir.v3_4.{HasHeaders, NoHeaders, ShortestPathPattern}
-import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.cypher.internal.util.v3_4.{Foldable, InternalException, UnNamedNameGenerator}
-import org.neo4j.cypher.internal.util.v3_4.symbols._
-import org.neo4j.cypher.internal.v3_4.expressions._
-import org.neo4j.cypher.internal.v3_4.logical.plans._
-import org.neo4j.cypher.internal.v3_4.{expressions => parserAst}
+import org.neo4j.cypher.internal.ir.v3_5.{HasHeaders, NoHeaders, ShortestPathPattern}
+import org.neo4j.cypher.internal.v3_5.util.{Foldable, InternalException, UnNamedNameGenerator}
+import org.neo4j.cypher.internal.v3_5.ast.ProcedureResultItem
+import org.neo4j.cypher.internal.v3_5.expressions._
+import org.neo4j.cypher.internal.v3_5.logical.plans._
+import org.neo4j.cypher.internal.v3_5.{expressions => parserAst}
+import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.symbols._
 
 import scala.collection.mutable
 
@@ -89,7 +87,7 @@ object SlotAllocation {
     initialSlotsAndArgument.foreach(argumentStack.push)
     var comingFrom = lp
 
-    def recordArgument(plan: LogicalPlan, argument: SlotsAndArgument) = {
+    def recordArgument(plan: LogicalPlan, argument: SlotsAndArgument): Unit = {
       arguments.set(plan.id, argument.argumentSize)
     }
 
