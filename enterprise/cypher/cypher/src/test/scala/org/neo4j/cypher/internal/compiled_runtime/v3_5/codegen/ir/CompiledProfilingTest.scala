@@ -51,7 +51,7 @@ import org.neo4j.cypher.internal.runtime.planDescription.{InternalPlanDescriptio
 import org.neo4j.cypher.internal.runtime.{ProfileMode, QueryContext, QueryTransactionalContext}
 import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_4.expressions.SignedDecimalIntegerLiteral
+import org.neo4j.cypher.internal.v3_5.expressions.SignedDecimalIntegerLiteral
 import org.neo4j.cypher.internal.v3_4.logical.plans
 import org.neo4j.cypher.internal.v3_4.logical.plans._
 import org.neo4j.cypher.internal.v3_5.codegen.profiling.ProfilingTracer

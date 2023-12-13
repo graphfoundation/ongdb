@@ -83,7 +83,7 @@ import org.neo4j.cypher.internal.planner.v3_4.spi.PlanningAttributes.Cardinaliti
 import org.neo4j.cypher.internal.v3_5.util.Eagerly.immutableMapValues
 import org.neo4j.cypher.internal.v3_5.util.Foldable._
 import org.neo4j.cypher.internal.v3_5.util.{InternalException, One, ZeroOneOrMany, symbols}
-import org.neo4j.cypher.internal.v3_4.expressions.{Expression, FunctionInvocation}
+import org.neo4j.cypher.internal.v3_5.expressions.{Expression, FunctionInvocation}
 import org.neo4j.cypher.internal.v3_4.logical.plans
 import org.neo4j.cypher.internal.v3_4.logical.plans.ColumnOrder
 import org.neo4j.cypher.internal.v3_4.{expressions => ast, functions => ast_functions}

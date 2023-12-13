@@ -38,7 +38,7 @@ import SlotConfiguration.Size
 import org.neo4j.cypher.internal.compiler.v3_4.planner.LogicalPlanningTestSupport2
 import org.neo4j.cypher.internal.frontend.v3_4.semantics.SemanticTable
 import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_4.expressions._
+import org.neo4j.cypher.internal.v3_5.expressions._
 import org.neo4j.cypher.internal.v3_4.logical.plans._
 
 class SlotAllocationArgumentsTest extends CypherFunSuite with LogicalPlanningTestSupport2 {

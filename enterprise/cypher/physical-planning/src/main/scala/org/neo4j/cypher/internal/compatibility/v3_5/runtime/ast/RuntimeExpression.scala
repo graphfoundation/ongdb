@@ -37,7 +37,7 @@ package org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast
 import org.neo4j.cypher.internal.v3_5.util.InputPosition
 import org.neo4j.cypher.internal.frontend.v3_4.semantics.{SemanticCheckResult, SemanticCheckableExpression}
 import org.neo4j.cypher.internal.frontend.v3_4.SemanticCheck
-import org.neo4j.cypher.internal.v3_4.expressions.{Expression => ASTExpression}
+import org.neo4j.cypher.internal.v3_5.expressions.{Expression => ASTExpression}
 
 trait RuntimeExpression extends ASTExpression with SemanticCheckableExpression {
   override def semanticCheck(ctx: ASTExpression.SemanticContext): SemanticCheck = SemanticCheckResult.success

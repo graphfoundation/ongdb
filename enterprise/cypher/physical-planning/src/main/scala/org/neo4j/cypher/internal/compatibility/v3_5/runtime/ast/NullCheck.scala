@@ -34,7 +34,7 @@
  */
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast
 
-import org.neo4j.cypher.internal.v3_4.expressions.{Expression, LogicalProperty, LogicalVariable}
+import org.neo4j.cypher.internal.v3_5.expressions.{Expression, LogicalProperty, LogicalVariable}
 
 case class NullCheck(offset: Int, inner: Expression) extends RuntimeExpression
 

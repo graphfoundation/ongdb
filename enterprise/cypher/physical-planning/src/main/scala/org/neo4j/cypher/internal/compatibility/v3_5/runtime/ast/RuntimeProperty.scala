@@ -38,7 +38,7 @@ import org.neo4j.cypher.internal.frontend.v3_4.SemanticCheck
 import org.neo4j.cypher.internal.frontend.v3_4.semantics.{SemanticCheckResult, SemanticCheckableExpression}
 import org.neo4j.cypher.internal.v3_5.util.AssertionUtils.ifAssertionsEnabled
 import org.neo4j.cypher.internal.v3_5.util.{InputPosition, InternalException, Rewritable}
-import org.neo4j.cypher.internal.v3_4.expressions.{Expression, LogicalProperty, PropertyKeyName}
+import org.neo4j.cypher.internal.v3_5.expressions.{Expression, LogicalProperty, PropertyKeyName}
 
 abstract class RuntimeProperty(val prop: LogicalProperty) extends LogicalProperty with SemanticCheckableExpression{
   override def semanticCheck(ctx: Expression.SemanticContext): SemanticCheck = SemanticCheckResult.success
