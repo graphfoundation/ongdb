@@ -41,7 +41,6 @@ import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.Completable
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.CompiledExecutionResult
 import org.neo4j.cypher.internal.javacompat.ResultRecord
 import org.neo4j.cypher.internal.runtime.{ExecutionMode, NormalMode, QueryContext}
@@ -185,8 +184,6 @@ class CompiledExecutionResultTest extends CypherFunSuite {
                                          taskCloser: TaskCloser = new TaskCloser,
                                          assertion: () => Unit = () => {}) = {
     val noCompiledCode: GeneratedQueryExecution = new GeneratedQueryExecution {
-      override def setCompletable(closeable: Completable){}
-
       override def fieldNames(): Array[String] = row.keySet().toArray(new Array[String](row.size()))
 
       override def executionMode(): ExecutionMode = NormalMode

@@ -46,7 +46,7 @@ import org.neo4j.codegen._
 import org.neo4j.cypher.internal.codegen.{PrimitiveNodeStream, PrimitiveRelationshipStream}
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen._
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions._
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.{Completable, Provider}
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.Provider
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ByteCodeMode
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenConfiguration
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenContext
@@ -66,6 +66,7 @@ import org.neo4j.cypher.internal.v3_5.frontend.helpers.using
 import org.neo4j.cypher.internal.javacompat.ResultRecord
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
 import org.neo4j.cypher.internal.runtime.{ExecutionMode, QueryContext}
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.{CodeStructure, CodeStructureResult, MethodStructure}
 import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 import org.neo4j.cypher.internal.v3_5.util.symbols
 import org.neo4j.cypher.internal.v3_5.codegen.QueryExecutionTracer
@@ -110,12 +111,12 @@ object GeneratedQueryStructure extends CodeStructure[GeneratedQuery] {
     private var _source: Seq[(String, String)] = Seq.empty
     private var _bytecode: Seq[(String, String)] = Seq.empty
 
-    def saveSourceCode = new SourceVisitor {
+    def saveSourceCode: SourceVisitor = new SourceVisitor {
       override protected def visitSource(reference: TypeReference, sourceCode: CharSequence): Unit =
         _source = _source :+ (reference.name() -> sourceCode.toString)
     }
 
-    def saveByteCode = new DisassemblyVisitor {
+    def saveByteCode: DisassemblyVisitor = new DisassemblyVisitor {
       override protected def visitDisassembly(className: String, disassembly: CharSequence): Unit =
         _bytecode = _bytecode :+ (className -> disassembly.toString)
     }
@@ -188,9 +189,6 @@ object GeneratedQueryStructure extends CodeStructure[GeneratedQuery] {
       val structure = new GeneratedMethodStructure(fields, codeBlock, new AuxGenerator(conf.packageName, generator), onClose =
         Seq((success: Boolean) => (block: CodeBlock) => {
           block.expression(invoke(block.self(), methodReference(block.owner(), TypeReference.VOID, "closeCursors")))
-          val target = Expression.get(block.self(), fields.closeable)
-          val reference = method[Completable, Unit]("completed", typeRef[Boolean])
-          block.expression(invoke(target, reference, Expression.constant(success)))
         }))
       codeBlock.assign(typeRef[ResultRecord], "row",
                        invoke(newInstance(typeRef[ResultRecord]),
@@ -212,7 +210,6 @@ object GeneratedQueryStructure extends CodeStructure[GeneratedQuery] {
     Templates.relationshipScanCursor(clazz, fields)
     Templates.propertyCursor(clazz, fields)
     Templates.closeCursors(clazz, fields)
-    clazz.generate(Templates.setCompletable(clazz.handle()))
     clazz.generate(Templates.executionMode(clazz.handle()))
     clazz.generate(Templates.executionPlanDescription(clazz.handle()))
     clazz.generate(Templates.FIELD_NAMES)
@@ -234,7 +231,6 @@ object GeneratedQueryStructure extends CodeStructure[GeneratedQuery] {
       description = clazz.field(typeRef[Provider[InternalPlanDescription]], "description"),
       tracer = clazz.field(typeRef[QueryExecutionTracer], "tracer"),
       params = clazz.field(typeRef[MapValue], "params"),
-      closeable = clazz.field(typeRef[Completable], "closeable"),
       queryContext = clazz.field(typeRef[QueryContext], "queryContext"),
       skip = clazz.field(typeRef[Boolean], "skip"),
       cursors = clazz.field(typeRef[CursorFactory], "cursors"),

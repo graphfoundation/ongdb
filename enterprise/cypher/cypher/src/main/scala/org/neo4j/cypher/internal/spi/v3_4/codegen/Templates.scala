@@ -298,11 +298,6 @@ object Templates {
     }
   }
 
-  def setCompletable(classHandle: ClassHandle) = MethodTemplate.method(typeRef[Unit], "setCompletable",
-                                                                               param[Completable]("closeable")).
-    put(self(classHandle), typeRef[Completable], "closeable", load("closeable", typeRef[Completable])).
-    build()
-
   def executionMode(classHandle: ClassHandle) = MethodTemplate.method(typeRef[ExecutionMode], "executionMode").
     returns(get(self(classHandle), typeRef[ExecutionMode], "executionMode")).
     build()

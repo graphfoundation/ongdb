@@ -56,8 +56,6 @@ class CompiledExecutionResult(taskCloser: TaskCloser,
   extends StandardInternalExecutionResult(context, CompiledRuntimeName, Some(taskCloser))
     with StandardInternalExecutionResult.IterateByAccepting {
 
-  compiledCode.setCompletable(this)
-
   // *** Delegate to compiled code
   def executionMode: ExecutionMode = compiledCode.executionMode()
 
