@@ -54,8 +54,12 @@ import org.neo4j.cypher.internal.v3_5.frontend.helpers._
 import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
 import org.neo4j.cypher.internal.runtime.{ExecutionMode, QueryContext}
-import org.neo4j.cypher.internal.spi.v3_4.codegen.GeneratedQueryStructure.typeRef
+import org.neo4j.cypher.internal.spi.v3_5.codegen.GeneratedQueryStructure.typeRef
 import org.neo4j.cypher.internal.spi.v3_4.codegen._
+import org.neo4j.cypher.internal.spi.v3_5.codegen.AuxGenerator
+import org.neo4j.cypher.internal.spi.v3_5.codegen.GeneratedMethodStructure
+import org.neo4j.cypher.internal.spi.v3_5.codegen.Methods
+import org.neo4j.cypher.internal.spi.v3_5.codegen.Templates
 import org.neo4j.cypher.internal.v3_5.util.symbols
 import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection

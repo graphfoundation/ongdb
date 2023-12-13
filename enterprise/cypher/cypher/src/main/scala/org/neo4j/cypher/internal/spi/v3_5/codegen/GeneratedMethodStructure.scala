@@ -32,7 +32,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.spi.v3_4.codegen
+package org.neo4j.cypher.internal.spi.v3_5.codegen
 
 import java.util.stream.{DoubleStream, IntStream, LongStream}
 import java.util.{PrimitiveIterator, ArrayList => JArrayList, HashMap => JHashMap, HashSet => JHashSet, Iterator => JIterator, Map => JMap, Set => JSet}
@@ -76,9 +76,9 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.TopTableDescriptor
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.TupleDescriptor
 import org.neo4j.cypher.internal.v3_5.frontend.helpers._
-import org.neo4j.cypher.internal.spi.v3_4.codegen.GeneratedMethodStructure.CompletableFinalizer
-import org.neo4j.cypher.internal.spi.v3_4.codegen.Methods._
-import org.neo4j.cypher.internal.spi.v3_4.codegen.Templates._
+import GeneratedMethodStructure.CompletableFinalizer
+import Methods._
+import Templates._
 import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 import org.neo4j.cypher.internal.v3_5.util.symbols.{CTInteger, CTNode, CTRelationship, ListType}
 import org.neo4j.cypher.internal.v3_5.util.{ParameterNotFoundException, symbols}
