@@ -34,10 +34,8 @@
  */
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir._
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.aggregation.AggregationConverter.aggregateExpressionConverter
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ExpressionConverter.createExpression
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions._
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.AcceptVisitor
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.AggregationInstruction
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.ApplyInstruction
@@ -86,7 +84,8 @@ import org.neo4j.cypher.internal.v3_5.util.{InternalException, One, ZeroOneOrMan
 import org.neo4j.cypher.internal.v3_5.expressions.{Expression, FunctionInvocation}
 import org.neo4j.cypher.internal.v3_5.logical.plans
 import org.neo4j.cypher.internal.v3_5.logical.plans.ColumnOrder
-import org.neo4j.cypher.internal.v3_4.{expressions => ast, functions => ast_functions}
+import org.neo4j.cypher.internal.v3_5.{expressions => ast}
+import org.neo4j.cypher.internal.v3_5.expressions.{functions => ast_functions}
 
 object LogicalPlanConverter {
 

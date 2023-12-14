@@ -59,14 +59,11 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ListReferenceType
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.LongType
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.setStaticField
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.CodeStructure
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.CodeStructureResult
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.MethodStructure
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.{CodeStructure, CodeStructureResult, MethodStructure}
 import org.neo4j.cypher.internal.v3_5.frontend.helpers.using
 import org.neo4j.cypher.internal.javacompat.ResultRecord
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
 import org.neo4j.cypher.internal.runtime.{ExecutionMode, QueryContext}
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.{CodeStructure, CodeStructureResult, MethodStructure}
 import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 import org.neo4j.cypher.internal.v3_5.util.symbols
 import org.neo4j.cypher.internal.v3_5.codegen.QueryExecutionTracer
@@ -134,8 +131,7 @@ object GeneratedQueryStructure extends CodeStructure[GeneratedQuery] {
 
     val sourceSaver = new CodeSaver
     val generator = createGenerator(conf, sourceSaver)
-    val execution = using(
-      generator.generateClass(conf.packageName, className + "Execution", typeRef[GeneratedQueryExecution])) { clazz =>
+    val execution = using(generator.generateClass(conf.packageName, className + "Execution", typeRef[GeneratedQueryExecution])) { clazz =>
       val fields: Fields = createFields(columns, clazz)
       setOperatorIds(clazz, operatorIds)
       addSimpleMethods(clazz, fields)

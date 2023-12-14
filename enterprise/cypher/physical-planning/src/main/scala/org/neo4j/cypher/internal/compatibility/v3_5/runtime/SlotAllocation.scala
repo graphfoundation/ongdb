@@ -47,6 +47,7 @@ import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 import org.neo4j.cypher.internal.v3_5.util.symbols._
 
 import scala.collection.mutable
+import scala.util.Try
 
 /**
   * This object knows how to configure slots for a logical plan tree.
@@ -423,16 +424,13 @@ object SlotAllocation {
         result.newLong(to, nullable, CTNode)
         result
 
-      case CreateNode(_, name, _, _) =>
-        source.newLong(name, nullable = false, CTNode)
+      case Create(_, nodes, relationships) =>
+        nodes.foreach(node => source.newLong(node.idName, nullable = false, CTNode))
+        relationships.foreach(rel => source.newLong(rel.idName, nullable = false, CTRelationship))
         source
 
       case _:MergeCreateNode =>
         // The variable name should already have been allocated by the NodeLeafPlan
-        source
-
-      case CreateRelationship(_, name, _, _, _, _) =>
-        source.newLong(name, nullable = false, CTRelationship)
         source
 
       case MergeCreateRelationship(_, name, _, _, _, _) =>
@@ -466,7 +464,7 @@ object SlotAllocation {
       case _: SetLabels |
            _: SetNodeProperty |
            _: SetNodePropertiesFromMap |
-           _: SetRelationshipPropery |
+           _: SetRelationshipProperty |
            _: SetRelationshipPropertiesFromMap |
            _: SetProperty |
            _: RemoveLabels =>
@@ -667,7 +665,7 @@ object SlotAllocation {
       case ForeachApply(_, _, variableName, listExpression) =>
         // The slot for the iteration variable of foreach needs to be available as an argument on the rhs of the apply
         // so we allocate it on the lhs (even though its value will not be needed after the foreach is done)
-        val typeSpec = semanticTable.getActualTypeFor(listExpression)
+        val typeSpec = Try(semanticTable.getActualTypeFor(listExpression)).toOption
         val listOfNodes = typeSpec.exists(_.contains(ListType(CTNode)))
         val listOfRels = typeSpec.exists(_.contains(ListType(CTRelationship)))
 

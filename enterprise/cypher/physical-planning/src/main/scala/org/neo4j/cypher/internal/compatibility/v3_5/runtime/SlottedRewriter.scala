@@ -35,8 +35,6 @@
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime
 
 import PhysicalPlanningAttributes.SlotConfigurations
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast._
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.PhysicalPlanningAttributes.SlotConfigurations
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.GetDegreePrimitive
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.IdFromSlot
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.IsPrimitiveNull
@@ -66,7 +64,7 @@ import org.neo4j.cypher.internal.v3_5.util.symbols._
 import org.neo4j.cypher.internal.v3_5.util.{InternalException, Rewriter, topDown}
 import org.neo4j.cypher.internal.v3_5.expressions.{FunctionInvocation, _}
 import org.neo4j.cypher.internal.v3_5.logical.plans.{LogicalPlan, NestedPlanExpression, Projection, VarExpand, _}
-import org.neo4j.cypher.internal.v3_4.{expressions, functions => frontendFunctions}
+import org.neo4j.cypher.internal.v3_5.expressions.{functions => frontendFunctions}
 
 /**
   * This class rewrites logical plans so they use slotted variable access instead of using key-based. It will also

@@ -34,34 +34,18 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.expressions
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.{ast => runtimeAst}
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.GetDegreePrimitive
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.IdFromSlot
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.IsPrimitiveNull
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NodeFromSlot
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NodeProperty
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NodePropertyExists
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NodePropertyExistsLate
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NodePropertyLate
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NullCheck
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NullCheckProperty
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NullCheckVariable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.PrimitiveEquals
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.ReferenceFromSlot
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RelationshipFromSlot
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RelationshipProperty
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RelationshipPropertyExists
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RelationshipPropertyExistsLate
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RelationshipPropertyLate
 import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.{ExpressionConverter, ExpressionConverters}
 import org.neo4j.cypher.internal.runtime.interpreted.commands.{expressions => commands}
 import org.neo4j.cypher.internal.runtime.slotted.{expressions => runtimeExpression}
 import org.neo4j.cypher.internal.runtime.slotted.expressions.SlottedProjectedPath._
 import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_4.{expressions => ast}
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.cypher.internal.v3_5.{expressions => ast}
 
 object SlottedExpressionConverters extends ExpressionConverter {
-  override def toCommandExpression(expression: ast.Expression, self: ExpressionConverters): Option[commands.Expression] =
+  override def toCommandExpression(id: Id, expression: ast.Expression, self: ExpressionConverters): Option[commands.Expression] =
     expression match {
       case NodeFromSlot(offset, _) =>
         Some(runtimeExpression.NodeFromSlot(offset))
@@ -80,8 +64,8 @@ object SlottedExpressionConverters extends ExpressionConverter {
       case RelationshipPropertyLate(offset, propKey, _) =>
         Some(runtimeExpression.RelationshipPropertyLate(offset, propKey))
       case PrimitiveEquals(a, b) =>
-        val lhs = self.toCommandExpression(a)
-        val rhs = self.toCommandExpression(b)
+        val lhs = self.toCommandExpression(id, a)
+        val rhs = self.toCommandExpression(id, b)
         Some(runtimeExpression.PrimitiveEquals(lhs, rhs))
       case GetDegreePrimitive(offset, typ, direction) =>
         Some(runtimeExpression.GetDegreePrimitive(offset, typ, direction))
@@ -94,13 +78,13 @@ object SlottedExpressionConverters extends ExpressionConverter {
       case RelationshipPropertyExistsLate(offset, token, _) =>
         Some(runtimeExpression.RelationshipPropertyExistsLate(offset, token))
       case NullCheck(offset, inner) =>
-        val a = self.toCommandExpression(inner)
+        val a = self.toCommandExpression(id, inner)
         Some(runtimeExpression.NullCheck(offset, a))
       case NullCheckVariable(offset, inner) =>
-        val a = self.toCommandExpression(inner)
+        val a = self.toCommandExpression(id, inner)
         Some(runtimeExpression.NullCheck(offset, a))
       case NullCheckProperty(offset, inner) =>
-        val a = self.toCommandExpression(inner)
+        val a = self.toCommandExpression(id, inner)
         Some(runtimeExpression.NullCheck(offset, a))
       case e: ast.PathExpression =>
         Some(toCommandProjectedPath(e, self))
@@ -110,29 +94,29 @@ object SlottedExpressionConverters extends ExpressionConverter {
         None
     }
 
-  def toCommandProjectedPath(e: ast.PathExpression, self: ExpressionConverters): SlottedProjectedPath = {
+  def toCommandProjectedPath(id: Id, e: ast.PathExpression, self: ExpressionConverters): SlottedProjectedPath = {
     def project(pathStep: PathStep): Projector = pathStep match {
 
       case NodePathStep(nodeExpression, next) =>
-        singleNodeProjector(toCommandExpression(nodeExpression, self).get, project(next))
+        singleNodeProjector(toCommandExpression(id, nodeExpression, self).get, project(next))
 
       case SingleRelationshipPathStep(relExpression, SemanticDirection.INCOMING, next) =>
-        singleIncomingRelationshipProjector(toCommandExpression(relExpression, self).get, project(next))
+        singleIncomingRelationshipProjector(toCommandExpression(id, relExpression, self).get, project(next))
 
       case SingleRelationshipPathStep(relExpression, SemanticDirection.OUTGOING, next) =>
-        singleOutgoingRelationshipProjector(toCommandExpression(relExpression, self).get, project(next))
+        singleOutgoingRelationshipProjector(toCommandExpression(id, relExpression, self).get, project(next))
 
       case SingleRelationshipPathStep(relExpression, SemanticDirection.BOTH, next) =>
-        singleUndirectedRelationshipProjector(toCommandExpression(relExpression, self).get, project(next))
+        singleUndirectedRelationshipProjector(toCommandExpression(id, relExpression, self).get, project(next))
 
       case MultiRelationshipPathStep(relExpression, SemanticDirection.INCOMING, next) =>
-        multiIncomingRelationshipProjector(toCommandExpression(relExpression, self).get, project(next))
+        multiIncomingRelationshipProjector(toCommandExpression(id, relExpression, self).get, project(next))
 
       case MultiRelationshipPathStep(relExpression, SemanticDirection.OUTGOING, next) =>
-        multiOutgoingRelationshipProjector(toCommandExpression(relExpression, self).get, project(next))
+        multiOutgoingRelationshipProjector(toCommandExpression(id, relExpression, self).get, project(next))
 
       case MultiRelationshipPathStep(relExpression, SemanticDirection.BOTH, next) =>
-        multiUndirectedRelationshipProjector(toCommandExpression(relExpression, self).get, project(next))
+        multiUndirectedRelationshipProjector(toCommandExpression(id, relExpression, self).get, project(next))
 
       case NilPathStep =>
         nilProjector
