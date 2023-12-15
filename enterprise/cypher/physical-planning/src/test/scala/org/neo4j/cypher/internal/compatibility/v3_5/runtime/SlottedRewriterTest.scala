@@ -37,21 +37,9 @@ package org.neo4j.cypher.internal.compatibility.v3_5.runtime
 import org.mockito.Mockito._
 import PhysicalPlanningAttributes.SlotConfigurations
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast._
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.IdFromSlot
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.IsPrimitiveNull
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NodeFromSlot
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NodeProperty
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NodePropertyLate
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NullCheck
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NullCheckProperty
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NullCheckVariable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.PrimitiveEquals
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.ReferenceFromSlot
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RelationshipPropertyLate
-import org.neo4j.cypher.internal.v3_5.frontend.ast._
-import org.neo4j.cypher.internal.ir.v3_4.PlannerQuery
+import org.neo4j.cypher.internal.v3_5.ast._
 import org.neo4j.cypher.internal.planner.v3_5.spi.TokenContext
-import org.neo4j.cypher.internal.v3_5.util.attribution.{Id, SequentialIdGen}
+import org.neo4j.cypher.internal.v3_5.util.attribution.SequentialIdGen
 import org.neo4j.cypher.internal.v3_5.util.NonEmptyList
 import org.neo4j.cypher.internal.v3_5.util.symbols._
 import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite

@@ -34,61 +34,35 @@
  */
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled
 
-import java.time.Clock
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.CommunityRuntimeContext
+import org.neo4j.cypher.internal.compatibility.RuntimeContext
+import org.neo4j.cypher.internal.compatibility.RuntimeContextCreator
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.CodeStructure
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.CodeStructure
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.{ExpressionEvaluator, Metrics, MetricsFactory, QueryGraphSolver}
-import org.neo4j.cypher.internal.compiler.v3_5.{ContextCreator, CypherCompilerConfiguration, SyntaxExceptionCreator, UpdateStrategy}
-import org.neo4j.cypher.internal.v3_5.frontend.phases.{CompilationPhaseTracer, InternalNotificationLogger, Monitors}
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanContext
+import org.neo4j.cypher.internal.compiler.v3_5.CypherPlannerConfiguration
+import org.neo4j.cypher.internal.planner.v3_5.spi.TokenContext
 import org.neo4j.cypher.internal.runtime.vectorized.dispatcher.Dispatcher
-import org.neo4j.cypher.internal.v3_5.util.attribution.IdGen
-import org.neo4j.cypher.internal.v3_5.util.{CypherException, InputPosition}
 import org.neo4j.cypher.internal.v3_5.executionplan.GeneratedQuery
+import org.neo4j.logging.Log
 
-class EnterpriseRuntimeContext(override val exceptionCreator: (String, InputPosition) => CypherException,
-                               override val tracer: CompilationPhaseTracer,
-                               override val notificationLogger: InternalNotificationLogger,
-                               override val planContext: PlanContext,
-                               override val monitors: Monitors,
-                               override val metrics: Metrics,
-                               override val config: CypherCompilerConfiguration,
-                               override val queryGraphSolver: QueryGraphSolver,
-                               override val updateStrategy: UpdateStrategy,
-                               override val debugOptions: Set[String],
-                               override val clock: Clock,
-                               override val logicalPlanIdGen: IdGen,
-                               val codeStructure: CodeStructure[GeneratedQuery],
-                               val dispatcher: Dispatcher)
-  extends CommunityRuntimeContext(exceptionCreator, tracer,
-                                  notificationLogger, planContext, monitors, metrics,
-                                  config, queryGraphSolver, updateStrategy, debugOptions, clock, logicalPlanIdGen)
+import java.time.Clock
 
-case class EnterpriseRuntimeContextCreator(codeStructure: CodeStructure[GeneratedQuery], dispatcher: Dispatcher) extends ContextCreator[EnterpriseRuntimeContext] {
+case class EnterpriseRuntimeContext(tokenContext: TokenContext,
+                                    readOnly: Boolean,
+                                    config: CypherPlannerConfiguration,
+                                    compileExpressions: Boolean,
+                                    log: Log,
+                                    clock: Clock,
+                                    debugOptions: Set[String],
+                                    codeStructure: CodeStructure[GeneratedQuery],
+                                    dispatcher: Dispatcher) extends RuntimeContext
 
-  override def create(tracer: CompilationPhaseTracer,
-                      notificationLogger: InternalNotificationLogger,
-                      planContext: PlanContext,
-                      queryText: String,
-                      debugOptions: Set[String],
-                      offset: Option[InputPosition],
-                      monitors: Monitors,
-                      metricsFactory: MetricsFactory,
-                      queryGraphSolver: QueryGraphSolver,
-                      config: CypherCompilerConfiguration,
-                      updateStrategy: UpdateStrategy,
+case class EnterpriseRuntimeContextCreator(codeStructure: CodeStructure[GeneratedQuery], log: Log, config: CypherPlannerConfiguration, dispatcher: Dispatcher)
+  extends RuntimeContextCreator[RuntimeContext] {
+
+  override def create(tokenContext: TokenContext,
                       clock: Clock,
-                      logicalPlanIdGen: IdGen,
-                      evaluator: ExpressionEvaluator): EnterpriseRuntimeContext = {
-    val exceptionCreator = new SyntaxExceptionCreator(queryText, offset)
+                      debugOptions: Set[String],
+                      readOnly: Boolean,
+                      compileExpressions: Boolean): EnterpriseRuntimeContext =
+    EnterpriseRuntimeContext(tokenContext, readOnly, config, compileExpressions, log, clock, debugOptions, codeStructure, dispatcher)
 
-    val metrics: Metrics = if (planContext == null)
-      null
-    else
-      metricsFactory.newMetrics(planContext.statistics, evaluator, config)
-
-    new EnterpriseRuntimeContext(exceptionCreator, tracer, notificationLogger, planContext,
-                                monitors, metrics, config, queryGraphSolver, updateStrategy, debugOptions, clock, logicalPlanIdGen, codeStructure, dispatcher)
-  }
 }

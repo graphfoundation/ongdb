@@ -34,37 +34,26 @@
  */
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime
 
-import PhysicalPlanningAttributes.SlotConfigurations
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.GetDegreePrimitive
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.IdFromSlot
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.IsPrimitiveNull
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NodeFromSlot
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NodeProperty
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NodePropertyExists
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NodePropertyExistsLate
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NodePropertyLate
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NullCheck
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NullCheckProperty
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NullCheckVariable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.PrimitiveEquals
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.ReferenceFromSlot
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RelationshipFromSlot
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RelationshipProperty
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RelationshipPropertyExists
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RelationshipPropertyExistsLate
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RelationshipPropertyLate
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RuntimeProperty
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.RuntimeVariable
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.PhysicalPlanningAttributes.SlotConfigurations
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast._
 import org.neo4j.cypher.internal.compiler.v3_5.planner.CantCompileQueryException
 import org.neo4j.cypher.internal.planner.v3_5.spi.TokenContext
+import org.neo4j.cypher.internal.v3_5.expressions
+import org.neo4j.cypher.internal.v3_5.expressions.FunctionInvocation
+import org.neo4j.cypher.internal.v3_5.expressions._
+import org.neo4j.cypher.internal.v3_5.expressions.{functions => frontendFunctions}
+import org.neo4j.cypher.internal.v3_5.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.v3_5.logical.plans.NestedPlanExpression
+import org.neo4j.cypher.internal.v3_5.logical.plans.Projection
+import org.neo4j.cypher.internal.v3_5.logical.plans.VarExpand
+import org.neo4j.cypher.internal.v3_5.logical.plans._
 import org.neo4j.cypher.internal.v3_5.util.AssertionUtils.ifAssertionsEnabled
 import org.neo4j.cypher.internal.v3_5.util.Foldable._
 import org.neo4j.cypher.internal.v3_5.util.attribution.SameId
 import org.neo4j.cypher.internal.v3_5.util.symbols._
-import org.neo4j.cypher.internal.v3_5.util.{InternalException, Rewriter, topDown}
-import org.neo4j.cypher.internal.v3_5.expressions.{FunctionInvocation, _}
-import org.neo4j.cypher.internal.v3_5.logical.plans.{LogicalPlan, NestedPlanExpression, Projection, VarExpand, _}
-import org.neo4j.cypher.internal.v3_5.expressions.{functions => frontendFunctions}
+import org.neo4j.cypher.internal.v3_5.util.InternalException
+import org.neo4j.cypher.internal.v3_5.util.Rewriter
+import org.neo4j.cypher.internal.v3_5.util.topDown
 
 /**
   * This class rewrites logical plans so they use slotted variable access instead of using key-based. It will also
@@ -89,13 +78,13 @@ class SlottedRewriter(tokenContext: TokenContext) {
        */
       case oldPlan@Projection(_, expressions) =>
         val slotConfiguration = slotConfigurations(oldPlan.id)
-        val rewriter = rewriteCreator(slotConfiguration, oldPlan.selfThis, slotConfigurations)
+        val rewriter = rewriteCreator(slotConfiguration, oldPlan, slotConfigurations)
 
         val newExpressions = expressions collect {
           case (column, expression) => column -> expression.endoRewrite(rewriter)
         }
 
-        val newPlan = oldPlan.copy(expressions = newExpressions)(SameId(oldPlan.id))
+        val newPlan = oldPlan.copy(projectExpressions = newExpressions)(SameId(oldPlan.id))
 
         newPlan
 
@@ -108,11 +97,11 @@ class SlottedRewriter(tokenContext: TokenContext) {
         val rewriter = rewriteCreator(incomingSlotConfiguration, oldPlan, slotConfigurations)
 
         val newNodePredicate = oldPlan.nodePredicate.endoRewrite(rewriter)
-        val newEdgePredicate = oldPlan.edgePredicate.endoRewrite(rewriter)
+        val newRelationshipPredicate = oldPlan.relationshipPredicate.endoRewrite(rewriter)
 
         val newPlan = oldPlan.copy(
           nodePredicate = newNodePredicate,
-          edgePredicate = newEdgePredicate,
+          relationshipPredicate = newRelationshipPredicate,
           legacyPredicates = Seq.empty // If we use the legacy predicates, we are not on the slotted runtime
         )(SameId(oldPlan.id))
 
@@ -125,8 +114,8 @@ class SlottedRewriter(tokenContext: TokenContext) {
         newPlan
 
       case plan@ValueHashJoin(lhs, rhs, e@Equals(lhsExp, rhsExp)) =>
-        val lhsRewriter = rewriteCreator(slotConfigurations(lhs.id), plan.selfThis, slotConfigurations)
-        val rhsRewriter = rewriteCreator(slotConfigurations(rhs.id), plan.selfThis, slotConfigurations)
+        val lhsRewriter = rewriteCreator(slotConfigurations(lhs.id), plan, slotConfigurations)
+        val rhsRewriter = rewriteCreator(slotConfigurations(rhs.id), plan, slotConfigurations)
         val lhsExpAfterRewrite = lhsExp.endoRewrite(lhsRewriter)
         val rhsExpAfterRewrite = rhsExp.endoRewrite(rhsRewriter)
         plan.copy(join = Equals(lhsExpAfterRewrite, rhsExpAfterRewrite)(e.position))(SameId(plan.id))

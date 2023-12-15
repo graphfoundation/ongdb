@@ -87,7 +87,6 @@ object GTRStar {
   }
 }
 
-
 abstract class GTRInput[I](initialTree: I) {
   var currentTree: I = initialTree
 

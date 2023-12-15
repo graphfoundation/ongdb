@@ -34,7 +34,7 @@
  */
 package org.neo4j.cypher.internal.queryReduction.ast
 
-import org.neo4j.cypher.internal.v3_5.frontend.ast._
+import org.neo4j.cypher.internal.v3_5.ast._
 import org.neo4j.cypher.internal.v3_5.util._
 import org.neo4j.cypher.internal.v3_5.expressions._
 
@@ -59,10 +59,13 @@ object domainsOf {
 
     grandParent match {
       case Match(_, pattern, hints, maybeWhere) =>
-        ofSingle(pattern, classOf[Pattern]) ++ ofSeq(hints, classOf[UsingHint]) ++ ofOption(maybeWhere, classOf[Where])
+        ofSingle(pattern, classOf[Pattern]) ++
+          ofSeq(hints, classOf[UsingHint]) ++
+          ofOption(maybeWhere, classOf[Where])
 
       case Query(maybeHint, queryPart) =>
-        ofOption(maybeHint, classOf[PeriodicCommitHint]) ++ ofSingle(queryPart, classOf[QueryPart])
+        ofOption(maybeHint, classOf[PeriodicCommitHint]) ++
+          ofSingle(queryPart, classOf[QueryPart])
 
       case SingleQuery(clauses) =>
         ofSeq(clauses, classOf[Clause])
@@ -73,14 +76,16 @@ object domainsOf {
       case EveryPath(elem) =>
         ofSingle(elem, classOf[PatternElement])
 
-      case NodePattern(maybeVar, labels, maybeProps) =>
-        ofOption(maybeVar, classOf[Variable]) ++ ofSeq(labels, classOf[LabelName]) ++ ofOption(maybeProps, classOf[Expression])
+      case NodePattern(maybeVar, labels, maybeProps, maybeBaseNode) =>
+        ofOption(maybeVar, classOf[Variable]) ++
+          ofSeq(labels, classOf[LabelName]) ++
+          ofOption(maybeProps, classOf[Expression]) ++
+          ofOption(maybeBaseNode, classOf[LogicalVariable])
 
       case Variable(_) => Seq()
 
-      case Return(_, returnItems, maybeGraphReturnItems, maybeOrderBy, maybeSkip, maybeLimit, _) =>
+      case Return(_, returnItems, maybeOrderBy, maybeSkip, maybeLimit, _) =>
         ofSingle(returnItems, classOf[ReturnItemsDef]) ++
-          ofOption(maybeGraphReturnItems, classOf[GraphReturnItems]) ++
           ofOption(maybeOrderBy, classOf[OrderBy]) ++
           ofOption(maybeSkip, classOf[Skip]) ++
           ofOption(maybeLimit, classOf[Limit])
@@ -120,22 +125,22 @@ object domainsOf {
           ofSingle(relationship, classOf[RelationshipPattern]) ++
           ofSingle(rightNode, classOf[NodePattern])
 
-      case RelationshipPattern(variable, types, length, properties, _, _) =>
+      case RelationshipPattern(variable, types, length, properties, _, _, maybeBaseRel) =>
         ofOption(variable, classOf[Variable]) ++
           ofSeq(types, classOf[RelTypeName]) ++
           ofOption(length.flatten, classOf[Range]) ++
-          ofOption(properties, classOf[Expression])
+          ofOption(properties, classOf[Expression]) ++
+          ofOption(maybeBaseRel, classOf[LogicalVariable])
 
-      case FunctionInvocation(namespace, functionName, distinct, args) =>
+      case FunctionInvocation(namespace, functionName, _, args, _) =>
         ofSingle(namespace, classOf[Namespace]) ++
           ofSingle(functionName, classOf[FunctionName]) ++
           ofSeq(args, classOf[Expression])
 
       case Namespace(_) => Seq()
 
-      case With(_, returnItems, mandatoryGraphReturnItems, orderBy, skip, limit, where) =>
+      case With(_, returnItems, orderBy, skip, limit, where) =>
         ofSingle(returnItems, classOf[ReturnItemsDef]) ++
-        ofSingle(mandatoryGraphReturnItems, classOf[GraphReturnItems]) ++
         ofOption(orderBy, classOf[OrderBy]) ++
         ofOption(skip, classOf[Skip]) ++
         ofOption(limit, classOf[Limit]) ++
@@ -143,9 +148,6 @@ object domainsOf {
 
       case MapExpression(items) =>
         ofTupledSeq(items, classOf[PropertyKeyName], classOf[Expression])
-
-      case GraphReturnItems(_, items) =>
-        ofSeq(items, classOf[GraphReturnItem])
 
       case FilterExpression(scope, expression) =>
         ofSingle(scope, classOf[FilterScope]) ++

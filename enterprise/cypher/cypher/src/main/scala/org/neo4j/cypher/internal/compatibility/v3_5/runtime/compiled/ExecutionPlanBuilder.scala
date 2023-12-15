@@ -35,13 +35,13 @@
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled
 
 import ExecutionPlanBuilder.DescriptionProvider
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.{PeriodicCommitInfo, PlanFingerprint, Provider}
+import org.neo4j.cypher.internal.PlanFingerprint
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.{PeriodicCommitInfo, Provider}
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.CompiledRuntimeName
 import org.neo4j.cypher.internal.v3_5.frontend.PlannerName
 import org.neo4j.cypher.internal.runtime.{ExecutionMode, InternalExecutionResult, ProfileMode, QueryContext}
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments
-import org.neo4j.cypher.internal.spi.v3_4
 import org.neo4j.cypher.internal.v3_5.util.TaskCloser
 import org.neo4j.cypher.internal.v3_5.logical.plans.IndexUsage
 import org.neo4j.cypher.internal.v3_5.codegen.QueryExecutionTracer

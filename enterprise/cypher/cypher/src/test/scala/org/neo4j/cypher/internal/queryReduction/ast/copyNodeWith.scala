@@ -34,7 +34,7 @@
  */
 package org.neo4j.cypher.internal.queryReduction.ast
 
-import org.neo4j.cypher.internal.v3_5.frontend.ast._
+import org.neo4j.cypher.internal.v3_5.ast._
 import org.neo4j.cypher.internal.v3_5.util._
 import org.neo4j.cypher.internal.v3_5.expressions._
 
@@ -64,15 +64,14 @@ object copyNodeWith {
       case EveryPath(elem) =>
         EveryPath(nc.ofSingle(elem))
 
-      case NodePattern(maybeVar, labels, maybeProps) =>
-        NodePattern(nc.ofOption(maybeVar), nc.ofSeq(labels), nc.ofOption(maybeProps))(node.position)
+      case NodePattern(maybeVar, labels, maybeProps, maybeBaseNode) =>
+        NodePattern(nc.ofOption(maybeVar), nc.ofSeq(labels), nc.ofOption(maybeProps), nc.ofOption(maybeBaseNode))(node.position)
 
       case Variable(_) => node
 
-      case Return(distinct, returnItems, maybeGraphReturnItems, maybeOrderBy, maybeSkip, maybeLimit, excludedNames) =>
+      case Return(distinct, returnItems, maybeOrderBy, maybeSkip, maybeLimit, excludedNames) =>
         Return(distinct,
           nc.ofSingle(returnItems),
-          nc.ofOption(maybeGraphReturnItems),
           nc.ofOption(maybeOrderBy),
           nc.ofOption(maybeSkip),
           nc.ofOption(maybeLimit),
@@ -108,22 +107,20 @@ object copyNodeWith {
       case RelationshipChain(element, relationship, rightNode) =>
         RelationshipChain(nc.ofSingle(element), nc.ofSingle(relationship), nc.ofSingle(rightNode))(node.position)
 
-      case RelationshipPattern(variable, types, length, properties, direction, legacyTypeSeparator) =>
-        RelationshipPattern(nc.ofOption(variable), nc.ofSeq(types), Option(nc.ofOption(length.flatten)), nc.ofOption(properties), direction, legacyTypeSeparator)(node.position)
+      case RelationshipPattern(variable, types, length, properties, direction, legacyTypeSeparator, maybeBaseRel) =>
+        RelationshipPattern(nc.ofOption(variable), nc.ofSeq(types), Option(nc.ofOption(length.flatten)),
+          nc.ofOption(properties), direction, legacyTypeSeparator, nc.ofOption(maybeBaseRel))(node.position)
 
-      case FunctionInvocation(namespace, functionName, distinct, args) =>
-        FunctionInvocation(nc.ofSingle(namespace), nc.ofSingle(functionName), distinct, nc.ofSeq(args).toIndexedSeq)(node.position)
+      case FunctionInvocation(namespace, functionName, distinct, args, deprecated) =>
+        FunctionInvocation(nc.ofSingle(namespace), nc.ofSingle(functionName), distinct, nc.ofSeq(args).toIndexedSeq, deprecated)(node.position)
 
       case Namespace(_) => node
 
-      case With(distinct, returnItems, mandatoryGraphReturnItems, orderBy, skip, limit, where) =>
-        With(distinct, nc.ofSingle(returnItems), nc.ofSingle(mandatoryGraphReturnItems), nc.ofOption(orderBy), nc.ofOption(skip), nc.ofOption(limit), nc.ofOption(where))(node.position)
+      case With(distinct, returnItems, orderBy, skip, limit, where) =>
+        With(distinct, nc.ofSingle(returnItems), nc.ofOption(orderBy), nc.ofOption(skip), nc.ofOption(limit), nc.ofOption(where))(node.position)
 
       case MapExpression(items) =>
         MapExpression(nc.ofTupledSeq(items))(node.position)
-
-      case GraphReturnItems(includeExisting, items) =>
-        GraphReturnItems(includeExisting, nc.ofSeq(items))(node.position)
 
       case FilterExpression(scope, expression) =>
         FilterExpression(nc.ofSingle(scope), nc.ofSingle(expression))(node.position)
