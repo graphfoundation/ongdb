@@ -43,9 +43,9 @@ import java.io.StringReader;
 import org.neo4j.consistency.RecordType;
 import org.neo4j.consistency.report.InconsistencyMessageLogger;
 import org.neo4j.consistency.store.synthetic.IndexEntry;
-import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
-import org.neo4j.kernel.impl.store.record.IndexRule;
+import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
+import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
+import org.neo4j.storageengine.api.schema.IndexDescriptorFactory;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
 import org.neo4j.kernel.impl.store.record.PropertyRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipGroupRecord;
@@ -54,6 +54,8 @@ import org.neo4j.logging.FormattedLog;
 import org.neo4j.tools.dump.inconsistency.ReportInconsistencies;
 
 import static org.junit.Assert.assertTrue;
+import static org.neo4j.internal.kernel.api.schema.SchemaUtil.idTokenNameLookup;
+import static org.neo4j.kernel.api.schema.SchemaDescriptorFactory.forLabel;
 
 public class InconsistencyReportReaderTest
 {
@@ -79,10 +81,18 @@ public class InconsistencyReportReaderTest
                 "Some error", "something" );
         logger.error( RecordType.PROPERTY, new PropertyRecord( propertyId ),
                 "Some error", "something" );
-        logger.error( RecordType.INDEX, new IndexEntry( indexNodeId ), "Some index error", "Something wrong with index" );
-        logger.error( RecordType.NODE, new NodeRecord( nodeNotInTheIndexId ), "Some index error",
-                IndexRule.indexRule( indexId, SchemaIndexDescriptorFactory.forLabel( 1, 2 ),
-                        new IndexProvider.Descriptor( "key", "version" ) ).toString() );
+        logger.error( RecordType.INDEX,
+                      new IndexEntry(
+                              IndexDescriptorFactory.forSchema( SchemaDescriptorFactory.forLabel( 1, 1 ) ).withId( indexNodeId ),
+                              idTokenNameLookup,
+                              0
+                      ),
+                      "Some index error",
+                      "Something wrong with index" );
+        logger.error( RecordType.NODE,
+                      new NodeRecord( nodeNotInTheIndexId ),
+                      "Some index error",
+                      IndexDescriptorFactory.forSchema( forLabel( 1, 2 ), new IndexProviderDescriptor( "key", "version" ) ).toString() );
         String text = out.toString();
 
         // WHEN

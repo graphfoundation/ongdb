@@ -43,10 +43,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import org.neo4j.kernel.api.index.IndexProvider;
+import org.neo4j.internal.kernel.api.NamedToken;
+import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
 import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
-import org.neo4j.kernel.impl.core.RelationshipTypeToken;
 import org.neo4j.kernel.impl.store.LabelTokenStore;
 import org.neo4j.kernel.impl.store.NeoStores;
 import org.neo4j.kernel.impl.store.PropertyKeyTokenStore;
@@ -57,8 +56,7 @@ import org.neo4j.kernel.impl.store.kvstore.HeaderField;
 import org.neo4j.kernel.impl.store.kvstore.Headers;
 import org.neo4j.kernel.impl.store.kvstore.ReadableBuffer;
 import org.neo4j.kernel.impl.store.kvstore.WritableBuffer;
-import org.neo4j.kernel.impl.store.record.IndexRule;
-import org.neo4j.internal.kernel.api.Token;
+import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 import org.neo4j.test.rule.SuppressOutput;
 
 import static org.hamcrest.Matchers.allOf;
@@ -85,8 +83,7 @@ public class DumpCountsStoreTest
     private static final String INDEX_PROPERTY = "indexProperty";
 
     private static final long indexId = 0;
-    private static final SchemaIndexDescriptor descriptor =
-            SchemaIndexDescriptorFactory.forLabel( INDEX_LABEL_ID, INDEX_PROPERTY_KEY_ID );
+    private static final IndexDescriptor descriptor = TestIndexDescriptorFactory.forLabel( INDEX_LABEL_ID, INDEX_PROPERTY_KEY_ID );
 
     @Rule
     public SuppressOutput suppressOutput = SuppressOutput.suppressAll();
@@ -168,9 +165,8 @@ public class DumpCountsStoreTest
     private SchemaStorage createSchemaStorage()
     {
         SchemaStorage schemaStorage = mock(SchemaStorage.class);
-        IndexProvider.Descriptor providerDescriptor = new IndexProvider.Descriptor( "in-memory", "1.0" );
-        IndexRule rule = IndexRule.indexRule( indexId, descriptor, providerDescriptor );
-        ArrayList<IndexRule> rules = new ArrayList<>();
+        StoreIndexDescriptor rule = descriptor.withId( indexId );
+        ArrayList<StoreIndexDescriptor> rules = new ArrayList<>();
         rules.add( rule );
 
         when( schemaStorage.indexesGetAll() ).thenReturn( rules.iterator() );
@@ -184,9 +180,9 @@ public class DumpCountsStoreTest
         RelationshipTypeTokenStore typeTokenStore = mock( RelationshipTypeTokenStore.class );
         PropertyKeyTokenStore propertyKeyTokenStore = mock( PropertyKeyTokenStore.class );
 
-        when( labelTokenStore.getTokens( Integer.MAX_VALUE ) ).thenReturn( getLabelTokens() );
-        when( typeTokenStore.getTokens( Integer.MAX_VALUE ) ).thenReturn( getTypeTokes() );
-        when( propertyKeyTokenStore.getTokens( Integer.MAX_VALUE ) ).thenReturn( getPropertyTokens() );
+        when( labelTokenStore.getTokens() ).thenReturn( getLabelTokens() );
+        when( typeTokenStore.getTokens() ).thenReturn( getTypeTokes() );
+        when( propertyKeyTokenStore.getTokens() ).thenReturn( getPropertyTokens() );
 
         when( neoStores.getLabelTokenStore() ).thenReturn( labelTokenStore );
         when( neoStores.getRelationshipTypeTokenStore() ).thenReturn( typeTokenStore );
@@ -195,22 +191,22 @@ public class DumpCountsStoreTest
         return neoStores;
     }
 
-    private List<Token> getPropertyTokens()
+    private List<NamedToken> getPropertyTokens()
     {
-        return Collections.singletonList( new Token( INDEX_PROPERTY, INDEX_PROPERTY_KEY_ID ) );
+        return Collections.singletonList( new NamedToken( INDEX_PROPERTY, INDEX_PROPERTY_KEY_ID ) );
     }
 
-    private List<RelationshipTypeToken> getTypeTokes()
+    private List<NamedToken> getTypeTokes()
     {
-        return Collections.singletonList( new RelationshipTypeToken( TYPE_LABEL, TYPE_ID ) );
+        return Collections.singletonList( new NamedToken( TYPE_LABEL, TYPE_ID ) );
     }
 
-    private List<Token> getLabelTokens()
+    private List<NamedToken> getLabelTokens()
     {
-        return Arrays.asList( new Token( START_LABEL, START_LABEL_ID ),
-                new Token( END_LABEL, END_LABEL_ID ),
-                new Token( INDEX_LABEL, INDEX_LABEL_ID ),
-                new Token( TEST_LABEL, NODE_LABEL_ID ) );
+        return Arrays.asList( new NamedToken( START_LABEL, START_LABEL_ID ),
+                new NamedToken( END_LABEL, END_LABEL_ID ),
+                new NamedToken( INDEX_LABEL, INDEX_LABEL_ID ),
+                new NamedToken( TEST_LABEL, NODE_LABEL_ID ) );
     }
 
     private HeaderField<String> createNamedHeader( String name )

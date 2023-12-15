@@ -59,14 +59,14 @@ import org.neo4j.kernel.api.exceptions.schema.NoSuchConstraintException;
 import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
 import org.neo4j.kernel.api.schema.constraints.ConstraintDescriptorFactory;
 import org.neo4j.kernel.api.schema.constraints.UniquenessConstraintDescriptor;
+import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
 import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
 import org.neo4j.kernel.api.security.AnonymousContext;
 import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
 import org.neo4j.kernel.impl.store.NeoStores;
 import org.neo4j.kernel.impl.store.SchemaStorage;
 import org.neo4j.kernel.impl.store.record.ConstraintRule;
-import org.neo4j.kernel.impl.store.record.IndexRule;
+import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 import org.neo4j.values.storable.Values;
 
 import static java.util.Collections.emptySet;
@@ -77,13 +77,12 @@ import static org.junit.Assert.fail;
 import static org.neo4j.graphdb.Label.label;
 import static org.neo4j.helpers.collection.Iterators.asSet;
 import static org.neo4j.helpers.collection.Iterators.single;
-import static org.neo4j.kernel.impl.api.store.DefaultIndexReference.fromDescriptor;
 
 public class UniquenessConstraintCreationIT
         extends AbstractConstraintCreationIT<ConstraintDescriptor,LabelSchemaDescriptor>
 {
     private static final String DUPLICATED_VALUE = "apa";
-    private SchemaIndexDescriptor uniqueIndex;
+    private IndexDescriptor uniqueIndex;
 
     @Override
     int initializeLabelOrRelType( TokenWrite tokenWrite, String name ) throws KernelException
@@ -138,7 +137,7 @@ public class UniquenessConstraintCreationIT
     @Override
     LabelSchemaDescriptor makeDescriptor( int typeId, int propertyKeyId )
     {
-        uniqueIndex = SchemaIndexDescriptorFactory.uniqueForLabel( typeId, propertyKeyId );
+        uniqueIndex = TestIndexDescriptorFactory.uniqueForLabel( typeId, propertyKeyId );
         return SchemaDescriptorFactory.forLabel( typeId, propertyKeyId );
     }
 
@@ -196,7 +195,7 @@ public class UniquenessConstraintCreationIT
 
         // then
         Transaction transaction = newTransaction();
-        assertEquals( asSet( fromDescriptor( uniqueIndex ) ), asSet( transaction.schemaRead().indexesGetAll() ) );
+        assertEquals( asSet( uniqueIndex ), asSet( transaction.schemaRead().indexesGetAll() ) );
         commit();
     }
 
@@ -206,7 +205,7 @@ public class UniquenessConstraintCreationIT
         // given
         Transaction transaction = newTransaction( LoginContext.AUTH_DISABLED );
         transaction.schemaWrite().uniquePropertyConstraintCreate( descriptor );
-        assertEquals( asSet( fromDescriptor( uniqueIndex ) ), asSet( transaction.schemaRead().indexesGetAll() ) );
+        assertEquals( asSet( uniqueIndex ), asSet( transaction.schemaRead().indexesGetAll() ) );
 
         // when
         rollback();
@@ -265,7 +264,7 @@ public class UniquenessConstraintCreationIT
 
         // then
         SchemaStorage schema = new SchemaStorage( neoStores().getSchemaStore() );
-        IndexRule indexRule = schema.indexGetForSchema( SchemaIndexDescriptorFactory
+        StoreIndexDescriptor indexRule = schema.indexGetForSchema( TestIndexDescriptorFactory
                 .uniqueForLabel( typeId, propertyKeyId ) );
         ConstraintRule constraintRule = schema.constraintsGetSingle(
                 ConstraintDescriptorFactory.uniqueForLabel( typeId, propertyKeyId ) );
@@ -285,7 +284,7 @@ public class UniquenessConstraintCreationIT
         Transaction transaction = newTransaction( LoginContext.AUTH_DISABLED );
         ConstraintDescriptor constraint =
                 transaction.schemaWrite().uniquePropertyConstraintCreate( descriptor );
-        assertEquals( asSet( fromDescriptor( uniqueIndex ) ), asSet( transaction.schemaRead().indexesGetAll() ) );
+        assertEquals( asSet( uniqueIndex ), asSet( transaction.schemaRead().indexesGetAll() ) );
         commit();
 
         // when

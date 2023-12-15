@@ -43,15 +43,17 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.neo4j.internal.kernel.api.NamedToken;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
 import org.neo4j.kernel.api.StatementConstants;
+import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.storageengine.api.schema.IndexDescriptor;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.api.CountsVisitor;
-import org.neo4j.kernel.impl.core.RelationshipTypeToken;
 import org.neo4j.kernel.impl.store.NeoStores;
 import org.neo4j.kernel.impl.store.SchemaStorage;
 import org.neo4j.kernel.impl.store.StoreFactory;
@@ -63,20 +65,20 @@ import org.neo4j.kernel.impl.store.kvstore.Headers;
 import org.neo4j.kernel.impl.store.kvstore.MetadataVisitor;
 import org.neo4j.kernel.impl.store.kvstore.ReadableBuffer;
 import org.neo4j.kernel.impl.store.kvstore.UnknownKey;
-import org.neo4j.kernel.impl.store.record.IndexRule;
 import org.neo4j.kernel.lifecycle.Lifespan;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.NullLogProvider;
-import org.neo4j.internal.kernel.api.Token;
+import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 
 import static org.neo4j.io.pagecache.impl.muninn.StandalonePageCacheFactory.createPageCache;
+import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createInitialisedScheduler;
 
 /**
  * Tool that will dump content of count store content into a simple string representation for further analysis.
  */
 public class DumpCountsStore implements CountsVisitor, MetadataVisitor, UnknownKey.Visitor
 {
-    public static void main( String... args ) throws IOException
+    public static void main( String... args ) throws Exception
     {
         if ( args.length != 1 )
         {
@@ -89,16 +91,17 @@ public class DumpCountsStore implements CountsVisitor, MetadataVisitor, UnknownK
         }
     }
 
-    public static void dumpCountsStore( FileSystemAbstraction fs, File path, PrintStream out ) throws IOException
+    public static void dumpCountsStore( FileSystemAbstraction fs, File path, PrintStream out ) throws Exception
     {
-        try ( PageCache pages = createPageCache( fs );
+        try ( JobScheduler jobScheduler = createInitialisedScheduler();
+              PageCache pages = createPageCache( fs, jobScheduler );
               Lifespan life = new Lifespan() )
         {
             NullLogProvider logProvider = NullLogProvider.getInstance();
             Config config = Config.defaults();
             if ( fs.isDirectory( path ) )
             {
-                StoreFactory factory = new StoreFactory( path, Config.defaults(), new DefaultIdGeneratorFactory( fs ),
+                StoreFactory factory = new StoreFactory( DatabaseLayout.of( path ), Config.defaults(), new DefaultIdGeneratorFactory( fs ),
                         pages, fs, logProvider, EmptyVersionContextSupplier.EMPTY );
 
                 NeoStores neoStores = factory.openAllNeoStores();
@@ -108,7 +111,7 @@ public class DumpCountsStore implements CountsVisitor, MetadataVisitor, UnknownK
             else
             {
                 VisitableCountsTracker tracker = new VisitableCountsTracker(
-                        logProvider, fs, pages, config, path );
+                        logProvider, fs, pages, config, DatabaseLayout.of( path.getParentFile() ) );
                 if ( fs.fileExists( path ) )
                 {
                     tracker.visitFile( path, new DumpCountsStore( out ) );
@@ -135,14 +138,14 @@ public class DumpCountsStore implements CountsVisitor, MetadataVisitor, UnknownK
     }
 
     private final PrintStream out;
-    private final Map<Long,SchemaIndexDescriptor> indexes;
-    private final List<Token> labels;
-    private final List<RelationshipTypeToken> relationshipTypes;
-    private final List<Token> propertyKeys;
+    private final Map<Long,IndexDescriptor> indexes;
+    private final List<NamedToken> labels;
+    private final List<NamedToken> relationshipTypes;
+    private final List<NamedToken> propertyKeys;
 
-    private DumpCountsStore( PrintStream out, Map<Long,SchemaIndexDescriptor> indexes, List<Token> labels,
-                             List<RelationshipTypeToken> relationshipTypes,
-                             List<Token> propertyKeys )
+    private DumpCountsStore( PrintStream out, Map<Long,IndexDescriptor> indexes, List<NamedToken> labels,
+                             List<NamedToken> relationshipTypes,
+                             List<NamedToken> propertyKeys )
     {
         this.out = out;
         this.indexes = indexes;
@@ -180,7 +183,7 @@ public class DumpCountsStore implements CountsVisitor, MetadataVisitor, UnknownK
     @Override
     public void visitIndexStatistics( long indexId, long updates, long size )
     {
-        SchemaIndexDescriptor index = indexes.get( indexId );
+        IndexDescriptor index = indexes.get( indexId );
         out.printf( "\tIndexStatistics[(%s {%s})]:\tupdates=%d, size=%d%n",
                 label( index.schema().keyId() ), propertyKeys( index.schema().getPropertyIds() ), updates, size );
     }
@@ -188,7 +191,7 @@ public class DumpCountsStore implements CountsVisitor, MetadataVisitor, UnknownK
     @Override
     public void visitIndexSample( long indexId, long unique, long size )
     {
-        SchemaIndexDescriptor index = indexes.get( indexId );
+        IndexDescriptor index = indexes.get( indexId );
         out.printf( "\tIndexSample[(%s {%s})]:\tunique=%d, size=%d%n",
                 label( index.schema().keyId() ), propertyKeys( index.schema().getPropertyIds() ), unique, size );
     }
@@ -232,9 +235,9 @@ public class DumpCountsStore implements CountsVisitor, MetadataVisitor, UnknownK
         return token( new StringBuilder().append( '[' ), relationshipTypes, ":", "type", id ).append( ']' ).toString();
     }
 
-    private static StringBuilder token( StringBuilder result, List<? extends Token> tokens, String pre, String handle, int id )
+    private static StringBuilder token( StringBuilder result, List<NamedToken> tokens, String pre, String handle, int id )
     {
-        Token token = null;
+        NamedToken token = null;
         // search backwards for the token
         for ( int i = (id < tokens.size()) ? id : tokens.size() - 1; i >= 0; i-- )
         {
@@ -262,22 +265,22 @@ public class DumpCountsStore implements CountsVisitor, MetadataVisitor, UnknownK
         return result;
     }
 
-    private static <TOKEN extends Token> List<TOKEN> allTokensFrom( TokenStore<?, TOKEN> store )
+    private static List<NamedToken> allTokensFrom( TokenStore<?> store )
     {
-        try ( TokenStore<?, TOKEN> tokens = store )
+        try ( TokenStore<?> tokens = store )
         {
-            return tokens.getTokens( Integer.MAX_VALUE );
+            return tokens.getTokens();
         }
     }
 
-    private static Map<Long,SchemaIndexDescriptor> getAllIndexesFrom( SchemaStorage storage )
+    private static Map<Long,IndexDescriptor> getAllIndexesFrom( SchemaStorage storage )
     {
-        HashMap<Long,SchemaIndexDescriptor> indexes = new HashMap<>();
-        Iterator<IndexRule> indexRules = storage.indexesGetAll();
+        HashMap<Long,IndexDescriptor> indexes = new HashMap<>();
+        Iterator<StoreIndexDescriptor> indexRules = storage.indexesGetAll();
         while ( indexRules.hasNext() )
         {
-            IndexRule rule = indexRules.next();
-            indexes.put( rule.getId(), rule.getIndexDescriptor() );
+            StoreIndexDescriptor rule = indexRules.next();
+            indexes.put( rule.getId(), rule );
         }
         return indexes;
     }
@@ -286,9 +289,9 @@ public class DumpCountsStore implements CountsVisitor, MetadataVisitor, UnknownK
     {
 
         VisitableCountsTracker( LogProvider logProvider, FileSystemAbstraction fs,
-                PageCache pages, Config config, File baseFile )
+                PageCache pages, Config config, DatabaseLayout databaseLayout )
         {
-            super( logProvider, fs, pages, config, baseFile, EmptyVersionContextSupplier.EMPTY );
+            super( logProvider, fs, pages, config, databaseLayout, EmptyVersionContextSupplier.EMPTY );
         }
 
         @Override
