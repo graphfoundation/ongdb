@@ -41,13 +41,12 @@ import org.neo4j.causalclustering.catchup.CatchupAddressProvider;
 import org.neo4j.causalclustering.core.state.CommandApplicationProcess;
 import org.neo4j.causalclustering.helper.TimeoutStrategy;
 import org.neo4j.kernel.internal.DatabaseHealth;
-import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
-import org.neo4j.scheduler.JobScheduler.JobHandle;
-
-import static org.neo4j.scheduler.JobScheduler.Groups.downloadSnapshot;
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobHandle;
+import org.neo4j.scheduler.JobScheduler;
 
 public class CoreStateDownloaderService extends LifecycleAdapter
 {
@@ -83,7 +82,7 @@ public class CoreStateDownloaderService extends LifecycleAdapter
         {
             currentJob = new PersistentSnapshotDownloader( addressProvider, applicationProcess, downloader, log,
                     downloaderPauseStrategy, dbHealth );
-            jobHandle = jobScheduler.schedule( downloadSnapshot, currentJob );
+            jobHandle = jobScheduler.schedule( Group.DOWNLOAD_SNAPSHOT, currentJob );
             return Optional.of( jobHandle );
         }
         return Optional.of( jobHandle );

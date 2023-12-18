@@ -66,10 +66,10 @@ import org.neo4j.causalclustering.protocol.handshake.ApplicationSupportedProtoco
 import org.neo4j.causalclustering.protocol.handshake.HandshakeServerInitializer;
 import org.neo4j.causalclustering.protocol.handshake.ModifierProtocolRepository;
 import org.neo4j.causalclustering.protocol.handshake.ModifierSupportedProtocols;
-import org.neo4j.helpers.ListenSocketAddress;
 import org.neo4j.graphdb.factory.module.PlatformModule;
+import org.neo4j.helpers.ListenSocketAddress;
 import org.neo4j.logging.LogProvider;
-import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.scheduler.Group;
 
 import static java.util.Collections.singletonList;
 
@@ -161,7 +161,7 @@ class RaftServerModule
         int queueSize = platformModule.config.get( CausalClusteringSettings.raft_in_queue_size );
         int maxBatch = platformModule.config.get( CausalClusteringSettings.raft_in_queue_max_batch );
         Function<Runnable, ContinuousJob> jobFactory = runnable ->
-                new ContinuousJob( platformModule.jobScheduler.threadFactory( new JobScheduler.Group( "raft-batch-handler" ) ), runnable, logProvider );
+                new ContinuousJob( platformModule.jobScheduler.threadFactory( Group.RAFT_BATCH_HANDLER ), runnable, logProvider );
         ComposableMessageHandler batchingMessageHandler = BatchingMessageHandler.composable( queueSize, maxBatch, jobFactory, logProvider );
 
         ComposableMessageHandler leaderAvailabilityHandler =

@@ -43,18 +43,20 @@ import java.util.concurrent.locks.LockSupport;
 import org.neo4j.kernel.impl.scheduler.CentralJobScheduler;
 import org.neo4j.kernel.lifecycle.Lifespan;
 import org.neo4j.logging.NullLogProvider;
-import org.neo4j.scheduler.JobScheduler.Group;
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobScheduler;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createInitialisedScheduler;
 
 public class ContinuousJobTest
 {
     private static final long DEFAULT_TIMEOUT_MS = 15_000;
-    private final Group jobGroup = new Group( "test" );
-    private final CentralJobScheduler scheduler = new CentralJobScheduler();
+    private final Group jobGroup = Group.RAFT_BATCH_HANDLER;
+    private final JobScheduler scheduler = createInitialisedScheduler();
 
     @Test
     public void shouldRunJobContinuously() throws Throwable

@@ -35,7 +35,6 @@
 package org.neo4j.causalclustering.core.consensus.log.pruning;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static org.neo4j.scheduler.JobScheduler.Groups.raftLogPruning;
 
 import java.io.IOException;
 import java.util.function.BooleanSupplier;
@@ -43,6 +42,8 @@ import java.util.function.BooleanSupplier;
 import org.neo4j.causalclustering.core.state.RaftLogPruner;
 import org.neo4j.function.Predicates;
 import org.neo4j.kernel.impl.store.UnderlyingStorageException;
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobHandle;
 import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.logging.Log;
@@ -80,13 +81,13 @@ public class PruningScheduler extends LifecycleAdapter
             // reschedule only if it is not stopped
             if ( !stopped )
             {
-                handle = scheduler.schedule( raftLogPruning, job, recurringPeriodMillis, MILLISECONDS );
+                handle = scheduler.schedule( Group.RAFT_LOG_PRUNING, job, recurringPeriodMillis, MILLISECONDS );
             }
         }
     };
     private final Log log;
 
-    private volatile JobScheduler.JobHandle handle;
+    private volatile JobHandle handle;
     private volatile boolean stopped;
     private volatile boolean checkPointing;
     private final BooleanSupplier checkPointingCondition = new BooleanSupplier()
@@ -110,7 +111,7 @@ public class PruningScheduler extends LifecycleAdapter
     @Override
     public void start()
     {
-        handle = scheduler.schedule( raftLogPruning, job, recurringPeriodMillis, MILLISECONDS );
+        handle = scheduler.schedule( Group.RAFT_LOG_PRUNING, job, recurringPeriodMillis, MILLISECONDS );
     }
 
     @Override

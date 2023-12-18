@@ -46,6 +46,8 @@ import org.neo4j.helpers.AdvertisedSocketAddress;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobHandle;
 import org.neo4j.scheduler.JobScheduler;
 
 import static java.util.Collections.emptyMap;
@@ -76,9 +78,9 @@ public class HazelcastClient extends AbstractTopologyService
     //TODO: Work out error handling in case cluster hosts change their dbName unexpectedly
     private final String dbName;
 
-    private JobScheduler.JobHandle keepAliveJob;
-    private JobScheduler.JobHandle refreshTopologyJob;
-    private JobScheduler.JobHandle refreshRolesJob;
+    private JobHandle keepAliveJob;
+    private JobHandle refreshTopologyJob;
+    private JobHandle refreshRolesJob;
 
     private volatile Map<MemberId,AdvertisedSocketAddress> catchupAddressMap = new HashMap<>();
     private volatile CoreTopology coreTopology = CoreTopology.EMPTY;
@@ -164,8 +166,8 @@ public class HazelcastClient extends AbstractTopologyService
     @Override
     public void start()
     {
-        keepAliveJob = scheduler.scheduleRecurring( "KeepAlive", timeToLive / 3, this::keepReadReplicaAlive );
-        refreshTopologyJob = scheduler.scheduleRecurring( "TopologyRefresh", refreshPeriod, () -> {
+        keepAliveJob = scheduler.scheduleRecurring( Group.HZ_TOPOLOGY_KEEP_ALIVE, timeToLive / 3, this::keepReadReplicaAlive );
+        refreshTopologyJob = scheduler.scheduleRecurring( Group.HZ_TOPOLOGY_REFRESH, refreshPeriod, () -> {
             this.refreshTopology();
             this.refreshRoles();
         } );

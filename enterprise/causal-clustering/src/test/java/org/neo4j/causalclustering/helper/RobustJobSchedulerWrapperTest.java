@@ -41,16 +41,18 @@ import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.neo4j.scheduler.JobScheduler;
-import org.neo4j.scheduler.JobScheduler.JobHandle;
 import org.neo4j.kernel.impl.scheduler.CentralJobScheduler;
 import org.neo4j.kernel.lifecycle.LifeRule;
 import org.neo4j.logging.Log;
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobHandle;
+import org.neo4j.scheduler.JobScheduler;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
+import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createInitialisedScheduler;
 import static org.neo4j.test.assertion.Assert.assertEventually;
 
 public class RobustJobSchedulerWrapperTest
@@ -59,7 +61,7 @@ public class RobustJobSchedulerWrapperTest
 
     @Rule
     public LifeRule schedulerLife = new LifeRule( true );
-    private final JobScheduler actualScheduler = new CentralJobScheduler();
+    private final JobScheduler actualScheduler = createInitialisedScheduler();
 
     private final Log log = mock( Log.class );
 
@@ -80,7 +82,7 @@ public class RobustJobSchedulerWrapperTest
         IllegalStateException e = new IllegalStateException();
 
         // when
-        JobHandle jobHandle = robustWrapper.schedule( "JobName", 100, () ->
+        JobHandle jobHandle = robustWrapper.schedule( Group.HZ_TOPOLOGY_HEALTH, 100, () ->
                 {
                     count.incrementAndGet();
                     throw e;
@@ -104,7 +106,7 @@ public class RobustJobSchedulerWrapperTest
 
         // when
         int nRuns = 100;
-        JobHandle jobHandle = robustWrapper.scheduleRecurring( "JobName", 1, () ->
+        JobHandle jobHandle = robustWrapper.scheduleRecurring( Group.HZ_TOPOLOGY_REFRESH, 1, () ->
                 {
                     if ( count.get() < nRuns )
                     {
@@ -130,7 +132,7 @@ public class RobustJobSchedulerWrapperTest
         Error e = new Error();
 
         // when
-        JobHandle jobHandle = robustWrapper.scheduleRecurring( "JobName", 1, () ->
+        JobHandle jobHandle = robustWrapper.scheduleRecurring( Group.HZ_TOPOLOGY_REFRESH, 1, () ->
                 {
                     count.incrementAndGet();
                     throw e;

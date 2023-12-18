@@ -49,6 +49,8 @@ import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobHandle;
 import org.neo4j.scheduler.JobScheduler;
 
 import static java.util.concurrent.TimeUnit.MINUTES;
@@ -88,7 +90,7 @@ public class SegmentedRaftLog extends LifecycleAdapter implements RaftLog
 
     private State state;
     private final ReaderPool readerPool;
-    private JobScheduler.JobHandle readerPoolPruner;
+    private JobHandle readerPoolPruner;
 
     public SegmentedRaftLog( FileSystemAbstraction fileSystem, File directory, long rotateAtSize,
             ChannelMarshal<ReplicatedContent> contentMarshal, LogProvider logProvider, int readerPoolSize, Clock clock,
@@ -130,7 +132,7 @@ public class SegmentedRaftLog extends LifecycleAdapter implements RaftLog
             rotateSegment( state.appendIndex, state.appendIndex, state.terms.latest() );
         }
 
-        readerPoolPruner = scheduler.scheduleRecurring( new JobScheduler.Group( "reader-pool-pruner" ),
+        readerPoolPruner = scheduler.scheduleRecurring( Group.RAFT_READER_POOL_PRUNER,
                 () -> readerPool.prune( READER_POOL_MAX_AGE, MINUTES ), READER_POOL_MAX_AGE, READER_POOL_MAX_AGE, MINUTES );
     }
 

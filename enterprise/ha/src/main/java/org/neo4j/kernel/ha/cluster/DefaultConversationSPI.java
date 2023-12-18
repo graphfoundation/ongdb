@@ -37,6 +37,8 @@ package org.neo4j.kernel.ha.cluster;
 import java.util.concurrent.TimeUnit;
 
 import org.neo4j.kernel.impl.locking.Locks;
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobHandle;
 import org.neo4j.scheduler.JobScheduler;
 
 /**
@@ -60,7 +62,7 @@ public class DefaultConversationSPI implements ConversationSPI
     }
 
     @Override
-    public JobScheduler.JobHandle scheduleRecurringJob( JobScheduler.Group group, long interval, Runnable job )
+    public JobHandle scheduleRecurringJob( Group group, long interval, Runnable job )
     {
         return jobScheduler.scheduleRecurring( group, job, interval, TimeUnit.MILLISECONDS);
     }

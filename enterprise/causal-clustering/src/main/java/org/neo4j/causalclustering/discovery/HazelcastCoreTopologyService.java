@@ -34,15 +34,6 @@
  */
 package org.neo4j.causalclustering.discovery;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-
 import com.hazelcast.config.InterfacesConfig;
 import com.hazelcast.config.JoinConfig;
 import com.hazelcast.config.MemberAttributeConfig;
@@ -55,6 +46,15 @@ import com.hazelcast.core.MemberAttributeEvent;
 import com.hazelcast.core.MembershipEvent;
 import com.hazelcast.core.MembershipListener;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
 import org.neo4j.causalclustering.core.CausalClusteringSettings;
 import org.neo4j.causalclustering.core.consensus.LeaderInfo;
 import org.neo4j.causalclustering.helper.RobustJobSchedulerWrapper;
@@ -65,6 +65,8 @@ import org.neo4j.helpers.ListenSocketAddress;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobHandle;
 import org.neo4j.scheduler.JobScheduler;
 
 import static com.hazelcast.spi.properties.GroupProperty.INITIAL_MIN_CLUSTER_SIZE;
@@ -99,7 +101,7 @@ public class HazelcastCoreTopologyService extends AbstractTopologyService implem
     private final String localDBName;
 
     private String membershipRegistrationId;
-    private JobScheduler.JobHandle refreshJob;
+    private JobHandle refreshJob;
 
     private final AtomicReference<LeaderInfo> leaderInfo = new AtomicReference<>( LeaderInfo.INITIAL );
     private final AtomicReference<Optional<LeaderInfo>> stepDownInfo = new AtomicReference<>( Optional.empty() );
@@ -220,7 +222,7 @@ public class HazelcastCoreTopologyService extends AbstractTopologyService implem
             }
             membershipRegistrationId =
                     hazelcastInstance.getCluster().addMembershipListener( new OurMembershipListener() );
-            refreshJob = scheduler.scheduleRecurring( "TopologyRefresh", refreshPeriod,
+            refreshJob = scheduler.scheduleRecurring( Group.HZ_TOPOLOGY_REFRESH, refreshPeriod,
                     HazelcastCoreTopologyService.this::refreshTopology );
             log.info( "Cluster discovery service started" );
         } );
@@ -327,7 +329,7 @@ public class HazelcastCoreTopologyService extends AbstractTopologyService implem
         c.setMemberAttributeConfig( memberAttributeConfig );
         logConnectionInfo( initialMembers );
 
-        JobScheduler.JobHandle logJob = scheduler.schedule( "HazelcastHealth", HAZELCAST_IS_HEALTHY_TIMEOUT_MS,
+        JobHandle logJob = scheduler.schedule( Group.HZ_TOPOLOGY_HEALTH, HAZELCAST_IS_HEALTHY_TIMEOUT_MS,
                 () -> log.warn( "The server has not been able to connect in a timely fashion to the " +
                                 "cluster. Please consult the logs for more details. Rebooting the server may " +
                                 "solve the problem." ) );
