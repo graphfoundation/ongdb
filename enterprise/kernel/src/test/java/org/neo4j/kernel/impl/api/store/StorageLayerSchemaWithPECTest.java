@@ -46,6 +46,7 @@ import org.neo4j.helpers.collection.Iterators;
 import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
 import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
 import org.neo4j.kernel.api.schema.constraints.ConstraintDescriptorFactory;
+import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageReaderTestBase;
 import org.neo4j.test.TestEnterpriseGraphDatabaseFactory;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -53,7 +54,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.neo4j.helpers.collection.Iterators.asSet;
 
-public class StorageLayerSchemaWithPECTest extends StorageLayerTest
+public class StorageLayerSchemaWithPECTest extends RecordStorageReaderTestBase
 {
     @Override
     protected GraphDatabaseService createGraphDatabase()
@@ -76,7 +77,7 @@ public class StorageLayerSchemaWithPECTest extends StorageLayerTest
         SchemaHelper.awaitIndexes( db );
 
         // When
-        Set<ConstraintDescriptor> constraints = asSet( disk.constraintsGetAll() );
+        Set<ConstraintDescriptor> constraints = asSet( storageReader.constraintsGetAll() );
 
         // Then
         int labelId1 = labelId( label1 );
@@ -109,7 +110,7 @@ public class StorageLayerSchemaWithPECTest extends StorageLayerTest
         SchemaHelper.awaitIndexes( db );
 
         // When
-        Set<ConstraintDescriptor> constraints = asSet( disk.constraintsGetForLabel( labelId( label1 ) ) );
+        Set<ConstraintDescriptor> constraints = asSet( storageReader.constraintsGetForLabel( labelId( label1 ) ) );
 
         // Then
         Set<ConstraintDescriptor> expectedConstraints = asSet(
@@ -135,7 +136,7 @@ public class StorageLayerSchemaWithPECTest extends StorageLayerTest
         SchemaHelper.awaitIndexes( db );
 
         // When
-        Set<ConstraintDescriptor> constraints = asSet( disk.constraintsGetForSchema(
+        Set<ConstraintDescriptor> constraints = asSet( storageReader.constraintsGetForSchema(
                 SchemaDescriptorFactory.forLabel( labelId( label1 ), propertyKeyId( propertyKey ) ) ) );
 
         // Then
@@ -156,7 +157,7 @@ public class StorageLayerSchemaWithPECTest extends StorageLayerTest
 
         // When
         Set<ConstraintDescriptor> constraints = asSet(
-                disk.constraintsGetForRelationshipType( relationshipTypeId( relType2 ) ) );
+                storageReader.constraintsGetForRelationshipType( relationshipTypeId( relType2 ) ) );
 
         // Then
         Set<ConstraintDescriptor> expectedConstraints = Iterators.asSet(
@@ -180,7 +181,7 @@ public class StorageLayerSchemaWithPECTest extends StorageLayerTest
         int relTypeId = relationshipTypeId( relType1 );
         int propKeyId = propertyKeyId( propertyKey );
         Set<ConstraintDescriptor> constraints = asSet(
-                disk.constraintsGetForSchema( SchemaDescriptorFactory.forRelType( relTypeId, propKeyId ) ) );
+                storageReader.constraintsGetForSchema( SchemaDescriptorFactory.forRelType( relTypeId, propKeyId ) ) );
 
         // Then
         Set<ConstraintDescriptor> expectedConstraints = Iterators.asSet(
