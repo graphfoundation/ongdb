@@ -131,14 +131,14 @@ public class MembershipWaiter
             else
             {
                 currentCatchupDelayInMs += SECONDS.toMillis( 1 );
-                long longerDelay = currentCatchupDelayInMs < maxCatchupLag ? currentCatchupDelayInMs : maxCatchupLag;
+                long longerDelay = Math.min( currentCatchupDelayInMs, maxCatchupLag );
                 jobScheduler.schedule( Group.MEMBERSHIP_WAITER, this, longerDelay, MILLISECONDS );
             }
         }
 
         private boolean iAmAVotingMember()
         {
-            Set votingMembers = raft.state().votingMembers();
+            Set<MemberId> votingMembers = raft.state().votingMembers();
             boolean votingMember = votingMembers.contains( myself );
             if ( !votingMember )
             {
