@@ -71,7 +71,6 @@ public class LocalDatabase implements Lifecycle
     private final Supplier<DatabaseHealth> databaseHealthSupplier;
     private final AvailabilityGuard availabilityGuard;
     private final Log log;
-    private final FileSystemWatcherService watcherService;
 
     private volatile StoreId storeId;
     private volatile DatabaseHealth databaseHealth;
@@ -85,7 +84,6 @@ public class LocalDatabase implements Lifecycle
             LogFiles logFiles,
             DataSourceManager dataSourceManager,
             Supplier<DatabaseHealth> databaseHealthSupplier,
-            FileSystemWatcherService watcherService,
             AvailabilityGuard availabilityGuard,
             LogProvider logProvider )
     {
@@ -95,7 +93,6 @@ public class LocalDatabase implements Lifecycle
         this.dataSourceManager = dataSourceManager;
         this.databaseHealthSupplier = databaseHealthSupplier;
         this.availabilityGuard = availabilityGuard;
-        this.watcherService = watcherService;
         this.log = logProvider.getLog( getClass() );
         raiseAvailabilityGuard( NOT_STOPPED );
     }
@@ -104,7 +101,6 @@ public class LocalDatabase implements Lifecycle
     public void init() throws Throwable
     {
         dataSourceManager.init();
-        watcherService.init();
     }
 
     @Override
@@ -118,7 +114,6 @@ public class LocalDatabase implements Lifecycle
         log.info( "Starting with storeId: " + storeId );
 
         dataSourceManager.start();
-        watcherService.start();
 
         dropAvailabilityGuard();
     }
@@ -148,7 +143,6 @@ public class LocalDatabase implements Lifecycle
     @Override
     public void shutdown() throws Throwable
     {
-        watcherService.shutdown();
         dataSourceManager.shutdown();
     }
 
@@ -242,7 +236,6 @@ public class LocalDatabase implements Lifecycle
         raiseAvailabilityGuard( requirement );
         databaseHealth = null;
         localCommit = null;
-        watcherService.stop();
         dataSourceManager.stop();
     }
 

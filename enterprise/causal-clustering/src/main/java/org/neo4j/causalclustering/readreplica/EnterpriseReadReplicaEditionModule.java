@@ -102,10 +102,10 @@ import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.net.NetworkConnectionTracker;
 import org.neo4j.kernel.availability.DatabaseAvailability;
-import org.neo4j.kernel.api.bolt.BoltConnectionTracker;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.ssl.SslPolicyLoader;
 import org.neo4j.kernel.enterprise.builtinprocs.EnterpriseBuiltInDbmsProcedures;
@@ -174,15 +174,18 @@ public class EnterpriseReadReplicaEditionModule extends EnterpriseEditionModule
         Config config = platformModule.config;
         FileSystemAbstraction fileSystem = platformModule.fileSystem;
         PageCache pageCache = platformModule.pageCache;
-        File storeDir = platformModule.storeDir;
+        DatabaseLayout databaseLayout = platformModule.storeLayout.databaseLayout( config.get( GraphDatabaseSettings.active_database ) );
+        File storeDir = databaseLayout.getStoreLayout().storeDirectory();
         LifeSupport life = platformModule.life;
 
         eligibleForIdReuse = IdReuseEligibility.ALWAYS;
 
         this.accessCapability = new ReadOnly();
 
-        watcherService = createFileSystemWatcherService( fileSystem, storeDir, logging, platformModule.jobScheduler, config, fileWatcherFileNameFilter() );
-        dependencies.satisfyDependencies( watcherService );
+        watcherServiceFactory =
+                databaseDirectory -> createFileSystemWatcherService( fileSystem, databaseDirectory, logging, platformModule.jobScheduler, config,
+                                                                     fileWatcherFileNameFilter() );
+        dependencies.satisfyDependencies( watcherServiceFactory );
 
         GraphDatabaseFacade graphDatabaseFacade = platformModule.graphDatabaseFacade;
 
@@ -286,9 +289,9 @@ public class EnterpriseReadReplicaEditionModule extends EnterpriseEditionModule
         LogFiles logFiles = buildLocalDatabaseLogFiles( platformModule, fileSystem, storeDir, config );
 
         LocalDatabase localDatabase =
-                new LocalDatabase( platformModule.storeDir, storeFiles, logFiles, platformModule.dataSourceManager,
-                        databaseHealthSupplier,
-                        watcherService, platformModule.availabilityGuard, logProvider );
+                new LocalDatabase( databaseLayout, storeFiles, logFiles, platformModule.dataSourceManager,
+                                   databaseHealthSupplier, getGlobalAvailabilityGuard( platformModule.clock, platformModule.logging, platformModule.config ),
+                                   logProvider );
 
         ExponentialBackoffStrategy storeCopyBackoffStrategy =
                 new ExponentialBackoffStrategy( 1, config.get( CausalClusteringSettings.store_copy_backoff_max_wait ).toMillis(), TimeUnit.MILLISECONDS );
