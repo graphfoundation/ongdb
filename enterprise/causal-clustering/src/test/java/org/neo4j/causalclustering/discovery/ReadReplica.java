@@ -46,7 +46,7 @@ import org.neo4j.causalclustering.identity.MemberId;
 import org.neo4j.causalclustering.readreplica.ReadReplicaGraphDatabase;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.AdvertisedSocketAddress;
-import org.neo4j.kernel.GraphDatabaseDependencies;
+import org.neo4j.graphdb.facade.GraphDatabaseDependencies;
 import org.neo4j.kernel.configuration.BoltConnector;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.HttpConnector;

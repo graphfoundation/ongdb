@@ -40,7 +40,7 @@ import java.util.Map;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.factory.GraphDatabaseBuilder;
 import org.neo4j.graphdb.factory.GraphDatabaseFactoryState;
-import org.neo4j.kernel.GraphDatabaseDependencies;
+import org.neo4j.graphdb.facade.GraphDatabaseDependencies;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.enterprise.EnterpriseEditionModule;
 import org.neo4j.kernel.impl.factory.DatabaseInfo;

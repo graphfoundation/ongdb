@@ -67,7 +67,7 @@ import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.FileUtils;
-import org.neo4j.kernel.GraphDatabaseDependencies;
+import org.neo4j.graphdb.facade.GraphDatabaseDependencies;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.configuration.BoltConnector;
 import org.neo4j.kernel.configuration.Config;
