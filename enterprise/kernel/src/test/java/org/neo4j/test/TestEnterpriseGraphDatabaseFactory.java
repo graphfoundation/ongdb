@@ -41,16 +41,15 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.factory.GraphDatabaseBuilder;
 import org.neo4j.graphdb.factory.GraphDatabaseFactoryState;
 import org.neo4j.graphdb.facade.GraphDatabaseDependencies;
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.enterprise.EnterpriseEditionModule;
 import org.neo4j.kernel.impl.factory.DatabaseInfo;
 import org.neo4j.kernel.impl.factory.Edition;
-import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
 import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
 import org.neo4j.graphdb.factory.module.PlatformModule;
 import  org.neo4j.logging.internal.LogService;
 import org.neo4j.logging.internal.SimpleLogService;
-import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.logging.LogProvider;
 
 /**
@@ -69,41 +68,40 @@ public class TestEnterpriseGraphDatabaseFactory extends TestGraphDatabaseFactory
     }
 
     @Override
-    protected GraphDatabaseBuilder.DatabaseCreator createDatabaseCreator( File storeDir,
-                                                                          GraphDatabaseFactoryState state )
+    protected GraphDatabaseBuilder.DatabaseCreator createDatabaseCreator( File storeDir, GraphDatabaseFactoryState state )
     {
-        return params ->
+        return new GraphDatabaseBuilder.DatabaseCreator()
         {
-            Config config = Config.builder()
-                    .withSettings( params )
-                    .withSetting( GraphDatabaseFacadeFactory.Configuration.ephemeral, "false" ).build();
-            return new GraphDatabaseFacadeFactory( DatabaseInfo.ENTERPRISE, EnterpriseEditionModule::new )
+            @Override
+            public GraphDatabaseService newDatabase( Config config )
             {
-                @Override
-                protected PlatformModule createPlatform( File storeDir, Config config,
-                                                         Dependencies dependencies,
-                                                         GraphDatabaseFacade graphDatabaseFacade )
+                config.augment( GraphDatabaseSettings.ephemeral, "false" );
+
+                return new GraphDatabaseFacadeFactory( DatabaseInfo.ENTERPRISE, EnterpriseEditionModule::new )
                 {
-                    return new PlatformModule( storeDir, config, databaseInfo, dependencies, graphDatabaseFacade )
+                    @Override
+                    protected PlatformModule createPlatform( File storeDir, Config config, Dependencies dependencies )
                     {
-                        @Override
-                        protected LogService createLogService( LogProvider userLogProvider )
+                        return new PlatformModule( storeDir, config, databaseInfo, dependencies )
                         {
-                            if ( state instanceof TestGraphDatabaseFactoryState )
+                            @Override
+                            protected LogService createLogService( LogProvider userLogProvider )
                             {
-                                LogProvider logProvider =
-                                        ((TestGraphDatabaseFactoryState) state).getInternalLogProvider();
-                                if ( logProvider != null )
+                                if ( state instanceof TestGraphDatabaseFactoryState )
                                 {
-                                    return new SimpleLogService( logProvider, logProvider );
+                                    LogProvider logProvider =
+                                            ((TestGraphDatabaseFactoryState) state).getInternalLogProvider();
+                                    if ( logProvider != null )
+                                    {
+                                        return new SimpleLogService( logProvider, logProvider );
+                                    }
                                 }
+                                return super.createLogService( userLogProvider );
                             }
-                            return super.createLogService( userLogProvider );
-                        }
-                    };
-                }
-            }.newFacade( storeDir, config,
-                    GraphDatabaseDependencies.newDependencies( state.databaseDependencies() ) );
+                        };
+                    }
+                }.newFacade( storeDir, config, GraphDatabaseDependencies.newDependencies( state.databaseDependencies() ) );
+            }
         };
     }
 
