@@ -43,7 +43,7 @@ import java.util.List;
 import org.neo4j.commandline.admin.AdminTool;
 import org.neo4j.helpers.HostnamePort;
 import org.neo4j.helpers.ListenSocketAddress;
-import org.neo4j.io.proc.ProcessUtil;
+import org.neo4j.test.proc.ProcessUtil;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
