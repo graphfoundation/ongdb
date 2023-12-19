@@ -432,9 +432,6 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
 
         constraintSemantics = new EnterpriseConstraintSemantics();
 
-        coreAPIAvailabilityGuard =
-                new CoreAPIAvailabilityGuard( platformModule.availabilityGuard, transactionStartTimeout );
-
         registerRecovery( platformModule.databaseInfo, life, dependencies );
 
         publishEditionInfo( dependencies.resolveDependency( UsageData.class ), platformModule.databaseInfo, config );
