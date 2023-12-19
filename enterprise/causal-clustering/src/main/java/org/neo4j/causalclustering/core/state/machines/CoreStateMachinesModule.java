@@ -39,6 +39,7 @@ import java.time.Clock;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 
 import org.neo4j.causalclustering.catchup.storecopy.LocalDatabase;
 import org.neo4j.causalclustering.core.consensus.LeaderLocator;
@@ -65,6 +66,8 @@ import org.neo4j.causalclustering.core.state.machines.tx.ReplicatedTransactionSt
 import org.neo4j.causalclustering.core.state.storage.DurableStateStorage;
 import org.neo4j.causalclustering.core.state.storage.StateStorage;
 import org.neo4j.causalclustering.identity.MemberId;
+import org.neo4j.graphdb.factory.EditionLocksFactories;
+import org.neo4j.graphdb.factory.module.PlatformModule;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracerSupplier;
 import org.neo4j.io.pagecache.tracing.cursor.context.VersionContextSupplier;
@@ -73,10 +76,8 @@ import org.neo4j.kernel.impl.api.CommitProcessFactory;
 import org.neo4j.kernel.impl.core.TokenHolder;
 import org.neo4j.kernel.impl.core.TokenRegistry;
 import org.neo4j.kernel.impl.enterprise.id.EnterpriseIdTypeConfigurationProvider;
-import org.neo4j.graphdb.factory.module.edition.CommunityEditionModule;
-import org.neo4j.graphdb.factory.module.PlatformModule;
 import org.neo4j.kernel.impl.locking.Locks;
-import  org.neo4j.logging.internal.LogService;
+import org.neo4j.kernel.impl.locking.LocksFactory;
 import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.store.id.IdType;
 import org.neo4j.kernel.impl.store.id.configuration.IdTypeConfigurationProvider;
@@ -84,6 +85,7 @@ import org.neo4j.kernel.impl.store.stats.IdBasedStoreEntityCounters;
 import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.logging.internal.LogService;
 
 import static org.neo4j.causalclustering.core.CausalClusteringSettings.array_block_id_allocation_size;
 import static org.neo4j.causalclustering.core.CausalClusteringSettings.id_alloc_state_size;
@@ -114,7 +116,7 @@ public class CoreStateMachinesModule
     public final ReplicatedLabelTokenHolder labelTokenHolder;
     public final ReplicatedPropertyKeyTokenHolder propertyKeyTokenHolder;
     public final ReplicatedRelationshipTypeTokenHolder relationshipTypeTokenHolder;
-    public final Locks lockManager;
+    public final Supplier<Locks> lockSupplier;
     public final CommitProcessFactory commitProcessFactory;
 
     public final CoreStateMachines coreStateMachines;
@@ -192,8 +194,9 @@ public class CoreStateMachinesModule
 
         dependencies.satisfyDependencies( replicatedTxStateMachine );
 
-        lockManager = createLockManager( config, platformModule.clock, logging, replicator, myself, raftMachine,
-                replicatedLockTokenStateMachine );
+        LocksFactory locksFactory = EditionLocksFactories.createLockFactory( config, logging );
+        lockSupplier = () -> createLockManager( locksFactory, config, platformModule.clock, replicator, myself, raftMachine,
+                                          replicatedLockTokenStateMachine );
 
         RecoverConsensusLogIndex consensusLogIndexRecovery = new RecoverConsensusLogIndex( dependencies, logProvider );
 
@@ -241,11 +244,11 @@ public class CoreStateMachinesModule
                 logProvider, idTypeConfigurationProvider );
     }
 
-    private Locks createLockManager( final Config config, Clock clock, final LogService logging,
-                                     final Replicator replicator, MemberId myself, LeaderLocator leaderLocator,
+    private Locks createLockManager( LocksFactory locksFactory, Config config, Clock clock,
+                                     Replicator replicator, MemberId myself, LeaderLocator leaderLocator,
                                      ReplicatedLockTokenStateMachine lockTokenStateMachine )
     {
-        Locks localLocks = CommunityEditionModule.createLockManager( config, clock, logging );
+        Locks localLocks = EditionLocksFactories.createLockManager( locksFactory, config, clock );
         return new LeaderOnlyLockManager( myself, replicator, leaderLocator, localLocks, lockTokenStateMachine );
     }
 }

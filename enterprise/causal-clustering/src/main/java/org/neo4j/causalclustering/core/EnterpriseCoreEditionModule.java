@@ -327,7 +327,7 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
         this.labelTokenHolder = coreStateMachinesModule.labelTokenHolder;
         this.propertyKeyTokenHolder = coreStateMachinesModule.propertyKeyTokenHolder;
         this.relationshipTypeTokenHolder = coreStateMachinesModule.relationshipTypeTokenHolder;
-        this.lockManager = coreStateMachinesModule.lockManager;
+        this.locksSupplier = coreStateMachinesModule.lockSupplier;
         this.commitProcessFactory = coreStateMachinesModule.commitProcessFactory;
         this.accessCapability = new LeaderCanWrite( consensusModule.raftMachine() );
 
