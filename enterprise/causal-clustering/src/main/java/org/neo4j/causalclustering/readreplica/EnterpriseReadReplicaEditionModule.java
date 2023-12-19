@@ -139,6 +139,7 @@ import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFiles;
 import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.kernel.internal.DatabaseHealth;
+import org.neo4j.kernel.internal.KernelData;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.internal.LogService;
@@ -178,8 +179,6 @@ public class EnterpriseReadReplicaEditionModule extends EnterpriseEditionModule
                                                                      fileWatcherFileNameFilter() );
         dependencies.satisfyDependencies( watcherServiceFactory );
 
-        GraphDatabaseFacade graphDatabaseFacade = platformModule.graphDatabaseFacade;
-
         locksSupplier = ReadReplicaLockManager::new;
         statementLocksFactoryProvider = locks -> new StatementLocksFactorySelector( locks, config, logging ).select();
 
@@ -195,7 +194,7 @@ public class EnterpriseReadReplicaEditionModule extends EnterpriseEditionModule
                 new DelegatingTokenHolder( new ReadOnlyTokenCreator(), ReplicatedLabelTokenHolder.TYPE_LABEL ),
                 new DelegatingTokenHolder( new ReadOnlyTokenCreator(), ReplicatedLabelTokenHolder.TYPE_RELATIONSHIP_TYPE ));
 
-        life.add( dependencies.satisfyDependency( new DefaultKernelData( fileSystem, pageCache, storeDir, config, graphDatabaseFacade ) ) );
+        life.add( dependencies.satisfyDependency( new KernelData( fileSystem, pageCache, storeDir, config, platformModule.dataSourceManager ) ) );
 
         headerInformationFactory = TransactionHeaderInformationFactory.DEFAULT;
 
