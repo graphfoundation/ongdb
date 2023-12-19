@@ -101,6 +101,7 @@ import org.neo4j.com.storecopy.StoreUtil;
 import org.neo4j.function.Predicates;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.graphdb.factory.module.PlatformModule;
+import org.neo4j.graphdb.factory.module.edition.DefaultEditionModule;
 import org.neo4j.graphdb.factory.module.id.IdContextFactoryBuilder;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.io.fs.FileSystemAbstraction;
@@ -153,7 +154,7 @@ import static org.neo4j.causalclustering.discovery.ResolutionResolverFactory.cho
  * This implementation of {@link org.neo4j.graphdb.factory.module.edition.AbstractEditionModule} creates the implementations of services
  * that are specific to the Enterprise Read Replica edition.
  */
-public class EnterpriseReadReplicaEditionModule extends EnterpriseEditionModule
+public class EnterpriseReadReplicaEditionModule extends DefaultEditionModule
 {
     public EnterpriseReadReplicaEditionModule( final PlatformModule platformModule, final DiscoveryServiceFactory discoveryServiceFactory, MemberId myself )
     {
@@ -394,6 +395,12 @@ public class EnterpriseReadReplicaEditionModule extends EnterpriseEditionModule
     protected NetworkConnectionTracker createConnectionTracker()
     {
         return new StandardNetworkConnectionTracker();
+    }
+
+    @Override
+    public void createSecurityModule( PlatformModule platformModule, Procedures procedures )
+    {
+        EnterpriseEditionModule.createSecurityModule( this, platformModule, procedures );
     }
 
     private static TopologyServiceRetryStrategy resolveStrategy( Config config, LogProvider logProvider )
