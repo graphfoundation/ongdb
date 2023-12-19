@@ -50,7 +50,7 @@ public class IdentityModule
 {
     public static final String CORE_MEMBER_ID_NAME = "core-member-id";
 
-    private MemberId myself;
+    private final MemberId myself;
 
     IdentityModule( PlatformModule platformModule, File clusterStateDirectory )
     {
