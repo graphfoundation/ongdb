@@ -341,7 +341,7 @@ public class EnterpriseReadReplicaEditionModule extends EnterpriseEditionModule
         servicesToStopOnStoreCopy.add( catchupServer );
         backupCatchupServer.ifPresent( servicesToStopOnStoreCopy::add );
 
-        dependencies.satisfyDependency( createSessionTracker() );
+        connectionTracker = dependencies.satisfyDependency( createConnectionTracker() );
 
         life.add( catchupServer ); // must start last and stop first, since it handles external requests
         backupCatchupServer.ifPresent( life::add );
