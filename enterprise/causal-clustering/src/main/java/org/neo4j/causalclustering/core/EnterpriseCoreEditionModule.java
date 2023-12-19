@@ -432,8 +432,6 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
 
         constraintSemantics = new EnterpriseConstraintSemantics();
 
-        registerRecovery( platformModule.databaseInfo, life, dependencies );
-
         publishEditionInfo( dependencies.resolveDependency( UsageData.class ), platformModule.databaseInfo, config );
 
         connectionTracker = dependencies.satisfyDependency( createConnectionTracker() );
@@ -473,18 +471,6 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
     private TransactionHeaderInformationFactory createHeaderInformationFactory()
     {
         return () -> new TransactionHeaderInformation( -1, -1, new byte[0] );
-    }
-
-    private void registerRecovery( final DatabaseInfo databaseInfo, LifeSupport life,
-            final DependencyResolver dependencyResolver )
-    {
-        life.addLifecycleListener( ( instance, from, to ) ->
-        {
-            if ( instance instanceof DatabaseAvailability && LifecycleStatus.STARTED.equals( to ) )
-            {
-                doAfterRecoveryAndStartup( databaseInfo, dependencyResolver );
-            }
-        } );
     }
 
     @Override
