@@ -117,6 +117,7 @@ import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.layout.StoreLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.net.NetworkConnectionTracker;
+import org.neo4j.kernel.availability.AvailabilityGuard;
 import org.neo4j.kernel.availability.DatabaseAvailability;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.ssl.SslPolicyLoader;
@@ -249,13 +250,14 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
                 platformModule.jobScheduler, config, fileWatcherFileNameFilter() );
         dependencies.satisfyDependencies( watcherServiceFactory );
 
+        AvailabilityGuard availabilityGuard = getGlobalAvailabilityGuard( platformModule.clock, platformModule.logging, platformModule.config );
         LogFiles logFiles = buildLocalDatabaseLogFiles( platformModule, fileSystem, databaseLayout );
         LocalDatabase localDatabase = new LocalDatabase( databaseLayout,
                 new StoreFiles( fileSystem, platformModule.pageCache ),
                 logFiles,
                 platformModule.dataSourceManager,
                 databaseHealthSupplier,
-                platformModule.availabilityGuard,
+                availabilityGuard,
                 logProvider );
 
         IdentityModule identityModule = new IdentityModule( platformModule, clusterStateDirectory.get() );
