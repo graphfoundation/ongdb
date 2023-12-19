@@ -249,8 +249,8 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
                 platformModule.jobScheduler, config, fileWatcherFileNameFilter() );
         dependencies.satisfyDependencies( watcherServiceFactory );
 
-        LogFiles logFiles = buildLocalDatabaseLogFiles( platformModule, fileSystem, storeDir );
-        LocalDatabase localDatabase = new LocalDatabase( platformModule.storeDir,
+        LogFiles logFiles = buildLocalDatabaseLogFiles( platformModule, fileSystem, databaseLayout );
+        LocalDatabase localDatabase = new LocalDatabase( databaseLayout,
                 new StoreFiles( fileSystem, platformModule.pageCache ),
                 logFiles,
                 platformModule.dataSourceManager,
@@ -262,7 +262,7 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
         IdentityModule identityModule = new IdentityModule( platformModule, clusterStateDirectory.get() );
 
         ClusteringModule clusteringModule = getClusteringModule( platformModule, discoveryServiceFactory,
-                clusterStateDirectory, identityModule, dependencies );
+                clusterStateDirectory, identityModule, dependencies, databaseLayout );
 
         // We need to satisfy the dependency here to keep users of it, such as BoltKernelExtension, happy.
         dependencies.satisfyDependency( SslPolicyLoader.create( config, logProvider ) );
