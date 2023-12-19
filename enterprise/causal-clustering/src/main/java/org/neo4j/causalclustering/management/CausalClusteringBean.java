@@ -34,11 +34,8 @@
  */
 package org.neo4j.causalclustering.management;
 
-
 import java.io.File;
-import javax.management.NotCompliantMBeanException;
 
-import org.neo4j.causalclustering.core.CoreGraphDatabase;
 import org.neo4j.causalclustering.core.consensus.RaftMachine;
 import org.neo4j.causalclustering.core.state.ClusterStateDirectory;
 import org.neo4j.helpers.Service;
@@ -47,6 +44,8 @@ import org.neo4j.io.fs.FileUtils;
 import org.neo4j.jmx.impl.ManagementBeanProvider;
 import org.neo4j.jmx.impl.ManagementData;
 import org.neo4j.jmx.impl.Neo4jMBean;
+import org.neo4j.kernel.impl.factory.DatabaseInfo;
+import org.neo4j.kernel.impl.factory.OperationalMode;
 import org.neo4j.management.CausalClustering;
 
 import static org.neo4j.causalclustering.core.consensus.log.RaftLog.RAFT_LOG_DIRECTORY_NAME;
@@ -82,7 +81,10 @@ public class CausalClusteringBean extends ManagementBeanProvider
 
     private static boolean isCausalClustering( ManagementData management )
     {
-        return management.getKernelData().graphDatabase() instanceof CoreGraphDatabase;
+        DatabaseInfo databaseInfo = management.resolveDependency( DatabaseInfo.class );
+        OperationalMode operationalMode = databaseInfo.operationalMode;
+        return OperationalMode.core.equals( operationalMode )
+               || OperationalMode.read_replica.equals( operationalMode );
     }
 
     private static class CausalClusteringBeanImpl extends Neo4jMBean implements CausalClustering
