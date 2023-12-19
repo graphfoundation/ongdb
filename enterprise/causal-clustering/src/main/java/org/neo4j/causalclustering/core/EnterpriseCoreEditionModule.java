@@ -312,7 +312,7 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
         dependencies.satisfyDependency( consensusModule.raftMachine() );
 
         replicationModule = new ReplicationModule( identityModule.myself(), platformModule, config, consensusModule,
-                loggingOutbound, clusterStateDirectory.get(), fileSystem, logProvider );
+                loggingOutbound, clusterStateDirectory.get(), fileSystem, logProvider, availabilityGuard );
 
         coreStateMachinesModule = new CoreStateMachinesModule( identityModule.myself(),
                 platformModule, clusterStateDirectory.get(), config, replicationModule.getReplicator(),

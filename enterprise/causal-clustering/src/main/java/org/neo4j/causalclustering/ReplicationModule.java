@@ -53,6 +53,7 @@ import org.neo4j.causalclustering.helper.TimeoutStrategy;
 import org.neo4j.causalclustering.identity.MemberId;
 import org.neo4j.causalclustering.messaging.Outbound;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.kernel.availability.AvailabilityGuard;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.graphdb.factory.module.PlatformModule;
 import org.neo4j.kernel.lifecycle.LifeSupport;
@@ -68,7 +69,7 @@ public class ReplicationModule
 
     public ReplicationModule( MemberId myself, PlatformModule platformModule, Config config,
             ConsensusModule consensusModule, Outbound<MemberId,RaftMessages.RaftMessage> outbound,
-            File clusterStateDirectory, FileSystemAbstraction fileSystem, LogProvider logProvider )
+            File clusterStateDirectory, FileSystemAbstraction fileSystem, LogProvider logProvider, AvailabilityGuard availabilityGuard )
     {
         LifeSupport life = platformModule.life;
 
@@ -98,7 +99,7 @@ public class ReplicationModule
                 progressTracker,
                 progressRetryStrategy,
                 leaderRetryStrategy,
-                platformModule.availabilityGuard,
+                availabilityGuard,
                 logProvider,
                 replicationLimit ) );
     }
