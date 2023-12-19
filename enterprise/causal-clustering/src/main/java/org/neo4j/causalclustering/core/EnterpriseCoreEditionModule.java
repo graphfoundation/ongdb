@@ -439,7 +439,7 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
 
         publishEditionInfo( dependencies.resolveDependency( UsageData.class ), platformModule.databaseInfo, config );
 
-        dependencies.satisfyDependency( createSessionTracker() );
+        connectionTracker = dependencies.satisfyDependency( createConnectionTracker() );
     }
 
     public boolean isLeader()
