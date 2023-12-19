@@ -255,7 +255,6 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
                 logFiles,
                 platformModule.dataSourceManager,
                 databaseHealthSupplier,
-                watcherService,
                 platformModule.availabilityGuard,
                 logProvider );
 
