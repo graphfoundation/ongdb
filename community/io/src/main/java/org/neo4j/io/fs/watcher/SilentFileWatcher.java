@@ -39,7 +39,6 @@
 package org.neo4j.io.fs.watcher;
 
 import java.io.File;
-import java.io.IOException;
 
 import org.neo4j.io.fs.watcher.resource.WatchedResource;
 
