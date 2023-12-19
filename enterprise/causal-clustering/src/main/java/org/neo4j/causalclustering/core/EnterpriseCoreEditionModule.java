@@ -241,8 +241,6 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
         }
         dependencies.satisfyDependency( clusterStateDirectory );
 
-        eligibleForIdReuse = IdReuseEligibility.ALWAYS;
-
         logProvider = logging.getInternalLogProvider();
         final Supplier<DatabaseHealth> databaseHealthSupplier = dependencies.provideDependency( DatabaseHealth.class );
 
@@ -322,10 +320,6 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
 
         this.idContextFactory = IdContextFactoryBuilder.of( coreStateMachinesModule.idTypeConfigurationProvider, platformModule.jobScheduler ).build();
 
-        createIdComponents( platformModule, dependencies, coreStateMachinesModule.idGeneratorFactory );
-        dependencies.satisfyDependency( idGeneratorFactory );
-        dependencies.satisfyDependency( idController );
-
         this.tokenHoldersProvider = databaseName -> coreStateMachinesModule.tokenHolders;
         this.locksSupplier = coreStateMachinesModule.lockSupplier;
         this.commitProcessFactory = coreStateMachinesModule.commitProcessFactory;
@@ -350,8 +344,6 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
         serverInstalledProtocols = serverInstalledProtocolHandler::installedProtocols;
 
         editionInvariants( platformModule, dependencies, config, logging, life );
-
-        dependencies.satisfyDependency( lockManager );
 
         life.add( coreServerModule.membershipWaiterLifecycle );
     }
@@ -394,14 +386,6 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
     protected DuplexPipelineWrapperFactory pipelineWrapperFactory()
     {
         return new VoidPipelineWrapperFactory();
-    }
-
-    @Override
-    protected void createIdComponents( PlatformModule platformModule, Dependencies dependencies, IdGeneratorFactory editionIdGeneratorFactory )
-    {
-        super.createIdComponents( platformModule, dependencies, editionIdGeneratorFactory );
-        this.idGeneratorFactory =
-                new FreeIdFilteredIdGeneratorFactory( this.idGeneratorFactory, coreStateMachinesModule.freeIdCondition );
     }
 
     static Predicate<String> fileWatcherFileNameFilter()
