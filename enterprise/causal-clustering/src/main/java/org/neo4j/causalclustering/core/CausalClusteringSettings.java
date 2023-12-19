@@ -81,7 +81,8 @@ import static org.neo4j.kernel.configuration.Settings.derivedSetting;
 import static org.neo4j.kernel.configuration.Settings.list;
 import static org.neo4j.kernel.configuration.Settings.listenAddress;
 import static org.neo4j.kernel.configuration.Settings.min;
-import static org.neo4j.kernel.configuration.Settings.options;
+import static org.neo4j.kernel.configuration.Settings.optionsIgnoreCase;
+import static org.neo4j.kernel.configuration.Settings.optionsObeyCase;
 import static org.neo4j.kernel.configuration.Settings.prefixSetting;
 import static org.neo4j.kernel.configuration.Settings.setting;
 
@@ -190,7 +191,7 @@ public class CausalClusteringSettings implements LoadableConfig
 
     @Description( "Type of in-flight cache." )
     public static final Setting<InFlightCacheFactory.Type> in_flight_cache_type =
-            setting( "causal_clustering.in_flight_cache.type", options( InFlightCacheFactory.Type.class, true ),
+            setting( "causal_clustering.in_flight_cache.type", optionsIgnoreCase( InFlightCacheFactory.Type.class ),
                     InFlightCacheFactory.Type.CONSECUTIVE.name() );
 
     @Description( "The maximum number of entries in the in-flight cache." )
@@ -224,7 +225,7 @@ public class CausalClusteringSettings implements LoadableConfig
 
     @Description( "Configure the discovery type used for cluster name resolution" )
     public static final Setting<DiscoveryType> discovery_type =
-            setting( "causal_clustering.discovery_type", options( DiscoveryType.class ), DiscoveryType.LIST.name() );
+            setting( "causal_clustering.discovery_type", optionsObeyCase( DiscoveryType.class ), DiscoveryType.LIST.name() );
 
     @Description( "Prevents the network middleware from dumping its own logs. Defaults to true." )
     public static final Setting<Boolean> disable_middleware_logging =
