@@ -270,7 +270,7 @@ public class EnterpriseReadReplicaEditionModule extends EnterpriseEditionModule
         TimerService timerService = new TimerService( platformModule.jobScheduler, logProvider );
 
         StoreFiles storeFiles = new StoreFiles( fileSystem, pageCache );
-        LogFiles logFiles = buildLocalDatabaseLogFiles( platformModule, fileSystem, storeDir, config );
+        LogFiles logFiles = buildLocalDatabaseLogFiles( platformModule, fileSystem, databaseLayout, config );
 
         LocalDatabase localDatabase =
                 new LocalDatabase( databaseLayout, storeFiles, logFiles, platformModule.dataSourceManager,
@@ -409,11 +409,11 @@ public class EnterpriseReadReplicaEditionModule extends EnterpriseEditionModule
     }
 
     private LogFiles buildLocalDatabaseLogFiles( PlatformModule platformModule, FileSystemAbstraction fileSystem,
-            File storeDir, Config config )
+                                                 DatabaseLayout databaseLayout, Config config )
     {
         try
         {
-            return LogFilesBuilder.activeFilesBuilder( storeDir, fileSystem, platformModule.pageCache ).withConfig( config ).build();
+            return LogFilesBuilder.activeFilesBuilder( databaseLayout, fileSystem, platformModule.pageCache ).withConfig( config ).build();
         }
         catch ( IOException e )
         {
