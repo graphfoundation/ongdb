@@ -100,6 +100,7 @@ import org.neo4j.com.storecopy.StoreUtil;
 import org.neo4j.function.Predicates;
 import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.graphdb.factory.module.PlatformModule;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
@@ -113,11 +114,7 @@ import org.neo4j.kernel.impl.api.CommitProcessFactory;
 import org.neo4j.kernel.impl.api.ReadOnlyTransactionCommitProcess;
 import org.neo4j.kernel.impl.api.TransactionCommitProcess;
 import org.neo4j.kernel.impl.api.TransactionRepresentationCommitProcess;
-import org.neo4j.kernel.impl.core.DelegatingLabelTokenHolder;
-import org.neo4j.kernel.impl.core.DelegatingPropertyKeyTokenHolder;
-import org.neo4j.kernel.impl.core.DelegatingRelationshipTypeTokenHolder;
 import org.neo4j.kernel.impl.core.ReadOnlyTokenCreator;
-import org.neo4j.kernel.impl.coreapi.CoreAPIAvailabilityGuard;
 import org.neo4j.kernel.impl.enterprise.EnterpriseConstraintSemantics;
 import org.neo4j.kernel.impl.enterprise.EnterpriseEditionModule;
 import org.neo4j.kernel.impl.enterprise.StandardNetworkConnectionTracker;
@@ -126,11 +123,9 @@ import org.neo4j.kernel.impl.enterprise.id.EnterpriseIdTypeConfigurationProvider
 import org.neo4j.kernel.impl.enterprise.transaction.log.checkpoint.ConfigurableIOLimiter;
 import org.neo4j.kernel.impl.factory.DatabaseInfo;
 import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
-import org.neo4j.graphdb.factory.module.PlatformModule;
 import org.neo4j.kernel.impl.factory.ReadOnly;
 import org.neo4j.kernel.impl.factory.StatementLocksFactorySelector;
 import org.neo4j.kernel.impl.index.IndexConfigStore;
-import  org.neo4j.logging.internal.LogService;
 import org.neo4j.kernel.impl.pagecache.PageCacheWarmer;
 import org.neo4j.kernel.impl.proc.Procedures;
 import org.neo4j.kernel.impl.store.id.DefaultIdGeneratorFactory;
@@ -145,10 +140,10 @@ import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFiles;
 import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.kernel.internal.DatabaseHealth;
-import org.neo4j.kernel.internal.DefaultKernelData;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.lifecycle.LifecycleStatus;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.logging.internal.LogService;
 import org.neo4j.storageengine.api.StorageEngine;
 import org.neo4j.time.Clocks;
 import org.neo4j.udc.UsageData;
@@ -215,8 +210,6 @@ public class EnterpriseReadReplicaEditionModule extends EnterpriseEditionModule
         transactionStartTimeout = config.get( GraphDatabaseSettings.transaction_start_timeout ).toMillis();
 
         constraintSemantics = new EnterpriseConstraintSemantics();
-
-        coreAPIAvailabilityGuard = new CoreAPIAvailabilityGuard( platformModule.availabilityGuard, transactionStartTimeout );
 
         registerRecovery( platformModule.databaseInfo, life, dependencies );
 
