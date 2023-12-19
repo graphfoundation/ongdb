@@ -46,9 +46,10 @@ import org.neo4j.commandline.admin.CommandFailed;
 import org.neo4j.commandline.admin.IncorrectUsage;
 import org.neo4j.commandline.admin.OutsideWorld;
 import org.neo4j.commandline.arguments.Arguments;
-import org.neo4j.commandline.arguments.common.Database;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.io.fs.FileUtils;
+import org.neo4j.io.layout.DatabaseLayout;
+import org.neo4j.io.layout.StoreLayout;
 import org.neo4j.kernel.StoreLockException;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.util.Validators;
@@ -59,9 +60,9 @@ import static org.neo4j.kernel.configuration.Config.fromFile;
 public class UnbindFromClusterCommand implements AdminCommand
 {
     private static final Arguments arguments = new Arguments().withDatabase();
-    private Path homeDir;
-    private Path configDir;
-    private OutsideWorld outsideWorld;
+    private final Path homeDir;
+    private final Path configDir;
+    private final OutsideWorld outsideWorld;
 
     UnbindFromClusterCommand( Path homeDir, Path configDir, OutsideWorld outsideWorld )
     {
@@ -104,7 +105,8 @@ public class UnbindFromClusterCommand implements AdminCommand
 
             if ( hasDatabase )
             {
-                confirmTargetDirectoryIsWritable( pathToSpecificDatabase );
+                DatabaseLayout databaseLayout = DatabaseLayout.of( pathToSpecificDatabase.toFile() );
+                confirmTargetDirectoryIsWritable( databaseLayout.getStoreLayout() );
             }
 
             ClusterStateDirectory clusterStateDirectory = new ClusterStateDirectory( dataDirectory );
@@ -126,10 +128,9 @@ public class UnbindFromClusterCommand implements AdminCommand
         }
     }
 
-    private void confirmTargetDirectoryIsWritable( Path pathToSpecificDatabase )
-            throws CannotWriteException, IOException
+    private void confirmTargetDirectoryIsWritable( StoreLayout storeLayout ) throws CannotWriteException, IOException
     {
-        try ( Closeable ignored = StoreLockChecker.check( pathToSpecificDatabase ) )
+        try ( Closeable ignored = StoreLockChecker.check( storeLayout ) )
         {
             // empty
         }
@@ -147,7 +148,7 @@ public class UnbindFromClusterCommand implements AdminCommand
         }
     }
 
-    private class UnbindFailureException extends Exception
+    private static class UnbindFailureException extends Exception
     {
         UnbindFailureException( Exception e )
         {
