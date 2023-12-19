@@ -173,8 +173,6 @@ public class EnterpriseReadReplicaEditionModule extends EnterpriseEditionModule
         File storeDir = databaseLayout.getStoreLayout().storeDirectory();
         LifeSupport life = platformModule.life;
 
-        eligibleForIdReuse = IdReuseEligibility.ALWAYS;
-
         this.accessCapability = new ReadOnly();
 
         watcherServiceFactory =
@@ -210,8 +208,6 @@ public class EnterpriseReadReplicaEditionModule extends EnterpriseEditionModule
         transactionStartTimeout = config.get( GraphDatabaseSettings.transaction_start_timeout ).toMillis();
 
         constraintSemantics = new EnterpriseConstraintSemantics();
-
-        registerRecovery( platformModule.databaseInfo, life, dependencies );
 
         publishEditionInfo( dependencies.resolveDependency( UsageData.class ), platformModule.databaseInfo, config );
         commitProcessFactory = readOnly();
@@ -395,17 +391,6 @@ public class EnterpriseReadReplicaEditionModule extends EnterpriseEditionModule
     {
         procedures.registerProcedure( EnterpriseBuiltInDbmsProcedures.class, true );
         procedures.register( new ReadReplicaRoleProcedure() );
-    }
-
-    private void registerRecovery( final DatabaseInfo databaseInfo, LifeSupport life, final DependencyResolver dependencyResolver )
-    {
-        life.addLifecycleListener( ( instance, from, to ) ->
-        {
-            if ( instance instanceof DatabaseAvailability && to.equals( LifecycleStatus.STARTED ) )
-            {
-                doAfterRecoveryAndStartup( databaseInfo, dependencyResolver );
-            }
-        } );
     }
 
     private CommitProcessFactory readOnly()
