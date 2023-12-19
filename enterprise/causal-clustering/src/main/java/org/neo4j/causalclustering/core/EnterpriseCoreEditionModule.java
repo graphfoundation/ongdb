@@ -432,7 +432,7 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
     private void editionInvariants( PlatformModule platformModule, Dependencies dependencies, Config config,
             LogService logging, LifeSupport life )
     {
-        statementLocksFactory = new StatementLocksFactorySelector( lockManager, config, logging ).select();
+        statementLocksFactoryProvider = locks -> new StatementLocksFactorySelector( locks, config, logging ).select();
 
         dependencies.satisfyDependency(
                 createKernelData( platformModule.fileSystem, platformModule.pageCache, platformModule.storeLayout,
