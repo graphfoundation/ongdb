@@ -58,8 +58,7 @@ public class CopiedStoreRecovery extends LifecycleAdapter
 
     private boolean shutdown;
 
-    public CopiedStoreRecovery( Config config, Iterable<KernelExtensionFactory<?>> kernelExtensions,
-                                PageCache pageCache )
+    public CopiedStoreRecovery( Config config, Iterable<KernelExtensionFactory<?>> kernelExtensions, PageCache pageCache )
     {
         this.config = config;
         this.kernelExtensions = kernelExtensions;
