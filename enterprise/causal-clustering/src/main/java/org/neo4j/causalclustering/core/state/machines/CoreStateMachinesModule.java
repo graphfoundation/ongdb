@@ -74,6 +74,7 @@ import org.neo4j.io.pagecache.tracing.cursor.context.VersionContextSupplier;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.api.CommitProcessFactory;
 import org.neo4j.kernel.impl.core.TokenHolder;
+import org.neo4j.kernel.impl.core.TokenHolders;
 import org.neo4j.kernel.impl.core.TokenRegistry;
 import org.neo4j.kernel.impl.enterprise.id.EnterpriseIdTypeConfigurationProvider;
 import org.neo4j.kernel.impl.locking.Locks;
@@ -113,9 +114,7 @@ public class CoreStateMachinesModule
 
     public final IdGeneratorFactory idGeneratorFactory;
     public final IdTypeConfigurationProvider idTypeConfigurationProvider;
-    public final ReplicatedLabelTokenHolder labelTokenHolder;
-    public final ReplicatedPropertyKeyTokenHolder propertyKeyTokenHolder;
-    public final ReplicatedRelationshipTypeTokenHolder relationshipTypeTokenHolder;
+    public final TokenHolders tokenHolders;
     public final Supplier<Locks> lockSupplier;
     public final CommitProcessFactory commitProcessFactory;
 
@@ -210,9 +209,7 @@ public class CoreStateMachinesModule
             return new ReplicatedTransactionCommitProcess( replicator );
         };
 
-        this.relationshipTypeTokenHolder = relationshipTypeTokenHolder;
-        this.propertyKeyTokenHolder = propertyKeyTokenHolder;
-        this.labelTokenHolder = labelTokenHolder;
+        this.tokenHolders = new TokenHolders( relationshipTypeTokenHolder, propertyKeyTokenHolder, labelTokenHolder );
     }
 
     private Map<IdType,Integer> getIdTypeAllocationSizeFromConfig( Config config )
