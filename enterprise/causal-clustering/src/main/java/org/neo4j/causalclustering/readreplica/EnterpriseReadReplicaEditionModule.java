@@ -101,6 +101,7 @@ import org.neo4j.com.storecopy.StoreUtil;
 import org.neo4j.function.Predicates;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.graphdb.factory.module.PlatformModule;
+import org.neo4j.graphdb.factory.module.id.IdContextFactoryBuilder;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
@@ -182,12 +183,9 @@ public class EnterpriseReadReplicaEditionModule extends EnterpriseEditionModule
         locksSupplier = ReadReplicaLockManager::new;
         statementLocksFactoryProvider = locks -> new StatementLocksFactorySelector( locks, config, logging ).select();
 
-        idTypeConfigurationProvider = new EnterpriseIdTypeConfigurationProvider( config );
-        idGeneratorFactory = dependencies.satisfyDependency( new DefaultIdGeneratorFactory( fileSystem, idTypeConfigurationProvider ) );
-        idController = createDefaultIdController();
-        dependencies.satisfyDependency( idGeneratorFactory );
-        dependencies.satisfyDependency( idController );
-        dependencies.satisfyDependency( new IdBasedStoreEntityCounters( this.idGeneratorFactory ) );
+        idContextFactory = IdContextFactoryBuilder.of( new EnterpriseIdTypeConfigurationProvider( config ), platformModule.jobScheduler )
+                                                  .withFileSystem( fileSystem )
+                                                  .build();
 
         tokenHoldersProvider = databaseName -> new TokenHolders(
                 new DelegatingTokenHolder( new ReadOnlyTokenCreator(), ReplicatedLabelTokenHolder.TYPE_PROPERTY_KEY ),
