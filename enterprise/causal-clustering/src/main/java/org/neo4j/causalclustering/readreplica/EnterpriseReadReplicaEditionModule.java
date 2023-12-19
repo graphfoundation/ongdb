@@ -182,9 +182,8 @@ public class EnterpriseReadReplicaEditionModule extends EnterpriseEditionModule
 
         GraphDatabaseFacade graphDatabaseFacade = platformModule.graphDatabaseFacade;
 
-        lockManager = dependencies.satisfyDependency( new ReadReplicaLockManager() );
-
-        statementLocksFactory = new StatementLocksFactorySelector( lockManager, config, logging ).select();
+        locksSupplier = ReadReplicaLockManager::new;
+        statementLocksFactoryProvider = locks -> new StatementLocksFactorySelector( locks, config, logging ).select();
 
         idTypeConfigurationProvider = new EnterpriseIdTypeConfigurationProvider( config );
         idGeneratorFactory = dependencies.satisfyDependency( new DefaultIdGeneratorFactory( fileSystem, idTypeConfigurationProvider ) );
