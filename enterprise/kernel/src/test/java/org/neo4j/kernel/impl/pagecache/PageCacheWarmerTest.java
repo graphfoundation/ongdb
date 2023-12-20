@@ -61,7 +61,6 @@ import org.neo4j.io.pagecache.PagedFile;
 import org.neo4j.io.pagecache.tracing.DefaultPageCacheTracer;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.io.pagecache.tracing.cursor.DefaultPageCursorTracerSupplier;
-import org.neo4j.kernel.impl.scheduler.CentralJobScheduler;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.storageengine.api.StoreFileMetadata;
@@ -77,12 +76,13 @@ import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createScheduler;
 
 public class PageCacheWarmerTest
 {
-    private FileSystemRule fs = new EphemeralFileSystemRule();
-    private TestDirectory dir = TestDirectory.testDirectory( fs );
-    private PageCacheRule pageCacheRule = new PageCacheRule();
+    private final FileSystemRule fs = new EphemeralFileSystemRule();
+    private final TestDirectory dir = TestDirectory.testDirectory( fs );
+    private final PageCacheRule pageCacheRule = new PageCacheRule();
     @Rule
     public RuleChain rules = RuleChain.outerRule( fs ).around( dir ).around( pageCacheRule );
 
@@ -97,7 +97,7 @@ public class PageCacheWarmerTest
     public void setUp() throws IOException
     {
         life = new LifeSupport();
-        scheduler = life.add( new CentralJobScheduler() );
+        scheduler = life.add( createScheduler() );
         life.start();
         cacheTracer = new DefaultPageCacheTracer();
         cursorTracer = DefaultPageCursorTracerSupplier.INSTANCE;

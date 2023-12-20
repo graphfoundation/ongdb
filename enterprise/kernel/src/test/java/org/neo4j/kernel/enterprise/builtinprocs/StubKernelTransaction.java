@@ -36,6 +36,7 @@ package org.neo4j.kernel.enterprise.builtinprocs;
 
 import org.mockito.Answers;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -55,12 +56,15 @@ import org.neo4j.internal.kernel.api.Token;
 import org.neo4j.internal.kernel.api.TokenRead;
 import org.neo4j.internal.kernel.api.TokenWrite;
 import org.neo4j.internal.kernel.api.Write;
+import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
+import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
 import org.neo4j.internal.kernel.api.security.AuthSubject;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.Statement;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.impl.api.ClockContext;
+import org.neo4j.storageengine.api.schema.IndexDescriptor;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -69,6 +73,12 @@ class StubKernelTransaction implements KernelTransaction
 {
     @Override
     public Statement acquireStatement()
+    {
+        return null;
+    }
+
+    @Override
+    public IndexDescriptor indexUniqueCreate( SchemaDescriptor schema, String provider )
     {
         return null;
     }
@@ -87,18 +97,6 @@ class StubKernelTransaction implements KernelTransaction
     public Read dataRead()
     {
         return null;
-    }
-
-    @Override
-    public Read stableDataRead()
-    {
-        return null;
-    }
-
-    @Override
-    public void markAsStable()
-    {
-
     }
 
     @Override
@@ -177,6 +175,12 @@ class StubKernelTransaction implements KernelTransaction
     public long closeTransaction()
     {
         return 0;
+    }
+
+    @Override
+    public void close() throws TransactionFailureException
+    {
+        KernelTransaction.super.close();
     }
 
     @Override
@@ -293,6 +297,23 @@ class StubKernelTransaction implements KernelTransaction
     public PropertyCursor ambientPropertyCursor()
     {
         throw new UnsupportedOperationException( "not implemented" );
+    }
+
+    @Override
+    public void setMetaData( Map<String,Object> metaData )
+    {
+    }
+
+    @Override
+    public Map<String,Object> getMetaData()
+    {
+        return null;
+    }
+
+    @Override
+    public boolean isSchemaTransaction()
+    {
+        return false;
     }
 
     @Override

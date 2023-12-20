@@ -423,7 +423,7 @@ public class ListQueriesProcedureTest
     {
         // given
         String query = "MATCH (n) SET n.v = n.v + 1";
-        db.setConfig( track_query_cpu_time, FALSE );
+        db.withSetting( track_query_cpu_time, FALSE );
         Map<String,Object> data;
 
         // when
@@ -475,7 +475,7 @@ public class ListQueriesProcedureTest
     {
         // given
         String query = "MATCH (n) SET n.v = n.v + 1";
-        db.setConfig( track_query_allocation, FALSE );
+        db.withSetting( track_query_allocation, FALSE );
         Map<String,Object> data;
 
         // when

@@ -65,7 +65,7 @@ public class EnterpriseCheckPointThresholdTest extends CheckPointThresholdTestSu
             }
 
             @Override
-            public boolean mightHaveLogsToPrune()
+            public boolean mightHaveLogsToPrune( long upperVersion )
             {
                 return haveLogsToPrune;
             }
@@ -79,7 +79,7 @@ public class EnterpriseCheckPointThresholdTest extends CheckPointThresholdTestSu
         haveLogsToPrune = true;
         CheckPointThreshold threshold = createThreshold();
         threshold.initialize( 2 );
-        assertTrue( threshold.isCheckPointingNeeded( 2, triggered ) );
+        assertTrue( threshold.isCheckPointingNeeded( 2, 99, triggered ) );
         verifyTriggered( "log pruning" );
         verifyNoMoreTriggers();
     }
@@ -91,7 +91,7 @@ public class EnterpriseCheckPointThresholdTest extends CheckPointThresholdTestSu
         haveLogsToPrune = false;
         CheckPointThreshold threshold = createThreshold();
         threshold.initialize( 2 );
-        assertFalse( threshold.isCheckPointingNeeded( 2, notTriggered ) );
+        assertFalse( threshold.isCheckPointingNeeded( 2, 99, notTriggered ) );
         verifyNoMoreTriggers();
     }
 
@@ -105,10 +105,10 @@ public class EnterpriseCheckPointThresholdTest extends CheckPointThresholdTestSu
 
         assertThat( threshold.checkFrequencyMillis(), is( 0L ) );
 
-        assertTrue( threshold.isCheckPointingNeeded( 2, triggered ) );
+        assertTrue( threshold.isCheckPointingNeeded( 2, 99, triggered ) );
         threshold.checkPointHappened( 3 );
-        assertTrue( threshold.isCheckPointingNeeded( 3, triggered ) );
-        assertTrue( threshold.isCheckPointingNeeded( 3, triggered ) );
+        assertTrue( threshold.isCheckPointingNeeded( 3, 99, triggered ) );
+        assertTrue( threshold.isCheckPointingNeeded( 3, 99, triggered ) );
         verifyTriggered( "continuous" );
         verifyTriggered( "continuous" );
         verifyTriggered( "continuous" );

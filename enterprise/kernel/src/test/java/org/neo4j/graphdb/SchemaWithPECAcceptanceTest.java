@@ -60,10 +60,10 @@ public class SchemaWithPECAcceptanceTest
     public EnterpriseDatabaseRule dbRule = new EnterpriseDatabaseRule();
 
     private GraphDatabaseService db;
-    private Label label = Labels.MY_LABEL;
-    private Label label2 = Labels.MY_OTHER_LABEL;
-    private String propertyKey = "my_property_key";
-    private String propertyKey2 = "my_other_property";
+    private final Label label = Labels.MY_LABEL;
+    private final Label label2 = Labels.MY_OTHER_LABEL;
+    private final String propertyKey = "my_property_key";
+    private final String propertyKey2 = "my_other_property";
 
     private enum Labels implements Label
     {
@@ -146,7 +146,7 @@ public class SchemaWithPECAcceptanceTest
         SchemaHelper.createUniquenessConstraint( db, label, propertyKey );
         SchemaHelper.awaitIndexes( db );
         InternalSchemaActions actions = mock( InternalSchemaActions.class );
-        IndexDefinition index = new IndexDefinitionImpl( actions, label, new String[]{propertyKey}, true );
+        IndexDefinition index = new IndexDefinitionImpl( actions, null, new Label[]{label}, new String[]{propertyKey}, true );
         return new UniquenessConstraintDefinition( actions, index );
     }
 
@@ -155,7 +155,7 @@ public class SchemaWithPECAcceptanceTest
         SchemaHelper.createNodeKeyConstraint( db, label, propertyKey );
         SchemaHelper.awaitIndexes( db );
         InternalSchemaActions actions = mock( InternalSchemaActions.class );
-        IndexDefinition index = new IndexDefinitionImpl( actions, label, new String[]{propertyKey}, true );
+        IndexDefinition index = new IndexDefinitionImpl( actions, null, new Label[]{label}, new String[]{propertyKey}, true );
         return new NodeKeyConstraintDefinition( actions, index );
     }
 

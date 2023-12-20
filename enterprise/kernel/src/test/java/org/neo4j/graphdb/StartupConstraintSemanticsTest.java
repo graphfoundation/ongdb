@@ -39,6 +39,7 @@ import org.junit.Test;
 
 import org.neo4j.graphdb.factory.EnterpriseGraphDatabaseFactory;
 import org.neo4j.helpers.Exceptions;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.impl.constraints.StandardConstraintSemantics;
 import org.neo4j.test.TestGraphDatabaseFactory;
 import org.neo4j.test.rule.TestDirectory;
@@ -76,7 +77,7 @@ public class StartupConstraintSemanticsTest
     private void assertThatCommunityCanStartOnNormalConstraint( String constraintCreationQuery )
     {
         // given
-        GraphDatabaseService graphDb = new EnterpriseGraphDatabaseFactory().newEmbeddedDatabase( dir.graphDbDir() );
+        GraphDatabaseService graphDb = new EnterpriseGraphDatabaseFactory().newEmbeddedDatabase( dir.storeDir() );
         try
         {
             graphDb.execute( constraintCreationQuery );
@@ -90,7 +91,7 @@ public class StartupConstraintSemanticsTest
         // when
         try
         {
-            graphDb = new TestGraphDatabaseFactory().newEmbeddedDatabase( dir.graphDbDir() );
+            graphDb = new TestGraphDatabaseFactory().newEmbeddedDatabase( dir.storeDir() );
             // Should not get exception
         }
         finally
@@ -105,7 +106,7 @@ public class StartupConstraintSemanticsTest
     private void assertThatCommunityCannotStartOnEnterpriseOnlyConstraint( String constraintCreationQuery, String errorMessage )
     {
         // given
-        GraphDatabaseService graphDb = new EnterpriseGraphDatabaseFactory().newEmbeddedDatabase( dir.graphDbDir() );
+        GraphDatabaseService graphDb = new EnterpriseGraphDatabaseFactory().newEmbeddedDatabase( dir.storeDir() );
         try
         {
             graphDb.execute( constraintCreationQuery );
@@ -119,7 +120,7 @@ public class StartupConstraintSemanticsTest
         // when
         try
         {
-            graphDb = new TestGraphDatabaseFactory().newEmbeddedDatabase( dir.graphDbDir() );
+            graphDb = new TestGraphDatabaseFactory().newEmbeddedDatabase( dir.storeDir() );
             fail( "should have failed to start!" );
         }
         // then

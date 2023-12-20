@@ -61,6 +61,7 @@ import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.Service;
 import org.neo4j.helpers.progress.ProgressMonitorFactory;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.Settings;
@@ -121,27 +122,27 @@ public class StoreMigrationIT
     {
         FileSystemAbstraction fs = fileSystemRule.get();
         PageCache pageCache = pageCacheRule.getPageCache( fs );
-        File dir = TestDirectory.testDirectory( StoreMigrationIT.class ).prepareDirectoryForTest( "migration" );
+        TestDirectory testDirectory = TestDirectory.testDirectory();
+        testDirectory.prepareDirectory( StoreMigrationIT.class, "migration" );
+        DatabaseLayout databaseLayout = testDirectory.databaseLayout();
         StoreVersionCheck storeVersionCheck = new StoreVersionCheck( pageCache );
         VersionAwareLogEntryReader<ReadableClosablePositionAwareChannel> logEntryReader = new VersionAwareLogEntryReader<>();
-        LogFiles logFiles = LogFilesBuilder.logFilesBasedOnlyBuilder( dir, fs ).withLogEntryReader( logEntryReader ).build();
+        LogFiles logFiles = LogFilesBuilder.logFilesBasedOnlyBuilder( databaseLayout.databaseDirectory(), fs ).withLogEntryReader( logEntryReader ).build();
         LogTailScanner tailScanner = new LogTailScanner( logFiles, logEntryReader, new Monitors() );
         List<Object[]> data = new ArrayList<>();
         ArrayList<RecordFormats> recordFormatses = new ArrayList<>();
         RecordFormatSelector.allFormats().forEach( f -> addIfNotThere( f, recordFormatses ) );
         for ( RecordFormats toFormat : recordFormatses )
         {
-            UpgradableDatabase upgradableDatabase =
-                    new UpgradableDatabase( storeVersionCheck, toFormat, tailScanner );
+            UpgradableDatabase upgradableDatabase = new UpgradableDatabase( storeVersionCheck, toFormat, tailScanner );
             for ( RecordFormats fromFormat : recordFormatses )
             {
-                File db = new File( dir, baseDirName( toFormat, fromFormat ) );
                 try
                 {
-                    createDb( fromFormat, db );
-                    if ( !upgradableDatabase.hasCurrentVersion( db ) )
+                    createDb( fromFormat, databaseLayout.databaseDirectory() );
+                    if ( !upgradableDatabase.hasCurrentVersion( databaseLayout ) )
                     {
-                        upgradableDatabase.checkUpgradeable( db );
+                        upgradableDatabase.checkUpgradable( databaseLayout );
                         data.add( new Object[]{fromFormat, toFormat} );
                     }
                 }
@@ -149,7 +150,7 @@ public class StoreMigrationIT
                 {
                     //This means that the combination is not migratable.
                 }
-                fs.deleteRecursively( db );
+                fs.deleteRecursively( databaseLayout.databaseDirectory() );
             }
         }
 
@@ -250,10 +251,8 @@ public class StoreMigrationIT
     @Test
     public void shouldMigrate() throws Exception
     {
-        File db = testDir.directory( baseDirName( to, from ) );
-        FileSystemAbstraction fs = fileSystemRule.get();
-        fs.deleteRecursively( db );
-        GraphDatabaseService database = getGraphDatabaseService( db, from.storeVersion() );
+        DatabaseLayout databaseLayout = testDir.databaseLayout( baseDirName( to, from ) );
+        GraphDatabaseService database = getGraphDatabaseService( databaseLayout.databaseDirectory(), from.storeVersion() );
 
         database.execute( "CREATE INDEX ON :Person(name)" );
         database.execute( "CREATE INDEX ON :Person(born)" );
@@ -278,7 +277,7 @@ public class StoreMigrationIT
         }
         database.shutdown();
 
-        database = getGraphDatabaseService( db, to.storeVersion() );
+        database = getGraphDatabaseService( databaseLayout.databaseDirectory(), to.storeVersion() );
         long afterNodes;
         long afterLabels;
         long afterKeys;
@@ -307,7 +306,7 @@ public class StoreMigrationIT
         assertEquals( beforeConstraints, afterConstraints ); //1
         ConsistencyCheckService consistencyCheckService = new ConsistencyCheckService( );
         ConsistencyCheckService.Result result =
-                runConsistencyChecker( db, fs, consistencyCheckService, to.storeVersion() );
+                runConsistencyChecker( databaseLayout, fileSystemRule.get(), consistencyCheckService, to.storeVersion() );
         if ( !result.isSuccessful() )
         {
             fail( "Database is inconsistent after migration." );
@@ -320,12 +319,12 @@ public class StoreMigrationIT
     }
 
     //This method is overridden by a blockdevice test.
-    protected ConsistencyCheckService.Result runConsistencyChecker( File db, FileSystemAbstraction fs,
+    protected ConsistencyCheckService.Result runConsistencyChecker( DatabaseLayout databaseLayout, FileSystemAbstraction fs,
             ConsistencyCheckService consistencyCheckService, String storeVersion )
             throws ConsistencyCheckIncompleteException
     {
         Config config = Config.defaults( GraphDatabaseSettings.record_format, storeVersion );
-        return consistencyCheckService.runFullConsistencyCheck( db, config, ProgressMonitorFactory.NONE,
+        return consistencyCheckService.runFullConsistencyCheck( databaseLayout, config, ProgressMonitorFactory.NONE,
                 NullLogProvider.getInstance(), fs, false );
     }
 
