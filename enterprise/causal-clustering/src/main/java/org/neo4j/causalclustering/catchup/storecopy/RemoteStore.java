@@ -34,7 +34,6 @@
  */
 package org.neo4j.causalclustering.catchup.storecopy;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
@@ -141,10 +140,10 @@ public class RemoteStore
         try
         {
             long lastFlushedTxId;
-            StreamToDiskProvider streamToDiskProvider = new StreamToDiskProvider( databaseLayout, fs, pageCache, monitors );
+            StreamToDiskProvider streamToDiskProvider = new StreamToDiskProvider( databaseLayout.databaseDirectory(), fs, pageCache, monitors );
             lastFlushedTxId = storeCopyClient.copyStoreFiles( addressProvider, expectedStoreId, streamToDiskProvider,
                         () -> new MaximumTotalTime( config.get( CausalClusteringSettings.store_copy_max_retry_time_per_request ).getSeconds(),
-                                TimeUnit.SECONDS ), databaseLayout );
+                                TimeUnit.SECONDS ), databaseLayout.databaseDirectory() );
 
             log.info( "Store files need to be recovered starting from: %d", lastFlushedTxId );
 
