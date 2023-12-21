@@ -41,6 +41,9 @@ import org.neo4j.commandline.admin.OutsideWorld;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.scheduler.JobScheduler;
+
+import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createInitialisedScheduler;
 
 public class BackupModule
 {
@@ -50,6 +53,7 @@ public class BackupModule
     private final Monitors monitors;
     private final Clock clock;
     private final TransactionLogCatchUpFactory transactionLogCatchUpFactory;
+    private final JobScheduler jobScheduler;
 
     /**
      * Dependencies that can be resolved immediately after launching the backup tool
@@ -66,6 +70,7 @@ public class BackupModule
         this.clock = Clock.systemDefaultZone();
         this.transactionLogCatchUpFactory = new TransactionLogCatchUpFactory();
         this.fileSystemAbstraction = outsideWorld.fileSystem();
+        this.jobScheduler = createInitialisedScheduler();
     }
 
     public LogProvider getLogProvider()
@@ -96,5 +101,10 @@ public class BackupModule
     public OutsideWorld getOutsideWorld()
     {
         return outsideWorld;
+    }
+
+    public JobScheduler getJobScheduler()
+    {
+        return jobScheduler;
     }
 }

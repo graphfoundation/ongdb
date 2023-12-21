@@ -50,6 +50,7 @@ import org.neo4j.helper.IsConnectionException;
 import org.neo4j.helper.IsConnectionResetByPeer;
 import org.neo4j.helper.IsStoreClosed;
 import org.neo4j.io.IOUtils;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.configuration.Config;
 
 public class BackupHelper
@@ -75,7 +76,7 @@ public class BackupHelper
         {
             BackupProtocolService backupProtocolService = new BackupProtocolService( outputStream );
             BackupOutcome backupOutcome = backupProtocolService.doIncrementalBackupOrFallbackToFull( host, port,
-                    targetDirectory, ConsistencyCheck.FULL, Config.defaults(), BackupClient.BIG_READ_TIMEOUT,
+                    DatabaseLayout.of( targetDirectory.toFile() ), ConsistencyCheck.FULL, Config.defaults(), BackupClient.BIG_READ_TIMEOUT,
                     false );
             consistent = backupOutcome.isConsistent();
         }

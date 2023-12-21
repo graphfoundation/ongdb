@@ -75,9 +75,7 @@ import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.extension.KernelExtensionFactory;
 import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
-import  org.neo4j.logging.internal.LogService;
 import org.neo4j.kernel.impl.store.MismatchingStoreIdException;
-import org.neo4j.storageengine.api.StoreId;
 import org.neo4j.kernel.impl.store.UnexpectedStoreVersionException;
 import org.neo4j.kernel.impl.store.id.IdGeneratorImpl;
 import org.neo4j.kernel.impl.storemigration.UpgradeNotAllowedByConfigurationException;
@@ -92,6 +90,8 @@ import org.neo4j.logging.FormattedLogProvider;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.NullLogProvider;
+import org.neo4j.logging.internal.LogService;
+import org.neo4j.storageengine.api.StoreId;
 
 import static org.neo4j.com.RequestContext.anonymous;
 import static org.neo4j.com.storecopy.TransactionCommittingResponseUnpacker.DEFAULT_BATCH_SIZE;
@@ -99,6 +99,7 @@ import static org.neo4j.graphdb.factory.GraphDatabaseSettings.logs_directory;
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.store_internal_log_path;
 import static org.neo4j.helpers.Exceptions.rootCause;
 import static org.neo4j.kernel.impl.pagecache.ConfigurableStandalonePageCacheFactory.createPageCache;
+import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createInitialisedScheduler;
 
 /**
  * Client-side convenience service for doing backups from a running database instance.
@@ -127,7 +128,7 @@ public class BackupProtocolService
     public BackupProtocolService( OutputStream logDestination )
     {
         this( DefaultFileSystemAbstraction::new, FormattedLogProvider.toOutputStream( logDestination ), logDestination, new Monitors(),
-                createPageCache( new DefaultFileSystemAbstraction() ) );
+              createPageCache( new DefaultFileSystemAbstraction(), createInitialisedScheduler() ) );
     }
 
     BackupProtocolService( Supplier<FileSystemAbstraction> fileSystemSupplier, LogProvider logProvider, OutputStream logDestination, Monitors monitors,

@@ -57,7 +57,6 @@ import org.neo4j.kernel.ha.com.master.InvalidEpochException;
 import org.neo4j.kernel.ha.com.master.Master;
 import org.neo4j.kernel.ha.com.slave.InvalidEpochExceptionHandler;
 import org.neo4j.kernel.impl.util.CountingJobScheduler;
-import org.neo4j.kernel.impl.scheduler.CentralJobScheduler;
 import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.test.rule.CleanupRule;
@@ -77,6 +76,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createInitialisedScheduler;
 import static org.neo4j.logging.AssertableLogProvider.inLog;
 
 public class SlaveUpdatePullerTest
@@ -91,7 +91,7 @@ public class SlaveUpdatePullerTest
     private final RequestContextFactory requestContextFactory = mock( RequestContextFactory.class );
     private final InvalidEpochExceptionHandler invalidEpochHandler = mock( InvalidEpochExceptionHandler.class );
     private final SlaveUpdatePuller.Monitor monitor = mock( SlaveUpdatePuller.Monitor.class );
-    private final JobScheduler jobScheduler = new CountingJobScheduler( scheduledJobs, new CentralJobScheduler() );
+    private final JobScheduler jobScheduler = new CountingJobScheduler( scheduledJobs, createInitialisedScheduler() );
     private final SlaveUpdatePuller updatePuller = new SlaveUpdatePuller( requestContextFactory, master,
             lastUpdateTime, logProvider, instanceId, availabilityGuard, invalidEpochHandler, jobScheduler, monitor );
 

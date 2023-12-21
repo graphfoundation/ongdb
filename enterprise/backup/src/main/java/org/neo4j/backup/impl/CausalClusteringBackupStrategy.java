@@ -120,7 +120,7 @@ class CausalClusteringBackupStrategy extends LifecycleAdapter implements BackupS
         {
             return new Fallible<>( BackupStageOutcome.WRONG_PROTOCOL, e );
         }
-        Optional<StoreId> expectedStoreId = readLocalStoreId( backupDatabaseLayout.idNodeStore() );
+        Optional<StoreId> expectedStoreId = readLocalStoreId( backupDatabaseLayout );
         if ( !expectedStoreId.isPresent() || !expectedStoreId.get().equals( storeId ) )
         {
             return new Fallible<>( BackupStageOutcome.FAILURE,

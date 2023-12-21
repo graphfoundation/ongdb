@@ -45,6 +45,7 @@ import org.neo4j.commandline.admin.OutsideWorld;
 import org.neo4j.consistency.ConsistencyCheckService;
 import org.neo4j.consistency.checking.full.ConsistencyFlags;
 import org.neo4j.helpers.progress.ProgressMonitorFactory;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.logging.LogProvider;
 
@@ -114,7 +115,7 @@ class BackupStrategyCoordinator
         }
         if ( requiredArgs.isDoConsistencyCheck() )
         {
-            performConsistencyCheck( onlineBackupContext.getConfig(), requiredArgs, consistencyFlags, destination );
+            performConsistencyCheck( onlineBackupContext.getConfig(), requiredArgs, consistencyFlags, DatabaseLayout.of( destination.toFile() ) );
         }
     }
 
@@ -129,15 +130,14 @@ class BackupStrategyCoordinator
 
     private void performConsistencyCheck(
             Config config, OnlineBackupRequiredArguments requiredArgs, ConsistencyFlags consistencyFlags,
-            Path destination ) throws CommandFailed
+            DatabaseLayout databaseLayout ) throws CommandFailed
     {
         try
         {
-            File storeDir = destination.toFile();
             boolean verbose = false;
             File reportDir = requiredArgs.getReportDir().toFile();
             ConsistencyCheckService.Result ccResult = consistencyCheckService.runFullConsistencyCheck(
-                    storeDir,
+                    databaseLayout,
                     config,
                     progressMonitorFactory,
                     logProvider,
