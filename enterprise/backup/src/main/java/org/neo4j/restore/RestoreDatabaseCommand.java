@@ -40,6 +40,7 @@ import java.io.IOException;
 import org.neo4j.commandline.admin.CommandFailed;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
@@ -52,12 +53,12 @@ import static org.neo4j.graphdb.factory.GraphDatabaseSettings.database_path;
 
 public class RestoreDatabaseCommand
 {
-    private FileSystemAbstraction fs;
+    private final FileSystemAbstraction fs;
     private final File fromPath;
     private final File databaseDir;
     private final File transactionLogsDirectory;
-    private String databaseName;
-    private boolean forceOverwrite;
+    private final String databaseName;
+    private final boolean forceOverwrite;
 
     public RestoreDatabaseCommand( FileSystemAbstraction fs, File fromPath, Config config, String databaseName,
             boolean forceOverwrite )
@@ -93,7 +94,7 @@ public class RestoreDatabaseCommand
                     databaseName, databaseDir ) );
         }
 
-        checkLock( databaseDir.toPath() );
+        checkLock( DatabaseLayout.of( databaseDir ).getStoreLayout() );
 
         fs.deleteRecursively( databaseDir );
 
