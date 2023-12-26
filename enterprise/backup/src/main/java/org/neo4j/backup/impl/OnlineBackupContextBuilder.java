@@ -59,10 +59,6 @@ import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.util.OptionalHostnamePort;
 
-import static org.neo4j.consistency.ConsistencyCheckSettings.consistency_check_graph;
-import static org.neo4j.consistency.ConsistencyCheckSettings.consistency_check_indexes;
-import static org.neo4j.consistency.ConsistencyCheckSettings.consistency_check_label_scan_store;
-import static org.neo4j.consistency.ConsistencyCheckSettings.consistency_check_property_owners;
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.logical_logs_location;
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.pagecache_memory;
 import static org.neo4j.kernel.impl.util.Converters.toOptionalHostnamePortFromRawAddress;
@@ -139,34 +135,20 @@ class OnlineBackupContextBuilder
                 .sorted()
                 .collect( Collectors.joining( "|" ) );
         return new Arguments()
-                .withArgument( new MandatoryCanonicalPath(
-                        ARG_NAME_BACKUP_DIRECTORY, "backup-path", ARG_DESC_BACKUP_DIRECTORY ) )
-                .withArgument( new MandatoryNamedArg(
-                        ARG_NAME_BACKUP_NAME, "graph.db-backup", ARG_DESC_BACKUP_NAME ) )
-                .withArgument( new OptionalNamedArg(
-                        ARG_NAME_BACKUP_SOURCE, "address", ARG_DFLT_BACKUP_SOURCE, ARG_DESC_BACKUP_SOURCE ) )
-                .withArgument( new OptionalNamedArg( ARG_NAME_PROTO_OVERRIDE, argExampleProtoOverride,
-                        ARG_DFLT_PROTO_OVERRIDE, ARG_DESC_PROTO_OVERRIDE ) )
-                .withArgument( new OptionalBooleanArg(
-                        ARG_NAME_FALLBACK_FULL, true, ARG_DESC_FALLBACK_FULL ) )
-                .withArgument( new OptionalNamedArg(
-                        ARG_NAME_TIMEOUT, "timeout", ARG_DFLT_TIMEOUT, ARG_DESC_TIMEOUT ) )
-                .withArgument( new OptionalNamedArg(
-                        ARG_NAME_PAGECACHE, "8m", ARG_DFLT_PAGECACHE, ARG_DESC_PAGECACHE ) )
-                .withArgument( new OptionalBooleanArg(
-                        ARG_NAME_CHECK_CONSISTENCY, true, ARG_DESC_CHECK_CONSISTENCY ) )
-                .withArgument( new OptionalCanonicalPath(
-                        ARG_NAME_REPORT_DIRECTORY, "directory", ".", ARG_DESC_REPORT_DIRECTORY ) )
-                .withArgument( new OptionalCanonicalPath(
-                        ARG_NAME_ADDITIONAL_CONFIG_DIR, "config-file-path", "", ARG_DESC_ADDITIONAL_CONFIG_DIR ) )
-                .withArgument( new OptionalBooleanArg(
-                        ARG_NAME_CHECK_GRAPH, true, ARG_DESC_CHECK_GRAPH ) )
-                .withArgument( new OptionalBooleanArg(
-                        ARG_NAME_CHECK_INDEXES, true, ARG_DESC_CHECK_INDEXES ) )
-                .withArgument( new OptionalBooleanArg(
-                        ARG_NAME_CHECK_LABELS, true, ARG_DESC_CHECK_LABELS ) )
-                .withArgument( new OptionalBooleanArg(
-                        ARG_NAME_CHECK_OWNERS, false, ARG_DESC_CHECK_OWNERS ) );
+                .withArgument( new MandatoryCanonicalPath( ARG_NAME_BACKUP_DIRECTORY, "backup-path", ARG_DESC_BACKUP_DIRECTORY ) )
+                .withArgument( new MandatoryNamedArg( ARG_NAME_BACKUP_NAME, "graph.db-backup", ARG_DESC_BACKUP_NAME ) )
+                .withArgument( new OptionalNamedArg( ARG_NAME_BACKUP_SOURCE, "address", ARG_DFLT_BACKUP_SOURCE, ARG_DESC_BACKUP_SOURCE ) )
+                .withArgument( new OptionalNamedArg( ARG_NAME_PROTO_OVERRIDE, argExampleProtoOverride, ARG_DFLT_PROTO_OVERRIDE, ARG_DESC_PROTO_OVERRIDE ) )
+                .withArgument( new OptionalBooleanArg( ARG_NAME_FALLBACK_FULL, true, ARG_DESC_FALLBACK_FULL ) )
+                .withArgument( new OptionalNamedArg( ARG_NAME_TIMEOUT, "timeout", ARG_DFLT_TIMEOUT, ARG_DESC_TIMEOUT ) )
+                .withArgument( new OptionalNamedArg( ARG_NAME_PAGECACHE, "8m", ARG_DFLT_PAGECACHE, ARG_DESC_PAGECACHE ) )
+                .withArgument( new OptionalBooleanArg( ARG_NAME_CHECK_CONSISTENCY, true, ARG_DESC_CHECK_CONSISTENCY ) )
+                .withArgument( new OptionalCanonicalPath( ARG_NAME_REPORT_DIRECTORY, "directory", ".", ARG_DESC_REPORT_DIRECTORY ) )
+                .withArgument( new OptionalCanonicalPath( ARG_NAME_ADDITIONAL_CONFIG_DIR, "config-file-path", "", ARG_DESC_ADDITIONAL_CONFIG_DIR ) )
+                .withArgument( new OptionalBooleanArg( ARG_NAME_CHECK_GRAPH, true, ARG_DESC_CHECK_GRAPH ) )
+                .withArgument( new OptionalBooleanArg( ARG_NAME_CHECK_INDEXES, true, ARG_DESC_CHECK_INDEXES ) )
+                .withArgument( new OptionalBooleanArg( ARG_NAME_CHECK_LABELS, true, ARG_DESC_CHECK_LABELS ) )
+                .withArgument( new OptionalBooleanArg( ARG_NAME_CHECK_OWNERS, false, ARG_DESC_CHECK_OWNERS ) );
     }
 
     public OnlineBackupContext createContext( String... args ) throws IncorrectUsage, CommandFailed
@@ -176,8 +158,7 @@ class OnlineBackupContextBuilder
             Arguments arguments = arguments();
             arguments.parse( args );
 
-            OptionalHostnamePort address = toOptionalHostnamePortFromRawAddress(
-                    arguments.get( ARG_NAME_BACKUP_SOURCE ) );
+            OptionalHostnamePort address = toOptionalHostnamePortFromRawAddress( arguments.get( ARG_NAME_BACKUP_SOURCE ) );
             Path folder = getBackupDirectory( arguments );
             String name = arguments.get( ARG_NAME_BACKUP_NAME );
             boolean fallbackToFull = arguments.getBoolean( ARG_NAME_FALLBACK_FULL );
@@ -204,15 +185,8 @@ class OnlineBackupContextBuilder
             // Any other custom page swapper, etc. settings are preserved and used.
             config.augment( pagecache_memory, pagecacheMemory );
 
-            // Build consistency-checker configuration.
-            // Note: We can remove the loading from config file in 4.0.
-            BiFunction<String,Setting<Boolean>,Boolean> oneOf =
-                    ( a, s ) -> arguments.has( a ) ? arguments.getBoolean( a ) : config.get( s );
-            ConsistencyFlags consistencyFlags = new ConsistencyFlags(
-                    oneOf.apply( ARG_NAME_CHECK_GRAPH, consistency_check_graph ),
-                    oneOf.apply( ARG_NAME_CHECK_INDEXES, consistency_check_indexes ),
-                    oneOf.apply( ARG_NAME_CHECK_LABELS, consistency_check_label_scan_store ),
-                    oneOf.apply( ARG_NAME_CHECK_OWNERS, consistency_check_property_owners ) );
+            ConsistencyFlags consistencyFlags = new ConsistencyFlags( config );
+
             return new OnlineBackupContext( requiredArguments, config, consistencyFlags );
         }
         catch ( IllegalArgumentException e )
