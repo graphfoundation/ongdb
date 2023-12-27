@@ -45,6 +45,9 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 import org.neo4j.bolt.v1.messaging.Neo4jPackV1;
+import org.neo4j.bolt.v1.messaging.request.InitMessage;
+import org.neo4j.bolt.v1.messaging.request.PullAllMessage;
+import org.neo4j.bolt.v1.messaging.request.RunMessage;
 import org.neo4j.bolt.v1.transport.integration.Neo4jWithSocket;
 import org.neo4j.bolt.v1.transport.integration.TransportTestUtil;
 import org.neo4j.bolt.v1.transport.socket.client.SecureSocketConnection;
@@ -59,9 +62,6 @@ import org.neo4j.test.TestEnterpriseGraphDatabaseFactory;
 import org.neo4j.test.TestGraphDatabaseFactory;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.neo4j.bolt.v1.messaging.message.InitMessage.init;
-import static org.neo4j.bolt.v1.messaging.message.PullAllMessage.pullAll;
-import static org.neo4j.bolt.v1.messaging.message.RunMessage.run;
 import static org.neo4j.bolt.v1.messaging.util.MessageMatchers.msgFailure;
 import static org.neo4j.bolt.v1.messaging.util.MessageMatchers.msgSuccess;
 import static org.neo4j.bolt.v1.transport.integration.TransportTestUtil.eventuallyReceives;
@@ -295,7 +295,7 @@ public class ActiveDirectoryAuthenticationIT
     {
         client.connect( address )
                 .send( util.acceptedVersions( 1, 0, 0, 0 ) )
-                .send( util.chunk( init( "TestClient/1.1", authToken( username, password, realm ) ) ) );
+                .send( util.chunk( new InitMessage( "TestClient/1.1", authToken( username, password, realm ) ) ) );
 
         assertThat( client, eventuallyReceives( new byte[]{0, 0, 0, 1} ) );
         assertThat( client, util.eventuallyReceives( msgSuccess() ) );
@@ -318,7 +318,7 @@ public class ActiveDirectoryAuthenticationIT
         client.connect( address )
                 .send( util.acceptedVersions( 1, 0, 0, 0 ) )
                 .send( util.chunk(
-                        init( "TestClient/1.1", map( "principal", username,
+                        new InitMessage( "TestClient/1.1", map( "principal", username,
                                 "credentials", password, "scheme", "basic" ) ) ) );
 
         assertThat( client, eventuallyReceives( new byte[]{0, 0, 0, 1} ) );
@@ -330,8 +330,8 @@ public class ActiveDirectoryAuthenticationIT
     {
         // When
         client.send( util.chunk(
-                run( "MATCH (n) RETURN n" ),
-                pullAll() ) );
+                new RunMessage( "MATCH (n) RETURN n" ),
+                PullAllMessage.INSTANCE ) );
 
         // Then
         assertThat( client, util.eventuallyReceives( msgSuccess(), msgSuccess() ) );
@@ -341,8 +341,8 @@ public class ActiveDirectoryAuthenticationIT
     {
         // When
         client.send( util.chunk(
-                run( "MATCH (n) RETURN n" ),
-                pullAll() ) );
+                new RunMessage( "MATCH (n) RETURN n" ),
+                PullAllMessage.INSTANCE ) );
 
         // Then
         assertThat( client, util.eventuallyReceives(
@@ -354,8 +354,8 @@ public class ActiveDirectoryAuthenticationIT
     {
         // When
         client.send( util.chunk(
-                run( "CREATE ()" ),
-                pullAll() ) );
+                new RunMessage( "CREATE ()" ),
+                PullAllMessage.INSTANCE ) );
 
         // Then
         assertThat( client, util.eventuallyReceives( msgSuccess(), msgSuccess() ) );
@@ -365,8 +365,8 @@ public class ActiveDirectoryAuthenticationIT
     {
         // When
         client.send( util.chunk(
-                run( "CREATE ()" ),
-                pullAll() ) );
+                new RunMessage( "CREATE ()" ),
+                PullAllMessage.INSTANCE ) );
 
         // Then
         assertThat( client, util.eventuallyReceives(

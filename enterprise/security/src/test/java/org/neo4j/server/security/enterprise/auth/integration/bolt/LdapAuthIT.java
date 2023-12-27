@@ -69,6 +69,9 @@ import javax.naming.directory.DirContext;
 import javax.naming.directory.ModificationItem;
 import javax.naming.ldap.LdapContext;
 
+import org.neo4j.bolt.v1.messaging.request.InitMessage;
+import org.neo4j.bolt.v1.messaging.request.PullAllMessage;
+import org.neo4j.bolt.v1.messaging.request.RunMessage;
 import org.neo4j.bolt.v1.transport.socket.client.TransportConnection;
 import org.neo4j.graphdb.config.Setting;
 import org.neo4j.internal.kernel.api.security.AuthSubject;
@@ -81,13 +84,11 @@ import org.neo4j.server.security.enterprise.auth.EnterpriseAuthAndUserManager;
 import org.neo4j.server.security.enterprise.auth.ProcedureInteractionTestBase;
 import org.neo4j.server.security.enterprise.auth.plugin.api.PredefinedRoles;
 import org.neo4j.server.security.enterprise.configuration.SecuritySettings;
+import org.neo4j.string.UTF8;
 import org.neo4j.test.DoubleLatch;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.neo4j.bolt.v1.messaging.message.InitMessage.init;
-import static org.neo4j.bolt.v1.messaging.message.PullAllMessage.pullAll;
-import static org.neo4j.bolt.v1.messaging.message.RunMessage.run;
 import static org.neo4j.bolt.v1.messaging.util.MessageMatchers.msgFailure;
 import static org.neo4j.bolt.v1.messaging.util.MessageMatchers.msgRecord;
 import static org.neo4j.bolt.v1.messaging.util.MessageMatchers.msgSuccess;
@@ -298,8 +299,8 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         // When
         assertAuth( "smith", "abc123" );
         client.send( util.chunk(
-                run( "CALL dbms.showCurrentUser()" ),
-                pullAll() ) );
+                new RunMessage( "CALL dbms.showCurrentUser()" ),
+                PullAllMessage.INSTANCE ) );
 
         // Then
         // Assuming showCurrentUser has fields username, roles, flags
@@ -369,12 +370,12 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
 
         // When
         client.send( util.chunk(
-                run( "CALL dbms.security.clearAuthCache()" ), pullAll() ) );
+                new RunMessage( "CALL dbms.security.clearAuthCache()" ), PullAllMessage.INSTANCE ) );
         assertThat( client, util.eventuallyReceives( msgSuccess(), msgSuccess() ) );
 
         // Then
         client.send( util.chunk(
-                run( "MATCH (n) RETURN n" ), pullAll() ) );
+                new RunMessage( "MATCH (n) RETURN n" ), PullAllMessage.INSTANCE ) );
         assertThat( client, util.eventuallyReceives(
                 msgFailure( Status.Security.AuthorizationExpired, "LDAP authorization info expired." ) ) );
 
@@ -390,7 +391,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         assertAuth( "ongdb", "abc123" );
 
         client.send( util.chunk(
-                run( "CALL dbms.security.clearAuthCache() MATCH (n) RETURN n" ), pullAll() ) );
+                new RunMessage( "CALL dbms.security.clearAuthCache() MATCH (n) RETURN n" ), PullAllMessage.INSTANCE ) );
 
         // Then
         assertThat( client, util.eventuallyReceives( msgSuccess(), msgSuccess() ) );
@@ -469,7 +470,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
                 gds.getDependencyResolver().resolveDependency( EnterpriseAuthAndUserManager.class );
 
         authManager.getUserManager( AuthSubject.AUTH_DISABLED, true )
-                .newUser( ldapReaderUser, nativePassword, false );
+                .newUser( ldapReaderUser, UTF8.encode( nativePassword ), false );
 
         // Then
         // login user 'ong' with native auth provider and test that LDAP authorization gives correct permission
@@ -666,7 +667,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
 
     private void assertAllowedReadProcedure() throws IOException
     {
-        client.send( util.chunk( run( "CALL test.allowedReadProcedure()" ), pullAll() ) );
+        client.send( util.chunk( new RunMessage( "CALL test.allowedReadProcedure()" ), PullAllMessage.INSTANCE ) );
 
         // Then
         assertThat( client, util.eventuallyReceives(
@@ -1213,19 +1214,19 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         adminClient.connect( address )
                 .send( util.acceptedVersions( 1, 0, 0, 0 ) )
                 .send( util.chunk(
-                        init( "TestClient/1.1", authToken ) ) );
+                        new InitMessage( "TestClient/1.1", authToken ) ) );
         assertThat( adminClient, eventuallyReceives( new byte[]{0, 0, 0, 1} ) );
         assertThat( adminClient, util.eventuallyReceives( msgSuccess() ) );
 
         // Clear auth cache
-        adminClient.send( util.chunk( run( "CALL dbms.security.clearAuthCache()" ), pullAll() ) );
+        adminClient.send( util.chunk( new RunMessage( "CALL dbms.security.clearAuthCache()" ), PullAllMessage.INSTANCE ) );
         assertThat( adminClient, util.eventuallyReceives( msgSuccess(), msgSuccess() ) );
     }
 
     private void assertLdapAuthorizationTimeout() throws IOException
     {
         // When
-        client.send( util.chunk( run( "MATCH (n) RETURN n" ), pullAll() ) );
+        client.send( util.chunk( new RunMessage( "MATCH (n) RETURN n" ), PullAllMessage.INSTANCE ) );
 
         // Then
         assertThat( client, util.eventuallyReceives(
@@ -1237,7 +1238,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
     private void assertLdapAuthorizationFailed() throws IOException
     {
         // When
-        client.send( util.chunk( run( "MATCH (n) RETURN n" ), pullAll() ) );
+        client.send( util.chunk( new RunMessage( "MATCH (n) RETURN n" ), PullAllMessage.INSTANCE ) );
 
         // Then
         assertThat( client, util.eventuallyReceives(
@@ -1251,7 +1252,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         client.connect( address )
                 .send( util.acceptedVersions( 1, 0, 0, 0 ) )
                 .send( util.chunk(
-                        init( "TestClient/1.1", authToken ) ) );
+                        new InitMessage( "TestClient/1.1", authToken ) ) );
 
         assertThat( client, eventuallyReceives( new byte[]{0, 0, 0, 1} ) );
         assertThat( client, util.eventuallyReceives( msgFailure( Status.Security.AuthProviderTimeout, message ) ) );
@@ -1264,7 +1265,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         client.connect( address )
                 .send( util.acceptedVersions( 1, 0, 0, 0 ) )
                 .send( util.chunk(
-                        init( "TestClient/1.1", authToken ) ) );
+                        new InitMessage( "TestClient/1.1", authToken ) ) );
 
         assertThat( client, eventuallyReceives( new byte[]{0, 0, 0, 1} ) );
         assertThat( client, util.eventuallyReceives( msgFailure( Status.Security.AuthProviderFailed, message ) ) );
@@ -1276,7 +1277,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
     {
         assertAuth( "ongdb", "abc123" );
 
-        client.send( util.chunk( run( "CALL dbms.security.clearAuthCache()" ), pullAll() ) );
+        client.send( util.chunk( new RunMessage( "CALL dbms.security.clearAuthCache()" ), PullAllMessage.INSTANCE ) );
 
         assertThat( client, util.eventuallyReceives( msgSuccess(), msgSuccess() ) );
     }

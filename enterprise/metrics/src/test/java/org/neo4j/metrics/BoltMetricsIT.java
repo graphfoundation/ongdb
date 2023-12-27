@@ -41,7 +41,7 @@ import org.junit.Test;
 import java.io.File;
 
 import org.neo4j.bolt.v1.messaging.Neo4jPackV1;
-import org.neo4j.bolt.v1.messaging.message.InitMessage;
+import org.neo4j.bolt.v1.messaging.request.InitMessage;
 import org.neo4j.bolt.v1.transport.integration.TransportTestUtil;
 import org.neo4j.bolt.v1.transport.socket.client.SocketConnection;
 import org.neo4j.bolt.v1.transport.socket.client.TransportConnection;
@@ -87,7 +87,7 @@ public class BoltMetricsIT
         // Given
         File metricsFolder = testDirectory.directory( "metrics" );
         db = (GraphDatabaseAPI) new TestGraphDatabaseFactory()
-                .newEmbeddedDatabaseBuilder( testDirectory.graphDbDir() )
+                .newEmbeddedDatabaseBuilder( testDirectory.storeDir() )
                 .setConfig( new BoltConnector( "bolt" ).type, "BOLT" )
                 .setConfig( new BoltConnector( "bolt" ).enabled, "true" )
                 .setConfig( new BoltConnector( "bolt" ).listen_address, "localhost:" + port )
@@ -104,7 +104,7 @@ public class BoltMetricsIT
         conn = new SocketConnection()
                 .connect( new HostnamePort( "localhost", port ) )
                 .send( util.acceptedVersions( 1, 0, 0, 0 ) )
-                .send( util.chunk( InitMessage.init( "TestClient",
+                .send( util.chunk( new InitMessage( "TestClient",
                         map("scheme", "basic", "principal", "ongdb", "credentials", "ongdb") ) ) );
 
         // Then

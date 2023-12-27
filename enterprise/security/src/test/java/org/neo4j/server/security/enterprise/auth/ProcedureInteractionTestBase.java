@@ -86,6 +86,7 @@ import org.neo4j.procedure.Procedure;
 import org.neo4j.procedure.TerminationGuard;
 import org.neo4j.procedure.UserFunction;
 import org.neo4j.server.security.enterprise.configuration.SecuritySettings;
+import org.neo4j.string.UTF8;
 import org.neo4j.test.DoubleLatch;
 import org.neo4j.test.rule.concurrent.ThreadingRule;
 import org.neo4j.values.AnyValue;
@@ -104,7 +105,7 @@ import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.neo4j.bolt.v1.messaging.message.InitMessage.init;
+import org.neo4j.bolt.v1.messaging.request.InitMessage;
 import static org.neo4j.bolt.v1.messaging.util.MessageMatchers.msgSuccess;
 import static org.neo4j.bolt.v1.transport.integration.Neo4jWithSocket.DEFAULT_CONNECTOR_KEY;
 import static org.neo4j.bolt.v1.transport.integration.TransportTestUtil.eventuallyReceives;
@@ -194,13 +195,13 @@ public abstract class ProcedureInteractionTestBase<S>
         procedures.registerProcedure( ClassWithProcedures.class );
         procedures.registerFunction( ClassWithFunctions.class );
         userManager = neo.getLocalUserManager();
-        userManager.newUser( "noneSubject", "abc", false );
-        userManager.newUser( "pwdSubject", "abc", true );
-        userManager.newUser( "adminSubject", "abc", false );
-        userManager.newUser( "schemaSubject", "abc", false );
-        userManager.newUser( "writeSubject", "abc", false );
-        userManager.newUser( "editorSubject", "abc", false );
-        userManager.newUser( "readSubject", "123", false );
+        userManager.newUser( "noneSubject", UTF8.encode( "abc" ), false );
+        userManager.newUser( "pwdSubject", UTF8.encode( "abc" ), true );
+        userManager.newUser( "adminSubject", UTF8.encode( "abc" ), false );
+        userManager.newUser( "schemaSubject", UTF8.encode( "abc" ), false );
+        userManager.newUser( "writeSubject", UTF8.encode( "abc" ), false );
+        userManager.newUser( "editorSubject", UTF8.encode( "abc" ), false );
+        userManager.newUser( "readSubject", UTF8.encode( "123" ), false );
         // Currently admin role is created by default
         userManager.addRoleToUser( ADMIN, "adminSubject" );
         userManager.addRoleToUser( ARCHITECT, "schemaSubject" );
@@ -637,7 +638,7 @@ public abstract class ProcedureInteractionTestBase<S>
         Map<String,Object> authToken = map( "principal", username, "credentials", password, "scheme", "basic" );
 
         connection.connect( address ).send( util.acceptedVersions( 1, 0, 0, 0 ) )
-                .send( util.chunk( init( "TestClient/1.1", authToken ) ) );
+                .send( util.chunk( new InitMessage( "TestClient/1.1", authToken ) ) );
 
         assertThat( connection, eventuallyReceives( new byte[]{0, 0, 0, 1} ) );
         assertThat( connection, util.eventuallyReceives( msgSuccess() ) );
