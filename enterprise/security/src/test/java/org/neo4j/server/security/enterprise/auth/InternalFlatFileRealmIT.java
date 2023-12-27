@@ -55,6 +55,8 @@ import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.scheduler.CentralJobScheduler;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.NullLogProvider;
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobHandle;
 import org.neo4j.server.security.auth.AuthenticationStrategy;
 import org.neo4j.server.security.auth.BasicPasswordPolicy;
 import org.neo4j.server.security.auth.CommunitySecurityModule;
@@ -78,7 +80,7 @@ public class InternalFlatFileRealmIT
     InternalFlatFileRealm realm;
     EvilFileSystem fs;
 
-    private static int LARGE_NUMBER = 123;
+    private static final int LARGE_NUMBER = 123;
 
     @Before
     public void setup() throws Throwable
@@ -215,8 +217,8 @@ public class InternalFlatFileRealmIT
 
     private class EvilFileSystem extends DelegatingFileSystemAbstraction
     {
-        private Queue<String> userStoreVersions = new LinkedList<>();
-        private Queue<String> roleStoreVersions = new LinkedList<>();
+        private final Queue<String> userStoreVersions = new LinkedList<>();
+        private final Queue<String> roleStoreVersions = new LinkedList<>();
 
         EvilFileSystem( FileSystemAbstraction delegate )
         {
