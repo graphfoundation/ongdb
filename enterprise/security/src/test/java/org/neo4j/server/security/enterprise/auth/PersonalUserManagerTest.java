@@ -43,9 +43,9 @@ import java.io.IOException;
 import java.time.Clock;
 import java.util.Set;
 
-import org.neo4j.kernel.api.exceptions.InvalidArgumentsException;
 import org.neo4j.internal.kernel.api.security.AuthSubject;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
+import org.neo4j.kernel.api.exceptions.InvalidArgumentsException;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.security.User;
 import org.neo4j.logging.Log;
@@ -53,6 +53,7 @@ import org.neo4j.server.security.auth.BasicPasswordPolicy;
 import org.neo4j.server.security.auth.InMemoryUserRepository;
 import org.neo4j.server.security.auth.RateLimitedAuthenticationStrategy;
 import org.neo4j.server.security.enterprise.log.SecurityLog;
+import org.neo4j.string.UTF8;
 
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -77,7 +78,7 @@ public class PersonalUserManagerTest
         expectedException.expectMessage( "newUserException" );
 
         // When
-        userManager.newUser( "hewhoshallnotbenamed", "avada kedavra", false );
+        userManager.newUser( "hewhoshallnotbenamed", UTF8.encode( "avada kedavra" ), false );
         verify( log ).error( withSubject( SecurityContext.AUTH_DISABLED.subject(), "tried to create user `%s`: %s" ),
                 "hewhoshallnotbenamed", "newUserException" );
     }
@@ -102,7 +103,7 @@ public class PersonalUserManagerTest
     private class EvilUserManager implements EnterpriseUserManager
     {
         private boolean failNextCall;
-        private EnterpriseUserManager delegate;
+        private final EnterpriseUserManager delegate;
 
         EvilUserManager( EnterpriseUserManager delegate )
         {
@@ -115,7 +116,7 @@ public class PersonalUserManagerTest
         }
 
         @Override
-        public User newUser( String username, String password, boolean changeRequired )
+        public User newUser( String username, byte[] password, boolean changeRequired )
                 throws IOException, InvalidArgumentsException
         {
             if ( failNextCall )
@@ -155,7 +156,7 @@ public class PersonalUserManagerTest
         }
 
         @Override
-        public void setUserPassword( String username, String password, boolean requirePasswordChange )
+        public void setUserPassword( String username, byte[] password, boolean requirePasswordChange )
                 throws IOException, InvalidArgumentsException
         {
             if ( failNextCall )

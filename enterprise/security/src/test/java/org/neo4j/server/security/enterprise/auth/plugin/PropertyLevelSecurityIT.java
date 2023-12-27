@@ -64,6 +64,7 @@ import org.neo4j.server.security.enterprise.auth.EnterpriseAuthAndUserManager;
 import org.neo4j.server.security.enterprise.auth.EnterpriseUserManager;
 import org.neo4j.server.security.enterprise.auth.plugin.api.PredefinedRoles;
 import org.neo4j.server.security.enterprise.configuration.SecuritySettings;
+import org.neo4j.string.UTF8;
 import org.neo4j.test.TestEnterpriseGraphDatabaseFactory;
 import org.neo4j.test.TestGraphDatabaseFactory;
 import org.neo4j.test.rule.TestDirectory;
@@ -90,7 +91,7 @@ public class PropertyLevelSecurityIT
     public void setUp() throws Throwable
     {
         TestGraphDatabaseFactory s = new TestEnterpriseGraphDatabaseFactory();
-        db = (GraphDatabaseFacade) s.newImpermanentDatabaseBuilder( testDirectory.graphDbDir() )
+        db = (GraphDatabaseFacade) s.newImpermanentDatabaseBuilder( testDirectory.storeDir() )
                 .setConfig( SecuritySettings.property_level_authorization_enabled, "true" )
                 .setConfig( SecuritySettings.property_level_authorization_permissions, "Agent=alias,secret" )
                 .setConfig( SecuritySettings.procedure_roles, "test.*:procRole" )
@@ -100,10 +101,10 @@ public class PropertyLevelSecurityIT
         Procedures procedures = db.getDependencyResolver().resolveDependency( Procedures.class );
         procedures.registerProcedure( TestProcedure.class );
         EnterpriseUserManager userManager = authManager.getUserManager();
-        userManager.newUser( "Neo", "eon", false );
-        userManager.newUser( "Smith", "mr", false );
-        userManager.newUser( "Jones", "mr", false );
-        userManager.newUser( "Morpheus", "dealwithit", false );
+        userManager.newUser( "Neo", UTF8.encode( "eon" ), false );
+        userManager.newUser( "Smith", UTF8.encode( "mr" ), false );
+        userManager.newUser( "Jones", UTF8.encode( "mr" ), false );
+        userManager.newUser( "Morpheus", UTF8.encode( "dealwithit" ), false );
 
         userManager.newRole( "procRole", "Jones" );
         userManager.newRole( "Agent", "Smith", "Jones" );

@@ -41,6 +41,7 @@ import java.util.stream.Stream;
 
 import org.neo4j.bolt.v1.transport.socket.client.TransportConnection;
 import org.neo4j.kernel.api.exceptions.InvalidArgumentsException;
+import org.neo4j.string.UTF8;
 import org.neo4j.test.DoubleLatch;
 
 import static java.lang.String.format;
@@ -902,7 +903,7 @@ public abstract class AuthProceduresInteractionTestBase<S> extends ProcedureInte
     @Test
     public void shouldPrintUserAndRolesWhenPermissionDenied() throws Throwable
     {
-        userManager.newUser( "mats", "foo", false );
+        userManager.newUser( "mats", UTF8.encode( "foo" ), false );
         userManager.newRole( "failer", "mats" );
         S mats = neo.login( "mats", "foo" );
 
