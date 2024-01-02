@@ -38,6 +38,7 @@ import java.io.Console;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -62,10 +63,12 @@ import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntry;
 import org.neo4j.logging.NullLogProvider;
+import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.string.HexString;
 import org.neo4j.tools.util.TransactionLogUtils;
 
 import static org.neo4j.kernel.impl.pagecache.ConfigurableStandalonePageCacheFactory.createPageCache;
+import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createInitialisedScheduler;
 import static org.neo4j.kernel.impl.store.record.RecordLoad.CHECK;
 import static org.neo4j.kernel.impl.transaction.log.LogVersionBridge.NO_MORE_CHANNELS;
 
@@ -88,7 +91,8 @@ public class RsdrMain
 
     public static void main( String[] args ) throws IOException
     {
-        try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction() )
+        try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction();
+              JobScheduler jobScheduler = createInitialisedScheduler() )
         {
             console.printf( "ONgDB Raw Store Diagnostics Reader%n" );
 
@@ -101,14 +105,22 @@ public class RsdrMain
             File storedir = new File( args[0] );
 
             Config config = buildConfig();
-            try ( PageCache pageCache = createPageCache( fileSystem, config ) )
+            try ( PageCache pageCache = createPageCache( fileSystem, jobScheduler ) )
             {
                 DatabaseLayout databaseLayout = DatabaseLayout.of( storedir );
                 File neoStore = databaseLayout.metadataStore();
                 StoreFactory factory = openStore( fileSystem, neoStore, config, pageCache );
                 NeoStores neoStores = factory.openAllNeoStores();
-                interact( fileSystem, neoStores );
+                interact( fileSystem, neoStores, databaseLayout );
             }
+        }
+        catch ( Exception e )
+        {
+            e.printStackTrace( console.writer() );
+        }
+        finally
+        {
+            console.flush();
         }
     }
 
@@ -125,10 +137,11 @@ public class RsdrMain
     {
         IdGeneratorFactory idGeneratorFactory = new DefaultIdGeneratorFactory( fileSystem );
         NullLogProvider logProvider = NullLogProvider.getInstance();
-        return new StoreFactory( storeDir, config, idGeneratorFactory, pageCache, fileSystem, logProvider, EmptyVersionContextSupplier.EMPTY );
+        return new StoreFactory( DatabaseLayout.of( storeDir ), config, idGeneratorFactory, pageCache, fileSystem, logProvider,
+            EmptyVersionContextSupplier.EMPTY );
     }
 
-    private static void interact( FileSystemAbstraction fileSystem, NeoStores neoStores ) throws IOException
+    private static void interact( FileSystemAbstraction fileSystem, NeoStores neoStores, DatabaseLayout databaseLayout ) throws IOException
     {
         printHelp();
 
@@ -136,7 +149,7 @@ public class RsdrMain
         do
         {
             cmd = console.readLine( "neo? " );
-        } while ( execute( fileSystem, cmd, neoStores ) );
+        } while ( execute( fileSystem, cmd, neoStores, databaseLayout ) );
         System.exit( 0 );
     }
 
@@ -151,7 +164,7 @@ public class RsdrMain
                 "  q            quit%n" );
     }
 
-    private static boolean execute( FileSystemAbstraction fileSystem, String cmd, NeoStores neoStores )
+    private static boolean execute( FileSystemAbstraction fileSystem, String cmd, NeoStores neoStores, DatabaseLayout databaseLayout )
             throws IOException
     {
         if ( cmd == null || cmd.equals( "q" ) )
@@ -164,11 +177,11 @@ public class RsdrMain
         }
         else if ( cmd.equals( "l" ) )
         {
-            listFiles( fileSystem, neoStores );
+            listFiles( fileSystem, databaseLayout );
         }
         else if ( cmd.startsWith( "r" ) )
         {
-            read( fileSystem, cmd, neoStores );
+            read( fileSystem, cmd, neoStores, databaseLayout );
         }
         else if ( !cmd.trim().isEmpty() )
         {
@@ -177,17 +190,17 @@ public class RsdrMain
         return true;
     }
 
-    private static void listFiles( FileSystemAbstraction fileSystem, NeoStores neoStores )
+    private static void listFiles( FileSystemAbstraction fileSystem, DatabaseLayout databaseLayout )
     {
-        File storedir = neoStores.getStoreDir();
-        File[] listing = fileSystem.listFiles( storedir );
+        File databaseDirectory = databaseLayout.databaseDirectory();
+        File[] listing = fileSystem.listFiles( databaseDirectory );
         for ( File file : listing )
         {
             console.printf( "%s%n", file.getName() );
         }
     }
 
-    private static void read( FileSystemAbstraction fileSystem, String cmd, NeoStores neoStores ) throws IOException
+    private static void read( FileSystemAbstraction fileSystem, String cmd, NeoStores neoStores, DatabaseLayout databaseLayout ) throws IOException
     {
         Matcher matcher = readCommandPattern.matcher( cmd );
         if ( matcher.find() )
@@ -207,7 +220,7 @@ public class RsdrMain
                 return;
             }
 
-            IOCursor<LogEntry> cursor = getLogCursor( fileSystem, fname, neoStores );
+            IOCursor<LogEntry> cursor = getLogCursor( fileSystem, fname, databaseLayout );
             if ( cursor != null )
             {
                 readLog( cursor, fromId, toId, pattern );
@@ -227,7 +240,7 @@ public class RsdrMain
             RecordStore store, long fromId, long toId, Pattern pattern ) throws IOException
     {
         toId = Math.min( toId, store.getHighId() );
-        try ( StoreChannel channel = fileSystem.open( store.getStorageFileName(), OpenMode.READ ) )
+        try ( StoreChannel channel = fileSystem.open( store.getStorageFile(), OpenMode.READ ) )
         {
             int recordSize = store.getRecordSize();
             ByteBuffer buf = ByteBuffer.allocate( recordSize );
@@ -257,7 +270,7 @@ public class RsdrMain
                 }
                 catch ( InvalidRecordException e )
                 {
-                    str = new String( bytes, 0, count, "ASCII" );
+                    str = new String( bytes, 0, count, StandardCharsets.US_ASCII );
                     use = "?";
                 }
 
@@ -295,10 +308,10 @@ public class RsdrMain
     }
 
     private static IOCursor<LogEntry> getLogCursor( FileSystemAbstraction fileSystem, String fname,
-            NeoStores neoStores ) throws IOException
+            DatabaseLayout databaseLayout ) throws IOException
     {
         return TransactionLogUtils
-                .openLogEntryCursor( fileSystem, new File( neoStores.getStoreDir(), fname ), NO_MORE_CHANNELS );
+                .openLogEntryCursor( fileSystem, new File( databaseLayout.databaseDirectory(), fname ), NO_MORE_CHANNELS );
     }
 
     private static void readLog(

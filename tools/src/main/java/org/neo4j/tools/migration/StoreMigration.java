@@ -39,21 +39,20 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.neo4j.graphdb.facade.GraphDatabaseDependencies;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.Args;
 import org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.graphdb.facade.GraphDatabaseDependencies;
-import org.neo4j.kernel.api.index.IndexProvider;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.Settings;
-import org.neo4j.kernel.extension.KernelExtensions;
-import org.neo4j.kernel.extension.dependency.AllByPrioritySelectionStrategy;
+import org.neo4j.kernel.extension.DatabaseKernelExtensions;
+import org.neo4j.kernel.impl.api.DefaultExplicitIndexProvider;
 import org.neo4j.kernel.impl.api.index.IndexProviderMap;
 import org.neo4j.kernel.impl.factory.DatabaseInfo;
-import org.neo4j.kernel.impl.logging.StoreLogService;
 import org.neo4j.kernel.impl.spi.KernelContext;
 import org.neo4j.kernel.impl.spi.SimpleKernelContext;
 import org.neo4j.kernel.impl.store.format.RecordFormatSelector;
@@ -78,11 +77,14 @@ import org.neo4j.kernel.spi.explicitindex.IndexProviders;
 import org.neo4j.logging.FormattedLogProvider;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.logging.internal.StoreLogService;
+import org.neo4j.scheduler.JobScheduler;
 
 import static java.lang.String.format;
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.store_internal_log_path;
-import static org.neo4j.kernel.extension.UnsatisfiedDependencyStrategies.ignore;
+import static org.neo4j.kernel.extension.KernelExtensionFailureStrategies.ignore;
 import static org.neo4j.kernel.impl.pagecache.ConfigurableStandalonePageCacheFactory.createPageCache;
+import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createInitialisedScheduler;
 
 /**
  * Stand alone tool for migrating/upgrading a ONgDB database from one version to the next.
@@ -131,10 +133,11 @@ public class StoreMigration
         life.add( logService );
 
         // Add participants from kernel extensions...
-        ExplicitIndexProvider explicitIndexProvider = new ExplicitIndexProvider();
+        DefaultExplicitIndexProvider explicitIndexProvider = new DefaultExplicitIndexProvider();
 
         Log log = userLogProvider.getLog( StoreMigration.class );
-        try ( PageCache pageCache = createPageCache( fs, config ) )
+        try ( JobScheduler jobScheduler = createInitialisedScheduler();
+              PageCache pageCache = createPageCache( fs, config, jobScheduler ) )
         {
             Dependencies deps = new Dependencies();
             Monitors monitors = new Monitors();
@@ -142,28 +145,24 @@ public class StoreMigration
                     RecoveryCleanupWorkCollector.immediate() );
 
             KernelContext kernelContext = new SimpleKernelContext( storeDirectory, DatabaseInfo.UNKNOWN, deps );
-            KernelExtensions kernelExtensions = life.add( new KernelExtensions(
+            DatabaseKernelExtensions kernelExtensions = life.add( new DatabaseKernelExtensions(
                     kernelContext, GraphDatabaseDependencies.newDependencies().kernelExtensions(),
                     deps, ignore() ) );
 
-            final LogFiles logFiles = LogFilesBuilder.activeFilesBuilder( storeDirectory, fs, pageCache )
+            DatabaseLayout databaseLayout = DatabaseLayout.of( storeDirectory );
+            final LogFiles logFiles = LogFilesBuilder.activeFilesBuilder( databaseLayout, fs, pageCache )
                     .withConfig( config ).build();
             LogTailScanner tailScanner = new LogTailScanner( logFiles, new VersionAwareLogEntryReader<>(), monitors );
 
             // Add the kernel store migrator
             life.start();
 
-            AllByPrioritySelectionStrategy<IndexProvider> indexProviderSelection = new AllByPrioritySelectionStrategy<>();
-            IndexProvider defaultIndexProvider = kernelExtensions.resolveDependency( IndexProvider.class,
-                    indexProviderSelection );
-            IndexProviderMap indexProviderMap = new DefaultIndexProviderMap( defaultIndexProvider,
-                    indexProviderSelection.lowerPrioritizedCandidates() );
+            IndexProviderMap indexProviderMap = new DefaultIndexProviderMap( kernelExtensions, config );
 
             long startTime = System.currentTimeMillis();
-            DatabaseMigrator migrator = new DatabaseMigrator( progressMonitor, fs, config, logService,
-                    indexProviderMap, explicitIndexProvider.getIndexProviders(),
-                    pageCache, RecordFormatSelector.selectForConfig( config, userLogProvider ), tailScanner );
-            migrator.migrate( storeDirectory );
+            DatabaseMigrator migrator = new DatabaseMigrator( progressMonitor, fs, config, logService, indexProviderMap, explicitIndexProvider,
+                    pageCache, RecordFormatSelector.selectForConfig( config, userLogProvider ), tailScanner, jobScheduler );
+            migrator.migrate( databaseLayout );
 
             // Append checkpoint so the last log entry will have the latest version
             appendCheckpoint( logFiles, tailScanner );
@@ -183,35 +182,12 @@ public class StoreMigration
 
     private void appendCheckpoint( LogFiles logFiles, LogTailScanner tailScanner ) throws IOException
     {
-        try ( Lifespan lifespan = new Lifespan( logFiles ) )
+        try ( Lifespan ignored = new Lifespan( logFiles ) )
         {
             FlushablePositionAwareChannel writer = logFiles.getLogFile().getWriter();
             TransactionLogWriter transactionLogWriter = new TransactionLogWriter( new LogEntryWriter( writer ) );
             transactionLogWriter.checkPoint( tailScanner.getTailInformation().lastCheckPoint.getLogPosition() );
             writer.prepareForFlush().flush();
-        }
-    }
-
-    private class ExplicitIndexProvider implements IndexProviders
-    {
-        private final Map<String,IndexImplementation> indexProviders = new HashMap<>();
-
-        public Map<String,IndexImplementation> getIndexProviders()
-        {
-            return indexProviders;
-        }
-
-        @Override
-        public void registerIndexProvider( String name, IndexImplementation index )
-        {
-            indexProviders.put( name, index );
-        }
-
-        @Override
-        public boolean unregisterIndexProvider( String name )
-        {
-            IndexImplementation removed = indexProviders.remove( name );
-            return removed != null;
         }
     }
 
@@ -233,8 +209,7 @@ public class StoreMigration
 
     private static void printUsageAndExit()
     {
-        System.out.println( "Store migration tool performs migration of a store in specified location to latest " +
-                            "supported store version." );
+        System.out.println( "Store migration tool performs migration of a store in specified location to latest supported store version." );
         System.out.println();
         System.out.println( "Options:" );
         System.out.println( "-help    print this help message" );

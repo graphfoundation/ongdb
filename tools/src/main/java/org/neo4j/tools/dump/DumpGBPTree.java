@@ -38,8 +38,6 @@ import java.io.File;
 import java.io.IOException;
 
 import org.neo4j.index.internal.gbptree.GBPTree;
-import org.neo4j.index.internal.gbptree.TreePrinter;
-import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 
 /**
  * For now only dumps header, could be made more useful over time.
@@ -47,7 +45,7 @@ import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 public class DumpGBPTree
 {
     /**
-     * Dumps stuff about a {@link GBPTree} to console in human readable format.
+     * Dumps stuff about a {@link GBPTree} to console in human-readable format.
      *
      * @param args arguments.
      * @throws IOException on I/O error.
@@ -62,6 +60,5 @@ public class DumpGBPTree
 
         File file = new File( args[0] );
         System.out.println( "Dumping " + file.getAbsolutePath() );
-        TreePrinter.printHeader( new DefaultFileSystemAbstraction(), file, System.out );
     }
 }

@@ -38,8 +38,12 @@ import java.io.File;
 import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
+import org.neo4j.internal.kernel.api.Token;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseFile;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
 import org.neo4j.kernel.configuration.Config;
@@ -62,11 +66,10 @@ import org.neo4j.logging.FormattedLogProvider;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.logging.PrintStreamLogger;
-import org.neo4j.internal.kernel.api.Token;
 
 import static java.lang.Long.parseLong;
-
 import static org.neo4j.io.pagecache.impl.muninn.StandalonePageCacheFactory.createPageCache;
+import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createInitialisedScheduler;
 import static org.neo4j.kernel.impl.store.record.RecordLoad.FORCE;
 
 /**
@@ -110,10 +113,10 @@ public class DumpStore<RECORD extends AbstractBaseRecord, STORE extends RecordSt
         }
 
         try ( DefaultFileSystemAbstraction fs = new DefaultFileSystemAbstraction();
-              PageCache pageCache = createPageCache( fs ) )
+              PageCache pageCache = createPageCache( fs, createInitialisedScheduler() ) )
         {
             final DefaultIdGeneratorFactory idGeneratorFactory = new DefaultIdGeneratorFactory( fs );
-            Function<File,StoreFactory> createStoreFactory = file -> new StoreFactory( file.getParentFile(),
+            Function<File,StoreFactory> createStoreFactory = file -> new StoreFactory( DatabaseLayout.of( file.getParentFile() ),
                     Config.defaults(), idGeneratorFactory, pageCache, fs, logProvider(), EmptyVersionContextSupplier.EMPTY );
 
             for ( String arg : args )
@@ -153,8 +156,8 @@ public class DumpStore<RECORD extends AbstractBaseRecord, STORE extends RecordSt
                 throw new IllegalArgumentException( "No such file: " + fileName );
             }
         }
-        StoreType storeType = StoreType.typeOf( file.getName() ).orElseThrow(
-                () -> new IllegalArgumentException( "Not a store file: " + fileName ) );
+        DatabaseFile databaseFile = DatabaseFile.fileOf( file.getName() ).orElseThrow( illegalArgumentExceptionSupplier( fileName ) );
+        StoreType storeType = StoreType.typeOf( databaseFile ).orElseThrow( illegalArgumentExceptionSupplier( fileName ) );
         try ( NeoStores neoStores = createStoreFactory.apply( file ).openNeoStores( storeType ) )
         {
             switch ( storeType )
@@ -192,6 +195,11 @@ public class DumpStore<RECORD extends AbstractBaseRecord, STORE extends RecordSt
         }
     }
 
+    private static Supplier<IllegalArgumentException> illegalArgumentExceptionSupplier( String fileName )
+    {
+        return () -> new IllegalArgumentException( "Not a store file: " + fileName );
+    }
+
     private static void dumpMetaDataStore( NeoStores neoStores )
     {
         neoStores.getMetaDataStore().logRecords( new PrintStreamLogger( System.out ) );
@@ -224,11 +232,11 @@ public class DumpStore<RECORD extends AbstractBaseRecord, STORE extends RecordSt
     }
 
     private static <R extends TokenRecord, T extends Token> void dumpTokens(
-            final TokenStore<R, T> store, IdRange[] ids ) throws Exception
+            final TokenStore<R> store, IdRange[] ids ) throws Exception
     {
         try
         {
-            new DumpStore<R, TokenStore<R, T>>( System.out )
+            new DumpStore<R, TokenStore<R>>( System.out )
             {
                 @Override
                 protected Object transform( R record )

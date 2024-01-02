@@ -63,6 +63,10 @@ import org.neo4j.kernel.impl.api.TransactionCommitProcess;
 import org.neo4j.kernel.impl.api.TransactionQueue;
 import org.neo4j.kernel.impl.api.TransactionToApply;
 import org.neo4j.kernel.impl.api.index.IndexProviderMap;
+import org.neo4j.kernel.impl.core.DelegatingTokenHolder;
+import org.neo4j.kernel.impl.core.ReadOnlyTokenCreator;
+import org.neo4j.kernel.impl.core.TokenHolder;
+import org.neo4j.kernel.impl.core.TokenHolders;
 import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
 import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.impl.store.StoreAccess;
@@ -80,7 +84,9 @@ import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.FormattedLog;
+import org.neo4j.scheduler.JobScheduler;
 
+import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createInitialisedScheduler;
 import static org.neo4j.kernel.impl.transaction.log.TransactionIdStore.BASE_TX_ID;
 import static org.neo4j.kernel.impl.transaction.tracing.CommitEvent.NULL;
 import static org.neo4j.storageengine.api.TransactionApplicationMode.EXTERNAL;
@@ -93,10 +99,12 @@ class RebuildFromLogs
     private static final String UP_TO_TX_ID = "tx";
 
     private final FileSystemAbstraction fs;
+    private final JobScheduler jobScheduler;
 
     RebuildFromLogs( FileSystemAbstraction fs )
     {
         this.fs = fs;
+        this.jobScheduler = createInitialisedScheduler();
     }
 
     public static void main( String[] args ) throws Exception, InconsistentStoreException
@@ -159,7 +167,7 @@ class RebuildFromLogs
 
     public void rebuild( File source, File target, long txId ) throws Exception, InconsistentStoreException
     {
-        try ( PageCache pageCache = StandalonePageCacheFactory.createPageCache( fs ) )
+        try ( PageCache pageCache = StandalonePageCacheFactory.createPageCache( fs, jobScheduler ) )
         {
             LogFiles logFiles = LogFilesBuilder.logFilesBasedOnlyBuilder( source, fs ).build();
             long highestVersion = logFiles.getHighestLogVersion();
@@ -271,10 +279,16 @@ class RebuildFromLogs
         private void checkConsistency() throws ConsistencyCheckIncompleteException, InconsistentStoreException
         {
             StoreAccess nativeStores = new StoreAccess( graphdb.getDependencyResolver()
-                    .resolveDependency( RecordStorageEngine.class ).testAccessNeoStores() ).initialize();
-            DirectStoreAccess stores = new DirectStoreAccess( nativeStores, labelScanStore, indexes );
+                                                               .resolveDependency( RecordStorageEngine.class ).testAccessNeoStores() ).initialize();
+
+            TokenHolders tokenHolders = new TokenHolders( new DelegatingTokenHolder( new ReadOnlyTokenCreator(), TokenHolder.TYPE_PROPERTY_KEY ),
+                                                          new DelegatingTokenHolder( new ReadOnlyTokenCreator(), TokenHolder.TYPE_LABEL ),
+                                                          new DelegatingTokenHolder( new ReadOnlyTokenCreator(), TokenHolder.TYPE_RELATIONSHIP_TYPE ) );
+
+            DirectStoreAccess stores = new DirectStoreAccess( nativeStores, labelScanStore, indexes, tokenHolders );
+
             FullCheck fullCheck = new FullCheck( tuningConfiguration, ProgressMonitorFactory.textual( System.err ),
-                    Statistics.NONE, ConsistencyCheckService.defaultConsistencyCheckThreadsNumber() );
+                    Statistics.NONE, ConsistencyCheckService.defaultConsistencyCheckThreadsNumber(), false );
 
             ConsistencySummaryStatistics summaryStatistics =
                     fullCheck.execute( stores, FormattedLog.toOutputStream( System.err ) );
