@@ -55,6 +55,7 @@ import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.RotatingFileOutputStreamSupplier;
 import org.neo4j.metrics.MetricsSettings;
+import org.neo4j.scheduler.Group;
 import org.neo4j.scheduler.JobScheduler;
 
 import static org.neo4j.metrics.MetricsSettings.csvEnabled;
@@ -95,7 +96,7 @@ public class CsvOutput implements Lifecycle, EventReporter
         }
         Long rotationThreshold = config.get( MetricsSettings.csvRotationThreshold );
         Integer maxArchives = config.get( MetricsSettings.csvMaxArchives );
-        outputPath = absoluteFileOrRelativeTo( kernelContext.storeDir(), configuredPath );
+        outputPath = absoluteFileOrRelativeTo( kernelContext.directory(), configuredPath );
         csvReporter = RotatableCsvReporter.forRegistry( registry )
                 .convertRatesTo( TimeUnit.SECONDS )
                 .convertDurationsTo( TimeUnit.MILLISECONDS )
@@ -138,7 +139,7 @@ public class CsvOutput implements Lifecycle, EventReporter
             try
             {
                 return new RotatingFileOutputStreamSupplier( fileSystem, file, rotationThreshold, 0, maxArchives,
-                        scheduler.executor( JobScheduler.Groups.metricsLogRotations ), listener );
+                        scheduler.executor( Group.LOG_ROTATION ), listener );
             }
             catch ( IOException e )
             {
