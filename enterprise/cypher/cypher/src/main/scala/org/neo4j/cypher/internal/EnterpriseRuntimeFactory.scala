@@ -41,34 +41,32 @@ import org.neo4j.cypher.internal.compatibility.InterpretedRuntime
 import org.neo4j.cypher.internal.compatibility.ProcedureCallOrSchemaCommandRuntime
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.EnterpriseRuntimeContext
 
-object EnterpriseRuntimeBuilder {
+object EnterpriseRuntimeFactory {
 
-  def create(runtimeName: CypherRuntimeOption, useErrorsOverWarnings: Boolean): CypherRuntime[EnterpriseRuntimeContext] = {
+  val interpreted = new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, InterpretedRuntime), CypherRuntimeOption.interpreted)
+  val morsel = new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, MorselRuntime), CypherRuntimeOption.morsel)
+  val slotted = new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, SlottedRuntime), CypherRuntimeOption.slotted)
+  val compiled = new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, CompiledRuntime), CypherRuntimeOption.compiled)
+  val default = new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, CompiledRuntime), CypherRuntimeOption.default)
+
+  def getRuntime(runtimeName: CypherRuntimeOption, useErrorsOverWarnings: Boolean): CypherRuntime[EnterpriseRuntimeContext] = {
 
     runtimeName match {
-      case CypherRuntimeOption.interpreted =>
-        new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, InterpretedRuntime), CypherRuntimeOption.interpreted)
+      case CypherRuntimeOption.interpreted => interpreted
 
-      case CypherRuntimeOption.morsel if useErrorsOverWarnings =>
-        new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, MorselRuntime), CypherRuntimeOption.morsel)
+      case CypherRuntimeOption.morsel if useErrorsOverWarnings => morsel
 
-      case CypherRuntimeOption.morsel =>
-        new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, MorselRuntime), CypherRuntimeOption.morsel)
+      case CypherRuntimeOption.morsel => morsel
 
-      case CypherRuntimeOption.slotted if useErrorsOverWarnings =>
-        new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, SlottedRuntime), CypherRuntimeOption.slotted)
+      case CypherRuntimeOption.slotted if useErrorsOverWarnings => slotted
 
-      case CypherRuntimeOption.slotted =>
-        new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, SlottedRuntime), CypherRuntimeOption.slotted)
+      case CypherRuntimeOption.slotted => slotted
 
-      case CypherRuntimeOption.compiled if useErrorsOverWarnings =>
-        new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, CompiledRuntime), CypherRuntimeOption.compiled)
+      case CypherRuntimeOption.compiled if useErrorsOverWarnings => compiled
 
-      case CypherRuntimeOption.compiled =>
-        new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, CompiledRuntime), CypherRuntimeOption.compiled)
+      case CypherRuntimeOption.compiled => compiled
 
-      case CypherRuntimeOption.default =>
-        new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, CompiledRuntime), CypherRuntimeOption.default)
+      case CypherRuntimeOption.default => default
     }
   }
 }

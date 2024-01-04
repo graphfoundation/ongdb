@@ -66,7 +66,7 @@ class EnterpriseCompilerFactory(inner: CommunityCompilerFactory,
       val log = logProvider.getLog(getClass)
       val txIdProvider = LastCommittedTxIdProvider(graph)
       val planner = Cypher35Planner(plannerConfig, MasterCompiler.CLOCK, kernelMonitors, log, cypherPlanner, cypherUpdateStrategy, txIdProvider)
-      val runtime = EnterpriseRuntimeBuilder.create(cypherRuntime, plannerConfig.useErrorsOverWarnings)
+      val runtime = EnterpriseRuntimeFactory.getRuntime(cypherRuntime, plannerConfig.useErrorsOverWarnings)
       val dispatcher = new SingleThreadedExecutor(100)
       val contextCreator = EnterpriseRuntimeContextCreator(GeneratedQueryStructure, log, plannerConfig, dispatcher)
       CypherCurrentCompiler(planner, runtime, contextCreator, kernelMonitors)
