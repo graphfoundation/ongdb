@@ -34,74 +34,41 @@
  */
 package org.neo4j.cypher.internal
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.BuildCompiledExecutionPlan
+import org.neo4j.cypher.CypherRuntimeOption
+import org.neo4j.cypher.internal.compatibility.CypherRuntime
+import org.neo4j.cypher.internal.compatibility.FallbackRuntime
+import org.neo4j.cypher.internal.compatibility.InterpretedRuntime
+import org.neo4j.cypher.internal.compatibility.ProcedureCallOrSchemaCommandRuntime
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.EnterpriseRuntimeContext
-import org.neo4j.cypher.internal.compiler.v3_5.phases.LogicalPlanState
-import org.neo4j.cypher.internal.v3_5.frontend.notification.RuntimeUnsupportedNotification
-import org.neo4j.cypher.internal.v3_5.frontend.phases.{Do, If, Transformer}
-import org.neo4j.cypher.internal.v3_5.util.InvalidArgumentException
 
-import scala.util.{Failure, Success}
+object EnterpriseRuntimeBuilder {
 
-object EnterpriseRuntimeBuilder extends RuntimeBuilder[Transformer[EnterpriseRuntimeContext, LogicalPlanState, CompilationState]] {
-
-  type CompilationStateTransformer = Transformer[EnterpriseRuntimeContext, CompilationState, CompilationState]
-
-  private val AssertExecutionPlan: CompilationStateTransformer = AssertExecutionPlan(false)
-  private val AssertExecutionPlanAndWrapException: CompilationStateTransformer = AssertExecutionPlan(true)
-  private def AssertExecutionPlan(wrapException: Boolean): CompilationStateTransformer =
-    Do((state, ctx) => state.maybeExecutionPlan match {
-      case Success(_) => state
-      case Failure(t) =>
-        if (wrapException)
-          throw new InvalidArgumentException("The given query is not currently supported in the selected runtime", t)
-        else throw t
-    })
-
-  private def Fallback(fallback: Transformer[EnterpriseRuntimeContext, LogicalPlanState, CompilationState]
-                      ): CompilationStateTransformer =
-    If[EnterpriseRuntimeContext, LogicalPlanState, CompilationState](_.maybeExecutionPlan.isFailure) { fallback }
-
-  private def FallbackWithNotification(fallback: Transformer[EnterpriseRuntimeContext, LogicalPlanState, CompilationState]
-                                      ): CompilationStateTransformer =
-    Fallback(
-      Do((_: EnterpriseRuntimeContext).notificationLogger.log(RuntimeUnsupportedNotification))
-        andThen fallback
-    )
-
-  def create(runtimeName: Option[RuntimeName], useErrorsOverWarnings: Boolean): Transformer[EnterpriseRuntimeContext, LogicalPlanState, CompilationState] = {
-
-    def pickInterpretedExecutionPlan() =
-      BuildSlottedExecutionPlan andThen Fallback(BuildInterpretedExecutionPlan)
+  def create(runtimeName: CypherRuntimeOption, useErrorsOverWarnings: Boolean): CypherRuntime[EnterpriseRuntimeContext] = {
 
     runtimeName match {
-      case None =>
-        BuildCompiledExecutionPlan andThen Fallback(pickInterpretedExecutionPlan())
+      case CypherRuntimeOption.interpreted =>
+        new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, InterpretedRuntime), CypherRuntimeOption.interpreted)
 
-      case Some(InterpretedRuntimeName) =>
-        BuildInterpretedExecutionPlan andThen AssertExecutionPlan
+      case CypherRuntimeOption.morsel if useErrorsOverWarnings =>
+        new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, MorselRuntime), CypherRuntimeOption.morsel)
 
-      case Some(MorselRuntimeName) if useErrorsOverWarnings =>
-        BuildVectorizedExecutionPlan andThen AssertExecutionPlanAndWrapException
+      case CypherRuntimeOption.morsel =>
+        new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, MorselRuntime), CypherRuntimeOption.morsel)
 
-      case Some(MorselRuntimeName) =>
-        BuildVectorizedExecutionPlan andThen FallbackWithNotification(pickInterpretedExecutionPlan())
+      case CypherRuntimeOption.slotted if useErrorsOverWarnings =>
+        new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, SlottedRuntime), CypherRuntimeOption.slotted)
 
-      case Some(SlottedRuntimeName) if useErrorsOverWarnings =>
-        BuildSlottedExecutionPlan andThen AssertExecutionPlan
+      case CypherRuntimeOption.slotted =>
+        new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, SlottedRuntime), CypherRuntimeOption.slotted)
 
-      case Some(SlottedRuntimeName) =>
-        BuildSlottedExecutionPlan andThen
-          FallbackWithNotification(BuildInterpretedExecutionPlan)
+      case CypherRuntimeOption.compiled if useErrorsOverWarnings =>
+        new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, CompiledRuntime), CypherRuntimeOption.compiled)
 
-      case Some(CompiledRuntimeName) if useErrorsOverWarnings =>
-        BuildCompiledExecutionPlan andThen AssertExecutionPlanAndWrapException
+      case CypherRuntimeOption.compiled =>
+        new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, CompiledRuntime), CypherRuntimeOption.compiled)
 
-      case Some(CompiledRuntimeName) =>
-        BuildCompiledExecutionPlan andThen FallbackWithNotification(pickInterpretedExecutionPlan())
-
-      case Some(x) =>
-        throw new InvalidArgumentException(s"This version of ONgDB does not support requested runtime: $x")
+      case CypherRuntimeOption.default =>
+        new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, CompiledRuntime), CypherRuntimeOption.default)
     }
   }
 }
