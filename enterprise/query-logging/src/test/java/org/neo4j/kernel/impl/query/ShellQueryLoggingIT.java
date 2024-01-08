@@ -34,13 +34,6 @@
  */
 package org.neo4j.kernel.impl.query;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.HashMap;
-import java.util.List;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -48,12 +41,16 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.junit.runners.model.Statement;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.HashMap;
+import java.util.List;
+
 import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseBuilder;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.shell.ShellClient;
 import org.neo4j.shell.ShellException;
 import org.neo4j.shell.ShellLobby;
@@ -82,13 +79,6 @@ public class ShellQueryLoggingIT
         protected void configure( GraphDatabaseFactory factory )
         {
             ((TestGraphDatabaseFactory) factory).setFileSystem( fs.get() );
-        }
-
-        @Override
-        protected void configure( GraphDatabaseBuilder builder )
-        {
-            builder.setConfig( GraphDatabaseSettings.log_queries, Settings.TRUE );
-            builder.setConfig( GraphDatabaseSettings.logs_directory, logsDirectory().getPath() );
         }
     };
     @Rule
@@ -197,7 +187,7 @@ public class ShellQueryLoggingIT
 
     private File logsDirectory()
     {
-        File logsDir = new File( dir.graphDbDir(), "logs" );
+        File logsDir = new File( dir.storeDir(), "logs" );
         fs.get().mkdirs( logsDir );
         return logsDir;
     }

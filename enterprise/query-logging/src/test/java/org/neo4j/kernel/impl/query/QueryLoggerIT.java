@@ -75,6 +75,7 @@ import org.neo4j.kernel.impl.query.clientconnection.ClientConnectionInfo;
 import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.logging.LogTimeZone;
 import org.neo4j.server.security.enterprise.auth.EmbeddedInteraction;
+import org.neo4j.string.UTF8;
 import org.neo4j.test.TestEnterpriseGraphDatabaseFactory;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.rule.fs.DefaultFileSystemRule;
@@ -119,13 +120,13 @@ public class QueryLoggerIT
     @Before
     public void setUp()
     {
-        logsDirectory = new File( testDirectory.graphDbDir(), "logs" );
+        logsDirectory = new File( testDirectory.storeDir(), "logs" );
         logFilename = new File( logsDirectory, "query.log" );
         AssertableLogProvider inMemoryLog = new AssertableLogProvider();
         databaseBuilder = new TestEnterpriseGraphDatabaseFactory()
                 .setFileSystem( new UncloseableDelegatingFileSystemAbstraction( fileSystem.get() ) )
                 .setInternalLogProvider( inMemoryLog )
-                .newImpermanentDatabaseBuilder( testDirectory.graphDbDir() );
+                .newImpermanentDatabaseBuilder( testDirectory.databaseDir() );
     }
 
     @Test
@@ -138,8 +139,8 @@ public class QueryLoggerIT
         EmbeddedInteraction db = new EmbeddedInteraction( databaseBuilder, config );
 
         // create users
-        db.getLocalUserManager().newUser( "mats", "ongdb", false );
-        db.getLocalUserManager().newUser( "andres", "ongdb", false );
+        db.getLocalUserManager().newUser( "mats", UTF8.encode( "ongdb" ), false );
+        db.getLocalUserManager().newUser( "andres", UTF8.encode( "ongdb" ), false );
         db.getLocalUserManager().addRoleToUser( "architect", "mats" );
         db.getLocalUserManager().addRoleToUser( "reader", "andres" );
 
@@ -173,7 +174,7 @@ public class QueryLoggerIT
         EmbeddedInteraction db = new EmbeddedInteraction( databaseBuilder, Collections.emptyMap() );
         GraphDatabaseFacade graph = db.getLocalGraph();
 
-        db.getLocalUserManager().setUserPassword( "ongdb", "123", false );
+        db.getLocalUserManager().setUserPassword( "ongdb", UTF8.encode( "123" ), false );
 
         EnterpriseLoginContext subject = db.login( "ongdb", "123" );
         db.executeQuery( subject, "UNWIND range(0, 10) AS i CREATE (:Foo {p: i})", Collections.emptyMap(),
@@ -318,7 +319,7 @@ public class QueryLoggerIT
     @Test
     public void disabledQueryLogRotation() throws Exception
     {
-        final File logsDirectory = new File( testDirectory.graphDbDir(), "logs" );
+        final File logsDirectory = new File( testDirectory.storeDir(), "logs" );
         final File logFilename = new File( logsDirectory, "query.log" );
         final File shiftedLogFilename1 = new File( logsDirectory, "query.log.1" );
         GraphDatabaseService database = databaseBuilder.setConfig( log_queries, Settings.TRUE )
@@ -344,7 +345,7 @@ public class QueryLoggerIT
     @Test
     public void queryLogRotation()
     {
-        final File logsDirectory = new File( testDirectory.graphDbDir(), "logs" );
+        final File logsDirectory = new File( testDirectory.storeDir(), "logs" );
         databaseBuilder.setConfig( log_queries, Settings.TRUE )
                 .setConfig( logs_directory, logsDirectory.getPath() )
                 .setConfig( log_queries_max_archives, "100" )

@@ -89,11 +89,10 @@ public class TestEnterpriseGraphDatabaseFactory extends TestGraphDatabaseFactory
                             {
                                 if ( state instanceof TestGraphDatabaseFactoryState )
                                 {
-                                    LogProvider logProvider =
-                                            ((TestGraphDatabaseFactoryState) state).getInternalLogProvider();
+                                    LogProvider logProvider = ((TestGraphDatabaseFactoryState) state).getInternalLogProvider();
                                     if ( logProvider != null )
                                     {
-                                        return new SimpleLogService( logProvider, logProvider );
+                                        return new SimpleLogService( logProvider );
                                     }
                                 }
                                 return super.createLogService( userLogProvider );
