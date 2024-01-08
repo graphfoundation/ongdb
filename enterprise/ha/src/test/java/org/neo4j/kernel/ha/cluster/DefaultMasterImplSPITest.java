@@ -44,7 +44,6 @@ import org.neo4j.causalclustering.core.state.machines.token.ReplicatedRelationsh
 import org.neo4j.com.storecopy.StoreWriter;
 import org.neo4j.helpers.collection.Iterators;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.NeoStoreDataSource;
 import org.neo4j.kernel.impl.api.TransactionCommitProcess;
 import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
@@ -52,7 +51,6 @@ import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.SimpleTriggerInfo;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.StoreCopyCheckPointMutex;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.TriggerInfo;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.monitoring.Monitors;
@@ -79,7 +77,7 @@ public class DefaultMasterImplSPITest
                 mock( ReplicatedPropertyKeyTokenHolder.class ), mock( ReplicatedRelationshipTypeTokenHolder.class ),
                 mock( IdGeneratorFactory.class ), mock( TransactionCommitProcess.class ), checkPointer,
                 mock( TransactionIdStore.class ), mock( LogicalTransactionStore.class ),
-                dataSource, mock( PageCache.class ), new StoreCopyCheckPointMutex(), NullLogProvider.getInstance() );
+                dataSource, NullLogProvider.getInstance() );
 
         master.flushStoresAndStreamStoreFiles( mock( StoreWriter.class ) );
 

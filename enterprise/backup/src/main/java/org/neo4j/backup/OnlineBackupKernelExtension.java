@@ -98,16 +98,14 @@ public class OnlineBackupKernelExtension implements Lifecycle
                                         final Supplier<TransactionIdStore> transactionIdStoreSupplier,
                                         final Supplier<LogicalTransactionStore> logicalTransactionStoreSupplier,
                                         final Supplier<LogFileInformation> logFileInformationSupplier,
-                                        final FileSystemAbstraction fileSystemAbstraction,
-                                        final PageCache pageCache,
-                                        final StoreCopyCheckPointMutex storeCopyCheckPointMutex )
+                                        final FileSystemAbstraction fileSystemAbstraction )
     {
         this( config, graphDatabaseAPI, () ->
         {
             TransactionIdStore transactionIdStore = transactionIdStoreSupplier.get();
             StoreCopyServer copier = new StoreCopyServer( neoStoreDataSource, checkPointerSupplier.get(),
                     fileSystemAbstraction, graphDatabaseAPI.databaseLayout().databaseDirectory(),
-                    monitors.newMonitor( StoreCopyServer.Monitor.class ), pageCache, storeCopyCheckPointMutex );
+                    monitors.newMonitor( StoreCopyServer.Monitor.class ) );
             LogicalTransactionStore logicalTransactionStore = logicalTransactionStoreSupplier.get();
             LogFileInformation logFileInformation = logFileInformationSupplier.get();
             return new BackupImpl( copier, logicalTransactionStore, transactionIdStore, logFileInformation,

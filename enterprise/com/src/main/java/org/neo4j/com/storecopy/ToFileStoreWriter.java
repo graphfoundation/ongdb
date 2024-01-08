@@ -39,34 +39,22 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
-import java.util.List;
 
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.StoreChannel;
-import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.io.pagecache.PagedFile;
-import org.neo4j.kernel.impl.store.StoreType;
-
-import static java.nio.file.StandardOpenOption.CREATE;
-import static java.nio.file.StandardOpenOption.WRITE;
-import static org.neo4j.kernel.impl.store.format.RecordFormat.NO_RECORD_SIZE;
 
 public class ToFileStoreWriter implements StoreWriter
 {
     private final File basePath;
     private final FileSystemAbstraction fs;
     private final StoreCopyClientMonitor monitor;
-    private final PageCache pageCache;
-    private final List<FileMoveAction> fileMoveActions;
 
     public ToFileStoreWriter( File graphDbStoreDir, FileSystemAbstraction fs,
-            StoreCopyClientMonitor storeCopyClientMonitor, PageCache pageCache, List<FileMoveAction> fileMoveActions )
+            StoreCopyClientMonitor storeCopyClientMonitor )
     {
         this.basePath = graphDbStoreDir;
         this.fs = fs;
         this.monitor = storeCopyClientMonitor;
-        this.pageCache = pageCache;
-        this.fileMoveActions = fileMoveActions;
     }
 
     @Override
@@ -97,22 +85,6 @@ public class ToFileStoreWriter implements StoreWriter
         {
             throw new IOException( t );
         }
-    }
-
-    // As only the page cache know towards which device (block device or normal file system) it is working, we use
-    // the page cache later on when we want to move the files written through the page cache.
-    private void addPageCacheMoveAction( File file )
-    {
-        fileMoveActions.add( FileMoveAction.copyViaPageCache( file, pageCache ) );
-    }
-
-    private int filePageSize( int alignment )
-    {
-        // We know we are dealing with a record store at this point, so the required alignment is the record size,
-        // and we can use this to do the page size calculation in the same way as the stores would.
-        final int pageCacheSize = pageCache.pageSize();
-        return (alignment == NO_RECORD_SIZE) ? pageCacheSize
-                                              : (pageCacheSize - (pageCacheSize % alignment));
     }
 
     private long writeDataThroughFileSystem( File file, ReadableByteChannel data, ByteBuffer temporaryBuffer,

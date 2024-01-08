@@ -87,11 +87,9 @@ public class DefaultMasterImplSPI implements MasterImpl.SPI
     private final File storeDir;
     private final ResponsePacker responsePacker;
     private final Monitors monitors;
-    private final PageCache pageCache;
 
     private final TransactionCommitProcess transactionCommitProcess;
     private final CheckPointer checkPointer;
-    private final StoreCopyCheckPointMutex mutex;
 
     public DefaultMasterImplSPI( final GraphDatabaseAPI graphDb,
                                  FileSystemAbstraction fileSystemAbstraction,
@@ -105,8 +103,6 @@ public class DefaultMasterImplSPI implements MasterImpl.SPI
                                  TransactionIdStore transactionIdStore,
                                  LogicalTransactionStore logicalTransactionStore,
                                  NeoStoreDataSource neoStoreDataSource,
-                                 PageCache pageCache,
-                                 StoreCopyCheckPointMutex mutex,
                                  LogProvider logProvider )
     {
         this.graphDb = graphDb;
@@ -118,12 +114,10 @@ public class DefaultMasterImplSPI implements MasterImpl.SPI
         this.transactionCommitProcess = transactionCommitProcess;
         this.checkPointer = checkPointer;
         this.neoStoreDataSource = neoStoreDataSource;
-        this.mutex = mutex;
         this.storeDir = graphDb.databaseLayout().getStoreLayout().storeDirectory();
         this.txChecksumLookup = new TransactionChecksumLookup( transactionIdStore, logicalTransactionStore );
         this.responsePacker = new ResponsePacker( logicalTransactionStore, transactionIdStore, graphDb::storeId );
         this.monitors = monitors;
-        this.pageCache = pageCache;
         monitors.addMonitorListener( new LoggingStoreCopyServerMonitor( logProvider.getLog( StoreCopyServer.class ) ),
                 StoreCopyServer.class.getName() );
     }
@@ -185,7 +179,7 @@ public class DefaultMasterImplSPI implements MasterImpl.SPI
     public RequestContext flushStoresAndStreamStoreFiles( StoreWriter writer )
     {
         StoreCopyServer streamer = new StoreCopyServer( neoStoreDataSource, checkPointer, fileSystem, storeDir,
-                monitors.newMonitor( StoreCopyServer.Monitor.class ), pageCache, mutex );
+                monitors.newMonitor( StoreCopyServer.Monitor.class ) );
         return streamer.flushStoresAndStreamStoreFiles( STORE_COPY_CHECKPOINT_TRIGGER, writer, false );
     }
 

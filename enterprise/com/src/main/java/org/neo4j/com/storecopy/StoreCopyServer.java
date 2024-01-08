@@ -38,7 +38,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
-import java.util.Optional;
 
 import org.neo4j.com.RequestContext;
 import org.neo4j.com.Response;
@@ -49,8 +48,6 @@ import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.io.ByteUnit;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.OpenMode;
-import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.io.pagecache.PagedFile;
 import org.neo4j.kernel.NeoStoreDataSource;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.SimpleTriggerInfo;
@@ -134,21 +131,17 @@ public class StoreCopyServer
     private final NeoStoreDataSource dataSource;
     private final CheckPointer checkPointer;
     private final FileSystemAbstraction fileSystem;
-    private final File storeDirectory;
+    private final File databaseDirectory;
     private final Monitor monitor;
-    private final PageCache pageCache;
-    private final StoreCopyCheckPointMutex mutex;
 
     public StoreCopyServer( NeoStoreDataSource dataSource, CheckPointer checkPointer, FileSystemAbstraction fileSystem,
-            File storeDirectory, Monitor monitor, PageCache pageCache, StoreCopyCheckPointMutex mutex )
+            File databaseDirectory, Monitor monitor )
     {
         this.dataSource = dataSource;
         this.checkPointer = checkPointer;
         this.fileSystem = fileSystem;
-        this.mutex = mutex;
-        this.storeDirectory = getCanonicalFile( storeDirectory );
+        this.databaseDirectory = getCanonicalFile( databaseDirectory );
         this.monitor = monitor;
-        this.pageCache = pageCache;
     }
 
     public Monitor monitor()
@@ -179,7 +172,9 @@ public class StoreCopyServer
 
             // Copy the store files
             long lastAppliedTransaction;
-            try ( Resource lock = mutex.storeCopy( checkPointAction ); ResourceIterator<StoreFileMetadata> files = dataSource.listStoreFiles( includeLogs ) )
+            StoreCopyCheckPointMutex mutex = dataSource.getStoreCopyCheckPointMutex();
+            try ( Resource ignored = mutex.storeCopy( checkPointAction );
+                  ResourceIterator<StoreFileMetadata> files = dataSource.listStoreFiles( includeLogs ) )
             {
                 lastAppliedTransaction = checkPointer.lastCheckPointedTransactionId();
                 monitor.startStreamingStoreFiles( storeCopyIdentifier );
@@ -216,7 +211,7 @@ public class StoreCopyServer
             ReadableByteChannel fileChannel, long fileSize, String storeCopyIdentifier, boolean isLogFile ) throws IOException
     {
         monitor.startStreamingStoreFile( file, storeCopyIdentifier );
-        String path = isLogFile ? file.getName() : relativePath( storeDirectory, file );
+        String path = isLogFile ? file.getName() : relativePath( databaseDirectory, file );
         writer.write( path, fileChannel, temporaryBuffer, fileSize > 0, recordSize );
         monitor.finishStreamingStoreFile( file, storeCopyIdentifier );
     }

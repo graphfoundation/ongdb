@@ -41,27 +41,18 @@ import org.junit.rules.RuleChain;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.neo4j.com.DataProducer;
-import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.kernel.impl.index.labelscan.NativeLabelScanStore;
 import org.neo4j.kernel.impl.store.StoreType;
 import org.neo4j.test.rule.PageCacheRule;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
 
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-import static org.neo4j.kernel.impl.storemigration.StoreFileType.STORE;
 
 public class ToFileStoreWriterTest
 {
@@ -76,10 +67,8 @@ public class ToFileStoreWriterTest
     public void shouldLetPageCacheHandleRecordStoresAndNativeLabelScanStoreFiles() throws Exception
     {
         // GIVEN
-        List<FileMoveAction> actions = new ArrayList<>();
-        PageCache pageCache = spy( pageCacheRule.getPageCache( fs ) );
-        ToFileStoreWriter writer = new ToFileStoreWriter( directory.absolutePath(), fs,
-                new StoreCopyClientMonitor.Adapter(), pageCache, actions );
+        ToFileStoreWriter writer = new ToFileStoreWriter( directory.databaseDir(), fs,
+                new StoreCopyClientMonitor.Adapter() );
         ByteBuffer tempBuffer = ByteBuffer.allocate( 128 );
 
         // WHEN
@@ -87,11 +76,14 @@ public class ToFileStoreWriterTest
         {
             if ( type.isRecordStore() )
             {
-                String fileName = type.getStoreFile().fileName( STORE );
-                writeAndVerifyWrittenThroughPageCache( pageCache, writer, tempBuffer, fileName );
+                File[] files = directory.databaseLayout().file( type.getDatabaseFile() ).toArray( File[]::new );
+                for ( File file : files )
+                {
+                    writeAndVerify( writer, tempBuffer, file );
+                }
             }
         }
-        writeAndVerifyWrittenThroughPageCache( pageCache, writer, tempBuffer, NativeLabelScanStore.FILE_NAME );
+        writeAndVerify( writer, tempBuffer, directory.databaseLayout().labelScanStore() );
     }
 
     @Test
@@ -110,10 +102,7 @@ public class ToFileStoreWriterTest
         };
 
         // and
-        List<FileMoveAction> actions = new ArrayList<>();
-        PageCache pageCache = spy( pageCacheRule.getPageCache( fs ) );
-        ToFileStoreWriter writer = new ToFileStoreWriter( directory.absolutePath(), fs,
-                monitor, pageCache, actions );
+        ToFileStoreWriter writer = new ToFileStoreWriter( directory.absolutePath(), fs, monitor );
         ByteBuffer tempBuffer = ByteBuffer.allocate( 128 );
 
         // when
@@ -123,12 +112,10 @@ public class ToFileStoreWriterTest
         assertTrue( wasActivated.get() );
     }
 
-    private void writeAndVerifyWrittenThroughPageCache( PageCache pageCache, ToFileStoreWriter writer,
-            ByteBuffer tempBuffer, String fileName )
-            throws IOException
+    private void writeAndVerify( ToFileStoreWriter writer, ByteBuffer tempBuffer, File file ) throws IOException
     {
-        File expected = new File( directory.absolutePath(), fileName );
-        writer.write( fileName, new DataProducer( 16 ), tempBuffer, true, 16 );
-        verify( pageCache ).map( eq( expected ), anyInt(), any() );
+        writer.write( file.getName(), new DataProducer( 16 ), tempBuffer, true, 16 );
+        assertThat( fs.fileExists( file ), is( true ) );
+        assertThat( fs.getFileSize( file ), equalTo( 16 ) );
     }
 }
