@@ -44,25 +44,14 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.List;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
-import org.neo4j.graphdb.mockfs.EphemeralFileSystemAbstraction;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
-import org.neo4j.io.fs.StoreChannel;
-import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.test.rule.PageCacheRule;
 import org.neo4j.test.rule.TestDirectory;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 public class FileMoveProviderTest
 {
@@ -212,7 +201,6 @@ public class FileMoveProviderTest
         try ( BufferedWriter bw = new BufferedWriter( new FileWriter( output ) ) )
         {
             bw.write( input );
-            bw.close();
         }
     }
 }
