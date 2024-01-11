@@ -224,7 +224,6 @@ public class HighlyAvailableEditionModule extends CommunityEditionModule
 
         final FileSystemAbstraction fs = platformModule.fileSystem;
         final Config config = platformModule.config;
-        final DatabaseLayout databaseLayout = platformModule.storeLayout.databaseLayout( config.get( GraphDatabaseSettings.active_database ));
         final Dependencies dependencies = platformModule.dependencies;
         final LogService logging = platformModule.logging;
         final Monitors monitors = platformModule.monitors;
@@ -233,14 +232,13 @@ public class HighlyAvailableEditionModule extends CommunityEditionModule
 
         idTypeConfigurationProvider = new EnterpriseIdTypeConfigurationProvider( config );
 
-        watcherService = createFileSystemWatcherService( platformModule.fileSystem, databaseLayout, logging,
+        watcherServiceFactory = databaseDirectory -> createFileSystemWatcherService( platformModule.fileSystem, databaseDirectory, logging,
                 platformModule.jobScheduler, config, fileWatcherFileNameFilter() );
-        dependencies.satisfyDependencies( watcherService );
-        life.add( watcherService );
 
         // Set Netty logger
         InternalLoggerFactory.setDefaultFactory( new NettyLoggerFactory( logging.getInternalLogProvider() ) );
 
+        final DatabaseLayout databaseLayout = platformModule.storeLayout.databaseLayout( config.get( GraphDatabaseSettings.active_database ) );
         life.add( new BranchedDataMigrator( databaseLayout.databaseDirectory() ) );
         DelegateInvocationHandler<Master> masterDelegateInvocationHandler =
                 new DelegateInvocationHandler<>( Master.class );
