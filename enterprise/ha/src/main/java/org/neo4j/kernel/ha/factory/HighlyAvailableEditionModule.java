@@ -74,6 +74,8 @@ import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.graphdb.factory.module.PlatformModule;
 import org.neo4j.graphdb.factory.module.edition.CommunityEditionModule;
 import org.neo4j.graphdb.factory.module.edition.DefaultEditionModule;
+import org.neo4j.graphdb.factory.module.id.DatabaseIdContext;
+import org.neo4j.graphdb.factory.module.id.IdContextFactoryBuilder;
 import org.neo4j.helpers.HostnamePort;
 import org.neo4j.helpers.NamedThreadFactory;
 import org.neo4j.internal.kernel.api.Kernel;
@@ -384,11 +386,12 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
         EnterpriseIdTypeConfigurationProvider idTypeConfigurationProvider = new EnterpriseIdTypeConfigurationProvider( config );
         HaIdGeneratorFactory editionIdGeneratorFactory = (HaIdGeneratorFactory) createIdGeneratorFactory( masterDelegateInvocationHandler,
                 logging.getInternalLogProvider(), requestContextFactory, fs, idTypeConfigurationProvider );
-        eligibleForIdReuse = new HaIdReuseEligibility( members, platformModule.clock, idReuseSafeZone );
-        createIdComponents( platformModule, dependencies, editionIdGeneratorFactory );
-        dependencies.satisfyDependency( idGeneratorFactory );
-        dependencies.satisfyDependency( idController );
-        dependencies.satisfyDependency( new IdBasedStoreEntityCounters( this.idGeneratorFactory ) );
+        HaIdReuseEligibility eligibleForIdReuse = new HaIdReuseEligibility( members, platformModule.clock, idReuseSafeZone );
+        idContextFactory = IdContextFactoryBuilder.of( idTypeConfigurationProvider, platformModule.jobScheduler )
+                                                  .withIdGenerationFactoryProvider( i -> editionIdGeneratorFactory )
+                                                  .withIdReuseEligibility( eligibleForIdReuse )
+                                                  .build();
+        DatabaseIdContext idContext = idContextFactory.createIdContext( config.get( GraphDatabaseSettings.active_database ) );
 
         // TODO There's a cyclical dependency here that should be fixed
         final AtomicReference<HighAvailabilityModeSwitcher> exceptionHandlerRef = new AtomicReference<>();
@@ -441,7 +444,7 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
         final Factory<MasterImpl.SPI> masterSPIFactory =
                 () -> new DefaultMasterImplSPI( graphDatabaseFacade, platformModule.fileSystem,
                         platformModule.monitors,
-                        tokenHolders, this.idGeneratorFactory,
+                        tokenHolders, idContext.getIdGeneratorFactory(),
                         platformModule.dependencies.resolveDependency( TransactionCommitProcess.class ),
                         platformModule.dependencies.resolveDependency( CheckPointer.class ),
                         platformModule.dependencies.resolveDependency( TransactionIdStore.class ),
@@ -738,7 +741,7 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
 
         RelationshipTypeCreatorSwitcher typeCreatorModeSwitcher = new RelationshipTypeCreatorSwitcher(
                 relationshipTypeCreatorDelegate, masterInvocationHandler, requestContextFactory,
-                kernelProvider, idGeneratorFactory );
+                kernelProvider );
 
         componentSwitcherContainer.add( typeCreatorModeSwitcher );
         return relationshipTypeCreator;
@@ -760,7 +763,7 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
 
         PropertyKeyCreatorSwitcher propertyKeyCreatorModeSwitcher = new PropertyKeyCreatorSwitcher(
                 propertyKeyCreatorDelegate, masterDelegateInvocationHandler,
-                requestContextFactory, kernelProvider, idGeneratorFactory );
+                requestContextFactory, kernelProvider );
 
         componentSwitcherContainer.add( propertyKeyCreatorModeSwitcher );
         return propertyTokenCreator;
@@ -781,8 +784,7 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
                 new Class[]{TokenCreator.class}, labelIdCreatorDelegate );
 
         LabelTokenCreatorSwitcher modeSwitcher = new LabelTokenCreatorSwitcher(
-                labelIdCreatorDelegate, masterDelegateInvocationHandler, requestContextFactory, kernelProvider,
-                idGeneratorFactory );
+                labelIdCreatorDelegate, masterDelegateInvocationHandler, requestContextFactory, kernelProvider );
 
         componentSwitcherContainer.add( modeSwitcher );
         return labelIdCreator;
