@@ -46,7 +46,6 @@ import org.neo4j.com.TransactionObligationResponse;
 import org.neo4j.com.TransactionStream;
 import org.neo4j.com.storecopy.TransactionCommittingResponseUnpacker;
 import org.neo4j.com.storecopy.TransactionObligationFulfiller;
-import org.neo4j.util.concurrent.BinaryLatch;
 import org.neo4j.kernel.availability.AvailabilityGuard;
 import org.neo4j.kernel.ha.com.RequestContextFactory;
 import org.neo4j.kernel.ha.com.master.InvalidEpochException;
@@ -55,11 +54,14 @@ import org.neo4j.kernel.ha.com.master.MasterImpl;
 import org.neo4j.kernel.ha.com.slave.InvalidEpochExceptionHandler;
 import org.neo4j.kernel.ha.com.slave.MasterClient;
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
-import org.neo4j.logging.internal.CappedLogger;
-import org.neo4j.scheduler.JobScheduler;
-import org.neo4j.scheduler.JobHandle;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.logging.internal.CappedLogger;
+import org.neo4j.scheduler.CancelListener;
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobHandle;
+import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.util.concurrent.BinaryLatch;
 
 import static java.lang.System.currentTimeMillis;
 
@@ -128,7 +130,7 @@ import static java.lang.System.currentTimeMillis;
  *
  * @see org.neo4j.kernel.ha.UpdatePuller
  */
-public class SlaveUpdatePuller implements Runnable, UpdatePuller, JobScheduler.CancelListener
+public class SlaveUpdatePuller implements Runnable, UpdatePuller, CancelListener
 {
     public interface Monitor
     {
@@ -235,7 +237,7 @@ public class SlaveUpdatePuller implements Runnable, UpdatePuller, JobScheduler.C
         }
 
         shutdownLatch = new BinaryLatch();
-        JobHandle handle = jobScheduler.schedule( JobScheduler.Groups.pullUpdates, this );
+        JobHandle handle = jobScheduler.schedule( Group.PULL_UPDATES, this );
         handle.registerCancelListener( this );
     }
 
