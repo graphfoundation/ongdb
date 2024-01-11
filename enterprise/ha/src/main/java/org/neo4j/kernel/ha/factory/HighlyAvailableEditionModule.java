@@ -155,7 +155,6 @@ import org.neo4j.kernel.impl.core.ReadOnlyTokenCreator;
 import org.neo4j.kernel.impl.core.TokenCreator;
 import org.neo4j.kernel.impl.core.TokenHolder;
 import org.neo4j.kernel.impl.core.TokenHolders;
-import org.neo4j.kernel.impl.coreapi.CoreAPIAvailabilityGuard;
 import org.neo4j.kernel.impl.enterprise.EnterpriseConstraintSemantics;
 import org.neo4j.kernel.impl.enterprise.EnterpriseEditionModule;
 import org.neo4j.kernel.impl.enterprise.StandardNetworkConnectionTracker;
@@ -363,8 +362,8 @@ public class HighlyAvailableEditionModule extends CommunityEditionModule
         ObservedClusterMembers observedMembers = new ObservedClusterMembers( logging.getInternalLogProvider(),
                 clusterClient, clusterClient, clusterEvents, config.get( ClusterSettings.server_id ) );
 
-        memberStateMachine = new HighAvailabilityMemberStateMachine( memberContext,
-                platformModule.availabilityGuard, observedMembers, clusterEvents, clusterClient,
+        AvailabilityGuard availabilityGuard = getGlobalAvailabilityGuard( platformModule.clock, platformModule.logging, platformModule.config );
+        memberStateMachine = new HighAvailabilityMemberStateMachine( memberContext, availabilityGuard, observedMembers, clusterEvents, clusterClient,
                 logging.getInternalLogProvider() );
 
         members = dependencies.satisfyDependency( new ClusterMembers( observedMembers, memberStateMachine ) );
@@ -375,7 +374,7 @@ public class HighlyAvailableEditionModule extends CommunityEditionModule
 
         HighAvailabilityLogger highAvailabilityLogger = new HighAvailabilityLogger( logging.getUserLogProvider(),
                 config.get( ClusterSettings.server_id ) );
-        platformModule.availabilityGuard.addListener( highAvailabilityLogger );
+        availabilityGuard.addListener( highAvailabilityLogger );
         clusterEvents.addClusterMemberListener( highAvailabilityLogger );
         clusterClient.addClusterListener( highAvailabilityLogger );
 
@@ -424,7 +423,7 @@ public class HighlyAvailableEditionModule extends CommunityEditionModule
         PullerFactory pullerFactory = new PullerFactory( requestContextFactory, master, lastUpdateTime,
                 logging.getInternalLogProvider(), serverId, invalidEpochHandler,
                 config.get( HaSettings.pull_interval ).toMillis(), platformModule.jobScheduler,
-                dependencies, platformModule.availabilityGuard, memberStateMachine, monitors );
+                dependencies, availabilityGuard, memberStateMachine, monitors );
 
         dependencies.satisfyDependency( paxosLife.add( pullerFactory.createObligationFulfiller( updatePullerProxy ) ) );
 
@@ -509,7 +508,7 @@ public class HighlyAvailableEditionModule extends CommunityEditionModule
         // Create HA services
         lockManager = dependencies.satisfyDependency(
                 createLockManager( componentSwitcherContainer, config, masterDelegateInvocationHandler,
-                        requestContextFactory, platformModule.availabilityGuard, platformModule.clock, logging ) );
+                        requestContextFactory, availabilityGuard, platformModule.clock, logging ) );
 
         statementLocksFactory = createStatementLocksFactory( componentSwitcherContainer, config, logging );
 
@@ -552,8 +551,6 @@ public class HighlyAvailableEditionModule extends CommunityEditionModule
         config.augment( GraphDatabaseSettings.allow_upgrade, Settings.FALSE );
 
         constraintSemantics = new EnterpriseConstraintSemantics();
-
-        coreAPIAvailabilityGuard = new CoreAPIAvailabilityGuard( platformModule.availabilityGuard, transactionStartTimeout );
 
         registerRecovery( platformModule.databaseInfo, dependencies, logging );
 
