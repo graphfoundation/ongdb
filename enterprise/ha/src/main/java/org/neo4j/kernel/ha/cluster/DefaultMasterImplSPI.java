@@ -37,25 +37,20 @@ package org.neo4j.kernel.ha.cluster;
 import java.io.File;
 import java.io.IOException;
 
-import org.neo4j.causalclustering.core.state.machines.token.ReplicatedLabelTokenHolder;
-import org.neo4j.causalclustering.core.state.machines.token.ReplicatedPropertyKeyTokenHolder;
-import org.neo4j.causalclustering.core.state.machines.token.ReplicatedRelationshipTypeTokenHolder;
 import org.neo4j.com.RequestContext;
 import org.neo4j.com.Response;
 import org.neo4j.com.storecopy.ResponsePacker;
 import org.neo4j.com.storecopy.StoreCopyServer;
 import org.neo4j.com.storecopy.StoreWriter;
-import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.kernel.NeoStoreDataSource;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
+import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.kernel.NeoStoreDataSource;
 import org.neo4j.kernel.ha.TransactionChecksumLookup;
 import org.neo4j.kernel.ha.com.master.MasterImpl;
 import org.neo4j.kernel.ha.id.IdAllocation;
 import org.neo4j.kernel.impl.api.TransactionCommitProcess;
 import org.neo4j.kernel.impl.api.TransactionToApply;
-import org.neo4j.kernel.impl.core.TokenHolder;
-import org.neo4j.storageengine.api.StoreId;
+import org.neo4j.kernel.impl.core.TokenHolders;
 import org.neo4j.kernel.impl.store.id.IdGenerator;
 import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.store.id.IdType;
@@ -63,12 +58,12 @@ import org.neo4j.kernel.impl.transaction.TransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.StoreCopyCheckPointMutex;
 import org.neo4j.kernel.impl.transaction.tracing.CommitEvent;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.storageengine.api.StoreId;
 import org.neo4j.storageengine.api.TransactionApplicationMode;
 
 public class DefaultMasterImplSPI implements MasterImpl.SPI
@@ -79,9 +74,7 @@ public class DefaultMasterImplSPI implements MasterImpl.SPI
     private final GraphDatabaseAPI graphDb;
     private final TransactionChecksumLookup txChecksumLookup;
     private final FileSystemAbstraction fileSystem;
-    private final ReplicatedLabelTokenHolder labels;
-    private final ReplicatedPropertyKeyTokenHolder propertyKeyTokenHolder;
-    private final ReplicatedRelationshipTypeTokenHolder relationshipTypeTokenHolder;
+    private final TokenHolders tokenHolders;
     private final IdGeneratorFactory idGeneratorFactory;
     private final NeoStoreDataSource neoStoreDataSource;
     private final File storeDir;
@@ -94,9 +87,7 @@ public class DefaultMasterImplSPI implements MasterImpl.SPI
     public DefaultMasterImplSPI( final GraphDatabaseAPI graphDb,
                                  FileSystemAbstraction fileSystemAbstraction,
                                  Monitors monitors,
-                                 ReplicatedLabelTokenHolder labels,
-                                 ReplicatedPropertyKeyTokenHolder propertyKeyTokenHolder,
-                                 ReplicatedRelationshipTypeTokenHolder relationshipTypeTokenHolder,
+                                 TokenHolders tokenHolders,
                                  IdGeneratorFactory idGeneratorFactory,
                                  TransactionCommitProcess transactionCommitProcess,
                                  CheckPointer checkPointer,
@@ -107,9 +98,7 @@ public class DefaultMasterImplSPI implements MasterImpl.SPI
     {
         this.graphDb = graphDb;
         this.fileSystem = fileSystemAbstraction;
-        this.labels = labels;
-        this.propertyKeyTokenHolder = propertyKeyTokenHolder;
-        this.relationshipTypeTokenHolder = relationshipTypeTokenHolder;
+        this.tokenHolders = tokenHolders;
         this.idGeneratorFactory = idGeneratorFactory;
         this.transactionCommitProcess = transactionCommitProcess;
         this.checkPointer = checkPointer;
@@ -132,13 +121,13 @@ public class DefaultMasterImplSPI implements MasterImpl.SPI
     @Override
     public int getOrCreateLabel( String name )
     {
-        return labels.getOrCreateId( name );
+        return tokenHolders.labelTokens().getOrCreateId( name );
     }
 
     @Override
     public int getOrCreateProperty( String name )
     {
-        return propertyKeyTokenHolder.getOrCreateId( name );
+        return tokenHolders.propertyKeyTokens().getOrCreateId( name );
     }
 
     @Override
@@ -166,7 +155,7 @@ public class DefaultMasterImplSPI implements MasterImpl.SPI
     @Override
     public Integer createRelationshipType( String name )
     {
-        return relationshipTypeTokenHolder.getOrCreateId( name );
+        return tokenHolders.relationshipTypeTokens().getOrCreateId( name );
     }
 
     @Override
