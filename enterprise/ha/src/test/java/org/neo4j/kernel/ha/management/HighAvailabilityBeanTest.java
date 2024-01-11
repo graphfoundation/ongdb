@@ -54,18 +54,17 @@ import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.jmx.impl.ManagementData;
 import org.neo4j.jmx.impl.ManagementSupport;
+import org.neo4j.kernel.NeoStoreDataSource;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.ha.HighlyAvailableGraphDatabase;
 import org.neo4j.kernel.ha.LastUpdateTime;
 import org.neo4j.kernel.ha.UpdatePuller;
 import org.neo4j.kernel.ha.cluster.member.ClusterMember;
 import org.neo4j.kernel.ha.cluster.member.ClusterMembers;
 import org.neo4j.kernel.ha.cluster.modeswitch.HighAvailabilityModeSwitcher;
 import org.neo4j.kernel.impl.core.LastTxIdGetter;
+import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
 import org.neo4j.kernel.impl.util.Dependencies;
-import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.internal.KernelData;
-import org.neo4j.kernel.internal.Version;
 import org.neo4j.management.ClusterMemberInfo;
 import org.neo4j.management.HighAvailability;
 
@@ -85,7 +84,7 @@ import static org.neo4j.storageengine.api.StoreId.DEFAULT;
 
 public class HighAvailabilityBeanTest
 {
-    private final GraphDatabaseAPI db = mock( HighlyAvailableGraphDatabase.class );
+    private final DataSourceManager dataSourceManager = new DataSourceManager( Config.defaults() );
     private final Dependencies dependencies = new Dependencies();
     private final ClusterMembers clusterMembers = mock( ClusterMembers.class );
     private final HighAvailabilityBean bean = new HighAvailabilityBean();
@@ -101,10 +100,12 @@ public class HighAvailabilityBeanTest
     public void setup() throws NotCompliantMBeanException
     {
         fileSystem = new DefaultFileSystemAbstraction();
-        kernelData = new TestHighlyAvailableKernelData();
+        kernelData = new TestHighlyAvailableKernelData( dataSourceManager );
         ManagementData data = new ManagementData( bean, kernelData, ManagementSupport.load() );
 
-        when( db.getDependencyResolver() ).thenReturn( dependencies );
+        NeoStoreDataSource dataSource = mock( NeoStoreDataSource.class );
+        dataSourceManager.register( dataSource );
+        when( dataSource.getDependencyResolver() ).thenReturn( dependencies );
         haBean = (HighAvailability) new HighAvailabilityBean().createMBean( data );
     }
 
@@ -334,23 +335,11 @@ public class HighAvailabilityBeanTest
 
     private class TestHighlyAvailableKernelData extends HighlyAvailableKernelData
     {
-        TestHighlyAvailableKernelData()
+        TestHighlyAvailableKernelData( DataSourceManager dataSourceManager )
         {
-            super( HighAvailabilityBeanTest.this.db, HighAvailabilityBeanTest.this.clusterMembers,
+            super( dataSourceManager, HighAvailabilityBeanTest.this.clusterMembers,
                     HighAvailabilityBeanTest.this.dbInfoProvider, HighAvailabilityBeanTest.this.fileSystem, null,
                     new File( "storeDir" ), Config.defaults() );
-        }
-
-        @Override
-        public Version version()
-        {
-            return Version.getKernel();
-        }
-
-        @Override
-        public GraphDatabaseAPI graphDatabase()
-        {
-            return db;
         }
     }
 }

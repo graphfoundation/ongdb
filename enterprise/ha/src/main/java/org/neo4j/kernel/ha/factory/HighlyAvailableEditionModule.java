@@ -186,8 +186,8 @@ import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFiles;
+import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
 import org.neo4j.kernel.impl.util.Dependencies;
-import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.internal.KernelData;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.lifecycle.Lifecycle;
@@ -529,8 +529,8 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
         tokenHoldersProvider = t -> tokenHolders;
 
         dependencies.satisfyDependency(
-                createKernelData( config, platformModule.graphDatabaseFacade, members, fs, platformModule.pageCache,
-                        databaseLayout, lastUpdateTime, lastTxIdGetter, life ) );
+                createKernelData( config, platformModule.dataSourceManager, members, fs, platformModule.pageCache,
+                        platformModule.storeLayout.storeDirectory(), lastUpdateTime, lastTxIdGetter, life ) );
 
         commitProcessFactory = createCommitProcessFactory( dependencies, logging, monitors, config, paxosLife,
                 clusterClient, members, platformModule.jobScheduler, master, requestContextFactory,
@@ -787,14 +787,14 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
         return labelIdCreator;
     }
 
-    private KernelData createKernelData( Config config, GraphDatabaseAPI graphDb, ClusterMembers members,
+    private KernelData createKernelData( Config config, DataSourceManager dataSourceManager, ClusterMembers members,
             FileSystemAbstraction fs, PageCache pageCache, File storeDir,
             LastUpdateTime lastUpdateTime, LastTxIdGetter txIdGetter, LifeSupport life )
     {
         ClusterDatabaseInfoProvider databaseInfo = new ClusterDatabaseInfoProvider( members,
                 txIdGetter,
                 lastUpdateTime );
-        return life.add( new HighlyAvailableKernelData( graphDb, members, databaseInfo, fs, pageCache, storeDir, config ) );
+        return life.add( new HighlyAvailableKernelData( dataSourceManager, members, databaseInfo, fs, pageCache, storeDir, config ) );
     }
 
     private void registerRecovery( final DatabaseInfo databaseInfo, final DependencyResolver dependencyResolver,
