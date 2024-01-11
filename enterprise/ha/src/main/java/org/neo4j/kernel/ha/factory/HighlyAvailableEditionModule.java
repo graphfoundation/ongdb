@@ -187,6 +187,7 @@ import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFiles;
 import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
+import org.neo4j.kernel.impl.transaction.stats.DatabaseTransactionStats;
 import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.kernel.internal.KernelData;
 import org.neo4j.kernel.lifecycle.LifeSupport;
@@ -607,6 +608,8 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
             UpdatePuller updatePullerProxy, PullerFactory pullerFactory, Function<Slave,SlaveServer> slaveServerFactory,
             HaIdGeneratorFactory idGeneratorFactory, DatabaseLayout databaseLayout )
     {
+        DatabaseTransactionStats transactionCounters =
+                platformModule.dataSourceManager.getDataSource().getDependencyResolver().resolveDependency( DatabaseTransactionStats.class );
         switch ( config.get( HaSettings.branched_data_copying_strategy ) )
         {
             case branch_then_copy:
@@ -620,7 +623,7 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
                         dependencies.provideDependency( NeoStoreDataSource.class ),
                         dependencies.provideDependency( TransactionIdStore.class ),
                         slaveServerFactory, updatePullerProxy, platformModule.pageCache,
-                        monitors, platformModule.transactionMonitor );
+                        monitors, transactionCounters );
             case copy_then_branch:
                 return new SwitchToSlaveCopyThenBranch( databaseLayout, logging,
                         platformModule.fileSystem, config, dependencies, idGeneratorFactory,
@@ -632,7 +635,7 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
                         dependencies.provideDependency( NeoStoreDataSource.class ),
                         dependencies.provideDependency( TransactionIdStore.class ),
                         slaveServerFactory, updatePullerProxy, platformModule.pageCache,
-                        monitors, platformModule.transactionMonitor );
+                        monitors, transactionCounters );
             default:
                 throw new RuntimeException( "Unknown branched data copying strategy" );
         }

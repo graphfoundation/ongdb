@@ -34,7 +34,6 @@
  */
 package org.neo4j.kernel.ha.cluster;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.function.Function;
@@ -65,12 +64,12 @@ import org.neo4j.kernel.ha.com.slave.MasterClientResolver;
 import org.neo4j.kernel.ha.com.slave.SlaveServer;
 import org.neo4j.kernel.ha.id.HaIdGeneratorFactory;
 import org.neo4j.kernel.ha.store.ForeignStoreException;
-import  org.neo4j.logging.internal.LogService;
 import org.neo4j.kernel.impl.store.MismatchingStoreIdException;
-import org.neo4j.storageengine.api.StoreId;
-import org.neo4j.kernel.impl.transaction.stats.DatabaseTransactionStats;
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
+import org.neo4j.kernel.impl.transaction.stats.DatabaseTransactionStats;
 import org.neo4j.kernel.monitoring.Monitors;
+import org.neo4j.logging.internal.LogService;
+import org.neo4j.storageengine.api.StoreId;
 
 import static org.neo4j.kernel.impl.transaction.log.TransactionIdStore.BASE_TX_ID;
 
