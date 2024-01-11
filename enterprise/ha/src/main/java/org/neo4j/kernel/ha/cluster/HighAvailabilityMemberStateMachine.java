@@ -43,17 +43,17 @@ import org.neo4j.cluster.protocol.election.Election;
 import org.neo4j.helpers.Listeners;
 import org.neo4j.helpers.collection.Iterables;
 import org.neo4j.kernel.availability.AvailabilityGuard;
+import org.neo4j.kernel.availability.AvailabilityRequirement;
+import org.neo4j.kernel.availability.DescriptiveAvailabilityRequirement;
 import org.neo4j.kernel.ha.cluster.member.ObservedClusterMembers;
 import org.neo4j.kernel.ha.cluster.modeswitch.HighAvailabilityModeSwitcher;
-import org.neo4j.storageengine.api.StoreId;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.storageengine.api.StoreId;
 
 import static java.lang.String.format;
 import static org.neo4j.cluster.util.Quorums.isQuorum;
-import static org.neo4j.kernel.AvailabilityGuard.AvailabilityRequirement;
-import static org.neo4j.kernel.AvailabilityGuard.availabilityRequirement;
 
 /**
  * State machine that listens for global cluster events, and coordinates
@@ -69,7 +69,7 @@ import static org.neo4j.kernel.AvailabilityGuard.availabilityRequirement;
 public class HighAvailabilityMemberStateMachine extends LifecycleAdapter implements HighAvailability
 {
     public static final AvailabilityRequirement AVAILABILITY_REQUIREMENT =
-            availabilityRequirement( "High Availability member state not ready" );
+            new DescriptiveAvailabilityRequirement( "High Availability member state not ready" );
     private final HighAvailabilityMemberContext context;
     private final AvailabilityGuard availabilityGuard;
     private final ClusterMemberEvents events;
