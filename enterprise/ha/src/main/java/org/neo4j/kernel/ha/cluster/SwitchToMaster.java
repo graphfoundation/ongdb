@@ -38,6 +38,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import org.neo4j.cluster.ClusterSettings;
@@ -54,6 +55,7 @@ import org.neo4j.kernel.ha.com.master.Master;
 import org.neo4j.kernel.ha.com.master.MasterServer;
 import org.neo4j.kernel.ha.com.master.SlaveFactory;
 import org.neo4j.kernel.ha.id.HaIdGeneratorFactory;
+import org.neo4j.kernel.impl.locking.Locks;
 import  org.neo4j.logging.internal.LogService;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.logging.Log;
@@ -62,7 +64,7 @@ import static org.neo4j.kernel.ha.cluster.modeswitch.HighAvailabilityModeSwitche
 
 public class SwitchToMaster implements AutoCloseable
 {
-    Factory<ConversationManager> conversationManagerFactory;
+    Function<Locks,ConversationManager> conversationManagerFactory;
     BiFunction<ConversationManager, LifeSupport, Master> masterFactory;
     BiFunction<Master, ConversationManager, MasterServer> masterServerFactory;
     private Log userLog;
@@ -75,7 +77,7 @@ public class SwitchToMaster implements AutoCloseable
 
     public SwitchToMaster( LogService logService,
             HaIdGeneratorFactory idGeneratorFactory, Config config, Supplier<SlaveFactory> slaveFactorySupplier,
-            Factory<ConversationManager> conversationManagerFactory,
+                           Function<Locks,ConversationManager> conversationManagerFactory,
             BiFunction<ConversationManager, LifeSupport, Master> masterFactory,
             BiFunction<Master, ConversationManager, MasterServer> masterServerFactory,
             DelegateInvocationHandler<Master> masterDelegateHandler, ClusterMemberAvailability clusterMemberAvailability,
@@ -119,7 +121,8 @@ public class SwitchToMaster implements AutoCloseable
         NeoStoreDataSource neoStoreXaDataSource = dataSourceSupplier.get();
         neoStoreXaDataSource.afterModeSwitch();
 
-        ConversationManager conversationManager = conversationManagerFactory.newInstance();
+        Locks locks = neoStoreXaDataSource.getDependencyResolver().resolveDependency( Locks.class );
+        ConversationManager conversationManager = conversationManagerFactory.apply( locks );
         Master master = masterFactory.apply( conversationManager, haCommunicationLife );
 
         MasterServer masterServer = masterServerFactory.apply( master, conversationManager );

@@ -70,9 +70,9 @@ import org.neo4j.com.storecopy.TransactionCommittingResponseUnpacker;
 import org.neo4j.function.Factory;
 import org.neo4j.function.Predicates;
 import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.graphdb.factory.EditionLocksFactories;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.graphdb.factory.module.PlatformModule;
-import org.neo4j.graphdb.factory.module.edition.CommunityEditionModule;
 import org.neo4j.graphdb.factory.module.edition.DefaultEditionModule;
 import org.neo4j.graphdb.factory.module.id.DatabaseIdContext;
 import org.neo4j.graphdb.factory.module.id.IdContextFactoryBuilder;
@@ -170,6 +170,7 @@ import org.neo4j.kernel.impl.factory.ReadOnly;
 import org.neo4j.kernel.impl.factory.StatementLocksFactorySelector;
 import org.neo4j.kernel.impl.index.IndexConfigStore;
 import org.neo4j.kernel.impl.locking.Locks;
+import org.neo4j.kernel.impl.locking.LocksFactory;
 import org.neo4j.kernel.impl.locking.StatementLocksFactory;
 import org.neo4j.kernel.impl.pagecache.PageCacheWarmer;
 import org.neo4j.kernel.impl.proc.Procedures;
@@ -177,7 +178,6 @@ import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.impl.store.TransactionId;
 import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.store.id.configuration.IdTypeConfigurationProvider;
-import org.neo4j.kernel.impl.store.stats.IdBasedStoreEntityCounters;
 import org.neo4j.kernel.impl.transaction.TransactionHeaderInformationFactory;
 import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
 import org.neo4j.kernel.impl.transaction.log.NoSuchTransactionException;
@@ -452,10 +452,8 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
                         platformModule.dependencies.resolveDependency( NeoStoreDataSource.class ),
                         logging.getInternalLogProvider() );
 
-        final Factory<ConversationSPI> conversationSPIFactory =
-                () -> new DefaultConversationSPI( lockManager, platformModule.jobScheduler );
-        Factory<ConversationManager> conversationManagerFactory =
-                () -> new ConversationManager( conversationSPIFactory.newInstance(), config );
+        final Function<Locks,ConversationSPI> conversationSPIFactory = locks -> new DefaultConversationSPI( locks, platformModule.jobScheduler );
+        final Function<Locks,ConversationManager> conversationManagerFactory = locks -> new ConversationManager( conversationSPIFactory.apply( locks ), config );
 
         BiFunction<ConversationManager, LifeSupport, Master> masterFactory = ( conversationManager, life1 ) ->
                 life1.add( new MasterImpl( masterSPIFactory.newInstance(),
@@ -510,11 +508,10 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
         dependencies.satisfyDependency( SslPolicyLoader.create( config, logging.getInternalLogProvider() ) ); // for bolt and web server
 
         // Create HA services
-        lockManager = dependencies.satisfyDependency(
-                createLockManager( componentSwitcherContainer, config, masterDelegateInvocationHandler,
-                        requestContextFactory, availabilityGuard, platformModule.clock, logging ) );
-
-        statementLocksFactory = createStatementLocksFactory( componentSwitcherContainer, config, logging );
+        LocksFactory lockFactory = EditionLocksFactories.createLockFactory( config, logging );
+        locksSupplier = () -> createLockManager( lockFactory, componentSwitcherContainer, config, masterDelegateInvocationHandler,
+                        requestContextFactory, availabilityGuard, platformModule.clock, logging );
+        statementLocksFactoryProvider = locks -> createStatementLocksFactory( locks, componentSwitcherContainer, config, logging );
 
         DelegatingTokenHolder propertyKeyTokenHolder = new DelegatingTokenHolder(
                 createPropertyKeyCreator( config, componentSwitcherContainer, masterDelegateInvocationHandler, requestContextFactory, kernelProvider ),
@@ -575,10 +572,10 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
         procedures.registerProcedure( EnterpriseBuiltInDbmsProcedures.class, true );
     }
 
-    private StatementLocksFactory createStatementLocksFactory( ComponentSwitcherContainer componentSwitcherContainer,
+    private StatementLocksFactory createStatementLocksFactory( Locks locks, ComponentSwitcherContainer componentSwitcherContainer,
             Config config, LogService logging )
     {
-        StatementLocksFactory configuredStatementLocks = new StatementLocksFactorySelector( lockManager, config, logging ).select();
+        StatementLocksFactory configuredStatementLocks = new StatementLocksFactorySelector( locks, config, logging ).select();
 
         DelegateInvocationHandler<StatementLocksFactory> locksFactoryDelegate =
                 new DelegateInvocationHandler<>( StatementLocksFactory.class );
@@ -706,7 +703,7 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
         return idGeneratorFactory;
     }
 
-    private Locks createLockManager( ComponentSwitcherContainer componentSwitcherContainer, Config config,
+    private Locks createLockManager( LocksFactory lockFactory, ComponentSwitcherContainer componentSwitcherContainer, Config config,
             DelegateInvocationHandler<Master> masterDelegateInvocationHandler,
             RequestContextFactory requestContextFactory, AvailabilityGuard availabilityGuard, Clock clock, LogService logService )
     {
@@ -714,7 +711,7 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
         Locks lockManager = (Locks) newProxyInstance( Locks.class.getClassLoader(), new Class[]{Locks.class},
                 lockManagerDelegate );
 
-        Factory<Locks> locksFactory = () -> CommunityEditionModule.createLockManager( config, clock, logService );
+        Factory<Locks> locksFactory = () -> EditionLocksFactories.createLockManager( lockFactory, config, clock );
 
         LockManagerSwitcher lockManagerModeSwitcher = new LockManagerSwitcher(
                 lockManagerDelegate, masterDelegateInvocationHandler, requestContextFactory, availabilityGuard,
