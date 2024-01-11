@@ -174,6 +174,7 @@ import org.neo4j.kernel.impl.proc.Procedures;
 import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.impl.store.TransactionId;
 import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
+import org.neo4j.kernel.impl.store.id.configuration.IdTypeConfigurationProvider;
 import org.neo4j.kernel.impl.store.stats.IdBasedStoreEntityCounters;
 import org.neo4j.kernel.impl.transaction.TransactionHeaderInformationFactory;
 import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
@@ -229,8 +230,6 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
         final Monitors monitors = platformModule.monitors;
 
         this.accessCapability = config.get( GraphDatabaseSettings.read_only ) ? new ReadOnly() : new CanWrite();
-
-        idTypeConfigurationProvider = new EnterpriseIdTypeConfigurationProvider( config );
 
         watcherServiceFactory = databaseDirectory -> createFileSystemWatcherService( platformModule.fileSystem, databaseDirectory, logging,
                 platformModule.jobScheduler, config, fileWatcherFileNameFilter() );
@@ -382,8 +381,9 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
         paxosLife.add( (Lifecycle)clusterEvents );
         paxosLife.add( localClusterMemberAvailability );
 
+        EnterpriseIdTypeConfigurationProvider idTypeConfigurationProvider = new EnterpriseIdTypeConfigurationProvider( config );
         HaIdGeneratorFactory editionIdGeneratorFactory = (HaIdGeneratorFactory) createIdGeneratorFactory( masterDelegateInvocationHandler,
-                logging.getInternalLogProvider(), requestContextFactory, fs );
+                logging.getInternalLogProvider(), requestContextFactory, fs, idTypeConfigurationProvider );
         eligibleForIdReuse = new HaIdReuseEligibility( members, platformModule.clock, idReuseSafeZone );
         createIdComponents( platformModule, dependencies, editionIdGeneratorFactory );
         dependencies.satisfyDependency( idGeneratorFactory );
@@ -685,11 +685,12 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
         return new HighlyAvailableCommitProcessFactory( commitProcessDelegate );
     }
 
-    private IdGeneratorFactory createIdGeneratorFactory(
+    private static IdGeneratorFactory createIdGeneratorFactory(
             DelegateInvocationHandler<Master> masterDelegateInvocationHandler,
             LogProvider logging,
             RequestContextFactory requestContextFactory,
-            FileSystemAbstraction fs )
+            FileSystemAbstraction fs,
+            IdTypeConfigurationProvider idTypeConfigurationProvider )
     {
         HaIdGeneratorFactory idGeneratorFactory = new HaIdGeneratorFactory( masterDelegateInvocationHandler, logging,
                 requestContextFactory, fs, idTypeConfigurationProvider );
