@@ -73,6 +73,7 @@ import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.graphdb.factory.module.PlatformModule;
 import org.neo4j.graphdb.factory.module.edition.CommunityEditionModule;
+import org.neo4j.graphdb.factory.module.edition.DefaultEditionModule;
 import org.neo4j.helpers.HostnamePort;
 import org.neo4j.helpers.NamedThreadFactory;
 import org.neo4j.internal.kernel.api.Kernel;
@@ -205,7 +206,7 @@ import static org.neo4j.kernel.impl.transaction.log.TransactionMetadataCache.Tra
  * This implementation of {@link org.neo4j.graphdb.factory.module.edition.AbstractEditionModule} creates the implementations of services
  * that are specific to the Enterprise edition.
  */
-public class HighlyAvailableEditionModule extends CommunityEditionModule
+public class HighlyAvailableEditionModule extends DefaultEditionModule
 {
     private HighAvailabilityMemberStateMachine memberStateMachine;
     public ClusterMembers members;
