@@ -829,7 +829,6 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
             {
                 try
                 {
-                    HighlyAvailableEditionModule.this.doAfterRecoveryAndStartup( databaseInfo, dependencyResolver );
                     assureLastCommitTimestampInitialized( dependencyResolver );
                 }
                 catch ( Throwable throwable )
