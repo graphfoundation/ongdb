@@ -166,7 +166,7 @@ public class CoreStateMachinesModule
 
         TokenRegistry propertyKeyTokenRegistry = new TokenRegistry( TokenHolder.TYPE_PROPERTY_KEY );
         ReplicatedPropertyKeyTokenHolder propertyKeyTokenHolder =
-                new ReplicatedPropertyKeyTokenHolder( propertyKeyTokenRegistry, replicator, this.idGeneratorFactory, dependencies);
+                new ReplicatedPropertyKeyTokenHolder( propertyKeyTokenRegistry, replicator, this.idGeneratorFactory, dependencies );
 
         TokenRegistry labelTokenRegistry = new TokenRegistry( TokenHolder.TYPE_LABEL );
         ReplicatedLabelTokenHolder labelTokenHolder =

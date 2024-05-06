@@ -188,7 +188,7 @@ public class EnterpriseReadReplicaEditionModule extends DefaultEditionModule
         tokenHoldersProvider = databaseName -> new TokenHolders(
                 new DelegatingTokenHolder( new ReadOnlyTokenCreator(), ReplicatedLabelTokenHolder.TYPE_PROPERTY_KEY ),
                 new DelegatingTokenHolder( new ReadOnlyTokenCreator(), ReplicatedLabelTokenHolder.TYPE_LABEL ),
-                new DelegatingTokenHolder( new ReadOnlyTokenCreator(), ReplicatedLabelTokenHolder.TYPE_RELATIONSHIP_TYPE ));
+                new DelegatingTokenHolder( new ReadOnlyTokenCreator(), ReplicatedLabelTokenHolder.TYPE_RELATIONSHIP_TYPE ) );
 
         life.add( dependencies.satisfyDependency( new KernelData( fileSystem, pageCache, storeDir, config, platformModule.dataSourceManager ) ) );
 

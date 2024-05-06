@@ -20,12 +20,12 @@ import java.util.function.Function;
 
 import org.neo4j.causalclustering.discovery.DiscoveryServiceFactory;
 import org.neo4j.causalclustering.discovery.SecureHazelcastDiscoveryServiceFactory;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.factory.DatabaseInfo;
-import org.neo4j.graphdb.factory.module.edition.AbstractEditionModule;
 import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
 import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory.Dependencies;
 import org.neo4j.graphdb.factory.module.PlatformModule;
+import org.neo4j.graphdb.factory.module.edition.AbstractEditionModule;
+import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.impl.factory.DatabaseInfo;
 
 public class OpenEnterpriseCoreGraphDatabase extends CoreGraphDatabase
 {
@@ -36,7 +36,8 @@ public class OpenEnterpriseCoreGraphDatabase extends CoreGraphDatabase
 
     public OpenEnterpriseCoreGraphDatabase( File storeDir, Config config, Dependencies dependencies, DiscoveryServiceFactory discoveryServiceFactory )
     {
-        Function<PlatformModule,AbstractEditionModule> factory = platformModule -> new OpenEnterpriseCoreEditionModule( platformModule, discoveryServiceFactory );
+        Function<PlatformModule,AbstractEditionModule> factory =
+                platformModule -> new OpenEnterpriseCoreEditionModule( platformModule, discoveryServiceFactory );
 
         (new GraphDatabaseFacadeFactory( DatabaseInfo.CORE, factory )).initFacade( storeDir, config, dependencies, this );
     }
