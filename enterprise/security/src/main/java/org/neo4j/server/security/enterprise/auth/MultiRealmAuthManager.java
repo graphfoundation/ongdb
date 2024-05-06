@@ -326,7 +326,7 @@ class MultiRealmAuthManager implements EnterpriseAuthAndUserManager
     {
         if ( propertyAuthorization )
         {
-            try (PrimitiveIntSet blackListed = Primitive.intSet() )
+            try ( PrimitiveIntSet blackListed = Primitive.intSet() )
             {
                 for ( String role : roles )
                 {
