@@ -34,6 +34,7 @@
  */
 package org.neo4j.causalclustering.discovery;
 
+import org.hamcrest.Matchers;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -50,11 +51,11 @@ import static org.junit.Assert.assertTrue;
 
 public class DnsHostnameResolverTest
 {
-    MapDomainNameResolver mockDomainNameResolver = new MapDomainNameResolver( new HashMap<>() );
-    AssertableLogProvider logProvider = new AssertableLogProvider();
-    AssertableLogProvider userLogProvider = new AssertableLogProvider();
+    private final MapDomainNameResolver mockDomainNameResolver = new MapDomainNameResolver( new HashMap<>() );
+    private final AssertableLogProvider logProvider = new AssertableLogProvider();
+    private final AssertableLogProvider userLogProvider = new AssertableLogProvider();
 
-    private DnsHostnameResolver resolver =
+    private final DnsHostnameResolver resolver =
             new DnsHostnameResolver( logProvider, userLogProvider, mockDomainNameResolver );
 
     @Test
@@ -99,7 +100,7 @@ public class DnsHostnameResolverTest
         resolver.resolve( new AdvertisedSocketAddress( "google.com", 1234 ) );
 
         // then
-        userLogProvider.assertContainsMessageContaining( "Resolved initial host '%s' to %s" );
+        userLogProvider.rawMessageMatcher().assertContainsSingle( Matchers.allOf( Matchers.containsString( "Resolved initial host '%s' to %s" ) ) );
     }
 
     @Test
@@ -109,6 +110,6 @@ public class DnsHostnameResolverTest
         resolver.resolve( new AdvertisedSocketAddress( "google.com", 1234 ) );
 
         // then
-        logProvider.assertContainsMessageContaining( "Failed to resolve host 'google.com'" );
+        logProvider.rawMessageMatcher().assertContains( Matchers.allOf( Matchers.containsString( "Failed to resolve host 'google.com'" ) ) );
     }
 }

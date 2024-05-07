@@ -55,12 +55,14 @@ import org.neo4j.causalclustering.discovery.CoreClusterMember;
 import org.neo4j.causalclustering.identity.ClusterId;
 import org.neo4j.graphdb.Node;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.layout.DatabaseFileNames;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.impl.muninn.StandalonePageCacheFactory;
 import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.lifecycle.LifecycleException;
 import org.neo4j.logging.NullLogProvider;
+import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.scheduler.ThreadPoolJobScheduler;
 import org.neo4j.test.causalclustering.ClusterRule;
 import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 
@@ -111,7 +113,7 @@ public class ClusterBindingIT
             tx.success();
         } );
 
-        List<File> coreStoreDirs = storeDirs( cluster.coreMembers() );
+        List<File> coreStoreDirs = databaseDirs( cluster.coreMembers() );
 
         cluster.shutdown();
 
@@ -134,7 +136,7 @@ public class ClusterBindingIT
         // WHEN
         cluster.start();
 
-        List<File> coreStoreDirs = storeDirs( cluster.coreMembers() );
+        List<File> coreStoreDirs = databaseDirs( cluster.coreMembers() );
 
         cluster.coreTx( ( db, tx ) ->
         {
@@ -161,10 +163,10 @@ public class ClusterBindingIT
             tx.success();
         } );
 
-        File storeDir = cluster.getCoreMemberById( 0 ).storeDir();
+        File databaseDirectory = cluster.getCoreMemberById( 0 ).databaseDirectory();
 
         cluster.removeCoreMemberWithServerId( 0 );
-        changeStoreId( storeDir );
+        changeStoreId( DatabaseLayout.of( databaseDirectory ) );
 
         // WHEN
         try
@@ -207,7 +209,7 @@ public class ClusterBindingIT
         // THEN
         assertEquals( 3, cluster.healthyCoreMembers().size() );
 
-        List<File> coreStoreDirs = storeDirs( cluster.coreMembers() );
+        List<File> coreStoreDirs = databaseDirs( cluster.coreMembers() );
         cluster.shutdown();
         assertAllStoresHaveTheSameStoreId( coreStoreDirs, fs );
     }
@@ -272,14 +274,14 @@ public class ClusterBindingIT
         // THEN
         assertEquals( 4, cluster.healthyCoreMembers().size() );
 
-        List<File> coreStoreDirs = storeDirs( cluster.coreMembers() );
+        List<File> coreStoreDirs = databaseDirs( cluster.coreMembers() );
         cluster.shutdown();
         assertAllStoresHaveTheSameStoreId( coreStoreDirs, fs );
     }
 
-    private List<File> storeDirs( Collection<CoreClusterMember> dbs )
+    private List<File> databaseDirs( Collection<CoreClusterMember> dbs )
     {
-        return dbs.stream().map( CoreClusterMember::storeDir ).collect( Collectors.toList() );
+        return dbs.stream().map( CoreClusterMember::databaseDirectory ).collect( Collectors.toList() );
     }
 
     private void changeClusterId( CoreClusterMember coreMember ) throws IOException
@@ -289,10 +291,11 @@ public class ClusterBindingIT
         clusterIdStorage.writeState( new ClusterId( UUID.randomUUID() ) );
     }
 
-    private void changeStoreId( File storeDir ) throws IOException
+    private void changeStoreId( DatabaseLayout databaseLayout ) throws Exception
     {
-        File neoStoreFile = new File( storeDir, DatabaseFileNames.METADATA_STORE );
-        try ( PageCache pageCache = StandalonePageCacheFactory.createPageCache( fs ) )
+        File neoStoreFile = databaseLayout.metadataStore();
+        try ( JobScheduler jobScheduler = new ThreadPoolJobScheduler();
+              PageCache pageCache = StandalonePageCacheFactory.createPageCache( fs, jobScheduler ) )
         {
             MetaDataStore.setRecord( pageCache, neoStoreFile, RANDOM_NUMBER, System.currentTimeMillis() );
         }

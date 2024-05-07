@@ -187,7 +187,7 @@ public class MultiClusteringIT
         }
 
         List<File> storeDirs = cluster.coreMembers().stream()
-                .map( CoreClusterMember::storeDir )
+                .map( CoreClusterMember::databaseDirectory )
                 .collect( Collectors.toList() );
 
         cluster.shutdown();
@@ -234,7 +234,7 @@ public class MultiClusteringIT
 
         List<File> storeDirs = cluster.coreMembers().stream()
                 .filter( m -> dbName.equals( m.dbName() ) )
-                .map( CoreClusterMember::storeDir )
+                .map( CoreClusterMember::databaseDirectory )
                 .collect( Collectors.toList() );
 
         cluster.shutdown();

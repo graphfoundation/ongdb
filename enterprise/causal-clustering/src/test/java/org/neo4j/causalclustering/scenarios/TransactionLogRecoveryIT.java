@@ -46,6 +46,7 @@ import org.neo4j.causalclustering.discovery.CoreClusterMember;
 import org.neo4j.causalclustering.discovery.ReadReplica;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryWriter;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
@@ -72,7 +73,7 @@ public class TransactionLogRecoveryIT
             .withNumberOfReadReplicas( 3 );
 
     private Cluster cluster;
-    private FileSystemAbstraction fs = new DefaultFileSystemAbstraction();
+    private final FileSystemAbstraction fs = new DefaultFileSystemAbstraction();
 
     @Before
     public void setup() throws Exception
@@ -94,7 +95,7 @@ public class TransactionLogRecoveryIT
         CoreClusterMember lastWrites = createEmptyNodes( cluster, 10 );
 
         // and writing a partial tx
-        writePartialTx( core.storeDir() );
+        writePartialTx( core.databaseDirectory() );
 
         // then: we should still be able to start
         core.start();
@@ -117,7 +118,7 @@ public class TransactionLogRecoveryIT
         CoreClusterMember lastWrites = createEmptyNodes( cluster, 10 );
 
         // and writing a partial tx
-        writePartialTx( core.storeDir() );
+        writePartialTx( core.databaseDirectory() );
 
         // and deleting the cluster state, making sure a snapshot is required during startup
         // effectively a seeding scenario -- representing the use of the unbind command on a crashed store
@@ -145,7 +146,7 @@ public class TransactionLogRecoveryIT
         dataMatchesEventually( lastWrites, cluster.coreMembers() );
 
         // and writing a partial tx
-        writePartialTx( readReplica.storeDir() );
+        writePartialTx( readReplica.databaseDirectory() );
 
         // then: we should still be able to start
         readReplica.start();
@@ -158,7 +159,7 @@ public class TransactionLogRecoveryIT
     {
         try ( PageCache pageCache = this.pageCache.getPageCache( fs ) )
         {
-            LogFiles logFiles = LogFilesBuilder.activeFilesBuilder( storeDir, fs, pageCache ).build();
+            LogFiles logFiles = LogFilesBuilder.activeFilesBuilder( DatabaseLayout.of( storeDir ), fs, pageCache ).build();
             try ( Lifespan ignored = new Lifespan( logFiles ) )
             {
                 LogEntryWriter writer = new LogEntryWriter( logFiles.getLogFile().getWriter() );

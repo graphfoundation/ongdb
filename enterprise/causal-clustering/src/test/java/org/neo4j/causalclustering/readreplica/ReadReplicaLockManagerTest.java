@@ -41,13 +41,13 @@ import org.neo4j.kernel.impl.locking.Locks;
 import static org.junit.Assert.assertEquals;
 import static org.neo4j.kernel.api.exceptions.Status.General.ForbiddenOnReadOnlyDatabase;
 import static org.neo4j.kernel.api.exceptions.Status.statusCodeOf;
-import static org.neo4j.kernel.impl.locking.LockTracer.NONE;
 import static org.neo4j.kernel.impl.locking.ResourceTypes.NODE;
+import static org.neo4j.storageengine.api.lock.LockTracer.NONE;
 
 public class ReadReplicaLockManagerTest
 {
-    private ReadReplicaLockManager lockManager = new ReadReplicaLockManager();
-    private Locks.Client lockClient = lockManager.newClient();
+    private final ReadReplicaLockManager lockManager = new ReadReplicaLockManager();
+    private final Locks.Client lockClient = lockManager.newClient();
 
     @Test
     public void shouldThrowOnAcquireExclusiveLock()

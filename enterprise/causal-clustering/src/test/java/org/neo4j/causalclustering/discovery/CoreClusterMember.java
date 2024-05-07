@@ -219,7 +219,7 @@ public class CoreClusterMember implements ClusterMember<CoreGraphDatabase>
     }
 
     @Override
-    public File storeDir()
+    public File databaseDirectory()
     {
         return storeDir;
     }

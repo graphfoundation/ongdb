@@ -46,6 +46,7 @@ import org.neo4j.causalclustering.discovery.CoreClusterMember;
 import org.neo4j.consistency.ConsistencyCheckService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.helpers.progress.ProgressMonitorFactory;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.test.DbRepresentation;
@@ -72,7 +73,7 @@ public class RecoveryIT
 
         fireSomeLoadAtTheCluster( cluster );
 
-        Set<File> storeDirs = cluster.coreMembers().stream().map( CoreClusterMember::storeDir ).collect( toSet() );
+        Set<File> storeDirs = cluster.coreMembers().stream().map( CoreClusterMember::databaseDirectory ).collect( toSet() );
 
         assertEventually( "All cores have the same data",
                 () -> cluster.coreMembers().stream().map( this::dbRepresentation ).collect( toSet() ).size(),
@@ -94,7 +95,7 @@ public class RecoveryIT
 
         fireSomeLoadAtTheCluster( cluster );
 
-        Set<File> storeDirs = cluster.coreMembers().stream().map( CoreClusterMember::storeDir ).collect( toSet() );
+        Set<File> storeDirs = cluster.coreMembers().stream().map( CoreClusterMember::databaseDirectory ).collect( toSet() );
 
         // when
         for ( int i = 0; i < clusterSize; i++ )
@@ -124,7 +125,7 @@ public class RecoveryIT
         ConsistencyCheckService.Result result;
         try
         {
-            result = new ConsistencyCheckService().runFullConsistencyCheck( storeDir, Config.defaults(),
+            result = new ConsistencyCheckService().runFullConsistencyCheck( DatabaseLayout.of( storeDir ), Config.defaults(),
                     ProgressMonitorFactory.NONE, NullLogProvider.getInstance(), true );
         }
         catch ( Exception e )

@@ -60,13 +60,14 @@ import org.neo4j.scheduler.JobScheduler;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.neo4j.helpers.collection.Iterables.asSet;
+import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createInitialisedScheduler;
 
 public class Fixture
 {
     private final Set<MemberId> members = new HashSet<>();
     private final Set<BootstrapWaiter> bootstrapWaiters = new HashSet<>();
     private final List<TimerService> timerServices = new ArrayList<>();
-    private final JobScheduler scheduler = new CentralJobScheduler();
+    private final JobScheduler scheduler = createInitialisedScheduler();
     final Set<RaftFixture> rafts = new HashSet<>();
     final TestNetwork net;
 
@@ -137,13 +138,13 @@ public class Fixture
     /**
      * This class simply waits for a single entry to have been committed,
      * which should be the initial member set entry.
-     *
+     * <p>
      * If all members of the cluster have committed such an entry, it's possible for any member
      * to perform elections. We need to meet this condition before we start disconnecting members.
      */
     private static class BootstrapWaiter implements RaftMachineBuilder.CommitListener
     {
-        private AtomicBoolean bootstrapped = new AtomicBoolean( false );
+        private final AtomicBoolean bootstrapped = new AtomicBoolean( false );
 
         @Override
         public void notifyCommitted( long commitIndex )
@@ -170,7 +171,7 @@ public class Fixture
         }, 30, SECONDS, 100, MILLISECONDS );
     }
 
-    class RaftFixture
+    static class RaftFixture
     {
 
         private final RaftMachine raftMachine;

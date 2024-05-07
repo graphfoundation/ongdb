@@ -65,24 +65,25 @@ import static org.neo4j.helpers.collection.MapUtil.stringMap;
 public class ReadReplica implements ClusterMember<ReadReplicaGraphDatabase>
 {
     protected final DiscoveryServiceFactory discoveryServiceFactory;
-    private final File neo4jHome;
-    protected final File storeDir;
+    private final File ongdbHome;
+    protected final File defaultDatabaseDirectory;
     private final int serverId;
     private final String boltAdvertisedSocketAddress;
     private final Config memberConfig;
     protected ReadReplicaGraphDatabase database;
     protected Monitors monitors;
     private final ThreadGroup threadGroup;
+    protected final File databasesDirectory;
 
     public ReadReplica( File parentDir, int serverId, int boltPort, int httpPort, int txPort, int backupPort,
                         DiscoveryServiceFactory discoveryServiceFactory,
-                        List<AdvertisedSocketAddress> coreMemberHazelcastAddresses, Map<String, String> extraParams,
+                        List<AdvertisedSocketAddress> coreMemberDiscoveryAddresses, Map<String, String> extraParams,
                         Map<String, IntFunction<String>> instanceExtraParams, String recordFormat, Monitors monitors,
                         String advertisedAddress, String listenAddress )
     {
         this.serverId = serverId;
 
-        String initialHosts = coreMemberHazelcastAddresses.stream().map( AdvertisedSocketAddress::toString )
+        String initialHosts = coreMemberDiscoveryAddresses.stream().map( AdvertisedSocketAddress::toString )
                 .collect( joining( "," ) );
         boltAdvertisedSocketAddress = advertisedAddress( advertisedAddress, boltPort );
 
@@ -109,20 +110,22 @@ public class ReadReplica implements ClusterMember<ReadReplicaGraphDatabase>
         config.put( new HttpConnector( "http", Encryption.NONE ).listen_address.name(), listenAddress( listenAddress, httpPort ) );
         config.put( new HttpConnector( "http", Encryption.NONE ).advertised_address.name(), advertisedAddress( advertisedAddress, httpPort ) );
 
-        this.neo4jHome = new File( parentDir, "read-replica-" + serverId );
-        config.put( GraphDatabaseSettings.ongdb_home.name(), neo4jHome.getAbsolutePath() );
+        this.ongdbHome = new File( parentDir, "read-replica-" + serverId );
+        config.put( GraphDatabaseSettings.ongdb_home.name(), ongdbHome.getAbsolutePath() );
 
         config.put( CausalClusteringSettings.transaction_listen_address.name(), listenAddress( listenAddress, txPort ) );
         config.put( OnlineBackupSettings.online_backup_server.name(), listenAddress( listenAddress, backupPort ) );
-        config.put( GraphDatabaseSettings.logs_directory.name(), new File( neo4jHome, "logs" ).getAbsolutePath() );
+        config.put( GraphDatabaseSettings.logs_directory.name(), new File( ongdbHome, "logs" ).getAbsolutePath() );
         config.put( GraphDatabaseSettings.logical_logs_location.name(), "replica-tx-logs-" + serverId );
         memberConfig = Config.defaults( config );
 
         this.discoveryServiceFactory = discoveryServiceFactory;
-        storeDir = new File( new File( new File( neo4jHome, "data" ), "databases" ), "graph.db" );
+        File dataDirectory = new File( ongdbHome, "data" );
+        databasesDirectory = new File( dataDirectory, "databases" );
+        defaultDatabaseDirectory = new File( databasesDirectory, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
 
         //noinspection ResultOfMethodCallIgnored
-        storeDir.mkdirs();
+        defaultDatabaseDirectory.mkdirs();
 
         this.monitors = monitors;
         threadGroup = new ThreadGroup( toString() );
@@ -141,9 +144,9 @@ public class ReadReplica implements ClusterMember<ReadReplicaGraphDatabase>
     @Override
     public void start()
     {
-        database = new ReadReplicaGraphDatabase( storeDir, memberConfig,
-                GraphDatabaseDependencies.newDependencies().monitors( monitors ), discoveryServiceFactory,
-                memberId() );
+        database = new ReadReplicaGraphDatabase( databasesDirectory, memberConfig,
+                                                 GraphDatabaseDependencies.newDependencies().monitors( monitors ), discoveryServiceFactory,
+                                                 memberId() );
     }
 
     @Override
@@ -204,9 +207,9 @@ public class ReadReplica implements ClusterMember<ReadReplicaGraphDatabase>
     }
 
     @Override
-    public File storeDir()
+    public File databaseDirectory()
     {
-        return storeDir;
+        return defaultDatabaseDirectory;
     }
 
     public String toString()
@@ -222,7 +225,7 @@ public class ReadReplica implements ClusterMember<ReadReplicaGraphDatabase>
     @Override
     public File homeDir()
     {
-        return neo4jHome;
+        return ongdbHome;
     }
 
     public void setUpstreamDatabaseSelectionStrategy( String key )

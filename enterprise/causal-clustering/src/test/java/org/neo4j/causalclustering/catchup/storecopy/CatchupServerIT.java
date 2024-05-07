@@ -34,6 +34,8 @@
  */
 package org.neo4j.causalclustering.catchup.storecopy;
 
+import org.eclipse.collections.api.iterator.LongIterator;
+import org.eclipse.collections.api.set.primitive.LongSet;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -50,17 +52,15 @@ import java.util.stream.Stream;
 import org.neo4j.causalclustering.catchup.CatchUpClient;
 import org.neo4j.causalclustering.catchup.CatchupClientBuilder;
 import org.neo4j.causalclustering.identity.StoreId;
-import org.neo4j.collection.primitive.PrimitiveLongIterator;
-import org.neo4j.collection.primitive.PrimitiveLongSet;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.index.Index;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.NeoStoreDataSource;
-import org.neo4j.kernel.impl.store.StoreType;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
 import org.neo4j.kernel.impl.transaction.state.NeoStoreFileListing;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
@@ -102,13 +102,13 @@ public class CatchupServerIT
     @Rule
     public TestDirectory testDirectory = TestDirectory.testDirectory( fileSystemRule );
     private CatchUpClient catchupClient;
-    private DefaultFileSystemAbstraction fsa = fileSystemRule.get();
+    private final DefaultFileSystemAbstraction fsa = fileSystemRule.get();
 
     @Before
     public void startDb() throws Throwable
     {
         temporaryDirectory = testDirectory.directory();
-        graphDb = (GraphDatabaseAPI) new TestGraphDatabaseFactory().setFileSystem( fsa ).newEmbeddedDatabase( testDirectory.graphDbDir() );
+        graphDb = (GraphDatabaseAPI) new TestGraphDatabaseFactory().setFileSystem( fsa ).newEmbeddedDatabase( testDirectory.databaseDir() );
         createLegacyIndex();
         createPropertyIndex();
         addData( graphDb );
@@ -211,7 +211,6 @@ public class CatchupServerIT
     @Test
     public void individualIndexSnapshotCopyWorks() throws Exception
     {
-
         // given
         NeoStoreDataSource neoStoreDataSource = getNeoStoreDataSource( graphDb );
         List<File> expectingFiles = neoStoreDataSource.getNeoStoreFileListing().builder().excludeAll().includeSchemaIndexStoreFiles().build().stream().map(
@@ -219,7 +218,7 @@ public class CatchupServerIT
         SimpleCatchupClient simpleCatchupClient = new SimpleCatchupClient( graphDb, fsa, catchupClient, catchupServer, temporaryDirectory, LOG_PROVIDER );
 
         // and
-        PrimitiveLongIterator indexIds = getExpectedIndexIds( neoStoreDataSource ).iterator();
+        LongIterator indexIds = getExpectedIndexIds( neoStoreDataSource ).longIterator();
 
         // when
         while ( indexIds.hasNext() )
@@ -239,7 +238,7 @@ public class CatchupServerIT
     {
         // given a file exists on the server
         addData( graphDb );
-        File expectedExistingFile = new File( graphDb.getStoreDir(), EXISTING_FILE_NAME );
+        File expectedExistingFile = graphDb.databaseLayout().file( EXISTING_FILE_NAME );
 
         // and
         SimpleCatchupClient simpleCatchupClient = new SimpleCatchupClient( graphDb, fsa, catchupClient, catchupServer, temporaryDirectory, LOG_PROVIDER );
@@ -293,7 +292,7 @@ public class CatchupServerIT
         assertThat( givenFile, containsInAnyOrder( expectedStoreFiles.toArray( new String[givenFile.size()] ) ) );
     }
 
-    private PrimitiveLongSet getExpectedIndexIds( NeoStoreDataSource neoStoreDataSource )
+    private LongSet getExpectedIndexIds( NeoStoreDataSource neoStoreDataSource )
     {
         return neoStoreDataSource.getNeoStoreFileListing().getNeoStoreFileIndexListing().getIndexIds();
     }
@@ -305,7 +304,8 @@ public class CatchupServerIT
                 Stream<StoreFileMetadata> explicitIndexStream = neoStoreDataSource.getNeoStoreFileListing().builder().excludeAll()
                          .includeExplicitIndexStoreStoreFiles().build().stream() )
         {
-            return Stream.concat( countStoreStream.filter( isCountFile() ), explicitIndexStream ).map( StoreFileMetadata::file ).collect( toList() );
+            return Stream.concat( countStoreStream.filter( isCountFile( neoStoreDataSource.getDatabaseLayout() ) ), explicitIndexStream )
+                         .map( StoreFileMetadata::file ).collect( toList() );
         }
     }
 
@@ -315,13 +315,14 @@ public class CatchupServerIT
         builder.excludeLogFiles().excludeExplicitIndexStoreFiles().excludeSchemaIndexStoreFiles().excludeAdditionalProviders();
         try ( Stream<StoreFileMetadata> stream = builder.build().stream() )
         {
-            return stream.filter( isCountFile().negate() ).map( sfm -> sfm.file().getName() ).collect( toList() );
+            return stream.filter( isCountFile( neoStoreDataSource.getDatabaseLayout() ).negate() ).map( sfm -> sfm.file().getName() ).collect( toList() );
         }
     }
 
-    private static Predicate<StoreFileMetadata> isCountFile()
+    private static Predicate<StoreFileMetadata> isCountFile( DatabaseLayout databaseLayout )
     {
-        return storeFileMetadata -> StoreType.typeOf( storeFileMetadata.file().getName() ).filter( f -> f == StoreType.COUNTS ).isPresent();
+        return storeFileMetadata -> databaseLayout.countStoreA().equals( storeFileMetadata.file() ) ||
+                databaseLayout.countStoreB().equals( storeFileMetadata.file() );
     }
 
     private void addData( GraphDatabaseAPI graphDb )

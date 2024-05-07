@@ -92,8 +92,9 @@ public class ClusterCommunityToEnterpriseIT
     public void shouldRestoreBySeedingAllMembers() throws Throwable
     {
         // given
-        File storeDir = testDir.makeGraphDbDir();
-        GraphDatabaseService database = new GraphDatabaseFactory().newEmbeddedDatabaseBuilder( storeDir )
+        File storeDir = testDir.storeDir();
+        File databaseDir = testDir.databaseDir();
+        GraphDatabaseService database = new GraphDatabaseFactory().newEmbeddedDatabaseBuilder( testDir.storeDir() )
                 .setConfig( GraphDatabaseSettings.allow_upgrade, Settings.TRUE )
                 .setConfig( GraphDatabaseSettings.record_format, HighLimit.NAME )
                 .setConfig( OnlineBackupSettings.online_backup_enabled, Boolean.FALSE.toString() )
@@ -103,9 +104,9 @@ public class ClusterCommunityToEnterpriseIT
         DbRepresentation before = DbRepresentation.of( storeDir, config );
 
         // when
-        fsa.copyRecursively( storeDir, cluster.getCoreMemberById( 0 ).storeDir() );
-        fsa.copyRecursively( storeDir, cluster.getCoreMemberById( 1 ).storeDir() );
-        fsa.copyRecursively( storeDir, cluster.getCoreMemberById( 2 ).storeDir() );
+        fsa.copyRecursively( databaseDir, cluster.getCoreMemberById( 0 ).databaseDirectory() );
+        fsa.copyRecursively( databaseDir, cluster.getCoreMemberById( 1 ).databaseDirectory() );
+        fsa.copyRecursively( databaseDir, cluster.getCoreMemberById( 2 ).databaseDirectory() );
         cluster.start();
 
         // then

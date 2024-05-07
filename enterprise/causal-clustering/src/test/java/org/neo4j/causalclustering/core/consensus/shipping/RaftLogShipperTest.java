@@ -73,13 +73,14 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.neo4j.causalclustering.identity.RaftTestMember.member;
+import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createScheduler;
 import static org.neo4j.test.matchers.Matchers.hasMessage;
 
 public class RaftLogShipperTest
 {
     @Rule
     public LifeRule life = new LifeRule( true );
-    private JobScheduler scheduler = life.add( new CentralJobScheduler() );
+    private final JobScheduler scheduler = life.add( createScheduler() );
 
     private OutboundMessageCollector outbound;
     private RaftLog raftLog;
@@ -90,17 +91,17 @@ public class RaftLogShipperTest
     private long leaderTerm;
     private long leaderCommit;
     private long retryTimeMillis;
-    private int catchupBatchSize = 64;
-    private int maxAllowedShippingLag = 256;
+    private final int catchupBatchSize = 64;
+    private final int maxAllowedShippingLag = 256;
     private LogProvider logProvider;
     private Log log;
 
     private RaftLogShipper logShipper;
 
-    private RaftLogEntry entry0 = new RaftLogEntry( 0, ReplicatedInteger.valueOf( 1000 ) );
-    private RaftLogEntry entry1 = new RaftLogEntry( 0, ReplicatedString.valueOf( "kedha" ) );
-    private RaftLogEntry entry2 = new RaftLogEntry( 0, ReplicatedInteger.valueOf( 2000 ) );
-    private RaftLogEntry entry3 = new RaftLogEntry( 0, ReplicatedString.valueOf( "chupchick" ) );
+    private final RaftLogEntry entry0 = new RaftLogEntry( 0, ReplicatedInteger.valueOf( 1000 ) );
+    private final RaftLogEntry entry1 = new RaftLogEntry( 0, ReplicatedString.valueOf( "kedha" ) );
+    private final RaftLogEntry entry2 = new RaftLogEntry( 0, ReplicatedInteger.valueOf( 2000 ) );
+    private final RaftLogEntry entry3 = new RaftLogEntry( 0, ReplicatedString.valueOf( "chupchick" ) );
 
     @Before
     public void setup()

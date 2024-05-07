@@ -46,14 +46,12 @@ public class StreamToDiskProvider implements StoreFileStreamProvider
 {
     private final File storeDir;
     private final FileSystemAbstraction fs;
-    private final PageCache pageCache;
     private final FileCopyMonitor fileCopyMonitor;
 
-    StreamToDiskProvider( File storeDir, FileSystemAbstraction fs, PageCache pageCache, Monitors monitors )
+    StreamToDiskProvider( File storeDir, FileSystemAbstraction fs, Monitors monitors )
     {
         this.storeDir = storeDir;
         this.fs = fs;
-        this.pageCache = pageCache;
         this.fileCopyMonitor = monitors.newMonitor( FileCopyMonitor.class );
     }
 

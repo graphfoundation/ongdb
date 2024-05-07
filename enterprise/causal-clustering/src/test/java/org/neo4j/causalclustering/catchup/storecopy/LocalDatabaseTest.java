@@ -37,13 +37,14 @@ package org.neo4j.causalclustering.catchup.storecopy;
 import org.junit.Test;
 import org.mockito.InOrder;
 
-import java.io.File;
 import java.time.Clock;
 
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.availability.AvailabilityGuard;
+import org.neo4j.kernel.availability.DatabaseAvailabilityGuard;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
-import org.neo4j.kernel.impl.util.watcher.FileSystemWatcherService;
 import org.neo4j.kernel.internal.DatabaseHealth;
 import org.neo4j.logging.NullLog;
 import org.neo4j.logging.NullLogProvider;
@@ -66,7 +67,7 @@ public class LocalDatabaseTest
     @Test
     public void availabilityGuardRaisedOnCreation()
     {
-        AvailabilityGuard guard = newAvailabilityGuard();
+        DatabaseAvailabilityGuard guard = newAvailabilityGuard();
         assertTrue( guard.isAvailable() );
         LocalDatabase localDatabase = newLocalDatabase( guard );
 
@@ -90,7 +91,7 @@ public class LocalDatabaseTest
     @Test
     public void availabilityGuardRaisedOnStop() throws Throwable
     {
-        AvailabilityGuard guard = newAvailabilityGuard();
+        DatabaseAvailabilityGuard guard = newAvailabilityGuard();
         assertTrue( guard.isAvailable() );
 
         LocalDatabase localDatabase = newLocalDatabase( guard );
@@ -106,7 +107,7 @@ public class LocalDatabaseTest
     @Test
     public void availabilityGuardRaisedOnStopForStoreCopy() throws Throwable
     {
-        AvailabilityGuard guard = newAvailabilityGuard();
+        DatabaseAvailabilityGuard guard = newAvailabilityGuard();
         assertTrue( guard.isAvailable() );
 
         LocalDatabase localDatabase = newLocalDatabase( guard );
@@ -122,7 +123,7 @@ public class LocalDatabaseTest
     @Test
     public void availabilityGuardRaisedBeforeDataSourceManagerIsStopped() throws Throwable
     {
-        AvailabilityGuard guard = mock( AvailabilityGuard.class );
+        AvailabilityGuard guard = mock( DatabaseAvailabilityGuard.class );
         DataSourceManager dataSourceManager = mock( DataSourceManager.class );
 
         LocalDatabase localDatabase = newLocalDatabase( guard, dataSourceManager );
@@ -137,7 +138,7 @@ public class LocalDatabaseTest
     @Test
     public void availabilityGuardRaisedBeforeDataSourceManagerIsStoppedForStoreCopy() throws Throwable
     {
-        AvailabilityGuard guard = mock( AvailabilityGuard.class );
+        AvailabilityGuard guard = mock( DatabaseAvailabilityGuard.class );
         DataSourceManager dataSourceManager = mock( DataSourceManager.class );
 
         LocalDatabase localDatabase = newLocalDatabase( guard, dataSourceManager );
@@ -153,21 +154,17 @@ public class LocalDatabaseTest
     public void doNotRestartServicesIfAlreadyStarted() throws Throwable
     {
         DataSourceManager dataSourceManager = mock( DataSourceManager.class );
-        FileSystemWatcherService watcherService = mock( FileSystemWatcherService.class );
-        LocalDatabase localDatabase = newLocalDatabase( newAvailabilityGuard(), dataSourceManager, watcherService );
+        LocalDatabase localDatabase = newLocalDatabase( newAvailabilityGuard(), dataSourceManager );
 
         localDatabase.start();
 
         verify( dataSourceManager ).start();
-        verify( watcherService ).start();
         reset( dataSourceManager );
-        reset( watcherService );
 
         localDatabase.start();
         localDatabase.start();
 
         verify( dataSourceManager, never() ).start();
-        verify( watcherService, never() ).start();
     }
 
     private static LocalDatabase newLocalDatabase( AvailabilityGuard availabilityGuard )
@@ -175,32 +172,24 @@ public class LocalDatabaseTest
         return newLocalDatabase( availabilityGuard, mock( DataSourceManager.class ) );
     }
 
-    private static LocalDatabase newLocalDatabase( AvailabilityGuard availabilityGuard,
-            DataSourceManager dataSourceManager )
+    private static LocalDatabase newLocalDatabase( AvailabilityGuard availabilityGuard, DataSourceManager dataSourceManager )
     {
-        return newLocalDatabase( availabilityGuard, dataSourceManager, FileSystemWatcherService.EMPTY_WATCHER );
+        return new LocalDatabase( mock( DatabaseLayout.class ), mock( StoreFiles.class ), mock( LogFiles.class ), dataSourceManager,
+                                  () -> mock( DatabaseHealth.class ), availabilityGuard, NullLogProvider.getInstance() );
     }
 
-    private static LocalDatabase newLocalDatabase( AvailabilityGuard availabilityGuard,
-            DataSourceManager dataSourceManager, FileSystemWatcherService fileWatcher )
+    private static DatabaseAvailabilityGuard newAvailabilityGuard()
     {
-        return new LocalDatabase( new File( "." ), mock( StoreFiles.class ), mock( LogFiles.class ), dataSourceManager,
-                () -> mock( DatabaseHealth.class ), fileWatcher, availabilityGuard,
-                NullLogProvider.getInstance() );
+        return new DatabaseAvailabilityGuard( GraphDatabaseSettings.DEFAULT_DATABASE_NAME, Clock.systemUTC(), NullLog.getInstance() );
     }
 
-    private static AvailabilityGuard newAvailabilityGuard()
-    {
-        return new AvailabilityGuard( Clock.systemUTC(), NullLog.getInstance() );
-    }
-
-    private static void assertDatabaseIsStoppedAndUnavailable( AvailabilityGuard guard )
+    private static void assertDatabaseIsStoppedAndUnavailable( DatabaseAvailabilityGuard guard )
     {
         assertFalse( guard.isAvailable() );
         assertThat( guard.describeWhoIsBlocking(), containsString( "Database is stopped" ) );
     }
 
-    private static void assertDatabaseIsStoppedForStoreCopyAndUnavailable( AvailabilityGuard guard )
+    private static void assertDatabaseIsStoppedForStoreCopyAndUnavailable( DatabaseAvailabilityGuard guard )
     {
         assertFalse( guard.isAvailable() );
         assertThat( guard.describeWhoIsBlocking(), containsString( "Database is stopped to copy store" ) );

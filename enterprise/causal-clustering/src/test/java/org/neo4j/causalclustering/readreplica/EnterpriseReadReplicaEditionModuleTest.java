@@ -35,33 +35,41 @@
 package org.neo4j.causalclustering.readreplica;
 
 import org.junit.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.function.Predicate;
 
 import org.neo4j.com.storecopy.StoreUtil;
-import org.neo4j.io.layout.DatabaseFileNames;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.impl.index.IndexConfigStore;
 import org.neo4j.kernel.impl.pagecache.PageCacheWarmer;
-import org.neo4j.kernel.impl.store.MetaDataStore;
-import org.neo4j.kernel.impl.store.StoreFile;
-import org.neo4j.kernel.impl.storemigration.StoreFileType;
 import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFiles;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.TestDirectoryExtension;
+import org.neo4j.test.rule.TestDirectory;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+@ExtendWith( TestDirectoryExtension.class )
 public class EnterpriseReadReplicaEditionModuleTest
 {
+    @Inject
+    private TestDirectory testDirectory;
+
     @Test
     public void fileWatcherFileNameFilter()
     {
+        DatabaseLayout databaseLayout = testDirectory.databaseLayout();
         Predicate<String> filter = EnterpriseReadReplicaEditionModule.fileWatcherFileNameFilter();
-        assertFalse( filter.test( DatabaseFileNames.METADATA_STORE ) );
-        assertFalse( filter.test( StoreFile.NODE_STORE.fileName( StoreFileType.STORE ) ) );
+        String metadataStoreName = databaseLayout.metadataStore().getName();
+
+        assertFalse( filter.test( metadataStoreName ) );
+        assertFalse( filter.test( databaseLayout.nodeStore().getName() ) );
         assertTrue( filter.test( TransactionLogFiles.DEFAULT_NAME + ".1" ) );
         assertTrue( filter.test( IndexConfigStore.INDEX_DB_FILE_NAME + ".any" ) );
         assertTrue( filter.test( StoreUtil.BRANCH_SUBDIRECTORY ) );
         assertTrue( filter.test( StoreUtil.TEMP_COPY_DIRECTORY_NAME ) );
-        assertTrue( filter.test( DatabaseFileNames.METADATA_STORE + PageCacheWarmer.SUFFIX_CACHEPROF ) );
+        assertTrue( filter.test( metadataStoreName + PageCacheWarmer.SUFFIX_CACHEPROF ) );
     }
 }

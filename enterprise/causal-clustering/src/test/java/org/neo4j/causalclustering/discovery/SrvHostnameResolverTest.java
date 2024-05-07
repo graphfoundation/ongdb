@@ -34,6 +34,7 @@
  */
 package org.neo4j.causalclustering.discovery;
 
+import org.hamcrest.Matchers;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -50,7 +51,7 @@ import static org.junit.Assert.assertTrue;
 
 public class SrvHostnameResolverTest
 {
-    MockSrvRecordResolver mockSrvRecordResolver =
+    private final MockSrvRecordResolver mockSrvRecordResolver =
             new MockSrvRecordResolver( new HashMap<String,List<SrvRecordResolver.SrvRecord>>()
             {
                 {
@@ -58,10 +59,10 @@ public class SrvHostnameResolverTest
                 }
             } );
 
-    AssertableLogProvider logProvider = new AssertableLogProvider();
-    AssertableLogProvider userLogProvider = new AssertableLogProvider();
+    private final AssertableLogProvider logProvider = new AssertableLogProvider();
+    private final AssertableLogProvider userLogProvider = new AssertableLogProvider();
 
-    private SrvHostnameResolver resolver = new SrvHostnameResolver( logProvider, userLogProvider, mockSrvRecordResolver );
+    private final SrvHostnameResolver resolver = new SrvHostnameResolver( logProvider, userLogProvider, mockSrvRecordResolver );
 
     @Test
     public void hostnamesAndPortsAreResolvedByTheResolver()
@@ -95,7 +96,6 @@ public class SrvHostnameResolverTest
     public void resolutionDetailsAreLoggedToUserLogs()
     {
         // given
-        // given
         mockSrvRecordResolver.addRecord(
                 "_resolutionDetailsAreLoggedToUserLogs._test.neo4j.com",
                 SrvRecordResolver.SrvRecord.parse( "1 1 4321 1.2.3.4" )
@@ -107,7 +107,11 @@ public class SrvHostnameResolverTest
         );
 
         // then
-        userLogProvider.assertContainsMessageContaining( "Resolved initial host '%s' to %s" );
+        userLogProvider.rawMessageMatcher().assertContains(
+                Matchers.allOf(
+                        Matchers.containsString( "Resolved initial host '%s' to %s" )
+                )
+        );
     }
 
     @Test
@@ -117,7 +121,11 @@ public class SrvHostnameResolverTest
         resolver.resolve( new AdvertisedSocketAddress( "unknown.com", 0 ) );
 
         // then
-        logProvider.assertContainsMessageContaining( "Failed to resolve srv records for '%s'" );
+        logProvider.rawMessageMatcher().assertContains(
+                Matchers.allOf(
+                        Matchers.containsString( "Failed to resolve srv records for '%s'" )
+                )
+        );
     }
 
     @Test
@@ -127,6 +135,10 @@ public class SrvHostnameResolverTest
         resolver.resolve( new AdvertisedSocketAddress( "emptyrecord.com", 0 ) );
 
         // then
-        logProvider.assertContainsMessageContaining( "Failed to resolve srv records for '%s'" );
+        logProvider.rawMessageMatcher().assertContains(
+                Matchers.allOf(
+                        Matchers.containsString( "Failed to resolve srv records for '%s'" )
+                )
+        );
     }
 }

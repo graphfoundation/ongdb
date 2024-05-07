@@ -49,6 +49,8 @@ import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.scheduler.ThreadPoolJobScheduler;
 
 class SimpleCatchupClient implements AutoCloseable
 {
@@ -61,6 +63,7 @@ class SimpleCatchupClient implements AutoCloseable
     private final StoreId correctStoreId;
     private final StreamToDiskProvider streamToDiskProvider;
     private final PageCache clientPageCache;
+    private final JobScheduler jobScheduler;
     private final Log log;
     private final LogProvider logProvider;
 
@@ -74,15 +77,16 @@ class SimpleCatchupClient implements AutoCloseable
 
         from = getCatchupServerAddress();
         correctStoreId = getStoreIdFromKernelStoreId( graphDb );
+        jobScheduler = new ThreadPoolJobScheduler();
         clientPageCache = createPageCache();
-        streamToDiskProvider = new StreamToDiskProvider( temporaryDirectory, fsa, clientPageCache, new Monitors() );
+        streamToDiskProvider = new StreamToDiskProvider( temporaryDirectory, fsa, new Monitors() );
         log = logProvider.getLog( SimpleCatchupClient.class );
         this.logProvider = logProvider;
     }
 
     private PageCache createPageCache()
     {
-        return StandalonePageCacheFactory.createPageCache( fsa );
+        return StandalonePageCacheFactory.createPageCache( fsa, jobScheduler );
     }
 
     PrepareStoreCopyResponse requestListOfFilesFromServer() throws CatchUpClientException
@@ -130,7 +134,7 @@ class SimpleCatchupClient implements AutoCloseable
     @Override
     public void close() throws Exception
     {
-        IOUtils.closeAll( clientPageCache );
+        IOUtils.closeAll( clientPageCache, jobScheduler );
     }
 
     private static CheckPointer getCheckPointer( GraphDatabaseAPI graphDb )

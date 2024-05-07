@@ -140,7 +140,7 @@ public class RemoteStore
         try
         {
             long lastFlushedTxId;
-            StreamToDiskProvider streamToDiskProvider = new StreamToDiskProvider( databaseLayout.databaseDirectory(), fs, pageCache, monitors );
+            StreamToDiskProvider streamToDiskProvider = new StreamToDiskProvider( databaseLayout.databaseDirectory(), fs, monitors );
             lastFlushedTxId = storeCopyClient.copyStoreFiles( addressProvider, expectedStoreId, streamToDiskProvider,
                         () -> new MaximumTotalTime( config.get( CausalClusteringSettings.store_copy_max_retry_time_per_request ).getSeconds(),
                                 TimeUnit.SECONDS ), databaseLayout.databaseDirectory() );

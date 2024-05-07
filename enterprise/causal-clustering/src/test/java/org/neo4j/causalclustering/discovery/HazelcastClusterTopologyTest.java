@@ -239,7 +239,7 @@ public class HazelcastClusterTopologyTest
         // then
         assertThat( map.keySet(), hasItems( coreMembers.get( 0 ), coreMembers.get( 1 ), coreMembers.get( 3 ) ) );
         assertThat( map.keySet(), not( hasItems( coreMembers.get( 2 ) ) ) );
-        logProvider.assertContainsMessageContaining( "Missing member attribute" );
+        logProvider.formattedMessageMatcher().assertContains( "Missing member attribute" );
     }
 
     @Test

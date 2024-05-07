@@ -74,15 +74,15 @@ import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.graphdb.security.WriteOperationsNotAllowedException;
+import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.layout.DatabaseFileNames;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.monitoring.PageCacheCounters;
-import org.neo4j.kernel.availability.AvailabilityGuard;
-import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.kernel.api.labelscan.LabelScanStore;
 import org.neo4j.kernel.api.txtracking.TransactionIdTracker;
+import org.neo4j.kernel.availability.AvailabilityGuard;
 import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
 import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.impl.store.format.highlimit.HighLimit;
@@ -202,7 +202,7 @@ public class ReadReplicaReplicationIT
         AtomicBoolean labelScanStoreCorrectlyPlaced = new AtomicBoolean( false );
         Monitors monitors = new Monitors();
         ReadReplica rr = cluster.addReadReplicaWithIdAndMonitors( 0, monitors );
-        Path readReplicateStoreDir = rr.storeDir().toPath().toAbsolutePath();
+        Path readReplicateStoreDir = rr.databaseDirectory().toPath().toAbsolutePath();
 
         monitors.addMonitorListener( (FileCopyMonitor) file ->
         {
@@ -248,11 +248,11 @@ public class ReadReplicaReplicationIT
 
     private void gatherLabelScanStoreFiles( GraphDatabaseAPI db, Set<Path> labelScanStoreFiles )
     {
-        Path dbStoreDirectory = db.getStoreDir().toPath().toAbsolutePath();
+        Path databaseDirectory = db.databaseLayout().databaseDirectory().toPath();
         LabelScanStore labelScanStore = db.getDependencyResolver().resolveDependency( LabelScanStore.class );
         try ( ResourceIterator<File> files = labelScanStore.snapshotStoreFiles() )
         {
-            Path relativePath = dbStoreDirectory.relativize( files.next().toPath().toAbsolutePath() );
+            Path relativePath = databaseDirectory.relativize( files.next().toPath().toAbsolutePath() );
             labelScanStoreFiles.add( relativePath );
         }
     }
@@ -501,7 +501,7 @@ public class ReadReplicaReplicationIT
 
     private void changeStoreId( ReadReplica replica ) throws IOException
     {
-        File neoStoreFile = new File( replica.storeDir(), DatabaseFileNames.METADATA_STORE );
+        File neoStoreFile = DatabaseLayout.of( replica.databaseDirectory() ).metadataStore();
         PageCache pageCache = replica.database().getDependencyResolver().resolveDependency( PageCache.class );
         MetaDataStore.setRecord( pageCache, neoStoreFile, TIME, System.currentTimeMillis() );
     }

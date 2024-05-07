@@ -57,7 +57,9 @@ import org.neo4j.causalclustering.identity.MemberId;
 import org.neo4j.causalclustering.messaging.Message;
 import org.neo4j.causalclustering.messaging.Outbound;
 import org.neo4j.graphdb.DatabaseShutdownException;
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.kernel.availability.AvailabilityGuard;
+import org.neo4j.kernel.availability.DatabaseAvailabilityGuard;
 import org.neo4j.logging.NullLog;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.time.Clocks;
@@ -79,14 +81,15 @@ public class RaftReplicatorTest
 
     private static final int DEFAULT_TIMEOUT_MS = 15_000;
 
-    private LeaderLocator leaderLocator = mock( LeaderLocator.class );
-    private MemberId myself = new MemberId( UUID.randomUUID() );
-    private MemberId leader = new MemberId( UUID.randomUUID() );
-    private GlobalSession session = new GlobalSession( UUID.randomUUID(), myself );
-    private LocalSessionPool sessionPool = new LocalSessionPool( session );
-    private TimeoutStrategy noWaitTimeoutStrategy = new ConstantTimeTimeoutStrategy( 0, MILLISECONDS );
-    private AvailabilityGuard availabilityGuard = new AvailabilityGuard( Clocks.systemClock(), NullLog.getInstance() );
-    private long replicationLimit = 1000;
+    private final LeaderLocator leaderLocator = mock( LeaderLocator.class );
+    private final MemberId myself = new MemberId( UUID.randomUUID() );
+    private final MemberId leader = new MemberId( UUID.randomUUID() );
+    private final GlobalSession session = new GlobalSession( UUID.randomUUID(), myself );
+    private final LocalSessionPool sessionPool = new LocalSessionPool( session );
+    private final TimeoutStrategy noWaitTimeoutStrategy = new ConstantTimeTimeoutStrategy( 0, MILLISECONDS );
+    private final AvailabilityGuard availabilityGuard =
+            new DatabaseAvailabilityGuard( GraphDatabaseSettings.DEFAULT_DATABASE_NAME, Clocks.systemClock(), NullLog.getInstance() );
+    private final long replicationLimit = 1000;
 
     @Test
     public void shouldSendReplicatedContentToLeader() throws Exception

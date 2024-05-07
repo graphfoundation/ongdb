@@ -58,7 +58,7 @@ public class CoreStateDownloaderService extends LifecycleAdapter
     private PersistentSnapshotDownloader currentJob;
     private JobHandle jobHandle;
     private boolean stopped;
-    private Supplier<DatabaseHealth> dbHealth;
+    private final Supplier<DatabaseHealth> dbHealth;
 
     public CoreStateDownloaderService( JobScheduler jobScheduler, CoreStateDownloader downloader, CommandApplicationProcess applicationProcess,
             LogProvider logProvider, TimeoutStrategy.Timeout downloaderPauseStrategy, Supplier<DatabaseHealth> dbHealth )

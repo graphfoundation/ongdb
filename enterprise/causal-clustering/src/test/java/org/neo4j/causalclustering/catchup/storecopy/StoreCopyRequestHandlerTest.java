@@ -40,6 +40,7 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 import org.neo4j.causalclustering.catchup.CatchupServerProtocol;
@@ -50,7 +51,6 @@ import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.helpers.collection.Iterators;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.NeoStoreDataSource;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.TriggerInfo;
@@ -72,7 +72,6 @@ public class StoreCopyRequestHandlerTest
 
     private final NeoStoreDataSource neoStoreDataSource = mock( NeoStoreDataSource.class );
     private final CheckPointer checkPointer = new FakeCheckPointer();
-    private final PageCache pageCache = mock( PageCache.class );
     private EmbeddedChannel embeddedChannel;
     private CatchupServerProtocol catchupServerProtocol;
 
@@ -83,7 +82,7 @@ public class StoreCopyRequestHandlerTest
         catchupServerProtocol.expect( CatchupServerProtocol.State.GET_STORE_FILE );
         StoreCopyRequestHandler storeCopyRequestHandler =
                 new NiceStoreCopyRequestHandler( catchupServerProtocol, () -> neoStoreDataSource, () -> checkPointer, new StoreFileStreamingProtocol(),
-                        pageCache, fileSystemAbstraction, NullLogProvider.getInstance() );
+                        fileSystemAbstraction, NullLogProvider.getInstance() );
         when( neoStoreDataSource.getStoreId() ).thenReturn( new org.neo4j.storageengine.api.StoreId( 1, 2, 5, 3, 4 ) );
         embeddedChannel = new EmbeddedChannel( storeCopyRequestHandler );
     }
@@ -134,11 +133,11 @@ public class StoreCopyRequestHandlerTest
     }
 
     @Test
-    public void shoulResetProtoclAndGiveErrorIfFilesThrowException()
+    public void shouldResetProtocolAndGiveErrorIfFilesThrowException()
     {
         EmbeddedChannel alternativeChannel = new EmbeddedChannel(
                 new EvilStoreCopyRequestHandler( catchupServerProtocol, () -> neoStoreDataSource, () -> checkPointer, new StoreFileStreamingProtocol(),
-                        pageCache, fileSystemAbstraction, NullLogProvider.getInstance() ) );
+                        fileSystemAbstraction, NullLogProvider.getInstance() ) );
         try
         {
             alternativeChannel.writeInbound( new GetStoreFileRequest( STORE_ID_MATCHING, new File( "some-file" ), 1 ) );
@@ -158,14 +157,14 @@ public class StoreCopyRequestHandlerTest
     private class NiceStoreCopyRequestHandler extends StoreCopyRequestHandler<StoreCopyRequest>
     {
         private NiceStoreCopyRequestHandler( CatchupServerProtocol protocol, Supplier<NeoStoreDataSource> dataSource,
-                Supplier<CheckPointer> checkpointerSupplier, StoreFileStreamingProtocol storeFileStreamingProtocol, PageCache pageCache,
+                Supplier<CheckPointer> checkpointerSupplier, StoreFileStreamingProtocol storeFileStreamingProtocol,
                 FileSystemAbstraction fs, LogProvider logProvider )
         {
-            super( protocol, dataSource, checkpointerSupplier, storeFileStreamingProtocol, pageCache, fs, logProvider );
+            super( protocol, dataSource, checkpointerSupplier, storeFileStreamingProtocol, fs, logProvider );
         }
 
         @Override
-        ResourceIterator<StoreFileMetadata> files( StoreCopyRequest request, NeoStoreDataSource neoStoreDataSource ) throws IOException
+        ResourceIterator<StoreFileMetadata> files( StoreCopyRequest request, NeoStoreDataSource neoStoreDataSource )
         {
             return Iterators.emptyResourceIterator();
         }
@@ -174,10 +173,10 @@ public class StoreCopyRequestHandlerTest
     private class EvilStoreCopyRequestHandler extends StoreCopyRequestHandler<StoreCopyRequest>
     {
         private EvilStoreCopyRequestHandler( CatchupServerProtocol protocol, Supplier<NeoStoreDataSource> dataSource,
-                Supplier<CheckPointer> checkpointerSupplier, StoreFileStreamingProtocol storeFileStreamingProtocol, PageCache pageCache,
+                Supplier<CheckPointer> checkpointerSupplier, StoreFileStreamingProtocol storeFileStreamingProtocol,
                 FileSystemAbstraction fs, LogProvider logProvider )
         {
-            super( protocol, dataSource, checkpointerSupplier, storeFileStreamingProtocol, pageCache, fs, logProvider );
+            super( protocol, dataSource, checkpointerSupplier, storeFileStreamingProtocol, fs, logProvider );
         }
 
         @Override
@@ -197,6 +196,12 @@ public class StoreCopyRequestHandlerTest
 
         @Override
         public long tryCheckPoint( TriggerInfo triggerInfo )
+        {
+            return 1;
+        }
+
+        @Override
+        public long tryCheckPoint( TriggerInfo triggerInfo, BooleanSupplier timeout )
         {
             return 1;
         }

@@ -48,6 +48,7 @@ import org.neo4j.causalclustering.catchup.tx.TxPullClient;
 import org.neo4j.causalclustering.identity.StoreId;
 import org.neo4j.helpers.AdvertisedSocketAddress;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.logging.LogProvider;
@@ -83,7 +84,7 @@ public class RemoteStoreTest
         // when
         AdvertisedSocketAddress localhost = new AdvertisedSocketAddress( "127.0.0.1", 1234 );
         CatchupAddressProvider catchupAddressProvider = CatchupAddressProvider.fromSingleAddress( localhost );
-        remoteStore.copy( catchupAddressProvider, storeId, new File( "destination" ) );
+        remoteStore.copy( catchupAddressProvider, storeId, DatabaseLayout.of( new File( "destination" ) ) );
 
         // then
         verify( storeCopyClient ).copyStoreFiles( eq( catchupAddressProvider ), eq( storeId ), any( StoreFileStreamProvider.class ), any(), any() );
@@ -113,7 +114,7 @@ public class RemoteStoreTest
                 null, storeCopyClient, txPullClient, factory( writer ), Config.defaults(), new Monitors() );
 
         // when
-        remoteStore.copy( catchupAddressProvider, wantedStoreId, new File( "destination" ) );
+        remoteStore.copy( catchupAddressProvider, wantedStoreId, DatabaseLayout.of( new File( "destination" ) ) );
 
         // then
         long previousTxId = lastFlushedTxId - 1; // the interface is defined as asking for the one preceding

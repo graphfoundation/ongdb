@@ -53,8 +53,6 @@ import org.neo4j.causalclustering.core.state.machines.token.TokenType;
 import org.neo4j.causalclustering.core.state.machines.tx.RecoverConsensusLogIndex;
 import org.neo4j.causalclustering.core.state.machines.tx.ReplicatedTransaction;
 import org.neo4j.causalclustering.core.state.machines.tx.ReplicatedTransactionStateMachine;
-import org.neo4j.kernel.impl.core.RelationshipTypeToken;
-import org.neo4j.internal.kernel.api.Token;
 
 import static java.lang.Math.max;
 import static org.junit.Assert.assertEquals;

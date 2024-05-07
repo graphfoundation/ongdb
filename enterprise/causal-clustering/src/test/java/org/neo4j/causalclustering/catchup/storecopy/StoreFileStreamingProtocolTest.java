@@ -149,6 +149,6 @@ public class StoreFileStreamingProtocolTest
     private StoreResource createResource( File file, int recordSize ) throws IOException
     {
         fs.create( file );
-        return new StoreResource( file, file.getPath(), recordSize, pageCache, fs );
+        return new StoreResource( file, file.getPath(), recordSize, fs );
     }
 }

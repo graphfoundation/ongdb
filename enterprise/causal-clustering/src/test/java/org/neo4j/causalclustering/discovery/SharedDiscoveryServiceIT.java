@@ -34,6 +34,9 @@
  */
 package org.neo4j.causalclustering.discovery;
 
+import org.junit.Test;
+import org.mockito.ArgumentCaptor;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -44,16 +47,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import org.junit.Test;
-import org.mockito.ArgumentCaptor;
-
 import org.neo4j.causalclustering.core.CausalClusteringSettings;
 import org.neo4j.causalclustering.core.consensus.RaftMachine;
 import org.neo4j.causalclustering.identity.MemberId;
 import org.neo4j.kernel.configuration.BoltConnector;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.scheduler.CentralJobScheduler;
 import org.neo4j.logging.NullLogProvider;
+import org.neo4j.scheduler.JobScheduler;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.hamcrest.Matchers.equalTo;
@@ -62,6 +62,7 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.neo4j.helpers.collection.MapUtil.stringMap;
+import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createInitialisedScheduler;
 import static org.neo4j.test.assertion.Assert.assertEventually;
 
 public class SharedDiscoveryServiceIT
@@ -69,8 +70,8 @@ public class SharedDiscoveryServiceIT
     private static final long TIMEOUT_MS = 15_000;
     private static final long RUN_TIME_MS = 1000;
 
-    private NullLogProvider logProvider = NullLogProvider.getInstance();
-    private NullLogProvider userLogProvider = NullLogProvider.getInstance();
+    private final NullLogProvider logProvider = NullLogProvider.getInstance();
+    private final NullLogProvider userLogProvider = NullLogProvider.getInstance();
 
     @Test( timeout = TIMEOUT_MS )
     public void shouldDiscoverCompleteTargetSetWithoutDeadlocks() throws Exception
@@ -106,8 +107,7 @@ public class SharedDiscoveryServiceIT
     private Callable<Void> createDiscoveryJob( MemberId member, DiscoveryServiceFactory disoveryServiceFactory,
             Set<MemberId> expectedTargetSet )
     {
-        CentralJobScheduler jobScheduler = new CentralJobScheduler();
-        jobScheduler.init();
+        JobScheduler jobScheduler = createInitialisedScheduler();
         HostnameResolver hostnameResolver = new NoOpHostnameResolver();
 
         CoreTopologyService topologyService = disoveryServiceFactory

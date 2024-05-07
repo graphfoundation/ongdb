@@ -43,11 +43,9 @@ import org.neo4j.collection.primitive.PrimitiveLongCollections;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.FileUtils;
-import org.neo4j.io.layout.DatabaseFileNames;
 import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.enterprise.id.EnterpriseIdTypeConfigurationProvider;
-import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.impl.store.NeoStores;
 import org.neo4j.kernel.impl.store.NodeStore;
 import org.neo4j.kernel.impl.store.StoreFactory;
@@ -62,7 +60,6 @@ import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.neo4j.kernel.impl.store.StoreFactory.NODE_STORE_NAME;
 
 public class RebuildReplicatedIdGeneratorsTest
 {
@@ -72,16 +69,16 @@ public class RebuildReplicatedIdGeneratorsTest
     public PageCacheRule pageCacheRule = new PageCacheRule();
     @Rule
     public DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
-    private ReplicatedIdRangeAcquirer idRangeAcquirer = mock( ReplicatedIdRangeAcquirer.class );
+    private final ReplicatedIdRangeAcquirer idRangeAcquirer = mock( ReplicatedIdRangeAcquirer.class );
 
     @Test
     public void rebuildReplicatedIdGeneratorsOnRecovery() throws Exception
     {
         DefaultFileSystemAbstraction fileSystem = fileSystemRule.get();
-        File stickyGenerator = new File( testDirectory.graphDbDir(), "stickyGenerator" );
-        File nodeStoreIdGenerator = new File( testDirectory.graphDbDir(), DatabaseFileNames.METADATA_STORE + NODE_STORE_NAME + ".id" );
+        File stickyGenerator = new File( testDirectory.databaseDir(), "stickyGenerator" );
+        File nodeStoreIdGenerator = testDirectory.databaseLayout().idNodeStore();
 
-        StoreFactory storeFactory = new StoreFactory( testDirectory.graphDbDir(), Config.defaults(),
+        StoreFactory storeFactory = new StoreFactory( testDirectory.databaseLayout(), Config.defaults(),
                 getIdGenerationFactory( fileSystem ), pageCacheRule.getPageCache( fileSystem ), fileSystem,
                 NullLogProvider.getInstance(), EmptyVersionContextSupplier.EMPTY );
         try ( NeoStores neoStores = storeFactory.openAllNeoStores( true ) )
@@ -98,7 +95,6 @@ public class RebuildReplicatedIdGeneratorsTest
                 }
                 nodeStore.updateRecord( nodeRecord );
             }
-            neoStores.close();
         }
 
         FileUtils.copyFile( stickyGenerator, nodeStoreIdGenerator );
