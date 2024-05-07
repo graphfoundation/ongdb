@@ -54,20 +54,20 @@ import static org.junit.Assert.fail;
 public class TestConfiguration
 {
     public SuppressOutput suppressOutput = SuppressOutput.suppressAll();
-    public TestDirectory dir = TestDirectory.testDirectory( TestConfiguration.class );
+    public TestDirectory testDirectory = TestDirectory.testDirectory( TestConfiguration.class );
     @Rule
-    public RuleChain rules = RuleChain.outerRule( dir ).around( suppressOutput );
+    public RuleChain rules = RuleChain.outerRule( testDirectory ).around( suppressOutput );
 
     private static final String HOST_ADDRESS = "127.0.0.1";
 
-    private File sourceDir;
+    private File databaseDir;
     private String backupDir;
 
     @Before
     public void before() throws Exception
     {
-        sourceDir = dir.makeGraphDbDir();
-        backupDir = dir.cleanDirectory( "full-backup" ).getAbsolutePath();
+        databaseDir = testDirectory.databaseDir();
+        backupDir = testDirectory.cleanDirectory( "full-backup" ).getAbsolutePath();
     }
 
     @Test
@@ -75,7 +75,7 @@ public class TestConfiguration
     {
         int port = PortAuthority.allocatePort();
 
-        GraphDatabaseService db = new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( sourceDir )
+        GraphDatabaseService db = new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( databaseDir )
                 .setConfig( OnlineBackupSettings.online_backup_server, "localhost:" + port ).newGraphDatabase();
         OnlineBackup.from( HOST_ADDRESS, port ).full( backupDir );
         db.shutdown();
@@ -86,7 +86,7 @@ public class TestConfiguration
     {
         int port = PortAuthority.allocatePort();
 
-        GraphDatabaseService db = new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( sourceDir )
+        GraphDatabaseService db = new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( databaseDir )
                 .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
                 .setConfig( OnlineBackupSettings.online_backup_server, "localhost:" + port )
                 .newGraphDatabase();
@@ -106,7 +106,7 @@ public class TestConfiguration
     {
         int port = PortAuthority.allocatePort();
 
-        GraphDatabaseService db = new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( sourceDir )
+        GraphDatabaseService db = new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( databaseDir )
                 .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.TRUE )
                 .setConfig( OnlineBackupSettings.online_backup_server, "localhost:" + port )
                 .newGraphDatabase();
@@ -119,7 +119,7 @@ public class TestConfiguration
     public void testEnableCustomPortInConfig()
     {
         int customPort = PortAuthority.allocatePort();
-        GraphDatabaseService db = new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( sourceDir )
+        GraphDatabaseService db = new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( databaseDir )
                 .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.TRUE )
                 .setConfig( OnlineBackupSettings.online_backup_server, ":" + customPort )
                 .newGraphDatabase();

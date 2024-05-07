@@ -53,6 +53,7 @@ import org.neo4j.backup.impl.BackupClient;
 import org.neo4j.backup.impl.BackupProtocolService;
 import org.neo4j.backup.impl.ConsistencyCheck;
 import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.configuration.Config;
 
 import static java.util.Arrays.asList;
@@ -117,7 +118,7 @@ public class BackupToolCmdArgumentsAcceptanceTest
         verify( backupProtocolService ).doIncrementalBackupOrFallbackToFull(
                 eq( HOST ),
                 eq( PORT ),
-                eq( PATH ),
+                eq( DatabaseLayout.of( PATH.toFile() ) ),
                 expectedVerifyStoreValue ? eq( ConsistencyCheck.FULL ) : eq( ConsistencyCheck.NONE ),
                 any( Config.class ),
                 eq( BackupClient.BIG_READ_TIMEOUT ),

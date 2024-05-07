@@ -52,6 +52,7 @@ import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.collection.Iterables;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
@@ -96,7 +97,7 @@ public class RestoreDatabaseCommandIT
         createDbAt( toPath, toNodeCount );
 
         FileSystemAbstraction fs = fileSystemRule.get();
-        try ( StoreLocker storeLocker = new StoreLocker( fs, toPath ) )
+        try ( StoreLocker storeLocker = new StoreLocker( fs, DatabaseLayout.of( toPath ).getStoreLayout() ) )
         {
             storeLocker.checkLock();
 

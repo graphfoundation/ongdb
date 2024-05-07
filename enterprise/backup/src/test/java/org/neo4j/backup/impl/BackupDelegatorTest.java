@@ -38,9 +38,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import org.neo4j.causalclustering.catchup.CatchUpClient;
 import org.neo4j.causalclustering.catchup.CatchupAddressProvider;
@@ -51,6 +50,7 @@ import org.neo4j.causalclustering.catchup.storecopy.StoreCopyFailedException;
 import org.neo4j.causalclustering.catchup.storecopy.StoreIdDownloadFailedException;
 import org.neo4j.causalclustering.identity.StoreId;
 import org.neo4j.helpers.AdvertisedSocketAddress;
+import org.neo4j.io.layout.DatabaseLayout;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.eq;
@@ -81,15 +81,15 @@ public class BackupDelegatorTest
     public void tryCatchingUpDelegatesToRemoteStore() throws StoreCopyFailedException, IOException
     {
         // given
-        AdvertisedSocketAddress fromAddress = new AdvertisedSocketAddress( "neo4j.com", 5432 );
+        AdvertisedSocketAddress fromAddress = new AdvertisedSocketAddress( "ongdb.com", 5432 );
         StoreId expectedStoreId = new StoreId( 7, 2, 5, 98 );
-        Path storeDir = Paths.get( "A directory to store transactions to" );
+        DatabaseLayout databaseLayout = DatabaseLayout.of( new File( "temp" ) );
 
         // when
-        subject.tryCatchingUp( fromAddress, expectedStoreId, storeDir );
+        subject.tryCatchingUp( fromAddress, expectedStoreId, databaseLayout );
 
         // then
-        verify( remoteStore ).tryCatchingUp( fromAddress, expectedStoreId, storeDir.toFile(), true );
+        verify( remoteStore ).tryCatchingUp( fromAddress, expectedStoreId, databaseLayout, true );
     }
 
     @Test
@@ -116,7 +116,7 @@ public class BackupDelegatorTest
     public void fetchStoreIdDelegatesToStoreCopyClient() throws StoreIdDownloadFailedException
     {
         // given
-        AdvertisedSocketAddress fromAddress = new AdvertisedSocketAddress( "neo4.com", 935 );
+        AdvertisedSocketAddress fromAddress = new AdvertisedSocketAddress( "ong.com", 935 );
 
         // and
         StoreId expectedStoreId = new StoreId( 6, 2, 9, 3 );
@@ -135,14 +135,14 @@ public class BackupDelegatorTest
     {
         // given
         StoreId storeId = new StoreId( 92, 5, 7, 32 );
-        Path anyFile = Paths.get( "anywhere" );
+        DatabaseLayout databaseLayout = DatabaseLayout.of( new File( "temp" ) );
 
         // when
-        subject.copy( anyAddress, storeId, anyFile );
+        subject.copy( anyAddress, storeId, databaseLayout );
 
         // then
         ArgumentCaptor<CatchupAddressProvider> argumentCaptor = ArgumentCaptor.forClass( CatchupAddressProvider.class );
-        verify( remoteStore ).copy( argumentCaptor.capture(), eq( storeId ), eq( anyFile.toFile() ) );
+        verify( remoteStore ).copy( argumentCaptor.capture(), eq( storeId ), eq( databaseLayout ) );
 
         //and
         assertEquals( anyAddress, argumentCaptor.getValue().primary() );

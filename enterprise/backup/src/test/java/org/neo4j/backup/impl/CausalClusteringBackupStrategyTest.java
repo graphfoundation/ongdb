@@ -40,7 +40,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
-import java.nio.file.Path;
 
 import org.neo4j.causalclustering.catchup.CatchupResult;
 import org.neo4j.causalclustering.catchup.storecopy.StoreCopyFailedException;
@@ -48,6 +47,7 @@ import org.neo4j.causalclustering.catchup.storecopy.StoreFiles;
 import org.neo4j.causalclustering.catchup.storecopy.StoreIdDownloadFailedException;
 import org.neo4j.causalclustering.identity.StoreId;
 import org.neo4j.helpers.AdvertisedSocketAddress;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.util.OptionalHostnamePort;
 import org.neo4j.logging.NullLogProvider;
@@ -72,7 +72,7 @@ public class CausalClusteringBackupStrategyTest
 
     CausalClusteringBackupStrategy subject;
 
-    Path desiredBackupLocation = mock( Path.class );
+    DatabaseLayout desiredBackupLayout = mock( DatabaseLayout.class );
     Config config = mock( Config.class );
     OptionalHostnamePort userProvidedAddress = new OptionalHostnamePort( (String) null, null, null );
     StoreFiles storeFiles = mock( StoreFiles.class );
@@ -95,7 +95,7 @@ public class CausalClusteringBackupStrategyTest
         when( addressResolver.resolveCorrectCCAddress( any(), any() ) ).thenReturn( expectedAddress );
 
         // when
-        subject.performIncrementalBackup( desiredBackupLocation, config, userProvidedAddress );
+        subject.performIncrementalBackup( desiredBackupLayout, config, userProvidedAddress );
 
         // then
         verify( backupDelegator ).tryCatchingUp( eq( expectedAddress ), any(), any() );
@@ -109,7 +109,7 @@ public class CausalClusteringBackupStrategyTest
         when( addressResolver.resolveCorrectCCAddress( any(), any() ) ).thenReturn( expectedAddress );
 
         // when
-        subject.performFullBackup( desiredBackupLocation, config, userProvidedAddress );
+        subject.performFullBackup( desiredBackupLayout, config, userProvidedAddress );
 
         // then
         verify( backupDelegator ).fetchStoreId( expectedAddress );
@@ -120,7 +120,7 @@ public class CausalClusteringBackupStrategyTest
     {
 
         // when
-        subject.performIncrementalBackup( desiredBackupLocation, config, userProvidedAddress );
+        subject.performIncrementalBackup( desiredBackupLayout, config, userProvidedAddress );
 
         // then
         verify( backupDelegator ).fetchStoreId( resolvedFromAddress );
@@ -134,11 +134,11 @@ public class CausalClusteringBackupStrategyTest
         when( storeFiles.readStoreId( any() ) ).thenThrow( IOException.class );
 
         // when
-        subject.performFullBackup( desiredBackupLocation, config, userProvidedAddress );
+        subject.performFullBackup( desiredBackupLayout, config, userProvidedAddress );
 
         // then
         verify( backupDelegator ).fetchStoreId( resolvedFromAddress );
-        verify( backupDelegator ).copy( resolvedFromAddress, expectedStoreId, desiredBackupLocation );
+        verify( backupDelegator ).copy( resolvedFromAddress, expectedStoreId, desiredBackupLayout );
     }
 
     @Test
@@ -150,7 +150,7 @@ public class CausalClusteringBackupStrategyTest
 
         // when
         Fallible<BackupStageOutcome>
-                state = subject.performIncrementalBackup( desiredBackupLocation, config, userProvidedAddress );
+                state = subject.performIncrementalBackup( desiredBackupLayout, config, userProvidedAddress );
 
         // then
         assertEquals( BackupStageOutcome.WRONG_PROTOCOL, state.getState() );
@@ -164,7 +164,7 @@ public class CausalClusteringBackupStrategyTest
         when( backupDelegator.tryCatchingUp( any(), eq( expectedStoreId ), any() ) ).thenThrow( StoreCopyFailedException.class );
 
         // when
-        Fallible state = subject.performIncrementalBackup( desiredBackupLocation, config, userProvidedAddress );
+        Fallible state = subject.performIncrementalBackup( desiredBackupLayout, config, userProvidedAddress );
 
         // then
         assertEquals( BackupStageOutcome.FAILURE, state.getState() );
@@ -179,7 +179,7 @@ public class CausalClusteringBackupStrategyTest
         when( backupDelegator.fetchStoreId( any() ) ).thenThrow( storeIdDownloadFailedException );
 
         // when
-        Fallible state = subject.performFullBackup( desiredBackupLocation, config, userProvidedAddress );
+        Fallible state = subject.performFullBackup( desiredBackupLayout, config, userProvidedAddress );
 
         // then
         assertEquals( BackupStageOutcome.WRONG_PROTOCOL, state.getState() );
@@ -196,7 +196,7 @@ public class CausalClusteringBackupStrategyTest
         when( storeFiles.readStoreId( any() ) ).thenThrow( IOException.class );
 
         // when
-        Fallible state = subject.performFullBackup( desiredBackupLocation, config, userProvidedAddress );
+        Fallible state = subject.performFullBackup( desiredBackupLayout, config, userProvidedAddress );
 
         // then
         assertEquals( BackupStageOutcome.FAILURE, state.getState() );
@@ -212,7 +212,7 @@ public class CausalClusteringBackupStrategyTest
 
         // when
         Fallible<BackupStageOutcome>
-                state = subject.performIncrementalBackup( desiredBackupLocation, config, userProvidedAddress );
+                state = subject.performIncrementalBackup( desiredBackupLayout, config, userProvidedAddress );
 
         // then
         assertEquals( BackupStageOutcome.FAILURE, state.getState() );
@@ -245,7 +245,7 @@ public class CausalClusteringBackupStrategyTest
         when( storeFiles.readStoreId( any() ) ).thenThrow( IOException.class );
 
         // when
-        Fallible<BackupStageOutcome> state = subject.performIncrementalBackup( desiredBackupLocation, config, userProvidedAddress );
+        Fallible<BackupStageOutcome> state = subject.performIncrementalBackup( desiredBackupLayout, config, userProvidedAddress );
 
         // then
         assertEquals( StoreIdDownloadFailedException.class, state.getCause().get().getClass() );
@@ -259,7 +259,7 @@ public class CausalClusteringBackupStrategyTest
         when( storeFiles.readStoreId( any() ) ).thenReturn( new StoreId( 5, 4, 3, 2 ) );
 
         // when
-        Fallible<BackupStageOutcome> state = subject.performIncrementalBackup( desiredBackupLocation, config, userProvidedAddress );
+        Fallible<BackupStageOutcome> state = subject.performIncrementalBackup( desiredBackupLayout, config, userProvidedAddress );
 
         // then
         assertEquals( StoreIdDownloadFailedException.class, state.getCause().get().getClass() );
@@ -273,7 +273,7 @@ public class CausalClusteringBackupStrategyTest
         when( storeFiles.readStoreId( any() ) ).thenReturn( expectedStoreId );
 
         // when
-        Fallible<BackupStageOutcome> state = subject.performFullBackup( desiredBackupLocation, config, userProvidedAddress );
+        Fallible<BackupStageOutcome> state = subject.performFullBackup( desiredBackupLayout, config, userProvidedAddress );
 
         // then
         assertEquals( StoreIdDownloadFailedException.class, state.getCause().get().getClass() );

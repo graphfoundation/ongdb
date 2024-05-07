@@ -40,12 +40,14 @@ import org.junit.Test;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 
 import org.neo4j.commandline.admin.OutsideWorld;
 import org.neo4j.consistency.checking.full.ConsistencyFlags;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.util.OptionalHostnamePort;
@@ -65,35 +67,35 @@ import static org.mockito.Mockito.when;
 public class BackupStrategyWrapperTest
 {
     @Rule
-    public TestDirectory testDirectory = TestDirectory.testDirectory();
+    public final TestDirectory testDirectory = TestDirectory.testDirectory();
 
-    private BackupStrategy backupStrategyImplementation = mock( BackupStrategy.class );
-    private OutsideWorld outsideWorld = mock( OutsideWorld.class );
-    private BackupCopyService backupCopyService = mock( BackupCopyService.class );
+    private final BackupStrategy backupStrategyImplementation = mock( BackupStrategy.class );
+    private final OutsideWorld outsideWorld = mock( OutsideWorld.class );
+    private final BackupCopyService backupCopyService = mock( BackupCopyService.class );
 
     private BackupStrategyWrapper subject;
 
     private OnlineBackupContext onlineBackupContext;
 
-    private FileSystemAbstraction fileSystemAbstraction = mock( FileSystemAbstraction.class );
-    private Path desiredBackupLocation;
+    private final FileSystemAbstraction fileSystemAbstraction = mock( FileSystemAbstraction.class );
+    private DatabaseLayout desiredBackupLayout;
     private Path reportDir;
-    private Path availableFreshBackupLocation = mock( Path.class, "Path<availableFreshBackupLocation>" );
-    private Path availableOldBackupLocation = mock( Path.class, "Path<availableOldBackupLocation>" );
+    private final Path availableFreshBackupLocation = mock( Path.class, "Path<availableFreshBackupLocation>" );
+    private final Path availableOldBackupLocation = mock( Path.class, "Path<availableOldBackupLocation>" );
     private OnlineBackupRequiredArguments requiredArguments;
-    private Config config = mock( Config.class );
-    private OptionalHostnamePort userProvidedAddress = new OptionalHostnamePort( (String) null, null, null );
-    private Fallible<BackupStageOutcome> SUCCESS = new Fallible<>( BackupStageOutcome.SUCCESS, null );
-    private Fallible<BackupStageOutcome> FAILURE = new Fallible<>( BackupStageOutcome.FAILURE, null );
-    private PageCache pageCache = mock( PageCache.class );
-    private BackupRecoveryService backupRecoveryService = mock( BackupRecoveryService.class );
-    private LogProvider logProvider = mock( LogProvider.class );
-    private Log log = mock( Log.class );
+    private final Config config = mock( Config.class );
+    private final OptionalHostnamePort userProvidedAddress = new OptionalHostnamePort( (String) null, null, null );
+    private final Fallible<BackupStageOutcome> SUCCESS = new Fallible<>( BackupStageOutcome.SUCCESS, null );
+    private final Fallible<BackupStageOutcome> FAILURE = new Fallible<>( BackupStageOutcome.FAILURE, null );
+    private final PageCache pageCache = mock( PageCache.class );
+    private final BackupRecoveryService backupRecoveryService = mock( BackupRecoveryService.class );
+    private final LogProvider logProvider = mock( LogProvider.class );
+    private final Log log = mock( Log.class );
 
     @Before
     public void setup()
     {
-        desiredBackupLocation = testDirectory.directory( "desiredBackupLocation" ).toPath();
+        desiredBackupLayout = testDirectory.databaseLayout( "desiredBackupLayout" );
         reportDir = testDirectory.directory( "reportDir" ).toPath();
 
         when( outsideWorld.fileSystem() ).thenReturn( fileSystemAbstraction );
@@ -173,7 +175,7 @@ public class BackupStrategyWrapperTest
         subject.doBackup( onlineBackupContext );
 
         // then
-        verify( backupStrategyImplementation, never() ).performFullBackup( desiredBackupLocation, config, userProvidedAddress );
+        verify( backupStrategyImplementation, never() ).performFullBackup( desiredBackupLayout, config, userProvidedAddress );
     }
 
     @Test
@@ -244,8 +246,8 @@ public class BackupStrategyWrapperTest
     public void successfulFullBackupsMoveExistingBackup() throws IOException
     {
         // given backup exists
-        desiredBackupLocation = testDirectory.directory( "some-preexisting-backup" ).toPath();
-        when( backupCopyService.backupExists( testDirectory.databaseLayout() ) ).thenReturn( true );
+        desiredBackupLayout = testDirectory.databaseLayout( "some-preexisting-backup" );
+        when( backupCopyService.backupExists( desiredBackupLayout ) ).thenReturn( true );
 
         // and fallback to full flag has been set
         requiredArguments = requiredArguments( true );
@@ -253,12 +255,12 @@ public class BackupStrategyWrapperTest
 
         // and a new location for the existing backup is found
         Path newLocationForExistingBackup = testDirectory.directory( "new-backup-location" ).toPath();
-        when( backupCopyService.findNewBackupLocationForBrokenExisting( desiredBackupLocation ) )
+        when( backupCopyService.findNewBackupLocationForBrokenExisting( desiredBackupLayout.databaseDirectory().toPath() ) )
                 .thenReturn( newLocationForExistingBackup );
 
         // and there is a generated location for where to store a new full backup so the original is not destroyed
         Path temporaryFullBackupLocation = testDirectory.directory( "temporary-full-backup" ).toPath();
-        when( backupCopyService.findAnAvailableLocationForNewFullBackup( desiredBackupLocation ) )
+        when( backupCopyService.findAnAvailableLocationForNewFullBackup( desiredBackupLayout.databaseDirectory().toPath() ) )
                 .thenReturn( temporaryFullBackupLocation );
 
         // and incremental fails
@@ -273,10 +275,10 @@ public class BackupStrategyWrapperTest
         Fallible<BackupStrategyOutcome> state = subject.doBackup( onlineBackupContext );
 
         // then original existing backup is moved to err directory
-        verify( backupCopyService ).moveBackupLocation( eq( desiredBackupLocation ), eq( newLocationForExistingBackup ) );
+        verify( backupCopyService ).moveBackupLocation( eq( desiredBackupLayout.databaseDirectory().toPath() ), eq( newLocationForExistingBackup ) );
 
         // and new successful backup is renamed to original expected name
-        verify( backupCopyService ).moveBackupLocation( eq( temporaryFullBackupLocation ), eq( desiredBackupLocation ) );
+        verify( backupCopyService ).moveBackupLocation( eq( temporaryFullBackupLocation ), eq( desiredBackupLayout.databaseDirectory().toPath() ) );
 
         // and backup was successful
         assertEquals( BackupStrategyOutcome.SUCCESS, state.getState() );
@@ -378,9 +380,9 @@ public class BackupStrategyWrapperTest
     public void successfulFullBackupsAreRecoveredEvenIfNoBackupExisted()
     {
         // given a backup exists
-        when( backupCopyService.backupExists( testDirectory.databaseLayout() ) ).thenReturn( false );
-        when( backupCopyService.findAnAvailableLocationForNewFullBackup( desiredBackupLocation ) )
-                .thenReturn( desiredBackupLocation );
+        when( backupCopyService.backupExists( desiredBackupLayout ) ).thenReturn( false );
+        when( backupCopyService.findAnAvailableLocationForNewFullBackup( desiredBackupLayout.databaseDirectory().toPath() ) )
+                .thenReturn( desiredBackupLayout.databaseDirectory().toPath() );
 
         // and
         fallbackToFullPasses();
@@ -406,7 +408,8 @@ public class BackupStrategyWrapperTest
         // then
         InOrder recoveryBeforeRenameOrder = Mockito.inOrder( backupRecoveryService, backupCopyService );
         recoveryBeforeRenameOrder.verify( backupRecoveryService ).recoverWithDatabase( eq( availableFreshBackupLocation ), any(), any() );
-        recoveryBeforeRenameOrder.verify( backupCopyService ).moveBackupLocation( eq( availableFreshBackupLocation ), eq( desiredBackupLocation ) );
+        recoveryBeforeRenameOrder.verify( backupCopyService ).moveBackupLocation( eq( availableFreshBackupLocation ),
+                                                                                  eq( desiredBackupLayout.databaseDirectory().toPath() ) );
     }
 
     @Test
@@ -530,8 +533,9 @@ public class BackupStrategyWrapperTest
 
     private OnlineBackupRequiredArguments requiredArguments( boolean fallbackToFull )
     {
-        return new OnlineBackupRequiredArguments( userProvidedAddress, desiredBackupLocation.getParent(), desiredBackupLocation.getFileName().toString(),
-                SelectedBackupProtocol.ANY, fallbackToFull, true, 1000, reportDir );
+        return new OnlineBackupRequiredArguments( userProvidedAddress, desiredBackupLayout.getStoreLayout().storeDirectory().toPath(),
+                                                  desiredBackupLayout.databaseDirectory().getName(),
+                                                  SelectedBackupProtocol.ANY, fallbackToFull, true, 1000, reportDir );
     }
 
     private static ConsistencyFlags consistencyFlags()
