@@ -42,6 +42,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 
 import org.neo4j.graphdb.GraphDatabaseService;
@@ -68,7 +69,7 @@ public class PrometheusOutputIT
     public void setUp()
     {
         serverAddress = "localhost:" + PortAuthority.allocatePort();
-        database = new EnterpriseGraphDatabaseFactory().newEmbeddedDatabaseBuilder( testDirectory.graphDbDir() )
+        database = new EnterpriseGraphDatabaseFactory().newEmbeddedDatabaseBuilder( testDirectory.storeDir() )
                 .setConfig( prometheusEnabled, Settings.TRUE )
                 .setConfig( prometheusEndpoint, serverAddress )
                 .newGraphDatabase();
@@ -87,7 +88,7 @@ public class PrometheusOutputIT
         URLConnection connection = new URL( url ).openConnection();
         connection.setDoOutput( true );
         connection.connect();
-        Scanner s = new Scanner( connection.getInputStream(), "UTF-8" ).useDelimiter( "\\A" );
+        Scanner s = new Scanner( connection.getInputStream(), StandardCharsets.UTF_8.name() ).useDelimiter( "\\A" );
 
         assertTrue( s.hasNext() );
         String response = s.next();
