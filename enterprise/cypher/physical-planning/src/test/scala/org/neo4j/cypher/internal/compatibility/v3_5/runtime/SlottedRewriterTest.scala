@@ -2,49 +2,53 @@
  * Copyright (c) 2018-2020 "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
- * This file is part of ONgDB Enterprise Edition. The included source
- * code can be redistributed and/or modified under the terms of the
- * GNU AFFERO GENERAL PUBLIC LICENSE Version 3
- * (http://www.fsf.org/licensing/licenses/agpl-3.0.html) as found
- * in the associated LICENSE.txt file.
+ * This file is part of ONgDB.
+ *
+ * ONgDB is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2018 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
  * Neo4j is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime
 
 import org.mockito.Mockito._
-import PhysicalPlanningAttributes.SlotConfigurations
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.PhysicalPlanningAttributes.SlotConfigurations
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast._
-import org.neo4j.cypher.internal.v3_5.ast._
 import org.neo4j.cypher.internal.planner.v3_5.spi.TokenContext
-import org.neo4j.cypher.internal.v3_5.util.attribution.SequentialIdGen
+import org.neo4j.cypher.internal.v3_5.logical.plans.{AllNodesScan, ProduceResult, Selection, _}
+import org.neo4j.cypher.internal.v3_5.ast._
+import org.neo4j.cypher.internal.v3_5.expressions._
 import org.neo4j.cypher.internal.v3_5.util.NonEmptyList
+import org.neo4j.cypher.internal.v3_5.util.attribution.SequentialIdGen
 import org.neo4j.cypher.internal.v3_5.util.symbols._
 import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.logical.plans.{AllNodesScan, ProduceResult, Selection, _}
 
 class SlottedRewriterTest extends CypherFunSuite with AstConstructionTestSupport {
   implicit val idGen = new SequentialIdGen()
@@ -54,6 +58,128 @@ class SlottedRewriterTest extends CypherFunSuite with AstConstructionTestSupport
   private val bProp = propFor("b", "prop")
   private val nProp = propFor("n", "prop")
   private val rProp = propFor("r", "prop")
+
+  test("checking property existence using IS NULL on a nullable node") {
+    // OPTIONAL MATCH (n) WHERE n.prop IS NULL
+    // given
+    val node = "n"
+    val argument = Argument(Set(node))
+    val predicate = IsNull(prop("n", "prop"))(pos)
+    val selection = Selection(Seq(predicate), argument)
+    val slots = SlotConfiguration.empty.
+      newLong("n", nullable = true, CTNode)
+    val lookup = new SlotConfigurations
+    lookup.set(argument.id, slots)
+    lookup.set(selection.id, slots)
+    val tokenContext = mock[TokenContext]
+    when(tokenContext.getOptPropertyKeyId("prop")).thenReturn(None)
+    val rewriter = new SlottedRewriter(tokenContext)
+    // when
+    val result = rewriter(selection, lookup)
+    result should equal(
+      Selection(
+        Seq(
+          Or(
+            IsPrimitiveNull(0),
+            Not(
+              NodePropertyExistsLate(0, "prop", "n.prop")(nProp)
+            )(pos)
+          )(pos)
+        ),
+        argument
+      )
+    )
+    lookup(result.id) should equal(slots)
+  }
+
+  test("checking property existence using IS NULL on a node") {
+    // MATCH (n) WHERE n.prop IS NULL
+    // given
+    val node = "n"
+    val argument = Argument(Set(node))
+    val predicate = IsNull(prop("n", "prop"))(pos)
+    val selection = Selection(Seq(predicate), argument)
+    val slots = SlotConfiguration.empty.
+      newLong("n", nullable = false, CTNode)
+    val lookup = new SlotConfigurations
+    lookup.set(argument.id, slots)
+    lookup.set(selection.id, slots)
+    val tokenContext = mock[TokenContext]
+    when(tokenContext.getOptPropertyKeyId("prop")).thenReturn(None)
+    val rewriter = new SlottedRewriter(tokenContext)
+    // when
+    val result = rewriter(selection, lookup)
+    result should equal(
+      Selection(
+        Seq(
+          Not(
+            NodePropertyExistsLate(0, "prop", "n.prop")(nProp)
+          )(pos)),
+        argument
+      )
+    )
+    lookup(result.id) should equal(slots)
+  }
+
+  test("checking property existence using IS NOT NULL on a nullable node") {
+    // OPTIONAL MATCH (n) WHERE n.prop IS NOT NULL
+    // given
+    val node = "n"
+    val argument = Argument(Set(node))
+    val predicate = IsNotNull(prop("n", "prop"))(pos)
+    val selection = Selection(Seq(predicate), argument)
+    val slots = SlotConfiguration.empty.
+      newLong("n", nullable = true, CTNode)
+    val lookup = new SlotConfigurations
+    lookup.set(argument.id, slots)
+    lookup.set(selection.id, slots)
+    val tokenContext = mock[TokenContext]
+    when(tokenContext.getOptPropertyKeyId("prop")).thenReturn(None)
+    val rewriter = new SlottedRewriter(tokenContext)
+    // when
+    val result = rewriter(selection, lookup)
+    result should equal(
+      Selection(
+        Seq(
+          And(
+            Not(
+              IsPrimitiveNull(0)
+            )(pos),
+            NodePropertyExistsLate(0, "prop", "n.prop")(nProp)
+          )(pos)
+        ),
+        argument
+      )
+    )
+    lookup(result.id) should equal(slots)
+  }
+
+  test("checking property existence using IS NOT NULL on a node") {
+    // MATCH (n) WHERE n.prop IS NOT NULL
+    // given
+    val node = "n"
+    val argument = Argument(Set(node))
+    val predicate = IsNotNull(prop("n", "prop"))(pos)
+    val selection = Selection(Seq(predicate), argument)
+    val slots = SlotConfiguration.empty.
+      newLong("n", nullable = false, CTNode)
+    val lookup = new SlotConfigurations
+    lookup.set(argument.id, slots)
+    lookup.set(selection.id, slots)
+    val tokenContext = mock[TokenContext]
+    when(tokenContext.getOptPropertyKeyId("prop")).thenReturn(None)
+    val rewriter = new SlottedRewriter(tokenContext)
+    // when
+    val result = rewriter(selection, lookup)
+    result should equal(
+      Selection(
+        Seq(
+          NodePropertyExistsLate(0, "prop", "n.prop")(nProp)),
+        argument
+      )
+    )
+    lookup(result.id) should equal(slots)
+  }
 
   test("selection with property comparison MATCH (n) WHERE n.prop > 42 RETURN n") {
     val allNodes = AllNodesScan("x", Set.empty)

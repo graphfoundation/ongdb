@@ -2,48 +2,52 @@
  * Copyright (c) 2018-2020 "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
- * This file is part of ONgDB Enterprise Edition. The included source
- * code can be redistributed and/or modified under the terms of the
- * GNU AFFERO GENERAL PUBLIC LICENSE Version 3
- * (http://www.fsf.org/licensing/licenses/agpl-3.0.html) as found
- * in the associated LICENSE.txt file.
+ * This file is part of ONgDB.
+ *
+ * ONgDB is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2018 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
  * Neo4j is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime
 
 import org.neo4j.cypher.internal.compiler.v3_5.planner.LogicalPlanningTestSupport2
-import org.neo4j.cypher.internal.v3_5.frontend.ast.ASTAnnotationMap
-import org.neo4j.cypher.internal.v3_5.frontend.semantics.{ExpressionTypeInfo, SemanticTable}
-import org.neo4j.cypher.internal.ir.v3_4.{PlannerQuery, VarPatternLength}
+import org.neo4j.cypher.internal.ir.v3_5.{CreateNode, VarPatternLength}
+import org.neo4j.cypher.internal.v3_5.logical.plans.{Ascending, _}
+import org.neo4j.cypher.internal.v3_5.logical.{plans => logicalPlans}
+import org.neo4j.cypher.internal.v3_5.ast.ASTAnnotationMap
+import org.neo4j.cypher.internal.v3_5.ast.semantics.{ExpressionTypeInfo, SemanticTable}
+import org.neo4j.cypher.internal.v3_5.expressions._
 import org.neo4j.cypher.internal.v3_5.util.LabelId
 import org.neo4j.cypher.internal.v3_5.util.symbols._
 import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.logical.plans.{Ascending, _}
-import org.neo4j.cypher.internal.v3_5.logical.{plans => logicalPlans}
 
 //noinspection NameBooleanParameters
 class SlotAllocationTest extends CypherFunSuite with LogicalPlanningTestSupport2 {
@@ -67,6 +71,35 @@ class SlotAllocationTest extends CypherFunSuite with LogicalPlanningTestSupport2
     allocations should have size 1
     allocations(plan.id) should equal(
       SlotConfiguration(Map("x" -> LongSlot(0, nullable = false, CTNode)), 1, 0))
+  }
+
+  test("index seek without values") {
+    // given
+    val plan = IndexSeek("x:label2(prop = 42)", DoNotGetValue)
+
+    // when
+    val allocations = SlotAllocation.allocateSlots(plan, semanticTable).slotConfigurations
+
+    // then
+    allocations should have size 1
+    allocations(plan.id) should equal(
+      SlotConfiguration(Map("x" -> LongSlot(0, nullable = false, CTNode)), 1, 0))
+  }
+
+  test("index seek with values") {
+    // given
+    val plan = IndexSeek("x:label2(prop = 42)", GetValue)
+
+    // when
+    val allocations = SlotAllocation.allocateSlots(plan, semanticTable).slotConfigurations
+
+    // then
+    allocations should have size 1
+    allocations(plan.id) should equal(
+      SlotConfiguration.empty
+        .newLong("x", nullable = false, CTNode)
+        .newCachedProperty(cachedNodeProperty("x", "prop"))
+    )
   }
 
   test("limit should not introduce slots") {
@@ -301,9 +334,7 @@ class SlotAllocationTest extends CypherFunSuite with LogicalPlanningTestSupport2
   test("all we need is to apply ourselves") {
     // given
     val lhs = NodeByLabelScan(x, LABEL, Set.empty)
-    val label = LabelToken("label2", LabelId(0))
-    val seekExpression = SingleQueryExpression(literalInt(42))
-    val rhs = NodeIndexSeek(z, label, Seq.empty, seekExpression, Set(x))
+    val rhs = IndexSeek("z:label2(prop = 42)", argumentIds = Set(x))
     val apply = Apply(lhs, rhs)
 
     // when
@@ -435,7 +466,7 @@ class SlotAllocationTest extends CypherFunSuite with LogicalPlanningTestSupport2
     def expand(n:Int): LogicalPlan =
       n match {
         case 1 => NodeByLabelScan("n1", LabelName("label2")(pos), Set.empty)
-        case n => Expand(expand(n-1), "n"+(n-1), SemanticDirection.INCOMING, Seq.empty, "n"+n, "r"+(n-1), ExpandAll)
+        case _ => Expand(expand(n-1), "n"+(n-1), SemanticDirection.INCOMING, Seq.empty, "n"+n, "r"+(n-1), ExpandAll)
       }
     val N = 10
 
@@ -551,6 +582,65 @@ class SlotAllocationTest extends CypherFunSuite with LogicalPlanningTestSupport2
       "y" -> LongSlot(2, nullable = false, CTNode),
       "r2" -> LongSlot(3, nullable = false, CTRelationship)
     )))
+  }
+
+  test("joins should remember cached node properties from both sides") {
+    // given
+    val lhs = IndexSeek("x:L(lhsProp = 42)", GetValue)
+    val rhs = IndexSeek("x:B(rhsProp = 42)", GetValue)
+
+    val joins =
+      List(
+        CartesianProduct(lhs, rhs),
+        NodeHashJoin(Set(x), lhs, rhs),
+        LeftOuterHashJoin(Set(x), lhs, rhs),
+        RightOuterHashJoin(Set(x), lhs, rhs),
+        logicalPlans.ValueHashJoin(lhs, rhs, Equals(varFor("x"), varFor("x"))(pos))
+      )
+
+    for (join <- joins) {
+      // when
+      val joinAllocations = SlotAllocation.allocateSlots(join, semanticTable).slotConfigurations
+
+      // then
+      joinAllocations(join.id) should be(
+        SlotConfiguration.empty
+          .newLong("x", false, CTNode)
+          .newCachedProperty(cachedNodeProperty("x", "lhsProp"))
+          .newCachedProperty(cachedNodeProperty("x", "rhsProp"))
+      )
+    }
+  }
+
+  test("joins should correctly handle cached node property argument") {
+    // given
+    val lhs = IndexSeek("x:L(lhsProp = 42)", GetValue)
+    val rhs = IndexSeek("x:B(rhsProp = 42)", GetValue)
+    val arg = IndexSeek("x:A(argProp = 42)", GetValue)
+
+    val joins =
+      List(
+        CartesianProduct(lhs, rhs),
+        NodeHashJoin(Set(x), lhs, rhs),
+        LeftOuterHashJoin(Set(x), lhs, rhs),
+        RightOuterHashJoin(Set(x), lhs, rhs),
+        logicalPlans.ValueHashJoin(lhs, rhs, Equals(varFor("x"), varFor("x"))(pos))
+      )
+
+    for (join <- joins) {
+      // when
+      val plan = Apply(arg, join)
+      val allocations = SlotAllocation.allocateSlots(plan, semanticTable).slotConfigurations
+
+      // then
+      allocations(plan.id) should be(
+        SlotConfiguration.empty
+          .newLong("x", false, CTNode)
+          .newCachedProperty(cachedNodeProperty("x", "argProp"))
+          .newCachedProperty(cachedNodeProperty("x", "lhsProp"))
+          .newCachedProperty(cachedNodeProperty("x", "rhsProp"))
+      )
+    }
   }
 
   test("that argument does not apply here") {
@@ -826,7 +916,7 @@ class SlotAllocationTest extends CypherFunSuite with LogicalPlanningTestSupport2
     val label = LabelToken("label2", LabelId(0))
     val argument = Argument()
     val list = literalIntList(1, 2, 3)
-    val rhs = CreateNode(argument, z, Seq.empty, None)
+    val rhs = Create(argument, List(CreateNode(z, Seq.empty, None)), Nil)
     val foreach = ForeachApply(lhs, rhs, "i", list)
 
     val semanticTableWithList = SemanticTable(ASTAnnotationMap(list -> ExpressionTypeInfo(ListType(CTInteger), Some(ListType(CTAny)))))
@@ -861,7 +951,7 @@ class SlotAllocationTest extends CypherFunSuite with LogicalPlanningTestSupport2
     val label = LabelToken("label2", LabelId(0))
     val argument = Argument()
     val list = literalList(Variable("x")(pos))
-    val rhs = CreateNode(argument, z, Seq.empty, None)
+    val rhs = Create(argument, List(CreateNode(z, Seq.empty, None)), Nil)
     val foreach = ForeachApply(lhs, rhs, "i", list)
 
     val semanticTableWithList = SemanticTable(ASTAnnotationMap(list -> ExpressionTypeInfo(ListType(CTNode), Some(ListType(CTNode)))))
@@ -889,4 +979,43 @@ class SlotAllocationTest extends CypherFunSuite with LogicalPlanningTestSupport2
 
     allocations(foreach.id) shouldBe theSameInstanceAs(lhsSlots)
   }
+
+  test("Should fallback on pattern expression") {
+    // given
+    val nbls = NodeByLabelScan(x, LABEL, Set.empty)
+    val patternExpression = PatternExpression(RelationshipsPattern(RelationshipChain(
+      NodePattern(None, Seq(), None)(pos),
+      RelationshipPattern(None, Seq(), None, None, SemanticDirection.BOTH)(pos),
+      NodePattern(None, Seq(), None)(pos)
+    )(pos))(pos))
+    val filter = Selection(Seq(patternExpression), nbls)
+
+    // then
+    a[SlotAllocationFailed] should be thrownBy {
+      // when
+      SlotAllocation.allocateSlots(filter, SemanticTable())
+    }
+  }
+
+  test("Should fallback on pattern comprehension") {
+    // given
+    val nbls = NodeByLabelScan(x, LABEL, Set.empty)
+    val relPattern = RelationshipsPattern(RelationshipChain(
+      NodePattern(None, Seq(), None)(pos),
+      RelationshipPattern(None, Seq(), None, None, SemanticDirection.BOTH)(pos),
+      NodePattern(None, Seq(), None)(pos)
+    )(pos))(pos)
+    val projectionExpression = Property(Variable("x")(pos), PropertyKeyName("prop")(pos))(pos)
+    val patternComprehension = PatternComprehension(None, relPattern, None, projectionExpression)(pos, Set.empty)
+
+    val filter = Selection(Seq(patternComprehension), nbls)
+    // then
+    a[SlotAllocationFailed] should be thrownBy {
+      // when
+      SlotAllocation.allocateSlots(filter, SemanticTable())
+    }
+  }
+
+  private def cachedNodeProperty(node: String, prop: String): CachedNodeProperty =
+    CachedNodeProperty(node, PropertyKeyName(prop)(pos))(pos)
 }

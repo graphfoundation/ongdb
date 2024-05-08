@@ -2,52 +2,56 @@
  * Copyright (c) 2018-2020 "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
- * This file is part of ONgDB Enterprise Edition. The included source
- * code can be redistributed and/or modified under the terms of the
- * GNU AFFERO GENERAL PUBLIC LICENSE Version 3
- * (http://www.fsf.org/licensing/licenses/agpl-3.0.html) as found
- * in the associated LICENSE.txt file.
+ * This file is part of ONgDB.
+ *
+ * ONgDB is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2018 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
  * Neo4j is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime
 
-import org.neo4j.cypher.internal.v3_5.util.InternalException
-import org.neo4j.cypher.internal.v3_5.util.symbols.CypherType
-import org.neo4j.cypher.internal.v3_5.logical.plans.LogicalPlan
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.v3_5.logical.plans.{CachedNodeProperty, LogicalPlan}
 import org.neo4j.values.AnyValue
+import org.neo4j.cypher.internal.v3_5.util.InternalException
+import org.neo4j.cypher.internal.v3_5.util.symbols.{CypherType, CTAny}
 
 import scala.collection.{immutable, mutable}
 
 object SlotConfiguration {
-  def empty = new SlotConfiguration(mutable.Map.empty, 0, 0)
+  def empty = new SlotConfiguration(mutable.Map.empty, mutable.Map.empty, 0, 0)
 
   def apply(slots: Map[String, Slot], numberOfLongs: Int, numberOfReferences: Int): SlotConfiguration = {
     val stringToSlot = mutable.Map(slots.toSeq: _*)
-    new SlotConfiguration(stringToSlot, numberOfLongs, numberOfReferences)
+    new SlotConfiguration(stringToSlot, mutable.Map.empty, numberOfLongs, numberOfReferences)
   }
 
   def toString(startFrom: LogicalPlan, m: Map[LogicalPlan, SlotConfiguration]): String = {
@@ -133,7 +137,7 @@ object SlotConfiguration {
       result.append("\n")
 
       // Dependencies:
-      result.append("Dependends on: ")
+      result.append("Depends on: ")
       pipeline.dependsOn.foreach(p => result.append("#").append(p.order))
 
       result.append("\n")
@@ -167,8 +171,10 @@ object SlotConfiguration {
   * @param numberOfReferences the number of ref slots.
   */
 class SlotConfiguration(private val slots: mutable.Map[String, Slot],
+                        private val cachedProperties: mutable.Map[CachedNodeProperty, RefSlot],
                         var numberOfLongs: Int,
                         var numberOfReferences: Int) {
+
 
   private val aliases: mutable.Set[String] = mutable.Set()
   private val slotAliases = new mutable.HashMap[Slot, mutable.Set[String]] with mutable.MultiMap[Slot, String]
@@ -189,11 +195,17 @@ class SlotConfiguration(private val slots: mutable.Map[String, Slot],
     this
   }
 
+  def getAliasOf(slot: Slot): String = slotAliases(slot).head
+
   def isAlias(key: String): Boolean = {
     aliases.contains(key)
   }
 
   def apply(key: String): Slot = slots.apply(key)
+
+  def nameOfLongSlot(offset: Int): Option[String] = slots.collectFirst {
+    case (name, LongSlot(o, _, _)) if o == offset && !aliases(name) => name
+  }
 
   def get(key: String): Option[Slot] = slots.get(key)
 
@@ -203,7 +215,10 @@ class SlotConfiguration(private val slots: mutable.Map[String, Slot],
   }
 
   def copy(): SlotConfiguration = {
-    val newPipeline = new SlotConfiguration(this.slots.clone(), numberOfLongs, numberOfReferences)
+    val newPipeline = new SlotConfiguration(this.slots.clone(),
+                                            this.cachedProperties.clone(),
+                                            numberOfLongs,
+                                            numberOfReferences)
     newPipeline.aliases ++= aliases
     newPipeline.slotAliases ++= slotAliases
     newPipeline
@@ -277,6 +292,28 @@ class SlotConfiguration(private val slots: mutable.Map[String, Slot],
     this
   }
 
+  def newCachedProperty(key: CachedNodeProperty): SlotConfiguration = {
+    cachedProperties.get(key) match {
+      case Some(existingSlot) =>
+        throw new InternalException(s"Tried overwriting already taken cached node property $key!")
+
+      case None =>
+        cachedProperties.put(key, RefSlot(numberOfReferences, nullable = false, CTAny))
+        numberOfReferences = numberOfReferences + 1
+    }
+    this
+  }
+
+  def newCachedPropertyIfUnseen(key: CachedNodeProperty): SlotConfiguration = {
+    cachedProperties.get(key) match {
+      case Some(existingSlot) => // do nothing
+      case None =>
+        cachedProperties.put(key, RefSlot(numberOfReferences, nullable = false, CTAny))
+        numberOfReferences = numberOfReferences + 1
+    }
+    this
+  }
+
   def getReferenceOffsetFor(name: String): Int = slots.get(name) match {
     case Some(s: RefSlot) => s.offset
     case Some(s) => throw new InternalException(s"Uh oh... There was no reference slot for `$name`. It was a $s")
@@ -288,6 +325,8 @@ class SlotConfiguration(private val slots: mutable.Map[String, Slot],
     case Some(s) => throw new InternalException(s"Uh oh... There was no long slot for `$name`. It was a $s")
     case _ => throw new InternalException(s"Uh oh... There was no slot for `$name`")
   }
+
+  def getCachedNodePropertyOffsetFor(key: CachedNodeProperty): Int = cachedProperties(key).offset
 
   def updateAccessorFunctions(key: String, getter: ExecutionContext => AnyValue, setter: (ExecutionContext, AnyValue) => Unit,
                               primitiveNodeSetter: Option[(ExecutionContext, Long) => Unit],
@@ -323,12 +362,46 @@ class SlotConfiguration(private val slots: mutable.Map[String, Slot],
   }
 
   // NOTE: This will give duplicate slots when we have aliases
-  def foreachSlot[U](f: ((String,Slot)) => U): Unit =
-    slots.foreach(f)
+  def foreachSlot[U](onVariable: ((String, Slot)) => U,
+                     onCachedNodeProperty: ((CachedNodeProperty, RefSlot)) => Unit
+                    ): Unit = {
+    slots.foreach(onVariable)
+    cachedProperties.foreach(onCachedNodeProperty)
+  }
 
   // NOTE: This will give duplicate slots when we have aliases
-  def foreachSlotOrdered[U](f: ((String, Slot)) => U): Unit =
-    slots.toSeq.sortBy(_._2)(SlotOrdering).foreach(f)
+  def foreachSlotOrdered(onVariable: (String, Slot) => Unit,
+                         onCachedNodeProperty: CachedNodeProperty => Unit
+                        ): Unit = {
+    val (longs, refs) = slots.toSeq.partition(_._2.isLongSlot)
+    for ((variable, slot) <- longs.sortBy(_._2.offset)) onVariable(variable, slot)
+
+    var sortedRefs = refs.sortBy(_._2.offset)
+    var sortedCached = cachedProperties.toSeq.sortBy(_._2.offset)
+    for (i <- 0 until numberOfReferences) {
+      if (sortedRefs.nonEmpty && sortedRefs.head._2.offset == i) {
+        val (variable, slot) = sortedRefs.head
+        onVariable(variable, slot)
+        sortedRefs = sortedRefs.tail
+      } else {
+        onCachedNodeProperty(sortedCached.head._1)
+        sortedCached = sortedCached.tail
+      }
+    }
+  }
+
+
+  // NOTE: We need to implement caching. Use naming convention of the method above (i.e. foreachSlotXXXX)
+  // We need to now call this method in the SlottedExecutionContext.
+  def foreachSlotCached(onCachedNodeProperty: ((CachedNodeProperty, RefSlot)) => Unit): Unit = {
+    cachedProperties.foreach(onCachedNodeProperty)
+  }
+
+
+
+
+
+
 
   // NOTE: This will give duplicate slots when we have aliases
   def mapSlot[U](f: ((String,Slot)) => U): Iterable[U] = slots.map(f)
@@ -356,7 +429,7 @@ class SlotConfiguration(private val slots: mutable.Map[String, Slot],
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 
-  override def toString = s"SlotConfiguration(longs=$numberOfLongs, refs=$numberOfReferences, slots=$slots)"
+  override def toString = s"SlotConfiguration(longs=$numberOfLongs, refs=$numberOfReferences, slots=$slots, cachedProperties=$cachedProperties)"
 
   /**
     * NOTE: Only use for debugging
@@ -372,6 +445,14 @@ class SlotConfiguration(private val slots: mutable.Map[String, Slot],
   def getRefSlots: immutable.IndexedSeq[SlotWithAliases] =
     slotAliases.toIndexedSeq.collect {
       case (slot: RefSlot, aliases) => RefSlotWithAliases(slot, aliases.toSet)
+    }.sorted(SlotWithAliasesOrdering)
+
+  /**
+    * NOTE: Only use for debugging
+    */
+  def getCachedPropertySlots: immutable.IndexedSeq[SlotWithAliases] =
+    cachedProperties.toIndexedSeq.map {
+      case (cachedNodeProperty, slot) => RefSlotWithAliases(slot, Set(cachedNodeProperty.asCanonicalStringVal))
     }.sorted(SlotWithAliasesOrdering)
 
   object SlotWithAliasesOrdering extends Ordering[SlotWithAliases] {

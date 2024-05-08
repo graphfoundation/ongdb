@@ -40,13 +40,15 @@ Third-party licenses
 
 Apache Software License, Version 2.0
   Apache Commons Lang
+  Apache Commons Text
   Caffeine cache
   ConcurrentLinkedHashMap
+  error-prone annotations
+  IPAddress
   Lucene codecs
   Lucene Common Analyzers
   Lucene Core
   Lucene QueryParsers
-  Neo4j - Cypher Frontend 3.3
   Netty/All-in-One
   Netty/Buffer
   Netty/Codec
@@ -91,4 +93,26 @@ Bouncy Castle License
   Bouncy Castle ASN.1 Extension and Utility APIs
   Bouncy Castle PKIX, CMS, EAC, TSP, PKCS, OCSP, CMP, and CRMF APIs
   Bouncy Castle Provider
+
+Eclipse Distribution License - v 1.0
+  Eclipse Collections API
+  Eclipse Collections Main Library
+
+Eclipse Public License - v 1.0
+  Eclipse Collections API
+  Eclipse Collections Main Library
+
+MIT License
+  Checker Qual
+
+Dependencies with multiple licenses
+-----------------------------------
+
+Eclipse Collections API
+  Eclipse Distribution License - v 1.0
+  Eclipse Public License - v 1.0
+
+Eclipse Collections Main Library
+  Eclipse Distribution License - v 1.0
+  Eclipse Public License - v 1.0
 

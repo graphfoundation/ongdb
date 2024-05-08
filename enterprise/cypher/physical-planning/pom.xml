@@ -15,7 +15,7 @@
     <packaging>jar</packaging>
 
     <name>ONgDB - Geequel Physical Planning</name>
-    <description>A runtime for the ONgDB query language</description>
+    <description>A runtime for ONgDB's query language</description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
     <scm>
@@ -25,7 +25,7 @@
     </scm>
 
     <properties>
-        <license-text.header>headers/AGPL-3-header.txt</license-text.header>
+        <license-text.header>headers/GPL-3-header.txt</license-text.header>
         <moduleName>org.neo4j.cypher.internal.compatibility.v3_5.runtime</moduleName>
     </properties>
 

@@ -38,55 +38,33 @@
  */
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime
 
-import org.neo4j.cypher.internal.v3_5.util.symbols.CypherType
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.ReferenceFromSlot
+import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments._
+import org.neo4j.cypher.internal.runtime.planDescription.{NoChildren, PlanDescriptionImpl, renderAsTreeTable}
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.{CypherFunSuite, WindowsStringSafe}
 
-sealed trait Slot {
-  def offset: Int
-  def nullable: Boolean
-  def typ: CypherType
-  def isTypeCompatibleWith(other: Slot): Boolean
-  def isLongSlot: Boolean
-  def asNullable: Slot
-}
+class ExecutionPlanDescriptionTest extends CypherFunSuite {
+  implicit val windowsSafe = WindowsStringSafe
 
-case class LongSlot(offset: Int, nullable: Boolean, typ: CypherType) extends Slot {
-  override def isTypeCompatibleWith(other: Slot): Boolean = other match {
-    case LongSlot(_, _, otherTyp) =>
-      typ.isAssignableFrom(otherTyp) || otherTyp.isAssignableFrom(typ)
-    case _ => false
+  test("use variable name instead of ReferenceFromSlot") {
+
+    val arguments = Seq(
+      Rows(42),
+      DbHits(33),
+      Expression(ReferenceFromSlot(42, "  id@23")),
+      EstimatedRows(1))
+
+    val plan = PlanDescriptionImpl(Id.INVALID_ID, "NAME", NoChildren, arguments, Set("  n@76"))
+
+    val details = renderAsTreeTable(plan)
+    details should equal(
+      """+----------+----------------+------+---------+-----------+-------+
+        || Operator | Estimated Rows | Rows | DB Hits | Variables | Other |
+        |+----------+----------------+------+---------+-----------+-------+
+        || +NAME    |              1 |   42 |      33 | n         | id    |
+        |+----------+----------------+------+---------+-----------+-------+
+        |""".stripMargin)
   }
 
-  override def isLongSlot: Boolean = true
-
-  override def asNullable = LongSlot(offset, true, typ)
-}
-
-case class RefSlot(offset: Int, nullable: Boolean, typ: CypherType) extends Slot {
-  override def isTypeCompatibleWith(other: Slot): Boolean = other match {
-    case RefSlot(_, _, otherTyp) =>
-      typ.isAssignableFrom(otherTyp) || otherTyp.isAssignableFrom(typ)
-    case _ => false
-  }
-
-  override def isLongSlot: Boolean = false
-
-  override def asNullable = RefSlot(offset, true, typ)
-}
-
-sealed trait SlotWithAliases {
-  def slot: Slot
-  def aliases: Set[String]
-
-  protected def makeString: String = {
-    val aliasesString = s"${aliases.mkString("'", "','", "'")}"
-    f"$slot%-30s $aliasesString%-10s"
-  }
-}
-
-case class LongSlotWithAliases(slot: LongSlot, aliases: Set[String]) extends SlotWithAliases {
-  override def toString: String = makeString
-}
-
-case class RefSlotWithAliases(slot: RefSlot, aliases: Set[String]) extends SlotWithAliases {
-  override def toString: String = makeString
 }

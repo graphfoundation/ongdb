@@ -2,49 +2,53 @@
  * Copyright (c) 2018-2020 "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
- * This file is part of ONgDB Enterprise Edition. The included source
- * code can be redistributed and/or modified under the terms of the
- * GNU AFFERO GENERAL PUBLIC LICENSE Version 3
- * (http://www.fsf.org/licensing/licenses/agpl-3.0.html) as found
- * in the associated LICENSE.txt file.
+ * This file is part of ONgDB.
+ *
+ * ONgDB is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2018 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
  * Neo4j is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime
 
-import PhysicalPlanningAttributes.{ArgumentSizes, SlotConfigurations}
-import SlotConfiguration.Size
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.PhysicalPlanningAttributes.{ArgumentSizes, SlotConfigurations}
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotConfiguration.Size
 import org.neo4j.cypher.internal.ir.v3_5.{HasHeaders, NoHeaders, ShortestPathPattern}
-import org.neo4j.cypher.internal.v3_5.util.{Foldable, InternalException, UnNamedNameGenerator}
-import org.neo4j.cypher.internal.v3_5.ast.ProcedureResultItem
-import org.neo4j.cypher.internal.v3_5.expressions._
 import org.neo4j.cypher.internal.v3_5.logical.plans._
-import org.neo4j.cypher.internal.v3_5.{expressions => parserAst}
+import org.neo4j.cypher.internal.v3_5.ast.ProcedureResultItem
 import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_5.expressions._
 import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 import org.neo4j.cypher.internal.v3_5.util.symbols._
+import org.neo4j.cypher.internal.v3_5.util.{Foldable, InternalException, UnNamedNameGenerator}
+import org.neo4j.cypher.internal.v3_5.{expressions => parserAst}
 
 import scala.collection.mutable
 import scala.util.Try
@@ -71,7 +75,7 @@ object SlotAllocation {
                           argumentSizes: ArgumentSizes)
 
   /**
-    * Allocate slot for every operator in the logical plan tree {@code lp}.
+    * Allocate slot for every operator in the logical plan tree `lp`.
     *
     * @param lp the logical plan to process.
     * @return the slot configurations of every operator.
@@ -88,7 +92,7 @@ object SlotAllocation {
     initialSlotsAndArgument.foreach(argumentStack.push)
     var comingFrom = lp
 
-    def recordArgument(plan: LogicalPlan, argument: SlotsAndArgument): Unit = {
+    def recordArgument(plan: LogicalPlan, argument: SlotsAndArgument) = {
       arguments.set(plan.id, argument.argumentSize)
     }
 
@@ -187,6 +191,15 @@ object SlotAllocation {
     val TRAVERSE_INTO_CHILDREN = Some((s: Accumulator) => s)
     val DO_NOT_TRAVERSE_INTO_CHILDREN = None
 
+    p.treeFind[Expression] {
+      case _: PatternExpression =>
+        true
+      case _: PatternComprehension =>
+        true
+    }.foreach { _ =>
+      throw new SlotAllocationFailed(s"Don't know how to handle $p")
+    }
+
     val result = p.treeFold[Accumulator](Accumulator(slots, doNotTraverseExpression = None)) {
       //-----------------------------------------------------
       // Logical plans
@@ -258,7 +271,7 @@ object SlotAllocation {
   }
 
   /**
-    * Compute the slot configuration of a leaf logical plan operator {@code lp}.
+    * Compute the slot configuration of a leaf logical plan operator `lp`.
     *
     * @param lp the operator to compute slots for.
     * @param nullable true if new slots are nullable
@@ -267,6 +280,12 @@ object SlotAllocation {
     */
   private def allocate(lp: LogicalPlan, nullable: Boolean, argument: SlotConfiguration): SlotConfiguration =
     lp match {
+      case leaf: IndexLeafPlan =>
+        val result = argument
+        result.newLong(leaf.idName, nullable, CTNode)
+        leaf.cachedNodeProperties.foreach(result.newCachedProperty)
+        result
+
       case leaf: NodeLogicalLeafPlan =>
         val result = argument
         result.newLong(leaf.idName, nullable, CTNode)
@@ -303,7 +322,7 @@ object SlotAllocation {
     }
 
   /**
-    * Compute the slot configuration of a single source logical plan operator {@code lp}.
+    * Compute the slot configuration of a single source logical plan operator `lp`.
     *
     * @param lp the operator to compute slots for.
     * @param nullable true if new slots are nullable
@@ -425,8 +444,8 @@ object SlotAllocation {
         result
 
       case Create(_, nodes, relationships) =>
-        nodes.foreach(node => source.newLong(node.idName, nullable = false, CTNode))
-        relationships.foreach(rel => source.newLong(rel.idName, nullable = false, CTRelationship))
+        nodes.foreach(n => source.newLong(n.idName, nullable = false, CTNode))
+        relationships.foreach(r => source.newLong(r.idName, nullable = false, CTRelationship))
         source
 
       case _:MergeCreateNode =>
@@ -512,7 +531,7 @@ object SlotAllocation {
     }
 
   /**
-    * Compute the slot configuration of a branching logical plan operator {@code lp}.
+    * Compute the slot configuration of a branching logical plan operator `lp`.
     *
     * @param lp the operator to compute slots for.
     * @param nullable true if new slots are nullable
@@ -564,46 +583,47 @@ object SlotAllocation {
         val result = lhs.copy()
         // For the implementation of the slotted pipe to use array copy
         // it is very important that we add the slots in the same order
-        rhs.foreachSlotOrdered {
-          case (k, slot) =>
-            result.add(k, slot)
-        }
+        rhs.foreachSlotOrdered(result.add, result.newCachedPropertyIfUnseen)
+
         result
 
       case RightOuterHashJoin(nodes, _, _) =>
         // A new pipeline is not strictly needed here unless we have batching/vectorization
         recordArgument(lp)
         val result = rhs.copy()
-        lhs.foreachSlotOrdered {
-          case (k, slot) if !nodes(k) =>
-            result.add(k, slot.asNullable)
 
-          case _ => // If the column is one of the join columns there is no need to add it again
-        }
+        // If the column is one of the join columns there is no need to add it again
+        def onVariableSlot(key: String, slot: Slot): Unit =
+          if (!nodes(key))
+            result.add(key, slot.asNullable)
+
+        lhs.foreachSlotOrdered(onVariableSlot, result.newCachedPropertyIfUnseen)
         result
 
       case LeftOuterHashJoin(nodes, _, _) =>
         // A new pipeline is not strictly needed here unless we have batching/vectorization
         recordArgument(lp)
         val result = lhs.copy()
-        rhs.foreachSlotOrdered {
-          case (k, slot) if !nodes(k) =>
-            result.add(k, slot.asNullable)
 
-          case _ => // If the column is one of the join columns there is no need to add it again
-        }
+        // If the column is one of the join columns there is no need to add it again
+        def onVariableSlot(key: String, slot: Slot): Unit =
+          if (!nodes(key))
+            result.add(key, slot.asNullable)
+
+        rhs.foreachSlotOrdered(onVariableSlot, result.newCachedPropertyIfUnseen)
         result
 
       case NodeHashJoin(nodes, _, _) =>
         // A new pipeline is not strictly needed here unless we have batching/vectorization
         recordArgument(lp)
         val result = lhs.copy()
-        rhs.foreachSlotOrdered {
-          case (k, slot) if !nodes(k) =>
-            result.add(k, slot)
 
-          case _ => // If the column is one of the join columns there is no need to add it again
-        }
+        // If the column is one of the join columns there is no need to add it again
+        def onVariableSlot(key: String, slot: Slot): Unit =
+          if (!nodes(key))
+            result.add(key, slot)
+
+        rhs.foreachSlotOrdered(onVariableSlot, result.newCachedPropertyIfUnseen)
         result
 
       case _: ValueHashJoin =>
@@ -612,10 +632,7 @@ object SlotAllocation {
         val slotConfig: SlotConfiguration = lhs.copy()
         // For the implementation of the slotted pipe to use array copy
         // it is very important that we add the slots in the same order
-        rhs.foreachSlotOrdered {
-          case (k, slot) =>
-            slotConfig.add(k, slot)
-        }
+        rhs.foreachSlotOrdered(slotConfig.add, slotConfig.newCachedPropertyIfUnseen)
         slotConfig
 
       case RollUpApply(_, _, collectionName, _, _) =>
@@ -630,7 +647,7 @@ object SlotAllocation {
         // If both lhs and rhs has a long slot with the same type the result should
         // also use a long slot, otherwise we use a ref slot.
         val result = SlotConfiguration.empty
-        lhs.foreachSlot {
+        lhs.foreachSlot({
           case (key, lhsSlot: LongSlot) =>
             //find all shared variables and look for other long slots with same type
             rhs.get(key).foreach {
@@ -647,7 +664,7 @@ object SlotAllocation {
                 val newType = if (lhsSlot.typ == rhsSlot.typ) lhsSlot.typ else CTAny
                 result.newReference(key, lhsSlot.nullable || rhsSlot.nullable, newType)
             }
-        }
+        }, ignoreCachedNodeProperties => null)
         result
 
       case _: AssertSameNode =>
@@ -665,9 +682,9 @@ object SlotAllocation {
       case ForeachApply(_, _, variableName, listExpression) =>
         // The slot for the iteration variable of foreach needs to be available as an argument on the rhs of the apply
         // so we allocate it on the lhs (even though its value will not be needed after the foreach is done)
-        val typeSpec = Try(semanticTable.getActualTypeFor(listExpression)).toOption
-        val listOfNodes = typeSpec.exists(_.contains(ListType(CTNode)))
-        val listOfRels = typeSpec.exists(_.contains(ListType(CTRelationship)))
+        val maybeTypeSpec = Try(semanticTable.getActualTypeFor(listExpression)).toOption
+        val listOfNodes = maybeTypeSpec.exists(_.contains(ListType(CTNode)))
+        val listOfRels = maybeTypeSpec.exists(_.contains(ListType(CTRelationship)))
 
         (listOfNodes, listOfRels) match {
           case (true, false) => lhs.newLong(variableName, true, CTNode)
@@ -679,6 +696,16 @@ object SlotAllocation {
       case _ =>
         lhs
     }
+
+  // TODO: We might get a list expression that has not been properly typed (RollupApply). Instead of failing,
+  // we are forgiving and just act like we know nothing at compile time
+  private def getTypeOf(semanticTable: SemanticTable, listExpression: Expression): TypeSpec = {
+    if (semanticTable.seen(listExpression)) {
+      semanticTable.getActualTypeFor(listExpression)
+    } else {
+      TypeSpec.all
+    }
+  }
 
   private def addGroupingMap(groupingExpressions: Map[String, Expression], incoming: SlotConfiguration, outgoing: SlotConfiguration) = {
     groupingExpressions foreach {
