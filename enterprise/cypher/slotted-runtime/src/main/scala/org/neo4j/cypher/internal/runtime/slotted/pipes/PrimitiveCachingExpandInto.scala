@@ -2,44 +2,48 @@
  * Copyright (c) 2018-2020 "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
- * This file is part of ONgDB Enterprise Edition. The included source
- * code can be redistributed and/or modified under the terms of the
- * GNU AFFERO GENERAL PUBLIC LICENSE Version 3
- * (http://www.fsf.org/licensing/licenses/agpl-3.0.html) as found
- * in the associated LICENSE.txt file.
+ * This file is part of ONgDB.
+ *
+ * ONgDB is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2018 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
  * Neo4j is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.neo4j.cypher.internal.runtime.slotted.pipes
 
-import org.neo4j.collection.primitive.PrimitiveLongIterator
+import org.eclipse.collections.api.iterator.LongIterator
 import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.v3_5.util.InternalException
-import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
-import org.neo4j.kernel.impl.api.RelationshipVisitor
 import org.neo4j.kernel.impl.api.store.RelationshipIterator
+import org.neo4j.storageengine.api.RelationshipVisitor
+import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v3_5.util.InternalException
 
 import scala.collection.mutable
 
@@ -59,7 +63,7 @@ trait PrimitiveCachingExpandInto {
     * Finds all relationships connecting fromNode and toNode.
     */
   protected def findRelationships(query: QueryContext, fromNode: Long, toNode: Long,
-                                  relCache: PrimitiveRelationshipsCache, dir: SemanticDirection, relTypes: => Option[Array[Int]]): PrimitiveLongIterator = {
+                                  relCache: PrimitiveRelationshipsCache, dir: SemanticDirection, relTypes: => Option[Array[Int]]): LongIterator = {
 
     val fromNodeIsDense = query.nodeIsDense(fromNode)
     val toNodeIsDense = query.nodeIsDense(toNode)
@@ -98,7 +102,7 @@ trait PrimitiveCachingExpandInto {
   }
 
   private def relIterator(query: QueryContext, fromNode: Long, toNode: Long, preserveDirection: Boolean,
-                          relTypes: Option[Array[Int]], relCache: PrimitiveRelationshipsCache, dir: SemanticDirection): PrimitiveLongIterator = {
+                          relTypes: Option[Array[Int]], relCache: PrimitiveRelationshipsCache, dir: SemanticDirection): LongIterator = {
     val (start, localDirection, end) = if (preserveDirection) (fromNode, dir, toNode) else (toNode, dir.reversed, fromNode)
     val relationships: RelationshipIterator = query.getRelationshipsForIdsPrimitive(start, localDirection, relTypes)
 
@@ -116,7 +120,7 @@ trait PrimitiveCachingExpandInto {
         }
     }
 
-    new PrimitiveLongIterator {
+    new LongIterator {
       var nextRelId: Long = -1
       // used to ensure consecutive calls to hasNext(), without interleaved next(),
       // return same result & don't consume additional inner iterator elements
@@ -161,9 +165,9 @@ protected final class PrimitiveRelationshipsCache(capacity: Int) {
 
   val table = new mutable.OpenHashMap[(Long, Long), Array[Long]]()
 
-  def get(start: Long, end: Long, dir: SemanticDirection): Option[PrimitiveLongIterator] = {
+  def get(start: Long, end: Long, dir: SemanticDirection): Option[LongIterator] = {
     table.get(key(start, end, dir)).map(rels => {
-      new PrimitiveLongIterator {
+      new LongIterator {
         var index: Int = 0
 
         override def next(): Long = {

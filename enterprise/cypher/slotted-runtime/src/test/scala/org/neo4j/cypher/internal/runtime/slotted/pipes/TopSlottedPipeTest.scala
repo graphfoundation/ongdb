@@ -2,50 +2,53 @@
  * Copyright (c) 2018-2020 "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
- * This file is part of ONgDB Enterprise Edition. The included source
- * code can be redistributed and/or modified under the terms of the
- * GNU AFFERO GENERAL PUBLIC LICENSE Version 3
- * (http://www.fsf.org/licensing/licenses/agpl-3.0.html) as found
- * in the associated LICENSE.txt file.
+ * This file is part of ONgDB.
+ *
+ * ONgDB is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2018 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
  * Neo4j is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.neo4j.cypher.internal.runtime.slotted.pipes
 
 import org.neo4j.cypher.InternalException
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.LongSlot
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.RefSlot
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotConfiguration
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.{LongSlot, RefSlot, SlotConfiguration}
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Literal
-import org.neo4j.cypher.internal.runtime.interpreted.pipes.Pipe
-import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, Top1Pipe, Top1WithTiesPipe, TopNPipe}
 import org.neo4j.cypher.internal.runtime.slotted.pipes.TopSlottedPipeTestSupport._
+import org.neo4j.cypher.internal.runtime.slotted.{ExecutionContextOrdering, SlottedExecutionContext}
+import org.neo4j.kernel.impl.util.ValueUtils
+import org.neo4j.values.AnyValue
 import org.neo4j.cypher.internal.v3_5.util.symbols._
 import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.kernel.impl.util.ValueUtils
 
 import scala.util.Random
 
@@ -118,6 +121,38 @@ class TopSlottedPipeTest extends CypherFunSuite {
       input, orderBy = AscendingOrder, limit = 5
     )
     result should equal(list(10, null))
+  }
+
+  test("should handle limit 0") {
+    val input = randomlyShuffledIntDataFromZeroUntil(5)
+    val result = singleColumnTopWithInput(
+      input, orderBy = AscendingOrder, limit = 0
+    )
+    result should equal(List.empty)
+  }
+
+  test("should handle negative limit") {
+    val input = randomlyShuffledIntDataFromZeroUntil(5)
+    val result = singleColumnTopWithInput(
+      input, orderBy = AscendingOrder, limit = -1
+    )
+    result should equal(List.empty)
+  }
+
+  test("should handle limit of Int.MaxValue") {
+    val input = randomlyShuffledIntDataFromZeroUntil(5)
+    val result = singleColumnTopWithInput(
+      input, orderBy = AscendingOrder, limit = Int.MaxValue
+    )
+    result should equal(list(0, 1, 2, 3, 4))
+  }
+
+  test("should handle limit larger than Int.MaxValue") {
+    val input = randomlyShuffledIntDataFromZeroUntil(5)
+    val result = singleColumnTopWithInput(
+      input, orderBy = AscendingOrder, limit = Int.MaxValue.asInstanceOf[Long]*2
+    )
+    result should equal(list(0, 1, 2, 3, 4))
   }
 
   test("returning top 1 from 5 possible should return lowest") {
@@ -209,7 +244,7 @@ object TopSlottedPipeTestSupport {
   case object AscendingOrder extends TestColumnOrder
   case object DescendingOrder extends TestColumnOrder
 
-  def list(a: Any*) = a.map {
+  def list(a: Any*): List[Object] = a.map {
     case (x: Number, y: Number) => (ValueUtils.of(x.longValue()), ValueUtils.of(y.longValue()))
     case x: Number => ValueUtils.of(x.longValue())
     case (x, y) => (ValueUtils.of(x), ValueUtils.of(y))
@@ -221,26 +256,27 @@ object TopSlottedPipeTestSupport {
     data
   }
 
-  private def createTopPipe(source: Pipe, orderBy: List[ColumnOrder], limit: Int, withTies: Boolean) = {
+  private def createTopPipe(source: Pipe, orderBy: List[ColumnOrder], limit: Long, withTies: Boolean) = {
+    val comparator = ExecutionContextOrdering.asComparator(orderBy)
     if (withTies) {
       assert(limit == 1)
-      Top1WithTiesSlottedPipe(source, orderBy)()
+      Top1WithTiesPipe(source, comparator)()
     }
     else if (limit == 1) {
-      Top1SlottedPipe(source, orderBy)()
+      Top1Pipe(source, comparator)()
     }
     else {
-      TopNSlottedPipe(source, orderBy, Literal(limit))()
+      TopNPipe(source, Literal(limit), comparator)()
     }
   }
 
-  def singleColumnTopWithInput(data: Traversable[Any], orderBy: TestColumnOrder, limit: Int, withTies: Boolean = false) = {
+  def singleColumnTopWithInput(data: Iterable[Any], orderBy: TestColumnOrder, limit: Long, withTies: Boolean = false): List[Any] = {
     val slots = SlotConfiguration.empty
       .newReference("a", nullable = true, CTAny)
 
     val slot = slots("a")
 
-    val source = FakeSlottedPipe(data.map(v => Map("a" -> v)).toIterator, slots)
+    val source = FakeSlottedPipe(data.map(v => Map("a" -> v)), slots)
 
     val topOrderBy = orderBy match {
       case AscendingOrder => List(Ascending(slot))
@@ -261,14 +297,14 @@ object TopSlottedPipeTestSupport {
     }.toList
   }
 
-  def twoColumnTopWithInput(data: Traversable[(Any, Any)], orderBy: Seq[TestColumnOrder], limit: Int, withTies: Boolean = false) = {
+  def twoColumnTopWithInput(data: Iterable[(Any, Any)], orderBy: Seq[TestColumnOrder], limit: Int, withTies: Boolean = false): List[(AnyValue, AnyValue)] = {
     val slotConfiguration = SlotConfiguration.empty
       .newReference("a", nullable = true, CTAny)
       .newReference("b", nullable = true, CTAny)
 
     val slots = Seq(slotConfiguration("a"), slotConfiguration("b"))
 
-    val source = FakeSlottedPipe(data.map { case (v1, v2) => Map("a" -> v1, "b" -> v2) }.toIterator, slotConfiguration)
+    val source = FakeSlottedPipe(data.map { case (v1, v2) => Map("a" -> v1, "b" -> v2) }, slotConfiguration)
 
     val topOrderBy = orderBy.zip(slots).map {
       case (AscendingOrder, slot) => Ascending(slot)
@@ -288,11 +324,11 @@ object TopSlottedPipeTestSupport {
     }.toList
   }
 
-  def singleColumnTop1WithTiesWithInput(data: Traversable[Any], orderBy: TestColumnOrder) = {
+  def singleColumnTop1WithTiesWithInput(data: Iterable[Any], orderBy: TestColumnOrder): List[Any] = {
     singleColumnTopWithInput(data, orderBy, limit = 1, withTies = true)
   }
 
-  def twoColumnTop1WithTiesWithInput(data: Traversable[(Any, Any)], orderBy: Seq[TestColumnOrder]) = {
+  def twoColumnTop1WithTiesWithInput(data: Iterable[(Any, Any)], orderBy: Seq[TestColumnOrder]): List[(AnyValue, AnyValue)] = {
     twoColumnTopWithInput(data, orderBy, limit = 1, withTies = true)
   }
 }

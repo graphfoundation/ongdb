@@ -2,44 +2,51 @@
  * Copyright (c) 2018-2020 "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
- * This file is part of ONgDB Enterprise Edition. The included source
- * code can be redistributed and/or modified under the terms of the
- * GNU AFFERO GENERAL PUBLIC LICENSE Version 3
- * (http://www.fsf.org/licensing/licenses/agpl-3.0.html) as found
- * in the associated LICENSE.txt file.
+ * This file is part of ONgDB.
+ *
+ * ONgDB is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2018 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
  * Neo4j is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.neo4j.cypher.internal.runtime.slotted
 
+import org.neo4j.cypher.internal.runtime.EntityById
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.internal.v3_5.logical.plans.CachedNodeProperty
 import org.neo4j.cypher.internal.v3_5.util.InternalException
 import org.neo4j.cypher.result.QueryResult
 import org.neo4j.values.AnyValue
+import org.neo4j.values.storable.Value
 
 import scala.collection.mutable
 
@@ -51,7 +58,7 @@ case class ArrayResultExecutionContextFactory(columns: Seq[(String, Expression)]
     var index = 0
     columns.foreach {
       case (name, exp) => m.put(name, index)
-      index += 1
+        index += 1
     }
     m
   }
@@ -92,6 +99,7 @@ case class ArrayResultExecutionContextFactory(columns: Seq[(String, Expression)]
     val resultArray = new Array[AnyValue](columnArraySize)
     ArrayResultExecutionContext(resultArray, columnIndexMap, this)
   }
+
   //---------------------------------------------------------------------------
 }
 
@@ -105,7 +113,7 @@ case class ArrayResultExecutionContext(resultArray: Array[AnyValue],
   override def get(key: String): Option[AnyValue] = {
     columnIndexMap.get(key) match {
       case Some(index) => Some(resultArray(index))
-      case _=> None
+      case _ => None
     }
   }
 
@@ -119,6 +127,10 @@ case class ArrayResultExecutionContext(resultArray: Array[AnyValue],
   override def fields(): Array[AnyValue] = {
     resultArray
   }
+
+  // See: https://github.com/neo4j/neo4j/blob/3.5.1/community/cypher/interpreted-runtime/src/main/scala/org/neo4j/cypher/internal/runtime/interpreted/ExecutionContext.scala
+  // We are just overriding it right now.
+  override def copyCachedFrom(input: ExecutionContext): Unit = fail()
 
   override def size: Int = resultArray.size
 
@@ -135,23 +147,19 @@ case class ArrayResultExecutionContext(resultArray: Array[AnyValue],
 
   override def getLongAt(offset: Int): Long = fail()
 
-  override def longs(): Array[Long] = fail()
-
   override def setRefAt(offset: Int, value: AnyValue): Unit = fail()
 
   override def getRefAt(offset: Int): AnyValue = fail()
 
-  override def refs(): Array[AnyValue] = fail()
+  override def set(newEntries: Seq[(String, AnyValue)]): Unit = fail()
 
-  override def set(newEntries: Seq[(String, AnyValue)]): ExecutionContext = fail()
+  override def set(key: String, value: AnyValue): Unit = fail()
 
-  override def set(key: String, value: AnyValue): ExecutionContext = fail()
+  override def set(key1: String, value1: AnyValue, key2: String, value2: AnyValue): Unit = fail()
 
-  override def set(key1: String, value1: AnyValue, key2: String, value2: AnyValue): ExecutionContext = fail()
+  override def set(key1: String, value1: AnyValue, key2: String, value2: AnyValue, key3: String, value3: AnyValue): Unit = fail()
 
-  override def set(key1: String, value1: AnyValue, key2: String, value2: AnyValue, key3: String, value3: AnyValue): ExecutionContext = fail()
-
-  override def mergeWith(other: ExecutionContext): ExecutionContext = fail()
+  override def mergeWith(other: ExecutionContext, entityById: EntityById): Unit = fail()
 
   override def createClone(): ExecutionContext = fail()
 
@@ -170,4 +178,14 @@ case class ArrayResultExecutionContext(resultArray: Array[AnyValue],
   override def +=(kv: (String, AnyValue)): ArrayResultExecutionContext.this.type = fail()
 
   override def -=(key: String): ArrayResultExecutionContext.this.type = fail()
+
+  override def setCachedProperty(key: CachedNodeProperty, value: Value): Unit = fail()
+
+  override def setCachedPropertyAt(offset: Int, value: Value): Unit = fail()
+
+  override def getCachedProperty(key: CachedNodeProperty): Value = fail()
+
+  override def getCachedPropertyAt(offset: Int): Value = fail()
+
+  override def invalidateCachedProperties(node: Long): Unit = fail()
 }

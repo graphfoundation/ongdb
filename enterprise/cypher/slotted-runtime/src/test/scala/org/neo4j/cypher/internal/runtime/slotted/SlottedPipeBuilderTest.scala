@@ -2,54 +2,49 @@
  * Copyright (c) 2018-2020 "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
- * This file is part of ONgDB Enterprise Edition. The included source
- * code can be redistributed and/or modified under the terms of the
- * GNU AFFERO GENERAL PUBLIC LICENSE Version 3
- * (http://www.fsf.org/licensing/licenses/agpl-3.0.html) as found
- * in the associated LICENSE.txt file.
+ * This file is part of ONgDB.
+ *
+ * ONgDB is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2018 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
  * Neo4j is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.neo4j.cypher.internal.runtime.slotted
 
-import java.time.Clock
 import org.mockito.Mockito._
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotAllocation.PhysicalPlan
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotConfiguration.Size
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime._
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.LongSlot
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.RefSlot
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotAllocation
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotConfiguration
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlottedRewriter
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.Metrics
 import org.neo4j.cypher.internal.compiler.v3_5.planner.{HardcodedGraphStatistics, LogicalPlanningTestSupport2}
-import org.neo4j.cypher.internal.v3_5.frontend.phases.Monitors
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.ir.v3_4.VarPatternLength
-import org.neo4j.cypher.internal.planner.v3_5.spi.{IDPPlannerName, PlanContext}
+import org.neo4j.cypher.internal.ir.v3_5.{CreateNode, VarPatternLength}
+import org.neo4j.cypher.internal.planner.v3_5.spi.{PlanContext, TokenContext, GraphStatistics, InstrumentedGraphStatistics}
 import org.neo4j.cypher.internal.runtime.interpreted.commands
 import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.{CommunityExpressionConverter, ExpressionConverters}
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Literal, Property, Variable}
@@ -57,33 +52,33 @@ import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates
 import org.neo4j.cypher.internal.runtime.interpreted.commands.values.KeyToken
 import org.neo4j.cypher.internal.runtime.interpreted.commands.values.TokenType.PropertyKey
 import org.neo4j.cypher.internal.runtime.interpreted.pipes._
-import org.neo4j.cypher.internal.runtime.slotted.expressions.{NodeProperty, RelationshipProperty, SlottedExpressionConverters}
-import org.neo4j.cypher.internal.runtime.slotted.pipes
+import org.neo4j.cypher.internal.runtime.slotted.expressions.{NodeProperty, RelationshipProperty, SlottedCommandProjection, SlottedExpressionConverters}
 import org.neo4j.cypher.internal.runtime.slotted.pipes._
-import org.neo4j.cypher.internal.v3_5.util.symbols.{CTAny, CTList, CTNode, CTRelationship}
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_5.util.{LabelId, PropertyKeyId}
-import org.neo4j.cypher.internal.v3_5.expressions._
 import org.neo4j.cypher.internal.v3_5.logical.plans
 import org.neo4j.cypher.internal.v3_5.logical.plans._
+import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_5.expressions._
+import org.neo4j.cypher.internal.v3_5.util.LabelId
+import org.neo4j.cypher.internal.v3_5.util.symbols.{CTAny, CTList, CTNode, CTRelationship}
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 
 //noinspection NameBooleanParameters
 class SlottedPipeBuilderTest extends CypherFunSuite with LogicalPlanningTestSupport2 {
 
   implicit private val table = SemanticTable()
-
+  private val statistics = mock[InstrumentedGraphStatistics]
   private def build(beforeRewrite: LogicalPlan): Pipe = {
     val planContext = mock[PlanContext]
-    when(planContext.statistics).thenReturn(HardcodedGraphStatistics)
+    when(planContext.statistics).thenReturn(statistics)
     when(planContext.getOptPropertyKeyId("propertyKey")).thenReturn(Some(0))
     val physicalPlan: PhysicalPlan = SlotAllocation.allocateSlots(beforeRewrite, table)
     val slottedRewriter = new SlottedRewriter(planContext)
     val logicalPlan = slottedRewriter(beforeRewrite, physicalPlan.slotConfigurations)
-    val converters = new ExpressionConverters(CommunityExpressionConverter, SlottedExpressionConverters)
-    val executionPlanBuilder = new PipeExecutionPlanBuilder( mock[Clock], mock[Monitors],
-      expressionConverters = converters, pipeBuilderFactory = SlottedPipeBuilder.Factory(physicalPlan))
-    val context = PipeExecutionBuilderContext(mock[Metrics.CardinalityModel], table, IDPPlannerName, new StubReadOnlies, new StubCardinalities)
-    executionPlanBuilder.build(None, logicalPlan)(context, planContext).pipe
+    val converters = new ExpressionConverters(SlottedExpressionConverters(physicalPlan),
+                                                                          CommunityExpressionConverter(TokenContext.EMPTY))
+    val executionPlanBuilder = new PipeExecutionPlanBuilder(SlottedPipeBuilder.Factory(physicalPlan), converters)
+    val context = PipeExecutionBuilderContext(table, true)
+    executionPlanBuilder.build(logicalPlan)(context, planContext)
   }
 
   private val x = "x"
@@ -127,7 +122,7 @@ class SlottedPipeBuilderTest extends CypherFunSuite with LogicalPlanningTestSupp
     val label = LabelName("label")(pos)
     val allNodeScan: AllNodesScan = AllNodesScan(x, Set.empty)
     val eager = Eager(allNodeScan)
-    val createNode = CreateNode(eager, z, Seq(label), None)
+    val createNode = Create(eager, List(CreateNode(z, Seq(label), None)), Nil)
 
     // when
     val pipe = build(createNode)
@@ -141,11 +136,13 @@ class SlottedPipeBuilderTest extends CypherFunSuite with LogicalPlanningTestSupp
       .newLong("z", false, CTNode)
 
     pipe should equal(
-      CreateNodeSlottedPipe(
+      CreateSlottedPipe(
         EagerSlottedPipe(
           AllNodesScanSlottedPipe("x", beforeEagerSlots, Size.zero)(),
           afterEagerSlots)(),
-        "z", afterEagerSlots, Seq(LazyLabel(label)), None)()
+        Array(CreateNodeSlottedCommand(afterEagerSlots.getLongOffsetFor("z"), Seq(LazyLabel(label)), None)),
+        IndexedSeq()
+      )()
     )
   }
 
@@ -153,19 +150,18 @@ class SlottedPipeBuilderTest extends CypherFunSuite with LogicalPlanningTestSupp
     // given
     val label = LabelName("label")(pos)
     val argument = Argument()
-    val createNode = CreateNode(argument, z, Seq(label), None)
+    val createNode = Create(argument, List(CreateNode(z, Seq(label), None)), Nil)
 
     // when
     val pipe = build(createNode)
 
     // then
+    val slots = SlotConfiguration.empty.newLong("z", false, CTNode)
     pipe should equal(
-      CreateNodeSlottedPipe(
-        ArgumentSlottedPipe(SlotConfiguration.empty.newLong("z", false, CTNode), Size.zero)(),
-        "z",
-        SlotConfiguration(Map("z" -> LongSlot(0, nullable = false, CTNode)), 1, 0),
-        Seq(LazyLabel(label)),
-        None
+      CreateSlottedPipe(
+        ArgumentSlottedPipe(slots, Size.zero)(),
+        Array(CreateNodeSlottedCommand(slots.getLongOffsetFor("z"), Seq(LazyLabel(label)), None)),
+        IndexedSeq()
       )()
     )
   }
@@ -338,9 +334,9 @@ class SlottedPipeBuilderTest extends CypherFunSuite with LogicalPlanningTestSupp
     // then
     val expectedSlots = SlotConfiguration(Map("x" -> refSlot), numberOfLongs = 0, numberOfReferences = 1)
     pipe should equal(OptionalSlottedPipe(
-      ProjectionSlottedPipe(
+      ProjectionPipe(
         ArgumentSlottedPipe(expectedSlots, Size.zero)(),
-        Map(0 -> Literal(1))
+        SlottedCommandProjection(Map(0 -> Literal(1)))
       )(),
       Array(refSlot),
       expectedSlots,
@@ -551,8 +547,7 @@ class SlottedPipeBuilderTest extends CypherFunSuite with LogicalPlanningTestSupp
     // given
     val lhs = NodeByLabelScan(x, LabelName("label")(pos), Set.empty)
     val label = LabelToken("label2", LabelId(0))
-    val seekExpression = SingleQueryExpression(literalInt(42))
-    val rhs = NodeIndexSeek(z, label, Seq.empty, seekExpression, Set(x))
+    val rhs = plans.IndexSeek("z:label2(prop = 42)", argumentIds = Set(x))
     val apply = Apply(lhs, rhs)
 
     // when
@@ -561,7 +556,8 @@ class SlottedPipeBuilderTest extends CypherFunSuite with LogicalPlanningTestSupp
     // then
     pipe should equal(ApplySlottedPipe(
       NodesByLabelScanSlottedPipe("x", LazyLabel("label"), X_NODE_SLOTS, Size.zero)(),
-      NodeIndexSeekSlottedPipe("z", label, Seq.empty, SingleQueryExpression(commands.expressions.Literal(42)), IndexSeek,
+      NodeIndexSeekSlottedPipe("z", label, Vector(SlottedIndexedProperty(0,None)), SingleQueryExpression(commands.expressions.Literal(42)), org.neo4j.cypher.internal.runtime.interpreted.pipes.IndexSeek,
+        IndexOrderNone,
         SlotConfiguration.empty
           .newLong("x", false, CTNode)
           .newLong("z", false, CTNode),
@@ -641,9 +637,9 @@ class SlottedPipeBuilderTest extends CypherFunSuite with LogicalPlanningTestSupp
       .newLong("x", false, CTNode)
       .newReference("x.propertyKey", true, CTAny)
 
-    pipe should equal(ProjectionSlottedPipe(
+    pipe should equal(ProjectionPipe(
       NodesByLabelScanSlottedPipe("x", LazyLabel("label"), slots, Size.zero)(),
-      Map(0 -> NodeProperty(slots("x.propertyKey").offset, 0))
+      SlottedCommandProjection(Map(0 -> NodeProperty(slots("x.propertyKey").offset, 0)))
     )())
   }
 
@@ -661,9 +657,9 @@ class SlottedPipeBuilderTest extends CypherFunSuite with LogicalPlanningTestSupp
       .addAlias("A", "x")
       .newReference("x.propertyKey", true, CTAny)
 
-    pipe should equal(ProjectionSlottedPipe(
+    pipe should equal(ProjectionPipe(
       NodesByLabelScanSlottedPipe("x", LazyLabel("label"), slots, Size.zero)(),
-      Map(0 -> NodeProperty(slots("x.propertyKey").offset, 0))
+      SlottedCommandProjection(Map(0 -> NodeProperty(slots("x.propertyKey").offset, 0)))
     )())
   }
 
@@ -720,11 +716,7 @@ class SlottedPipeBuilderTest extends CypherFunSuite with LogicalPlanningTestSupp
 
   test("NodeIndexScan should yield a NodeIndexScanSlottedPipe") {
     // given
-    val leaf = NodeIndexScan(
-      "n",
-      LabelToken("Awesome", LabelId(0)),
-      PropertyKeyToken(PropertyKeyName("prop") _, PropertyKeyId(0)),
-      Set.empty)
+    val leaf = plans.IndexSeek("n:Awesome(prop)")
 
     // when
     val pipe = build(leaf)
@@ -735,7 +727,8 @@ class SlottedPipeBuilderTest extends CypherFunSuite with LogicalPlanningTestSupp
       NodeIndexScanSlottedPipe(
         "n",
         LabelToken("Awesome", LabelId(0)),
-        PropertyKeyToken("prop", PropertyKeyId(0)),
+        SlottedIndexedProperty(0, None),
+        IndexOrderNone,
         SlotConfiguration.empty.newLong("n", false, CTNode), Size.zero)())
   }
 
@@ -743,14 +736,14 @@ class SlottedPipeBuilderTest extends CypherFunSuite with LogicalPlanningTestSupp
     // given
     val label = LabelToken("label2", LabelId(0))
     val seekExpression = SingleQueryExpression(literalInt(42))
-    val seek = NodeUniqueIndexSeek(z, label, Seq.empty, seekExpression, Set(x))
+    val seek = NodeUniqueIndexSeek(z, label, Seq.empty, seekExpression, Set(x), IndexOrderNone)
 
     // when
     val pipe = build(seek)
 
     // then
     pipe should equal(
-      NodeIndexSeekSlottedPipe("z", label, Seq.empty, SingleQueryExpression(commands.expressions.Literal(42)), UniqueIndexSeek,
+      NodeIndexSeekSlottedPipe("z", label, IndexedSeq.empty, SingleQueryExpression(commands.expressions.Literal(42)), UniqueIndexSeek, IndexOrderNone,
         SlotConfiguration.empty.newLong("z", false, CTNode), Size.zero)()
     )
   }

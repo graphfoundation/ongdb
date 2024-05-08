@@ -2,99 +2,116 @@
  * Copyright (c) 2018-2020 "Graph Foundation,"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
- * This file is part of ONgDB Enterprise Edition. The included source
- * code can be redistributed and/or modified under the terms of the
- * GNU AFFERO GENERAL PUBLIC LICENSE Version 3
- * (http://www.fsf.org/licensing/licenses/agpl-3.0.html) as found
- * in the associated LICENSE.txt file.
+ * This file is part of ONgDB.
+ *
+ * ONgDB is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2018 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
  * Neo4j is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.neo4j.cypher.internal.runtime.slotted.expressions
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NullCheckProperty
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.NullCheckVariable
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotAllocation.PhysicalPlan
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.{ast => runtimeAst}
+import org.neo4j.cypher.internal.runtime.interpreted.CommandProjection
 import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.{ExpressionConverter, ExpressionConverters}
 import org.neo4j.cypher.internal.runtime.interpreted.commands.{expressions => commands}
-import org.neo4j.cypher.internal.runtime.slotted.{expressions => runtimeExpression}
 import org.neo4j.cypher.internal.runtime.slotted.expressions.SlottedProjectedPath._
+import org.neo4j.cypher.internal.runtime.slotted.{expressions => runtimeExpression}
 import org.neo4j.cypher.internal.v3_5.expressions._
 import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 import org.neo4j.cypher.internal.v3_5.{expressions => ast}
 
-object SlottedExpressionConverters extends ExpressionConverter {
+case class SlottedExpressionConverters(physicalPlan: PhysicalPlan) extends ExpressionConverter {
+
+  override def toCommandProjection(id: Id, projections: Map[String, Expression],
+                                   self: ExpressionConverters): Option[CommandProjection] = {
+    val slots = physicalPlan.slotConfigurations(id)
+    val projected = for {(k, v) <- projections} yield slots.get(k).get.offset -> self.toCommandExpression(id, v)
+    Some(SlottedCommandProjection(projected))
+  }
+
   override def toCommandExpression(id: Id, expression: ast.Expression, self: ExpressionConverters): Option[commands.Expression] =
     expression match {
-      case NodeFromSlot(offset, _) =>
+      case runtimeAst.NodeFromSlot(offset, _) =>
         Some(runtimeExpression.NodeFromSlot(offset))
-      case RelationshipFromSlot(offset, _) =>
+      case runtimeAst.RelationshipFromSlot(offset, _) =>
         Some(runtimeExpression.RelationshipFromSlot(offset))
-      case ReferenceFromSlot(offset, _) =>
+      case runtimeAst.ReferenceFromSlot(offset, _) =>
         Some(runtimeExpression.ReferenceFromSlot(offset))
-      case NodeProperty(offset, token, _) =>
+      case runtimeAst.NodeProperty(offset, token, _) =>
         Some(runtimeExpression.NodeProperty(offset, token))
-      case RelationshipProperty(offset, token, _) =>
+      case runtimeAst.CachedNodeProperty(offset, token, cachedPropertyOffset) =>
+        Some(runtimeExpression.SlottedCachedNodeProperty(offset, token, cachedPropertyOffset))
+      case runtimeAst.RelationshipProperty(offset, token, _) =>
         Some(runtimeExpression.RelationshipProperty(offset, token))
-      case IdFromSlot(offset) =>
+      case runtimeAst.IdFromSlot(offset) =>
         Some(runtimeExpression.IdFromSlot(offset))
-      case NodePropertyLate(offset, propKey, _) =>
+      case runtimeAst.NodePropertyLate(offset, propKey, _) =>
         Some(runtimeExpression.NodePropertyLate(offset, propKey))
-      case RelationshipPropertyLate(offset, propKey, _) =>
+      case runtimeAst.CachedNodePropertyLate(offset, propertyKey, cachedPropertyOffset) =>
+        Some(runtimeExpression.SlottedCachedNodePropertyLate(offset, propertyKey, cachedPropertyOffset))
+      case runtimeAst.RelationshipPropertyLate(offset, propKey, _) =>
         Some(runtimeExpression.RelationshipPropertyLate(offset, propKey))
-      case PrimitiveEquals(a, b) =>
+      case runtimeAst.PrimitiveEquals(a, b) =>
         val lhs = self.toCommandExpression(id, a)
         val rhs = self.toCommandExpression(id, b)
         Some(runtimeExpression.PrimitiveEquals(lhs, rhs))
-      case GetDegreePrimitive(offset, typ, direction) =>
+      case runtimeAst.GetDegreePrimitive(offset, typ, direction) =>
         Some(runtimeExpression.GetDegreePrimitive(offset, typ, direction))
-      case NodePropertyExists(offset, token, _) =>
+      case runtimeAst.NodePropertyExists(offset, token, _) =>
         Some(runtimeExpression.NodePropertyExists(offset, token))
-      case NodePropertyExistsLate(offset, token, _) =>
+      case runtimeAst.NodePropertyExistsLate(offset, token, _) =>
         Some(runtimeExpression.NodePropertyExistsLate(offset, token))
-      case RelationshipPropertyExists(offset, token, _) =>
+      case runtimeAst.RelationshipPropertyExists(offset, token, _) =>
         Some(runtimeExpression.RelationshipPropertyExists(offset, token))
-      case RelationshipPropertyExistsLate(offset, token, _) =>
+      case runtimeAst.RelationshipPropertyExistsLate(offset, token, _) =>
         Some(runtimeExpression.RelationshipPropertyExistsLate(offset, token))
-      case NullCheck(offset, inner) =>
+      case runtimeAst.NullCheck(offset, inner) =>
         val a = self.toCommandExpression(id, inner)
         Some(runtimeExpression.NullCheck(offset, a))
-      case NullCheckVariable(offset, inner) =>
+      case runtimeAst.NullCheckVariable(offset, inner) =>
         val a = self.toCommandExpression(id, inner)
         Some(runtimeExpression.NullCheck(offset, a))
-      case NullCheckProperty(offset, inner) =>
+      case runtimeAst.NullCheckProperty(offset, inner) =>
         val a = self.toCommandExpression(id, inner)
         Some(runtimeExpression.NullCheck(offset, a))
       case e: ast.PathExpression =>
-        Some(toCommandProjectedPath(e, self))
-      case IsPrimitiveNull(offset) =>
+        Some(toCommandProjectedPath(id, e, self))
+      case runtimeAst.IsPrimitiveNull(offset) =>
         Some(runtimeExpression.IsPrimitiveNull(offset))
       case _ =>
         None
     }
 
-  def toCommandProjectedPath(id: Id, e: ast.PathExpression, self: ExpressionConverters): SlottedProjectedPath = {
+  def toCommandProjectedPath(id:Id, e: ast.PathExpression, self: ExpressionConverters): SlottedProjectedPath = {
     def project(pathStep: PathStep): Projector = pathStep match {
 
       case NodePathStep(nodeExpression, next) =>
