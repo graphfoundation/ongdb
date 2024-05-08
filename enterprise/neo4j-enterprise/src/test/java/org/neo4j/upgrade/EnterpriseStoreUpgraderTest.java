@@ -41,6 +41,7 @@ import java.io.IOException;
 import java.util.Collection;
 
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.impl.store.format.RecordFormats;
 import org.neo4j.kernel.impl.store.format.highlimit.HighLimit;
 import org.neo4j.kernel.impl.store.format.highlimit.v300.HighLimitV3_0_0;
@@ -75,10 +76,11 @@ public class EnterpriseStoreUpgraderTest extends StoreUpgraderTest
     }
 
     @Override
-    protected void prepareSampleDatabase( String version, FileSystemAbstraction fileSystem, File dbDirectory,
+    protected void prepareSampleDatabase( String version, FileSystemAbstraction fileSystem, DatabaseLayout databaseLayout,
             File databaseDirectory ) throws IOException
     {
         File resourceDirectory = findFormatStoreDirectoryForVersion( version, databaseDirectory );
+        File dbDirectory = databaseLayout.databaseDirectory();
         fileSystem.deleteRecursively( dbDirectory );
         fileSystem.mkdirs( dbDirectory );
         fileSystem.copyRecursively( resourceDirectory, dbDirectory );

@@ -53,6 +53,8 @@ import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.metrics.MetricsExtension;
 import org.neo4j.metrics.MetricsSettings;
+import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.scheduler.ThreadPoolJobScheduler;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 import org.neo4j.unsafe.impl.batchimport.AdditionalInitialIds;
@@ -68,7 +70,7 @@ public class BatchingNeoStoresIT
     public final DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
 
     private FileSystemAbstraction fileSystem;
-    private File storeDir;
+    private File databaseDir;
     private AssertableLogProvider provider;
     private SimpleLogService logService;
 
@@ -76,7 +78,7 @@ public class BatchingNeoStoresIT
     public void setUp()
     {
         fileSystem = fileSystemRule.get();
-        storeDir = testDirectory.graphDbDir();
+        databaseDir = testDirectory.databaseDir();
         provider = new AssertableLogProvider();
         logService = new SimpleLogService( provider, provider );
     }
@@ -85,9 +87,10 @@ public class BatchingNeoStoresIT
     public void startBatchingNeoStoreWithMetricsPluginEnabled() throws Exception
     {
         Config config = Config.defaults( MetricsSettings.metricsEnabled, "true"  );
-        try ( BatchingNeoStores batchingNeoStores = BatchingNeoStores
-                .batchingNeoStores( fileSystem, storeDir, RecordFormatSelector.defaultFormat(), Configuration.DEFAULT,
-                        logService, AdditionalInitialIds.EMPTY, config ) )
+        try ( JobScheduler jobScheduler = new ThreadPoolJobScheduler();
+              BatchingNeoStores batchingNeoStores = BatchingNeoStores
+                .batchingNeoStores( fileSystem, databaseDir, RecordFormatSelector.defaultFormat(), Configuration.DEFAULT,
+                                    logService, AdditionalInitialIds.EMPTY, config, jobScheduler ) )
         {
             batchingNeoStores.createNew();
         }
@@ -95,16 +98,17 @@ public class BatchingNeoStoresIT
     }
 
     @Test
-    public void createStoreWithNotEmptyInitialIds() throws IOException
+    public void createStoreWithNotEmptyInitialIds() throws Exception
     {
-        try ( BatchingNeoStores batchingNeoStores = BatchingNeoStores
-                .batchingNeoStores( fileSystem, storeDir, RecordFormatSelector.defaultFormat(), Configuration.DEFAULT,
-                        logService, new TestAdditionalInitialIds(), Config.defaults() ) )
+        try ( JobScheduler jobScheduler = new ThreadPoolJobScheduler();
+              BatchingNeoStores batchingNeoStores = BatchingNeoStores
+                .batchingNeoStores( fileSystem, databaseDir, RecordFormatSelector.defaultFormat(), Configuration.DEFAULT,
+                                    logService, new TestAdditionalInitialIds(), Config.defaults(), jobScheduler ) )
         {
             batchingNeoStores.createNew();
         }
 
-        GraphDatabaseService database = new EnterpriseGraphDatabaseFactory().newEmbeddedDatabase( storeDir );
+        GraphDatabaseService database = new EnterpriseGraphDatabaseFactory().newEmbeddedDatabase( databaseDir );
         try
         {
             TransactionIdStore transactionIdStore = getTransactionIdStore( (GraphDatabaseAPI) database );

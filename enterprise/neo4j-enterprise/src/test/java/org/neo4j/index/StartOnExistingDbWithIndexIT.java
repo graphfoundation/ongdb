@@ -65,7 +65,7 @@ public class StartOnExistingDbWithIndexIT
         db = getDatabase( logProvider );
         db.shutdown();
 
-        logProvider.assertNoMessagesContaining( "Failed to open index" );
+        logProvider.formattedMessageMatcher().assertNotContains( "Failed to open index" );
     }
 
     private GraphDatabaseService prepareDb( Label label, String propertyName, LogProvider logProvider )
@@ -84,7 +84,7 @@ public class StartOnExistingDbWithIndexIT
     {
         return new TestEnterpriseGraphDatabaseFactory()
                 .setInternalLogProvider( logProvider )
-                .newEmbeddedDatabaseBuilder( testDirectory.graphDbDir() )
+                .newEmbeddedDatabaseBuilder( testDirectory.storeDir() )
                 .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
                 .newGraphDatabase();
     }

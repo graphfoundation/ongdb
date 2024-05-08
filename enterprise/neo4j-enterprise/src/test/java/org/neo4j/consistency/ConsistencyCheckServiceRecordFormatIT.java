@@ -43,7 +43,6 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -55,6 +54,7 @@ import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.progress.ProgressMonitorFactory;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
@@ -90,7 +90,7 @@ public class ConsistencyCheckServiceRecordFormatIT
     @Before
     public void configureRecordFormat()
     {
-        db.setConfig( GraphDatabaseSettings.record_format, recordFormat );
+        db.withSetting( GraphDatabaseSettings.record_format, recordFormat );
     }
 
     @Test
@@ -129,8 +129,8 @@ public class ConsistencyCheckServiceRecordFormatIT
     {
         ConsistencyCheckService service = new ConsistencyCheckService();
 
-        File storeDir = db.getStoreDir();
-        ConsistencyCheckService.Result result = service.runFullConsistencyCheck( storeDir, Config.defaults(),
+        DatabaseLayout databaseLayout = db.databaseLayout();
+        ConsistencyCheckService.Result result = service.runFullConsistencyCheck( databaseLayout, Config.defaults(),
                 ProgressMonitorFactory.textual( System.out ), FormattedLogProvider.toOutputStream( System.out ), true );
 
         assertTrue( "Store is inconsistent", result.isSuccessful() );

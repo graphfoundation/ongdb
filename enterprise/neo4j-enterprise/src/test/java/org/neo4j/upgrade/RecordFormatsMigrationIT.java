@@ -58,6 +58,8 @@ import org.neo4j.kernel.impl.store.format.highlimit.v300.HighLimitV3_0_0;
 import org.neo4j.kernel.impl.store.format.standard.Standard;
 import org.neo4j.kernel.impl.storemigration.StoreUpgrader.UnexpectedUpgradingStoreFormatException;
 import org.neo4j.logging.NullLogProvider;
+import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.scheduler.ThreadPoolJobScheduler;
 import org.neo4j.test.TestGraphDatabaseFactory;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.rule.fs.DefaultFileSystemRule;
@@ -81,7 +83,7 @@ public class RecordFormatsMigrationIT
     public RuleChain ruleChain = RuleChain.outerRule( testDirectory ).around( fileSystemRule );
 
     @Test
-    public void migrateLatestStandardToLatestHighLimit()
+    public void migrateLatestStandardToLatestHighLimit() throws Exception
     {
         executeAndStopDb( startStandardFormatDb(), this::createNode );
         assertLatestStandardStore();
@@ -91,7 +93,7 @@ public class RecordFormatsMigrationIT
     }
 
     @Test
-    public void migrateHighLimitV3_0ToLatestHighLimit()
+    public void migrateHighLimitV3_0ToLatestHighLimit() throws Exception
     {
         executeAndStopDb( startDb( HighLimitV3_0_0.NAME ), this::createNode );
         assertStoreFormat( HighLimitV3_0_0.RECORD_FORMATS );
@@ -101,7 +103,7 @@ public class RecordFormatsMigrationIT
     }
 
     @Test
-    public void migrateHighLimitToStandard()
+    public void migrateHighLimitToStandard() throws Exception
     {
         executeAndStopDb( startHighLimitFormatDb(), this::createNode );
         assertLatestHighLimitStore();
@@ -149,30 +151,31 @@ public class RecordFormatsMigrationIT
 
     private GraphDatabaseService startDb( String recordFormatName )
     {
-        return new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( testDirectory.graphDbDir() )
+        return new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( testDirectory.databaseDir() )
                 .setConfig( GraphDatabaseSettings.allow_upgrade, Settings.TRUE )
                 .setConfig( GraphDatabaseSettings.record_format, recordFormatName )
                 .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
                 .newGraphDatabase();
     }
 
-    private void assertLatestStandardStore()
+    private void assertLatestStandardStore() throws Exception
     {
         assertStoreFormat( Standard.LATEST_RECORD_FORMATS );
     }
 
-    private void assertLatestHighLimitStore()
+    private void assertLatestHighLimitStore() throws Exception
     {
         assertStoreFormat( HighLimit.RECORD_FORMATS );
     }
 
-    private void assertStoreFormat( RecordFormats expected )
+    private void assertStoreFormat( RecordFormats expected ) throws Exception
     {
         Config config = Config.defaults( GraphDatabaseSettings.pagecache_memory, "8m" );
-        try ( PageCache pageCache = ConfigurableStandalonePageCacheFactory.createPageCache( fileSystemRule.get(), config ) )
+        try ( JobScheduler jobScheduler = new ThreadPoolJobScheduler();
+              PageCache pageCache = ConfigurableStandalonePageCacheFactory.createPageCache( fileSystemRule.get(), config, jobScheduler ) )
         {
-            RecordFormats actual = RecordFormatSelector.selectForStoreOrConfig( config, testDirectory.graphDbDir(),
-                    pageCache, NullLogProvider.getInstance() );
+            RecordFormats actual = RecordFormatSelector.selectForStoreOrConfig( config, testDirectory.databaseLayout(),
+                    fileSystemRule, pageCache, NullLogProvider.getInstance() );
             assertNotNull( actual );
             assertEquals( expected.storeVersion(), actual.storeVersion() );
         }
