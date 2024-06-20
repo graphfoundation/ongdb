@@ -88,7 +88,7 @@ import static org.neo4j.graphdb.factory.GraphDatabaseSettings.default_listen_add
 import static org.neo4j.io.fs.FileUtils.fixSeparatorsInPath;
 
 /**
- * Create settings for configurations in Neo4j. See {@link org.neo4j.graphdb.factory.GraphDatabaseSettings} for
+ * Create settings for configurations in ONgDB. See {@link org.neo4j.graphdb.factory.GraphDatabaseSettings} for
  * example.
  *
  * <p>Each setting has a name, a parser that converts a string to the type of the setting, a default value,

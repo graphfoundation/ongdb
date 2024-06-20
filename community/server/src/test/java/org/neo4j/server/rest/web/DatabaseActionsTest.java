@@ -234,7 +234,7 @@ public class DatabaseActionsTest
         long nodeId;
         Map<String, Object> properties = new HashMap<>();
         properties.put( "foo", "bar" );
-        properties.put( "neo", "Thomas A. Anderson" );
+        properties.put( "ong", "Thomas A. Anderson" );
         properties.put( "number", 15L );
         Node node;
         try ( Transaction tx = database.getGraph().beginTx() )
@@ -446,7 +446,7 @@ public class DatabaseActionsTest
         long relationshipId;
         Map<String, Object> properties = new HashMap<>();
         properties.put( "foo", "bar" );
-        properties.put( "neo", "Thomas A. Anderson" );
+        properties.put( "ong", "Thomas A. Anderson" );
         properties.put( "number", 15L );
         try ( Transaction tx = database.getGraph().beginTx() )
         {
@@ -473,7 +473,7 @@ public class DatabaseActionsTest
     {
         Map<String, Object> properties = new HashMap<>();
         properties.put( "foo", "bar" );
-        properties.put( "neo", "Thomas A. Anderson" );
+        properties.put( "ong", "Thomas A. Anderson" );
         properties.put( "number", 15L );
 
         long relationshipId = graphdbHelper.createRelationship( "LOVES" );

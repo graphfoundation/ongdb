@@ -20,7 +20,7 @@
 
     <packaging>jar</packaging>
     <name>ONgDB - Native Spatial Index</name>
-    <description>Native spatial index for Neo4j.</description>
+    <description>Native spatial index for ONgDB.</description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
     <scm>

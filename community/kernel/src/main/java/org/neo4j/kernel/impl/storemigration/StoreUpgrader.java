@@ -316,7 +316,7 @@ public class StoreUpgrader
     public static class UnexpectedUpgradingStoreVersionException extends UnableToUpgradeException
     {
         static final String MESSAGE =
-                "Not possible to upgrade a store with version '%s' to current store version `%s` (Neo4j %s).";
+                "Not possible to upgrade a store with version '%s' to current store version `%s` (ONgDB %s).";
 
         UnexpectedUpgradingStoreVersionException( String fileVersion, String currentVersion )
         {

@@ -323,7 +323,7 @@ public abstract class Service
             if ( currentCL != contextCL )
             {
                 // JBoss 7 does not export content of META-INF/services to context
-                // class loader, so this call adds implementations defined in Neo4j
+                // class loader, so this call adds implementations defined in ONgDB
                 // libraries from the same module.
                 Iterable<T> currentClassLoaderServices = ServiceLoader.load( type, currentCL );
                 // Combine services loaded by both context and module class loaders.

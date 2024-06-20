@@ -107,7 +107,7 @@ public class Util
         }
         catch ( StoreLockException e )
         {
-            throw new CommandFailed( "the database is in use -- stop Neo4j and try again", e );
+            throw new CommandFailed( "the database is in use -- stop ONgDB and try again", e );
         }
         catch ( IOException e )
         {
@@ -122,16 +122,16 @@ public class Util
     }
 
     /**
-     * @return the version of Neo4j as defined during the build
+     * @return the version of ONgDB as defined during the build
      */
     @Nonnull
-    public static String neo4jVersion()
+    public static String ongdbVersion()
     {
         Properties props = new Properties();
         try
         {
             loadProperties( props );
-            return props.getProperty( "neo4jVersion" );
+            return props.getProperty( "ongdbVersion" );
         }
         catch ( IOException e )
         {

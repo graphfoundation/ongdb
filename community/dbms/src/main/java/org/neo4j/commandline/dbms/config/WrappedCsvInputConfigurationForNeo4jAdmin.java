@@ -40,7 +40,7 @@ package org.neo4j.commandline.dbms.config;
 
 import org.neo4j.unsafe.impl.batchimport.input.csv.Configuration;
 /**
- * Provides a wrapper around {@link Configuration} with overridden defaults for neo4j-admin import
+ * Provides a wrapper around {@link Configuration} with overridden defaults for ongdb-admin import
  * Always trim strings
  * Import emptyQuotedStrings as empty Strings
  * Buffer size is set to 4MB

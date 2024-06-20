@@ -68,7 +68,7 @@ public class SetInitialPasswordCommand implements AdminCommand
 
     private final Path homeDir;
     private final Path configDir;
-    private OutsideWorld outsideWorld;
+    private final OutsideWorld outsideWorld;
 
     SetInitialPasswordCommand( Path homeDir, Path configDir, OutsideWorld outsideWorld )
     {
@@ -101,7 +101,7 @@ public class SetInitialPasswordCommand implements AdminCommand
 
     private void setPassword( String password ) throws Throwable
     {
-        Config config = loadNeo4jConfig();
+        Config config = loadONgDBConfig();
         FileSystemAbstraction fileSystem = outsideWorld.fileSystem();
 
         if ( realUsersExist( config ) )
@@ -141,7 +141,7 @@ public class SetInitialPasswordCommand implements AdminCommand
 
             // Check if it only contains the default neo4j user
             FileUserRepository userRepository = new FileUserRepository( outsideWorld.fileSystem(), authFile, NullLogProvider.getInstance() );
-            try ( Lifespan life = new Lifespan( userRepository ) )
+            try ( Lifespan ignored = new Lifespan( userRepository ) )
             {
                 ListSnapshot<User> users = userRepository.getPersistedSnapshot();
                 if ( users.values().size() == 1 )
@@ -177,12 +177,12 @@ public class SetInitialPasswordCommand implements AdminCommand
             files = "`auth` file";
         }
 
-        return  "the provided initial password was not set because existing Neo4j users were detected at `" +
+        return  "the provided initial password was not set because existing ONgDB users were detected at `" +
                authFile.getAbsolutePath() + "`. Please remove the existing " + files + " if you want to reset your database " +
                 "to only have a default user with the provided password.";
     }
 
-    Config loadNeo4jConfig()
+    Config loadONgDBConfig()
     {
         return Config.fromFile( configDir.resolve( Config.DEFAULT_CONFIG_FILE_NAME ).toFile() )
                 .withHome( homeDir.toFile() )

@@ -77,7 +77,7 @@ public abstract class AbstractNeo4jTestCase
         boolean value() default true;
     }
 
-    protected static final File NEO4J_BASE_DIR = new File( "target", "var" );
+    protected static final File ONGDB_BASE_DIR = new File( "target", "var" );
 
     @ClassRule
     public static final TestRule START_GRAPHDB = ( base, description ) ->
@@ -88,9 +88,9 @@ public abstract class AbstractNeo4jTestCase
         return base;
     };
 
-    private static ThreadLocal<GraphDatabaseAPI> threadLocalGraphDb = new ThreadLocal<>();
-    private static ThreadLocal<String> currentTestClassName = new ThreadLocal<>();
-    private static ThreadLocal<Boolean> requiresPersistentGraphDatabase = new ThreadLocal<>();
+    private static final ThreadLocal<GraphDatabaseAPI> threadLocalGraphDb = new ThreadLocal<>();
+    private static final ThreadLocal<String> currentTestClassName = new ThreadLocal<>();
+    private static final ThreadLocal<Boolean> requiresPersistentGraphDatabase = new ThreadLocal<>();
 
     private GraphDatabaseAPI graphDb;
 
@@ -145,7 +145,7 @@ public abstract class AbstractNeo4jTestCase
 
     public static File getStorePath( String endPath )
     {
-        return new File( NEO4J_BASE_DIR, currentTestClassName.get() + "-" + endPath ).getAbsoluteFile();
+        return new File( ONGDB_BASE_DIR, currentTestClassName.get() + "-" + endPath ).getAbsoluteFile();
     }
 
     @Before

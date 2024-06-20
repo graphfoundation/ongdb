@@ -65,7 +65,7 @@ public class SetDefaultAdminCommandProvider extends AdminCommand.Provider
     public String description()
     {
         return "Sets the user to become admin if users but no roles are present, " +
-                "for example when upgrading to neo4j 3.1 enterprise.";
+                "for example when upgrading to ongdb 3.1 enterprise.";
     }
 
     @Override

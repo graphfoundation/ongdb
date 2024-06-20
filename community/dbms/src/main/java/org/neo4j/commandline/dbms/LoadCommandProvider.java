@@ -68,7 +68,7 @@ public class LoadCommandProvider extends AdminCommand.Provider
         return "Load a database from an archive. <archive-path> must be an archive created with the dump " +
                 "command. <database> is the name of the database to create. Existing databases can be replaced " +
                 "by specifying --force. It is not possible to replace a database that is mounted in a running " +
-                "Neo4j server.";
+                "ONgDB server.";
     }
 
     @Override

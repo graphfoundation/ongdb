@@ -30,7 +30,7 @@
         <licensing.prepend.text>licensing/notice-gpl-prefix.txt</licensing.prepend.text>
 
         <ongdb.version>${project.version}</ongdb.version>
-        <ongdb-browser.version>4.1.2</ongdb-browser.version>
+        <ongdb-browser.version>2.0.0</ongdb-browser.version>
 
         <ongdb-server.mainClass>org.neo4j.server.CommunityEntryPoint</ongdb-server.mainClass>
 

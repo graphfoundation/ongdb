@@ -110,20 +110,20 @@ class HelpCommandTest
         {
             PrintStream ps = new PrintStream( baos );
 
-            Usage usage = new Usage( "neo4j-admin", commandLocator );
+            Usage usage = new Usage( "ongdb-admin", commandLocator );
 
             HelpCommand helpCommand = new HelpCommand( usage, ps::println, commandLocator );
 
             helpCommand.execute();
 
-            assertEquals( String.format( "usage: neo4j-admin <command>%n" +
+            assertEquals( String.format( "usage: ongdb-admin <command>%n" +
                             "%n" +
-                            "Manage your Neo4j instance.%n" +
+                            "Manage your ONgDB instance.%n" +
                             "%n" +
                             "environment variables:%n" +
-                            "    NEO4J_CONF    Path to directory which contains neo4j.conf.%n" +
-                            "    NEO4J_DEBUG   Set to anything to enable debug output.%n" +
-                            "    NEO4J_HOME    Neo4j home directory.%n" +
+                            "    ONGDB_CONF    Path to directory which contains ongdb.conf.%n" +
+                            "    ONGDB_DEBUG   Set to anything to enable debug output.%n" +
+                            "    ONGDB_HOME    ONgDB home directory.%n" +
                             "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
                             "                  Takes a number and a unit, for example 512m.%n" +
                             "%n" +
@@ -137,7 +137,7 @@ class HelpCommandTest
                             "    foo%n" +
                             "        null%n" +
                             "%n" +
-                            "Use neo4j-admin help <command> for more details.%n" ),
+                            "Use ongdb-admin help <command> for more details.%n" ),
                     baos.toString() );
         }
     }
@@ -158,16 +158,16 @@ class HelpCommandTest
         {
             PrintStream ps = new PrintStream( baos );
 
-            HelpCommand helpCommand = new HelpCommand( new Usage( "neo4j-admin", commandLocator ),
+            HelpCommand helpCommand = new HelpCommand( new Usage( "ongdb-admin", commandLocator ),
                     ps::println, commandLocator );
             helpCommand.execute( "foobar" );
 
-            assertEquals( String.format( "usage: neo4j-admin foobar [--database=<name>]%n" +
+            assertEquals( String.format( "usage: ongdb-admin foobar [--database=<name>]%n" +
                             "%n" +
                             "environment variables:%n" +
-                            "    NEO4J_CONF    Path to directory which contains neo4j.conf.%n" +
-                            "    NEO4J_DEBUG   Set to anything to enable debug output.%n" +
-                            "    NEO4J_HOME    Neo4j home directory.%n" +
+                            "    ONGDB_CONF    Path to directory which contains ongdb.conf.%n" +
+                            "    ONGDB_DEBUG   Set to anything to enable debug output.%n" +
+                            "    ONGDB_HOME    ONgDB home directory.%n" +
                             "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
                             "                  Takes a number and a unit, for example 512m.%n" +
                             "%n" +

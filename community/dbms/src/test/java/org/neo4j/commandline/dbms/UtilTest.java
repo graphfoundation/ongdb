@@ -51,7 +51,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.commandline.Util.isSameOrChildFile;
 import static org.neo4j.commandline.Util.isSameOrChildPath;
-import static org.neo4j.commandline.Util.neo4jVersion;
+import static org.neo4j.commandline.Util.ongdbVersion;
 
 @ExtendWith( TestDirectoryExtension.class )
 class UtilTest
@@ -68,7 +68,7 @@ class UtilTest
     @Test
     void returnsAVersion()
     {
-        assertNotNull( neo4jVersion(), "A version should be returned" );
+        assertNotNull( ongdbVersion(), "A version should be returned" );
     }
 
     @Test

@@ -42,8 +42,8 @@ import org.neo4j.server.web.WebServer;
 
 public class Neo4jBrowserModule implements ServerModule
 {
-    private static final String DEFAULT_NEO4J_BROWSER_PATH = "/browser";
-    private static final String DEFAULT_NEO4J_BROWSER_STATIC_WEB_CONTENT_LOCATION = "browser";
+    private static final String DEFAULT_ONGDB_BROWSER_PATH = "/browser";
+    private static final String DEFAULT_ONGDB_BROWSER_STATIC_WEB_CONTENT_LOCATION = "browser";
 
     private final WebServer webServer;
 
@@ -55,13 +55,13 @@ public class Neo4jBrowserModule implements ServerModule
     @Override
     public void start()
     {
-        webServer.addStaticContent( DEFAULT_NEO4J_BROWSER_STATIC_WEB_CONTENT_LOCATION, DEFAULT_NEO4J_BROWSER_PATH );
+        webServer.addStaticContent( DEFAULT_ONGDB_BROWSER_STATIC_WEB_CONTENT_LOCATION, DEFAULT_ONGDB_BROWSER_PATH );
     }
 
     @Override
     public void stop()
     {
-        webServer.removeStaticContent( DEFAULT_NEO4J_BROWSER_STATIC_WEB_CONTENT_LOCATION, DEFAULT_NEO4J_BROWSER_PATH );
+        webServer.removeStaticContent( DEFAULT_ONGDB_BROWSER_STATIC_WEB_CONTENT_LOCATION, DEFAULT_ONGDB_BROWSER_PATH );
     }
 
 }

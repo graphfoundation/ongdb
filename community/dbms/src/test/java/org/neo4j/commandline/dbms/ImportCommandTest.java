@@ -241,10 +241,10 @@ class ImportCommandTest
         {
             PrintStream ps = new PrintStream( baos );
 
-            Usage usage = new Usage( "neo4j-admin", mock( CommandLocator.class ) );
+            Usage usage = new Usage( "ongdb-admin", mock( CommandLocator.class ) );
             usage.printUsageForCommand( new ImportCommandProvider(), ps::println );
 
-            assertEquals( String.format( "usage: neo4j-admin import [--mode=csv] [--database=<name>]%n" +
+            assertEquals( String.format( "usage: ongdb-admin import [--mode=csv] [--database=<name>]%n" +
                             "                          [--additional-config=<config-file-path>]%n" +
                             "                          [--report-file=<filename>]%n" +
                             "                          [--nodes[:Label1:Label2]=<\"file1,file2,...\">]%n" +
@@ -261,14 +261,14 @@ class ImportCommandTest
                             "                          [--max-memory=<max-memory-that-importer-can-use>]%n" +
                             "                          [--f=<File containing all arguments to this import>]%n" +
                             "                          [--high-io=<true/false>]%n" +
-                            "usage: neo4j-admin import --mode=database [--database=<name>]%n" +
+                            "usage: ongdb-admin import --mode=database [--database=<name>]%n" +
                             "                          [--additional-config=<config-file-path>]%n" +
                             "                          [--from=<source-directory>]%n" +
                             "%n" +
                             "environment variables:%n" +
-                            "    NEO4J_CONF    Path to directory which contains neo4j.conf.%n" +
-                            "    NEO4J_DEBUG   Set to anything to enable debug output.%n" +
-                            "    NEO4J_HOME    Neo4j home directory.%n" +
+                            "    ONGDB_CONF    Path to directory which contains ongdb.conf.%n" +
+                            "    ONGDB_DEBUG   Set to anything to enable debug output.%n" +
+                            "    ONGDB_HOME    ONgDB home directory.%n" +
                             "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
                             "                  Takes a number and a unit, for example 512m.%n" +
                             "%n" +
@@ -283,7 +283,7 @@ class ImportCommandTest
                             "  --mode=<database|csv>%n" +
                             "      Import a collection of CSV files or a pre-3.0 installation. [default:csv]%n" +
                             "  --from=<source-directory>%n" +
-                            "      The location of the pre-3.0 database (e.g. <neo4j-root>/data/graph.db).%n" +
+                            "      The location of the pre-3.0 database (e.g. <ongdb-root>/data/graph.db).%n" +
                             "      [default:]%n" +
                             "  --report-file=<filename>%n" +
                             "      File in which to store the report of the csv-import.%n" +
@@ -306,7 +306,7 @@ class ImportCommandTest
                             "        STRING: arbitrary strings for identifying nodes,%n" +
                             "        INTEGER: arbitrary integer values for identifying nodes,%n" +
                             "        ACTUAL: (advanced) actual node ids.%n" +
-                            "      For more information on id handling, please see the Neo4j Manual:%n" +
+                            "      For more information on id handling, please see the ONgDB Manual:%n" +
                             "      " + DocumentationURLs.IMPORT_TOOL + "%n" +
                             "      [default:STRING]%n" +
                             "  --input-encoding=<character-set>%n" +
@@ -332,7 +332,7 @@ class ImportCommandTest
                             "      can be escaped as per RFC 4180 by doubling them, for example \"\" would be%n" +
                             "      interpreted as a literal \". You cannot escape using \\. [default:\"]%n" +
                             "  --max-memory=<max-memory-that-importer-can-use>%n" +
-                            "      Maximum memory that neo4j-admin can use for various data structures and%n" +
+                            "      Maximum memory that ongdb-admin can use for various data structures and%n" +
                             "      caching to improve performance. Values can be plain numbers, like 10000000%n" +
                             "      or e.g. 20G for 20 gigabyte, or even e.g. 70%%. [default:90%%]%n" +
                             "  --f=<File containing all arguments to this import>%n" +

@@ -132,7 +132,7 @@ public abstract class AbstractNeoServer implements NeoServer
             Pattern.compile( "/browser.*" ),
             Pattern.compile( "/" )
     };
-    public static final String NEO4J_IS_STARTING_MESSAGE = "======== Neo4j " + Version.getONgDBVersion() + " ========";
+    public static final String ONGDB_IS_STARTING_MESSAGE = "======== ONgDB " + Version.getONgDBVersion() + " ========";
 
     protected final LogProvider userLogProvider;
     private final Log log;
@@ -172,7 +172,7 @@ public abstract class AbstractNeoServer implements NeoServer
         this.config = config;
         this.userLogProvider = dependencies.userLogProvider();
         this.log = userLogProvider.getLog( getClass() );
-        log.info( NEO4J_IS_STARTING_MESSAGE );
+        log.info( ONGDB_IS_STARTING_MESSAGE );
 
         verifyConnectorsConfiguration( config );
 
@@ -314,7 +314,7 @@ public abstract class AbstractNeoServer implements NeoServer
         catch ( Exception e )
         {
             ListenSocketAddress address = httpListenAddress != null ? httpListenAddress : httpsListenAddress;
-            log.error( "Failed to start Neo4j on %s: %s", address, e.getMessage() );
+            log.error( "Failed to start ONgDB on %s: %s", address, e.getMessage() );
             throw e;
         }
     }

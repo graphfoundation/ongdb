@@ -224,7 +224,7 @@ class LoadCommandTest
         {
             locker.checkLock();
             CommandFailed commandFailed = assertThrows( CommandFailed.class, () -> execute( "foo.db", "--force" ) );
-            assertEquals( "the database is in use -- stop Neo4j and try again", commandFailed.getMessage() );
+            assertEquals( "the database is in use -- stop ONgDB and try again", commandFailed.getMessage() );
         }
     }
 
@@ -268,7 +268,7 @@ class LoadCommandTest
     {
         doThrow( AccessDeniedException.class ).when( loader ).load( any(), any(), any() );
         CommandFailed commandFailed = assertThrows( CommandFailed.class, () -> execute( null ) );
-        assertEquals( "you do not have permission to load a database -- is Neo4j running as a different user?", commandFailed.getMessage() );
+        assertEquals( "you do not have permission to load a database -- is ONgDB running as a different user?", commandFailed.getMessage() );
     }
 
     @Test
@@ -286,7 +286,7 @@ class LoadCommandTest
         doThrow( IncorrectFormat.class ).when( loader ).load( any(), any(), any() );
         CommandFailed commandFailed = assertThrows( CommandFailed.class, () -> execute( null ) );
         assertThat( commandFailed.getMessage(), containsString( archive.toString() ) );
-        assertThat( commandFailed.getMessage(), containsString( "valid Neo4j archive" ) );
+        assertThat( commandFailed.getMessage(), containsString( "valid ONgDB archive" ) );
     }
 
     @Test
@@ -296,23 +296,23 @@ class LoadCommandTest
         {
             PrintStream ps = new PrintStream( baos );
 
-            Usage usage = new Usage( "neo4j-admin", mock( CommandLocator.class ) );
+            Usage usage = new Usage( "ongdb-admin", mock( CommandLocator.class ) );
             usage.printUsageForCommand( new LoadCommandProvider(), ps::println );
 
-            assertEquals( String.format( "usage: neo4j-admin load --from=<archive-path> [--database=<name>]%n" +
+            assertEquals( String.format( "usage: ongdb-admin load --from=<archive-path> [--database=<name>]%n" +
                             "                        [--force[=<true|false>]]%n" +
                             "%n" +
                             "environment variables:%n" +
-                            "    NEO4J_CONF    Path to directory which contains neo4j.conf.%n" +
-                            "    NEO4J_DEBUG   Set to anything to enable debug output.%n" +
-                            "    NEO4J_HOME    Neo4j home directory.%n" +
+                            "    ONGDB_CONF    Path to directory which contains ongdb.conf.%n" +
+                            "    ONGDB_DEBUG   Set to anything to enable debug output.%n" +
+                            "    ONGDB_HOME    ONgDB home directory.%n" +
                             "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
                             "                  Takes a number and a unit, for example 512m.%n" +
                             "%n" +
                             "Load a database from an archive. <archive-path> must be an archive created with%n" +
                             "the dump command. <database> is the name of the database to create. Existing%n" +
                             "databases can be replaced by specifying --force. It is not possible to replace a%n" +
-                            "database that is mounted in a running Neo4j server.%n" +
+                            "database that is mounted in a running ONgDB server.%n" +
                             "%n" +
                             "options:%n" +
                             "  --from=<archive-path>   Path to archive created with the dump command.%n" +

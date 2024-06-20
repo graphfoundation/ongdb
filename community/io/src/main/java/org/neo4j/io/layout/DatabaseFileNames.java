@@ -41,9 +41,9 @@ package org.neo4j.io.layout;
 /**
  * List of file names for a database.
  */
-public final class DatabaseFileNames
+final class DatabaseFileNames
 {
-    public static final String METADATA_STORE = "neostore";
+    static final String METADATA_STORE = "neostore";
 
     static final String LABEL_SCAN_STORE = "neostore.labelscanstore.db";
 

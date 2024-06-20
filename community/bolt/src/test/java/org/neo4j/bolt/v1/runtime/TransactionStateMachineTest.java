@@ -153,7 +153,7 @@ class TransactionStateMachineTest
     @Test
     void shouldAwaitSingleBookmark() throws Exception
     {
-        MapValue params = map( "bookmark", "neo4j:bookmark:v1:tx15" );
+        MapValue params = map( "bookmark", "ongdb:bookmark:v1:tx15" );
         stateMachine.beginTransaction( Bookmark.fromParamsOrNull( params ) );
         verify( stateMachineSPI ).awaitUpToDate( 15 );
     }
@@ -162,7 +162,7 @@ class TransactionStateMachineTest
     void shouldAwaitMultipleBookmarks() throws Exception
     {
         MapValue params = map( "bookmarks", asList(
-                "neo4j:bookmark:v1:tx15", "neo4j:bookmark:v1:tx5", "neo4j:bookmark:v1:tx92", "neo4j:bookmark:v1:tx9" )
+                "ongdb:bookmark:v1:tx15", "ongdb:bookmark:v1:tx5", "ongdb:bookmark:v1:tx92", "ongdb:bookmark:v1:tx9" )
         );
         stateMachine.beginTransaction( Bookmark.fromParamsOrNull( params ) );
         verify( stateMachineSPI ).awaitUpToDate( 92 );
@@ -172,8 +172,8 @@ class TransactionStateMachineTest
     void shouldAwaitMultipleBookmarksWhenBothSingleAndMultipleSupplied() throws Exception
     {
         MapValue params = map(
-                "bookmark", "neo4j:bookmark:v1:tx42",
-                "bookmarks", asList( "neo4j:bookmark:v1:tx47", "neo4j:bookmark:v1:tx67", "neo4j:bookmark:v1:tx45" )
+                "bookmark", "ongdb:bookmark:v1:tx42",
+                "bookmarks", asList( "ongdb:bookmark:v1:tx47", "ongdb:bookmark:v1:tx67", "ongdb:bookmark:v1:tx45" )
         );
         stateMachine.beginTransaction( Bookmark.fromParamsOrNull( params ) );
         verify( stateMachineSPI ).awaitUpToDate( 67 );

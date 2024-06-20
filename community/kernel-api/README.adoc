@@ -1,6 +1,6 @@
 = The Kernel API =
 
-The Kernel API governs all interactions with the Neo4j kernel, and is used primarily by the
+The Kernel API governs all interactions with the ONgDB kernel, and is used primarily by the
 Cypher runtime, and the Core API.
 
 == Usage

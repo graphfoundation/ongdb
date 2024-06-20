@@ -23,7 +23,7 @@ is not met:
  - `@UserFunction` cannot be defined in the root namespace
  - all visited `@Procedure`|`@UserFunction` names must be unique*
 
-*A deployed Neo4j instance can aggregate stored procedures from different JARs.
+*A deployed ONgDB instance can aggregate stored procedures from different JARs.
 Inter-JAR naming conflict cannot be detected by an annotation processor.
 By definition, it can only inspect one compilation unit at a time.
 

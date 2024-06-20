@@ -80,12 +80,12 @@ package org.neo4j.graphdb;
  * relationships in the opposite direction (with regard to traversal or
  * performance).
  * <p>
- * Furthermore, Neo4j guarantees that a relationship is never "hanging freely,"
+ * Furthermore, ONgDB guarantees that a relationship is never "hanging freely,"
  * i.e. {@link #getStartNode()}, {@link #getEndNode()},
  * {@link #getOtherNode(Node)} and {@link #getNodes()} are guaranteed to always
  * return valid, non-null nodes.
  * <p>
- * A relationship's id is unique, but note the following: Neo4j reuses its internal ids
+ * A relationship's id is unique, but note the following: ONgDB reuses its internal ids
  * when nodes and relationships are deleted, which means it's bad practice to
  * refer to them this way. Instead, use application generated ids.
  */

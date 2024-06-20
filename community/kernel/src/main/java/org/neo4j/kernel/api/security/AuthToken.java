@@ -143,8 +143,7 @@ public interface AuthToken
 
     static Map<String,Object> newBasicAuthToken( String username, byte[] password )
     {
-        return map( AuthToken.SCHEME_KEY, BASIC_SCHEME, AuthToken.PRINCIPAL, username, AuthToken.CREDENTIALS,
-                password );
+        return map( AuthToken.SCHEME_KEY, BASIC_SCHEME, AuthToken.PRINCIPAL, username, AuthToken.CREDENTIALS, password );
     }
 
     static Map<String,Object> newBasicAuthToken( String username, byte[] password, String realm )

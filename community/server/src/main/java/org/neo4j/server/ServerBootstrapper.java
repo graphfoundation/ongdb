@@ -73,7 +73,7 @@ import org.neo4j.server.logging.JULBridge;
 import org.neo4j.server.logging.JettyLogBridge;
 
 import static java.lang.String.format;
-import static org.neo4j.commandline.Util.neo4jVersion;
+import static org.neo4j.commandline.Util.ongdbVersion;
 import static org.neo4j.io.file.Files.createOrOpenAsOutputStream;
 
 public abstract class ServerBootstrapper implements Bootstrapper
@@ -98,7 +98,7 @@ public abstract class ServerBootstrapper implements Bootstrapper
 
         if ( args.version() )
         {
-            System.out.println( "neo4j " + neo4jVersion() );
+            System.out.println( "ongdb " + ongdbVersion() );
             return 0;
         }
 
@@ -123,7 +123,7 @@ public abstract class ServerBootstrapper implements Bootstrapper
                     .withSettings( configOverrides )
                     .withHome(homeDir)
                     .withValidators( configurationValidators() )
-                    .withNoThrowOnFileLoadFailure() // TODO 4.0: Remove this, and require a neo4j.conf file to be present?
+                    .withNoThrowOnFileLoadFailure() // TODO 4.0: Remove this, and require a ongdb.conf file to be present?
                     .withServerDefaults().build();
 
             LogProvider userLogProvider = setupLogging( config );
@@ -153,12 +153,12 @@ public abstract class ServerBootstrapper implements Bootstrapper
         {
             String locationMsg = (server == null) ? "" :
                     " Another process may be using database location " + server.getDatabase().getLocation();
-            log.error( format( "Failed to start Neo4j on %s.", serverAddress ) + locationMsg, tfe );
+            log.error( format( "Failed to start ONgDB on %s.", serverAddress ) + locationMsg, tfe );
             return GRAPH_DATABASE_STARTUP_ERROR_CODE;
         }
         catch ( Exception e )
         {
-            log.error( format( "Failed to start Neo4j on %s.", serverAddress ), e );
+            log.error( format( "Failed to start ONgDB on %s.", serverAddress ), e );
             return WEB_SERVER_STARTUP_ERROR_CODE;
         }
     }

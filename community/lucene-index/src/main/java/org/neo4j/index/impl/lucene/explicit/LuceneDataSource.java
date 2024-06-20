@@ -653,7 +653,7 @@ public class LuceneDataSource extends LifecycleAdapter
             {
                 if ( !dir.exists() && !dir.mkdirs() )
                 {
-                    String message = String.format( "Unable to create directory path[%s] for Neo4j store" + ".",
+                    String message = String.format( "Unable to create directory path[%s] for ONgDB store" + ".",
                             dir.getAbsolutePath() );
                     throw new RuntimeException( message );
                 }

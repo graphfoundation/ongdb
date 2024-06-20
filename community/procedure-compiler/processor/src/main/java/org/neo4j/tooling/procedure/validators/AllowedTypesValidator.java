@@ -51,7 +51,7 @@ import org.neo4j.tooling.procedure.compilerutils.TypeMirrorUtils;
 
 /**
  * This predicate makes sure that a given declared type (record field type,
- * procedure parameter type...) is supported by Neo4j stored procedures.
+ * procedure parameter type...) is supported by ONgDB stored procedures.
  */
 public class AllowedTypesValidator implements Predicate<TypeMirror>
 {
@@ -116,7 +116,7 @@ public class AllowedTypesValidator implements Predicate<TypeMirror>
 
     /**
      * Recursively visits Map type arguments
-     * Map key type argument must be a String as of Neo4j stored procedure specification
+     * Map key type argument must be a String as of ONgDB stored procedure specification
      * Map value type argument is recursively visited
      *
      * @param typeMirror Map type mirror

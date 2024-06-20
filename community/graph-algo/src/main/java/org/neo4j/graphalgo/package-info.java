@@ -37,7 +37,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- * Scalable graph algorithms like shortest path and others for Neo4j which
+ * Scalable graph algorithms like shortest path and others for ONgDB which
  * can be easily accessed via {@link org.neo4j.graphalgo.GraphAlgoFactory}.
  */
 package org.neo4j.graphalgo;

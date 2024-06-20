@@ -41,7 +41,7 @@ package org.neo4j.commandline.dbms.config;
 import org.neo4j.unsafe.impl.batchimport.Configuration;
 
 /**
- * Provides a wrapper around {@link Configuration} with overridden defaults for neo4j-admin import
+ * Provides a wrapper around {@link Configuration} with overridden defaults for ongdb-admin import
  * Use all available processors
  */
 public class WrappedBatchImporterConfigurationForNeo4jAdmin extends Configuration.Overridden

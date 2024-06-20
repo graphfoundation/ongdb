@@ -51,7 +51,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.closeTo;
 import static org.hamcrest.Matchers.is;
 
-@SuppressWarnings( "WeakerAccess" ) // This test is accessed in neo4j-jfr.
+@SuppressWarnings( "WeakerAccess" ) // This test is accessed in ongdb-jfr.
 public class DefaultPageCacheTracerTest
 {
     private PageCacheTracer tracer;

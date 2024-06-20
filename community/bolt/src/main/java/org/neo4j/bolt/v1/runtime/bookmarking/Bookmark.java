@@ -54,7 +54,7 @@ public class Bookmark
 {
     private static final String BOOKMARK_KEY = "bookmark";
     private static final String BOOKMARKS_KEY = "bookmarks";
-    static final String BOOKMARK_TX_PREFIX = "neo4j:bookmark:v1:tx";
+    static final String BOOKMARK_TX_PREFIX = "ongdb:bookmark:v1:tx";
 
     private final long txId;
 

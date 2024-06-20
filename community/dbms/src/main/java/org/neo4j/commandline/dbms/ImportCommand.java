@@ -101,7 +101,7 @@ public class ImportCommand implements AdminCommand
     {
         arguments
             .withArgument( new OptionalNamedArg( "from", "source-directory", "",
-                    "The location of the pre-3.0 database (e.g. <neo4j-root>/data/graph.db)." ) );
+                    "The location of the pre-3.0 database (e.g. <ongdb-root>/data/graph.db)." ) );
     }
 
     private static void includeCsvArguments( Arguments arguments )
@@ -132,7 +132,7 @@ public class ImportCommand implements AdminCommand
                     "  STRING: arbitrary strings for identifying nodes,\n" +
                     "  INTEGER: arbitrary integer values for identifying nodes,\n" +
                     "  ACTUAL: (advanced) actual node ids.\n" +
-                    "For more information on id handling, please see the Neo4j Manual: " +
+                    "For more information on id handling, please see the ONgDB Manual: " +
                     DocumentationURLs.IMPORT_TOOL ) )
             .withArgument( new OptionalNamedArg( "input-encoding", "character-set", "UTF-8",
                     "Character set that input data is encoded in." ) )
@@ -163,7 +163,7 @@ public class ImportCommand implements AdminCommand
             .withArgument( new OptionalNamedArg( "max-memory",
                     "max-memory-that-importer-can-use",
                     String.valueOf( DEFAULT_MAX_MEMORY_PERCENT ) + "%",
-                    "Maximum memory that neo4j-admin can use for various data structures and caching " +
+                    "Maximum memory that ongdb-admin can use for various data structures and caching " +
                             "to improve performance. " +
                             "Values can be plain numbers, like 10000000 or e.g. 20G for 20 gigabyte, or even e.g. 70%" +
                             "." ) )

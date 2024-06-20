@@ -42,14 +42,14 @@ import java.util.Date;
 import javax.management.ObjectName;
 
 @ManagementInterface( name = Kernel.NAME )
-@Description( "Information about the Neo4j kernel" )
+@Description( "Information about the ONgDB kernel" )
 @Deprecated
 public interface Kernel
 {
     String NAME = "Kernel";
 
     @Description( "An ObjectName that can be used as a query for getting all management "
-                  + "beans for this Neo4j instance." )
+                  + "beans for this ONgDB instance." )
     ObjectName getMBeanQuery();
 
     @Description( "The name of the mounted database" )
@@ -58,16 +58,16 @@ public interface Kernel
     @Description( "The version of Neo4j" )
     String getKernelVersion();
 
-    @Description( "The time from which this Neo4j instance was in operational mode." )
+    @Description( "The time from which this ONgDB instance was in operational mode." )
     Date getKernelStartTime();
 
-    @Description( "The time when this Neo4j graph store was created." )
+    @Description( "The time when this ONgDB graph store was created." )
     Date getStoreCreationDate();
 
-    @Description( "An identifier that, together with store creation time, uniquely identifies this Neo4j graph store." )
+    @Description( "An identifier that, together with store creation time, uniquely identifies this ONgDB graph store." )
     String getStoreId();
 
-    @Description( "The current version of the Neo4j store logical log." )
+    @Description( "The current version of the ONgDB store logical log." )
     long getStoreLogVersion();
 
     @Description( "Whether this is a read only instance" )

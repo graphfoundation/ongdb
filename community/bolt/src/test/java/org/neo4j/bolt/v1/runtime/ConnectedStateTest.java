@@ -77,7 +77,7 @@ import static org.neo4j.values.virtual.VirtualValues.EMPTY_MAP;
 class ConnectedStateTest
 {
     private static final String USER_AGENT = "Driver 2.0";
-    private static final Map<String,Object> AUTH_TOKEN = newBasicAuthToken( "neo4j", "password" );
+    private static final Map<String,Object> AUTH_TOKEN = newBasicAuthToken( "ongdb", "password" );
     private static final InitMessage INIT_MESSAGE = new InitMessage( USER_AGENT, AUTH_TOKEN );
 
     private final ConnectedState state = new ConnectedState();

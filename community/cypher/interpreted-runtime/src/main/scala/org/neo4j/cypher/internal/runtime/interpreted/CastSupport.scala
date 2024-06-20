@@ -140,7 +140,7 @@ object CastSupport {
       case (a, b) if a.isInstanceOf[ListValue] || b.isInstanceOf[ListValue] => throw new CypherTypeException(
         "Collections containing collections can not be stored in properties.")
 
-      case _ => throw new CypherTypeException("Neo4j only supports a subset of Cypher types for storage as singleton or array properties. " +
+      case _ => throw new CypherTypeException("ONgDB only supports a subset of Cypher types for storage as singleton or array properties. " +
         "Please refer to section cypher/syntax/values of the manual for more details.")
 
     }

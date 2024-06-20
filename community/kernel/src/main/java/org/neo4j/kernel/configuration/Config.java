@@ -92,7 +92,7 @@ import static org.neo4j.kernel.configuration.HttpConnector.Encryption.TLS;
 import static org.neo4j.kernel.configuration.Settings.TRUE;
 
 /**
- * This class holds the overall configuration of a Neo4j database instance. Use the accessors to convert the internal
+ * This class holds the overall configuration of a ONgDB database instance. Use the accessors to convert the internal
  * key-value settings to other types.
  * <p>
  * Users can assume that old settings have been migrated to their new counterparts, and that defaults have been
@@ -100,7 +100,7 @@ import static org.neo4j.kernel.configuration.Settings.TRUE;
  */
 public class Config implements DiagnosticsProvider, Configuration
 {
-    public static final String DEFAULT_CONFIG_FILE_NAME = "neo4j.conf";
+    public static final String DEFAULT_CONFIG_FILE_NAME = "ongdb.conf";
 
     private final List<ConfigOptions> configOptions;
 
@@ -322,7 +322,7 @@ public class Config implements DiagnosticsProvider, Configuration
             List<LoadableConfig> loadableConfigs =
                     Optional.ofNullable( settingsClasses ).orElseGet( LoadableConfig::allConfigClasses );
 
-            // If reading from a file, make sure we always have a neo4j_home
+            // If reading from a file, make sure we always have a ongdb_home
             if ( configFile != null && !initialSettings.containsKey( GraphDatabaseSettings.ongdb_home.name() ) )
             {
                 initialSettings.put( GraphDatabaseSettings.ongdb_home.name(), System.getProperty( "user.dir" ) );

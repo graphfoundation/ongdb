@@ -309,10 +309,10 @@ class CheckConsistencyCommandTest
         {
             PrintStream ps = new PrintStream( baos );
 
-            Usage usage = new Usage( "neo4j-admin", mock( CommandLocator.class ) );
+            Usage usage = new Usage( "ongdb-admin", mock( CommandLocator.class ) );
             usage.printUsageForCommand( new CheckConsistencyCommandProvider(), ps::println );
 
-            assertEquals( String.format( "usage: neo4j-admin check-consistency [--database=<name>]%n" +
+            assertEquals( String.format( "usage: ongdb-admin check-consistency [--database=<name>]%n" +
                             "                                     [--backup=</path/to/backup>]%n" +
                             "                                     [--verbose[=<true|false>]]%n" +
                             "                                     [--report-dir=<directory>]%n" +
@@ -324,9 +324,9 @@ class CheckConsistencyCommandTest
                             "                                     [--check-property-owners[=<true|false>]]%n" +
                             "%n" +
                             "environment variables:%n" +
-                            "    NEO4J_CONF    Path to directory which contains neo4j.conf.%n" +
-                            "    NEO4J_DEBUG   Set to anything to enable debug output.%n" +
-                            "    NEO4J_HOME    Neo4j home directory.%n" +
+                            "    ONGDB_CONF    Path to directory which contains ongdb.conf.%n" +
+                            "    ONGDB_DEBUG   Set to anything to enable debug output.%n" +
+                            "    ONGDB_HOME    ONgDB home directory.%n" +
                             "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
                             "                  Takes a number and a unit, for example 512m.%n" +
                             "%n" +
@@ -335,7 +335,7 @@ class CheckConsistencyCommandTest
                             "%n" +
                             "All checks except 'check-graph' can be quite expensive so it may be useful to%n" +
                             "turn them off for very large databases. Increasing the heap size can also be a%n" +
-                            "good idea. See 'neo4j-admin help' for details.%n" +
+                            "good idea. See 'ongdb-admin help' for details.%n" +
                             "%n" +
                             "options:%n" +
                             "  --database=<name>                        Name of database. [default:" + GraphDatabaseSettings.DEFAULT_DATABASE_NAME + "]%n" +

@@ -66,10 +66,10 @@ public class Neo4jWithSocket extends ExternalResource
 {
     public static final String DEFAULT_CONNECTOR_KEY = "bolt";
 
-    private Supplier<FileSystemAbstraction> fileSystemProvider;
+    private final Supplier<FileSystemAbstraction> fileSystemProvider;
     private final Consumer<Map<String,String>> configure;
     private final TestDirectory testDirectory;
-    private TestGraphDatabaseFactory graphDatabaseFactory;
+    private final TestGraphDatabaseFactory graphDatabaseFactory;
     private GraphDatabaseService gdb;
     private File workingDirectory;
     private ConnectorPortRegister connectorRegister;
@@ -120,10 +120,8 @@ public class Neo4jWithSocket extends ExternalResource
             @Override
             public void evaluate() throws Throwable
             {
-                // If this is used as class rule then getMethodName() returns null, so use
-                // getClassName() instead.
-                String name =
-                        description.getMethodName() != null ? description.getMethodName() : description.getClassName();
+                // If this is used as class rule then getMethodName() returns null, so use getClassName() instead.
+                String name = description.getMethodName() != null ? description.getMethodName() : description.getClassName();
                 workingDirectory = testDirectory.directory( name );
                 ensureDatabase( settings -> {} );
                 try
@@ -178,10 +176,8 @@ public class Neo4jWithSocket extends ExternalResource
         Map<String,String> settings = configure( overrideSettingsFunction );
         File storeDir = new File( workingDirectory, "storeDir" );
         graphDatabaseFactory.setFileSystem( fileSystemProvider.get() );
-        gdb = graphDatabaseFactory.newImpermanentDatabaseBuilder( storeDir ).
-                setConfig( settings ).newGraphDatabase();
-        connectorRegister =
-                ((GraphDatabaseAPI) gdb).getDependencyResolver().resolveDependency( ConnectorPortRegister.class );
+        gdb = graphDatabaseFactory.newImpermanentDatabaseBuilder( storeDir ).setConfig( settings ).newGraphDatabase();
+        connectorRegister = ((GraphDatabaseAPI) gdb).getDependencyResolver().resolveDependency( ConnectorPortRegister.class );
     }
 
     private Map<String,String> configure( Consumer<Map<String,String>> overrideSettingsFunction )

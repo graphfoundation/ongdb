@@ -19,7 +19,7 @@
 
     <packaging>jar</packaging>
     <name>ONgDB - Native index</name>
-    <description>Native index for Neo4j.</description>
+    <description>Native index for ONgDB.</description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
     <scm>

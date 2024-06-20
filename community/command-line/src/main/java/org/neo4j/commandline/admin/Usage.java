@@ -68,7 +68,7 @@ public class Usage
     {
         output.accept( format( "usage: %s <command>", scriptName ) );
         output.accept( "" );
-        output.accept( "Manage your Neo4j instance." );
+        output.accept( "Manage your ONgDB instance." );
         output.accept( "" );
 
         printEnvironmentVariables( output );
@@ -83,9 +83,9 @@ public class Usage
     static void printEnvironmentVariables( Consumer<String> output )
     {
         output.accept( "environment variables:" );
-        output.accept( "    NEO4J_CONF    Path to directory which contains neo4j.conf." );
-        output.accept( "    NEO4J_DEBUG   Set to anything to enable debug output." );
-        output.accept( "    NEO4J_HOME    Neo4j home directory." );
+        output.accept( "    ONGDB_CONF    Path to directory which contains ongdb.conf." );
+        output.accept( "    ONGDB_DEBUG   Set to anything to enable debug output." );
+        output.accept( "    ONGDB_HOME    ONgDB home directory." );
         output.accept( "    HEAP_SIZE     Set JVM maximum heap size during command execution." );
         output.accept( "                  Takes a number and a unit, for example 512m." );
         output.accept( "" );

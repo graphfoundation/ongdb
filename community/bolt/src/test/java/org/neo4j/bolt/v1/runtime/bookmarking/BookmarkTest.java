@@ -90,7 +90,7 @@ class BookmarkTest
     void shouldParseAndFormatSingleBookmarkContainingTransactionId() throws Exception
     {
         // given
-        String expected = "neo4j:bookmark:v1:tx1234";
+        String expected = "ongdb:bookmark:v1:tx1234";
         MapValue params = singletonMap( "bookmark", expected );
 
         // when
@@ -104,8 +104,8 @@ class BookmarkTest
     void shouldParseAndFormatMultipleBookmarkContainingTransactionId() throws Exception
     {
         // given
-        String txId1 = "neo4j:bookmark:v1:tx1234";
-        String txId2 = "neo4j:bookmark:v1:tx12345";
+        String txId1 = "ongdb:bookmark:v1:tx1234";
+        String txId2 = "ongdb:bookmark:v1:tx12345";
         MapValue params = singletonMap( "bookmarks", asList( txId1, txId2 ) );
 
         // when
@@ -118,7 +118,7 @@ class BookmarkTest
     @Test
     void shouldFailWhenParsingBadlyFormattedSingleBookmark()
     {
-        String bookmarkString = "neo4q:markbook:v9:xt998";
+        String bookmarkString = "onjdb:markbook:v9:xt998";
 
         BookmarkFormatException e = assertThrows( BookmarkFormatException.class,
                 () -> Bookmark.fromParamsOrNull( singletonMap( "bookmark", bookmarkString ) ) );
@@ -129,8 +129,8 @@ class BookmarkTest
     @Test
     void shouldFailWhenParsingBadlyFormattedMultipleBookmarks()
     {
-        String bookmarkString = "neo4j:bookmark:v1:tx998";
-        String wrongBookmarkString = "neo4q:markbook:v9:xt998";
+        String bookmarkString = "ongdb:bookmark:v1:tx998";
+        String wrongBookmarkString = "onjdb:markbook:v9:xt998";
 
         BookmarkFormatException e = assertThrows( BookmarkFormatException.class,
                 () -> Bookmark.fromParamsOrNull( singletonMap( "bookmarks", asList( bookmarkString, wrongBookmarkString ) ) ) );
@@ -141,7 +141,7 @@ class BookmarkTest
     @Test
     void shouldFailWhenNoNumberFollowsThePrefixInSingleBookmark()
     {
-        String bookmarkString = "neo4j:bookmark:v1:tx";
+        String bookmarkString = "ongdb:bookmark:v1:tx";
 
         BookmarkFormatException e = assertThrows( BookmarkFormatException.class,
                 () -> Bookmark.fromParamsOrNull( singletonMap( "bookmark", bookmarkString ) ) );
@@ -152,8 +152,8 @@ class BookmarkTest
     @Test
     void shouldFailWhenNoNumberFollowsThePrefixInMultipleBookmarks()
     {
-        String bookmarkString = "neo4j:bookmark:v1:tx10";
-        String wrongBookmarkString = "neo4j:bookmark:v1:tx";
+        String bookmarkString = "ongdb:bookmark:v1:tx10";
+        String wrongBookmarkString = "ongdb:bookmark:v1:tx";
 
         BookmarkFormatException e = assertThrows( BookmarkFormatException.class,
                 () -> Bookmark.fromParamsOrNull( singletonMap( "bookmarks", asList( bookmarkString, wrongBookmarkString ) ) ) );
@@ -164,7 +164,7 @@ class BookmarkTest
     @Test
     void shouldFailWhenSingleBookmarkHasExtraneousTrailingCharacters()
     {
-        String bookmarkString = "neo4j:bookmark:v1:tx1234supercalifragilisticexpialidocious";
+        String bookmarkString = "ongdb:bookmark:v1:tx1234supercalifragilisticexpialidocious";
 
         BookmarkFormatException e = assertThrows( BookmarkFormatException.class,
                 () -> Bookmark.fromParamsOrNull( singletonMap( "bookmark", bookmarkString ) ) );
@@ -175,8 +175,8 @@ class BookmarkTest
     @Test
     void shouldFailWhenMultipleBookmarksHaveExtraneousTrailingCharacters()
     {
-        String bookmarkString = "neo4j:bookmark:v1:tx1234";
-        String wrongBookmarkString = "neo4j:bookmark:v1:tx1234supercalifragilisticexpialidocious";
+        String bookmarkString = "ongdb:bookmark:v1:tx1234";
+        String wrongBookmarkString = "ongdb:bookmark:v1:tx1234supercalifragilisticexpialidocious";
 
         BookmarkFormatException e = assertThrows( BookmarkFormatException.class,
                 () -> Bookmark.fromParamsOrNull( singletonMap( "bookmarks", asList( bookmarkString, wrongBookmarkString ) ) ) );
@@ -188,8 +188,8 @@ class BookmarkTest
     void shouldUseMultipleBookmarksWhenGivenBothSingleAndMultiple() throws Exception
     {
         MapValue params = params(
-                "neo4j:bookmark:v1:tx42",
-                asList( "neo4j:bookmark:v1:tx10", "neo4j:bookmark:v1:tx99", "neo4j:bookmark:v1:tx3" ) );
+                "ongdb:bookmark:v1:tx42",
+                asList( "ongdb:bookmark:v1:tx10", "ongdb:bookmark:v1:tx99", "ongdb:bookmark:v1:tx3" ) );
 
         Bookmark bookmark = Bookmark.fromParamsOrNull( params );
 
@@ -199,8 +199,8 @@ class BookmarkTest
     @Test
     void shouldUseMultipleBookmarksWhenGivenOnlyMultiple() throws Exception
     {
-        MapValue params = params( null, asList( "neo4j:bookmark:v1:tx85", "neo4j:bookmark:v1:tx47",
-                "neo4j:bookmark:v1:tx15", "neo4j:bookmark:v1:tx6" ) );
+        MapValue params = params( null, asList( "ongdb:bookmark:v1:tx85", "ongdb:bookmark:v1:tx47",
+                "ongdb:bookmark:v1:tx15", "ongdb:bookmark:v1:tx6" ) );
 
         Bookmark bookmark = Bookmark.fromParamsOrNull( params );
 
@@ -210,7 +210,7 @@ class BookmarkTest
     @Test
     void shouldUseSingleBookmarkWhenGivenOnlySingle() throws Exception
     {
-        MapValue params = params( "neo4j:bookmark:v1:tx82", null );
+        MapValue params = params( "ongdb:bookmark:v1:tx82", null );
 
         Bookmark bookmark = Bookmark.fromParamsOrNull( params );
 
@@ -220,7 +220,7 @@ class BookmarkTest
     @Test
     void shouldUseSingleBookmarkWhenGivenBothSingleAndNullAsMultiple() throws Exception
     {
-        MapValue params = params( "neo4j:bookmark:v1:tx58", null );
+        MapValue params = params( "ongdb:bookmark:v1:tx58", null );
 
         Bookmark bookmark = Bookmark.fromParamsOrNull( params );
 
@@ -230,7 +230,7 @@ class BookmarkTest
     @Test
     void shouldUseSingleBookmarkWhenGivenBothSingleAndEmptyListAsMultiple() throws Exception
     {
-        MapValue params = params( "neo4j:bookmark:v1:tx67", emptyList() );
+        MapValue params = params( "ongdb:bookmark:v1:tx67", emptyList() );
 
         Bookmark bookmark = Bookmark.fromParamsOrNull( params );
 
@@ -240,7 +240,7 @@ class BookmarkTest
     @Test
     void shouldThrowWhenMultipleBookmarksIsNotAList()
     {
-        MapValue params = params( "neo4j:bookmark:v1:tx67", new String[]{"neo4j:bookmark:v1:tx68"} );
+        MapValue params = params( "ongdb:bookmark:v1:tx67", new String[]{"ongdb:bookmark:v1:tx68"} );
 
         BookmarkFormatException e = assertThrows( BookmarkFormatException.class, () -> Bookmark.fromParamsOrNull( params ) );
 
@@ -251,8 +251,8 @@ class BookmarkTest
     void shouldThrowWhenMultipleBookmarksIsNotAListOfStrings()
     {
         MapValue params = params(
-                "neo4j:bookmark:v1:tx67",
-                asList( new String[]{"neo4j:bookmark:v1:tx50"}, new Object[]{"neo4j:bookmark:v1:tx89"} ) );
+                "ongdb:bookmark:v1:tx67",
+                asList( new String[]{"ongdb:bookmark:v1:tx50"}, new Object[]{"ongdb:bookmark:v1:tx89"} ) );
 
         BookmarkFormatException e = assertThrows( BookmarkFormatException.class, () -> Bookmark.fromParamsOrNull( params ) );
 
@@ -263,8 +263,8 @@ class BookmarkTest
     void shouldThrowWhenOneOfMultipleBookmarksIsMalformed()
     {
         MapValue params = params(
-                "neo4j:bookmark:v1:tx67",
-                asList( "neo4j:bookmark:v1:tx99", "neo4j:bookmark:v1:tx12", "neo4j:bookmark:www:tx99" ) );
+                "ongdb:bookmark:v1:tx67",
+                asList( "ongdb:bookmark:v1:tx99", "ongdb:bookmark:v1:tx12", "ongdb:bookmark:www:tx99" ) );
 
         BookmarkFormatException e = assertThrows( BookmarkFormatException.class, () -> Bookmark.fromParamsOrNull( params ) );
 
@@ -274,7 +274,7 @@ class BookmarkTest
     @Test
     void shouldThrowWhenSingleBookmarkIsMalformed()
     {
-        MapValue params = params( "neo4j:strange-bookmark:v1:tx6", null );
+        MapValue params = params( "ongdb:strange-bookmark:v1:tx6", null );
 
         BookmarkFormatException e = assertThrows( BookmarkFormatException.class, () -> Bookmark.fromParamsOrNull( params ) );
 
@@ -298,7 +298,7 @@ class BookmarkTest
     void shouldSkipNullsInMultipleBookmarks() throws Exception
     {
         MapValue params = params( null,
-                asList( "neo4j:bookmark:v1:tx3", "neo4j:bookmark:v1:tx5", null, "neo4j:bookmark:v1:tx17" ) );
+                asList( "ongdb:bookmark:v1:tx3", "ongdb:bookmark:v1:tx5", null, "ongdb:bookmark:v1:tx17" ) );
 
         Bookmark bookmark = Bookmark.fromParamsOrNull( params );
 

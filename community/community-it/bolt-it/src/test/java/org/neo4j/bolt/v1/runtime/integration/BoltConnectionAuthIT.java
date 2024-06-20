@@ -79,7 +79,7 @@ public class BoltConnectionAuthIT
         BoltResponseRecorder recorder = new BoltResponseRecorder();
 
         // When
-        InitMessage init = new InitMessage( USER_AGENT, newBasicAuthToken( "neo4j", "neo4j" ) );
+        InitMessage init = new InitMessage( USER_AGENT, newBasicAuthToken( "ongdb", "ongdb" ) );
 
         machine.process( init, recorder );
         machine.process( new RunMessage( "CREATE ()", EMPTY_MAP ), recorder );
@@ -99,7 +99,7 @@ public class BoltConnectionAuthIT
         String version = "Neo4j/" + Version.getONgDBVersion();
 
         // When
-        InitMessage init = new InitMessage( USER_AGENT, newBasicAuthToken( "neo4j", "neo4j" ) );
+        InitMessage init = new InitMessage( USER_AGENT, newBasicAuthToken( "ongdb", "ongdb" ) );
 
         machine.process( init, recorder );
         machine.process( new RunMessage( "CREATE ()", EMPTY_MAP ), recorder );
@@ -115,7 +115,7 @@ public class BoltConnectionAuthIT
         BoltStateMachine machine = env.newMachine( BOLT_CHANNEL );
 
         // When... then
-        InitMessage init = new InitMessage( USER_AGENT, newBasicAuthToken( "neo4j", "j4oen" ) );
+        InitMessage init = new InitMessage( USER_AGENT, newBasicAuthToken( "ongdb", "bdgno" ) );
         BoltResponseRecorder recorder = new BoltResponseRecorder();
         verifyKillsConnection( () -> machine.process( init, recorder ) );
 
@@ -132,8 +132,8 @@ public class BoltConnectionAuthIT
         // when
         InitMessage message = new InitMessage( USER_AGENT, map(
                 "scheme", "basic",
-                "principal", "neo4j",
-                "credentials", UTF8.encode( "neo4j" ),
+                "principal", "ongdb",
+                "credentials", UTF8.encode( "ongdb" ),
                 "new_credentials", UTF8.encode( "secret" ) ) );
         machine.process( message, recorder );
         machine.process( new RunMessage( "CREATE ()", EMPTY_MAP ), recorder );

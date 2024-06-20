@@ -78,7 +78,7 @@ class InitMessageDecoderTest extends AuthTokenDecoderTest
     void shouldDecodeAckFailure() throws Exception
     {
         Neo4jPackV1 neo4jPack = new Neo4jPackV1();
-        InitMessage originalMessage = new InitMessage( "My Driver", map( "user", "neo4j", "password", "secret" ) );
+        InitMessage originalMessage = new InitMessage( "My Driver", map( "user", "ongdb", "password", "secret" ) );
 
         PackedInputArray innput = new PackedInputArray( serialize( neo4jPack, originalMessage ) );
         Unpacker unpacker = neo4jPack.newUnpacker( innput );

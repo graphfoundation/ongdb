@@ -78,7 +78,7 @@ import java.util.Map;
  * <li>Arrays of any of the above types, for example <code>int[]</code>, <code>String[]</code> or <code>LocalTime[]</code></li>
  * </ul>
  * <p>
- * <b>Please note</b> that Neo4j does NOT accept arbitrary objects as property
+ * <b>Please note</b> that ONgDB does NOT accept arbitrary objects as property
  * values. {@link #setProperty(String, Object) setProperty()} takes a
  * <code>java.lang.Object</code> only to avoid an explosion of overloaded
  * <code>setProperty()</code> methods.

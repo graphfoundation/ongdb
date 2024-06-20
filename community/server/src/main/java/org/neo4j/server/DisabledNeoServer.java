@@ -43,7 +43,6 @@ import java.util.Collections;
 
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.lifecycle.LifeSupport;
-import org.neo4j.logging.LogProvider;
 import org.neo4j.server.database.Database;
 import org.neo4j.server.database.GraphFactory;
 import org.neo4j.server.database.LifecycleManagingDatabase;
@@ -54,7 +53,7 @@ import org.neo4j.server.rest.transactional.DisabledTransactionRegistry;
 import org.neo4j.server.rest.transactional.TransactionRegistry;
 
 import static org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory.Dependencies;
-import static org.neo4j.server.AbstractNeoServer.NEO4J_IS_STARTING_MESSAGE;
+import static org.neo4j.server.AbstractNeoServer.ONGDB_IS_STARTING_MESSAGE;
 import static org.neo4j.server.exception.ServerStartupErrors.translateToServerStartupError;
 
 public class DisabledNeoServer implements NeoServer
@@ -70,7 +69,7 @@ public class DisabledNeoServer implements NeoServer
         this.config = config;
 
         life.add( db );
-        dependencies.userLogProvider().getLog( getClass() ).info( NEO4J_IS_STARTING_MESSAGE );
+        dependencies.userLogProvider().getLog( getClass() ).info( ONGDB_IS_STARTING_MESSAGE );
     }
 
     @Override
@@ -120,7 +119,7 @@ public class DisabledNeoServer implements NeoServer
     @Override
     public URI baseUri()
     {
-        throw new UnsupportedOperationException( "Neo4j server is disabled" );
+        throw new UnsupportedOperationException( "ONgDB server is disabled" );
     }
 
     @Override

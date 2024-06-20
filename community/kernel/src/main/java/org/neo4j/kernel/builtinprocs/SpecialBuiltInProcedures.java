@@ -53,20 +53,20 @@ import static org.neo4j.internal.kernel.api.procs.ProcedureSignature.procedureNa
  */
 public class SpecialBuiltInProcedures implements ThrowingConsumer<Procedures, ProcedureException>
 {
-    private final String neo4jVersion;
-    private final String neo4jEdition;
+    private final String ongdbVersion;
+    private final String ongdbEdition;
 
-    public SpecialBuiltInProcedures( String neo4jVersion, String neo4jEdition )
+    public SpecialBuiltInProcedures( String ongdbVersion, String ongdbEdition )
     {
-        this.neo4jVersion = neo4jVersion;
-        this.neo4jEdition = neo4jEdition;
+        this.ongdbVersion = ongdbVersion;
+        this.ongdbEdition = ongdbEdition;
     }
 
     @Override
     public void accept( Procedures procs ) throws ProcedureException
     {
         procs.register( new ListComponentsProcedure( procedureName( "dbms", "components" ),
-                neo4jVersion, neo4jEdition ) );
+                                                     ongdbVersion, ongdbEdition ) );
         procs.register( new JmxQueryProcedure( procedureName( "dbms", "queryJmx" ),
                 ManagementFactory.getPlatformMBeanServer() ) );
     }

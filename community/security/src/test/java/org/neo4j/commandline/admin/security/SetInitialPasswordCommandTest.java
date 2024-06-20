@@ -72,7 +72,6 @@ public class SetInitialPasswordCommandTest
 {
     private SetInitialPasswordCommand setPasswordCommand;
     private File authInitFile;
-    private File authFile;
     private FileSystemAbstraction fileSystem;
 
     private final EphemeralFileSystemRule fileSystemRule = new EphemeralFileSystemRule();
@@ -89,8 +88,8 @@ public class SetInitialPasswordCommandTest
         when( mock.fileSystem() ).thenReturn( fileSystem );
         setPasswordCommand = new SetInitialPasswordCommand( testDir.directory( "home" ).toPath(),
                 testDir.directory( "conf" ).toPath(), mock );
-        authInitFile = CommunitySecurityModule.getInitialUserRepositoryFile( setPasswordCommand.loadNeo4jConfig() );
-        CommunitySecurityModule.getUserRepositoryFile( setPasswordCommand.loadNeo4jConfig() );
+        authInitFile = CommunitySecurityModule.getInitialUserRepositoryFile( setPasswordCommand.loadONgDBConfig() );
+        CommunitySecurityModule.getUserRepositoryFile( setPasswordCommand.loadONgDBConfig() );
     }
 
     @Test
@@ -139,11 +138,11 @@ public class SetInitialPasswordCommandTest
     @Test
     public void shouldWorkAlsoWithSamePassword() throws Throwable
     {
-        String[] arguments = {"neo4j"};
+        String[] arguments = {"ongdb"};
         setPasswordCommand.execute( arguments );
 
         // Then
-        assertAuthIniFile( "neo4j" );
+        assertAuthIniFile( "ongdb" );
     }
 
     @Test
@@ -153,19 +152,19 @@ public class SetInitialPasswordCommandTest
         {
             PrintStream ps = new PrintStream( baos );
 
-            Usage usage = new Usage( "neo4j-admin", mock( CommandLocator.class ) );
+            Usage usage = new Usage( "ongdb-admin", mock( CommandLocator.class ) );
             usage.printUsageForCommand( new SetInitialPasswordCommandProvider(), ps::println );
 
-            assertEquals( String.format( "usage: neo4j-admin set-initial-password <password>%n" +
+            assertEquals( String.format( "usage: ongdb-admin set-initial-password <password>%n" +
                             "%n" +
                             "environment variables:%n" +
-                            "    NEO4J_CONF    Path to directory which contains neo4j.conf.%n" +
-                            "    NEO4J_DEBUG   Set to anything to enable debug output.%n" +
-                            "    NEO4J_HOME    Neo4j home directory.%n" +
+                            "    ONGDB_CONF    Path to directory which contains ongdb.conf.%n" +
+                            "    ONGDB_DEBUG   Set to anything to enable debug output.%n" +
+                            "    ONGDB_HOME    ONgDB home directory.%n" +
                             "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
                             "                  Takes a number and a unit, for example 512m.%n" +
                             "%n" +
-                            "Sets the initial password of the initial admin user ('neo4j').%n" ),
+                            "Sets the initial password of the initial admin user ('ongdb').%n" ),
                     baos.toString() );
         }
     }
@@ -176,9 +175,9 @@ public class SetInitialPasswordCommandTest
         FileUserRepository userRepository = new FileUserRepository( fileSystem, authInitFile,
                 NullLogProvider.getInstance() );
         userRepository.start();
-        User neo4j = userRepository.getUserByName( UserManager.INITIAL_USER_NAME );
-        assertNotNull( neo4j );
-        assertTrue( neo4j.credentials().matchesPassword( password ) );
-        assertFalse( neo4j.hasFlag( User.PASSWORD_CHANGE_REQUIRED ) );
+        User ongdb = userRepository.getUserByName( UserManager.INITIAL_USER_NAME );
+        assertNotNull( ongdb );
+        assertTrue( ongdb.credentials().matchesPassword( password ) );
+        assertFalse( ongdb.hasFlag( User.PASSWORD_CHANGE_REQUIRED ) );
     }
 }

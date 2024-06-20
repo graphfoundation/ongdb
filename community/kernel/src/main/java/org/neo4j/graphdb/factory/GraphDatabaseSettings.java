@@ -106,7 +106,7 @@ import static org.neo4j.kernel.configuration.Settings.setting;
 import static org.neo4j.kernel.configuration.ssl.LegacySslPolicyConfig.LEGACY_POLICY_NAME;
 
 /**
- * Settings for Neo4j.
+ * Settings for ONgDB.
  */
 public class GraphDatabaseSettings implements LoadableConfig
 {
@@ -131,7 +131,7 @@ public class GraphDatabaseSettings implements LoadableConfig
     @Description( "Root relative to which directory settings are resolved. This is set in code and should never be " +
             "configured explicitly." )
     public static final Setting<File> ongdb_home =
-            setting( "unsupported.dbms.directories.neo4j_home", PATH, NO_DEFAULT );
+            setting( "unsupported.dbms.directories.ongdb_home", PATH, NO_DEFAULT );
 
     /**
      * LOAD CSV and apoc.load.json input URI restrictions
@@ -150,7 +150,7 @@ public class GraphDatabaseSettings implements LoadableConfig
     public static final Setting<String> active_database =
             buildSetting( "dbms.active_database", STRING, DEFAULT_DATABASE_NAME ).constraint( except( SYSTEM_DATABASE_NAME ) ).build();
 
-    @Description( "Path of the data directory. You must not configure more than one Neo4j installation to use the " +
+    @Description( "Path of the data directory. You must not configure more than one ONgDB installation to use the " +
             "same data directory." )
     public static final Setting<File> data_directory = pathSetting( "dbms.directories.data", "data" );
 
@@ -167,7 +167,7 @@ public class GraphDatabaseSettings implements LoadableConfig
             databases_root_path, active_database, ( parent, child ) -> new File( parent, child ), PATH );
 
     @Title( "Read only database" )
-    @Description( "Only allow read operations from this Neo4j instance. " +
+    @Description( "Only allow read operations from this ONgDB instance. " +
             "This mode still requires write access to the directory for lock purposes." )
     public static final Setting<Boolean> read_only = setting( "dbms.read_only", BOOLEAN, FALSE );
 
@@ -194,13 +194,13 @@ public class GraphDatabaseSettings implements LoadableConfig
     @ReplacedBy( "dbms.connector.X.enabled" )
     public static final Setting<Boolean> disconnected = setting( "unsupported.dbms.disconnected", BOOLEAN, FALSE );
 
-    @Description( "Print out the effective Neo4j configuration after startup." )
+    @Description( "Print out the effective ONgDB configuration after startup." )
     @Internal
     public static final Setting<Boolean> dump_configuration = setting( "unsupported.dbms.report_configuration",
             BOOLEAN, FALSE );
 
     @Description( "A strict configuration validation will prevent the database from starting up if unknown " +
-            "configuration options are specified in the neo4j settings namespace (such as dbms., ha., cypher., etc). " +
+            "configuration options are specified in the ongdb settings namespace (such as dbms., ha., cypher., etc). " +
             "This is currently false by default but will be true by default in 4.0." )
     public static final Setting<Boolean> strict_config_validation =
             setting( "dbms.config.strict_validation", BOOLEAN, FALSE );
@@ -251,7 +251,7 @@ public class GraphDatabaseSettings implements LoadableConfig
                   "plan to perform an exhaustive depth-first search if the fast algorithm finds no paths. However, " +
                   "the exhaustive search may be orders of magnitude slower than the fast algorithm. If it is critical " +
                   "that queries terminate as soon as possible, it is recommended that this option be set to `true`, " +
-                  "which means that Neo4j will never consider using the exhaustive search for shortestPath queries. " +
+                  "which means that ONgDB will never consider using the exhaustive search for shortestPath queries. " +
                   "However, please note that if no paths are found, an error will be thrown at run time, which will " +
                   "need to be handled by the application." )
     public static final Setting<Boolean> forbid_exhaustive_shortestpath = setting(
@@ -389,20 +389,20 @@ public class GraphDatabaseSettings implements LoadableConfig
             setting( "unsupported.cypher.plan_with_minimum_cardinality_estimates", BOOLEAN, TRUE );
 
     @Description( "Determines if Cypher will allow using file URLs when loading data using `LOAD CSV`. Setting this "
-                  + "value to `false` will cause Neo4j to fail `LOAD CSV` clauses that load data from the file system." )
+                  + "value to `false` will cause ONgDB to fail `LOAD CSV` clauses that load data from the file system." )
     public static final Setting<Boolean> allow_file_urls = setting( "dbms.security.allow_csv_import_from_file_urls", BOOLEAN, TRUE );
 
     @Description( "Sets the root directory for file URLs used with the Cypher `LOAD CSV` clause. This should be set to a " +
-                  "directory relative to the Neo4j installation path, restricting access to only those files within that directory " +
+                  "directory relative to the ONgDB installation path, restricting access to only those files within that directory " +
                   "and its subdirectories. For example the value \"import\" will only enable access to files within the 'import' folder. " +
                   "Removing this setting will disable the security feature, allowing all files in the local system to be imported. " +
-                  "Setting this to an empty field will allow access to all files within the Neo4j installation folder." )
+                  "Setting this to an empty field will allow access to all files within the ONgDB installation folder." )
     public static final Setting<File> load_csv_file_url_root = pathSetting( "dbms.directories.import", NO_DEFAULT );
 
     @Description( "Selects whether to conform to the standard https://tools.ietf.org/html/rfc4180 for interpreting " +
                   "escaped quotation characters in CSV files loaded using `LOAD CSV`. Setting this to `false` will use" +
                   " the standard, interpreting repeated quotes '\"\"' as a single in-lined quote, while `true` will " +
-                  "use the legacy convention originally supported in Neo4j 3.0 and 3.1, allowing a backslash to " +
+                  "use the legacy convention originally supported in ONgDB 3.0 and 3.1, allowing a backslash to " +
                   "include quotes in-lined in fields." )
     public static final Setting<Boolean> csv_legacy_quote_escaping =
             setting( "dbms.import.csv.legacy_quote_escaping", BOOLEAN,
@@ -566,7 +566,7 @@ public class GraphDatabaseSettings implements LoadableConfig
     @Description( "Configures the general policy for when check-points should occur. The default policy is the " +
                   "'periodic' check-point policy, as specified by the 'dbms.checkpoint.interval.tx' and " +
                   "'dbms.checkpoint.interval.time' settings. " +
-                  "The Neo4j Enterprise Edition provides two alternative policies: " +
+                  "The ONgDB Enterprise Edition provides two alternative policies: " +
                   "The first is the 'continuous' check-point policy, which will ignore those settings and run the " +
                   "check-point process all the time. " +
                   "The second is the 'volumetric' check-point policy, which makes a best-effort at check-pointing " +
@@ -598,7 +598,7 @@ public class GraphDatabaseSettings implements LoadableConfig
 
     @Dynamic
     @Description( "Limit the number of IOs the background checkpoint process will consume per second. " +
-                  "This setting is advisory, is ignored in Neo4j Community Edition, and is followed to " +
+                  "This setting is advisory, is ignored in ONgDB Community Edition, and is followed to " +
                   "best effort in Enterprise Edition. " +
                   "An IO is in this case a 8 KiB (mostly sequential) write. Limiting the write IO in " +
                   "this way will leave more bandwidth in the IO subsystem to service random-read IOs, " +
@@ -647,7 +647,7 @@ public class GraphDatabaseSettings implements LoadableConfig
             setting( "dbms.index_sampling.background_enabled", BOOLEAN, TRUE );
 
     @Description( "Size of buffer used by index sampling. " +
-                 "This configuration setting is no longer applicable as from Neo4j 3.0.3. " +
+                 "This configuration setting is no longer applicable as from ONgDB 3.0.3. " +
                  "Please use dbms.index_sampling.sample_size_limit instead." )
     @Deprecated
     @ReplacedBy( "dbms.index_sampling.sample_size_limit" )
@@ -739,12 +739,12 @@ public class GraphDatabaseSettings implements LoadableConfig
             "Reduced performance of CONTAINS and ENDS WITH string index queries, compared to a Lucene index." )
     public static final Setting<String> default_schema_provider = setting( "dbms.index.default_schema_provider", STRING, NATIVE_BTREE10.providerName() );
 
-    @Description( "Location where Neo4j keeps the logical transaction logs." )
+    @Description( "Location where ONgDB keeps the logical transaction logs." )
     public static final Setting<File> logical_logs_location =
             pathSetting( "dbms.directories.tx_log", "", database_path );
 
     // Store settings
-    @Description( "Make Neo4j keep the logical transaction logs for being able to backup the database. " +
+    @Description( "Make ONgDB keep the logical transaction logs for being able to backup the database. " +
             "Can be used for specifying the threshold to prune logical logs after. For example \"10 days\" will " +
             "prune logical logs that only contains transactions older than 10 days from the current time, " +
             "or \"100k txs\" will keep the 100k latest transactions and prune any older transactions." )
@@ -764,8 +764,8 @@ public class GraphDatabaseSettings implements LoadableConfig
     public static final Setting<Long> logical_log_rotation_threshold =
             buildSetting( "dbms.tx_log.rotation.size", BYTES, "250M" ).constraint( min( ByteUnit.mebiBytes( 1 ) ) ).build();
 
-    @Description( "If `true`, Neo4j will abort recovery if any errors are encountered in the logical log. Setting " +
-            "this to `false` will allow Neo4j to restore as much as possible from the corrupted log files and ignore " +
+    @Description( "If `true`, ONgDB will abort recovery if any errors are encountered in the logical log. Setting " +
+            "this to `false` will allow ONgDB to restore as much as possible from the corrupted log files and ignore " +
             "the rest, but, the integrity of the database might be compromised." )
     @Internal
     public static final Setting<Boolean> fail_on_corrupted_log_files = setting("unsupported.dbms.tx_log.fail_on_corrupted_log_files", BOOLEAN, TRUE );
@@ -797,7 +797,7 @@ public class GraphDatabaseSettings implements LoadableConfig
 
     @SuppressWarnings( "unchecked" )
     @Description( "The amount of memory to use for mapping the store files, in bytes (or kilobytes with the 'k' " +
-                  "suffix, megabytes with 'm' and gigabytes with 'g'). If Neo4j is running on a dedicated server, " +
+                  "suffix, megabytes with 'm' and gigabytes with 'g'). If ONgDB is running on a dedicated server, " +
                   "then it is generally recommended to leave about 2-4 gigabytes for the operating system, give the " +
                   "JVM enough heap to hold all your transaction state and query context, and then leave the rest for " +
                   "the page cache. If no page cache memory is configured, then a heuristic setting is computed based " +
@@ -813,7 +813,7 @@ public class GraphDatabaseSettings implements LoadableConfig
     @Internal
     @Description( "The profiling frequency for the page cache. Accurate profiles allow the page cache to do active " +
                   "warmup after a restart, reducing the mean time to performance. " +
-                  "This feature available in Neo4j Enterprise Edition." )
+                  "This feature available in ONgDB Enterprise Edition." )
     public static final Setting<Duration> pagecache_warmup_profiling_interval =
             setting( "unsupported.dbms.memory.pagecache.warmup.profile.interval", DURATION, "1m" );
 
@@ -821,7 +821,7 @@ public class GraphDatabaseSettings implements LoadableConfig
     @Description( "Page cache can be configured to perform usage sampling of loaded pages that can be used to construct active load profile. " +
             "According to that profile pages can be reloaded on the restart, replication, etc. " +
             "This setting allows disabling that behavior. " +
-            "This feature available in Neo4j Enterprise Edition." )
+            "This feature available in ONgDB Enterprise Edition." )
     public static final Setting<Boolean> pagecache_warmup_enabled = setting( "unsupported.dbms.memory.pagecache.warmup.enable", BOOLEAN, TRUE );
 
     @Description( "Allows the enabling or disabling of the file watcher service." +
@@ -892,7 +892,7 @@ public class GraphDatabaseSettings implements LoadableConfig
     @Description( "Log executed queries that take longer than the configured threshold, dbms.logs.query.threshold. " +
             "Log entries are by default written to the file _query.log_ located in the Logs directory. " +
             "For location of the Logs directory, see <<file-locations>>. " +
-            "This feature is available in the Neo4j Enterprise Edition." )
+            "This feature is available in the ONgDB Enterprise Edition." )
     @Dynamic
     public static final Setting<Boolean> log_queries =
             setting( "dbms.logs.query.enabled", BOOLEAN, FALSE );
@@ -913,7 +913,7 @@ public class GraphDatabaseSettings implements LoadableConfig
 
     @Description( "Path to the user log file. Note that if dbms.logs.user.stdout_enabled is enabled this setting will be ignored." )
     public static final Setting<File> store_user_log_path =
-            derivedSetting( "dbms.logs.user.path", logs_directory, logs -> new File( logs, "neo4j.log" ), PATH );
+            derivedSetting( "dbms.logs.user.path", logs_directory, logs -> new File( logs, "ongdb.log" ), PATH );
 
     @Description( "Path to the debug log file." )
     public static final Setting<File> store_internal_log_path = derivedSetting( "dbms.logs.debug.path",
@@ -1006,7 +1006,7 @@ public class GraphDatabaseSettings implements LoadableConfig
 
     // Security settings
 
-    @Description( "Enable auth requirement to access Neo4j." )
+    @Description( "Enable auth requirement to access ONgDB." )
     public static final Setting<Boolean> auth_enabled = setting( "dbms.security.auth_enabled", BOOLEAN, FALSE );
 
     @Internal

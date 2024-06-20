@@ -73,7 +73,7 @@ public class ServerTestUtils
 
     public static File createTempDir() throws IOException
     {
-        return Files.createTempDirectory( "neo4j-test" ).toFile();
+        return Files.createTempDirectory( "ongdb-test" ).toFile();
     }
 
     public static File getSharedTestTemporaryFolder()
@@ -90,7 +90,7 @@ public class ServerTestUtils
 
     public static File createTempConfigFile() throws IOException
     {
-        File file = File.createTempFile( "neo4j", "conf" );
+        File file = File.createTempFile( "ongdb", "conf" );
         file.delete();
         return file;
     }

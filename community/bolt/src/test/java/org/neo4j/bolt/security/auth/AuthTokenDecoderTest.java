@@ -107,7 +107,7 @@ public abstract class AuthTokenDecoderTest
 
     private static Map<String,Object> authTokenMapWith( String fieldName, Object fieldValue )
     {
-        return map( AuthToken.PRINCIPAL, "neo4j", fieldName, fieldValue );
+        return map( AuthToken.PRINCIPAL, "ongdb", fieldName, fieldValue );
     }
 
     private static Object[] valuesWithInvalidTypes = {

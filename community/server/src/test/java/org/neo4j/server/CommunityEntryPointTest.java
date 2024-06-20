@@ -46,7 +46,7 @@ import org.neo4j.test.extension.SuppressOutputExtension;
 import org.neo4j.test.rule.SuppressOutput;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.neo4j.commandline.Util.neo4jVersion;
+import static org.neo4j.commandline.Util.ongdbVersion;
 
 @ExtendWith( SuppressOutputExtension.class )
 class CommunityEntryPointTest
@@ -61,6 +61,6 @@ class CommunityEntryPointTest
         CommunityEntryPoint.main( new String[]{ "--version" } );
 
         // then
-        assertTrue( suppressOutput.getOutputVoice().containsMessage( "neo4j " + neo4jVersion() ) );
+        assertTrue( suppressOutput.getOutputVoice().containsMessage( "ongdb " + ongdbVersion() ) );
     }
 }

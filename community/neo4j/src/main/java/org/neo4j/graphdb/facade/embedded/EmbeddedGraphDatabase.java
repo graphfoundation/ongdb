@@ -55,7 +55,7 @@ import static org.neo4j.helpers.collection.Iterables.append;
 import static org.neo4j.helpers.collection.Iterables.asList;
 
 /**
- * An implementation of {@link GraphDatabaseService} that is used to embed Neo4j
+ * An implementation of {@link GraphDatabaseService} that is used to embed ONgDB
  * in an application. You typically instantiate it by using
  * {@link org.neo4j.graphdb.factory.GraphDatabaseFactory} like so:
  * <p>
@@ -63,7 +63,7 @@ import static org.neo4j.helpers.collection.Iterables.asList;
  * <pre>
  * <code>
  * GraphDatabaseService graphDb = new GraphDatabaseFactory().newEmbeddedDatabase( &quot;var/graphdb&quot; );
- * // ... use Neo4j
+ * // ... use ONgDB
  * graphDb.shutdown();
  * </code>
  * </pre>

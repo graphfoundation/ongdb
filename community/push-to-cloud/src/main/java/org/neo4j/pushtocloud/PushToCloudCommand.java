@@ -68,27 +68,27 @@ public class PushToCloudCommand implements AdminCommand
     static final String ARG_OVERWRITE = "overwrite";
     static final String ARG_USERNAME = "username";
     static final String ARG_PASSWORD = "password";
-    static final String ENV_USERNAME = "NEO4J_USERNAME";
-    static final String ENV_PASSWORD = "NEO4J_PASSWORD";
+    static final String ENV_USERNAME = "ONGDB_USERNAME";
+    static final String ENV_PASSWORD = "ONGDB_PASSWORD";
 
     static final Arguments arguments = new Arguments()
             // Provide a (potentially running?) database
             .withDatabase()
             // ... or an existing backup/dump of a database
-            .withArgument( new OptionalNamedArg( ARG_DUMP, "/path/to/my-neo4j-database-dump-file", null,
-                    "Path to an existing database dump for upload. This arugment cannot be used together with --database." ) )
+            .withArgument( new OptionalNamedArg( ARG_DUMP, "/path/to/my-ongdb-database-dump-file", null,
+                    "Path to an existing database dump for upload. This argument cannot be used together with --database." ) )
             .withArgument( new OptionalNamedArg( ARG_DUMP_TO, "/path/to/dump-file-to-be-created", null,
                     "Target path for dump file. Used in combination with the --database argument." ) )
-            .withArgument( new MandatoryNamedArg( ARG_BOLT_URI, "bolt+routing://mydatabaseid.databases.neo4j.io",
+            .withArgument( new MandatoryNamedArg( ARG_BOLT_URI, "bolt+routing://mydatabaseid.databases.ongdb.com",
                     "Bolt URI of target database" ) )
             .withArgument( new OptionalNamedArg( ARG_VERBOSE, "true/false", null,
                     "Enable verbose output." ) )
-            .withArgument( new OptionalNamedArg( ARG_USERNAME, "neo4j", null,
+            .withArgument( new OptionalNamedArg( ARG_USERNAME, "ongdb", null,
                     "Optional: Username of the target database to push this database to. Prompt will ask for username if not provided. " +
-                            "Alternatively NEO4J_USERNAME environment variable can be used." ) )
+                            "Alternatively ONGDB_USERNAME environment variable can be used." ) )
             .withArgument( new OptionalNamedArg( ARG_PASSWORD, "mYs3cr3tPa$$w0rd", null,
                     "Optional: Password of the target database to push this database to. Prompt will ask for password if not provided. " +
-                            "Alternatively NEO4J_PASSWORD environment variable can be used." ) )
+                            "Alternatively ONGDB_PASSWORD environment variable can be used." ) )
             .withArgument( new OptionalNamedArg( ARG_OVERWRITE, "true/false", "false",
                     "Optional: Overwrite the data in the target database." ) );
 
@@ -137,13 +137,13 @@ public class PushToCloudCommand implements AdminCommand
                 }
                 else
                 {
-                    username = outsideWorld.promptLine( "Neo4j Aura database username (default: neo4j): " );
+                    username = outsideWorld.promptLine( "ONgDB Cloud database username (default: neo4j): " );
                 }
             }
             // default username to neo4j if user pressed 'enter' during the prompt
             if ( username == null || "".equals( username ) )
             {
-                username = "neo4j";
+                username = "ongdb";
             }
 
             char[] password;
@@ -159,18 +159,18 @@ public class PushToCloudCommand implements AdminCommand
                 }
                 else
                 {
-                    password = outsideWorld.promptPassword( format( "Neo4j Aura database password for %s: ", username ) );
+                    password = outsideWorld.promptPassword( format( "ONgDB Cloud database password for %s: ", username ) );
                 }
             }
 
             boltURI = arguments.get( ARG_BOLT_URI );
             if ( boltURI == null || "".equals( boltURI ) )
             {
-                boltURI = outsideWorld.promptLine( "Neo4j Aura database Bolt URI: " );
+                boltURI = outsideWorld.promptLine( "ONgDB Cloud database Bolt URI: " );
             }
             if ( boltURI == null || "".equals( boltURI ) )
             {
-                throw new IncorrectUsage( "Please provide a Neo4j Aura Bolt URI of the target location to push the database to, " +
+                throw new IncorrectUsage( "Please provide a ONgDB Cloud Bolt URI of the target location to push the database to, " +
                         "using the --bolt-uri argument." );
             }
             String confirmationViaArgument = arguments.get( ARG_OVERWRITE, "false", "true" );
@@ -211,21 +211,21 @@ public class PushToCloudCommand implements AdminCommand
     {
         // A boltURI looks something like this:
         //
-        //   bolt+routing://mydbid-myenvironment.databases.neo4j.io
+        //   bolt+routing://mydbid-myenvironment.databases.ongdb.com
         //                  <─┬──><──────┬─────>
         //                    │          └──────── environment
         //                    └─────────────────── database id
         //
         // Constructing a console URI takes elements from the bolt URI and places them inside this URI:
         //
-        //   https://console<environment>.neo4j.io/v1/databases/<database id>
+        //   https://console<environment>.ongdb.com/v1/databases/<database id>
         //
         // Examples:
         //
-        //   bolt+routing://rogue.databases.neo4j.io  --> https://console.neo4j.io/v1/databases/rogue
-        //   bolt+routing://rogue-mattias.databases.neo4j.io  --> https://console-mattias.neo4j.io/v1/databases/rogue
+        //   bolt+routing://rogue.databases.ongdb.com  --> https://console.ongdb.com/v1/databases/rogue
+        //   bolt+routing://rogue-mattias.databases.ongdb.com  --> https://console-mattias.ongdb.com/v1/databases/rogue
 
-        Pattern pattern = Pattern.compile( "(?:bolt(?:\\+routing)?|neo4j(?:\\+s|\\+ssc)?)://([^-]+)(-(.+))?.databases.neo4j.io$" );
+        Pattern pattern = Pattern.compile( "(?:bolt(?:\\+routing)?|neo4j(?:\\+s|\\+ssc)?)://([^-]+)(-(.+))?.databases.ongdb.com$" );
         Matcher matcher = pattern.matcher( boltURI );
         if ( !matcher.matches() )
         {
@@ -234,7 +234,7 @@ public class PushToCloudCommand implements AdminCommand
 
         String databaseId = matcher.group( 1 );
         String environment = matcher.group( 2 );
-        return String.format( "https://console%s.neo4j.io/v1/databases/%s", environment == null ? "" : environment, databaseId );
+        return String.format( "https://console%s.ongdb.com/v1/databases/%s", environment == null ? "" : environment, databaseId );
     }
 
     private String getActiveDatabase() throws CommandFailed

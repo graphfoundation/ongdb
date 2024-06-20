@@ -171,10 +171,10 @@ public class KernelDiagnosticsOfflineReportProvider extends DiagnosticsOfflineRe
 
         // neo4j.log
         File logDirectory = config.get( GraphDatabaseSettings.logs_directory );
-        File neo4jLog = new File( logDirectory, "neo4j.log" );
+        File neo4jLog = new File( logDirectory, "ongdb.log" );
         if ( fs.fileExists( neo4jLog ) )
         {
-            sources.add( newDiagnosticsFile( "logs/neo4j.log", fs, neo4jLog ) );
+            sources.add( newDiagnosticsFile( "logs/ongdb.log", fs, neo4jLog ) );
         }
 
         // gc.log

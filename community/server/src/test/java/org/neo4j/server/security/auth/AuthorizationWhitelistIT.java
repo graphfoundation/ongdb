@@ -114,7 +114,7 @@ public class AuthorizationWhitelistIT extends ExclusiveServerTestBase
 
     private boolean browserIsLoaded()
     {
-        // In some automatic builds, the Neo4j browser is not built, and it is subsequently not present for these
+        // In some automatic builds, the ONgDB browser is not built, and it is subsequently not present for these
         // tests. So - only run these tests if the browser artifact is on the classpath
         return getClass().getClassLoader().getResource( "browser" ) != null;
     }

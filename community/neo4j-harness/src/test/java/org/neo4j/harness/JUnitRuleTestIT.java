@@ -182,7 +182,7 @@ public class JUnitRuleTestIT
     {
         String currentOffset = currentTimeZoneOffsetString();
 
-        assertThat( contentOf( "neo4j.log" ), containsString( currentOffset ) );
+        assertThat( contentOf( "ongdb.log" ), containsString( currentOffset ) );
         assertThat( contentOf( "debug.log" ), containsString( currentOffset ) );
     }
 

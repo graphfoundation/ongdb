@@ -212,7 +212,7 @@ class ReadyStateTest
     @Test
     void shouldBeginTransactionWithSingleBookmark() throws Exception
     {
-        Map<String,Object> params = map( "bookmark", "neo4j:bookmark:v1:tx15" );
+        Map<String,Object> params = map( "bookmark", "ongdb:bookmark:v1:tx15" );
 
         BoltStateMachineState newState = state.process( new RunMessage( "BEGIN", asMapValue( params ) ), context );
         assertEquals( streamingState, newState );
@@ -223,7 +223,7 @@ class ReadyStateTest
     void shouldBeginTransactionWithMultipleBookmarks() throws Exception
     {
         Map<String,Object> params = map( "bookmarks",
-                asList( "neo4j:bookmark:v1:tx7", "neo4j:bookmark:v1:tx1", "neo4j:bookmark:v1:tx92", "neo4j:bookmark:v1:tx39" ) );
+                asList( "ongdb:bookmark:v1:tx7", "ongdb:bookmark:v1:tx1", "ongdb:bookmark:v1:tx92", "ongdb:bookmark:v1:tx39" ) );
 
         BoltStateMachineState newState = state.process( new RunMessage( "BEGIN", asMapValue( params ) ), context );
         assertEquals( streamingState, newState );

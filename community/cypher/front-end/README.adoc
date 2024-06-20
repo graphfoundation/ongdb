@@ -8,7 +8,7 @@ This repository holds a fully functional front end for the Cypher Property Graph
 This includes a parser, an AST, semantic checking and analysis, and AST rewriting support.
 Its purpose is to assist anyone wanting to build tools, or working on implementing Cypher for database systems.
 
-It is also the shared front end for Neo4j and Morpheus.
+It is also the shared front end for ONgDB and Morpheus.
 
 == Overview of the included modules
 

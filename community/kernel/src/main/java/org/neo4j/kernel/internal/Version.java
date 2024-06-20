@@ -117,7 +117,7 @@ public class Version extends Service
         super( artifactId );
         this.artifactId = artifactId;
         this.title = artifactId;
-        this.vendor = "Neo Technology";
+        this.vendor = "Graph Foundation, Inc.";
         this.version = version == null ? "dev" : version;
         this.releaseVersion = parseReleaseVersion( this.version );
     }
@@ -162,7 +162,7 @@ public class Version extends Service
         System.out.println( "Version: " + kernelVersion.getVersion() );
     }
 
-    static final String KERNEL_ARTIFACT_ID = "neo4j-kernel";
+    static final String KERNEL_ARTIFACT_ID = "ongdb-kernel";
     private static final Version KERNEL_VERSION = new Version( KERNEL_ARTIFACT_ID,
             Version.class.getPackage().getImplementationVersion() );
 }

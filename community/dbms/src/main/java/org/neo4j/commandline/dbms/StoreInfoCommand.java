@@ -103,7 +103,7 @@ public class StoreInfoCommand implements AdminCommand
         }
         catch ( StoreLockException e )
         {
-            throw new CommandFailed( "the database is in use -- stop Neo4j and try again", e );
+            throw new CommandFailed( "the database is in use -- stop ONgDB and try again", e );
         }
         catch ( Exception e )
         {

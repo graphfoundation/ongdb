@@ -92,7 +92,7 @@ import static org.neo4j.values.virtual.VirtualValues.EMPTY_MAP;
 public class TransactionIT
 {
     private static final String USER_AGENT = "TransactionIT/0.0";
-    private static final Pattern BOOKMARK_PATTERN = Pattern.compile( "neo4j:bookmark:v1:tx[0-9]+" );
+    private static final Pattern BOOKMARK_PATTERN = Pattern.compile( "ongdb:bookmark:v1:tx[0-9]+" );
     private static final BoltChannel BOLT_CHANNEL = BoltTestUtil.newTestBoltChannel();
 
     @Rule
@@ -254,7 +254,7 @@ public class TransactionIT
             BoltResponseRecorder recorder = new BoltResponseRecorder();
             machine.process( new InitMessage( USER_AGENT, emptyMap() ), nullResponseHandler() );
             latch.release();
-            final String bookmark = "neo4j:bookmark:v1:tx" + dbVersionAfterWrite;
+            final String bookmark = "ongdb:bookmark:v1:tx" + dbVersionAfterWrite;
             machine.process( new RunMessage( "BEGIN", ValueUtils.asMapValue( singletonMap( "bookmark", bookmark ) ) ), nullResponseHandler() );
             machine.process( PullAllMessage.INSTANCE, recorder );
             machine.process( new RunMessage( "MATCH (n:A) RETURN n.prop", EMPTY_MAP ), nullResponseHandler() );

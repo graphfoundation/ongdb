@@ -58,7 +58,7 @@ import static org.neo4j.internal.kernel.api.procs.FieldSignature.inputField;
 
 /**
  * Given a java method, figures out a valid {@link ProcedureSignature} field signature.
- * Basically, it takes the java signature and spits out the same signature described as Neo4j types.
+ * Basically, it takes the java signature and spits out the same signature described as ONgDB types.
  */
 public class MethodSignatureCompiler
 {
@@ -143,7 +143,7 @@ public class MethodSignatureCompiler
             {
                 throw new ProcedureException( e.status(),
                         "Argument `%s` at position %d in `%s` with%n" +
-                        "type `%s` cannot be converted to a Neo4j type: %s",
+                        "type `%s` cannot be converted to a ONgDB type: %s",
                         name, i, method.getName(), param.getType().getSimpleName(),
                         e.getMessage() );
             }

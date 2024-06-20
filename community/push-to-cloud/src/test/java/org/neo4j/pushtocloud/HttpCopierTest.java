@@ -293,7 +293,7 @@ public class HttpCopierTest
     {
         // given
         HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ) );
-        String errorBody = "{\"Message\":\"Store is too big for this neo4j aura instance.\",\"Reason\":\"ImportExceedsMaxSize\"}";
+        String errorBody = "{\"Message\":\"Store is too big for this ONgDB Cloud instance.\",\"Reason\":\"ImportExceedsMaxSize\"}";
         ResponseDefinitionBuilder response = aResponse().withStatus( HTTP_UNPROCESSABLE_ENTITY ).withBody( errorBody );
         wireMock.stubFor( initiateSizeRequest( "fakeToken", 100000000 ).willReturn( response ) );
         // when/then
@@ -455,9 +455,9 @@ public class HttpCopierTest
         ObjectMapper mapper = new ObjectMapper();
         Path source = createDump();
         String token = "abc";
-        String errorMessage = "There is insufficient space in your Neo4j Aura instance to upload your data. "
+        String errorMessage = "There is insufficient space in your ONgDB Cloud instance to upload your data. "
                 + "Please use the Console to increase the size of your database.";
-        String errorUrl = "https://console.neo4j.io/";
+        String errorUrl = "https://console.ongdb.com/";
         ErrorBody errorBody = new ErrorBody( errorMessage, ERROR_REASON_EXCEEDS_MAX_SIZE, errorUrl );
         wireMock.stubFor( authenticationRequest( false ).willReturn( successfulAuthorizationResponse( token ) ) );
         wireMock.stubFor( initiateUploadTargetRequest( token )
@@ -468,7 +468,7 @@ public class HttpCopierTest
         assertThrows( CommandFailed.class,
                 allOf( containsString( errorMessage ),
                         containsString( "Minimum storage space required: 0.0 GB." ),
-                        containsString( "See: https://console.neo4j.io" ), not( containsString( ".." ) ) ),
+                        containsString( "See: https://console.ongdb.com" ), not( containsString( ".." ) ) ),
                 () -> authenticateAndCopy( copier, source, 1234, true, "user", "pass".toCharArray() ) );
     }
 
@@ -636,9 +636,9 @@ public class HttpCopierTest
         StatusBody statusBody = new StatusBody();
         statusBody.Status = "loading failed";
         String errorMessage = "The uploaded dump file contains deprecated indexes, "
-                + "which we are unable to import in the current version of Neo4j Aura. "
+                + "which we are unable to import in the current version of ONgDB Cloud. "
                 + "Please upgrade to the recommended index provider.";
-        String errorUrl = "https://aura.support.neo4j.com/";
+        String errorUrl = "https://support.ongdb.com/";
         statusBody.Error = new ErrorBody( errorMessage, ERROR_REASON_UNSUPPORTED_INDEXES, errorUrl );
 
         wireMock.stubFor( get( urlEqualTo( "/import/status" ) )
@@ -924,7 +924,7 @@ public class HttpCopierTest
     {
         String bearerToken = copier.authenticate( false, TEST_CONSOLE_URL, username, password, false );
         PushToCloudCommand.Source source = new PushToCloudCommand.Source( path, databaseSize );
-        copier.copy( true, TEST_CONSOLE_URL, "bolt+routing://deadbeef.databases.neo4j.io", source, sourceProvided, bearerToken );
+        copier.copy( true, TEST_CONSOLE_URL, "bolt+routing://deadbeef.databases.ongdb.com", source, sourceProvided, bearerToken );
     }
 
     private interface ThrowingRunnable

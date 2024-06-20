@@ -20,7 +20,7 @@
 
     <packaging>jar</packaging>
     <name>ONgDB - Configuration</name>
-    <description>Code responsible for parsing the Neo4j configuration.</description>
+    <description>Code responsible for parsing the ONgDB configuration.</description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
     <scm>

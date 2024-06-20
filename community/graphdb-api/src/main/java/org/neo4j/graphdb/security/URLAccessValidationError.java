@@ -39,7 +39,7 @@
 package org.neo4j.graphdb.security;
 
 /**
- * An access validation error indicating why a URL cannot be accessed by a Neo4j graph database instance.
+ * An access validation error indicating why a URL cannot be accessed by a ONgDB graph database instance.
  */
 public class URLAccessValidationError extends Exception
 {

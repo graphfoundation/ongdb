@@ -53,7 +53,7 @@ object CommunityRuntimeFactory {
       case CypherRuntimeOption.default => default
 
       case unsupported if disallowFallback =>
-        throw new InvalidArgumentException(s"This version of Neo4j does not support requested runtime: $unsupported")
+        throw new InvalidArgumentException(s"This version of ONgDB does not support requested runtime: $unsupported")
 
       case unsupported => new FallbackRuntime[RuntimeContext](List(UnknownRuntime, ProcedureCallOrSchemaCommandRuntime,  InterpretedRuntime), unsupported)
     }

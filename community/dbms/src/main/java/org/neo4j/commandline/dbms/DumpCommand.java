@@ -124,7 +124,7 @@ public class DumpCommand implements AdminCommand
         }
         catch ( StoreLockException e )
         {
-            throw new CommandFailed( "the database is in use -- stop Neo4j and try again", e );
+            throw new CommandFailed( "the database is in use -- stop ONgDB and try again", e );
         }
         catch ( IOException e )
         {
@@ -132,7 +132,7 @@ public class DumpCommand implements AdminCommand
         }
         catch ( CannotWriteException e )
         {
-            throw new CommandFailed( "you do not have permission to dump the database -- is Neo4j running as a different user?", e );
+            throw new CommandFailed( "you do not have permission to dump the database -- is ONgDB running as a different user?", e );
         }
     }
 

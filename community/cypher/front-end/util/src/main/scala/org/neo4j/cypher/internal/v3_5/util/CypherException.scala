@@ -193,10 +193,10 @@ object ExhaustiveShortestPathForbiddenException {
   val ERROR_MSG: String =
     s"""Shortest path fallback has been explicitly disabled. That means that no full path enumeration is performed in
        |case shortest path algorithms cannot be used. This might happen in case of existential predicates on the path,
-       |e.g., when searching for the shortest path containing a node with property 'name=Emil'. The problem is that
+       |e.g., when searching for the shortest path containing a node with property 'name=Brad'. The problem is that
        |graph algorithms work only on universal predicates, e.g., when searching for the shortest where all nodes have
-       |label 'Person'. In case this is an unexpected error please either disable the runtime error in the Neo4j
-       |configuration or please improve your query by consulting the Neo4j manual.  In order to avoid planning the
+       |label 'Person'. In case this is an unexpected error please either disable the runtime error in the ONgDB
+       |configuration or please improve your query by consulting the ONgDB manual.  In order to avoid planning the
        |shortest path fallback a WITH clause can be introduced to separate the MATCH describing the shortest paths and
        |the existential predicates on the path; note though that in this case all shortest paths are computed before
        |start filtering.""".stripMargin
@@ -213,7 +213,7 @@ object ShortestPathCommonEndNodesForbiddenException {
     s"""The shortest path algorithm does not work when the start and end nodes are the same. This can happen if you
        |perform a shortestPath search after a cartesian product that might have the same start and end nodes for some
        |of the rows passed to shortestPath. If you would rather not experience this exception, and can accept the
-       |possibility of missing results for those rows, disable this in the Neo4j configuration by setting
+       |possibility of missing results for those rows, disable this in the ONgDB configuration by setting
        |`cypher.forbid_shortestpath_common_nodes` to false. If you cannot accept missing results, and really want the
        |shortestPath between two common nodes, then re-write the query using a standard Cypher variable length pattern
        |expression followed by ordering by path length and limiting to one result.""".stripMargin

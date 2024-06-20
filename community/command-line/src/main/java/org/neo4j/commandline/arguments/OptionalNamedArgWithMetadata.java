@@ -47,7 +47,7 @@ import static org.neo4j.kernel.impl.util.Converters.identity;
 import static org.neo4j.kernel.impl.util.Converters.withDefault;
 
 /**
- * Some arguments can have a variable name, such as in neo4j-admin import where the `--relationships` argument may
+ * Some arguments can have a variable name, such as in ongdb-admin import where the `--relationships` argument may
  * have the following form:
  *
  * --relationships:MYTYPE=file.csv

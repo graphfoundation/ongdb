@@ -101,7 +101,7 @@ public class SetInitialPasswordCommandIT
         tool.execute( homeDir.toPath(), confDir.toPath(), SET_PASSWORD, "abc" );
         assertAuthIniFile( "abc" );
 
-        verify( out ).stdOutLine( "Changed password for user 'neo4j'." );
+        verify( out ).stdOutLine( "Changed password for user 'ongdb'." );
     }
 
     @Test
@@ -112,18 +112,18 @@ public class SetInitialPasswordCommandIT
         tool.execute( homeDir.toPath(), confDir.toPath(), SET_PASSWORD, "muchBetter" );
         assertAuthIniFile( "muchBetter" );
 
-        verify( out, times( 2 ) ).stdOutLine( "Changed password for user 'neo4j'." );
+        verify( out, times( 2 ) ).stdOutLine( "Changed password for user 'ongdb'." );
     }
 
     @Test
     public void shouldWorkWithSamePassword() throws Throwable
     {
-        tool.execute( homeDir.toPath(), confDir.toPath(), SET_PASSWORD, "neo4j" );
-        assertAuthIniFile( "neo4j" );
-        tool.execute( homeDir.toPath(), confDir.toPath(), SET_PASSWORD, "neo4j" );
-        assertAuthIniFile( "neo4j" );
+        tool.execute( homeDir.toPath(), confDir.toPath(), SET_PASSWORD, "ongdb" );
+        assertAuthIniFile( "ongdb" );
+        tool.execute( homeDir.toPath(), confDir.toPath(), SET_PASSWORD, "ongdb" );
+        assertAuthIniFile( "ongdb" );
 
-        verify( out, times( 2 ) ).stdOutLine( "Changed password for user 'neo4j'." );
+        verify( out, times( 2 ) ).stdOutLine( "Changed password for user 'ongdb'." );
     }
 
     @Test
@@ -134,14 +134,14 @@ public class SetInitialPasswordCommandIT
 
         verify( out ).stdErrLine( "not enough arguments" );
         verify( out, times( 3 ) ).stdErrLine( "" );
-        verify( out ).stdErrLine( "usage: neo4j-admin set-initial-password <password>" );
+        verify( out ).stdErrLine( "usage: ongdb-admin set-initial-password <password>" );
         verify( out ).stdErrLine( String.format( "environment variables:" ) );
-        verify( out ).stdErrLine( String.format( "    NEO4J_CONF    Path to directory which contains neo4j.conf." ) );
-        verify( out ).stdErrLine( String.format( "    NEO4J_DEBUG   Set to anything to enable debug output." ) );
-        verify( out ).stdErrLine( String.format( "    NEO4J_HOME    Neo4j home directory." ) );
+        verify( out ).stdErrLine( String.format( "    ONGDB_CONF    Path to directory which contains ongdb.conf." ) );
+        verify( out ).stdErrLine( String.format( "    ONGDB_DEBUG   Set to anything to enable debug output." ) );
+        verify( out ).stdErrLine( String.format( "    ONGDB_HOME    ONgDB home directory." ) );
         verify( out ).stdErrLine( String.format( "    HEAP_SIZE     Set JVM maximum heap size during command execution." ) );
         verify( out ).stdErrLine( String.format( "                  Takes a number and a unit, for example 512m." ) );
-        verify( out ).stdErrLine( "Sets the initial password of the initial admin user ('neo4j')." );
+        verify( out ).stdErrLine( "Sets the initial password of the initial admin user ('ongdb')." );
         verify( out ).exit( 1 );
         verifyNoMoreInteractions( out );
         verify( out, never() ).stdOutLine( anyString() );
@@ -155,15 +155,15 @@ public class SetInitialPasswordCommandIT
 
         verify( out ).stdErrLine( "unrecognized arguments: 'bar'" );
         verify( out, times( 3 ) ).stdErrLine( "" );
-        verify( out ).stdErrLine( "usage: neo4j-admin set-initial-password <password>" );
+        verify( out ).stdErrLine( "usage: ongdb-admin set-initial-password <password>" );
         verify( out ).stdErrLine( String.format( "environment variables:" ) );
-        verify( out ).stdErrLine( String.format( "    NEO4J_CONF    Path to directory which contains neo4j.conf." ) );
-        verify( out ).stdErrLine( String.format( "    NEO4J_DEBUG   Set to anything to enable debug output." ) );
-        verify( out ).stdErrLine( String.format( "    NEO4J_HOME    Neo4j home directory." ) );
+        verify( out ).stdErrLine( String.format( "    ONGDB_CONF    Path to directory which contains ongdb.conf." ) );
+        verify( out ).stdErrLine( String.format( "    ONGDB_DEBUG   Set to anything to enable debug output." ) );
+        verify( out ).stdErrLine( String.format( "    ONGDB_HOME    ONgDB home directory." ) );
         verify( out ).stdErrLine( String.format( "    HEAP_SIZE     Set JVM maximum heap size during command execution." ) );
         verify( out ).stdErrLine( String.format( "                  Takes a number and a unit, for example 512m." ) );
 
-        verify( out ).stdErrLine( "Sets the initial password of the initial admin user ('neo4j')." );
+        verify( out ).stdErrLine( "Sets the initial password of the initial admin user ('ongdb')." );
         verify( out ).exit( 1 );
         verifyNoMoreInteractions( out );
         verify( out, never() ).stdOutLine( anyString() );
@@ -183,7 +183,7 @@ public class SetInitialPasswordCommandIT
         // Then
         assertNoAuthIniFile();
         verify( out, times( 1 ) )
-                .stdErrLine( "command failed: the provided initial password was not set because existing Neo4j users were " +
+                .stdErrLine( "command failed: the provided initial password was not set because existing ONgDB users were " +
                         "detected at `" + authFile.getAbsolutePath() + "`. Please remove the existing `auth` file if you " +
                         "want to reset your database to only have a default user with the provided password." );
         verify( out ).exit( 1 );
@@ -207,7 +207,7 @@ public class SetInitialPasswordCommandIT
         // Then
         assertNoAuthIniFile();
         verify( out, times( 1 ) )
-                .stdErrLine( "command failed: the provided initial password was not set because existing Neo4j users were " +
+                .stdErrLine( "command failed: the provided initial password was not set because existing ONgDB users were " +
                         "detected at `" + authFile.getAbsolutePath() + "`. Please remove the existing `auth` and `roles` files if you " +
                         "want to reset your database to only have a default user with the provided password." );
         verify( out ).exit( 1 );
@@ -229,12 +229,12 @@ public class SetInitialPasswordCommandIT
         // Then
         assertNoAuthIniFile();
         verify( out, times( 1 ) )
-                .stdErrLine( "command failed: the provided initial password was not set because existing Neo4j users were " +
+                .stdErrLine( "command failed: the provided initial password was not set because existing ONgDB users were " +
                         "detected at `" + authFile.getAbsolutePath() + "`. Please remove the existing `auth` file if you " +
                         "want to reset your database to only have a default user with the provided password." );
         verify( out ).exit( 1 );
 
-        verify( out, times( 1 ) ).stdOutLine( "Changed password for user 'neo4j'." ); // This is from the initial setup
+        verify( out, times( 1 ) ).stdOutLine( "Changed password for user 'ongdb'." ); // This is from the initial setup
     }
 
     @Test
@@ -252,7 +252,7 @@ public class SetInitialPasswordCommandIT
 
         // Then
         assertAuthIniFile( "should-not-be-ignored" );
-        verify( out, times( 2 ) ).stdOutLine( "Changed password for user 'neo4j'." );
+        verify( out, times( 2 ) ).stdOutLine( "Changed password for user 'ongdb'." );
     }
 
     private void assertAuthIniFile( String password ) throws Throwable

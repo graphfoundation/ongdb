@@ -109,19 +109,19 @@ public class StoreInfoCommandTest
         try ( ByteArrayOutputStream baos = new ByteArrayOutputStream() )
         {
             PrintStream ps = new PrintStream( baos );
-            Usage usage = new Usage( "neo4j-admin", mock( CommandLocator.class ) );
+            Usage usage = new Usage( "ongdb-admin", mock( CommandLocator.class ) );
             usage.printUsageForCommand( new StoreInfoCommandProvider(), ps::println );
 
-            assertEquals( String.format( "usage: neo4j-admin store-info --store=<path-to-dir>%n" +
+            assertEquals( String.format( "usage: ongdb-admin store-info --store=<path-to-dir>%n" +
                             "%n" +
                             "environment variables:%n" +
-                            "    NEO4J_CONF    Path to directory which contains neo4j.conf.%n" +
-                            "    NEO4J_DEBUG   Set to anything to enable debug output.%n" +
-                            "    NEO4J_HOME    Neo4j home directory.%n" +
+                            "    ONGDB_CONF    Path to directory which contains ongdb.conf.%n" +
+                            "    ONGDB_DEBUG   Set to anything to enable debug output.%n" +
+                            "    ONGDB_HOME    ONgDB home directory.%n" +
                             "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
                             "                  Takes a number and a unit, for example 512m.%n" +
                             "%n" +
-                            "Prints information about a Neo4j database store, such as what version of Neo4j%n" +
+                            "Prints information about a ONgDB database store, such as what version of ONgDB%n" +
                             "created it. Note that this command expects a path to a store directory, for%n" +
                             "example --store=data/databases/graph.db.%n" +
                             "%n" +

@@ -90,7 +90,7 @@
                                 <exclude>*:*:*:test-jar:runtime:tests</exclude>
                             </excludes>
                             <searchTransitive>true</searchTransitive>
-                            <message>Neo4j cannot include test jars in compile scope</message>
+                            <message>ONgDB cannot include test jars in compile scope</message>
                         </bannedDependencies>
                     </rules>
                     <fail>true</fail>

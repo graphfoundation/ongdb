@@ -202,7 +202,7 @@ public class ServerUserLogTest
         assertTrue( Files.exists( getUserLogFileLocation( dir ) ) );
         assertThat( readUserLogFile( dir ), not( empty() ) );
         List<String> userLogFiles = allUserLogFiles( dir );
-        assertThat( userLogFiles, containsInAnyOrder( "neo4j.log", "neo4j.log.1", "neo4j.log.2", "neo4j.log.3", "neo4j.log.4" ) );
+        assertThat( userLogFiles, containsInAnyOrder( "ongdb.log", "ongdb.log.1", "ongdb.log.2", "ongdb.log.3", "ongdb.log.4" ) );
         assertEquals( maxArchives + 1, userLogFiles.size() );
     }
 
@@ -273,14 +273,14 @@ public class ServerUserLogTest
 
     private Path getUserLogFileLocation( File homeDir )
     {
-        return Paths.get( homeDir.getAbsolutePath(), "logs", "neo4j.log" );
+        return Paths.get( homeDir.getAbsolutePath(), "logs", "ongdb.log" );
     }
 
     private List<String> allUserLogFiles( File homeDir ) throws IOException
     {
         try ( Stream<String> stream = Files.list( Paths.get( homeDir.getAbsolutePath(), "logs" ) )
                 .map( x -> x.getFileName().toString() )
-                .filter( x -> x.contains( "neo4j.log" ) ) )
+                .filter( x -> x.contains( "ongdb.log" ) ) )
         {
             return stream.collect( Collectors.toList() );
         }

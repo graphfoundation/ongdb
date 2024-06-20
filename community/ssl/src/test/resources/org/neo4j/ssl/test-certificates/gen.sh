@@ -30,6 +30,6 @@ rm -rf ca
 ./gen-revocation.sh 07 6
 ./gen-revocation.sh 08 7
 ./gen-revocation.sh 09 8
-./gen-revocation.sh 10 9
-./gen-revocation.sh 11 10
-./gen-revocation.sh 12 11
+./gen-revocation.sh 0A 9
+./gen-revocation.sh 0B 10
+./gen-revocation.sh 0C 11

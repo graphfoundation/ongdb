@@ -47,8 +47,8 @@ import org.neo4j.kernel.impl.security.User;
 
 public interface UserManager
 {
-    String INITIAL_USER_NAME = "neo4j";
-    String INITIAL_PASSWORD = "neo4j";
+    String INITIAL_USER_NAME = "ongdb";
+    String INITIAL_PASSWORD = "ongdb";
 
     /**
      * NOTE: The initialPassword byte array will be cleared (overwritten with zeroes)

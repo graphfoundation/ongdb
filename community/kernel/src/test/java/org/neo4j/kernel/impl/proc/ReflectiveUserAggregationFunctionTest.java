@@ -212,7 +212,7 @@ public class ReflectiveUserAggregationFunctionTest
     {
         // Expect
         exception.expect( ProcedureException.class );
-        exception.expectMessage( "Don't know how to map `void` to the Neo4j Type System." );
+        exception.expectMessage( "Don't know how to map `void` to the ONgDB Type System." );
 
         // When
         compile( FunctionWithVoidOutput.class );
@@ -303,7 +303,7 @@ public class ReflectiveUserAggregationFunctionTest
     {
         // Expect
         exception.expect( ProcedureException.class );
-        exception.expectMessage( String.format("Don't know how to map `char[]` to the Neo4j Type System.%n" +
+        exception.expectMessage( String.format("Don't know how to map `char[]` to the ONgDB Type System.%n" +
                                  "Please refer to to the documentation for full details.%n" +
                                  "For your reference, known types are: [boolean, byte[], double, java.lang.Boolean, " +
                                  "java.lang.Double, java.lang.Long, java.lang.Number, java.lang.Object, " +

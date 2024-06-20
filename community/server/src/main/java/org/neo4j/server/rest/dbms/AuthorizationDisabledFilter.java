@@ -73,7 +73,7 @@ public class AuthorizationDisabledFilter extends AuthorizationFilter
             JettyHttpConnection.updateUserForCurrentConnection( loginContext.subject().username(), userAgent );
 
             filterChain.doFilter(
-                    new AuthorizedRequestWrapper( BASIC_AUTH, "neo4j", request, loginContext ),
+                    new AuthorizedRequestWrapper( BASIC_AUTH, "ongdb", request, loginContext ),
                     servletResponse );
         }
         catch ( AuthorizationViolationException e )

@@ -101,7 +101,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
     }
 
     /**
-     * Do the actual transfer of the source (a Neo4j database dump) to the target.
+     * Do the actual transfer of the source (a ONgDB database dump) to the target.
      */
     @Override
     public void copy( boolean verbose, String consoleURL, String boltUri, PushToCloudCommand.Source source, boolean deleteSourceAfterImport,
@@ -296,7 +296,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
                 switch ( responseCode )
                 {
                 case HTTP_NOT_FOUND:
-                    throw errorResponse( verbose, connection, "We encountered a problem while contacting your Neo4j Aura instance, " +
+                    throw errorResponse( verbose, connection, "We encountered a problem while contacting your ONgDB Cloud instance, " +
                                                               "please check your Bolt URI" );
                 case HTTP_MOVED_PERM:
                     throw updatePluginErrorResponse( connection );
@@ -339,7 +339,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
     }
 
     /**
-     * Communication with Neo4j's cloud console, resulting in some signed URI to do the actual upload to.
+     * Communication with ONgDB's cloud console, resulting in some signed URI to do the actual upload to.
      */
     private URL initiateCopy( boolean verbose, URL importURL, long crc32Sum, long size, String bearerToken )
             throws IOException, CommandFailed
@@ -384,7 +384,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
     }
 
     /**
-     * Makes initial contact with the signed URL we got back when talking to the Neo4j cloud console. This will create yet another URL
+     * Makes initial contact with the signed URL we got back when talking to the ONgDB cloud console. This will create yet another URL
      * which will be used to upload the source to, potentially resumed if it gets interrupted in the middle.
      */
     private URL initiateResumableUpload( boolean verbose, URL signedURL ) throws IOException, CommandFailed
@@ -702,9 +702,9 @@ public class HttpCopier implements PushToCloudCommand.Copier
     private CommandFailed resumePossibleErrorResponse( HttpURLConnection connection, Path dump, String boltUri ) throws IOException
     {
         debugErrorResponse( true, connection );
-        return new CommandFailed( "We encountered a problem while communicating to the Neo4j Aura system. \n" +
+        return new CommandFailed( "We encountered a problem while communicating to the ONgDB Cloud system. \n" +
                                   "You can re-try using the existing dump by running this command: \n" +
-                                  String.format( "neo4j-admin push-to-cloud --%s=%s --%s=%s", "dump", dump.toFile().getAbsolutePath(), "bolt-uri",
+                                  String.format( "ongdb-admin push-to-cloud --%s=%s --%s=%s", "dump", dump.toFile().getAbsolutePath(), "bolt-uri",
                                                  boltUri ) );
     }
 
@@ -712,7 +712,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
     {
         debugErrorResponse( true, connection );
         return new CommandFailed(
-                "We encountered a problem while communicating to the Neo4j Aura system. " +
+                "We encountered a problem while communicating to the ONgDB Cloud system. " +
                 "Please check that you are using the latest version of the push-to-cloud plugin and upgrade if necessary. " +
                 "If this problem persists after upgrading, please contact support and attach the logs shown below to your ticket in the support portal." );
     }
@@ -767,7 +767,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
         ProgressListener create( String text, long length );
     }
 
-    // Simple structs for mapping JSON to objects, used by the jackson parser which Neo4j happens to depend on anyway
+    // Simple structs for mapping JSON to objects, used by the jackson parser which ONgDB happens to depend on anyway
     @JsonIgnoreProperties( ignoreUnknown = true )
     private static class SignedURIBody
     {

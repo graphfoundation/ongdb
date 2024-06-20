@@ -86,11 +86,11 @@ public class ServerSettings implements LoadableConfig
     public static final Setting<Integer> maximum_response_header_size =
             setting( "unsupported.dbms.max_http_response_header_size", INTEGER, "20480" );
 
-    @Description( "Comma-separated list of custom security rules for Neo4j to use." )
+    @Description( "Comma-separated list of custom security rules for ONgDB to use." )
     public static final Setting<List<String>> security_rules =
             setting( "dbms.security.http_authorization_classes", STRING_LIST, EMPTY );
 
-    @Description( "Number of Neo4j worker threads. This setting is only valid for REST, and does not influence bolt-server. " +
+    @Description( "Number of ONgDB worker threads. This setting is only valid for REST, and does not influence bolt-server. " +
             "It sets the amount of worker threads for the Jetty server used by ongdb-server. " +
             "This option can be tuned when you plan to execute multiple, concurrent REST requests, " +
             "with the aim of getting more throughput from the database. " +
@@ -195,7 +195,7 @@ public class ServerSettings implements LoadableConfig
             "20m" ).constraint( range(0L, Long.MAX_VALUE ) ).build();
 
     @SuppressWarnings( "unused" ) // used only in the startup scripts
-    @Description( "Path of the run directory. This directory holds Neo4j's runtime state, such as a pidfile when it " +
+    @Description( "Path of the run directory. This directory holds ONgDB's runtime state, such as a pidfile when it " +
             "is running in the background. The pidfile is created when starting neo4j and removed when stopping it." +
             " It may be placed on an in-memory filesystem such as tmpfs." )
     public static final Setting<File> run_directory = pathSetting( "dbms.directories.run", "run" );

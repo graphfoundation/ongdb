@@ -61,7 +61,7 @@ public class AuthProviderFailedException extends RuntimeException implements Sta
         super( msg, cause );
     }
 
-    /** The Neo4j status code associated with this exception type. */
+    /** The ONgDB status code associated with this exception type. */
     @Override
     public Status status()
     {

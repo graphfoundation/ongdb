@@ -85,7 +85,7 @@ public interface IndexAccessor extends Closeable, IndexConfigProvider, Consisten
     IndexUpdater newUpdater( IndexUpdateMode mode );
 
     /**
-     * Forces this index to disk. Called at certain points from within Neo4j for example when
+     * Forces this index to disk. Called at certain points from within ONgDB for example when
      * rotating the logical log. After completion of this call there cannot be any essential state that
      * hasn't been forced to disk.
      *

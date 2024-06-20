@@ -43,7 +43,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Map;
 
@@ -57,6 +56,7 @@ import org.neo4j.kernel.api.security.exception.InvalidAuthTokenException;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.security.User;
 import org.neo4j.logging.NullLogProvider;
+import org.neo4j.string.UTF8;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -79,7 +79,7 @@ import static org.neo4j.test.assertion.Assert.assertException;
 public class BasicAuthManagerTest extends InitialUserTest
 {
     private BasicAuthManager manager;
-    private AuthenticationStrategy authStrategy = mock( AuthenticationStrategy.class );
+    private final AuthenticationStrategy authStrategy = mock( AuthenticationStrategy.class );
 
     @Before
     public void setup() throws Throwable
@@ -103,9 +103,8 @@ public class BasicAuthManagerTest extends InitialUserTest
     {
         // Given
         manager.start();
-        User user1 = newUser( "jake", "abc123", false );
-        users.create( user1 );
-        final User user = user1;
+        User user = newUser( "jake", "abc123", false );
+        users.create( user );
 
         // When
         when( authStrategy.authenticate( user, password( "abc123" ) ) ).thenReturn( SUCCESS );
@@ -119,9 +118,8 @@ public class BasicAuthManagerTest extends InitialUserTest
     {
         // Given
         manager.start();
-        User user1 = newUser( "jake", "abc123", true );
-        users.create( user1 );
-        final User user = user1;
+        User user = newUser( "jake", "abc123", true );
+        users.create( user );
 
         // When
         when( authStrategy.authenticate( user, password( "abc123" ) ) ).thenReturn( TOO_MANY_ATTEMPTS );
@@ -135,9 +133,8 @@ public class BasicAuthManagerTest extends InitialUserTest
     {
         // Given
         manager.start();
-        User user1 = newUser( "jake", "abc123", true );
-        users.create( user1 );
-        final User user = user1;
+        User user = newUser( "jake", "abc123", true );
+        users.create( user );
 
         // When
         when( authStrategy.authenticate( user, password( "abc123" ) )).thenReturn( SUCCESS );
@@ -245,8 +242,8 @@ public class BasicAuthManagerTest extends InitialUserTest
         manager.login( authToken );
 
         // Then
-        assertThat( password, equalTo( clearedPasswordWithSameLenghtAs( "abc123" ) ) );
-        assertThat( authToken.get( AuthToken.CREDENTIALS ), equalTo( clearedPasswordWithSameLenghtAs( "abc123" ) ) );
+        assertThat( password, equalTo( clearedPasswordWithSameLengthAs( "abc123" ) ) );
+        assertThat( authToken.get( AuthToken.CREDENTIALS ), equalTo( clearedPasswordWithSameLengthAs( "abc123" ) ) );
     }
 
     @Test
@@ -268,8 +265,8 @@ public class BasicAuthManagerTest extends InitialUserTest
         {
             // expected
         }
-        assertThat( password, equalTo( clearedPasswordWithSameLenghtAs( "abc123" ) ) );
-        assertThat( authToken.get( AuthToken.CREDENTIALS ), equalTo( clearedPasswordWithSameLenghtAs( "abc123" ) ) );
+        assertThat( password, equalTo( clearedPasswordWithSameLengthAs( "abc123" ) ) );
+        assertThat( authToken.get( AuthToken.CREDENTIALS ), equalTo( clearedPasswordWithSameLengthAs( "abc123" ) ) );
     }
 
     @Test
@@ -283,7 +280,7 @@ public class BasicAuthManagerTest extends InitialUserTest
         manager.newUser( "jake", password, true );
 
         // Then
-        assertThat( password, equalTo( clearedPasswordWithSameLenghtAs( "abc123" ) ) );
+        assertThat( password, equalTo( clearedPasswordWithSameLengthAs( "abc123" ) ) );
         User user = manager.getUser( "jake" );
         assertTrue( user.credentials().matchesPassword( "abc123" ) );
     }
@@ -308,7 +305,7 @@ public class BasicAuthManagerTest extends InitialUserTest
         }
 
         // Then
-        assertThat( password, equalTo( clearedPasswordWithSameLenghtAs( "abc123" ) ) );
+        assertThat( password, equalTo( clearedPasswordWithSameLengthAs( "abc123" ) ) );
     }
 
     @Test
@@ -323,7 +320,7 @@ public class BasicAuthManagerTest extends InitialUserTest
         manager.setUserPassword( "jake", newPassword, false );
 
         // Then
-        assertThat( newPassword, equalTo( clearedPasswordWithSameLenghtAs( "abc123" ) ) );
+        assertThat( newPassword, equalTo( clearedPasswordWithSameLengthAs( "abc123" ) ) );
         User user = manager.getUser( "jake" );
         assertTrue( user.credentials().matchesPassword( "abc123" ) );
     }
@@ -348,7 +345,7 @@ public class BasicAuthManagerTest extends InitialUserTest
         }
 
         // Then
-        assertThat( newPassword, equalTo( clearedPasswordWithSameLenghtAs( "abc123" ) ) );
+        assertThat( newPassword, equalTo( clearedPasswordWithSameLengthAs( "abc123" ) ) );
     }
 
     @Test
@@ -375,7 +372,7 @@ public class BasicAuthManagerTest extends InitialUserTest
         manager.start();
 
         assertException(
-                () -> manager.login( map( AuthToken.SCHEME_KEY, "supercool", AuthToken.PRINCIPAL, "neo4j" ) ),
+                () -> manager.login( map( AuthToken.SCHEME_KEY, "supercool", AuthToken.PRINCIPAL, "ongdb" ) ),
                 InvalidAuthTokenException.class,
                 "Unsupported authentication token, scheme 'supercool' is not supported." );
 
@@ -390,7 +387,7 @@ public class BasicAuthManagerTest extends InitialUserTest
                 "Unsupported authentication token, missing key `scheme`" );
 
         assertException(
-                () -> manager.login( map( AuthToken.SCHEME_KEY, "basic", AuthToken.PRINCIPAL, "neo4j" ) ),
+                () -> manager.login( map( AuthToken.SCHEME_KEY, "basic", AuthToken.PRINCIPAL, "ongdb" ) ),
                 InvalidAuthTokenException.class,
                 "Unsupported authentication token, missing key `credentials`" );
 
@@ -415,12 +412,12 @@ public class BasicAuthManagerTest extends InitialUserTest
 
     public static byte[] password( String passwordString )
     {
-        return passwordString != null ? passwordString.getBytes( StandardCharsets.UTF_8 ) : null;
+        return passwordString != null ? UTF8.encode( passwordString ) : null;
     }
 
-    public static byte[] clearedPasswordWithSameLenghtAs( String passwordString )
+    public static byte[] clearedPasswordWithSameLengthAs( String passwordString )
     {
-        byte[] password = passwordString.getBytes( StandardCharsets.UTF_8 );
+        byte[] password = UTF8.encode( passwordString );
         Arrays.fill( password, (byte) 0 );
         return password;
     }

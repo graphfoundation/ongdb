@@ -53,7 +53,7 @@ object makeValueNeoSafe extends (AnyValue => Value) with ListSupport {
     case _ => throw new CypherTypeException("Property values can only be of primitive types or arrays thereof")
   }
   /*
-  This method finds the type that we can use for the primitive array that Neo4j wants
+  This method finds the type that we can use for the primitive array that ONgDB wants
   We can't just find the nearest common supertype - we need a type that the other values
   can be coerced to according to Cypher coercion rules
    */

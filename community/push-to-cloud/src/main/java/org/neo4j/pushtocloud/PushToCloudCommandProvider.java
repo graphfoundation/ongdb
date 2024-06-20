@@ -55,7 +55,7 @@ public class PushToCloudCommandProvider extends AdminCommand.Provider
     @Override
     public String summary()
     {
-        return "Push database to Neo4j cloud";
+        return "Push database to ONgDB cloud";
     }
 
     @Override
@@ -68,8 +68,8 @@ public class PushToCloudCommandProvider extends AdminCommand.Provider
     @Override
     public String description()
     {
-        return "Push your local database to a Neo4j Aura instance. The database must be shutdown in order to take a dump to upload. " +
-                "The target location is your Neo4j Aura Bolt URI. You will be asked your Neo4j Cloud username and password during " +
+        return "Push your local database to a ONgDB Cloud instance. The database must be shutdown in order to take a dump to upload. " +
+                "The target location is your ONgDB Cloud Bolt URI. You will be asked your ONgDB Cloud username and password during " +
                 "the push-to-cloud operation.";
     }
 

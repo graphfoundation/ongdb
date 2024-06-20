@@ -56,7 +56,7 @@ import org.neo4j.io.os.OsBeanUtil;
 
 /**
  * Data collector section that contains meta data about the System,
- * Neo4j deployment, graph token counts, and retrieval.
+ * ONgDB deployment, graph token counts, and retrieval.
  */
 final class MetaSection
 {

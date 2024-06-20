@@ -155,17 +155,17 @@ public class SetDefaultAdminCommandIT
 
         verify( out ).stdErrLine( "not enough arguments" );
         verify( out, times( 3 ) ).stdErrLine( "" );
-        verify( out ).stdErrLine( "usage: neo4j-admin set-default-admin <username>" );
+        verify( out ).stdErrLine( "usage: ongdb-admin set-default-admin <username>" );
         verify( out, times( 3 ) ).stdErrLine( "" );
         verify( out ).stdErrLine( String.format( "environment variables:" ) );
-        verify( out ).stdErrLine( String.format( "    NEO4J_CONF    Path to directory which contains neo4j.conf." ) );
-        verify( out ).stdErrLine( String.format( "    NEO4J_DEBUG   Set to anything to enable debug output." ) );
-        verify( out ).stdErrLine( String.format( "    NEO4J_HOME    Neo4j home directory." ) );
+        verify( out ).stdErrLine( String.format( "    ONGDB_CONF    Path to directory which contains ongdb.conf." ) );
+        verify( out ).stdErrLine( String.format( "    ONGDB_DEBUG   Set to anything to enable debug output." ) );
+        verify( out ).stdErrLine( String.format( "    ONGDB_HOME    ONgDB home directory." ) );
         verify( out ).stdErrLine( String.format( "    HEAP_SIZE     Set JVM maximum heap size during command execution." ) );
         verify( out ).stdErrLine( String.format( "                  Takes a number and a unit, for example 512m." ) );
         verify( out ).stdErrLine(
                 String.format( "Sets the user to become admin if users but no roles are present, for example%n" +
-                        "when upgrading to neo4j 3.1 enterprise." ) );
+                        "when upgrading to ongdb 3.1 enterprise." ) );
         verify( out ).exit( 1 );
         verifyNoMoreInteractions( out );
         verify( out, never() ).stdOutLine( anyString() );
@@ -179,17 +179,17 @@ public class SetDefaultAdminCommandIT
 
         verify( out ).stdErrLine( "unrecognized arguments: 'bar'" );
         verify( out, times( 3 ) ).stdErrLine( "" );
-        verify( out ).stdErrLine( "usage: neo4j-admin set-default-admin <username>" );
+        verify( out ).stdErrLine( "usage: ongdb-admin set-default-admin <username>" );
         verify( out, times( 3 ) ).stdErrLine( "" );
         verify( out ).stdErrLine( String.format( "environment variables:" ) );
-        verify( out ).stdErrLine( String.format( "    NEO4J_CONF    Path to directory which contains neo4j.conf." ) );
-        verify( out ).stdErrLine( String.format( "    NEO4J_DEBUG   Set to anything to enable debug output." ) );
-        verify( out ).stdErrLine( String.format( "    NEO4J_HOME    Neo4j home directory." ) );
+        verify( out ).stdErrLine( String.format( "    ONGDB_CONF    Path to directory which contains ongdb.conf." ) );
+        verify( out ).stdErrLine( String.format( "    ONGDB_DEBUG   Set to anything to enable debug output." ) );
+        verify( out ).stdErrLine( String.format( "    ONGDB_HOME    ONgDB home directory." ) );
         verify( out ).stdErrLine( String.format( "    HEAP_SIZE     Set JVM maximum heap size during command execution." ) );
         verify( out ).stdErrLine( String.format( "                  Takes a number and a unit, for example 512m." ) );
         verify( out ).stdErrLine(
                 String.format( "Sets the user to become admin if users but no roles are present, for example%n" +
-                        "when upgrading to neo4j 3.1 enterprise." ) );
+                        "when upgrading to ongdb 3.1 enterprise." ) );
         verify( out ).exit( 1 );
         verifyNoMoreInteractions( out );
         verify( out, never() ).stdOutLine( anyString() );

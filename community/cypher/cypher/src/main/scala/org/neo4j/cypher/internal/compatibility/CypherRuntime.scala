@@ -114,7 +114,7 @@ class FallbackRuntime[CONTEXT <: RuntimeContext](runtimes: Seq[CypherRuntime[CON
 
   private def publicCannotCompile(originalException: Exception) =
     {
-      val message = s"This version of Neo4j does not support requested runtime: ${requestedRuntime.name}"
+      val message = s"This version of ONgDB does not support requested runtime: ${requestedRuntime.name}"
       val invalidArgument = new InvalidArgumentException(message, originalException)
       new org.neo4j.graphdb.QueryExecutionException(message, invalidArgument, invalidArgument.status.code().serialize())
     }

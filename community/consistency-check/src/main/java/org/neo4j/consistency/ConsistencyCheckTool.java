@@ -64,7 +64,6 @@ import org.neo4j.scheduler.JobScheduler;
 
 import static org.neo4j.helpers.Args.jarUsage;
 import static org.neo4j.helpers.Strings.joinAsLines;
-import static org.neo4j.helpers.collection.MapUtil.stringMap;
 import static org.neo4j.kernel.impl.recovery.RecoveryRequiredChecker.assertRecoveryIsNotRequired;
 import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createInitialisedScheduler;
 
@@ -78,7 +77,7 @@ public class ConsistencyCheckTool
         try
         {
             System.err.println("WARNING: ConsistencyCheckTool is deprecated and support for it will be" +
-                    "removed in a future version of Neo4j. Please use neo4j-admin check-consistency.");
+                    "removed in a future version of ONgDB. Please use ongdb-admin check-consistency.");
             runConsistencyCheckTool( args, System.out, System.err );
         }
         catch ( ToolFailureException e )
@@ -209,7 +208,7 @@ public class ConsistencyCheckTool
     private String usage()
     {
         return joinAsLines(
-                jarUsage( getClass(), " [-config <neo4j.conf>] [-v] <storedir>" ),
+                jarUsage( getClass(), " [-config <ongdb.conf>] [-v] <storedir>" ),
                 "WHERE:   -config <filename>  Is the location of an optional properties file",
                 "                             containing tuning parameters for the consistency check.",
                 "         -v                  Produce execution output.",

@@ -53,7 +53,7 @@ import org.neo4j.kernel.configuration.Config;
 /**
  * <p>
  * This factory can be used to create new space filling curve settings for use in configuring the curves.
- * These settings can be created either by defaults from the neo4j.conf file (see ConfiguredSpaceFullCurveSettingsCache)
+ * These settings can be created either by defaults from the ongdb.conf file (see ConfiguredSpaceFullCurveSettingsCache)
  * or from reading the header of an existing GBPTree based index.
  */
 public final class SpaceFillingCurveSettingsFactory

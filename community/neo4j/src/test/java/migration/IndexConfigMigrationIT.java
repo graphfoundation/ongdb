@@ -212,7 +212,7 @@ class IndexConfigMigrationIT
 
     private static File tempStoreDirectory() throws IOException
     {
-        File file = File.createTempFile( "create-db", "neo4j" );
+        File file = File.createTempFile( "create-db", "ongdb" );
         File storeDir = new File( file.getAbsoluteFile().getParentFile(), file.getName() );
         FileUtils.deleteFile( file );
         return storeDir;

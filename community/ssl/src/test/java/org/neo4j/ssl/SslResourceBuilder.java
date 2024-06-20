@@ -96,10 +96,10 @@ public class SslResourceBuilder
     private final SignedBy signedBy;
 
     private boolean trustSignedByCA;
-    private Set<Integer> trusted = new HashSet<>();
-    private Set<Integer> revoked = new HashSet<>();
+    private final Set<Integer> trusted = new HashSet<>();
+    private final Set<Integer> revoked = new HashSet<>();
 
-    private FileSystemAbstraction fsa = new DefaultFileSystemAbstraction();
+    private final FileSystemAbstraction fsa = new DefaultFileSystemAbstraction();
 
     private SslResourceBuilder( int keyId, SignedBy signedBy )
     {

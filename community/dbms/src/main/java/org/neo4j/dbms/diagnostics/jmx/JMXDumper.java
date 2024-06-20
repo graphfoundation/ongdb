@@ -53,7 +53,7 @@ import org.neo4j.io.fs.FileSystemAbstraction;
 import static org.neo4j.commandline.dbms.DiagnosticsReportCommand.PID_KEY;
 
 /**
- * Facilitates JMX Dump for current running Neo4j instance.
+ * Facilitates JMX Dump for current running ONgDB instance.
  */
 public class JMXDumper
 {
@@ -136,7 +136,7 @@ public class JMXDumper
 
     private Optional<Long> getPid()
     {
-        Path pidFile = this.homeDir.resolve( "run/neo4j.pid" );
+        Path pidFile = this.homeDir.resolve( "run/ongdb.pid" );
         if ( this.fs.fileExists( pidFile.toFile() ) )
         {
             // The file cannot be opened with write permissions on Windows

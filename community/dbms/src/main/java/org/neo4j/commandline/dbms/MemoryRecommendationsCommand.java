@@ -222,9 +222,9 @@ public class MemoryRecommendationsCommand implements AdminCommand
         String pagecache = bytesToString( recommendPageCacheMemory( memory ) );
         boolean specificDb = arguments.has( ARG_DATABASE );
 
-        print( "# Memory settings recommendation from neo4j-admin memrec:" );
+        print( "# Memory settings recommendation from ongdb-admin memrec:" );
         print( "#" );
-        print( "# Assuming the system is dedicated to running Neo4j and has " + mem + " of memory," );
+        print( "# Assuming the system is dedicated to running ONgDB and has " + mem + " of memory," );
         print( "# we recommend a heap size of around " + heap + ", and a page cache of around " + pagecache + "," );
         print( "# and that about " + os + " is left for the operating system, and the native memory" );
         print( "# needed by Lucene and Netty." );

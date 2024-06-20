@@ -46,7 +46,7 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.config.Configuration;
 
 /**
- * Control panel for a Neo4j test instance.
+ * Control panel for a ONgDB test instance.
  */
 public interface ServerControls extends AutoCloseable
 {

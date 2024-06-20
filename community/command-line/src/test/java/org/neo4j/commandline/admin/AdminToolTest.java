@@ -57,7 +57,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-import static org.neo4j.commandline.Util.neo4jVersion;
+import static org.neo4j.commandline.Util.ongdbVersion;
 import static org.neo4j.commandline.admin.AdminTool.STATUS_ERROR;
 import static org.neo4j.commandline.admin.AdminTool.STATUS_SUCCESS;
 
@@ -96,7 +96,7 @@ class AdminToolTest
         OutsideWorld outsideWorld = mock( OutsideWorld.class );
         new AdminTool( new NullCommandLocator(), new NullBlockerLocator(), outsideWorld, false ).execute( null, null );
         verify( outsideWorld ).stdErrLine( "you must provide a command" );
-        verify( outsideWorld ).stdErrLine( "usage: neo4j-admin <command>" );
+        verify( outsideWorld ).stdErrLine( "usage: ongdb-admin <command>" );
         verify( outsideWorld ).exit( STATUS_ERROR );
     }
 
@@ -274,7 +274,7 @@ class AdminToolTest
 
         verifyNoMoreInteractions( command );
         verify( outsideWorld ).stdErrLine( "unrecognized command: --help" );
-        verify( outsideWorld ).stdErrLine( "usage: neo4j-admin <command>" );
+        verify( outsideWorld ).stdErrLine( "usage: ongdb-admin <command>" );
         verify( outsideWorld ).exit( STATUS_ERROR );
     }
 
@@ -289,7 +289,7 @@ class AdminToolTest
 
         verifyNoMoreInteractions( command );
         verify( outsideWorld ).stdErrLine( "unknown argument: --help" );
-        verify( outsideWorld ).stdErrLine( "usage: neo4j-admin command " );
+        verify( outsideWorld ).stdErrLine( "usage: ongdb-admin command " );
         verify( outsideWorld ).exit( STATUS_ERROR );
     }
 
@@ -303,7 +303,7 @@ class AdminToolTest
                 .execute( null, null, "--version" );
 
         verifyNoMoreInteractions( command );
-        verify( outsideWorld ).stdOutLine( "neo4j-admin " + neo4jVersion() );
+        verify( outsideWorld ).stdOutLine( "ongdb-admin " + ongdbVersion() );
         verify( outsideWorld ).exit( STATUS_SUCCESS );
     }
 
@@ -317,7 +317,7 @@ class AdminToolTest
                 .execute( null, null, "command", "--version" );
 
         verifyNoMoreInteractions( command );
-        verify( outsideWorld ).stdOutLine( "neo4j-admin " + neo4jVersion() );
+        verify( outsideWorld ).stdOutLine( "ongdb-admin " + ongdbVersion() );
         verify( outsideWorld ).exit( STATUS_SUCCESS );
     }
 

@@ -407,8 +407,8 @@ public class ImportTool
      */
     public static void main( String[] incomingArguments, boolean defaultSettingsSuitableForTests ) throws IOException
     {
-        System.err.println( format( "WARNING: neo4j-import is deprecated and support for it will be removed in a future%n" +
-                "version of Neo4j; please use neo4j-admin import instead." ) );
+        System.err.println( format( "WARNING: ongdb-import is deprecated and support for it will be removed in a future%n" +
+                "version of Neo4j; please use ongdb-admin import instead." ) );
 
         PrintStream out = System.out;
         PrintStream err = System.err;
@@ -681,7 +681,7 @@ public class ImportTool
             Collection<Option<File[]>> relationshipsFiles,
             org.neo4j.unsafe.impl.batchimport.Configuration configuration, PrintStream out )
     {
-        out.println( "Neo4j version: " + Version.getONgDBVersion() );
+        out.println( "ONgDB version: " + Version.getONgDBVersion() );
         out.println( "Importing the contents of these files into " + storeDir + ":" );
         printInputFiles( "Nodes", nodesFiles, out );
         printInputFiles( "Relationships", relationshipsFiles, out );
@@ -902,7 +902,7 @@ public class ImportTool
     private static void printUsage( PrintStream out )
     {
         out.println( "Neo4j Import Tool" );
-        for ( String line : Args.splitLongLine( "neo4j-import is used to create a new Neo4j database "
+        for ( String line : Args.splitLongLine( "ongdb-import is used to create a new ONgDB database "
                                                 + "from data in CSV files. "
                                                 +
                                                 "See the chapter \"Import Tool\" in the Neo4j Manual for details on the CSV file format "
@@ -918,7 +918,7 @@ public class ImportTool
 
         out.println( "Example:");
         out.print( Strings.joinAsLines(
-                TAB + "bin/neo4j-import --into retail.db --id-type string --nodes:Customer customers.csv ",
+                TAB + "bin/ongdb-import --into retail.db --id-type string --nodes:Customer customers.csv ",
                 TAB + "--nodes products.csv --nodes orders_header.csv,orders1.csv,orders2.csv ",
                 TAB + "--relationships:CONTAINS order_details.csv ",
                 TAB + "--relationships:ORDERED customer_orders_header.csv,orders1.csv,orders2.csv" ) );

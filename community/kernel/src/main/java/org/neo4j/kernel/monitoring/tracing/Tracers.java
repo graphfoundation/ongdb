@@ -112,9 +112,9 @@ import org.neo4j.time.SystemNanoClock;
  * <p>
  *     The {@code default} and {@code null} implementation are always available, and 3rd party implementations can
  *     piggy-back on them and extend them. At least one 3rd party implementation is known at this point; the
- *     <a href="https://github.com/neo4j-contrib/neo4j-jfr">neo4j-jfr implementation</a>. It is recommended that
+ *     <a href="https://github.com/ongdb-contrib/ongdb-jfr">ongdb-jfr implementation</a>. It is recommended that
  *     those change the tracer or trace event interfaces, or add tracing to more subsystems, also make sure to keep
- *     the neo4j-jfr code base up to date.
+ *     the ongdb-jfr code base up to date.
  * </p>
  */
 public class Tracers

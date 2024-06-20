@@ -44,44 +44,44 @@ class ArrayBackedMapTest extends CypherFunSuite {
 
   test("updating and getting") {
     val map = ArrayBackedMap.apply[String, String]("name", "id")
-    map.putValues(Array("neo", "123"))
+    map.putValues(Array("ong", "123"))
 
-    map.get("name") should equal(Some("neo"))
+    map.get("name") should equal(Some("ong"))
     map.get("id") should equal(Some("123"))
     map.get("other") should equal(None)
   }
 
   test("+ operator with existing key") {
     val map = ArrayBackedMap.apply[String, String]("name", "id")
-    map.putValues(Array("neo", "123"))
-    val updatedMap = map + ("name" -> "oen")
+    map.putValues(Array("ong", "123"))
+    val updatedMap = map + ("name" -> "gno")
 
-    map.get("name") should equal(Some("neo"))
+    map.get("name") should equal(Some("ong"))
     map.get("id") should equal(Some("123"))
-    updatedMap.get("name") should equal(Some("oen"))
+    updatedMap.get("name") should equal(Some("gno"))
     updatedMap.get("id") should equal(Some("123"))
   }
 
   test("+ operator with non-existing key") {
     val map = ArrayBackedMap.apply[String, String]("name", "id")
-    map.putValues(Array("neo", "123"))
+    map.putValues(Array("ong", "123"))
     val updatedMap = map + ("age" -> "35")
 
-    map.get("name") should equal(Some("neo"))
+    map.get("name") should equal(Some("ong"))
     map.get("id") should equal(Some("123"))
     map.get("age") should equal(None)
 
-    updatedMap.get("name") should equal(Some("neo"))
+    updatedMap.get("name") should equal(Some("ong"))
     updatedMap.get("id") should equal(Some("123"))
     updatedMap.get("age") should equal(Some("35"))
   }
 
   test("- operator on existing key") {
     val map = ArrayBackedMap.apply[String, String]("name", "id")
-    map.putValues(Array("neo", "123"))
+    map.putValues(Array("ong", "123"))
     val updatedMap = map - "name"
 
-    map.get("name") should equal(Some("neo"))
+    map.get("name") should equal(Some("ong"))
     map.get("id") should equal(Some("123"))
     updatedMap.get("name") should equal(None)
     updatedMap.get("id") should equal(Some("123"))
@@ -89,15 +89,15 @@ class ArrayBackedMapTest extends CypherFunSuite {
 
   test("iterating over map") {
     val map = ArrayBackedMap.apply[String, String]("name", "id")
-    map.putValues(Array("neo", "123"))
-    map.iterator.toSet should equal(Set(("name", "neo"), ("id", "123")))
+    map.putValues(Array("ong", "123"))
+    map.iterator.toSet should equal(Set(("name", "ong"), ("id", "123")))
   }
 
   test("support one null key") {
     val map = ArrayBackedMap.apply[String, String]("name", null)
-    map.putValues(Array("neo", "123"))
+    map.putValues(Array("ong", "123"))
 
-    map.get("name") should equal(Some("neo"))
+    map.get("name") should equal(Some("ong"))
     map.get(null) should equal(Some("123"))
   }
 
@@ -112,9 +112,9 @@ class ArrayBackedMapTest extends CypherFunSuite {
 
   test("support one null key mapped to null value") {
     val map = ArrayBackedMap.apply[String, String]("name", null)
-    map.putValues(Array("neo", null))
+    map.putValues(Array("ong", null))
 
-    map.get("name") should equal(Some("neo"))
+    map.get("name") should equal(Some("ong"))
     map.get(null) should equal(Some(null))
   }
 

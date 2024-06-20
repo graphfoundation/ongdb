@@ -69,7 +69,7 @@ class ConnectedStateTest
     {
         // Given
         // hello message
-        Map<String,Object> meta = map( "user_agent", "3.0", PRINCIPAL, "neo4j", CREDENTIALS, "password" );
+        Map<String,Object> meta = map( "user_agent", "3.0", PRINCIPAL, "ongdb", CREDENTIALS, "password" );
         HelloMessage helloMessage = new HelloMessage( meta );
 
         // setup state machine

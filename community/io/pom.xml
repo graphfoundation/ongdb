@@ -20,7 +20,7 @@
 
     <packaging>jar</packaging>
     <name>ONgDB - IO</name>
-    <description>Input/output abstraction layer for Neo4j.</description>
+    <description>Input/output abstraction layer for ONgDB.</description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
     <scm>

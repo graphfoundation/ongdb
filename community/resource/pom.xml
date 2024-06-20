@@ -20,7 +20,7 @@
 
     <packaging>jar</packaging>
     <name>ONgDB - Resource interface</name>
-    <description>Resource interface for Neo4j.</description>
+    <description>Resource interface for ONgDB.</description>
     <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
     <scm>
