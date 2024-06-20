@@ -58,12 +58,14 @@ import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
+import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
 import org.neo4j.graphdb.factory.GraphDatabaseBuilder;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.graphdb.factory.module.PlatformModule;
 import org.neo4j.graphdb.factory.module.edition.AbstractEditionModule;
+import org.neo4j.graphdb.factory.module.edition.CommunityEditionModule;
 import org.neo4j.graphdb.index.Index;
-import org.neo4j.io.layout.DatabaseFileNames;
 import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.StoreLockException;
@@ -71,10 +73,7 @@ import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.impl.api.TransactionHeaderInformation;
 import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
-import org.neo4j.graphdb.factory.module.edition.CommunityEditionModule;
 import org.neo4j.kernel.impl.factory.DatabaseInfo;
-import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
-import org.neo4j.graphdb.factory.module.PlatformModule;
 import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.impl.store.MetaDataStore.Position;
 import org.neo4j.kernel.impl.store.MismatchingStoreIdException;
@@ -306,7 +305,7 @@ public class BackupIT
         }
         catch ( RuntimeException e )
         {
-            assertThat(e.getCause(), instanceOf(MismatchingStoreIdException.class));
+            assertThat( e.getCause(), instanceOf( MismatchingStoreIdException.class ) );
         }
         shutdownServer( server );
         // Just make sure incremental backup can be received properly from
@@ -341,7 +340,7 @@ public class BackupIT
             backup.full( backupPath.getPath() );
             assertTrue( "Should be consistent", backup.isConsistent() );
             PageCache pageCache = pageCacheRule.getPageCache( fileSystemRule.get() );
-            long lastCommittedTx = getLastCommittedTx( backupPath.getPath(), pageCache );
+            long lastCommittedTx = getLastCommittedTx( backupDatabaseLayout, pageCache );
 
             for ( int i = 0; i < 5; i++ )
             {
@@ -353,7 +352,7 @@ public class BackupIT
                 }
                 backup = backup.incremental( backupPath.getPath() );
                 assertTrue( "Should be consistent", backup.isConsistent() );
-                assertEquals( lastCommittedTx + i + 1, getLastCommittedTx( backupPath.getPath(), pageCache ) );
+                assertEquals( lastCommittedTx + i + 1, getLastCommittedTx( backupDatabaseLayout, pageCache ) );
             }
         }
         finally
@@ -394,9 +393,9 @@ public class BackupIT
         }
     }
 
-    private long getLastCommittedTx( String path, PageCache pageCache ) throws IOException
+    private long getLastCommittedTx( DatabaseLayout databaseLayout, PageCache pageCache ) throws IOException
     {
-        File neoStore = new File( path, DatabaseFileNames.METADATA_STORE );
+        File neoStore = databaseLayout.metadataStore();
         return MetaDataStore.getRecord( pageCache, neoStore, Position.LAST_TRANSACTION_ID );
     }
 
