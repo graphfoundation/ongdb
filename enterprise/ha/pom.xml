@@ -164,12 +164,6 @@
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-shell</artifactId>
-            <version>${project.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>ongdb-geequel</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
