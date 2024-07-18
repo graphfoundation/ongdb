@@ -35,15 +35,7 @@
 package org.neo4j.cypher.internal.compiled_runtime.v3_5.codegen.expressions
 
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions._
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenContext
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.Variable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.Addition
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CypherCodeGenType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ListLiteral
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.Literal
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.NodeProjection
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ReferenceType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.RelationshipProjection
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.{CodeGenContext, Variable}
 import org.neo4j.cypher.internal.v3_5.util.symbols._
 import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 

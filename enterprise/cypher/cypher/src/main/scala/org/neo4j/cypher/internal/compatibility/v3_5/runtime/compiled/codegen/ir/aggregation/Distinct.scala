@@ -35,13 +35,9 @@
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.aggregation
 
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenContext
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.Instruction
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CodeGenExpression
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CodeGenExpression
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.HashableTupleDescriptor
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.MethodStructure
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.MethodStructure
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.{HashableTupleDescriptor, MethodStructure}
 
 case class Distinct(opName: String, setName: String, vars: Iterable[(String, CodeGenExpression)])
   extends AggregateExpression {

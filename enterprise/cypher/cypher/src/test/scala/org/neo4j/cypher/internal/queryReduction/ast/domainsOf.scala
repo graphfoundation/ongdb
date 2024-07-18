@@ -35,8 +35,8 @@
 package org.neo4j.cypher.internal.queryReduction.ast
 
 import org.neo4j.cypher.internal.v3_5.ast._
-import org.neo4j.cypher.internal.v3_5.util._
 import org.neo4j.cypher.internal.v3_5.expressions._
+import org.neo4j.cypher.internal.v3_5.util._
 
 object domainsOf {
 
@@ -53,8 +53,8 @@ object domainsOf {
       Seq(makeDomain(node, expectedType))
     }
 
-    def ofTupledSeq(bs: Seq[(ASTNode,ASTNode)], expectedFirstType: Class[_], expectedSecondType: Class[_]) : Seq[T] = {
-      bs.flatMap { case (b,c) => Seq(makeDomain(b, expectedFirstType), makeDomain(c, expectedSecondType))}
+    def ofTupledSeq(bs: Seq[(ASTNode, ASTNode)], expectedFirstType: Class[_], expectedSecondType: Class[_]): Seq[T] = {
+      bs.flatMap { case (b, c) => Seq(makeDomain(b, expectedFirstType), makeDomain(c, expectedSecondType)) }
     }
 
     grandParent match {
@@ -103,7 +103,7 @@ object domainsOf {
       case Where(exp) =>
         ofSingle(exp, classOf[Expression])
 
-      case _:Literal => Seq()
+      case _: Literal => Seq()
 
       case Parameter(_, _) => Seq()
 
@@ -118,7 +118,7 @@ object domainsOf {
         ofSingle(expression, classOf[Expression]) ++
           ofSeq(labels, classOf[LabelName])
 
-      case _:SymbolicName => Seq()
+      case _: SymbolicName => Seq()
 
       case RelationshipChain(element, relationship, rightNode) =>
         ofSingle(element, classOf[PatternElement]) ++
@@ -141,25 +141,25 @@ object domainsOf {
 
       case With(_, returnItems, orderBy, skip, limit, where) =>
         ofSingle(returnItems, classOf[ReturnItemsDef]) ++
-        ofOption(orderBy, classOf[OrderBy]) ++
-        ofOption(skip, classOf[Skip]) ++
-        ofOption(limit, classOf[Limit]) ++
-        ofOption(where, classOf[Where])
+          ofOption(orderBy, classOf[OrderBy]) ++
+          ofOption(skip, classOf[Skip]) ++
+          ofOption(limit, classOf[Limit]) ++
+          ofOption(where, classOf[Where])
 
       case MapExpression(items) =>
         ofTupledSeq(items, classOf[PropertyKeyName], classOf[Expression])
 
       case FilterExpression(scope, expression) =>
         ofSingle(scope, classOf[FilterScope]) ++
-        ofSingle(expression, classOf[Expression])
+          ofSingle(expression, classOf[Expression])
 
       case FilterScope(variable, innerPredicate) =>
         ofSingle(variable, classOf[Variable]) ++
-        ofOption(innerPredicate, classOf[Expression])
+          ofOption(innerPredicate, classOf[Expression])
 
-      case i:IterablePredicateExpression =>
+      case i: IterablePredicateExpression =>
         ofSingle(i.scope, classOf[FilterScope]) ++
-        ofSingle(i.expression, classOf[Expression])
+          ofSingle(i.expression, classOf[Expression])
 
       case ListLiteral(expressions) =>
         ofSeq(expressions, classOf[Expression])
@@ -167,59 +167,59 @@ object domainsOf {
       case OrderBy(sortItems) =>
         ofSeq(sortItems, classOf[SortItem])
 
-      case b:BinaryOperatorExpression =>
+      case b: BinaryOperatorExpression =>
         ofSingle(b.lhs, classOf[Expression]) ++
           ofSingle(b.rhs, classOf[Expression])
 
-      case l:LeftUnaryOperatorExpression =>
+      case l: LeftUnaryOperatorExpression =>
         ofSingle(l.rhs, classOf[Expression])
 
-      case r:RightUnaryOperatorExpression =>
+      case r: RightUnaryOperatorExpression =>
         ofSingle(r.lhs, classOf[Expression])
 
-      case m:MultiOperatorExpression =>
+      case m: MultiOperatorExpression =>
         ofSeq(m.exprs.toSeq, classOf[Expression])
 
-      case s:SortItem =>
+      case s: SortItem =>
         ofSingle(s.expression, classOf[Expression])
 
-      case a:ASTSlicingPhrase =>
+      case a: ASTSlicingPhrase =>
         ofSingle(a.expression, classOf[Expression])
 
-      case u:Union =>
+      case u: Union =>
         ofSingle(u.part, classOf[QueryPart]) ++
-        ofSingle(u.query, classOf[SingleQuery])
+          ofSingle(u.query, classOf[SingleQuery])
 
       case CaseExpression(expression, alternatives, default) =>
         ofOption(expression, classOf[Expression]) ++
-        ofTupledSeq(alternatives, classOf[Expression], classOf[Expression]) ++
-        ofOption(default, classOf[Expression])
+          ofTupledSeq(alternatives, classOf[Expression], classOf[Expression]) ++
+          ofOption(default, classOf[Expression])
 
       case ContainerIndex(expr, idx) =>
         ofSingle(expr, classOf[Expression]) ++
-        ofSingle(idx, classOf[Expression])
+          ofSingle(idx, classOf[Expression])
 
       case ReduceExpression(scope, init, list) =>
         ofSingle(scope, classOf[ReduceScope]) ++
-        ofSingle(init, classOf[Expression]) ++
-        ofSingle(list, classOf[Expression])
+          ofSingle(init, classOf[Expression]) ++
+          ofSingle(list, classOf[Expression])
 
       case ReduceScope(accumulator, variable, expression) =>
         ofSingle(accumulator, classOf[Variable]) ++
-        ofSingle(variable, classOf[Variable]) ++
-        ofSingle(expression, classOf[Expression])
+          ofSingle(variable, classOf[Variable]) ++
+          ofSingle(expression, classOf[Expression])
 
       case Foreach(variable, expression, updates) =>
         ofSingle(variable, classOf[Variable]) ++
-        ofSingle(expression, classOf[Expression]) ++
-        ofSeq(updates, classOf[Clause])
+          ofSingle(expression, classOf[Expression]) ++
+          ofSeq(updates, classOf[Clause])
 
       case SetClause(items) =>
-        ofSeq(items,classOf[SetItem])
+        ofSeq(items, classOf[SetItem])
 
       case SetPropertyItem(property, expression) =>
         ofSingle(property, classOf[Property]) ++
-        ofSingle(expression, classOf[Expression])
+          ofSingle(expression, classOf[Expression])
 
       case PatternComprehension(namedPath, pattern, predicate, projection) =>
         ofOption(namedPath, classOf[LogicalVariable]) ++

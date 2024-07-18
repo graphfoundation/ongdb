@@ -34,42 +34,40 @@
  */
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen
 
-import java.time.Clock
-import java.util
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.CompiledRuntimeName
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.Provider
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.{CompiledExecutionResult, CompiledPlan, RunnablePlan}
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.ExecutionPlanBuilder.DescriptionProvider
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir._
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.{PlanFingerprint, Provider}
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.CompiledExecutionResult
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.CompiledPlan
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.RunnablePlan
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.Instruction
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.CodeStructure
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.CodeStructureResult
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.{CodeStructure, CodeStructureResult}
 import org.neo4j.cypher.internal.compiler.v3_5.planner.CantCompileQueryException
-import org.neo4j.cypher.internal.v3_5.frontend.PlannerName
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.{Cardinalities, ReadOnlies}
-import org.neo4j.cypher.internal.planner.v3_5.spi.{InstrumentedGraphStatistics, PlanContext}
-import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments.{Runtime, RuntimeImpl}
+import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.{Cardinalities, ProvidedOrders}
+import org.neo4j.cypher.internal.runtime.{ExecutionMode, QueryContext}
 import org.neo4j.cypher.internal.runtime.planDescription.{InternalPlanDescription, LogicalPlan2PlanDescription}
-import org.neo4j.cypher.internal.runtime.{ExecutionMode, InternalExecutionResult, QueryContext}
-import org.neo4j.cypher.internal.v3_5.util.attribution.Id
-import org.neo4j.cypher.internal.v3_5.util.{Eagerly, TaskCloser}
-import org.neo4j.cypher.internal.v3_5.logical.plans.{LogicalPlan, ProduceResult}
+import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments.{Runtime, RuntimeImpl}
+import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
 import org.neo4j.cypher.internal.v3_5.codegen.QueryExecutionTracer
-import org.neo4j.cypher.internal.v3_5.executionplan.GeneratedQuery
-import org.neo4j.cypher.internal.v3_5.executionplan.GeneratedQueryExecution
+import org.neo4j.cypher.internal.v3_5.executionplan.{GeneratedQuery, GeneratedQueryExecution}
+import org.neo4j.cypher.internal.v3_5.frontend.PlannerName
+import org.neo4j.cypher.internal.v3_5.logical.plans.{LogicalPlan, ProduceResult}
+import org.neo4j.cypher.internal.v3_5.util.Eagerly
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.cypher.result.RuntimeResult
 import org.neo4j.values.virtual.MapValue
 
-class CodeGenerator(val structure: CodeStructure[GeneratedQuery], clock: Clock, conf: CodeGenConfiguration = CodeGenConfiguration() ) {
+class CodeGenerator(val structure: CodeStructure[GeneratedQuery],
+                    conf: CodeGenConfiguration = CodeGenConfiguration()
+                   ) {
 
   import CodeGenerator.generateCode
 
-  type PlanDescriptionProvider =
-          (InternalPlanDescription) => (Provider[InternalPlanDescription], Option[QueryExecutionTracer])
-
-  def generate(plan: LogicalPlan, planContext: PlanContext, semanticTable: SemanticTable, plannerName: PlannerName, readOnlies: ReadOnlies, cardinalities: Cardinalities): CompiledPlan = {
+  def generate(plan: LogicalPlan,
+               semanticTable: SemanticTable,
+               plannerName: PlannerName,
+               readOnly: Boolean,
+               cardinalities: Cardinalities,
+               providedOrders: ProvidedOrders
+              ): CompiledPlan = {
     plan match {
       case res: ProduceResult =>
         val query: CodeStructureResult[GeneratedQuery] = try {
@@ -79,16 +77,9 @@ class CodeGenerator(val structure: CodeStructure[GeneratedQuery], clock: Clock, 
           case e: Exception => throw new CantCompileQueryException(cause = e)
         }
 
-        val fp = planContext.statistics match {
-          case igs: InstrumentedGraphStatistics =>
-            Some(PlanFingerprint(clock.millis(), planContext.txIdProvider(), igs.snapshot.freeze))
-          case _ =>
-            None
-        }
-
         val description = new Provider[InternalPlanDescription] {
           override def get(): InternalPlanDescription = {
-            val d = LogicalPlan2PlanDescription(plan, plannerName, readOnlies, cardinalities)
+            val d = LogicalPlan2PlanDescription(plan, plannerName, readOnly, cardinalities, providedOrders)
             query.code.foldLeft(d) {
               case (descriptionRoot, code) => descriptionRoot.addArgument(code)
             }.addArgument(Runtime(CompiledRuntimeName.toTextOutput))
@@ -97,18 +88,19 @@ class CodeGenerator(val structure: CodeStructure[GeneratedQuery], clock: Clock, 
         }
 
         val builder = new RunnablePlan {
-          def apply(queryContext: QueryContext, execMode: ExecutionMode,
-                    descriptionProvider: DescriptionProvider, params: MapValue,
-                    closer: TaskCloser): InternalExecutionResult = {
+          def apply(queryContext: QueryContext,
+                    execMode: ExecutionMode,
+                    descriptionProvider: DescriptionProvider,
+                    params: MapValue): RuntimeResult = {
+
             val (provider, tracer) = descriptionProvider(description)
             val execution: GeneratedQueryExecution = query.query.execute(queryContext, execMode, provider,
-                                                                         tracer.getOrElse(QueryExecutionTracer.NONE),params)
-            closer.addTask(queryContext.resources.close)
-            new CompiledExecutionResult(closer, queryContext, execution, provider)
+                                                                         tracer.getOrElse(QueryExecutionTracer.NONE), params)
+            new CompiledExecutionResult(execution)
           }
         }
 
-        CompiledPlan(updating = false, None, fp, plannerName, description, res.columns, builder, plan.indexUsage)
+        CompiledPlan(updating = false, description, res.columns, builder)
 
       case _ => throw new CantCompileQueryException("Can only compile plans with ProduceResult on top")
     }
@@ -118,19 +110,11 @@ class CodeGenerator(val structure: CodeStructure[GeneratedQuery], clock: Clock, 
                             columns: Seq[String], conf: CodeGenConfiguration, cardinalities: Cardinalities): CodeStructureResult[GeneratedQuery] = {
     import LogicalPlanConverter._
     val lookup = columns.indices.map(i => columns(i) -> i).toMap
-    implicit val context = new CodeGenContext(semantics, lookup)
+    implicit val context: CodeGenContext = new CodeGenContext(semantics, lookup)
     val (_, instructions) = asCodeGenPlan(plan).produce(context, cardinalities)
     generateCode(structure)(instructions, context.operatorIds.map {
       case (id: Id, field: String) => field -> id
     }.toMap, columns, conf)
-  }
-
-  private def asJavaHashMap(params: scala.collection.Map[String, Any]) = {
-    val jMap = new util.HashMap[String, Object]()
-    params.foreach {
-      case (key, value) => jMap.put(key, javaValue(value))
-    }
-    jMap
   }
 
   import scala.collection.JavaConverters._
@@ -143,15 +127,14 @@ class CodeGenerator(val structure: CodeStructure[GeneratedQuery], clock: Clock, 
 }
 
 object CodeGenerator {
-  type SourceSink = Option[(String, String) => Unit]
 
   def generateCode[T](structure: CodeStructure[T])(instructions: Seq[Instruction],
                                                    operatorIds: Map[String, Id],
                                                    columns: Seq[String],
                                                    conf: CodeGenConfiguration)(implicit context: CodeGenContext): CodeStructureResult[T] = {
     structure.generateQuery(Namer.newClassName(), columns, operatorIds, conf) { accept =>
-      instructions.foreach(insn => insn.init(accept))
-      instructions.foreach(insn => insn.body(accept))
+      instructions.foreach(instruction => instruction.init(accept))
+      instructions.foreach(instruction => instruction.body(accept))
     }
   }
 }

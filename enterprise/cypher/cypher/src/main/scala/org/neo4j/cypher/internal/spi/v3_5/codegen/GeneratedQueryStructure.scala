@@ -36,39 +36,27 @@ package org.neo4j.cypher.internal.spi.v3_5.codegen
 
 import java.lang.reflect.Modifier
 import java.util.stream.{DoubleStream, IntStream, LongStream}
+
+import org.neo4j.codegen.{CodeGenerator, Parameter, TypeReference, _}
 import org.neo4j.codegen.Expression.{constant, invoke, newArray, newInstance}
 import org.neo4j.codegen.MethodReference.{constructorReference, methodReference}
 import org.neo4j.codegen.TypeReference._
 import org.neo4j.codegen.bytecode.ByteCode.{BYTECODE, VERIFY_GENERATED_BYTECODE}
-import org.neo4j.codegen.source.SourceCode.SOURCECODE
 import org.neo4j.codegen.source.{SourceCode, SourceVisitor}
-import org.neo4j.codegen._
+import org.neo4j.codegen.source.SourceCode.SOURCECODE
 import org.neo4j.cypher.internal.codegen.{PrimitiveNodeStream, PrimitiveRelationshipStream}
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen._
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions._
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.Provider
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ByteCodeMode
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenConfiguration
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenContext
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.SourceCodeMode
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.AnyValueType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.BoolType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CodeGenType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CypherCodeGenType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.FloatType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ListReferenceType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.LongType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.setStaticField
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.{CodeStructure, CodeStructureResult, MethodStructure}
-import org.neo4j.cypher.internal.v3_5.frontend.helpers.using
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.Provider
 import org.neo4j.cypher.internal.javacompat.ResultRecord
-import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
 import org.neo4j.cypher.internal.runtime.{ExecutionMode, QueryContext}
+import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
+import org.neo4j.cypher.internal.v3_5.codegen.QueryExecutionTracer
+import org.neo4j.cypher.internal.v3_5.executionplan.{GeneratedQuery, GeneratedQueryExecution}
+import org.neo4j.cypher.internal.v3_5.frontend.helpers.using
 import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 import org.neo4j.cypher.internal.v3_5.util.symbols
-import org.neo4j.cypher.internal.v3_5.codegen.QueryExecutionTracer
-import org.neo4j.cypher.internal.v3_5.executionplan.GeneratedQuery
-import org.neo4j.cypher.internal.v3_5.executionplan.GeneratedQueryExecution
 import org.neo4j.cypher.result.QueryResult.QueryResultVisitor
 import org.neo4j.internal.kernel.api._
 import org.neo4j.kernel.impl.core.EmbeddedProxySPI

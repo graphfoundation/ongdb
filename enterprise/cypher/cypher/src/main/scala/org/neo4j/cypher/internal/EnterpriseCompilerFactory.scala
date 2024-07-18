@@ -34,11 +34,8 @@
  */
 package org.neo4j.cypher.internal
 
-import org.neo4j.cypher.CypherPlannerOption
-import org.neo4j.cypher.CypherRuntimeOption
-import org.neo4j.cypher.CypherUpdateStrategy
-import org.neo4j.cypher.CypherVersion
 import org.neo4j.cypher.internal.compatibility.CypherCurrentCompiler
+import org.neo4j.cypher.{CypherPlannerOption, CypherRuntimeOption, CypherUpdateStrategy, CypherVersion}
 import org.neo4j.cypher.internal.compatibility.CypherRuntimeConfiguration
 import org.neo4j.cypher.internal.compatibility.v3_5.Cypher35Planner
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.EnterpriseRuntimeContextCreator
@@ -50,7 +47,7 @@ import org.neo4j.kernel.GraphDatabaseQueryService
 import org.neo4j.kernel.monitoring.{Monitors => KernelMonitors}
 import org.neo4j.logging.LogProvider
 
-class EnterpriseCompilerFactory(inner: CommunityCompilerFactory,
+class EnterpriseCompilerFactory(communityCompilerFactory: CommunityCompilerFactory,
                                 graph: GraphDatabaseQueryService,
                                 kernelMonitors: KernelMonitors,
                                 logProvider: LogProvider,
@@ -71,7 +68,7 @@ class EnterpriseCompilerFactory(inner: CommunityCompilerFactory,
       val contextCreator = EnterpriseRuntimeContextCreator(GeneratedQueryStructure, log, plannerConfig, dispatcher)
       CypherCurrentCompiler(planner, runtime, contextCreator, kernelMonitors)
     } else {
-      inner.createCompiler(cypherVersion, cypherPlanner, cypherRuntime, cypherUpdateStrategy)
+      communityCompilerFactory.createCompiler(cypherVersion, cypherPlanner, cypherRuntime, cypherUpdateStrategy)
     }
   }
 }

@@ -35,18 +35,8 @@
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir
 
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen._
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CodeGenExpression
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi._
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenContext
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.Variable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CodeGenExpression
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CodeGenExpression
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.FullSortTableDescriptor
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.LessThanEqual
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.MethodStructure
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.OrderableTupleDescriptor
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.SortItem
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.SortTableDescriptor
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.TopTableDescriptor
 
 case class BuildSortTable(opName: String, tableName: String, columnVariables: Map[String, Variable],
                           sortItems: Iterable[SortItem], estimateCardinality: Double)

@@ -125,6 +125,11 @@
             <artifactId>ongdb-geequel-physical-planning</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-geequel-compiled-expressions</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
 
         <!-- ongdb testing -->
@@ -174,6 +179,14 @@
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>openCypher-frontend-1</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-ast-3.5</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>

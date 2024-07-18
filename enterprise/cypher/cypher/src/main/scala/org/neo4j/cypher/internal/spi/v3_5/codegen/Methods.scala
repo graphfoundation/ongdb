@@ -37,28 +37,31 @@ package org.neo4j.cypher.internal.spi.v3_5.codegen
 import java.util
 
 import org.neo4j.codegen.MethodReference
-import org.neo4j.collection.primitive.{PrimitiveLongIntMap, PrimitiveLongIterator}
+import org.neo4j.collection.primitive.PrimitiveLongIntMap
+import org.neo4j.collection.primitive.PrimitiveLongIterator
 import org.neo4j.cypher.internal.codegen.CompiledConversionUtils.CompositeKey
 import org.neo4j.cypher.internal.codegen._
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.QueryExecutionEvent
 import org.neo4j.cypher.internal.javacompat.ResultRecord
-import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 import org.neo4j.cypher.internal.v3_5.codegen.QueryExecutionTracer
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 import org.neo4j.cypher.result.QueryResult.{QueryResultVisitor, Record}
 import org.neo4j.graphdb.Direction
 import org.neo4j.helpers.collection.MapUtil
-import org.neo4j.internal.kernel.api.helpers.RelationshipSelectionCursor
 import org.neo4j.internal.kernel.api._
+import org.neo4j.internal.kernel.api.helpers.RelationshipSelectionCursor
+import org.neo4j.kernel.impl.api.RelationshipDataExtractor
 import org.neo4j.kernel.impl.api.store.RelationshipIterator
-import org.neo4j.kernel.impl.api.{RelationshipDataExtractor, RelationshipVisitor}
 import org.neo4j.kernel.impl.core.{EmbeddedProxySPI, NodeProxy, RelationshipProxy}
+import org.neo4j.storageengine.api.RelationshipVisitor
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.{Value, Values}
 import org.neo4j.values.virtual.{NodeValue, RelationshipValue, VirtualNodeValue, VirtualRelationshipValue}
 
 object Methods {
 
-  import GeneratedQueryStructure.{method, typeRef}
+  import org.neo4j.cypher.internal.spi.v3_5.codegen.GeneratedQueryStructure.{method, typeRef}
+
   val countingTablePut: MethodReference = method[PrimitiveLongIntMap, Int]("put", typeRef[Long], typeRef[Int])
   val countingTableCompositeKeyPut: MethodReference = method[util.HashMap[CompositeKey, Integer], Object]("put", typeRef[Object], typeRef[Object])
   val countingTableGet: MethodReference = method[PrimitiveLongIntMap, Int]("get", typeRef[Long])

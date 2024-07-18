@@ -34,52 +34,36 @@
  */
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled
 
-import org.neo4j.cypher.internal.v3_5.util.{ProfilerStatisticsNotReadyException, TaskCloser}
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.{Provider, StandardInternalExecutionResult}
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.CompiledRuntimeName
+import java.util
+
 import org.neo4j.cypher.internal.runtime._
-import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
-import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments.{Runtime, RuntimeImpl}
 import org.neo4j.cypher.internal.v3_5.executionplan.GeneratedQueryExecution
+import org.neo4j.cypher.result.{QueryProfile, RuntimeResult}
 import org.neo4j.cypher.result.QueryResult.QueryResultVisitor
-import org.neo4j.graphdb.Notification
+import org.neo4j.graphdb.ResourceIterator
 
 /**
   * Main class for compiled execution results, implements everything in InternalExecutionResult
   * except `javaColumns` and `accept` which delegates to the injected compiled code.
   */
-class CompiledExecutionResult(taskCloser: TaskCloser,
-                              context: QueryContext,
-                              compiledCode: GeneratedQueryExecution,
-                              description: Provider[InternalPlanDescription],
-                              notifications: Iterable[Notification] = Iterable.empty)
-  extends StandardInternalExecutionResult(context, CompiledRuntimeName, Some(taskCloser))
-    with StandardInternalExecutionResult.IterateByAccepting {
+class CompiledExecutionResult(compiledCode: GeneratedQueryExecution) extends RuntimeResult {
 
-  // *** Delegate to compiled code
   def executionMode: ExecutionMode = compiledCode.executionMode()
 
   override def fieldNames(): Array[String] = compiledCode.fieldNames()
 
+  override def isIterable: Boolean = ???
+
+  override def asIterator(): ResourceIterator[util.Map[String, AnyRef]] = ???
+
+  override def consumptionState: RuntimeResult.ConsumptionState = ???
+
   override def accept[EX <: Exception](visitor: QueryResultVisitor[EX]): Unit =
     compiledCode.accept(visitor)
 
-  override def executionPlanDescription(): InternalPlanDescription = {
-    if (!taskCloser.isClosed && executionMode == ProfileMode) {
-      completed(success = false)
-      throw new ProfilerStatisticsNotReadyException
-    }
+  override def queryStatistics(): QueryStatistics = QueryStatistics()
 
-    compiledCode.executionPlanDescription()
-      .addArgument(Runtime(CompiledRuntimeName.toTextOutput))
-      .addArgument(RuntimeImpl(CompiledRuntimeName.name))
-  }
+  override def queryProfile(): QueryProfile = ???
 
-  override def queryStatistics() = QueryStatistics()
-
-  //TODO delegate to compiled code once writes are being implemented
-  override def queryType: InternalQueryType = READ_ONLY
-
-  override def withNotifications(notification: Notification*): InternalExecutionResult =
-    new CompiledExecutionResult(taskCloser, context, compiledCode, description, notification)
+  override def close(): Unit = ???
 }

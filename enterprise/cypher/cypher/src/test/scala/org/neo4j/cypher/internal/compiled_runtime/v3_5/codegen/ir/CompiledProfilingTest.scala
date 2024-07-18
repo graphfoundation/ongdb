@@ -36,25 +36,21 @@ package org.neo4j.cypher.internal.compiled_runtime.v3_5.codegen.ir
 
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.Provider
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.Variable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.AcceptVisitor
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.ScanAllNodes
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.WhileLoop
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CodeGenType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.NodeProjection
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.{AcceptVisitor, ScanAllNodes, WhileLoop}
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.{CodeGenType, NodeProjection}
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.Provider
 import org.neo4j.cypher.internal.javacompat.GraphDatabaseCypherService
 import org.neo4j.cypher.internal.planner.v3_5.spi.KernelStatisticProvider
-import org.neo4j.cypher.internal.runtime.interpreted.TransactionalContextWrapper
-import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments.{DbHits, Rows}
-import org.neo4j.cypher.internal.runtime.planDescription.{InternalPlanDescription, NoChildren, PlanDescriptionImpl, SingleChild}
 import org.neo4j.cypher.internal.runtime.{ProfileMode, QueryContext, QueryTransactionalContext}
-import org.neo4j.cypher.internal.v3_5.util.attribution.Id
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.runtime.interpreted.TransactionalContextWrapper
+import org.neo4j.cypher.internal.runtime.planDescription.{InternalPlanDescription, NoChildren, PlanDescriptionImpl, SingleChild}
+import org.neo4j.cypher.internal.v3_5.codegen.profiling.ProfilingTracer
 import org.neo4j.cypher.internal.v3_5.expressions.SignedDecimalIntegerLiteral
 import org.neo4j.cypher.internal.v3_5.logical.plans
 import org.neo4j.cypher.internal.v3_5.logical.plans._
-import org.neo4j.cypher.internal.v3_5.codegen.profiling.ProfilingTracer
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 import org.neo4j.internal.kernel.api.CursorFactory
 import org.neo4j.internal.kernel.api.Transaction.Type
 import org.neo4j.internal.kernel.api.helpers.{StubNodeCursor, StubRead}
@@ -106,11 +102,6 @@ class CompiledProfilingTest extends CypherFunSuite with CodeGenSugar {
     tracer.rowsOf(id2) should equal(2)
   }
 
-  def single[T](seq: Seq[T]): T = {
-    seq.size should equal(1)
-    seq.head
-  }
-
   test("should profile hash join") {
     //given
     val database = new TestGraphDatabaseFactory().newImpermanentDatabase()
@@ -130,12 +121,12 @@ class CompiledProfilingTest extends CypherFunSuite with CodeGenSugar {
 
       // when
       val result = compileAndExecute(plan, graphDb, mode = ProfileMode)
-      val description = result.executionPlanDescription()
+      val queryProfile = result.queryProfile()
 
       // then
-      val hashJoin = single(description.find("NodeHashJoin"))
-      hashJoin.arguments should contain(DbHits(0))
-      hashJoin.arguments should contain(Rows(2))
+      val hashJoin = queryProfile.operatorProfile(join.id.x)
+      hashJoin.dbHits() should equal(0)
+      hashJoin.rows() should equal(2)
     } finally {
       database.shutdown()
     }

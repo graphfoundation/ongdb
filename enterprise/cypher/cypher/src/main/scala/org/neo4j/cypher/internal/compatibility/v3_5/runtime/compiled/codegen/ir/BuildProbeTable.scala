@@ -36,15 +36,6 @@ package org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir
 
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen._
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi._
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenContext
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.Variable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.JoinTableType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.LongToCountTable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.LongToListTable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.LongsToCountTable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.LongsToListTable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.MethodStructure
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.SimpleTupleDescriptor
 
 sealed trait BuildProbeTable extends Instruction {
 

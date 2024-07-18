@@ -35,7 +35,8 @@
 package org.neo4j.cypher.internal.spi.v3_5.codegen
 
 import java.util.stream.{DoubleStream, IntStream, LongStream}
-import java.util.{PrimitiveIterator, ArrayList => JArrayList, HashMap => JHashMap, HashSet => JHashSet, Iterator => JIterator, Map => JMap, Set => JSet}
+import java.util.{ArrayList => JArrayList, HashMap => JHashMap, HashSet => JHashSet, Iterator => JIterator, Map => JMap, PrimitiveIterator, Set => JSet}
+
 import org.neo4j.codegen.Expression.{invoke, not, or, _}
 import org.neo4j.codegen.MethodReference.methodReference
 import org.neo4j.codegen._
@@ -43,46 +44,18 @@ import org.neo4j.collection.primitive._
 import org.neo4j.collection.primitive.hopscotch.LongKeyIntValueTable
 import org.neo4j.cypher.internal.codegen.CompiledConversionUtils.CompositeKey
 import org.neo4j.cypher.internal.codegen._
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.{CodeGenContext, QueryExecutionEvent}
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.{AnyValueType, BoolType, CodeGenType, CypherCodeGenType, FloatType, ListReferenceType, LongType, ReferenceType, RepresentationType, Parameter => _}
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi._
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenContext
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.QueryExecutionEvent
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.AnyValueType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.BoolType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CodeGenType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CypherCodeGenType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.FloatType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ListReferenceType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.LongType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ReferenceType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.RepresentationType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.{Parameter => _}
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.Comparator
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.CountingJoinTableType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.Equal
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.FullSortTableDescriptor
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.GreaterThan
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.GreaterThanEqual
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.HashableTupleDescriptor
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.JoinTableType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.LessThan
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.LessThanEqual
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.LongToCountTable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.LongToListTable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.LongsToCountTable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.LongsToListTable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.MethodStructure
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.RecordingJoinTableType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.SortTableDescriptor
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.TopTableDescriptor
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.TupleDescriptor
+import org.neo4j.cypher.internal.spi.v3_5.codegen.GeneratedMethodStructure.CompletableFinalizer
+import org.neo4j.cypher.internal.spi.v3_5.codegen.GeneratedQueryStructure._
+import org.neo4j.cypher.internal.spi.v3_5.codegen.Methods._
+import org.neo4j.cypher.internal.spi.v3_5.codegen.Templates._
+import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
 import org.neo4j.cypher.internal.v3_5.frontend.helpers._
-import GeneratedMethodStructure.CompletableFinalizer
-import Methods._
-import Templates._
 import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 import org.neo4j.cypher.internal.v3_5.util.symbols.{CTInteger, CTNode, CTRelationship, ListType}
 import org.neo4j.cypher.internal.v3_5.util.{ParameterNotFoundException, symbols}
-import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
 import org.neo4j.graphdb.Direction
 import org.neo4j.internal.kernel.api._
 import org.neo4j.internal.kernel.api.helpers.RelationshipSelectionCursor
@@ -105,7 +78,6 @@ class GeneratedMethodStructure(val fields: Fields, val generator: CodeBlock, aux
                               )(implicit context: CodeGenContext)
   extends MethodStructure[Expression] {
 
-  import GeneratedQueryStructure._
   import TypeReference.parameterizedType
 
   private val _finalizers: mutable.ArrayBuffer[CompletableFinalizer] = mutable.ArrayBuffer()
@@ -854,7 +826,7 @@ class GeneratedMethodStructure(val fields: Fields, val generator: CodeBlock, aux
     if (structure.size == 1 && structure.head._2._1.repr == LongType) {
       val (_, (_, value)) = structure.head
       using(generator.ifStatement(not(invoke(generator.load(name),
-                                             method[PrimitiveLongSet, Boolean]("contains", typeRef[Long]), value)))) { body =>
+        method[PrimitiveLongSet, Boolean]("contains", typeRef[Long]), value)))) { body =>
         body.expression(pop(invoke(generator.load(name), method[PrimitiveLongSet, Boolean]("add", typeRef[Long]), value)))
         block(copy(generator = body))
       }
@@ -875,12 +847,12 @@ class GeneratedMethodStructure(val fields: Fields, val generator: CodeBlock, aux
       val localName = context.namer.newVarName()
       val variable = generator.declare(typeRef[PrimitiveLongIterator], localName)
       generator.assign(variable, invoke(generator.load(name),
-                                        method[PrimitiveLongSet, PrimitiveLongIterator]("iterator")))
+        method[PrimitiveLongSet, PrimitiveLongIterator]("iterator")))
       using(generator.whileLoop(
         invoke(generator.load(localName), method[PrimitiveLongIterator, Boolean]("hasNext")))) { body =>
 
         body.assign(body.declare(typeRef[Long], keyName),
-                    invoke(body.load(localName), method[PrimitiveLongIterator, Long]("next")))
+          invoke(body.load(localName), method[PrimitiveLongIterator, Long]("next")))
         block(copy(generator = body))
       }
     } else {
@@ -953,10 +925,9 @@ class GeneratedMethodStructure(val fields: Fields, val generator: CodeBlock, aux
   }
 
   override def newMapOfSets(name: String, keyTypes: IndexedSeq[CodeGenType], elementType: CodeGenType) = {
-
     val setType = if (elementType.repr == LongType) typeRef[PrimitiveLongSet] else typeRef[JHashSet[Object]]
     if (keyTypes.size == 1 && keyTypes.head.repr == LongType) {
-      val typ =  TypeReference.parameterizedType(typeRef[PrimitiveLongObjectMap[_]], setType)
+      val typ = TypeReference.parameterizedType(typeRef[PrimitiveLongObjectMap[_]], setType)
       generator.assign(generator.declare(typ, name),
                        invoke(method[Primitive, PrimitiveLongObjectMap[PrimitiveLongSet]]("longObjectMap")))
 
@@ -1618,9 +1589,9 @@ class GeneratedMethodStructure(val fields: Fields, val generator: CodeBlock, aux
   override def newIndexReference(referenceVar: String, labelVar: String, propKeyVar: String) = {
     val propertyIdsExpr = Expression.newArray(typeRef[Int], generator.load(propKeyVar))
 
-    generator.assign(typeRef[CapableIndexReference], referenceVar,
+    generator.assign(typeRef[IndexReference], referenceVar,
                      invoke(schemaRead,
-                           method[SchemaRead, CapableIndexReference]("index", typeRef[Int], typeRef[Array[Int]]),
+                           method[SchemaRead, IndexReference]("index", typeRef[Int], typeRef[Array[Int]]),
                             generator.load(labelVar), propertyIdsExpr)
     )
   }
@@ -1640,7 +1611,7 @@ class GeneratedMethodStructure(val fields: Fields, val generator: CodeBlock, aux
       body.assign(local,
                   invoke(
                     methodReference(typeRef[CompiledIndexUtils], typeRef[NodeValueIndexCursor], "indexSeek",
-                                    typeRef[Read], typeRef[CursorFactory], typeRef[CapableIndexReference], typeRef[AnyRef]),
+                                    typeRef[Read], typeRef[CursorFactory], typeRef[IndexReference], typeRef[AnyRef]),
                     dataRead, cursors, index, boxedValue)
       )
     }

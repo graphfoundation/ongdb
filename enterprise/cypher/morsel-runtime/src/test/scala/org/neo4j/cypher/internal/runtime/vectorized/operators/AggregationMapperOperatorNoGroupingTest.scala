@@ -52,7 +52,7 @@ class AggregationMapperOperatorNoGroupingTest extends CypherFunSuite {
   test("single aggregation on a single morsel") {
     // Given
     val slots = new SlotConfiguration(mutable.Map("node" -> LongSlot(0, nullable = false, CTNode),
-                                                  "aggregate" -> RefSlot(0, nullable = false, CTAny)), 1, 1)
+                                                  "aggregate" -> RefSlot(0, nullable = false, CTAny)), mutable.Map.empty, 1, 1)
     val aggregation = new AggregationMapperOperatorNoGrouping(slots, Array(AggregationOffsets(0, 0, DummyEvenNodeIdAggregation(0))))
     val longs = Array[Long](0,1,2,3,4,5,6,7,8,9)
     val refs = new Array[AnyValue](10)
@@ -68,7 +68,7 @@ class AggregationMapperOperatorNoGroupingTest extends CypherFunSuite {
   test("multiple aggregations on a single morsel") {
     val slots = new SlotConfiguration(mutable.Map("n1" -> LongSlot(0, nullable = false, CTNode),
                                                   "n2" -> LongSlot(1, nullable = false, CTNode),
-                                                  "aggregate" -> RefSlot(0, nullable = false, CTAny)), 2, 1)
+                                                  "aggregate" -> RefSlot(0, nullable = false, CTAny)), mutable.Map.empty, 2, 1)
 
     val aggregation = new AggregationMapperOperatorNoGrouping(slots, Array(
       AggregationOffsets(0, 0, DummyEvenNodeIdAggregation(0)),

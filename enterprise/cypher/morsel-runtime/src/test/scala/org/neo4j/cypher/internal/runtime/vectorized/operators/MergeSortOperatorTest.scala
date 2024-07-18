@@ -49,7 +49,7 @@ class MergeSortOperatorTest extends CypherFunSuite {
   test("sort a single morsel") {
     val slot = LongSlot(0, nullable = false, CTNode)
     val columnOrdering = Seq(Ascending(slot))
-    val info = new SlotConfiguration(mutable.Map("apa" -> slot), 1, 0)
+    val info = new SlotConfiguration(mutable.Map("apa" -> slot), mutable.Map.empty, 1, 0)
 
     val longs = Array[Long](1, 2, 3, 4, 5, 6, 7, 8, 9)
     val in = new Morsel(longs, Array[AnyValue](), longs.length)
@@ -65,7 +65,7 @@ class MergeSortOperatorTest extends CypherFunSuite {
   test("sort two morsels") {
     val slot = LongSlot(0, nullable = false, CTNode)
     val columnOrdering = Seq(Ascending(slot))
-    val info = new SlotConfiguration(mutable.Map("apa" -> slot), 1, 0)
+    val info = new SlotConfiguration(mutable.Map("apa" -> slot), mutable.Map.empty, 1, 0)
 
     val long1 = Array[Long](1, 2, 3, 4, 5, 6, 7, 8, 9)
     val long2 = Array[Long](5, 7, 9, 14, 86, 92)
@@ -91,7 +91,7 @@ class MergeSortOperatorTest extends CypherFunSuite {
   test("sort two morsels with one empty array") {
     val slot = LongSlot(0, nullable = false, CTNode)
     val columnOrdering = Seq(Ascending(slot))
-    val info = new SlotConfiguration(mutable.Map("apa" -> slot), 1, 0)
+    val info = new SlotConfiguration(mutable.Map("apa" -> slot), mutable.Map.empty, 1, 0)
 
     val long1 = Array[Long](1, 2, 3, 4, 5, 6, 7, 8, 9)
     val long2 = Array.empty[Long]
@@ -109,7 +109,7 @@ class MergeSortOperatorTest extends CypherFunSuite {
   test("sort with too many output slots") {
     val slot = LongSlot(0, nullable = false, CTNode)
     val columnOrdering = Seq(Ascending(slot))
-    val info = new SlotConfiguration(mutable.Map("apa" -> slot), 1, 0)
+    val info = new SlotConfiguration(mutable.Map("apa" -> slot), mutable.Map.empty, 1, 0)
 
     val longs = Array[Long](1, 2, 3, 4, 5, 6, 7, 8, 9)
     val in = new Morsel(longs, Array[AnyValue](), longs.length)

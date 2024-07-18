@@ -35,38 +35,27 @@
 package org.neo4j.cypher.internal.spi.v3_5.codegen
 
 import java.util
+
 import org.neo4j.codegen.FieldReference.field
 import org.neo4j.codegen.Parameter.param
 import org.neo4j.codegen._
-import org.neo4j.cypher.internal.v3_5.util.symbols
 import org.neo4j.cypher.internal.codegen.CompiledEquivalenceUtils
+import org.neo4j.cypher.internal.compiler.v3_5.common.CypherOrderability
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions._
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi._
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenContext
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.AnyValueType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CodeGenType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CypherCodeGenType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ReferenceType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.RepresentationType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ValueType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.Ascending
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.Descending
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.HashableTupleDescriptor
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.OrderableTupleDescriptor
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.SimpleTupleDescriptor
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.SortItem
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.SortOrder
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.TupleDescriptor
-import org.neo4j.cypher.internal.compiler.v3_5.common.CypherOrderability
+import org.neo4j.values.AnyValue
+import org.neo4j.values.storable.Value
 import org.neo4j.cypher.internal.v3_5.frontend.helpers._
-import org.neo4j.values.storable.{Value, Values}
-import org.neo4j.values.{AnyValue, AnyValues}
+import org.neo4j.cypher.internal.v3_5.util.symbols
 
 import scala.collection.mutable
 
 class AuxGenerator(val packageName: String, val generator: CodeGenerator) {
 
-  import GeneratedQueryStructure.{lowerType, method, typeRef}
+  import GeneratedQueryStructure.lowerType
+  import GeneratedQueryStructure.method
+  import GeneratedQueryStructure.typeRef
 
   private val types: scala.collection.mutable.Map[_ >: TupleDescriptor, TypeReference] = mutable.Map.empty
   private var nameId = 0

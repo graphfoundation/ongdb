@@ -36,7 +36,6 @@ package org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir
 
 import org.neo4j.cypher.internal.v3_5.util.IncomparableValuesException
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenContext
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.MethodStructure
 import org.neo4j.cypher.internal.v3_5.util.symbols.{CTBoolean, CTMap, ListType}
 import org.neo4j.cypher.internal.v3_5.util.symbols

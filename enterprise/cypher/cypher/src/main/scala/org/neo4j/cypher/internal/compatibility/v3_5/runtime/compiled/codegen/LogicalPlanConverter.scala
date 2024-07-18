@@ -34,58 +34,26 @@
  */
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen
 
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir._
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.aggregation.AggregationConverter.aggregateExpressionConverter
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ExpressionConverter.createExpression
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.AcceptVisitor
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.AggregationInstruction
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.ApplyInstruction
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.BuildProbeTable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.BuildSortTable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.BuildTopTable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.CartesianProductInstruction
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.DecreaseAndReturnWhenZero
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.ExpandAllLoopDataGenerator
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.ExpandIntoLoopDataGenerator
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.ForEachExpression
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.GetMatchesFromProbeTable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.GetSortedResult
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.If
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.IndexSeek
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.Instruction
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.MethodInvocation
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.NodeCountFromCountStoreInstruction
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.Projection
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.RelationshipCountFromCountStoreInstruction
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.ScanAllNodes
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.ScanForLabel
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.SeekNodeById
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.SelectionInstruction
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.SkipInstruction
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.SortInstruction
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.SortTableInfo
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.UnwindCollection
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.UnwindPrimitiveCollection
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.WhileLoop
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.aggregation.Distinct
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CodeGenExpression
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CodeGenType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CypherCodeGenType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ExpressionConverter
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ListReferenceType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.LoadVariable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ReferenceType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ToSet
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions._
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ExpressionConverter.createExpression
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.SortItem
 import org.neo4j.cypher.internal.compiler.v3_5.planner.CantCompileQueryException
 import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.Cardinalities
-import org.neo4j.cypher.internal.v3_5.util.Eagerly.immutableMapValues
-import org.neo4j.cypher.internal.v3_5.util.Foldable._
-import org.neo4j.cypher.internal.v3_5.util.{InternalException, One, ZeroOneOrMany, symbols}
-import org.neo4j.cypher.internal.v3_5.expressions.{Expression, FunctionInvocation}
+import org.neo4j.cypher.internal.v3_5.expressions.Expression
+import org.neo4j.cypher.internal.v3_5.expressions.FunctionInvocation
+import org.neo4j.cypher.internal.v3_5.expressions.{functions => ast_functions}
 import org.neo4j.cypher.internal.v3_5.logical.plans
 import org.neo4j.cypher.internal.v3_5.logical.plans.ColumnOrder
+import org.neo4j.cypher.internal.v3_5.util.Eagerly.immutableMapValues
+import org.neo4j.cypher.internal.v3_5.util.Foldable._
+import org.neo4j.cypher.internal.v3_5.util.InternalException
+import org.neo4j.cypher.internal.v3_5.util.One
+import org.neo4j.cypher.internal.v3_5.util.ZeroOneOrMany
+import org.neo4j.cypher.internal.v3_5.util.symbols
 import org.neo4j.cypher.internal.v3_5.{expressions => ast}
-import org.neo4j.cypher.internal.v3_5.expressions.{functions => ast_functions}
 
 object LogicalPlanConverter {
 
@@ -139,7 +107,7 @@ object LogicalPlanConverter {
     case _: plans.Top => true
   }
 
-  private def hasStandaloneLimit(p: plans.LogicalPlan)= p.treeExists {
+  private def hasStandaloneLimit(p: plans.LogicalPlan) = p.treeExists {
     case _: plans.Limit => true
   }
 
@@ -159,9 +127,9 @@ object LogicalPlanConverter {
 
     override def consume(context: CodeGenContext, child: CodeGenPlan, cardinalities: Cardinalities) = {
       val projectionOpName = context.registerOperator(projection)
-      val columns = immutableMapValues(projection.expressions,
-                                       (e: ast.Expression) => ExpressionConverter.createExpression(e)(context))
-      context.retainProjectedVariables(projection.expressions.keySet)
+      val columns = immutableMapValues(projection.projectExpressions,
+        (e: ast.Expression) => ExpressionConverter.createExpression(e)(context))
+      context.retainProjectedVariables(projection.projectExpressions.keySet)
       val vars = columns.collect {
         case (name, expr) if !context.hasVariable(name) =>
           val variable = Variable(context.namer.newVarName(), expr.codeGenType(context), expr.nullable(context))
@@ -179,7 +147,7 @@ object LogicalPlanConverter {
       }
       val (methodHandle, action :: tl) = context.popParent().consume(context, this, cardinalities)
 
-      (methodHandle, Projection(projectionOpName, vars, action) :: tl)
+      (methodHandle, ir.Projection(projectionOpName, vars, action) :: tl)
     }
   }
 
@@ -195,8 +163,8 @@ object LogicalPlanConverter {
     override def consume(context: CodeGenContext, child: CodeGenPlan, cardinalities: Cardinalities) = {
       val produceResultOpName = context.registerOperator(produceResults)
       val projections = produceResults.columns.map(c =>
-                                                     c -> ExpressionConverter
-                                                       .createMaterializeExpressionForVariable(c)(context)).toMap
+        c -> ExpressionConverter
+          .createMaterializeExpressionForVariable(c)(context)).toMap
 
       (None, List(AcceptVisitor(produceResultOpName, projections)))
     }
@@ -254,8 +222,8 @@ object LogicalPlanConverter {
             val expression = ToSet(createExpression(e)(context))
             val expressionVar = Variable(context.namer.newVarName(), CodeGenType.Any, nullable = false)
             ForEachExpression(expressionVar, expression,
-                              indexSeekFun(opName, context.namer.newVarName(), LoadVariable(expressionVar), nodeVar,
-                                           actions))
+              indexSeekFun(opName, context.namer.newVarName(), LoadVariable(expressionVar), nodeVar,
+                actions))
 
           //collection used in composite index search, pass entire collection to index seek
           case plans.CompositeQueryExpression(e: ast.ListLiteral) =>
@@ -281,24 +249,24 @@ object LogicalPlanConverter {
       val opName = context.registerOperator(logicalPlan)
       val seekOperation = seek.nodeIds match {
         case plans.SingleSeekableArg(e) => SeekNodeById(opName, nodeVar,
-                                                        createExpression(e)(context), actions)
+          createExpression(e)(context), actions)
         case plans.ManySeekableArgs(e) => e match {
           case coll: ast.ListLiteral =>
             ZeroOneOrMany(coll.expressions) match {
               case One(value) => SeekNodeById(opName, nodeVar,
-                                              createExpression(value)(context), actions)
+                createExpression(value)(context), actions)
               case _ =>
                 val expression = createExpression(e)(context)
                 val expressionVar = Variable(context.namer.newVarName(), CodeGenType.Any, nullable = false)
                 ForEachExpression(expressionVar, expression,
-                                  SeekNodeById(opName, nodeVar, LoadVariable(expressionVar), actions))
+                  SeekNodeById(opName, nodeVar, LoadVariable(expressionVar), actions))
             }
 
           case exp =>
             val expression = ToSet(createExpression(exp)(context))
             val expressionVar = Variable(context.namer.newVarName(), CodeGenType.Any, nullable = false)
             ForEachExpression(expressionVar, expression,
-                              SeekNodeById(opName, nodeVar, LoadVariable(expressionVar), actions))
+              SeekNodeById(opName, nodeVar, LoadVariable(expressionVar), actions))
         }
       }
       (methodHandle, seekOperation :: tl)
@@ -308,8 +276,8 @@ object LogicalPlanConverter {
   private def nodeIndexSeekAsCodeGenPlan(indexSeek: plans.NodeIndexSeek) = {
     def indexSeekFun(opName: String, descriptorVar: String, expression: CodeGenExpression,
                      nodeVar: Variable, actions: Instruction) =
-      WhileLoop(nodeVar, IndexSeek(opName, indexSeek.label.name, indexSeek.propertyKeys.map(_.name),
-                                   descriptorVar, expression), actions)
+      WhileLoop(nodeVar, IndexSeek(opName, indexSeek.label.name, indexSeek.properties.map(_.propertyKeyToken.name),
+        descriptorVar, expression), actions)
 
     sharedIndexSeekAsCodeGenPlan(indexSeekFun)(indexSeek.idName, indexSeek.valueExpr, indexSeek)
   }
@@ -317,8 +285,8 @@ object LogicalPlanConverter {
   private def nodeUniqueIndexSeekAsCodeGen(indexSeek: plans.NodeUniqueIndexSeek) = {
     def indexSeekFun(opName: String, descriptorVar: String, expression: CodeGenExpression,
                      nodeVar: Variable, actions: Instruction) =
-      WhileLoop(nodeVar, IndexSeek(opName, indexSeek.label.name, indexSeek.propertyKeys.map(_.name),
-                                   descriptorVar, expression), actions)
+      WhileLoop(nodeVar, IndexSeek(opName, indexSeek.label.name, indexSeek.properties.map(_.propertyKeyToken.name),
+        descriptorVar, expression), actions)
 
     sharedIndexSeekAsCodeGenPlan(indexSeekFun)(indexSeek.idName, indexSeek.valueExpr, indexSeek)
   }
@@ -399,7 +367,7 @@ object LogicalPlanConverter {
       val typeVar2TypeName = expand.types.map(t => context.namer.newVarName() -> t.name).toMap
       val opName = context.registerOperator(expand)
       val expandGenerator = ExpandAllLoopDataGenerator(opName, fromNodeVar, expand.dir, typeVar2TypeName, toNodeVar,
-                                                       relVar)
+        relVar)
 
       (methodHandle, WhileLoop(relVar, expandGenerator, action) :: tl)
     }
@@ -416,7 +384,7 @@ object LogicalPlanConverter {
       val typeVar2TypeName = expand.types.map(t => context.namer.newVarName() -> t.name).toMap
       val opName = context.registerOperator(expand)
       val expandGenerator = ExpandIntoLoopDataGenerator(opName, fromNodeVar, expand.dir, typeVar2TypeName, toNodeVar,
-                                                        relVar)
+        relVar)
 
       (methodHandle, WhileLoop(relVar, expandGenerator, action) :: tl)
     }
@@ -454,9 +422,9 @@ object LogicalPlanConverter {
 
     override def consume(context: CodeGenContext, child: CodeGenPlan, cardinalities: Cardinalities): (Option[JoinTableMethod], List[Instruction]) = {
       val opName = context.registerOperator(selection)
-      val predicates = selection.predicates.map(
+      val predicates = selection.predicate.exprs.map(
         ExpressionConverter.createPredicate(_)(context)
-      )
+      ).toSeq
 
       val (methodHandle, innerBlock :: tl) = context.popParent().consume(context, this, cardinalities)
 
@@ -606,7 +574,7 @@ object LogicalPlanConverter {
       val endLabel = relCount.endLabel.map(l => context.semanticTable.id(l).map(_.id) -> l.name)
       val types = relCount.typeNames.map(t => context.semanticTable.id(t).map(_.id) -> t.name)
       (methodHandle, RelationshipCountFromCountStoreInstruction(opName, variable, startLabel, types, endLabel,
-                                                                actions) :: tl)
+        actions) :: tl)
     }
   }
 

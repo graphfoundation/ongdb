@@ -56,7 +56,8 @@ class PipelineBuilder(slotConfigurations: SlotConfigurations, converters: Expres
   }
 
   override protected def build(plan: LogicalPlan): Pipeline = {
-    val slots = slotConfigurations(plan.id)
+    val id = plan.id
+    val slots = slotConfigurations(id)
 
     val thisOp = plan match {
       case plans.AllNodesScan(column, _) =>
@@ -72,19 +73,19 @@ class PipelineBuilder(slotConfigurations: SlotConfigurations, converters: Expres
           slots.getLongOffsetFor(column),
           LazyLabel(label)(SemanticTable()))
 
-      case plans.NodeIndexSeek(column, label, propertyKeys, SingleQueryExpression(valueExpr),  _) if propertyKeys.size == 1 =>
+      case plans.NodeIndexSeek(column, label, properties, valueExpr, argumentIds, indexOrder) if properties.size == 1 =>
         new NodeIndexSeekOperator(
           slots.numberOfLongs,
           slots.numberOfReferences,
           slots.getLongOffsetFor(column),
-          label, propertyKeys.head, converters.toCommandExpression(valueExpr))
+          label, properties.head.propertyKeyToken, converters.toCommandExpression(id, valueExpr.expressions.head))
 
-      case plans.NodeUniqueIndexSeek(column, label, propertyKeys, SingleQueryExpression(valueExpr),  _) if propertyKeys.size == 1 =>
+      case plans.NodeUniqueIndexSeek(column, label, properties, valueExpr, argumentIds, indexOrder) if properties.size == 1 =>
         new NodeIndexSeekOperator(
           slots.numberOfLongs,
           slots.numberOfReferences,
           slots.getLongOffsetFor(column),
-          label, propertyKeys.head, converters.toCommandExpression(valueExpr))
+          label, properties.head.propertyKeyToken, converters.toCommandExpression(id, valueExpr.expressions.head))
 
       case plans.Argument(_) =>
         new ArgumentOperator
@@ -92,19 +93,20 @@ class PipelineBuilder(slotConfigurations: SlotConfigurations, converters: Expres
       case p => throw new CantCompileQueryException(s"$p not supported in morsel runtime")
     }
 
-    Pipeline(thisOp, IndexedSeq.empty, slots, NoDependencies)()
+    Pipeline(thisOp.asInstanceOf[Operator], IndexedSeq.empty, slots, NoDependencies)()
   }
 
   override protected def build(plan: LogicalPlan, from: Pipeline): Pipeline = {
     var source = from
-    val slots = slotConfigurations(plan.id)
+    val id = plan.id
+    val slots = slotConfigurations(id)
 
       val thisOp = plan match {
         case plans.ProduceResult(_, columns) =>
           new ProduceResultOperator(slots, columns.toArray)
 
-        case plans.Selection(predicates, _) =>
-          val predicate = predicates.map(converters.toCommandPredicate).reduce(_ andWith _)
+        case plans.Selection(p, _) =>
+          val predicate = p.exprs.map(converters.toCommandPredicate(id, _)).reduce(_ andWith _)
           new FilterOperator(slots, predicate)
 
         case plans.Expand(lhs, fromName, dir, types, to, relName, ExpandAll) =>
@@ -117,7 +119,7 @@ class PipelineBuilder(slotConfigurations: SlotConfigurations, converters: Expres
 
         case plans.Projection(_, expressions) =>
           val projectionOps = expressions.map {
-            case (key, e) => slots(key) -> converters.toCommandExpression(e)
+            case (key, e) => slots(key) -> converters.toCommandExpression(id, e)
           }
           new ProjectOperator(projectionOps, slots)
 
@@ -135,7 +137,7 @@ class PipelineBuilder(slotConfigurations: SlotConfigurations, converters: Expres
               //source slot
               source.slots.newReference(key, currentSlot.nullable, currentSlot.typ)
               AggregationOffsets(source.slots.getReferenceOffsetFor(key), currentSlot.offset,
-                                 converters.toCommandExpression(expression).asInstanceOf[AggregationExpressionOperator])
+                                 converters.toCommandExpression(id, expression).asInstanceOf[AggregationExpressionOperator])
           }.toArray
 
           //add mapper to source
@@ -149,7 +151,7 @@ class PipelineBuilder(slotConfigurations: SlotConfigurations, converters: Expres
               //we need to make room for storing grouping value in source slot
               if (currentSlot.isLongSlot) source.slots.newLong(key, currentSlot.nullable, currentSlot.typ)
               else source.slots.newReference(key, currentSlot.nullable, currentSlot.typ)
-              GroupingOffsets(source.slots(key), currentSlot, converters.toCommandExpression(expression))
+              GroupingOffsets(source.slots(key), currentSlot, converters.toCommandExpression(id, expression))
           }.toArray
 
           val aggregations = aggregationExpression.map {
@@ -159,7 +161,7 @@ class PipelineBuilder(slotConfigurations: SlotConfigurations, converters: Expres
               //source slot
               source.slots.newReference(key, currentSlot.nullable, currentSlot.typ)
               AggregationOffsets(source.slots.getReferenceOffsetFor(key), currentSlot.offset,
-                                 converters.toCommandExpression(expression).asInstanceOf[AggregationExpressionOperator])
+                                 converters.toCommandExpression(id, expression).asInstanceOf[AggregationExpressionOperator])
           }.toArray
 
           //add mapper to source
@@ -172,7 +174,7 @@ class PipelineBuilder(slotConfigurations: SlotConfigurations, converters: Expres
             case _ =>
               throw new InternalException("Weird slot found for UNWIND")
           }
-          val runtimeExpression = converters.toCommandExpression(collection)
+          val runtimeExpression = converters.toCommandExpression(id, collection)
           new UnwindOperator(runtimeExpression, offset, slotConfigurations(src.id), slots)
 
         case p => throw new CantCompileQueryException(s"$p not supported in morsel runtime")

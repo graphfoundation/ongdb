@@ -50,7 +50,7 @@ class AggregationReducerOperatorNoGroupingTest extends CypherFunSuite {
 
   test("reduce from single morsel") {
     // Given
-    val slots = new SlotConfiguration(mutable.Map("aggregate" -> RefSlot(0, nullable = false, CTAny)), 1, 1)
+    val slots = new SlotConfiguration(mutable.Map("aggregate" -> RefSlot(0, nullable = false, CTAny)), mutable.Map.empty, 1, 1)
     val aggregation = new AggregationReduceOperatorNoGrouping(slots,
                                                               Array(AggregationOffsets(0, 0, DummyEvenNodeIdAggregation(0))))
     val refs = new Array[AnyValue](10)
@@ -67,7 +67,7 @@ class AggregationReducerOperatorNoGroupingTest extends CypherFunSuite {
 
   test("reduce values from multiple morsels") {
     // Given
-    val slots = new SlotConfiguration(mutable.Map("aggregate" -> RefSlot(0, nullable = false, CTAny)), 1, 1)
+    val slots = new SlotConfiguration(mutable.Map("aggregate" -> RefSlot(0, nullable = false, CTAny)), mutable.Map.empty, 1, 1)
     val aggregation = new AggregationReduceOperatorNoGrouping(slots,
 
                                                               Array(AggregationOffsets(0, 0, DummyEvenNodeIdAggregation(0))))

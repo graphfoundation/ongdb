@@ -35,8 +35,8 @@
 package org.neo4j.cypher.internal.queryReduction.ast
 
 import org.neo4j.cypher.internal.v3_5.ast._
-import org.neo4j.cypher.internal.v3_5.util._
 import org.neo4j.cypher.internal.v3_5.expressions._
+import org.neo4j.cypher.internal.v3_5.util._
 
 object copyNodeWith {
 
@@ -174,7 +174,7 @@ object copyNodeWith {
         SetPropertyItem(nc.ofSingle(property), nc.ofSingle(expression))(node.position)
 
       case pc@PatternComprehension(namedPath, pattern, predicate, projection) =>
-        PatternComprehension(nc.ofOption(namedPath),nc.ofSingle(pattern), nc.ofOption(predicate),
+        PatternComprehension(nc.ofOption(namedPath), nc.ofSingle(pattern), nc.ofOption(predicate),
           nc.ofSingle(projection))(node.position, nc.ofSeq(pc.outerScope.toSeq).toSet)
 
       case RelationshipsPattern(element) =>

@@ -55,7 +55,7 @@ class AggregationMapperOperatorTest extends CypherFunSuite {
     val groupSlot = RefSlot(0, nullable = false, CTAny)
     val slots = new SlotConfiguration(mutable.Map("node" -> LongSlot(0, nullable = false, CTNode),
                                                   "aggregate" -> RefSlot(1, nullable = false, CTAny),
-                                                  "group" -> groupSlot), 1, 2)
+                                                  "group" -> groupSlot), mutable.Map.empty, 1, 2)
     val aggregation = new AggregationMapperOperator(slots,
                                                     Array(AggregationOffsets(1, 1, DummyEvenNodeIdAggregation(0))),
                                                     Array(GroupingOffsets(groupSlot, groupSlot,
@@ -80,7 +80,7 @@ class AggregationMapperOperatorTest extends CypherFunSuite {
     val groupSlot2 = RefSlot(1, nullable = false, CTAny)
     val slots = new SlotConfiguration(mutable.Map("node" -> LongSlot(0, nullable = false, CTNode),
                                                   "aggregate" -> RefSlot(2, nullable = false, CTAny),
-                                                  "group1" -> groupSlot1, "group2" -> groupSlot2), 1, 3)
+                                                  "group1" -> groupSlot1, "group2" -> groupSlot2), mutable.Map.empty, 1, 3)
     val aggregation = new AggregationMapperOperator(slots,
                                                     Array(AggregationOffsets(2, 2, DummyEvenNodeIdAggregation(0))),
                                                     Array(GroupingOffsets(groupSlot1, groupSlot1,
@@ -112,7 +112,7 @@ class AggregationMapperOperatorTest extends CypherFunSuite {
     val groupSlot3 = RefSlot(2, nullable = false, CTAny)
     val slots = new SlotConfiguration(mutable.Map("node" -> LongSlot(0, nullable = false, CTNode),
                                                   "aggregate" -> RefSlot(3, nullable = false, CTAny),
-                                                  "group1" -> groupSlot1, "group2" -> groupSlot2, "group3" -> groupSlot3), 1, 4)
+                                                  "group1" -> groupSlot1, "group2" -> groupSlot2, "group3" -> groupSlot3), mutable.Map.empty, 1, 4)
     val aggregation = new AggregationMapperOperator(slots,
                                                     Array(AggregationOffsets(3, 3, DummyEvenNodeIdAggregation(0))),
                                                     Array(GroupingOffsets(groupSlot1, groupSlot1,
@@ -152,7 +152,7 @@ class AggregationMapperOperatorTest extends CypherFunSuite {
     val slots = new SlotConfiguration(mutable.Map("node" -> LongSlot(0, nullable = false, CTNode),
                                                   "aggregate" -> RefSlot(5, nullable = false, CTAny),
                                                   "group1" -> groupSlot1, "group2" -> groupSlot2, "group3" -> groupSlot3,
-                                                  "group4" -> groupSlot4,  "group5" -> groupSlot5), 1, 6)
+                                                  "group4" -> groupSlot4,  "group5" -> groupSlot5), mutable.Map.empty, 1, 6)
     val aggregation = new AggregationMapperOperator(slots,
                                                     Array(AggregationOffsets(5, 5, DummyEvenNodeIdAggregation(0))),
                                                     Array(GroupingOffsets(groupSlot1, groupSlot1,

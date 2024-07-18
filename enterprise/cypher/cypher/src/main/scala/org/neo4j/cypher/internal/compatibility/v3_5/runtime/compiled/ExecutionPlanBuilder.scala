@@ -35,22 +35,19 @@
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled
 
 import ExecutionPlanBuilder.DescriptionProvider
-import org.neo4j.cypher.internal.PlanFingerprint
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.{PeriodicCommitInfo, Provider}
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.CompiledRuntimeName
-import org.neo4j.cypher.internal.v3_5.frontend.PlannerName
-import org.neo4j.cypher.internal.runtime.{ExecutionMode, InternalExecutionResult, ProfileMode, QueryContext}
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.Provider
+import org.neo4j.cypher.internal.runtime.{ExecutionMode, ProfileMode, QueryContext}
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments
-import org.neo4j.cypher.internal.v3_5.util.TaskCloser
-import org.neo4j.cypher.internal.v3_5.logical.plans.IndexUsage
 import org.neo4j.cypher.internal.v3_5.codegen.QueryExecutionTracer
 import org.neo4j.cypher.internal.v3_5.codegen.profiling.ProfilingTracer
+import org.neo4j.cypher.result.RuntimeResult
 import org.neo4j.values.virtual.MapValue
 
 object ExecutionPlanBuilder {
   type DescriptionProvider =
-    (Provider[InternalPlanDescription] => (Provider[InternalPlanDescription], Option[QueryExecutionTracer]))
+    Provider[InternalPlanDescription] => (Provider[InternalPlanDescription], Option[QueryExecutionTracer])
 
   def tracer(mode: ExecutionMode, queryContext: QueryContext): DescriptionProvider = mode match {
     case ProfileMode =>
@@ -61,7 +58,6 @@ object ExecutionPlanBuilder {
           override def get(): InternalPlanDescription = description.get().map {
             plan: InternalPlanDescription =>
               val data = tracer.get(plan.id)
-
               plan.
                 addArgument(Arguments.Runtime(CompiledRuntimeName.toTextOutput)).
                 addArgument(Arguments.DbHits(data.dbHits())).
@@ -76,18 +72,13 @@ object ExecutionPlanBuilder {
 }
 
 case class CompiledPlan(updating: Boolean,
-                        periodicCommit: Option[PeriodicCommitInfo] = None,
-                        fingerprint: Option[PlanFingerprint] = None,
-                        plannerUsed: PlannerName,
                         planDescription: Provider[InternalPlanDescription],
                         columns: Seq[String],
-                        executionResultBuilder: RunnablePlan,
-                        plannedIndexUsage: Seq[IndexUsage] = Seq.empty)
+                        executionResultBuilder: RunnablePlan)
 
 trait RunnablePlan {
   def apply(queryContext: QueryContext,
             execMode: ExecutionMode,
             descriptionProvider: DescriptionProvider,
-            params: MapValue,
-            closer: TaskCloser): InternalExecutionResult
+            params: MapValue): RuntimeResult
 }

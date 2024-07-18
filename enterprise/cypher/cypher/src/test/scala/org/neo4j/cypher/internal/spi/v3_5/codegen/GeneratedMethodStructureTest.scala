@@ -32,41 +32,29 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiled_runtime.spi.v3_5
+package org.neo4j.cypher.internal.spi.v3_5.codegen
 
-import java.util
 import org.neo4j.codegen.bytecode.ByteCode
 import org.neo4j.codegen.source.SourceCode
 import org.neo4j.codegen.{CodeGenerationStrategy, CodeGenerator, Expression, MethodDeclaration}
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi._
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.{Completable, Provider}
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.CodeGenContext
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CodeGenType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.CypherCodeGenType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.ReferenceType
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.CodeStructure
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.LongToCountTable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.LongToListTable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.LongsToCountTable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.LongsToListTable
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi.SimpleTupleDescriptor
-import org.neo4j.cypher.internal.v3_5.frontend.helpers._
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.ir.expressions.{CodeGenType, CypherCodeGenType, ReferenceType}
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.spi._
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.Provider
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
 import org.neo4j.cypher.internal.runtime.{ExecutionMode, QueryContext}
 import org.neo4j.cypher.internal.spi.v3_5.codegen.GeneratedQueryStructure.typeRef
-import org.neo4j.cypher.internal.spi.v3_4.codegen._
-import org.neo4j.cypher.internal.spi.v3_5.codegen.AuxGenerator
-import org.neo4j.cypher.internal.spi.v3_5.codegen.GeneratedMethodStructure
-import org.neo4j.cypher.internal.spi.v3_5.codegen.Methods
-import org.neo4j.cypher.internal.spi.v3_5.codegen.Templates
+import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_5.codegen.QueryExecutionTracer
+import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v3_5.frontend.helpers._
 import org.neo4j.cypher.internal.v3_5.util.symbols
 import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
-import org.neo4j.cypher.internal.v3_5.codegen.QueryExecutionTracer
-import org.neo4j.internal.kernel.api.helpers.RelationshipSelectionCursor
 import org.neo4j.internal.kernel.api._
+import org.neo4j.internal.kernel.api.helpers.RelationshipSelectionCursor
 import org.neo4j.kernel.impl.core.EmbeddedProxySPI
+
+import java.util
 
 /**
   * These are not test in the normal sense that they assert on some result,
@@ -259,7 +247,6 @@ class GeneratedMethodStructureTest extends CypherFunSuite {
         description = body.field(typeRef[Provider[InternalPlanDescription]], "description"),
         tracer = body.field(typeRef[QueryExecutionTracer], "tracer"),
         params = body.field(typeRef[util.Map[String, Object]], "params"),
-        closeable = body.field(typeRef[Completable], "closeable"),
         queryContext = body.field(typeRef[QueryContext], "queryContext"),
         skip = body.field(typeRef[Boolean], "skip"),
         cursors = body.field(typeRef[CursorFactory], "cursors"),

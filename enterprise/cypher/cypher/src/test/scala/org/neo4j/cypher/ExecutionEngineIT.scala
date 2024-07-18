@@ -49,6 +49,7 @@ import org.neo4j.kernel.api.proc.Context.KERNEL_TRANSACTION
 import org.neo4j.kernel.api.proc._
 import org.neo4j.procedure.Mode
 import org.neo4j.test.TestGraphDatabaseFactory
+import org.neo4j.values.virtual.VirtualValues
 
 import scala.collection.immutable.Map
 import scala.collection.mutable.ArrayBuffer
@@ -80,11 +81,11 @@ class ExecutionEngineIT extends CypherFunSuite with GraphIcing {
   }
 
   implicit class RichExecutionEngine(engine: ExecutionEngine) {
-    def profile(query: String, params: Map[String, Any]): Result =
-      engine.profile(query, params, engine.queryService.transactionalContext(query = query -> params))
+    def profile(query: String): Result =
+      engine.profile(query, VirtualValues.emptyMap(), engine.queryService.transactionalContext(query = query -> Map()))
 
-    def execute(query: String, params: Map[String, Any]): Result =
-      engine.execute(query, params, engine.queryService.transactionalContext(query = query -> params))
+    def execute(query: String): Result =
+      engine.execute(query, VirtualValues.emptyMap(), engine.queryService.transactionalContext(query = query -> Map()))
   }
 
   class AllNodesProcedure extends CallableProcedure {
@@ -94,8 +95,8 @@ class ExecutionEngineIT extends CypherFunSuite with GraphIcing {
     val procedureName = new QualifiedName(Array[String]("org", "neo4j", "bench"), "getAllNodes")
     val emptySignature: util.List[FieldSignature] = List.empty[FieldSignature].asJava
     val signature: ProcedureSignature = new ProcedureSignature(
-      procedureName, paramSignature, resultSignature, Mode.READ, null, Array.empty,
-      null, null, false, false)
+      procedureName, paramSignature, resultSignature, Mode.READ, false, null, Array.empty,
+      null, null, false, false, false)
 
     def paramSignature: util.List[FieldSignature] = List.empty[FieldSignature].asJava
 

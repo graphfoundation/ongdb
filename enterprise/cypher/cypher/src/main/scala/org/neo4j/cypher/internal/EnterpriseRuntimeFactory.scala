@@ -35,28 +35,20 @@
 package org.neo4j.cypher.internal
 
 import org.neo4j.cypher.CypherRuntimeOption
-import org.neo4j.cypher.internal.compatibility.CypherRuntime
-import org.neo4j.cypher.internal.compatibility.FallbackRuntime
-import org.neo4j.cypher.internal.compatibility.InterpretedRuntime
-import org.neo4j.cypher.internal.compatibility.ProcedureCallOrSchemaCommandRuntime
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.EnterpriseRuntimeContext
+import org.neo4j.cypher.internal.compatibility.{CypherRuntime, FallbackRuntime, InterpretedRuntime, ProcedureCallOrSchemaCommandRuntime}
 
 object EnterpriseRuntimeFactory {
 
   val interpreted = new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, InterpretedRuntime), CypherRuntimeOption.interpreted)
-  val morsel = new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, MorselRuntime), CypherRuntimeOption.morsel)
   val slotted = new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, SlottedRuntime), CypherRuntimeOption.slotted)
   val compiled = new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, CompiledRuntime), CypherRuntimeOption.compiled)
+  val morsel = new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, MorselRuntime), CypherRuntimeOption.morsel)
   val default = new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, CompiledRuntime), CypherRuntimeOption.default)
 
-  def getRuntime(runtimeName: CypherRuntimeOption, useErrorsOverWarnings: Boolean): CypherRuntime[EnterpriseRuntimeContext] = {
-
+  def getRuntime(runtimeName: CypherRuntimeOption, useErrorsOverWarnings: Boolean): CypherRuntime[EnterpriseRuntimeContext] =
     runtimeName match {
       case CypherRuntimeOption.interpreted => interpreted
-
-      case CypherRuntimeOption.morsel if useErrorsOverWarnings => morsel
-
-      case CypherRuntimeOption.morsel => morsel
 
       case CypherRuntimeOption.slotted if useErrorsOverWarnings => slotted
 
@@ -66,7 +58,10 @@ object EnterpriseRuntimeFactory {
 
       case CypherRuntimeOption.compiled => compiled
 
+      case CypherRuntimeOption.morsel if useErrorsOverWarnings => morsel
+
+      case CypherRuntimeOption.morsel => morsel
+
       case CypherRuntimeOption.default => default
     }
-  }
 }

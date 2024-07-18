@@ -34,42 +34,59 @@
  */
 package org.neo4j.cypher.internal.spi.v3_5.codegen
 
-import java.util
-import java.util.Comparator
-import java.util.function.Consumer
-import java.util.stream.{DoubleStream, IntStream, LongStream}
-
 import org.neo4j.codegen.ExpressionTemplate._
 import org.neo4j.codegen.MethodDeclaration.Builder
 import org.neo4j.codegen.MethodReference._
 import org.neo4j.codegen._
-import org.neo4j.collection.primitive.{Primitive, PrimitiveLongIntMap, PrimitiveLongObjectMap}
-import org.neo4j.cypher.internal.codegen.{PrimitiveNodeStream, PrimitiveRelationshipStream}
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.{Completable, Provider}
-import org.neo4j.cypher.internal.v3_5.frontend.helpers.using
+import org.neo4j.collection.primitive.Primitive
+import org.neo4j.collection.primitive.PrimitiveLongIntMap
+import org.neo4j.collection.primitive.PrimitiveLongObjectMap
+import org.neo4j.cypher.internal.codegen.PrimitiveNodeStream
+import org.neo4j.cypher.internal.codegen.PrimitiveRelationshipStream
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.Provider
 import org.neo4j.cypher.internal.javacompat.ResultRowImpl
+import org.neo4j.cypher.internal.runtime.ExecutionMode
+import org.neo4j.cypher.internal.runtime.QueryContext
+import org.neo4j.cypher.internal.runtime.QueryTransactionalContext
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
-import org.neo4j.cypher.internal.runtime.{ExecutionMode, QueryContext, QueryTransactionalContext}
-import Methods.{newNodeProxyById, newRelationshipProxyById}
-import org.neo4j.cypher.internal.v3_5.util.CypherExecutionException
+import org.neo4j.cypher.internal.spi.v3_5.codegen.Methods.newNodeProxyById
+import org.neo4j.cypher.internal.spi.v3_5.codegen.Methods.newRelationshipProxyById
 import org.neo4j.cypher.internal.v3_5.codegen.QueryExecutionTracer
-import org.neo4j.graphdb.{Direction, Node, Relationship}
+import org.neo4j.cypher.internal.v3_5.frontend.helpers.using
+import org.neo4j.cypher.internal.v3_5.util.CypherExecutionException
+import org.neo4j.graphdb.Direction
+import org.neo4j.graphdb.Node
+import org.neo4j.graphdb.Relationship
 import org.neo4j.internal.kernel.api._
-import org.neo4j.internal.kernel.api.exceptions.{EntityNotFoundException, KernelException}
+import org.neo4j.internal.kernel.api.exceptions.EntityNotFoundException
+import org.neo4j.internal.kernel.api.exceptions.KernelException
 import org.neo4j.kernel.api.SilentTokenNameLookup
 import org.neo4j.kernel.impl.api.RelationshipDataExtractor
 import org.neo4j.kernel.impl.core.EmbeddedProxySPI
 import org.neo4j.kernel.impl.util.ValueUtils
-import org.neo4j.values.storable.{Value, ValueComparator, Values}
+import org.neo4j.values.AnyValue
+import org.neo4j.values.AnyValues
+import org.neo4j.values.storable.Value
+import org.neo4j.values.storable.ValueComparator
+import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual._
-import org.neo4j.values.{AnyValue, AnyValues}
+
+import java.util
+import java.util.Comparator
+import java.util.function.Consumer
+import java.util.stream.DoubleStream
+import java.util.stream.IntStream
+import java.util.stream.LongStream
 
 /**
   * Contains common code generation constructs.
   */
 object Templates {
 
-  import GeneratedQueryStructure.{method, param, staticField, typeRef}
+  import org.neo4j.cypher.internal.spi.v3_5.codegen.GeneratedQueryStructure.method
+  import org.neo4j.cypher.internal.spi.v3_5.codegen.GeneratedQueryStructure.param
+  import org.neo4j.cypher.internal.spi.v3_5.codegen.GeneratedQueryStructure.staticField
+  import org.neo4j.cypher.internal.spi.v3_5.codegen.GeneratedQueryStructure.typeRef
 
   def createNewInstance(valueType: TypeReference, args: (TypeReference,Expression)*): Expression = {
     val argTypes = args.map(_._1)

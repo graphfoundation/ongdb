@@ -34,8 +34,11 @@
  */
 package org.neo4j.cypher.internal.runtime.vectorized
 
+import org.neo4j.cypher.internal.runtime.EntityById
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.v3_5.logical.plans.CachedNodeProperty
 import org.neo4j.values.AnyValue
+import org.neo4j.values.storable.Value
 
 class MorselExecutionContext(morsel: Morsel, longsPerRow: Int, refsPerRow: Int, var currentRow: Int) extends ExecutionContext {
 
@@ -52,25 +55,21 @@ class MorselExecutionContext(morsel: Morsel, longsPerRow: Int, refsPerRow: Int, 
 
   override def getLongAt(offset: Int): Long = morsel.longs(currentRow * longsPerRow + offset)
 
-  override def longs(): Array[Long] = ???
-
   override def setRefAt(offset: Int, value: AnyValue): Unit = morsel.refs(currentRow * refsPerRow + offset) = value
 
   override def getRefAt(offset: Int): AnyValue = morsel.refs(currentRow * refsPerRow + offset)
 
-  override def refs(): Array[AnyValue] = ???
+  override def set(newEntries: Seq[(String, AnyValue)]): Unit = ???
 
-  override def set(newEntries: Seq[(String, AnyValue)]): ExecutionContext = ???
+  override def set(key1: String, value1: AnyValue): Unit = ???
 
-  override def set(key1: String, value1: AnyValue): ExecutionContext = ???
+  override def set(key1: String, value1: AnyValue, key2: String, value2: AnyValue): Unit = ???
 
-  override def set(key1: String, value1: AnyValue, key2: String, value2: AnyValue): ExecutionContext = ???
+  override def set(key1: String, value1: AnyValue, key2: String, value2: AnyValue, key3: String, value3: AnyValue): Unit = ???
 
-  override def set(key1: String, value1: AnyValue, key2: String, value2: AnyValue, key3: String, value3: AnyValue): ExecutionContext = ???
+  override def mergeWith(other: ExecutionContext, entityById: EntityById): Unit = ???
 
-  override def mergeWith(other: ExecutionContext): ExecutionContext = ???
-
-  override def createClone(): ExecutionContext = ???
+  override def createClone(): MorselExecutionContext = new MorselExecutionContext(morsel, longsPerRow, refsPerRow, currentRow)
 
   override def +=(kv: (String, AnyValue)): MorselExecutionContext.this.type = ???
 
@@ -91,4 +90,16 @@ class MorselExecutionContext(morsel: Morsel, longsPerRow: Int, refsPerRow: Int, 
   override def boundEntities(materializeNode: Long => AnyValue, materializeRelationship: Long => AnyValue): Map[String, AnyValue] = ???
 
   override def isNull(key: String): Boolean = ???
+
+  override def copyCachedFrom(input: ExecutionContext): Unit = ???
+
+  override def setCachedProperty(key: CachedNodeProperty, value: Value): Unit = ???
+
+  override def setCachedPropertyAt(offset: Int, value: Value): Unit = ???
+
+  override def getCachedProperty(key: CachedNodeProperty): Value = ???
+
+  override def getCachedPropertyAt(offset: Int): Value = ???
+
+  override def invalidateCachedProperties(node: Long): Unit = ???
 }

@@ -158,7 +158,7 @@ object SlotConfiguration {
 
   case class Size(nLongs: Int, nReferences: Int)
   object Size {
-    val zero = Size(nLongs = 0, nReferences = 0)
+    val zero: Size = Size(nLongs = 0, nReferences = 0)
   }
 }
 
@@ -184,7 +184,7 @@ class SlotConfiguration(private val slots: mutable.Map[String, Slot],
   private val primitiveNodeSetters: mutable.Map[String, (ExecutionContext, Long) => Unit] = new mutable.HashMap[String, (ExecutionContext, Long) => Unit]()
   private val primitiveRelationshipSetters: mutable.Map[String, (ExecutionContext, Long) => Unit] = new mutable.HashMap[String, (ExecutionContext, Long) => Unit]()
 
-  def size() = SlotConfiguration.Size(numberOfLongs, numberOfReferences)
+  def size(): SlotConfiguration.Size = SlotConfiguration.Size(numberOfLongs, numberOfReferences)
 
   def addAlias(newKey: String, existingKey: String): SlotConfiguration = {
     val slot = slots.getOrElse(existingKey,
@@ -226,30 +226,30 @@ class SlotConfiguration(private val slots: mutable.Map[String, Slot],
 
   private def replaceExistingSlot(key: String, existingSlot: Slot, modifiedSlot: Slot): Unit = {
     slots.put(key, modifiedSlot)
-    val existingAliases = slotAliases.get(existingSlot).get
+    val existingAliases = slotAliases(existingSlot)
     assert(existingAliases.contains(key))
     slotAliases.put(modifiedSlot, existingAliases)
     slotAliases.remove(existingSlot)
   }
 
-  private def unifyTypeAndNullability(key: String, existingSlot: Slot, newSlot: Slot) = {
+  private def unifyTypeAndNullability(key: String, existingSlot: Slot, newSlot: Slot): Unit = {
     val updateNullable = !existingSlot.nullable && newSlot.nullable
     val updateTyp = existingSlot.typ != newSlot.typ && !existingSlot.typ.isAssignableFrom(newSlot.typ)
     assert(!updateTyp || newSlot.typ.isAssignableFrom(existingSlot.typ))
     if (updateNullable || updateTyp) {
       val modifiedSlot = (existingSlot, updateNullable, updateTyp) match {
         // We are conservative about nullability and increase it to true
-        case ((LongSlot(offset, _, _), true, true)) =>
-          LongSlot(offset, true, newSlot.typ)
-        case ((RefSlot(offset, _, _), true, true)) =>
-          RefSlot(offset, true, newSlot.typ)
-        case ((LongSlot(offset, _, typ), true, false)) =>
-          LongSlot(offset, true, typ)
-        case ((RefSlot(offset, _, typ), true, false)) =>
-          RefSlot(offset, true, typ)
-        case ((LongSlot(offset, nullable, _), false, true)) =>
+        case (LongSlot(offset, _, _), true, true) =>
+          LongSlot(offset, nullable = true, newSlot.typ)
+        case (RefSlot(offset, _, _), true, true) =>
+          RefSlot(offset, nullable = true, newSlot.typ)
+        case (LongSlot(offset, _, typ), true, false) =>
+          LongSlot(offset, nullable = true, typ)
+        case (RefSlot(offset, _, typ), true, false) =>
+          RefSlot(offset, nullable = true, typ)
+        case (LongSlot(offset, nullable, _), false, true) =>
           LongSlot(offset, nullable, newSlot.typ)
-        case ((RefSlot(offset, nullable, _), false, true)) =>
+        case (RefSlot(offset, nullable, _), false, true) =>
           RefSlot(offset, nullable, newSlot.typ)
       }
       replaceExistingSlot(key, existingSlot, modifiedSlot);
@@ -294,7 +294,7 @@ class SlotConfiguration(private val slots: mutable.Map[String, Slot],
 
   def newCachedProperty(key: CachedNodeProperty): SlotConfiguration = {
     cachedProperties.get(key) match {
-      case Some(existingSlot) =>
+      case Some(_) =>
         throw new InternalException(s"Tried overwriting already taken cached node property $key!")
 
       case None =>
@@ -306,7 +306,7 @@ class SlotConfiguration(private val slots: mutable.Map[String, Slot],
 
   def newCachedPropertyIfUnseen(key: CachedNodeProperty): SlotConfiguration = {
     cachedProperties.get(key) match {
-      case Some(existingSlot) => // do nothing
+      case Some(_) => // do nothing
       case None =>
         cachedProperties.put(key, RefSlot(numberOfReferences, nullable = false, CTAny))
         numberOfReferences = numberOfReferences + 1

@@ -56,7 +56,7 @@ case class EnterpriseRuntimeContext(tokenContext: TokenContext,
                                     dispatcher: Dispatcher) extends RuntimeContext
 
 case class EnterpriseRuntimeContextCreator(codeStructure: CodeStructure[GeneratedQuery], log: Log, config: CypherPlannerConfiguration, dispatcher: Dispatcher)
-  extends RuntimeContextCreator[RuntimeContext] {
+  extends RuntimeContextCreator[EnterpriseRuntimeContext] {
 
   override def create(tokenContext: TokenContext,
                       clock: Clock,
