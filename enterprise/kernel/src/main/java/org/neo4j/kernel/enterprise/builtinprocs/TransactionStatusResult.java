@@ -54,7 +54,7 @@ import static org.neo4j.kernel.enterprise.builtinprocs.QueryId.ofInternalId;
 @SuppressWarnings( "WeakerAccess" )
 public class TransactionStatusResult
 {
-    private static final String RUNNINS_STATE = "Running";
+    private static final String RUNNING_STATE = "Running";
     private static final String TERMINATED_STATE = "Terminated with reason: %s";
 
     public final String transactionId;
@@ -67,6 +67,7 @@ public class TransactionStatusResult
 
     public final String currentQueryId;
     public final String currentQuery;
+    public final String connectionId;
 
     public final long activeLockCount;
     public final String status;
@@ -101,7 +102,7 @@ public class TransactionStatusResult
         pageHits = statistic.getPageHits();
         pageFaults = statistic.getPageFaults();
 
-        if ( !querySnapshots.isEmpty() )
+        if ( querySnapshots != null && !querySnapshots.isEmpty() )
         {
             QuerySnapshot snapshot = querySnapshots.get( 0 );
             ClientConnectionInfo clientConnectionInfo = snapshot.clientConnection();
@@ -110,6 +111,7 @@ public class TransactionStatusResult
             this.protocol = clientConnectionInfo.protocol();
             this.clientAddress = clientConnectionInfo.clientAddress();
             this.requestUri = clientConnectionInfo.requestURI();
+            this.connectionId = clientConnectionInfo.connectionId();
         }
         else
         {
@@ -118,6 +120,7 @@ public class TransactionStatusResult
             this.protocol = StringUtils.EMPTY;
             this.clientAddress = StringUtils.EMPTY;
             this.requestUri = StringUtils.EMPTY;
+            this.connectionId = StringUtils.EMPTY;
         }
         this.resourceInformation = transactionDependenciesResolver.describeBlockingLocks( transaction );
         this.status = getStatus( transaction, terminationReason, transactionDependenciesResolver );
@@ -135,6 +138,6 @@ public class TransactionStatusResult
             TransactionDependenciesResolver transactionDependenciesResolver )
     {
         return transactionDependenciesResolver.isBlocked( handle ) ? "Blocked by: " +
-                transactionDependenciesResolver.describeBlockingTransactions( handle ) : RUNNINS_STATE;
+                transactionDependenciesResolver.describeBlockingTransactions( handle ) : RUNNING_STATE;
     }
 }

@@ -64,7 +64,6 @@ import org.neo4j.kernel.impl.api.TestKernelTransactionHandle;
 import org.neo4j.kernel.impl.api.TransactionCommitProcess;
 import org.neo4j.kernel.impl.api.TransactionExecutionStatistic;
 import org.neo4j.kernel.impl.api.TransactionHooks;
-import org.neo4j.kernel.impl.api.index.IndexProviderMap;
 import org.neo4j.kernel.impl.api.index.IndexingService;
 import org.neo4j.kernel.impl.api.state.ConstraintIndexCreator;
 import org.neo4j.kernel.impl.constraints.StandardConstraintSemantics;
@@ -75,7 +74,6 @@ import org.neo4j.kernel.impl.locking.ActiveLock;
 import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.storageengine.api.lock.LockTracer;
 import org.neo4j.kernel.impl.locking.ResourceTypes;
-import org.neo4j.kernel.impl.newapi.DefaultCursors;
 import org.neo4j.kernel.impl.proc.Procedures;
 import org.neo4j.kernel.impl.query.clientconnection.HttpConnectionInfo;
 import org.neo4j.kernel.impl.transaction.TransactionHeaderInformationFactory;
@@ -101,10 +99,9 @@ import static org.neo4j.kernel.impl.util.collection.CollectionsFactorySupplier.O
 public class TransactionStatusResultTest
 {
 
-    private TestKernelTransactionHandle transactionHandle =
-            new TransactionHandleWithLocks( new StubKernelTransaction() );
-    private HashMap<KernelTransactionHandle,List<QuerySnapshot>> snapshotsMap = new HashMap<>();
-    private TransactionDependenciesResolver blockerResolver = new TransactionDependenciesResolver( snapshotsMap );
+    private final TestKernelTransactionHandle transactionHandle = new TransactionHandleWithLocks( new StubKernelTransaction() );
+    private final HashMap<KernelTransactionHandle,List<QuerySnapshot>> snapshotsMap = new HashMap<>();
+    private final TransactionDependenciesResolver blockerResolver = new TransactionDependenciesResolver( snapshotsMap );
 
     @Test
     public void statusOfTransactionWithSingleQuery() throws InvalidArgumentsException
@@ -178,6 +175,7 @@ public class TransactionStatusResultTest
         assertEquals( Collections.emptyMap(), statusResult.metaData );
         assertEquals( startTime, statusResult.startTime );
         assertEquals( "https", statusResult.protocol );
+        assertEquals( "https-42", statusResult.connectionId );
         assertEquals( "localhost:1000", statusResult.clientAddress );
         assertEquals( "https://localhost:1001/path", statusResult.requestUri );
         assertEquals( currentQueryId, statusResult.currentQueryId );
@@ -211,7 +209,7 @@ public class TransactionStatusResultTest
 
     private HttpConnectionInfo getTestConnectionInfo()
     {
-        return new HttpConnectionInfo( "https", "agent", new InetSocketAddress( "localhost", 1000 ),
+        return new HttpConnectionInfo( "https-42", "https", new InetSocketAddress( "localhost", 1000 ),
                 new InetSocketAddress( "localhost", 1001 ), "/path" );
     }
 
@@ -260,16 +258,16 @@ public class TransactionStatusResultTest
 
     private static class TestStatistics extends KernelTransactionImplementation.Statistics
     {
+        TestStatistics( KernelTransactionImplementation transaction, AtomicReference<CpuClock> cpuClockRef,
+                        AtomicReference<HeapAllocation> heapAllocationRef )
+        {
+            super( transaction, cpuClockRef, heapAllocationRef );
+        }
+
         @Override
         protected void init( long threadId, PageCursorTracer pageCursorTracer )
         {
             super.init( threadId, pageCursorTracer );
-        }
-
-        TestStatistics( KernelTransactionImplementation transaction, AtomicReference<CpuClock> cpuClockRef,
-                AtomicReference<HeapAllocation> heapAllocationRef )
-        {
-            super( transaction, cpuClockRef, heapAllocationRef );
         }
     }
 
