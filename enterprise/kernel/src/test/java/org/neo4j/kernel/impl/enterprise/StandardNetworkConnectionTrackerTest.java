@@ -48,8 +48,8 @@ public class StandardNetworkConnectionTrackerTest
     @Test
     public void shouldTrackNewConnections()
     {
+        assertThat( tracker.newConnectionId( "owner" ), equalTo( "owner-0" ) );
         assertThat( tracker.newConnectionId( "owner" ), equalTo( "owner-1" ) );
         assertThat( tracker.newConnectionId( "owner" ), equalTo( "owner-2" ) );
-        assertThat( tracker.newConnectionId( "owner" ), equalTo( "owner-3" ) );
     }
 }
