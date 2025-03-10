@@ -35,19 +35,17 @@
 package org.neo4j.graphdb.factory;
 
 import java.io.File;
-import java.util.Map;
 
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.enterprise.EnterpriseGraphDatabase;
 import org.neo4j.kernel.impl.factory.Edition;
-
-import static org.neo4j.kernel.configuration.Settings.FALSE;
 
 /**
  * Factory for ONgDB database instances with Enterprise Edition features.
  *
- * @see org.neo4j.graphdb.factory.GraphDatabaseFactory
+ * @see GraphDatabaseFactory
  */
 public class EnterpriseGraphDatabaseFactory extends GraphDatabaseFactory
 {
@@ -58,16 +56,16 @@ public class EnterpriseGraphDatabaseFactory extends GraphDatabaseFactory
         return new GraphDatabaseBuilder.DatabaseCreator()
         {
             @Override
-            public GraphDatabaseService newDatabase( Map<String,String> config )
-            {
-                return newDatabase( Config.defaults( config ) );
-            }
-
-            @Override
             public GraphDatabaseService newDatabase( Config config )
             {
-                config.augment( GraphDatabaseSettings.ephemeral, FALSE );
-                return new EnterpriseGraphDatabase( storeDir, config, state.databaseDependencies() );
+                config.augment( GraphDatabaseSettings.ephemeral, Settings.FALSE );
+
+                File absoluteStoreDir = storeDir.getAbsoluteFile();
+                File databasesRoot = absoluteStoreDir.getParentFile();
+                config.augment( GraphDatabaseSettings.active_database, absoluteStoreDir.getName() );
+                config.augment( GraphDatabaseSettings.databases_root_path, databasesRoot.getAbsolutePath() );
+
+                return new EnterpriseGraphDatabase( databasesRoot, config, state.databaseDependencies() );
             }
         };
     }
