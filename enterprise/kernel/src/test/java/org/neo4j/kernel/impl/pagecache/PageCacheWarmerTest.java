@@ -70,6 +70,7 @@ import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
 import org.neo4j.test.rule.fs.FileSystemRule;
 
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotSame;
@@ -81,10 +82,10 @@ import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createSchedule
 public class PageCacheWarmerTest
 {
     private final FileSystemRule fs = new EphemeralFileSystemRule();
-    private final TestDirectory dir = TestDirectory.testDirectory( fs );
+    private final TestDirectory testDirectory = TestDirectory.testDirectory( fs );
     private final PageCacheRule pageCacheRule = new PageCacheRule();
     @Rule
-    public RuleChain rules = RuleChain.outerRule( fs ).around( dir ).around( pageCacheRule );
+    public RuleChain rules = RuleChain.outerRule( fs ).around( testDirectory ).around( pageCacheRule );
 
     private LifeSupport life;
     private JobScheduler scheduler;
@@ -103,7 +104,7 @@ public class PageCacheWarmerTest
         cursorTracer = DefaultPageCursorTracerSupplier.INSTANCE;
         clearTracerCounts();
         cfg = PageCacheRule.config().withTracer( cacheTracer ).withCursorTracerSupplier( cursorTracer );
-        file = dir.file( "a" );
+        file = new File( testDirectory.databaseDir(), "a" );
         fs.create( file );
     }
 
@@ -126,7 +127,7 @@ public class PageCacheWarmerTest
         try ( PageCache pageCache = pageCacheRule.getPageCache( fs, cfg );
               PagedFile ignore = pageCache.map( file, pageCache.pageSize(), StandardOpenOption.CREATE ) )
         {
-            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler );
+            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler, testDirectory.databaseDir() );
             warmer.start();
             warmer.stop();
             assertSame( OptionalLong.empty(), warmer.reheat() );
@@ -139,7 +140,7 @@ public class PageCacheWarmerTest
         try ( PageCache pageCache = pageCacheRule.getPageCache( fs, cfg );
               PagedFile ignore = pageCache.map( file, pageCache.pageSize(), StandardOpenOption.CREATE ) )
         {
-            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler );
+            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler, testDirectory.databaseDir() );
             warmer.start();
             warmer.stop();
             assertSame( OptionalLong.empty(), warmer.profile() );
@@ -152,7 +153,7 @@ public class PageCacheWarmerTest
         try ( PageCache pageCache = pageCacheRule.getPageCache( fs, cfg );
               PagedFile pf = pageCache.map( file, pageCache.pageSize(), StandardOpenOption.CREATE ) )
         {
-            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler );
+            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler, testDirectory.databaseDir() );
             warmer.start();
             warmer.stop();
             warmer.start();
@@ -173,7 +174,7 @@ public class PageCacheWarmerTest
         try ( PageCache pageCache = pageCacheRule.getPageCache( fs, cfg );
               PagedFile ignore = pageCache.map( file, pageCache.pageSize(), StandardOpenOption.CREATE ) )
         {
-            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler );
+            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler, testDirectory.databaseDir() );
             warmer.reheat();
         }
         cursorTracer.get().reportEvents();
@@ -192,7 +193,7 @@ public class PageCacheWarmerTest
                 assertTrue( writer.next( 3 ) );
             }
             pf.flushAndForce();
-            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler );
+            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler, testDirectory.databaseDir() );
             warmer.start();
             warmer.profile();
         }
@@ -202,7 +203,7 @@ public class PageCacheWarmerTest
         try ( PageCache pageCache = pageCacheRule.getPageCache( fs, cfg );
               PagedFile pf = pageCache.map( file, pageCache.pageSize() ) )
         {
-            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler );
+            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler, testDirectory.databaseDir() );
             warmer.start();
             warmer.reheat();
 
@@ -239,7 +240,7 @@ public class PageCacheWarmerTest
                 }
             }
             pf.flushAndForce();
-            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler );
+            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler, testDirectory.databaseDir() );
             warmer.profile();
         }
 
@@ -248,7 +249,7 @@ public class PageCacheWarmerTest
         try ( PageCache pageCache = pageCacheRule.getPageCache( fs, cfg );
               PagedFile pf = pageCache.map( file, pageCache.pageSize() ) )
         {
-            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler );
+            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler, testDirectory.databaseDir() );
             warmer.start();
             warmer.reheat();
 
@@ -282,7 +283,7 @@ public class PageCacheWarmerTest
                 assertTrue( writer.next( 3 ) );
             }
             pf.flushAndForce();
-            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler );
+            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler, testDirectory.databaseDir() );
             warmer.start();
             warmer.profile();
             warmer.profile();
@@ -345,6 +346,31 @@ public class PageCacheWarmerTest
         Collections.shuffle( resortedProfiles );
         Collections.sort( resortedProfiles );
         assertThat( resortedProfiles, is( sortedProfiles ) );
+    }
+
+    @Test
+    public void shouldOnlyListDatabaseFilesInListOfMetadata() throws IOException
+    {
+        // Map one file in the database directory and one in a non-database directory.
+        File databaseFile = new File( testDirectory.databaseDir(), "databaseFile" );
+        File storeFile = new File( testDirectory.storeDir(), "storeFile" );
+        try ( PageCache pageCache = pageCacheRule.getPageCache( fs, cfg );
+              PagedFile dataPagedFile = pageCache.map( databaseFile, pageCache.pageSize(), StandardOpenOption.CREATE );
+              PagedFile nonDataPagedFile = pageCache.map( storeFile, pageCache.pageSize(), StandardOpenOption.CREATE ) )
+        {
+            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler, testDirectory.databaseDir() );
+            warmer.start();
+            warmer.profile();
+
+            List<StoreFileMetadata> metadataList = new ArrayList<>();
+            warmer.addFilesTo( metadataList );
+
+            assertThat( "Exactly one data related file should be listed", metadataList, hasSize( 1 ) );
+            assertTrue( "Data file should be in the metadata list", metadataList.get( 0 ).file().getName().startsWith( databaseFile.getName() ) );
+
+            warmer.stop();
+            assertSame( OptionalLong.empty(), warmer.profile() );
+        }
     }
 
     private void assertFilesExists( List<StoreFileMetadata> fileListing )
