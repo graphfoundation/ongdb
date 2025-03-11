@@ -34,9 +34,11 @@
  */
 package org.neo4j.kernel.impl.pagecache;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -89,16 +91,18 @@ public class PageCacheWarmer implements NeoStoreFileListing.StoreFileProvider
     private final FileSystemAbstraction fs;
     private final PageCache pageCache;
     private final JobScheduler scheduler;
+    private final File databaseDirectory;
     private final ProfileRefCounts refCounts;
     private volatile boolean stopped;
     private ExecutorService executor;
     private PageLoaderFactory pageLoaderFactory;
 
-    PageCacheWarmer( FileSystemAbstraction fs, PageCache pageCache, JobScheduler scheduler )
+    PageCacheWarmer( FileSystemAbstraction fs, PageCache pageCache, JobScheduler scheduler, File databaseDirectory )
     {
         this.fs = fs;
         this.pageCache = pageCache;
         this.scheduler = scheduler;
+        this.databaseDirectory = databaseDirectory;
         this.refCounts = new ProfileRefCounts();
     }
 
@@ -330,7 +334,9 @@ public class PageCacheWarmer implements NeoStoreFileListing.StoreFileProvider
 
     private Profile[] findExistingProfiles( List<PagedFile> pagedFiles )
     {
+        Path databasePath = databaseDirectory.toPath();
         return pagedFiles.stream()
+                         .filter( pf -> pf.file().toPath().startsWith( databasePath ) )
                          .map( pf -> pf.file().getParentFile() )
                          .distinct()
                          .flatMap( dir -> Profile.findProfilesInDirectory( fs, dir ) )

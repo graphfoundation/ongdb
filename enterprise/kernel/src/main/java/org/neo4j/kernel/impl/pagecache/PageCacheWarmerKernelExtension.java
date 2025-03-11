@@ -34,11 +34,10 @@
  */
 package org.neo4j.kernel.impl.pagecache;
 
-import java.util.function.Supplier;
-
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
+import org.neo4j.kernel.NeoStoreDataSource;
 import org.neo4j.kernel.availability.AvailabilityGuard;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.transaction.state.NeoStoreFileListing;
@@ -49,7 +48,7 @@ import org.neo4j.scheduler.JobScheduler;
 class PageCacheWarmerKernelExtension extends LifecycleAdapter
 {
     private final AvailabilityGuard availabilityGuard;
-    private final Supplier<NeoStoreFileListing> fileListing;
+    private final NeoStoreDataSource dataSource;
     private final Config config;
     private final PageCacheWarmer pageCacheWarmer;
     private final WarmupAvailabilityListener availabilityListener;
@@ -57,12 +56,12 @@ class PageCacheWarmerKernelExtension extends LifecycleAdapter
 
     PageCacheWarmerKernelExtension(
             JobScheduler scheduler, AvailabilityGuard availabilityGuard, PageCache pageCache, FileSystemAbstraction fs,
-            Supplier<NeoStoreFileListing> fileListing, Log log, PageCacheWarmerMonitor monitor, Config config )
+            NeoStoreDataSource dataSource, Log log, PageCacheWarmerMonitor monitor, Config config )
     {
         this.availabilityGuard = availabilityGuard;
-        this.fileListing = fileListing;
+        this.dataSource = dataSource;
         this.config = config;
-        pageCacheWarmer = new PageCacheWarmer( fs, pageCache, scheduler );
+        pageCacheWarmer = new PageCacheWarmer( fs, pageCache, scheduler, dataSource.getDatabaseLayout().databaseDirectory() );
         availabilityListener = new WarmupAvailabilityListener( scheduler, pageCacheWarmer, config, log, monitor );
     }
 
@@ -73,7 +72,10 @@ class PageCacheWarmerKernelExtension extends LifecycleAdapter
         {
             pageCacheWarmer.start();
             availabilityGuard.addListener( availabilityListener );
-            fileListing.get().registerStoreFileProvider( pageCacheWarmer );
+
+            NeoStoreFileListing fileListing = dataSource.getDependencyResolver().resolveDependency( NeoStoreFileListing.class );
+            fileListing.registerStoreFileProvider( pageCacheWarmer );
+
             started = true;
         }
     }

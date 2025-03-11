@@ -103,8 +103,7 @@ class WarmupAvailabilityListener implements AvailabilityListener
             return;
         }
         long frequencyMillis = config.get( GraphDatabaseSettings.pagecache_warmup_profiling_interval ).toMillis();
-        jobHandle = scheduler.scheduleRecurring(
-                Group.PAGE_CACHE, this::doProfile, frequencyMillis, TimeUnit.MILLISECONDS );
+        jobHandle = scheduler.scheduleRecurring( Group.PAGE_CACHE, this::doProfile, frequencyMillis, TimeUnit.MILLISECONDS );
     }
 
     private void doProfile()
