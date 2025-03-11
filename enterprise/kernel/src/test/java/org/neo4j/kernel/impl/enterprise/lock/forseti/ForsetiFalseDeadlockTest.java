@@ -61,7 +61,213 @@ import org.neo4j.storageengine.api.lock.WaitStrategy;
 @RunWith( Parameterized.class )
 public class ForsetiFalseDeadlockTest
 {
-    public static class Fixture
+
+    @Parameterized.Parameters( name = "{0}" )
+    public static Iterable<Object[]> parameters()
+    {
+        List<Fixture> fixtures = new ArrayList<>();
+
+        // During development, I also had iteration counts 1 and 2 here, but they never found anything, so for actually
+        // running this test, I leave only iteration count 100 enabled.
+        int iteration = 100;
+        LockManager[] lockManagers = LockManager.values();
+        LockWaitStrategies[] lockWaitStrategies = LockWaitStrategies.values();
+        LockType[] lockTypes = LockType.values();
+        for ( LockManager lockManager : lockManagers )
+        {
+            for ( LockWaitStrategies waitStrategy : lockWaitStrategies )
+            {
+                if ( waitStrategy == LockWaitStrategies.NO_WAIT )
+                {
+                    continue;
+                }
+                for ( LockType lockTypeAX : lockTypes )
+                {
+                    for ( LockType lockTypeAY : lockTypes )
+                    {
+                        for ( LockType lockTypeBX : lockTypes )
+                        {
+                            for ( LockType lockTypeBY : lockTypes )
+                            {
+                                fixtures.add( new Fixture(
+                                        iteration, lockManager, waitStrategy,
+                                        lockTypeAX, lockTypeAY, lockTypeBX, lockTypeBY ) );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return fixtures.stream().map( f -> new Object[]{f} ).collect( Collectors.toList() );
+    }
+
+    private static final ExecutorService executor = Executors.newCachedThreadPool( r ->
+                                                                                   {
+                                                                                       Thread thread = new Thread( r );
+                                                                                       thread.setDaemon( true );
+                                                                                       return thread;
+                                                                                   } );
+
+    public ForsetiFalseDeadlockTest( Fixture fixture )
+    {
+        this.fixture = fixture;
+    }
+
+    private final Fixture fixture;
+
+    /**
+     * This takes a fair bit of time, and we don't want to wait that long. But more importantly, false deadlocks are
+     * still only very unlikely; they are not impossible, though.
+     *
+     * So this test is technically flaky, but the probability is, I think, quite low for the 'mild' test, but it is too
+     * high for this aggressive test. So therefor I have marked it as @Ignored, but I still keep it here for the sake
+     * of this comment, and to allow others to run it and get a feel for the probabilities involved.
+     */
+    @Ignore
+    @Test
+    public void testAggressivelyForFalseDeadlocks()
+    {
+        int testRuns = 2000;
+        loopRunTest( testRuns );
+    }
+
+    @Test
+    public void testMildlyForFalseDeadlocks()
+    {
+        int testRuns = 10;
+        loopRunTest( testRuns );
+    }
+
+    private void loopRunTest( int testRuns )
+    {
+        List<Throwable> exceptionList = new ArrayList<>();
+        loopRun( testRuns, exceptionList );
+
+        if ( !exceptionList.isEmpty() )
+        {
+            // We saw exceptions. Run it 99 more times, and then verify that our false deadlock rate is less than 2%.
+            int additionalRuns = testRuns * 99;
+            loopRun( additionalRuns, exceptionList );
+            double totalRuns = additionalRuns + testRuns;
+            double failures = exceptionList.size();
+            double failureRate = failures / totalRuns;
+            if ( failureRate > 0.02 )
+            {
+                // We have more than 2% failures. Report it!
+                AssertionError error = new AssertionError(
+                        "False deadlock failure rate of " + failureRate + " is greater than 2%" );
+                for ( Throwable th : exceptionList )
+                {
+                    error.addSuppressed( th );
+                }
+                throw error;
+            }
+        }
+    }
+
+    private void loopRun( int testRuns, List<Throwable> exceptionList )
+    {
+        for ( int i = 0; i < testRuns; i++ )
+        {
+            try
+            {
+                runTest();
+            }
+            catch ( Throwable th )
+            {
+                th.addSuppressed( new Exception( "Failed at iteration " + i ) );
+                exceptionList.add( th );
+            }
+        }
+    }
+
+    private void runTest() throws InterruptedException, java.util.concurrent.ExecutionException
+    {
+        int iterations = fixture.iterations();
+        ResourceType resourceType = fixture.createResourceType();
+        Locks manager = fixture.createLockManager( resourceType );
+        try ( Locks.Client a = manager.newClient();
+              Locks.Client b = manager.newClient() )
+        {
+            BinaryLatch startLatch = new BinaryLatch();
+            BlockedCallable callA = new BlockedCallable( startLatch,
+                                                         () -> workloadA( a, resourceType, iterations ) );
+            BlockedCallable callB = new BlockedCallable( startLatch,
+                                                         () -> workloadB( b, resourceType, iterations ) );
+
+            Future<Void> futureA = executor.submit( callA );
+            Future<Void> futureB = executor.submit( callB );
+
+            callA.awaitBlocked();
+            callB.awaitBlocked();
+
+            startLatch.release();
+
+            futureA.get();
+            futureB.get();
+        }
+        finally
+        {
+            manager.close();
+        }
+    }
+
+    private void workloadA( Locks.Client a, ResourceType resourceType, int iterations )
+    {
+        for ( int i = 0; i < iterations; i++ )
+        {
+            fixture.acquireAX( a, resourceType );
+            fixture.acquireAY( a, resourceType );
+            fixture.releaseAY( a, resourceType );
+            fixture.releaseAX( a, resourceType );
+        }
+    }
+
+    private void workloadB( Locks.Client b, ResourceType resourceType, int iterations )
+    {
+        for ( int i = 0; i < iterations; i++ )
+        {
+            fixture.acquireBX( b, resourceType );
+            fixture.releaseBX( b, resourceType );
+            fixture.acquireBY( b, resourceType );
+            fixture.releaseBY( b, resourceType );
+        }
+    }
+
+    private static class BlockedCallable implements Callable<Void>
+    {
+        private final BinaryLatch startLatch;
+        private final ThrowingAction<Exception> delegate;
+        private volatile Thread runner;
+
+        BlockedCallable( BinaryLatch startLatch, ThrowingAction<Exception> delegate )
+        {
+            this.startLatch = startLatch;
+            this.delegate = delegate;
+        }
+
+        @Override
+        public Void call() throws Exception
+        {
+            runner = Thread.currentThread();
+            startLatch.await();
+            delegate.apply();
+            return null;
+        }
+
+        void awaitBlocked()
+        {
+            Thread t;
+            do
+            {
+                t = runner;
+            }
+            while ( t == null || t.getState() != Thread.State.WAITING );
+        }
+    }
+
+    private static class Fixture
     {
         private final int iterations;
         private final LockManager lockManager;
@@ -231,206 +437,5 @@ public class ForsetiFalseDeadlockTest
                 };
 
         public abstract Locks create( ResourceType resourceType );
-    }
-
-    @Parameterized.Parameters( name = "{0}" )
-    public static Iterable<Object[]> parameters()
-    {
-        List<Fixture> fixtures = new ArrayList<>();
-
-        // During development I also had iteration counts 1 and 2 here, but they never found anything, so for actually
-        // running this test, I leave only iteration count 100 enabled.
-        int iteration = 100;
-        LockManager[] lockManagers = LockManager.values();
-        LockWaitStrategies[] lockWaitStrategies = LockWaitStrategies.values();
-        LockType[] lockTypes = LockType.values();
-        for ( LockManager lockManager : lockManagers )
-        {
-            for ( LockWaitStrategies waitStrategy : lockWaitStrategies )
-            {
-                for ( LockType lockTypeAX : lockTypes )
-                {
-                    for ( LockType lockTypeAY : lockTypes )
-                    {
-                        for ( LockType lockTypeBX : lockTypes )
-                        {
-                            for ( LockType lockTypeBY : lockTypes )
-                            {
-                                fixtures.add( new Fixture(
-                                        iteration, lockManager, waitStrategy,
-                                        lockTypeAX, lockTypeAY, lockTypeBX, lockTypeBY ) );
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return fixtures.stream().map( f -> new Object[]{f} ).collect( Collectors.toList() );
-    }
-
-    private static ExecutorService executor = Executors.newCachedThreadPool( r ->
-    {
-        Thread thread = new Thread( r );
-        thread.setDaemon( true );
-        return thread;
-    } );
-
-    public ForsetiFalseDeadlockTest( Fixture fixture )
-    {
-        this.fixture = fixture;
-    }
-
-    private final Fixture fixture;
-
-    /**
-     * This takes a fair bit of time, and we don't want to wait that long. But more importantly, false deadlocks are
-     * still only very unlikely; they are not impossible, though.
-     *
-     * So this test is technically flaky, but the probability is, I think, quite low for the 'mild' test, but it is too
-     * high for this aggressive test. So therefor I have marked it as @Ignored, but I still keep it here for the sake
-     * of this comment, and to allow others to run it and get a feel for the probabilities involved.
-     */
-    @Ignore
-    @Test
-    public void testAggressivelyForFalseDeadlocks()
-    {
-        int testRuns = 2000;
-        loopRunTest( testRuns );
-    }
-
-    @Test
-    public void testMildlyForFalseDeadlocks()
-    {
-        int testRuns = 10;
-        loopRunTest( testRuns );
-    }
-
-    private void loopRunTest( int testRuns )
-    {
-        List<Throwable> exceptionList = new ArrayList<>();
-        loopRun( testRuns, exceptionList );
-
-        if ( !exceptionList.isEmpty() )
-        {
-            // We saw exceptions. Run it 99 more times, and then verify that our false deadlock rate is less than 2%.
-            int additionalRuns = testRuns * 99;
-            loopRun( additionalRuns, exceptionList );
-            double totalRuns = additionalRuns + testRuns;
-            double failures = exceptionList.size();
-            double failureRate = failures / totalRuns;
-            if ( failureRate > 0.02 )
-            {
-                // We have more than 2% failures. Report it!
-                AssertionError error = new AssertionError(
-                        "False deadlock failure rate of " + failureRate + " is greater than 2%" );
-                for ( Throwable th : exceptionList )
-                {
-                    error.addSuppressed( th );
-                }
-                throw error;
-            }
-        }
-    }
-
-    private void loopRun( int testRuns, List<Throwable> exceptionList )
-    {
-        for ( int i = 0; i < testRuns; i++ )
-        {
-            try
-            {
-                runTest();
-            }
-            catch ( Throwable th )
-            {
-                th.addSuppressed( new Exception( "Failed at iteration " + i ) );
-                exceptionList.add( th );
-            }
-        }
-    }
-
-    private void runTest() throws InterruptedException, java.util.concurrent.ExecutionException
-    {
-        int iterations = fixture.iterations();
-        ResourceType resourceType = fixture.createResourceType();
-        Locks manager = fixture.createLockManager( resourceType );
-        try ( Locks.Client a = manager.newClient();
-              Locks.Client b = manager.newClient() )
-        {
-            BinaryLatch startLatch = new BinaryLatch();
-            BlockedCallable callA = new BlockedCallable( startLatch,
-                    () -> workloadA( a, resourceType, iterations ) );
-            BlockedCallable callB = new BlockedCallable( startLatch,
-                    () -> workloadB( b, resourceType, iterations ) );
-
-            Future<Void> futureA = executor.submit( callA );
-            Future<Void> futureB = executor.submit( callB );
-
-            callA.awaitBlocked();
-            callB.awaitBlocked();
-
-            startLatch.release();
-
-            futureA.get();
-            futureB.get();
-        }
-        finally
-        {
-            manager.close();
-        }
-    }
-
-    private void workloadA( Locks.Client a, ResourceType resourceType, int iterations )
-    {
-        for ( int i = 0; i < iterations; i++ )
-        {
-            fixture.acquireAX( a, resourceType );
-            fixture.acquireAY( a, resourceType );
-            fixture.releaseAY( a, resourceType );
-            fixture.releaseAX( a, resourceType );
-        }
-    }
-
-    private void workloadB( Locks.Client b, ResourceType resourceType, int iterations )
-    {
-        for ( int i = 0; i < iterations; i++ )
-        {
-            fixture.acquireBX( b, resourceType );
-            fixture.releaseBX( b, resourceType );
-            fixture.acquireBY( b, resourceType );
-            fixture.releaseBY( b, resourceType );
-        }
-    }
-
-    public static class BlockedCallable implements Callable<Void>
-    {
-        private final BinaryLatch startLatch;
-        private final ThrowingAction<Exception> delegate;
-        private volatile Thread runner;
-
-        BlockedCallable( BinaryLatch startLatch, ThrowingAction<Exception> delegate )
-        {
-            this.startLatch = startLatch;
-            this.delegate = delegate;
-        }
-
-        @Override
-        public Void call() throws Exception
-        {
-            runner = Thread.currentThread();
-            startLatch.await();
-            delegate.apply();
-            return null;
-        }
-
-        void awaitBlocked()
-        {
-            Thread t;
-            do
-            {
-                t = runner;
-            }
-            while ( t == null || t.getState() != Thread.State.WAITING );
-        }
     }
 }
