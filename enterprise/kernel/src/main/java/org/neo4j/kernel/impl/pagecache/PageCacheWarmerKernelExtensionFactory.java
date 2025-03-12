@@ -38,14 +38,15 @@ import org.neo4j.helpers.Service;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.NeoStoreDataSource;
-import org.neo4j.kernel.availability.AvailabilityGuard;
+import org.neo4j.kernel.availability.DatabaseAvailabilityGuard;
 import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.extension.ExtensionType;
 import org.neo4j.kernel.extension.KernelExtensionFactory;
-import  org.neo4j.logging.internal.LogService;
 import org.neo4j.kernel.impl.spi.KernelContext;
 import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.logging.Log;
+import org.neo4j.logging.internal.LogService;
 import org.neo4j.scheduler.JobScheduler;
 
 @Service.Implementation( KernelExtensionFactory.class )
@@ -56,7 +57,7 @@ public class PageCacheWarmerKernelExtensionFactory
     {
         JobScheduler jobScheduler();
 
-        AvailabilityGuard availabilityGuard();
+        DatabaseAvailabilityGuard databaseAvailabilityGuard();
 
         PageCache pageCache();
 
@@ -73,14 +74,14 @@ public class PageCacheWarmerKernelExtensionFactory
 
     public PageCacheWarmerKernelExtensionFactory()
     {
-        super( "pagecachewarmer" );
+        super( ExtensionType.DATABASE, "pagecachewarmer" );
     }
 
     @Override
     public Lifecycle newInstance( KernelContext context, Dependencies deps )
     {
         JobScheduler scheduler = deps.jobScheduler();
-        AvailabilityGuard availabilityGuard = deps.availabilityGuard();
+        DatabaseAvailabilityGuard databaseAvailabilityGuard = deps.databaseAvailabilityGuard();
         PageCache pageCache = deps.pageCache();
         FileSystemAbstraction fs = deps.fileSystemAbstraction();
         NeoStoreDataSource dataSource = deps.dataSource();
@@ -88,7 +89,6 @@ public class PageCacheWarmerKernelExtensionFactory
         Log log = logService.getInternalLog( PageCacheWarmer.class );
         PageCacheWarmerMonitor monitor = deps.monitors().newMonitor( PageCacheWarmerMonitor.class );
         Config config = deps.config();
-        return new PageCacheWarmerKernelExtension(
-                scheduler, availabilityGuard, pageCache, fs, dataSource, log, monitor, config );
+        return new PageCacheWarmerKernelExtension( scheduler, databaseAvailabilityGuard, pageCache, fs, dataSource, log, monitor, config );
     }
 }

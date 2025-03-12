@@ -37,7 +37,6 @@ package org.neo4j.kernel.impl.storemigration.participant;
 import org.junit.Rule;
 import org.junit.Test;
 
-import java.io.File;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.TreeSet;
@@ -51,7 +50,6 @@ import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracerSupplier;
 import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.logging.internal.NullLogService;
 import org.neo4j.kernel.impl.pagecache.ConfiguringPageCacheFactory;
 import org.neo4j.kernel.impl.store.format.StoreVersion;
 import org.neo4j.kernel.impl.store.format.highlimit.v300.HighLimitV3_0_0;
@@ -59,6 +57,7 @@ import org.neo4j.kernel.impl.storemigration.StoreVersionCheck;
 import org.neo4j.kernel.impl.storemigration.StoreVersionCheck.Result;
 import org.neo4j.kernel.impl.util.monitoring.ProgressReporter;
 import org.neo4j.logging.NullLog;
+import org.neo4j.logging.internal.NullLogService;
 import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.scheduler.ThreadPoolJobScheduler;
 import org.neo4j.test.TestGraphDatabaseFactory;
@@ -75,13 +74,13 @@ import static org.neo4j.io.pagecache.tracing.PageCacheTracer.NULL;
 public class StoreMigratorTest
 {
     @Rule
-    public final TestDirectory directory = TestDirectory.testDirectory();
+    public final TestDirectory testDirectory = TestDirectory.testDirectory();
 
     @Test
     public void shouldNotDoActualStoreMigrationBetween3_0_5_and_next() throws Exception
     {
         // GIVEN a store in vE.H.0 format
-        DatabaseLayout databaseLayout = directory.databaseLayout();
+        DatabaseLayout databaseLayout = testDirectory.databaseLayout();
         new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( databaseLayout.databaseDirectory() )
                 // The format should be vE.H.0, HighLimit.NAME may point to a different version in future versions
                 .setConfig( GraphDatabaseSettings.record_format, HighLimitV3_0_0.NAME )
@@ -104,7 +103,7 @@ public class StoreMigratorTest
             // WHEN
             StoreMigrator migrator = new StoreMigrator( fs, pageCache, config, NullLogService.getInstance(), jobScheduler );
             ProgressReporter monitor = mock( ProgressReporter.class );
-            DatabaseLayout migrationLayout = directory.databaseLayout( "migration" );
+            DatabaseLayout migrationLayout = testDirectory.databaseLayout( "migration" );
             migrator.migrate( databaseLayout, migrationLayout, monitor, fromStoreVersion,
                     StoreVersion.HIGH_LIMIT_V3_0_6.versionString() );
 
@@ -147,5 +146,4 @@ public class StoreMigratorTest
 
         assertEquals( expectedVersions, actualVersions );
     }
-
 }
