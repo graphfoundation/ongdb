@@ -41,7 +41,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Function;
 
 import org.neo4j.collection.primitive.Primitive;
@@ -181,9 +180,8 @@ class PropertyExistenceEnforcer
         }
 
         @Override
-        public void visitNodePropertyChanges(
-                long id, Iterator<StorageProperty> added,
-                Iterator<StorageProperty> changed, IntIterable removed ) throws ConstraintValidationException
+        public void visitNodePropertyChanges( long id, Iterator<StorageProperty> added, Iterator<StorageProperty> changed, IntIterable removed )
+                throws ConstraintValidationException
         {
             validateNode( id );
             super.visitNodePropertyChanges( id, added, changed, removed );
@@ -206,9 +204,8 @@ class PropertyExistenceEnforcer
         }
 
         @Override
-        public void visitRelPropertyChanges(
-                long id, Iterator<StorageProperty> added,
-                Iterator<StorageProperty> changed, IntIterable removed ) throws ConstraintValidationException
+        public void visitRelPropertyChanges( long id, Iterator<StorageProperty> added, Iterator<StorageProperty> changed, IntIterable removed )
+                throws ConstraintValidationException
         {
             validateRelationship( id );
             super.visitRelPropertyChanges( id, added, changed, removed );
@@ -362,8 +359,7 @@ class PropertyExistenceEnforcer
         }
     }
 
-    private void validateNodeProperties( long id, int label, int[] requiredKeys, PrimitiveIntSet propertyKeyIds )
-            throws NodePropertyExistenceException
+    private void validateNodeProperties( long id, int label, int[] requiredKeys, PrimitiveIntSet propertyKeyIds ) throws NodePropertyExistenceException
     {
         for ( int key : requiredKeys )
         {
@@ -374,8 +370,7 @@ class PropertyExistenceEnforcer
         }
     }
 
-    private void failNode( long id, int label, int propertyKey )
-            throws NodePropertyExistenceException
+    private void failNode( long id, int label, int propertyKey ) throws NodePropertyExistenceException
     {
         for ( LabelSchemaDescriptor constraint : nodeConstraints )
         {
@@ -389,8 +384,7 @@ class PropertyExistenceEnforcer
                 label, propertyKey ) );
     }
 
-    private void failRelationship( long id, int relationshipType, int propertyKey )
-            throws RelationshipPropertyExistenceException
+    private void failRelationship( long id, int relationshipType, int propertyKey ) throws RelationshipPropertyExistenceException
     {
         for ( RelationTypeSchemaDescriptor constraint : relationshipConstraints )
         {
