@@ -211,18 +211,18 @@ public class EnterpriseConstraintSemantics extends StandardConstraintSemantics
     }
 
     @Override
-    public TxStateVisitor decorateTxStateVisitor( StorageReader storageReader, Read read, CursorFactory cursorFactory, ReadableTransactionState state,
-                                                  TxStateVisitor visitor )
+    public TxStateVisitor decorateTxStateVisitor( StorageReader storageReader, Read read, CursorFactory cursorFactory,
+                                                  ReadableTransactionState transactionState, TxStateVisitor visitor )
     {
-        if ( !state.hasDataChanges() )
+        if ( !transactionState.hasDataChanges() )
         {
             // If there are no data changes, there is no need to enforce constraints. Since there is no need to
             // enforce constraints, there is no need to build up the state required to be able to enforce constraints.
-            // In fact, it might even be counter productive to build up that state, since if there are no data changes
+            // In fact, it might even be counterproductive to build up that state, since if there are no data changes
             // there would be schema changes instead, and in that case we would throw away the schema-dependant state
             // we just built when the schema changing transaction commits.
             return visitor;
         }
-        return getOrCreatePropertyExistenceEnforcerFrom( storageReader ).decorate( visitor, state, storageReader );
+        return getOrCreatePropertyExistenceEnforcerFrom( storageReader ).decorate( visitor, transactionState, storageReader );
     }
 }
