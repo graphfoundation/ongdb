@@ -97,9 +97,9 @@ public class ConsistencyCheckWithCorruptGBPTreeIT
 {
     private static final Label label = Label.label( "label" );
     private static final String propKey1 = "key1";
-    private PageCacheRule pageCacheRule = new PageCacheRule();
-    private TestDirectory testDirectory = TestDirectory.testDirectory();
-    private RandomRule random = new RandomRule();
+    private final PageCacheRule pageCacheRule = new PageCacheRule();
+    private final TestDirectory testDirectory = TestDirectory.testDirectory();
+    private final RandomRule random = new RandomRule();
 
     @Rule
     public RuleChain ruleChain = RuleChain.outerRule( testDirectory ).around( pageCacheRule ).around( random );
