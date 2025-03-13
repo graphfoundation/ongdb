@@ -45,10 +45,10 @@ import org.neo4j.internal.kernel.api.PropertyCursor;
 import org.neo4j.internal.kernel.api.Read;
 import org.neo4j.internal.kernel.api.RelationshipScanCursor;
 import org.neo4j.internal.kernel.api.exceptions.schema.ConstraintValidationException;
+import org.neo4j.internal.kernel.api.exceptions.schema.CreateConstraintFailureException;
 import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
 import org.neo4j.internal.kernel.api.schema.RelationTypeSchemaDescriptor;
 import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
-import org.neo4j.internal.kernel.api.exceptions.schema.CreateConstraintFailureException;
 import org.neo4j.kernel.api.exceptions.schema.NodePropertyExistenceException;
 import org.neo4j.kernel.api.exceptions.schema.RelationshipPropertyExistenceException;
 import org.neo4j.kernel.api.schema.constraints.NodeKeyConstraintDescriptor;
@@ -116,7 +116,7 @@ public class EnterpriseConstraintSemantics extends StandardConstraintSemantics
                 for ( int propertyKey : descriptor.getPropertyIds() )
                 {
                     nodeCursor.properties( propertyCursor );
-                    if ( !hasProperty( propertyCursor, propertyKey ) )
+                    if ( PropertyCursorUtil.absent( propertyCursor, propertyKey ) )
                     {
                         throw createConstraintFailure(
                                 new NodePropertyExistenceException( descriptor, VERIFICATION,
@@ -152,18 +152,6 @@ public class EnterpriseConstraintSemantics extends StandardConstraintSemantics
         }
     }
 
-    private boolean hasProperty( PropertyCursor propertyCursor, int property )
-    {
-        while ( propertyCursor.next() )
-        {
-            if ( propertyCursor.propertyKey() == property )
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
     public void validateRelationshipPropertyExistenceConstraint( Cursor<RelationshipScanCursor> allRelationships,
             RelationTypeSchemaDescriptor descriptor, BiPredicate<RelationshipScanCursor,Integer> hasPropertyCheck )
             throws CreateConstraintFailureException
@@ -195,7 +183,7 @@ public class EnterpriseConstraintSemantics extends StandardConstraintSemantics
             for ( int propertyKey : descriptor.getPropertyIds() )
             {
                 if ( relationshipCursor.type() == descriptor.getRelTypeId() &&
-                     !hasProperty( propertyCursor, propertyKey ) )
+                     PropertyCursorUtil.absent( propertyCursor, propertyKey ) )
                 {
                     throw createConstraintFailure(
                             new RelationshipPropertyExistenceException( descriptor, VERIFICATION,
