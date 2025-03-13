@@ -77,15 +77,13 @@ class PropertyExistenceEnforcer
 
     private final List<LabelSchemaDescriptor> nodeConstraints;
     private final List<RelationTypeSchemaDescriptor> relationshipConstraints;
-    private final List<SchemaDescriptor> schemaConstraints;
     private final PrimitiveIntObjectMap<int[]> mandatoryNodePropertiesByLabel = Primitive.intObjectMap();
     private final PrimitiveIntObjectMap<int[]> mandatoryRelationshipPropertiesByType = Primitive.intObjectMap();
 
-    private PropertyExistenceEnforcer( List<LabelSchemaDescriptor> nodes, List<RelationTypeSchemaDescriptor> rels, List<SchemaDescriptor> schemas )
+    private PropertyExistenceEnforcer( List<LabelSchemaDescriptor> nodes, List<RelationTypeSchemaDescriptor> rels )
     {
         this.nodeConstraints = nodes;
         this.relationshipConstraints = rels;
-        this.schemaConstraints = schemas;
         for ( LabelSchemaDescriptor constraint : nodes )
         {
             update( mandatoryNodePropertiesByLabel, constraint.getLabelId(),
@@ -121,7 +119,7 @@ class PropertyExistenceEnforcer
         return new Decorator( visitor, txState, storageReader );
     }
 
-    private static final PropertyExistenceEnforcer NO_CONSTRAINTS = new PropertyExistenceEnforcer( emptyList(), emptyList(), emptyList() )
+    private static final PropertyExistenceEnforcer NO_CONSTRAINTS = new PropertyExistenceEnforcer( emptyList(), emptyList() )
     {
         @Override
         TxStateVisitor decorate( TxStateVisitor visitor, ReadableTransactionState txState, StorageReader storageReader )
@@ -165,7 +163,7 @@ class PropertyExistenceEnforcer
         {
             return NO_CONSTRAINTS;
         }
-        return new PropertyExistenceEnforcer( nodes, relationships, schemas );
+        return new PropertyExistenceEnforcer( nodes, relationships );
     };
 
     private class Decorator extends TxStateVisitor.Delegator
