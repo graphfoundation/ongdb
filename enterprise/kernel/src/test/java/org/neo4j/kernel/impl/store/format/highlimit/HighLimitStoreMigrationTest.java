@@ -103,16 +103,15 @@ public class HighLimitStoreMigrationTest
                     newStoreFilesCount, Matchers.greaterThanOrEqualTo( StoreType.values().length ) );
     }
 
-    private File prepareNeoStoreFile( FileSystemAbstraction fileSystem, DatabaseLayout databaseLayout, String storeVersion,
-            PageCache pageCache ) throws IOException
+    private static void prepareNeoStoreFile( FileSystemAbstraction fileSystem, DatabaseLayout databaseLayout, String storeVersion, PageCache pageCache )
+            throws IOException
     {
         File neoStoreFile = createNeoStoreFile( fileSystem, databaseLayout );
         long value = MetaDataStore.versionStringToLong( storeVersion );
         MetaDataStore.setRecord( pageCache, neoStoreFile, STORE_VERSION, value );
-        return neoStoreFile;
     }
 
-    private File createNeoStoreFile( FileSystemAbstraction fileSystem, DatabaseLayout databaseLayout ) throws IOException
+    private static File createNeoStoreFile( FileSystemAbstraction fileSystem, DatabaseLayout databaseLayout ) throws IOException
     {
         File neoStoreFile = databaseLayout.metadataStore();
         fileSystem.create( neoStoreFile ).close();
