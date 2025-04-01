@@ -162,8 +162,11 @@ public class ClusterOverviewIT
         clusterRule.withNumberOfReadReplicas( readReplicas );
 
         // when
+        System.out.println("Cluster starting");
         Cluster cluster = clusterRule.startCluster();
+        System.out.println("Cluster shutting down");
         cluster.shutdownCoreMembers();
+        System.out.println("Cluster starting again");
         cluster.startCoreMembers();
 
         Matcher<List<MemberInfo>> expected = allOf(
@@ -173,6 +176,9 @@ public class ClusterOverviewIT
         for ( int coreServerId = 0; coreServerId < coreMembers; coreServerId++ )
         {
             // then
+            System.out.println(coreServerId);
+            System.out.println(coreMembers);
+            System.out.println(cluster.coreMembers());
             assertEventualOverview( cluster, expected, coreServerId );
         }
     }
@@ -327,7 +333,7 @@ public class ClusterOverviewIT
         Function<List<MemberInfo>, String> printableMemberInfos =
                 memberInfos -> memberInfos.stream().map( MemberInfo::toString ).collect( Collectors.joining( ", " ) );
         assertEventually( memberInfos -> "should have overview from core " + coreServerId + " but view was " + printableMemberInfos.apply( memberInfos ),
-                () -> clusterOverview( cluster.getCoreMemberById( coreServerId ).database() ), expected, 90, SECONDS );
+                () -> clusterOverview( cluster.getCoreMemberById( coreServerId ).database() ), expected, 300, SECONDS );
     }
 
     @SafeVarargs

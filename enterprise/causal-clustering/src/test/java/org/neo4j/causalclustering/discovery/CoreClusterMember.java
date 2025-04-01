@@ -193,6 +193,7 @@ public class CoreClusterMember implements ClusterMember<CoreGraphDatabase>
     @Override
     public void shutdown()
     {
+        System.out.println("Core shutdown");
         if ( database != null )
         {
             try

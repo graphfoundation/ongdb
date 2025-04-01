@@ -126,6 +126,11 @@ public class ClusterOverviewProcedure extends CallableProcedure.BasicProcedure
 
         endpoints.sort( comparing( o -> o.addresses().toString() ) );
 
+        for ( ReadWriteEndPoint endpoint : endpoints )
+        {
+            System.out.println( endpoint.role());
+        }
+
         return map( endpoint -> new Object[]
                         {
                                 endpoint.memberId().toString(),

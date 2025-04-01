@@ -655,7 +655,7 @@ public class Cluster
         }
     }
 
-    private void startReadReplicas() throws InterruptedException, ExecutionException
+    public void startReadReplicas() throws InterruptedException, ExecutionException
     {
         Collection<ReadReplica> members = readReplicas.values();
         List<Future<ReadReplicaGraphDatabase>> futures = invokeAll( "cluster-starter", members, cm ->

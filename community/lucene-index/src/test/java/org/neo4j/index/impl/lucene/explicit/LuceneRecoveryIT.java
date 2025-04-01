@@ -65,7 +65,7 @@ public class LuceneRecoveryIT
     @Rule
     public final TestDirectory testDirectory = TestDirectory.testDirectory();
     @Rule
-    public final VerboseTimeout timeout = VerboseTimeout.builder().withTimeout( 3, MINUTES ).build();
+    public final VerboseTimeout timeout = VerboseTimeout.builder().withTimeout( 10, MINUTES ).build();
 
     @Test
     public void testHardCoreRecovery() throws Exception

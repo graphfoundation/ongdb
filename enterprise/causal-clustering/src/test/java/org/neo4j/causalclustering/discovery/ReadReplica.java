@@ -149,6 +149,7 @@ public class ReadReplica implements ClusterMember<ReadReplicaGraphDatabase>
     @Override
     public void shutdown()
     {
+        System.out.println("Read replica shutdown");
         if ( database != null )
         {
             try
