@@ -98,7 +98,7 @@ public class SslNegotiationTest
                 new TestSetup(
                         protocols( TLSv10 ).ciphers( NEW_CIPHER_A ),
                         protocols( TLSv10 ).ciphers( NEW_CIPHER_A ),
-                        false, TLSv10, NEW_CIPHER_A ),
+                        SupportsTls.supportsTls_1_0(), TLSv10, NEW_CIPHER_A ),
                 new TestSetup(
                         protocols( TLSv11 ).ciphers( OLD_CIPHER_A ),
                         protocols( TLSv11 ).ciphers( OLD_CIPHER_A ),
@@ -106,7 +106,7 @@ public class SslNegotiationTest
                 new TestSetup(
                         protocols( TLSv11 ).ciphers( NEW_CIPHER_A ),
                         protocols( TLSv11 ).ciphers( NEW_CIPHER_A ),
-                        false, TLSv11, NEW_CIPHER_A ),
+                        SupportsTls.supportsTls_1_1(), TLSv11, NEW_CIPHER_A ),
                 new TestSetup(
                         protocols( TLSv12 ).ciphers( NEW_CIPHER_A ),
                         protocols( TLSv12 ).ciphers( NEW_CIPHER_A ),
@@ -164,7 +164,7 @@ public class SslNegotiationTest
                 new TestSetup(
                         protocols( TLSv11 ).ciphers( NEW_CIPHER_B, NEW_CIPHER_A ),
                         protocols( TLSv11 ).ciphers( NEW_CIPHER_C, NEW_CIPHER_A ),
-                        false, TLSv11, NEW_CIPHER_A ),
+                        SupportsTls.supportsTls_1_1(), TLSv11, NEW_CIPHER_A ),
                 new TestSetup(
                         protocols( TLSv12 ).ciphers( NEW_CIPHER_B, NEW_CIPHER_A ),
                         protocols( TLSv12 ).ciphers( NEW_CIPHER_C, NEW_CIPHER_A ),
