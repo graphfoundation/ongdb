@@ -162,11 +162,11 @@ public class ClusterOverviewIT
         clusterRule.withNumberOfReadReplicas( readReplicas );
 
         // when
-        System.out.println("Cluster starting");
+        System.out.println( "Cluster starting" );
         Cluster cluster = clusterRule.startCluster();
-        System.out.println("Cluster shutting down");
+        System.out.println( "Cluster shutting down" );
         cluster.shutdownCoreMembers();
-        System.out.println("Cluster starting again");
+        System.out.println( "Cluster starting again" );
         cluster.startCoreMembers();
 
         Matcher<List<MemberInfo>> expected = allOf(

@@ -88,16 +88,16 @@ public class HazelcastClient extends AbstractTopologyService
     public HazelcastClient( HazelcastConnector connector, JobScheduler scheduler, LogProvider logProvider, Config config, MemberId myself,
             TopologyServiceRetryStrategy topologyServiceRetryStrategy )
     {
-        System.out.println("HazelcastClient instantiated");
         this.hzInstance = new RobustHazelcastWrapper( connector );
         this.config = config;
         this.log = logProvider.getLog( getClass() );
+        this.log.debug( "HazelcastClient instantiated" );
         this.scheduler = new RobustJobSchedulerWrapper( scheduler, log );
         this.connectorAddresses = ClientConnectorAddresses.extractFromConfig( config );
         this.transactionSource = config.get( CausalClusteringSettings.transaction_advertised_address );
-        this.timeToLive = 60000;//config.get( CausalClusteringSettings.read_replica_time_to_live ).toMillis();
-        System.out.println("TimeToLive " + timeToLive + " ms");
-        this.refreshPeriod = 500; //config.get( CausalClusteringSettings.cluster_topology_refresh ).toMillis();
+        this.timeToLive = config.get( CausalClusteringSettings.read_replica_time_to_live ).toMillis();
+        this.log.debug( "Time To Live: " + timeToLive + " ms" );
+        this.refreshPeriod = config.get( CausalClusteringSettings.cluster_topology_refresh ).toMillis();
         this.myself = myself;
         this.groups = config.get( CausalClusteringSettings.server_groups );
         this.topologyServiceRetryStrategy = resolveStrategy( refreshPeriod, logProvider );
@@ -166,7 +166,7 @@ public class HazelcastClient extends AbstractTopologyService
     @Override
     public void start()
     {
-        System.out.println("HazelcastClient started");
+        log.debug( "HazelcastClient started" );
         keepAliveJob = scheduler.scheduleRecurring( "KeepAlive", timeToLive / 3, this::keepReadReplicaAlive );
         refreshTopologyJob = scheduler.scheduleRecurring( "TopologyRefresh", refreshPeriod, () -> {
             this.refreshTopology();
@@ -186,8 +186,8 @@ public class HazelcastClient extends AbstractTopologyService
     {
         try
         {
-            System.out.println("HazelcastClient disconnected");
             String uuid = hzInstance.apply( hzInstance -> hzInstance.getLocalEndpoint().getUuid() );
+            log.debug( "HazelcastClient %s disconnected", uuid );
             hzInstance.apply( hz -> hz.getMap( READ_REPLICA_BOLT_ADDRESS_MAP ).remove( uuid ) );
             hzInstance.shutdown();
         }
@@ -203,13 +203,9 @@ public class HazelcastClient extends AbstractTopologyService
     {
         hzInstance.perform( hazelcastInstance ->
         {
-            System.out.println("keepReadReplicaAlive");
             String uuid = hazelcastInstance.getLocalEndpoint().getUuid();
-            System.out.println("GetUUID");
             String addresses = connectorAddresses.toString();
-            System.out.println("Adding read replica into cluster ($ -> %s)");
-            System.out.println(uuid);
-            System.out.println(addresses);
+            log.debug( "Adding read replica into cluster (%s -> %s)", uuid, addresses );
 
             hazelcastInstance.getMap( READ_REPLICAS_DB_NAME_MAP ).put( uuid, dbName, timeToLive, MILLISECONDS);
 
@@ -222,15 +218,6 @@ public class HazelcastClient extends AbstractTopologyService
             // this needs to be last as when we read from it in HazelcastClusterTopology.readReplicas
             // we assume that all the other maps have been populated if an entry exists in this one
             hazelcastInstance.getMap( READ_REPLICA_BOLT_ADDRESS_MAP ).put( uuid, addresses, timeToLive, MILLISECONDS );
-            System.out.println(hazelcastInstance.getMap( READ_REPLICAS_DB_NAME_MAP ).keySet());
-            System.out.println(hazelcastInstance.getMap( READ_REPLICAS_DB_NAME_MAP ).values());
-            System.out.println(hazelcastInstance.getMap( READ_REPLICA_TRANSACTION_SERVER_ADDRESS_MAP ).keySet());
-            System.out.println(hazelcastInstance.getMap( READ_REPLICA_TRANSACTION_SERVER_ADDRESS_MAP ).values());
-            System.out.println(hazelcastInstance.getMap( READ_REPLICA_MEMBER_ID_MAP ).keySet());
-            System.out.println(hazelcastInstance.getMap( READ_REPLICA_MEMBER_ID_MAP ).values());
-            System.out.println(hazelcastInstance.getMap( READ_REPLICA_BOLT_ADDRESS_MAP ).keySet());
-            System.out.println(hazelcastInstance.getMap( READ_REPLICA_BOLT_ADDRESS_MAP ).values());
-
         } );
     }
 }
