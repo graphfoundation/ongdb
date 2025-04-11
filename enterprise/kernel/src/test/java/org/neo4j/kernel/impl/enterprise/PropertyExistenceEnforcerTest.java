@@ -76,17 +76,17 @@ public class PropertyExistenceEnforcerTest
     private StorageEngine prepareStoreReadLayerMock( List<ConstraintDescriptor> descriptors )
     {
         StorageEngine storageEngine = Mockito.mock( StorageEngine.class );
-        try ( StorageReader storageReader = storageEngine.newReader() )
-        {
-            when( storageReader.constraintsGetAll() ).thenReturn( descriptors.iterator() );
-            when( storageReader.getOrCreateSchemaDependantState( eq( PropertyExistenceEnforcer.class ),
-                    any( Function.class) ) ).thenAnswer( invocation ->
-            {
-                Function<StorageEngine,PropertyExistenceEnforcer> function = invocation.getArgument( 1 );
-                return function.apply( storageEngine );
-            } );
-            PropertyExistenceEnforcer.getOrCreatePropertyExistenceEnforcerFrom( storageReader );
-        }
+        StorageReader storageReader = Mockito.mock( StorageReader.class );
+        when( storageEngine.newReader() ).thenReturn( storageReader );
+        when( storageReader.constraintsGetAll() ).thenReturn( descriptors.iterator() );
+        when( storageReader.getOrCreateSchemaDependantState( eq( PropertyExistenceEnforcer.class ),
+                                                             any( Function.class ) ) )
+                .thenAnswer( invocation ->
+                             {
+                                 Function<StorageReader,PropertyExistenceEnforcer> function = invocation.getArgument( 1 );
+                                 return function.apply( storageReader );
+                             } );
+        PropertyExistenceEnforcer.getOrCreatePropertyExistenceEnforcerFrom( storageReader );
         return storageEngine;
     }
 }
