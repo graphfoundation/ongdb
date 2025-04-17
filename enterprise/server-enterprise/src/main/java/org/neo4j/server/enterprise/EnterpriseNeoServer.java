@@ -34,19 +34,10 @@
  */
 package org.neo4j.server.enterprise;
 
-import java.io.File;
-
-import org.neo4j.causalclustering.core.OpenEnterpriseCoreGraphDatabase;
-import org.neo4j.causalclustering.readreplica.OpenEnterpriseReadReplicaGraphDatabase;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.enterprise.configuration.EnterpriseEditionSettings;
-import org.neo4j.kernel.impl.enterprise.configuration.EnterpriseEditionSettings.Mode;
 import org.neo4j.kernel.impl.factory.GraphDatabaseFacadeFactory.Dependencies;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.server.database.Database.Factory;
-import org.neo4j.server.database.LifecycleManagingDatabase;
-import org.neo4j.server.database.LifecycleManagingDatabase.GraphFactory;
 
 /**
  * Normally our naming convention would call this OpenEnterpriseNeoServer - but in this case, ONgDB already has a class with this name, so we are just calling
@@ -54,18 +45,6 @@ import org.neo4j.server.database.LifecycleManagingDatabase.GraphFactory;
  **/
 public class EnterpriseNeoServer extends OpenEnterpriseNeoServer
 {
-    private static final GraphFactory CORE_FACTORY = ( config, dependencies ) ->
-    {
-        File storeDir = config.get( GraphDatabaseSettings.database_path );
-        return new OpenEnterpriseCoreGraphDatabase( storeDir, config, dependencies );
-    };
-
-    private static final GraphFactory READ_REPLICA_FACTORY = ( config, dependencies ) ->
-    {
-        File storeDir = config.get( GraphDatabaseSettings.database_path );
-        return new OpenEnterpriseReadReplicaGraphDatabase( storeDir, config, dependencies );
-    };
-
     public EnterpriseNeoServer( Config config, Dependencies dependencies, LogProvider logProvider )
     {
         super( config, createDbFactory( config ), dependencies, logProvider );
@@ -73,16 +52,6 @@ public class EnterpriseNeoServer extends OpenEnterpriseNeoServer
 
     protected static Factory createDbFactory( Config config )
     {
-        Mode mode = config.get( EnterpriseEditionSettings.mode );
-        switch ( mode )
-        {
-        case CORE:
-            return LifecycleManagingDatabase.lifecycleManagingDatabase( CORE_FACTORY );
-        case READ_REPLICA:
-            return LifecycleManagingDatabase.lifecycleManagingDatabase( READ_REPLICA_FACTORY );
-        default:
-            return OpenEnterpriseNeoServer.createDbFactory( config );
-        }
+        return OpenEnterpriseNeoServer.createDbFactory( config );
     }
 }
-
