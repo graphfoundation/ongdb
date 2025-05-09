@@ -67,7 +67,7 @@ class LFUCache[K <: AnyRef, V <: AnyRef](val size: Int) extends ((K, => V) => V)
   def apply(key: K, value: => V): V = getOrElseUpdate(key, value)
 
   /**
-    * Method for clearing the LRUCache
+    * Method for clearing the LFUCache
     * @return the number of elements in the cache prior to the clearing
     */
   def clear(): Long = {
