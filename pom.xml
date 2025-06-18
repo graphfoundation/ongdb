@@ -109,6 +109,7 @@
         <jetty.version>9.4.51.v20230217</jetty.version>
         <findbugs.version>3.0.1</findbugs.version>
         <git.commit>unknown-commit</git.commit>
+        <gpg.keyname/>
         <forkCounts>0</forkCounts>
         <maven.build.timestamp.format>yyMMddHHmmssSSS</maven.build.timestamp.format>
 
@@ -998,6 +999,10 @@
                                 <goals>
                                     <goal>sign</goal>
                                 </goals>
+                                <configuration>
+                                    <keyname>${gpg.keyname}</keyname>
+                                    <passphraseServerId>${gpg.keyname}</passphraseServerId>
+                                </configuration>
                             </execution>
                         </executions>
                     </plugin>
@@ -1010,17 +1015,6 @@
                             <publishingServerId>graphfoundation-releases</publishingServerId>
                             <autoPublish>true</autoPublish>
                             <waitUntil>published</waitUntil>
-                        </configuration>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.sonatype.plugins</groupId>
-                        <artifactId>nexus-staging-maven-plugin</artifactId>
-                        <version>1.6.13</version>
-                        <extensions>true</extensions>
-                        <configuration>
-                            <serverId>graphfoundation-releases</serverId>
-                            <nexusUrl>https://oss.sonatype.org/</nexusUrl>
-                            <skipStagingRepositoryClose>true</skipStagingRepositoryClose>
                         </configuration>
                     </plugin>
                 </plugins>
