@@ -117,11 +117,11 @@ check_java() {
       _show_java_help
       exit 1
     fi
-    if ! ("${version_command[@]}" 2>&1 | egrep -q "(Java HotSpot\\(TM\\)|OpenJDK|IBM) (64-Bit Server|Server|Client|J9) VM"); then
+    if ! ("${version_command[@]}" 2>&1 | grep -E -q "(Java HotSpot\\(TM\\)|OpenJDK|IBM) (64-Bit Server|Server|Client|J9) VM"); then
       unsupported_runtime_warning
     fi
   elif [[ $JAVA_VERSION = "11"* ]]; then
-    if ! ("${version_command[@]}" 2>&1 | egrep -q "(Java HotSpot\\(TM\\)|OpenJDK|IBM) (64-Bit Server|Server|Client|J9) VM"); then
+    if ! ("${version_command[@]}" 2>&1 | grep -E -q "(Java HotSpot\\(TM\\)|OpenJDK|IBM) (64-Bit Server|Server|Client|J9) VM"); then
        unsupported_runtime_warning
     fi
   else

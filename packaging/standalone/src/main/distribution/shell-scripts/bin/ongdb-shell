@@ -102,7 +102,7 @@ check_java() {
     exit 1
   fi
 
-  if ! ("${version_command[@]}" 2>&1 | egrep -q "(Java HotSpot\\(TM\\)|OpenJDK|IBM) (64-Bit Server|Server|Client|J9) VM"); then
+  if ! ("${version_command[@]}" 2>&1 | grep -E -q "(Java HotSpot\\(TM\\)|OpenJDK|IBM) (64-Bit Server|Server|Client|J9) VM"); then
     echo "WARNING! You are using an unsupported Java runtime. "
     _show_java_help
   fi
