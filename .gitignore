@@ -30,3 +30,4 @@ Thumbs.db
 packaging/standalone/src/main/distribution/geequel-shell
 /.profiler/
 dependency-reduced-pom.xml
+docker*

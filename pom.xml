@@ -89,8 +89,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
-        <maven.repository.snapshots>https://oss.sonatype.org/content/repositories/snapshots</maven.repository.snapshots>
-        <maven.repository.releases>https://oss.sonatype.org/service/local/staging/deploy/maven2</maven.repository.releases>
+        <maven.repository.snapshots>https://central.sonatype.com</maven.repository.snapshots>
+        <maven.repository.releases>https://central.sonatype.com</maven.repository.releases>
         <licensing.prepend.text>licensing/notice-agpl-prefix.txt</licensing.prepend.text>
         <lucene.version>5.5.5</lucene.version>
         <bouncycastle.version>1.70</bouncycastle.version>
@@ -990,7 +990,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <version>3.0.1</version>
+                        <version>3.2.7</version>
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>
@@ -1000,6 +1000,17 @@
                                 </goals>
                             </execution>
                         </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.8.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>graphfoundation-releases</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>published</waitUntil>
+                        </configuration>
                     </plugin>
                     <plugin>
                         <groupId>org.sonatype.plugins</groupId>
