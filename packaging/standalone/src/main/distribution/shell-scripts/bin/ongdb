@@ -320,6 +320,9 @@ print_active_database() {
   echo "Active database: ${dbms_active_database:-graph.db}"
 }
 
+use_default_main_class() {
+  MAIN_CLASS="#{ongdb.mainClass}"
+}
 
 setup_arbiter_options() {
   is_arbiter() {
@@ -339,7 +342,7 @@ setup_arbiter_options() {
   else
     SHUTDOWN_TIMEOUT="${ONGDB_SHUTDOWN_TIMEOUT:-120}"
     MIN_ALLOWED_OPEN_FILES=40000
-    MAIN_CLASS="#{ongdb.mainClass}"
+    use_default_main_class
 
     print_start_message() {
       # Global default
@@ -542,6 +545,8 @@ do_status() {
 }
 
 do_version() {
+  check_java
+  use_default_main_class
   build_classpath
 
   assemble_command_line
@@ -592,7 +597,6 @@ main() {
       ;;
 
     --version|version)
-      setup_java
       do_version
       ;;
 
