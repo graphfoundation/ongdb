@@ -207,9 +207,7 @@ public class CoreServerModule
 
         CatchupServerHandler catchupServerHandler = new RegularCatchupServerHandler( platformModule.monitors,
                 logProvider, localDatabase::storeId,
-                () -> localDatabase.dataSource().getDependencyResolver().resolveDependency( TransactionIdStore.class ),
-                () -> localDatabase.dataSource().getDependencyResolver().resolveDependency( LogicalTransactionStore.class ),
-                localDatabase::dataSource, localDatabase::isAvailable,
+                platformModule.dependencies.provideDependency( LogicalTransactionStore.class ), localDatabase::dataSource, localDatabase::isAvailable,
                 fileSystem, snapshotService, new CheckpointerSupplier( platformModule.dependencies ) );
 
         CatchupProtocolServerInstaller.Factory catchupProtocolServerInstaller = new CatchupProtocolServerInstaller.Factory( serverPipelineBuilderFactory,

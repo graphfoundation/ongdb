@@ -313,7 +313,7 @@ public class EnterpriseReadReplicaEditionModule extends DefaultEditionModule
                 platformModule.logging.getUserLogProvider(), storeCopyProcess, topologyService ) );
 
         RegularCatchupServerHandler catchupServerHandler = new RegularCatchupServerHandler( platformModule.monitors,
-                logProvider, localDatabase::storeId, platformModule.dependencies.provideDependency( TransactionIdStore.class ),
+                logProvider, localDatabase::storeId,
                 platformModule.dependencies.provideDependency( LogicalTransactionStore.class ), localDatabase::dataSource, localDatabase::isAvailable,
                 fileSystem, null, new CheckpointerSupplier( platformModule.dependencies ) );
 

@@ -93,7 +93,7 @@ public abstract class StoreCopyRequestHandler<T extends StoreCopyRequest> extend
             {
                 responseStatus = StoreCopyFinishedResponse.Status.E_STORE_ID_MISMATCH;
             }
-            else if ( !isTransactionWithinReach( request.requiredTransactionId(), checkpointerSupplier.get() ) )
+            else if ( !isTransactionWithinReach( request.requiredTransactionId(),  neoStoreDataSource.getDependencyResolver().resolveDependency( CheckPointer.class ) ) )
             {
                 responseStatus = StoreCopyFinishedResponse.Status.E_TOO_FAR_BEHIND;
             }

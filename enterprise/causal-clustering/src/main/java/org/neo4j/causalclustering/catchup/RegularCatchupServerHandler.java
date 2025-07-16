@@ -64,38 +64,42 @@ public class RegularCatchupServerHandler implements CatchupServerHandler
     private final Monitors monitors;
     private final LogProvider logProvider;
     private final Supplier<StoreId> storeIdSupplier;
-    private final Supplier<TransactionIdStore> transactionIdStoreSupplier;
     private final Supplier<LogicalTransactionStore> logicalTransactionStoreSupplier;
     private final Supplier<NeoStoreDataSource> dataSourceSupplier;
     private final BooleanSupplier dataSourceAvailabilitySupplier;
     private final FileSystemAbstraction fs;
-    private final StoreCopyCheckPointMutex storeCopyCheckPointMutex;
+    private StoreCopyCheckPointMutex storeCopyCheckPointMutex;
     private final CoreSnapshotService snapshotService;
     private final Supplier<CheckPointer> checkPointerSupplier;
 
-    public RegularCatchupServerHandler( Monitors monitors, LogProvider logProvider, Supplier<StoreId> storeIdSupplier,
-            Supplier<TransactionIdStore> transactionIdStoreSupplier, Supplier<LogicalTransactionStore> logicalTransactionStoreSupplier,
+    public RegularCatchupServerHandler( Monitors monitors, LogProvider logProvider, Supplier<StoreId> storeIdSupplier, Supplier<LogicalTransactionStore> logicalTransactionStoreSupplier,
             Supplier<NeoStoreDataSource> dataSourceSupplier, BooleanSupplier dataSourceAvailabilitySupplier, FileSystemAbstraction fs,
             CoreSnapshotService snapshotService, Supplier<CheckPointer> checkPointerSupplier )
     {
         this.monitors = monitors;
         this.logProvider = logProvider;
         this.storeIdSupplier = storeIdSupplier;
-        this.transactionIdStoreSupplier = transactionIdStoreSupplier;
         this.logicalTransactionStoreSupplier = logicalTransactionStoreSupplier;
         this.dataSourceSupplier = dataSourceSupplier;
         this.dataSourceAvailabilitySupplier = dataSourceAvailabilitySupplier;
         this.fs = fs;
-        this.storeCopyCheckPointMutex = dataSourceSupplier.get().getStoreCopyCheckPointMutex();
         this.snapshotService = snapshotService;
         this.checkPointerSupplier = checkPointerSupplier;
+    }
+
+    private StoreCopyCheckPointMutex storeCopyCheckPointMutex()
+    {
+        if ( storeCopyCheckPointMutex == null )
+        {
+            storeCopyCheckPointMutex = dataSourceSupplier.get().getStoreCopyCheckPointMutex();
+        }
+        return storeCopyCheckPointMutex;
     }
 
     @Override
     public ChannelHandler txPullRequestHandler( CatchupServerProtocol catchupServerProtocol )
     {
-        return new TxPullRequestHandler( catchupServerProtocol, storeIdSupplier, dataSourceAvailabilitySupplier, transactionIdStoreSupplier,
-                logicalTransactionStoreSupplier, monitors, logProvider );
+        return new TxPullRequestHandler( catchupServerProtocol, storeIdSupplier, dataSourceAvailabilitySupplier, dataSourceSupplier, monitors, logProvider );
     }
 
     @Override
@@ -107,7 +111,7 @@ public class RegularCatchupServerHandler implements CatchupServerHandler
     @Override
     public ChannelHandler storeListingRequestHandler( CatchupServerProtocol catchupServerProtocol )
     {
-        return new PrepareStoreCopyRequestHandler( catchupServerProtocol, checkPointerSupplier, storeCopyCheckPointMutex, dataSourceSupplier,
+        return new PrepareStoreCopyRequestHandler( catchupServerProtocol, checkPointerSupplier, storeCopyCheckPointMutex(), dataSourceSupplier,
                 new PrepareStoreCopyFilesProvider( fs ) );
     }
 

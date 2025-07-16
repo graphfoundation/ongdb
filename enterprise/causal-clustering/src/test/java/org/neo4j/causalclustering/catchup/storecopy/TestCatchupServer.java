@@ -104,7 +104,7 @@ class TestCatchupServer extends Server
                 kernelStoreId.getUpgradeId() );
 
         RegularCatchupServerHandler catchupServerHandler = new RegularCatchupServerHandler( new Monitors(), logProvider,
-                () -> storeId, dependencies.provideDependency( TransactionIdStore.class ), dependencies.provideDependency( LogicalTransactionStore.class ),
+                () -> storeId, dependencies.provideDependency( LogicalTransactionStore.class ),
                 dataSource, availability, fileSystem, null, checkPointer );
 
         NettyPipelineBuilderFactory pipelineBuilder = new NettyPipelineBuilderFactory( VoidPipelineWrapperFactory.VOID_WRAPPER );

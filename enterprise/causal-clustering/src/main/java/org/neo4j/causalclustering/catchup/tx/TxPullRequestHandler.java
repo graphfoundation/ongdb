@@ -47,6 +47,8 @@ import org.neo4j.causalclustering.catchup.CatchupServerProtocol.State;
 import org.neo4j.causalclustering.catchup.ResponseMessageType;
 import org.neo4j.causalclustering.identity.StoreId;
 import org.neo4j.cursor.IOCursor;
+import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.kernel.NeoStoreDataSource;
 import org.neo4j.kernel.impl.transaction.CommittedTransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
 import org.neo4j.kernel.impl.transaction.log.NoSuchTransactionException;
@@ -72,15 +74,16 @@ public class TxPullRequestHandler extends SimpleChannelInboundHandler<TxPullRequ
     private final TxPullRequestsMonitor monitor;
     private final Log log;
 
-    public TxPullRequestHandler( CatchupServerProtocol protocol, Supplier<StoreId> storeIdSupplier,
-            BooleanSupplier databaseAvailable, Supplier<TransactionIdStore> transactionIdStoreSupplier,
-            Supplier<LogicalTransactionStore> logicalTransactionStoreSupplier, Monitors monitors, LogProvider logProvider )
+    public TxPullRequestHandler(CatchupServerProtocol protocol, Supplier<StoreId> storeIdSupplier,
+                                BooleanSupplier databaseAvailable,
+                                Supplier<NeoStoreDataSource> dataSourceSupplier, Monitors monitors, LogProvider logProvider )
     {
         this.protocol = protocol;
         this.storeIdSupplier = storeIdSupplier;
         this.databaseAvailable = databaseAvailable;
-        this.transactionIdStore = transactionIdStoreSupplier.get();
-        this.logicalTransactionStore = logicalTransactionStoreSupplier.get();
+        DependencyResolver dependencies = dataSourceSupplier.get().getDependencyResolver();
+        this.transactionIdStore = dependencies.resolveDependency( TransactionIdStore.class );
+        this.logicalTransactionStore = dependencies.resolveDependency( LogicalTransactionStore.class );
         this.monitor = monitors.newMonitor( TxPullRequestsMonitor.class );
         this.log = logProvider.getLog( getClass() );
     }
