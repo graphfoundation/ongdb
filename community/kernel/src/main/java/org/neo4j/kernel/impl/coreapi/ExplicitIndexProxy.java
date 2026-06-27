@@ -529,8 +529,16 @@ public class ExplicitIndexProxy<T extends PropertyContainer> implements Index<T>
         @Override
         public int size()
         {
+            if ( next == NOT_INITIALIZED )
+            {
+                close();
+                next = NO_ID;
+            }
             return size;
         }
+
+        @Override
+        public abstract void close();
 
         @Override
         public float currentScore()
