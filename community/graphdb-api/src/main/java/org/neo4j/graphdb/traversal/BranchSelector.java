@@ -58,4 +58,11 @@ public interface BranchSelector
      * {@code rules} of the traversal.
      */
     TraversalBranch next( TraversalContext metadata );
+
+    /**
+     * Release resources held by active branches, for example open relationship iterators.
+     */
+    default void close()
+    {
+    }
 }

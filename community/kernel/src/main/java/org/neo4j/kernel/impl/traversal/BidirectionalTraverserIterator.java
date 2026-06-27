@@ -208,4 +208,11 @@ class BidirectionalTraverserIterator extends AbstractTraverserIterator
     {
         return uniqueness.check( branch );
     }
+
+    @Override
+    public void close()
+    {
+        selector.close();
+        super.close();
+    }
 }

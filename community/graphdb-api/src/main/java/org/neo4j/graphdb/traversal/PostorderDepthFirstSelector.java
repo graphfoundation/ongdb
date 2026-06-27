@@ -79,4 +79,14 @@ class PostorderDepthFirstSelector implements BranchSelector
         }
         return result;
     }
+
+    @Override
+    public void close()
+    {
+        while ( current != null )
+        {
+            current.prune();
+            current = current.parent();
+        }
+    }
 }

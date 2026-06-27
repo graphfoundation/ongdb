@@ -116,4 +116,13 @@ class PostorderBreadthFirstSelector implements BranchSelector
         }
         return level;
     }
+
+    @Override
+    public void close()
+    {
+        if ( current != null )
+        {
+            current.prune();
+        }
+    }
 }

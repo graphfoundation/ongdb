@@ -83,4 +83,28 @@ class PreorderBreadthFirstSelector implements BranchSelector
         }
         return result;
     }
+
+    @Override
+    public void close()
+    {
+        for ( TraversalBranch branch : queue )
+        {
+            pruneBranchHierarchy( branch );
+        }
+        queue.clear();
+        if ( current != null )
+        {
+            pruneBranchHierarchy( current );
+            current = null;
+        }
+    }
+
+    private static void pruneBranchHierarchy( TraversalBranch branch )
+    {
+        while ( branch != null )
+        {
+            branch.prune();
+            branch = branch.parent();
+        }
+    }
 }

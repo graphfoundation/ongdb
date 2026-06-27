@@ -118,4 +118,16 @@ public abstract class AbstractSelectorOrderer<T> implements SideSelector
         return selectorIndex == 0 ? Direction.OUTGOING : Direction.INCOMING;
     }
 
+    @Override
+    public void close()
+    {
+        for ( BranchSelector selector : selectors )
+        {
+            if ( selector != EMPTY_SELECTOR )
+            {
+                selector.close();
+            }
+        }
+    }
+
 }
