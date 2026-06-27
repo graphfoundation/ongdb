@@ -453,16 +453,17 @@ class StartOldDbOnCurrentVersionAndCreateFusionIndexIT
                 predicates[i] = IndexQuery.exists( propertyKeyIds[i] );
             }
             IndexReference index = ktx.schemaRead().index( labelId, propertyKeyIds );
-            NodeValueIndexCursor cursor = ktx.cursors().allocateNodeValueIndexCursor();
-            ktx.dataRead().nodeIndexSeek( index, cursor, IndexOrder.NONE, false, predicates );
-            int count = 0;
-            while ( cursor.next() )
+            try ( NodeValueIndexCursor cursor = ktx.cursors().allocateNodeValueIndexCursor() )
             {
-                count++;
+                ktx.dataRead().nodeIndexSeek( index, cursor, IndexOrder.NONE, false, predicates );
+                int count = 0;
+                while ( cursor.next() )
+                {
+                    count++;
+                }
+                tx.success();
+                return count;
             }
-
-            tx.success();
-            return count;
         }
     }
 
