@@ -282,7 +282,7 @@ public abstract class KernelIntegrationTest
 
     Iterator<Long> nodeGetRelationships( Transaction transaction, long node, Direction direction, int[] types )
     {
-        NodeCursor cursor = transaction.cursors().allocateNodeCursor();
+        NodeCursor cursor = ((KernelTransaction) transaction).ambientNodeCursor();
         transaction.dataRead().singleNode( node, cursor );
         if ( !cursor.next() )
         {
