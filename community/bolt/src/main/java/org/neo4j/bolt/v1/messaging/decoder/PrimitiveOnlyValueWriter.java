@@ -52,6 +52,7 @@ import org.neo4j.graphdb.spatial.Point;
 import org.neo4j.kernel.impl.util.BaseToObjectValueWriter;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.AnyValueWriter;
+import org.neo4j.values.storable.ByteArray;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.StringValue;
 import org.neo4j.values.storable.UTF8StringValue;
@@ -75,6 +76,10 @@ public class PrimitiveOnlyValueWriter extends BaseToObjectValueWriter<RuntimeExc
         if ( value instanceof UTF8StringValue )
         {
             return ((UTF8StringValue) value).bytes();
+        }
+        else if ( value instanceof ByteArray )
+        {
+            return ((ByteArray) value).asObjectCopy();
         }
         else if ( value == NO_VALUE )
         {
