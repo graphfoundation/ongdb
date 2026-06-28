@@ -45,6 +45,7 @@ import org.neo4j.graphdb.factory.module.id.IdContextFactory;
 import org.neo4j.graphdb.factory.module.id.IdContextFactoryBuilder;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.kernel.api.bolt.BoltConnectionTracker;
 import org.neo4j.kernel.api.net.NetworkConnectionTracker;
 import org.neo4j.kernel.api.security.SecurityModule;
 import org.neo4j.kernel.enterprise.api.security.provider.EnterpriseNoAuthSecurityProvider;
@@ -83,6 +84,7 @@ public class EnterpriseEditionModule extends CommunityEditionModule
         platformModule.dependencies.satisfyDependency( IdBasedStoreEntityCounters.class );
         ioLimiter = new ConfigurableIOLimiter( platformModule.config );
         platformModule.dependencies.satisfyDependency( createConnectionTracker() );
+        platformModule.dependencies.satisfyDependency( createBoltConnectionTracker() );
     }
 
     @Override
@@ -118,6 +120,11 @@ public class EnterpriseEditionModule extends CommunityEditionModule
     protected NetworkConnectionTracker createConnectionTracker()
     {
         return new StandardNetworkConnectionTracker();
+    }
+
+    protected BoltConnectionTracker createBoltConnectionTracker()
+    {
+        return new StandardBoltConnectionTracker();
     }
 
     @Override
