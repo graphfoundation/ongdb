@@ -51,7 +51,6 @@ import org.neo4j.graphdb.factory.module.id.IdContextFactoryBuilder;
 import org.neo4j.internal.kernel.api.Kernel;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.api.bolt.BoltConnectionTracker;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.security.SecurityModule;
@@ -144,7 +143,6 @@ public class CommunityEditionModule extends DefaultEditionModule
         ioLimiter = IOLimiter.UNLIMITED;
 
         connectionTracker = dependencies.satisfyDependency( createConnectionTracker() );
-        dependencies.satisfyDependency( BoltConnectionTracker.NOOP );
 
         publishEditionInfo( dependencies.resolveDependency( UsageData.class ), platformModule.databaseInfo, config );
     }

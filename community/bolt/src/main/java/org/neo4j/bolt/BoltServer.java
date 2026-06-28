@@ -72,6 +72,7 @@ import org.neo4j.kernel.configuration.BoltConnector;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.ConnectorPortRegister;
 import org.neo4j.kernel.configuration.ssl.SslPolicyLoader;
+import org.neo4j.kernel.impl.util.UnsatisfiedDependencyException;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.kernel.monitoring.Monitors;
@@ -247,7 +248,7 @@ public class BoltServer extends LifecycleAdapter
         {
             boltConnectionTracker = dependencyResolver.resolveDependency( BoltConnectionTracker.class );
         }
-        catch ( IllegalArgumentException ignored )
+        catch ( UnsatisfiedDependencyException | IllegalArgumentException ignored )
         {
         }
         return new BoltStateMachineFactoryImpl( databaseManager, usageData, authentication, clock, config, logService,
