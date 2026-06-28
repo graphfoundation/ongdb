@@ -35,7 +35,6 @@
 package org.neo4j.test;
 
 import java.io.File;
-import java.util.Map;
 
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.factory.GraphDatabaseBuilder;
@@ -43,6 +42,7 @@ import org.neo4j.graphdb.factory.GraphDatabaseFactoryState;
 import org.neo4j.graphdb.facade.GraphDatabaseDependencies;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.impl.enterprise.EnterpriseEditionModule;
 import org.neo4j.kernel.impl.factory.DatabaseInfo;
 import org.neo4j.kernel.impl.factory.Edition;
@@ -75,7 +75,15 @@ public class TestEnterpriseGraphDatabaseFactory extends TestGraphDatabaseFactory
             @Override
             public GraphDatabaseService newDatabase( Config config )
             {
-                config.augment( GraphDatabaseSettings.ephemeral, "false" );
+                File absoluteStoreDir = storeDir.getAbsoluteFile();
+                File databasesRoot = absoluteStoreDir.getParentFile();
+                if ( !config.isConfigured( GraphDatabaseSettings.shutdown_transaction_end_timeout ) )
+                {
+                    config.augment( GraphDatabaseSettings.shutdown_transaction_end_timeout, "0s" );
+                }
+                config.augment( GraphDatabaseSettings.ephemeral, Settings.FALSE );
+                config.augment( GraphDatabaseSettings.active_database, absoluteStoreDir.getName() );
+                config.augment( GraphDatabaseSettings.databases_root_path, databasesRoot.getAbsolutePath() );
 
                 return new GraphDatabaseFacadeFactory( DatabaseInfo.ENTERPRISE, EnterpriseEditionModule::new )
                 {
@@ -99,7 +107,7 @@ public class TestEnterpriseGraphDatabaseFactory extends TestGraphDatabaseFactory
                             }
                         };
                     }
-                }.newFacade( storeDir, config, GraphDatabaseDependencies.newDependencies( state.databaseDependencies() ) );
+                }.newFacade( databasesRoot, config, GraphDatabaseDependencies.newDependencies( state.databaseDependencies() ) );
             }
         };
     }
@@ -110,12 +118,6 @@ public class TestEnterpriseGraphDatabaseFactory extends TestGraphDatabaseFactory
     {
         return new GraphDatabaseBuilder.DatabaseCreator()
         {
-            @Override
-            public GraphDatabaseService newDatabase( Map<String,String> config )
-            {
-                return newDatabase( Config.defaults( config ) );
-            }
-
             @Override
             public GraphDatabaseService newDatabase( Config config )
             {
