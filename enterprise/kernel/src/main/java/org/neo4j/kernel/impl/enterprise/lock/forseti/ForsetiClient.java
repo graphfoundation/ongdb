@@ -1176,7 +1176,7 @@ public class ForsetiClient implements Locks.Client
      */
     private static class SnapshotLongIntHashMap extends LongIntHashMap
     {
-        public SnapshotLongIntHashMap()
+        SnapshotLongIntHashMap()
         {
             super();
         }
