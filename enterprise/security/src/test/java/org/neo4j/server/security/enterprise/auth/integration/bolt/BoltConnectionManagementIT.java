@@ -69,6 +69,7 @@ import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.test.TestEnterpriseGraphDatabaseFactory;
 import org.neo4j.test.TestGraphDatabaseFactory;
 import org.neo4j.test.rule.concurrent.ThreadingRule;
+import org.neo4j.string.UTF8;
 
 import static java.util.Arrays.asList;
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -88,7 +89,6 @@ import static org.neo4j.helpers.collection.MapUtil.map;
 import static org.neo4j.kernel.api.security.AuthToken.CREDENTIALS;
 import static org.neo4j.kernel.api.security.AuthToken.NEW_CREDENTIALS;
 import static org.neo4j.kernel.api.security.AuthToken.newBasicAuthToken;
-import static org.neo4j.string.UTF8;
 
 //@RunWith( Parameterized.class )
 public class BoltConnectionManagementIT

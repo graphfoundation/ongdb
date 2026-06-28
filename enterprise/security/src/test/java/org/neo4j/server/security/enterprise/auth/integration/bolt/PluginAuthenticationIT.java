@@ -51,6 +51,7 @@ import org.neo4j.server.security.enterprise.auth.plugin.TestCacheableAuthPlugin;
 import org.neo4j.server.security.enterprise.auth.plugin.TestCacheableAuthenticationPlugin;
 import org.neo4j.server.security.enterprise.auth.plugin.TestCustomCacheableAuthenticationPlugin;
 import org.neo4j.server.security.enterprise.configuration.SecuritySettings;
+import org.neo4j.string.UTF8;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -58,7 +59,6 @@ import static org.neo4j.bolt.v1.messaging.util.MessageMatchers.msgFailure;
 import static org.neo4j.bolt.v1.messaging.util.MessageMatchers.msgSuccess;
 import static org.neo4j.helpers.collection.MapUtil.map;
 import static org.neo4j.kernel.api.security.AuthToken.CREDENTIALS;
-import static org.neo4j.string.UTF8;
 
 public class PluginAuthenticationIT extends EnterpriseAuthenticationTestBase
 {
