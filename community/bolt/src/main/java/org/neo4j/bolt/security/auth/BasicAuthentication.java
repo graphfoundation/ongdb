@@ -41,6 +41,8 @@ package org.neo4j.bolt.security.auth;
 import java.io.IOException;
 import java.util.Map;
 
+import org.neo4j.graphdb.security.AuthProviderFailedException;
+import org.neo4j.graphdb.security.AuthProviderTimeoutException;
 import org.neo4j.graphdb.security.AuthorizationViolationException;
 import org.neo4j.internal.kernel.api.security.LoginContext;
 import org.neo4j.kernel.api.exceptions.Status;
@@ -102,6 +104,14 @@ public class BasicAuthentication implements Authentication
         catch ( InvalidAuthTokenException e )
         {
             throw new AuthenticationException( e.status(), e.getMessage() );
+        }
+        catch ( AuthProviderTimeoutException e )
+        {
+            throw new AuthenticationException( e.status(), e.getMessage(), e );
+        }
+        catch ( AuthProviderFailedException e )
+        {
+            throw new AuthenticationException( e.status(), e.getMessage(), e );
         }
     }
 
