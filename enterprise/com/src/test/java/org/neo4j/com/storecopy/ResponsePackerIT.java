@@ -36,6 +36,7 @@ package org.neo4j.com.storecopy;
 
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 
 import java.io.IOException;
 
@@ -67,11 +68,11 @@ import static org.neo4j.kernel.impl.transaction.log.TransactionIdStore.BASE_TX_C
 
 public class ResponsePackerIT
 {
+    private final EphemeralFileSystemRule fsRule = new EphemeralFileSystemRule();
+    private final PageCacheRule pageCacheRule = new PageCacheRule();
+    private final TestDirectory testDirectory = TestDirectory.testDirectory( fsRule );
     @Rule
-    public final EphemeralFileSystemRule fsRule = new EphemeralFileSystemRule();
-    @Rule
-    public final PageCacheRule pageCacheRule = new PageCacheRule();
-    private final TestDirectory testDirectory = TestDirectory.testDirectory();
+    public final RuleChain ruleChain = RuleChain.outerRule( fsRule ).around( pageCacheRule ).around( testDirectory );
 
     @Test
     public void shouldPackTheHighestTxCommittedAsObligation() throws Exception
