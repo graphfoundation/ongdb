@@ -233,7 +233,6 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
         EnterpriseEditionModule.createSecurityModule( this, platformModule, procedures );
     }
 
-
     public EnterpriseCoreEditionModule( final PlatformModule platformModule, final DiscoveryServiceFactory discoveryServiceFactory )
     {
         this.platformModule = platformModule;
@@ -258,7 +257,6 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
             throw new RuntimeException( e );
         }
         dependencies.satisfyDependency( this.clusterStateDirectory );
-
 
         this.databaseHealthSupplier =
                 () -> platformModule.dataSourceManager.getDataSource().getDependencyResolver().resolveDependency( DatabaseHealth.class );
@@ -291,9 +289,6 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
         PipelineWrapper clientPipelineWrapper = pipelineWrapperFactory().forClient( config, dependencies, logProvider, CausalClusteringSettings.ssl_policy );
         PipelineWrapper serverPipelineWrapper = pipelineWrapperFactory().forServer( config, dependencies, logProvider, CausalClusteringSettings.ssl_policy );
         PipelineWrapper backupServerPipelineWrapper = pipelineWrapperFactory().forServer( config, dependencies, logProvider, OnlineBackupSettings.ssl_policy );
-
-
-
 
         clientPipelineBuilderFactory = new NettyPipelineBuilderFactory( clientPipelineWrapper );
         serverPipelineBuilderFactory = new NettyPipelineBuilderFactory( serverPipelineWrapper );
@@ -343,10 +338,10 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
                 platformModule, clusterStateDirectory.get(), config, replicationModule.getReplicator(),
                 consensusModule.raftMachine(), dependencies, localDatabase );
 
-
         this.idContextFactory = IdContextFactoryBuilder.of( coreStateMachinesModule.idTypeConfigurationProvider, platformModule.jobScheduler )
                 .withIdGenerationFactoryProvider( ignored -> coreStateMachinesModule.idGeneratorFactory )
-                .withFactoryWrapper( generator -> new FreeIdFilteredIdGeneratorFactory( generator, coreStateMachinesModule.freeIdCondition ) ).withFileSystem( fileSystem )
+                .withFactoryWrapper( generator -> new FreeIdFilteredIdGeneratorFactory( generator, coreStateMachinesModule.freeIdCondition ) )
+                .withFileSystem( fileSystem )
                 .build();
 
         this.tokenHoldersProvider = databaseName -> coreStateMachinesModule.tokenHolders;
@@ -379,8 +374,8 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
         life.add( coreServerModule.membershipWaiterLifecycle );
     }
 
-    private UpstreamDatabaseStrategySelector createUpstreamDatabaseStrategySelector(MemberId myself, Config config, LogProvider logProvider,
-                                                                                    TopologyService topologyService, UpstreamDatabaseSelectionStrategy defaultStrategy )
+    private UpstreamDatabaseStrategySelector createUpstreamDatabaseStrategySelector( MemberId myself, Config config,
+            LogProvider logProvider, TopologyService topologyService, UpstreamDatabaseSelectionStrategy defaultStrategy )
     {
         UpstreamDatabaseStrategiesLoader loader;
         if ( config.get( CausalClusteringSettings.multi_dc_license ) )
