@@ -94,12 +94,6 @@ trait Cypher31Compiler extends CachingPlanner[PreparedQuerySyntax] with Compiler
 
     private val searchMonitor = kernelMonitors.newMonitor(classOf[IndexSearchMonitor])
 
-    private def queryContext(transactionalContext: TransactionalContext) = {
-      val ctx = new TransactionBoundQueryContext(TransactionalContextWrapperV3_1(transactionalContext))(
-        searchMonitor)
-      new ExceptionTranslatingQueryContext(ctx)
-    }
-
     private def run(transactionalContext: TransactionalContext, executionMode: CypherExecutionMode,
             params: Map[String, Any]): Result = {
       val innerExecutionMode = executionMode match {
@@ -109,8 +103,9 @@ trait Cypher31Compiler extends CachingPlanner[PreparedQuerySyntax] with Compiler
       }
       exceptionHandler.runSafely {
         val innerParams = typeConversions.asPrivateMap(params)
+        val queryContext = new TransactionBoundQueryContext(TransactionalContextWrapperV3_1(transactionalContext))(searchMonitor)
         val innerResult: InternalExecutionResult3_1 =
-          inner.run(queryContext(transactionalContext), innerExecutionMode, innerParams)
+          inner.run(new ExceptionTranslatingQueryContext(queryContext), innerExecutionMode, innerParams)
         new ExecutionResult( // javacompat
           new CompatibilityClosingExecutionResult( // closing
             transactionalContext.executingQuery(),
@@ -119,7 +114,8 @@ trait Cypher31Compiler extends CachingPlanner[PreparedQuerySyntax] with Compiler
               inner.plannerUsed,
               inner.runtimeUsed,
               preParsingNotifications,
-              Some(offSet)
+              Some(offSet),
+              () => queryContext.resources.close(true)
             ),
             exceptionHandler.runSafely
           )(executionMonitor)

@@ -148,6 +148,7 @@ class CompatibilityClosingExecutionResult(val query: ExecutingQuery,
     }
 
   override def close(): Unit = runSafely {
+    inner.javaIterator.close()
     inner.close()
     endQueryExecution()
   }

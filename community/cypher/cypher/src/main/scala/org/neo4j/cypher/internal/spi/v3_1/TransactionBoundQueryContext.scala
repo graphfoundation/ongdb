@@ -90,6 +90,10 @@ import scala.collection.mutable.ArrayBuffer
 final class TransactionBoundQueryContext(txContext: TransactionalContextWrapper, val resources: ResourceManager = new ResourceManager)(implicit indexSearchMonitor: IndexSearchMonitor)
   extends TransactionBoundTokenContext(txContext.kernelTransaction) with QueryContext with SchemaDescriptorTranslation {
 
+  private val statementResource: AutoCloseable = new AutoCloseable {
+    override def close(): Unit = resources.close(true)
+  }
+
   type EntityAccessor = EmbeddedProxySPI
 
   val nodeOps = new NodeOperations
@@ -108,6 +112,7 @@ final class TransactionBoundQueryContext(txContext: TransactionalContextWrapper,
   private lazy val relationshipScanCursor = allocateAndTraceRelationshipScanCursor()
   private lazy val propertyCursor = allocateAndTracePropertyCursor()
   private def tokenWrite = txContext.tc.kernelTransaction.tokenWrite()
+  txContext.statement.registerCloseableResource(statementResource)
 
   override def withAnyOpenQueryContext[T](work: (QueryContext) => T): T = {
     if (txContext.isOpen) {
@@ -1005,7 +1010,11 @@ final class TransactionBoundQueryContext(txContext: TransactionalContextWrapper,
 
     override def dbmsOperations: DbmsOperations = txContext.tc.dbmsOperations()
 
-    override def close(success: Boolean): Unit = txContext.tc.close(success)
+    override def close(success: Boolean): Unit = {
+      resources.close(success)
+      txContext.statement.unregisterCloseableResource(statementResource)
+      txContext.tc.close(success)
+    }
   }
 
   private def allocateAndTraceNodeCursor() = {

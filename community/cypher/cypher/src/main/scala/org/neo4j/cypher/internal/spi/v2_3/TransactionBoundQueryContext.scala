@@ -82,6 +82,10 @@ import scala.collection.{Iterator, mutable}
 final class TransactionBoundQueryContext(tc: TransactionalContextWrapper, val resources: ResourceManager = new ResourceManager)
   extends TransactionBoundTokenContext(tc.kernelTransaction) with QueryContext with SchemaDescriptorTranslation {
 
+  private val statementResource: AutoCloseable = new AutoCloseable {
+    override def close(): Unit = resources.close(true)
+  }
+
   override val nodeOps = new NodeOperations
   override val relationshipOps = new RelationshipOperations
   private val proxySpi = tc.graph.getDependencyResolver.resolveDependency(classOf[EmbeddedProxySPI])
@@ -94,7 +98,11 @@ final class TransactionBoundQueryContext(tc: TransactionalContextWrapper, val re
     case (count, labelId) => if (writes().nodeAddLabel(node, labelId)) count + 1 else count
   }
 
-  def close(success: Boolean) { tc.close(success) }
+  def close(success: Boolean) {
+    resources.close(success)
+    tc.statement.unregisterCloseableResource(statementResource)
+    tc.close(success)
+  }
   //We cannot assign to value because of periodic commit
   protected def reads(): Read = tc.dataRead
   private def writes() = tc.dataWrite
@@ -102,6 +110,7 @@ final class TransactionBoundQueryContext(tc: TransactionalContextWrapper, val re
   private lazy val relationshipScanCursor = allocateAndTraceRelationshipScanCursor()
   private lazy val propertyCursor = allocateAndTracePropertyCursor()
   private def tokenWrite = tc.kernelTransaction.tokenWrite()
+  tc.statement.registerCloseableResource(statementResource)
 
   override def withAnyOpenQueryContext[T](work: (QueryContext) => T): T = {
     if (tc.isOpen) {

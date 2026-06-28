@@ -117,8 +117,18 @@ class ExecutionResultWrapper(val inner: InternalExecutionResult,
                              val planner: PlannerName,
                              val runtime: RuntimeName,
                              val preParsingNotifications: Set[org.neo4j.graphdb.Notification],
-                             val offset : Option[v2_3.InputPosition])
+                             val offset : Option[v2_3.InputPosition],
+                             onClose: () => Unit = () => ())
   extends CompatibilityInternalExecutionResult {
+
+  private[this] var closeHookInvoked = false
+
+  private def invokeCloseHookOnce(): Unit = {
+    if (!closeHookInvoked) {
+      closeHookInvoked = true
+      onClose()
+    }
+  }
 
   override def javaIterator: ResourceIterator[util.Map[String, AnyRef]] =
     inner.javaIterator.asInstanceOf[ResourceIterator[util.Map[String, AnyRef]]]
@@ -213,7 +223,13 @@ class ExecutionResultWrapper(val inner: InternalExecutionResult,
 
   override def next(): Map[String, AnyRef] = inner.next().asInstanceOf[Map[String, AnyRef]]
 
-  override def close(): Unit = inner.close()
+  override def close(): Unit = {
+    try {
+      inner.close()
+    } finally {
+      invokeCloseHookOnce()
+    }
+  }
 
   def queryType: InternalQueryType = inner.executionType.queryType() match {
     case QueryExecutionType.QueryType.READ_ONLY => READ_ONLY

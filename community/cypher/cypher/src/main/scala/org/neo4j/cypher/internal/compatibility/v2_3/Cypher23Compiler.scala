@@ -93,9 +93,6 @@ trait Cypher23Compiler extends CachingPlanner[PreparedQuery] with Compiler {
                                 override val paramNames: Seq[String],
                                 override val extractedParams: MapValue) extends ExecutableQuery {
 
-    private def queryContext(transactionalContext: TransactionalContextWrapper): QueryContext =
-      new ExceptionTranslatingQueryContext(new TransactionBoundQueryContext(transactionalContext))
-
     private def run(transactionalContext: TransactionalContext, executionMode: CypherExecutionMode, params: Map[String, Any]): ExecutionResult = {
       val innerExecutionMode = executionMode match {
         case CypherExecutionMode.explain => ExplainModev2_3
@@ -106,8 +103,9 @@ trait Cypher23Compiler extends CachingPlanner[PreparedQuery] with Compiler {
       val query = transactionalContext.executingQuery()
 
       exceptionHandler.runSafely {
+        val queryContext = new TransactionBoundQueryContext(TransactionalContextWrapper(transactionalContext))
         val innerResult = inner
-          .run(queryContext(TransactionalContextWrapper(transactionalContext)), transactionalContext.statement, innerExecutionMode, params)
+          .run(new ExceptionTranslatingQueryContext(queryContext), transactionalContext.statement, innerExecutionMode, params)
 
         new ExecutionResult(
           new CompatibilityClosingExecutionResult(
@@ -117,7 +115,8 @@ trait Cypher23Compiler extends CachingPlanner[PreparedQuery] with Compiler {
               inner.plannerUsed,
               inner.runtimeUsed,
               preParsingNotifications,
-              Some(offSet)
+              Some(offSet),
+              () => queryContext.resources.close(true)
             ),
             exceptionHandler.runSafely
           )(executionMonitor)
