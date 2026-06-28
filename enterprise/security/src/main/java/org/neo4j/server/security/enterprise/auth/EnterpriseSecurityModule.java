@@ -87,6 +87,8 @@ public class EnterpriseSecurityModule extends SecurityModule
     private static final String ROLE_STORE_FILENAME = "roles";
     private static final String DEFAULT_ADMIN_STORE_FILENAME = SetDefaultAdminCommand.ADMIN_INI;
 
+    private EnterpriseAuthAndUserManager authManager;
+
     public EnterpriseSecurityModule()
     {
         super( EnterpriseEditionSettings.ENTERPRISE_SECURITY_MODULE_ID );
@@ -109,7 +111,7 @@ public class EnterpriseSecurityModule extends SecurityModule
             );
         life.add( securityLog );
 
-        EnterpriseAuthAndUserManager authManager = newAuthManager( config, logProvider, securityLog, fileSystem, jobScheduler );
+        authManager = newAuthManager( config, logProvider, securityLog, fileSystem, jobScheduler );
         life.add( dependencies.dependencySatisfier().satisfyDependency( authManager ) );
 
         // Register procedures
@@ -143,13 +145,13 @@ public class EnterpriseSecurityModule extends SecurityModule
     @Override
     public AuthManager authManager()
     {
-        return null;
+        return authManager;
     }
 
     @Override
     public UserManagerSupplier userManagerSupplier()
     {
-        return null;
+        return authManager;
     }
 
     private EnterpriseSecurityContext asEnterprise( SecurityContext securityContext )
