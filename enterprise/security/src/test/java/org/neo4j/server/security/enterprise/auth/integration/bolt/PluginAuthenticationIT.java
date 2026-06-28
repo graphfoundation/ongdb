@@ -57,6 +57,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.neo4j.bolt.v1.messaging.util.MessageMatchers.msgFailure;
 import static org.neo4j.bolt.v1.messaging.util.MessageMatchers.msgSuccess;
 import static org.neo4j.helpers.collection.MapUtil.map;
+import static org.neo4j.kernel.api.security.AuthToken.CREDENTIALS;
+import static org.neo4j.string.UTF8;
 
 public class PluginAuthenticationIT extends EnterpriseAuthenticationTestBase
 {
@@ -111,7 +113,7 @@ public class PluginAuthenticationIT extends EnterpriseAuthenticationTestBase
         // When we log in the with the wrong credentials it should fail and
         // our plugin should _not_ get a call since authentication info should be cached
         reconnect();
-        authToken.put( "credentials", "wrong_password" );
+        authToken.put( CREDENTIALS, UTF8.encode( "wrong_password" ) );
         assertConnectionFails( authToken );
         assertThat( TestCacheableAuthenticationPlugin.getAuthenticationInfoCallCount.get(), equalTo( 1 ) );
     }
@@ -138,7 +140,7 @@ public class PluginAuthenticationIT extends EnterpriseAuthenticationTestBase
         // When we log in the with the wrong credentials it should fail and
         // our plugin should _not_ get a call since authentication info should be cached
         reconnect();
-        authToken.put( "credentials", "wrong_password" );
+        authToken.put( CREDENTIALS, UTF8.encode( "wrong_password" ) );
         assertConnectionFails( authToken );
         assertThat( TestCustomCacheableAuthenticationPlugin.getAuthenticationInfoCallCount.get(), equalTo( 1 ) );
     }
@@ -185,7 +187,7 @@ public class PluginAuthenticationIT extends EnterpriseAuthenticationTestBase
         // When we log in the with the wrong credentials it should fail and
         // our plugin should _not_ get a call since auth info should be cached
         reconnect();
-        authToken.put( "credentials", "wrong_password" );
+        authToken.put( CREDENTIALS, UTF8.encode( "wrong_password" ) );
         assertConnectionFails( authToken );
         assertThat( TestCacheableAuthPlugin.getAuthInfoCallCount.get(), equalTo( 1 ) );
     }

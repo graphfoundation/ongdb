@@ -76,6 +76,7 @@ import static org.neo4j.bolt.v1.runtime.spi.StreamMatchers.greaterThanOrEqualTo;
 import static org.neo4j.bolt.v1.transport.integration.TransportTestUtil.eventuallyDisconnects;
 import static org.neo4j.bolt.v1.transport.integration.TransportTestUtil.eventuallyReceives;
 import static org.neo4j.helpers.collection.MapUtil.map;
+import static org.neo4j.kernel.api.security.AuthToken.newBasicAuthToken;
 import static org.neo4j.values.storable.Values.longValue;
 import static org.neo4j.values.storable.Values.stringValue;
 
@@ -221,7 +222,7 @@ public abstract class EnterpriseAuthenticationTestBase extends AbstractLdapTestU
 
     protected void assertAuthFail( String username, String password ) throws Exception
     {
-        assertConnectionFails( map( "principal", username, "credentials", password, "scheme", "basic" ) );
+        assertConnectionFails( newBasicAuthToken( username, password ) );
     }
 
     protected void assertRoles( String... roles ) throws Exception
@@ -372,11 +373,11 @@ public abstract class EnterpriseAuthenticationTestBase extends AbstractLdapTestU
     {
         if ( realm != null && realm.length() > 0 )
         {
-            return map( "principal", username, "credentials", password, "scheme", "basic", "realm", realm );
+            return newBasicAuthToken( username, password, realm );
         }
         else
         {
-            return map( "principal", username, "credentials", password, "scheme", "basic" );
+            return newBasicAuthToken( username, password );
         }
     }
 }

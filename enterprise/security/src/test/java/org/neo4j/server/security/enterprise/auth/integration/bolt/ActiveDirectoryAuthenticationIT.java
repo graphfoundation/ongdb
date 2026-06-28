@@ -66,6 +66,7 @@ import static org.neo4j.bolt.v1.messaging.util.MessageMatchers.msgFailure;
 import static org.neo4j.bolt.v1.messaging.util.MessageMatchers.msgSuccess;
 import static org.neo4j.bolt.v1.transport.integration.TransportTestUtil.eventuallyReceives;
 import static org.neo4j.helpers.collection.MapUtil.map;
+import static org.neo4j.kernel.api.security.AuthToken.newBasicAuthToken;
 
 /*
  * Only run these tests when the appropriate ActiveDirectory server is in fact live.
@@ -305,11 +306,11 @@ public class ActiveDirectoryAuthenticationIT
     {
         if ( realm != null && realm.length() > 0 )
         {
-            return map( "principal", username, "credentials", password, "scheme", "basic", "realm", realm );
+            return newBasicAuthToken( username, password, realm );
         }
         else
         {
-            return map( "principal", username, "credentials", password, "scheme", "basic" );
+            return newBasicAuthToken( username, password );
         }
     }
 
@@ -318,8 +319,7 @@ public class ActiveDirectoryAuthenticationIT
         client.connect( address )
                 .send( util.acceptedVersions( 1, 0, 0, 0 ) )
                 .send( util.chunk(
-                        new InitMessage( "TestClient/1.1", map( "principal", username,
-                                "credentials", password, "scheme", "basic" ) ) ) );
+                        new InitMessage( "TestClient/1.1", newBasicAuthToken( username, password ) ) ) );
 
         assertThat( client, eventuallyReceives( new byte[]{0, 0, 0, 1} ) );
         assertThat( client, util.eventuallyReceives( msgFailure( Status.Security.Unauthorized,

@@ -39,6 +39,7 @@ import org.apache.shiro.authc.AuthenticationToken;
 import java.util.Map;
 
 import org.neo4j.server.security.enterprise.auth.ShiroAuthToken;
+import org.neo4j.string.UTF8;
 
 /**
  * Version of ShiroAuthToken that returns credentials as a char array
@@ -55,7 +56,12 @@ public class PluginShiroAuthToken extends ShiroAuthToken
     @Override
     public Object getCredentials()
     {
-        return ((String) super.getCredentials()).toCharArray();
+        Object credentials = super.getCredentials();
+        if ( credentials instanceof byte[] )
+        {
+            return UTF8.decode( (byte[]) credentials ).toCharArray();
+        }
+        return ((String) credentials).toCharArray();
     }
 
     public static PluginShiroAuthToken of( ShiroAuthToken shiroAuthToken )

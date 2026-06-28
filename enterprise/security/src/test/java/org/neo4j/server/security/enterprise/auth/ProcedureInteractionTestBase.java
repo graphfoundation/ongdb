@@ -110,6 +110,7 @@ import static org.neo4j.bolt.v1.messaging.util.MessageMatchers.msgSuccess;
 import static org.neo4j.bolt.v1.transport.integration.Neo4jWithSocket.DEFAULT_CONNECTOR_KEY;
 import static org.neo4j.bolt.v1.transport.integration.TransportTestUtil.eventuallyReceives;
 import static org.neo4j.helpers.collection.MapUtil.map;
+import static org.neo4j.kernel.api.security.AuthToken.newBasicAuthToken;
 import static org.neo4j.helpers.collection.MapUtil.stringMap;
 import static org.neo4j.kernel.api.exceptions.Status.Transaction.TransactionTimedOut;
 import static org.neo4j.procedure.Mode.READ;
@@ -635,7 +636,7 @@ public abstract class ProcedureInteractionTestBase<S>
     {
         TransportConnection connection = new SocketConnection();
         HostnamePort address = neo.lookupConnector( DEFAULT_CONNECTOR_KEY );
-        Map<String,Object> authToken = map( "principal", username, "credentials", password, "scheme", "basic" );
+        Map<String,Object> authToken = newBasicAuthToken( username, password );
 
         connection.connect( address ).send( util.acceptedVersions( 1, 0, 0, 0 ) )
                 .send( util.chunk( new InitMessage( "TestClient/1.1", authToken ) ) );

@@ -77,6 +77,7 @@ import javax.naming.ldap.StartTlsResponse;
 
 import org.neo4j.graphdb.security.AuthProviderFailedException;
 import org.neo4j.graphdb.security.AuthProviderTimeoutException;
+import org.neo4j.string.UTF8;
 import org.neo4j.graphdb.security.AuthorizationExpiredException;
 import org.neo4j.internal.kernel.api.security.AuthenticationResult;
 import org.neo4j.kernel.api.security.AuthToken;
@@ -205,7 +206,7 @@ public class LdapRealm extends DefaultLdapRealm implements RealmLifecycle, Shiro
             LdapContextFactory ldapContextFactory ) throws NamingException
     {
         Object principal = getLdapPrincipal(token);
-        Object credentials = token.getCredentials();
+        Object credentials = ldapCredentials( token.getCredentials() );
 
         LdapContext ctx = null;
 
@@ -350,7 +351,7 @@ public class LdapRealm extends DefaultLdapRealm implements RealmLifecycle, Shiro
 
         if ( isAuthenticationCachingEnabled() )
         {
-            SimpleHash hashedCredentials = secureHasher.hash( ((String) token.getCredentials()).getBytes() );
+            SimpleHash hashedCredentials = secureHasher.hash( credentialBytes( token.getCredentials() ) );
             return new ShiroAuthenticationInfo( token.getPrincipal(), hashedCredentials.getBytes(),
                     hashedCredentials.getSalt(), getName(), AuthenticationResult.SUCCESS );
         }
@@ -538,7 +539,7 @@ public class LdapRealm extends DefaultLdapRealm implements RealmLifecycle, Shiro
             AuthenticationToken token, LdapContextFactory ldapContextFactory ) throws NamingException
     {
         Object principal = token.getPrincipal();
-        Object credentials = token.getCredentials();
+        Object credentials = ldapCredentials( token.getCredentials() );
 
         LdapContext ctx = null;
         try
@@ -708,5 +709,28 @@ public class LdapRealm extends DefaultLdapRealm implements RealmLifecycle, Shiro
     public AuthorizationInfo getAuthorizationInfoSnapshot( PrincipalCollection principalCollection )
     {
         return getAuthorizationInfo( principalCollection );
+    }
+
+    private static Object ldapCredentials( Object credentials )
+    {
+        if ( credentials instanceof byte[] )
+        {
+            return UTF8.decode( (byte[]) credentials );
+        }
+        return credentials;
+    }
+
+    private static byte[] credentialBytes( Object credentials )
+    {
+        if ( credentials instanceof byte[] )
+        {
+            return (byte[]) credentials;
+        }
+        if ( credentials instanceof String )
+        {
+            return UTF8.encode( (String) credentials );
+        }
+        throw new IllegalArgumentException(
+                "Unsupported credentials type: " + credentials.getClass().getSimpleName() );
     }
 }

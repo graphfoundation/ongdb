@@ -189,8 +189,7 @@ class BoltInteraction implements NeoInteractionLevel<BoltInteraction.BoltSubject
         subject.client.connect( server.lookupDefaultConnector() )
                 .send( util.acceptedVersions( 1, 0, 0, 0 ) )
                 .send( util.chunk( new InitMessage( "TestClient/1.1",
-                        map( REALM_KEY, NATIVE_REALM, PRINCIPAL, username, CREDENTIALS, password,
-                                SCHEME_KEY, BASIC_SCHEME ) ) ) );
+                        newBasicAuthToken( username, password, NATIVE_REALM ) ) ) );
         assertThat( subject.client, util.eventuallyReceives( new byte[]{0, 0, 0, 1} ) );
         subject.setLoginResult( util.receiveOneResponseMessage( subject.client ) );
         return subject;

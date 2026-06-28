@@ -38,6 +38,7 @@ import java.util.Map;
 
 import org.neo4j.kernel.api.security.exception.InvalidAuthTokenException;
 import org.neo4j.server.security.enterprise.auth.plugin.api.AuthToken;
+import org.neo4j.string.UTF8;
 
 import static org.neo4j.kernel.api.security.AuthToken.PRINCIPAL;
 import static org.neo4j.kernel.api.security.AuthToken.CREDENTIALS;
@@ -87,26 +88,31 @@ public class PluginApiAuthToken implements AuthToken
         // Always require principal
         String principal = org.neo4j.kernel.api.security.AuthToken.safeCast( PRINCIPAL, authTokenMap );
 
-        String credentials = null;
+        char[] credentials = null;
         if ( scheme.equals( org.neo4j.kernel.api.security.AuthToken.BASIC_SCHEME ) )
         {
             // Basic scheme requires credentials
-            credentials = org.neo4j.kernel.api.security.AuthToken.safeCast( CREDENTIALS, authTokenMap );
+            credentials = UTF8.decode(
+                    org.neo4j.kernel.api.security.AuthToken.safeCastCredentials( CREDENTIALS, authTokenMap ) ).toCharArray();
         }
         else
         {
             // Otherwise credentials are optional
             Object credentialsObject = authTokenMap.get( CREDENTIALS );
-            if ( credentialsObject instanceof String )
+            if ( credentialsObject instanceof byte[] )
             {
-                credentials = (String) credentialsObject;
+                credentials = UTF8.decode( (byte[]) credentialsObject ).toCharArray();
+            }
+            else if ( credentialsObject instanceof String )
+            {
+                credentials = ((String) credentialsObject).toCharArray();
             }
         }
         Map<String,Object> parameters = org.neo4j.kernel.api.security.AuthToken.safeCastMap( PARAMETERS, authTokenMap );
 
         return PluginApiAuthToken.of(
                 principal,
-                credentials != null ? credentials.toCharArray() : null,
+                credentials,
                 parameters );
     }
 }

@@ -85,6 +85,10 @@ import static org.neo4j.bolt.v1.messaging.util.MessageMatchers.msgSuccess;
 import static org.neo4j.bolt.v1.transport.integration.TransportTestUtil.eventuallyReceives;
 import static org.neo4j.graphdb.security.AuthorizationViolationException.PERMISSION_DENIED;
 import static org.neo4j.helpers.collection.MapUtil.map;
+import static org.neo4j.kernel.api.security.AuthToken.CREDENTIALS;
+import static org.neo4j.kernel.api.security.AuthToken.NEW_CREDENTIALS;
+import static org.neo4j.kernel.api.security.AuthToken.newBasicAuthToken;
+import static org.neo4j.string.UTF8;
 
 //@RunWith( Parameterized.class )
 public class BoltConnectionManagementIT
@@ -351,12 +355,11 @@ public class BoltConnectionManagementIT
     private void authenticate( TransportConnection client, String username, String password, String newPassword )
             throws Exception
     {
-        Map<String, Object> authToken =
-                map( "principal", username, "credentials", password, "scheme", "basic" );
+        Map<String, Object> authToken = newBasicAuthToken( username, password );
 
         if ( newPassword != null )
         {
-            authToken.put( "new_credentials", newPassword );
+            authToken.put( NEW_CREDENTIALS, UTF8.encode( newPassword ) );
         }
 
         client.connect( address )
