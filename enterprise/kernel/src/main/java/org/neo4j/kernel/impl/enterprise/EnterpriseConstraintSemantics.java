@@ -211,6 +211,6 @@ public class EnterpriseConstraintSemantics extends StandardConstraintSemantics
             // we just built when the schema changing transaction commits.
             return visitor;
         }
-        return getOrCreatePropertyExistenceEnforcerFrom( storageReader ).decorate( visitor, transactionState, storageReader );
+        return getOrCreatePropertyExistenceEnforcerFrom( storageReader ).decorate( visitor, read, cursorFactory );
     }
 }
