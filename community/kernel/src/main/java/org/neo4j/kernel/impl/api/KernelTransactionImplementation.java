@@ -528,6 +528,14 @@ public class KernelTransactionImplementation implements KernelTransaction, TxSta
         return txState != null && txState.hasChanges();
     }
 
+    private void closeOpenStatementIfNeeded()
+    {
+        if ( currentStatement.isAcquired() )
+        {
+            currentStatement.close();
+        }
+    }
+
     private void markAsClosed( long txId )
     {
         assertTransactionOpen();
@@ -604,12 +612,20 @@ public class KernelTransactionImplementation implements KernelTransaction, TxSta
         {
             if ( failure || !success || isTerminated() )
             {
-                rollback();
-                failOnNonExplicitRollbackIfNeeded();
+                try
+                {
+                    failOnNonExplicitRollbackIfNeeded();
+                }
+                finally
+                {
+                    closeOpenStatementIfNeeded();
+                    rollback();
+                }
                 return ROLLBACK;
             }
             else
             {
+                closeOpenStatementIfNeeded();
                 return commit();
             }
         }
