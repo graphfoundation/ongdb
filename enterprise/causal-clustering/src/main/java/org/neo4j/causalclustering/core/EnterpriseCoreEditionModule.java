@@ -318,7 +318,10 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
                 platformModule, clusterStateDirectory.get(), config, replicationModule.getReplicator(),
                 consensusModule.raftMachine(), dependencies, localDatabase );
 
-        this.idContextFactory = IdContextFactoryBuilder.of( coreStateMachinesModule.idTypeConfigurationProvider, platformModule.jobScheduler ).build();
+        this.idContextFactory = IdContextFactoryBuilder.of( coreStateMachinesModule.idTypeConfigurationProvider, platformModule.jobScheduler )
+                .withIdGenerationFactoryProvider( ignored -> coreStateMachinesModule.idGeneratorFactory )
+                .withFactoryWrapper( generator -> new FreeIdFilteredIdGeneratorFactory( generator, coreStateMachinesModule.freeIdCondition ) )
+                .build();
 
         this.tokenHoldersProvider = databaseName -> coreStateMachinesModule.tokenHolders;
         this.locksSupplier = coreStateMachinesModule.lockSupplier;
