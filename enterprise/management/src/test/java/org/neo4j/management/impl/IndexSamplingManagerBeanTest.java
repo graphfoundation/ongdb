@@ -38,11 +38,12 @@ import org.junit.Before;
 import org.junit.Test;
 
 import org.neo4j.graphdb.DependencyResolver;
-import org.neo4j.kernel.NeoStoreDataSource;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
+import org.neo4j.kernel.NeoStoreDataSource;
 import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
 import org.neo4j.kernel.impl.api.index.IndexingService;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingMode;
+import org.neo4j.kernel.impl.core.TokenHolder;
 import org.neo4j.kernel.impl.core.TokenHolders;
 import org.neo4j.storageengine.api.StorageEngine;
 import org.neo4j.storageengine.api.StorageReader;
@@ -51,16 +52,17 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.neo4j.internal.kernel.api.TokenRead.NO_TOKEN;
 
 public class IndexSamplingManagerBeanTest
 {
+    private static final String EXISTING_LABEL = "label";
+    private static final String NON_EXISTING_LABEL = "bogusLabel";
+    private static final int LABEL_ID = 42;
+    private static final String EXISTING_PROPERTY = "prop";
+    private static final String NON_EXISTING_PROPERTY = "bogusProp";
+    private static final int PROPERTY_ID = 43;
 
-    public static final String EXISTING_LABEL = "label";
-    public static final String NON_EXISTING_LABEL = "bogusLabel";
-    public static final int LABEL_ID = 42;
-    public static final String EXISTING_PROPERTY = "prop";
-    public static final String NON_EXISTING_PROPERTY = "bogusProp";
-    public static final int PROPERTY_ID = 43;
     private NeoStoreDataSource dataSource;
     private IndexingService indexingService;
 
@@ -68,17 +70,19 @@ public class IndexSamplingManagerBeanTest
     public void setup()
     {
         dataSource = mock( NeoStoreDataSource.class );
-        indexingService = mock( IndexingService.class );
         StorageEngine storageEngine = mock( StorageEngine.class );
         StorageReader storageReader = mock( StorageReader.class );
         when( storageEngine.newReader() ).thenReturn( storageReader );
-        TokenHolders tokenHolders = mock( TokenHolders.class );
+        indexingService = mock( IndexingService.class );
+        TokenHolders tokenHolders = mockedTokenHolders();
         when( tokenHolders.labelTokens().getIdByName( EXISTING_LABEL ) ).thenReturn( LABEL_ID );
         when( tokenHolders.propertyKeyTokens().getIdByName( EXISTING_PROPERTY ) ).thenReturn( PROPERTY_ID );
         when( tokenHolders.propertyKeyTokens().getIdByName( NON_EXISTING_PROPERTY ) ).thenReturn( -1 );
-        when( tokenHolders.labelTokens().getIdByName( NON_EXISTING_LABEL ) ).thenReturn( -1 );
+        when( tokenHolders.labelTokens().getIdByName( NON_EXISTING_LABEL ) ).thenReturn( NO_TOKEN );
         DependencyResolver resolver = mock( DependencyResolver.class );
         when( resolver.resolveDependency( IndexingService.class ) ).thenReturn( indexingService );
+        when( resolver.resolveDependency( StorageEngine.class ) ).thenReturn( storageEngine );
+        when( resolver.resolveDependency( TokenHolders.class ) ).thenReturn( tokenHolders );
         when( dataSource.getDependencyResolver() ).thenReturn( resolver );
     }
 
@@ -144,5 +148,13 @@ public class IndexSamplingManagerBeanTest
 
         // When
         storeAccess.triggerIndexSampling( EXISTING_LABEL, EXISTING_PROPERTY, false );
+    }
+
+    private static TokenHolders mockedTokenHolders()
+    {
+        return new TokenHolders(
+                mock( TokenHolder.class ),
+                mock( TokenHolder.class ),
+                mock( TokenHolder.class ) );
     }
 }
