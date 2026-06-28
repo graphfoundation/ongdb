@@ -45,6 +45,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.neo4j.helpers.collection.MapUtil.map;
+import static org.neo4j.server.security.auth.BasicAuthManagerTest.password;
+import static org.neo4j.test.AuthTokenUtil.authTokenMatcher;
 
 public class ShiroAuthTokenTest
 {
@@ -57,7 +59,7 @@ public class ShiroAuthTokenTest
         ShiroAuthToken token = new ShiroAuthToken( AuthToken.newBasicAuthToken( USERNAME, PASSWORD ) );
         testBasicAuthToken( token, USERNAME, PASSWORD, AuthToken.BASIC_SCHEME );
         assertThat( "Token map should have only expected values", token.getAuthTokenMap(),
-                equalTo( map( AuthToken.PRINCIPAL, USERNAME, AuthToken.CREDENTIALS, PASSWORD, AuthToken.SCHEME_KEY,
+                authTokenMatcher( map( AuthToken.PRINCIPAL, USERNAME, AuthToken.CREDENTIALS, PASSWORD, AuthToken.SCHEME_KEY,
                         AuthToken.BASIC_SCHEME ) ) );
         testTokenSupportsRealm( token, true, "unknown", "native", "ldap" );
     }
@@ -68,7 +70,7 @@ public class ShiroAuthTokenTest
         ShiroAuthToken token = new ShiroAuthToken( AuthToken.newBasicAuthToken( USERNAME, PASSWORD, "" ) );
         testBasicAuthToken( token, USERNAME, PASSWORD, AuthToken.BASIC_SCHEME );
         assertThat( "Token map should have only expected values", token.getAuthTokenMap(),
-                equalTo( map( AuthToken.PRINCIPAL, USERNAME, AuthToken.CREDENTIALS, PASSWORD, AuthToken.SCHEME_KEY,
+                authTokenMatcher( map( AuthToken.PRINCIPAL, USERNAME, AuthToken.CREDENTIALS, PASSWORD, AuthToken.SCHEME_KEY,
                         AuthToken.BASIC_SCHEME, AuthToken.REALM_KEY, "" ) ) );
         testTokenSupportsRealm( token, true, "unknown", "native", "ldap" );
     }
@@ -79,7 +81,7 @@ public class ShiroAuthTokenTest
         ShiroAuthToken token = new ShiroAuthToken( AuthToken.newBasicAuthToken( USERNAME, PASSWORD, null ) );
         testBasicAuthToken( token, USERNAME, PASSWORD, AuthToken.BASIC_SCHEME );
         assertThat( "Token map should have only expected values", token.getAuthTokenMap(),
-                equalTo( map( AuthToken.PRINCIPAL, USERNAME, AuthToken.CREDENTIALS, PASSWORD, AuthToken.SCHEME_KEY,
+                authTokenMatcher( map( AuthToken.PRINCIPAL, USERNAME, AuthToken.CREDENTIALS, PASSWORD, AuthToken.SCHEME_KEY,
                         AuthToken.BASIC_SCHEME, AuthToken.REALM_KEY, null ) ) );
         testTokenSupportsRealm( token, true, "unknown", "native", "ldap" );
     }
@@ -90,7 +92,7 @@ public class ShiroAuthTokenTest
         ShiroAuthToken token = new ShiroAuthToken( AuthToken.newBasicAuthToken( USERNAME, PASSWORD, "*" ) );
         testBasicAuthToken( token, USERNAME, PASSWORD, AuthToken.BASIC_SCHEME );
         assertThat( "Token map should have only expected values", token.getAuthTokenMap(),
-                equalTo( map( AuthToken.PRINCIPAL, USERNAME, AuthToken.CREDENTIALS, PASSWORD, AuthToken.SCHEME_KEY,
+                authTokenMatcher( map( AuthToken.PRINCIPAL, USERNAME, AuthToken.CREDENTIALS, PASSWORD, AuthToken.SCHEME_KEY,
                         AuthToken.BASIC_SCHEME, AuthToken.REALM_KEY, "*" ) ) );
         testTokenSupportsRealm( token, true, "unknown", "native", "ldap" );
     }
@@ -102,7 +104,7 @@ public class ShiroAuthTokenTest
         ShiroAuthToken token = new ShiroAuthToken( AuthToken.newBasicAuthToken( USERNAME, PASSWORD, realm ) );
         testBasicAuthToken( token, USERNAME, PASSWORD, AuthToken.BASIC_SCHEME );
         assertThat( "Token map should have only expected values", token.getAuthTokenMap(),
-                equalTo( map( AuthToken.PRINCIPAL, USERNAME, AuthToken.CREDENTIALS, PASSWORD, AuthToken.SCHEME_KEY,
+                authTokenMatcher( map( AuthToken.PRINCIPAL, USERNAME, AuthToken.CREDENTIALS, PASSWORD, AuthToken.SCHEME_KEY,
                         AuthToken.BASIC_SCHEME, AuthToken.REALM_KEY, "ldap" ) ) );
         testTokenSupportsRealm( token, true, realm );
         testTokenSupportsRealm( token, false, "unknown", "native" );
@@ -116,7 +118,7 @@ public class ShiroAuthTokenTest
                 new ShiroAuthToken( AuthToken.newCustomAuthToken( USERNAME, PASSWORD, realm, AuthToken.BASIC_SCHEME ) );
         testBasicAuthToken( token, USERNAME, PASSWORD, AuthToken.BASIC_SCHEME );
         assertThat( "Token map should have only expected values", token.getAuthTokenMap(),
-                equalTo( map( AuthToken.PRINCIPAL, USERNAME, AuthToken.CREDENTIALS, PASSWORD, AuthToken.SCHEME_KEY,
+                authTokenMatcher( map( AuthToken.PRINCIPAL, USERNAME, AuthToken.CREDENTIALS, PASSWORD, AuthToken.SCHEME_KEY,
                         AuthToken.BASIC_SCHEME, AuthToken.REALM_KEY, "ldap" ) ) );
         testTokenSupportsRealm( token, true, realm );
         testTokenSupportsRealm( token, false, "unknown", "native" );
@@ -132,7 +134,7 @@ public class ShiroAuthTokenTest
                         AuthToken.newCustomAuthToken( USERNAME, PASSWORD, realm, AuthToken.BASIC_SCHEME, params ) );
         testBasicAuthToken( token, USERNAME, PASSWORD, AuthToken.BASIC_SCHEME );
         assertThat( "Token map should have only expected values", token.getAuthTokenMap(),
-                equalTo( map( AuthToken.PRINCIPAL, USERNAME, AuthToken.CREDENTIALS, PASSWORD, AuthToken.SCHEME_KEY,
+                authTokenMatcher( map( AuthToken.PRINCIPAL, USERNAME, AuthToken.CREDENTIALS, PASSWORD, AuthToken.SCHEME_KEY,
                         AuthToken.BASIC_SCHEME, AuthToken.REALM_KEY, "ldap",
                         "parameters", params ) ) );
         testTokenSupportsRealm( token, true, realm );
@@ -163,6 +165,6 @@ public class ShiroAuthTokenTest
     {
         assertThat( "Token should have basic scheme", token.getScheme(), equalTo( scheme ) );
         assertThat( "Token have correct principal", token.getPrincipal(), equalTo( username ) );
-        assertThat( "Token have correct credentials", token.getCredentials(), equalTo( password ) );
+        assertThat( "Token have correct credentials", token.getCredentials(), equalTo( password( password ) ) );
     }
 }

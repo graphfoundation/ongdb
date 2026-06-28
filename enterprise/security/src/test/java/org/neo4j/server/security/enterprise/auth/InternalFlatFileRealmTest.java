@@ -296,7 +296,7 @@ public class InternalFlatFileRealmTest
             realm.stop();
             realm.shutdown();
         }
-        adminUserRepository.create( new User.Builder( "trinity", Credential.INACCESSIBLE ).build() );
+        adminUserRepository.create( new User.Builder( "trinity", LegacyCredential.INACCESSIBLE ).build() );
         realm.initialize();
         realm.start();
         assertThat( realm.getUsernamesForRole( PredefinedRoles.ADMIN ).size(), equalTo( 1 ) );
@@ -316,7 +316,7 @@ public class InternalFlatFileRealmTest
         }
         for ( String user : defaultAdmin )
         {
-            adminUserRepository.create( new User.Builder( user, Credential.INACCESSIBLE ).build() );
+            adminUserRepository.create( new User.Builder( user, LegacyCredential.INACCESSIBLE ).build() );
         }
         return new InternalFlatFileRealm(
                 userRepository,
