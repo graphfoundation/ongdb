@@ -69,7 +69,10 @@ public class BoltAuthenticationHelper
             }
             context.connectionState().onMetadata( "server", Values.stringValue( boltSpi.version() ) );
             boltSpi.udcRegisterClient( userAgent );
-            boltSpi.register( (ManagedBoltStateMachine) context.stateMachine(), username );
+            if ( context.stateMachine() instanceof ManagedBoltStateMachine )
+            {
+                boltSpi.register( (ManagedBoltStateMachine) context.stateMachine(), username );
+            }
 
             return true;
         }
