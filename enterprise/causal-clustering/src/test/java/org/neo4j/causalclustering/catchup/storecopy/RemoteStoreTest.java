@@ -88,7 +88,7 @@ public class RemoteStoreTest
 
         // then
         verify( storeCopyClient ).copyStoreFiles( eq( catchupAddressProvider ), eq( storeId ), any( StoreFileStreamProvider.class ), any(), any() );
-        verify( txPullClient ).pullTransactions( eq( localhost ), eq( storeId ), anyLong(), isNull() );
+        verify( txPullClient ).pullTransactions( eq( localhost ), eq( storeId ), anyLong(), any() );
     }
 
     @Test
@@ -105,7 +105,7 @@ public class RemoteStoreTest
                 .thenReturn( lastFlushedTxId );
 
         TxPullClient txPullClient = mock( TxPullClient.class );
-        when( txPullClient.pullTransactions( eq( localhost ), eq( wantedStoreId ), anyLong(), isNull() ) )
+        when( txPullClient.pullTransactions( eq( localhost ), eq( wantedStoreId ), anyLong(), any() ) )
                 .thenReturn( new TxPullRequestResult( SUCCESS_END_OF_STREAM, 13 ) );
 
         TransactionLogCatchUpWriter writer = mock( TransactionLogCatchUpWriter.class );
@@ -119,7 +119,7 @@ public class RemoteStoreTest
         // then
         long previousTxId = lastFlushedTxId - 1; // the interface is defined as asking for the one preceding
         verify( txPullClient ).pullTransactions( eq( localhost ), eq( wantedStoreId ), eq( previousTxId ),
-                isNull() );
+                any() );
     }
 
     @Test
