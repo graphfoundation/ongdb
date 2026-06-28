@@ -116,6 +116,6 @@ public class ToFileStoreWriterTest
     {
         writer.write( file.getName(), new DataProducer( 16 ), tempBuffer, true, 16 );
         assertThat( fs.fileExists( file ), is( true ) );
-        assertThat( fs.getFileSize( file ), equalTo( 16 ) );
+        assertThat( fs.getFileSize( file ), equalTo( 16L ) );
     }
 }
