@@ -156,12 +156,15 @@ abstract class BaseHighLimitRecordFormatV3_0_6<RECORD extends AbstractBaseRecord
                     primaryCursor, primarySize, secondaryCursor, secondarySize );
             doReadInternal( record, composite, recordSize, headerByte, inUse );
             record.setSecondaryUnitId( secondaryId );
+            record.setRequiresSecondaryUnit( true );
         }
         else
         {
             record.setUseFixedReferences( isUseFixedReferences( headerByte ) );
             doReadInternal( record, primaryCursor, recordSize, headerByte, inUse );
         }
+
+        primaryCursor.setOffset( primaryStartOffset + recordSize );
     }
 
     private boolean isUseFixedReferences( byte headerByte )
