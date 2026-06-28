@@ -38,6 +38,7 @@ import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
@@ -54,7 +55,6 @@ import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.virtual.MapValue;
 
 import static java.util.Collections.singletonList;
-import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static org.neo4j.kernel.enterprise.builtinprocs.ProceduresTimeFormatHelper.formatInterval;
 import static org.neo4j.kernel.enterprise.builtinprocs.ProceduresTimeFormatHelper.formatTime;
 import static org.neo4j.kernel.enterprise.builtinprocs.QueryId.ofInternalId;
@@ -116,7 +116,7 @@ public class QueryStatusResult
         this.query = query.queryText();
         this.parameters = asRawMap( query.queryParameters(), new ParameterWriter( manager ) );
         this.startTime = formatTime( query.startTimestampMillis(), zoneId );
-        this.elapsedTimeMillis = MICROSECONDS.toMillis( query.elapsedTimeMicros() );
+        this.elapsedTimeMillis = microsAsMillisOrZero( query.elapsedTimeMicros() );
         this.elapsedTime = formatInterval( elapsedTimeMillis );
         ClientConnectionInfo clientConnection = query.clientConnection();
         this.connectionDetails = clientConnection.asConnectionDetails();
@@ -124,12 +124,12 @@ public class QueryStatusResult
         this.clientAddress = clientConnection.clientAddress();
         this.requestUri = clientConnection.requestURI();
         this.metaData = query.transactionAnnotationData();
-        this.cpuTimeMillis = MICROSECONDS.toMillis( query.cpuTimeMicros() );
+        this.cpuTimeMillis = microsAsMillis( query.cpuTimeMicros() );
         this.status = query.status();
         this.resourceInformation = query.resourceInformation();
         this.activeLockCount = query.activeLockCount();
-        this.waitTimeMillis = MICROSECONDS.toMillis( query.waitTimeMicros() );
-        this.idleTimeMillis = MICROSECONDS.toMillis( query.idleTimeMicros() );
+        this.waitTimeMillis = microsAsMillisOrZero( query.waitTimeMicros() );
+        this.idleTimeMillis = microsAsMillis( query.idleTimeMicros() );
         this.planner = query.planner();
         this.runtime = query.runtime();
         this.indexes = query.indexes();
@@ -147,6 +147,16 @@ public class QueryStatusResult
             map.put( s, writer.value() );
         } );
         return map;
+    }
+
+    private static Long microsAsMillis( Long micros )
+    {
+        return micros == null ? null : TimeUnit.MICROSECONDS.toMillis( micros );
+    }
+
+    private static long microsAsMillisOrZero( Long micros )
+    {
+        return micros == null ? 0L : TimeUnit.MICROSECONDS.toMillis( micros );
     }
 
     private static class ParameterWriter extends BaseToObjectValueWriter<RuntimeException>
