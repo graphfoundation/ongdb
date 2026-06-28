@@ -224,6 +224,21 @@ class PropertyExistenceEnforcer
             super.visitRelPropertyChanges( id, added, changed, removed );
         }
 
+        @Override
+        public void close()
+        {
+            try
+            {
+                nodeCursor.close();
+                propertyCursor.close();
+                relationshipCursor.close();
+            }
+            finally
+            {
+                super.close();
+            }
+        }
+
         private void validateNode( long nodeId ) throws NodePropertyExistenceException
         {
             if ( mandatoryNodePropertiesByLabel.isEmpty() )
