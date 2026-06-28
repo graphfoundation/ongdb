@@ -350,6 +350,8 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
         this.accessCapability = new LeaderCanWrite( consensusModule.raftMachine() );
         serverInstalledProtocolHandler = new InstalledProtocolHandler();
         serverInstalledProtocols = serverInstalledProtocolHandler::installedProtocols;
+
+        editionInvariants( platformModule, dependencies, config, logging, life );
     }
 
     @Override
@@ -368,8 +370,6 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
                         catchupStrategySelector );
         RaftServerModule.createAndStart( platformModule, consensusModule, identityModule, coreServerModule, localDatabase, serverPipelineBuilderFactory,
                 messageLogger, catchupAddressProvider, supportedRaftProtocols, supportedModifierProtocols, serverInstalledProtocolHandler );
-
-        editionInvariants( platformModule, dependencies, config, logging, life );
 
         life.add( coreServerModule.membershipWaiterLifecycle );
     }
