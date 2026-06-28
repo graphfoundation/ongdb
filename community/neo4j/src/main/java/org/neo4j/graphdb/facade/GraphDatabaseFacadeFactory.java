@@ -211,6 +211,9 @@ public class GraphDatabaseFacadeFactory
         platform.life.add( databaseManager );
         platform.dependencies.satisfyDependency( databaseManager );
 
+        edition.createDatabases( databaseManager, config );
+        edition.finishSetup();
+
         DataCollectorManager dataCollectorManager =
                 new DataCollectorManager( platform.dataSourceManager,
                                           platform.jobScheduler,
@@ -233,8 +236,6 @@ public class GraphDatabaseFacadeFactory
                         edition.getTransactionStartTimeout() ) );
         platform.dependencies.satisfyDependency( edition.getSchemaWriteGuard() );
         platform.life.setLast( platform.eventHandlers );
-
-        edition.createDatabases( databaseManager, config );
 
         String activeDatabase = config.get( GraphDatabaseSettings.active_database );
         GraphDatabaseFacade databaseFacade = databaseManager.getDatabaseFacade( activeDatabase ).orElseThrow(

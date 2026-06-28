@@ -101,6 +101,7 @@ public abstract class AbstractEditionModule
     protected Function<File, FileSystemWatcherService> watcherServiceFactory;
     protected AvailabilityGuard globalAvailabilityGuard;
     protected SecurityProvider securityProvider;
+    protected DatabaseManager databaseManager;
 
     public abstract DatabaseEditionContext createDatabaseContext( String databaseName );
 
@@ -155,7 +156,12 @@ public abstract class AbstractEditionModule
     public DatabaseManager createDatabaseManager( GraphDatabaseFacade graphDatabaseFacade, PlatformModule platform, AbstractEditionModule edition,
             Procedures procedures, Logger msgLog )
     {
-        return new DefaultDatabaseManager( platform, edition, procedures, msgLog, graphDatabaseFacade );
+        databaseManager = new DefaultDatabaseManager( platform, edition, procedures, msgLog, graphDatabaseFacade );
+        return databaseManager;
+    }
+
+    public void finishSetup()
+    {
     }
 
     public abstract void createSecurityModule( PlatformModule platformModule, Procedures procedures );

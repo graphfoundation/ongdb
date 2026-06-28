@@ -104,8 +104,8 @@ import org.neo4j.causalclustering.upstream.UpstreamDatabaseStrategySelector;
 import org.neo4j.causalclustering.upstream.strategies.TypicallyConnectToRandomReadReplicaStrategy;
 import org.neo4j.com.storecopy.StoreUtil;
 import org.neo4j.function.Predicates;
-import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.graphdb.factory.module.edition.AbstractEditionModule;
 import org.neo4j.graphdb.factory.module.edition.DefaultEditionModule;
 import org.neo4j.graphdb.factory.module.id.IdContextFactoryBuilder;
 import org.neo4j.helpers.AdvertisedSocketAddress;
@@ -118,19 +118,17 @@ import org.neo4j.io.layout.StoreLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.net.NetworkConnectionTracker;
 import org.neo4j.kernel.availability.AvailabilityGuard;
-import org.neo4j.kernel.availability.DatabaseAvailability;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.ssl.SslPolicyLoader;
 import org.neo4j.kernel.enterprise.builtinprocs.EnterpriseBuiltInDbmsProcedures;
 import org.neo4j.kernel.impl.api.SchemaWriteGuard;
 import org.neo4j.kernel.impl.api.TransactionHeaderInformation;
-import org.neo4j.kernel.impl.coreapi.CoreAPIAvailabilityGuard;
+import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
 import org.neo4j.kernel.impl.enterprise.EnterpriseConstraintSemantics;
 import org.neo4j.kernel.impl.enterprise.EnterpriseEditionModule;
 import org.neo4j.kernel.impl.enterprise.StandardNetworkConnectionTracker;
 import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
 import org.neo4j.kernel.impl.enterprise.transaction.log.checkpoint.ConfigurableIOLimiter;
-import org.neo4j.kernel.impl.factory.DatabaseInfo;
 import org.neo4j.graphdb.factory.module.PlatformModule;
 import org.neo4j.kernel.impl.factory.StatementLocksFactorySelector;
 import org.neo4j.kernel.impl.index.IndexConfigStore;
@@ -138,8 +136,6 @@ import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
 import  org.neo4j.logging.internal.LogService;
 import org.neo4j.kernel.impl.pagecache.PageCacheWarmer;
 import org.neo4j.kernel.impl.proc.Procedures;
-import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
-import org.neo4j.kernel.impl.store.id.IdReuseEligibility;
 import org.neo4j.kernel.impl.transaction.TransactionHeaderInformationFactory;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
@@ -148,7 +144,6 @@ import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.kernel.internal.DatabaseHealth;
 import org.neo4j.kernel.internal.KernelData;
 import org.neo4j.kernel.lifecycle.LifeSupport;
-import org.neo4j.kernel.lifecycle.LifecycleStatus;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.time.Clocks;
 import org.neo4j.udc.UsageData;
@@ -169,8 +164,26 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
     protected final Config config;
     private final Supplier<Stream<Pair<AdvertisedSocketAddress,ProtocolStack>>> clientInstalledProtocols;
     private final Supplier<Stream<Pair<SocketAddress,ProtocolStack>>> serverInstalledProtocols;
-    private final CoreServerModule coreServerModule;
+    private CoreServerModule coreServerModule;
     private final CoreStateMachinesModule coreStateMachinesModule;
+    private final PlatformModule platformModule;
+    private final LogService logging;
+    private final DiscoveryServiceFactory discoveryServiceFactory;
+    private final DatabaseLayout databaseLayout;
+    private final NettyPipelineBuilderFactory clientPipelineBuilderFactory;
+    private final NettyPipelineBuilderFactory serverPipelineBuilderFactory;
+    private final NettyPipelineBuilderFactory backupServerPipelineBuilderFactory;
+    private final LifeSupport life;
+    private final InstalledProtocolHandler serverInstalledProtocolHandler;
+    private final IdentityModule identityModule;
+    private final ClusteringModule clusteringModule;
+    private final LocalDatabase localDatabase;
+    private final Supplier<DatabaseHealth> databaseHealthSupplier;
+    private final ClusterStateDirectory clusterStateDirectory;
+    private final MessageLogger<MemberId> messageLogger;
+    private final ApplicationSupportedProtocols supportedRaftProtocols;
+    private final Collection<ModifierSupportedProtocols> supportedModifierProtocols;
+    private final Dependencies dependencies;
 
     public enum RaftLogImplementation
     {
@@ -220,37 +233,46 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
         EnterpriseEditionModule.createSecurityModule( this, platformModule, procedures );
     }
 
+
     public EnterpriseCoreEditionModule( final PlatformModule platformModule, final DiscoveryServiceFactory discoveryServiceFactory )
     {
-        final Dependencies dependencies = platformModule.dependencies;
+        this.platformModule = platformModule;
         config = platformModule.config;
-        final LogService logging = platformModule.logging;
+        logging = platformModule.logging;
+        logProvider = logging.getInternalLogProvider();
+        this.discoveryServiceFactory = discoveryServiceFactory;
+        databaseLayout = platformModule.storeLayout.databaseLayout( config.get( GraphDatabaseSettings.active_database ) );
+        this.dependencies = platformModule.dependencies;
+
         final FileSystemAbstraction fileSystem = platformModule.fileSystem;
-        final DatabaseLayout databaseLayout = platformModule.storeLayout.databaseLayout( config.get( GraphDatabaseSettings.active_database ) );
-        final LifeSupport life = platformModule.life;
+        life = platformModule.life;
 
         final File dataDir = config.get( GraphDatabaseSettings.data_directory );
-        final ClusterStateDirectory clusterStateDirectory = new ClusterStateDirectory( dataDir, databaseLayout.databaseDirectory(), false );
+        this.clusterStateDirectory = new ClusterStateDirectory( dataDir, databaseLayout.databaseDirectory(), false );
         try
         {
-            clusterStateDirectory.initialize( fileSystem );
+            this.clusterStateDirectory.initialize( fileSystem );
         }
         catch ( ClusterStateException e )
         {
             throw new RuntimeException( e );
         }
-        dependencies.satisfyDependency( clusterStateDirectory );
+        dependencies.satisfyDependency( this.clusterStateDirectory );
 
-        logProvider = logging.getInternalLogProvider();
-        final Supplier<DatabaseHealth> databaseHealthSupplier = dependencies.provideDependency( DatabaseHealth.class );
+
+        this.databaseHealthSupplier =
+                () -> platformModule.dataSourceManager.getDataSource().getDependencyResolver().resolveDependency( DatabaseHealth.class );
 
         watcherServiceFactory = storeDir -> createFileSystemWatcherService( fileSystem, storeDir, logging,
                 platformModule.jobScheduler, config, fileWatcherFileNameFilter() );
         dependencies.satisfyDependencies( watcherServiceFactory );
 
         AvailabilityGuard availabilityGuard = getGlobalAvailabilityGuard( platformModule.clock, platformModule.logging, platformModule.config );
+        threadToTransactionBridge = dependencies.satisfyDependency(
+                new ThreadToStatementContextBridge( getGlobalAvailabilityGuard( platformModule.clock, logging, platformModule.config ) ) );
+
         LogFiles logFiles = buildLocalDatabaseLogFiles( platformModule, fileSystem, databaseLayout );
-        LocalDatabase localDatabase = new LocalDatabase( databaseLayout,
+        this.localDatabase = new LocalDatabase( databaseLayout,
                 new StoreFiles( fileSystem, platformModule.pageCache ),
                 logFiles,
                 platformModule.dataSourceManager,
@@ -258,9 +280,9 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
                 availabilityGuard,
                 logProvider );
 
-        IdentityModule identityModule = new IdentityModule( platformModule, clusterStateDirectory.get() );
+        this.identityModule = new IdentityModule( platformModule, clusterStateDirectory.get() );
 
-        ClusteringModule clusteringModule = getClusteringModule( platformModule, discoveryServiceFactory,
+        this.clusteringModule = getClusteringModule( platformModule, discoveryServiceFactory,
                 clusterStateDirectory, identityModule, dependencies, databaseLayout );
 
         // We need to satisfy the dependency here to keep users of it, such as BoltKernelExtension, happy.
@@ -270,17 +292,20 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
         PipelineWrapper serverPipelineWrapper = pipelineWrapperFactory().forServer( config, dependencies, logProvider, CausalClusteringSettings.ssl_policy );
         PipelineWrapper backupServerPipelineWrapper = pipelineWrapperFactory().forServer( config, dependencies, logProvider, OnlineBackupSettings.ssl_policy );
 
-        NettyPipelineBuilderFactory clientPipelineBuilderFactory = new NettyPipelineBuilderFactory( clientPipelineWrapper );
-        NettyPipelineBuilderFactory serverPipelineBuilderFactory = new NettyPipelineBuilderFactory( serverPipelineWrapper );
-        NettyPipelineBuilderFactory backupServerPipelineBuilderFactory = new NettyPipelineBuilderFactory( backupServerPipelineWrapper );
+
+
+
+        clientPipelineBuilderFactory = new NettyPipelineBuilderFactory( clientPipelineWrapper );
+        serverPipelineBuilderFactory = new NettyPipelineBuilderFactory( serverPipelineWrapper );
+        backupServerPipelineBuilderFactory = new NettyPipelineBuilderFactory( backupServerPipelineWrapper );
 
         topologyService = clusteringModule.topologyService();
 
         long logThresholdMillis = config.get( CausalClusteringSettings.unknown_address_logging_throttle ).toMillis();
 
         SupportedProtocolCreator supportedProtocolCreator = new SupportedProtocolCreator( config, logProvider );
-        ApplicationSupportedProtocols supportedRaftProtocols = supportedProtocolCreator.createSupportedRaftProtocol();
-        Collection<ModifierSupportedProtocols> supportedModifierProtocols = supportedProtocolCreator.createSupportedModifierProtocols();
+        this.supportedRaftProtocols = supportedProtocolCreator.createSupportedRaftProtocol();
+        this.supportedModifierProtocols = supportedProtocolCreator.createSupportedModifierProtocols();
 
         ApplicationProtocolRepository applicationProtocolRepository =
                 new ApplicationProtocolRepository( Protocol.ApplicationProtocols.values(), supportedRaftProtocols );
@@ -299,7 +324,7 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
         life.add( raftSender );
         this.clientInstalledProtocols = raftSender::installedProtocols;
 
-        final MessageLogger<MemberId> messageLogger = createMessageLogger( config, life, identityModule.myself() );
+        this.messageLogger = createMessageLogger( config, life, identityModule.myself() );
 
         RaftOutbound raftOutbound = new RaftOutbound( topologyService, raftSender, clusteringModule.clusterIdentity(),
                 logProvider, logThresholdMillis );
@@ -318,22 +343,26 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
                 platformModule, clusterStateDirectory.get(), config, replicationModule.getReplicator(),
                 consensusModule.raftMachine(), dependencies, localDatabase );
 
+
         this.idContextFactory = IdContextFactoryBuilder.of( coreStateMachinesModule.idTypeConfigurationProvider, platformModule.jobScheduler )
                 .withIdGenerationFactoryProvider( ignored -> coreStateMachinesModule.idGeneratorFactory )
-                .withFactoryWrapper( generator -> new FreeIdFilteredIdGeneratorFactory( generator, coreStateMachinesModule.freeIdCondition ) )
+                .withFactoryWrapper( generator -> new FreeIdFilteredIdGeneratorFactory( generator, coreStateMachinesModule.freeIdCondition ) ).withFileSystem( fileSystem )
                 .build();
 
         this.tokenHoldersProvider = databaseName -> coreStateMachinesModule.tokenHolders;
         this.locksSupplier = coreStateMachinesModule.lockSupplier;
         this.commitProcessFactory = coreStateMachinesModule.commitProcessFactory;
         this.accessCapability = new LeaderCanWrite( consensusModule.raftMachine() );
+        serverInstalledProtocolHandler = new InstalledProtocolHandler();
+        serverInstalledProtocols = serverInstalledProtocolHandler::installedProtocols;
+    }
 
-        InstalledProtocolHandler serverInstalledProtocolHandler = new InstalledProtocolHandler();
-
+    @Override
+    public void finishSetup()
+    {
         this.coreServerModule = new CoreServerModule( identityModule, platformModule, consensusModule, coreStateMachinesModule, clusteringModule,
                 replicationModule, localDatabase, databaseHealthSupplier, clusterStateDirectory.get(), clientPipelineBuilderFactory,
                 serverPipelineBuilderFactory, backupServerPipelineBuilderFactory, serverInstalledProtocolHandler );
-
         TypicallyConnectToRandomReadReplicaStrategy defaultStrategy = new TypicallyConnectToRandomReadReplicaStrategy( 2 );
         defaultStrategy.inject( topologyService, config, logProvider, identityModule.myself() );
         UpstreamDatabaseStrategySelector catchupStrategySelector =
@@ -344,15 +373,14 @@ public class EnterpriseCoreEditionModule extends DefaultEditionModule
                         catchupStrategySelector );
         RaftServerModule.createAndStart( platformModule, consensusModule, identityModule, coreServerModule, localDatabase, serverPipelineBuilderFactory,
                 messageLogger, catchupAddressProvider, supportedRaftProtocols, supportedModifierProtocols, serverInstalledProtocolHandler );
-        serverInstalledProtocols = serverInstalledProtocolHandler::installedProtocols;
 
         editionInvariants( platformModule, dependencies, config, logging, life );
 
         life.add( coreServerModule.membershipWaiterLifecycle );
     }
 
-    private UpstreamDatabaseStrategySelector createUpstreamDatabaseStrategySelector( MemberId myself, Config config, LogProvider logProvider,
-            TopologyService topologyService, UpstreamDatabaseSelectionStrategy defaultStrategy )
+    private UpstreamDatabaseStrategySelector createUpstreamDatabaseStrategySelector(MemberId myself, Config config, LogProvider logProvider,
+                                                                                    TopologyService topologyService, UpstreamDatabaseSelectionStrategy defaultStrategy )
     {
         UpstreamDatabaseStrategiesLoader loader;
         if ( config.get( CausalClusteringSettings.multi_dc_license ) )
