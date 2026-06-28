@@ -326,28 +326,26 @@ class MultiRealmAuthManager implements EnterpriseAuthAndUserManager
     {
         if ( propertyAuthorization )
         {
-            try ( PrimitiveIntSet blackListed = Primitive.intSet() )
+            PrimitiveIntSet blackListed = Primitive.intSet();
+            for ( String role : roles )
             {
-                for ( String role : roles )
+                if ( roleToPropertyBlacklist.containsKey( role ) )
                 {
-                    if ( roleToPropertyBlacklist.containsKey( role ) )
+                    assert roleToPropertyBlacklist.get( role ) != null : "Blacklist has to contain properties";
+                    for ( String propName : roleToPropertyBlacklist.get( role ) )
                     {
-                        assert roleToPropertyBlacklist.get( role ) != null : "Blacklist has to contain properties";
-                        for ( String propName : roleToPropertyBlacklist.get( role ) )
+                        try
                         {
-                            try
-                            {
-                                blackListed.add( propertyIdLookup.applyAsInt( propName ) );
-                            }
-                            catch ( Exception e )
-                            {
-                                securityLog.error( "Error in setting up property permissions, '" + propName + "' is not a valid property name." );
-                            }
+                            blackListed.add( propertyIdLookup.applyAsInt( propName ) );
+                        }
+                        catch ( Exception e )
+                        {
+                            securityLog.error( "Error in setting up property permissions, '" + propName + "' is not a valid property name." );
                         }
                     }
                 }
-                return property -> !blackListed.contains( property );
             }
+            return property -> !blackListed.contains( property );
         }
         else
         {
