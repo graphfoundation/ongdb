@@ -34,6 +34,7 @@
  */
 package org.neo4j.kernel.impl.enterprise;
 
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.function.Predicate;
@@ -42,7 +43,6 @@ import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.impl.index.IndexConfigStore;
 import org.neo4j.kernel.impl.pagecache.PageCacheWarmer;
 import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFiles;
-import org.neo4j.test.extension.Inject;
 import org.neo4j.test.rule.TestDirectory;
 
 import static org.junit.Assert.assertFalse;
@@ -50,8 +50,8 @@ import static org.junit.Assert.assertTrue;
 
 public class EnterpriseEditionModuleTest
 {
-    @Inject
-    TestDirectory testDirectory;
+    @Rule
+    public final TestDirectory testDirectory = TestDirectory.testDirectory();
 
     @Test
     public void fileWatcherFileNameFilter()
