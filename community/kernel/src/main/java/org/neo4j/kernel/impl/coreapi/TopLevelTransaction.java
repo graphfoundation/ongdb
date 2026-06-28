@@ -107,11 +107,7 @@ public class TopLevelTransaction implements InternalTransaction
         {
             throw new ConstraintViolationException( e.getMessage(), e );
         }
-        catch ( TransactionTerminatedException e )
-        {
-            throw e;
-        }
-        catch ( KernelException e )
+        catch ( KernelException | TransactionTerminatedException e )
         {
             Code statusCode = e.status().code();
             if ( statusCode.classification() == Classification.TransientError )
