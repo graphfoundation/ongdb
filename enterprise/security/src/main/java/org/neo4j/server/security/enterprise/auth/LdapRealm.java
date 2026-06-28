@@ -168,11 +168,12 @@ public class LdapRealm extends DefaultLdapRealm implements RealmLifecycle, Shiro
             else
             {
                 String serverString = server( (JndiLdapContextFactory) ldapContextFactory );
+                AuthenticationToken ldapToken = withLdapCredentials( token );
                 try
                 {
                     AuthenticationInfo info =
-                            useStartTls ? queryForAuthenticationInfoUsingStartTls( token, ldapContextFactory )
-                                        : super.queryForAuthenticationInfo( token, ldapContextFactory );
+                            useStartTls ? queryForAuthenticationInfoUsingStartTls( ldapToken, ldapContextFactory )
+                                        : super.queryForAuthenticationInfo( ldapToken, ldapContextFactory );
                     securityLog.debug( withRealm( "Authenticated user '%s' against %s", token.getPrincipal(),
                             serverString ) );
                     return info;
@@ -205,15 +206,16 @@ public class LdapRealm extends DefaultLdapRealm implements RealmLifecycle, Shiro
     protected AuthenticationInfo queryForAuthenticationInfoUsingStartTls( AuthenticationToken token,
             LdapContextFactory ldapContextFactory ) throws NamingException
     {
-        Object principal = getLdapPrincipal(token);
-        Object credentials = ldapCredentials( token.getCredentials() );
+        AuthenticationToken ldapToken = withLdapCredentials( token );
+        Object principal = getLdapPrincipal( ldapToken );
+        Object credentials = ldapToken.getCredentials();
 
         LdapContext ctx = null;
 
         try
         {
             ctx = getLdapContextUsingStartTls( ldapContextFactory, principal, credentials );
-            return createAuthenticationInfo( token, principal, credentials, ctx );
+            return createAuthenticationInfo( ldapToken, principal, credentials, ctx );
         }
         finally
         {
@@ -538,8 +540,9 @@ public class LdapRealm extends DefaultLdapRealm implements RealmLifecycle, Shiro
     private AuthenticationInfo queryForAuthenticationInfoSAM(
             AuthenticationToken token, LdapContextFactory ldapContextFactory ) throws NamingException
     {
-        Object principal = token.getPrincipal();
-        Object credentials = ldapCredentials( token.getCredentials() );
+        AuthenticationToken ldapToken = withLdapCredentials( token );
+        Object principal = ldapToken.getPrincipal();
+        Object credentials = ldapToken.getCredentials();
 
         LdapContext ctx = null;
         try
@@ -570,7 +573,7 @@ public class LdapRealm extends DefaultLdapRealm implements RealmLifecycle, Shiro
             {
                 throw new AuthenticationException( "No user matching: " + principal );
             }
-            return createAuthenticationInfo( token, principal, credentials, ctx );
+            return createAuthenticationInfo( ldapToken, principal, credentials, ctx );
         }
         finally
         {
@@ -709,6 +712,29 @@ public class LdapRealm extends DefaultLdapRealm implements RealmLifecycle, Shiro
     public AuthorizationInfo getAuthorizationInfoSnapshot( PrincipalCollection principalCollection )
     {
         return getAuthorizationInfo( principalCollection );
+    }
+
+    private static AuthenticationToken withLdapCredentials( AuthenticationToken token )
+    {
+        Object credentials = ldapCredentials( token.getCredentials() );
+        if ( credentials == token.getCredentials() )
+        {
+            return token;
+        }
+        return new AuthenticationToken()
+        {
+            @Override
+            public Object getPrincipal()
+            {
+                return token.getPrincipal();
+            }
+
+            @Override
+            public Object getCredentials()
+            {
+                return credentials;
+            }
+        };
     }
 
     private static Object ldapCredentials( Object credentials )
