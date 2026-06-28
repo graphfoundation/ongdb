@@ -142,7 +142,7 @@ public class RemoteStoreTest
         // when
         try
         {
-            remoteStore.copy( catchupAddressProvider, storeId, null );
+            remoteStore.copy( catchupAddressProvider, storeId, DatabaseLayout.of( new File( "." ) ) );
         }
         catch ( StoreCopyFailedException e )
         {
@@ -156,7 +156,7 @@ public class RemoteStoreTest
     private TransactionLogCatchUpFactory factory( TransactionLogCatchUpWriter writer ) throws IOException
     {
         TransactionLogCatchUpFactory factory = mock( TransactionLogCatchUpFactory.class );
-        when( factory.create( isNull(), any( FileSystemAbstraction.class ), isNull(), any( Config.class ),
+        when( factory.create( any(), any( FileSystemAbstraction.class ), isNull(), any( Config.class ),
                 any( LogProvider.class ), anyLong(), anyBoolean(), anyBoolean() ) ).thenReturn( writer );
         return factory;
     }

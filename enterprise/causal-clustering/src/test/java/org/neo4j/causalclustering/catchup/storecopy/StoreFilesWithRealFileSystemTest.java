@@ -39,21 +39,18 @@ import org.junit.rules.RuleChain;
 import org.neo4j.test.rule.PageCacheRule;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.rule.fs.DefaultFileSystemRule;
-import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
 
 public class StoreFilesWithRealFileSystemTest extends StoreFilesTest
 {
     @Override
     protected void createRules()
     {
-        testDirectory = TestDirectory.testDirectory( StoreFilesWithRealFileSystemTest.class );
+        testDirectory = TestDirectory.testDirectory();
         DefaultFileSystemRule defaultFileSystemRule = new DefaultFileSystemRule();
         fileSystemRule = defaultFileSystemRule;
-        hiddenFileSystemRule = new EphemeralFileSystemRule();
         pageCacheRule = new PageCacheRule( );
         rules = RuleChain.outerRule( defaultFileSystemRule )
                          .around( testDirectory )
-                         .around( hiddenFileSystemRule )
                          .around( pageCacheRule );
     }
 }

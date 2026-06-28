@@ -34,9 +34,10 @@
  */
 package org.neo4j.causalclustering.readreplica;
 
+import org.junit.Rule;
 import org.junit.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.io.File;
 import java.util.function.Predicate;
 
 import org.neo4j.com.storecopy.StoreUtil;
@@ -44,18 +45,15 @@ import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.impl.index.IndexConfigStore;
 import org.neo4j.kernel.impl.pagecache.PageCacheWarmer;
 import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFiles;
-import org.neo4j.test.extension.Inject;
-import org.neo4j.test.extension.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-@ExtendWith( TestDirectoryExtension.class )
 public class EnterpriseReadReplicaEditionModuleTest
 {
-    @Inject
-    private TestDirectory testDirectory;
+    @Rule
+    public final TestDirectory testDirectory = TestDirectory.testDirectory();
 
     @Test
     public void fileWatcherFileNameFilter()

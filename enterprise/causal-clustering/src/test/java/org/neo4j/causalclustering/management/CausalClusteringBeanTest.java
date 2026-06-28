@@ -53,6 +53,7 @@ import org.neo4j.jmx.impl.ManagementData;
 import org.neo4j.jmx.impl.ManagementSupport;
 import org.neo4j.kernel.NeoStoreDataSource;
 import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.impl.factory.DatabaseInfo;
 import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
 import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.kernel.internal.KernelData;
@@ -89,6 +90,7 @@ public class CausalClusteringBeanTest
         Dependencies dependencies = new Dependencies();
         dependencies.satisfyDependency( clusterStateDirectory );
         dependencies.satisfyDependency( raftMachine );
+        dependencies.satisfyDependency( DatabaseInfo.CORE );
 
         when( dataSource.getDependencyResolver() ).thenReturn( dependencies );
         ManagementData data = new ManagementData( new CausalClusteringBean(), kernelData, ManagementSupport.load() );

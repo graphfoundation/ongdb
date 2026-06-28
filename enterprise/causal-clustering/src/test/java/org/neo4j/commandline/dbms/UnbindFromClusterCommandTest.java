@@ -60,6 +60,7 @@ import org.neo4j.io.IOUtils;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
+import org.neo4j.kernel.configuration.Config;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
 
@@ -87,11 +88,12 @@ public class UnbindFromClusterCommandTest
     private FileChannel channel;
 
     @Before
-    public void setup()
+    public void setup() throws IOException
     {
         homeDir = testDir.directory( "home" ).toPath();
         confDir = testDir.directory( "conf" ).toPath();
         fs.mkdir( homeDir.toFile() );
+        Files.createFile( confDir.resolve( Config.DEFAULT_CONFIG_FILE_NAME ) );
 
         when( outsideWorld.fileSystem() ).thenReturn( fs );
     }
