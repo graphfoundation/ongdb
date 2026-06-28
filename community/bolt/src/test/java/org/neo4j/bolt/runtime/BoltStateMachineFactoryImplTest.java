@@ -56,7 +56,7 @@ import org.neo4j.dbms.database.DatabaseManager;
 import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.kernel.GraphDatabaseQueryService;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.api.bolt.BoltConnectionTracker;
 import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
 import org.neo4j.logging.internal.NullLogService;
 import org.neo4j.test.OnDemandJobScheduler;
@@ -119,7 +119,7 @@ class BoltStateMachineFactoryImplTest
         Config config = Config.defaults( GraphDatabaseSettings.active_database, CUSTOM_DB_NAME );
         return new BoltStateMachineFactoryImpl( databaseManager, new UsageData( new OnDemandJobScheduler() ),
                 mock( Authentication.class ), CLOCK, config,
-                NullLogService.getInstance() );
+                NullLogService.getInstance(), BoltConnectionTracker.NOOP );
     }
 
     private static DatabaseManager newDbMock()

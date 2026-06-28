@@ -58,6 +58,7 @@ import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.graphdb.config.Setting;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.io.IOUtils;
+import org.neo4j.kernel.api.bolt.BoltConnectionTracker;
 import org.neo4j.kernel.api.security.AuthManager;
 import org.neo4j.kernel.api.security.UserManagerSupplier;
 import org.neo4j.kernel.configuration.Config;
@@ -104,7 +105,8 @@ public class SessionExtension implements BeforeEachCallback, AfterEachCallback
                 authentication,
                 Clock.systemUTC(),
                 Config.defaults(),
-                NullLogService.getInstance()
+                NullLogService.getInstance(),
+                BoltConnectionTracker.NOOP
         );
     }
 

@@ -64,6 +64,7 @@ import org.neo4j.dbms.database.DatabaseManager;
 import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.ListenSocketAddress;
+import org.neo4j.kernel.api.bolt.BoltConnectionTracker;
 import org.neo4j.kernel.api.net.NetworkConnectionTracker;
 import org.neo4j.kernel.api.security.AuthManager;
 import org.neo4j.kernel.api.security.UserManagerSupplier;
@@ -241,6 +242,15 @@ public class BoltServer extends LifecycleAdapter
 
     private BoltStateMachineFactory createBoltFactory( Authentication authentication, Clock clock )
     {
-        return new BoltStateMachineFactoryImpl( databaseManager, usageData, authentication, clock, config, logService );
+        BoltConnectionTracker boltConnectionTracker = BoltConnectionTracker.NOOP;
+        try
+        {
+            boltConnectionTracker = dependencyResolver.resolveDependency( BoltConnectionTracker.class );
+        }
+        catch ( IllegalArgumentException ignored )
+        {
+        }
+        return new BoltStateMachineFactoryImpl( databaseManager, usageData, authentication, clock, config, logService,
+                boltConnectionTracker );
     }
 }

@@ -44,6 +44,10 @@ public interface StateMachineContext
 {
     void authenticatedAsUser( String username, String userAgent );
 
+    String authenticatedUser();
+
+    BoltStateMachine stateMachine();
+
     void handleFailure( Throwable cause, boolean fatal ) throws BoltConnectionFatality;
 
     boolean resetMachine() throws BoltConnectionFatality;

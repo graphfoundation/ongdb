@@ -61,6 +61,7 @@ import org.neo4j.bolt.v1.messaging.request.InterruptSignal;
 import org.neo4j.graphdb.security.AuthorizationExpiredException;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
+import org.neo4j.kernel.api.bolt.ManagedBoltStateMachine;
 import org.neo4j.kernel.api.exceptions.Status;
 
 /**
@@ -76,7 +77,7 @@ import org.neo4j.kernel.api.exceptions.Status;
  * (i.e. a message sent out of sequence) will result in an immediate failure
  * response and a closed connection.
  */
-public class BoltStateMachineV1 implements BoltStateMachine
+public class BoltStateMachineV1 implements BoltStateMachine, ManagedBoltStateMachine
 {
     private final String id;
     private final BoltChannel boltChannel;
@@ -241,9 +242,28 @@ public class BoltStateMachineV1 implements BoltStateMachine
         finally
         {
             connectionState.markClosed();
+            spi.onTerminate( this );
             // However a new transaction may have been created so we must always to reset
             resetStatementProcessor();
         }
+    }
+
+    @Override
+    public String owner()
+    {
+        return context.authenticatedUser();
+    }
+
+    @Override
+    public void terminate()
+    {
+        markForTermination();
+    }
+
+    @Override
+    public boolean willTerminate()
+    {
+        return connectionState.isTerminated();
     }
 
     @Override
@@ -262,6 +282,7 @@ public class BoltStateMachineV1 implements BoltStateMachine
          */
         connectionState.markTerminated();
         statementProcessor().markCurrentTransactionForTermination();
+        spi.onTerminate( this );
     }
 
     @Override

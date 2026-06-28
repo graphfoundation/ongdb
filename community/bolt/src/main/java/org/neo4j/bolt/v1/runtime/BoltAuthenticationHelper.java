@@ -45,6 +45,7 @@ import org.neo4j.bolt.runtime.BoltStateMachineSPI;
 import org.neo4j.bolt.runtime.StateMachineContext;
 import org.neo4j.bolt.runtime.StatementProcessor;
 import org.neo4j.bolt.security.auth.AuthenticationResult;
+import org.neo4j.kernel.api.bolt.ManagedBoltStateMachine;
 import org.neo4j.values.storable.Values;
 
 public class BoltAuthenticationHelper
@@ -68,6 +69,7 @@ public class BoltAuthenticationHelper
             }
             context.connectionState().onMetadata( "server", Values.stringValue( boltSpi.version() ) );
             boltSpi.udcRegisterClient( userAgent );
+            boltSpi.register( (ManagedBoltStateMachine) context.stateMachine(), username );
 
             return true;
         }

@@ -42,6 +42,7 @@ import java.util.Map;
 
 import org.neo4j.bolt.security.auth.AuthenticationException;
 import org.neo4j.bolt.security.auth.AuthenticationResult;
+import org.neo4j.kernel.api.bolt.ManagedBoltStateMachine;
 
 public interface BoltStateMachineSPI
 {
@@ -54,4 +55,8 @@ public interface BoltStateMachineSPI
     void udcRegisterClient( String clientName );
 
     String version();
+
+    void register( ManagedBoltStateMachine machine, String owner );
+
+    void onTerminate( ManagedBoltStateMachine machine );
 }

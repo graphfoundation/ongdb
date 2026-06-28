@@ -54,6 +54,7 @@ public class BoltStateMachineV1Context implements StateMachineContext
     private final BoltStateMachineSPI spi;
     private final MutableConnectionState connectionState;
     private final Clock clock;
+    private String authenticatedUser;
 
     public BoltStateMachineV1Context( BoltStateMachine machine, BoltChannel boltChannel, BoltStateMachineSPI spi,
             MutableConnectionState connectionState, Clock clock )
@@ -68,7 +69,20 @@ public class BoltStateMachineV1Context implements StateMachineContext
     @Override
     public void authenticatedAsUser( String username, String userAgent )
     {
+        this.authenticatedUser = username;
         boltChannel.updateUser( username, userAgent );
+    }
+
+    @Override
+    public String authenticatedUser()
+    {
+        return authenticatedUser;
+    }
+
+    @Override
+    public BoltStateMachine stateMachine()
+    {
+        return machine;
     }
 
     @Override

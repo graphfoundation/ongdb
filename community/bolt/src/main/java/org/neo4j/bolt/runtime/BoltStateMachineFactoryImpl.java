@@ -53,6 +53,7 @@ import org.neo4j.bolt.v3.BoltStateMachineV3;
 import org.neo4j.bolt.v3.runtime.TransactionStateMachineV3SPI;
 import org.neo4j.dbms.database.DatabaseManager;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.kernel.api.bolt.BoltConnectionTracker;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
 import org.neo4j.logging.internal.LogService;
@@ -64,17 +65,20 @@ public class BoltStateMachineFactoryImpl implements BoltStateMachineFactory
     private final UsageData usageData;
     private final LogService logging;
     private final Authentication authentication;
+    private final BoltConnectionTracker connectionTracker;
     private final Config config;
     private final Clock clock;
     private final String activeDatabaseName;
 
     public BoltStateMachineFactoryImpl( DatabaseManager databaseManager, UsageData usageData,
-            Authentication authentication, Clock clock, Config config, LogService logging )
+            Authentication authentication, Clock clock, Config config, LogService logging,
+            BoltConnectionTracker connectionTracker )
     {
         this.databaseManager = databaseManager;
         this.usageData = usageData;
         this.logging = logging;
         this.authentication = authentication;
+        this.connectionTracker = connectionTracker;
         this.config = config;
         this.clock = clock;
         this.activeDatabaseName = config.get( GraphDatabaseSettings.active_database );
@@ -100,14 +104,16 @@ public class BoltStateMachineFactoryImpl implements BoltStateMachineFactory
     private BoltStateMachine newStateMachineV1( BoltChannel boltChannel )
     {
         TransactionStateMachineSPI transactionSPI = new TransactionStateMachineV1SPI( getActiveDatabase(), boltChannel, getAwaitDuration(), clock );
-        BoltStateMachineSPI boltSPI = new BoltStateMachineV1SPI( usageData, logging, authentication, transactionSPI );
+        BoltStateMachineSPI boltSPI = new BoltStateMachineV1SPI( usageData, logging, authentication, transactionSPI,
+                connectionTracker );
         return new BoltStateMachineV1( boltSPI, boltChannel, clock );
     }
 
     private BoltStateMachine newStateMachineV3( BoltChannel boltChannel )
     {
         TransactionStateMachineSPI transactionSPI = new TransactionStateMachineV3SPI( getActiveDatabase(), boltChannel, getAwaitDuration(), clock );
-        BoltStateMachineSPI boltSPI = new BoltStateMachineV1SPI( usageData, logging, authentication, transactionSPI );
+        BoltStateMachineSPI boltSPI = new BoltStateMachineV1SPI( usageData, logging, authentication, transactionSPI,
+                connectionTracker );
         return new BoltStateMachineV3( boltSPI, boltChannel, clock );
     }
 

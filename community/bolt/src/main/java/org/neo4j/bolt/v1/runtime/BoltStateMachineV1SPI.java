@@ -46,6 +46,8 @@ import org.neo4j.bolt.runtime.TransactionStateMachineSPI;
 import org.neo4j.bolt.security.auth.Authentication;
 import org.neo4j.bolt.security.auth.AuthenticationException;
 import org.neo4j.bolt.security.auth.AuthenticationResult;
+import org.neo4j.kernel.api.bolt.BoltConnectionTracker;
+import org.neo4j.kernel.api.bolt.ManagedBoltStateMachine;
 import org.neo4j.kernel.internal.Version;
 import org.neo4j.logging.internal.LogService;
 import org.neo4j.udc.UsageData;
@@ -57,15 +59,18 @@ public class BoltStateMachineV1SPI implements BoltStateMachineSPI
     private final UsageData usageData;
     private final ErrorReporter errorReporter;
     private final Authentication authentication;
+    private final BoltConnectionTracker connectionTracker;
     private final String version;
     private final TransactionStateMachineSPI transactionSpi;
 
     public BoltStateMachineV1SPI( UsageData usageData, LogService logging,
-            Authentication authentication, TransactionStateMachineSPI transactionStateMachineSPI )
+            Authentication authentication, TransactionStateMachineSPI transactionStateMachineSPI,
+            BoltConnectionTracker connectionTracker )
     {
         this.usageData = usageData;
         this.errorReporter = new ErrorReporter( logging );
         this.authentication = authentication;
+        this.connectionTracker = connectionTracker;
         this.transactionSpi = transactionStateMachineSPI;
         this.version = BOLT_SERVER_VERSION_PREFIX + Version.getONgDBVersion();
     }
@@ -98,5 +103,17 @@ public class BoltStateMachineV1SPI implements BoltStateMachineSPI
     public String version()
     {
         return version;
+    }
+
+    @Override
+    public void register( ManagedBoltStateMachine machine, String owner )
+    {
+        connectionTracker.onRegister( machine, owner );
+    }
+
+    @Override
+    public void onTerminate( ManagedBoltStateMachine machine )
+    {
+        connectionTracker.onTerminate( machine );
     }
 }

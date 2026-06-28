@@ -75,6 +75,7 @@ import org.neo4j.bolt.v1.messaging.request.ResetMessage;
 import org.neo4j.bolt.v1.messaging.request.RunMessage;
 import org.neo4j.helpers.collection.Iterables;
 import org.neo4j.kernel.configuration.BoltConnector;
+import org.neo4j.kernel.api.bolt.ManagedBoltStateMachine;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.monitoring.Monitors;
@@ -246,6 +247,16 @@ public class ResetFuzzTest
         public String version()
         {
             return "<test-version>";
+        }
+
+        @Override
+        public void register( ManagedBoltStateMachine machine, String owner )
+        {
+        }
+
+        @Override
+        public void onTerminate( ManagedBoltStateMachine machine )
+        {
         }
     }
 }
