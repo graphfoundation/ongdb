@@ -34,6 +34,7 @@
  */
 package org.neo4j.causalclustering.catchup.storecopy;
 
+import java.io.File;
 import java.io.IOException;
 
 import org.neo4j.causalclustering.catchup.CatchupAddressProvider;
@@ -69,8 +70,9 @@ public class StoreCopyProcess
         try ( TemporaryStoreDirectory tempStore = new TemporaryStoreDirectory( fs, pageCache, localDatabase.databaseLayout().databaseDirectory() ) )
         {
             remoteStore.copy( addressProvider, expectedStoreId, tempStore.databaseLayout() );
-            copiedStoreRecovery.recoverCopiedStore( tempStore.storeDir() );
-            localDatabase.replaceWith( tempStore.storeDir() );
+            File copiedDatabaseDirectory = tempStore.databaseLayout().databaseDirectory();
+            copiedStoreRecovery.recoverCopiedStore( copiedDatabaseDirectory );
+            localDatabase.replaceWith( copiedDatabaseDirectory );
         }
         log.info( "Replaced store with one downloaded from %s", addressProvider );
     }
