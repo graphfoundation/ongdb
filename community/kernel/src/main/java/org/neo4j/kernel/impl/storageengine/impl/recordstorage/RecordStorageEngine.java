@@ -519,6 +519,21 @@ public class RecordStorageEngine implements StorageEngine, Lifecycle
         return neoStores.getMetaDataStore().getStoreId();
     }
 
+    /**
+     * Reload in-memory token holders and schema cache from the on-disk store.
+     * Required after a read replica replaces its store files without recreating the data source.
+     */
+    public void reloadTokensAndSchemaFromStore()
+    {
+        tokenHolders.propertyKeyTokens().setInitialTokens(
+                neoStores.getPropertyKeyTokenStore().getTokens() );
+        tokenHolders.relationshipTypeTokens().setInitialTokens(
+                neoStores.getRelationshipTypeTokenStore().getTokens() );
+        tokenHolders.labelTokens().setInitialTokens(
+                neoStores.getLabelTokenStore().getTokens() );
+        loadSchemaCache();
+    }
+
     @Override
     public Lifecycle schemaAndTokensLifecycle()
     {
@@ -527,13 +542,7 @@ public class RecordStorageEngine implements StorageEngine, Lifecycle
             @Override
             public void init()
             {
-                tokenHolders.propertyKeyTokens().setInitialTokens(
-                        neoStores.getPropertyKeyTokenStore().getTokens() );
-                tokenHolders.relationshipTypeTokens().setInitialTokens(
-                        neoStores.getRelationshipTypeTokenStore().getTokens() );
-                tokenHolders.labelTokens().setInitialTokens(
-                        neoStores.getLabelTokenStore().getTokens() );
-                loadSchemaCache();
+                reloadTokensAndSchemaFromStore();
                 indexingService.init();
             }
         };
