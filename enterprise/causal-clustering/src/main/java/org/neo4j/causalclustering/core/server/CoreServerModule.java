@@ -47,7 +47,6 @@ import org.neo4j.causalclustering.catchup.CatchupClientBuilder;
 import org.neo4j.causalclustering.catchup.CatchupProtocolServerInstaller;
 import org.neo4j.causalclustering.catchup.CatchupServerBuilder;
 import org.neo4j.causalclustering.catchup.CatchupServerHandler;
-import org.neo4j.causalclustering.catchup.CheckpointerSupplier;
 import org.neo4j.causalclustering.catchup.RegularCatchupServerHandler;
 import org.neo4j.causalclustering.catchup.storecopy.CommitStateHelper;
 import org.neo4j.causalclustering.catchup.storecopy.CopiedStoreRecovery;
@@ -100,6 +99,7 @@ import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
+import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
 import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.kernel.internal.DatabaseHealth;
 import org.neo4j.kernel.lifecycle.LifeSupport;
@@ -208,7 +208,8 @@ public class CoreServerModule
         CatchupServerHandler catchupServerHandler = new RegularCatchupServerHandler( platformModule.monitors,
                 logProvider, localDatabase::storeId,
                 platformModule.dependencies.provideDependency( LogicalTransactionStore.class ), localDatabase::dataSource, localDatabase::isAvailable,
-                fileSystem, snapshotService, new CheckpointerSupplier( platformModule.dependencies ) );
+                fileSystem, snapshotService,
+                () -> localDatabase.dataSource().getDependencyResolver().resolveDependency( CheckPointer.class ) );
 
         CatchupProtocolServerInstaller.Factory catchupProtocolServerInstaller = new CatchupProtocolServerInstaller.Factory( serverPipelineBuilderFactory,
                 logProvider, catchupServerHandler );

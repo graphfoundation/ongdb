@@ -51,7 +51,6 @@ import org.neo4j.causalclustering.catchup.CatchUpClient;
 import org.neo4j.causalclustering.catchup.CatchUpResponseHandler;
 import org.neo4j.causalclustering.catchup.CatchupProtocolClientInstaller;
 import org.neo4j.causalclustering.catchup.CatchupServerBuilder;
-import org.neo4j.causalclustering.catchup.CheckpointerSupplier;
 import org.neo4j.causalclustering.catchup.RegularCatchupServerHandler;
 import org.neo4j.causalclustering.catchup.storecopy.CopiedStoreRecovery;
 import org.neo4j.causalclustering.catchup.storecopy.LocalDatabase;
@@ -133,6 +132,7 @@ import org.neo4j.kernel.impl.transaction.TransactionHeaderInformationFactory;
 import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
 import org.neo4j.kernel.impl.transaction.log.TransactionAppender;
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
+import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFiles;
@@ -315,7 +315,7 @@ public class EnterpriseReadReplicaEditionModule extends DefaultEditionModule
         RegularCatchupServerHandler catchupServerHandler = new RegularCatchupServerHandler( platformModule.monitors,
                 logProvider, localDatabase::storeId,
                 platformModule.dependencies.provideDependency( LogicalTransactionStore.class ), localDatabase::dataSource, localDatabase::isAvailable,
-                fileSystem, null, new CheckpointerSupplier( platformModule.dependencies ) );
+                fileSystem, null, () -> localDatabase.dataSource().getDependencyResolver().resolveDependency( CheckPointer.class ) );
 
         InstalledProtocolHandler installedProtocolHandler = new InstalledProtocolHandler(); // TODO: hook into a procedure
         Server catchupServer = new CatchupServerBuilder( catchupServerHandler )
