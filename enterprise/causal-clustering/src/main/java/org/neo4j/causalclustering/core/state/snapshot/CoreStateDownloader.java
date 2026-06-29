@@ -213,6 +213,23 @@ public class CoreStateDownloader
                 log.warn( "Failed to copy and replace store", e );
                 return false;
             }
+
+            CatchupResult catchupResult;
+            try
+            {
+                catchupResult = remoteStore.tryCatchingUp( primary, remoteStoreId, localDatabase.databaseLayout(), false );
+            }
+            catch ( StoreCopyFailedException | IOException e )
+            {
+                log.warn( "Failed to pull transactions after store copy", e );
+                return false;
+            }
+
+            if ( catchupResult != SUCCESS_END_OF_STREAM && catchupResult != E_TRANSACTION_PRUNED )
+            {
+                log.warn( format( "Unexpected catchup operation result %s from %s after store copy", catchupResult, primary ) );
+                return false;
+            }
         }
 
         /* We install the snapshot after the store has been downloaded,
