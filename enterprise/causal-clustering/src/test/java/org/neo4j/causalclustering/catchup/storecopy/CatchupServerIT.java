@@ -107,8 +107,8 @@ public class CatchupServerIT
     @Before
     public void startDb() throws Throwable
     {
-        temporaryDirectory = testDirectory.directory();
-        graphDb = (GraphDatabaseAPI) new TestGraphDatabaseFactory().setFileSystem( fsa ).newEmbeddedDatabase( testDirectory.databaseDir() );
+        temporaryDirectory = testDirectory.directory( "temp" );
+        graphDb = (GraphDatabaseAPI) new TestGraphDatabaseFactory().setFileSystem( fsa ).newEmbeddedDatabase( testDirectory.databaseDirectory() );
         createLegacyIndex();
         createPropertyIndex();
         addData( graphDb );
@@ -267,14 +267,14 @@ public class CatchupServerIT
 
     private File databaseFileToClientFile( File file ) throws IOException
     {
-        String relativePathToDatabaseDir = relativePath( new File( temporaryDirectory, "graph-db" ), file );
+        String relativePathToDatabaseDir = relativePath( testDirectory.databaseDirectory(), file );
         return new File( temporaryDirectory, relativePathToDatabaseDir );
     }
 
     private File clientFileToDatabaseFile( File file ) throws IOException
     {
         String relativePathToDatabaseDir = relativePath( temporaryDirectory, file );
-        return new File( new File( temporaryDirectory, "graph-db" ), relativePathToDatabaseDir );
+        return new File( testDirectory.databaseDirectory(), relativePathToDatabaseDir );
     }
 
     private void fileContentEquals( File fileA, File fileB ) throws IOException
