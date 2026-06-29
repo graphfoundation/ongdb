@@ -118,9 +118,9 @@ public class RemoteStore
         else
         {
             CatchupResult catchupResult;
-            if ( commitState.metaDataStoreIndex() == BASE_TX_ID )
+            if ( commitState.metaDataStoreIndex() <= BASE_TX_ID )
             {
-                return pullTransactions( from, expectedStoreId, databaseLayout, commitState.metaDataStoreIndex() + 1, false, keepTxLogsInDir );
+                return pullTransactions( from, expectedStoreId, databaseLayout, BASE_TX_ID + 1, false, keepTxLogsInDir );
             }
             else
             {

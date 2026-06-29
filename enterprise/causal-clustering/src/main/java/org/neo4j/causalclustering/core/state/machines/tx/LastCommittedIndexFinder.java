@@ -37,11 +37,13 @@ package org.neo4j.causalclustering.core.state.machines.tx;
 import org.neo4j.cursor.IOCursor;
 import org.neo4j.kernel.impl.transaction.CommittedTransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
+import org.neo4j.kernel.impl.transaction.log.NoSuchTransactionException;
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
 
 import static org.neo4j.causalclustering.core.state.machines.tx.LogIndexTxHeaderEncoding.decodeLogIndexFromTxHeader;
+import static org.neo4j.kernel.impl.transaction.log.TransactionIdStore.BASE_TX_ID;
 
 /**
  * Finds the last committed transaction in the transaction log, then decodes the header as a raft index.
@@ -67,23 +69,12 @@ public class LastCommittedIndexFinder
         long lastTxId = transactionIdStore.getLastCommittedTransactionId();
         log.info( "Last transaction id in metadata store %d", lastTxId );
 
-        CommittedTransactionRepresentation lastTx = null;
-        try ( IOCursor<CommittedTransactionRepresentation> transactions =
-                transactionStore.getTransactions( lastTxId ) )
-        {
-            while ( transactions.next() )
-            {
-                lastTx = transactions.get();
-            }
-        }
-        catch ( Exception e )
-        {
-            throw new RuntimeException( e );
-        }
+        CommittedTransactionRepresentation lastTx = findLastTransaction( lastTxId );
 
         if ( lastTx == null )
         {
-            throw new RuntimeException( "We must have at least one transaction telling us where we are at in the consensus log." );
+            log.info( "No transactions found in transaction log; assuming no raft history has been replicated yet" );
+            return -1;
         }
 
         log.info( "Start id of last committed transaction in transaction log %d", lastTx.getStartEntry().getLastCommittedTxWhenTransactionStarted() );
@@ -94,5 +85,55 @@ public class LastCommittedIndexFinder
 
         log.info( "Last committed consensus log index committed into tx log %d", lastConsensusIndex );
         return lastConsensusIndex;
+    }
+
+    private CommittedTransactionRepresentation findLastTransaction( long lastTxId )
+    {
+        CommittedTransactionRepresentation lastTx = tryReadLastTransactionFrom( lastTxId );
+        if ( lastTx != null )
+        {
+            return lastTx;
+        }
+
+        for ( long txId = lastTxId - 1; txId >= BASE_TX_ID; txId-- )
+        {
+            lastTx = tryReadLastTransactionFrom( txId );
+            if ( lastTx != null )
+            {
+                return lastTx;
+            }
+        }
+
+        for ( long txId = lastTxId + 1; txId <= lastTxId + 10; txId++ )
+        {
+            lastTx = tryReadLastTransactionFrom( txId );
+            if ( lastTx != null )
+            {
+                return lastTx;
+            }
+        }
+
+        return null;
+    }
+
+    private CommittedTransactionRepresentation tryReadLastTransactionFrom( long fromTxId )
+    {
+        try ( IOCursor<CommittedTransactionRepresentation> transactions = transactionStore.getTransactions( fromTxId ) )
+        {
+            CommittedTransactionRepresentation lastTx = null;
+            while ( transactions.next() )
+            {
+                lastTx = transactions.get();
+            }
+            return lastTx;
+        }
+        catch ( NoSuchTransactionException e )
+        {
+            return null;
+        }
+        catch ( Exception e )
+        {
+            throw new RuntimeException( e );
+        }
     }
 }
