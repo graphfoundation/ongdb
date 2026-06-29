@@ -197,7 +197,7 @@ public class CoreStateMachinesModule
         lockSupplier = () -> createLockManager( locksFactory, config, platformModule.clock, replicator, myself, raftMachine,
                                           replicatedLockTokenStateMachine );
 
-        RecoverConsensusLogIndex consensusLogIndexRecovery = new RecoverConsensusLogIndex( dependencies, logProvider );
+        RecoverConsensusLogIndex consensusLogIndexRecovery = new RecoverConsensusLogIndex( localDatabase, logProvider );
 
         coreStateMachines = new CoreStateMachines( replicatedTxStateMachine, labelTokenStateMachine,
                 relationshipTypeTokenStateMachine, propertyKeyTokenStateMachine, replicatedLockTokenStateMachine,

@@ -206,8 +206,10 @@ public class CoreServerModule
         ModifierProtocolRepository modifierProtocolRepository = new ModifierProtocolRepository( ModifierProtocols.values(), supportedModifierProtocols );
 
         CatchupServerHandler catchupServerHandler = new RegularCatchupServerHandler( platformModule.monitors,
-                logProvider, localDatabase::storeId, platformModule.dependencies.provideDependency( TransactionIdStore.class ),
-                platformModule.dependencies.provideDependency( LogicalTransactionStore.class ), localDatabase::dataSource, localDatabase::isAvailable,
+                logProvider, localDatabase::storeId,
+                localDatabase.dataSource().getDependencyResolver().provideDependency( TransactionIdStore.class ),
+                localDatabase.dataSource().getDependencyResolver().provideDependency( LogicalTransactionStore.class ),
+                localDatabase::dataSource, localDatabase::isAvailable,
                 fileSystem, snapshotService, new CheckpointerSupplier( platformModule.dependencies ) );
 
         CatchupProtocolServerInstaller.Factory catchupProtocolServerInstaller = new CatchupProtocolServerInstaller.Factory( serverPipelineBuilderFactory,
