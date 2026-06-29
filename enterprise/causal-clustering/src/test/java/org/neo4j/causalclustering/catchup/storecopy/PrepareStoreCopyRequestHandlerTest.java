@@ -50,6 +50,7 @@ import java.util.function.Supplier;
 import org.neo4j.causalclustering.catchup.CatchupServerProtocol;
 import org.neo4j.causalclustering.catchup.ResponseMessageType;
 import org.neo4j.causalclustering.identity.StoreId;
+import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.kernel.NeoStoreDataSource;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.StoreCopyCheckPointMutex;
@@ -87,6 +88,9 @@ public class PrepareStoreCopyRequestHandlerTest
         Supplier<CheckPointer> checkPointerSupplier = () -> checkPointer;
         Supplier<NeoStoreDataSource> dataSourceSupplier = () -> neoStoreDataSource;
         when( neoStoreDataSource.getStoreId() ).thenReturn( new org.neo4j.storageengine.api.StoreId( 1, 2, 5, 3, 4 ) );
+        DependencyResolver dependencies = mock( DependencyResolver.class );
+        when( neoStoreDataSource.getDependencyResolver() ).thenReturn( dependencies );
+        when( dependencies.resolveDependency( CheckPointer.class ) ).thenReturn( checkPointer );
 
         PrepareStoreCopyFilesProvider prepareStoreCopyFilesProvider = mock( PrepareStoreCopyFilesProvider.class );
         when( prepareStoreCopyFilesProvider.prepareStoreCopyFiles( any() ) ).thenReturn( prepareStoreCopyFiles );

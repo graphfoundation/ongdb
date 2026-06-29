@@ -47,6 +47,7 @@ import org.neo4j.causalclustering.catchup.CatchupServerProtocol;
 import org.neo4j.causalclustering.catchup.ResponseMessageType;
 import org.neo4j.causalclustering.identity.StoreId;
 import org.neo4j.causalclustering.messaging.StoreCopyRequest;
+import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.helpers.collection.Iterators;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
@@ -86,6 +87,9 @@ public class StoreCopyRequestHandlerTest
                         fileSystemAbstraction, NullLogProvider.getInstance() );
         when( neoStoreDataSource.getStoreId() ).thenReturn( new org.neo4j.storageengine.api.StoreId( 1, 2, 5, 3, 4 ) );
         when( neoStoreDataSource.getDatabaseLayout() ).thenReturn( DatabaseLayout.of( new File( "." ) ) );
+        DependencyResolver dependencies = mock( DependencyResolver.class );
+        when( neoStoreDataSource.getDependencyResolver() ).thenReturn( dependencies );
+        when( dependencies.resolveDependency( CheckPointer.class ) ).thenReturn( checkPointer );
         embeddedChannel = new EmbeddedChannel( storeCopyRequestHandler );
     }
 
