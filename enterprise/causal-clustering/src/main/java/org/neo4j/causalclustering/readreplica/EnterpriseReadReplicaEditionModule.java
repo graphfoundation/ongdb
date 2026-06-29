@@ -98,6 +98,7 @@ import org.neo4j.causalclustering.upstream.UpstreamDatabaseStrategySelector;
 import org.neo4j.causalclustering.upstream.strategies.ConnectToRandomCoreServerStrategy;
 import org.neo4j.com.storecopy.StoreUtil;
 import org.neo4j.function.Predicates;
+import org.neo4j.function.ThrowingAction;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.graphdb.factory.module.PlatformModule;
 import org.neo4j.graphdb.factory.module.edition.DefaultEditionModule;
@@ -130,6 +131,7 @@ import org.neo4j.kernel.impl.factory.StatementLocksFactorySelector;
 import org.neo4j.kernel.impl.index.IndexConfigStore;
 import org.neo4j.kernel.impl.pagecache.PageCacheWarmer;
 import org.neo4j.kernel.impl.proc.Procedures;
+import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
 import org.neo4j.kernel.impl.transaction.TransactionHeaderInformationFactory;
 import org.neo4j.kernel.impl.transaction.log.TransactionAppender;
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
@@ -271,12 +273,22 @@ public class EnterpriseReadReplicaEditionModule extends DefaultEditionModule
                 localDatabase.dataSource().getDependencyResolver().resolveDependency( TransactionAppender.class ),
                 localDatabase.dataSource().getDependencyResolver().resolveDependency( StorageEngine.class ) );
 
+        ThrowingAction<Exception> reloadTokensFromStore = () ->
+        {
+            StorageEngine storageEngine =
+                    localDatabase.dataSource().getDependencyResolver().resolveDependency( StorageEngine.class );
+            if ( storageEngine instanceof RecordStorageEngine )
+            {
+                ((RecordStorageEngine) storageEngine).reloadTokensAndSchemaFromStore();
+            }
+        };
+
         LifeSupport txPulling = new LifeSupport();
         int maxBatchSize = config.get( CausalClusteringSettings.read_replica_transaction_applier_batch_size );
         BatchingTxApplier batchingTxApplier = new BatchingTxApplier(
                 maxBatchSize, () -> localDatabase.dataSource().getDependencyResolver().resolveDependency( TransactionIdStore.class ), writableCommitProcess,
                 platformModule.monitors, platformModule.tracers.pageCursorTracerSupplier,
-                platformModule.versionContextSupplier, logProvider );
+                platformModule.versionContextSupplier, reloadTokensFromStore, logProvider );
 
         TimerService timerService = new TimerService( platformModule.jobScheduler, logProvider );
 

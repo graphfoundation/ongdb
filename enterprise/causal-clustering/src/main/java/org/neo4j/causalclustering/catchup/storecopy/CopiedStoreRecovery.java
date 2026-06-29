@@ -39,6 +39,8 @@ import java.io.File;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.Exceptions;
+import org.neo4j.io.fs.FileUtils;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.Settings;
@@ -71,7 +73,7 @@ public class CopiedStoreRecovery extends LifecycleAdapter
         shutdown = true;
     }
 
-    public synchronized void recoverCopiedStore( File tempStore ) throws DatabaseShutdownException
+    public synchronized void recoverCopiedStore( DatabaseLayout databaseLayout ) throws DatabaseShutdownException
     {
         if ( shutdown )
         {
@@ -80,8 +82,13 @@ public class CopiedStoreRecovery extends LifecycleAdapter
 
         try
         {
-            GraphDatabaseService graphDatabaseService = newTempDatabase( tempStore );
+            GraphDatabaseService graphDatabaseService = newTempDatabase( databaseLayout.databaseDirectory() );
             graphDatabaseService.shutdown();
+            File lockFile = databaseLayout.getStoreLayout().storeLockFile();
+            if ( lockFile.exists() )
+            {
+                FileUtils.deleteFile( lockFile );
+            }
         }
         catch ( Exception e )
         {
@@ -115,7 +122,7 @@ public class CopiedStoreRecovery extends LifecycleAdapter
                 .newEmbeddedDatabaseBuilder( tempStore )
                 .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
                 .setConfig( GraphDatabaseSettings.pagecache_warmup_enabled, Settings.FALSE )
-                .setConfig( GraphDatabaseSettings.keep_logical_logs, Settings.TRUE )
+                .setConfig( GraphDatabaseSettings.keep_logical_logs, Settings.FALSE )
                 .setConfig( GraphDatabaseSettings.allow_upgrade,
                         config.get( GraphDatabaseSettings.allow_upgrade ).toString() )
                 .setConfig( GraphDatabaseSettings.record_format, config.get( GraphDatabaseSettings.record_format ) )

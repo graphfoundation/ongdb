@@ -38,7 +38,9 @@ import org.junit.Test;
 
 import java.io.File;
 
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.configuration.Config;
 
@@ -59,7 +61,8 @@ public class CopiedStoreRecoveryTest
         try
         {
             // when
-            copiedStoreRecovery.recoverCopiedStore( new File( "nowhere" ) );
+            copiedStoreRecovery.recoverCopiedStore(
+                    DatabaseLayout.of( new File( "nowhere" ), GraphDatabaseSettings.DEFAULT_DATABASE_NAME ) );
             fail( "should have thrown" );
         }
         catch ( DatabaseShutdownException ex )

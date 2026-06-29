@@ -365,7 +365,14 @@ public class CatchupPollingProcess extends LifecycleAdapter
 
         latestTxIdOfUpStream = 0; // we will find out on the next pull request response
         state = TX_PULLING;
-        applier.refreshFromNewStore();
+        try
+        {
+            applier.refreshFromNewStore();
+        }
+        catch ( Exception e )
+        {
+            throw new RuntimeException( e );
+        }
     }
 
     public String describeState()

@@ -36,6 +36,8 @@ package org.neo4j.causalclustering.catchup.tx;
 
 import java.util.function.Supplier;
 
+import org.neo4j.function.ThrowingAction;
+
 import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracerSupplier;
 import org.neo4j.io.pagecache.tracing.cursor.context.VersionContextSupplier;
 import org.neo4j.kernel.impl.api.TransactionCommitProcess;
@@ -48,6 +50,7 @@ import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
 
+import static org.neo4j.function.ThrowingAction.noop;
 import static org.neo4j.kernel.impl.transaction.tracing.CommitEvent.NULL;
 import static org.neo4j.storageengine.api.TransactionApplicationMode.EXTERNAL;
 
@@ -63,6 +66,7 @@ public class BatchingTxApplier extends LifecycleAdapter
     private final PullRequestMonitor monitor;
     private final PageCursorTracerSupplier pageCursorTracerSupplier;
     private final VersionContextSupplier versionContextSupplier;
+    private final ThrowingAction<Exception> reloadTokensFromStore;
     private final Log log;
 
     private TransactionQueue txQueue;
@@ -76,6 +80,16 @@ public class BatchingTxApplier extends LifecycleAdapter
                               PageCursorTracerSupplier pageCursorTracerSupplier,
                               VersionContextSupplier versionContextSupplier, LogProvider logProvider )
     {
+        this( maxBatchSize, txIdStoreSupplier, commitProcessSupplier, monitors, pageCursorTracerSupplier,
+                versionContextSupplier, noop(), logProvider );
+    }
+
+    public BatchingTxApplier( int maxBatchSize, Supplier<TransactionIdStore> txIdStoreSupplier,
+                              Supplier<TransactionCommitProcess> commitProcessSupplier, Monitors monitors,
+                              PageCursorTracerSupplier pageCursorTracerSupplier,
+                              VersionContextSupplier versionContextSupplier, ThrowingAction<Exception> reloadTokensFromStore,
+                              LogProvider logProvider )
+    {
         this.maxBatchSize = maxBatchSize;
         this.txIdStoreSupplier = txIdStoreSupplier;
         this.commitProcessSupplier = commitProcessSupplier;
@@ -83,10 +97,11 @@ public class BatchingTxApplier extends LifecycleAdapter
         this.log = logProvider.getLog( getClass() );
         this.monitor = monitors.newMonitor( PullRequestMonitor.class );
         this.versionContextSupplier = versionContextSupplier;
+        this.reloadTokensFromStore = reloadTokensFromStore;
     }
 
     @Override
-    public void start()
+    public void start() throws Throwable
     {
         stopped = false;
         refreshFromNewStore();
@@ -103,9 +118,10 @@ public class BatchingTxApplier extends LifecycleAdapter
         stopped = true;
     }
 
-    void refreshFromNewStore()
+    void refreshFromNewStore() throws Exception
     {
         assert txQueue == null || txQueue.isEmpty();
+        reloadTokensFromStore.apply();
         lastQueuedTxId = txIdStoreSupplier.get().getLastCommittedTransactionId();
         commitProcess = commitProcessSupplier.get();
     }
