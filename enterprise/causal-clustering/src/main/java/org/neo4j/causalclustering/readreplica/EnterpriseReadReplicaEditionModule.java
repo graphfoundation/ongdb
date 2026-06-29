@@ -47,6 +47,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import org.neo4j.causalclustering.catchup.CheckPointerService;
 import org.neo4j.causalclustering.catchup.CatchUpClient;
 import org.neo4j.causalclustering.catchup.CatchUpResponseHandler;
 import org.neo4j.causalclustering.catchup.CatchupProtocolClientInstaller;
@@ -66,7 +67,6 @@ import org.neo4j.causalclustering.core.CausalClusteringSettings;
 import org.neo4j.causalclustering.core.SupportedProtocolCreator;
 import org.neo4j.causalclustering.core.TransactionBackupServiceProvider;
 import org.neo4j.causalclustering.core.consensus.schedule.TimerService;
-import org.neo4j.causalclustering.core.state.machines.token.ReplicatedLabelTokenHolder;
 import org.neo4j.causalclustering.discovery.DiscoveryServiceFactory;
 import org.neo4j.causalclustering.discovery.HostnameResolver;
 import org.neo4j.causalclustering.discovery.TopologyService;
@@ -116,6 +116,7 @@ import org.neo4j.kernel.impl.api.TransactionCommitProcess;
 import org.neo4j.kernel.impl.api.TransactionRepresentationCommitProcess;
 import org.neo4j.kernel.impl.core.DelegatingTokenHolder;
 import org.neo4j.kernel.impl.core.ReadOnlyTokenCreator;
+import org.neo4j.kernel.impl.core.TokenHolder;
 import org.neo4j.kernel.impl.core.TokenHolders;
 import org.neo4j.kernel.impl.enterprise.EnterpriseConstraintSemantics;
 import org.neo4j.kernel.impl.enterprise.EnterpriseEditionModule;
@@ -129,7 +130,6 @@ import org.neo4j.kernel.impl.index.IndexConfigStore;
 import org.neo4j.kernel.impl.pagecache.PageCacheWarmer;
 import org.neo4j.kernel.impl.proc.Procedures;
 import org.neo4j.kernel.impl.transaction.TransactionHeaderInformationFactory;
-import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
 import org.neo4j.kernel.impl.transaction.log.TransactionAppender;
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
@@ -142,6 +142,7 @@ import org.neo4j.kernel.internal.KernelData;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.internal.LogService;
+import org.neo4j.scheduler.Group;
 import org.neo4j.storageengine.api.StorageEngine;
 import org.neo4j.time.Clocks;
 import org.neo4j.udc.UsageData;
@@ -186,9 +187,9 @@ public class EnterpriseReadReplicaEditionModule extends DefaultEditionModule
                                                   .build();
 
         tokenHoldersProvider = databaseName -> new TokenHolders(
-                new DelegatingTokenHolder( new ReadOnlyTokenCreator(), ReplicatedLabelTokenHolder.TYPE_PROPERTY_KEY ),
-                new DelegatingTokenHolder( new ReadOnlyTokenCreator(), ReplicatedLabelTokenHolder.TYPE_LABEL ),
-                new DelegatingTokenHolder( new ReadOnlyTokenCreator(), ReplicatedLabelTokenHolder.TYPE_RELATIONSHIP_TYPE ) );
+                new DelegatingTokenHolder( new ReadOnlyTokenCreator(), TokenHolder.TYPE_PROPERTY_KEY ),
+                new DelegatingTokenHolder( new ReadOnlyTokenCreator(), TokenHolder.TYPE_LABEL ),
+                new DelegatingTokenHolder( new ReadOnlyTokenCreator(), TokenHolder.TYPE_RELATIONSHIP_TYPE ) );
 
         life.add( dependencies.satisfyDependency( new KernelData( fileSystem, pageCache, storeDir, config, platformModule.dataSourceManager ) ) );
 
@@ -252,28 +253,29 @@ public class EnterpriseReadReplicaEditionModule extends DefaultEditionModule
         long inactivityTimeoutMillis = config.get( CausalClusteringSettings.catch_up_client_inactivity_timeout ).toMillis();
         CatchUpClient catchUpClient = life.add( new CatchUpClient( logProvider, Clocks.systemClock(), inactivityTimeoutMillis, channelInitializer ) );
 
-        final Supplier<DatabaseHealth> databaseHealthSupplier = dependencies.provideDependency( DatabaseHealth.class );
-
-        Supplier<TransactionCommitProcess> writableCommitProcess =
-                () -> new TransactionRepresentationCommitProcess( dependencies.resolveDependency( TransactionAppender.class ),
-                        dependencies.resolveDependency( StorageEngine.class ) );
-
-        LifeSupport txPulling = new LifeSupport();
-        int maxBatchSize = config.get( CausalClusteringSettings.read_replica_transaction_applier_batch_size );
-        BatchingTxApplier batchingTxApplier = new BatchingTxApplier(
-                maxBatchSize, dependencies.provideDependency( TransactionIdStore.class ), writableCommitProcess,
-                platformModule.monitors, platformModule.tracers.pageCursorTracerSupplier,
-                platformModule.versionContextSupplier, logProvider );
-
-        TimerService timerService = new TimerService( platformModule.jobScheduler, logProvider );
-
         StoreFiles storeFiles = new StoreFiles( fileSystem, pageCache );
         LogFiles logFiles = buildLocalDatabaseLogFiles( platformModule, fileSystem, databaseLayout, config );
+
+        final Supplier<DatabaseHealth> databaseHealthSupplier =
+                () -> platformModule.dataSourceManager.getDataSource().getDependencyResolver().resolveDependency( DatabaseHealth.class );
 
         LocalDatabase localDatabase =
                 new LocalDatabase( databaseLayout, storeFiles, logFiles, platformModule.dataSourceManager,
                                    databaseHealthSupplier, getGlobalAvailabilityGuard( platformModule.clock, platformModule.logging, platformModule.config ),
                                    logProvider );
+
+        Supplier<TransactionCommitProcess> writableCommitProcess = () -> new TransactionRepresentationCommitProcess(
+                localDatabase.dataSource().getDependencyResolver().resolveDependency( TransactionAppender.class ),
+                localDatabase.dataSource().getDependencyResolver().resolveDependency( StorageEngine.class ) );
+
+        LifeSupport txPulling = new LifeSupport();
+        int maxBatchSize = config.get( CausalClusteringSettings.read_replica_transaction_applier_batch_size );
+        BatchingTxApplier batchingTxApplier = new BatchingTxApplier(
+                maxBatchSize, () -> localDatabase.dataSource().getDependencyResolver().resolveDependency( TransactionIdStore.class ), writableCommitProcess,
+                platformModule.monitors, platformModule.tracers.pageCursorTracerSupplier,
+                platformModule.versionContextSupplier, logProvider );
+
+        TimerService timerService = new TimerService( platformModule.jobScheduler, logProvider );
 
         ExponentialBackoffStrategy storeCopyBackoffStrategy =
                 new ExponentialBackoffStrategy( 1, config.get( CausalClusteringSettings.store_copy_backoff_max_wait ).toMillis(), TimeUnit.MILLISECONDS );
@@ -313,9 +315,10 @@ public class EnterpriseReadReplicaEditionModule extends DefaultEditionModule
                 platformModule.logging.getUserLogProvider(), storeCopyProcess, topologyService ) );
 
         RegularCatchupServerHandler catchupServerHandler = new RegularCatchupServerHandler( platformModule.monitors,
-                logProvider, localDatabase::storeId,
-                platformModule.dependencies.provideDependency( LogicalTransactionStore.class ), localDatabase::dataSource, localDatabase::isAvailable,
-                fileSystem, null, () -> localDatabase.dataSource().getDependencyResolver().resolveDependency( CheckPointer.class ) );
+                logProvider, localDatabase::storeId, localDatabase::dataSource, localDatabase::isAvailable,
+                fileSystem, null,
+                new CheckPointerService( () -> localDatabase.dataSource().getDependencyResolver().resolveDependency( CheckPointer.class ),
+                        platformModule.jobScheduler, Group.CHECKPOINT ) );
 
         InstalledProtocolHandler installedProtocolHandler = new InstalledProtocolHandler(); // TODO: hook into a procedure
         Server catchupServer = new CatchupServerBuilder( catchupServerHandler )

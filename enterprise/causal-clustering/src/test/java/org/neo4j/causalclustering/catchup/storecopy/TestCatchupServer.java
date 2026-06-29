@@ -37,6 +37,7 @@ package org.neo4j.causalclustering.catchup.storecopy;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
+import org.neo4j.causalclustering.catchup.CheckPointerService;
 import org.neo4j.causalclustering.catchup.CatchupProtocolServerInstaller;
 import org.neo4j.causalclustering.catchup.RegularCatchupServerHandler;
 import org.neo4j.causalclustering.handlers.VoidPipelineWrapperFactory;
@@ -59,15 +60,14 @@ import org.neo4j.helpers.ListenSocketAddress;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.NeoStoreDataSource;
 import org.neo4j.kernel.availability.AvailabilityGuard;
-import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
-import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.StoreCopyCheckPointMutex;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.ports.allocation.PortAuthority;
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobScheduler;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
@@ -93,8 +93,9 @@ class TestCatchupServer extends Server
         ModifierProtocolRepository modifierRepository = new ModifierProtocolRepository( ModifierProtocols.values(), singletonList( modifierProtocols ) );
 
         DependencyResolver dependencies = graphDb.getDependencyResolver();
-        StoreCopyCheckPointMutex storeCopyCheckPointMutex = dependencies.resolveDependency( StoreCopyCheckPointMutex.class );
         Supplier<CheckPointer> checkPointer = () -> graphDb.getDependencyResolver().resolveDependency( CheckPointer.class );
+        CheckPointerService checkPointerService = new CheckPointerService( checkPointer,
+                dependencies.resolveDependency( JobScheduler.class ), Group.CHECKPOINT );
         BooleanSupplier availability = () -> graphDb.getDependencyResolver().resolveDependency( AvailabilityGuard.class ).isAvailable();
         Supplier<NeoStoreDataSource> dataSource = () -> graphDb.getDependencyResolver().resolveDependency( NeoStoreDataSource.class );
         LogProvider logProvider = NullLogProvider.getInstance();
@@ -104,8 +105,7 @@ class TestCatchupServer extends Server
                 kernelStoreId.getUpgradeId() );
 
         RegularCatchupServerHandler catchupServerHandler = new RegularCatchupServerHandler( new Monitors(), logProvider,
-                () -> storeId, dependencies.provideDependency( LogicalTransactionStore.class ),
-                dataSource, availability, fileSystem, null, checkPointer );
+                () -> storeId, dataSource, availability, fileSystem, null, checkPointerService );
 
         NettyPipelineBuilderFactory pipelineBuilder = new NettyPipelineBuilderFactory( VoidPipelineWrapperFactory.VOID_WRAPPER );
         CatchupProtocolServerInstaller.Factory catchupProtocolServerInstaller = new CatchupProtocolServerInstaller.Factory( pipelineBuilder, logProvider,
