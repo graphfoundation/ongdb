@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.function.Supplier;
 
 import org.neo4j.causalclustering.core.replication.Replicator;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
@@ -50,32 +51,34 @@ import org.neo4j.kernel.impl.core.TokenHolder;
 import org.neo4j.kernel.impl.core.TokenRegistry;
 import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.store.id.IdType;
-import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.storageengine.api.StorageCommand;
 import org.neo4j.storageengine.api.StorageEngine;
 import org.neo4j.storageengine.api.StorageReader;
 import org.neo4j.storageengine.api.lock.ResourceLocker;
 
+import static org.neo4j.storageengine.api.txstate.TxStateVisitor.NO_DECORATION;
+
 abstract class ReplicatedTokenHolder extends AbstractTokenHolderBase implements TokenHolder
 {
-    protected final Dependencies dependencies;
-
     private final Replicator replicator;
     private final IdGeneratorFactory idGeneratorFactory;
     private final IdType tokenIdType;
     private final TokenType type;
+    private final Supplier<StorageEngine> storageEngineSupplier;
+    private final ReplicatedTokenCreator tokenCreator;
 
-    // TODO: Clean up all the resolving, which now happens every time with special selection strategies.
     ReplicatedTokenHolder( TokenRegistry tokenRegistry, Replicator replicator,
-                           IdGeneratorFactory idGeneratorFactory, IdType tokenIdType,
-                           Dependencies dependencies, TokenType type )
+            IdGeneratorFactory idGeneratorFactory, IdType tokenIdType,
+            Supplier<StorageEngine> storageEngineSupplier, TokenType type,
+            ReplicatedTokenCreator tokenCreator )
     {
         super( tokenRegistry );
         this.replicator = replicator;
         this.idGeneratorFactory = idGeneratorFactory;
         this.tokenIdType = tokenIdType;
         this.type = type;
-        this.dependencies = dependencies;
+        this.storageEngineSupplier = storageEngineSupplier;
+        this.tokenCreator = tokenCreator;
     }
 
     @Override
@@ -108,14 +111,14 @@ abstract class ReplicatedTokenHolder extends AbstractTokenHolderBase implements 
 
     private byte[] createCommands( String tokenName )
     {
-        StorageEngine storageEngine = dependencies.resolveDependency( StorageEngine.class );
+        StorageEngine storageEngine = storageEngineSupplier.get();
         Collection<StorageCommand> commands = new ArrayList<>();
         TransactionState txState = new TxState();
         int tokenId = Math.toIntExact( idGeneratorFactory.get( tokenIdType ).nextId() );
-        createToken( txState, tokenName, tokenId );
+        tokenCreator.createToken( txState, tokenName, tokenId );
         try ( StorageReader storageReader = storageEngine.newReader() )
         {
-            storageEngine.createCommands( commands, txState, storageReader, ResourceLocker.NONE, Long.MAX_VALUE, null );
+            storageEngine.createCommands( commands, txState, storageReader, ResourceLocker.NONE, Long.MAX_VALUE, NO_DECORATION );
         }
         catch ( CreateConstraintFailureException | TransactionFailureException | ConstraintValidationException e )
         {
@@ -124,6 +127,4 @@ abstract class ReplicatedTokenHolder extends AbstractTokenHolderBase implements 
 
         return ReplicatedTokenRequestSerializer.commandBytes( commands );
     }
-
-    protected abstract void createToken( TransactionState txState, String tokenName, int tokenId );
 }

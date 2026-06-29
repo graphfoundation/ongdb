@@ -66,6 +66,7 @@ import org.neo4j.causalclustering.core.state.machines.tx.ReplicatedTransactionSt
 import org.neo4j.causalclustering.core.state.storage.DurableStateStorage;
 import org.neo4j.causalclustering.core.state.storage.StateStorage;
 import org.neo4j.causalclustering.identity.MemberId;
+import org.neo4j.storageengine.api.StorageEngine;
 import org.neo4j.graphdb.factory.EditionLocksFactories;
 import org.neo4j.graphdb.factory.module.PlatformModule;
 import org.neo4j.io.fs.FileSystemAbstraction;
@@ -160,17 +161,19 @@ public class CoreStateMachinesModule
         dependencies.satisfyDependency( new IdBasedStoreEntityCounters( this.idGeneratorFactory ) );
 
         TokenRegistry relationshipTypeTokenRegistry = new TokenRegistry( TokenHolder.TYPE_RELATIONSHIP_TYPE );
+        Supplier<StorageEngine> storageEngineSupplier =
+                () -> localDatabase.dataSource().getDependencyResolver().resolveDependency( StorageEngine.class );
         ReplicatedRelationshipTypeTokenHolder relationshipTypeTokenHolder =
                 new ReplicatedRelationshipTypeTokenHolder( relationshipTypeTokenRegistry, replicator,
-                        this.idGeneratorFactory, dependencies );
+                        this.idGeneratorFactory, storageEngineSupplier );
 
         TokenRegistry propertyKeyTokenRegistry = new TokenRegistry( TokenHolder.TYPE_PROPERTY_KEY );
         ReplicatedPropertyKeyTokenHolder propertyKeyTokenHolder =
-                new ReplicatedPropertyKeyTokenHolder( propertyKeyTokenRegistry, replicator, this.idGeneratorFactory, dependencies );
+                new ReplicatedPropertyKeyTokenHolder( propertyKeyTokenRegistry, replicator, this.idGeneratorFactory, storageEngineSupplier );
 
         TokenRegistry labelTokenRegistry = new TokenRegistry( TokenHolder.TYPE_LABEL );
         ReplicatedLabelTokenHolder labelTokenHolder =
-                new ReplicatedLabelTokenHolder( labelTokenRegistry, replicator, this.idGeneratorFactory, dependencies );
+                new ReplicatedLabelTokenHolder( labelTokenRegistry, replicator, this.idGeneratorFactory, storageEngineSupplier );
 
         ReplicatedLockTokenStateMachine replicatedLockTokenStateMachine =
                 new ReplicatedLockTokenStateMachine( lockTokenState );

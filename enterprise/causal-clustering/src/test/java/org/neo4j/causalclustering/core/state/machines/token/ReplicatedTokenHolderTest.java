@@ -47,7 +47,8 @@ import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.store.id.IdType;
 import org.neo4j.kernel.impl.store.record.LabelTokenRecord;
 import org.neo4j.kernel.impl.transaction.command.Command;
-import org.neo4j.kernel.impl.util.Dependencies;
+import java.util.function.Supplier;
+
 import org.neo4j.storageengine.api.StorageCommand;
 import org.neo4j.storageengine.api.StorageEngine;
 import org.neo4j.storageengine.api.StorageReader;
@@ -68,7 +69,7 @@ import static org.mockito.Mockito.when;
 
 public class ReplicatedTokenHolderTest
 {
-    private final Dependencies dependencies = mock( Dependencies.class );
+    private final Supplier<StorageEngine> storageEngineSupplier = () -> null;
 
     @Test
     public void shouldStoreInitialTokens()
@@ -76,7 +77,7 @@ public class ReplicatedTokenHolderTest
         // given
         TokenRegistry registry = new TokenRegistry( TokenHolder.TYPE_LABEL );
         ReplicatedTokenHolder tokenHolder = new ReplicatedLabelTokenHolder( registry, null,
-                null, dependencies );
+                null, storageEngineSupplier );
 
         // when
         tokenHolder.setInitialTokens( asList( new NamedToken( "name1", 1 ), new NamedToken( "name2", 2 ) ) );
@@ -91,7 +92,7 @@ public class ReplicatedTokenHolderTest
         // given
         TokenRegistry registry = new TokenRegistry( TokenHolder.TYPE_LABEL );
         ReplicatedTokenHolder tokenHolder = new ReplicatedLabelTokenHolder( registry, null,
-                null, dependencies );
+                null, storageEngineSupplier );
         tokenHolder.setInitialTokens( asList( new NamedToken( "name1", 1 ), new NamedToken( "name2", 2 ) ) );
 
         // when
@@ -106,7 +107,6 @@ public class ReplicatedTokenHolderTest
     {
         // given
         StorageEngine storageEngine = mockedStorageEngine();
-        when( dependencies.resolveDependency( StorageEngine.class ) ).thenReturn( storageEngine );
 
         IdGeneratorFactory idGeneratorFactory = mock( IdGeneratorFactory.class );
         IdGenerator idGenerator = mock( IdGenerator.class );
@@ -123,7 +123,7 @@ public class ReplicatedTokenHolderTest
                     completeFuture.complete( generatedTokenId );
                     return completeFuture;
                 },
-                idGeneratorFactory, dependencies );
+                idGeneratorFactory, () -> storageEngine );
 
         // when
         Integer tokenId = tokenHolder.getOrCreateId( "name1" );
