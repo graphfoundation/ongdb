@@ -72,7 +72,8 @@ public class RegularCatchupServerHandler implements CatchupServerHandler
     private final CoreSnapshotService snapshotService;
     private final Supplier<CheckPointer> checkPointerSupplier;
 
-    public RegularCatchupServerHandler( Monitors monitors, LogProvider logProvider, Supplier<StoreId> storeIdSupplier, Supplier<LogicalTransactionStore> logicalTransactionStoreSupplier,
+    public RegularCatchupServerHandler( Monitors monitors, LogProvider logProvider, Supplier<StoreId> storeIdSupplier,
+            Supplier<LogicalTransactionStore> logicalTransactionStoreSupplier,
             Supplier<NeoStoreDataSource> dataSourceSupplier, BooleanSupplier dataSourceAvailabilitySupplier, FileSystemAbstraction fs,
             CoreSnapshotService snapshotService, Supplier<CheckPointer> checkPointerSupplier )
     {

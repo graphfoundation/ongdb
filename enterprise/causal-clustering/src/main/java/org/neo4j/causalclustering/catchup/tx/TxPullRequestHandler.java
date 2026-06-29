@@ -74,9 +74,9 @@ public class TxPullRequestHandler extends SimpleChannelInboundHandler<TxPullRequ
     private final TxPullRequestsMonitor monitor;
     private final Log log;
 
-    public TxPullRequestHandler(CatchupServerProtocol protocol, Supplier<StoreId> storeIdSupplier,
-                                BooleanSupplier databaseAvailable,
-                                Supplier<NeoStoreDataSource> dataSourceSupplier, Monitors monitors, LogProvider logProvider )
+    public TxPullRequestHandler( CatchupServerProtocol protocol, Supplier<StoreId> storeIdSupplier,
+            BooleanSupplier databaseAvailable,
+            Supplier<NeoStoreDataSource> dataSourceSupplier, Monitors monitors, LogProvider logProvider )
     {
         this.protocol = protocol;
         this.storeIdSupplier = storeIdSupplier;
