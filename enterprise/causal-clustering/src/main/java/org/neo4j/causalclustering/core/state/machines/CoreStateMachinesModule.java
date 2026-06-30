@@ -212,7 +212,7 @@ public class CoreStateMachinesModule
             return new ReplicatedTransactionCommitProcess( replicator );
         };
 
-        this.tokenHolders = new TokenHolders( relationshipTypeTokenHolder, propertyKeyTokenHolder, labelTokenHolder );
+        this.tokenHolders = new TokenHolders( propertyKeyTokenHolder, labelTokenHolder, relationshipTypeTokenHolder );
     }
 
     private Map<IdType,Integer> getIdTypeAllocationSizeFromConfig( Config config )
