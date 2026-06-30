@@ -537,7 +537,6 @@ public class RecordStorageEngine implements StorageEngine, Lifecycle
      */
     public void reloadTokensAndSchemaFromStore()
     {
-        neoStores.flush( IOLimiter.UNLIMITED );
         mergeTokensFromStore( tokenHolders.propertyKeyTokens(), neoStores.getPropertyKeyTokenStore().getTokens() );
         mergeTokensFromStore( tokenHolders.labelTokens(), neoStores.getLabelTokenStore().getTokens() );
         mergeTokensFromStore( tokenHolders.relationshipTypeTokens(), neoStores.getRelationshipTypeTokenStore().getTokens() );
