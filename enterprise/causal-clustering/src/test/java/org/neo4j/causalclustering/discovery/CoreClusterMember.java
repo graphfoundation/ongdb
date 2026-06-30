@@ -73,7 +73,7 @@ public class CoreClusterMember implements ClusterMember<CoreGraphDatabase>
 {
     private final File ongdbHome;
     protected final DiscoveryServiceFactory discoveryServiceFactory;
-    protected final File storeDir;
+    private final File defaultDatabaseDirectory;
     private final File clusterStateDir;
     private final File raftLogDir;
     private final Map<String,String> config = stringMap();
@@ -86,6 +86,7 @@ public class CoreClusterMember implements ClusterMember<CoreGraphDatabase>
     private final ThreadGroup threadGroup;
     private final Monitors monitors = new Monitors();
     private final String dbName;
+    private final File databasesDirectory;
 
     public CoreClusterMember( int serverId,
                               int discoveryPort,
@@ -153,13 +154,14 @@ public class CoreClusterMember implements ClusterMember<CoreGraphDatabase>
         File dataDir = new File( ongdbHome, "data" );
         clusterStateDir = ClusterStateDirectory.withoutInitializing( dataDir ).get();
         raftLogDir = new File( clusterStateDir, RAFT_LOG_DIRECTORY_NAME );
-        storeDir = new File( new File( dataDir, "databases" ), "graph.db" );
+        databasesDirectory = new File( dataDir, "databases" );
         memberConfig = Config.defaults( config );
 
         this.dbName = memberConfig.get( CausalClusteringSettings.database );
+        defaultDatabaseDirectory = new File( databasesDirectory, memberConfig.get( GraphDatabaseSettings.active_database ) );
 
         //noinspection ResultOfMethodCallIgnored
-        storeDir.mkdirs();
+        defaultDatabaseDirectory.mkdirs();
         threadGroup = new ThreadGroup( toString() );
     }
 
@@ -186,7 +188,7 @@ public class CoreClusterMember implements ClusterMember<CoreGraphDatabase>
     @Override
     public void start()
     {
-        database = new CoreGraphDatabase( storeDir, memberConfig,
+        database = new CoreGraphDatabase( databasesDirectory, memberConfig,
                 GraphDatabaseDependencies.newDependencies().monitors( monitors ), discoveryServiceFactory );
     }
 
@@ -221,7 +223,12 @@ public class CoreClusterMember implements ClusterMember<CoreGraphDatabase>
     @Override
     public File databaseDirectory()
     {
-        return storeDir;
+        return defaultDatabaseDirectory;
+    }
+
+    public File databasesDirectory()
+    {
+        return databasesDirectory;
     }
 
     public RaftLogPruner raftLogPruner()

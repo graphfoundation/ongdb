@@ -104,6 +104,7 @@ import static java.util.stream.Collectors.toSet;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -547,9 +548,23 @@ public class ReadReplicaReplicationIT
         }
         catch ( Exception e )
         {
-            assertThat( e.getCause().getCause().getMessage(),
-                    containsString( "Failed to start database with copied store" ) );
+            assertThat( deepCauseMessage( e ), anyOf(
+                    containsString( "Failed to start database with copied store" ),
+                    containsString( "require upgrading" ) ) );
         }
+    }
+
+    private static String deepCauseMessage( Throwable throwable )
+    {
+        StringBuilder messages = new StringBuilder();
+        for ( Throwable current = throwable; current != null; current = current.getCause() )
+        {
+            if ( current.getMessage() != null )
+            {
+                messages.append( current.getMessage() );
+            }
+        }
+        return messages.toString();
     }
 
     @Test

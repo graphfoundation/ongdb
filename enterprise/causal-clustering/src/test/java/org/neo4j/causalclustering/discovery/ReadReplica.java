@@ -122,7 +122,7 @@ public class ReadReplica implements ClusterMember<ReadReplicaGraphDatabase>
         this.discoveryServiceFactory = discoveryServiceFactory;
         File dataDirectory = new File( ongdbHome, "data" );
         databasesDirectory = new File( dataDirectory, "databases" );
-        defaultDatabaseDirectory = new File( databasesDirectory, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
+        defaultDatabaseDirectory = new File( databasesDirectory, memberConfig.get( GraphDatabaseSettings.active_database ) );
 
         //noinspection ResultOfMethodCallIgnored
         defaultDatabaseDirectory.mkdirs();
