@@ -229,27 +229,26 @@ public class CoreStateDownloader
         snapshotService.installSnapshot( coreSnapshot );
         log.info( "Core snapshot installed: " + coreSnapshot );
 
-        if ( storeCopied )
-        {
-            coreStateMachines.bootstrapReplicatedTokensFromRaftLog( raftLog, coreSnapshot.prevIndex() );
-        }
-
         /* Starting the database will invoke the commit process factory in
          * the EnterpriseCoreEditionModule, which has important side-effects. */
         log.info( "Starting local database" );
         ensure( localDatabase::start, "start local database after store copy" );
 
-        if ( storeCopied )
+        ensure( () -> coreStateMachines.bootstrapReplicatedTokensAfterStoreCopy(
+                raftLog, coreSnapshot.prevIndex(), localDatabase ),
+                "bootstrap replicated token holders after snapshot install" );
+
+        StorageEngine storageEngine =
+                localDatabase.dataSource().getDependencyResolver().resolveDependency( StorageEngine.class );
+        if ( storageEngine instanceof RecordStorageEngine )
         {
-            StorageEngine storageEngine =
-                    localDatabase.dataSource().getDependencyResolver().resolveDependency( StorageEngine.class );
-            if ( storageEngine instanceof RecordStorageEngine )
+            RecordStorageEngine recordStorageEngine = (RecordStorageEngine) storageEngine;
+            if ( storeCopied )
             {
-                RecordStorageEngine recordStorageEngine = (RecordStorageEngine) storageEngine;
                 ensure( recordStorageEngine::syncTokenHoldersToStore, "sync token holders to store after store copy" );
                 ensure( () -> recordStorageEngine.flushAndForce( IOLimiter.UNLIMITED ), "flush token stores after store copy" );
-                ensure( recordStorageEngine::reloadTokensAndSchemaFromStore, "reload token holders after store copy" );
             }
+            ensure( recordStorageEngine::reloadTokensAndSchemaFromStore, "reload token holders after snapshot install" );
         }
 
         coreStateMachines.installCommitProcess( localDatabase.getCommitProcess() );

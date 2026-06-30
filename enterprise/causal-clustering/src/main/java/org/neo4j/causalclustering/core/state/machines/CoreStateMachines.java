@@ -35,12 +35,25 @@
 package org.neo4j.causalclustering.core.state.machines;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import org.neo4j.causalclustering.catchup.storecopy.LocalDatabase;
 import org.neo4j.causalclustering.core.consensus.log.RaftLogCursor;
 import org.neo4j.causalclustering.core.consensus.log.ReadableRaftLog;
 import org.neo4j.causalclustering.core.replication.ReplicatedContent;
+import org.neo4j.cursor.IOCursor;
+import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.internal.kernel.api.NamedToken;
+import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
+import org.neo4j.kernel.impl.store.NeoStores;
+import org.neo4j.kernel.impl.store.TokenStore;
+import org.neo4j.kernel.impl.store.record.TokenRecord;
+import org.neo4j.kernel.impl.transaction.CommittedTransactionRepresentation;
+import org.neo4j.kernel.impl.transaction.command.Command;
+import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
+import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
+import org.neo4j.storageengine.api.StorageEngine;
 import org.neo4j.causalclustering.core.state.machines.dummy.DummyMachine;
 import org.neo4j.causalclustering.core.state.machines.dummy.DummyRequest;
 import org.neo4j.causalclustering.core.state.machines.tx.RecoverConsensusLogIndex;
@@ -59,6 +72,7 @@ import org.neo4j.causalclustering.core.state.machines.locks.ReplicatedLockTokenS
 import org.neo4j.kernel.impl.api.TransactionCommitProcess;
 
 import static java.lang.Math.max;
+import static org.neo4j.graphdb.DependencyResolver.SelectionStrategy.ONLY;
 
 public class CoreStateMachines
 {
@@ -160,6 +174,70 @@ public class CoreStateMachines
         propertyKeyTokenStateMachine.installCommitProcess( localCommit, lastAppliedIndex );
     }
 
+    private static final long RAFT_LOG_BOOTSTRAP_WAIT_MILLIS = TimeUnit.SECONDS.toMillis( 30 );
+
+    /**
+     * Seed replicated token registries after store copy. Snapshot install skips the local raft log to the
+     * copied index without retaining historical entries, so registries are rebuilt from the raft log when
+     * it has caught up and from committed transaction-log token commands as a fallback.
+     */
+    public void bootstrapReplicatedTokensAfterStoreCopy( ReadableRaftLog raftLog, long snapshotPrevIndex,
+            LocalDatabase localDatabase ) throws IOException, InterruptedException
+    {
+        waitForRaftLogThroughIndex( raftLog, snapshotPrevIndex );
+        bootstrapReplicatedTokensFromRaftLog( raftLog, snapshotPrevIndex );
+        bootstrapReplicatedTokensFromTxLog( localDatabase );
+        bootstrapReplicatedTokensFromTokenStores( localDatabase );
+    }
+
+    private void bootstrapReplicatedTokensFromTokenStores( LocalDatabase localDatabase )
+    {
+        StorageEngine storageEngine =
+                localDatabase.dataSource().getDependencyResolver().resolveDependency( StorageEngine.class, ONLY );
+        if ( !(storageEngine instanceof RecordStorageEngine) )
+        {
+            return;
+        }
+        NeoStores neoStores = ((RecordStorageEngine) storageEngine).testAccessNeoStores();
+        bootstrapStoreTokens( neoStores.getPropertyKeyTokenStore(), propertyKeyTokenStateMachine );
+        bootstrapStoreTokens( neoStores.getLabelTokenStore(), labelTokenStateMachine );
+        bootstrapStoreTokens( neoStores.getRelationshipTypeTokenStore(), relationshipTypeTokenStateMachine );
+    }
+
+    private static <RECORD extends TokenRecord> void bootstrapStoreTokens(
+            TokenStore<RECORD> store, ReplicatedTokenStateMachine stateMachine )
+    {
+        for ( long id = 0, highId = store.getHighId(); id < highId; id++ )
+        {
+            try
+            {
+                stateMachine.registerTokenIfAbsent( store.getToken( (int) id ) );
+            }
+            catch ( RuntimeException ignored )
+            {
+                // Unreadable token slot; tx-log or raft bootstrap must supply the name.
+            }
+        }
+    }
+
+    private static void waitForRaftLogThroughIndex( ReadableRaftLog raftLog, long toIndexInclusive )
+            throws InterruptedException
+    {
+        if ( toIndexInclusive < 0 )
+        {
+            return;
+        }
+        long deadline = System.currentTimeMillis() + RAFT_LOG_BOOTSTRAP_WAIT_MILLIS;
+        while ( raftLog.appendIndex() < toIndexInclusive )
+        {
+            if ( System.currentTimeMillis() > deadline )
+            {
+                break;
+            }
+            Thread.sleep( 50 );
+        }
+    }
+
     /**
      * Seed replicated token registries from committed raft entries after store copy.
      * Token commands at or before {@code toIndexInclusive} are already reflected in the copied store
@@ -180,6 +258,125 @@ public class CoreStateMachines
                 {
                     registerTokenFromRequest( (ReplicatedTokenRequest) content );
                 }
+            }
+        }
+    }
+
+    /**
+     * Rebuild token registries from token commands in the copied transaction log. Store-copy recovery does not
+     * replay token creates that are already reflected in the checkpoint snapshot, so in-memory holders can miss
+     * entries that never appear in a post-skip raft log scan.
+     */
+    public void bootstrapReplicatedTokensFromTxLog( LocalDatabase localDatabase ) throws IOException
+    {
+        DependencyResolver dependencies = localDatabase.dataSource().getDependencyResolver();
+        LogicalTransactionStore transactionStore = dependencies.resolveDependency( LogicalTransactionStore.class, ONLY );
+        TransactionIdStore transactionIdStore = dependencies.resolveDependency( TransactionIdStore.class, ONLY );
+        StorageEngine storageEngine = dependencies.resolveDependency( StorageEngine.class, ONLY );
+        if ( !(storageEngine instanceof RecordStorageEngine) )
+        {
+            return;
+        }
+        NeoStores neoStores = ((RecordStorageEngine) storageEngine).testAccessNeoStores();
+
+        long lastTxId = transactionIdStore.getLastCommittedTransactionId();
+        long firstTxId = findFirstTxOnDisk( transactionStore, lastTxId );
+        if ( firstTxId < 0 )
+        {
+            return;
+        }
+
+        try ( IOCursor<CommittedTransactionRepresentation> transactions = transactionStore.getTransactions( firstTxId ) )
+        {
+            while ( transactions.next() )
+            {
+                registerTokensFromCommittedTx( transactions.get(), neoStores );
+            }
+        }
+        catch ( org.neo4j.kernel.impl.transaction.log.NoSuchTransactionException ignored )
+        {
+            // Copied stores can report committed tx ids ahead of the replayable log segment; raft bootstrap covers that case.
+        }
+    }
+
+    private static long findFirstTxOnDisk( LogicalTransactionStore transactionStore, long lastTxId ) throws IOException
+    {
+        for ( long txId = TransactionIdStore.BASE_TX_ID + 1; txId <= lastTxId; txId++ )
+        {
+            if ( transactionStore.existsOnDisk( txId ) )
+            {
+                return txId;
+            }
+        }
+        return -1;
+    }
+
+    private void registerTokensFromCommittedTx( CommittedTransactionRepresentation committedTx, NeoStores neoStores )
+            throws IOException
+    {
+        committedTx.accept( command ->
+        {
+            if ( command instanceof Command.PropertyKeyTokenCommand )
+            {
+                registerPropertyKeyFromCommand( (Command.PropertyKeyTokenCommand) command, neoStores );
+            }
+            else if ( command instanceof Command.LabelTokenCommand )
+            {
+                registerLabelFromCommand( (Command.LabelTokenCommand) command, neoStores );
+            }
+            else if ( command instanceof Command.RelationshipTypeTokenCommand )
+            {
+                registerRelationshipTypeFromCommand( (Command.RelationshipTypeTokenCommand) command, neoStores );
+            }
+            return false;
+        } );
+    }
+
+    private void registerPropertyKeyFromCommand( Command.PropertyKeyTokenCommand command, NeoStores neoStores )
+    {
+        NamedToken token = namedTokenFromCommand( command, neoStores.getPropertyKeyTokenStore() );
+        if ( token != null )
+        {
+            propertyKeyTokenStateMachine.registerTokenIfAbsent( token );
+        }
+    }
+
+    private void registerLabelFromCommand( Command.LabelTokenCommand command, NeoStores neoStores )
+    {
+        NamedToken token = namedTokenFromCommand( command, neoStores.getLabelTokenStore() );
+        if ( token != null )
+        {
+            labelTokenStateMachine.registerTokenIfAbsent( token );
+        }
+    }
+
+    private void registerRelationshipTypeFromCommand( Command.RelationshipTypeTokenCommand command, NeoStores neoStores )
+    {
+        NamedToken token = namedTokenFromCommand( command, neoStores.getRelationshipTypeTokenStore() );
+        if ( token != null )
+        {
+            relationshipTypeTokenStateMachine.registerTokenIfAbsent( token );
+        }
+    }
+
+    private static <RECORD extends TokenRecord> NamedToken namedTokenFromCommand(
+            Command.TokenCommand<RECORD> command, TokenStore<RECORD> tokenStore )
+    {
+        RECORD after = command.getAfter();
+        int id = after.getIntId();
+        try
+        {
+            return new NamedToken( tokenStore.getStringFor( after ), id );
+        }
+        catch ( RuntimeException commandLookupFailed )
+        {
+            try
+            {
+                return tokenStore.getToken( id );
+            }
+            catch ( RuntimeException storeLookupFailed )
+            {
+                return null;
             }
         }
     }

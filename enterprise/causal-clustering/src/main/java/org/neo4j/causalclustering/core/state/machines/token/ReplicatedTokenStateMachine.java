@@ -159,6 +159,15 @@ public class ReplicatedTokenStateMachine implements StateMachine<ReplicatedToken
         }
     }
 
+    public synchronized void registerTokenIfAbsent( NamedToken token )
+    {
+        if ( tokenRegistry.getId( token.name() ) != null || tokenRegistry.getToken( token.id() ) != null )
+        {
+            return;
+        }
+        tokenRegistry.put( token );
+    }
+
     private int extractTokenId( Collection<StorageCommand> commands ) throws NoSuchEntryException
     {
         for ( StorageCommand command : commands )
