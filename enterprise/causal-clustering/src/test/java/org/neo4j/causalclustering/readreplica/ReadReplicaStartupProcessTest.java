@@ -57,6 +57,7 @@ import org.neo4j.causalclustering.identity.MemberId;
 import org.neo4j.causalclustering.identity.StoreId;
 import org.neo4j.causalclustering.upstream.UpstreamDatabaseSelectionStrategy;
 import org.neo4j.causalclustering.upstream.UpstreamDatabaseStrategySelector;
+import org.neo4j.function.ThrowingAction;
 import org.neo4j.helpers.AdvertisedSocketAddress;
 import org.neo4j.helpers.Service;
 import org.neo4j.io.fs.FileSystemAbstraction;
@@ -116,7 +117,7 @@ public class ReadReplicaStartupProcessTest
 
         ReadReplicaStartupProcess readReplicaStartupProcess =
                 new ReadReplicaStartupProcess( remoteStore, localDatabase, txPulling, chooseFirstMember(), retryStrategy, NullLogProvider.getInstance(),
-                        NullLogProvider.getInstance(), storeCopyProcess, topologyService );
+                        NullLogProvider.getInstance(), storeCopyProcess, topologyService, ThrowingAction.noop() );
 
         // when
         readReplicaStartupProcess.start();
@@ -146,7 +147,7 @@ public class ReadReplicaStartupProcessTest
 
         ReadReplicaStartupProcess readReplicaStartupProcess =
                 new ReadReplicaStartupProcess( remoteStore, localDatabase, txPulling, chooseFirstMember(), retryStrategy, NullLogProvider.getInstance(),
-                        NullLogProvider.getInstance(), storeCopyProcess, topologyService );
+                        NullLogProvider.getInstance(), storeCopyProcess, topologyService, ThrowingAction.noop() );
 
         // when
         try
@@ -174,7 +175,7 @@ public class ReadReplicaStartupProcessTest
 
         ReadReplicaStartupProcess readReplicaStartupProcess =
                 new ReadReplicaStartupProcess( remoteStore, localDatabase, txPulling, chooseFirstMember(), retryStrategy, NullLogProvider.getInstance(),
-                        NullLogProvider.getInstance(), storeCopyProcess, topologyService );
+                        NullLogProvider.getInstance(), storeCopyProcess, topologyService, ThrowingAction.noop() );
 
         // when
         readReplicaStartupProcess.start();
@@ -193,7 +194,7 @@ public class ReadReplicaStartupProcessTest
 
         ReadReplicaStartupProcess readReplicaStartupProcess =
                 new ReadReplicaStartupProcess( remoteStore, localDatabase, txPulling, chooseFirstMember(), retryStrategy, NullLogProvider.getInstance(),
-                        NullLogProvider.getInstance(), storeCopyProcess, topologyService );
+                        NullLogProvider.getInstance(), storeCopyProcess, topologyService, ThrowingAction.noop() );
 
         readReplicaStartupProcess.start();
 

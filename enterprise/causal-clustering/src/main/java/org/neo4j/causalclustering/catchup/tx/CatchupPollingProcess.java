@@ -367,7 +367,7 @@ public class CatchupPollingProcess extends LifecycleAdapter
         state = TX_PULLING;
         try
         {
-            applier.refreshFromNewStore();
+            applier.refreshFromNewStoreAfterStoreCopy();
         }
         catch ( Exception e )
         {

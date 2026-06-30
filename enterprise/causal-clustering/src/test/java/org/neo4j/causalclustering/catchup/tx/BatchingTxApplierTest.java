@@ -75,7 +75,7 @@ public class BatchingTxApplierTest
             EmptyVersionContextSupplier.EMPTY, NullLogProvider.getInstance() );
 
     @Before
-    public void before()
+    public void before() throws Throwable
     {
         when( idStore.getLastCommittedTransactionId() ).thenReturn( startTxId );
         txApplier.start();

@@ -327,7 +327,7 @@ public class EnterpriseReadReplicaEditionModule extends DefaultEditionModule
 
         ExponentialBackoffStrategy retryStrategy = new ExponentialBackoffStrategy( 1, 30, TimeUnit.SECONDS );
         life.add( new ReadReplicaStartupProcess( remoteStore, localDatabase, txPulling, upstreamDatabaseStrategySelector, retryStrategy, logProvider,
-                platformModule.logging.getUserLogProvider(), storeCopyProcess, topologyService ) );
+                platformModule.logging.getUserLogProvider(), storeCopyProcess, topologyService, reloadTokensFromStore ) );
 
         RegularCatchupServerHandler catchupServerHandler = new RegularCatchupServerHandler( platformModule.monitors,
                 logProvider, localDatabase::storeId, localDatabase::dataSource, localDatabase::isAvailable,

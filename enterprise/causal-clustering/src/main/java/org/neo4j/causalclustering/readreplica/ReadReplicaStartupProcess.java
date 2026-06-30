@@ -50,6 +50,7 @@ import org.neo4j.causalclustering.identity.MemberId;
 import org.neo4j.causalclustering.identity.StoreId;
 import org.neo4j.causalclustering.upstream.UpstreamDatabaseSelectionException;
 import org.neo4j.causalclustering.upstream.UpstreamDatabaseStrategySelector;
+import org.neo4j.function.ThrowingAction;
 import org.neo4j.helpers.AdvertisedSocketAddress;
 import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.logging.Log;
@@ -71,10 +72,13 @@ class ReadReplicaStartupProcess implements Lifecycle
 
     private String lastIssue;
     private final StoreCopyProcess storeCopyProcess;
+    private final ThrowingAction<Exception> reloadTokensFromStore;
+    private boolean storeCopiedOnStartup;
 
     ReadReplicaStartupProcess( RemoteStore remoteStore, LocalDatabase localDatabase, Lifecycle txPulling,
             UpstreamDatabaseStrategySelector selectionStrategyPipeline, TimeoutStrategy timeoutStrategy, LogProvider debugLogProvider,
-            LogProvider userLogProvider, StoreCopyProcess storeCopyProcess, TopologyService topologyService )
+            LogProvider userLogProvider, StoreCopyProcess storeCopyProcess, TopologyService topologyService,
+            ThrowingAction<Exception> reloadTokensFromStore )
     {
         this.remoteStore = remoteStore;
         this.localDatabase = localDatabase;
@@ -85,6 +89,7 @@ class ReadReplicaStartupProcess implements Lifecycle
         this.userLog = userLogProvider.getLog( getClass() );
         this.storeCopyProcess = storeCopyProcess;
         this.topologyService = topologyService;
+        this.reloadTokensFromStore = reloadTokensFromStore;
     }
 
     @Override
@@ -159,6 +164,10 @@ class ReadReplicaStartupProcess implements Lifecycle
         try
         {
             localDatabase.start();
+            if ( storeCopiedOnStartup )
+            {
+                reloadTokensFromStore.apply();
+            }
             txPulling.start();
         }
         catch ( Throwable e )
@@ -184,6 +193,7 @@ class ReadReplicaStartupProcess implements Lifecycle
             storeCopyProcess.replaceWithStoreFrom( new SingleAddressProvider( fromAddress ), storeId );
 
             debugLog.info( "Restarting local database after copy.", source );
+            storeCopiedOnStartup = true;
         }
         else
         {

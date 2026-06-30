@@ -200,7 +200,7 @@ public class CatchupPollingProcessTest
         verify( storeCopyProcess ).replaceWithStoreFrom( any( CatchupAddressProvider.class ), eq( storeId ) );
         verify( localDatabase ).start();
         verify( startStopOnStoreCopy ).enable();
-        verify( txApplier ).refreshFromNewStore();
+        verify( txApplier ).refreshFromNewStoreAfterStoreCopy();
 
         // then
         assertEquals( TX_PULLING, txPuller.state() );

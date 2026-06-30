@@ -120,8 +120,21 @@ public class BatchingTxApplier extends LifecycleAdapter
 
     void refreshFromNewStore() throws Exception
     {
+        refreshFromNewStore( false );
+    }
+
+    void refreshFromNewStoreAfterStoreCopy() throws Exception
+    {
+        refreshFromNewStore( true );
+    }
+
+    private void refreshFromNewStore( boolean reloadTokens ) throws Exception
+    {
         assert txQueue == null || txQueue.isEmpty();
-        reloadTokensFromStore.apply();
+        if ( reloadTokens )
+        {
+            reloadTokensFromStore.apply();
+        }
         lastQueuedTxId = txIdStoreSupplier.get().getLastCommittedTransactionId();
         commitProcess = commitProcessSupplier.get();
     }
