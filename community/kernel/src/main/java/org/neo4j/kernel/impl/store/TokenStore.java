@@ -127,7 +127,14 @@ public abstract class TokenStore<RECORD extends TokenRecord>
             found++;
             if ( record != null && record.inUse() && record.getNameId() != Record.RESERVED.intValue() )
             {
-                records.add( new NamedToken( getStringFor( record ), i ) );
+                try
+                {
+                    records.add( new NamedToken( getStringFor( record ), i ) );
+                }
+                catch ( RuntimeException e )
+                {
+                    // Token slot is in use but the dynamic name chain is incomplete; skip rather than fail recovery.
+                }
             }
         }
 

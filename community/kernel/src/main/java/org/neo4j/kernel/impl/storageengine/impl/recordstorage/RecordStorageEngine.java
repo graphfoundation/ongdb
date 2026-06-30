@@ -42,7 +42,9 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
@@ -88,6 +90,7 @@ import org.neo4j.kernel.impl.cache.BridgingCacheAccess;
 import org.neo4j.kernel.impl.constraints.ConstraintSemantics;
 import org.neo4j.kernel.impl.core.CacheAccessBackDoor;
 import org.neo4j.kernel.impl.core.TokenHolders;
+import org.neo4j.kernel.impl.core.TokenHolder;
 import org.neo4j.kernel.impl.store.DynamicStringStore;
 import org.neo4j.kernel.impl.factory.OperationalMode;
 import org.neo4j.kernel.impl.index.IndexConfigStore;
@@ -106,6 +109,7 @@ import org.neo4j.kernel.impl.store.format.RecordFormat;
 import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
 import org.neo4j.kernel.impl.store.record.DynamicRecord;
+import org.neo4j.kernel.impl.store.record.Record;
 import org.neo4j.kernel.impl.store.record.RecordLoad;
 import org.neo4j.kernel.impl.store.record.TokenRecord;
 import org.neo4j.kernel.impl.transaction.command.CacheInvalidationBatchTransactionApplier;
@@ -534,13 +538,24 @@ public class RecordStorageEngine implements StorageEngine, Lifecycle
     public void reloadTokensAndSchemaFromStore()
     {
         neoStores.flush( IOLimiter.UNLIMITED );
-        tokenHolders.propertyKeyTokens().setInitialTokens(
-                neoStores.getPropertyKeyTokenStore().getTokens() );
-        tokenHolders.relationshipTypeTokens().setInitialTokens(
-                neoStores.getRelationshipTypeTokenStore().getTokens() );
-        tokenHolders.labelTokens().setInitialTokens(
-                neoStores.getLabelTokenStore().getTokens() );
+        mergeTokensFromStore( tokenHolders.propertyKeyTokens(), neoStores.getPropertyKeyTokenStore().getTokens() );
+        mergeTokensFromStore( tokenHolders.labelTokens(), neoStores.getLabelTokenStore().getTokens() );
+        mergeTokensFromStore( tokenHolders.relationshipTypeTokens(), neoStores.getRelationshipTypeTokenStore().getTokens() );
         loadSchemaCache();
+    }
+
+    private static void mergeTokensFromStore( TokenHolder holder, List<NamedToken> diskTokens )
+    {
+        Map<Integer,NamedToken> merged = new HashMap<>();
+        for ( NamedToken token : holder.getAllTokens() )
+        {
+            merged.put( token.id(), token );
+        }
+        for ( NamedToken token : diskTokens )
+        {
+            merged.putIfAbsent( token.id(), token );
+        }
+        holder.setInitialTokens( new ArrayList<>( merged.values() ) );
     }
 
     /**
@@ -560,29 +575,55 @@ public class RecordStorageEngine implements StorageEngine, Lifecycle
         for ( NamedToken token : tokens )
         {
             RECORD record = store.getRecord( token.id(), store.newRecord(), RecordLoad.CHECK );
-            if ( record.inUse() )
+            if ( isTokenCorrectlyPersisted( store, record, token.name() ) )
             {
                 continue;
             }
-            RECORD newRecord = store.newRecord();
-            newRecord.setId( token.id() );
-            newRecord.setInUse( true );
-            newRecord.setCreated();
-            Collection<DynamicRecord> nameRecords =
-                    store.allocateNameRecords( PropertyStore.encodeString( token.name() ) );
-            DynamicStringStore nameStore = store.getNameStore();
-            for ( DynamicRecord nameRecord : nameRecords )
-            {
-                nameStore.prepareForCommit( nameRecord );
-                nameStore.updateRecord( nameRecord );
-            }
-            newRecord.setNameId( (int) Iterables.first( nameRecords ).getId() );
-            newRecord.addNameRecords( nameRecords );
-            store.prepareForCommit( newRecord );
-            store.updateRecord( newRecord );
-            store.setHighestPossibleIdInUse( token.id() );
-            updateDynamicStoreHighId( nameStore, nameRecords );
+            persistTokenToStore( store, token );
         }
+    }
+
+    /**
+     * A token slot may be marked in-use on disk before replicated token commands finish writing the
+     * dynamic name chain. Only skip sync when the on-disk record is complete and matches the holder.
+     */
+    private static <RECORD extends TokenRecord> boolean isTokenCorrectlyPersisted(
+            TokenStore<RECORD> store, RECORD record, String expectedName )
+    {
+        if ( !record.inUse() || record.getNameId() == Record.RESERVED.intValue() )
+        {
+            return false;
+        }
+        try
+        {
+            return expectedName.equals( store.getStringFor( record ) );
+        }
+        catch ( RuntimeException e )
+        {
+            return false;
+        }
+    }
+
+    private static <RECORD extends TokenRecord> void persistTokenToStore( TokenStore<RECORD> store, NamedToken token )
+    {
+        RECORD newRecord = store.newRecord();
+        newRecord.setId( token.id() );
+        newRecord.setInUse( true );
+        newRecord.setCreated();
+        Collection<DynamicRecord> nameRecords =
+                store.allocateNameRecords( PropertyStore.encodeString( token.name() ) );
+        DynamicStringStore nameStore = store.getNameStore();
+        for ( DynamicRecord nameRecord : nameRecords )
+        {
+            nameStore.prepareForCommit( nameRecord );
+            nameStore.updateRecord( nameRecord );
+        }
+        newRecord.setNameId( (int) Iterables.first( nameRecords ).getId() );
+        newRecord.addNameRecords( nameRecords );
+        store.prepareForCommit( newRecord );
+        store.updateRecord( newRecord );
+        store.setHighestPossibleIdInUse( token.id() );
+        updateDynamicStoreHighId( nameStore, nameRecords );
     }
 
     private static void updateDynamicStoreHighId( DynamicStringStore nameStore, Collection<DynamicRecord> nameRecords )
