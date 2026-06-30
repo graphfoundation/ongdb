@@ -88,6 +88,7 @@ import org.neo4j.kernel.impl.cache.BridgingCacheAccess;
 import org.neo4j.kernel.impl.constraints.ConstraintSemantics;
 import org.neo4j.kernel.impl.core.CacheAccessBackDoor;
 import org.neo4j.kernel.impl.core.TokenHolders;
+import org.neo4j.kernel.impl.store.DynamicStringStore;
 import org.neo4j.kernel.impl.factory.OperationalMode;
 import org.neo4j.kernel.impl.index.IndexConfigStore;
 import org.neo4j.kernel.impl.index.labelscan.NativeLabelScanStore;
@@ -543,9 +544,9 @@ public class RecordStorageEngine implements StorageEngine, Lifecycle
     }
 
     /**
-     * Persist in-memory token holders to the on-disk token stores.
-     * Causal clustering cores keep authoritative tokens in replicated holders; store copy streams
-     * files from disk, so holders must be flushed to store before the atomic snapshot.
+     * Persist in-memory token holders to the on-disk token stores before a store-copy snapshot.
+     * Causal clustering cores keep authoritative tokens in replicated holders; the on-disk token
+     * store can lag behind until token commands are committed through the state machine.
      */
     public void syncTokenHoldersToStore()
     {
@@ -559,28 +560,42 @@ public class RecordStorageEngine implements StorageEngine, Lifecycle
         for ( NamedToken token : tokens )
         {
             RECORD record = store.getRecord( token.id(), store.newRecord(), RecordLoad.CHECK );
-            if ( !record.inUse() || !token.name().equals( tokenName( store, record ) ) )
+            if ( record.inUse() )
             {
-                RECORD newRecord = store.newRecord();
-                newRecord.setId( token.id() );
-                newRecord.setInUse( true );
-                Collection<DynamicRecord> nameRecords =
-                        store.allocateNameRecords( PropertyStore.encodeString( token.name() ) );
-                newRecord.setNameId( (int) Iterables.first( nameRecords ).getId() );
-                newRecord.addNameRecords( nameRecords );
-                store.updateRecord( newRecord );
+                continue;
             }
+            RECORD newRecord = store.newRecord();
+            newRecord.setId( token.id() );
+            newRecord.setInUse( true );
+            newRecord.setCreated();
+            Collection<DynamicRecord> nameRecords =
+                    store.allocateNameRecords( PropertyStore.encodeString( token.name() ) );
+            DynamicStringStore nameStore = store.getNameStore();
+            for ( DynamicRecord nameRecord : nameRecords )
+            {
+                nameStore.prepareForCommit( nameRecord );
+                nameStore.updateRecord( nameRecord );
+            }
+            newRecord.setNameId( (int) Iterables.first( nameRecords ).getId() );
+            newRecord.addNameRecords( nameRecords );
+            store.prepareForCommit( newRecord );
+            store.updateRecord( newRecord );
+            store.setHighestPossibleIdInUse( token.id() );
+            updateDynamicStoreHighId( nameStore, nameRecords );
         }
     }
 
-    private <RECORD extends TokenRecord> String tokenName( TokenStore<RECORD> store, RECORD record )
+    private static void updateDynamicStoreHighId( DynamicStringStore nameStore, Collection<DynamicRecord> nameRecords )
     {
-        if ( !record.inUse() )
+        long highId = -1;
+        for ( DynamicRecord nameRecord : nameRecords )
         {
-            return null;
+            highId = Math.max( highId, nameRecord.getId() );
         }
-        store.ensureHeavy( record );
-        return store.getStringFor( record );
+        if ( highId >= 0 )
+        {
+            nameStore.setHighestPossibleIdInUse( highId );
+        }
     }
 
     @Override

@@ -90,8 +90,6 @@ public class PrepareStoreCopyRequestHandler extends SimpleChannelInboundHandler<
             }
             else
             {
-                CheckPointer checkPointer = neoStoreDataSource.getDependencyResolver().resolveDependency( CheckPointer.class );
-                closeablesListener.add( tryCheckpointAndAcquireMutex( checkPointer ) );
                 StorageEngine storageEngine =
                         neoStoreDataSource.getDependencyResolver().resolveDependency( StorageEngine.class );
                 if ( storageEngine instanceof RecordStorageEngine )
@@ -100,6 +98,8 @@ public class PrepareStoreCopyRequestHandler extends SimpleChannelInboundHandler<
                     recordStorageEngine.syncTokenHoldersToStore();
                     recordStorageEngine.flushAndForce( IOLimiter.UNLIMITED );
                 }
+                CheckPointer checkPointer = neoStoreDataSource.getDependencyResolver().resolveDependency( CheckPointer.class );
+                closeablesListener.add( tryCheckpointAndAcquireMutex( checkPointer ) );
                 PrepareStoreCopyFiles prepareStoreCopyFiles =
                         closeablesListener.add( prepareStoreCopyFilesProvider.prepareStoreCopyFiles( neoStoreDataSource ) );
 

@@ -55,9 +55,11 @@ import org.neo4j.causalclustering.core.state.machines.CoreStateMachines;
 import org.neo4j.causalclustering.helper.Suspendable;
 import org.neo4j.causalclustering.identity.StoreId;
 import org.neo4j.helpers.AdvertisedSocketAddress;
+import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
 import org.neo4j.kernel.lifecycle.LifecycleException;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.storageengine.api.StorageEngine;
 
 import static java.lang.String.format;
 import static org.neo4j.causalclustering.catchup.CatchupResult.E_TRANSACTION_PRUNED;
@@ -149,6 +151,8 @@ public class CoreStateDownloader
 
         log.info( "Downloading snapshot from core server at %s", primary );
 
+        boolean storeCopied = false;
+
         /* The core snapshot must be copied before the store, because the store has a dependency on
          * the state of the state machines. The store will thus be at or ahead of the state machines,
          * in consensus log index, and application of commands will bring them in sync. Any such commands
@@ -207,6 +211,7 @@ public class CoreStateDownloader
             try
             {
                 storeCopyProcess.replaceWithStoreFrom( addressProvider, remoteStoreId );
+                storeCopied = true;
             }
             catch ( StoreCopyFailedException e )
             {
@@ -224,6 +229,17 @@ public class CoreStateDownloader
          * the EnterpriseCoreEditionModule, which has important side-effects. */
         log.info( "Starting local database" );
         ensure( localDatabase::start, "start local database after store copy" );
+
+        if ( storeCopied )
+        {
+            StorageEngine storageEngine =
+                    localDatabase.dataSource().getDependencyResolver().resolveDependency( StorageEngine.class );
+            if ( storageEngine instanceof RecordStorageEngine )
+            {
+                ensure( () -> ((RecordStorageEngine) storageEngine).reloadTokensAndSchemaFromStore(),
+                        "reload token holders after store copy" );
+            }
+        }
 
         coreStateMachines.installCommitProcess( localDatabase.getCommitProcess() );
         ensure( suspendOnStoreCopy::enable, "enable auxiliary services after store copy" );

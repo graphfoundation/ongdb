@@ -55,7 +55,10 @@ import org.neo4j.causalclustering.identity.MemberId;
 import org.neo4j.causalclustering.identity.StoreId;
 import org.neo4j.helpers.AdvertisedSocketAddress;
 import org.neo4j.io.layout.DatabaseLayout;
+import org.neo4j.kernel.NeoStoreDataSource;
+import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.logging.NullLogProvider;
+import org.neo4j.storageengine.api.StorageEngine;
 
 import static org.junit.Assert.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
@@ -94,6 +97,12 @@ public class CoreStateDownloaderTest
     @Before
     public void commonMocking()
     {
+        NeoStoreDataSource dataSource = mock( NeoStoreDataSource.class );
+        DependencyResolver dependencies = mock( DependencyResolver.class );
+        when( localDatabase.dataSource() ).thenReturn( dataSource );
+        when( dataSource.getDependencyResolver() ).thenReturn( dependencies );
+        when( dependencies.resolveDependency( StorageEngine.class ) ).thenReturn( mock( StorageEngine.class ) );
+
         when( localDatabase.storeId() ).thenReturn( storeId );
         when( localDatabase.databaseLayout() ).thenReturn( databaseLayout );
         when( topologyService.findCatchupAddress( remoteMember ) ).thenReturn( Optional.of( remoteAddress ) );

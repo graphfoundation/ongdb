@@ -103,6 +103,18 @@ public abstract class TokenStore<RECORD extends TokenRecord>
     {
         LinkedList<NamedToken> records = new LinkedList<>();
         long maxIdInUse = getHighestPossibleIdInUse();
+        if ( maxIdInUse < 0 )
+        {
+            maxIdInUse = 0;
+        }
+        RECORD probe = newRecord();
+        for ( long id = maxIdInUse + 1; id < getHighId(); id++ )
+        {
+            if ( getRecord( id, probe, RecordLoad.CHECK ).inUse() )
+            {
+                maxIdInUse = id;
+            }
+        }
         int found = 0;
         RECORD record = newRecord();
         for ( int i = 0; i <= maxIdInUse; i++ )
