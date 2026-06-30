@@ -541,6 +541,9 @@ public class RecordStorageEngine implements StorageEngine, Lifecycle
         mergeTokensFromStore( tokenHolders.propertyKeyTokens(), neoStores.getPropertyKeyTokenStore().getTokens() );
         mergeTokensFromStore( tokenHolders.labelTokens(), neoStores.getLabelTokenStore().getTokens() );
         mergeTokensFromStore( tokenHolders.relationshipTypeTokens(), neoStores.getRelationshipTypeTokenStore().getTokens() );
+        probeTokensFromStore( tokenHolders.propertyKeyTokens(), neoStores.getPropertyKeyTokenStore() );
+        probeTokensFromStore( tokenHolders.labelTokens(), neoStores.getLabelTokenStore() );
+        probeTokensFromStore( tokenHolders.relationshipTypeTokens(), neoStores.getRelationshipTypeTokenStore() );
         loadSchemaCache();
     }
 
@@ -554,6 +557,37 @@ public class RecordStorageEngine implements StorageEngine, Lifecycle
         for ( NamedToken token : diskTokens )
         {
             merged.putIfAbsent( token.id(), token );
+        }
+        holder.setInitialTokens( new ArrayList<>( merged.values() ) );
+    }
+
+    private static <RECORD extends TokenRecord> void probeTokensFromStore(
+            TokenHolder holder, TokenStore<RECORD> store )
+    {
+        Map<Integer,NamedToken> merged = new HashMap<>();
+        for ( NamedToken token : holder.getAllTokens() )
+        {
+            merged.put( token.id(), token );
+        }
+        RECORD probe = store.newRecord();
+        for ( long id = 0, highId = store.getHighId(); id < highId; id++ )
+        {
+            if ( merged.containsKey( (int) id ) )
+            {
+                continue;
+            }
+            if ( !store.getRecord( id, probe, RecordLoad.CHECK ).inUse() )
+            {
+                continue;
+            }
+            try
+            {
+                merged.putIfAbsent( (int) id, store.getToken( (int) id ) );
+            }
+            catch ( RuntimeException ignored )
+            {
+                // Slot is in use but not readable yet; leave for holder/registry bootstrap paths.
+            }
         }
         holder.setInitialTokens( new ArrayList<>( merged.values() ) );
     }
