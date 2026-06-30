@@ -35,6 +35,9 @@
 package org.neo4j.causalclustering.core.state.machines;
 
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -45,13 +48,26 @@ import org.neo4j.causalclustering.core.replication.DistributedOperation;
 import org.neo4j.causalclustering.core.replication.ReplicatedContent;
 import org.neo4j.cursor.IOCursor;
 import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.helpers.collection.Pair;
 import org.neo4j.internal.kernel.api.NamedToken;
+import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
+import org.neo4j.kernel.impl.store.AbstractDynamicStore;
+import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
+import org.neo4j.storageengine.api.EntityType;
+import org.neo4j.kernel.impl.store.LabelTokenStore;
 import org.neo4j.kernel.impl.store.NeoStores;
+import org.neo4j.kernel.impl.store.NodeLabelsField;
+import org.neo4j.kernel.impl.store.NodeStore;
+import org.neo4j.kernel.impl.store.PropertyStore;
+import org.neo4j.kernel.impl.store.PropertyType;
 import org.neo4j.kernel.impl.store.TokenStore;
+import org.neo4j.kernel.impl.store.record.DynamicRecord;
+import org.neo4j.kernel.impl.store.record.NodeRecord;
 import org.neo4j.kernel.impl.store.record.Record;
 import org.neo4j.kernel.impl.store.record.RecordLoad;
 import org.neo4j.kernel.impl.store.record.TokenRecord;
+import org.neo4j.storageengine.api.schema.SchemaRule;
 import org.neo4j.kernel.impl.transaction.CommittedTransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.command.Command;
 import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
@@ -193,6 +209,7 @@ public class CoreStateMachines
         bootstrapReplicatedTokensFromRaftLog( raftLog, raftScanLimit );
         bootstrapReplicatedTokensFromTxLog( localDatabase );
         bootstrapReplicatedTokensFromTokenStores( localDatabase );
+        bootstrapLabelsReferencedInStore( localDatabase );
     }
 
     private void bootstrapReplicatedTokensFromTokenStores( LocalDatabase localDatabase )
@@ -204,9 +221,75 @@ public class CoreStateMachines
             return;
         }
         NeoStores neoStores = ((RecordStorageEngine) storageEngine).testAccessNeoStores();
+        neoStores.flush( IOLimiter.UNLIMITED );
         bootstrapStoreTokens( neoStores.getPropertyKeyTokenStore(), propertyKeyTokenStateMachine );
         bootstrapStoreTokens( neoStores.getLabelTokenStore(), labelTokenStateMachine );
         bootstrapStoreTokens( neoStores.getRelationshipTypeTokenStore(), relationshipTypeTokenStateMachine );
+    }
+
+    private void bootstrapLabelsReferencedInStore( LocalDatabase localDatabase )
+    {
+        StorageEngine storageEngine =
+                localDatabase.dataSource().getDependencyResolver().resolveDependency( StorageEngine.class, ONLY );
+        if ( !(storageEngine instanceof RecordStorageEngine) )
+        {
+            return;
+        }
+        NeoStores neoStores = ((RecordStorageEngine) storageEngine).testAccessNeoStores();
+        LabelTokenStore labelTokenStore = neoStores.getLabelTokenStore();
+        Set<Integer> labelIds = new HashSet<>();
+        collectLabelIdsFromNodes( neoStores.getNodeStore(), labelIds );
+        collectLabelIdsFromSchema( neoStores, labelIds );
+        for ( int labelId : labelIds )
+        {
+            registerLabelTokenIfReadable( labelTokenStore, labelId );
+        }
+    }
+
+    private static void collectLabelIdsFromNodes( NodeStore nodeStore, Set<Integer> labelIds )
+    {
+        NodeRecord node = nodeStore.newRecord();
+        for ( long id = 0, highId = nodeStore.getHighId(); id < highId; id++ )
+        {
+            if ( !nodeStore.getRecord( id, node, RecordLoad.CHECK ).inUse() )
+            {
+                continue;
+            }
+            for ( long labelId : NodeLabelsField.get( node, nodeStore ) )
+            {
+                labelIds.add( (int) labelId );
+            }
+        }
+    }
+
+    private static void collectLabelIdsFromSchema( NeoStores neoStores, Set<Integer> labelIds )
+    {
+        Iterator<SchemaRule> rules = neoStores.getSchemaStore().loadAllSchemaRules();
+        while ( rules.hasNext() )
+        {
+            SchemaRule rule = rules.next();
+            SchemaDescriptor schema = rule.schema();
+            if ( schema == null || schema.entityType() != EntityType.NODE )
+            {
+                continue;
+            }
+            for ( int labelId : schema.getEntityTokenIds() )
+            {
+                labelIds.add( labelId );
+            }
+        }
+    }
+
+    private void registerLabelTokenIfReadable( LabelTokenStore labelTokenStore, int labelId )
+    {
+        try
+        {
+            labelTokenStateMachine.registerTokenIfAbsent( labelTokenStore.getToken( labelId ) );
+        }
+        catch ( RuntimeException ignored )
+        {
+            // Other bootstrap paths must supply the name.
+        }
     }
 
     private static <RECORD extends TokenRecord> void bootstrapStoreTokens(
@@ -389,6 +472,10 @@ public class CoreStateMachines
             Command.TokenCommand<RECORD> command, TokenStore<RECORD> tokenStore )
     {
         RECORD after = command.getAfter();
+        if ( !after.inUse() )
+        {
+            return null;
+        }
         int id = after.getIntId();
         try
         {
@@ -402,8 +489,26 @@ public class CoreStateMachines
             }
             catch ( RuntimeException storeLookupFailed )
             {
-                return null;
+                return namedTokenFromInlineNameRecords( after, id );
             }
+        }
+    }
+
+    private static NamedToken namedTokenFromInlineNameRecords( TokenRecord after, int id )
+    {
+        if ( after.isLight() )
+        {
+            return null;
+        }
+        try
+        {
+            Pair<byte[], byte[]> bytes =
+                    AbstractDynamicStore.readFullByteArrayFromHeavyRecords( after.getNameRecords(), PropertyType.STRING );
+            return new NamedToken( PropertyStore.decodeString( bytes.other() ), id );
+        }
+        catch ( RuntimeException ignored )
+        {
+            return null;
         }
     }
 

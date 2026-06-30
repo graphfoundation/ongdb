@@ -37,8 +37,13 @@ package org.neo4j.causalclustering.core.state.machines.token;
 import java.util.function.Supplier;
 
 import org.neo4j.causalclustering.core.replication.Replicator;
+import org.neo4j.internal.kernel.api.NamedToken;
 import org.neo4j.kernel.api.txstate.TransactionState;
+import org.neo4j.kernel.impl.core.NonUniqueTokenException;
+import org.neo4j.kernel.impl.core.TokenNotFoundException;
 import org.neo4j.kernel.impl.core.TokenRegistry;
+import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
+import org.neo4j.kernel.impl.store.LabelTokenStore;
 import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.store.id.IdType;
 import org.neo4j.storageengine.api.StorageEngine;
@@ -50,5 +55,50 @@ public class ReplicatedLabelTokenHolder extends ReplicatedTokenHolder
     {
         super( registry, replicator, idGeneratorFactory, IdType.LABEL_TOKEN, storageEngineSupplier, TokenType.LABEL,
                 TransactionState::labelDoCreateForName );
+    }
+
+    @Override
+    public NamedToken getTokenById( int id ) throws TokenNotFoundException
+    {
+        try
+        {
+            return super.getTokenById( id );
+        }
+        catch ( TokenNotFoundException missingFromRegistry )
+        {
+            NamedToken fromStore = loadTokenFromStore( id );
+            if ( fromStore == null )
+            {
+                throw missingFromRegistry;
+            }
+            try
+            {
+                addToken( fromStore );
+            }
+            catch ( NonUniqueTokenException ignored )
+            {
+                // Concurrent registration; fall through to registry lookup.
+            }
+            return super.getTokenById( id );
+        }
+    }
+
+    private NamedToken loadTokenFromStore( int id )
+    {
+        StorageEngine storageEngine = storageEngineSupplier.get();
+        if ( !(storageEngine instanceof RecordStorageEngine) )
+        {
+            return null;
+        }
+        LabelTokenStore labelTokenStore =
+                ((RecordStorageEngine) storageEngine).testAccessNeoStores().getLabelTokenStore();
+        try
+        {
+            return labelTokenStore.getToken( id );
+        }
+        catch ( RuntimeException unreadable )
+        {
+            return null;
+        }
     }
 }

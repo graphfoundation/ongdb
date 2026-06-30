@@ -177,7 +177,8 @@ public class CoreStateDownloaderTest
 
         // then
         verify( remoteStore ).tryCatchingUp( remoteAddress, storeId, databaseLayout, false );
-        verify( remoteStore, never() ).copy( any(), any(), any() );
+        verify( localDatabase ).delete();
+        verify( storeCopyProcess ).replaceWithStoreFrom( catchupAddressProvider, storeId );
     }
 
     @Test

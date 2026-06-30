@@ -205,6 +205,14 @@ public class CoreStateDownloader
                 log.warn( format( "Unexpected catchup operation result %s from %s", catchupResult, primary ) );
                 return false;
             }
+            else
+            {
+                /* Rejoining cores reuse prior data directories. On-disk token stores can lag replicated
+                 * in-memory holders on the source, so take a synced store copy after catch-up. */
+                log.info( "Replacing local store with synced copy from %s after catch-up", primary );
+                localDatabase.delete();
+                isEmptyStore = true;
+            }
         }
 
         if ( isEmptyStore )

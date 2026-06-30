@@ -64,7 +64,7 @@ abstract class ReplicatedTokenHolder extends AbstractTokenHolderBase implements 
     private final IdGeneratorFactory idGeneratorFactory;
     private final IdType tokenIdType;
     private final TokenType type;
-    private final Supplier<StorageEngine> storageEngineSupplier;
+    protected final Supplier<StorageEngine> storageEngineSupplier;
     private final ReplicatedTokenCreator tokenCreator;
 
     ReplicatedTokenHolder( TokenRegistry tokenRegistry, Replicator replicator,
