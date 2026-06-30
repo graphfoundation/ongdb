@@ -38,6 +38,9 @@ import java.io.IOException;
 import java.util.function.Consumer;
 
 import org.neo4j.causalclustering.catchup.storecopy.LocalDatabase;
+import org.neo4j.causalclustering.core.consensus.log.RaftLogCursor;
+import org.neo4j.causalclustering.core.consensus.log.ReadableRaftLog;
+import org.neo4j.causalclustering.core.replication.ReplicatedContent;
 import org.neo4j.causalclustering.core.state.machines.dummy.DummyMachine;
 import org.neo4j.causalclustering.core.state.machines.dummy.DummyRequest;
 import org.neo4j.causalclustering.core.state.machines.tx.RecoverConsensusLogIndex;
@@ -155,6 +158,48 @@ public class CoreStateMachines
         labelTokenStateMachine.installCommitProcess( localCommit, lastAppliedIndex );
         relationshipTypeTokenStateMachine.installCommitProcess( localCommit, lastAppliedIndex );
         propertyKeyTokenStateMachine.installCommitProcess( localCommit, lastAppliedIndex );
+    }
+
+    /**
+     * Seed replicated token registries from committed raft entries after store copy.
+     * Token commands at or before {@code toIndexInclusive} are already reflected in the copied store
+     * and will not be replayed through the state machines, but holders must still see them.
+     */
+    public void bootstrapReplicatedTokensFromRaftLog( ReadableRaftLog raftLog, long toIndexInclusive ) throws IOException
+    {
+        try ( RaftLogCursor cursor = raftLog.getEntryCursor( 0 ) )
+        {
+            while ( cursor.next() )
+            {
+                if ( cursor.index() > toIndexInclusive )
+                {
+                    break;
+                }
+                ReplicatedContent content = cursor.get().content();
+                if ( content instanceof ReplicatedTokenRequest )
+                {
+                    registerTokenFromRequest( (ReplicatedTokenRequest) content );
+                }
+            }
+        }
+    }
+
+    private void registerTokenFromRequest( ReplicatedTokenRequest request )
+    {
+        switch ( request.type() )
+        {
+        case PROPERTY:
+            propertyKeyTokenStateMachine.registerTokenIfAbsent( request );
+            break;
+        case RELATIONSHIP:
+            relationshipTypeTokenStateMachine.registerTokenIfAbsent( request );
+            break;
+        case LABEL:
+            labelTokenStateMachine.registerTokenIfAbsent( request );
+            break;
+        default:
+            throw new IllegalStateException( "Unknown token type: " + request.type() );
+        }
     }
 
     private class StateMachineCommandDispatcher implements CommandDispatcher

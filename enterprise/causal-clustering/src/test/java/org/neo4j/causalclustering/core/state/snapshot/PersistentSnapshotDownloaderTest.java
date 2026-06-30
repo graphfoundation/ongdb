@@ -219,7 +219,7 @@ public class PersistentSnapshotDownloaderTest
 
         private EventuallySuccessfulDownloader( int after )
         {
-            super( null, null, null, null, NullLogProvider.getInstance(), null, null, null, null );
+            super( null, null, null, null, NullLogProvider.getInstance(), null, null, null, null, null );
             this.after = after;
         }
 

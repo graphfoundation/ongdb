@@ -48,6 +48,8 @@ import org.neo4j.causalclustering.catchup.storecopy.LocalDatabase;
 import org.neo4j.causalclustering.catchup.storecopy.RemoteStore;
 import org.neo4j.causalclustering.catchup.storecopy.StoreCopyProcess;
 import org.neo4j.causalclustering.core.state.CoreSnapshotService;
+import org.neo4j.causalclustering.core.consensus.log.ReadableRaftLog;
+import org.neo4j.causalclustering.core.consensus.log.RaftLogCursor;
 import org.neo4j.causalclustering.core.state.machines.CoreStateMachines;
 import org.neo4j.causalclustering.discovery.TopologyService;
 import org.neo4j.causalclustering.helper.Suspendable;
@@ -63,6 +65,7 @@ import org.neo4j.storageengine.api.StorageEngine;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -90,12 +93,13 @@ public class CoreStateDownloaderTest
     private final StoreId storeId = new StoreId( 1, 2, 3, 4 );
     private final DatabaseLayout databaseLayout = DatabaseLayout.of( new File( "graph.db" ) );
 
+    private final ReadableRaftLog raftLog = mock( ReadableRaftLog.class );
     private final CoreStateDownloader downloader =
             new CoreStateDownloader( localDatabase, startStopLife, remoteStore, catchUpClient, logProvider, storeCopyProcess, coreStateMachines,
-                    snapshotService, commitStateHelper );
+                    snapshotService, commitStateHelper, raftLog );
 
     @Before
-    public void commonMocking()
+    public void commonMocking() throws Exception
     {
         NeoStoreDataSource dataSource = mock( NeoStoreDataSource.class );
         DependencyResolver dependencies = mock( DependencyResolver.class );
@@ -106,6 +110,8 @@ public class CoreStateDownloaderTest
         when( localDatabase.storeId() ).thenReturn( storeId );
         when( localDatabase.databaseLayout() ).thenReturn( databaseLayout );
         when( topologyService.findCatchupAddress( remoteMember ) ).thenReturn( Optional.of( remoteAddress ) );
+        when( raftLog.getEntryCursor( 0 ) ).thenReturn( RaftLogCursor.empty() );
+        when( catchUpClient.makeBlockingRequest( eq( remoteAddress ), any(), any() ) ).thenReturn( new CoreSnapshot( 0, 0 ) );
     }
 
     @Test

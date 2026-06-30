@@ -91,6 +91,12 @@ public class ReplicatedTokenStateMachine implements StateMachine<ReplicatedToken
     {
         if ( commandIndex <= lastCommittedIndex )
         {
+            registerTokenIfAbsent( tokenRequest );
+            Integer tokenId = tokenRegistry.getId( tokenRequest.tokenName() );
+            if ( tokenId != null )
+            {
+                callback.accept( Result.of( tokenId ) );
+            }
             return;
         }
 
@@ -133,6 +139,24 @@ public class ReplicatedTokenStateMachine implements StateMachine<ReplicatedToken
         }
 
         return tokenId;
+    }
+
+    public synchronized void registerTokenIfAbsent( ReplicatedTokenRequest tokenRequest )
+    {
+        if ( tokenRegistry.getId( tokenRequest.tokenName() ) != null )
+        {
+            return;
+        }
+        try
+        {
+            Collection<StorageCommand> commands =
+                    ReplicatedTokenRequestSerializer.extractCommands( tokenRequest.commandBytes() );
+            tokenRegistry.put( new NamedToken( tokenRequest.tokenName(), extractTokenId( commands ) ) );
+        }
+        catch ( NoSuchEntryException e )
+        {
+            throw new IllegalStateException( "Commands did not contain token command", e );
+        }
     }
 
     private int extractTokenId( Collection<StorageCommand> commands ) throws NoSuchEntryException

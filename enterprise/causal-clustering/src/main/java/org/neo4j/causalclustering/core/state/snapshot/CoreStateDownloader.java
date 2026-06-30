@@ -52,9 +52,11 @@ import org.neo4j.causalclustering.catchup.storecopy.StoreCopyProcess;
 import org.neo4j.causalclustering.catchup.storecopy.StoreIdDownloadFailedException;
 import org.neo4j.causalclustering.core.state.CoreSnapshotService;
 import org.neo4j.causalclustering.core.state.machines.CoreStateMachines;
+import org.neo4j.causalclustering.core.consensus.log.ReadableRaftLog;
 import org.neo4j.causalclustering.helper.Suspendable;
 import org.neo4j.causalclustering.identity.StoreId;
 import org.neo4j.helpers.AdvertisedSocketAddress;
+import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
 import org.neo4j.kernel.lifecycle.LifecycleException;
 import org.neo4j.logging.Log;
@@ -76,11 +78,12 @@ public class CoreStateDownloader
     private final CoreStateMachines coreStateMachines;
     private final CoreSnapshotService snapshotService;
     private final CommitStateHelper commitStateHelper;
+    private final ReadableRaftLog raftLog;
 
     public CoreStateDownloader( LocalDatabase localDatabase, Suspendable suspendOnStoreCopy, RemoteStore remoteStore,
                                 CatchUpClient catchUpClient, LogProvider logProvider, StoreCopyProcess storeCopyProcess,
                                 CoreStateMachines coreStateMachines, CoreSnapshotService snapshotService,
-                                CommitStateHelper commitStateHelper )
+                                CommitStateHelper commitStateHelper, ReadableRaftLog raftLog )
     {
         this.localDatabase = localDatabase;
         this.suspendOnStoreCopy = suspendOnStoreCopy;
@@ -91,6 +94,7 @@ public class CoreStateDownloader
         this.coreStateMachines = coreStateMachines;
         this.snapshotService = snapshotService;
         this.commitStateHelper = commitStateHelper;
+        this.raftLog = raftLog;
     }
 
     /**
@@ -225,6 +229,11 @@ public class CoreStateDownloader
         snapshotService.installSnapshot( coreSnapshot );
         log.info( "Core snapshot installed: " + coreSnapshot );
 
+        if ( storeCopied )
+        {
+            coreStateMachines.bootstrapReplicatedTokensFromRaftLog( raftLog, coreSnapshot.prevIndex() );
+        }
+
         /* Starting the database will invoke the commit process factory in
          * the EnterpriseCoreEditionModule, which has important side-effects. */
         log.info( "Starting local database" );
@@ -236,8 +245,10 @@ public class CoreStateDownloader
                     localDatabase.dataSource().getDependencyResolver().resolveDependency( StorageEngine.class );
             if ( storageEngine instanceof RecordStorageEngine )
             {
-                ensure( () -> ((RecordStorageEngine) storageEngine).reloadTokensAndSchemaFromStore(),
-                        "reload token holders after store copy" );
+                RecordStorageEngine recordStorageEngine = (RecordStorageEngine) storageEngine;
+                ensure( recordStorageEngine::syncTokenHoldersToStore, "sync token holders to store after store copy" );
+                ensure( () -> recordStorageEngine.flushAndForce( IOLimiter.UNLIMITED ), "flush token stores after store copy" );
+                ensure( recordStorageEngine::reloadTokensAndSchemaFromStore, "reload token holders after store copy" );
             }
         }
 
