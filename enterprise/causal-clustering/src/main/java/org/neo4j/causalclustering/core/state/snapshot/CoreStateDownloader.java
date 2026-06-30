@@ -56,7 +56,6 @@ import org.neo4j.causalclustering.core.consensus.log.ReadableRaftLog;
 import org.neo4j.causalclustering.helper.Suspendable;
 import org.neo4j.causalclustering.identity.StoreId;
 import org.neo4j.helpers.AdvertisedSocketAddress;
-import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
 import org.neo4j.kernel.lifecycle.LifecycleException;
 import org.neo4j.logging.Log;
@@ -155,8 +154,6 @@ public class CoreStateDownloader
 
         log.info( "Downloading snapshot from core server at %s", primary );
 
-        boolean storeCopied = false;
-
         /* The core snapshot must be copied before the store, because the store has a dependency on
          * the state of the state machines. The store will thus be at or ahead of the state machines,
          * in consensus log index, and application of commands will bring them in sync. Any such commands
@@ -215,7 +212,6 @@ public class CoreStateDownloader
             try
             {
                 storeCopyProcess.replaceWithStoreFrom( addressProvider, remoteStoreId );
-                storeCopied = true;
             }
             catch ( StoreCopyFailedException e )
             {
@@ -242,13 +238,8 @@ public class CoreStateDownloader
                 localDatabase.dataSource().getDependencyResolver().resolveDependency( StorageEngine.class );
         if ( storageEngine instanceof RecordStorageEngine )
         {
-            RecordStorageEngine recordStorageEngine = (RecordStorageEngine) storageEngine;
-            if ( storeCopied )
-            {
-                ensure( recordStorageEngine::syncTokenHoldersToStore, "sync token holders to store after store copy" );
-                ensure( () -> recordStorageEngine.flushAndForce( IOLimiter.UNLIMITED ), "flush token stores after store copy" );
-            }
-            ensure( recordStorageEngine::reloadTokensAndSchemaFromStore, "reload token holders after snapshot install" );
+            ensure( ((RecordStorageEngine) storageEngine)::reloadTokensAndSchemaFromStore,
+                    "reload token holders after snapshot install" );
         }
 
         coreStateMachines.installCommitProcess( localDatabase.getCommitProcess() );

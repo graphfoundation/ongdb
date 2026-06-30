@@ -35,7 +35,6 @@
 package org.neo4j.causalclustering.core.state.machines;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import org.neo4j.causalclustering.catchup.storecopy.LocalDatabase;
@@ -48,6 +47,7 @@ import org.neo4j.internal.kernel.api.NamedToken;
 import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
 import org.neo4j.kernel.impl.store.NeoStores;
 import org.neo4j.kernel.impl.store.TokenStore;
+import org.neo4j.kernel.impl.store.record.RecordLoad;
 import org.neo4j.kernel.impl.store.record.TokenRecord;
 import org.neo4j.kernel.impl.transaction.CommittedTransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.command.Command;
@@ -174,18 +174,17 @@ public class CoreStateMachines
         propertyKeyTokenStateMachine.installCommitProcess( localCommit, lastAppliedIndex );
     }
 
-    private static final long RAFT_LOG_BOOTSTRAP_WAIT_MILLIS = TimeUnit.SECONDS.toMillis( 30 );
-
     /**
      * Seed replicated token registries after store copy. Snapshot install skips the local raft log to the
-     * copied index without retaining historical entries, so registries are rebuilt from the raft log when
-     * it has caught up and from committed transaction-log token commands as a fallback.
+     * copied index without retaining historical entries, so registries are rebuilt from whatever raft entries
+     * are already present, from committed transaction-log token commands, and from readable on-disk slots.
      */
     public void bootstrapReplicatedTokensAfterStoreCopy( ReadableRaftLog raftLog, long snapshotPrevIndex,
-            LocalDatabase localDatabase ) throws IOException, InterruptedException
+            LocalDatabase localDatabase ) throws IOException
     {
-        waitForRaftLogThroughIndex( raftLog, snapshotPrevIndex );
-        bootstrapReplicatedTokensFromRaftLog( raftLog, snapshotPrevIndex );
+        long raftScanLimit = snapshotPrevIndex < 0 ? raftLog.appendIndex()
+                : Math.min( raftLog.appendIndex(), snapshotPrevIndex );
+        bootstrapReplicatedTokensFromRaftLog( raftLog, raftScanLimit );
         bootstrapReplicatedTokensFromTxLog( localDatabase );
         bootstrapReplicatedTokensFromTokenStores( localDatabase );
     }
@@ -207,8 +206,13 @@ public class CoreStateMachines
     private static <RECORD extends TokenRecord> void bootstrapStoreTokens(
             TokenStore<RECORD> store, ReplicatedTokenStateMachine stateMachine )
     {
+        RECORD probe = store.newRecord();
         for ( long id = 0, highId = store.getHighId(); id < highId; id++ )
         {
+            if ( !store.getRecord( id, probe, RecordLoad.CHECK ).inUse() )
+            {
+                continue;
+            }
             try
             {
                 stateMachine.registerTokenIfAbsent( store.getToken( (int) id ) );
@@ -217,24 +221,6 @@ public class CoreStateMachines
             {
                 // Unreadable token slot; tx-log or raft bootstrap must supply the name.
             }
-        }
-    }
-
-    private static void waitForRaftLogThroughIndex( ReadableRaftLog raftLog, long toIndexInclusive )
-            throws InterruptedException
-    {
-        if ( toIndexInclusive < 0 )
-        {
-            return;
-        }
-        long deadline = System.currentTimeMillis() + RAFT_LOG_BOOTSTRAP_WAIT_MILLIS;
-        while ( raftLog.appendIndex() < toIndexInclusive )
-        {
-            if ( System.currentTimeMillis() > deadline )
-            {
-                break;
-            }
-            Thread.sleep( 50 );
         }
     }
 
