@@ -46,9 +46,11 @@ import java.util.List;
 import java.util.function.Supplier;
 
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.helpers.collection.Iterables;
 import org.neo4j.helpers.collection.Iterators;
 import org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector;
 import org.neo4j.internal.diagnostics.DiagnosticsManager;
+import org.neo4j.internal.kernel.api.NamedToken;
 import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.internal.kernel.api.exceptions.schema.ConstraintValidationException;
@@ -93,13 +95,18 @@ import org.neo4j.kernel.impl.locking.LockGroup;
 import org.neo4j.kernel.impl.locking.LockService;
 import org.neo4j.kernel.impl.storageengine.impl.recordstorage.id.IdController;
 import org.neo4j.kernel.impl.store.NeoStores;
+import org.neo4j.kernel.impl.store.PropertyStore;
 import org.neo4j.kernel.impl.store.RecordStore;
 import org.neo4j.kernel.impl.store.SchemaStorage;
 import org.neo4j.kernel.impl.store.StoreFactory;
 import org.neo4j.kernel.impl.store.StoreType;
+import org.neo4j.kernel.impl.store.TokenStore;
 import org.neo4j.kernel.impl.store.format.RecordFormat;
 import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
+import org.neo4j.kernel.impl.store.record.DynamicRecord;
+import org.neo4j.kernel.impl.store.record.RecordLoad;
+import org.neo4j.kernel.impl.store.record.TokenRecord;
 import org.neo4j.kernel.impl.transaction.command.CacheInvalidationBatchTransactionApplier;
 import org.neo4j.kernel.impl.transaction.command.HighIdBatchTransactionApplier;
 import org.neo4j.kernel.impl.transaction.command.IndexActivator;
@@ -525,6 +532,7 @@ public class RecordStorageEngine implements StorageEngine, Lifecycle
      */
     public void reloadTokensAndSchemaFromStore()
     {
+        neoStores.flush( IOLimiter.UNLIMITED );
         tokenHolders.propertyKeyTokens().setInitialTokens(
                 neoStores.getPropertyKeyTokenStore().getTokens() );
         tokenHolders.relationshipTypeTokens().setInitialTokens(
@@ -532,6 +540,47 @@ public class RecordStorageEngine implements StorageEngine, Lifecycle
         tokenHolders.labelTokens().setInitialTokens(
                 neoStores.getLabelTokenStore().getTokens() );
         loadSchemaCache();
+    }
+
+    /**
+     * Persist in-memory token holders to the on-disk token stores.
+     * Causal clustering cores keep authoritative tokens in replicated holders; store copy streams
+     * files from disk, so holders must be flushed to store before the atomic snapshot.
+     */
+    public void syncTokenHoldersToStore()
+    {
+        syncTokenStore( neoStores.getPropertyKeyTokenStore(), tokenHolders.propertyKeyTokens().getAllTokens() );
+        syncTokenStore( neoStores.getLabelTokenStore(), tokenHolders.labelTokens().getAllTokens() );
+        syncTokenStore( neoStores.getRelationshipTypeTokenStore(), tokenHolders.relationshipTypeTokens().getAllTokens() );
+    }
+
+    private <RECORD extends TokenRecord> void syncTokenStore( TokenStore<RECORD> store, Iterable<NamedToken> tokens )
+    {
+        for ( NamedToken token : tokens )
+        {
+            RECORD record = store.getRecord( token.id(), store.newRecord(), RecordLoad.CHECK );
+            if ( !record.inUse() || !token.name().equals( tokenName( store, record ) ) )
+            {
+                RECORD newRecord = store.newRecord();
+                newRecord.setId( token.id() );
+                newRecord.setInUse( true );
+                Collection<DynamicRecord> nameRecords =
+                        store.allocateNameRecords( PropertyStore.encodeString( token.name() ) );
+                newRecord.setNameId( (int) Iterables.first( nameRecords ).getId() );
+                newRecord.addNameRecords( nameRecords );
+                store.updateRecord( newRecord );
+            }
+        }
+    }
+
+    private <RECORD extends TokenRecord> String tokenName( TokenStore<RECORD> store, RECORD record )
+    {
+        if ( !record.inUse() )
+        {
+            return null;
+        }
+        store.ensureHeavy( record );
+        return store.getStringFor( record );
     }
 
     @Override
@@ -542,8 +591,13 @@ public class RecordStorageEngine implements StorageEngine, Lifecycle
             @Override
             public void init()
             {
-                reloadTokensAndSchemaFromStore();
                 indexingService.init();
+            }
+
+            @Override
+            public void start()
+            {
+                reloadTokensAndSchemaFromStore();
             }
         };
     }
