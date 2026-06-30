@@ -110,6 +110,15 @@ class PersistentSnapshotDownloader implements Runnable
         finally
         {
             applicationProcess.resumeApplier( OPERATION_NAME );
+            try
+            {
+                downloader.refreshReplicatedTokensAfterApplierResume();
+            }
+            catch ( Throwable e )
+            {
+                log.error( "Failed to refresh replicated tokens after store copy", e );
+                dbHealth.get().panic( e );
+            }
             state = State.COMPLETED;
         }
     }

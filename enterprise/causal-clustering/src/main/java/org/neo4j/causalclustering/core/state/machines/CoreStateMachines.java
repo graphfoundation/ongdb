@@ -35,11 +35,13 @@
 package org.neo4j.causalclustering.core.state.machines;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import org.neo4j.causalclustering.catchup.storecopy.LocalDatabase;
 import org.neo4j.causalclustering.core.consensus.log.RaftLogCursor;
 import org.neo4j.causalclustering.core.consensus.log.ReadableRaftLog;
+import org.neo4j.causalclustering.core.replication.DistributedOperation;
 import org.neo4j.causalclustering.core.replication.ReplicatedContent;
 import org.neo4j.cursor.IOCursor;
 import org.neo4j.graphdb.DependencyResolver;
@@ -47,6 +49,7 @@ import org.neo4j.internal.kernel.api.NamedToken;
 import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
 import org.neo4j.kernel.impl.store.NeoStores;
 import org.neo4j.kernel.impl.store.TokenStore;
+import org.neo4j.kernel.impl.store.record.Record;
 import org.neo4j.kernel.impl.store.record.RecordLoad;
 import org.neo4j.kernel.impl.store.record.TokenRecord;
 import org.neo4j.kernel.impl.transaction.CommittedTransactionRepresentation;
@@ -174,14 +177,17 @@ public class CoreStateMachines
         propertyKeyTokenStateMachine.installCommitProcess( localCommit, lastAppliedIndex );
     }
 
+    private static final long RAFT_LOG_BOOTSTRAP_WAIT_MILLIS = TimeUnit.SECONDS.toMillis( 30 );
+
     /**
      * Seed replicated token registries after store copy. Snapshot install skips the local raft log to the
-     * copied index without retaining historical entries, so registries are rebuilt from whatever raft entries
-     * are already present, from committed transaction-log token commands, and from readable on-disk slots.
+     * copied index without retaining historical entries, so registries are rebuilt from the raft log when
+     * it has caught up and from committed transaction-log token commands and readable on-disk slots.
      */
     public void bootstrapReplicatedTokensAfterStoreCopy( ReadableRaftLog raftLog, long snapshotPrevIndex,
-            LocalDatabase localDatabase ) throws IOException
+            LocalDatabase localDatabase ) throws IOException, InterruptedException
     {
+        waitForRaftLogThroughIndex( raftLog, snapshotPrevIndex );
         long raftScanLimit = snapshotPrevIndex < 0 ? raftLog.appendIndex()
                 : Math.min( raftLog.appendIndex(), snapshotPrevIndex );
         bootstrapReplicatedTokensFromRaftLog( raftLog, raftScanLimit );
@@ -206,12 +212,28 @@ public class CoreStateMachines
     private static <RECORD extends TokenRecord> void bootstrapStoreTokens(
             TokenStore<RECORD> store, ReplicatedTokenStateMachine stateMachine )
     {
+        for ( NamedToken token : store.getTokens() )
+        {
+            stateMachine.registerTokenIfAbsent( token );
+        }
         RECORD probe = store.newRecord();
         for ( long id = 0, highId = store.getHighId(); id < highId; id++ )
         {
             if ( !store.getRecord( id, probe, RecordLoad.CHECK ).inUse() )
             {
                 continue;
+            }
+            if ( probe.getNameId() != Record.RESERVED.intValue() )
+            {
+                try
+                {
+                    stateMachine.registerTokenIfAbsent( new NamedToken( store.getStringFor( probe ), (int) id ) );
+                    continue;
+                }
+                catch ( RuntimeException ignored )
+                {
+                    // Fall through to getToken probe.
+                }
             }
             try
             {
@@ -221,6 +243,24 @@ public class CoreStateMachines
             {
                 // Unreadable token slot; tx-log or raft bootstrap must supply the name.
             }
+        }
+    }
+
+    private static void waitForRaftLogThroughIndex( ReadableRaftLog raftLog, long toIndexInclusive )
+            throws InterruptedException
+    {
+        if ( toIndexInclusive < 0 )
+        {
+            return;
+        }
+        long deadline = System.currentTimeMillis() + RAFT_LOG_BOOTSTRAP_WAIT_MILLIS;
+        while ( raftLog.appendIndex() < toIndexInclusive )
+        {
+            if ( System.currentTimeMillis() > deadline )
+            {
+                break;
+            }
+            Thread.sleep( 50 );
         }
     }
 
@@ -239,7 +279,7 @@ public class CoreStateMachines
                 {
                     break;
                 }
-                ReplicatedContent content = cursor.get().content();
+                ReplicatedContent content = unwrapDistributedOperation( cursor.get().content() );
                 if ( content instanceof ReplicatedTokenRequest )
                 {
                     registerTokenFromRequest( (ReplicatedTokenRequest) content );
@@ -365,6 +405,15 @@ public class CoreStateMachines
                 return null;
             }
         }
+    }
+
+    private static ReplicatedContent unwrapDistributedOperation( ReplicatedContent content )
+    {
+        while ( content instanceof DistributedOperation )
+        {
+            content = ((DistributedOperation) content).content();
+        }
+        return content;
     }
 
     private void registerTokenFromRequest( ReplicatedTokenRequest request )

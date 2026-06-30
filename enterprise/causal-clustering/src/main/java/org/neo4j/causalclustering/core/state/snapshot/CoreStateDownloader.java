@@ -245,7 +245,39 @@ public class CoreStateDownloader
         coreStateMachines.installCommitProcess( localDatabase.getCommitProcess() );
         ensure( suspendOnStoreCopy::enable, "enable auxiliary services after store copy" );
 
+        lastSuccessfulSnapshotPrevIndex = coreSnapshot.prevIndex();
         return true;
+    }
+
+    private volatile long lastSuccessfulSnapshotPrevIndex = -1;
+
+    /**
+     * Re-scan the local raft log after the snapshot applier resumes. During download the applier is paused and
+     * the first bootstrap pass can run before replication fills the log with token commands already committed
+     * on the leader.
+     */
+    void refreshReplicatedTokensAfterApplierResume() throws IOException, InterruptedException
+    {
+        if ( lastSuccessfulSnapshotPrevIndex < 0 )
+        {
+            return;
+        }
+        try
+        {
+            log.info( "Refreshing replicated token holders after snapshot applier resume" );
+            coreStateMachines.bootstrapReplicatedTokensAfterStoreCopy(
+                    raftLog, lastSuccessfulSnapshotPrevIndex, localDatabase );
+            StorageEngine storageEngine =
+                    localDatabase.dataSource().getDependencyResolver().resolveDependency( StorageEngine.class );
+            if ( storageEngine instanceof RecordStorageEngine )
+            {
+                ((RecordStorageEngine) storageEngine).reloadTokensAndSchemaFromStore();
+            }
+        }
+        finally
+        {
+            lastSuccessfulSnapshotPrevIndex = -1;
+        }
     }
 
     public interface LifecycleAction
