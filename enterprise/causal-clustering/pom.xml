@@ -263,4 +263,22 @@
         </dependency>
     </dependencies>
 
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <configuration>
+                    <!-- One scenario IT class per JVM; reuseForks accumulates Netty selectors across classes. -->
+                    <forkCount>1</forkCount>
+                    <reuseForks>false</reuseForks>
+                    <systemPropertyVariables>
+                        <!-- Default is 2×CPU selector threads per Bolt server; multi-cluster ITs exhaust FDs. -->
+                        <org.neo4j.selectorThreads>1</org.neo4j.selectorThreads>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
 </project>

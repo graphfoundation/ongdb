@@ -141,7 +141,7 @@ public class Server extends SuspendableLifeCycle
     @Override
     protected void stop0()
     {
-        if ( channel == null )
+        if ( channel == null && workerGroup == null )
         {
             return;
         }
@@ -149,20 +149,34 @@ public class Server extends SuspendableLifeCycle
         debugLog.info( serverName + ": stopping and unbinding from: " + listenAddress );
         try
         {
-            channel.close().sync();
-            channel = null;
+            if ( channel != null )
+            {
+                try
+                {
+                    channel.close().sync();
+                }
+                catch ( InterruptedException e )
+                {
+                    Thread.currentThread().interrupt();
+                    debugLog.warn( "Interrupted while closing channel." );
+                }
+                finally
+                {
+                    channel = null;
+                }
+            }
         }
-        catch ( InterruptedException e )
+        finally
         {
-            Thread.currentThread().interrupt();
-            debugLog.warn( "Interrupted while closing channel." );
+            if ( workerGroup != null )
+            {
+                if ( workerGroup.shutdownGracefully( 2, 5, TimeUnit.SECONDS ).awaitUninterruptibly( 10, TimeUnit.SECONDS ) )
+                {
+                    debugLog.warn( "Worker group not shutdown within 10 seconds." );
+                }
+                workerGroup = null;
+            }
         }
-
-        if ( workerGroup != null && workerGroup.shutdownGracefully( 2, 5, TimeUnit.SECONDS ).awaitUninterruptibly( 10, TimeUnit.SECONDS ) )
-        {
-            debugLog.warn( "Worker group not shutdown within 10 seconds." );
-        }
-        workerGroup = null;
     }
 
     @Override

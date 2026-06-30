@@ -69,6 +69,12 @@ import static org.neo4j.helpers.collection.MapUtil.stringMap;
  */
 public class ClusterRule extends ExternalResource
 {
+    /**
+     * Scenario IT classes share a failsafe JVM fork; only one embedded cluster may be live at a time or Netty
+     * selectors accumulate until read-replica / catchup startup hits EMFILE.
+     */
+    private static final Object CLUSTER_LIFE_CYCLE_LOCK = new Object();
+
     private final TestDirectory testDirectory;
     private File clusterDirectory;
     private Cluster cluster;
@@ -126,9 +132,19 @@ public class ClusterRule extends ExternalResource
     @Override
     protected void after()
     {
-        if ( cluster != null )
+        synchronized ( CLUSTER_LIFE_CYCLE_LOCK )
         {
-            cluster.shutdown();
+            if ( cluster != null )
+            {
+                try
+                {
+                    cluster.shutdown();
+                }
+                finally
+                {
+                    cluster = null;
+                }
+            }
         }
     }
 

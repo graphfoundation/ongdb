@@ -111,52 +111,68 @@ public class NettyServer extends LifecycleAdapter
         boolean useEpoll = USE_EPOLL && Epoll.isAvailable();
         ServerConfigurationProvider configurationProvider = useEpoll ? EpollConfigurationProvider.INSTANCE :
                                                             NioConfigurationProvider.INSTANCE;
-        bossGroup = configurationProvider.createEventLoopGroup(1, tf);
+        bossGroup = configurationProvider.createEventLoopGroup( 1, tf );
 
-        // These threads handle live channels. Each thread has a set of channels it is responsible for, and it will
-        // continuously run a #select() loop to react to new events on these channels.
-        selectorGroup = configurationProvider.createEventLoopGroup( NUM_SELECTOR_THREADS, tf );
-
-        // Bootstrap the various ports and protocols we want to handle
-
-        for ( Map.Entry<BoltConnector, ProtocolInitializer> bootstrapEntry : bootstrappersMap.entrySet() )
+        try
         {
-            try
+            // These threads handle live channels. Each thread has a set of channels it is responsible for, and it will
+            // continuously run a #select() loop to react to new events on these channels.
+            selectorGroup = configurationProvider.createEventLoopGroup( NUM_SELECTOR_THREADS, tf );
+
+            // Bootstrap the various ports and protocols we want to handle
+
+            for ( Map.Entry<BoltConnector, ProtocolInitializer> bootstrapEntry : bootstrappersMap.entrySet() )
             {
-                ProtocolInitializer protocolInitializer = bootstrapEntry.getValue();
-                BoltConnector boltConnector = bootstrapEntry.getKey();
-                ServerBootstrap serverBootstrap = createServerBootstrap( configurationProvider, protocolInitializer );
-                ChannelFuture channelFuture = serverBootstrap.bind( protocolInitializer.address().socketAddress() ).sync();
-                InetSocketAddress localAddress = (InetSocketAddress) channelFuture.channel().localAddress();
-                connectionRegister.register( boltConnector.key(), localAddress );
-                String host = protocolInitializer.address().getHostname();
-                int port = localAddress.getPort();
-                if ( host.contains( ":" ) )
+                try
                 {
-                    // IPv6
-                    log.info( "Bolt enabled on [%s]:%s.", host, port );
+                    ProtocolInitializer protocolInitializer = bootstrapEntry.getValue();
+                    BoltConnector boltConnector = bootstrapEntry.getKey();
+                    ServerBootstrap serverBootstrap = createServerBootstrap( configurationProvider, protocolInitializer );
+                    ChannelFuture channelFuture = serverBootstrap.bind( protocolInitializer.address().socketAddress() ).sync();
+                    InetSocketAddress localAddress = (InetSocketAddress) channelFuture.channel().localAddress();
+                    connectionRegister.register( boltConnector.key(), localAddress );
+                    String host = protocolInitializer.address().getHostname();
+                    int port = localAddress.getPort();
+                    if ( host.contains( ":" ) )
+                    {
+                        // IPv6
+                        log.info( "Bolt enabled on [%s]:%s.", host, port );
+                    }
+                    else
+                    {
+                        // IPv4
+                        log.info( "Bolt enabled on %s:%s.", host, port );
+                    }
                 }
-                else
+                catch ( Throwable e )
                 {
-                    // IPv4
-                    log.info( "Bolt enabled on %s:%s.", host, port );
+                    // We catch throwable here because netty uses clever tricks to have method signatures that look like they do not
+                    // throw checked exceptions, but they actually do. The compiler won't let us catch them explicitly because in theory
+                    // they shouldn't be possible, so we have to catch Throwable and do our own checks to grab them
+                    throw new PortBindException( bootstrapEntry.getValue().address(), e );
                 }
             }
-            catch ( Throwable e )
-            {
-                // We catch throwable here because netty uses clever tricks to have method signatures that look like they do not
-                // throw checked exceptions, but they actually do. The compiler won't let us catch them explicitly because in theory
-                // they shouldn't be possible, so we have to catch Throwable and do our own checks to grab them
-                throw new PortBindException( bootstrapEntry.getValue().address(), e );
-            }
+        }
+        catch ( Throwable e )
+        {
+            stop();
+            throw e;
         }
     }
 
     @Override
     public void stop()
     {
-        bossGroup.shutdownGracefully();
-        selectorGroup.shutdownGracefully();
+        if ( bossGroup != null )
+        {
+            bossGroup.shutdownGracefully();
+            bossGroup = null;
+        }
+        if ( selectorGroup != null )
+        {
+            selectorGroup.shutdownGracefully();
+            selectorGroup = null;
+        }
     }
 
     private ServerBootstrap createServerBootstrap( ServerConfigurationProvider configurationProvider, ProtocolInitializer protocolInitializer )

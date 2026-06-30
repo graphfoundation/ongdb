@@ -86,7 +86,6 @@ import static org.neo4j.function.Predicates.awaitEx;
 import static org.neo4j.function.Predicates.notNull;
 import static org.neo4j.helpers.collection.Iterables.firstOrNull;
 import static org.neo4j.kernel.api.exceptions.Status.Transaction.LockSessionExpired;
-import static org.neo4j.util.concurrent.Futures.combine;
 
 public class Cluster
 {
@@ -270,20 +269,18 @@ public class Cluster
         }
     }
 
-    @SuppressWarnings( "unchecked" )
     private void shutdownMembers( Collection<? extends ClusterMember> clusterMembers, ErrorHandler errorHandler )
     {
-        try
+        for ( ClusterMember<?> member : clusterMembers )
         {
-            combine( invokeAll( "cluster-shutdown", clusterMembers, cm ->
+            try
             {
-                cm.shutdown();
-                return null;
-            } ) ).get();
-        }
-        catch ( Exception e )
-        {
-            errorHandler.add( e );
+                member.shutdown();
+            }
+            catch ( Exception e )
+            {
+                errorHandler.add( e );
+            }
         }
     }
 
