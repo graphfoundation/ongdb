@@ -206,11 +206,14 @@ public class ReadReplicaReplicationIT
 
         monitors.addMonitorListener( (FileCopyMonitor) file ->
         {
-            Path relativPath = readReplicateStoreDir.relativize( file.toPath().toAbsolutePath() );
-            relativPath = relativPath.subpath( 1, relativPath.getNameCount() );
-            if ( labelScanStoreFiles.contains( relativPath ) )
+            Path copiedFile = file.toPath().toAbsolutePath();
+            Path relativPath = readReplicateStoreDir.relativize( copiedFile );
+            for ( Path labelScanStoreFile : labelScanStoreFiles )
             {
-                labelScanStoreCorrectlyPlaced.set( true );
+                if ( relativPath.endsWith( labelScanStoreFile ) || copiedFile.endsWith( labelScanStoreFile ) )
+                {
+                    labelScanStoreCorrectlyPlaced.set( true );
+                }
             }
         } );
 

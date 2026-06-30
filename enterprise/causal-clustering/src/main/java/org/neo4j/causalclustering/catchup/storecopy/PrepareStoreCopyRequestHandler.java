@@ -45,10 +45,13 @@ import java.util.function.Supplier;
 import org.neo4j.causalclustering.catchup.CatchupServerProtocol;
 import org.neo4j.causalclustering.catchup.ResponseMessageType;
 import org.neo4j.graphdb.Resource;
+import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.kernel.NeoStoreDataSource;
+import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.SimpleTriggerInfo;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.StoreCopyCheckPointMutex;
+import org.neo4j.storageengine.api.StorageEngine;
 
 import static org.neo4j.causalclustering.catchup.storecopy.DataSourceChecks.hasSameStoreId;
 
@@ -89,6 +92,14 @@ public class PrepareStoreCopyRequestHandler extends SimpleChannelInboundHandler<
             {
                 CheckPointer checkPointer = neoStoreDataSource.getDependencyResolver().resolveDependency( CheckPointer.class );
                 closeablesListener.add( tryCheckpointAndAcquireMutex( checkPointer ) );
+                StorageEngine storageEngine =
+                        neoStoreDataSource.getDependencyResolver().resolveDependency( StorageEngine.class );
+                if ( storageEngine instanceof RecordStorageEngine )
+                {
+                    RecordStorageEngine recordStorageEngine = (RecordStorageEngine) storageEngine;
+                    recordStorageEngine.syncTokenHoldersToStore();
+                    recordStorageEngine.flushAndForce( IOLimiter.UNLIMITED );
+                }
                 PrepareStoreCopyFiles prepareStoreCopyFiles =
                         closeablesListener.add( prepareStoreCopyFilesProvider.prepareStoreCopyFiles( neoStoreDataSource ) );
 
