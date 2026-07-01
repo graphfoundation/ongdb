@@ -171,6 +171,9 @@ public class CoreStateDownloaderTest
         when( localDatabase.isEmpty() ).thenReturn( false );
         when( remoteStore.getStoreId( remoteAddress ) ).thenReturn( storeId );
         when( remoteStore.tryCatchingUp( remoteAddress, storeId, databaseLayout, false ) ).thenReturn( SUCCESS_END_OF_STREAM );
+        RaftLogCursor raftLogCursor = mock( RaftLogCursor.class );
+        when( raftLogCursor.next() ).thenReturn( true, false );
+        when( raftLog.getEntryCursor( 0 ) ).thenReturn( raftLogCursor );
 
         // when
         downloader.downloadSnapshot( catchupAddressProvider );

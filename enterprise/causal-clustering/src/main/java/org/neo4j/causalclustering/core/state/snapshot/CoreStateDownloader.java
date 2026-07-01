@@ -52,6 +52,7 @@ import org.neo4j.causalclustering.catchup.storecopy.StoreCopyProcess;
 import org.neo4j.causalclustering.catchup.storecopy.StoreIdDownloadFailedException;
 import org.neo4j.causalclustering.core.state.CoreSnapshotService;
 import org.neo4j.causalclustering.core.state.machines.CoreStateMachines;
+import org.neo4j.causalclustering.core.consensus.log.RaftLogCursor;
 import org.neo4j.causalclustering.core.consensus.log.ReadableRaftLog;
 import org.neo4j.causalclustering.helper.Suspendable;
 import org.neo4j.causalclustering.identity.StoreId;
@@ -114,6 +115,7 @@ public class CoreStateDownloader
     {
         /* Extract some key properties before shutting it down. */
         boolean isEmptyStore = localDatabase.isEmpty();
+        boolean hadRaftLogEntriesBeforeDownload = hasLocalRaftLogEntries();
 
         /*
          *  There is no reason to try to recover if there are no transaction logs and in fact it is
@@ -207,11 +209,15 @@ public class CoreStateDownloader
             }
             else
             {
-                /* Rejoining cores reuse prior data directories. On-disk token stores can lag replicated
-                 * in-memory holders on the source, so take a synced store copy after catch-up. */
-                log.info( "Replacing local store with synced copy from %s after catch-up", primary );
-                localDatabase.delete();
-                isEmptyStore = true;
+                if ( hadRaftLogEntriesBeforeDownload )
+                {
+                    /* Rejoining cores reuse prior data directories. On-disk token stores can lag replicated
+                     * in-memory holders on the source, so take a synced store copy after catch-up. Seeded cores
+                     * with a fresh raft log already have a complete store from backup restore. */
+                    log.info( "Replacing local store with synced copy from %s after catch-up", primary );
+                    localDatabase.delete();
+                    isEmptyStore = true;
+                }
             }
         }
 
@@ -285,6 +291,18 @@ public class CoreStateDownloader
         finally
         {
             lastSuccessfulSnapshotPrevIndex = -1;
+        }
+    }
+
+    private boolean hasLocalRaftLogEntries()
+    {
+        try ( RaftLogCursor cursor = raftLog.getEntryCursor( 0 ) )
+        {
+            return cursor.next();
+        }
+        catch ( IOException e )
+        {
+            return false;
         }
     }
 
