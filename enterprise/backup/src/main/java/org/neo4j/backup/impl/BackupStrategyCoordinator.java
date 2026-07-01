@@ -46,6 +46,7 @@ import org.neo4j.consistency.ConsistencyCheckService;
 import org.neo4j.consistency.checking.full.ConsistencyFlags;
 import org.neo4j.helpers.progress.ProgressMonitorFactory;
 import org.neo4j.io.layout.DatabaseLayout;
+import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.logging.LogProvider;
 
@@ -67,15 +68,20 @@ class BackupStrategyCoordinator
     private final LogProvider logProvider;
     private final ProgressMonitorFactory progressMonitorFactory;
     private final List<BackupStrategyWrapper> strategies;
+    private final BackupRecoveryService backupRecoveryService;
+    private final PageCache pageCache;
 
     BackupStrategyCoordinator( ConsistencyCheckService consistencyCheckService, OutsideWorld outsideWorld, LogProvider logProvider,
-            ProgressMonitorFactory progressMonitorFactory, List<BackupStrategyWrapper> strategies )
+            ProgressMonitorFactory progressMonitorFactory, List<BackupStrategyWrapper> strategies,
+            BackupRecoveryService backupRecoveryService, PageCache pageCache )
     {
         this.consistencyCheckService = consistencyCheckService;
         this.outsideWorld = outsideWorld;
         this.logProvider = logProvider;
         this.progressMonitorFactory = progressMonitorFactory;
         this.strategies = strategies;
+        this.backupRecoveryService = backupRecoveryService;
+        this.pageCache = pageCache;
     }
 
     /**
@@ -115,7 +121,9 @@ class BackupStrategyCoordinator
         }
         if ( requiredArgs.isDoConsistencyCheck() )
         {
-            performConsistencyCheck( onlineBackupContext.getConfig(), requiredArgs, consistencyFlags, DatabaseLayout.of( destination.toFile() ) );
+            DatabaseLayout databaseLayout = DatabaseLayout.of( destination.toFile() );
+            backupRecoveryService.recoverWithDatabase( destination, pageCache, onlineBackupContext.getConfig() );
+            performConsistencyCheck( onlineBackupContext.getConfig(), requiredArgs, consistencyFlags, databaseLayout );
         }
     }
 

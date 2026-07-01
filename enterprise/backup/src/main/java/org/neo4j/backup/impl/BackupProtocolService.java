@@ -77,6 +77,9 @@ import org.neo4j.kernel.extension.KernelExtensionFactory;
 import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
 import org.neo4j.kernel.impl.store.MismatchingStoreIdException;
 import org.neo4j.kernel.impl.store.UnexpectedStoreVersionException;
+import org.neo4j.kernel.impl.store.MetaDataStore;
+import org.neo4j.kernel.impl.store.format.RecordFormatSelector;
+import org.neo4j.kernel.impl.store.format.RecordFormats;
 import org.neo4j.kernel.impl.store.id.IdGeneratorImpl;
 import org.neo4j.kernel.impl.storemigration.UpgradeNotAllowedByConfigurationException;
 import org.neo4j.kernel.impl.transaction.log.MissingLogDataException;
@@ -227,7 +230,9 @@ public class BackupProtocolService
             config.augment( temporaryDbConfig );
 
             Map<String,String> configParams = config.getRaw();
-            GraphDatabaseAPI targetDb = startTemporaryDb( targetLayout.databaseDirectory().toPath(), pageCache, configParams );
+            pageCache.flushAndForce();
+            GraphDatabaseAPI targetDb = startTemporaryDb( targetLayout.databaseDirectory().toPath(), pageCache, configParams,
+                    fileSystem, logProvider );
             long backupStartTime = System.currentTimeMillis();
             long lastCommittedTx;
             try
@@ -291,6 +296,13 @@ public class BackupProtocolService
                 return fullBackup( fileSystem, sourceHostNameOrIp, sourcePort, databaseLayout, consistencyCheck,
                         config, timeout, forensics );
             }
+            if ( backupStoreVersionDiffersFromConfig( fileSystem, databaseLayout, config ) )
+            {
+                throw new UnexpectedStoreVersionException(
+                        "Failed to perform backup because existing backup is from a different version.",
+                        new UpgradeNotAllowedByConfigurationException(
+                                "Existing backup store version is incompatible with configuration." ) );
+            }
             try
             {
                 log.info( "Previous backup found, trying incremental backup." );
@@ -348,6 +360,28 @@ public class BackupProtocolService
         return anonymous( transactionIdStore.getLastCommittedTransactionId() );
     }
 
+    private boolean backupStoreVersionDiffersFromConfig( FileSystemAbstraction fileSystem, DatabaseLayout databaseLayout,
+            Config config )
+    {
+        File metadataStore = databaseLayout.metadataStore();
+        if ( !fileSystem.fileExists( metadataStore ) )
+        {
+            return false;
+        }
+        try
+        {
+            RecordFormats configuredFormat = RecordFormatSelector.selectForConfig( config, logProvider );
+            long expectedStoreVersion = MetaDataStore.versionStringToLong( configuredFormat.storeVersion() );
+            long onDiskStoreVersion =
+                    MetaDataStore.getRecord( pageCache, metadataStore, MetaDataStore.Position.STORE_VERSION );
+            return onDiskStoreVersion != expectedStoreVersion;
+        }
+        catch ( Exception e )
+        {
+            return false;
+        }
+    }
+
     private boolean directoryContainsDb( DatabaseLayout databaseLayout )
     {
         return Files.isRegularFile( databaseLayout.metadataStore().toPath() );
@@ -360,11 +394,19 @@ public class BackupProtocolService
     }
 
     static GraphDatabaseAPI startTemporaryDb(
-            Path targetDirectory, PageCache pageCache, Map<String,String> config )
+            Path targetDirectory, PageCache pageCache, Map<String,String> configParams, FileSystemAbstraction fileSystem,
+            LogProvider logProvider )
     {
+        File targetDir = targetDirectory.toFile();
+        DatabaseLayout targetLayout = DatabaseLayout.of( targetDir );
+        Config config = Config.defaults( configParams );
+        RecordFormats recordFormat =
+                RecordFormatSelector.selectForStoreOrConfig( config, targetLayout, fileSystem, pageCache, logProvider );
+
         GraphDatabaseFactory factory = ExternallyManagedPageCache.graphDatabaseFactoryWithPageCache( pageCache );
-        return (GraphDatabaseAPI) factory.newEmbeddedDatabaseBuilder( targetDirectory.toFile() )
-                .setConfig( config )
+        return (GraphDatabaseAPI) factory.newEmbeddedDatabaseBuilder( targetDir )
+                .setConfig( configParams )
+                .setConfig( GraphDatabaseSettings.record_format, recordFormat.name() )
                 .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
                 .newGraphDatabase();
     }

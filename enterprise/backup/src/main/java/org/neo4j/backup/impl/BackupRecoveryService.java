@@ -38,10 +38,13 @@ import java.nio.file.Path;
 import java.util.Map;
 
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.io.fs.DefaultFileSystemAbstraction;
+import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.logging.NullLogProvider;
 
 import static org.neo4j.backup.impl.BackupProtocolService.startTemporaryDb;
 
@@ -52,7 +55,8 @@ class BackupRecoveryService
         Map<String,String> configParams = config.getRaw();
         configParams.put( GraphDatabaseSettings.logical_logs_location.name(), targetDirectory.toString() );
         configParams.put( GraphDatabaseSettings.pagecache_warmup_enabled.name(), Settings.FALSE );
-        GraphDatabaseAPI targetDb = startTemporaryDb( targetDirectory, pageCache, configParams );
+        GraphDatabaseAPI targetDb = startTemporaryDb( targetDirectory, pageCache, configParams,
+                new DefaultFileSystemAbstraction(), NullLogProvider.getInstance() );
         targetDb.shutdown();
     }
 }
