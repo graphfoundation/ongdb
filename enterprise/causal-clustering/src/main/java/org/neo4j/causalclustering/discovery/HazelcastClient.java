@@ -90,7 +90,7 @@ public class HazelcastClient extends AbstractTopologyService
     public HazelcastClient( HazelcastConnector connector, JobScheduler scheduler, LogProvider logProvider, Config config, MemberId myself,
             TopologyServiceRetryStrategy topologyServiceRetryStrategy )
     {
-        this.hzInstance = new RobustHazelcastWrapper( connector );
+        this.hzInstance = new RobustHazelcastWrapper( connector, this::publishReadReplicaRegistration );
         this.config = config;
         this.log = logProvider.getLog( getClass() );
         this.scheduler = new RobustJobSchedulerWrapper( scheduler, log );
@@ -166,6 +166,7 @@ public class HazelcastClient extends AbstractTopologyService
     @Override
     public void start()
     {
+        scheduler.schedule( Group.HZ_TOPOLOGY_KEEP_ALIVE, 0, this::keepReadReplicaAlive );
         keepAliveJob = scheduler.scheduleRecurring( Group.HZ_TOPOLOGY_KEEP_ALIVE, timeToLive / 3, this::keepReadReplicaAlive );
         refreshTopologyJob = scheduler.scheduleRecurring( Group.HZ_TOPOLOGY_REFRESH, refreshPeriod, () -> {
             this.refreshTopology();
@@ -194,6 +195,18 @@ public class HazelcastClient extends AbstractTopologyService
             // Hazelcast is not able to stop correctly sometimes and throws a bunch of different exceptions
             // let's simply log the current problem but go on with our shutdown
             log.warn( "Unable to shutdown hazelcast cleanly", e );
+        }
+    }
+
+    private void publishReadReplicaRegistration()
+    {
+        try
+        {
+            keepReadReplicaAlive();
+        }
+        catch ( HazelcastInstanceNotActiveException e )
+        {
+            log.debug( "Unable to publish read replica registration after reconnect", e );
         }
     }
 

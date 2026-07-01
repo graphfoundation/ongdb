@@ -164,6 +164,7 @@ public class ClusterOverviewIT
         Cluster cluster = clusterRule.startCluster();
         cluster.shutdownCoreMembers();
         cluster.startCoreMembers();
+        cluster.awaitLeader();
 
         Matcher<List<MemberInfo>> expected = allOf(
                 containsAllMemberAddresses( cluster.coreMembers(), cluster.readReplicas() ),

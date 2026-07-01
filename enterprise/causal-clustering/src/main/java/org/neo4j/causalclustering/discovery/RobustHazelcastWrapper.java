@@ -47,12 +47,20 @@ import java.util.function.Function;
 class RobustHazelcastWrapper
 {
     private final HazelcastConnector connector;
+    private final Runnable onReconnect;
     private HazelcastInstance hzInstance;
     private boolean shutdown;
+    private boolean hadConnection;
 
     RobustHazelcastWrapper( HazelcastConnector connector )
     {
+        this( connector, () -> {} );
+    }
+
+    RobustHazelcastWrapper( HazelcastConnector connector, Runnable onReconnect )
+    {
         this.connector = connector;
+        this.onReconnect = onReconnect;
     }
 
     synchronized void shutdown()
@@ -62,6 +70,22 @@ class RobustHazelcastWrapper
             hzInstance.shutdown();
             hzInstance = null;
             shutdown = true;
+        }
+    }
+
+    private synchronized void invalidateConnection()
+    {
+        if ( hzInstance != null )
+        {
+            try
+            {
+                hzInstance.shutdown();
+            }
+            catch ( RuntimeException ignored )
+            {
+                // best-effort cleanup before reconnecting
+            }
+            hzInstance = null;
         }
     }
 
@@ -75,13 +99,21 @@ class RobustHazelcastWrapper
         if ( hzInstance == null )
         {
             hzInstance = connector.connectToHazelcast();
+            if ( hadConnection )
+            {
+                try
+                {
+                    onReconnect.run();
+                }
+                catch ( RuntimeException e )
+                {
+                    invalidateConnection();
+                    throw new HazelcastInstanceNotActiveException( e );
+                }
+            }
+            hadConnection = true;
         }
         return hzInstance;
-    }
-
-    private synchronized void invalidateConnection()
-    {
-        hzInstance = null;
     }
 
     synchronized <T> T apply( Function<HazelcastInstance,T> function ) throws HazelcastInstanceNotActiveException
@@ -96,6 +128,14 @@ class RobustHazelcastWrapper
         {
             invalidateConnection();
             throw new HazelcastInstanceNotActiveException( e );
+        }
+        catch ( RuntimeException e )
+        {
+            if ( isHazelcastFailure( e ) )
+            {
+                invalidateConnection();
+            }
+            throw e;
         }
     }
 
@@ -112,5 +152,30 @@ class RobustHazelcastWrapper
             invalidateConnection();
             throw new HazelcastInstanceNotActiveException( e );
         }
+        catch ( RuntimeException e )
+        {
+            if ( isHazelcastFailure( e ) )
+            {
+                invalidateConnection();
+            }
+            throw e;
+        }
+    }
+
+    private static boolean isHazelcastFailure( RuntimeException e )
+    {
+        for ( Throwable t = e; t != null; t = t.getCause() )
+        {
+            if ( t instanceof com.hazelcast.core.HazelcastInstanceNotActiveException )
+            {
+                return true;
+            }
+            Package pkg = t.getClass().getPackage();
+            if ( pkg != null && pkg.getName().startsWith( "com.hazelcast" ) )
+            {
+                return true;
+            }
+        }
+        return false;
     }
 }

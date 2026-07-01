@@ -222,6 +222,14 @@ public class HazelcastCoreTopologyService extends AbstractTopologyService implem
             }
             membershipRegistrationId =
                     hazelcastInstance.getCluster().addMembershipListener( new OurMembershipListener() );
+            try
+            {
+                refreshTopology();
+            }
+            catch ( InterruptedException e )
+            {
+                Thread.currentThread().interrupt();
+            }
             refreshJob = scheduler.scheduleRecurring( Group.HZ_TOPOLOGY_REFRESH, refreshPeriod,
                     HazelcastCoreTopologyService.this::refreshTopology );
             log.info( "Cluster discovery service started" );

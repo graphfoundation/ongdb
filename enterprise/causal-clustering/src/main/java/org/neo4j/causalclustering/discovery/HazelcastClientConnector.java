@@ -72,6 +72,9 @@ public class HazelcastClientConnector implements HazelcastConnector
             }
         }
 
+        int connectionTimeoutMillis = (int) config.get( CausalClusteringSettings.leader_election_timeout ).toMillis();
+        networkConfig.setConnectionTimeout( connectionTimeoutMillis );
+
         additionalConfig( networkConfig, logProvider );
 
         return HazelcastClient.newHazelcastClient( clientConfig );
