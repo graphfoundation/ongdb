@@ -42,12 +42,14 @@ import java.util.Optional;
 
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.PagedFile;
 import org.neo4j.io.pagecache.tracing.cursor.context.VersionContextSupplier;
 import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.extension.KernelExtensionFactory;
 import org.neo4j.kernel.impl.enterprise.EnterpriseEditionModule;
 import org.neo4j.kernel.impl.factory.DatabaseInfo;
@@ -149,6 +151,13 @@ public class ExternallyManagedPageCache implements PageCache
         protected GraphDatabaseService newDatabase( File storeDir, Config config,
                 GraphDatabaseFacadeFactory.Dependencies dependencies )
         {
+            // Match GraphDatabaseFactory.newDatabase: builder paths are database directories, not store roots.
+            File absoluteStoreDir = storeDir.getAbsoluteFile();
+            File databasesRoot = absoluteStoreDir.getParentFile();
+            config.augment( GraphDatabaseSettings.ephemeral, Settings.FALSE );
+            config.augment( GraphDatabaseSettings.active_database, absoluteStoreDir.getName() );
+            config.augment( GraphDatabaseSettings.databases_root_path, databasesRoot.getAbsolutePath() );
+
             return new GraphDatabaseFacadeFactory( DatabaseInfo.ENTERPRISE, EnterpriseEditionModule::new )
             {
                 @Override
@@ -164,7 +173,7 @@ public class ExternallyManagedPageCache implements PageCache
                         }
                     };
                 }
-            }.newFacade( storeDir, config, dependencies );
+            }.newFacade( databasesRoot, config, dependencies );
         }
 
         public GraphDatabaseFactoryWithPageCacheFactory setKernelExtensions( Iterable<KernelExtensionFactory<?>> newKernelExtensions )

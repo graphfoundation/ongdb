@@ -44,17 +44,21 @@ import java.util.stream.Stream;
 
 import org.neo4j.com.Response;
 import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.factory.GraphDatabaseBuilder;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.CancellationRequest;
 import org.neo4j.helpers.collection.Visitor;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.FileUtils;
 import org.neo4j.io.layout.DatabaseLayout;
+import org.neo4j.io.layout.StoreLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.extension.KernelExtensionFactory;
 import org.neo4j.kernel.impl.store.MetaDataStore;
+import org.neo4j.kernel.impl.store.format.RecordFormatSelector;
+import org.neo4j.kernel.impl.store.format.RecordFormats;
 import org.neo4j.kernel.impl.transaction.CommittedTransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.log.FlushableChannel;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
@@ -127,43 +131,57 @@ public class StoreCopyClient
 
     public void copyStore( StoreCopyRequester requester, CancellationRequest cancellationRequest, MoveAfterCopy moveAfterCopy ) throws Exception
     {
-        // Create a temp directory (or clean if present)
-        File tempStore = databaseLayout.file( StoreUtil.TEMP_COPY_DIRECTORY_NAME );
+        // Stage under temp-copy/<database-name>/ to match multi-db DatabaseLayout (see TemporaryStoreDirectory).
+        File tempStoreRoot = databaseLayout.file( StoreUtil.TEMP_COPY_DIRECTORY_NAME );
+        DatabaseLayout tempDatabaseLayout = DatabaseLayout.of( tempStoreRoot, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
+        File tempDatabaseDirectory = tempDatabaseLayout.databaseDirectory();
         try
         {
-            cleanDirectory( tempStore );
+            cleanDirectory( tempDatabaseDirectory );
 
             // Request store files and transactions that will need recovery
             monitor.startReceivingStoreFiles();
-            ToFileStoreWriter storeWriter = new ToFileStoreWriter( tempStore, fs, monitor );
+            ToFileStoreWriter storeWriter = new ToFileStoreWriter( tempDatabaseDirectory, fs, monitor );
             try ( Response<?> response = requester.copyStore( decorateWithProgressIndicator( storeWriter ) ) )
             {
                 monitor.finishReceivingStoreFiles();
                 // Update highest archived log id
                 // Write transactions that happened during the copy to the currently active logical log
-                writeTransactionsToActiveLogFile( DatabaseLayout.of( tempStore ), response );
+                writeTransactionsToActiveLogFile( tempDatabaseLayout, response );
             }
             finally
             {
                 requester.done();
             }
 
+            File metadataStore = tempDatabaseLayout.metadataStore();
+            if ( !fs.fileExists( metadataStore ) )
+            {
+                throw new IOException( "Store copy did not receive metadata store at " + metadataStore );
+            }
+            if ( fs.getFileSize( metadataStore ) == 0 )
+            {
+                throw new IOException( "Store copy received empty metadata store at " + metadataStore );
+            }
+
+            pageCache.flushAndForce();
+
             // This is a good place to check if the switch has been cancelled
-            checkCancellation( cancellationRequest, tempStore );
+            checkCancellation( cancellationRequest, tempDatabaseDirectory );
 
             // Run recovery, so that the transactions we just wrote into the active log will be applied.
-            recoverDatabase( tempStore );
+            recoverDatabase( tempDatabaseDirectory );
 
             // All is well, move the streamed files to the real store directory.
             // Should only be record store files.
             // Note that the stream is lazy, so the file system traversal won't happen until *after* the store files
             // have been moved. Thus, we ensure that we only attempt to move them once.
-            moveFromTemporaryLocationToCorrect( tempStore, moveAfterCopy );
+            moveFromTemporaryLocationToCorrect( tempDatabaseDirectory, moveAfterCopy );
         }
         finally
         {
             // All done, delete temp directory
-            FileUtils.deleteRecursively( tempStore );
+            FileUtils.deleteRecursively( tempStoreRoot );
         }
     }
 
@@ -180,8 +198,15 @@ public class StoreCopyClient
     private void recoverDatabase( File tempStore )
     {
         monitor.startRecoveringStore();
+        File storeDirectory = tempStore.getParentFile();
         GraphDatabaseService graphDatabaseService = newTempDatabase( tempStore );
         graphDatabaseService.shutdown();
+        // Recovery opens the temp database under the target store directory; remove its lock before promotion.
+        File lockFile = StoreLayout.of( storeDirectory ).storeLockFile();
+        if ( lockFile.exists() )
+        {
+            FileUtils.deleteFile( lockFile );
+        }
         monitor.finishRecoveringStore();
     }
 
@@ -262,19 +287,30 @@ public class StoreCopyClient
 
     private GraphDatabaseService newTempDatabase( File tempStore )
     {
+        DatabaseLayout tempLayout = DatabaseLayout.of( tempStore );
+        LogProvider logProvider = NullLogProvider.getInstance();
+        RecordFormats recordFormat = RecordFormatSelector.selectForStoreOrConfig( config, tempLayout, fs, pageCache, logProvider );
+
         ExternallyManagedPageCache.GraphDatabaseFactoryWithPageCacheFactory factory =
                 ExternallyManagedPageCache.graphDatabaseFactoryWithPageCache( pageCache );
-        return factory
+        GraphDatabaseBuilder builder = factory
                 .setKernelExtensions( kernelExtensions )
-                .setUserLogProvider( NullLogProvider.getInstance() )
+                .setUserLogProvider( logProvider )
                 .newEmbeddedDatabaseBuilder( tempStore.getAbsoluteFile() )
+                .setConfig( GraphDatabaseSettings.active_database, tempStore.getName() )
                 .setConfig( "dbms.backup.enabled", Settings.FALSE )
                 .setConfig( GraphDatabaseSettings.pagecache_warmup_enabled, Settings.FALSE )
                 .setConfig( GraphDatabaseSettings.logs_directory, tempStore.getAbsolutePath() )
                 .setConfig( GraphDatabaseSettings.keep_logical_logs, Settings.TRUE )
                 .setConfig( GraphDatabaseSettings.logical_logs_location, tempStore.getAbsolutePath() )
                 .setConfig( GraphDatabaseSettings.allow_upgrade, config.get( GraphDatabaseSettings.allow_upgrade ).toString() )
-                .newGraphDatabase();
+                .setConfig( GraphDatabaseSettings.record_format, recordFormat.name() );
+        if ( config.isConfigured( GraphDatabaseSettings.default_schema_provider ) )
+        {
+            builder.setConfig( GraphDatabaseSettings.default_schema_provider,
+                    config.get( GraphDatabaseSettings.default_schema_provider ) );
+        }
+        return builder.newGraphDatabase();
     }
 
     private StoreWriter decorateWithProgressIndicator( final StoreWriter actual )
