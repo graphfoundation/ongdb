@@ -513,7 +513,7 @@ public class BackupProtocolServiceIT
         // it should be possible to at this point to start db based on our backup and create couple of properties
         // their ids should not clash with already existing
         GraphDatabaseService backupBasedDatabase = new TestGraphDatabaseFactory()
-                .newEmbeddedDatabaseBuilder( backupDir )
+                .newEmbeddedDatabaseBuilder( backupDatabaseLayout.databaseDirectory() )
                 .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
                 .newGraphDatabase();
         try
@@ -892,7 +892,11 @@ public class BackupProtocolServiceIT
         monitors.addMonitorListener( new StoreSnoopingMonitor( barrier, databaseLayout ) );
 
         Dependencies dependencies = new Dependencies( resolver );
-        dependencies.satisfyDependencies( defaultConfig, monitors, NullLogProvider.getInstance() );
+        Config extensionConfig = Config.builder()
+                .withSetting( OnlineBackupSettings.online_backup_enabled, Settings.TRUE )
+                .withSetting( OnlineBackupSettings.online_backup_server, BACKUP_HOST + ":" + backupPort )
+                .build();
+        dependencies.satisfyDependencies( extensionConfig, monitors, NullLogProvider.getInstance() );
 
         OnlineBackupKernelExtension backup = (OnlineBackupKernelExtension)
                 new OnlineBackupExtensionFactory().newInstance(
@@ -925,7 +929,7 @@ public class BackupProtocolServiceIT
         // then
         checkPreviousCommittedTxIdFromLog( 0, expectedLastTxId );
         PageCache pageCache = resolver.resolveDependency( PageCache.class );
-        long txIdFromOrigin = MetaDataStore.getRecord( pageCache, databaseLayout.databaseDirectory(), Position.LAST_TRANSACTION_ID );
+        long txIdFromOrigin = MetaDataStore.getRecord( pageCache, databaseLayout.metadataStore(), Position.LAST_TRANSACTION_ID );
         checkLastCommittedTxIdInLogAndNeoStore( expectedLastTxId + 1, txIdFromOrigin );
         assertEquals( DbRepresentation.of( db ), getBackupDbRepresentation() );
         assertTrue( backupOutcome.isConsistent() );
@@ -962,7 +966,11 @@ public class BackupProtocolServiceIT
         when( logService.getInternalLogProvider() ).thenReturn( logProvider );
 
         Dependencies dependencies = new Dependencies( dbRule.getDependencyResolver() );
-        dependencies.satisfyDependencies( config, monitors, logService );
+        Config extensionConfig = Config.builder()
+                .withSetting( OnlineBackupSettings.online_backup_enabled, Settings.TRUE )
+                .withSetting( OnlineBackupSettings.online_backup_server, BACKUP_HOST + ":" + backupPort )
+                .build();
+        dependencies.satisfyDependencies( extensionConfig, monitors, logService );
 
         OnlineBackupKernelExtension backup = (OnlineBackupKernelExtension)
                 new OnlineBackupExtensionFactory().newInstance(
@@ -1092,7 +1100,7 @@ public class BackupProtocolServiceIT
     private void checkPreviousCommittedTxIdFromLog( long logVersion, long txId ) throws IOException
     {
         // Assert header of specified log version containing correct txId
-        LogFiles logFiles = LogFilesBuilder.logFilesBasedOnlyBuilder( backupDir, fileSystem ).build();
+        LogFiles logFiles = LogFilesBuilder.logFilesBasedOnlyBuilder( backupDatabaseLayout.databaseDirectory(), fileSystem ).build();
         LogHeader logHeader = LogHeaderReader.readLogHeader( fileSystem, logFiles.getLogFileForVersion( logVersion ) );
         assertEquals( txId, logHeader.lastCommittedTxId );
     }
@@ -1128,7 +1136,7 @@ public class BackupProtocolServiceIT
 
     private void deleteAllBackedUpTransactionLogs() throws IOException
     {
-        LogFiles logFiles = LogFilesBuilder.logFilesBasedOnlyBuilder( backupDir, fileSystem ).build();
+        LogFiles logFiles = LogFilesBuilder.logFilesBasedOnlyBuilder( backupDatabaseLayout.databaseDirectory(), fileSystem ).build();
         for ( File log : logFiles.logFiles() )
         {
             fileSystem.deleteFile( log );
@@ -1153,7 +1161,7 @@ public class BackupProtocolServiceIT
     private DbRepresentation getBackupDbRepresentation()
     {
         Config config = Config.defaults( OnlineBackupSettings.online_backup_enabled, Settings.FALSE );
-        return DbRepresentation.of( backupDir, config );
+        return DbRepresentation.of( backupDatabaseLayout.databaseDirectory(), config );
     }
 
     private DbRepresentation getDbRepresentation()

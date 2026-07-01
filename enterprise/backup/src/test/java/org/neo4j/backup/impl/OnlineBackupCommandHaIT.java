@@ -48,12 +48,12 @@ import org.junit.runners.Parameterized.Parameters;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.PrintStream;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.neo4j.com.storecopy.StoreUtil;
 import org.neo4j.graphdb.DatabaseShutdownException;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
@@ -186,7 +186,8 @@ public class OnlineBackupCommandHaIT
         String ip = ":" + backupPort;
         String backupName = "usableState" + recordFormat;
         assertEquals( 0, runBackupTool( testDirectory.absolutePath(),
-                "--from", ip, "--cc-report-dir=" + backupDir, "--backup-dir=" + backupDir, "--name=" + backupName ) );
+                "--from", ip, "--cc-report-dir=" + backupDir, "--backup-dir=" + backupDir, "--name=" + backupName,
+                "--cc-label-scan-store=false" ) );
         db.shutdown();
     }
 
@@ -285,11 +286,12 @@ public class OnlineBackupCommandHaIT
 
         // then
         String output = byteArrayOutputStream.toString();
-        String legacyImplementationDetail = "temp-copy";
-        String location = Paths.get( backupDir.toString(), backupName, legacyImplementationDetail ).toString();
+        DatabaseLayout tempDatabaseLayout = DatabaseLayout.of(
+                DatabaseLayout.of( backupDir, backupName ).file( StoreUtil.TEMP_COPY_DIRECTORY_NAME ),
+                GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
+        String tested = tempDatabaseLayout.file( "neostore.nodestore.db.labels" ).getAbsolutePath();
         assertTrue( output.contains( "Start receiving store files" ) );
         assertTrue( output.contains( "Finish receiving store files" ) );
-        String tested = Paths.get( location, "neostore.nodestore.db.labels" ).toString();
         assertTrue( tested, output.contains( format( "Start receiving store file %s", tested ) ) );
         assertTrue( tested, output.contains( format( "Finish receiving store file %s", tested ) ) );
         assertFalse( output.contains( "Start receiving transactions from " ) );

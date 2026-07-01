@@ -119,10 +119,11 @@ public class BackupIT
     @Parameter
     public String recordFormatName;
 
-    private File serverPath;
+    private File serverStorePath;
     private File otherServerPath;
-    private File backupPath;
+    private File backupDatabasePath;
     private DatabaseLayout backupDatabaseLayout;
+    private DatabaseLayout serverStoreLayout;
     private List<ServerInterface> servers;
 
     @Parameters( name = "{0}" )
@@ -135,10 +136,11 @@ public class BackupIT
     public void before()
     {
         servers = new ArrayList<>();
-        serverPath = testDir.directory( "server" );
+        serverStoreLayout = testDir.databaseLayout( "server" );
+        serverStorePath = serverStoreLayout.databaseDirectory();
         otherServerPath = testDir.directory( "server2" );
-        backupPath = testDir.directory( "backedup-serverdb" );
-        backupDatabaseLayout = DatabaseLayout.of( backupPath );
+        backupDatabaseLayout = DatabaseLayout.of( testDir.storeDir( "backedup-serverdb" ), "backupDb" );
+        backupDatabasePath = backupDatabaseLayout.databaseDirectory();
     }
 
     @After
@@ -155,13 +157,13 @@ public class BackupIT
     public void makeSureFullFailsWhenDbExists()
     {
         int backupPort = PortAuthority.allocatePort();
-        createInitialDataSet( serverPath );
-        ServerInterface server = startServer( serverPath, backupPort );
+        createInitialDataSet( serverStorePath );
+        ServerInterface server = startServer( serverStorePath, backupPort );
         OnlineBackup backup = OnlineBackup.from( "127.0.0.1", backupPort );
-        createInitialDataSet( backupPath );
+        createInitialDataSet( backupDatabasePath );
         try
         {
-            backup.full( backupPath.getPath() );
+            backup.full( backupDatabasePath.getPath() );
             fail( "Shouldn't be able to do full backup into existing db" );
         }
         catch ( Exception e )
@@ -175,12 +177,12 @@ public class BackupIT
     public void makeSureIncrementalFailsWhenNoDb()
     {
         int backupPort = PortAuthority.allocatePort();
-        createInitialDataSet( serverPath );
-        ServerInterface server = startServer( serverPath, backupPort );
+        createInitialDataSet( serverStorePath );
+        ServerInterface server = startServer( serverStorePath, backupPort );
         OnlineBackup backup = OnlineBackup.from( "127.0.0.1", backupPort );
         try
         {
-            backup.incremental( backupPath.getPath() );
+            backup.incremental( backupDatabasePath.getPath() );
             fail( "Shouldn't be able to do incremental backup into non-existing db" );
         }
         catch ( Exception e )
@@ -196,28 +198,28 @@ public class BackupIT
         ServerInterface server = null;
         try
         {
-            createInitialDataSet( serverPath );
+            createInitialDataSet( serverStorePath );
             int backupPort = PortAuthority.allocatePort();
-            server = startServer( serverPath, backupPort );
+            server = startServer( serverStorePath, backupPort );
             OnlineBackup backup = OnlineBackup.from( "127.0.0.1", backupPort );
-            backup.full( backupPath.getPath() );
+            backup.full( backupDatabasePath.getPath() );
             assertTrue( "Should be consistent", backup.isConsistent() );
             shutdownServer( server );
             server = null;
             PageCache pageCache = pageCacheRule.getPageCache( fileSystemRule.get() );
 
-            long firstChecksum = lastTxChecksumOf( serverPath, pageCache );
-            assertEquals( firstChecksum, lastTxChecksumOf( backupPath, pageCache ) );
+            long firstChecksum = lastTxChecksumOf( serverStoreLayout, pageCache );
+            assertEquals( firstChecksum, lastTxChecksumOf( backupDatabaseLayout, pageCache ) );
 
-            addMoreData( serverPath );
-            server = startServer( serverPath, backupPort );
-            backup.incremental( backupPath.getPath() );
+            addMoreData( serverStorePath );
+            server = startServer( serverStorePath, backupPort );
+            backup.incremental( backupDatabasePath.getPath() );
             assertTrue( "Should be consistent", backup.isConsistent() );
             shutdownServer( server );
             server = null;
 
-            long secondChecksum = lastTxChecksumOf( serverPath, pageCache );
-            assertEquals( secondChecksum, lastTxChecksumOf( backupPath, pageCache ) );
+            long secondChecksum = lastTxChecksumOf( serverStoreLayout, pageCache );
+            assertEquals( secondChecksum, lastTxChecksumOf( backupDatabaseLayout, pageCache ) );
             assertTrue( firstChecksum != secondChecksum );
         }
         finally
@@ -232,19 +234,19 @@ public class BackupIT
     @Test
     public void fullThenIncremental()
     {
-        DbRepresentation initialDataSetRepresentation = createInitialDataSet( serverPath );
+        DbRepresentation initialDataSetRepresentation = createInitialDataSet( serverStorePath );
         int backupPort = PortAuthority.allocatePort();
-        ServerInterface server = startServer( serverPath, backupPort );
+        ServerInterface server = startServer( serverStorePath, backupPort );
 
         OnlineBackup backup = OnlineBackup.from( "127.0.0.1", backupPort );
-        backup.full( backupPath.getPath() );
+        backup.full( backupDatabasePath.getPath() );
         assertTrue( "Should be consistent", backup.isConsistent() );
         assertEquals( initialDataSetRepresentation, getDbRepresentation() );
         shutdownServer( server );
 
-        DbRepresentation furtherRepresentation = addMoreData( serverPath );
-        server = startServer( serverPath, backupPort );
-        backup.incremental( backupPath.getPath() );
+        DbRepresentation furtherRepresentation = addMoreData( serverStorePath );
+        server = startServer( serverStorePath, backupPort );
+        backup.incremental( backupDatabasePath.getPath() );
         assertTrue( "Should be consistent", backup.isConsistent() );
         assertEquals( furtherRepresentation, getDbRepresentation() );
         shutdownServer( server );
@@ -253,26 +255,26 @@ public class BackupIT
     @Test
     public void makeSureNoLogFileRemains()
     {
-        createInitialDataSet( serverPath );
+        createInitialDataSet( serverStorePath );
         int backupPort = PortAuthority.allocatePort();
-        ServerInterface server = startServer( serverPath, backupPort );
+        ServerInterface server = startServer( serverStorePath, backupPort );
         OnlineBackup backup = OnlineBackup.from( "127.0.0.1", backupPort );
 
         // First check full
-        backup.full( backupPath.getPath() );
+        backup.full( backupDatabasePath.getPath() );
         assertTrue( "Should be consistent", backup.isConsistent() );
-        assertFalse( checkLogFileExistence( backupPath.getPath() ) );
+        assertFalse( checkLogFileExistence( backupDatabasePath.getPath() ) );
         // Then check empty incremental
-        backup.incremental( backupPath.getPath() );
+        backup.incremental( backupDatabasePath.getPath() );
         assertTrue( "Should be consistent", backup.isConsistent() );
-        assertFalse( checkLogFileExistence( backupPath.getPath() ) );
+        assertFalse( checkLogFileExistence( backupDatabasePath.getPath() ) );
         // Then check real incremental
         shutdownServer( server );
-        addMoreData( serverPath );
-        server = startServer( serverPath, backupPort );
-        backup.incremental( backupPath.getPath() );
+        addMoreData( serverStorePath );
+        server = startServer( serverStorePath, backupPort );
+        backup.incremental( backupDatabasePath.getPath() );
         assertTrue( "Should be consistent", backup.isConsistent() );
-        assertFalse( checkLogFileExistence( backupPath.getPath() ) );
+        assertFalse( checkLogFileExistence( backupDatabasePath.getPath() ) );
         shutdownServer( server );
     }
 
@@ -280,13 +282,13 @@ public class BackupIT
     public void makeSureStoreIdIsEnforced()
     {
         // Create data set X on server A
-        DbRepresentation initialDataSetRepresentation = createInitialDataSet( serverPath );
+        DbRepresentation initialDataSetRepresentation = createInitialDataSet( serverStorePath );
         int backupPort = PortAuthority.allocatePort();
-        ServerInterface server = startServer( serverPath, backupPort );
+        ServerInterface server = startServer( serverStorePath, backupPort );
 
         // Grab initial backup from server A
         OnlineBackup backup = OnlineBackup.from( "127.0.0.1", backupPort );
-        backup.full( backupPath.getPath() );
+        backup.full( backupDatabasePath.getPath() );
         assertTrue( "Should be consistent", backup.isConsistent() );
         assertEquals( initialDataSetRepresentation, getDbRepresentation() );
         shutdownServer( server );
@@ -300,7 +302,7 @@ public class BackupIT
         // Data should be OK, but store id check should prevent that.
         try
         {
-            backup.incremental( backupPath.getPath() );
+            backup.incremental( backupDatabasePath.getPath() );
             fail( "Shouldn't work" );
         }
         catch ( RuntimeException e )
@@ -310,9 +312,9 @@ public class BackupIT
         shutdownServer( server );
         // Just make sure incremental backup can be received properly from
         // server A, even after a failed attempt from server B
-        DbRepresentation furtherRepresentation = addMoreData( serverPath );
-        server = startServer( serverPath, backupPort );
-        backup.incremental( backupPath.getPath() );
+        DbRepresentation furtherRepresentation = addMoreData( serverStorePath );
+        server = startServer( serverStorePath, backupPort );
+        backup.incremental( backupDatabasePath.getPath() );
         assertTrue( "Should be consistent", backup.isConsistent() );
         assertEquals( furtherRepresentation, getDbRepresentation() );
         shutdownServer( server );
@@ -337,7 +339,7 @@ public class BackupIT
             }
 
             OnlineBackup backup = OnlineBackup.from( "127.0.0.1", backupPort );
-            backup.full( backupPath.getPath() );
+            backup.full( backupDatabasePath.getPath() );
             assertTrue( "Should be consistent", backup.isConsistent() );
             PageCache pageCache = pageCacheRule.getPageCache( fileSystemRule.get() );
             long lastCommittedTx = getLastCommittedTx( backupDatabaseLayout, pageCache );
@@ -350,7 +352,7 @@ public class BackupIT
                     index.add( node, "key", "value" + i );
                     tx.success();
                 }
-                backup = backup.incremental( backupPath.getPath() );
+                backup = backup.incremental( backupDatabasePath.getPath() );
                 assertTrue( "Should be consistent", backup.isConsistent() );
                 assertEquals( lastCommittedTx + i + 1, getLastCommittedTx( backupDatabaseLayout, pageCache ) );
             }
@@ -380,7 +382,7 @@ public class BackupIT
             }
 
             OnlineBackup backup = OnlineBackup.from( "127.0.0.1", backupPort );
-            backup.full( backupPath.getPath() );
+            backup.full( backupDatabasePath.getPath() );
             assertTrue( "Should be consistent", backup.isConsistent() );
             assertTrue( backup.isConsistent() );
         }
@@ -418,11 +420,11 @@ public class BackupIT
                 node.setProperty( key, value );
                 tx.success();
             }
-            OnlineBackup backup = OnlineBackup.from( "127.0.0.1", backupPort ).full( backupPath.getPath() );
+            OnlineBackup backup = OnlineBackup.from( "127.0.0.1", backupPort ).full( backupDatabasePath.getPath() );
             assertTrue( "Should be consistent", backup.isConsistent() );
             assertEquals( DbRepresentation.of( db ), getDbRepresentation() );
-            FileUtils.deleteDirectory( new File( backupPath.getPath() ) );
-            backup = OnlineBackup.from( "127.0.0.1", backupPort ).full( backupPath.getPath() );
+            FileUtils.deleteDirectory( new File( backupDatabasePath.getPath() ) );
+            backup = OnlineBackup.from( "127.0.0.1", backupPort ).full( backupDatabasePath.getPath() );
             assertTrue( "Should be consistent", backup.isConsistent() );
             assertEquals( DbRepresentation.of( db ), getDbRepresentation() );
 
@@ -431,8 +433,8 @@ public class BackupIT
                 index.add( node, key, value );
                 tx.success();
             }
-            FileUtils.deleteDirectory( new File( backupPath.getPath() ) );
-            backup = OnlineBackup.from( "127.0.0.1", backupPort ).full( backupPath.getPath() );
+            FileUtils.deleteDirectory( new File( backupDatabasePath.getPath() ) );
+            backup = OnlineBackup.from( "127.0.0.1", backupPort ).full( backupDatabasePath.getPath() );
             assertTrue( "Should be consistent", backup.isConsistent() );
             assertEquals( DbRepresentation.of( db ), getDbRepresentation() );
         }
@@ -456,7 +458,7 @@ public class BackupIT
         try
         {
             assertStoreIsLocked( sourcePath );
-            OnlineBackup.from( "127.0.0.1", backupPort ).full( backupPath.getPath() );
+            OnlineBackup.from( "127.0.0.1", backupPort ).full( backupDatabasePath.getPath() );
             assertStoreIsLocked( sourcePath );
         }
         finally
@@ -469,16 +471,16 @@ public class BackupIT
     public void shouldIncrementallyBackupDenseNodes()
     {
         int backupPort = PortAuthority.allocatePort();
-        GraphDatabaseService db = startGraphDatabase( serverPath, true, backupPort );
+        GraphDatabaseService db = startGraphDatabase( serverStorePath, true, backupPort );
         try
         {
             createInitialDataset( db );
 
             OnlineBackup backup = OnlineBackup.from( "127.0.0.1", backupPort );
-            backup.full( backupPath.getPath() );
+            backup.full( backupDatabasePath.getPath() );
 
             DbRepresentation representation = addLotsOfData( db );
-            backup.incremental( backupPath.getPath() );
+            backup.incremental( backupDatabasePath.getPath() );
             assertEquals( representation, getDbRepresentation() );
         }
         finally
@@ -491,17 +493,17 @@ public class BackupIT
     public void shouldLeaveIdFilesAfterBackup() throws Exception
     {
         int backupPort = PortAuthority.allocatePort();
-        GraphDatabaseService db = startGraphDatabase( serverPath, true, backupPort );
+        GraphDatabaseService db = startGraphDatabase( serverStorePath, true, backupPort );
         try
         {
             createInitialDataset( db );
 
             OnlineBackup backup = OnlineBackup.from( "127.0.0.1", backupPort );
-            backup.full( backupPath.getPath() );
+            backup.full( backupDatabasePath.getPath() );
             ensureStoresHaveIdFiles( backupDatabaseLayout );
 
             DbRepresentation representation = addLotsOfData( db );
-            backup.incremental( backupPath.getPath() );
+            backup.incremental( backupDatabasePath.getPath() );
             assertEquals( representation, getDbRepresentation() );
             ensureStoresHaveIdFiles( backupDatabaseLayout );
         }
@@ -515,13 +517,13 @@ public class BackupIT
     public void backupDatabaseWithCustomTransactionLogsLocation() throws IOException
     {
         int backupPort = PortAuthority.allocatePort();
-        GraphDatabaseService db = startGraphDatabase( serverPath, true, backupPort, "customLogLocation" );
+        GraphDatabaseService db = startGraphDatabase( serverStorePath, true, backupPort, "customLogLocation" );
         try
         {
             createInitialDataset( db );
 
             OnlineBackup backup = OnlineBackup.from( "127.0.0.1", backupPort );
-            String backupStore = backupPath.getPath();
+            String backupStore = backupDatabasePath.getPath();
             LogFiles logFiles = LogFilesBuilder.logFilesBasedOnlyBuilder( new File( backupStore ), fileSystemRule.get() ).build();
 
             backup.full( backupStore );
@@ -582,9 +584,9 @@ public class BackupIT
         return Config.defaults( logs_directory, directory ).get( store_internal_log_path ).exists();
     }
 
-    private long lastTxChecksumOf( File storeDir, PageCache pageCache ) throws IOException
+    private long lastTxChecksumOf( DatabaseLayout databaseLayout, PageCache pageCache ) throws IOException
     {
-        return MetaDataStore.getRecord( pageCache, DatabaseLayout.of( storeDir ).metadataStore(), Position.LAST_TRANSACTION_CHECKSUM );
+        return MetaDataStore.getRecord( pageCache, databaseLayout.metadataStore(), Position.LAST_TRANSACTION_CHECKSUM );
     }
 
     private ServerInterface startServer( File path, int backupPort )
@@ -632,8 +634,7 @@ public class BackupIT
         GraphDatabaseFactory dbFactory = new TestGraphDatabaseFactory()
         {
             @Override
-            protected GraphDatabaseService newDatabase( File storeDir, Config config,
-                    GraphDatabaseFacadeFactory.Dependencies dependencies )
+            protected GraphDatabaseFacadeFactory getGraphDatabaseFacadeFactory()
             {
                 Function<PlatformModule,AbstractEditionModule> factory =
                         platformModule -> new CommunityEditionModule( platformModule )
@@ -652,8 +653,7 @@ public class BackupIT
                                 };
                             }
                         };
-                return new GraphDatabaseFacadeFactory( DatabaseInfo.COMMUNITY, factory )
-                        .newFacade( storeDir, config, dependencies );
+                return new GraphDatabaseFacadeFactory( DatabaseInfo.COMMUNITY, factory );
             }
         };
         GraphDatabaseBuilder graphDatabaseBuilder = dbFactory.newEmbeddedDatabaseBuilder( storeDir )
@@ -700,7 +700,7 @@ public class BackupIT
 
     private GraphDatabaseService getEmbeddedTestDataBaseService( int backupPort )
     {
-        return new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( serverPath )
+        return new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( serverStorePath )
                 .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.TRUE )
                 .setConfig( OnlineBackupSettings.online_backup_server, "127.0.0.1:" + backupPort )
                 .setConfig( GraphDatabaseSettings.record_format, recordFormatName )
@@ -709,6 +709,10 @@ public class BackupIT
 
     private DbRepresentation getDbRepresentation()
     {
-        return DbRepresentation.of( backupPath, Config.defaults( OnlineBackupSettings.online_backup_enabled, Settings.FALSE ) );
+        Config config = Config.builder()
+                .withSetting( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
+                .withSetting( GraphDatabaseSettings.active_database, backupDatabasePath.getName() )
+                .build();
+        return DbRepresentation.of( backupDatabasePath, config );
     }
 }

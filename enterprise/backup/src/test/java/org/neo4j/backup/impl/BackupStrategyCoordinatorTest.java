@@ -52,6 +52,8 @@ import org.neo4j.consistency.checking.full.ConsistencyCheckIncompleteException;
 import org.neo4j.consistency.checking.full.ConsistencyFlags;
 import org.neo4j.helpers.progress.ProgressMonitorFactory;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.pagecache.PageCache;
+import org.neo4j.kernel.configuration.Config;
 import org.neo4j.logging.LogProvider;
 
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -79,6 +81,8 @@ public class BackupStrategyCoordinatorTest
     private final LogProvider logProvider = mock( LogProvider.class );
     private final BackupStrategyWrapper firstStrategy = mock( BackupStrategyWrapper.class );
     private final BackupStrategyWrapper secondStrategy = mock( BackupStrategyWrapper.class );
+    private final BackupRecoveryService backupRecoveryService = mock( BackupRecoveryService.class );
+    private final PageCache pageCache = mock( PageCache.class );
 
     private BackupStrategyCoordinator subject;
 
@@ -100,9 +104,10 @@ public class BackupStrategyCoordinatorTest
         when( outsideWorld.fileSystem() ).thenReturn( fileSystem );
         when( onlineBackupContext.getRequiredArguments() ).thenReturn( requiredArguments );
         when( onlineBackupContext.getResolvedLocationFromName() ).thenReturn( backupDestination );
+        when( onlineBackupContext.getConfig() ).thenReturn( Config.defaults() );
         when( requiredArguments.getReportDir() ).thenReturn( reportDir );
         subject = new BackupStrategyCoordinator( consistencyCheckService, outsideWorld, logProvider, progressMonitorFactory,
-                Arrays.asList( firstStrategy, secondStrategy ) );
+                Arrays.asList( firstStrategy, secondStrategy ), backupRecoveryService, pageCache );
     }
 
     @Test
@@ -188,6 +193,7 @@ public class BackupStrategyCoordinatorTest
         subject.performBackup( onlineBackupContext );
 
         // then
+        verify( backupRecoveryService ).recoverWithDatabase( eq( backupDestination ), eq( pageCache ), any( Config.class ) );
         verify( consistencyCheckService ).runFullConsistencyCheck( any(), any(), any(), any(), any(), eq( false ), any(), any() );
     }
 
@@ -202,6 +208,7 @@ public class BackupStrategyCoordinatorTest
         subject.performBackup( onlineBackupContext );
 
         // then
+        verify( backupRecoveryService, never() ).recoverWithDatabase( any(), any(), any() );
         verify( consistencyCheckService, never() ).runFullConsistencyCheck( any(), any(), any(), any(), any(), eq( false ), any(),
                 any( ConsistencyFlags.class ) );
     }
@@ -251,7 +258,8 @@ public class BackupStrategyCoordinatorTest
     public void havingNoStrategiesCausesAllSolutionsFailedException() throws CommandFailed
     {
         // given there are no strategies in the solution
-        subject = new BackupStrategyCoordinator( consistencyCheckService, outsideWorld, logProvider, progressMonitorFactory, Collections.emptyList() );
+        subject = new BackupStrategyCoordinator( consistencyCheckService, outsideWorld, logProvider, progressMonitorFactory,
+                Collections.emptyList(), backupRecoveryService, pageCache );
 
         // then we want a predictable exception (instead of NullPointer)
         expectedException.expect( CommandFailed.class );

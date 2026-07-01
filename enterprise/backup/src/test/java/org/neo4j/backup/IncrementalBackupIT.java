@@ -70,18 +70,17 @@ public class IncrementalBackupIT
     public RuleChain rules = RuleChain.outerRule( testName ).around( testDirectory ).around( suppressOutput );
 
     private File serverPath;
-    private File backupPath;
+    private File backupDatabase;
     private ServerInterface server;
     private GraphDatabaseService db;
+    private File backupStore;
 
     @Before
     public void before() throws Exception
     {
-        File base = testDirectory.cleanDirectory( testName.getMethodName() );
-        serverPath = new File( base, "server" );
-        backupPath = new File( base, "backup" );
-        serverPath.mkdirs();
-        backupPath.mkdirs();
+        serverPath = testDirectory.storeDir( "server" );
+        backupStore = testDirectory.storeDir( "backupStore" );
+        backupDatabase = testDirectory.databaseDir( backupStore );
     }
 
     @After
@@ -108,14 +107,14 @@ public class IncrementalBackupIT
 
         OnlineBackup backup = OnlineBackup.from( "127.0.0.1", port );
 
-        backup.full( backupPath.getPath() );
+        backup.full( backupDatabase.getPath() );
 
         assertEquals( initialDataSetRepresentation, getBackupDbRepresentation() );
         shutdownServer( server );
 
         DbRepresentation furtherRepresentation = addMoreData2( serverPath );
         server = startServer( serverPath, "127.0.0.1:" + port );
-        backup.incremental( backupPath.getPath() );
+        backup.incremental( backupDatabase.getPath() );
         assertEquals( furtherRepresentation, getBackupDbRepresentation() );
         shutdownServer( server );
     }
@@ -148,14 +147,14 @@ public class IncrementalBackupIT
 
         OnlineBackup backup = OnlineBackup.from( "127.0.0.1", port);
 
-        backup.full( backupPath.getPath() );
+        backup.full( backupDatabase.getPath() );
 
         assertEquals( initialDataSetRepresentation, getBackupDbRepresentation() );
         shutdownServer( server );
 
         DbRepresentation furtherRepresentation = createTransactionWithWeirdRelationshipGroupRecord( serverPath );
         server = startServer( serverPath, "127.0.0.1:" + port );
-        backup.incremental( backupPath.getPath() );
+        backup.incremental( backupDatabase.getPath() );
         assertEquals( furtherRepresentation, getBackupDbRepresentation() );
         shutdownServer( server );
     }
@@ -256,6 +255,6 @@ public class IncrementalBackupIT
 
     private DbRepresentation getBackupDbRepresentation()
     {
-        return DbRepresentation.of( backupPath, Config.defaults( OnlineBackupSettings.online_backup_enabled, Settings.FALSE ) );
+        return DbRepresentation.of( backupDatabase, Config.defaults( OnlineBackupSettings.online_backup_enabled, Settings.FALSE ) );
     }
 }

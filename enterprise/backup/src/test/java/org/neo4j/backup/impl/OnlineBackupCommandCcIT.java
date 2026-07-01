@@ -135,7 +135,7 @@ public class OnlineBackupCommandCcIT
                 runBackupToolFromOtherJvmToGetExitCode( "--from", customAddress,
                         "--cc-report-dir=" + backupDir,
                         "--backup-dir=" + backupDir,
-                        "--name=defaultport" ) );
+                        "--name=defaultport", "--cc-label-scan-store=false" ) );
         assertEquals( DbRepresentation.of( clusterDatabase( cluster ) ), getBackupDbRepresentation( "defaultport", backupDir) );
 
         createSomeData( cluster );
@@ -144,7 +144,7 @@ public class OnlineBackupCommandCcIT
                 runBackupToolFromOtherJvmToGetExitCode( "--from", customAddress,
                         "--cc-report-dir=" + backupDir,
                         "--backup-dir=" + backupDir,
-                        "--name=defaultport" ) );
+                        "--name=defaultport", "--cc-label-scan-store=false" ) );
         assertEquals( DbRepresentation.of( clusterDatabase( cluster ) ), getBackupDbRepresentation( "defaultport", backupDir ) );
     }
 
@@ -166,7 +166,7 @@ public class OnlineBackupCommandCcIT
         // then backup is successful
         String address = TestHelpers.backupAddressCc( clusterLeader( cluster ).database() );
         assertEquals( 0, runBackupToolFromOtherJvmToGetExitCode( "--from", address, "--cc-report-dir=" + backupDir, "--backup-dir=" + backupDir,
-                "--name=defaultport" ) );
+                "--name=defaultport", "--cc-label-scan-store=false" ) );
     }
 
     @Test
@@ -182,13 +182,13 @@ public class OnlineBackupCommandCcIT
 
         // when a full backup is performed
         assertEquals( 0, runBackupToolFromOtherJvmToGetExitCode( "--from=" + customAddress, "--cc-report-dir=" + backupDir, "--backup-dir=" + backupDir,
-                "--name=defaultport" ) );
+                "--name=defaultport", "--cc-label-scan-store=false" ) );
         assertEquals( DbRepresentation.of( clusterDatabase( cluster ) ), getBackupDbRepresentation( "defaultport", backupDir ) );
 
         // and an incremental backup is performed
         createSomeData( cluster );
         assertEquals( 0, runBackupToolFromOtherJvmToGetExitCode( "--from=" + customAddress, "--cc-report-dir=" + backupDir, "--backup-dir=" + backupDir,
-                "--name=defaultport" ) );
+                "--name=defaultport", "--cc-label-scan-store=false" ) );
 
         // then the data matches
         assertEquals( DbRepresentation.of( clusterDatabase( cluster ) ), getBackupDbRepresentation( "defaultport", backupDir ) );
