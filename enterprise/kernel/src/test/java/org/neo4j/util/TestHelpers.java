@@ -92,6 +92,7 @@ public class TestHelpers
 
         ProcessBuilder processBuilder = new ProcessBuilder().command( allArgs.toArray( new String[allArgs.size()]));
         processBuilder.environment().put( "ONGDB_HOME", neo4jHome.getAbsolutePath() );
+        processBuilder.environment().put( "ONGDB_CONF", new File( neo4jHome, "conf" ).getAbsolutePath() );
         if ( debug )
         {
             processBuilder.environment().put( "ONGDB_DEBUG", "anything_works" );

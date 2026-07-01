@@ -61,7 +61,7 @@ public class AdminTool
     public static void main( String[] args ) throws IOException
     {
         Path homeDir = Paths.get( ONGDB_HOME );
-        Path configDir = Paths.get( ONGDB_CONF );
+        Path configDir = ONGDB_CONF.isEmpty() && !ONGDB_HOME.isEmpty() ? homeDir.resolve( "conf" ) : Paths.get( ONGDB_CONF );
         boolean debug = ONGDB_DEBUG != null;
 
         try ( RealOutsideWorld outsideWorld = new RealOutsideWorld() )

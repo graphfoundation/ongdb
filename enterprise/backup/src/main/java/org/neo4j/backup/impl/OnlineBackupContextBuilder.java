@@ -174,12 +174,13 @@ class OnlineBackupContextBuilder
                     address, folder, name, selectedBackupProtocol, fallbackToFull, doConsistencyCheck, timeout, reportDir );
 
             Path configFile = configDir.resolve( Config.DEFAULT_CONFIG_FILE_NAME );
-            Config.Builder builder = Config.fromFile( configFile );
             Path logPath = requiredArguments.getResolvedLocationFromName();
-            Config config = builder.withHome( homeDir )
-                                   .withSetting( logical_logs_location, logPath.toString() )
-                                   .withConnectorsDisabled()
-                                   .build();
+            Config config = Config.fromFile( configFile )
+                                  .withNoThrowOnFileLoadFailure()
+                                  .withHome( homeDir )
+                                  .withSetting( logical_logs_location, logPath.toString() )
+                                  .withConnectorsDisabled()
+                                  .build();
             additionalConfig.map( this::loadAdditionalConfigFile ).ifPresent( config::augment );
             // We only replace the page cache memory setting.
             // Any other custom page swapper, etc. settings are preserved and used.
