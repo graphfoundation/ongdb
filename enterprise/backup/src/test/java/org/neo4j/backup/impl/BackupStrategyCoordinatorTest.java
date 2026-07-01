@@ -40,6 +40,8 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.nio.file.Path;
+
+import org.neo4j.test.rule.TestDirectory;
 import java.util.Arrays;
 import java.util.Collections;
 
@@ -65,6 +67,9 @@ import static org.neo4j.backup.ExceptionMatchers.exceptionContainsSuppressedThro
 public class BackupStrategyCoordinatorTest
 {
     @Rule
+    public final TestDirectory testDirectory = TestDirectory.testDirectory();
+
+    @Rule
     public ExpectedException expectedException = ExpectedException.none();
 
     // dependencies
@@ -83,15 +88,18 @@ public class BackupStrategyCoordinatorTest
 
     // mock returns
     private final ProgressMonitorFactory progressMonitorFactory = mock( ProgressMonitorFactory.class );
-    private final Path reportDir = mock( Path.class );
+    private Path backupDestination;
+    private Path reportDir;
     private final ConsistencyCheckService.Result consistencyCheckResult = mock( ConsistencyCheckService.Result.class );
 
     @Before
     public void setup()
     {
+        backupDestination = testDirectory.databaseLayout( "backup-destination" ).databaseDirectory().toPath();
+        reportDir = testDirectory.directory( "reportDir" ).toPath();
         when( outsideWorld.fileSystem() ).thenReturn( fileSystem );
         when( onlineBackupContext.getRequiredArguments() ).thenReturn( requiredArguments );
-        when( onlineBackupContext.getResolvedLocationFromName() ).thenReturn( reportDir );
+        when( onlineBackupContext.getResolvedLocationFromName() ).thenReturn( backupDestination );
         when( requiredArguments.getReportDir() ).thenReturn( reportDir );
         subject = new BackupStrategyCoordinator( consistencyCheckService, outsideWorld, logProvider, progressMonitorFactory,
                 Arrays.asList( firstStrategy, secondStrategy ) );

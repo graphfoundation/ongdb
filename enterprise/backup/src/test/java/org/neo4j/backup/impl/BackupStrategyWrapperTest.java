@@ -80,8 +80,8 @@ public class BackupStrategyWrapperTest
     private final FileSystemAbstraction fileSystemAbstraction = mock( FileSystemAbstraction.class );
     private DatabaseLayout desiredBackupLayout;
     private Path reportDir;
-    private final Path availableFreshBackupLocation = mock( Path.class, "Path<availableFreshBackupLocation>" );
-    private final Path availableOldBackupLocation = mock( Path.class, "Path<availableOldBackupLocation>" );
+    private Path availableFreshBackupLocation;
+    private Path availableOldBackupLocation;
     private OnlineBackupRequiredArguments requiredArguments;
     private final Config config = mock( Config.class );
     private final OptionalHostnamePort userProvidedAddress = new OptionalHostnamePort( (String) null, null, null );
@@ -97,6 +97,8 @@ public class BackupStrategyWrapperTest
     {
         desiredBackupLayout = testDirectory.databaseLayout( "desiredBackupLayout" );
         reportDir = testDirectory.directory( "reportDir" ).toPath();
+        availableFreshBackupLocation = testDirectory.directory( "availableFreshBackupLocation" ).toPath();
+        availableOldBackupLocation = testDirectory.directory( "availableOldBackupLocation" ).toPath();
 
         when( outsideWorld.fileSystem() ).thenReturn( fileSystemAbstraction );
         when( backupCopyService.findAnAvailableLocationForNewFullBackup( any() ) ).thenReturn( availableFreshBackupLocation );

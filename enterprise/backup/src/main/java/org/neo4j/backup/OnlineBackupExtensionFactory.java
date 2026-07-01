@@ -41,6 +41,7 @@ import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.NeoStoreDataSource;
 import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.extension.ExtensionType;
 import org.neo4j.kernel.extension.KernelExtensionFactory;
 import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
 import org.neo4j.kernel.impl.factory.OperationalMode;
@@ -90,7 +91,7 @@ public class OnlineBackupExtensionFactory extends KernelExtensionFactory<OnlineB
 
     public OnlineBackupExtensionFactory()
     {
-        super( KEY );
+        super( ExtensionType.DATABASE, KEY );
     }
 
     @Deprecated
