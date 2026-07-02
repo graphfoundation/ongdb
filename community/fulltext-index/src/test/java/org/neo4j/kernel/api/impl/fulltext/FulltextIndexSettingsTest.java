@@ -43,9 +43,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.Properties;
 
+import org.neo4j.internal.kernel.api.NamedToken;
 import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.kernel.api.schema.MultiTokenSchemaDescriptor;
@@ -80,7 +85,7 @@ class FulltextIndexSettingsTest
         File indexFolder = directory.directory( "indexFolder" );
         String analyzerName = "simple";
         String eventuallyConsistency = "true";
-        String defaultAnalyzer = "defaultAnalyzer";
+        String defaultAnalyzer = "simple";
         int[] propertyIds = {1, 2, 3};
         MultiTokenSchemaDescriptor schema = SchemaDescriptorFactory.multiToken( new int[]{1, 2}, EntityType.NODE, propertyIds );
 
@@ -102,6 +107,46 @@ class FulltextIndexSettingsTest
         FulltextIndexDescriptor loadedDescriptor = readOrInitialiseDescriptor( loadingIndexDescriptor, defaultAnalyzer, tokenHolder, indexFolder, fs );
         assertEquals( fulltextIndexDescriptor.analyzerName(), loadedDescriptor.analyzerName() );
         assertEquals( fulltextIndexDescriptor.isEventuallyConsistent(), loadedDescriptor.isEventuallyConsistent() );
+    }
+
+    @Test
+    void shouldLoadPersistedPropertyNamesWhenTokenLookupFails() throws IOException
+    {
+        File indexFolder = directory.directory( "indexFolderMissingTokens" );
+        String analyzerName = "simple";
+        String eventuallyConsistency = "true";
+        String defaultAnalyzer = "simple";
+        int[] propertyIds = {0};
+        MultiTokenSchemaDescriptor schema = SchemaDescriptorFactory.multiToken( new int[]{1}, EntityType.NODE, propertyIds );
+        StoreIndexDescriptor storeIndexDescriptor = storeIndexDescriptorFromSchema( schema );
+
+        TokenRegistry populatedRegistry = new TokenRegistry( TokenHolder.TYPE_PROPERTY_KEY );
+        populatedRegistry.setInitialTokens( Collections.singletonList( new NamedToken( "key", 0 ) ) );
+        SimpleTokenHolder tokenHolder = new SimpleTokenHolder( populatedRegistry );
+        FulltextIndexDescriptor descriptorWithTokenNames =
+                readOrInitialiseDescriptor( storeIndexDescriptor, defaultAnalyzer, tokenHolder, indexFolder, fs );
+        FulltextIndexSettings.saveFulltextIndexSettings( descriptorWithTokenNames, indexFolder, fs );
+
+        File settingsFile = new File( indexFolder, "fulltext-index.properties" );
+        Properties persistedSettings = new Properties();
+        persistedSettings.setProperty( FulltextIndexSettings.INDEX_CONFIG_ANALYZER, analyzerName );
+        persistedSettings.setProperty( FulltextIndexSettings.INDEX_CONFIG_EVENTUALLY_CONSISTENT, eventuallyConsistency );
+        persistedSettings.setProperty( "propertyNames", "[key]" );
+        persistedSettings.setProperty( "_propertyIds", "[0]" );
+        persistedSettings.setProperty( "_name", "indexName" );
+        persistedSettings.setProperty( "_schema_entityType", EntityType.NODE.name() );
+        persistedSettings.setProperty( "_schema_entityTokenIds", "[1]" );
+        try ( Writer writer = fs.openAsWriter( settingsFile, StandardCharsets.UTF_8, false ) )
+        {
+            persistedSettings.store( writer, "Auto-generated file. Do not modify!" );
+        }
+
+        SimpleTokenHolder emptyTokenHolder = new SimpleTokenHolder( new TokenRegistry( TokenHolder.TYPE_PROPERTY_KEY ) );
+        FulltextIndexDescriptor loadedDescriptor = readOrInitialiseDescriptor( storeIndexDescriptor, defaultAnalyzer, emptyTokenHolder, indexFolder, fs );
+
+        assertEquals( analyzerName, loadedDescriptor.analyzerName() );
+        assertEquals( Boolean.parseBoolean( eventuallyConsistency ), loadedDescriptor.isEventuallyConsistent() );
+        assertEquals( Collections.singletonList( "key" ), new ArrayList<>( loadedDescriptor.propertyNames() ) );
     }
 
     private StoreIndexDescriptor storeIndexDescriptorFromSchema( SchemaDescriptor schema )

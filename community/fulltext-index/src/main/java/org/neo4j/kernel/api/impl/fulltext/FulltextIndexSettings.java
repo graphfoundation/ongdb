@@ -67,6 +67,7 @@ public class FulltextIndexSettings
     public static final String INDEX_CONFIG_EVENTUALLY_CONSISTENT = "eventually_consistent";
     private static final String INDEX_CONFIG_FILE = "fulltext-index.properties";
     private static final String INDEX_CONFIG_PROPERTY_NAMES = "propertyNames";
+    private static final String PROPERTY_NAMES_SEPARATOR = ",\\s*";
 
     static FulltextIndexDescriptor readOrInitialiseDescriptor( StoreIndexDescriptor descriptor, String defaultAnalyzerName,
             TokenHolder propertyKeyTokenHolder, File indexFolder, FileSystemAbstraction fileSystem )
@@ -90,12 +91,39 @@ public class FulltextIndexSettings
             }
             catch ( TokenNotFoundException e )
             {
+                names = parsePersistedPropertyNames( indexConfiguration );
+                if ( names.size() == descriptor.schema().getPropertyIds().length )
+                {
+                    break;
+                }
                 throw new IllegalStateException( "Property key id not found.",
                         new PropertyKeyIdNotFoundKernelException( propertyKeyId, e ) );
             }
         }
         List<String> propertyNames = Collections.unmodifiableList( names );
         return new FulltextIndexDescriptor( descriptor, propertyNames, analyzer, analyzerName, eventuallyConsistent );
+    }
+
+    private static List<String> parsePersistedPropertyNames( Properties indexConfiguration )
+    {
+        String persistedPropertyNames = indexConfiguration.getProperty( INDEX_CONFIG_PROPERTY_NAMES );
+        if ( persistedPropertyNames == null )
+        {
+            return Collections.emptyList();
+        }
+        String trimmed = persistedPropertyNames.trim();
+        if ( trimmed.length() < 2 || trimmed.charAt( 0 ) != '[' || trimmed.charAt( trimmed.length() - 1 ) != ']' )
+        {
+            return Collections.emptyList();
+        }
+        String body = trimmed.substring( 1, trimmed.length() - 1 ).trim();
+        if ( body.isEmpty() )
+        {
+            return Collections.emptyList();
+        }
+        return Arrays.stream( body.split( PROPERTY_NAMES_SEPARATOR ) )
+                .map( String::trim )
+                .collect( Collectors.toList() );
     }
 
     private static void loadPersistedSettings( Properties settings, File indexFolder, FileSystemAbstraction fs )
