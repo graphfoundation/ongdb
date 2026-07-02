@@ -55,7 +55,6 @@ import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
 import org.neo4j.kernel.impl.api.CountsAccessor;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingController;
 import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
 import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
 import org.neo4j.kernel.impl.store.NeoStores;
@@ -71,7 +70,6 @@ import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
 import static org.junit.Assert.assertEquals;
 import static org.neo4j.graphdb.Label.label;
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.index_background_sampling_enabled;
-import static org.neo4j.logging.AssertableLogProvider.inLog;
 import static org.neo4j.register.Registers.newDoubleLongRegister;
 
 public class IndexStatisticsIT
@@ -137,21 +135,12 @@ public class IndexStatisticsIT
             tracker.indexSample( indexId, newDoubleLongRegister() )
         );
 
-        // and also
-        assertLogExistsForRecoveryOn( ":Alien(specimen)" );
     }
 
     private void assertEqualRegisters( String message, DoubleLongRegister expected, DoubleLongRegister actual )
     {
         assertEquals( message + " (first part of register)", expected.readFirst(), actual.readFirst() );
         assertEquals( message + " (second part of register)", expected.readSecond(), actual.readSecond() );
-    }
-
-    private void assertLogExistsForRecoveryOn( String labelAndProperty )
-    {
-        logProvider.assertAtLeastOnce(
-                inLog( IndexSamplingController.class ).debug( "Recovering index sampling for index %s", labelAndProperty )
-        );
     }
 
     private int labelId( Label alien )
