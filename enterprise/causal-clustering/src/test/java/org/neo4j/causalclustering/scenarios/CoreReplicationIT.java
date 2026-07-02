@@ -39,6 +39,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -101,6 +102,38 @@ public class CoreReplicationIT
         // then
         assertEquals( 1, countNodes( leader ) );
         dataMatchesEventually( leader, cluster.coreMembers() );
+    }
+
+    @Test
+    public void shouldReplicateTransactionsAfterFollowerRejoinsWithoutStoreCopy() throws Exception
+    {
+        // given
+        CoreClusterMember follower = cluster.getMemberWithRole( Role.FOLLOWER );
+        int followerId = follower.serverId();
+        follower.shutdown();
+
+        CoreClusterMember leader = cluster.coreTx( ( db, tx ) ->
+        {
+            Node node = db.createNode( label( "rejoin" ) );
+            node.setProperty( "phase", "beforeRestart" );
+            tx.success();
+        } );
+
+        // when
+        cluster.getCoreMemberById( followerId ).start();
+        CoreClusterMember restartedFollower = cluster.getCoreMemberById( followerId );
+        dataMatchesEventually( leader, Collections.singleton( restartedFollower ) );
+
+        CoreClusterMember postRejoinLeader = cluster.coreTx( ( db, tx ) ->
+        {
+            Node node = db.createNode( label( "rejoin" ) );
+            node.setProperty( "phase", "afterRestart" );
+            tx.success();
+        } );
+
+        // then
+        assertEquals( 2, countNodes( postRejoinLeader ) );
+        dataMatchesEventually( postRejoinLeader, Collections.singleton( restartedFollower ) );
     }
 
     @Test

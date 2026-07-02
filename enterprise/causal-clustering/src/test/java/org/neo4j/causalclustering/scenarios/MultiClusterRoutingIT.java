@@ -44,6 +44,7 @@ import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -228,11 +229,69 @@ public class MultiClusterRoutingIT
 
     }
 
+    @Test
+    public void routingProceduresShouldConvergeAfterCoreRestart() throws Exception
+    {
+        String dbName = dbNameWithMostCoreMembers();
+        CoreClusterMember memberToRestart = cluster.getMemberWithAnyRole( dbName, Role.FOLLOWER, Role.LEADER );
+
+        Function<CoreGraphDatabase, Set<Endpoint>> getResult = database ->
+        {
+            Optional<MultiClusterRoutingResult> optResult = callProcedure( database, GET_ROUTERS_FOR_ALL_DATABASES, Collections.emptyMap() );
+            return optResult.map( r -> r.routers().values().stream().flatMap( List::stream ).collect( Collectors.toSet() ) )
+                    .orElse( Collections.emptySet() );
+        };
+
+        BiPredicate<Set<Endpoint>, CoreClusterMember> containsMember = ( routers, member ) ->
+                routers.stream().anyMatch( endpoint -> endpoint.address().toString().equals( member.boltAdvertisedAddress() ) );
+
+        assertEventually( "Precondition failed: restarted member should appear in routing tables before restart.",
+                () -> containsMember.test(
+                        getResult.apply( cluster.getMemberWithAnyRole( dbName, Role.FOLLOWER, Role.LEADER ).database() ), memberToRestart ),
+                is( true ), 15, TimeUnit.SECONDS );
+
+        cluster.shutdownCoreMember( memberToRestart );
+
+        assertEventually( "The routing procedure should remove a stopped core from router output.",
+                () -> getResult.apply( cluster.getMemberWithAnyRole( dbName, Role.FOLLOWER, Role.LEADER ).database() ).size(),
+                is( numCores - 1 ), 30, TimeUnit.SECONDS );
+        assertEventually( "The stopped core should not remain routable after restart shutdown.",
+                () -> containsMember.test(
+                        getResult.apply( cluster.getMemberWithAnyRole( dbName, Role.FOLLOWER, Role.LEADER ).database() ), memberToRestart ),
+                is( false ), 30, TimeUnit.SECONDS );
+
+        cluster.startCoreMember( memberToRestart );
+
+        assertEventually( "The routing procedure should re-add the core after restart.",
+                () -> getResult.apply( cluster.getMemberWithAnyRole( dbName, Role.FOLLOWER, Role.LEADER ).database() ).size(),
+                is( numCores ), 30, TimeUnit.SECONDS );
+        assertEventually( "The restarted core should reappear in router output after convergence.",
+                () -> containsMember.test(
+                        getResult.apply( cluster.getMemberWithAnyRole( dbName, Role.FOLLOWER, Role.LEADER ).database() ), memberToRestart ),
+                is( true ), 30, TimeUnit.SECONDS );
+
+        List<Set<Endpoint>> routersPerDatabase = dbNames.stream()
+                .map( name -> cluster.getMemberWithAnyRole( name, Role.FOLLOWER, Role.LEADER ).database() )
+                .map( getResult )
+                .collect( Collectors.toList() );
+
+        long distinctResults = routersPerDatabase.stream().distinct().count();
+        assertThat( "All databases should converge to the same routing view after core restart.", distinctResults, is( 1L ) );
+    }
+
     private static String getFirstDbName( Set<String> dbNames )
     {
         return dbNames.stream()
                 .findFirst()
                 .orElseThrow( () -> new IllegalArgumentException( "The dbNames parameter must not be empty." ) );
+    }
+
+    private String dbNameWithMostCoreMembers()
+    {
+        return dbNames.stream()
+                .max( Comparator.comparingLong(
+                        dbName -> cluster.coreMembers().stream().filter( member -> dbName.equals( member.dbName() ) ).count() ) )
+                .orElseThrow( () -> new IllegalStateException( "Expected at least one database in fixture." ) );
     }
 
     private static Optional<MultiClusterRoutingResult> callProcedure( CoreGraphDatabase db, ProcedureNames procedure, Map<String,Object> params )

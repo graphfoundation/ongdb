@@ -65,6 +65,7 @@ import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.test.causalclustering.ClusterRule;
 import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -248,6 +249,13 @@ public class MultiClusteringIT
     public void shouldNotBeAbleToChangeClusterMembersDatabaseName() throws Exception
     {
         CoreClusterMember member = cluster.coreMembers().stream().findFirst().orElseThrow( IllegalArgumentException::new );
+        String originalDbName = member.dbName();
+        Map<String,Long> activeMembersPerDbBefore = dbNames.stream().collect( Collectors.toMap(
+                dbName -> dbName,
+                dbName -> cluster.coreMembers().stream()
+                        .filter( m -> !m.isShutdown() )
+                        .filter( m -> dbName.equals( m.dbName() ) )
+                        .count() ) );
 
         cluster.shutdownCoreMember( member );
 
@@ -263,10 +271,49 @@ public class MultiClusteringIT
         catch ( ExecutionException e )
         {
             //expected
+            Throwable rootCause = rootCause( e );
+            assertThat( String.valueOf( rootCause.getMessage() ), containsString( "Your configured database name has changed." ) );
+            assertThat( String.valueOf( rootCause.getMessage() ), containsString( CausalClusteringSettings.database.name() ) );
+        }
+
+        Map<String,Long> activeMembersPerDbAfter = dbNames.stream().collect( Collectors.toMap(
+                dbName -> dbName,
+                dbName -> cluster.coreMembers().stream()
+                        .filter( m -> !m.isShutdown() )
+                        .filter( m -> dbName.equals( m.dbName() ) )
+                        .count() ) );
+
+        assertEquals( "Renamed core member should remain out of its original sub-cluster.",
+                activeMembersPerDbBefore.get( originalDbName ) - 1L,
+                activeMembersPerDbAfter.get( originalDbName ).longValue() );
+        assertEquals( "No running member should join under the renamed database identity.",
+                0,
+                cluster.coreMembers().stream()
+                        .filter( m -> !m.isShutdown() )
+                        .filter( m -> "new_name".equals( m.settingValue( CausalClusteringSettings.database.name() ) ) )
+                        .count() );
+
+        for ( String dbName : dbNames )
+        {
+            if ( !dbName.equals( originalDbName ) )
+            {
+                assertEquals( "Rename rejection must not disturb sibling sub-clusters.",
+                        activeMembersPerDbBefore.get( dbName ), activeMembersPerDbAfter.get( dbName ) );
+            }
         }
     }
 
     //TODO: Test that rejoining followers wait for majority of hosts *for each database* to be available before joining
+
+    private static Throwable rootCause( Throwable throwable )
+    {
+        Throwable result = throwable;
+        while ( result.getCause() != null )
+        {
+            result = result.getCause();
+        }
+        return result;
+    }
 
     private static String getFirstDbName( Set<String> dbNames ) throws Exception
     {
