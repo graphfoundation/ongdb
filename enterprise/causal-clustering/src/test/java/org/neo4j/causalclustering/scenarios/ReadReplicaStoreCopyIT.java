@@ -37,10 +37,14 @@ package org.neo4j.causalclustering.scenarios;
 import org.junit.Rule;
 import org.junit.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Path;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 import org.neo4j.causalclustering.catchup.tx.FileCopyMonitor;
 import org.neo4j.causalclustering.discovery.Cluster;
@@ -62,14 +66,18 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.neo4j.kernel.configuration.Settings.FALSE;
 import static org.neo4j.test.assertion.Assert.assertEventually;
+import static java.util.Collections.singleton;
 
 public class ReadReplicaStoreCopyIT
 {
+    private static final String DB_NAME = "storecopydb";
+
     @Rule
     public final ClusterRule clusterRule = new ClusterRule()
             .withSharedCoreParam( GraphDatabaseSettings.keep_logical_logs, FALSE )
             .withNumberOfCoreMembers( 3 )
-            .withNumberOfReadReplicas( 1 );
+            .withNumberOfReadReplicas( 1 )
+            .withDatabaseNames( singleton( DB_NAME ) );
 
     @Test( timeout = 240_000 )
     public void shouldNotBePossibleToStartTransactionsWhenReadReplicaCopiesStore() throws Throwable
@@ -77,15 +85,23 @@ public class ReadReplicaStoreCopyIT
         Cluster cluster = clusterRule.startCluster();
 
         ReadReplica readReplica = cluster.findAnyReadReplica();
+        Path expectedDatabaseDirectory = readReplica.database().databaseLayout().databaseDirectory().toPath().toAbsolutePath();
+        Path legacyGraphDbDirectory = readReplica.homeDir().toPath().resolve( "data" ).resolve( "databases" ).resolve( "graph.db" ).toAbsolutePath();
 
         readReplica.txPollingClient().stop();
 
         writeSomeDataAndForceLogRotations( cluster );
-        Semaphore storeCopyBlockingSemaphore = addStoreCopyBlockingMonitor( readReplica );
+        AtomicReference<Path> firstCopiedFile = new AtomicReference<>();
+        Semaphore storeCopyBlockingSemaphore = addStoreCopyBlockingMonitor( readReplica,
+                file -> firstCopiedFile.compareAndSet( null, file.toPath().toAbsolutePath() ) );
         try
         {
             readReplica.txPollingClient().start();
             waitForStoreCopyToStartAndBlock( storeCopyBlockingSemaphore );
+            assertEventually( "Store copy should target the read replica database layout directory",
+                    () -> firstCopiedFile.get() != null && firstCopiedFile.get().startsWith( expectedDatabaseDirectory ),
+                    is( true ), 60, TimeUnit.SECONDS );
+            assertThat( firstCopiedFile.get().startsWith( legacyGraphDbDirectory ), is( false ) );
 
             ReadReplicaGraphDatabase replicaGraphDatabase = readReplica.database();
             try
@@ -110,7 +126,7 @@ public class ReadReplicaStoreCopyIT
     {
         for ( int i = 0; i < 20; i++ )
         {
-            cluster.coreTx( ( db, tx ) ->
+            cluster.coreTx( DB_NAME, ( db, tx ) ->
             {
                 db.execute( "CREATE ()" );
                 tx.success();
@@ -143,12 +159,13 @@ public class ReadReplicaStoreCopyIT
         }
     }
 
-    private static Semaphore addStoreCopyBlockingMonitor( ReadReplica readReplica )
+    private static Semaphore addStoreCopyBlockingMonitor( ReadReplica readReplica, Consumer<File> onFileCopy )
     {
         Semaphore semaphore = new Semaphore( 0 );
 
         readReplica.monitors().addMonitorListener( (FileCopyMonitor) file ->
         {
+            onFileCopy.accept( file );
             try
             {
                 semaphore.acquire();

@@ -74,6 +74,7 @@ import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 import static java.util.stream.Collectors.toList;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
@@ -84,6 +85,7 @@ import static org.neo4j.io.fs.FileUtils.relativePath;
 public class CatchupServerIT
 {
     private static final String EXISTING_FILE_NAME = "neostore.nodestore.db";
+    private static final String DATABASE_NAME = "catchup-db";
     private static final StoreId WRONG_STORE_ID = new StoreId( 123, 221, 3131, 45678 );
     private static final LogProvider LOG_PROVIDER = NullLogProvider.getInstance();
 
@@ -108,7 +110,8 @@ public class CatchupServerIT
     public void startDb() throws Throwable
     {
         temporaryDirectory = testDirectory.directory( "temp" );
-        graphDb = (GraphDatabaseAPI) new TestGraphDatabaseFactory().setFileSystem( fsa ).newEmbeddedDatabase( testDirectory.databaseDir() );
+        File databaseDirectory = testDirectory.databaseLayout( DATABASE_NAME ).databaseDirectory();
+        graphDb = (GraphDatabaseAPI) new TestGraphDatabaseFactory().setFileSystem( fsa ).newEmbeddedDatabase( databaseDirectory );
         createLegacyIndex();
         createPropertyIndex();
         addData( graphDb );
@@ -156,6 +159,7 @@ public class CatchupServerIT
         List<File> expectedCountStoreFiles = listServerExpectedNonReplayableFiles( neoStoreDataSource );
         for ( File storeFileSnapshot : expectedCountStoreFiles )
         {
+            assertDownloadedFileUsesDatabaseLayoutPath( storeFileSnapshot );
             fileContentEquals( databaseFileToClientFile( storeFileSnapshot ), storeFileSnapshot );
         }
 
@@ -205,6 +209,7 @@ public class CatchupServerIT
         assertEquals( StoreCopyFinishedResponse.Status.SUCCESS, storeCopyFinishedResponse.status() );
 
         // then the contents matches
+        assertDownloadedFileUsesDatabaseLayoutPath( clientFileToDatabaseFile( existingFile ) );
         fileContentEquals( clientFileToDatabaseFile( existingFile ), existingFile );
     }
 
@@ -267,14 +272,29 @@ public class CatchupServerIT
 
     private File databaseFileToClientFile( File file ) throws IOException
     {
-        String relativePathToDatabaseDir = relativePath( testDirectory.databaseDir(), file );
+        String relativePathToDatabaseDir = relativePath( graphDb.databaseLayout().databaseDirectory(), file );
         return new File( temporaryDirectory, relativePathToDatabaseDir );
     }
 
     private File clientFileToDatabaseFile( File file ) throws IOException
     {
         String relativePathToDatabaseDir = relativePath( temporaryDirectory, file );
-        return new File( testDirectory.databaseDir(), relativePathToDatabaseDir );
+        return new File( graphDb.databaseLayout().databaseDirectory(), relativePathToDatabaseDir );
+    }
+
+    private void assertDownloadedFileUsesDatabaseLayoutPath( File sourceFile ) throws IOException
+    {
+        String relativeToDatabaseDirectory = relativePath( graphDb.databaseLayout().databaseDirectory(), sourceFile );
+        File expectedDestination = new File( temporaryDirectory, relativeToDatabaseDirectory );
+        assertTrue( "Expected copied file under database layout path " + expectedDestination, fsa.fileExists( expectedDestination ) );
+
+        String relativeToStoreDirectory = relativePath( graphDb.databaseLayout().getStoreLayout().storeDirectory(), sourceFile );
+        File legacyDestination = new File( temporaryDirectory, relativeToStoreDirectory );
+        if ( !legacyDestination.equals( expectedDestination ) )
+        {
+            assertFalse( "Copied file unexpectedly landed under legacy store-root path " + legacyDestination,
+                    fsa.fileExists( legacyDestination ) );
+        }
     }
 
     private void fileContentEquals( File fileA, File fileB ) throws IOException

@@ -51,14 +51,20 @@ import org.neo4j.causalclustering.catchup.CatchupServerProtocol;
 import org.neo4j.causalclustering.catchup.ResponseMessageType;
 import org.neo4j.causalclustering.identity.StoreId;
 import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.kernel.NeoStoreDataSource;
+import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.StoreCopyCheckPointMutex;
+import org.neo4j.storageengine.api.StorageEngine;
+import org.mockito.InOrder;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
 
 public class PrepareStoreCopyRequestHandlerTest
@@ -70,12 +76,15 @@ public class PrepareStoreCopyRequestHandlerTest
 
     private static final CheckPointer checkPointer = mock( CheckPointer.class );
     private static final NeoStoreDataSource neoStoreDataSource = mock( NeoStoreDataSource.class );
+    private static final RecordStorageEngine recordStorageEngine = mock( RecordStorageEngine.class );
     private CatchupServerProtocol catchupServerProtocol;
     private final PrepareStoreCopyFiles prepareStoreCopyFiles = mock( PrepareStoreCopyFiles.class );
+    private final PrepareStoreCopyFilesProvider prepareStoreCopyFilesProvider = mock( PrepareStoreCopyFilesProvider.class );
 
     @Before
     public void setup()
     {
+        reset( checkPointer, neoStoreDataSource, recordStorageEngine, prepareStoreCopyFiles, prepareStoreCopyFilesProvider );
         StoreCopyCheckPointMutex storeCopyCheckPointMutex = new StoreCopyCheckPointMutex();
         PrepareStoreCopyRequestHandler subject = createHandler( storeCopyCheckPointMutex );
         embeddedChannel = new EmbeddedChannel( subject );
@@ -91,8 +100,8 @@ public class PrepareStoreCopyRequestHandlerTest
         DependencyResolver dependencies = mock( DependencyResolver.class );
         when( neoStoreDataSource.getDependencyResolver() ).thenReturn( dependencies );
         when( dependencies.resolveDependency( CheckPointer.class ) ).thenReturn( checkPointer );
+        when( dependencies.resolveDependency( StorageEngine.class ) ).thenReturn( recordStorageEngine );
 
-        PrepareStoreCopyFilesProvider prepareStoreCopyFilesProvider = mock( PrepareStoreCopyFilesProvider.class );
         when( prepareStoreCopyFilesProvider.prepareStoreCopyFiles( any() ) ).thenReturn( prepareStoreCopyFiles );
 
         return new PrepareStoreCopyRequestHandler( catchupServerProtocol, checkPointerSupplier, storeCopyCheckPointMutex, dataSourceSupplier,
@@ -166,6 +175,25 @@ public class PrepareStoreCopyRequestHandlerTest
 
         //then
         assertEquals( 0, lock.getReadLockCount() );
+    }
+
+    @Test
+    public void shouldSyncTokensBeforeCheckpointAndStoreCopyHandoff() throws Exception
+    {
+        // given
+        LongSet indexIds = LongSets.immutable.empty();
+        File[] files = new File[]{new File( "file" )};
+        configureProvidedStoreCopyFiles( new StoreResource[0], files, indexIds, 1 );
+
+        // when
+        embeddedChannel.writeInbound( new PrepareStoreCopyRequest( STORE_ID_MATCHING ) );
+
+        // then
+        InOrder inOrder = inOrder( recordStorageEngine, checkPointer, prepareStoreCopyFilesProvider );
+        inOrder.verify( recordStorageEngine ).syncTokenHoldersToStore();
+        inOrder.verify( recordStorageEngine ).flushAndForce( IOLimiter.UNLIMITED );
+        inOrder.verify( checkPointer ).tryCheckPoint( any( org.neo4j.kernel.impl.transaction.log.checkpoint.TriggerInfo.class ) );
+        inOrder.verify( prepareStoreCopyFilesProvider ).prepareStoreCopyFiles( neoStoreDataSource );
     }
 
     private void configureProvidedStoreCopyFiles( StoreResource[] atomicFiles, File[] files, LongSet indexIds, long lastCommitedTx )

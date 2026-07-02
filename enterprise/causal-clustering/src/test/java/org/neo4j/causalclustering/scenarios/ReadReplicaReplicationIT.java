@@ -411,6 +411,8 @@ public class ReadReplicaReplicationIT
         awaitEx( () -> readReplicasUpToDateAsTheLeader( cluster.awaitLeader(), cluster.readReplicas() ), 1, TimeUnit.MINUTES );
 
         ReadReplica readReplica = cluster.getReadReplicaById( 0 );
+        AtomicBoolean storeCopyObserved = new AtomicBoolean( false );
+        readReplica.monitors().addMonitorListener( (FileCopyMonitor) file -> storeCopyObserved.set( true ) );
         long highestReadReplicaLogVersion = physicalLogFiles( readReplica ).getHighestLogVersion();
 
         readReplica.shutdown();
@@ -430,6 +432,7 @@ public class ReadReplicaReplicationIT
         readReplica.start();
 
         awaitEx( () -> readReplicasUpToDateAsTheLeader( cluster.awaitLeader(), cluster.readReplicas() ), 1, TimeUnit.MINUTES );
+        assertTrue( "Expected read replica to perform store copy after pruning", storeCopyObserved.get() );
 
         // when
         cluster.coreTx( ( db, tx ) ->

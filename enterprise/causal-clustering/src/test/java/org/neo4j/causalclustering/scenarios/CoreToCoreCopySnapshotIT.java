@@ -134,10 +134,19 @@ public class CoreToCoreCopySnapshotIT
 
         int newDbId = 3;
         cluster.addCoreMemberWithId( newDbId ).start();
-        CoreGraphDatabase newDb = cluster.getCoreMemberById( newDbId ).database();
+        CoreClusterMember newCore = cluster.getCoreMemberById( newDbId );
+        CoreGraphDatabase newDb = newCore.database();
 
         // then
         assertEquals( DbRepresentation.of( leader.database() ), DbRepresentation.of( newDb ) );
+
+        // and the new core keeps receiving transactions after joining via snapshot copy
+        CoreClusterMember postStoreCopyLeader = cluster.coreTx( ( db, tx ) ->
+        {
+            createData( db, 25 );
+            tx.success();
+        } );
+        dataOnMemberEventuallyLooksLike( newCore, postStoreCopyLeader );
     }
 
     @Test
@@ -184,6 +193,14 @@ public class CoreToCoreCopySnapshotIT
 
         // then
         dataOnMemberEventuallyLooksLike( firstServer, secondServer );
+
+        // and the restarted core continues to replicate after the snapshot catchup path
+        CoreClusterMember postRejoinLeader = cluster.coreTx( ( db, tx ) ->
+        {
+            createData( db, 25 );
+            tx.success();
+        } );
+        dataOnMemberEventuallyLooksLike( firstServer, postRejoinLeader );
     }
 
     private class Timeout
