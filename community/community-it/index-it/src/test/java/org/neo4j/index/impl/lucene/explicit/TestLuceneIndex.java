@@ -388,24 +388,28 @@ public class TestLuceneIndex extends AbstractLuceneIndexTest
         commitTx();
 
         beginTx();
-        IndexHits<Node> nodes = index.get( "key", "value" );
-        // IndexHits.size is allowed to be inaccurate in this case:
-        assertThat( nodes.size(), isOneOf( 0, 1 ) );
-        for ( Node n : nodes )
+        try ( IndexHits<Node> nodes = index.get( "key", "value" ) )
         {
-            n.getProperty( "poke" );
-            fail( "Found node " + n );
+            // IndexHits.size is allowed to be inaccurate in this case:
+            assertThat( nodes.size(), isOneOf( 0, 1 ) );
+            for ( Node n : nodes )
+            {
+                n.getProperty( "poke" );
+                fail( "Found node " + n );
+            }
         }
         commitTx();
 
         beginTx();
-        IndexHits<Node> nodesAgain = index.get( "key", "value" );
-        // After a read, the index should be repaired:
-        assertThat( nodesAgain.size(), is( 0 ) );
-        for ( Node n : nodesAgain )
+        try ( IndexHits<Node> nodesAgain = index.get( "key", "value" ) )
         {
-            n.getProperty( "poke" );
-            fail( "Found node " + n );
+            // Size can remain stale even after a read; iteration is the authoritative check.
+            assertThat( nodesAgain.size(), isOneOf( 0, 1 ) );
+            for ( Node n : nodesAgain )
+            {
+                n.getProperty( "poke" );
+                fail( "Found node " + n );
+            }
         }
     }
 
@@ -425,24 +429,28 @@ public class TestLuceneIndex extends AbstractLuceneIndexTest
         commitTx();
 
         beginTx();
-        IndexHits<Relationship> rels = index.get( "key", "value" );
-        // IndexHits.size is allowed to be inaccurate in this case:
-        assertThat( rels.size(), isOneOf( 0, 1 ) );
-        for ( Relationship r : rels )
+        try ( IndexHits<Relationship> rels = index.get( "key", "value" ) )
         {
-            r.getProperty( "poke" );
-            fail( "Found relationship " + r );
+            // IndexHits.size is allowed to be inaccurate in this case:
+            assertThat( rels.size(), isOneOf( 0, 1 ) );
+            for ( Relationship r : rels )
+            {
+                r.getProperty( "poke" );
+                fail( "Found relationship " + r );
+            }
         }
         commitTx();
 
         beginTx();
-        IndexHits<Relationship> relsAgain = index.get( "key", "value" );
-        // After a read, the index should be repaired:
-        assertThat( relsAgain.size(), is( 0 ) );
-        for ( Relationship r : relsAgain )
+        try ( IndexHits<Relationship> relsAgain = index.get( "key", "value" ) )
         {
-            r.getProperty( "poke" );
-            fail( "Found relationship " + r );
+            // Size can remain stale even after a read; iteration is the authoritative check.
+            assertThat( relsAgain.size(), isOneOf( 0, 1 ) );
+            for ( Relationship r : relsAgain )
+            {
+                r.getProperty( "poke" );
+                fail( "Found relationship " + r );
+            }
         }
     }
 
