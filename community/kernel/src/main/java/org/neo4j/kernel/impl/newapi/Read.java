@@ -125,10 +125,9 @@ abstract class Read implements TxStateHolder,
         DefaultNodeValueIndexCursor cursorImpl = (DefaultNodeValueIndexCursor) cursor;
         IndexReader reader = indexReader( index, true );
         cursorImpl.setRead( this );
-        try ( CursorPropertyAccessor accessor = new CursorPropertyAccessor( cursors.allocateNodeCursor(), cursors.allocatePropertyCursor(), this ) )
-        {
-            reader.distinctValues( cursorImpl, accessor, needsValues );
-        }
+        CursorPropertyAccessor accessor = new CursorPropertyAccessor( cursors.allocateNodeCursor(), cursors.allocatePropertyCursor(), this );
+        cursorImpl.setCloseable( accessor );
+        reader.distinctValues( cursorImpl, accessor, needsValues );
     }
 
     private IndexProgressor.NodeValueClient injectFullValuePrecision( IndexProgressor.NodeValueClient cursor,

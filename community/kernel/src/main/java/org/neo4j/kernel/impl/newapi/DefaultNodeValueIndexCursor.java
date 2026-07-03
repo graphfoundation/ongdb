@@ -55,6 +55,7 @@ import org.neo4j.internal.kernel.api.NodeValueIndexCursor;
 import org.neo4j.kernel.api.txstate.TransactionState;
 import org.neo4j.kernel.impl.newapi.TxStateIndexChanges.AddedAndRemoved;
 import org.neo4j.kernel.impl.newapi.TxStateIndexChanges.AddedWithValuesAndRemoved;
+import org.neo4j.io.IOUtils;
 import org.neo4j.storageengine.api.schema.IndexDescriptor;
 import org.neo4j.storageengine.api.schema.IndexProgressor;
 import org.neo4j.storageengine.api.schema.IndexProgressor.NodeValueClient;
@@ -87,6 +88,7 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
     private IndexOrder indexOrder;
     private final DefaultCursors pool;
     private SortedMergeJoin sortedMergeJoin = new SortedMergeJoin();
+    private AutoCloseable closeable;
 
     DefaultNodeValueIndexCursor( DefaultCursors pool )
     {
@@ -255,6 +257,12 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
         this.read = read;
     }
 
+    void setCloseable( AutoCloseable closeable )
+    {
+        IOUtils.closeAllSilently( this.closeable );
+        this.closeable = closeable;
+    }
+
     @Override
     public void node( NodeCursor cursor )
     {
@@ -301,6 +309,8 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
             this.query = null;
             this.values = null;
             this.read = null;
+            IOUtils.closeAllSilently( closeable );
+            this.closeable = null;
             this.added = ImmutableEmptyLongIterator.INSTANCE;
             this.addedWithValues = Collections.emptyIterator();
             this.removed = LongSets.immutable.empty();
