@@ -35,7 +35,9 @@
 package org.neo4j.internal.cypher.acceptance
 
 import org.neo4j.cypher.ExecutionEngineFunSuite
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport._
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.ComparePlansWithAssertion
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
 
 /**
  * These tests are testing the actual index implementation, thus they should all check the actual result.
@@ -44,7 +46,7 @@ import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport._
  */
 class NodeIndexScanAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSupport{
 
-  val expectedToSucceed = Configs.Interpreted
+  val expectedToSucceed = Configs.InterpretedAndSlotted
 
   test("should use index on IS NOT NULL") {
     // Given
@@ -57,11 +59,11 @@ class NodeIndexScanAcceptanceTest extends ExecutionEngineFunSuite with CypherCom
       "MATCH (p:Person) WHERE p.name IS NOT NULL RETURN p",
       planComparisonStrategy = ComparePlansWithAssertion((plan) => {
         //THEN
-        plan should useOperators("NodeIndexScan")
-      }, expectPlansToFail = Configs.AllRulePlanners))
+        plan should includeSomewhere.aPlan("NodeIndexScan")
+      }, expectPlansToFail = Configs.RulePlanner))
 
     // Then
-    result should evaluateTo(List(Map("p" -> person)))
+    result.toList should equal(List(Map("p" -> person)))
   }
 
   test("should use index on exists") {
@@ -75,11 +77,11 @@ class NodeIndexScanAcceptanceTest extends ExecutionEngineFunSuite with CypherCom
       "MATCH (p:Person) WHERE exists(p.name) RETURN p",
       planComparisonStrategy = ComparePlansWithAssertion((plan) => {
         //THEN
-        plan should useOperators("NodeIndexScan")
-      }, expectPlansToFail = Configs.AllRulePlanners))
+        plan should includeSomewhere.aPlan("NodeIndexScan")
+      }, expectPlansToFail = Configs.RulePlanner))
 
     // Then
-    result should evaluateTo(List(Map("p" -> person)))
+    result.toList should equal(List(Map("p" -> person)))
   }
 
   test("Regexp filter on top of NodeIndexScan (GH #7059)") {
@@ -99,10 +101,27 @@ class NodeIndexScanAcceptanceTest extends ExecutionEngineFunSuite with CypherCom
     createLabeledNode(Map("id" -> "139dbf46f0dc8a325e27ffd118331ca2947e34f0", "label" -> "z"), "phone_type", "timed")
 
     // When
-    val result = executeWith(expectedToSucceed, "MATCH (n:phone_type:timed) where n.label =~ 'a.' return count(n)",
-      planComparisonStrategy = ComparePlansWithAssertion(_ should useOperators("NodeIndexScan"), expectPlansToFail = Configs.AllRulePlanners))
+    // This test is flaky on 2.3 so we don't want to run with compatibility here
+    val result = execute("MATCH (n:phone_type:timed) where n.label =~ 'a.' return count(n)")
 
     // Then
-    result should evaluateTo(List(Map("count(n)" -> 3)))
+    result.executionPlanDescription() should includeSomewhere.aPlan("NodeIndexScan")
+    result.toList should equal(List(Map("count(n)" -> 3)))
+  }
+
+  test("should work just fine and use an index scan") {
+    graph.createIndex("Method", "arg0")
+    val query =
+      """
+        |match (f:XMLElement:Function)<-[r:Use]-
+        | (p:XMLElement:Product)-[:ReferTo]->
+        | (pc:Class)-[:Declares]->
+        | (pm:Method)
+        | WHERE pm.arg0 = r.name
+        | merge (pm)-[:Call]->(f);
+      """.stripMargin
+
+    val result = executeWith(Configs.InterpretedAndSlotted - Configs.Cost2_3, query)
+    result.toList should be(empty)
   }
 }

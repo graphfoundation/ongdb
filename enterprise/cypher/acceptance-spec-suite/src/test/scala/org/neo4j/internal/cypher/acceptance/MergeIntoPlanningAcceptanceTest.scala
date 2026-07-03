@@ -35,7 +35,6 @@
 package org.neo4j.internal.cypher.acceptance
 
 import org.neo4j.cypher.ExecutionEngineFunSuite
-import org.neo4j.cypher.internal.runtime.InternalExecutionResult
 
 class MergeIntoPlanningAcceptanceTest extends ExecutionEngineFunSuite{
 
@@ -46,10 +45,10 @@ class MergeIntoPlanningAcceptanceTest extends ExecutionEngineFunSuite{
 
     //when
     val update = execute("""MATCH (a {name:'A'}), (b {name:'B'})
-      |MERGE (a)-[r:TYPE]->(b) ON CREATE SET r.name = 'foo'""".stripMargin)
+                           |MERGE (a)-[r:TYPE]->(b) ON CREATE SET r.name = 'foo'""".stripMargin)
 
     //then
-    update should use("Expand(Into)")
+    update.executionPlanDescription() should includeSomewhere.aPlan("Expand(Into)")
   }
 
   test("ON CREATE with deleting one property") {
@@ -62,7 +61,7 @@ class MergeIntoPlanningAcceptanceTest extends ExecutionEngineFunSuite{
                            |MERGE (a)-[r:TYPE]->(b) ON CREATE SET r.name = null""".stripMargin)
 
     //then
-    update should use("Expand(Into)")
+    update.executionPlanDescription() should includeSomewhere.aPlan("Expand(Into)")
   }
 
   test("ON CREATE with update all properties from node") {
@@ -74,7 +73,7 @@ class MergeIntoPlanningAcceptanceTest extends ExecutionEngineFunSuite{
     val update = execute("MATCH (a {name:'A'}), (b {name:'B'}) MERGE (a)-[r:TYPE]->(b) ON CREATE SET r = a")
 
     //then
-    update should use("Expand(Into)")
+    update.executionPlanDescription() should includeSomewhere.aPlan("Expand(Into)")
   }
 
   test("ON MATCH with update all properties from node") {
@@ -85,7 +84,7 @@ class MergeIntoPlanningAcceptanceTest extends ExecutionEngineFunSuite{
     val update = execute("MATCH (a {name:'A'}), (b {name:'B'}) MERGE (a)-[r:TYPE]->(b) ON MATCH SET r = a")
 
     //then
-    update should use("Expand(Into)")
+    update.executionPlanDescription() should includeSomewhere.aPlan("Expand(Into)")
   }
 
   test("ON CREATE with update properties from literal map") {
@@ -98,7 +97,7 @@ class MergeIntoPlanningAcceptanceTest extends ExecutionEngineFunSuite{
       |MERGE (a)-[r:TYPE]->(b) ON CREATE SET r += {foo: 'bar', bar: 'baz'}""".stripMargin)
 
     //then
-    update should use("Expand(Into)")
+    update.executionPlanDescription() should includeSomewhere.aPlan("Expand(Into)")
   }
 
   test("ON MATCH with update properties from literal map") {
@@ -110,9 +109,6 @@ class MergeIntoPlanningAcceptanceTest extends ExecutionEngineFunSuite{
                            |MERGE (a)-[r:TYPE]->(b) ON MATCH SET r += {foo: 'baz', bar: 'baz'}""".stripMargin)
 
     //then
-    update should use("Expand(Into)")
+    update.executionPlanDescription() should includeSomewhere.aPlan("Expand(Into)")
   }
-
-  //MERGE INTO is only used by the rule planner
-  override def execute(q: String, params: (String, Any)*): InternalExecutionResult= super.execute(s"$q", params:_*)
 }

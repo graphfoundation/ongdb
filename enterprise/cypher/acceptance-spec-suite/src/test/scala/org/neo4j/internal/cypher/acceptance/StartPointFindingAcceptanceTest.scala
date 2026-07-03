@@ -36,7 +36,9 @@ package org.neo4j.internal.cypher.acceptance
 
 import org.neo4j.cypher.ExecutionEngineFunSuite
 import org.neo4j.graphdb.Node
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport.{ComparePlansWithAssertion, Configs}
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.ComparePlansWithAssertion
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
 
 class StartPointFindingAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSupport {
 
@@ -66,7 +68,7 @@ class StartPointFindingAcceptanceTest extends ExecutionEngineFunSuite with Cyphe
     val n1= createNode("b")
     val n2 = createNode("c")
 
-    val result = executeWith(Configs.Interpreted + Configs.Morsel, s"match (n) where id(n) IN [${n1.getId}, ${n2.getId}] return n")
+    val result = executeWith(Configs.InterpretedAndSlotted + Configs.Morsel, s"match (n) where id(n) IN [${n1.getId}, ${n2.getId}] return n")
     result.columnAs("n").toList should equal(Seq(n1, n2))
   }
 
@@ -89,14 +91,14 @@ class StartPointFindingAcceptanceTest extends ExecutionEngineFunSuite with Cyphe
   test("Seek relationship by id given on the left") {
     val rel = relate(createNode("a"), createNode("b"))
 
-    val result = executeWith(Configs.Interpreted, s"match ()-[r]->() where ${rel.getId} = id(r) return r")
+    val result = executeWith(Configs.InterpretedAndSlotted, s"match ()-[r]->() where ${rel.getId} = id(r) return r")
     result.columnAs[Node]("r").toList should equal(List(rel))
   }
 
   test("Seek relationship by id given on the right") {
     val rel = relate(createNode("a"), createNode("b"))
 
-    val result = executeWith(Configs.Interpreted, s"match ()-[r]->() where id(r) = ${rel.getId} return r")
+    val result = executeWith(Configs.InterpretedAndSlotted, s"match ()-[r]->() where id(r) = ${rel.getId} return r")
     result.columnAs[Node]("r").toList should equal(List(rel))
   }
 
@@ -105,7 +107,7 @@ class StartPointFindingAcceptanceTest extends ExecutionEngineFunSuite with Cyphe
     val rel1 = relate(createNode("a"), createNode("b"))
     val rel2 = relate(createNode("c"), createNode("d"))
 
-    val result = executeWith(Configs.Interpreted + Configs.Morsel, s"match ()-[r]->() where id(r) IN [${rel1.getId}, ${rel2.getId}] return r")
+    val result = executeWith(Configs.InterpretedAndSlotted + Configs.Morsel, s"match ()-[r]->() where id(r) IN [${rel1.getId}, ${rel2.getId}] return r")
     result.columnAs("r").toList should equal(Seq(rel1, rel2))
   }
 
@@ -114,7 +116,7 @@ class StartPointFindingAcceptanceTest extends ExecutionEngineFunSuite with Cyphe
     val b = createNode("x")
     val r = relate(a, b)
 
-    val result = executeWith(Configs.Interpreted, s"match (a)-[r]-(b) where id(r) = ${r.getId} return a,r,b")
+    val result = executeWith(Configs.InterpretedAndSlotted, s"match (a)-[r]-(b) where id(r) = ${r.getId} return a,r,b")
     result.toSet should equal(Set(
       Map("r" -> r, "a" -> a, "b" -> b),
       Map("r" -> r, "a" -> b, "b" -> a)))
@@ -125,8 +127,8 @@ class StartPointFindingAcceptanceTest extends ExecutionEngineFunSuite with Cyphe
     val b = createNode("x")
     val r = relate(a, b)
 
-    val result = executeWith(Configs.Interpreted, s"PROFILE UNWIND [${r.getId}] as rId match (a)-[r]->(b) where id(r) = rId return a,r,b",
-      planComparisonStrategy = ComparePlansWithAssertion(_.toString should include("RelationshipById"), expectPlansToFail = Configs.AllRulePlanners))
+    val result = executeWith(Configs.InterpretedAndSlotted, s"PROFILE UNWIND [${r.getId}] as rId match (a)-[r]->(b) where id(r) = rId return a,r,b",
+      planComparisonStrategy = ComparePlansWithAssertion(_.toString should include("RelationshipById"), expectPlansToFail = Configs.RulePlanner))
 
     result.toList should equal(List(Map("r" -> r, "a" -> a, "b" -> b)))
   }
@@ -134,7 +136,7 @@ class StartPointFindingAcceptanceTest extends ExecutionEngineFunSuite with Cyphe
   test("Seek relationship by id with type that is not matching") {
     val r = relate(createNode("x"), createNode("y"), "FOO")
 
-    val result = executeWith(Configs.Interpreted, s"match ()-[r:BAR]-() where id(r) = ${r.getId} return r")
+    val result = executeWith(Configs.InterpretedAndSlotted, s"match ()-[r:BAR]-() where id(r) = ${r.getId} return r")
     result.toList shouldBe empty
   }
 

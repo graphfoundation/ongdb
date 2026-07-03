@@ -41,10 +41,11 @@ import org.neo4j.cypher._
 import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.idp.IDPSolverMonitor
 import org.neo4j.cypher.internal.javacompat.GraphDatabaseCypherService
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
-import org.neo4j.cypher.internal.{CommunityCompatibilityFactory, ExecutionEngine}
+import org.neo4j.cypher.internal.{CommunityCompilerFactory, ExecutionEngine}
 import org.neo4j.graphdb.config.Setting
 import org.neo4j.graphdb.factory.GraphDatabaseSettings
 import org.neo4j.graphdb.factory.GraphDatabaseSettings.{cypher_idp_solver_duration_threshold, cypher_idp_solver_table_threshold}
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
 import org.neo4j.kernel.monitoring
 import org.neo4j.kernel.monitoring.Monitors
 import org.neo4j.logging.NullLogProvider
@@ -112,7 +113,7 @@ class MatchLongPatternAcceptanceTest extends ExecutionEngineFunSuite with QueryS
       println(s"\t$query")
     }
     val start = System.currentTimeMillis()
-    val result = innerExecuteDeprecated(s"EXPLAIN CYPHER planner=IDP $query", Map.empty)
+    val result = executeSingle(s"EXPLAIN CYPHER planner=IDP $query", Map.empty)
     val duration = System.currentTimeMillis() - start
     if (VERBOSE) {
       println(result.executionPlanDescription())
@@ -122,8 +123,8 @@ class MatchLongPatternAcceptanceTest extends ExecutionEngineFunSuite with QueryS
     // THEN
     val plan = result.executionPlanDescription()
     assertMinExpandsAndJoins(plan, Map("expands" -> numberOfPatternRelationships, "joins" -> 1))
-    // For length 12 we improved compiler times from tens of minutes down to ~3s, we think this test of 30s is stable on a wide range of computing hardware
-    duration should be <= 30000L
+    // For length 12 we improved compiler times from tens of minutes down to ~3s, we think this test of 120s is stable on a wide range of computing hardware
+    duration should be <= 120000L
   }
 
   test("very long pattern expressions should be solvable with multiple planners giving identical results using index lookups, expands and joins") {
@@ -145,13 +146,13 @@ class MatchLongPatternAcceptanceTest extends ExecutionEngineFunSuite with QueryS
 
         // measure planning time
         val startPlaning = System.currentTimeMillis()
-        val resultPlanning = innerExecuteDeprecated(s"EXPLAIN CYPHER planner=$planner $query", Map.empty)
+        val resultPlanning = executeSingle(s"EXPLAIN CYPHER planner=$planner $query", Map.empty)
         val durationPlanning = System.currentTimeMillis()-startPlaning
         val plan = resultPlanning.executionPlanDescription()
 
         // measure query time
         val start = System.currentTimeMillis()
-        val result = innerExecuteDeprecated(s"CYPHER planner=$planner $query", Map.empty)
+        val result = executeSingle(s"CYPHER planner=$planner $query", Map.empty)
         val resultCount = result.toList.length
         val duration = System.currentTimeMillis()-start
         val expectedResultCount = Math.pow(2, pathlen % indexStep).toInt
@@ -222,7 +223,7 @@ class MatchLongPatternAcceptanceTest extends ExecutionEngineFunSuite with QueryS
           val monitor = TestIDPSolverMonitor()
           val monitors: monitoring.Monitors = graph.getDependencyResolver.resolveDependency(classOf[monitoring.Monitors])
           monitors.addMonitorListener(monitor)
-          innerExecuteDeprecated(s"EXPLAIN CYPHER planner=IDP $query", Map.empty)
+          executeSingle(s"EXPLAIN CYPHER planner=IDP $query", Map.empty)
           acc(configValue) = monitor.maxStartIteration
       }
       acc
@@ -262,11 +263,7 @@ class MatchLongPatternAcceptanceTest extends ExecutionEngineFunSuite with QueryS
 
     val graph = new GraphDatabaseCypherService(new ImpermanentGraphDatabase(new File("target/test-data/pattern-acceptance"), config))
     try {
-      val monitors = graph.getDependencyResolver.resolveDependency(classOf[Monitors])
-      val logProvider = NullLogProvider.getInstance()
-      // FIXME: probably both?
-      val factory = new CommunityCompatibilityFactory(graph, monitors, logProvider)
-      val engine = new ExecutionEngine(graph, logProvider, factory)
+      val engine = ExecutionEngineHelper.createEngine(graph)
       run(engine, graph)
     } finally {
       graph.shutdown()

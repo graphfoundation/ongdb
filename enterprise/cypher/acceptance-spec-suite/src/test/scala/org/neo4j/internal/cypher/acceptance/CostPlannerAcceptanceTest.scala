@@ -35,8 +35,13 @@
 package org.neo4j.internal.cypher.acceptance
 
 import org.neo4j.cypher.ExecutionEngineFunSuite
+import org.neo4j.cypher.internal.QueryCache.ParameterTypeMap
+import org.neo4j.cypher.internal.StringCacheMonitor
 import org.neo4j.graphdb.config.Setting
 import org.neo4j.graphdb.factory.GraphDatabaseSettings
+import org.neo4j.helpers.collection.Pair
+import org.neo4j.internal.kernel.api.helpers.Indexes
+import org.neo4j.kernel.monitoring.Monitors
 
 /**
   * These tests are similar with the tests in LeafPlanningIntegrationTest, but
@@ -47,14 +52,20 @@ import org.neo4j.graphdb.factory.GraphDatabaseSettings
   */
 class CostPlannerAcceptanceTest extends ExecutionEngineFunSuite {
 
+  private var missCounter: MissCounter = _
+
   override def databaseConfig(): Map[Setting[_], String] =
     Map(GraphDatabaseSettings.query_non_indexed_label_warning_threshold -> "10",
       GraphDatabaseSettings.cypher_plan_with_minimum_cardinality_estimates -> "true")
 
-  test("should do two index seeks instead of scans with explicit index hint (import scenario)") {
-    graph.createIndex("A", "prop")
-    graph.createIndex("B", "prop")
+  override protected def initTest() {
+    super.initTest()
+    val monitors = graph.getDependencyResolver.resolveDependency(classOf[Monitors])
+    missCounter = new MissCounter
+    monitors.addMonitorListener(missCounter)
+  }
 
+  test("should do two index seeks instead of scans with explicit index hint (import scenario)") {
     val query =
       """LOAD CSV WITH HEADERS FROM 'file:///dummy.csv' AS row
         |MATCH (a:A), (b:B)
@@ -64,13 +75,10 @@ class CostPlannerAcceptanceTest extends ExecutionEngineFunSuite {
         |CREATE (a)-[r:R]->(b)
       """.stripMargin
 
-    testPlanNodeIndexSeek(query, assertNumberOfIndexSeeks = 2)
+    testPlanNodeIndexSeek(query, List("A", "B"), assertNumberOfIndexSeeks = 2)
   }
 
   test("should do two index seeks instead of scans without explicit index hint (import scenario)") {
-    graph.createIndex("A", "prop")
-    graph.createIndex("B", "prop")
-
     val query =
       """LOAD CSV WITH HEADERS FROM 'file:///dummy.csv' AS row
         |MATCH (a:A), (b:B)
@@ -78,12 +86,10 @@ class CostPlannerAcceptanceTest extends ExecutionEngineFunSuite {
         |CREATE (a)-[r:R]->(b)
       """.stripMargin
 
-    testPlanNodeIndexSeek(query, assertNumberOfIndexSeeks = 2)
+    testPlanNodeIndexSeek(query, List("A", "B"), assertNumberOfIndexSeeks = 2)
   }
 
   test("should do index seek instead of scan with explicit index seek hint") {
-    graph.createIndex("A", "prop")
-
     val query = """
                   |MATCH (a:A)
                   |USING INDEX a:A(prop)
@@ -91,19 +97,17 @@ class CostPlannerAcceptanceTest extends ExecutionEngineFunSuite {
                   |RETURN a.prop
                 """.stripMargin
 
-    testPlanNodeIndexSeek(query, assertNumberOfIndexSeeks = 1)
+    testPlanNodeIndexSeek(query, List("A"), assertNumberOfIndexSeeks = 1)
   }
 
   test("should do index seek instead of scan without explicit index seek hint") {
-    graph.createIndex("A", "prop")
-
     val query = """
                   |MATCH (a:A)
                   |WHERE a.prop = 42
                   |RETURN a.prop
                 """.stripMargin
 
-    testPlanNodeIndexSeek(query, assertNumberOfIndexSeeks = 1)
+    testPlanNodeIndexSeek(query, List("A"), assertNumberOfIndexSeeks = 1)
   }
 
   test("should do node by id seek instead of scan") {
@@ -115,7 +119,7 @@ class CostPlannerAcceptanceTest extends ExecutionEngineFunSuite {
 
     val explainAndAssert = () => {
       val result = execute(s"EXPLAIN $query")
-      result.executionPlanDescription() should useOperatorTimes("NodeByIdSeek", 1)
+      result.executionPlanDescription() should includeSomewhere.nTimes(1, aPlan("NodeByIdSeek"))
     }
     new GeneratedTestValues().test(executeOnDbWithInitialNumberOfNodes(explainAndAssert, _))
   }
@@ -129,7 +133,7 @@ class CostPlannerAcceptanceTest extends ExecutionEngineFunSuite {
 
     val explainAndAssert = () => {
       val result = execute(s"EXPLAIN $query")
-      result.executionPlanDescription() should useOperatorTimes("UndirectedRelationshipByIdSeek", 1)
+      result.executionPlanDescription() should includeSomewhere.nTimes(1, aPlan("UndirectedRelationshipByIdSeek"))
     }
     new GeneratedTestValues().test(executeOnDbWithInitialNumberOfNodes(explainAndAssert, _))
   }
@@ -150,15 +154,17 @@ class CostPlannerAcceptanceTest extends ExecutionEngineFunSuite {
       """.stripMargin
 
     val result = execute(s"EXPLAIN $query")
-    result.executionPlanDescription() should not(useOperators("CartesianProduct"))
+    result.executionPlanDescription() should not(includeSomewhere.aPlan("CartesianProduct"))
   }
 
-  private def testPlanNodeIndexSeek(query: String, assertNumberOfIndexSeeks: Int): Unit = {
+  private def testPlanNodeIndexSeek(query: String, indexedLabels: List[String], assertNumberOfIndexSeeks: Int): Unit = {
+    indexedLabels.foreach(graph.createIndex(_, "prop"))
+
     val explainAndAssertNodeIndexSeekIsUsed = () => {
       val result = execute(s"EXPLAIN $query")
-      result.executionPlanDescription() should useOperatorTimes("NodeIndexSeek", assertNumberOfIndexSeeks)
+      result.executionPlanDescription() should includeSomewhere.nTimes(assertNumberOfIndexSeeks, aPlan("NodeIndexSeek"))
     }
-    new GeneratedTestValues().test(executeOnDbWithInitialNumberOfNodes(explainAndAssertNodeIndexSeekIsUsed, _))
+    new GeneratedTestValues().test(executeOnDbWithInitialNumberOfNodes(explainAndAssertNodeIndexSeekIsUsed, _, indexedLabels))
   }
 
   private class GeneratedTestValues {
@@ -213,7 +219,8 @@ class CostPlannerAcceptanceTest extends ExecutionEngineFunSuite {
   }
 
   private def executeOnDbWithInitialNumberOfNodes(f: () => Unit,
-                                                  config: InitialNumberOfNodes): Unit = {
+                                                  config: InitialNumberOfNodes,
+                                                  indexedLabels: List[String] = List.empty): Unit = {
     graph.inTx {
       (1 to config.nodesWithoutLabel).foreach { _ => createNode() }
       (1 to config.aNodesWithoutProp).foreach { _ => createLabeledNode("A") }
@@ -222,6 +229,11 @@ class CostPlannerAcceptanceTest extends ExecutionEngineFunSuite {
       (1 to config.bNodesWithProp).foreach { i => createLabeledNode(Map("prop" -> (i + 10000)), "B") }
     }
 
+    resampleIndexes()
+
+    eengine.clearQueryCaches()
+
+    val missesBefore = missCounter.count
     try {
       f()
     } catch {
@@ -229,7 +241,16 @@ class CostPlannerAcceptanceTest extends ExecutionEngineFunSuite {
         System.err.println(s"Failed with $config")
         throw t
     }
+    val missesAfter = missCounter.count
+    missesAfter should be > missesBefore
 
     deleteAllEntities()
+  }
+
+  class MissCounter() extends StringCacheMonitor {
+    var count = 0
+    override def cacheMiss(key: Pair[String, ParameterTypeMap]) {
+      count += 1
+    }
   }
 }

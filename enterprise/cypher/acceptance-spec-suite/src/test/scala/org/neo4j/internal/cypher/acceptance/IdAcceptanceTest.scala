@@ -36,7 +36,8 @@ package org.neo4j.internal.cypher.acceptance
 
 import org.neo4j.cypher._
 import org.neo4j.graphdb.Relationship
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport.Configs
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
 
 class IdAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSupport {
 
@@ -65,9 +66,9 @@ class IdAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSupp
   test("deprecated functions still work") {
     val r = relate(createNode(), createNode())
 
-    executeWith(Configs.Interpreted + Configs.Morsel, "RETURN toInt('1') AS one").columnAs[Long]("one").next should equal(1L)
-    executeWith(Configs.Interpreted + Configs.Morsel, "RETURN upper('abc') AS a").columnAs[String]("a").next should equal("ABC")
-    executeWith(Configs.Interpreted + Configs.Morsel, "RETURN lower('ABC') AS a").columnAs[String]("a").next should equal("abc")
-    executeWith(Configs.Interpreted + Configs.Morsel, "MATCH p = ()-->() RETURN rels(p) AS r").columnAs[List[Relationship]]("r").next should equal(List(r))
+    executeWith(Configs.InterpretedAndSlotted + Configs.Morsel, "RETURN toInt('1') AS one").columnAs[Long]("one").next should equal(1L)
+    executeWith(Configs.InterpretedAndSlotted + Configs.Morsel, "RETURN upper('abc') AS a").columnAs[String]("a").next should equal("ABC")
+    executeWith(Configs.InterpretedAndSlotted + Configs.Morsel, "RETURN lower('ABC') AS a").columnAs[String]("a").next should equal("abc")
+    executeWith(Configs.InterpretedAndSlotted + Configs.Morsel, "MATCH p = ()-->() RETURN rels(p) AS r").columnAs[List[Relationship]]("r").next should equal(List(r))
   }
 }

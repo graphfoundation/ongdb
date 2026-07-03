@@ -37,7 +37,8 @@ package org.neo4j.internal.cypher.acceptance
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.IndexSeekByRange
 import org.neo4j.cypher.{ExecutionEngineFunSuite, QueryStatisticsTestSupport}
 import org.neo4j.graphdb.{Node, ResourceIterator}
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport.Configs
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
 
 class StartsWithImplementationAcceptanceTest extends ExecutionEngineFunSuite with QueryStatisticsTestSupport with CypherComparisonSupport {
 
@@ -67,9 +68,9 @@ class StartsWithImplementationAcceptanceTest extends ExecutionEngineFunSuite wit
     createLabeledNode(Map("prop" -> "www123"), "Address")
     createLabeledNode(Map("prop" -> "www"), "Address")
 
-    val result = executeWith(Configs.Interpreted, "MATCH (a:Address) WHERE a.prop STARTS WITH 'www' RETURN a")
+    val result = executeWith(Configs.InterpretedAndSlotted, "MATCH (a:Address) WHERE a.prop STARTS WITH 'www' RETURN a")
 
-    result should not(use(IndexSeekByRange.name))
+    result.executionPlanDescription() should not(includeSomewhere.aPlan(IndexSeekByRange.name))
   }
 
   test("Should handle prefix search with existing transaction state") {
@@ -86,7 +87,7 @@ class StartsWithImplementationAcceptanceTest extends ExecutionEngineFunSuite wit
         drain(graph.execute("MATCH (u:User {name: 'Stefanie'}) SET u.name = 'steffi'"))
       }
 
-      executeWith(Configs.Interpreted, "MATCH (u:User) WHERE u.name STARTS WITH 'Ste' RETURN u.name as name", executeBefore = executeBefore,
+      executeWith(Configs.InterpretedAndSlotted, "MATCH (u:User) WHERE u.name STARTS WITH 'Ste' RETURN u.name as name", executeBefore = executeBefore,
         resultAssertionInTx = Some(result => {
           result.toSet should equal(Set(Map("name" -> "Stefan"),Map("name" -> "Steven")))
         }))

@@ -35,11 +35,13 @@
 package org.neo4j.internal.cypher.acceptance
 
 import org.neo4j.cypher.ExecutionEngineFunSuite
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport.{ComparePlansWithAssertion, Configs}
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.ComparePlansWithAssertion
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
 
 class JoinAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSupport {
-  private val expectedToSucceed = Configs.Interpreted
-  private val expectPlansToFail = Configs.AllRulePlanners + Configs.Cost2_3
+  private val expectedToSucceed = Configs.InterpretedAndSlotted
+  private val expectPlansToFail = Configs.RulePlanner + Configs.Cost2_3
 
   test("find friends of others") {
     // given
@@ -50,7 +52,7 @@ class JoinAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSu
 
     // when
     executeWith(expectedToSucceed, "MATCH (a:A), (b:B) WHERE a.id = b.id RETURN a, b",
-      planComparisonStrategy = ComparePlansWithAssertion(_ should useOperators("ValueHashJoin"), expectPlansToFail))
+      planComparisonStrategy = ComparePlansWithAssertion(_ should includeSomewhere.aPlan("ValueHashJoin"), expectPlansToFail))
   }
 
   test("should reverse direction if lhs is much larger than rhs") {
@@ -65,7 +67,7 @@ class JoinAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSu
 
     // when
     executeWith(expectedToSucceed, "MATCH (a:A), (b:B) WHERE a.id = b.id RETURN a, b",
-      planComparisonStrategy = ComparePlansWithAssertion(_ should useOperators("ValueHashJoin"), expectPlansToFail))
+      planComparisonStrategy = ComparePlansWithAssertion(_ should includeSomewhere.aPlan("ValueHashJoin"), expectPlansToFail))
   }
 
   test("should handle node left outer hash join") {
@@ -81,9 +83,9 @@ class JoinAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSu
                   |USING JOIN ON a
                   |RETURN a.name, b.name""".stripMargin
 
-    val expectSucceed = Configs.Interpreted - Configs.Cost2_3 - Configs.Cost3_1
+    val expectSucceed = Configs.InterpretedAndSlotted - Configs.Cost2_3 - Configs.Cost3_1
     executeWith(expectSucceed, query,
-      planComparisonStrategy = ComparePlansWithAssertion(_ should useOperators("NodeLeftOuterHashJoin"), expectPlansToFail))
+      planComparisonStrategy = ComparePlansWithAssertion(_ should includeSomewhere.aPlan("NodeLeftOuterHashJoin"), expectPlansToFail))
   }
 
   test("should handle node right outer hash join") {
@@ -99,9 +101,9 @@ class JoinAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSu
                   |USING JOIN ON a
                   |RETURN a.name, b.name""".stripMargin
 
-    val expectSucceed = Configs.Interpreted - Configs.Cost2_3 - Configs.Cost3_1
+    val expectSucceed = Configs.InterpretedAndSlotted - Configs.Cost2_3 - Configs.Cost3_1
     executeWith(expectSucceed, query,
-      planComparisonStrategy = ComparePlansWithAssertion(_ should useOperators("NodeRightOuterHashJoin"), Configs.AllRulePlanners + Configs.BackwardsCompatibility))
+      planComparisonStrategy = ComparePlansWithAssertion(_ should includeSomewhere.aPlan("NodeRightOuterHashJoin"), Configs.Version2_3 + Configs.Version3_1))
   }
 
   test("should handle node left outer hash join with different types for the node variable") {
@@ -118,9 +120,9 @@ class JoinAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSu
                   |USING JOIN ON refA
                   |RETURN a.name, b.name""".stripMargin
 
-    val expectSucceed = Configs.Interpreted - Configs.Cost2_3 - Configs.Cost3_1
+    val expectSucceed = Configs.InterpretedAndSlotted - Configs.Cost2_3 - Configs.Cost3_1
     executeWith(expectSucceed, query,
-      planComparisonStrategy = ComparePlansWithAssertion(_ should useOperators("NodeLeftOuterHashJoin"), expectPlansToFail))
+      planComparisonStrategy = ComparePlansWithAssertion(_ should includeSomewhere.aPlan("NodeLeftOuterHashJoin"), expectPlansToFail))
   }
 
   test("should handle node right outer hash join with different types for the node variable") {
@@ -137,9 +139,9 @@ class JoinAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSu
                   |USING JOIN ON refA
                   |RETURN a.name, b.name""".stripMargin
 
-    val expectSucceed = Configs.Interpreted - Configs.Cost2_3 - Configs.Cost3_1
+    val expectSucceed = Configs.InterpretedAndSlotted - Configs.Cost2_3 - Configs.Cost3_1
     val result = executeWith(expectSucceed, query,
-      planComparisonStrategy = ComparePlansWithAssertion(_ should useOperators("NodeRightOuterHashJoin"), Configs.AllRulePlanners + Configs.BackwardsCompatibility))
+      planComparisonStrategy = ComparePlansWithAssertion(_ should includeSomewhere.aPlan("NodeRightOuterHashJoin"), Configs.Version2_3 + Configs.Version3_1))
   }
 
   test("optional match join should not crash") {

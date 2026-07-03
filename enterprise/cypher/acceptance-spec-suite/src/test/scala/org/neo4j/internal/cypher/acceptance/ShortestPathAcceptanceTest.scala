@@ -37,14 +37,18 @@ package org.neo4j.internal.cypher.acceptance
 
 import org.neo4j.cypher.internal.runtime.PathImpl
 import org.neo4j.cypher.ExecutionEngineFunSuite
-
 import org.neo4j.graphdb.factory.GraphDatabaseSettings
 import org.neo4j.graphdb.{Node, Path}
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport._
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Planners
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Runtimes
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.TestConfiguration
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions
 
 class ShortestPathAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSupport {
 
-  val expectedToSucceed = Configs.Interpreted
+  val expectedToSucceed = Configs.InterpretedAndSlotted
 
   var nodeA: Node = _
   var nodeB: Node = _
@@ -142,6 +146,37 @@ class ShortestPathAcceptanceTest extends ExecutionEngineFunSuite with CypherComp
     val result = executeWith(expectedToSucceed, queryWithComplexPredicate).columnAs[List[Node]]("rels").toList
 
     result should equal(List(List(r1, r4)))
+  }
+
+  test("shortest path with length predicate should lead to fallback") {
+    /* a-b-c, a-c */
+    relate(nodeA, nodeB)
+    relate(nodeB, nodeC)
+    relate(nodeA, nodeC)
+
+    val result = executeWith(expectedToSucceed,
+      """MATCH p = shortestPath((src:A)-[r*]->(dest:C))
+        | WHERE length(p) > 1
+        | RETURN nodes(p) as nodes
+      """.stripMargin)
+
+    result.columnAs[List[Node]]("nodes").toList should equal(List(List(nodeA, nodeB, nodeC)))
+  }
+
+  test("shortest path with length predicate and WITH should prevent fallback") {
+    /* a-b-c, a-c */
+    relate(nodeA, nodeB)
+    relate(nodeB, nodeC)
+    relate(nodeA, nodeC)
+
+    val result = executeWith(expectedToSucceed,
+    """MATCH p = shortestPath((src:A)-[r*]->(dest:C))
+      | WITH p
+      | WHERE length(p) > 1
+      | RETURN nodes(p) as nodes
+    """.stripMargin)
+
+    result.columnAs[List[Node]]("nodes").toList.size should equal(0)
   }
 
   test("finds shortest path that fulfills predicate on nodes") {
@@ -367,8 +402,8 @@ class ShortestPathAcceptanceTest extends ExecutionEngineFunSuite with CypherComp
     relate(nodeB, nodeC)
     relate(nodeC, nodeD)
 
-    val expectedToFail = Configs.All + Configs.Morsel + TestConfiguration(Versions.Default, Planners.Default,
-      Runtimes(Runtimes.Default, Runtimes.ProcedureOrSchema, Runtimes.CompiledSource, Runtimes.CompiledBytecode))
+    val expectedToFail = Configs.All + Configs.Morsel + TestConfiguration(Versions.all, Planners.all,
+      Runtimes(Runtimes.CompiledSource, Runtimes.CompiledBytecode))
 
     failWithError(expectedToFail, "MATCH p = shortestPath((src:A)-[*2..3]->(dst:D)) RETURN nodes(p) AS nodes", List("shortestPath(...) does not support a minimal length different from 0 or 1"))
   }
@@ -384,7 +419,7 @@ class ShortestPathAcceptanceTest extends ExecutionEngineFunSuite with CypherComp
     result should equal(Set(List(nodeA), List(nodeA, nodeB)))
   }
 
-  test("if asked for also return paths of length 0, even when no max length is speficied") {
+  test("if asked for also return paths of length 0, even when no max length is specified") {
     /*
        a-b-c
      */
@@ -458,7 +493,7 @@ class ShortestPathAcceptanceTest extends ExecutionEngineFunSuite with CypherComp
                   |RETURN nodes(p1) AS nodes1, nodes(p2) as nodes2
                 """.stripMargin
 
-    val result = executeWith(expectedToSucceed, query, expectedDifferentResults = Configs.AllRulePlanners)
+    val result = executeWith(expectedToSucceed, query, expectedDifferentResults = Configs.RulePlanner)
 
     result.toList should equal(List(Map("nodes1" -> List(nodes("source"), nodes("node3"), nodes("node4"), nodes("target")),
       "nodes2" -> List(nodes("source"), nodes("target")))))
@@ -493,7 +528,7 @@ class ShortestPathAcceptanceTest extends ExecutionEngineFunSuite with CypherComp
                   |RETURN nodes(p1) AS nodes1, nodes(p2) as nodes2
                 """.stripMargin
 
-    val result = executeWith(expectedToSucceed, query, expectedDifferentResults = Configs.AllRulePlanners)
+    val result = executeWith(expectedToSucceed, query, expectedDifferentResults = Configs.RulePlanner)
 
     result.toList should equal(List(Map("nodes1" -> List(nodes("Donald"), nodes("Huey"), nodes("Dewey"), nodes("Louie"), nodes("Daisy")),
       "nodes2" -> List(nodes("Donald"), nodes("Huey"), nodes("Dewey"), nodes("Louie"), nodes("Daisy")))))
@@ -650,7 +685,7 @@ class ShortestPathAcceptanceTest extends ExecutionEngineFunSuite with CypherComp
     relate(a2, a3, "T")
     relate(a3, a4, "T")
 
-    val result = executeWith(expectedToSucceed + Configs.SlottedInterpreted,
+    val result = executeWith(expectedToSucceed + Configs.SlottedRuntime,
       """
         |MATCH p = (:A)-[:T*]-(:A)
         |WITH p WHERE length(p) > 1
@@ -660,8 +695,6 @@ class ShortestPathAcceptanceTest extends ExecutionEngineFunSuite with CypherComp
     result.toSet should equal(Set(
       Map("n" -> a2.getId, "c" -> 4), Map("n" -> a3.getId, "c" -> 4)
     ))
-
-    result.close()
   }
 
   test("should work with path expression with 2 repeating bound relationships") {

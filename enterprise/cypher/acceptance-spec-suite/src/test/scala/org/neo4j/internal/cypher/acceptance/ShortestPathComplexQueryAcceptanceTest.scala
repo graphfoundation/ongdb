@@ -35,13 +35,15 @@
 package org.neo4j.internal.cypher.acceptance
 
 import org.neo4j.cypher.ExecutionEngineFunSuite
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport.{ComparePlansWithAssertion, Configs}
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.ComparePlansWithAssertion
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
 
 class ShortestPathComplexQueryAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSupport {
 
   test("allShortestPaths with complex LHS should be planned with exhaustive fallback and include predicate") {
     setupModel()
-    val result = executeWith(Configs.Interpreted,
+    val result = executeWith(Configs.InterpretedAndSlotted,
       """
         |PROFILE MATCH (charles:Pixie { fname : 'Charles'}),(joey:Pixie { fname : 'Joey'}),(kim:Pixie { fname : 'Kim'})
         |WITH kim AS kimDeal, collect(charles) AS charlesT, collect(joey) AS joeyS
@@ -51,8 +53,8 @@ class ShortestPathComplexQueryAcceptanceTest extends ExecutionEngineFunSuite wit
         |WHERE none (n IN nodes(pathx) WHERE id(n) = id(kimDeal))
         |RETURN extract(node in nodes(pathx) | id(node)) as ids
       """.stripMargin,
-      planComparisonStrategy = ComparePlansWithAssertion(_ should useOperators("VarLengthExpand(Into)", "AntiConditionalApply"),
-        expectPlansToFail = Configs.AllRulePlanners + Configs.Cost2_3), expectedDifferentResults = Configs.Cost2_3)
+      planComparisonStrategy = ComparePlansWithAssertion(_ should includeSomewhere.aPlan("AntiConditionalApply").withRHS(includeSomewhere.aPlan("VarLengthExpand(Into)")),
+        expectPlansToFail = Configs.RulePlanner + Configs.Cost2_3), expectedDifferentResults = Configs.Cost2_3)
 
     val results = result.columnAs("ids").toList
     results should be(List(List(0, 4, 3, 2)))
@@ -60,7 +62,7 @@ class ShortestPathComplexQueryAcceptanceTest extends ExecutionEngineFunSuite wit
 
   test("shortestPath with complex LHS should be planned with exhaustive fallback and include predicate") {
     setupModel()
-    val result = executeWith(Configs.Interpreted,
+    val result = executeWith(Configs.InterpretedAndSlotted,
       """
         |PROFILE MATCH (charles:Pixie { fname : 'Charles'}),(joey:Pixie { fname : 'Joey'}),(kim:Pixie { fname : 'Kim'})
         |WITH kim AS kimDeal, collect(charles) AS charlesT, collect(joey) AS joeyS
@@ -70,8 +72,8 @@ class ShortestPathComplexQueryAcceptanceTest extends ExecutionEngineFunSuite wit
         |WHERE none (n IN nodes(pathx) WHERE id(n) = id(kimDeal))
         |RETURN extract(node in nodes(pathx) | id(node)) as ids
       """.stripMargin,
-      planComparisonStrategy = ComparePlansWithAssertion(_ should useOperators("VarLengthExpand(Into)", "AntiConditionalApply"),
-        expectPlansToFail = Configs.AllRulePlanners + Configs.Cost2_3), expectedDifferentResults = Configs.Cost2_3)
+      planComparisonStrategy = ComparePlansWithAssertion(_ should includeSomewhere.aPlan("AntiConditionalApply").withRHS(includeSomewhere.aPlan("VarLengthExpand(Into)")),
+        expectPlansToFail = Configs.RulePlanner + Configs.Cost2_3), expectedDifferentResults = Configs.Cost2_3)
 
     val results = result.columnAs("ids").toList
     results should be(List(List(0, 4, 3, 2)))

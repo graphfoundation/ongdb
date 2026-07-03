@@ -36,11 +36,12 @@ package org.neo4j.internal.cypher.acceptance
 
 import org.neo4j.cypher.{ExecutionEngineFunSuite, QueryStatisticsTestSupport}
 import org.neo4j.graphdb.Node
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport.Configs
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
 
 class StringMatchingAcceptanceTest extends ExecutionEngineFunSuite with QueryStatisticsTestSupport with CypherComparisonSupport {
 
-  val expectedToSucceed = Configs.Interpreted - Configs.Version2_3
+  val expectedToSucceed = Configs.InterpretedAndSlotted - Configs.Version2_3
 
   var aNode: Node = null
   var bNode: Node = null
@@ -107,7 +108,7 @@ class StringMatchingAcceptanceTest extends ExecutionEngineFunSuite with QuerySta
     graph.execute("CREATE (:Label{prop:'1 2'})")
     graph.execute("CREATE (:Label{prop:'1  2'})")
 
-    val result = innerExecuteDeprecated("MATCH (n:Label) RETURN length(n.prop) as l", Map.empty)
+    val result = executeSingle("MATCH (n:Label) RETURN length(n.prop) as l", Map.empty)
     result.toSet should equal(Set(Map("l" -> 3), Map("l" -> 4)))
   }
 }

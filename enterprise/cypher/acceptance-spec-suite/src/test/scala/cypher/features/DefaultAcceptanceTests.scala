@@ -34,29 +34,25 @@
  */
 package cypher.features
 
-import java.util.Collection
+import java.util
 
-import cypher.features.ScenarioTestHelper.createTests
-import cypher.features.ScenarioTestHelper.printComputedBlacklist
-import org.junit.Ignore
+import cypher.features.ScenarioTestHelper.{createTests, printComputedBlacklist}
 import org.junit.jupiter.api.Assertions.fail
-import org.junit.jupiter.api.DynamicTest
-import org.junit.jupiter.api.TestFactory
-import org.junit.platform.runner.JUnitPlatform
-import org.junit.runner.RunWith
+import org.junit.jupiter.api.{Disabled, DynamicTest, TestFactory}
+import org.neo4j.test.TestEnterpriseGraphDatabaseFactory
 
-@RunWith(classOf[JUnitPlatform])
-class DefaultAcceptanceTests extends AcceptanceTests {
+class DefaultAcceptanceTests extends EnterpriseBaseAcceptanceTest {
+
+  // If you want to only run a specific feature or scenario, go to the BaseAcceptanceTest
 
   @TestFactory
-  def runDefault(): Collection[DynamicTest] = {
-    createTests(scenarios, DefaultTestConfig)
+  def runDefault(): util.Collection[DynamicTest] = {
+    createTests(scenarios, DefaultTestConfig, new TestEnterpriseGraphDatabaseFactory())
   }
 
-  @Ignore
+  @Disabled
   def generateBlacklistDefault(): Unit = {
-    printComputedBlacklist(scenarios, DefaultTestConfig)
-    fail("Do not forget to add @ignore to this method")
+    printComputedBlacklist(scenarios, DefaultTestConfig, new TestEnterpriseGraphDatabaseFactory())
+    fail("Do not forget to add @Disabled to this method")
   }
-
 }

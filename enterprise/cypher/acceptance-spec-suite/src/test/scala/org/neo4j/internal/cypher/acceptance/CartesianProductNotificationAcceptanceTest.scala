@@ -35,27 +35,30 @@
 package org.neo4j.internal.cypher.acceptance
 
 import java.time.Clock
+
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito.{verify, _}
 import org.neo4j.cypher.GraphDatabaseTestSupport
-import org.neo4j.cypher.internal.compatibility.LatestRuntimeVariablePlannerCompatibility
 import org.neo4j.cypher.internal.compatibility.v3_5.WrappedMonitors
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.helpers.simpleExpressionEvaluator
 import org.neo4j.cypher.internal.compiler.v3_5._
+import org.neo4j.cypher.internal.compiler.v3_5.phases.{PlannerContext, PlannerContextCreator}
+import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.idp._
 import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.{CachedMetricsFactory, SimpleMetricsFactory}
-import org.neo4j.cypher.internal.v3_5.frontend.helpers.rewriting.RewriterStepSequencer
-import org.neo4j.cypher.internal.v3_5.frontend.notification.CartesianProductNotification
-import org.neo4j.cypher.internal.v3_5.frontend.phases.{CompilationPhaseTracer, InternalNotificationLogger, devNullLogger}
 import org.neo4j.cypher.internal.planner.v3_5.spi.{IDPPlannerName, PlanContext}
+import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.cypher.internal.runtime.interpreted.{CSVResources, TransactionBoundPlanContext, TransactionalContextWrapper}
-import org.neo4j.cypher.internal.v3_5.util.InputPosition
-import org.neo4j.cypher.internal.v3_5.util.attribution.SequentialIdGen
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 import org.neo4j.kernel.api.{KernelTransaction, Statement}
 import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge
+import org.neo4j.cypher.internal.v3_5.frontend.phases.{CompilationPhaseTracer, InternalNotificationLogger, devNullLogger}
+import org.neo4j.cypher.internal.v3_5.rewriting.RewriterStepSequencer
+import org.neo4j.cypher.internal.v3_5.util.attribution.SequentialIdGen
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.{CartesianProductNotification, InputPosition}
 
 class CartesianProductNotificationAcceptanceTest extends CypherFunSuite with GraphDatabaseTestSupport {
   var logger: InternalNotificationLogger = _
-  var compiler: CypherCompiler[CommunityRuntimeContext] = _
+  var compiler: CypherPlanner[PlannerContext] = _
 
   override protected def beforeEach(): Unit = {
     super.beforeEach()
@@ -72,7 +75,7 @@ class CartesianProductNotificationAcceptanceTest extends CypherFunSuite with Gra
   }
 
   test("should not warn when connected patterns") {
-    //given
+    //when
     runQuery("MATCH (a)-->(b), (a)-->(c) RETURN *")
 
     //then
@@ -80,7 +83,7 @@ class CartesianProductNotificationAcceptanceTest extends CypherFunSuite with Gra
   }
 
   test("should warn when one disconnected pattern in otherwise connected pattern") {
-    //given
+    //when
     runQuery("MATCH (a)-->(b), (b)-->(c), (x)-->(y), (c)-->(d), (d)-->(e) RETURN *")
 
     //then
@@ -88,7 +91,7 @@ class CartesianProductNotificationAcceptanceTest extends CypherFunSuite with Gra
   }
 
   test("should not warn when disconnected patterns in multiple match clauses") {
-    //given
+    //when
     runQuery("MATCH (a)-->(b) MATCH (c)-->(d) RETURN *")
 
     //then
@@ -96,9 +99,6 @@ class CartesianProductNotificationAcceptanceTest extends CypherFunSuite with Gra
   }
 
   test("this query does not contain a cartesian product") {
-    //given
-    val logger = mock[InternalNotificationLogger]
-
     //when
     runQuery(
       """MATCH (p)-[r1]-(m),
@@ -111,14 +111,13 @@ class CartesianProductNotificationAcceptanceTest extends CypherFunSuite with Gra
 
   private def runQuery(query: String) = {
     graph.inTx {
-      val tracer =CompilationPhaseTracer.NO_TRACING
+      val tracer = CompilationPhaseTracer.NO_TRACING
       val parsed = compiler.parseQuery(query, query, logger, IDPPlannerName.name, Set.empty, None, tracer)
-      val queryGraphSolver = LatestRuntimeVariablePlannerCompatibility.createQueryGraphSolver(IDPPlannerName, monitors, configuration)
       val kernelTransaction = graph.getDependencyResolver.resolveDependency(classOf[ThreadToStatementContextBridge]).getKernelTransactionBoundToThisThread(true)
       val statement = kernelTransaction.acquireStatement()
-      val context = CommunityRuntimeContextCreator.create(tracer, logger, planContext(kernelTransaction, statement), parsed.queryText, Set.empty,
-        None, monitors, metricsFactory, queryGraphSolver, configuration, defaultUpdateStrategy, Clock.systemUTC(), new SequentialIdGen(),
-                                                         simpleExpressionEvaluator)
+      val context = PlannerContextCreator.create(tracer, logger, planContext(kernelTransaction, statement), parsed.queryText, Set.empty,
+                                                 None, monitors, metricsFactory, createQueryGraphSolver(), configuration, defaultUpdateStrategy, Clock.systemUTC(), new SequentialIdGen(),
+                                                 simpleExpressionEvaluator(mock[QueryContext]))
 
       try {
         val normalized = compiler.normalizeQuery(parsed, context)
@@ -129,7 +128,8 @@ class CartesianProductNotificationAcceptanceTest extends CypherFunSuite with Gra
       }
     }
   }
-  private val configuration = CypherCompilerConfiguration(
+
+  private val configuration = CypherPlannerConfiguration(
     queryCacheSize = 128,
     statsDivergenceCalculator = StatsDivergenceCalculator.divergenceNoDecayCalculator(0.5, 1000),
     useErrorsOverWarnings = false,
@@ -145,16 +145,15 @@ class CartesianProductNotificationAcceptanceTest extends CypherFunSuite with Gra
   )
   private lazy val monitors = WrappedMonitors(kernelMonitors)
   private val metricsFactory = CachedMetricsFactory(SimpleMetricsFactory)
-  private def createCompiler(): CypherCompiler[CommunityRuntimeContext] = {
+  private def createCompiler(): CypherPlanner[PlannerContext] = {
 
-    new CypherCompilerFactory().costBasedCompiler(
+    new CypherPlannerFactory().costBasedCompiler(
       configuration,
       Clock.systemUTC(),
       monitors,
       rewriterSequencer = RewriterStepSequencer.newValidating,
-      plannerName = None,
       updateStrategy = None,
-      contextCreator = CommunityRuntimeContextCreator
+      contextCreator = PlannerContextCreator
     )
   }
 
@@ -163,5 +162,15 @@ class CartesianProductNotificationAcceptanceTest extends CypherFunSuite with Gra
     when(tc.dataRead).thenReturn(transaction.dataRead())
     when(tc.graph).thenReturn(graph)
     TransactionBoundPlanContext(tc, devNullLogger)
+  }
+
+  private def createQueryGraphSolver(): IDPQueryGraphSolver = {
+    val monitor = monitors.newMonitor[IDPQueryGraphSolverMonitor]()
+    val solverConfig = new ConfigurableIDPSolverConfig(
+      maxTableSize = configuration.idpMaxTableSize,
+      iterationDurationLimit = configuration.idpIterationDuration
+    )
+    val singleComponentPlanner = SingleComponentPlanner(monitor, solverConfig)
+    IDPQueryGraphSolver(singleComponentPlanner, cartesianProductsOrValueJoins, monitor)
   }
 }

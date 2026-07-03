@@ -36,7 +36,8 @@ package org.neo4j.internal.cypher.acceptance
 
 import org.neo4j.cypher._
 import org.neo4j.graphdb._
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport._
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
 import org.neo4j.internal.kernel.api.Transaction.Type
 import org.neo4j.kernel.api.security.AnonymousContext
 import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge
@@ -196,7 +197,7 @@ class MutatingIntegrationTest extends ExecutionEngineFunSuite with QueryStatisti
     relate(a, b, "LOVES")
 
     val msg = "Cannot delete node<0>, because it still has relationships. To delete this node, you must first delete its relationships."
-    failWithError(Configs.UpdateConf + Configs.Procs, "match (n) where id(n) = 0 match (n)-[r:HATES]->() delete n,r", List(msg))
+    failWithError(Configs.UpdateConf, "match (n) where id(n) = 0 match (n)-[r:HATES]->() delete n,r", List(msg))
   }
 
   test("delete and return") {
@@ -228,7 +229,7 @@ class MutatingIntegrationTest extends ExecutionEngineFunSuite with QueryStatisti
       Map("name" -> "Peter", "prefers" -> "Java"))
 
     val errorMessages = List("If you want to create multiple nodes, please use UNWIND.", "Parameter provided for node creation is not a Map")
-    failWithError(Configs.UpdateConf - Configs.Rule2_3 + Configs.Procs, "create ({params})", params = Map("params" -> maps), message = errorMessages)
+    failWithError(Configs.UpdateConf - Configs.Rule2_3, "create ({params})", params = Map("params" -> maps), message = errorMessages)
   }
 
   test("fail to create from two iterables") {
@@ -242,7 +243,7 @@ class MutatingIntegrationTest extends ExecutionEngineFunSuite with QueryStatisti
       Map("name" -> "Peter"))
     val query = "create (a {params1}), (b {params2})"
     val errorMessages = List("If you want to create multiple nodes, please use UNWIND.", "Parameter provided for node creation is not a Map", "If you create multiple elements, you can only create one of each.")
-    failWithError(Configs.UpdateConf + Configs.Procs, query, message = errorMessages, params = Map("params1" -> maps1, "params2" -> maps2))
+    failWithError(Configs.UpdateConf, query, message = errorMessages, params = Map("params1" -> maps1, "params2" -> maps2))
   }
 
   test("first read then write") {
@@ -279,7 +280,7 @@ class MutatingIntegrationTest extends ExecutionEngineFunSuite with QueryStatisti
     executeWith(Configs.UpdateConf, """match (n) optional match (n)-[r]-() delete n,r""")
 
     graph.inTx {
-      graph.getAllNodes.asScala shouldBe empty
+      graph.getAllNodes().asScala shouldBe empty
     }
   }
 
@@ -318,10 +319,10 @@ class MutatingIntegrationTest extends ExecutionEngineFunSuite with QueryStatisti
   }
 
   test("failed query should not leave dangling transactions") {
-    failWithError(Configs.AbsolutelyAll, "RETURN 1 / 0", List("/ by zero", "divide by zero"))
+    failWithError(Configs.All, "RETURN 1 / 0", List("/ by zero", "divide by zero"))
 
     val contextBridge : ThreadToStatementContextBridge = graph.getDependencyResolver.resolveDependency(classOf[ThreadToStatementContextBridge])
-    contextBridge.getTopLevelTransactionBoundToThisThread( false ) should be(null)
+    contextBridge.getKernelTransactionBoundToThisThread( false ) should be(null)
   }
 
   test("full path in one create") {
@@ -351,7 +352,7 @@ class MutatingIntegrationTest extends ExecutionEngineFunSuite with QueryStatisti
 
   test("create with parameters is not ok when variable already exists") {
     val errorMessages = List("The variable is already declared in this context", "It already exists in this context")
-    failWithError(Configs.AbsolutelyAll - Configs.Cost2_3, "create (a) with a create (a {name:\"Foo\"})-[:BAR]->()", errorMessages)
+    failWithError(Configs.All - Configs.Cost2_3, "create (a) with a create (a {name:\"Foo\"})-[:BAR]->()", errorMessages)
   }
 
   test("failure_only_fails_inner_transaction") {
@@ -372,7 +373,7 @@ class MutatingIntegrationTest extends ExecutionEngineFunSuite with QueryStatisti
 
   test("cant set properties after node is already created") {
     val errorMessages = List("The variable is already declared in this context", "It already exists in this context")
-    failWithError(Configs.AbsolutelyAll - Configs.Cost2_3, "create (a)-[:test]->(b), (a {name:'a'})-[:test2]->(c)", errorMessages)
+    failWithError(Configs.All - Configs.Cost2_3, "create (a)-[:test]->(b), (a {name:'a'})-[:test2]->(c)", errorMessages)
   }
 
   test("can create anonymous nodes inside foreach") {

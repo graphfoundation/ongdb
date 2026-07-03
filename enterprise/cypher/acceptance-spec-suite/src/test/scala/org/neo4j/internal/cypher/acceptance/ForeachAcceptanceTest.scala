@@ -34,8 +34,12 @@
  */
 package org.neo4j.internal.cypher.acceptance
 
-import org.neo4j.cypher.{ExecutionEngineFunSuite, QueryStatisticsTestSupport, SyntaxException}
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport._
+import org.neo4j.cypher.ExecutionEngineFunSuite
+import org.neo4j.cypher.QueryStatisticsTestSupport
+import org.neo4j.cypher.SyntaxException
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.ComparePlansWithAssertion
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
 
 class ForeachAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSupport with QueryStatisticsTestSupport {
 
@@ -51,7 +55,7 @@ class ForeachAcceptanceTest extends ExecutionEngineFunSuite with CypherCompariso
         |  CREATE (n)-[:SELF]->(b))""".stripMargin
 
     // should work
-    eengine.execute(query, Map.empty[String, Any])
+    executeOfficial(query)
   }
 
   test("nested foreach") {
@@ -68,13 +72,13 @@ class ForeachAcceptanceTest extends ExecutionEngineFunSuite with CypherCompariso
         | )
         |)""".stripMargin
 
-    val result = executeWith(Configs.Interpreted - Configs.Cost2_3, query)
+    val result = executeWith(Configs.InterpretedAndSlotted - Configs.Cost2_3, query)
 
     // then
     assertStats(result, nodesCreated = 110, relationshipsCreated = 110, propertiesWritten = 110, labelsAdded = 110)
     val rows = executeScalar[Number]("MATCH (:Root)-[:PARENT]->(:Child) RETURN count(*)")
     rows should equal(10)
-    val ids = executeWith(Configs.Interpreted, "MATCH (:Root)-[:PARENT*]->(c:Child) RETURN c.id AS id ORDER BY c.id").toList
+    val ids = executeWith(Configs.InterpretedAndSlotted, "MATCH (:Root)-[:PARENT*]->(c:Child) RETURN c.id AS id ORDER BY c.id").toList
     ids should equal((1 to 110).map(i => Map("id" -> i)))
   }
 
@@ -83,11 +87,11 @@ class ForeachAcceptanceTest extends ExecutionEngineFunSuite with CypherCompariso
     val query = "FOREACH( n in range( 0, 1 ) | CREATE (p:Person) )"
 
     // when
-    val result = executeWith(Configs.Interpreted - Configs.Cost2_3, query,
-      planComparisonStrategy = ComparePlansWithAssertion((plan) => {
+    val result = executeWith(Configs.InterpretedAndSlotted - Configs.Cost2_3, query,
+      planComparisonStrategy = ComparePlansWithAssertion(plan => {
         //THEN
-        plan should useOperators("Foreach", "CreateNode")
-      }, Configs.AllRulePlanners))
+        plan should includeSomewhere.aPlan("Foreach").withRHS(aPlan("Create"))
+      }, Configs.RulePlanner + Configs.Version3_1))
 
     // then
     assertStats(result, nodesCreated = 2, labelsAdded = 2)
@@ -119,7 +123,7 @@ class ForeachAcceptanceTest extends ExecutionEngineFunSuite with CypherCompariso
         |RETURN e.foo, i.foo, p.foo""".stripMargin
 
     // when
-    val result = executeWith(Configs.Interpreted - Configs.Cost2_3, query)
+    val result = executeWith(Configs.InterpretedAndSlotted - Configs.Cost2_3, query)
 
     // then
     assertStats(result, nodesCreated = 2, relationshipsCreated = 1, labelsAdded = 2, propertiesWritten = 3)
@@ -140,7 +144,7 @@ class ForeachAcceptanceTest extends ExecutionEngineFunSuite with CypherCompariso
         |FOREACH (r IN CASE WHEN rel IS NOT NULL THEN [rel] ELSE [] END | DELETE r )""".stripMargin
 
     // when
-    val result = executeWith(Configs.Interpreted - Configs.Cost2_3, query)
+    val result = executeWith(Configs.InterpretedAndSlotted - Configs.Cost2_3, query)
 
     // then
     assertStats(result, relationshipsDeleted = 1)
@@ -155,7 +159,7 @@ class ForeachAcceptanceTest extends ExecutionEngineFunSuite with CypherCompariso
          |  MERGE (a)-[:FOO]->(b))""".stripMargin
 
     // when
-    val result = executeWith(Configs.Interpreted - Configs.Cost2_3, query)
+    val result = executeWith(Configs.InterpretedAndSlotted - Configs.Cost2_3, query)
 
     // then
     assertStats(result, nodesCreated = 2, relationshipsCreated = 1)
@@ -169,7 +173,7 @@ class ForeachAcceptanceTest extends ExecutionEngineFunSuite with CypherCompariso
         |FOREACH (x IN CASE WHEN condition THEN nodes ELSE [] END | CREATE (a)-[:X]->(x) );""".stripMargin
 
     // when
-    val result = executeWith(Configs.Interpreted - Configs.Cost2_3, query)
+    val result = executeWith(Configs.InterpretedAndSlotted - Configs.Cost2_3, query)
 
     // then
     assertStats(result, nodesCreated = 2, relationshipsCreated = 1)
@@ -186,7 +190,7 @@ class ForeachAcceptanceTest extends ExecutionEngineFunSuite with CypherCompariso
         |   MERGE (x)-[:FOOBAR]->(m) );""".stripMargin
 
     // when
-    val result = executeWith(Configs.Interpreted - Configs.Cost2_3, query)
+    val result = executeWith(Configs.InterpretedAndSlotted - Configs.Cost2_3, query)
 
     // then
     assertStats(result, relationshipsCreated = 1)
@@ -203,14 +207,35 @@ class ForeachAcceptanceTest extends ExecutionEngineFunSuite with CypherCompariso
         |FOREACH (x IN mixedTypeCollection | CREATE (n)-[:FOOBAR]->(x) );""".stripMargin
 
     // when
-    val explain = executeWith(Configs.Interpreted - Configs.Version2_3, s"EXPLAIN $query")
+    val explain = executeWith(Configs.InterpretedAndSlotted - Configs.Version2_3, s"EXPLAIN $query")
 
     // then
     explain.executionPlanDescription().toString shouldNot include("CreateNode")
 
     // when
-    val config = TestConfiguration(Versions.Default, Planners.Default, Runtimes(Runtimes.Interpreted, Runtimes.Slotted, Runtimes.ProcedureOrSchema)) +
-      TestConfiguration(Versions(Versions.V3_1, Versions.V3_3), Planners.Cost, Runtimes.Default)
+    val config = Configs.InterpretedAndSlotted - Configs.Version2_3 - Configs.Rule3_1
     failWithError(config, query, List("Expected to find a node at"))
+  }
+
+  test("foreach with inner function invocation should work ") {
+    // given
+    val a = createNode()
+    val b = createNode()
+    relate(a, b)
+
+    val query =
+      """MATCH p = ()-->()
+        |FOREACH (n IN nodes(p) | SET n.marked = true)""".stripMargin
+    val result = executeWith(Configs.InterpretedAndSlotted - Configs.Cost2_3, query)
+    assertStats(result, propertiesWritten = 2)
+  }
+
+  test("should handle building FOREACH on pattern comprehension") {
+    graph.execute("CREATE (:X)-[:T]->(), (:X)")
+
+    val result = executeWith(
+      expectSucceed = Configs.InterpretedAndSlotted /\ Configs.Version3_5,
+      query = "FOREACH (x in  [ (n:X)-->() | n ] | SET x.prop = 12 )")
+    assertStats(result, propertiesWritten = 1)
   }
 }

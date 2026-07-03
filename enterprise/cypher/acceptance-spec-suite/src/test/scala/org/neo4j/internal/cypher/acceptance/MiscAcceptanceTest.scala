@@ -35,7 +35,8 @@
 package org.neo4j.internal.cypher.acceptance
 
 import org.neo4j.cypher.ExecutionEngineFunSuite
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport._
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
 
 class MiscAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSupport {
 
@@ -48,7 +49,7 @@ class MiscAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSu
       WHERE i <> j
       RETURN i, j"""
 
-    val result = executeWith(Configs.Interpreted + Configs.Morsel, query)
+    val result = executeWith(Configs.InterpretedAndSlotted + Configs.Morsel, query)
     result.toList should equal(List(Map("j" -> 1, "i" -> 0), Map("j" -> 0, "i" -> 1)))
   }
 
@@ -61,15 +62,15 @@ class MiscAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSu
         |ORDER BY y
       """.stripMargin
 
-    val result = executeWith(Configs.All, query, expectedDifferentResults = Configs.OldAndRule)
+    val result = executeWith(Configs.All, query, expectedDifferentResults = Configs.Version2_3 + Configs.Version3_1)
     result.toList should equal(List(Map("y" -> 1, "y3" -> 3), Map("y" -> 1, "y3" -> 4), Map("y" -> 2, "y3" -> 3), Map("y" -> 2, "y3" -> 4)))
   }
 
   test("should unwind nodes") {
     val n = createNode("prop" -> 42)
 
-    val query = "UNWIND $nodes AS n WITH n WHERE n.prop = 42 RETURN n"
-    val result = executeWith(Configs.All - Configs.Version2_3, query, params = Map("nodes" -> List(n)))
+    val query = "UNWIND {nodes} AS n WITH n WHERE n.prop = 42 RETURN n"
+    val result = executeWith(Configs.All, query, params = Map("nodes" -> List(n)))
 
     result.toList should equal(List(Map("n" -> n)))
   }
@@ -113,10 +114,31 @@ class MiscAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSu
     // If we would use Ints for storing the limit, then we would end up with "limit 0"
     // thus, if we actually return the two nodes, then it proves that we used a long
     val query = "MATCH (n) RETURN n LIMIT " + limit
-    val worksCorrectlyInConfig = Configs.Version3_4 + Configs.Version3_3 - Configs.AllRulePlanners
+    val worksCorrectlyInConfig = Configs.Version3_5 + Configs.Version3_4
     // the query will work in all configs, but only have the correct result in those specified configs
-    // Also: It Will work on 3.2 once 3.2.12 is out AND on 3.3 once 3.3.6 is out
     val result = executeWith(Configs.All, query, Configs.All - worksCorrectlyInConfig)
     result.toList should equal(List(Map("n" -> a), Map("n" -> b)))
+  }
+
+  test("should not explode on complex filter() projection in write query") {
+
+    val query = """UNWIND [{children : [
+                  |            {_type : "browseNodeId", _text : "20" },
+                  |            {_type : "childNodes", _text : "21" }
+                  |        ]},
+                  |       {children : [
+                  |            {_type : "browseNodeId", _text : "30" },
+                  |            {_type : "childNodes", _text : "31" }
+                  |        ]}] AS row
+                  |
+                  |WITH   head(filter( child IN row.children WHERE child._type = "browseNodeId" ))._text as nodeId,
+                  |       head(filter( child IN row.children WHERE child._type = "childNodes" )) as childElement
+                  |
+                  |MERGE  (parent:Category { id: toInt(nodeId) })
+                  |
+                  |RETURN *""".stripMargin
+
+    val result = graph.execute(query)
+    result.resultAsString() // should not explode
   }
 }

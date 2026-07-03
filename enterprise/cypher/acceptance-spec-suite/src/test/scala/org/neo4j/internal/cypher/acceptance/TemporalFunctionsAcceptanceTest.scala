@@ -35,13 +35,15 @@
 package org.neo4j.internal.cypher.acceptance
 
 import java.time._
-
-import org.neo4j.cypher.{ExecutionEngineFunSuite, FakeClock}
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport._
+import org.neo4j.cypher.ExecutionEngineFunSuite
+import org.neo4j.cypher.FakeClock
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.TestConfiguration
 
 class TemporalFunctionsAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSupport with FakeClock {
 
-  val supported = (Configs.Version3_4 + Configs.Version3_3 + Configs.Version3_1) - Configs.Compiled
+  val supported: TestConfiguration = (Configs.Version3_5 + Configs.Version3_4 + Configs.Version3_1) - Configs.Compiled
 
   test("should get current default datetime") {
     val result = executeWith(supported, "RETURN datetime() as now")
@@ -89,6 +91,13 @@ class TemporalFunctionsAcceptanceTest extends ExecutionEngineFunSuite with Cyphe
     val now = single(result.columnAs[LocalTime]("now"))
 
     now shouldBe a[LocalTime]
+  }
+
+  test("timestamp should be query local") {
+    // Older versions don't use the clock which we fake in this test
+    val result = executeSingle("UNWIND range(1, 1000) AS ignore RETURN timestamp() AS t").toList
+
+    result.map(m => m("t")).distinct should have size 1
   }
 
   def single[T](values: Iterator[T]):T = {

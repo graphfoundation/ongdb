@@ -34,41 +34,48 @@
  */
 package org.neo4j.internal.cypher.acceptance
 
-import java.io.{File, PrintWriter}
+import java.io.File
+import java.io.PrintWriter
 
 import org.neo4j.cypher.ExecutionEngineHelper.createEngine
 import org.neo4j.cypher._
 import org.neo4j.cypher.internal.ExecutionEngine
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer.CompilationPhase
-import org.neo4j.cypher.internal.javacompat.GraphDatabaseCypherService
 import org.neo4j.cypher.internal.runtime.CreateTempFileTestSupport
 import org.neo4j.cypher.internal.tracing.TimingCompilationTracer
 import org.neo4j.cypher.internal.tracing.TimingCompilationTracer.QueryEvent
 import org.neo4j.graphdb._
 import org.neo4j.graphdb.config.Setting
 import org.neo4j.graphdb.factory.GraphDatabaseSettings
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport.Runtimes.ProcedureOrSchema
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport.Versions.{V2_3, V3_1, V3_4}
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport._
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Planners
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Runtimes
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.TestConfiguration
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions.V2_3
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions.V3_1
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions.V3_5
+import org.neo4j.internal.kernel.api.Transaction.Type
 import org.neo4j.io.fs.FileUtils
 import org.neo4j.kernel.NeoStoreDataSource
-import org.neo4j.internal.kernel.api.Transaction.Type
 import org.neo4j.kernel.api.security.AnonymousContext
 import org.neo4j.kernel.impl.coreapi.TopLevelTransaction
-import org.neo4j.test.{TestEnterpriseGraphDatabaseFactory, TestGraphDatabaseFactory}
+import org.neo4j.test.TestEnterpriseGraphDatabaseFactory
+import org.neo4j.test.TestGraphDatabaseFactory
+import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer.CompilationPhase
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 class ExecutionEngineTest extends ExecutionEngineFunSuite with QueryStatisticsTestSupport with CreateTempFileTestSupport with CypherComparisonSupport {
 
-  val startConf = Configs.CommunityInterpreted - Configs.Version3_3
+  private val startConf = Configs.InterpretedRuntime - Configs.Version3_4
 
   test("shouldGetRelationshipById") {
     val n = createNode()
     val r = relate(n, createNode(), "KNOWS")
 
-    val result = executeWith(Configs.Interpreted, "match ()-[r]->() where id(r) = 0 return r")
+    val result = executeWith(Configs.InterpretedAndSlotted, "match ()-[r]->() where id(r) = 0 return r")
 
     result.columnAs[Relationship]("r").toList should equal(List(r))
   }
@@ -84,7 +91,7 @@ class ExecutionEngineTest extends ExecutionEngineFunSuite with QueryStatisticsTe
     val n1 = createNode(Map("name" -> "Andres"))
     val n2 = createNode(Map("name" -> "Jim"))
 
-    val result = executeWith(Configs.Interpreted + Configs.Morsel,
+    val result = executeWith(Configs.InterpretedAndSlotted + Configs.Morsel,
       s"match(node) where node.name =~ 'And.*' return node"
     )
     result.columnAs[Node]("node").toList should equal(List(n1))
@@ -102,7 +109,7 @@ class ExecutionEngineTest extends ExecutionEngineFunSuite with QueryStatisticsTe
     val node: Node = createNode()
     val rel: Relationship = relate(createNode(), node, "yo")
 
-    val result = executeWith(Configs.Interpreted, s"match ()-[rel]->() where id(rel) = ${rel.getId} return rel")
+    val result = executeWith(Configs.InterpretedAndSlotted, s"match ()-[rel]->() where id(rel) = ${rel.getId} return rel")
 
     result.columnAs[Relationship]("rel").toList should equal(List(rel))
   }
@@ -111,7 +118,7 @@ class ExecutionEngineTest extends ExecutionEngineFunSuite with QueryStatisticsTe
     val node1: Node = createNode()
     val node2: Node = createNode()
 
-    val result = executeWith(Configs.Interpreted + Configs.Morsel, s"match (node) where id(node) in [${node1.getId}, ${node2.getId}] return node")
+    val result = executeWith(Configs.InterpretedAndSlotted + Configs.Morsel, s"match (node) where id(node) in [${node1.getId}, ${node2.getId}] return node")
 
     result.columnAs[Node]("node").toList should equal(List(node1, node2))
   }
@@ -143,10 +150,7 @@ class ExecutionEngineTest extends ExecutionEngineFunSuite with QueryStatisticsTe
     relate(n1, n2, "KNOWS")
     relate(n1, n3, "KNOWS")
 
-    val result = executeWith(Configs.All + Configs.Morsel,
-      s"match (node)-[rel:KNOWS]->(x) where id(node) = ${n1.getId} return x, node"
-    )
-    result.dumpToString()
+    dumpToString(s"match (node)-[rel:KNOWS]->(x) where id(node) = ${n1.getId} return x, node")
   }
 
   test("should Find Nodes By Exact Index Lookup") {
@@ -200,7 +204,7 @@ class ExecutionEngineTest extends ExecutionEngineFunSuite with QueryStatisticsTe
     val n1 = createNode(Map("name" -> "boy"))
     val n2 = createNode(Map("name" -> "girl"))
 
-    val result = executeWith(Configs.Interpreted + Configs.Morsel,
+    val result = executeWith(Configs.InterpretedAndSlotted + Configs.Morsel,
       s"match (n) where id(n) in [${n1.getId}, ${n2.getId}] and (n.name = 'boy' OR n.name = 'girl') return n"
     )
 
@@ -211,7 +215,7 @@ class ExecutionEngineTest extends ExecutionEngineFunSuite with QueryStatisticsTe
     val n1 = createNode(Map("name" -> "boy"))
     val n2 = createNode(Map("name" -> "girl"))
 
-    val result = executeWith(Configs.Interpreted + Configs.Morsel,
+    val result = executeWith(Configs.InterpretedAndSlotted + Configs.Morsel,
       s"match (n) where id(n) in [${n1.getId}, ${n2.getId}] and (n.name = 'boy' XOR n.name = 'girl') return n"
     )
 
@@ -223,7 +227,7 @@ class ExecutionEngineTest extends ExecutionEngineFunSuite with QueryStatisticsTe
     val n2 = createNode(Map("animal" -> "cow", "food" -> "grass"))
     val n3 = createNode(Map("animal" -> "cow", "food" -> "banana"))
 
-    val result = executeWith(Configs.Interpreted + Configs.Morsel,
+    val result = executeWith(Configs.InterpretedAndSlotted + Configs.Morsel,
       s"match (n) where id(n) in [${n1.getId}, ${n2.getId}, ${n3.getId}] " +
         """and (
           (n.animal = 'monkey' AND n.food = 'banana') OR
@@ -255,7 +259,7 @@ class ExecutionEngineTest extends ExecutionEngineFunSuite with QueryStatisticsTe
     createNodes("A", "B")
     relate("A" -> "KNOWS" -> "B")
 
-    val result = executeWith(Configs.Interpreted + Configs.Morsel, "match p = (n)-->(x) where id(n) = 0 return length(p)")
+    val result = executeWith(Configs.InterpretedAndSlotted + Configs.Morsel, "match p = (n)-->(x) where id(n) = 0 return length(p)")
 
     result.columnAs[Int]("length(p)").toList should equal(List(1))
   }
@@ -266,7 +270,7 @@ class ExecutionEngineTest extends ExecutionEngineFunSuite with QueryStatisticsTe
     relate("B" -> "FRIEND" -> "C")
 
 
-    val result = executeWith(Configs.Interpreted, "match (a)-[:CONTAINS*0..1]->(b)-[:FRIEND*0..1]->(c) where id(a) = 0 return a,b,c")
+    val result = executeWith(Configs.InterpretedAndSlotted, "match (a)-[:CONTAINS*0..1]->(b)-[:FRIEND*0..1]->(c) where id(a) = 0 return a,b,c")
 
     result.toSet should equal(
       Set(
@@ -292,7 +296,7 @@ class ExecutionEngineTest extends ExecutionEngineFunSuite with QueryStatisticsTe
         |return pA, pB, pC, pD, pE
       """.stripMargin
 
-    val result = executeWith(Configs.Interpreted, query, params = Map(
+    val result = executeWith(Configs.InterpretedAndSlotted, query, params = Map(
       "a" -> Seq[Long](a),
       "b" -> b.toInt,
       "c" -> Seq(c).asJava,
@@ -307,14 +311,14 @@ class ExecutionEngineTest extends ExecutionEngineFunSuite with QueryStatisticsTe
     createNode()
     val query = "match (pA) where id(pA) = {a} return pA"
 
-    executeWith(Configs.Interpreted + Configs.Morsel, query, params = Map("a" -> "Andres")) should be (empty)
+    executeWith(Configs.InterpretedAndSlotted + Configs.Morsel, query, params = Map("a" -> "Andres")) should be (empty)
   }
 
   test("shouldBeAbleToTakeParamsFromParsedStuff") {
     createNodes("A")
 
     val query = "match (pA) where id(pA) IN {a} return pA"
-    val result = executeWith(Configs.Interpreted + Configs.Morsel, query, params = Map("a" -> Seq[Long](0)))
+    val result = executeWith(Configs.InterpretedAndSlotted + Configs.Morsel, query, params = Map("a" -> Seq[Long](0)))
 
     result.toList should equal(List(Map("pA" -> node("A"))))
   }
@@ -340,13 +344,13 @@ class ExecutionEngineTest extends ExecutionEngineFunSuite with QueryStatisticsTe
 
   test("shouldComplainWhenMissingParams") {
     createNode()
-    failWithError(Configs.AbsolutelyAll - Configs.Compiled, "match (pA) where id(pA) = {a} return pA", List("Expected a parameter named a", "Expected parameter(s): a"))
+    failWithError(Configs.All - Configs.Compiled, "match (pA) where id(pA) = {a} return pA", List("Expected a parameter named a", "Expected parameter(s): a"))
   }
 
   test("shouldSupportMultipleRegexes") {
     val a = createNode(Map("name" -> "Andreas"))
 
-    val result = executeWith(Configs.Interpreted + Configs.Morsel,  """
+    val result = executeWith(Configs.InterpretedAndSlotted + Configs.Morsel,  """
 match (a)
 where id(a) = 0 AND a.name =~ 'And.*' AND a.name =~ 'And.*'
 return a""")
@@ -354,14 +358,14 @@ return a""")
     result.columnAs[Node]("a").toList should equal(List(a))
   }
 
-  test("shouldReturnAnInterableWithAllRelationshipsFromAVarLength") {
+  test("shouldReturnAnIterableWithAllRelationshipsFromAVarLength") {
     val a = createNode()
     val b = createNode()
     val c = createNode()
     val r1 = relate(a, b)
     val r2 = relate(b, c)
 
-    val result = executeWith(Configs.Interpreted,  """
+    val result = executeWith(Configs.InterpretedAndSlotted,  """
 match (a)-[r*2]->(c)
 where id(a) = 0
 return r""")
@@ -372,7 +376,7 @@ return r""")
   test("shouldHandleCheckingThatANodeDoesNotHaveAProp") {
     val a = createNode()
 
-    val result = executeWith(Configs.Interpreted + Configs.Morsel, "match (a) where id(a) = 0 and not exists(a.propertyDoesntExist) return a")
+    val result = executeWith(Configs.InterpretedAndSlotted + Configs.Morsel, "match (a) where id(a) = 0 and not exists(a.propertyDoesntExist) return a")
     result.toList should equal(List(Map("a" -> a)))
   }
 
@@ -380,7 +384,7 @@ return r""")
     val a = createNode("COL1" -> "A", "COL2" -> "A", "num" -> 1).getId
     val b = createNode("COL1" -> "B", "COL2" -> "B", "num" -> 2).getId
 
-    val result = executeWith(Configs.Interpreted,  """
+    val result = executeWith(Configs.InterpretedAndSlotted,  """
 match (a)
 where id(a) IN [%d, %d]
 return a.COL1, a.COL2, avg(a.num)
@@ -395,7 +399,7 @@ order by a.COL1""".format(a, b))
   test("shouldAllowAllPredicateOnArrayProperty") {
     val a = createNode("array" -> Array(1, 2, 3, 4))
 
-    val result = executeWith(Configs.Interpreted, "match (a) where id(a) = 0 and any(x in a.array where x = 2) return a")
+    val result = executeWith(Configs.InterpretedAndSlotted, "match (a) where id(a) = 0 and any(x in a.array where x = 2) return a")
 
     result.toList should equal(List(Map("a" -> a)))
   }
@@ -403,7 +407,7 @@ order by a.COL1""".format(a, b))
   test("shouldAllowStringComparisonsInArray") {
     val a = createNode("array" -> Array("Cypher duck", "Gremlin orange", "I like the snow"))
 
-    val result = executeWith(Configs.Interpreted, "match (a) where id(a) = 0 and single(x in a.array where x =~ '.*the.*') return a")
+    val result = executeWith(Configs.InterpretedAndSlotted, "match (a) where id(a) = 0 and single(x in a.array where x =~ '.*the.*') return a")
 
     result.toList should equal(List(Map("a" -> a)))
   }
@@ -419,7 +423,7 @@ order by a.COL1""".format(a, b))
   test("shouldToStringArraysPrettily") {
     createNode("foo" -> Array("one", "two"))
 
-    val string = executeWith(Configs.All + Configs.Morsel,  """match (n) where id(n) = 0 return n.foo""").dumpToString()
+    val string = dumpToString("match (n) where id(n) = 0 return n.foo")
 
     string should include("""["one","two"]""")
   }
@@ -456,7 +460,7 @@ order by a.COL1""".format(a, b))
   test("shouldHandleComparisonsWithDifferentTypes") {
     createNode("belt" -> 13)
 
-    val result = executeWith(Configs.Interpreted + Configs.Morsel, "match (n) where id(n) = 0 and (n.belt = 'white' OR n.belt = false) return n")
+    val result = executeWith(Configs.InterpretedAndSlotted + Configs.Morsel, "match (n) where id(n) = 0 and (n.belt = 'white' OR n.belt = false) return n")
     result.toList shouldBe empty
   }
 
@@ -464,7 +468,7 @@ order by a.COL1""".format(a, b))
     val a = createNode()
     val b = createNode()
     val r = relate(a, b)
-    val result = executeWith(Configs.Interpreted, "match (a), ()-[r]->() where id(a) = 0 and id(r) = 0 return a,r")
+    val result = executeWith(Configs.InterpretedAndSlotted, "match (a), ()-[r]->() where id(a) = 0 and id(r) = 0 return a,r")
 
     result.toList should equal(List(Map("a" -> a, "r" -> r)))
   }
@@ -474,7 +478,7 @@ order by a.COL1""".format(a, b))
     createNode("foo" -> 49)
 
     val q = "match (x) where id(x) in [0,1] with x WHERE x.foo = 42 return x"
-    val result = executeWith(Configs.Interpreted + Configs.Morsel, q)
+    val result = executeWith(Configs.InterpretedAndSlotted + Configs.Morsel, q)
 
     result.toList should equal(List(Map("x" -> a)))
   }
@@ -482,7 +486,7 @@ order by a.COL1""".format(a, b))
   test("second piped query woot") {
     createNode()
     val q = "match (x) where id(x) = 0 with count(*) as apa WHERE apa = 1 RETURN apa"
-    val result = executeWith(Configs.Interpreted, q)
+    val result = executeWith(Configs.InterpretedAndSlotted, q)
 
     result.toList should equal(List(Map("apa" -> 1)))
   }
@@ -490,8 +494,9 @@ order by a.COL1""".format(a, b))
   test("shouldReturnASimplePath") {
     val errorMessage = List("Index `missingIndex` does not exist")
 
-    val conf = startConf + Configs.Procs
-    val conf2 = Configs.AllRulePlanners + Configs.DefaultInterpreted + Configs.Procs
+    // Version 3.5 silently falls back to 3.1
+    val conf = TestConfiguration(Versions(V2_3, V3_1, V3_5), Planners.all, Runtimes.Interpreted)
+    val conf2 = TestConfiguration(Versions(V2_3, V3_1, V3_5), Planners.Rule, Runtimes.Interpreted)
     failWithError(conf, "start a=node:missingIndex(key='value') return a", errorMessage)
     failWithError(conf, "start a=node:missingIndex('value') return a", errorMessage)
     failWithError(conf2, "start a=relationship:missingIndex(key='value') return a", errorMessage)
@@ -507,7 +512,7 @@ order by a.COL1""".format(a, b))
 
     try {
       // This syntax is valid today, but should give an exception in 1.5
-      engine.execute("create a", Map.empty[String, Any])
+      execute("CREATE a")
     } catch {
       case x: SyntaxException =>
       case _: Throwable => fail("expected exception")
@@ -527,7 +532,7 @@ order by a.COL1""".format(a, b))
 
     val q = "match (n)-[f]->() where id(n)= 0 with n, max(f.age) as age match (n)-[f]->(m) where f.age = age return m"
 
-    executeWith(Configs.Interpreted, q).toList should equal(List(Map("m" -> c)))
+    executeWith(Configs.InterpretedAndSlotted, q).toList should equal(List(Map("m" -> c)))
   }
 
   test("issue 432") {
@@ -537,11 +542,11 @@ order by a.COL1""".format(a, b))
 
     val q = "match p = (n)-[*1..]->(m) where id(n)= 0 return p, last(nodes(p)) order by length(nodes(p)) asc"
 
-    executeWith(Configs.Interpreted, q).toList should have size 1
+    executeWith(Configs.InterpretedAndSlotted, q).toList should have size 1
   }
 
   test("zero matching subgraphs yield correct count star") {
-    val result = executeWith(Configs.Interpreted, "match (n) where 1 = 0 return count(*)")
+    val result = executeWith(Configs.InterpretedAndSlotted, "match (n) where 1 = 0 return count(*)")
     result.toList should equal(List(Map("count(*)" -> 0)))
   }
 
@@ -582,14 +587,14 @@ order by a.COL1""".format(a, b))
   test("shouldSupportArrayOfArrayOfPrimitivesAsParameterForInKeyword") {
     val node = createNode("lotteryNumbers" -> Array(42, 87))
 
-    val result = executeWith(Configs.Interpreted + Configs.Morsel, "match (n) where id(n) = 0 and n.lotteryNumbers in [[42, 87], [13], [42]] return n")
+    val result = executeWith(Configs.InterpretedAndSlotted + Configs.Morsel, "match (n) where id(n) = 0 and n.lotteryNumbers in [[42, 87], [13], [42]] return n")
 
     result.toList should equal(List(Map("n" -> node)))
   }
 
   test("params should survive with") {
     val n = createNode()
-    val result = executeWith(Configs.Interpreted, "match (n) where id(n) = 0 WITH collect(n) as coll where length(coll)={id} RETURN coll", params = Map("id"->1))
+    val result = executeWith(Configs.InterpretedAndSlotted, "match (n) where id(n) = 0 WITH collect(n) as coll where length(coll)={id} RETURN coll", params = Map("id"->1))
 
     result.toList should equal(List(Map("coll" -> List(n))))
   }
@@ -616,7 +621,7 @@ order by a.COL1""".format(a, b))
 
   test("can alias and aggregate") {
     val a = createNode()
-    val result = executeWith(Configs.Interpreted, "match (n) where id(n) = 0 return sum(ID(n)), n as m")
+    val result = executeWith(Configs.InterpretedAndSlotted, "match (n) where id(n) = 0 return sum(ID(n)), n as m")
 
     result.toList should equal(List(Map("sum(ID(n))"->0, "m"->a)))
   }
@@ -624,7 +629,7 @@ order by a.COL1""".format(a, b))
   test("extract string from node collection") {
     createNode("name"->"a")
 
-    val result = executeWith(Configs.Interpreted, """match (n) where id(n) = 0 with collect(n) as nodes return head(extract(x in nodes | x.name)) + "test" as test """)
+    val result = executeWith(Configs.InterpretedAndSlotted, """match (n) where id(n) = 0 with collect(n) as nodes return head(extract(x in nodes | x.name)) + "test" as test """)
 
     result.toList should equal(List(Map("test" -> "atest")))
   }
@@ -632,7 +637,7 @@ order by a.COL1""".format(a, b))
   test("filtering in match should not fail") {
     val n = createNode()
     relate(n, createNode("name" -> "Neo"))
-    val result = executeWith(Configs.Interpreted + Configs.Morsel, "MATCH (n)-->(me) WHERE id(n) = 0 AND me.name IN ['Neo'] RETURN me.name")
+    val result = executeWith(Configs.InterpretedAndSlotted + Configs.Morsel, "MATCH (n)-->(me) WHERE id(n) = 0 AND me.name IN ['Neo'] RETURN me.name")
 
     result.toList should equal(List(Map("me.name"->"Neo")))
   }
@@ -654,7 +659,7 @@ order by a.COL1""".format(a, b))
 
     val engine = createEngine(graph)
 
-    intercept[Throwable](engine.execute("BABY START SMILING, YOU KNOW THE SUN IS SHINING.", Map.empty[String, Any]))
+    intercept[Throwable](execute("BABY START SMILING, YOU KNOW THE SUN IS SHINING."))
 
     // Until we have a clean cut way where statement context is injected into cypher,
     // I don't know a non-hairy way to tell if this was done correctly, so here goes:
@@ -700,7 +705,7 @@ order by a.COL1""".format(a, b))
     val c = createNode()
 
     // WHEN
-    val result = executeWith(Configs.Interpreted, "MATCH (n) WHERE id(n) in [%d, %d, %d] AND n:foo RETURN n".format(a.getId, b.getId, c.getId))
+    val result = executeWith(Configs.InterpretedAndSlotted, "MATCH (n) WHERE id(n) in [%d, %d, %d] AND n:foo RETURN n".format(a.getId, b.getId, c.getId))
 
     // THEN
     result.toList should equal(List(Map("n" -> a), Map("n" -> b)))
@@ -713,7 +718,7 @@ order by a.COL1""".format(a, b))
     val c = createNode()
 
     // WHEN
-    val result = executeWith(Configs.Interpreted + Configs.Morsel, "MATCH (n) WHERE id(n) in [0, 1, 2] AND not(n:foo) RETURN n")
+    val result = executeWith(Configs.InterpretedAndSlotted + Configs.Morsel, "MATCH (n) WHERE id(n) in [0, 1, 2] AND not(n:foo) RETURN n")
 
     // THEN
     result.toList should equal(List(Map("n" -> c)))
@@ -726,7 +731,7 @@ order by a.COL1""".format(a, b))
     val c = createNode()
 
     // WHEN
-    val result = executeWith(Configs.Interpreted, "MATCH (n) WHERE id(n) in [%d, %d, %d] AND n:foo:bar RETURN n"
+    val result = executeWith(Configs.InterpretedAndSlotted, "MATCH (n) WHERE id(n) in [%d, %d, %d] AND n:foo:bar RETURN n"
         .format(a.getId, b.getId, c.getId))
 
     // THEN
@@ -738,9 +743,16 @@ order by a.COL1""".format(a, b))
     val labelName = "Person"
     val propertyKeys = Seq("name")
 
-    val testconfiguration = TestConfiguration(Versions(V3_1, V3_4, Versions.Default), Planners.Default, Runtimes(ProcedureOrSchema, Runtimes.Default)) + Configs.Rule2_3
+    val testConfiguration =
+      TestConfiguration(
+        """2.3 planner=rule
+          |3.1
+          |3.4
+          |3.5
+        """.stripMargin)
+
     // WHEN
-    executeWith(testconfiguration, s"""CREATE INDEX ON :$labelName(${propertyKeys.reduce(_ ++ "," ++ _)})""")
+    executeWith(testConfiguration, s"""CREATE INDEX ON :$labelName(${propertyKeys.reduce(_ ++ "," ++ _)})""")
 
     // THEN
     graph.inTx {
@@ -756,7 +768,7 @@ order by a.COL1""".format(a, b))
     createNode()
 
     // WHEN
-    val result = executeWith(Configs.Interpreted, "match (n) where id(n) = 0 RETURN 1 as x UNION ALL match (n) where id(n) = 0 RETURN 2 as x")
+    val result = executeWith(Configs.InterpretedAndSlotted, "match (n) where id(n) = 0 RETURN 1 as x UNION ALL match (n) where id(n) = 0 RETURN 2 as x")
 
     // THEN
     result.toList should equal(List(Map("x" -> 1), Map("x" -> 2)))
@@ -766,7 +778,7 @@ order by a.COL1""".format(a, b))
     createNode()
 
     // WHEN
-    val result = executeWith(Configs.Interpreted, "match (n) where id(n) = 0 RETURN 1 as x UNION match (n) where id(n) = 0 RETURN 1 as x")
+    val result = executeWith(Configs.InterpretedAndSlotted, "match (n) where id(n) = 0 RETURN 1 as x UNION match (n) where id(n) = 0 RETURN 1 as x")
 
     // THEN
     result.toList should equal(List(Map("x" -> 1)))
@@ -777,7 +789,7 @@ order by a.COL1""".format(a, b))
     readOnlyEngine() {
       engine =>
         //WHEN
-        val result = engine.execute("MATCH (n) WHERE n:NonExistingLabel RETURN n", Map.empty[String, Any])
+        val result = executeOfficial("MATCH (n) WHERE n:NonExistingLabel RETURN n")
 
         //THEN
         result.asScala.toList shouldBe empty
@@ -845,7 +857,7 @@ order by a.COL1""".format(a, b))
     val n = createNode("n")
     val m = createNode("m")
     relate(n,m,"link")
-    val result = executeWith(Configs.Interpreted, "match (n) where id(n) = 0 with coalesce(n,n) as n match (n)--() return n")
+    val result = executeWith(Configs.InterpretedAndSlotted, "match (n) where id(n) = 0 with coalesce(n,n) as n match (n)--() return n")
 
     result.toList should equal(List(Map("n" -> n)))
   }
@@ -862,12 +874,6 @@ order by a.COL1""".format(a, b))
 
     val result = executeWith(startConf, "start p1=node:stuff('key:*'), p2=node:stuff('key:*') match (p1)--(e), (p2)--(e) where p1.value = 0 and p2.value = 0 AND p1 <> p2 return p1,p2,e")
     result.toList shouldBe empty
-  }
-
-  test("should be able to prettify queries") {
-    val query = "match (n)-->(x) return n"
-
-    eengine.prettify(query) should equal(String.format("MATCH (n)-->(x)%nRETURN n"))
   }
 
   test("doctest gone wild") {
@@ -887,13 +893,13 @@ order by a.COL1""".format(a, b))
   test("should iterate all node id sets from start during matching") {
     // given
     val nodes: Vector[Node] =
-      innerExecuteDeprecated("CREATE (a)-[:EDGE]->(b), (b)<-[:EDGE]-(c), (a)-[:EDGE]->(c) RETURN [a, b, c] AS nodes", Map.empty)
+      executeSingle("CREATE (a)-[:EDGE]->(b), (b)<-[:EDGE]-(c), (a)-[:EDGE]->(c) RETURN [a, b, c] AS nodes", Map.empty)
         .columnAs[Vector[Node]]("nodes").next().sortBy(_.getId)
 
     val nodeIds = s"[${nodes.map(_.getId).mkString(",")}]"
 
     // when
-    val result = executeWith(Configs.Interpreted + Configs.Morsel, s"MATCH (src)-[r:EDGE]-(dst) WHERE id(src) IN $nodeIds AND id(dst) IN $nodeIds RETURN r")
+    val result = executeWith(Configs.InterpretedAndSlotted + Configs.Morsel, s"MATCH (src)-[r:EDGE]-(dst) WHERE id(src) IN $nodeIds AND id(dst) IN $nodeIds RETURN r")
 
     // then
     val relationships: List[Relationship] = result.columnAs[Relationship]("r").toList
@@ -910,14 +916,14 @@ order by a.COL1""".format(a, b))
   }
 
   test("merge should not support map parameters for defining properties") {
-    failWithError(Configs.AbsolutelyAll, "MERGE (n:User {merge_map})", List("Parameter maps cannot be used in MERGE patterns"), params = Map("merge_map" -> Map("email" -> "test")))
+    failWithError(Configs.All, "MERGE (n:User {merge_map})", List("Parameter maps cannot be used in MERGE patterns"), params = Map("merge_map" -> Map("email" -> "test")))
   }
 
   test("should return null on all comparisons against null") {
     // given
 
     // when
-    val result = executeWith(Configs.Interpreted + Configs.Morsel, "return 1 > null as A, 1 < null as B, 1 <= null as C, 1 >= null as D, null <= null as E, null >= null as F")
+    val result = executeWith(Configs.InterpretedAndSlotted + Configs.Morsel, "return 1 > null as A, 1 < null as B, 1 <= null as C, 1 >= null as D, null <= null as E, null >= null as F")
 
     // then
     result.toList should equal(List(Map("A" -> null, "B" -> null, "C" -> null, "D" -> null, "E" -> null, "F" -> null)))
@@ -938,7 +944,7 @@ order by a.COL1""".format(a, b))
   test("should be able to coerce literal collections to predicates") {
     val n = createLabeledNode(Map("coll" -> Array(1, 2, 3), "bool" -> true), "LABEL")
 
-    val foundNode = executeWith(Configs.Interpreted, "match (n:LABEL) where [1,2,3] and n.bool return n").columnAs[Node]("n").next()
+    val foundNode = executeWith(Configs.InterpretedAndSlotted, "match (n:LABEL) where [1,2,3] and n.bool return n").columnAs[Node]("n").next()
 
     foundNode should equal(n)
   }
@@ -969,7 +975,7 @@ order by a.COL1""".format(a, b))
       writer.println("1,2,3")
       writer.println("4,5,6")
     }
-    val result = eengine.execute(s"cypher 2.3 using periodic commit load csv from '$url' as line create x return x", Map.empty[String, Any])
+    val result = executeOfficial(s"cypher 2.3 using periodic commit load csv from '$url' as line create x return x")
     result.asScala should have size 2
   }
 
@@ -979,6 +985,8 @@ order by a.COL1""".format(a, b))
   )
 
   case class PlanningListener(planRequests: mutable.ArrayBuffer[String] = mutable.ArrayBuffer.empty) extends TimingCompilationTracer.EventListener {
+    override def startQueryCompilation(query: String): Unit = {}
+
     override def queryCompiled(event: QueryEvent): Unit = {
       if(event.phases().asScala.exists(_.phase() == CompilationPhase.LOGICAL_PLANNING)) {
         planRequests.append(event.query())
@@ -994,12 +1002,12 @@ order by a.COL1""".format(a, b))
     (0 until 100).foreach { _ => createLabeledNode("Person") }
 
     // WHEN
-    eengine.execute(s"match (n:Person) return n", Map.empty[String, Any]).resultAsString()
+    executeOfficial(s"match (n:Person) return n").resultAsString()
     planningListener.planRequests should equal(Seq(
       s"match (n:Person) return n"
     ))
     (0 until 301).foreach { _ => createLabeledNode("Person") }
-    eengine.execute(s"match (n:Person) return n", Map.empty[String, Any]).resultAsString()
+    executeOfficial(s"match (n:Person) return n").resultAsString()
 
     //THEN
     planningListener.planRequests should equal (Seq(
@@ -1015,12 +1023,12 @@ order by a.COL1""".format(a, b))
 
     (0 until 100).foreach { _ => createLabeledNode("Person") }
     //WHEN
-    eengine.execute(s"match (n:Person) return n", Map.empty[String, Any]).resultAsString()
+    executeOfficial(s"match (n:Person) return n").resultAsString()
     planningListener.planRequests should equal(Seq(
       s"match (n:Person) return n"
     ))
     (0 until 9).foreach { _ => createLabeledNode("Dog") }
-    eengine.execute(s"match (n:Person) return n", Map.empty[String, Any]).resultAsString()
+    executeOfficial(s"match (n:Person) return n").resultAsString()
 
     //THEN
     planningListener.planRequests should equal(Seq(
@@ -1032,14 +1040,14 @@ order by a.COL1""".format(a, b))
     val planningListener = PlanningListener()
     kernelMonitors.addMonitorListener(planningListener)
 
-    val result1 = eengine.execute("match (n) return n", Map.empty[String, Any]).asScala.toList
+    val result1 = executeOfficial("match (n) return n").asScala.toList
     result1 shouldBe empty
 
     val ds = graph.getDependencyResolver.resolveDependency(classOf[NeoStoreDataSource])
     ds.stop()
     ds.start()
 
-    val result2 = eengine.execute("match (n) return n", Map.empty[String, Any]).asScala.toList
+    val result2 = executeOfficial("match (n) return n").asScala.toList
     result2 shouldBe empty
 
     planningListener.planRequests should equal(Seq(
@@ -1048,7 +1056,7 @@ order by a.COL1""".format(a, b))
     ))
   }
 
-  private def readOnlyEngine()(run: ExecutionEngine => Unit) = {
+  private def readOnlyEngine()(run: ExecutionEngine => Unit): Unit = {
     FileUtils.deleteRecursively(new File("target/readonly"))
     val old = new TestEnterpriseGraphDatabaseFactory().newEmbeddedDatabase( new File( "target/readonly" ) )
     old.shutdown()

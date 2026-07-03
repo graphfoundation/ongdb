@@ -34,18 +34,22 @@
  */
 package org.neo4j.internal.cypher.acceptance
 
-import java.time.{LocalDate, LocalTime}
+import java.time.LocalDate
+import java.time.LocalTime
 import java.util
 
 import org.neo4j.cypher._
 import org.neo4j.graphdb.QueryExecutionException
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport.{ComparePlansWithAssertion, Configs}
-import org.neo4j.values.storable.{DateValue, DurationValue}
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.ComparePlansWithAssertion
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
+import org.neo4j.values.storable.DateValue
+import org.neo4j.values.storable.DurationValue
 
 class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatisticsTestSupport with CypherComparisonSupport {
 
-  private val failConf1 = Configs.Interpreted + Configs.Procs - Configs.OldAndRule
-  private val failConf2 = Configs.Interpreted + Configs.Procs - Configs.Version2_3
+  private val failConf1 = Configs.InterpretedAndSlotted - Configs.Version2_3 - Configs.Version3_1
+  private val failConf2 = Configs.InterpretedAndSlotted - Configs.Version2_3
 
   // Getting current value of a temporal
 
@@ -84,7 +88,7 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
     val dateValue = DateValue.date(2018, 5, 5).asObject()
     createNode(Map("prop" -> dateValue))
 
-    val config = Configs.All - Configs.OldAndRule
+    val config = Configs.All - Configs.Version2_3 - Configs.Version3_1
     val query = "MATCH (n) WHERE n.prop = $param RETURN n.prop as prop"
     val result = executeWith(config, query, params = Map("param" -> dateValue))
 
@@ -99,7 +103,7 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
 
     createNode(Map("prop" -> javaDateArray))
 
-    val config = Configs.All - Configs.OldAndRule
+    val config = Configs.All - Configs.Version2_3 - Configs.Version3_1
     val query = "MATCH (n) WHERE n.prop = $param RETURN n.prop as prop"
     val result = executeWith(config, query, params = Map("param" -> javaDateArray))
 
@@ -118,7 +122,7 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
     val dateArray = new Array[LocalDate](javaDateList.size)
     createNode(Map("prop" -> javaDateList.toArray(dateArray)))
 
-    val config = Configs.All - Configs.OldAndRule
+    val config = Configs.All - Configs.Version2_3 - Configs.Version3_1
     val query = "MATCH (n) WHERE n.prop = $param RETURN n.prop as prop"
     val result = executeWith(config, query, params = Map("param" -> javaDateList))
 
@@ -136,7 +140,7 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
 
     graph.execute("CREATE ($param)", Map[String,Object]("param" -> dateMap).asJava)
 
-    val config = Configs.All - Configs.OldAndRule
+    val config = Configs.All - Configs.Version2_3 - Configs.Version3_1
     val query = "MATCH (n) WHERE n.a = $param.a RETURN n.a as a, n.b as b"
     val result = executeWith(config, query, params = Map("param" -> dateMap))
 
@@ -153,7 +157,7 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
 
     graph.execute("CREATE ($param)", Map[String,Object]("param" -> dateMap).asJava)
 
-    val config = Configs.All - Configs.OldAndRule
+    val config = Configs.All - Configs.Version2_3 - Configs.Version3_1
     val query = "MATCH (n) RETURN $param, n.a as a, n.b as b"
     val result = executeWith(config, query, params = Map("param" -> dateMap))
 
@@ -169,14 +173,14 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
         |RETURN o.timeSpan as timeSpan""".stripMargin)
 
     // When
-    val localConfig = Configs.All - Configs.OldAndRule
+    val localConfig = Configs.All - Configs.Version2_3 - Configs.Version3_1
     val result = executeWith(localConfig,
-      "MATCH (o:Occasion) WHERE o.timeSpan = $param RETURN o.timeSpan as timeSpan",
-      planComparisonStrategy = ComparePlansWithAssertion({ plan =>
-        plan should useOperatorWithText("Projection", "timeSpan")
-        plan should useOperatorWithText("NodeIndexSeek", ":Occasion(timeSpan)")
-      }, expectPlansToFail = Configs.AbsolutelyAll - Configs.Version3_4 - Configs.Version3_3),
-      params = Map("param" ->
+                             "MATCH (o:Occasion) WHERE o.timeSpan = $param RETURN o.timeSpan as timeSpan",
+                             planComparisonStrategy = ComparePlansWithAssertion({ plan =>
+                               plan should includeSomewhere.aPlan("Projection").containingArgumentRegex(cached("timeSpan", "o.timeSpan"))
+                                 .onTopOf(aPlan("NodeIndexSeek").containingArgument(":Occasion(timeSpan)"))
+      }, expectPlansToFail = Configs.All - Configs.Version3_5 - Configs.Version3_4),
+                             params = Map("param" ->
         Array(LocalDate.of(2018, 4, 1))))
 
     // Then
@@ -185,7 +189,6 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
       LocalDate.of(2018, 4, 1)
     ))
   }
-
   test("should handle temporal array of size 1 as indexed property with list parameter") {
     // Given
     graph.createIndex("Occasion", "timeSpan")
@@ -195,14 +198,14 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
         |RETURN o.timeSpan as timeSpan""".stripMargin)
 
     // When
-    val localConfig = Configs.All - Configs.OldAndRule
+    val localConfig = Configs.All - Configs.Version2_3 - Configs.Version3_1
     val result = executeWith(localConfig,
-      "MATCH (o:Occasion) WHERE o.timeSpan = $param RETURN o.timeSpan as timeSpan",
-      planComparisonStrategy = ComparePlansWithAssertion({ plan =>
-        plan should useOperatorWithText("Projection", "timeSpan")
-        plan should useOperatorWithText("NodeIndexSeek", ":Occasion(timeSpan)")
-      }, expectPlansToFail = Configs.AbsolutelyAll - Configs.Version3_4 - Configs.Version3_3),
-      params = Map("param" ->
+                             "MATCH (o:Occasion) WHERE o.timeSpan = $param RETURN o.timeSpan as timeSpan",
+                             planComparisonStrategy = ComparePlansWithAssertion({ plan =>
+                               plan should includeSomewhere.aPlan("Projection").containingArgumentRegex(cached("timeSpan", "o.timeSpan"))
+                                 .onTopOf(aPlan("NodeIndexSeek").containingArgument(":Occasion(timeSpan)"))
+      }, expectPlansToFail = Configs.All - Configs.Version3_5 - Configs.Version3_4),
+                             params = Map("param" ->
         List(LocalDate.of(2018, 4, 1))))
 
     // Then
@@ -221,14 +224,14 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
         |RETURN o.timeSpan as timeSpan""".stripMargin)
 
     // When
-    val localConfig = Configs.All - Configs.OldAndRule
+    val localConfig = Configs.All - Configs.Version2_3 - Configs.Version3_1
     val result = executeWith(localConfig,
-      "MATCH (o:Occasion) WHERE o.timeSpan = $param RETURN o.timeSpan as timeSpan",
-      planComparisonStrategy = ComparePlansWithAssertion({ plan =>
-        plan should useOperatorWithText("Projection", "timeSpan")
-        plan should useOperatorWithText("NodeIndexSeek", ":Occasion(timeSpan)")
-      }, expectPlansToFail = Configs.AbsolutelyAll - Configs.Version3_4 - Configs.Version3_3),
-      params = Map("param" ->
+                             "MATCH (o:Occasion) WHERE o.timeSpan = $param RETURN o.timeSpan as timeSpan",
+                             planComparisonStrategy = ComparePlansWithAssertion({ plan =>
+                               plan should includeSomewhere.aPlan("Projection").containingArgumentRegex(cached("timeSpan", "o.timeSpan"))
+                                 .onTopOf(aPlan("NodeIndexSeek").containingArgument(":Occasion(timeSpan)"))
+      }, expectPlansToFail = Configs.All - Configs.Version3_5 - Configs.Version3_4),
+                             params = Map("param" ->
         Array(LocalDate.of(2018, 4, 1), LocalDate.of(2018, 4, 2))))
 
     // Then
@@ -248,14 +251,14 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
         |RETURN o.timeSpan as timeSpan""".stripMargin)
 
     // When
-    val localConfig = Configs.All - Configs.OldAndRule
+    val localConfig = Configs.All - Configs.Version2_3 - Configs.Version3_1
     val result = executeWith(localConfig,
-      "MATCH (o:Occasion) WHERE o.timeSpan = $param RETURN o.timeSpan as timeSpan",
-      planComparisonStrategy = ComparePlansWithAssertion({ plan =>
-        plan should useOperatorWithText("Projection", "timeSpan")
-        plan should useOperatorWithText("NodeIndexSeek", ":Occasion(timeSpan)")
-      }, expectPlansToFail = Configs.AbsolutelyAll - Configs.Version3_4 - Configs.Version3_3),
-      params = Map("param" ->
+                             "MATCH (o:Occasion) WHERE o.timeSpan = $param RETURN o.timeSpan as timeSpan",
+                             planComparisonStrategy = ComparePlansWithAssertion({ plan =>
+                               plan should includeSomewhere.aPlan("Projection").containingArgumentRegex(cached("timeSpan", "o.timeSpan"))
+                                 .onTopOf(aPlan("NodeIndexSeek").containingArgument(":Occasion(timeSpan)"))
+      }, expectPlansToFail = Configs.All - Configs.Version3_5 - Configs.Version3_4),
+                             params = Map("param" ->
         List(LocalDate.of(2018, 4, 1), LocalDate.of(2018, 4, 2))))
 
     // Then
@@ -280,7 +283,7 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
     createLabeledNode(Map("date1" -> dateValue1, "date2" -> dateValue2), "Date")
 
     // When
-    val config = Configs.All - Configs.OldAndRule + Configs.Cost2_3
+    val config = Configs.All - Configs.Version2_3 - Configs.Version3_1 + Configs.Cost2_3
     val query = "MATCH (n:Date) WITH [n.date1, n.date2] as dateList MATCH (m:Occasion) WHERE m.timeSpan = dateList RETURN m.timeSpan as timeSpan"
     val result = executeWith(config, query)
 
@@ -297,7 +300,7 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
     val duration = DurationValue.duration(11, 12, 13, 14).asObject()
     createNode(Map("prop" -> duration))
 
-    val config = Configs.All - Configs.OldAndRule
+    val config = Configs.All - Configs.Version2_3 - Configs.Version3_1
     val query = "MATCH (n) WHERE n.prop = $param RETURN n.prop as prop"
     val result = executeWith(config, query, params = Map("param" -> duration))
 
@@ -381,11 +384,78 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
     shouldNotConstructWithArg("datetime", queries)
   }
 
-  test("should not create date time with conflicting time zones")
-  {
+  test("should not create date time with conflicting time zones") {
     val query = "WITH datetime('1984-07-07T12:34+03:00[Europe/Stockholm]') as d RETURN d"
     val errorMsg = "Timezone and offset do not match"
-    failWithError(Configs.Interpreted - Configs.Version2_3 + Configs.Procs, query, Seq(errorMsg), Seq("InvalidArgumentException"))
+    failWithError(Configs.InterpretedAndSlotted - Configs.Version2_3, query, Seq(errorMsg), Seq("InvalidArgumentException"))
+  }
+
+  // Failing when providing wrong values
+
+  test("should not create date with out of bounds values") {
+    shouldNotConstructWithArg("date", Seq(
+      "{year: 1000000000000, month: 1, day: 1}",
+      "{year: 1, month: -1, day: 1}",
+      "{year: 1, month: 1, day: -1}",
+      "{year: 1, week: -1, dayOfWeek: 1}",
+      "{year: 1, week: 1, dayOfWeek: -1}"
+    ))
+  }
+
+  test("should not create local time with out of bounds values") {
+    shouldNotConstructWithArg("localtime", Seq(
+      "{hour: -1, minute: 1, second: 1, nanosecond: 1}",
+      "{hour: 1, minute: -1, second: 1, nanosecond: 1}",
+      "{hour: 1, minute: 1, second: -1, nanosecond: 1}",
+      "{hour: 1, minute: 1, second: 1, millisecond: -1}",
+      "{hour: 1, minute: 1, second: 1, microsecond: -1}",
+      "{hour: 1, minute: 1, second: 1, nanosecond: -1}"
+    ))
+  }
+
+  test("should not create time with out of bounds values") {
+    shouldNotConstructWithArg("time", Seq(
+      "{hour: -1, minute: 1, second: 1, nanosecond: 1}",
+      "{hour: 1, minute: -1, second: 1, nanosecond: 1}",
+      "{hour: 1, minute: 1, second: -1, nanosecond: 1}",
+      "{hour: 1, minute: 1, second: 1, millisecond: -1}",
+      "{hour: 1, minute: 1, second: 1, microsecond: -1}",
+      "{hour: 1, minute: 1, second: 1, nanosecond: -1}",
+      "{hour: 1, minute: 1, second: 1, nanosecond: 1, timezone: '+20:00'}"
+    ))
+  }
+
+  test("should not create local date time with out of bounds values") {
+    shouldNotConstructWithArg("localdatetime", Seq(
+      "{year: 1000000000000, month: 1, day: 1, hour: 1, minute: 1, second: 1, nanosecond: 1}",
+      "{year: 1, month: -1, day: 1, hour: 1, minute: 1, second: 1, nanosecond: 1}",
+      "{year: 1, month: 1, day: -1, hour: 1, minute: 1, second: 1, nanosecond: 1}",
+      "{year: 1, week: -1, dayOfWeek: 1, hour: 1, minute: 1, second: 1, nanosecond: 1}",
+      "{year: 1, week: 1, dayOfWeek: -1, hour: 1, minute: 1, second: 1, nanosecond: 1}",
+      "{year: 1, month: 1, day: 1, hour: -1, minute: 1, second: 1, nanosecond: 1}",
+      "{year: 1, month: 1, day: 1, hour: 1, minute: -1, second: 1, nanosecond: 1}",
+      "{year: 1, month: 1, day: 1, hour: 1, minute: 1, second: -1, nanosecond: 1}",
+      "{year: 1, month: 1, day: 1, hour: 1, minute: 1, second: 1, millisecond: -1}",
+      "{year: 1, month: 1, day: 1, hour: 1, minute: 1, second: 1, microsecond: -1}",
+      "{year: 1, month: 1, day: 1, hour: 1, minute: 1, second: 1, nanosecond: -1}"
+    ))
+  }
+
+  test("should not create date time with out of bounds values") {
+    shouldNotConstructWithArg("datetime", Seq(
+      "{year: 1000000000000, month: 1, day: 1, hour: 1, minute: 1, second: 1, nanosecond: 1}",
+      "{year: 1, month: -1, day: 1, hour: 1, minute: 1, second: 1, nanosecond: 1}",
+      "{year: 1, month: 1, day: -1, hour: 1, minute: 1, second: 1, nanosecond: 1}",
+      "{year: 1, week: -1, dayOfWeek: 1, hour: 1, minute: 1, second: 1, nanosecond: 1}",
+      "{year: 1, week: 1, dayOfWeek: -1, hour: 1, minute: 1, second: 1, nanosecond: 1}",
+      "{year: 1, month: 1, day: 1, hour: -1, minute: 1, second: 1, nanosecond: 1}",
+      "{year: 1, month: 1, day: 1, hour: 1, minute: -1, second: 1, nanosecond: 1}",
+      "{year: 1, month: 1, day: 1, hour: 1, minute: 1, second: -1, nanosecond: 1}",
+      "{year: 1, month: 1, day: 1, hour: 1, minute: 1, second: 1, millisecond: -1}",
+      "{year: 1, month: 1, day: 1, hour: 1, minute: 1, second: 1, microsecond: -1}",
+      "{year: 1, month: 1, day: 1, hour: 1, minute: 1, second: 1, nanosecond: -1}",
+      "{year: 1, month: 1, day: 1, hour: 1, minute: 1, second: 1, nanosecond: 1, timezone: '+20:00'}"
+    ))
   }
 
   // Failing when selecting a wrong group
@@ -779,10 +849,10 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
       val query = s"RETURN duration('P1Y1M') $op duration('P1Y30D')"
       withClue(s"Executing $query") {
         /**
-          *  Version 3.3 returns null instead due to running with 3.4 runtime
-          *  SyntaxException come from the 3.4 planner and IncomparableValuesException from earlier runtimes
+          *  Version 3.3 returns null instead due to running with 3.5 runtime
+          *  SyntaxException come from the 3.5 planner and IncomparableValuesException from earlier runtimes
           */
-        failWithError(Configs.Version3_4 + Configs.Procs - Configs.AllRulePlanners, query, Seq("Type mismatch"))
+        failWithError(Configs.Version3_5 - Configs.RulePlanner, query, Seq("Type mismatch"))
       }
     }
   }
@@ -792,7 +862,7 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
       val query = "RETURN $d1 " + op + " $d2 as x"
       withClue(s"Executing $query") {
         // TODO: change to using executeWith when compiled supports temporal parameters
-        val res = innerExecuteDeprecated(query, Map("d1" -> DurationValue.duration(1, 0, 0 ,0), "d2" -> DurationValue.duration(0, 30, 0 ,0))).toList
+        val res = executeSingle(query, Map("d1" -> DurationValue.duration(1, 0, 0 ,0), "d2" -> DurationValue.duration(0, 30, 0 ,0))).toList
         res should be(List(Map("x" -> null)))
       }
     }
@@ -804,8 +874,25 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
     for (func <- Seq("time", "localtime", "date", "datetime", "localdatetime", "duration")) {
       val query = s"RETURN $func('', '', '', '')"
       withClue(s"Executing $query") {
-        failWithError(Configs.AbsolutelyAll - Configs.Version2_3, query,
+        failWithError(Configs.All - Configs.Version2_3, query,
           Seq("Function call does not provide the required number of arguments"))
+      }
+    }
+  }
+
+  test("should not accept wrong argument types") {
+    graph.execute("CREATE ({str: 'a', num: 5, b: true})")
+    val returnQueries = Seq(
+      "duration.between(n.str,n.str)",
+      "date(n.num)",
+      "date.transaction(n.num)",
+      "duration(n.num)",
+      "datetime.fromEpoch(n.b, n.b)",
+      "datetime.fromEpochMillis(n.b)"
+    )
+    for(returnQuery <- returnQueries) {
+      withClue("executing " + returnQuery) {
+        failWithError(failConf2, "MATCH (n) RETURN " + returnQuery, Seq("Invalid call signature", "Can't coerce"), Seq("CypherExecutionException", "CypherTypeException"))
       }
     }
   }
@@ -831,7 +918,7 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
         | RETURN time({hour: 12, minute: 34, second: 56, timezone:'Europe/Stockholm'}) = currentCorrectTime as comparison
       """.stripMargin
 
-    val result = executeWith(Configs.Interpreted - Configs.OldAndRule, query)
+    val result = executeWith(Configs.InterpretedAndSlotted - Configs.Version2_3 - Configs.Version3_1, query)
     result.toList should equal(List(Map("comparison" -> true)))
   }
 
@@ -842,7 +929,7 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
         | RETURN toString(time({time:dt})) as t1, toString(time.truncate('second', dt)) as t2
       """.stripMargin
 
-    val result = executeWith(Configs.Interpreted - Configs.OldAndRule, query)
+    val result = executeWith(Configs.InterpretedAndSlotted - Configs.Version2_3 - Configs.Version3_1, query)
     result.toList should equal(List(Map("t1" -> "12:31:14+02:00", "t2" -> "12:31:14+02:00")))
   }
 
@@ -856,7 +943,7 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
         |        time.truncate('second', ld, {timezone: 'Europe/Stockholm'}) = currentCorrectTime as comp2
       """.stripMargin
 
-    val result = executeWith(Configs.Interpreted - Configs.OldAndRule, query)
+    val result = executeWith(Configs.InterpretedAndSlotted - Configs.Version2_3 - Configs.Version3_1, query)
     result.toList should equal(List(Map("comp1" -> true, "comp2" -> true)))
   }
 
@@ -903,9 +990,9 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
   private def shouldNotConstructWithArg(func: String, args: Seq[String]): Unit = {
     for (arg <- args) {
       val query = s"RETURN $func($arg)"
-      val validErrorMessages = Seq("Cannot assign", "cannot be selected together with", "cannot be specified without", "must be specified")
+      val validErrorMessages = Seq("Cannot assign", "cannot be selected together with", "cannot be specified without", "must be specified", "Invalid value")
       withClue(s"Executing $query") {
-        failWithError(failConf2, query, validErrorMessages, Seq("CypherTypeException", "InvalidArgumentException"))
+        failWithError(failConf2, query, validErrorMessages, Seq("CypherTypeException", "InvalidArgumentException", "SyntaxException"))
       }
     }
   }
@@ -915,4 +1002,6 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
     graph.execute(query).next() should not be null
   }
 
+  //noinspection ScalaUnnecessaryParentheses
+  private def cached(key: String, value: String) = (s"\\{$key : (cached\\[)?$value\\]?\\}").r
 }

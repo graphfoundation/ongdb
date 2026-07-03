@@ -34,22 +34,24 @@
  */
 package org.neo4j.internal.cypher.acceptance
 
-import java.time.{LocalDate, LocalDateTime}
+import java.time.LocalDate
+import java.time.LocalDateTime
 
 import org.neo4j.cypher._
-import org.neo4j.cypher.internal.v3_5.frontend.helpers.StringHelper._
 import org.neo4j.graphdb.ConstraintViolationException
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport._
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
+import org.neo4j.cypher.internal.v3_5.util.helpers.StringHelper._
 
 import scala.collection.Map
 
 class CompositeNodeKeyConstraintAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSupport with QueryStatisticsTestSupport {
 
-  private val duplicateConstraintConfiguration = Configs.AbsolutelyAll - Configs.Compiled - Configs.Cost2_3
+  private val duplicateConstraintConfiguration = Configs.All - Configs.Compiled - Configs.Cost2_3
 
   test("Node key constraint creation should be reported") {
     // When
-    val result = innerExecuteDeprecated("CREATE CONSTRAINT ON (n:Person) ASSERT (n.email) IS NODE KEY", Map.empty)
+    val result = executeSingle("CREATE CONSTRAINT ON (n:Person) ASSERT (n.email) IS NODE KEY", Map.empty)
 
     // Then
     assertStats(result, nodekeyConstraintsAdded = 1)
@@ -57,7 +59,7 @@ class CompositeNodeKeyConstraintAcceptanceTest extends ExecutionEngineFunSuite w
 
   test("Uniqueness constraint creation should be reported") {
     // When
-    val result = innerExecuteDeprecated("CREATE CONSTRAINT ON (n:Person) ASSERT n.email IS UNIQUE", Map.empty)
+    val result = executeSingle("CREATE CONSTRAINT ON (n:Person) ASSERT n.email IS UNIQUE", Map.empty)
 
     // Then
     assertStats(result, uniqueConstraintsAdded = 1)
@@ -158,7 +160,7 @@ class CompositeNodeKeyConstraintAcceptanceTest extends ExecutionEngineFunSuite w
     // Then
     val query = "CREATE CONSTRAINT ON (n:User) ASSERT (n.firstname,n.lastname) IS NODE KEY"
     val errorMessage = "Both Node(%d) and Node(%d) have the label `User` and properties `firstname` = 'Joe', `lastname` = 'Soap'".format(a, c)
-    failWithError(Configs.AbsolutelyAll - Configs.OldAndRule, query, List(errorMessage))
+    failWithError(Configs.All - Configs.Version2_3 - Configs.Version3_1, query, List(errorMessage))
   }
 
   test("trying to add duplicate node when node key constraint exists") {
@@ -188,7 +190,7 @@ class CompositeNodeKeyConstraintAcceptanceTest extends ExecutionEngineFunSuite w
     val b = createLabeledNode(Map("name" -> "A", "surname" -> "B"), "Person").getId
 
     failWithError(
-      Configs.AbsolutelyAll - Configs.OldAndRule,
+      Configs.All - Configs.Version2_3 - Configs.Version3_1,
       "CREATE CONSTRAINT ON (person:Person) ASSERT (person.name, person.surname) IS NODE KEY",
       List(("Unable to create CONSTRAINT ON ( person:Person ) ASSERT (person.name, person.surname) IS NODE KEY:%s" +
         "Both Node(%d) and Node(%d) have the label `Person` and properties `name` = 'A', `surname` = 'B'").format(String.format("%n"), a, b))
@@ -200,16 +202,16 @@ class CompositeNodeKeyConstraintAcceptanceTest extends ExecutionEngineFunSuite w
     val b = createLabeledNode(Map("name" -> "A"), "Person").getId
 
     failWithError(
-      Configs.AbsolutelyAll - Configs.OldAndRule,
+      Configs.All - Configs.Version2_3 - Configs.Version3_1,
       "CREATE CONSTRAINT ON (person:Person) ASSERT (person.name) IS NODE KEY",
-      List(("Unable to create CONSTRAINT ON ( person:Person ) ASSERT person.name IS NODE KEY:%s" +
+      List(("Unable to create CONSTRAINT ON ( person:Person ) ASSERT (person.name) IS NODE KEY:%s" +
         "Both Node(%d) and Node(%d) have the label `Person` and property `name` = 'A'").format(String.format("%n"), a, b))
     )
   }
 
   test("drop a non existent node key constraint") {
     failWithError(
-      Configs.AbsolutelyAll - Configs.OldAndRule,
+      Configs.All - Configs.Version2_3 - Configs.Version3_1,
       "DROP CONSTRAINT ON (person:Person) ASSERT (person.name) IS NODE KEY",
       List("No such constraint")
     )
@@ -231,9 +233,9 @@ class CompositeNodeKeyConstraintAcceptanceTest extends ExecutionEngineFunSuite w
     graph.execute("CREATE INDEX ON :Person(firstname, lastname)".fixNewLines)
 
     // then
-    failWithError(Configs.AbsolutelyAll - Configs.OldAndRule,
+    failWithError(Configs.All - Configs.Version2_3 - Configs.Version3_1,
       "CREATE CONSTRAINT ON (n:Person) ASSERT (n.firstname,n.lastname) IS NODE KEY",
-      List("There already exists an index for label 'Person' on properties 'firstname' and 'lastname'. " +
+      List("There already exists an index :Person(firstname, lastname). " +
                   "A constraint cannot be created until the index has been dropped."))
   }
 
@@ -243,9 +245,9 @@ class CompositeNodeKeyConstraintAcceptanceTest extends ExecutionEngineFunSuite w
 
     // then
     failWithError(
-      Configs.AbsolutelyAll - Configs.OldAndRule,
+      Configs.All - Configs.Version2_3 - Configs.Version3_1,
       "CREATE INDEX ON :Person(firstname, lastname)",
-      List("Label 'Person' and properties 'firstname' and 'lastname' have a unique constraint defined on them, " +
+      List("There is a uniqueness constraint on :Person(firstname, lastname), " +
                   "so an index is already created that matches this."))
   }
 

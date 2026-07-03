@@ -37,7 +37,10 @@ package org.neo4j.internal.cypher.acceptance
 import java.util
 
 import org.neo4j.internal.kernel.api.procs.Neo4jTypes
+import org.neo4j.kernel.impl.proc.Procedures
 import org.neo4j.kernel.impl.util.ValueUtils
+
+import scala.collection.JavaConverters._
 
 class FunctionCallSupportAcceptanceTest extends ProcedureCallAcceptanceTest {
 
@@ -52,6 +55,13 @@ class FunctionCallSupportAcceptanceTest extends ProcedureCallAcceptanceTest {
     graph.execute("RETURN my.first.value()").stream().toArray.toList should equal(List(
       java.util.Collections.singletonMap("my.first.value()", value)
     ))
+  }
+
+  test("should not fail to type check this") { // Waiting for the next release of openCypher
+    graph.getDependencyResolver.resolveDependency(classOf[Procedures]).registerFunction(classOf[TestFunction])
+
+    // We just want to make sure that running the query does not throw exceptions
+    graph.execute("return round(0.4 * test.sum(collect(toInteger('12'))) / 12)").stream().toArray.length should equal(1)
   }
 
   test("should return correctly typed list result (even if converting to and from scala representation internally)") {
@@ -122,5 +132,31 @@ class FunctionCallSupportAcceptanceTest extends ProcedureCallAcceptanceTest {
       .next().get("out")
 
     returned should equal(4)
+  }
+
+  test("should be able to use function returning list with list comprehension") {
+    val value = new util.ArrayList[Integer]()
+    value.add(1)
+    value.add(2)
+
+    registerUserFunction(ValueUtils.of(value), Neo4jTypes.NTAny)
+
+    val result = graph.execute("RETURN [x in my.first.value() | x + 1] as y")
+
+    result.hasNext shouldBe true
+    result.next.get("y").asInstanceOf[util.List[_]].asScala should equal(List(2, 3))
+  }
+
+  test("should be able to use function returning list with ANY") {
+    val value = new util.ArrayList[Integer]()
+    value.add(1)
+    value.add(2)
+
+    registerUserFunction(ValueUtils.of(value), Neo4jTypes.NTAny)
+
+    val result = graph.execute("RETURN ANY(x in my.first.value() WHERE x = 2) as u")
+
+    result.hasNext shouldBe true
+    result.next.get("u") should equal(true)
   }
 }

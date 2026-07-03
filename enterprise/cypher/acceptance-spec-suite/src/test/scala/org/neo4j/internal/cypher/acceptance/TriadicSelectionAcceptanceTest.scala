@@ -35,8 +35,10 @@
 package org.neo4j.internal.cypher.acceptance
 
 import org.neo4j.cypher.ExecutionEngineFunSuite
-import org.neo4j.cypher.internal.runtime.InternalExecutionResult
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport.{ComparePlansWithAssertion, Configs, TestConfiguration}
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.ComparePlansWithAssertion
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.TestConfiguration
 
 class TriadicSelectionAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSupport {
 
@@ -44,11 +46,11 @@ class TriadicSelectionAcceptanceTest extends ExecutionEngineFunSuite with Cypher
                                 |WHERE NOT (p1)-[:FRIEND]-(p2)
                                 |RETURN p1.name AS l, p2.name AS r""".stripMargin
 
-  private val usesTriadic = ComparePlansWithAssertion(_ should useOperators("TriadicSelection"), Configs.AllRulePlanners)
-  private val usesExpandInto = ComparePlansWithAssertion(_ should useOperators("Expand(Into)"), Configs.AllRulePlanners)
-  private val usesAntiSemiApply = ComparePlansWithAssertion(_ should useOperators("AntiSemiApply"), Configs.AllRulePlanners)
-  private val noTriadic = ComparePlansWithAssertion(_ should not(useOperators("TriadicSelection")))
-  private val configs = Configs.Interpreted
+  private val usesTriadic = ComparePlansWithAssertion(_ should includeSomewhere.aPlan("TriadicSelection"), Configs.RulePlanner)
+  private val usesExpandInto = ComparePlansWithAssertion(_ should includeSomewhere.aPlan("Expand(Into)"), Configs.RulePlanner)
+  private val usesAntiSemiApply = ComparePlansWithAssertion(_ should includeSomewhere.aPlan("AntiSemiApply"), Configs.RulePlanner)
+  private val noTriadic = ComparePlansWithAssertion(_ should not(includeSomewhere.aPlan("TriadicSelection")))
+  private val configs = Configs.InterpretedAndSlotted
   private val noCompiled = Configs.All - Configs.Compiled
 
   test("find friends of others") {
@@ -94,7 +96,7 @@ class TriadicSelectionAcceptanceTest extends ExecutionEngineFunSuite with Cypher
         |CREATE (a)-[:FRIEND]->(b), (b)-[:FRIEND]->(c), (c)-[:FRIEND]->(a)""".stripMargin)
 
     // when
-    val result: InternalExecutionResult = executeWith(configs, QUERY, planComparisonStrategy = usesTriadic)
+    val result = executeWith(configs, QUERY, planComparisonStrategy = usesTriadic)
 
     // then
     result should be(empty)

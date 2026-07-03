@@ -35,12 +35,13 @@
 package org.neo4j.internal.cypher.acceptance
 
 import org.neo4j.cypher.ExecutionEngineFunSuite
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport.Configs
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
 import org.neo4j.kernel.impl.proc.Procedures
 
 class ProceduresAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSupport {
 
-  private val expectSucceed = Configs.Interpreted - Configs.AllRulePlanners - Configs.Version2_3
+  private val expectSucceed = Configs.InterpretedAndSlotted - Configs.RulePlanner - Configs.Version2_3
 
   test("should return result") {
     registerTestProcedures()
@@ -105,11 +106,11 @@ class ProceduresAcceptanceTest extends ExecutionEngineFunSuite with CypherCompar
 
     executeWith(expectSucceed, "CALL org.neo4j.createNodeWithLoop( 'Node', 'Rel' ) YIELD node RETURN count(node)")
 
-    val result = innerExecuteDeprecated("MATCH (n)-->(n) RETURN n")
+    val result = executeSingle("MATCH (n)-->(n) RETURN n")
     result.size should equal(1)
   }
 
-  test("should find shortest path using Graph Algos Djikstra") {
+  test("should find shortest path using Graph Algos Dijkstra") {
     registerTestProcedures()
 
     graph.execute(
@@ -133,7 +134,7 @@ class ProceduresAcceptanceTest extends ExecutionEngineFunSuite with CypherCompar
         |""".stripMargin)
 
     val result = executeWith(expectSucceed,
-      "MATCH (s:Start),(e:End) CALL org.neo4j.graphAlgosDjikstra( s, e, 'Rel', 'weight' ) YIELD node RETURN node")
+      "MATCH (s:Start),(e:End) CALL org.neo4j.graphAlgosDijkstra( s, e, 'Rel', 'weight' ) YIELD node RETURN node")
 
     result.size should equal(5) // s -> n3 -> n4 -> n5 -> e
   }
@@ -152,6 +153,27 @@ class ProceduresAcceptanceTest extends ExecutionEngineFunSuite with CypherCompar
 
     // Then
     result.toList should equal(List(Map("name" -> "Clint Eastwood")))
+  }
+
+  test("should use correct temporal types") {
+    registerTestProcedures()
+
+    val result = executeSingle(
+      "CALL org.neo4j.time(localtime.statement())")
+
+    result.toList should be(empty) // and not crash
+  }
+
+  test("should call procedure with query parameters overriding default values") {
+    registerTestProcedures()
+
+    graph.execute("UNWIND [1,2,3] AS i CREATE (a:Cat)")
+
+    val result = executeWith(Configs.All - Configs.Version2_3,
+      "CALL org.neo4j.aNodeWithLabel", params = Map("label" -> "Cat"),
+      expectedDifferentResults = Configs.Cost3_1 + Configs.RulePlanner) // this bugfix is not backported to 3.1?
+
+    result.size should equal(1)
   }
 
   private def registerTestProcedures(): Unit = {

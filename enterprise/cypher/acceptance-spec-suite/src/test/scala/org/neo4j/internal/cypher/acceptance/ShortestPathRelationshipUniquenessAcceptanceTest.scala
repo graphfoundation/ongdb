@@ -39,7 +39,7 @@ import org.neo4j.cypher.{ExecutionEngineFunSuite}
 
 class ShortestPathRelationshipUniquenessAcceptanceTest extends ExecutionEngineFunSuite{
 
-  test("should not find shortest path due to relationship uniquess") {
+  test("should not find shortest path due to relationship uniqueness") {
     val p0 = createLabeledNode(Map("id" -> "2228"), "Model")
     val p1 = createLabeledNode(Map("id" -> "2246"), "Model")
     val p2 = createLabeledNode(Map("id" -> "2248"), "Model")
@@ -97,6 +97,6 @@ class ShortestPathRelationshipUniquenessAcceptanceTest extends ExecutionEngineFu
     result should be(List(List(p0, pLongPath0, pLongPath1, pLongPath2, pLongPath3, pLongPath4, pLongPath5, p3, p2, p4, p5)))
   }
 
-  def executeUsingCostPlannerOnly(query: String) =
-    RewindableExecutionResult(eengine.execute(s"CYPHER planner=COST $query", Map.empty[String, Any]))
+  private def executeUsingCostPlannerOnly(query: String) =
+    execute(s"CYPHER planner=COST $query")
 }

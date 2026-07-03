@@ -34,21 +34,21 @@
  */
 package org.neo4j.internal.cypher.acceptance
 
-import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments
-import org.neo4j.cypher.internal.runtime.InternalExecutionResult
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
-import org.neo4j.cypher.internal.v3_5.expressions.NoneIterablePredicate
-import org.neo4j.cypher.{ExecutionEngineFunSuite, QueryStatisticsTestSupport}
+import org.neo4j.cypher.ExecutionEngineFunSuite
+import org.neo4j.cypher.QueryStatisticsTestSupport
 import org.neo4j.graphdb.Direction._
-import org.neo4j.graphdb.{Direction, Node}
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport.Configs
-import org.scalatest.matchers.{MatchResult, Matcher}
+import org.neo4j.graphdb.Direction
+import org.neo4j.graphdb.Node
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
+import org.scalatest.matchers.Matcher
 
 import scala.collection.mutable
 
 class VarLengthPlanningTest extends ExecutionEngineFunSuite with QueryStatisticsTestSupport with CypherComparisonSupport {
 
-  private val expectedToSucceed = Configs.Interpreted
+  private val expectedToSucceed = Configs.InterpretedAndSlotted
 
   test("should handle LIKES*0.LIKES") {
     //Given
@@ -56,7 +56,7 @@ class VarLengthPlanningTest extends ExecutionEngineFunSuite with QueryStatistics
     //When
     val result = executeWith(expectedToSucceed, "MATCH (p { id:'n0' }) MATCH (p)-[:LIKES*0]->()-[r:LIKES]->(c) RETURN c")
     //Then
-    result should haveNoneRelFilter
+    result.executionPlanDescription() should haveNoneRelFilter
   }
 
   test("should handle LIKES.LIKES*0") {
@@ -65,7 +65,7 @@ class VarLengthPlanningTest extends ExecutionEngineFunSuite with QueryStatistics
     //When
     val result = executeWith(expectedToSucceed, "MATCH (p { id:'n0' }) MATCH (p)-[:LIKES]->()-[r:LIKES*0]->(c) RETURN c")
     //Then
-    result should haveNoneRelFilter
+    result.executionPlanDescription() should haveNoneRelFilter
   }
 
   test("should handle LIKES*1.LIKES") {
@@ -74,7 +74,7 @@ class VarLengthPlanningTest extends ExecutionEngineFunSuite with QueryStatistics
     //When
     val result = executeWith(expectedToSucceed, "MATCH (p { id:'n0' }) MATCH (p)-[:LIKES*1]->()-[r:LIKES]->(c) RETURN c")
     //Then
-    result should haveNoneRelFilter
+    result.executionPlanDescription() should haveNoneRelFilter
   }
 
   test("should handle LIKES.LIKES*1") {
@@ -83,7 +83,7 @@ class VarLengthPlanningTest extends ExecutionEngineFunSuite with QueryStatistics
     //When
     val result = executeWith(expectedToSucceed, "MATCH (p { id:'n0' }) MATCH (p)-[:LIKES]->()-[r:LIKES*1]->(c) RETURN c")
     //Then
-    result should haveNoneRelFilter
+    result.executionPlanDescription() should haveNoneRelFilter
   }
 
   test("should handle LIKES*2.LIKES") {
@@ -92,7 +92,7 @@ class VarLengthPlanningTest extends ExecutionEngineFunSuite with QueryStatistics
     //When
     val result = executeWith(expectedToSucceed, "MATCH (p { id:'n0' }) MATCH (p)-[:LIKES*2]->()-[r:LIKES]->(c) RETURN c")
     //Then
-    result should haveNoneRelFilter
+    result.executionPlanDescription() should haveNoneRelFilter
   }
 
   test("should handle LIKES.LIKES*2") {
@@ -101,7 +101,7 @@ class VarLengthPlanningTest extends ExecutionEngineFunSuite with QueryStatistics
     //When
     val result = executeWith(expectedToSucceed, "MATCH (p { id:'n0' }) MATCH (p)-[:LIKES]->()-[r:LIKES*2]->(c) RETURN c")
     //Then
-    result should haveNoneRelFilter
+    result.executionPlanDescription() should haveNoneRelFilter
   }
 
   test("should handle LIKES.LIKES*3") {
@@ -110,7 +110,7 @@ class VarLengthPlanningTest extends ExecutionEngineFunSuite with QueryStatistics
     //When
     val result = executeWith(expectedToSucceed, "MATCH (p { id:'n0' }) MATCH (p)-[:LIKES]->()-[r:LIKES*3]->(c) RETURN c")
     //Then
-    result should haveNoneRelFilter
+    result.executionPlanDescription() should haveNoneRelFilter
   }
 
   test("should handle <-[:LIKES]-()-[r:LIKES*3]->") {
@@ -119,7 +119,7 @@ class VarLengthPlanningTest extends ExecutionEngineFunSuite with QueryStatistics
     //When
     val result = executeWith(expectedToSucceed, "MATCH (p { id:'n0' }) MATCH (p)<-[:LIKES]-()-[r:LIKES*3]->(c) RETURN c")
     //Then
-    result should haveNoneRelFilter
+    result.executionPlanDescription() should haveNoneRelFilter
   }
 
   test("should handle -[:LIKES]->()<-[r:LIKES*3]-") {
@@ -128,7 +128,7 @@ class VarLengthPlanningTest extends ExecutionEngineFunSuite with QueryStatistics
     //When
     val result = executeWith(expectedToSucceed, "MATCH (p { id:'n0' }) MATCH (p)-[:LIKES]->()<-[r:LIKES*3]->(c) RETURN c")
     //Then
-    result should haveNoneRelFilter
+    result.executionPlanDescription() should haveNoneRelFilter
   }
 
   test("should handle LIKES*1.LIKES.LIKES*2") {
@@ -137,7 +137,7 @@ class VarLengthPlanningTest extends ExecutionEngineFunSuite with QueryStatistics
     //When
     val result = executeWith(expectedToSucceed, "MATCH (p { id:'n0' }) MATCH (p)-[:LIKES*1]->()-[:LIKES]->()-[r:LIKES*2]->(c) RETURN c")
     //Then
-    result should haveNoneRelFilter
+    result.executionPlanDescription() should haveNoneRelFilter
   }
 
   test("should handle LIKES.LIKES*2.LIKES") {
@@ -146,24 +146,11 @@ class VarLengthPlanningTest extends ExecutionEngineFunSuite with QueryStatistics
     //When
     val result = executeWith(expectedToSucceed, "MATCH (p { id:'n0' }) MATCH (p)-[:LIKES]->()-[:LIKES*2]->()-[r:LIKES]->(c) RETURN c")
     //Then
-    result should haveNoneRelFilter
+    result.executionPlanDescription() should haveNoneRelFilter
   }
 
-  def haveNoneRelFilter: Matcher[InternalExecutionResult] = new Matcher[InternalExecutionResult] {
-    override def apply(result: InternalExecutionResult): MatchResult = {
-      val plan: InternalPlanDescription = result.executionPlanDescription()
-      val res = plan.find("Filter").exists { p =>
-        p.arguments.exists {
-          case Arguments.Expression(NoneIterablePredicate(_, _)) => true
-          case _ => false
-        }
-      }
-      MatchResult(
-        matches = res,
-        rawFailureMessage = s"Plan should have Filter with NONE comprehension:\n$plan",
-        rawNegatedFailureMessage = s"Plan should not have Filter with NONE comprehension:\n$plan")
-    }
-  }
+  def haveNoneRelFilter: Matcher[InternalPlanDescription] =
+    includeSomewhere.aPlan("Filter").containingArgumentRegex("none\\(.*\\)".r)
 
   /*
   This tree model generator will generate a binary tree, starting with a single root(named "n0").

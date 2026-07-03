@@ -35,14 +35,15 @@
 package org.neo4j.internal.cypher.acceptance
 
 import org.neo4j.cypher._
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport._
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
 
 class ExpressionAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSupport {
 
   test("should handle map projection with property selectors") {
     createNode("foo" -> 1, "bar" -> "apa")
 
-    val result = executeWith(Configs.Interpreted - Configs.Version2_3, "MATCH (n) RETURN n{.foo,.bar,.baz}")
+    val result = executeWith(Configs.InterpretedAndSlotted - Configs.Version2_3, "MATCH (n) RETURN n{.foo,.bar,.baz}")
 
     result.toList.head("n") should equal(Map("foo" -> 1, "bar" -> "apa", "baz" -> null))
   }
@@ -50,7 +51,7 @@ class ExpressionAcceptanceTest extends ExecutionEngineFunSuite with CypherCompar
   test("should handle map projection with property selectors and identifier selector") {
     createNode("foo" -> 1, "bar" -> "apa")
 
-    val result = executeWith(Configs.Interpreted - Configs.Version2_3, "WITH 42 as x MATCH (n) RETURN n{.foo,.bar,x}")
+    val result = executeWith(Configs.InterpretedAndSlotted - Configs.Version2_3, "WITH 42 as x MATCH (n) RETURN n{.foo,.bar,x}")
 
     result.toList.head("n") should equal(Map("foo" -> 1, "bar" -> "apa", "x" -> 42))
   }
@@ -58,7 +59,7 @@ class ExpressionAcceptanceTest extends ExecutionEngineFunSuite with CypherCompar
   test("should use the map identifier as the alias for return items") {
     createNode("foo" -> 1, "bar" -> "apa")
 
-    val result = executeWith(Configs.Interpreted - Configs.Version2_3, "MATCH (n) RETURN n{.foo,.bar}")
+    val result = executeWith(Configs.InterpretedAndSlotted - Configs.Version2_3, "MATCH (n) RETURN n{.foo,.bar}")
 
     result.toList should equal(List(Map("n" -> Map("foo" -> 1, "bar" -> "apa"))))
   }
@@ -66,7 +67,7 @@ class ExpressionAcceptanceTest extends ExecutionEngineFunSuite with CypherCompar
   test("map projection with all-properties selector") {
     createNode("foo" -> 1, "bar" -> "apa")
 
-    val result = executeWith(Configs.Interpreted - Configs.Version2_3, "MATCH (n) RETURN n{.*}")
+    val result = executeWith(Configs.InterpretedAndSlotted - Configs.Version2_3, "MATCH (n) RETURN n{.*}")
 
     result.toList should equal(List(Map("n" -> Map("foo" -> 1, "bar" -> "apa"))))
   }
@@ -74,7 +75,7 @@ class ExpressionAcceptanceTest extends ExecutionEngineFunSuite with CypherCompar
   test("returning all properties of a node and adds other selectors") {
     createNode("foo" -> 1, "bar" -> "apa")
 
-    val result = executeWith(Configs.Interpreted - Configs.Version2_3, "MATCH (n) RETURN n{.*, .baz}")
+    val result = executeWith(Configs.InterpretedAndSlotted - Configs.Version2_3, "MATCH (n) RETURN n{.*, .baz}")
 
     result.toList should equal(List(Map("n" -> Map("foo" -> 1, "bar" -> "apa", "baz" -> null))))
   }
@@ -82,14 +83,14 @@ class ExpressionAcceptanceTest extends ExecutionEngineFunSuite with CypherCompar
   test("returning all properties of a node and overwrites some with other selectors") {
     createNode("foo" -> 1, "bar" -> "apa")
 
-    val result = executeWith(Configs.Interpreted - Configs.Version2_3, "MATCH (n) RETURN n{.*, bar:'apatisk'}")
+    val result = executeWith(Configs.InterpretedAndSlotted - Configs.Version2_3, "MATCH (n) RETURN n{.*, bar:'apatisk'}")
 
     result.toList should equal(List(Map("n" -> Map("foo" -> 1, "bar" -> "apatisk"))))
   }
 
   test("projecting from a null identifier produces a null value") {
 
-    val result = executeWith(Configs.Interpreted - Configs.Version2_3, "OPTIONAL MATCH (n) RETURN n{.foo, .bar}")
+    val result = executeWith(Configs.InterpretedAndSlotted - Configs.Version2_3, "OPTIONAL MATCH (n) RETURN n{.foo, .bar}")
 
     result.toList should equal(List(Map("n" -> null)))
   }
@@ -100,7 +101,7 @@ class ExpressionAcceptanceTest extends ExecutionEngineFunSuite with CypherCompar
     relate(actor, createLabeledNode(Map("title" -> "Movie 1"), "Movie"))
     relate(actor, createLabeledNode(Map("title" -> "Movie 2"), "Movie"))
 
-    val result = executeWith(Configs.Interpreted - Configs.Version2_3, """MATCH (actor:Actor)-->(movie:Movie)
+    val result = executeWith(Configs.InterpretedAndSlotted - Configs.Version2_3, """MATCH (actor:Actor)-->(movie:Movie)
             |RETURN actor{ .name, movies: collect(movie{.title}) }""".stripMargin)
     result.toList should equal(
       List(Map("actor" ->
@@ -128,7 +129,7 @@ class ExpressionAcceptanceTest extends ExecutionEngineFunSuite with CypherCompar
   test("not(), when right of a =, should give a helpful error message") {
     val query = "RETURN true = not(42 = 32)"
 
-    val config =  Configs.AbsolutelyAll - Configs.Version2_3
+    val config =  Configs.All - Configs.Version2_3
 
     failWithError(config, query,
       List("Unknown function 'not'. If you intended to use the negation expression, surround it with parentheses."))
@@ -138,7 +139,7 @@ class ExpressionAcceptanceTest extends ExecutionEngineFunSuite with CypherCompar
     val query = "RETURN true = NOT(42 = 32)"
 
     // this should have the right error message for 3.1 after the next patch releases
-    val config =  Configs.AbsolutelyAll- Configs.Version3_1 - Configs.Version2_3 - Configs.AllRulePlanners
+    val config =  Configs.All - Configs.Version3_1 - Configs.Version2_3
 
     failWithError(config, query,
       List("Unknown function 'NOT'. If you intended to use the negation expression, surround it with parentheses."))

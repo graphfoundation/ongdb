@@ -34,15 +34,21 @@
  */
 package org.neo4j.internal.cypher.acceptance
 
-import org.neo4j.graphdb.{Label, Node, Relationship}
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport.Configs
-import org.neo4j.kernel.api.impl.schema.NativeLuceneFusionIndexProviderFactory20
+import org.neo4j.graphdb.Label
+import org.neo4j.graphdb.Node
+import org.neo4j.graphdb.Relationship
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
+import org.neo4j.kernel.impl.index.schema.GenericNativeIndexProvider
+import org.scalatest.LoneElement._
 
 import scala.collection.JavaConversions._
 
 class BuiltInProcedureAcceptanceTest extends ProcedureCallAcceptanceTest with CypherComparisonSupport {
 
-  private val combinedCallconfiguration = Configs.Interpreted - Configs.AllRulePlanners - Configs.Version2_3
+  private val combinedCallconfiguration = Configs.InterpretedAndSlotted - Configs.RulePlanner - Configs.Version2_3
+
+  private val config = Configs.All - Configs.Version2_3
 
   test("should be able to filter as part of call") {
     // Given
@@ -53,7 +59,7 @@ class BuiltInProcedureAcceptanceTest extends ProcedureCallAcceptanceTest with Cy
     //When
     val result = executeWith(combinedCallconfiguration, "CALL db.labels() YIELD label WHERE label <> 'A' RETURN *")
 
-    // Then
+    // ThenBuiltInProceduresIT.java:136
     result.toList should equal(
       List(
         Map("label" -> "B"),
@@ -70,8 +76,45 @@ class BuiltInProcedureAcceptanceTest extends ProcedureCallAcceptanceTest with Cy
     relate(d1, neo, "PART_OF", "Hallo")
 
     // When
-    val query = "CALL db.schema()"
-    val result = executeWith(Configs.Procs, query).toList
+    // we cannot assert on the results because on each call
+    // the generated virtual nodes will have different IDs
+    val result = executeWith(config, "CALL db.schema()", expectedDifferentResults = config).toList
+
+    // Then
+    result.size should equal(1)
+
+    // And then nodes
+    val nodes = result.head("nodes").asInstanceOf[Seq[Node]]
+
+    val nodeState: Set[(List[Label], Map[String,AnyRef])] =
+      nodes.map(n => (n.getLabels.toList, n.getAllProperties.toMap)).toSet
+
+    val empty = new java.util.ArrayList()
+    nodeState should equal(
+      Set(
+        (List(Label.label("Neo")),        Map("indexes" -> empty, "constraints" -> empty, "name" -> "Neo")),
+        (List(Label.label("Department")), Map("indexes" -> empty, "constraints" -> empty, "name" -> "Department")),
+        (List(Label.label("Employee")),   Map("indexes" -> empty, "constraints" -> empty, "name" -> "Employee"))
+      ))
+
+    // And then relationships
+    val relationships = result.head("relationships").asInstanceOf[Seq[Relationship]]
+
+    val relationshipState: Set[String] = relationships.map(_.getType.name()).toSet
+    relationshipState should equal(Set("WORKS_AT", "PART_OF"))
+  }
+
+  test("should be able to use db.schema.visualization") {
+
+    // Given
+    val neo = createLabeledNode("Neo")
+    val d1 = createLabeledNode("Department")
+    val e1 = createLabeledNode("Employee")
+    relate(e1, d1, "WORKS_AT", "Hallo")
+    relate(d1, neo, "PART_OF", "Hallo")
+
+    // When
+    val result = executeWith(config, "CALL db.schema.visualization()", expectedDifferentResults = config).toList
 
     // Then
     result.size should equal(1)
@@ -99,7 +142,7 @@ class BuiltInProcedureAcceptanceTest extends ProcedureCallAcceptanceTest with Cy
 
   test("should not be able to filter as part of standalone call") {
     failWithError(
-      Configs.AbsolutelyAll - Configs.Version2_3,
+      Configs.All - Configs.Version2_3,
       "CALL db.labels() YIELD label WHERE label <> 'A'",
       List("Cannot use standalone call with WHERE"))
   }
@@ -150,7 +193,7 @@ class BuiltInProcedureAcceptanceTest extends ProcedureCallAcceptanceTest with Cy
   test("db.labels work on an empty database") {
     // Given an empty database
     //When
-    val result = executeWith(Configs.Procs, "CALL db.labels")
+    val result = executeWith(config, "CALL db.labels")
 
     // Then
     result.toList shouldBe empty
@@ -162,7 +205,7 @@ class BuiltInProcedureAcceptanceTest extends ProcedureCallAcceptanceTest with Cy
     execute("MATCH (a:A) REMOVE a:A")
 
     //When
-    val result = executeWith(Configs.Procs, "CALL db.labels")
+    val result = executeWith(config, "CALL db.labels")
 
     // Then
     result shouldBe empty
@@ -174,7 +217,7 @@ class BuiltInProcedureAcceptanceTest extends ProcedureCallAcceptanceTest with Cy
     execute("MATCH (a) DETACH DELETE a")
 
     //When
-    val result = executeWith(Configs.Procs, "CALL db.labels")
+    val result = executeWith(config, "CALL db.labels")
 
     // Then
     result shouldBe empty
@@ -187,7 +230,7 @@ class BuiltInProcedureAcceptanceTest extends ProcedureCallAcceptanceTest with Cy
     relate(createNode(), createNode(), "C")
 
     // When
-    val result = executeWith(Configs.Procs, "CALL db.relationshipTypes")
+    val result = executeWith(config, "CALL db.relationshipTypes")
 
     // Then
     result.toList should equal(
@@ -200,7 +243,7 @@ class BuiltInProcedureAcceptanceTest extends ProcedureCallAcceptanceTest with Cy
   test("db.relationshipType work on an empty database") {
     // Given an empty database
     //When
-    val result = executeWith(Configs.Procs, "CALL db.relationshipTypes")
+    val result = executeWith(config, "CALL db.relationshipTypes")
 
     // Then
     result shouldBe empty
@@ -214,7 +257,7 @@ class BuiltInProcedureAcceptanceTest extends ProcedureCallAcceptanceTest with Cy
     execute("MATCH (a) DETACH DELETE a")
 
     //When
-    val result = executeWith(Configs.Procs, "CALL db.relationshipTypes")
+    val result = executeWith(config, "CALL db.relationshipTypes")
 
     // Then
     result shouldBe empty
@@ -225,7 +268,7 @@ class BuiltInProcedureAcceptanceTest extends ProcedureCallAcceptanceTest with Cy
     createNode("A" -> 1, "B" -> 2, "C" -> 3)
 
     // When
-    val result = executeWith(Configs.Procs, "CALL db.propertyKeys")
+    val result = executeWith(config, "CALL db.propertyKeys")
 
     // Then
     result.toList should equal(
@@ -239,7 +282,7 @@ class BuiltInProcedureAcceptanceTest extends ProcedureCallAcceptanceTest with Cy
     // Given an empty database
 
     // When
-    val result = executeWith(Configs.Procs, "CALL db.propertyKeys")
+    val result = executeWith(config, "CALL db.propertyKeys")
 
     // Then
     result shouldBe empty
@@ -251,7 +294,7 @@ class BuiltInProcedureAcceptanceTest extends ProcedureCallAcceptanceTest with Cy
     execute("MATCH (a)-[r]-(b) REMOVE a.A, r.R, b.B")
 
     // When
-    val result = executeWith(Configs.Procs, "CALL db.propertyKeys")
+    val result = executeWith(config, "CALL db.propertyKeys")
 
     // Then
     result.toList should equal(
@@ -267,7 +310,7 @@ class BuiltInProcedureAcceptanceTest extends ProcedureCallAcceptanceTest with Cy
     execute("MATCH (a) DETACH DELETE a")
 
     // When
-    val result = executeWith(Configs.Procs, "CALL db.propertyKeys")
+    val result = executeWith(config, "CALL db.propertyKeys")
 
     // Then
     result.toList should equal(
@@ -282,24 +325,142 @@ class BuiltInProcedureAcceptanceTest extends ProcedureCallAcceptanceTest with Cy
     graph.createIndex("A", "prop")
 
     //When
-    val result = executeWith(Configs.Procs, "CALL db.indexes")
+    val result = executeWith(config, "CALL db.indexes")
 
     // Then
     result.toList should equal(
       List(Map("description" -> "INDEX ON :A(prop)",
-        "label" -> "A",
+        "indexName" -> "Unnamed index",
+        "tokenNames" -> List("A"),
         "properties" -> List("prop"),
         "state" -> "ONLINE",
+        "progress" -> 100D,
         "type" -> "node_label_property",
+        "id" -> 1,
         "provider" -> Map(
-          "version" -> NativeLuceneFusionIndexProviderFactory20.DESCRIPTOR.getVersion,
-          "key" -> NativeLuceneFusionIndexProviderFactory20.DESCRIPTOR.getKey),
+          "version" -> GenericNativeIndexProvider.DESCRIPTOR.getVersion,
+          "key" -> GenericNativeIndexProvider.DESCRIPTOR.getKey),
         "failureMessage" -> "")))
   }
 
   test("yield from void procedure should return correct error msg") {
-    failWithError(Configs.Procs + Configs.Version3_4 + Configs.Version3_3 - Configs.AllRulePlanners,
-      "CALL db.createLabel('Label') yield node",
-      List("Cannot yield value from void procedure."))
+    failWithError(Configs.Version3_5 + Configs.Version3_4,
+                  "CALL db.createLabel('Label') yield node",
+                  List("Cannot yield value from void procedure."))
+  }
+
+  test("should create index from built-in-procedure") {
+    // when
+    val createResult = executeWith(config, "CALL db.createIndex(\":Person(name)\",\"lucene+native-1.0\")")
+
+    // then
+    createResult.toList should equal(
+      List(Map(
+        "index" -> ":Person(name)",
+        "providerName" -> "lucene+native-1.0",
+        "status" -> "index created"))
+    )
+
+    graph.execute("CALL db.awaitIndexes(10)")
+
+    // when
+    val listResult = executeWith(config, "CALL db.indexes()")
+
+    // Then
+    listResult.toList should equal(
+      List(Map("description" -> "INDEX ON :Person(name)",
+        "indexName" -> "Unnamed index",
+        "tokenNames" -> List("Person"),
+        "properties" -> List("name"),
+        "state" -> "ONLINE",
+        "progress" -> 100D,
+        "type" -> "node_label_property",
+        "id" -> 1,
+        "provider" -> Map(
+          "version" -> "1.0",
+          "key" -> "lucene+native"),
+        "failureMessage" -> "" )))
+  }
+
+  test("should create unique property constraint from built-in-procedure") {
+    // when
+    val createResult = executeWith(config, "CALL db.createUniquePropertyConstraint(\":Person(name)\",\"lucene+native-1.0\")")
+
+    // then
+    createResult.toList should equal(
+      List(Map(
+        "index" -> ":Person(name)",
+        "providerName" -> "lucene+native-1.0",
+        "status" -> "uniqueness constraint online"))
+    )
+
+    graph.execute("CALL db.awaitIndexes(10)")
+
+    // when
+    val mapResult = executeWith(config, "CALL db.indexes()").toList.loneElement
+
+    // then
+    mapResult should have size 10
+    mapResult("description") should equal("INDEX ON :Person(name)")
+    mapResult("indexName").asInstanceOf[String] should startWith("index_")
+    mapResult("id").asInstanceOf[Long].intValue() should be >= 1
+    mapResult("tokenNames") should equal(List("Person"))
+    mapResult("properties") should equal(List("name"))
+    mapResult("state") should equal("ONLINE")
+    mapResult("progress") should equal(100D)
+    mapResult("type") should equal("node_unique_property")
+    mapResult("provider") should equal(Map(
+               "version" -> "1.0",
+                "key" -> "lucene+native"))
+    mapResult("failureMessage") should equal("")
+  }
+
+  test("should create node key constraint from built-in-procedure") {
+    // when
+    val createResult = executeWith(config, "CALL db.createNodeKey(\":Person(name)\",\"lucene+native-1.0\")")
+
+    // then
+    createResult.toList should equal(
+      List(Map(
+        "index" -> ":Person(name)",
+        "providerName" -> "lucene+native-1.0",
+        "status" -> "node key constraint online"))
+    )
+
+    graph.execute("CALL db.awaitIndexes(10)")
+
+    // when
+    val mapResult = executeWith(config, "CALL db.indexes()").toList.loneElement
+
+    // then
+    mapResult should have size 10
+    mapResult("description") should equal("INDEX ON :Person(name)")
+    mapResult("indexName").asInstanceOf[String] should startWith("index_")
+    mapResult("id").asInstanceOf[Long].intValue() should be >= 1
+    mapResult("tokenNames") should equal(List("Person"))
+    mapResult("properties") should equal(List("name"))
+    mapResult("state") should equal("ONLINE")
+    mapResult("progress") should equal(100D)
+    mapResult("type") should equal("node_unique_property")
+    mapResult("provider") should equal(Map(
+      "version" -> "1.0",
+      "key" -> "lucene+native"))
+    mapResult("failureMessage") should equal("")
+  }
+
+  test("should list indexes in alphabetical order") {
+    // Given
+    graph.createIndex("A", "prop")
+    graph.createIndex("C", "foo")
+    graph.createIndex("B", "foo")
+    graph.createIndex("A", "foo")
+    graph.createIndex("A", "bar")
+
+    //When
+    val result = executeWith(combinedCallconfiguration, "CALL db.indexes() YIELD description RETURN description")
+
+    // Then
+    result.columnAs("description").toList should equal(
+      List("INDEX ON :A(bar)", "INDEX ON :A(foo)", "INDEX ON :A(prop)", "INDEX ON :B(foo)", "INDEX ON :C(foo)"))
   }
 }

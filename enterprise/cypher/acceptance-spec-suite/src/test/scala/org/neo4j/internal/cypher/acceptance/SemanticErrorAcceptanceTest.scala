@@ -37,6 +37,7 @@ package org.neo4j.internal.cypher.acceptance
 import java.util
 
 import org.neo4j.cypher.ExecutionEngineFunSuite
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.{CompiledRuntimeName, InterpretedRuntimeName, SlottedRuntimeName}
 import org.neo4j.graphdb.QueryExecutionException
 
 class SemanticErrorAcceptanceTest extends ExecutionEngineFunSuite {
@@ -79,13 +80,13 @@ class SemanticErrorAcceptanceTest extends ExecutionEngineFunSuite {
   test("define node and treat it as a relationship") {
     executeAndEnsureError(
       "match (r) where id(r) = 0 match (a)-[r]-(b) return r",
-      "Type mismatch: r already defined with conflicting type Node (expected Relationship) (line 1, column 38 (offset: 37))"
+      "Type mismatch: r defined with conflicting type Node (expected Relationship) (line 1, column 38 (offset: 37))"
     )
   }
 
   test("redefine symbol in match") {
     executeAndEnsureError(
-      "match (a)-[r]-(r) return r", "Type mismatch: r already defined with conflicting type Relationship (expected Node) (line 1, column 16 (offset: 15))"
+      "match (a)-[r]-(r) return r", "Type mismatch: r defined with conflicting type Relationship (expected Node) (line 1, column 16 (offset: 15))"
     )
   }
 
@@ -247,16 +248,6 @@ class SemanticErrorAcceptanceTest extends ExecutionEngineFunSuite {
 
   test("should fail if old iterable separator") {
     executeAndEnsureError(
-      "match (a) where id(a) = 0 return filter(x in a.list : x.prop = 1)",
-      "filter(...) requires a WHERE predicate (line 1, column 34 (offset: 33))"
-    )
-
-    executeAndEnsureError(
-      "match (a) where id(a) = 0 return extract(x in a.list : x.prop)",
-      "extract(...) requires '| expression' (an extract expression) (line 1, column 34 (offset: 33))"
-    )
-
-    executeAndEnsureError(
       "match (a) where id(a) = 0 return reduce(i = 0, x in a.List : i + x.prop)",
       "reduce(...) requires '| expression' (an accumulation expression) (line 1, column 34 (offset: 33))"
     )
@@ -291,7 +282,7 @@ class SemanticErrorAcceptanceTest extends ExecutionEngineFunSuite {
 
   test("should fail if using a hint on a node with no label") {
     executeAndEnsureError(
-      "MATCH (n) USING INDEX n:Person(name) where n.name = \"Brad\" return n",
+      "MATCH (n) USING INDEX n:Person(name) where n.name = \"Johan\" return n",
       "Cannot use index hint in this context. Must use label on node that hint is referring to. " +
       "(line 1, column 11 (offset: 10))"
     )
@@ -299,10 +290,10 @@ class SemanticErrorAcceptanceTest extends ExecutionEngineFunSuite {
 
   test("should fail if using a hint on a node and not using the property") {
     executeAndEnsureError(
-      "MATCH (n:Person) USING INDEX n:Person(name) where n.lastname = \"Nussbaum\" return n",
+      "MATCH (n:Person) USING INDEX n:Person(name) where n.lastname = \"Teleman\" return n",
       "Cannot use index hint in this context. Index hints are only supported for the following "+
         "predicates in WHERE (either directly or as part of a top-level AND or OR): equality comparison, " +
-        "inequality (range) comparison, STARTS WITH, point distance, IN condition or checking property " +
+        "inequality (range) comparison, STARTS WITH, IN condition or checking property " +
         "existence. The comparison cannot be performed between two property values. Note that the " +
         "label and property comparison must be specified on a non-optional node (line 1, " +
         "column 18 (offset: 17))"
@@ -502,7 +493,8 @@ class SemanticErrorAcceptanceTest extends ExecutionEngineFunSuite {
   }
 
   private def executeAndEnsureError(query: String, expected: Seq[String], params: (String,Any)*) {
-    import org.neo4j.cypher.internal.v3_5.frontend.helpers.StringHelper._
+    import org.neo4j.cypher.internal.v3_5.util.helpers.StringHelper._
+
     import scala.collection.JavaConverters._
 
     val expectedErrorString = expected.map(e => s"'$e'").mkString(" or ")
@@ -515,6 +507,7 @@ class SemanticErrorAcceptanceTest extends ExecutionEngineFunSuite {
       fail(s"Did not get the expected error, expected: $expectedErrorString")
     } catch {
       case x: QueryExecutionException =>
+        x.printStackTrace()
         val actual = x.getMessage.lines.next().trim
         if (!correctError(actual, expected)) {
           fail(s"Did not get the expected error, expected: $expectedErrorString actual: '$actual'")

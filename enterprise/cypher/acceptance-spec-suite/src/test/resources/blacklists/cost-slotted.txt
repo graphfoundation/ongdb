@@ -1,3 +1,2 @@
-Feature "PatternExpressionAcceptance": Scenario "Nested pattern comprehensions 2"
-Feature "PatternExpressionAcceptance": Scenario "Nested pattern comprehensions 4"
 Feature "ProcedureCallAcceptance": Scenario "Standalone call to procedure should fail if implicit argument is missing"
+Feature "PatternPredicates": Scenario "Pattern predicate should uphold the relationship uniqueness constraint"

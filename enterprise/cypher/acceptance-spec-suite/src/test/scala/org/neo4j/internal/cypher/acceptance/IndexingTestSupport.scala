@@ -38,7 +38,10 @@ import java.util.stream.Collectors
 
 import org.neo4j.cypher.ExecutionEngineFunSuite
 import org.neo4j.graphdb.Node
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport._
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.ComparePlansWithAssertion
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.TestConfiguration
 import org.neo4j.values.storable.Value
 
 import scala.collection.JavaConversions._
@@ -77,7 +80,7 @@ trait IndexingTestSupport extends ExecutionEngineFunSuite with CypherComparisonS
 
   protected def assertSeekMatchFor(value: Value, nodes: Node*): Unit = {
     val query = s"MATCH (n:$LABEL) WHERE n.$PROPERTY = $$param RETURN n"
-    testRead(query, Map("param" -> value.asObject()), "NodeIndexSeek", nodes, config = Configs.All - Configs.OldAndRule)
+    testRead(query, Map("param" -> value.asObject()), "NodeIndexSeek", nodes, config = Configs.All - Configs.Version2_3 - Configs.Version3_1)
   }
 
   protected def assertScanMatch(nodes: Node*): Unit = {
@@ -105,14 +108,14 @@ trait IndexingTestSupport extends ExecutionEngineFunSuite with CypherComparisonS
   }
 
   private def testRead(query: String, params: Map[String, AnyRef], wantedOperator: String, expected: Seq[Node],
-                       config: TestConfiguration = Configs.Interpreted - Configs.OldAndRule): Unit = {
+                       config: TestConfiguration = Configs.InterpretedAndSlotted - Configs.Version2_3 - Configs.Version3_1): Unit = {
     if (cypherComparisonSupport) {
       val result =
         executeWith(
           config,
           query,
           params = params,
-          planComparisonStrategy = ComparePlansWithAssertion(_ should useOperators(wantedOperator))
+          planComparisonStrategy = ComparePlansWithAssertion(_ should includeSomewhere.aPlan(wantedOperator))
         )
       val nodes = result.columnAs("n").toSet
       expected.foreach(p => assert(nodes.contains(p)))

@@ -36,12 +36,12 @@ package org.neo4j.internal.cypher.acceptance
 
 import org.neo4j.cypher.{ExecutionEngineFunSuite, QueryStatisticsTestSupport}
 import org.neo4j.graphdb.Relationship
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport._
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
 
 class MergeNodeAcceptanceTest extends ExecutionEngineFunSuite with QueryStatisticsTestSupport
   with CypherComparisonSupport {
 
-  // TODO: Reflect something like this in the TCK
   test("multiple merges after each other") {
     1 to 100 foreach { prop =>
       val result = executeWith(Configs.UpdateConf, s"merge (a:Label {prop: $prop}) return a.prop")
@@ -100,5 +100,19 @@ class MergeNodeAcceptanceTest extends ExecutionEngineFunSuite with QueryStatisti
     relate(a, b, "X")
     val result = executeWith(Configs.UpdateConf, "MERGE (a)-[r1:X]->(b)<-[r2:X]-(c) RETURN id(r1) = id(r2) as sameEdge, c.name as name")
     result.toList should equal(List(Map("sameEdge" -> false, "name" -> null)))
+  }
+
+  test("should give sensible error message on add relationship to null node") {
+    val query =
+      """OPTIONAL MATCH (a)
+        |MERGE (a)-[r:X]->()
+      """.stripMargin
+
+    failWithError(Configs.All - Configs.Compiled - Configs.Cost2_3, query, Seq(
+      "Expected to find a node, but found instead: null",
+      "Expected to find a node at a but found nothing Some(null)",
+      "Failed to create relationship `r`, node `a` is missing. " +
+        "If you prefer to simply ignore rows where a relationship node is missing, " +
+        "set 'cypher.lenient_create_relationship = true' in ongdb.conf"))
   }
 }

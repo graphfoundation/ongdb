@@ -34,22 +34,31 @@
  */
 package org.neo4j.internal.cypher.acceptance
 
+import org.neo4j.cypher.internal.RewindableExecutionResult
 import org.neo4j.cypher.internal.javacompat.GraphDatabaseCypherService
-import org.neo4j.cypher.internal.runtime.InternalExecutionResult
-import org.neo4j.cypher.internal.{CompatibilityFactory, ExecutionEngine, RewindableExecutionResult}
-import org.neo4j.cypher.{ExecutionEngineFunSuite, RunWithConfigTestSupport, ShortestPathCommonEndNodesForbiddenException}
+import org.neo4j.cypher.ExecutionEngineFunSuite
+import org.neo4j.cypher.ExecutionEngineHelper
+import org.neo4j.cypher.RunWithConfigTestSupport
+import org.neo4j.cypher.ShortestPathCommonEndNodesForbiddenException
 import org.neo4j.graphdb.RelationshipType
 import org.neo4j.graphdb.factory.GraphDatabaseSettings
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport.Versions.{V3_1, V3_3}
-import org.neo4j.internal.cypher.acceptance.CypherComparisonSupport._
-import org.neo4j.logging.NullLogProvider
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Planners
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Runtimes
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.TestConfiguration
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions.V3_1
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions.V3_4
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions.V3_5
+import org.neo4j.values.virtual.VirtualValues
 
 class ShortestPathSameNodeAcceptanceTest extends ExecutionEngineFunSuite with RunWithConfigTestSupport with CypherComparisonSupport {
 
   val expectedToFail = TestConfiguration(
-    Versions(Versions.Default, V3_1, V3_3),
-    Planners(Planners.Cost, Planners.Rule, Planners.Default),
-    Runtimes(Runtimes.Interpreted, Runtimes.Slotted, Runtimes.Default, Runtimes.ProcedureOrSchema))
+    Versions(V3_1, V3_4, V3_5),
+    Planners(Planners.Cost, Planners.Rule),
+    Runtimes(Runtimes.Interpreted, Runtimes.Slotted, Runtimes.SlottedWithCompiledExpressions))
 
   def setupModel(db: GraphDatabaseCypherService) {
     db.inTx {
@@ -112,7 +121,7 @@ class ShortestPathSameNodeAcceptanceTest extends ExecutionEngineFunSuite with Ru
   test("shortest paths with min length 0 that discover at runtime that the start and end nodes are the same should not throw exception by default") {
     setupModel(graph)
     val query = "MATCH (a), (b) MATCH p=shortestPath((a)-[*0..]-(b)) RETURN p"
-    executeWith(Configs.Interpreted, query).toList.length should be(9)
+    executeWith(Configs.InterpretedAndSlotted, query).toList.length should be(9)
   }
 
   test("shortest paths with min length 0 that discover at runtime that the start and end nodes are the same should throw exception even when when configured to do so") {
@@ -131,11 +140,10 @@ class ShortestPathSameNodeAcceptanceTest extends ExecutionEngineFunSuite with Ru
     }
   }
 
-  def executeUsingCostPlannerOnly(db: GraphDatabaseCypherService, query: String): InternalExecutionResult = {
-    val compatibilityFactory = db.getDependencyResolver.resolveDependency(classOf[CompatibilityFactory])
-    RewindableExecutionResult(
-      new ExecutionEngine(db, NullLogProvider.getInstance(), compatibilityFactory)
-        .execute(s"CYPHER planner=COST $query", Map.empty[String, Any])
-    )
+  def executeUsingCostPlannerOnly(db: GraphDatabaseCypherService, query: String): RewindableExecutionResult = {
+    val engine = ExecutionEngineHelper.createEngine(db)
+    RewindableExecutionResult(engine.execute(query,
+                                             VirtualValues.emptyMap(),
+                                             engine.queryService.transactionalContext(query = query -> Map())))
   }
 }
