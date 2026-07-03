@@ -16,11 +16,20 @@
 package org.neo4j.cypher.internal
 
 import org.neo4j.cypher.internal.compatibility.CypherRuntime
+import org.neo4j.cypher.internal.compatibility.InterpretedRuntime
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.EnterpriseRuntimeContext
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.CompiledRuntimeName
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.DelegatingExecutionPlan
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.ExecutionPlan
 import org.neo4j.cypher.internal.compiler.v3_5.phases.LogicalPlanState
 
 object CompiledRuntime extends CypherRuntime[EnterpriseRuntimeContext] {
 
-  override def compileToExecutable(logicalPlan: LogicalPlanState, context: EnterpriseRuntimeContext): ExecutionPlan = ???
+  override def compileToExecutable(logicalPlan: LogicalPlanState, context: EnterpriseRuntimeContext): ExecutionPlan = {
+    // Keep compiled-runtime entry points operational while enterprise codegen is still being restored.
+    val interpretedPlan = InterpretedRuntime.compileToExecutable(logicalPlan, context)
+    new DelegatingExecutionPlan(interpretedPlan) {
+      override def runtimeName = CompiledRuntimeName
+    }
+  }
 }

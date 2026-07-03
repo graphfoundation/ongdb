@@ -16,11 +16,19 @@
 package org.neo4j.cypher.internal
 
 import org.neo4j.cypher.internal.compatibility.CypherRuntime
+import org.neo4j.cypher.internal.compatibility.InterpretedRuntime
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.EnterpriseRuntimeContext
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlottedRuntimeName
+import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.DelegatingExecutionPlan
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.ExecutionPlan
 import org.neo4j.cypher.internal.compiler.v3_5.phases.LogicalPlanState
 
 object SlottedRuntime extends CypherRuntime[EnterpriseRuntimeContext] {
 
-  override def compileToExecutable(logicalPlan: LogicalPlanState, context: EnterpriseRuntimeContext): ExecutionPlan = ???
+  override def compileToExecutable(logicalPlan: LogicalPlanState, context: EnterpriseRuntimeContext): ExecutionPlan = {
+    val interpretedPlan = InterpretedRuntime.compileToExecutable(logicalPlan, context)
+    new DelegatingExecutionPlan(interpretedPlan) {
+      override def runtimeName = SlottedRuntimeName
+    }
+  }
 }

@@ -117,7 +117,7 @@ class MasterCompiler(config: CypherConfiguration,
       */
     def innerCompile(preParsedQuery: PreParsedQuery, params: MapValue): ExecutableQuery = {
 
-      if ((preParsedQuery.version == CypherVersion.v3_4 || preParsedQuery.version == CypherVersion.v3_5) && preParsedQuery.planner == CypherPlannerOption.rule) {
+      if ((preParsedQuery.version == CypherVersion.v3_3 || preParsedQuery.version == CypherVersion.v3_4 || preParsedQuery.version == CypherVersion.v3_5) && preParsedQuery.planner == CypherPlannerOption.rule) {
         logger.log(RulePlannerUnavailableFallbackNotification)
         innerCompile(preParsedQuery.copy(version = CypherVersion.v3_1), params)
 

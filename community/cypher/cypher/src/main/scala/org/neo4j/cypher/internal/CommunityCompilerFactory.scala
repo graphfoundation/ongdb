@@ -98,6 +98,16 @@ class CommunityCompilerFactory(graph: GraphDatabaseQueryService,
           kernelMonitors
         )
 
+        // 3.3 (shares the 3.4 planning/compiler pipeline)
+      case (CypherVersion.v3_3, _) =>
+        CypherCurrentCompiler(
+          Cypher34Planner(plannerConfig, MasterCompiler.CLOCK, kernelMonitors, log,
+            cypherPlanner, cypherUpdateStrategy, LastCommittedTxIdProvider(graph)),
+          CommunityRuntimeFactory.getRuntime(cypherRuntime, plannerConfig.useErrorsOverWarnings),
+          CommunityRuntimeContextCreator(log, plannerConfig),
+          kernelMonitors
+        )
+
         // 3.5
       case (CypherVersion.v3_5, _) =>
         CypherCurrentCompiler(
