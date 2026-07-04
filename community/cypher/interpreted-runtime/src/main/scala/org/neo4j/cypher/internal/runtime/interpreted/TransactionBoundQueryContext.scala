@@ -223,6 +223,7 @@ sealed class TransactionBoundQueryContext(val transactionalContext: Transactiona
           case INCOMING => incomingCursor(cursors, cursor, types.orNull)
           case BOTH => allCursor(cursors, cursor, types.orNull)
         }
+        resources.trace(selectionCursor)
         new CursorIterator[RelationshipValue] {
           override protected def close(): Unit = selectionCursor.close()
 
@@ -255,6 +256,7 @@ sealed class TransactionBoundQueryContext(val transactionalContext: Transactiona
           case INCOMING => incomingCursor(cursors, cursor, types.orNull)
           case BOTH => allCursor(cursors, cursor, types.orNull)
         }
+        resources.trace(selectionCursor)
         new RelationshipCursorIterator(selectionCursor)
       }
     } finally {
@@ -272,11 +274,13 @@ sealed class TransactionBoundQueryContext(val transactionalContext: Transactiona
       read.singleNode(node, cursor)
       if (!cursor.next()) RelationshipSelectionCursor.EMPTY
       else {
-        dir match {
+        val selectionCursor = dir match {
           case OUTGOING => outgoingCursor(cursors, cursor, types.orNull)
           case INCOMING => incomingCursor(cursors, cursor, types.orNull)
           case BOTH => allCursor(cursors, cursor, types.orNull)
         }
+        resources.trace(selectionCursor)
+        selectionCursor
       }
     } finally {
       cursor.close()
@@ -1102,24 +1106,32 @@ sealed class TransactionBoundQueryContext(val transactionalContext: Transactiona
 
   abstract class CursorIterator[T] extends Iterator[T] {
     private var _next: T = fetchNext()
+    private var closed = false
 
     protected def fetchNext(): T
 
     protected def close(): Unit
 
-    override def hasNext: Boolean = _next != null
+    private def closeIfExhausted(): Unit = {
+      if (!closed && _next == null) {
+        close()
+        closed = true
+      }
+    }
+
+    override def hasNext: Boolean = {
+      closeIfExhausted()
+      _next != null
+    }
 
     override def next(): T = {
       if (!hasNext) {
-        close()
         Iterator.empty.next()
       }
 
       val current = _next
       _next = fetchNext()
-      if (!hasNext) {
-        close()
-      }
+      closeIfExhausted()
       current
     }
   }
@@ -1132,6 +1144,7 @@ sealed class TransactionBoundQueryContext(val transactionalContext: Transactiona
     private var typeId: Int = NO_ID
     private var source: Long = NO_ID
     private var target: Long = NO_ID
+    private var closed = false
 
     override def relationshipVisit[EXCEPTION <: Exception](relationshipId: Long,
                                                            visitor: RelationshipVisitor[EXCEPTION]): Boolean = {
@@ -1141,11 +1154,19 @@ sealed class TransactionBoundQueryContext(val transactionalContext: Transactiona
 
     private def fetchNext(): Long = if (selectionCursor.next()) selectionCursor.relationshipReference() else -1L
 
+    private def closeIfExhausted(): Unit = {
+      if (!closed && _next < 0) {
+        selectionCursor.close()
+        closed = true
+      }
+    }
+
     override def hasNext: Boolean = {
       if (_next == NOT_INITIALIZED) {
         _next = fetchNext()
       }
 
+      closeIfExhausted()
       _next >= 0
     }
 
@@ -1159,7 +1180,6 @@ sealed class TransactionBoundQueryContext(val transactionalContext: Transactiona
 
     override def next(): Long = {
       if (!hasNext) {
-        selectionCursor.close()
         Iterator.empty.next()
       }
 
@@ -1168,6 +1188,7 @@ sealed class TransactionBoundQueryContext(val transactionalContext: Transactiona
       //Note that if no more elements are found the selection cursor
       //will be closed so no need to do a extra check after fetching.
       _next = fetchNext()
+      closeIfExhausted()
 
       current
     }
@@ -1180,20 +1201,30 @@ sealed class TransactionBoundQueryContext(val transactionalContext: Transactiona
 
   abstract class PrimitiveCursorIterator extends PrimitiveLongResourceIterator {
     private var _next: Long = fetchNext()
+    private var closed = false
 
     protected def fetchNext(): Long
 
-    override def hasNext: Boolean = _next >= 0
+    private def closeIfExhausted(): Unit = {
+      if (!closed && _next < 0) {
+        close()
+        closed = true
+      }
+    }
+
+    override def hasNext: Boolean = {
+      closeIfExhausted()
+      _next >= 0
+    }
 
     override def next(): Long = {
       if (!hasNext) {
-        close()
         Iterator.empty.next()
       }
 
       val current = _next
       _next = fetchNext()
-      if (!hasNext) close()
+      closeIfExhausted()
 
       current
     }

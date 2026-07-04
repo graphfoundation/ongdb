@@ -48,29 +48,35 @@ import scala.collection.Iterator
 abstract class CursorIterator[T] extends Iterator[T] {
   private var _next: T = _
   private var intialzed = false
+  private var closed = false
 
   protected def fetchNext(): T
   protected def close(): Unit
+
+  private def closeIfExhausted(): Unit = {
+    if (!closed && _next == null) {
+      close()
+      closed = true
+    }
+  }
 
   override def hasNext: Boolean = {
     if (!intialzed) {
       _next = fetchNext()
       intialzed = true
     }
+    closeIfExhausted()
     _next != null
   }
 
   override def next(): T = {
     if (!hasNext) {
-      close()
       Iterator.empty.next()
     }
 
     val current = _next
     _next = fetchNext()
-    if (!hasNext) {
-      close()
-    }
+    closeIfExhausted()
     current
   }
 }
@@ -82,6 +88,7 @@ class RelationshipCursorIterator(selectionCursor: RelationshipSelectionCursor) e
   private var typeId: Int = NO_ID
   private var source: Long = NO_ID
   private var target: Long = NO_ID
+  private var closed = false
 
   override def relationshipVisit[EXCEPTION <: Exception](relationshipId: Long,
                                                          visitor: RelationshipVisitor[EXCEPTION]): Boolean = {
@@ -91,11 +98,19 @@ class RelationshipCursorIterator(selectionCursor: RelationshipSelectionCursor) e
 
   private def fetchNext(): Long = if (selectionCursor.next()) selectionCursor.relationshipReference() else -1L
 
+  private def closeIfExhausted(): Unit = {
+    if (!closed && _next < 0) {
+      selectionCursor.close()
+      closed = true
+    }
+  }
+
   override def hasNext: Boolean = {
     if (_next == NOT_INITIALIZED) {
       _next = fetchNext()
     }
 
+    closeIfExhausted()
     _next >= 0
   }
 
@@ -109,7 +124,6 @@ class RelationshipCursorIterator(selectionCursor: RelationshipSelectionCursor) e
 
   override def next(): Long = {
     if (!hasNext) {
-      selectionCursor.close()
       Iterator.empty.next()
     }
 
@@ -118,6 +132,7 @@ class RelationshipCursorIterator(selectionCursor: RelationshipSelectionCursor) e
     //Note that if no more elements are found the selection cursor
     //will be closed so no need to do a extra check after fetching.
     _next = fetchNext()
+    closeIfExhausted()
 
     current
   }
@@ -130,20 +145,30 @@ object RelationshipCursorIterator {
 
 abstract class PrimitiveCursorIterator extends PrimitiveLongResourceIterator {
   private var _next: Long = fetchNext()
+  private var closed = false
 
   protected def fetchNext(): Long
 
-  override def hasNext: Boolean = _next >= 0
+  private def closeIfExhausted(): Unit = {
+    if (!closed && _next < 0) {
+      close()
+      closed = true
+    }
+  }
+
+  override def hasNext: Boolean = {
+    closeIfExhausted()
+    _next >= 0
+  }
 
   override def next(): Long = {
     if (!hasNext) {
-      close()
       Iterator.empty.next()
     }
 
     val current = _next
     _next = fetchNext()
-    if (!hasNext) close()
+    closeIfExhausted()
 
     current
   }
