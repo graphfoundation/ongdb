@@ -45,12 +45,15 @@ import org.neo4j.graphalgo.WeightedPath;
 import org.neo4j.graphalgo.impl.util.BestFirstSelectorFactory;
 import org.neo4j.graphalgo.impl.util.PathInterest;
 import org.neo4j.graphalgo.impl.util.PathInterestFactory;
+import org.neo4j.graphalgo.impl.util.PathImpl;
 import org.neo4j.graphalgo.impl.util.WeightedPathIterator;
+import org.neo4j.graphalgo.impl.util.WeightedPathImpl;
 import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.PathExpander;
 import org.neo4j.graphdb.ResourceIterable;
+import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.traversal.InitialBranchState;
 import org.neo4j.graphdb.traversal.TraversalBranch;
 import org.neo4j.graphdb.traversal.TraversalDescription;
@@ -118,7 +121,14 @@ public class TraversalAStar implements PathFinder<WeightedPath>
     @Override
     public WeightedPath findSinglePath( Node start, Node end )
     {
-        return Iterables.firstOrNull( findPaths( start, end, false ) );
+        if ( start.equals( end ) )
+        {
+            return new WeightedPathImpl( 0D, PathImpl.singular( start ) );
+        }
+        try ( ResourceIterator<WeightedPath> paths = findPaths( start, end, false ).iterator() )
+        {
+            return paths.hasNext() ? paths.next() : null;
+        }
     }
 
     private ResourceIterable<WeightedPath> findPaths( Node start, Node end, boolean multiplePaths )

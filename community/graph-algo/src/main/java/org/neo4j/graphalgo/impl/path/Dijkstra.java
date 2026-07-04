@@ -48,11 +48,14 @@ import org.neo4j.graphalgo.WeightedPath;
 import org.neo4j.graphalgo.impl.util.DijkstraSelectorFactory;
 import org.neo4j.graphalgo.impl.util.PathInterest;
 import org.neo4j.graphalgo.impl.util.PathInterestFactory;
+import org.neo4j.graphalgo.impl.util.PathImpl;
 import org.neo4j.graphalgo.impl.util.WeightedPathIterator;
+import org.neo4j.graphalgo.impl.util.WeightedPathImpl;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.PathExpander;
 import org.neo4j.graphdb.Relationship;
+import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.traversal.BranchState;
 import org.neo4j.graphdb.traversal.Evaluation;
 import org.neo4j.graphdb.traversal.Evaluators;
@@ -66,8 +69,6 @@ import org.neo4j.kernel.impl.util.NoneStrictMath;
 
 import static org.neo4j.graphalgo.impl.util.PathInterestFactory.single;
 import static org.neo4j.graphdb.Direction.OUTGOING;
-import static org.neo4j.helpers.collection.Iterators.firstOrNull;
-
 /**
  * Find (one or some) simple shortest path(s) between two nodes.
  * Shortest referring to least cost evaluated by provided {@link CostEvaluator}.
@@ -213,8 +214,15 @@ public class Dijkstra implements PathFinder<WeightedPath>
     @Override
     public WeightedPath findSinglePath( Node start, Node end )
     {
-        return firstOrNull( new WeightedPathIterator(
-                traverser( start, end, single( epsilon ) ).iterator(), costEvaluator, epsilon, interest ) );
+        if ( start.equals( end ) )
+        {
+            return new WeightedPathImpl( 0D, PathImpl.singular( start ) );
+        }
+        try ( ResourceIterator<WeightedPath> paths = new WeightedPathIterator(
+                traverser( start, end, single( epsilon ) ).iterator(), costEvaluator, epsilon, interest ) )
+        {
+            return paths.hasNext() ? paths.next() : null;
+        }
     }
 
     @Override
