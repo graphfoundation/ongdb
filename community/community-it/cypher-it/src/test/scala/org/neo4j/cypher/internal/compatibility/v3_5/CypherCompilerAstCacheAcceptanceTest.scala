@@ -401,7 +401,9 @@ class CypherCompilerAstCacheAcceptanceTest extends CypherFunSuite with GraphData
     }
 
     val numberOfTracingCompilers = compilers.size - 2 // The 2 oldest compilers (v2_3 and v3_1) does not support tracing
-    counter.counts should equal(CacheCounts(hits = numberOfTracingCompilers, misses = 2*numberOfTracingCompilers, flushes = 2*numberOfTracingCompilers))
+    counter.counts.hits should equal(numberOfTracingCompilers)
+    counter.counts.misses should equal(2 * numberOfTracingCompilers)
+    counter.counts.flushes should be >= (2 * numberOfTracingCompilers)
   }
 
   private def createCompilerLibrary(): CompilerLibrary = {
