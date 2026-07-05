@@ -107,7 +107,7 @@ public class EnterpriseServerBuilder extends CommunityServerBuilder
         TestEnterpriseNeoServer( Config config, File configFile,
                 GraphDatabaseFacadeFactory.Dependencies dependencies, LogProvider logProvider )
         {
-            super( config, dependencies, logProvider );
+            super( config, dependencies );
             this.configFile = configFile;
         }
 

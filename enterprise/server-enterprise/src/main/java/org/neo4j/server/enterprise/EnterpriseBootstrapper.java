@@ -43,22 +43,27 @@ import org.neo4j.configuration.HaConfigurationValidator;
 import org.neo4j.graphdb.facade.GraphDatabaseDependencies;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.ConfigurationValidator;
-import org.neo4j.logging.LogProvider;
 import org.neo4j.server.CommunityBootstrapper;
 import org.neo4j.server.NeoServer;
+import org.neo4j.server.database.EnterpriseGraphFactory;
+import org.neo4j.server.database.GraphFactory;
 
 public class EnterpriseBootstrapper extends CommunityBootstrapper
 {
-    public EnterpriseBootstrapper()
+    @Override
+    protected GraphFactory createGraphFactory( Config config )
     {
+        return new EnterpriseGraphFactory();
     }
 
-    protected NeoServer createNeoServer( Config configurator, GraphDatabaseDependencies dependencies, LogProvider userLogProvider )
+    @Override
+    protected NeoServer createNeoServer( GraphFactory graphFactory, Config config, GraphDatabaseDependencies dependencies )
     {
-        return new EnterpriseNeoServer( configurator, dependencies, userLogProvider );
+        return new EnterpriseNeoServer( config, graphFactory, dependencies );
     }
 
     @Nonnull
+    @Override
     protected Collection<ConfigurationValidator> configurationValidators()
     {
         ArrayList<ConfigurationValidator> validators = new ArrayList<>( super.configurationValidators() );
