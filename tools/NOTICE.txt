@@ -43,7 +43,11 @@ Apache Software License, Version 2.0
   Apache Commons Compress
   Apache Commons Lang
   Apache Commons Text
+  Caffeine cache
+  ConcurrentLinkedHashMap
+  error-prone annotations
   Guava: Google Core Libraries for Java
+  IPAddress
   javax.inject
   jPowerShell
   jProcesses
@@ -80,10 +84,49 @@ Apache Software License, Version 2.0
   Netty/Transport/RXTX
   Netty/Transport/SCTP
   Netty/Transport/UDT
+  opencsv
+  parboiled-core
+  parboiled-scala
   WMI4Java
+
+BSD - Scala License
+  Scala Library
+
+BSD License
+  asm
+  asm-analysis
+  asm-tree
+  asm-util
+  Scala Compiler
+  Zstandard
+
+BSD License 2-clause
+  zstd-jni
 
 Bouncy Castle License
   Bouncy Castle ASN.1 Extension and Utility APIs
   Bouncy Castle PKIX, CMS, EAC, TSP, PKCS, OCSP, CMP, and CRMF APIs
   Bouncy Castle Provider
+
+Eclipse Distribution License - v 1.0
+  Eclipse Collections API
+  Eclipse Collections Main Library
+
+Eclipse Public License - v 1.0
+  Eclipse Collections API
+  Eclipse Collections Main Library
+
+MIT License
+  Checker Qual
+
+Dependencies with multiple licenses
+-----------------------------------
+
+Eclipse Collections API
+  Eclipse Distribution License - v 1.0
+  Eclipse Public License - v 1.0
+
+Eclipse Collections Main Library
+  Eclipse Distribution License - v 1.0
+  Eclipse Public License - v 1.0
 
