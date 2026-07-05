@@ -75,12 +75,14 @@ public class StoreInfoCommandEnterpriseTest
     private ArgumentCaptor<String> outCaptor;
     private StoreInfoCommand command;
     private Consumer<String> out;
+    private DatabaseLayout databaseLayout;
 
     @Before
     public void setUp() throws Exception
     {
         Path homeDir = testDirectory.directory( "home-dir" ).toPath();
         databaseDirectory = homeDir.resolve( "data/databases/foo.db" );
+        databaseLayout = DatabaseLayout.of( databaseDirectory.toFile() );
         Files.createDirectories( databaseDirectory );
         outCaptor = ArgumentCaptor.forClass( String.class );
         out = mock( Consumer.class );
@@ -118,8 +120,6 @@ public class StoreInfoCommandEnterpriseTest
 
     private File createNeoStoreFile() throws IOException
     {
-        fsRule.get().mkdir( databaseDirectory.toFile() );
-        DatabaseLayout databaseLayout = testDirectory.databaseLayout();
         File neoStoreFile = databaseLayout.metadataStore();
         fsRule.get().create( neoStoreFile ).close();
         return neoStoreFile;
