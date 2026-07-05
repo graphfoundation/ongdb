@@ -441,7 +441,8 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
                 masterDelegateInvocationHandler, requestContextFactory, clusterMemberAvailability,
                 masterClientResolver, updatePullerProxy, pullerFactory, slaveServerFactory, editionIdGeneratorFactory, databaseLayout );
 
-        GraphDatabaseFacade graphDatabaseFacade = platformModule.dataSourceManager.getDataSource().getDependencyResolver().resolveDependency( GraphDatabaseFacade.class );
+        GraphDatabaseFacade graphDatabaseFacade = platformModule.dataSourceManager.getDataSource()
+                .getDependencyResolver().resolveDependency( GraphDatabaseFacade.class );
         final Factory<MasterImpl.SPI> masterSPIFactory =
                 () -> new DefaultMasterImplSPI( graphDatabaseFacade, platformModule.fileSystem,
                         platformModule.monitors,
@@ -454,7 +455,8 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
                         logging.getInternalLogProvider() );
 
         final Function<Locks,ConversationSPI> conversationSPIFactory = locks -> new DefaultConversationSPI( locks, platformModule.jobScheduler );
-        final Function<Locks,ConversationManager> conversationManagerFactory = locks -> new ConversationManager( conversationSPIFactory.apply( locks ), config );
+        final Function<Locks,ConversationManager> conversationManagerFactory =
+                locks -> new ConversationManager( conversationSPIFactory.apply( locks ), config );
 
         BiFunction<ConversationManager, LifeSupport, Master> masterFactory = ( conversationManager, life1 ) ->
                 life1.add( new MasterImpl( masterSPIFactory.newInstance(),
