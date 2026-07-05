@@ -38,6 +38,7 @@ import org.neo4j.com.ComException;
 import org.neo4j.com.RequestContext;
 import org.neo4j.com.Response;
 import org.neo4j.graphdb.TransientTransactionFailureException;
+import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.kernel.ha.com.RequestContextFactory;
 import org.neo4j.kernel.ha.com.master.Master;
 import org.neo4j.kernel.impl.core.TokenCreator;
@@ -54,7 +55,7 @@ public abstract class AbstractTokenCreator implements TokenCreator
     }
 
     @Override
-    public final int getOrCreate( String name )
+    public final int createToken( String name ) throws KernelException
     {
         try ( Response<Integer> response = create( master, requestContextFactory.newRequestContext(), name ) )
         {

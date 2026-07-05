@@ -36,6 +36,9 @@ package org.neo4j.ha.upgrade;
 
 import java.io.File;
 import java.rmi.RemoteException;
+import java.rmi.Naming;
+import java.rmi.NotBoundException;
+import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -53,7 +56,6 @@ import org.neo4j.helpers.Args;
 import org.neo4j.kernel.ha.HighlyAvailableGraphDatabase;
 import org.neo4j.kernel.ha.UpdatePuller;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
-import org.neo4j.shell.impl.RmiLocation;
 import org.neo4j.test.ProcessStreamHandler;
 
 import static java.lang.Integer.parseInt;
@@ -82,7 +84,7 @@ public class LegacyDatabaseImpl extends UnicastRemoteObject implements LegacyDat
                 .newGraphDatabase();
 
         LegacyDatabaseImpl legacyDb = new LegacyDatabaseImpl( storeDir, db );
-        rmiLocation( parseInt( arguments.orphans().get( 1 ) ) ).bind( legacyDb );
+        bindRemote( parseInt( arguments.orphans().get( 1 ) ), legacyDb );
     }
 
     private final GraphDatabaseAPI db;
@@ -107,7 +109,7 @@ public class LegacyDatabaseImpl extends UnicastRemoteObject implements LegacyDat
                 LegacyDatabaseImpl.class.getName(), args.toArray( new String[0] ) );
         new ProcessStreamHandler( process, false ).launch();
 
-        final RmiLocation rmiLocation = rmiLocation( rmiPort );
+        final int remotePort = rmiPort;
         ExecutorService executor = newSingleThreadExecutor();
         Future<LegacyDatabase> future = executor.submit( () ->
         {
@@ -116,7 +118,11 @@ public class LegacyDatabaseImpl extends UnicastRemoteObject implements LegacyDat
             {
                 try
                 {
-                    return (LegacyDatabase) rmiLocation.getBoundObject();
+                    return lookupRemote( remotePort );
+                }
+                catch ( NotBoundException | java.net.MalformedURLException e )
+                {
+                    sleep( 100 );
                 }
                 catch ( RemoteException e )
                 {
@@ -143,9 +149,27 @@ public class LegacyDatabaseImpl extends UnicastRemoteObject implements LegacyDat
         return classpath;
     }
 
-    private static RmiLocation rmiLocation( int rmiPort )
+    private static void bindRemote( int rmiPort, LegacyDatabase legacyDb ) throws Exception
     {
-        return RmiLocation.location( "127.0.0.1", rmiPort, "remote" );
+        try
+        {
+            LocateRegistry.createRegistry( rmiPort );
+        }
+        catch ( RemoteException e )
+        {
+            // registry may already exist in this JVM
+        }
+        Naming.rebind( remoteUri( rmiPort ), legacyDb );
+    }
+
+    private static LegacyDatabase lookupRemote( int rmiPort ) throws Exception
+    {
+        return (LegacyDatabase) Naming.lookup( remoteUri( rmiPort ) );
+    }
+
+    private static String remoteUri( int rmiPort )
+    {
+        return "rmi://127.0.0.1:" + rmiPort + "/remote";
     }
 
     @Override

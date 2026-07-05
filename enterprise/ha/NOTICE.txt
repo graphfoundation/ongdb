@@ -54,7 +54,9 @@ Apache Software License, Version 2.0
   Apache Shiro :: Event
   Apache Shiro :: Lang
   Caffeine cache
+  error-prone annotations
   hazelcast-all
+  IPAddress
   jPowerShell
   jProcesses
   Lucene codecs
@@ -91,14 +93,45 @@ Apache Software License, Version 2.0
   Netty/Transport/RXTX
   Netty/Transport/SCTP
   Netty/Transport/UDT
+  parboiled-core
+  parboiled-scala
   WMI4Java
+
+BSD - Scala License
+  Scala Library
+
+BSD License
+  Scala Compiler
+  Zstandard
+
+BSD License 2-clause
+  zstd-jni
 
 Bouncy Castle License
   Bouncy Castle ASN.1 Extension and Utility APIs
   Bouncy Castle PKIX, CMS, EAC, TSP, PKCS, OCSP, CMP, and CRMF APIs
   Bouncy Castle Provider
 
+Eclipse Distribution License - v 1.0
+  Eclipse Collections API
+  Eclipse Collections Main Library
+
+Eclipse Public License - v 1.0
+  Eclipse Collections API
+  Eclipse Collections Main Library
+
 MIT License
+  Checker Qual
   SLF4J API Module
   SLF4J NOP Binding
 
+Dependencies with multiple licenses
+-----------------------------------
+
+Eclipse Collections API
+  Eclipse Distribution License - v 1.0
+  Eclipse Public License - v 1.0
+
+Eclipse Collections Main Library
+  Eclipse Distribution License - v 1.0
+  Eclipse Public License - v 1.0

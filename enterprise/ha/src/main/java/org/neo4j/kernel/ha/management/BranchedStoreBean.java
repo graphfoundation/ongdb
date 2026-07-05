@@ -43,7 +43,7 @@ import javax.management.NotCompliantMBeanException;
 import org.neo4j.helpers.Service;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.FileUtils;
-import org.neo4j.io.layout.DatabaseFileNames;
+import org.neo4j.io.layout.DatabaseFile;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.jmx.impl.ManagementBeanProvider;
 import org.neo4j.jmx.impl.ManagementData;
@@ -138,7 +138,7 @@ public final class BranchedStoreBean extends ManagementBeanProvider
         {
             try
             {
-                final File neoStoreFile = new File( branchDirectory, DatabaseFileNames.METADATA_STORE );
+                final File neoStoreFile = new File( branchDirectory, DatabaseFile.METADATA_STORE.getName() );
                 final long txId = MetaDataStore.getRecord( pageCache, neoStoreFile, Position.LAST_TRANSACTION_ID );
                 final long timestamp = Long.parseLong( branchDirectory.getName() );
                 final long branchedStoreSize = FileUtils.size( fileSystem, branchDirectory );

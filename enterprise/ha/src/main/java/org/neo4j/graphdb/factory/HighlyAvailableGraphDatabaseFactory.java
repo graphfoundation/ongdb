@@ -40,6 +40,7 @@ import java.util.Map;
 import org.neo4j.cluster.ClusterSettings;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.ha.HaSettings;
 import org.neo4j.kernel.ha.HighlyAvailableGraphDatabase;
 import org.neo4j.kernel.impl.factory.Edition;
@@ -81,7 +82,7 @@ public class HighlyAvailableGraphDatabaseFactory extends GraphDatabaseFactory
             @Override
             public GraphDatabaseService newDatabase( Config config )
             {
-                config.augment( GraphDatabaseFacadeFactory.Configuration.ephemeral, "false" );
+                config.augment( GraphDatabaseSettings.ephemeral, Settings.FALSE );
                 return new HighlyAvailableGraphDatabase( storeDir, config, state.databaseDependencies() );
             }
         };

@@ -41,7 +41,7 @@ import java.util.function.Predicate;
 
 import org.neo4j.com.storecopy.StoreUtil;
 import org.neo4j.graphdb.DependencyResolver;
-import org.neo4j.io.layout.DatabaseFileNames;
+import org.neo4j.io.layout.DatabaseFile;
 import org.neo4j.kernel.impl.ha.ClusterManager;
 import org.neo4j.kernel.impl.index.IndexConfigStore;
 import org.neo4j.kernel.impl.pagecache.PageCacheWarmer;
@@ -82,12 +82,12 @@ public class HighlyAvailableEditionModuleIT
     public void fileWatcherFileNameFilter()
     {
         Predicate<String> filter = HighlyAvailableEditionModule.fileWatcherFileNameFilter();
-        assertFalse( filter.test( DatabaseFileNames.METADATA_STORE ) );
+        assertFalse( filter.test( DatabaseFile.METADATA_STORE.getName() ) );
         assertFalse( filter.test( StoreFile.NODE_STORE.fileName( StoreFileType.STORE ) ) );
         assertTrue( filter.test( TransactionLogFiles.DEFAULT_NAME + ".1" ) );
         assertTrue( filter.test( IndexConfigStore.INDEX_DB_FILE_NAME + ".any" ) );
         assertTrue( filter.test( StoreUtil.BRANCH_SUBDIRECTORY ) );
         assertTrue( filter.test( StoreUtil.TEMP_COPY_DIRECTORY_NAME ) );
-        assertTrue( filter.test( DatabaseFileNames.METADATA_STORE + PageCacheWarmer.SUFFIX_CACHEPROF ) );
+        assertTrue( filter.test( DatabaseFile.METADATA_STORE.getName() + PageCacheWarmer.SUFFIX_CACHEPROF ) );
     }
 }

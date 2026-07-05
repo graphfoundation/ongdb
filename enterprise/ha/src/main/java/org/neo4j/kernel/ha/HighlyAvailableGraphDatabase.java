@@ -88,6 +88,6 @@ public class HighlyAvailableGraphDatabase extends GraphDatabaseFacade
 
     public File getStoreDirectory()
     {
-        return getStoreDir();
+        return databaseLayout().databaseDirectory();
     }
 }
