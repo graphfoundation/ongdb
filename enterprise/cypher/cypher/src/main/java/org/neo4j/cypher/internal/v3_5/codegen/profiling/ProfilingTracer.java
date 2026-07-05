@@ -41,23 +41,12 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.codegen.Que
 import org.neo4j.cypher.internal.planner.v3_5.spi.KernelStatisticProvider;
 import org.neo4j.cypher.internal.v3_5.util.attribution.Id;
 import org.neo4j.cypher.internal.v3_5.codegen.QueryExecutionTracer;
+import org.neo4j.cypher.result.OperatorProfile;
+import org.neo4j.cypher.result.QueryProfile;
 import org.neo4j.helpers.MathUtil;
 
-public class ProfilingTracer implements QueryExecutionTracer
+public class ProfilingTracer implements QueryExecutionTracer, QueryProfile
 {
-    public interface ProfilingInformation
-    {
-        long time();
-        long dbHits();
-        long rows();
-        long pageCacheHits();
-        long pageCacheMisses();
-        default double pageCacheHitRatio()
-        {
-            return MathUtil.portion( pageCacheHits(), pageCacheMisses() );
-        }
-    }
-
     public interface Clock
     {
         long nanoTime();
@@ -82,10 +71,23 @@ public class ProfilingTracer implements QueryExecutionTracer
         this.statisticProvider = statisticProvider;
     }
 
-    public ProfilingInformation get( Id query )
+    public OperatorProfile get( Id query )
     {
         Data value = data.get( query );
         return value == null ? ZERO : value;
+    }
+
+    @Override
+    public OperatorProfile operatorProfile( int operatorId )
+    {
+        for ( Map.Entry<Id, Data> entry : data.entrySet() )
+        {
+            if ( entry.getKey().x() == operatorId )
+            {
+                return entry.getValue();
+            }
+        }
+        return ZERO;
     }
 
     public long timeOf( Id query )
@@ -157,7 +159,7 @@ public class ProfilingTracer implements QueryExecutionTracer
         }
     }
 
-    private static class Data implements ProfilingInformation
+    private static class Data implements OperatorProfile
     {
         private long time;
         private long hits;

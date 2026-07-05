@@ -40,30 +40,37 @@ import org.neo4j.cypher.internal.runtime._
 import org.neo4j.cypher.internal.v3_5.executionplan.GeneratedQueryExecution
 import org.neo4j.cypher.result.{QueryProfile, RuntimeResult}
 import org.neo4j.cypher.result.QueryResult.QueryResultVisitor
+import org.neo4j.cypher.result.RuntimeResult.ConsumptionState
 import org.neo4j.graphdb.ResourceIterator
 
 /**
-  * Main class for compiled execution results, implements everything in InternalExecutionResult
-  * except `javaColumns` and `accept` which delegates to the injected compiled code.
+  * Main class for compiled runtime results.
   */
-class CompiledExecutionResult(compiledCode: GeneratedQueryExecution) extends RuntimeResult {
+class CompiledExecutionResult(compiledCode: GeneratedQueryExecution,
+                              override val queryProfile: QueryProfile)
+  extends RuntimeResult {
+
+  private var resultRequested = false
 
   def executionMode: ExecutionMode = compiledCode.executionMode()
 
   override def fieldNames(): Array[String] = compiledCode.fieldNames()
 
-  override def isIterable: Boolean = ???
+  override def isIterable: Boolean = false
 
-  override def asIterator(): ResourceIterator[util.Map[String, AnyRef]] = ???
+  override def asIterator(): ResourceIterator[util.Map[String, AnyRef]] =
+    throw new UnsupportedOperationException("The compiled runtime is not iterable")
 
-  override def consumptionState: RuntimeResult.ConsumptionState = ???
+  override def consumptionState: RuntimeResult.ConsumptionState =
+    if (!resultRequested) ConsumptionState.NOT_STARTED
+    else ConsumptionState.EXHAUSTED
 
-  override def accept[EX <: Exception](visitor: QueryResultVisitor[EX]): Unit =
+  override def accept[EX <: Exception](visitor: QueryResultVisitor[EX]): Unit = {
     compiledCode.accept(visitor)
+    resultRequested = true
+  }
 
   override def queryStatistics(): QueryStatistics = QueryStatistics()
 
-  override def queryProfile(): QueryProfile = ???
-
-  override def close(): Unit = ???
+  override def close(): Unit = {}
 }

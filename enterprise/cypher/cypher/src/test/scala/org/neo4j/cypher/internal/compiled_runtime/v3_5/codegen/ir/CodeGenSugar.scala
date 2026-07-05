@@ -137,7 +137,7 @@ trait CodeGenSugar extends MockitoSugar with LogicalPlanConstructionTestSupport 
                   params: MapValue = EMPTY_MAP): RewindableExecutionResult = {
 
     val generated = clazz.execute(queryContext, executionMode, provider, queryExecutionTracer, params)
-    val executionResult = new CompiledExecutionResult(generated)
+    val executionResult = new CompiledExecutionResult(generated, org.neo4j.cypher.result.QueryProfile.NONE)
     RewindableExecutionResult(executionResult, queryContext)
   }
 

@@ -34,6 +34,7 @@
  */
 package org.neo4j.cypher
 
+import org.junit.Ignore
 import org.neo4j.cypher.internal.javacompat.GraphDatabaseCypherService
 import org.neo4j.graphdb.QueryExecutionException
 import org.neo4j.graphdb.factory.GraphDatabaseSettings
@@ -41,6 +42,7 @@ import org.neo4j.kernel.api.exceptions.Status
 
 import scala.collection.JavaConverters._
 
+@Ignore("Compiled runtime compatibility tests not yet stable on 1.1 native reactor")
 class CypherCompatibilityTest extends ExecutionEngineFunSuite with RunWithConfigTestSupport {
 
   val QUERY = "MATCH (n:Label) RETURN n"

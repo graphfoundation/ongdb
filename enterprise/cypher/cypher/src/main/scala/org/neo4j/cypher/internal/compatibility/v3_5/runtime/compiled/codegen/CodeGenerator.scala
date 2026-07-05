@@ -52,7 +52,7 @@ import org.neo4j.cypher.internal.v3_5.frontend.PlannerName
 import org.neo4j.cypher.internal.v3_5.logical.plans.{LogicalPlan, ProduceResult}
 import org.neo4j.cypher.internal.v3_5.util.Eagerly
 import org.neo4j.cypher.internal.v3_5.util.attribution.Id
-import org.neo4j.cypher.result.RuntimeResult
+import org.neo4j.cypher.result.{QueryProfile, RuntimeResult}
 import org.neo4j.values.virtual.MapValue
 
 class CodeGenerator(val structure: CodeStructure[GeneratedQuery],
@@ -96,7 +96,8 @@ class CodeGenerator(val structure: CodeStructure[GeneratedQuery],
             val (provider, tracer) = descriptionProvider(description)
             val execution: GeneratedQueryExecution = query.query.execute(queryContext, execMode, provider,
                                                                          tracer.getOrElse(QueryExecutionTracer.NONE), params)
-            new CompiledExecutionResult(execution)
+            val profile = tracer.collect { case profile: QueryProfile => profile }.getOrElse(QueryProfile.NONE)
+            new CompiledExecutionResult(execution, profile)
           }
         }
 
