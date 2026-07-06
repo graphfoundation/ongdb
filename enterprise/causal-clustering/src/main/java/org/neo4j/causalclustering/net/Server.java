@@ -56,6 +56,11 @@ import static java.lang.String.format;
 
 public class Server extends SuspendableLifeCycle
 {
+    private static final long CHANNEL_CLOSE_TIMEOUT_SECONDS = 10;
+    private static final long WORKER_GROUP_QUIET_PERIOD_SECONDS = 2;
+    private static final long WORKER_GROUP_SHUTDOWN_TIMEOUT_SECONDS = 5;
+    private static final long WORKER_GROUP_AWAIT_TIMEOUT_SECONDS = 10;
+
     private final Log debugLog;
     private final Log userLog;
     private final String serverName;
@@ -153,12 +158,11 @@ public class Server extends SuspendableLifeCycle
             {
                 try
                 {
-                    channel.close().sync();
-                }
-                catch ( InterruptedException e )
-                {
-                    Thread.currentThread().interrupt();
-                    debugLog.warn( "Interrupted while closing channel." );
+                    boolean channelClosed = channel.close().awaitUninterruptibly( CHANNEL_CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS );
+                    if ( !channelClosed )
+                    {
+                        debugLog.warn( "Timed out waiting %d seconds for channel close.", CHANNEL_CLOSE_TIMEOUT_SECONDS );
+                    }
                 }
                 finally
                 {
@@ -170,9 +174,12 @@ public class Server extends SuspendableLifeCycle
         {
             if ( workerGroup != null )
             {
-                if ( workerGroup.shutdownGracefully( 2, 5, TimeUnit.SECONDS ).awaitUninterruptibly( 10, TimeUnit.SECONDS ) )
+                boolean workerGroupShutdown = workerGroup
+                        .shutdownGracefully( WORKER_GROUP_QUIET_PERIOD_SECONDS, WORKER_GROUP_SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS )
+                        .awaitUninterruptibly( WORKER_GROUP_AWAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS );
+                if ( !workerGroupShutdown )
                 {
-                    debugLog.warn( "Worker group not shutdown within 10 seconds." );
+                    debugLog.warn( "Worker group not shutdown within %d seconds.", WORKER_GROUP_AWAIT_TIMEOUT_SECONDS );
                 }
                 workerGroup = null;
             }
