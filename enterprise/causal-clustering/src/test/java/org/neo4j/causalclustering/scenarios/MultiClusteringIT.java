@@ -35,7 +35,6 @@
 package org.neo4j.causalclustering.scenarios;
 
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
@@ -78,7 +77,6 @@ import static org.neo4j.causalclustering.scenarios.DiscoveryServiceType.SHARED;
 import static org.neo4j.graphdb.Label.label;
 
 @RunWith( Parameterized.class )
-@Ignore( "Flaky on native reactor: setup() repeatedly hits 300s timeouts under Hazelcast/shared discovery" )
 public class MultiClusteringIT
 {
     private static Set<String> DB_NAMES_1 = Stream.of( "foo", "bar" ).collect( Collectors.toSet() );

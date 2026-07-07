@@ -37,7 +37,6 @@ package org.neo4j.causalclustering.scenarios;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.After;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -88,7 +87,6 @@ public class ServerGroupsIT
         }
     }
 
-    @Ignore( "Flaky on native reactor: can hang indefinitely in Cluster.startReadReplicas() in this environment" )
     @Test( timeout = 240_000 )
     public void shouldUpdateGroupsOnStart() throws Exception
     {

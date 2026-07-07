@@ -35,7 +35,6 @@
 package org.neo4j.causalclustering.scenarios;
 
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
@@ -86,7 +85,6 @@ import static org.neo4j.causalclustering.routing.multi_cluster.procedure.Procedu
 import static org.neo4j.test.assertion.Assert.assertEventually;
 
 @RunWith( Parameterized.class )
-@Ignore( "Flaky on native reactor: setup() repeatedly hits 300s timeouts under Hazelcast/shared discovery" )
 public class MultiClusterRoutingIT
 {
 

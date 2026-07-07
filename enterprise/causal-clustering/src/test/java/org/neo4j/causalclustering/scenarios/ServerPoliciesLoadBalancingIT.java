@@ -38,7 +38,6 @@ import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.junit.After;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -79,7 +78,6 @@ import static org.junit.Assert.assertThat;
 import static org.neo4j.causalclustering.routing.load_balancing.procedure.ProcedureNames.GET_SERVERS_V2;
 import static org.neo4j.helpers.collection.MapUtil.stringMap;
 
-@Ignore( "Flaky on native reactor: can hang in Cluster.startReadReplicas() under Hazelcast discovery" )
 public class ServerPoliciesLoadBalancingIT
 {
     @Rule

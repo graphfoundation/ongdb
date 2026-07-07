@@ -90,6 +90,7 @@ import static org.neo4j.kernel.api.exceptions.Status.Transaction.LockSessionExpi
 public class Cluster
 {
     private static final int DEFAULT_TIMEOUT_MS = 120_000;
+    private static final int START_MEMBER_TIMEOUT_MS = 180_000;
     private static final int DEFAULT_CLUSTER_SIZE = 3;
 
     protected final File parentDir;
@@ -648,7 +649,7 @@ public class Cluster
         } );
         for ( Future<CoreGraphDatabase> future : futures )
         {
-            future.get();
+            waitForStartFuture( future, "core member startup" );
         }
     }
 
@@ -662,7 +663,20 @@ public class Cluster
         } );
         for ( Future<ReadReplicaGraphDatabase> future : futures )
         {
-            future.get();
+            waitForStartFuture( future, "read-replica startup" );
+        }
+    }
+
+    private static <R> void waitForStartFuture( Future<R> future, String operation ) throws InterruptedException, ExecutionException
+    {
+        try
+        {
+            future.get( START_MEMBER_TIMEOUT_MS, TimeUnit.MILLISECONDS );
+        }
+        catch ( TimeoutException e )
+        {
+            future.cancel( true );
+            throw new ExecutionException( "Timed out after " + START_MEMBER_TIMEOUT_MS + "ms during " + operation, e );
         }
     }
 

@@ -36,7 +36,6 @@ package org.neo4j.causalclustering.scenarios;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.Ignore;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -76,7 +75,6 @@ public class ReadReplicaToReadReplicaCatchupIT
                     .withSharedReadReplicaParam( CausalClusteringSettings.multi_dc_license, "true" )
                     .withDiscoveryServiceType( DiscoveryServiceType.HAZELCAST );
 
-    @Ignore( "Flaky on native reactor: can stall read replica startup indefinitely in this environment" )
     @Test
     public void shouldEventuallyPullTransactionAcrossReadReplicas() throws Throwable
     {
@@ -116,7 +114,6 @@ public class ReadReplicaToReadReplicaCatchupIT
         checkDataHasReplicatedToReadReplicas( cluster, numberOfNodesToCreate );
     }
 
-    @Ignore( "Flaky on native reactor: can stall read replica startup indefinitely in this environment" )
     @Test
     public void shouldCatchUpFromCoresWhenPreferredReadReplicasAreUnavailable() throws Throwable
     {
