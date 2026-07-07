@@ -94,11 +94,11 @@ public class RebuildFromLogsTest
     public void shouldRebuildFromLog() throws Exception, InconsistentStoreException
     {
         // given
-        File prototypePath = new File( dir.graphDbDir(), "prototype" );
+        File prototypePath = new File( dir.databaseDir(), "prototype" );
         populatePrototype( prototypePath );
 
         // when
-        File rebuildPath = new File( dir.graphDbDir(), "rebuild" );
+        File rebuildPath = new File( dir.databaseDir(), "rebuild" );
         new RebuildFromLogs( fileSystemRule.get() ).rebuild( prototypePath, rebuildPath, BASE_TX_ID );
 
         // then
@@ -108,11 +108,11 @@ public class RebuildFromLogsTest
     @Test
     public void failRebuildFromLogIfStoreIsInconsistentAfterRebuild() throws InconsistentStoreException, Exception
     {
-        File prototypePath = new File( dir.graphDbDir(), "prototype" );
+        File prototypePath = new File( dir.databaseDir(), "prototype" );
         populatePrototype( prototypePath );
 
         // when
-        File rebuildPath = new File( dir.graphDbDir(), "rebuild" );
+        File rebuildPath = new File( dir.databaseDir(), "rebuild" );
         expectedException.expect( InconsistentStoreException.class );
         RebuildFromLogs rebuildFromLogs = new TestRebuildFromLogs( fileSystemRule.get() );
         rebuildFromLogs.rebuild( prototypePath, rebuildPath, BASE_TX_ID );
@@ -122,10 +122,10 @@ public class RebuildFromLogsTest
     public void shouldRebuildFromLogUpToATx() throws Exception, InconsistentStoreException
     {
         // given
-        File prototypePath = new File( dir.graphDbDir(), "prototype" );
+        File prototypePath = new File( dir.databaseDir(), "prototype" );
         long txId = populatePrototype( prototypePath );
 
-        File copy = new File( dir.graphDbDir(), "copy" );
+        File copy = new File( dir.databaseDir(), "copy" );
         FileUtils.copyRecursively( prototypePath, copy );
         GraphDatabaseAPI db = db( copy );
         try ( org.neo4j.graphdb.Transaction tx = db.beginTx() )
@@ -139,7 +139,7 @@ public class RebuildFromLogsTest
         }
 
         // when
-        File rebuildPath = new File( dir.graphDbDir(), "rebuild" );
+        File rebuildPath = new File( dir.databaseDir(), "rebuild" );
         new RebuildFromLogs( fileSystemRule.get() ).rebuild( copy, rebuildPath, txId );
 
         // then

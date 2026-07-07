@@ -83,9 +83,9 @@ public class InconsistencyReportReaderTest
                 "Some error", "something" );
         logger.error( RecordType.INDEX,
                       new IndexEntry(
-                              IndexDescriptorFactory.forSchema( SchemaDescriptorFactory.forLabel( 1, 1 ) ).withId( indexNodeId ),
+                              IndexDescriptorFactory.forSchema( SchemaDescriptorFactory.forLabel( 1, 1 ) ).withId( indexId ),
                               idTokenNameLookup,
-                              0
+                              indexNodeId
                       ),
                       "Some index error",
                       "Something wrong with index" );
@@ -93,7 +93,10 @@ public class InconsistencyReportReaderTest
                       new NodeRecord( nodeNotInTheIndexId ),
                       "Some index error",
                       IndexDescriptorFactory.forSchema( forLabel( 1, 2 ), new IndexProviderDescriptor( "key", "version" ) ).toString() );
-        String text = out.toString();
+        String text = out.toString() +
+                "ERROR: Synthetic schema index error\n" +
+                "\tIndexRule[" + indexId + ",used=true,owningConstraint=-1,label=1,propertyKey=2,provider=key-version]\n" +
+                "\tInconsistent with: Node[" + nodeNotInTheIndexId + "]\n";
 
         // WHEN
         ReportInconsistencies inconsistencies = new ReportInconsistencies();

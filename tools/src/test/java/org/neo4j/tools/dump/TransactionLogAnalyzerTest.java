@@ -110,7 +110,7 @@ public class TransactionLogAnalyzerTest
     {
         lastCommittedTxId = new AtomicLong( BASE_TX_ID );
         logVersionRepository = new SimpleLogVersionRepository();
-        logFiles = LogFilesBuilder.builder( directory.absolutePath(), fs )
+        logFiles = LogFilesBuilder.builder( directory.databaseLayout(), fs )
                 .withLogVersionRepository( logVersionRepository )
                 .withTransactionIdStore( new SimpleTransactionIdStore() )
                 .build();
@@ -134,7 +134,7 @@ public class TransactionLogAnalyzerTest
         writeTransactions( 5 );
 
         // when
-        TransactionLogAnalyzer.analyze( fs, directory.absolutePath(), STRICT, monitor );
+        TransactionLogAnalyzer.analyze( fs, directory.databaseDir(), STRICT, monitor );
 
         // then
         assertEquals( 1, monitor.logFiles );
@@ -161,7 +161,7 @@ public class TransactionLogAnalyzerTest
         writeTransactions( 4 ); // txs 7, 8, 9, 10
 
         // when
-        TransactionLogAnalyzer.analyze( fs, directory.absolutePath(), STRICT, monitor );
+        TransactionLogAnalyzer.analyze( fs, directory.databaseDir(), STRICT, monitor );
 
         // then
         assertEquals( 1, monitor.logFiles );
@@ -180,7 +180,7 @@ public class TransactionLogAnalyzerTest
         writeTransactions( 1 );
 
         // when
-        TransactionLogAnalyzer.analyze( fs, directory.absolutePath(), STRICT, monitor );
+        TransactionLogAnalyzer.analyze( fs, directory.databaseDir(), STRICT, monitor );
 
         // then
         assertEquals( 3, monitor.logFiles );
@@ -218,7 +218,7 @@ public class TransactionLogAnalyzerTest
         writer.prepareForFlush().flush();
 
         // when
-        TransactionLogAnalyzer.analyze( fs, directory.absolutePath(), STRICT, monitor );
+        TransactionLogAnalyzer.analyze( fs, directory.databaseDir(), STRICT, monitor );
 
         // then
         assertEquals( expectedLogFiles, monitor.logFiles );

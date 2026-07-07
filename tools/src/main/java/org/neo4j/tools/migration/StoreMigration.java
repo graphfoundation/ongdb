@@ -61,6 +61,7 @@ import org.neo4j.kernel.impl.storemigration.StoreUpgrader;
 import org.neo4j.kernel.impl.storemigration.monitoring.VisibleMigrationProgressMonitor;
 import org.neo4j.kernel.impl.storemigration.participant.StoreMigrator;
 import org.neo4j.kernel.impl.transaction.log.FlushablePositionAwareChannel;
+import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.TransactionLogWriter;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryWriter;
 import org.neo4j.kernel.impl.transaction.log.entry.VersionAwareLogEntryReader;
@@ -157,7 +158,7 @@ public class StoreMigration
             // Add the kernel store migrator
             life.start();
 
-            IndexProviderMap indexProviderMap = new DefaultIndexProviderMap( kernelExtensions, config );
+            IndexProviderMap indexProviderMap = life.add( new DefaultIndexProviderMap( kernelExtensions, config ) );
 
             long startTime = System.currentTimeMillis();
             DatabaseMigrator migrator = new DatabaseMigrator( progressMonitor, fs, config, logService, indexProviderMap, explicitIndexProvider,
@@ -186,7 +187,11 @@ public class StoreMigration
         {
             FlushablePositionAwareChannel writer = logFiles.getLogFile().getWriter();
             TransactionLogWriter transactionLogWriter = new TransactionLogWriter( new LogEntryWriter( writer ) );
-            transactionLogWriter.checkPoint( tailScanner.getTailInformation().lastCheckPoint.getLogPosition() );
+            LogTailScanner.LogTailInformation tailInformation = tailScanner.getTailInformation();
+            LogPosition checkPointPosition = tailInformation.lastCheckPoint != null
+                    ? tailInformation.lastCheckPoint.getLogPosition()
+                    : LogPosition.start( tailInformation.currentLogVersion );
+            transactionLogWriter.checkPoint( checkPointPosition );
             writer.prepareForFlush().flush();
         }
     }

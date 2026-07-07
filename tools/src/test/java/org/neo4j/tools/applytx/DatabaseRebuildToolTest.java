@@ -55,7 +55,9 @@ import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.impl.store.MetaDataStore;
+import org.neo4j.kernel.impl.scheduler.JobSchedulerFactory;
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
+import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.test.DbRepresentation;
 import org.neo4j.test.TestGraphDatabaseFactory;
 import org.neo4j.test.rule.SuppressOutput;
@@ -189,12 +191,13 @@ public class DatabaseRebuildToolTest
     private long lastAppliedTx( File storeDir )
     {
         try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction();
-              PageCache pageCache = createPageCache( fileSystem ) )
+              JobScheduler jobScheduler = JobSchedulerFactory.createInitialisedScheduler();
+              PageCache pageCache = createPageCache( fileSystem, jobScheduler ) )
         {
             return MetaDataStore.getRecord( pageCache, DatabaseLayout.of( storeDir ).metadataStore(),
                     MetaDataStore.Position.LAST_TRANSACTION_ID );
         }
-        catch ( IOException e )
+        catch ( Exception e )
         {
             throw new RuntimeException( e );
         }

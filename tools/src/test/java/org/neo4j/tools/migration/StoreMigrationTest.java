@@ -59,17 +59,18 @@ public class StoreMigrationTest
     @Before
     public void setUp() throws IOException
     {
-        Unzip.unzip( getClass(), "2.3-store.zip", testDir.graphDbDir() );
+        Unzip.unzip( getClass(), "2.3-store.zip", testDir.databaseDir() );
     }
 
     @Test
     public void storeMigrationToolShouldBeAbleToMigrateOldStore() throws IOException
     {
-        StoreMigration.main( new String[]{testDir.graphDbDir().getAbsolutePath()} );
+        StoreMigration.main( new String[]{testDir.databaseDir().getAbsolutePath()} );
 
         // after migration we can open store and do something
         GraphDatabaseService database = new TestGraphDatabaseFactory()
-                .newEmbeddedDatabaseBuilder( testDir.graphDbDir() )
+                .newEmbeddedDatabaseBuilder( testDir.databaseDir() )
+                .setConfig( GraphDatabaseSettings.allow_upgrade, "true" )
                 .setConfig( GraphDatabaseSettings.logs_directory, testDir.directory( "logs" ).getAbsolutePath() )
                 .newGraphDatabase();
         try ( Transaction transaction = database.beginTx() )
