@@ -77,6 +77,7 @@ import org.neo4j.helpers.AdvertisedSocketAddress;
 import org.neo4j.helpers.HostnamePort;
 import org.neo4j.helpers.collection.Iterables;
 import org.neo4j.helpers.collection.MapUtil;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.kernel.configuration.BoltConnector;
 import org.neo4j.kernel.configuration.Config;
@@ -903,7 +904,7 @@ public class ClusterManager
 
         private void consistencyCheck( File storeDir ) throws Throwable
         {
-            StoreAssertions.assertConsistentStore( storeDir );
+            StoreAssertions.assertConsistentStore( DatabaseLayout.of( storeDir ) );
         }
 
         /**

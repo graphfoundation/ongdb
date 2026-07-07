@@ -284,6 +284,6 @@ public class HardKillIT
 
     private File path( int i )
     {
-        return new File( testDirectory.graphDbDir(), "" + i );
+        return new File( testDirectory.storeDir(), "" + i );
     }
 }

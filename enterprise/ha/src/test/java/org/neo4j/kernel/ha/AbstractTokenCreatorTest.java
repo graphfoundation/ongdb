@@ -82,13 +82,13 @@ public class AbstractTokenCreatorTest
     }
 
     @Test
-    public void shouldCreateALabelOnMasterAndApplyItLocally()
+    public void shouldCreateALabelOnMasterAndApplyItLocally() throws Exception
     {
         // GIVEN
         int responseValue = response.response();
 
         // WHEN
-        int result = creator.getOrCreate( label );
+        int result = creator.createToken( label );
 
         // THEN
         assertEquals( responseValue, result );
@@ -105,7 +105,7 @@ public class AbstractTokenCreatorTest
         try
         {
             // WHEN
-            throwingCreator.getOrCreate( "A" );
+            throwingCreator.createToken( "A" );
             fail( "Should have thrown" );
         }
         catch ( Exception e )

@@ -38,19 +38,18 @@ import org.junit.Test;
 
 import java.io.IOException;
 
-import org.neo4j.causalclustering.core.state.machines.token.ReplicatedLabelTokenHolder;
-import org.neo4j.causalclustering.core.state.machines.token.ReplicatedPropertyKeyTokenHolder;
-import org.neo4j.causalclustering.core.state.machines.token.ReplicatedRelationshipTypeTokenHolder;
 import org.neo4j.com.storecopy.StoreWriter;
 import org.neo4j.helpers.collection.Iterators;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.NeoStoreDataSource;
 import org.neo4j.kernel.impl.api.TransactionCommitProcess;
+import org.neo4j.kernel.impl.core.TokenHolders;
 import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.SimpleTriggerInfo;
+import org.neo4j.kernel.impl.transaction.log.checkpoint.StoreCopyCheckPointMutex;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.TriggerInfo;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.monitoring.Monitors;
@@ -70,11 +69,11 @@ public class DefaultMasterImplSPITest
         CheckPointer checkPointer = mock( CheckPointer.class );
 
         NeoStoreDataSource dataSource = mock( NeoStoreDataSource.class );
+        when( dataSource.getStoreCopyCheckPointMutex() ).thenReturn( new StoreCopyCheckPointMutex() );
         when( dataSource.listStoreFiles( anyBoolean() ) ).thenReturn( Iterators.emptyResourceIterator() );
 
         DefaultMasterImplSPI master = new DefaultMasterImplSPI( mock( GraphDatabaseAPI.class, RETURNS_MOCKS ),
-                mock( FileSystemAbstraction.class ), new Monitors(), mock( ReplicatedLabelTokenHolder.class ),
-                mock( ReplicatedPropertyKeyTokenHolder.class ), mock( ReplicatedRelationshipTypeTokenHolder.class ),
+                mock( FileSystemAbstraction.class ), new Monitors(), mock( TokenHolders.class ),
                 mock( IdGeneratorFactory.class ), mock( TransactionCommitProcess.class ), checkPointer,
                 mock( TransactionIdStore.class ), mock( LogicalTransactionStore.class ),
                 dataSource, NullLogProvider.getInstance() );

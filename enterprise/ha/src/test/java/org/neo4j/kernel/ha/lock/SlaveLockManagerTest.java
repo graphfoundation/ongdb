@@ -38,6 +38,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import org.neo4j.kernel.availability.AvailabilityGuard;
+import org.neo4j.kernel.availability.DatabaseAvailabilityGuard;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.ha.com.RequestContextFactory;
 import org.neo4j.kernel.ha.com.master.Master;
@@ -53,6 +54,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.neo4j.graphdb.factory.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 import static org.neo4j.function.Suppliers.singleton;
 import static org.neo4j.logging.NullLog.getInstance;
 
@@ -67,7 +69,7 @@ public class SlaveLockManagerTest
     {
         requestContextFactory = new RequestContextFactory( 1, singleton( mock( TransactionIdStore.class ) ) );
         master = mock( Master.class );
-        availabilityGuard = new AvailabilityGuard( Clocks.systemClock(), getInstance() );
+        availabilityGuard = new DatabaseAvailabilityGuard( DEFAULT_DATABASE_NAME, Clocks.systemClock(), getInstance() );
     }
 
     @Test

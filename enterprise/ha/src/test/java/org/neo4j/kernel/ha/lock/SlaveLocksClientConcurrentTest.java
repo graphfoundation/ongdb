@@ -51,6 +51,7 @@ import java.util.concurrent.TimeUnit;
 import org.neo4j.com.RequestContext;
 import org.neo4j.com.Response;
 import org.neo4j.kernel.availability.AvailabilityGuard;
+import org.neo4j.kernel.availability.DatabaseAvailabilityGuard;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.ha.com.RequestContextFactory;
 import org.neo4j.kernel.ha.com.master.Master;
@@ -67,6 +68,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.neo4j.graphdb.factory.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
 public class SlaveLocksClientConcurrentTest
 {
@@ -95,7 +97,7 @@ public class SlaveLocksClientConcurrentTest
         master = mock( Master.class, new LockedOnMasterAnswer() );
         lockManager = new ForsetiLockManager( Config.defaults(), Clocks.systemClock(), ResourceTypes.values() );
         requestContextFactory = mock( RequestContextFactory.class );
-        availabilityGuard = new AvailabilityGuard( Clocks.systemClock(), mock( Log.class ) );
+        availabilityGuard = new DatabaseAvailabilityGuard( DEFAULT_DATABASE_NAME, Clocks.systemClock(), mock( Log.class ) );
 
         when( requestContextFactory.newRequestContext( Mockito.anyInt() ) )
                 .thenReturn( RequestContext.anonymous( 1 ) );

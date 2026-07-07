@@ -66,7 +66,9 @@ import org.neo4j.kernel.impl.store.TransactionId;
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
+import org.neo4j.kernel.impl.scheduler.JobSchedulerFactory;
 import org.neo4j.ports.allocation.PortAuthority;
+import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.test.rule.LoggerRule;
 import org.neo4j.test.rule.TestDirectory;
 
@@ -303,7 +305,7 @@ public class ClusterIT
             cluster.sync();
 
             HighlyAvailableGraphDatabase slave = cluster.getAnySlave();
-            File storeDir = slave.getStoreDir();
+            File storeDir = slave.getStoreDirectory();
             ClusterManager.RepairKit slaveRepairKit = cluster.shutdown( slave );
 
             clearLastTransactionCommitTimestampField( storeDir );
@@ -337,7 +339,7 @@ public class ClusterIT
             cluster.sync();
 
             HighlyAvailableGraphDatabase slave = cluster.getAnySlave();
-            File storeDir = slave.getStoreDir();
+            File storeDir = slave.getStoreDirectory();
             ClusterManager.RepairKit slaveRepairKit = cluster.shutdown( slave );
 
             clearLastTransactionCommitTimestampField( storeDir );
@@ -412,10 +414,11 @@ public class ClusterIT
         }
     }
 
-    private static void clearLastTransactionCommitTimestampField( File storeDir ) throws IOException
+    private static void clearLastTransactionCommitTimestampField( File storeDir ) throws Exception
     {
         try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction();
-              PageCache pageCache = createPageCache( fileSystem ) )
+              JobScheduler scheduler = JobSchedulerFactory.createInitialisedScheduler();
+              PageCache pageCache = createPageCache( fileSystem, scheduler ) )
         {
             File neoStore = new File( storeDir, DatabaseFile.METADATA_STORE.getName() );
             MetaDataStore.setRecord( pageCache, neoStore, LAST_TRANSACTION_COMMIT_TIMESTAMP,

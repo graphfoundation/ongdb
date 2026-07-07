@@ -64,7 +64,7 @@ public class HaIPv6ConfigurationIT
     {
         int clusterPort = PortAuthority.allocatePort();
         GraphDatabaseService db = new HighlyAvailableGraphDatabaseFactory()
-                .newEmbeddedDatabaseBuilder( dir.makeGraphDbDir() )
+                .newEmbeddedDatabaseBuilder( dir.databaseDir() )
                 .setConfig( ClusterSettings.cluster_server, ipv6HostPortSetting( "::1", clusterPort ) )
                 .setConfig( ClusterSettings.initial_hosts, ipv6HostPortSetting( "::1", clusterPort ) )
                 .setConfig( HaSettings.ha_server, ipv6HostPortSetting( "::1", PortAuthority.allocatePort() ) )
@@ -116,7 +116,7 @@ public class HaIPv6ConfigurationIT
     {
         int clusterPort = PortAuthority.allocatePort();
         GraphDatabaseService db = new HighlyAvailableGraphDatabaseFactory()
-                .newEmbeddedDatabaseBuilder( dir.makeGraphDbDir() )
+                .newEmbeddedDatabaseBuilder( dir.databaseDir() )
                 .setConfig( ClusterSettings.cluster_server, ipv6HostPortSetting( inetAddress.getHostAddress(), clusterPort ) )
                 .setConfig( ClusterSettings.initial_hosts, ipv6HostPortSetting( inetAddress.getHostAddress(), clusterPort ) )
                 .setConfig( HaSettings.ha_server, ipv6HostPortSetting( "::", PortAuthority.allocatePort() ) )
@@ -138,7 +138,7 @@ public class HaIPv6ConfigurationIT
     {
         int clusterPort = PortAuthority.allocatePort();
         GraphDatabaseService db = new HighlyAvailableGraphDatabaseFactory()
-                .newEmbeddedDatabaseBuilder( dir.makeGraphDbDir() )
+                .newEmbeddedDatabaseBuilder( dir.databaseDir() )
                 .setConfig( ClusterSettings.cluster_server, ipv6HostPortSetting( "::", clusterPort ) )
                 .setConfig( ClusterSettings.initial_hosts, ipv6HostPortSetting( "::1", clusterPort ) )
                 .setConfig( HaSettings.ha_server, ipv6HostPortSetting( "::", PortAuthority.allocatePort() ) )

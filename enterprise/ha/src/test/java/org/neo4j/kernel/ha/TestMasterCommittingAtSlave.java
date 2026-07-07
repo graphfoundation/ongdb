@@ -56,10 +56,11 @@ import org.neo4j.kernel.ha.com.master.SlavePriorities;
 import org.neo4j.kernel.ha.com.master.SlavePriority;
 import org.neo4j.kernel.ha.transaction.CommitPusher;
 import org.neo4j.kernel.ha.transaction.TransactionPropagator;
-import org.neo4j.kernel.impl.scheduler.CentralJobScheduler;
+import org.neo4j.kernel.impl.scheduler.JobSchedulerFactory;
 import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.logging.AssertableLogProvider.LogMatcher;
 import org.neo4j.logging.NullLog;
+import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.test.rule.CleanupRule;
 
 import static org.hamcrest.Matchers.any;
@@ -233,7 +234,7 @@ public class TestMasterCommittingAtSlave
 
         Config config = Config.defaults( MapUtil.stringMap(
                 HaSettings.tx_push_factor.name(), "" + replication, ClusterSettings.server_id.name(), "" + MasterServerId ) );
-        CentralJobScheduler scheduler = cleanup.add( new CentralJobScheduler() );
+        JobScheduler scheduler = cleanup.add( JobSchedulerFactory.createScheduler() );
         TransactionPropagator result = new TransactionPropagator( TransactionPropagator.from( config, slavePriority ),
                 NullLog.getInstance(), () -> slaves, new CommitPusher( scheduler ) );
         // Life

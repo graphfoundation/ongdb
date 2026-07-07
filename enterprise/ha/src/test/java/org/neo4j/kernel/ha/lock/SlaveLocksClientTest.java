@@ -50,6 +50,7 @@ import org.neo4j.com.TransactionStream;
 import org.neo4j.com.TransactionStreamResponse;
 import org.neo4j.graphdb.TransientFailureException;
 import org.neo4j.kernel.availability.AvailabilityGuard;
+import org.neo4j.kernel.availability.DatabaseAvailabilityGuard;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.kernel.configuration.Config;
@@ -81,6 +82,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import static org.neo4j.graphdb.factory.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 import static org.neo4j.com.ResourceReleaser.NO_OP;
 import static org.neo4j.kernel.impl.locking.ResourceTypes.NODE;
 import static org.neo4j.storageengine.api.StoreId.DEFAULT;
@@ -100,7 +102,7 @@ public class SlaveLocksClientTest
     public void setUp()
     {
         master = mock( Master.class );
-        availabilityGuard = new AvailabilityGuard( Clocks.fakeClock(), getInstance() );
+        availabilityGuard = new DatabaseAvailabilityGuard( DEFAULT_DATABASE_NAME, Clocks.fakeClock(), getInstance() );
 
         lockManager = new CommunityLockManger( Config.defaults(), Clocks.systemClock() );
         local = spy( lockManager.newClient() );

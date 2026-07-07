@@ -133,16 +133,16 @@ public class SlaveTokenCreatorTest
     }
 
     @Test( expected = TransientTransactionFailureException.class )
-    public void mustTranslateComExceptionsToTransientTransactionFailures()
+    public void mustTranslateComExceptionsToTransientTransactionFailures() throws Exception
     {
         when( fixture.callMasterMethod( master, requestContext, name ) ).thenThrow( new ComException() );
-        tokenCreator.getOrCreate( name );
+        tokenCreator.createToken( name );
     }
 
     @Test
-    public void mustReturnIdentifierFromMaster()
+    public void mustReturnIdentifierFromMaster() throws Exception
     {
         when( fixture.callMasterMethod( master, requestContext, name ) ).thenReturn( new IntegerResponse( 13 ) );
-        assertThat( tokenCreator.getOrCreate( name ), is( 13 ) );
+        assertThat( tokenCreator.createToken( name ), is( 13 ) );
     }
 }
