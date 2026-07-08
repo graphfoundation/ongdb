@@ -49,6 +49,7 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.factory.EnterpriseGraphDatabaseFactory;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileUtils;
 import org.neo4j.kernel.api.KernelTransaction;
@@ -296,7 +297,7 @@ public class HAClusterStartupIT
     {
         for ( HighlyAvailableGraphDatabase slave : cluster.getAllMembers() )
         {
-            assertConsistentStore( slave.getStoreDirectory() );
+            assertConsistentStore( DatabaseLayout.of( slave.getStoreDirectory() ) );
         }
     }
 }

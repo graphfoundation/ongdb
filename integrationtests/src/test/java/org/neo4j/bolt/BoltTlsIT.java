@@ -45,6 +45,7 @@ import org.junit.runners.Parameterized.Parameter;
 import java.io.File;
 import java.io.IOException;
 
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.kernel.configuration.BoltConnector;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.ssl.SslPolicyConfig;
@@ -79,7 +80,7 @@ public class BoltTlsIT
     @Before
     public void setup() throws IOException
     {
-        File sslObjectsDir = new File( testDirectory.graphDbDir(), "certificates" );
+        File sslObjectsDir = new File( testDirectory.storeDir(), "certificates" );
         assertTrue( sslObjectsDir.mkdirs() );
 
         sslResource = selfSignedKeyId( 0 ).trustKeyId( 0 ).install( sslObjectsDir );
@@ -134,10 +135,10 @@ public class BoltTlsIT
     private void createAndStartDb()
     {
         db = (GraphDatabaseAPI) new TestGraphDatabaseFactory()
-                .newImpermanentDatabaseBuilder( testDirectory.graphDbDir() )
+                .newImpermanentDatabaseBuilder( testDirectory.storeDir() )
                 .setConfig( bolt.enabled, "true" )
                 .setConfig( bolt.listen_address, ":" + PortAuthority.allocatePort() )
-                .setConfig( BoltKernelExtension.Settings.ssl_policy, "bolt" )
+                .setConfig( GraphDatabaseSettings.bolt_ssl_policy, "bolt" )
                 .setConfig( sslPolicy.allow_key_generation, "true" )
                 .setConfig( sslPolicy.base_directory, "certificates" )
                 .setConfig( sslPolicy.tls_versions, setup.boltTlsVersions )

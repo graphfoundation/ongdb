@@ -38,6 +38,7 @@
  */
 package org.neo4j.test.rule;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.HashMap;
@@ -347,6 +348,19 @@ public abstract class DatabaseRule extends ExternalResource implements GraphData
         }
     }
 
+    public synchronized void ensureStarted( String... configChanges )
+    {
+        if ( configChanges != null && configChanges.length > 0 )
+        {
+            if ( database != null )
+            {
+                throw new IllegalStateException( "Cannot apply config changes to an already started database" );
+            }
+            databaseBuilder.setConfig( stringMap( configChanges ) );
+        }
+        ensureStarted();
+    }
+
     /**
      * Adds or replaces a setting for the database managed by this database rule.
      * <p>
@@ -379,6 +393,11 @@ public abstract class DatabaseRule extends ExternalResource implements GraphData
         return this;
     }
 
+    public DatabaseRule setConfig( Setting<?> key, String value )
+    {
+        return withSetting( key, value );
+    }
+
     /**
      * Applies all settings in the settings map.
      *
@@ -388,6 +407,11 @@ public abstract class DatabaseRule extends ExternalResource implements GraphData
     {
         configuration.forEach( this::withSetting );
         return this;
+    }
+
+    public DatabaseRule setConfig( Map<Setting<?>,String> configuration )
+    {
+        return withSettings( configuration );
     }
 
     public interface RestartAction
@@ -487,6 +511,11 @@ public abstract class DatabaseRule extends ExternalResource implements GraphData
     public String getDatabaseDirAbsolutePath()
     {
         return databaseLayout().databaseDirectory().getAbsolutePath();
+    }
+
+    public File getStoreDir()
+    {
+        return databaseLayout().databaseDirectory();
     }
 
     @Override

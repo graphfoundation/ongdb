@@ -97,4 +97,9 @@ public class EmbeddedDatabaseRule extends DatabaseRule
         return testDirectory.apply( super.apply( base, description ), description );
     }
 
+    public TestDirectory getTestDirectory()
+    {
+        return testDirectory;
+    }
+
 }

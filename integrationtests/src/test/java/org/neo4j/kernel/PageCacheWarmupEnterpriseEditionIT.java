@@ -124,10 +124,10 @@ public class PageCacheWarmupEnterpriseEditionIT extends PageCacheWarmupTestSuppo
         File backupDir = dir.cleanDirectory( "backup" );
         assertTrue( OnlineBackup.from( "localhost", backupPort ).backup( backupDir ).isConsistent() );
         latch.release();
-        DatabaseRule.RestartAction useBackupDir = ( fs, storeDir ) ->
+        DatabaseRule.RestartAction useBackupDir = ( fs, databaseLayout ) ->
         {
-            fs.deleteRecursively( storeDir );
-            fs.copyRecursively( backupDir, storeDir );
+            fs.deleteRecursively( databaseLayout.databaseDirectory() );
+            fs.copyRecursively( backupDir, databaseLayout.databaseDirectory() );
         };
         db.restartDatabase( useBackupDir,
                             OnlineBackupSettings.online_backup_enabled.name(), Settings.FALSE,

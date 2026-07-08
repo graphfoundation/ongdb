@@ -60,7 +60,7 @@ public class EnterpriseUserServiceTest extends UserServiceTest
 
         ShiroSubject shiroSubject = mock( ShiroSubject.class );
         when( shiroSubject.getPrincipal() ).thenReturn( "ongdb" );
-        neo4jContext = authManagerRule.makeLoginContext( shiroSubject );
+        ongdbContext = authManagerRule.makeLoginContext( shiroSubject );
     }
 
     @Test

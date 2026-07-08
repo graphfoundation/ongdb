@@ -135,7 +135,7 @@ public class ExplicitIndexesUpgradeIT
     private GraphDatabaseService startDatabase( boolean allowUpgread )
     {
         GraphDatabaseFactory factory = new TestGraphDatabaseFactory();
-        GraphDatabaseBuilder builder = factory.newEmbeddedDatabaseBuilder( testDir.graphDbDir() );
+        GraphDatabaseBuilder builder = factory.newEmbeddedDatabaseBuilder( testDir.storeDir() );
         builder.setConfig( GraphDatabaseSettings.allow_upgrade, Boolean.toString( allowUpgread ) );
         builder.setConfig( GraphDatabaseSettings.pagecache_memory, "8m" );
         builder.setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE );
@@ -159,7 +159,7 @@ public class ExplicitIndexesUpgradeIT
 
     private void prepareStore( String store ) throws IOException
     {
-        Unzip.unzip( getClass(), store, testDir.graphDbDir() );
+        Unzip.unzip( getClass(), store, testDir.storeDir() );
     }
 
     private IntFunction<Object> intValues()

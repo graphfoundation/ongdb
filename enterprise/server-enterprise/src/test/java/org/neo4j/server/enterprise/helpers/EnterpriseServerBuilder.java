@@ -114,7 +114,7 @@ public class EnterpriseServerBuilder extends CommunityServerBuilder
         @Override
         protected DatabaseActions createDatabaseActions()
         {
-            return createDatabaseActionsObject( database, getConfig() );
+            return createDatabaseActionsObject( database );
         }
 
         @Override

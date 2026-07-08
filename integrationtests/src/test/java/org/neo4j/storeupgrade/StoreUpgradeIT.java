@@ -67,6 +67,7 @@ import org.neo4j.internal.kernel.api.IndexReference;
 import org.neo4j.internal.kernel.api.SchemaRead;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.io.fs.FileUtils;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.api.InwardKernel;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.Statement;
@@ -159,7 +160,7 @@ public class StoreUpgradeIT
         @Test
         public void embeddedDatabaseShouldStartOnOlderStoreWhenUpgradeIsEnabled() throws Throwable
         {
-            File dir = store.prepareDirectory( testDir.graphDbDir() );
+            File dir = store.prepareDirectory( testDir.storeDir() );
 
             GraphDatabaseFactory factory = new TestGraphDatabaseFactory();
             GraphDatabaseBuilder builder = factory.newEmbeddedDatabaseBuilder( dir );
@@ -178,7 +179,7 @@ public class StoreUpgradeIT
                 db.shutdown();
             }
 
-            assertConsistentStore( dir );
+            assertConsistentStore( DatabaseLayout.of( dir ) );
         }
 
         @Test
@@ -220,14 +221,14 @@ public class StoreUpgradeIT
                 bootstrapper.stop();
             }
 
-            assertConsistentStore( storeDir );
+            assertConsistentStore( DatabaseLayout.of( storeDir ) );
         }
 
         @Test
         public void migratingOlderDataAndThanStartAClusterUsingTheNewerDataShouldWork() throws Throwable
         {
             // migrate the store using a single instance
-            File dir = store.prepareDirectory( testDir.graphDbDir() );
+            File dir = store.prepareDirectory( testDir.storeDir() );
             GraphDatabaseFactory factory = new TestGraphDatabaseFactory();
             GraphDatabaseBuilder builder = factory.newEmbeddedDatabaseBuilder( dir );
             builder.setConfig( GraphDatabaseSettings.allow_upgrade, "true" );
@@ -244,7 +245,7 @@ public class StoreUpgradeIT
                 db.shutdown();
             }
 
-            assertConsistentStore( dir );
+            assertConsistentStore( DatabaseLayout.of( dir ) );
 
             // start the cluster with the db migrated from the old instance
             File haDir = new File( dir.getParentFile(), "ha-stuff" );
@@ -271,8 +272,8 @@ public class StoreUpgradeIT
                 clusterManager.safeShutdown();
             }
 
-            assertConsistentStore( master.getStoreDir() );
-            assertConsistentStore( slave.getStoreDir() );
+            assertConsistentStore( DatabaseLayout.of( master.getStoreDirectory() ) );
+            assertConsistentStore( DatabaseLayout.of( slave.getStoreDirectory() ) );
         }
     }
 
@@ -303,7 +304,7 @@ public class StoreUpgradeIT
         public void migrationShouldFail() throws Throwable
         {
             // migrate the store using a single instance
-            File dir = Unzip.unzip( getClass(), dbFileName, testDir.graphDbDir() );
+            File dir = Unzip.unzip( getClass(), dbFileName, testDir.storeDir() );
             new File( dir, "debug.log" ).delete(); // clear the log
             GraphDatabaseFactory factory = new TestGraphDatabaseFactory();
             GraphDatabaseBuilder builder = factory.newEmbeddedDatabaseBuilder( dir );
@@ -342,7 +343,7 @@ public class StoreUpgradeIT
         @Test
         public void shouldBeAbleToUpgradeAStoreWithoutIdFilesAsBackups() throws Throwable
         {
-            File dir = store.prepareDirectory( testDir.graphDbDir() );
+            File dir = store.prepareDirectory( testDir.storeDir() );
 
             // remove id files
             File[] idFiles = dir.listFiles( ( dir1, name ) -> name.endsWith( ".id" ) );
@@ -368,7 +369,7 @@ public class StoreUpgradeIT
                 db.shutdown();
             }
 
-            assertConsistentStore( dir );
+            assertConsistentStore( DatabaseLayout.of( dir ) );
         }
     }
 
@@ -437,7 +438,7 @@ public class StoreUpgradeIT
     private static void checkIndexCounts( Store store, GraphDatabaseAPI db ) throws KernelException
     {
         InwardKernel kernel = db.getDependencyResolver().resolveDependency( InwardKernel.class );
-        try ( KernelTransaction tx = kernel.newTransaction( KernelTransaction.Type.implicit, AnonymousContext.read() );
+        try ( KernelTransaction tx = kernel.beginTransaction( KernelTransaction.Type.implicit, AnonymousContext.read() );
               Statement ignore = tx.acquireStatement() )
         {
             SchemaRead schemaRead = tx.schemaRead();
