@@ -38,8 +38,8 @@ import java.io.File;
 import java.io.IOException;
 
 import org.neo4j.io.pagecache.PageCache;
-import  org.neo4j.logging.internal.LogService;
 import org.neo4j.logging.Log;
+import org.neo4j.logging.internal.LogService;
 
 import static org.neo4j.com.storecopy.StoreUtil.cleanStoreDir;
 import static org.neo4j.com.storecopy.StoreUtil.deleteRecursive;
@@ -55,10 +55,11 @@ public enum BranchedDataPolicy
                 @Override
                 public void handle( File storeDir, PageCache pageCache, LogService logService ) throws IOException
                 {
+                    File safeStoreDir = BranchedDataDirectoryGuard.assertSafeStoreDirectory( storeDir );
                     Log msgLog = logService.getInternalLog( getClass() );
-                    File branchedDataDir = newBranchedDataDir( storeDir );
-                    msgLog.debug( "Moving store from " + storeDir + " to " + branchedDataDir );
-                    moveAwayDb( storeDir, branchedDataDir );
+                    File branchedDataDir = newBranchedDataDir( safeStoreDir );
+                    msgLog.debug( "Moving store from " + safeStoreDir + " to " + branchedDataDir );
+                    moveAwayDb( safeStoreDir, branchedDataDir );
                 }
             },
     keep_last
@@ -66,12 +67,13 @@ public enum BranchedDataPolicy
                 @Override
                 public void handle( File storeDir, PageCache pageCache, LogService logService ) throws IOException
                 {
+                    File safeStoreDir = BranchedDataDirectoryGuard.assertSafeStoreDirectory( storeDir );
                     Log msgLog = logService.getInternalLog( getClass() );
 
-                    File branchedDataDir = newBranchedDataDir( storeDir );
-                    msgLog.debug( "Moving store from " + storeDir + " to " + branchedDataDir );
-                    moveAwayDb( storeDir, branchedDataDir );
-                    for ( File file : getBranchedDataRootDirectory( storeDir ).listFiles() )
+                    File branchedDataDir = newBranchedDataDir( safeStoreDir );
+                    msgLog.debug( "Moving store from " + safeStoreDir + " to " + branchedDataDir );
+                    moveAwayDb( safeStoreDir, branchedDataDir );
+                    for ( File file : getBranchedDataRootDirectory( safeStoreDir ).listFiles() )
                     {
                         if ( isBranchedDataDirectory( file ) && !file.equals( branchedDataDir ) )
                         {
@@ -85,9 +87,10 @@ public enum BranchedDataPolicy
                 @Override
                 public void handle( File storeDir, PageCache pageCache, LogService logService ) throws IOException
                 {
+                    File safeStoreDir = BranchedDataDirectoryGuard.assertSafeStoreDirectory( storeDir );
                     Log msgLog = logService.getInternalLog( getClass() );
-                    msgLog.debug( "Removing store  " + storeDir );
-                    cleanStoreDir( storeDir );
+                    msgLog.debug( "Removing store  " + safeStoreDir );
+                    cleanStoreDir( safeStoreDir );
                 }
             };
 

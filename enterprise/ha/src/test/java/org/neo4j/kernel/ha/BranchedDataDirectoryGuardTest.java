@@ -38,47 +38,63 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.File;
+import java.io.IOException;
 
-import org.neo4j.cluster.ClusterSettings;
-import org.neo4j.graphdb.factory.TestHighlyAvailableGraphDatabaseFactory;
-import org.neo4j.helpers.Exceptions;
-import org.neo4j.kernel.impl.storemigration.MigrationTestUtils;
-import org.neo4j.kernel.impl.storemigration.UpgradeNotAllowedByConfigurationException;
 import org.neo4j.test.rule.TestDirectory;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class SlaveUpgradeTest
+public class BranchedDataDirectoryGuardTest
 {
     @Rule
     public final TestDirectory testDirectory = TestDirectory.testDirectory();
 
     @Test
-    public void haShouldFailToStartWithOldStore()
+    public void shouldAllowRegularStoreDirectories() throws IOException
+    {
+        File storeDir = testDirectory.directory( "store/safe-db" );
+
+        File resolved = BranchedDataDirectoryGuard.assertSafeStoreDirectory( storeDir );
+
+        assertEquals( storeDir.getCanonicalFile(), resolved );
+    }
+
+    @Test
+    public void shouldRejectRepositoryRootLikeDirectories()
+    {
+        File repoLikeDir = testDirectory.directory( "repo-root-like" );
+        assertTrue( new File( repoLikeDir, ".git" ).mkdir() );
+
+        IllegalStateException failure = expectUnsafeDirectory( repoLikeDir );
+        assertThat( failure.getMessage(), containsString( "repository root" ) );
+    }
+
+    @Test
+    public void shouldRejectProjectRootLikeDirectories() throws IOException
+    {
+        File projectLikeDir = testDirectory.directory( "module-root-like" );
+        assertTrue( new File( projectLikeDir, "src" ).mkdir() );
+        assertTrue( new File( projectLikeDir, "pom.xml" ).createNewFile() );
+
+        IllegalStateException failure = expectUnsafeDirectory( projectLikeDir );
+        assertThat( failure.getMessage(), containsString( "project/module root" ) );
+    }
+
+    private IllegalStateException expectUnsafeDirectory( File storeDir )
     {
         try
         {
-            File dir = testDirectory.directory( "haShouldFailToStartWithOldStore" );
-            MigrationTestUtils.find23FormatStoreDirectory( dir );
-
-            new TestHighlyAvailableGraphDatabaseFactory()
-                    .newEmbeddedDatabaseBuilder( dir )
-                    .setConfig( ClusterSettings.server_id, "1" )
-                    .setConfig( ClusterSettings.initial_hosts, "localhost:9999" )
-                    .newGraphDatabase();
-
-            fail( "Should exit abnormally" );
+            BranchedDataDirectoryGuard.assertSafeStoreDirectory( storeDir );
+            fail( "Expected unsafe directory guard for " + storeDir );
+            return null;
         }
-        catch ( Exception e )
+        catch ( IllegalStateException e )
         {
-            Throwable rootCause = Exceptions.rootCause( e );
-            boolean upgradeRejected = rootCause instanceof UpgradeNotAllowedByConfigurationException;
-            boolean defaultDatabaseMissing = rootCause instanceof IllegalStateException &&
-                    rootCause.getMessage() != null &&
-                    rootCause.getMessage().contains( "Default database not found" );
-            assertTrue( "Expected startup rejection for old store, but got: " + rootCause,
-                    upgradeRejected || defaultDatabaseMissing );
+            return e;
         }
     }
 }

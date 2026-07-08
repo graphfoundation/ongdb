@@ -34,6 +34,7 @@
  */
 package org.neo4j.kernel.ha.cluster;
 
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentMatchers;
 
@@ -96,6 +97,7 @@ import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.logging.NullLogProvider;
+import org.neo4j.test.rule.TestDirectory;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
@@ -121,6 +123,9 @@ import static org.neo4j.kernel.ha.cluster.modeswitch.HighAvailabilityModeSwitche
 
 public class HighAvailabilityMemberStateMachineTest
 {
+    @Rule
+    public final TestDirectory testDirectory = TestDirectory.testDirectory();
+
     @Test
     public void shouldStartFromPending()
     {
@@ -569,7 +574,8 @@ public class HighAvailabilityMemberStateMachineTest
 
         TransactionIdStore transactionIdStoreMock = mock( TransactionIdStore.class );
         when( transactionIdStoreMock.getLastCommittedTransaction() ).thenReturn( new TransactionId( 0, 0, 0 ) );
-        SwitchToSlaveCopyThenBranch switchToSlave = new SwitchToSlaveCopyThenBranch( DatabaseLayout.of( new File( "" ) ), NullLogService.getInstance(),
+        SwitchToSlaveCopyThenBranch switchToSlave = new SwitchToSlaveCopyThenBranch( DatabaseLayout.of( storeDirectory() ),
+                                                                                     NullLogService.getInstance(),
                                                                                      mock( FileSystemAbstraction.class ),
                                                                                      config, dependencyResolver,
                                                                                      mock( HaIdGeneratorFactory.class ),
@@ -636,6 +642,17 @@ public class HighAvailabilityMemberStateMachineTest
         stateMachine.shutdown();
         haModeSwitcher.stop();
         haModeSwitcher.shutdown();
+    }
+
+    private File storeDirectory()
+    {
+        File storeDir = testDirectory.directory( "state-machine-switch-to-slave-store" );
+        String resolvedPath = storeDir.getAbsoluteFile().getPath();
+        String targetTestDataWithDash = File.separator + "target" + File.separator + "test-data" + File.separator;
+        String targetTestDataWithSpace = File.separator + "target" + File.separator + "test data" + File.separator;
+        assertTrue( "Expected store root under target/test-data (or target/test data) but got: " + resolvedPath,
+                resolvedPath.contains( targetTestDataWithDash ) || resolvedPath.contains( targetTestDataWithSpace ) );
+        return storeDir;
     }
 
     private ObservedClusterMembers mockClusterMembers( InstanceId me, List<InstanceId> alive, List<InstanceId> failed )

@@ -59,9 +59,15 @@ public class BranchedDataMigrator extends LifecycleAdapter
 
     private void migrateBranchedDataDirectoriesToRootDirectory()
     {
-        File branchedDir = StoreUtil.getBranchedDataRootDirectory( storeDir );
+        File safeStoreDir = BranchedDataDirectoryGuard.assertSafeStoreDirectory( storeDir );
+        File branchedDir = StoreUtil.getBranchedDataRootDirectory( safeStoreDir );
         branchedDir.mkdirs();
-        for ( File oldBranchedDir : storeDir.listFiles() )
+        File[] files = safeStoreDir.listFiles();
+        if ( files == null )
+        {
+            return;
+        }
+        for ( File oldBranchedDir : files )
         {
             if ( !oldBranchedDir.isDirectory() || !oldBranchedDir.getName().startsWith( "branched-" ) )
             {
@@ -79,7 +85,7 @@ public class BranchedDataMigrator extends LifecycleAdapter
                 continue;
             }
 
-            File targetDir = StoreUtil.getBranchedDataDirectory( storeDir, timestamp );
+            File targetDir = StoreUtil.getBranchedDataDirectory( safeStoreDir, timestamp );
             try
             {
                 FileUtils.moveFile( oldBranchedDir, targetDir );

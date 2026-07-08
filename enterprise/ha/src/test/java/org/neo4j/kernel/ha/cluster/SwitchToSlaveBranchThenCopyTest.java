@@ -34,6 +34,7 @@
  */
 package org.neo4j.kernel.ha.cluster;
 
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.File;
@@ -95,9 +96,11 @@ import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.test.rule.TestDirectory;
 
 import static java.util.Collections.singletonList;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -123,6 +126,9 @@ public class SwitchToSlaveBranchThenCopyTest
     private final MasterClient masterClient = mock( MasterClient.class );
     private final RequestContextFactory requestContextFactory = mock( RequestContextFactory.class );
     private final StoreId storeId = newStoreIdForCurrentVersion( 42, 42, 42, 42 );
+
+    @Rule
+    public final TestDirectory testDirectory = TestDirectory.testDirectory();
 
     @Test
     public void shouldRestartServicesIfCopyStoreFails() throws Throwable
@@ -343,7 +349,7 @@ public class SwitchToSlaveBranchThenCopyTest
         when( masterClientResolver.instantiate( anyString(), anyInt(), anyString(), any( Monitors.class ),
                 argThat( storeId -> true ), any( LifeSupport.class ) ) ).thenReturn( masterClient );
 
-        return spy( new SwitchToSlaveBranchThenCopy( DatabaseLayout.of( new File( "" ) ), NullLogService.getInstance(),
+        return spy( new SwitchToSlaveBranchThenCopy( DatabaseLayout.of( storeDirectory() ), NullLogService.getInstance(),
                 configMock(), resolver,
                 mock( HaIdGeneratorFactory.class ),
                 mock( DelegateInvocationHandler.class ),
@@ -362,6 +368,34 @@ public class SwitchToSlaveBranchThenCopyTest
                     when( server.getSocketAddress() ).thenReturn( inetSocketAddress );
                     return server;
                 }, updatePuller, pageCacheMock, mock( Monitors.class ), transactionCounters ) );
+    }
+
+    private File storeDirectory()
+    {
+        File storeDir = testDirectory.directory( "switch-to-slave-branch-then-copy-store" );
+        assertStoreDirectoryInTestData( storeDir );
+        return storeDir;
+    }
+
+    private void assertStoreDirectoryInTestData( File storeDir )
+    {
+        String resolvedPath = resolveStoreDirectory( storeDir ).getPath();
+        String targetTestDataWithDash = File.separator + "target" + File.separator + "test-data" + File.separator;
+        String targetTestDataWithSpace = File.separator + "target" + File.separator + "test data" + File.separator;
+        assertTrue( "Expected store root under target/test-data (or target/test data) but got: " + resolvedPath,
+                resolvedPath.contains( targetTestDataWithDash ) || resolvedPath.contains( targetTestDataWithSpace ) );
+    }
+
+    private File resolveStoreDirectory( File storeDir )
+    {
+        try
+        {
+            return storeDir.getCanonicalFile();
+        }
+        catch ( IOException e )
+        {
+            return storeDir.getAbsoluteFile();
+        }
     }
 
     private Config configMock()

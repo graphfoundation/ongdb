@@ -52,6 +52,7 @@ import org.neo4j.helpers.Format;
 import org.neo4j.helpers.collection.Iterables;
 import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.jmx.impl.ManagementData;
 import org.neo4j.jmx.impl.ManagementSupport;
 import org.neo4j.kernel.NeoStoreDataSource;
@@ -61,6 +62,8 @@ import org.neo4j.kernel.ha.UpdatePuller;
 import org.neo4j.kernel.ha.cluster.member.ClusterMember;
 import org.neo4j.kernel.ha.cluster.member.ClusterMembers;
 import org.neo4j.kernel.ha.cluster.modeswitch.HighAvailabilityModeSwitcher;
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.kernel.impl.factory.DatabaseInfo;
 import org.neo4j.kernel.impl.core.LastTxIdGetter;
 import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
 import org.neo4j.kernel.impl.util.Dependencies;
@@ -105,6 +108,9 @@ public class HighAvailabilityBeanTest
 
         NeoStoreDataSource dataSource = mock( NeoStoreDataSource.class );
         dataSourceManager.register( dataSource );
+        when( dataSource.getDatabaseLayout() )
+                .thenReturn( DatabaseLayout.of( new File( GraphDatabaseSettings.DEFAULT_DATABASE_NAME ) ) );
+        dependencies.satisfyDependency( DatabaseInfo.HA );
         when( dataSource.getDependencyResolver() ).thenReturn( dependencies );
         haBean = (HighAvailability) new HighAvailabilityBean().createMBean( data );
     }
