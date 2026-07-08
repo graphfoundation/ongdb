@@ -36,6 +36,8 @@ package org.neo4j.causalclustering.stresstests;
 
 import java.io.File;
 import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.neo4j.causalclustering.catchup.storecopy.CopiedStoreRecovery;
 import org.neo4j.causalclustering.catchup.storecopy.TemporaryStoreDirectory;
@@ -43,9 +45,9 @@ import org.neo4j.causalclustering.discovery.ClusterMember;
 import org.neo4j.consistency.ConsistencyCheckService;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.io.pagecache.impl.muninn.StandalonePageCacheFactory;
+import org.neo4j.helpers.Service;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.extension.KernelExtensions;
+import org.neo4j.kernel.extension.KernelExtensionFactory;
 import org.neo4j.logging.Log;
 
 import static org.neo4j.consistency.ConsistencyCheckTool.runConsistencyCheckTool;
@@ -68,8 +70,8 @@ class StartStopRandomMember extends RepeatOnRandomMember
     @Override
     protected void doWorkOnMember( ClusterMember member ) throws InterruptedException
     {
-        File storeDir = member.database().getStoreDir();
-        KernelExtensions kernelExtensions = member.database().getDependencyResolver().resolveDependency( KernelExtensions.class );
+        File storeDir = member.databaseDirectory();
+        Iterable<KernelExtensionFactory<?>> kernelExtensions = loadKernelExtensions();
         log.info( "Stopping: " + member );
         member.shutdown();
         assertStoreConsistent( storeDir, kernelExtensions );
@@ -78,14 +80,13 @@ class StartStopRandomMember extends RepeatOnRandomMember
         member.start();
     }
 
-    private void assertStoreConsistent( File storeDir, KernelExtensions kernelExtensions )
+    private void assertStoreConsistent( File storeDir, Iterable<KernelExtensionFactory<?>> kernelExtensions )
     {
         File parent = storeDir.getParentFile();
-        try ( TemporaryStoreDirectory storeDirectory = new TemporaryStoreDirectory( fs, pageCache, parent );
-              PageCache pageCache = StandalonePageCacheFactory.createPageCache( fs ) )
+        try ( TemporaryStoreDirectory storeDirectory = new TemporaryStoreDirectory( fs, pageCache, parent ) )
         {
             fs.copyRecursively( storeDir, storeDirectory.storeDir() );
-            new CopiedStoreRecovery( Config.defaults(), kernelExtensions.listFactories(),  pageCache )
+            new CopiedStoreRecovery( Config.defaults(), kernelExtensions, pageCache )
                     .recoverCopiedStore( storeDirectory.databaseLayout() );
             ConsistencyCheckService.Result result = runConsistencyCheckTool( new String[]{storeDir.getAbsolutePath()},
                     new PrintStream( NULL_OUTPUT_STREAM ), new PrintStream( NULL_OUTPUT_STREAM ) );
@@ -98,5 +99,15 @@ class StartStopRandomMember extends RepeatOnRandomMember
         {
             throw new RuntimeException( "Failed to run CC on " + storeDir, e );
         }
+    }
+
+    private Iterable<KernelExtensionFactory<?>> loadKernelExtensions()
+    {
+        List<KernelExtensionFactory<?>> kernelExtensions = new ArrayList<>();
+        for ( KernelExtensionFactory<?> factory : Service.load( KernelExtensionFactory.class ) )
+        {
+            kernelExtensions.add( factory );
+        }
+        return kernelExtensions;
     }
 }

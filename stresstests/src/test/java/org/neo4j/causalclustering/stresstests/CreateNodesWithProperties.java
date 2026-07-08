@@ -34,6 +34,7 @@
  */
 package org.neo4j.causalclustering.stresstests;
 
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -45,7 +46,6 @@ import org.neo4j.graphdb.TransactionFailureException;
 import org.neo4j.helper.Workload;
 import org.neo4j.logging.internal.CappedLogger;
 import org.neo4j.logging.Log;
-import org.neo4j.test.Randoms;
 
 class CreateNodesWithProperties extends Workload
 {
@@ -80,7 +80,7 @@ class CreateNodesWithProperties extends Workload
     protected void doWork()
     {
         txLogger.info( "SuccessCount: " + txSuccessCount + " FailCount: " + txFailCount );
-        Randoms randoms = new Randoms();
+        ThreadLocalRandom random = ThreadLocalRandom.current();
 
         try
         {
@@ -89,7 +89,7 @@ class CreateNodesWithProperties extends Workload
                 Node node = db.createNode( label );
                 for ( int i = 1; i <= 8; i++ )
                 {
-                    node.setProperty( prop( i ), randoms.propertyValue() );
+                    node.setProperty( prop( i ), randomPropertyValue( random ) );
                 }
                 tx.success();
             } );
@@ -132,6 +132,21 @@ class CreateNodesWithProperties extends Workload
     private static String prop( int i )
     {
         return "prop" + i;
+    }
+
+    private static Object randomPropertyValue( ThreadLocalRandom random )
+    {
+        switch ( random.nextInt( 4 ) )
+        {
+        case 0:
+            return random.nextLong( 1_000_000L );
+        case 1:
+            return random.nextDouble();
+        case 2:
+            return random.nextBoolean();
+        default:
+            return "value-" + random.nextLong( 1_000_000L );
+        }
     }
 
     private boolean isTransient( Throwable e )

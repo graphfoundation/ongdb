@@ -122,7 +122,7 @@ class IdReuse
 
         void visitAllIds( ClusterMember member, Consumer<Long> idConsumer )
         {
-            DatabaseLayout databaseLayout = DatabaseLayout.of( member.storeDir() );
+            DatabaseLayout databaseLayout = DatabaseLayout.of( member.databaseDirectory() );
             File idFile = databaseLayout.idNodeStore();
             IdContainer idContainer = new IdContainer( fs, idFile, 1024, true );
             idContainer.init();

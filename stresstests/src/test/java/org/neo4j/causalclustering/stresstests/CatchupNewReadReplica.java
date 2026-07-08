@@ -98,7 +98,7 @@ class CatchupNewReadReplica extends Workload
                 cluster.removeReadReplicaWithMemberId( newMemberId );
                 if ( ex == null && deleteStore )
                 {
-                    fs.deleteRecursively( readReplica.storeDir() );
+                    fs.deleteRecursively( readReplica.databaseDirectory() );
                 }
                 deleteStore = !deleteStore;
             }

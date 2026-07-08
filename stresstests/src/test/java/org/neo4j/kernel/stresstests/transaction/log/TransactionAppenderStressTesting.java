@@ -40,6 +40,7 @@ import java.io.File;
 import java.util.concurrent.Callable;
 
 import org.neo4j.io.fs.FileUtils;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.impl.transaction.log.stresstest.TransactionAppenderStressTest.Builder;
 import org.neo4j.kernel.impl.transaction.log.stresstest.TransactionAppenderStressTest.TransactionIdChecker;
 
@@ -69,7 +70,7 @@ public class TransactionAppenderStressTesting
 
         Callable<Long> runner = new Builder()
                 .with( untilTimeExpired( durationInMinutes, MINUTES ) )
-                .withWorkingDirectory( ensureExistsAndEmpty( workingDirectory ) )
+                .withWorkingDirectory( DatabaseLayout.of( ensureExistsAndEmpty( workingDirectory ) ) )
                 .withNumThreads( threads )
                 .build();
 
