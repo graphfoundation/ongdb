@@ -1,0 +1,125 @@
+# Free quality gate on public graphfoundation/ongdb.
+# Not a release — see .github/BRANCHING.md and release.yml.
+
+name: PR quality gate
+
+on:
+  push:
+    branches: [1.1-dev]
+  pull_request:
+    branches: [1.1-dev, '1.1']
+
+concurrency:
+  group: pr-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MAVEN_OPTS: -Xmx4g
+  JAVA_TOOL_OPTIONS: -Dfile.encoding=UTF-8
+
+jobs:
+  compile-unit:
+    if: github.repository == 'graphfoundation/ongdb'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Raise open file limit
+        run: ulimit -n 40000 && ulimit -n
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: temurin
+          cache: maven
+      - name: Compile and unit tests
+        run: mvn -B -Drevapi.skip=true clean test
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-compile-unit
+          path: '**/target/surefire-reports/**'
+          if-no-files-found: ignore
+          retention-days: 7
+
+  community-gate:
+    if: github.repository == 'graphfoundation/ongdb'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Raise open file limit
+        run: ulimit -n 40000 && ulimit -n
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: temurin
+          cache: maven
+      - name: Community neo4j -am
+        run: mvn -B -Drevapi.skip=true clean install -pl community/neo4j -am
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-community-gate
+          path: '**/target/surefire-reports/**'
+          if-no-files-found: ignore
+          retention-days: 7
+
+  enterprise-security:
+    if: github.repository == 'graphfoundation/ongdb'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Raise open file limit
+        run: ulimit -n 40000 && ulimit -n
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: temurin
+          cache: maven
+      - name: Install dependencies then security verify
+        run: |
+          mvn -B -Drevapi.skip=true install -DskipTests -pl enterprise/security -am
+          mvn -B -Drevapi.skip=true verify -pl enterprise/security -DskipCypher
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-enterprise-security
+          path: |
+            **/target/surefire-reports/**
+            **/target/failsafe-reports/**
+          if-no-files-found: ignore
+          retention-days: 7
+
+  enterprise-backup:
+    if: github.repository == 'graphfoundation/ongdb'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - name: Raise open file limit
+        run: ulimit -n 40000 && ulimit -n
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: temurin
+          cache: maven
+      - name: Backup -am with skipCypher
+        run: mvn -B -Drevapi.skip=true clean install -DskipCypher -pl enterprise/backup -am
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-enterprise-backup
+          path: |
+            **/target/surefire-reports/**
+            **/target/failsafe-reports/**
+          if-no-files-found: ignore
+          retention-days: 7

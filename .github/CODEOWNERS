@@ -1,0 +1,9 @@
+# Release-sensitive paths require review from maintainers on PRs into protected
+# release lines (e.g. 1.1). Update the owner list when the maintainer team changes.
+# Docs: .github/BRANCHING.md
+
+*                               @bradnussbaum
+
+/.github/                       @bradnussbaum
+/enterprise/                    @bradnussbaum
+/packaging/                     @bradnussbaum

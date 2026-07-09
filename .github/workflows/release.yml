@@ -1,0 +1,132 @@
+# Audited release build for public graphfoundation/ongdb.
+# Requires: tag 1.1.* whose commit is on origin/1.1, plus Environment "release" approval.
+# See .github/BRANCHING.md
+
+name: Release artifacts
+
+on:
+  push:
+    tags:
+      - '1.1.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build (must be on origin/1.1), e.g. 1.1.0
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  MAVEN_OPTS: -Xmx4g
+  JAVA_TOOL_OPTIONS: -Dfile.encoding=UTF-8
+
+jobs:
+  verify-release-ref:
+    if: github.repository == 'graphfoundation/ongdb'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+      - name: Resolve version and verify ancestor of origin/1.1
+        id: meta
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ inputs.tag }}"
+            VERSION="${VERSION#refs/tags/}"
+          else
+            VERSION="${GITHUB_REF_NAME}"
+          fi
+          if [[ ! "$VERSION" =~ ^1\.1\. ]]; then
+            echo "Ref '$VERSION' does not match 1.1.* release tags" >&2
+            exit 1
+          fi
+          git fetch origin 1.1:refs/remotes/origin/1.1
+          SHA="$(git rev-parse HEAD)"
+          if ! git merge-base --is-ancestor "$SHA" origin/1.1; then
+            echo "Commit $SHA is not an ancestor of origin/1.1 — refuse unaudited tag" >&2
+            echo "Create tags only from the protected 1.1 release line after audit PR merge." >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Audited release ref OK: $VERSION @ $SHA (on origin/1.1)"
+
+  build-and-publish:
+    if: github.repository == 'graphfoundation/ongdb'
+    needs: verify-release-ref
+    runs-on: ubuntu-latest
+    timeout-minutes: 480
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+      - name: Raise open file limit
+        run: ulimit -n 40000 && ulimit -n
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: temurin
+          cache: maven
+      - name: Full reactor clean install
+        run: mvn -B -Drevapi.skip=true clean install
+      - name: Locate distribution tarballs
+        id: dist
+        run: |
+          set -euo pipefail
+          COMMUNITY="$(ls packaging/standalone/target/ongdb-community-*-unix.tar.gz | head -n 1)"
+          ENTERPRISE="$(ls packaging/standalone/target/ongdb-enterprise-*-unix.tar.gz | head -n 1)"
+          echo "community=$COMMUNITY" >> "$GITHUB_OUTPUT"
+          echo "enterprise=$ENTERPRISE" >> "$GITHUB_OUTPUT"
+          ls -lh packaging/standalone/target/ongdb-*-unix.tar.gz
+      - name: Tarball smoke (enterprise)
+        run: |
+          chmod +x .github/scripts/tarball-smoke.sh
+          .github/scripts/tarball-smoke.sh "${{ steps.dist.outputs.enterprise }}"
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ongdb-${{ needs.verify-release-ref.outputs.version }}
+          path: |
+            packaging/standalone/target/ongdb-community-*-unix.tar.gz
+            packaging/standalone/target/ongdb-enterprise-*-unix.tar.gz
+            packaging/standalone/target/ongdb-community-*-windows.zip
+            packaging/standalone/target/ongdb-enterprise-*-windows.zip
+          if-no-files-found: error
+          retention-days: 90
+      - name: Create GitHub Release and attach assets
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.verify-release-ref.outputs.version }}
+          name: ONgDB ${{ needs.verify-release-ref.outputs.version }}
+          generate_release_notes: true
+          files: |
+            packaging/standalone/target/ongdb-community-*-unix.tar.gz
+            packaging/standalone/target/ongdb-enterprise-*-unix.tar.gz
+            packaging/standalone/target/ongdb-community-*-windows.zip
+            packaging/standalone/target/ongdb-enterprise-*-windows.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-test-reports-${{ needs.verify-release-ref.outputs.version }}
+          path: |
+            **/target/surefire-reports/**
+            **/target/failsafe-reports/**
+          if-no-files-found: ignore
+          retention-days: 30
