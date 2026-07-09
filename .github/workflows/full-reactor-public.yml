@@ -1,0 +1,115 @@
+# Public full-reactor CI for release/dev release lines.
+# Requires no custom secrets (uses only default GITHUB_TOKEN read access).
+
+name: Public full reactor
+
+on:
+  push:
+    branches:
+      - '1.0'
+      - '1.0-dev'
+      - '1.1'
+      - '1.1-dev'
+      - '2.0'
+      - '2.0-dev'
+      - '1.*'
+      - '1.*-dev'
+      - '2.*'
+      - '2.*-dev'
+  pull_request:
+    branches:
+      - '1.0'
+      - '1.0-dev'
+      - '1.1'
+      - '1.1-dev'
+      - '2.0'
+      - '2.0-dev'
+      - '1.*'
+      - '1.*-dev'
+      - '2.*'
+      - '2.*-dev'
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Optional branch to build (defaults to event branch)
+        required: false
+        type: string
+
+concurrency:
+  group: full-reactor-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MAVEN_OPTS: -Xmx4g
+  JAVA_TOOL_OPTIONS: -Dfile.encoding=UTF-8
+
+jobs:
+  full-reactor:
+    if: github.repository == 'graphfoundation/ongdb'
+    runs-on: ubuntu-latest
+    timeout-minutes: 480
+    permissions:
+      contents: read
+    steps:
+      - name: Resolve checkout ref
+        id: target
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.branch }}" ]]; then
+            ref="${{ inputs.branch }}"
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            ref="${{ github.head_ref }}"
+          else
+            ref="${GITHUB_REF_NAME}"
+          fi
+          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
+          echo "Selected ref: ${ref}"
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.target.outputs.ref }}
+
+      - name: Raise open file limit
+        run: ulimit -n 40000 && ulimit -n
+
+      - name: Resolve Java version for branch
+        id: java
+        run: |
+          set -euo pipefail
+          java_version="8"
+          case "${{ steps.target.outputs.ref }}" in
+            2.*)
+              java_version="11"
+              ;;
+          esac
+          echo "version=${java_version}" >> "$GITHUB_OUTPUT"
+          echo "Using Java ${java_version}"
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ steps.java.outputs.version }}
+          distribution: temurin
+          cache: maven
+
+      - name: Full reactor clean install
+        run: |
+          set -euo pipefail
+          mvn -B -Drevapi.skip=true clean install | tee full-reactor-build.log
+
+      - name: Upload full-reactor artifacts and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-reactor-${{ steps.target.outputs.ref }}-${{ github.run_id }}
+          path: |
+            full-reactor-build.log
+            **/target/surefire-reports/**
+            **/target/failsafe-reports/**
+            packaging/standalone/target/ongdb-community-*-unix.tar.gz
+            packaging/standalone/target/ongdb-enterprise-*-unix.tar.gz
+            packaging/standalone/target/ongdb-community-*-windows.zip
+            packaging/standalone/target/ongdb-enterprise-*-windows.zip
+          if-no-files-found: ignore
+          retention-days: 30
