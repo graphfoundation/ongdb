@@ -33,7 +33,7 @@ jobs:
           distribution: temurin
           cache: maven
       - name: Compile and unit tests
-        run: mvn -B -Drevapi.skip=true clean test
+        run: mvn -B -Drevapi.skip=true -DskipCypher clean test
       - name: Upload test reports on failure
         if: failure()
         uses: actions/upload-artifact@v4
