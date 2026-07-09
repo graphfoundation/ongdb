@@ -222,14 +222,16 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
      */
     public void init( SPI spi, ThreadToStatementContextBridge txBridge, Config config, TokenHolders tokenHolders )
     {
+        ThreadToStatementContextBridge threadBridge = txBridge != null ? txBridge :
+                spi.resolver().resolveDependency( ThreadToStatementContextBridge.class );
         this.spi = spi;
         this.config = config;
-        this.schema = new SchemaImpl( () -> txBridge.getKernelTransactionBoundToThisThread( true ) );
-        this.statementContext = txBridge;
+        this.schema = new SchemaImpl( () -> threadBridge.getKernelTransactionBoundToThisThread( true ) );
+        this.statementContext = threadBridge;
         this.tokenHolders = tokenHolders;
         this.indexManager = Suppliers.lazySingleton( () ->
         {
-            IndexProviderImpl idxProvider = new IndexProviderImpl( this, () -> txBridge.getKernelTransactionBoundToThisThread( true ) );
+            IndexProviderImpl idxProvider = new IndexProviderImpl( this, () -> threadBridge.getKernelTransactionBoundToThisThread( true ) );
             AutoIndexerFacade<Node> nodeAutoIndexer = new AutoIndexerFacade<>(
                     () -> new ReadOnlyIndexFacade<>( idxProvider.getOrCreateNodeIndex( NODE_AUTO_INDEX, null ) ),
                     spi.autoIndexing().nodes() );
@@ -238,11 +240,11 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
                             idxProvider.getOrCreateRelationshipIndex( RELATIONSHIP_AUTO_INDEX, null ) ),
                     spi.autoIndexing().relationships() );
 
-            return new IndexManagerImpl( () -> txBridge.getKernelTransactionBoundToThisThread( true ), idxProvider,
+            return new IndexManagerImpl( () -> threadBridge.getKernelTransactionBoundToThisThread( true ), idxProvider,
                     nodeAutoIndexer, relAutoIndexer );
         } );
 
-        this.contextFactory = Neo4jTransactionalContextFactory.create( spi, txBridge, locker );
+        this.contextFactory = Neo4jTransactionalContextFactory.create( spi, threadBridge, locker );
     }
 
     @Override

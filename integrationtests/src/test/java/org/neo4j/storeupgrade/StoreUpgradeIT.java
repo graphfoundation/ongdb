@@ -250,8 +250,16 @@ public class StoreUpgradeIT
             // start the cluster with the db migrated from the old instance
             File haDir = new File( dir.getParentFile(), "ha-stuff" );
             FileUtils.deleteRecursively( haDir );
+            String activeDatabase = GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
             ClusterManager clusterManager = new ClusterManager.Builder( haDir )
-                    .withSeedDir( dir ).withCluster( clusterOfSize( 2 ) ).build();
+                    .withInstanceSetting( GraphDatabaseSettings.active_database, ignored -> activeDatabase )
+                    .withStoreDirInitializer( ( ignored, storeDir ) ->
+                    {
+                        File seededDatabaseDir = new File( storeDir, activeDatabase );
+                        FileUtils.copyRecursively( dir, seededDatabaseDir );
+                    } )
+                    .withCluster( clusterOfSize( 2 ) )
+                    .build();
 
             clusterManager.start();
 

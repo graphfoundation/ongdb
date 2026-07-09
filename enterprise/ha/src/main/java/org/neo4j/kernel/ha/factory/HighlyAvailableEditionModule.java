@@ -155,6 +155,7 @@ import org.neo4j.kernel.impl.api.TransactionHeaderInformation;
 import org.neo4j.kernel.impl.core.DelegatingTokenHolder;
 import org.neo4j.kernel.impl.core.LastTxIdGetter;
 import org.neo4j.kernel.impl.core.ReadOnlyTokenCreator;
+import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
 import org.neo4j.kernel.impl.core.TokenCreator;
 import org.neo4j.kernel.impl.core.TokenHolder;
 import org.neo4j.kernel.impl.core.TokenHolders;
@@ -178,6 +179,7 @@ import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.impl.store.TransactionId;
 import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.store.id.configuration.IdTypeConfigurationProvider;
+import org.neo4j.kernel.impl.store.stats.IdBasedStoreEntityCounters;
 import org.neo4j.kernel.impl.transaction.TransactionHeaderInformationFactory;
 import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
 import org.neo4j.kernel.impl.transaction.log.NoSuchTransactionException;
@@ -189,6 +191,7 @@ import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFiles;
 import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
 import org.neo4j.kernel.impl.transaction.stats.DatabaseTransactionStats;
 import org.neo4j.kernel.impl.util.Dependencies;
+import org.neo4j.kernel.impl.util.UnsatisfiedDependencyException;
 import org.neo4j.kernel.internal.KernelData;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.lifecycle.Lifecycle;
@@ -241,6 +244,18 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
         InternalLoggerFactory.setDefaultFactory( new NettyLoggerFactory( logging.getInternalLogProvider() ) );
 
         final DatabaseLayout databaseLayout = platformModule.storeLayout.databaseLayout( config.get( GraphDatabaseSettings.active_database ) );
+        Supplier<NeoStoreDataSource> neoStoreDataSourceSupplier = () -> platformModule.dataSourceManager.getDataSource();
+        Supplier<DependencyResolver> dataSourceDependencyResolver = () -> neoStoreDataSourceSupplier.get().getDependencyResolver();
+        Supplier<TransactionIdStore> transactionIdStoreSupplier =
+                () -> dataSourceDependencyResolver.get().resolveDependency( TransactionIdStore.class );
+        Supplier<LogicalTransactionStore> logicalTransactionStoreSupplier =
+                () -> dataSourceDependencyResolver.get().resolveDependency( LogicalTransactionStore.class );
+        Supplier<TransactionCommitProcess> transactionCommitProcessSupplier =
+                () -> dataSourceDependencyResolver.get().resolveDependency( TransactionCommitProcess.class );
+        Supplier<CheckPointer> checkPointerSupplier =
+                () -> dataSourceDependencyResolver.get().resolveDependency( CheckPointer.class );
+        DependencyResolver platformThenDataSourceResolver =
+                createPlatformThenDataSourceResolver( dependencies, dataSourceDependencyResolver );
         life.add( new BranchedDataMigrator( databaseLayout.databaseDirectory() ) );
         DelegateInvocationHandler<Master> masterDelegateInvocationHandler =
                 new DelegateInvocationHandler<>( Master.class );
@@ -250,14 +265,14 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
 
         RequestContextFactory requestContextFactory = dependencies.satisfyDependency( new RequestContextFactory(
                 serverId.toIntegerIndex(),
-                dependencies.provideDependency( TransactionIdStore.class ) ) );
+                transactionIdStoreSupplier ) );
 
         final long idReuseSafeZone = config.get( HaSettings.id_reuse_safe_zone_time ).toMillis();
         TransactionCommittingResponseUnpacker responseUnpacker = dependencies.satisfyDependency(
-                new TransactionCommittingResponseUnpacker( dependencies,
+                new TransactionCommittingResponseUnpacker( platformThenDataSourceResolver,
                         config.get( HaSettings.pull_apply_batch_size ), idReuseSafeZone ) );
 
-        Supplier<Kernel> kernelProvider = dependencies.provideDependency( Kernel.class );
+        Supplier<Kernel> kernelProvider = () -> dataSourceDependencyResolver.get().resolveDependency( Kernel.class );
 
         transactionStartTimeout = config.get( HaSettings.state_switch_timeout ).toMillis();
 
@@ -285,9 +300,8 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
 
         // TODO There's a cyclical dependency here that should be fixed
         final AtomicReference<HighAvailabilityMemberStateMachine> electionProviderRef = new AtomicReference<>();
-        OnDiskLastTxIdGetter lastTxIdGetter = new OnDiskLastTxIdGetter(
-                () -> platformModule.dependencies.resolveDependency(
-                        TransactionIdStore.class ).getLastCommittedTransactionId() );
+        OnDiskLastTxIdGetter lastTxIdGetter =
+                new OnDiskLastTxIdGetter( () -> transactionIdStoreSupplier.get().getLastCommittedTransactionId() );
         ElectionCredentialsProvider electionCredentialsProvider = config.get( HaSettings.slave_only ) ?
                 new NotElectableElectionCredentialsProvider() :
                 new DefaultElectionCredentialsProvider(
@@ -366,6 +380,7 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
                 clusterClient, clusterClient, clusterEvents, config.get( ClusterSettings.server_id ) );
 
         AvailabilityGuard availabilityGuard = getGlobalAvailabilityGuard( platformModule.clock, platformModule.logging, platformModule.config );
+        threadToTransactionBridge = dependencies.satisfyDependency( new ThreadToStatementContextBridge( availabilityGuard ) );
         memberStateMachine = new HighAvailabilityMemberStateMachine( memberContext, availabilityGuard, observedMembers, clusterEvents, clusterClient,
                 logging.getInternalLogProvider() );
 
@@ -393,6 +408,7 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
                                                   .withIdReuseEligibility( eligibleForIdReuse )
                                                   .build();
         DatabaseIdContext idContext = idContextFactory.createIdContext( config.get( GraphDatabaseSettings.active_database ) );
+        dependencies.satisfyDependency( new IdBasedStoreEntityCounters( idContext.getIdGeneratorFactory() ) );
 
         // TODO There's a cyclical dependency here that should be fixed
         final AtomicReference<HighAvailabilityModeSwitcher> exceptionHandlerRef = new AtomicReference<>();
@@ -406,7 +422,8 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
         // later, after the data source module and all that have started.
         @SuppressWarnings( {"deprecation", "unchecked"} )
         Supplier<LogEntryReader<ReadableClosablePositionAwareChannel>> logEntryReader =
-                (Supplier) dependencies.provideDependency( LogEntryReader.class );
+                () -> (LogEntryReader<ReadableClosablePositionAwareChannel>)
+                        dataSourceDependencyResolver.get().resolveDependency( LogEntryReader.class );
 
         MasterClientResolver masterClientResolver = new MasterClientResolver( logging.getInternalLogProvider(),
                 responseUnpacker,
@@ -428,7 +445,7 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
         PullerFactory pullerFactory = new PullerFactory( requestContextFactory, master, lastUpdateTime,
                 logging.getInternalLogProvider(), serverId, invalidEpochHandler,
                 config.get( HaSettings.pull_interval ).toMillis(), platformModule.jobScheduler,
-                dependencies, availabilityGuard, memberStateMachine, monitors );
+                platformThenDataSourceResolver, availabilityGuard, memberStateMachine, monitors );
 
         dependencies.satisfyDependency( paxosLife.add( pullerFactory.createObligationFulfiller( updatePullerProxy ) ) );
 
@@ -441,17 +458,17 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
                 masterDelegateInvocationHandler, requestContextFactory, clusterMemberAvailability,
                 masterClientResolver, updatePullerProxy, pullerFactory, slaveServerFactory, editionIdGeneratorFactory, databaseLayout );
 
-        GraphDatabaseFacade graphDatabaseFacade = platformModule.dataSourceManager.getDataSource()
+        Supplier<GraphDatabaseFacade> graphDatabaseFacadeSupplier = () -> platformModule.dataSourceManager.getDataSource()
                 .getDependencyResolver().resolveDependency( GraphDatabaseFacade.class );
         final Factory<MasterImpl.SPI> masterSPIFactory =
-                () -> new DefaultMasterImplSPI( graphDatabaseFacade, platformModule.fileSystem,
+                () -> new DefaultMasterImplSPI( graphDatabaseFacadeSupplier.get(), platformModule.fileSystem,
                         platformModule.monitors,
                         tokenHolders, idContext.getIdGeneratorFactory(),
-                        platformModule.dependencies.resolveDependency( TransactionCommitProcess.class ),
-                        platformModule.dependencies.resolveDependency( CheckPointer.class ),
-                        platformModule.dependencies.resolveDependency( TransactionIdStore.class ),
-                        platformModule.dependencies.resolveDependency( LogicalTransactionStore.class ),
-                        platformModule.dependencies.resolveDependency( NeoStoreDataSource.class ),
+                        transactionCommitProcessSupplier.get(),
+                        checkPointerSupplier.get(),
+                        transactionIdStoreSupplier.get(),
+                        logicalTransactionStoreSupplier.get(),
+                        neoStoreDataSourceSupplier.get(),
                         logging.getInternalLogProvider() );
 
         final Function<Locks,ConversationSPI> conversationSPIFactory = locks -> new DefaultConversationSPI( locks, platformModule.jobScheduler );
@@ -466,8 +483,8 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
                 ( master1, conversationManager ) ->
                 {
                     TransactionChecksumLookup txChecksumLookup = new TransactionChecksumLookup(
-                            platformModule.dependencies.resolveDependency( TransactionIdStore.class ),
-                            platformModule.dependencies.resolveDependency( LogicalTransactionStore.class ) );
+                            transactionIdStoreSupplier.get(),
+                            logicalTransactionStoreSupplier.get() );
 
                     return new MasterServer( master1, logging.getInternalLogProvider(),
                             masterServerConfig( config ),
@@ -483,10 +500,10 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
                 masterFactory,
                 masterServerFactory,
                 masterDelegateInvocationHandler, clusterMemberAvailability,
-                platformModule.dependencies.provideDependency( NeoStoreDataSource.class ) );
+                neoStoreDataSourceSupplier );
 
         ComponentSwitcherContainer componentSwitcherContainer = new ComponentSwitcherContainer();
-        Supplier<StoreId> storeIdSupplier = () -> dependencies.resolveDependency( NeoStoreDataSource.class ).getStoreId();
+        Supplier<StoreId> storeIdSupplier = () -> neoStoreDataSourceSupplier.get().getStoreId();
 
         HighAvailabilityModeSwitcher highAvailabilityModeSwitcher = new HighAvailabilityModeSwitcher(
                 switchToSlaveInstance, switchToMasterInstance, clusterClient, clusterMemberAvailability, clusterClient,
@@ -535,7 +552,7 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
                 createKernelData( config, platformModule.dataSourceManager, members, fs, platformModule.pageCache,
                         platformModule.storeLayout.storeDirectory(), lastUpdateTime, lastTxIdGetter, life ) );
 
-        commitProcessFactory = createCommitProcessFactory( dependencies, logging, monitors, config, paxosLife,
+        commitProcessFactory = createCommitProcessFactory( dependencies, dataSourceDependencyResolver, logging, monitors, config, paxosLife,
                 clusterClient, members, platformModule.jobScheduler, master, requestContextFactory,
                 componentSwitcherContainer, logEntryReader );
 
@@ -556,7 +573,7 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
 
         constraintSemantics = new EnterpriseConstraintSemantics();
 
-        registerRecovery( platformModule.databaseInfo, dependencies, logging );
+        registerRecovery( platformModule.databaseInfo, dataSourceDependencyResolver, logging );
 
         UsageData usageData = dependencies.resolveDependency( UsageData.class );
         publishEditionInfo( usageData, platformModule.databaseInfo, config );
@@ -610,37 +627,66 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
             UpdatePuller updatePullerProxy, PullerFactory pullerFactory, Function<Slave,SlaveServer> slaveServerFactory,
             HaIdGeneratorFactory idGeneratorFactory, DatabaseLayout databaseLayout )
     {
-        DatabaseTransactionStats transactionCounters =
-                platformModule.dataSourceManager.getDataSource().getDependencyResolver().resolveDependency( DatabaseTransactionStats.class );
+        // The edition module is constructed before database registration, so resolve transaction stats from the
+        // edition-level monitor instead of querying the data source manager eagerly.
+        DatabaseTransactionStats transactionCounters = createTransactionMonitor();
+        Supplier<NeoStoreDataSource> neoStoreDataSourceSupplier = () -> platformModule.dataSourceManager.getDataSource();
+        Supplier<DependencyResolver> dataSourceDependencyResolver = () -> neoStoreDataSourceSupplier.get().getDependencyResolver();
+        Supplier<TransactionIdStore> transactionIdStoreSupplier =
+                () -> dataSourceDependencyResolver.get().resolveDependency( TransactionIdStore.class );
+
+        DependencyResolver switchToSlaveDependencyResolver = dependencies;
+
         switch ( config.get( HaSettings.branched_data_copying_strategy ) )
         {
             case branch_then_copy:
                 return new SwitchToSlaveBranchThenCopy( databaseLayout, logging,
-                        platformModule.fileSystem, config, dependencies, idGeneratorFactory,
+                        platformModule.fileSystem, config, switchToSlaveDependencyResolver, idGeneratorFactory,
                         masterDelegateInvocationHandler, clusterMemberAvailability, requestContextFactory,
                         pullerFactory,
                         platformModule.kernelExtensionFactories, masterClientResolver,
                         monitors.newMonitor( SwitchToSlave.Monitor.class ),
                         monitors.newMonitor( StoreCopyClientMonitor.class ),
-                        dependencies.provideDependency( NeoStoreDataSource.class ),
-                        dependencies.provideDependency( TransactionIdStore.class ),
+                        neoStoreDataSourceSupplier,
+                        transactionIdStoreSupplier,
                         slaveServerFactory, updatePullerProxy, platformModule.pageCache,
                         monitors, transactionCounters );
             case copy_then_branch:
                 return new SwitchToSlaveCopyThenBranch( databaseLayout, logging,
-                        platformModule.fileSystem, config, dependencies, idGeneratorFactory,
+                        platformModule.fileSystem, config, switchToSlaveDependencyResolver, idGeneratorFactory,
                         masterDelegateInvocationHandler, clusterMemberAvailability, requestContextFactory,
                         pullerFactory,
                         platformModule.kernelExtensionFactories, masterClientResolver,
                         monitors.newMonitor( SwitchToSlave.Monitor.class ),
                         monitors.newMonitor( StoreCopyClientMonitor.class ),
-                        dependencies.provideDependency( NeoStoreDataSource.class ),
-                        dependencies.provideDependency( TransactionIdStore.class ),
+                        neoStoreDataSourceSupplier,
+                        transactionIdStoreSupplier,
                         slaveServerFactory, updatePullerProxy, platformModule.pageCache,
                         monitors, transactionCounters );
             default:
                 throw new RuntimeException( "Unknown branched data copying strategy" );
         }
+    }
+
+    private static DependencyResolver createPlatformThenDataSourceResolver( Dependencies dependencies,
+            Supplier<DependencyResolver> dataSourceDependencyResolver )
+    {
+        return new DependencyResolver.Adapter()
+        {
+            @Override
+            public <T> T resolveDependency( Class<T> type, SelectionStrategy selector )
+                    throws IllegalArgumentException
+            {
+                try
+                {
+                    return dependencies.resolveDependency( type, selector );
+                }
+                catch ( UnsatisfiedDependencyException ignored )
+                {
+                    return dataSourceDependencyResolver.get().resolveDependency( type, selector );
+                }
+            }
+        };
     }
 
     private void publishServerId( Config config, UsageData sysInfo )
@@ -662,7 +708,8 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
         };
     }
 
-    private CommitProcessFactory createCommitProcessFactory( Dependencies dependencies, LogService logging,
+    private CommitProcessFactory createCommitProcessFactory( Dependencies dependencies,
+            Supplier<DependencyResolver> dataSourceDependencyResolver, LogService logging,
             Monitors monitors, Config config, LifeSupport paxosLife, ClusterClient clusterClient,
             ClusterMembers members, JobScheduler jobScheduler, Master master,
             RequestContextFactory requestContextFactory, ComponentSwitcherContainer componentSwitcherContainer,
@@ -683,8 +730,19 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
         DelegateInvocationHandler<TransactionCommitProcess> commitProcessDelegate = new DelegateInvocationHandler<>(
                 TransactionCommitProcess.class );
 
+        // CommitProcessSwitcher runs during HA mode changes where DB-scoped dependencies live under the
+        // active data source resolver, not the platform dependency container.
+        DependencyResolver commitProcessDependencyResolver = new DependencyResolver.Adapter()
+        {
+            @Override
+            public <T> T resolveDependency( Class<T> type, DependencyResolver.SelectionStrategy selector )
+                    throws IllegalArgumentException
+            {
+                return dataSourceDependencyResolver.get().resolveDependency( type, selector );
+            }
+        };
         CommitProcessSwitcher commitProcessSwitcher = new CommitProcessSwitcher( transactionPropagator,
-                master, commitProcessDelegate, requestContextFactory, monitors, dependencies );
+                master, commitProcessDelegate, requestContextFactory, monitors, commitProcessDependencyResolver );
         componentSwitcherContainer.add( commitProcessSwitcher );
 
         return new HighlyAvailableCommitProcessFactory( commitProcessDelegate );
@@ -802,7 +860,8 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
         return life.add( new HighlyAvailableKernelData( dataSourceManager, members, databaseInfo, fs, pageCache, storeDir, config ) );
     }
 
-    private void registerRecovery( final DatabaseInfo databaseInfo, final DependencyResolver dependencyResolver,
+    private void registerRecovery( final DatabaseInfo databaseInfo,
+            final Supplier<DependencyResolver> dependencyResolverSupplier,
             final LogService logging )
     {
         memberStateMachine.addHighAvailabilityMemberListener( new HighAvailabilityMemberListener.Adapter()
@@ -831,7 +890,7 @@ public class HighlyAvailableEditionModule extends DefaultEditionModule
             {
                 try
                 {
-                    assureLastCommitTimestampInitialized( dependencyResolver );
+                    assureLastCommitTimestampInitialized( dependencyResolverSupplier.get() );
                 }
                 catch ( Throwable throwable )
                 {

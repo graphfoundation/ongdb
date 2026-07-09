@@ -137,7 +137,7 @@ public class StoreCopyClient
         File tempDatabaseDirectory = tempDatabaseLayout.databaseDirectory();
         try
         {
-            cleanDirectory( tempDatabaseDirectory );
+            cleanDirectory( tempStoreRoot );
 
             // Request store files and transactions that will need recovery
             monitor.startReceivingStoreFiles();

@@ -38,7 +38,6 @@
  */
 package org.neo4j.values.storable;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -294,12 +293,15 @@ public class ValueComparisonTest
         }
     }
 
-    @Disabled // only runnable it JVM supports East-Saskatchewan
-    public void shouldCompareRenamedTimeZonesByZoneNumber()
+    @Test
+    public void shouldCompareRenamedTimeZonesByZoneNumberWhenAliasAvailable()
     {
-        int cmp = Values.COMPARATOR.compare( datetime( 10000, 100, ZoneId.of( "Canada/Saskatchewan" ) ),
-                                             datetime( 10000, 100, ZoneId.of( "Canada/East-Saskatchewan" ) ) );
-        assertEquals( 0, cmp, "East-Saskatchewan and Saskatchewan are the same place" );
+        if ( ZoneId.getAvailableZoneIds().contains( "Canada/East-Saskatchewan" ) )
+        {
+            int cmp = Values.COMPARATOR.compare( datetime( 10000, 100, ZoneId.of( "Canada/Saskatchewan" ) ),
+                    datetime( 10000, 100, ZoneId.of( "Canada/East-Saskatchewan" ) ) );
+            assertEquals( 0, cmp, "East-Saskatchewan and Saskatchewan are the same place" );
+        }
     }
 
     private <T> int compare( Comparator<T> comparator, T left, T right )

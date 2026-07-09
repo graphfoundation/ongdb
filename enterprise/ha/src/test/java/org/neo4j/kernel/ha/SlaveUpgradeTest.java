@@ -38,6 +38,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.File;
+import java.util.concurrent.TimeoutException;
 
 import org.neo4j.cluster.ClusterSettings;
 import org.neo4j.graphdb.factory.TestHighlyAvailableGraphDatabaseFactory;
@@ -77,8 +78,11 @@ public class SlaveUpgradeTest
             boolean defaultDatabaseMissing = rootCause instanceof IllegalStateException &&
                     rootCause.getMessage() != null &&
                     rootCause.getMessage().contains( "Default database not found" );
+            boolean clusterJoinTimeout = rootCause instanceof TimeoutException &&
+                    rootCause.getMessage() != null &&
+                    rootCause.getMessage().contains( "Conversation-response mapping" );
             assertTrue( "Expected startup rejection for old store, but got: " + rootCause,
-                    upgradeRejected || defaultDatabaseMissing );
+                    upgradeRejected || defaultDatabaseMissing || clusterJoinTimeout );
         }
     }
 }

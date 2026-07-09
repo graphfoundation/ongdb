@@ -60,7 +60,9 @@ public class RequestContextFactory extends LifecycleAdapter
     @Override
     public void start()
     {
-        this.txIdStore = txIdStoreSupplier.get();
+        // TransactionIdStore is registered when the default database comes up.
+        // Resolve lazily so HA startup can complete before that registration point.
+        this.txIdStore = null;
     }
 
     @Override
@@ -76,7 +78,7 @@ public class RequestContextFactory extends LifecycleAdapter
 
     public RequestContext newRequestContext( long epoch, int machineId, int eventIdentifier )
     {
-        TransactionId lastTx = txIdStore.getLastCommittedTransaction();
+        TransactionId lastTx = transactionIdStore().getLastCommittedTransaction();
         // TODO beware, there's a race between getting tx id and checksum, and changes to last tx
         // it must be fixed
         return new RequestContext( epoch, machineId, eventIdentifier, lastTx.transactionId(), lastTx.checksum() );
@@ -90,5 +92,14 @@ public class RequestContextFactory extends LifecycleAdapter
     public RequestContext newRequestContext()
     {
         return newRequestContext( DEFAULT_EVENT_IDENTIFIER );
+    }
+
+    private TransactionIdStore transactionIdStore()
+    {
+        if ( txIdStore == null )
+        {
+            txIdStore = txIdStoreSupplier.get();
+        }
+        return txIdStore;
     }
 }

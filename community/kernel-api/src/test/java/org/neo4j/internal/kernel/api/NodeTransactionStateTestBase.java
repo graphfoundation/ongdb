@@ -38,7 +38,6 @@
  */
 package org.neo4j.internal.kernel.api;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -52,6 +51,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.neo4j.graphdb.Label.label;
 import static org.neo4j.values.storable.Values.NO_VALUE;
 import static org.neo4j.values.storable.Values.longValue;
@@ -624,7 +624,38 @@ public abstract class NodeTransactionStateTestBase<G extends KernelAPIWriteTestS
         }
     }
 
-    @Ignore
+    /**
+     * Node label union/intersection scans are optional for this write-test support.
+     * The default implementation intentionally reports "unsupported", while
+     * implementations that provide these scans can override this hook.
+     */
+    protected boolean supportsLabelScanCompositions()
+    {
+        return false;
+    }
+
+    private boolean executeLabelScanIfSupported( Runnable operation, String scanType )
+    {
+        try
+        {
+            operation.run();
+            if ( !supportsLabelScanCompositions() )
+            {
+                fail( "Expected " + scanType + " label scan to be unsupported by this implementation" );
+            }
+            return true;
+        }
+        catch ( UnsupportedOperationException e )
+        {
+            if ( supportsLabelScanCompositions() )
+            {
+                throw e;
+            }
+            return false;
+        }
+    }
+
+    @Test
     public void shouldNotFindDeletedNodeInDisjunctionLabelScan() throws Exception
     {
         // Given
@@ -635,14 +666,17 @@ public abstract class NodeTransactionStateTestBase<G extends KernelAPIWriteTestS
         {
             // when
             tx.dataWrite().nodeDelete( node.node );
-            tx.dataRead().nodeLabelUnionScan( cursor, node.labels );
+            if ( !executeLabelScanIfSupported( () -> tx.dataRead().nodeLabelUnionScan( cursor, node.labels ), "union" ) )
+            {
+                return;
+            }
 
             // then
             assertFalse( cursor.next() );
         }
     }
 
-    @Ignore
+    @Test
     public void shouldFindNodeWithOneRemovedLabelInDisjunctionLabelScan() throws Exception
     {
         // Given
@@ -653,7 +687,10 @@ public abstract class NodeTransactionStateTestBase<G extends KernelAPIWriteTestS
         {
             // when
             tx.dataWrite().nodeRemoveLabel( node.node, node.labels[1] );
-            tx.dataRead().nodeLabelUnionScan( cursor, node.labels );
+            if ( !executeLabelScanIfSupported( () -> tx.dataRead().nodeLabelUnionScan( cursor, node.labels ), "union" ) )
+            {
+                return;
+            }
 
             // then
             assertTrue( cursor.next() );
@@ -661,7 +698,7 @@ public abstract class NodeTransactionStateTestBase<G extends KernelAPIWriteTestS
         }
     }
 
-    @Ignore
+    @Test
     public void shouldNotFindNodeWithAllRemovedLabelsInDisjunctionLabelScan() throws Exception
     {
         // Given
@@ -673,14 +710,17 @@ public abstract class NodeTransactionStateTestBase<G extends KernelAPIWriteTestS
             // when
             tx.dataWrite().nodeRemoveLabel( node.node, node.labels[0] );
             tx.dataWrite().nodeRemoveLabel( node.node, node.labels[1] );
-            tx.dataRead().nodeLabelUnionScan( cursor, node.labels );
+            if ( !executeLabelScanIfSupported( () -> tx.dataRead().nodeLabelUnionScan( cursor, node.labels ), "union" ) )
+            {
+                return;
+            }
 
             // then
             assertFalse( cursor.next() );
         }
     }
 
-    @Ignore
+    @Test
     public void shouldNotFindNodeWithOneRemovedLabelsInDisjunctionLabelScan() throws Exception
     {
         // Given
@@ -694,14 +734,17 @@ public abstract class NodeTransactionStateTestBase<G extends KernelAPIWriteTestS
             int label2 = tx.tokenWrite().labelGetOrCreateForName( "label2" );
 
             tx.dataWrite().nodeRemoveLabel( node.node, label1 );
-            tx.dataRead().nodeLabelUnionScan( cursor, label1, label2 );
+            if ( !executeLabelScanIfSupported( () -> tx.dataRead().nodeLabelUnionScan( cursor, label1, label2 ), "union" ) )
+            {
+                return;
+            }
 
             // then
             assertFalse( cursor.next() );
         }
     }
 
-    @Ignore
+    @Test
     public void shouldFindUpdatedNodeInInDisjunctionLabelScan() throws Exception
     {
         // Given
@@ -713,7 +756,11 @@ public abstract class NodeTransactionStateTestBase<G extends KernelAPIWriteTestS
             // when
             int label2 = tx.tokenWrite().labelGetOrCreateForName( "label2" );
             tx.dataWrite().nodeAddLabel( node.node, label2 );
-            tx.dataRead().nodeLabelUnionScan( cursor, node.labels[0], label2 );
+            if ( !executeLabelScanIfSupported( () -> tx.dataRead().nodeLabelUnionScan( cursor, node.labels[0], label2 ),
+                    "union" ) )
+            {
+                return;
+            }
 
             // then
             assertTrue( cursor.next() );
@@ -721,7 +768,7 @@ public abstract class NodeTransactionStateTestBase<G extends KernelAPIWriteTestS
         }
     }
 
-    @Ignore
+    @Test
     public void shouldNotFindDeletedNodeInConjunctionLabelScan() throws Exception
     {
         // Given
@@ -732,14 +779,18 @@ public abstract class NodeTransactionStateTestBase<G extends KernelAPIWriteTestS
         {
             // when
             tx.dataWrite().nodeDelete( node.node );
-            tx.dataRead().nodeLabelIntersectionScan( cursor, node.labels );
+            if ( !executeLabelScanIfSupported( () -> tx.dataRead().nodeLabelIntersectionScan( cursor, node.labels ),
+                    "intersection" ) )
+            {
+                return;
+            }
 
             // then
             assertFalse( cursor.next() );
         }
     }
 
-    @Ignore
+    @Test
     public void shouldNotFindNodeWithRemovedLabelInConjunctionLabelScan() throws Exception
     {
         // Given
@@ -750,14 +801,18 @@ public abstract class NodeTransactionStateTestBase<G extends KernelAPIWriteTestS
         {
             // when
             tx.dataWrite().nodeRemoveLabel( node.node, node.labels[1] );
-            tx.dataRead().nodeLabelIntersectionScan( cursor, node.labels );
+            if ( !executeLabelScanIfSupported( () -> tx.dataRead().nodeLabelIntersectionScan( cursor, node.labels ),
+                    "intersection" ) )
+            {
+                return;
+            }
 
             // then
             assertFalse( cursor.next() );
         }
     }
 
-    @Ignore
+    @Test
     public void shouldFindUpdatedNodeInInConjunctionLabelScan() throws Exception
     {
         // Given
@@ -769,7 +824,11 @@ public abstract class NodeTransactionStateTestBase<G extends KernelAPIWriteTestS
             // when
             int label2 = tx.tokenWrite().labelGetOrCreateForName( "label2" );
             tx.dataWrite().nodeAddLabel( node.node, label2 );
-            tx.dataRead().nodeLabelIntersectionScan( cursor, node.labels[0], label2 );
+            if ( !executeLabelScanIfSupported(
+                    () -> tx.dataRead().nodeLabelIntersectionScan( cursor, node.labels[0], label2 ), "intersection" ) )
+            {
+                return;
+            }
 
             // then
             assertTrue( cursor.next() );
@@ -777,7 +836,7 @@ public abstract class NodeTransactionStateTestBase<G extends KernelAPIWriteTestS
         }
     }
 
-    @Ignore
+    @Test
     public void shouldNotFindNodeWithJustOneUpdatedLabelInInConjunctionLabelScan() throws Exception
     {
         // Given
@@ -790,7 +849,11 @@ public abstract class NodeTransactionStateTestBase<G extends KernelAPIWriteTestS
             int label1 = tx.tokenWrite().labelGetOrCreateForName( "labe1" );
             int label2 = tx.tokenWrite().labelGetOrCreateForName( "label2" );
             tx.dataWrite().nodeAddLabel( node.node, label2 );
-            tx.dataRead().nodeLabelIntersectionScan( cursor, label1, label2 );
+            if ( !executeLabelScanIfSupported( () -> tx.dataRead().nodeLabelIntersectionScan( cursor, label1, label2 ),
+                    "intersection" ) )
+            {
+                return;
+            }
 
             // then
             assertFalse( cursor.next() );

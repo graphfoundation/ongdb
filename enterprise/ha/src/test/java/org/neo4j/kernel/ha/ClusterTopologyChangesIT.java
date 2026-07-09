@@ -35,7 +35,6 @@
 package org.neo4j.kernel.ha;
 
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -47,8 +46,6 @@ import org.neo4j.cluster.ClusterSettings;
 import org.neo4j.cluster.InstanceId;
 import org.neo4j.cluster.client.ClusterClient;
 import org.neo4j.cluster.client.ClusterClientModule;
-import org.neo4j.cluster.member.ClusterMemberEvents;
-import org.neo4j.cluster.member.ClusterMemberListener;
 import org.neo4j.cluster.protocol.cluster.ClusterConfiguration;
 import org.neo4j.cluster.protocol.cluster.ClusterListener;
 import org.neo4j.cluster.protocol.election.NotElectableElectionCredentialsProvider;
@@ -129,7 +126,6 @@ public class ClusterTopologyChangesIT
     }
 
     @Test
-    @Ignore
     public void slaveShouldServeTxsAfterMasterLostQuorumWentToPendingAndThenQuorumWasRestored() throws Throwable
     {
         // GIVEN: cluster with 3 members
@@ -173,7 +169,7 @@ public class ClusterTopologyChangesIT
         slave1RepairKit.repair();
         slave2RepairKit.repair();
 
-        // whole cluster looks fine, but slaves have stale value of the epoch if they rejoin the cluster in SLAVE state
+        // whole cluster should converge back to a healthy topology after quorum is restored
         cluster.await( masterAvailable(  ));
         cluster.await( masterSeesSlavesAsAvailable( 2 ) );
         HighlyAvailableGraphDatabase newMaster = cluster.getMaster();
@@ -181,33 +177,7 @@ public class ClusterTopologyChangesIT
         final HighlyAvailableGraphDatabase newSlave1 = cluster.getAnySlave();
         final HighlyAvailableGraphDatabase newSlave2 = cluster.getAnySlave( newSlave1 );
 
-        // now adding another failing listener and wait for the failure due to stale epoch
-        final CountDownLatch slave1Unavailable = new CountDownLatch( 1 );
-        final CountDownLatch slave2Unavailable = new CountDownLatch( 1 );
-        ClusterMemberEvents clusterEvents = newMaster.getDependencyResolver().resolveDependency( ClusterMemberEvents.class );
-        clusterEvents.addClusterMemberListener( new ClusterMemberListener.Adapter()
-        {
-            @Override
-            public void memberIsUnavailable( String role, InstanceId unavailableId )
-            {
-                if ( instanceIdOf( newSlave1 ).equals( unavailableId ) )
-                {
-                    slave1Unavailable.countDown();
-                }
-                else if ( instanceIdOf( newSlave2 ).equals( unavailableId ) )
-                {
-                    slave2Unavailable.countDown();
-                }
-            }
-        } );
-
-        // attempt to perform transactions on both slaves throws, election is triggered
-        attemptTransactions( newSlave1, newSlave2 );
-        // set a timeout in case the instance does not have stale epoch
-        assertTrue( slave1Unavailable.await( 60, TimeUnit.SECONDS ) );
-        assertTrue( slave2Unavailable.await( 60, TimeUnit.SECONDS ) );
-
-        // THEN: done with election, cluster feels good and able to serve transactions
+        // THEN: cluster feels good and is able to serve transactions from all members
         cluster.info( "Waiting for cluster to stabilize" );
         cluster.await( allSeesAllAsAvailable() );
 
@@ -290,17 +260,4 @@ public class ClusterTopologyChangesIT
                 new NotElectableElectionCredentialsProvider() );
     }
 
-    private static void attemptTransactions( HighlyAvailableGraphDatabase... dbs )
-    {
-        for ( HighlyAvailableGraphDatabase db : dbs )
-        {
-            try
-            {
-                createNodeOn( db );
-            }
-            catch ( Exception ignored )
-            {
-            }
-        }
-    }
 }

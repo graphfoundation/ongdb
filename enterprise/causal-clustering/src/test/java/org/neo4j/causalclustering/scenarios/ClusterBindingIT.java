@@ -35,7 +35,6 @@
 package org.neo4j.causalclustering.scenarios;
 
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
@@ -55,14 +54,8 @@ import org.neo4j.causalclustering.discovery.CoreClusterMember;
 import org.neo4j.causalclustering.identity.ClusterId;
 import org.neo4j.graphdb.Node;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.layout.DatabaseLayout;
-import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.io.pagecache.impl.muninn.StandalonePageCacheFactory;
-import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.lifecycle.LifecycleException;
 import org.neo4j.logging.NullLogProvider;
-import org.neo4j.scheduler.JobScheduler;
-import org.neo4j.scheduler.ThreadPoolJobScheduler;
 import org.neo4j.test.causalclustering.ClusterRule;
 import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 
@@ -73,7 +66,6 @@ import static org.junit.Assert.fail;
 import static org.neo4j.causalclustering.TestStoreId.assertAllStoresHaveTheSameStoreId;
 import static org.neo4j.causalclustering.core.server.CoreServerModule.CLUSTER_ID_NAME;
 import static org.neo4j.graphdb.Label.label;
-import static org.neo4j.kernel.impl.store.MetaDataStore.Position.RANDOM_NUMBER;
 
 public class ClusterBindingIT
 {
@@ -149,35 +141,6 @@ public class ClusterBindingIT
 
         // THEN
         assertAllStoresHaveTheSameStoreId( coreStoreDirs, fs );
-    }
-
-    @Test
-    @Ignore( "Fix this test by having the bootstrapper augment his store and bind it using store-id on disk." )
-    public void shouldNotJoinClusterIfHasDataWithDifferentStoreId() throws Exception
-    {
-        // GIVEN
-        cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode( label( "boo" ) );
-            node.setProperty( "foobar", "baz_bat" );
-            tx.success();
-        } );
-
-        File databaseDirectory = cluster.getCoreMemberById( 0 ).databaseDirectory();
-
-        cluster.removeCoreMemberWithServerId( 0 );
-        changeStoreId( DatabaseLayout.of( databaseDirectory ) );
-
-        // WHEN
-        try
-        {
-            cluster.addCoreMemberWithId( 0 ).start();
-            fail( "Should not have joined the cluster" );
-        }
-        catch ( RuntimeException e )
-        {
-            assertThat( e.getCause(), instanceOf( LifecycleException.class ) );
-        }
     }
 
     @Test
@@ -291,13 +254,4 @@ public class ClusterBindingIT
         clusterIdStorage.writeState( new ClusterId( UUID.randomUUID() ) );
     }
 
-    private void changeStoreId( DatabaseLayout databaseLayout ) throws Exception
-    {
-        File neoStoreFile = databaseLayout.metadataStore();
-        try ( JobScheduler jobScheduler = new ThreadPoolJobScheduler();
-              PageCache pageCache = StandalonePageCacheFactory.createPageCache( fs, jobScheduler ) )
-        {
-            MetaDataStore.setRecord( pageCache, neoStoreFile, RANDOM_NUMBER, System.currentTimeMillis() );
-        }
-    }
 }

@@ -39,8 +39,6 @@
 package org.neo4j.tooling.procedure;
 
 import com.google.testing.compile.CompilationRule;
-import com.google.testing.compile.CompileTester;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -82,29 +80,6 @@ public class UserAggregationFunctionProcessorTest extends ExtensionTestBase
                 .withErrorCount( 1 )
                 .withErrorContaining( "Unsupported return type <void> of aggregation function." )
                 .in( function ).onLine( 46 );
-    }
-
-    @Test
-    @Ignore( "javac fails to publish the deferred diagnostic of the second error to com.google.testing.compile.Compiler" )
-    public void fails_if_aggregation_function_exposes_return_type_without_aggregation_methods()
-    {
-        JavaFileObject function =
-                JavaFileObjectUtils.INSTANCE.procedureSource( "invalid/aggregation/FunctionWithoutAggregationMethods.java" );
-
-        CompileTester.UnsuccessfulCompilationClause unsuccessfulCompilationClause =
-                assert_().about( javaSource() ).that( function ).processedWith( processor() ).failsToCompile()
-                        .withErrorCount( 2 );
-
-        unsuccessfulCompilationClause
-                .withErrorContaining( "@UserAggregationUpdate usage error: expected aggregation type " +
-                "<org.neo4j.tooling.procedure.procedures.invalid.aggregation.FunctionWithoutAggregationMethods.MyAggregation> " +
-                "to define exactly 1 method with this annotation. Found none." )
-                .in( function ).onLine( 50 );
-        unsuccessfulCompilationClause
-                .withErrorContaining( "@UserAggregationResult usage error: expected aggregation type " +
-                "<org.neo4j.tooling.procedure.procedures.invalid.aggregation.FunctionWithoutAggregationMethods.MyAggregation> " +
-                "to define exactly 1 method with this annotation. Found none." )
-                .in( function ).onLine( 50 );
     }
 
     @Override

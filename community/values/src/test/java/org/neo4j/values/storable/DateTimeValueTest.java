@@ -38,7 +38,6 @@
  */
 package org.neo4j.values.storable;
 
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -101,11 +100,10 @@ public class DateTimeValueTest
                 parse( "-1-12-17T17:14:35.123456789+0000", orFail ) );
     }
 
-    @Ignore
-    public void shouldSupportLeapSeconds()
+    @Test
+    public void shouldRejectLeapSeconds()
     {
-        // Leap second according to https://www.timeanddate.com/time/leap-seconds-future.html
-        assertEquals( datetime( 2016, 12, 31, 23, 59, 60, 0, UTC ), parse( "2016-12-31T23:59:60Z", orFail ) );
+        assertThrows( TemporalParseException.class, () -> parse( "2016-12-31T23:59:60Z", orFail ) );
     }
 
     @Test
@@ -465,9 +463,13 @@ public class DateTimeValueTest
         assertEqual( datetime( 10000, 100, UTC ), datetime( 10000, 100, UTC ) );
     }
 
-    @Ignore // only runnable it JVM supports East-Saskatchewan
-    public void shouldEqualRenamedTimeZone()
+    @Test
+    public void shouldEqualRenamedTimeZoneWhenAliasAvailable()
     {
+        if ( !ZoneId.getAvailableZoneIds().contains( "Canada/East-Saskatchewan" ) )
+        {
+            return;
+        }
         assertEqual( datetime( 10000, 100, ZoneId.of( "Canada/Saskatchewan" ) ),
                      datetime( 10000, 100, ZoneId.of( "Canada/East-Saskatchewan" ) ) );
     }

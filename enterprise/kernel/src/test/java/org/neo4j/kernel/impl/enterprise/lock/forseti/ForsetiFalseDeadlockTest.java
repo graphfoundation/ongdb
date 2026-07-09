@@ -34,7 +34,6 @@
  */
 package org.neo4j.kernel.impl.enterprise.lock.forseti;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -115,22 +114,6 @@ public class ForsetiFalseDeadlockTest
     }
 
     private final Fixture fixture;
-
-    /**
-     * This takes a fair bit of time, and we don't want to wait that long. But more importantly, false deadlocks are
-     * still only very unlikely; they are not impossible, though.
-     *
-     * So this test is technically flaky, but the probability is, I think, quite low for the 'mild' test, but it is too
-     * high for this aggressive test. So therefor I have marked it as @Ignored, but I still keep it here for the sake
-     * of this comment, and to allow others to run it and get a feel for the probabilities involved.
-     */
-    @Ignore
-    @Test
-    public void testAggressivelyForFalseDeadlocks()
-    {
-        int testRuns = 2000;
-        loopRunTest( testRuns );
-    }
 
     @Test
     public void testMildlyForFalseDeadlocks()

@@ -39,7 +39,6 @@
 package org.neo4j.values.storable;
 
 import org.apache.commons.codec.digest.DigestUtils;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -52,7 +51,6 @@ import java.time.ZoneId;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.fail;
 
 class TimeZonesTest
@@ -136,15 +134,4 @@ class TimeZonesTest
                            102, -69, 47, 77, -70} ) );
     }
 
-    @Disabled( "Too restrictive as-is: Zone IDs aren't stable across JDKs, 'Pacific/Kanton' isn't currently supported by x86-ubuntu-oraclejdk-17" )
-    @Test
-    void allTimeZonesAreValidZoneIDs()
-    {
-        TimeZones.supportedTimeZones().forEach( timeZone ->
-        {
-            short zoneOffset = TimeZones.map( timeZone );
-            String timeZone2 = TimeZones.map( zoneOffset );
-            assertNotNull( ZoneId.of( timeZone2 ) );
-        });
-    }
 }

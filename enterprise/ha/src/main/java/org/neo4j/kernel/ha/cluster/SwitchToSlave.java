@@ -91,7 +91,7 @@ import org.neo4j.kernel.impl.transaction.stats.DatabaseTransactionStats;
 import org.neo4j.kernel.impl.transaction.log.MissingLogDataException;
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
 import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
-import org.neo4j.kernel.impl.util.watcher.FileSystemWatcherService;
+import org.neo4j.kernel.impl.util.UnsatisfiedDependencyException;
 import org.neo4j.kernel.internal.locker.StoreLockerLifecycleAdapter;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.lifecycle.Lifecycle;
@@ -118,8 +118,7 @@ public abstract class SwitchToSlave
             RequestContextFactory.class,
             TransactionCommittingResponseUnpacker.class,
             IndexConfigStore.class,
-            OnlineBackupKernelExtension.class,
-            FileSystemWatcherService.class
+            OnlineBackupKernelExtension.class
     };
     private final StoreCopyClient storeCopyClient;
     private final Function<Slave,SlaveServer> slaveServerFactory;
@@ -388,7 +387,11 @@ public abstract class SwitchToSlave
         msgLog.debug( "Starting services again" );
         for ( Class<? extends Lifecycle> serviceClass : SwitchToSlave.SERVICES_TO_RESTART_FOR_STORE_COPY )
         {
-            resolver.resolveDependency( serviceClass ).start();
+            Lifecycle service = resolveRestartLifecycle( serviceClass );
+            if ( service != null )
+            {
+                service.start();
+            }
         }
     }
 
@@ -518,7 +521,11 @@ public abstract class SwitchToSlave
             Class<? extends Lifecycle> serviceClass = SERVICES_TO_RESTART_FOR_STORE_COPY[i];
             try
             {
-                resolver.resolveDependency( serviceClass ).stop();
+                Lifecycle service = resolveRestartLifecycle( serviceClass );
+                if ( service != null )
+                {
+                    service.stop();
+                }
             }
             catch ( Exception exception )
             {
@@ -528,6 +535,19 @@ public abstract class SwitchToSlave
             {
                 throw new Exception( "Unexpected error while stopping services to handle branched data", throwable );
             }
+        }
+    }
+
+    private Lifecycle resolveRestartLifecycle( Class<? extends Lifecycle> serviceClass )
+    {
+        try
+        {
+            return resolver.resolveDependency( serviceClass );
+        }
+        catch ( UnsatisfiedDependencyException ignored )
+        {
+            msgLog.debug( "Service %s is not registered, skipping restart for store copy.", serviceClass.getName() );
+            return null;
         }
     }
 

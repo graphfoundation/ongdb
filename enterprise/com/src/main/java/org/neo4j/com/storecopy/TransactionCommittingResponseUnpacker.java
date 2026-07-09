@@ -318,6 +318,7 @@ public class TransactionCommittingResponseUnpacker extends LifecycleAdapter impl
         {
             throw new IllegalStateException( "Component is currently stopped" );
         }
+        initializeIfNeeded();
 
         BatchingResponseHandler responseHandler = new BatchingResponseHandler( maxBatchSize,
                 batchCommitter, obligationFulfiller, txHandler, versionContextSupplier, log );
@@ -332,19 +333,33 @@ public class TransactionCommittingResponseUnpacker extends LifecycleAdapter impl
     }
 
     @Override
-    public void start()
+    public synchronized void start()
     {
+        // This component can be started before all database-scoped dependencies are registered.
+        // Delay resolution until unpacking is actually requested.
+        this.stopped = false;
+    }
+
+    @Override
+    public synchronized void stop()
+    {
+        this.stopped = true;
+        this.obligationFulfiller = null;
+        this.batchCommitter = null;
+        this.versionContextSupplier = null;
+        this.log = null;
+    }
+
+    private synchronized void initializeIfNeeded()
+    {
+        if ( batchCommitter != null )
+        {
+            return;
+        }
         this.obligationFulfiller = dependencies.obligationFulfiller();
         this.log = dependencies.logService().getInternalLog( BatchingResponseHandler.class );
         this.versionContextSupplier = dependencies.versionContextSupplier();
         this.batchCommitter = new TransactionBatchCommitter( dependencies.kernelTransactions(), idReuseSafeZoneTime,
                 dependencies.commitProcess(), log );
-        this.stopped = false;
-    }
-
-    @Override
-    public void stop()
-    {
-        this.stopped = true;
     }
 }

@@ -34,7 +34,6 @@
  */
 package org.neo4j.cluster.protocol.cluster;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.net.URISyntaxException;
@@ -156,19 +155,6 @@ public class ClusterMembershipTest
     }
 
     @Test
-    @Ignore( "instance 1 is in start, 2 in discovery. Correct but we don't have a way to verify it yet" )
-    public void oneNodeCreatesClusterAndThenAnotherJoinsAsFirstLeaves()
-            throws URISyntaxException
-    {
-        testCluster( 2, DEFAULT_NETWORK(), new ClusterTestScriptDSL().
-                rounds( 1000 ).
-                join( 0, 1 ).
-                join( 10, 2, 1, 2 ).
-                leave( 20, 1 )
-        );
-    }
-
-    @Test
     public void threeNodesJoinAndThenFirstLeavesAsFourthJoins()
             throws URISyntaxException
     {
@@ -200,16 +186,4 @@ public class ClusterMembershipTest
         );
     }
 
-    @Ignore( "Ignore until fix available" )
-    @Test
-    public void threeNodesJoinAtSameTime()
-            throws URISyntaxException
-    {
-        testCluster( 3, DEFAULT_NETWORK(), new ClusterTestScriptDSL().
-                rounds( 400 ).
-                join( 0, 1, 1, 2, 3 ).
-                join( 0, 2, 1, 2, 3 ).
-                join( 0, 3, 1, 2, 3 ).
-                message( 390, "*** Cluster formed" ));
-    }
 }

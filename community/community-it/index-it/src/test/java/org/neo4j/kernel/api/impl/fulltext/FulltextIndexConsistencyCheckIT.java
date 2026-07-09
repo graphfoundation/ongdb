@@ -39,7 +39,6 @@
 package org.neo4j.kernel.api.impl.fulltext;
 
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -523,41 +522,6 @@ public class FulltextIndexConsistencyCheckIT
         assertFalse( result.isSuccessful() );
     }
 
-    @Ignore( "Turns out that this is not something that the consistency checker actually looks for, currently. " +
-            "The test is disabled until the consistency checker is extended with checks that will discover this sort of inconsistency." )
-    @Test
-    public void mustDiscoverNodeInIndexMissingFromStore() throws Exception
-    {
-        GraphDatabaseService db = createDatabase();
-        try ( Transaction tx = db.beginTx() )
-        {
-            db.execute( format( NODE_CREATE, "nodes", array( "Label" ), array( "prop" ) ) ).close();
-            tx.success();
-        }
-        long nodeId;
-        try ( Transaction tx = db.beginTx() )
-        {
-            db.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
-            Node node = db.createNode( Label.label( "Label" ) );
-            nodeId = node.getId();
-            node.setProperty( "prop", "value" );
-            tx.success();
-        }
-        NeoStores stores = getNeoStores( db );
-        NodeRecord record = stores.getNodeStore().newRecord();
-        record = stores.getNodeStore().getRecord( nodeId, record, RecordLoad.NORMAL );
-        long propId = record.getNextProp();
-        record.setNextProp( AbstractBaseRecord.NO_ID );
-        stores.getNodeStore().updateRecord( record );
-        PropertyRecord propRecord = stores.getPropertyStore().getRecord( propId, stores.getPropertyStore().newRecord(), RecordLoad.NORMAL );
-        propRecord.setInUse( false );
-        stores.getPropertyStore().updateRecord( propRecord );
-        db.shutdown();
-
-        ConsistencyCheckService.Result result = checkConsistency();
-        assertFalse( result.isSuccessful() );
-    }
-
     @Test
     public void mustDiscoverNodePropertyIndexMismatch() throws Exception
     {
@@ -712,42 +676,6 @@ public class FulltextIndexConsistencyCheckIT
         db.shutdown();
 
         //Then
-        ConsistencyCheckService.Result result = checkConsistency();
-        assertFalse( result.isSuccessful() );
-    }
-
-    @Ignore( "Turns out that this is not something that the consistency checker actually looks for, currently. " +
-            "The test is disabled until the consistency checker is extended with checks that will discover this sort of inconsistency." )
-    @Test
-    public void mustDiscoverRelationshipInIndexMissingFromStore() throws Exception
-    {
-        GraphDatabaseService db = createDatabase();
-        try ( Transaction tx = db.beginTx() )
-        {
-            db.execute( format( RELATIONSHIP_CREATE, "rels", array( "REL" ), array( "prop" ) ) ).close();
-            tx.success();
-        }
-        long relId;
-        try ( Transaction tx = db.beginTx() )
-        {
-            db.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
-            Node node = db.createNode();
-            Relationship rel = node.createRelationshipTo( node, RelationshipType.withName( "REL" ) );
-            relId = rel.getId();
-            rel.setProperty( "prop", "value" );
-            tx.success();
-        }
-        NeoStores stores = getNeoStores( db );
-        RelationshipRecord record = stores.getRelationshipStore().newRecord();
-        record = stores.getRelationshipStore().getRecord( relId, record, RecordLoad.NORMAL );
-        long propId = record.getNextProp();
-        record.setNextProp( AbstractBaseRecord.NO_ID );
-        stores.getRelationshipStore().updateRecord( record );
-        PropertyRecord propRecord = stores.getPropertyStore().getRecord( propId, stores.getPropertyStore().newRecord(), RecordLoad.NORMAL );
-        propRecord.setInUse( false );
-        stores.getPropertyStore().updateRecord( propRecord );
-        db.shutdown();
-
         ConsistencyCheckService.Result result = checkConsistency();
         assertFalse( result.isSuccessful() );
     }

@@ -64,7 +64,7 @@ public class ToFileStoreWriter implements StoreWriter
         try
         {
             temporaryBuffer.clear();
-            File file = new File( basePath, path );
+            File file = new File( basePath, normalizeRelativePath( path ) );
             file.getParentFile().mkdirs();
 
             String fullFilePath = file.toString();
@@ -85,6 +85,17 @@ public class ToFileStoreWriter implements StoreWriter
         {
             throw new IOException( t );
         }
+    }
+
+    private String normalizeRelativePath( String path )
+    {
+        String normalizedPath = path.replace( '\\', '/' );
+        String databasePrefix = basePath.getName() + "/";
+        if ( normalizedPath.startsWith( databasePrefix ) )
+        {
+            return normalizedPath.substring( databasePrefix.length() );
+        }
+        return normalizedPath;
     }
 
     private long writeDataThroughFileSystem( File file, ReadableByteChannel data, ByteBuffer temporaryBuffer,
