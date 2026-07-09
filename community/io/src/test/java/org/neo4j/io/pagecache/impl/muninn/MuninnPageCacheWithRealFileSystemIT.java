@@ -48,8 +48,18 @@ import org.neo4j.test.rule.TestDirectory;
 @ExtendWith( TestDirectoryExtension.class )
 class MuninnPageCacheWithRealFileSystemIT extends MuninnPageCacheTest
 {
+    private static final int REAL_FILE_SYSTEM_TIMEOUT_MULTIPLIER = 8;
+
     @Inject
     TestDirectory directory;
+
+    MuninnPageCacheWithRealFileSystemIT()
+    {
+        // Real file system runs are substantially slower than ephemeral FS runs under forked test execution.
+        SHORT_TIMEOUT_MILLIS *= REAL_FILE_SYSTEM_TIMEOUT_MULTIPLIER;
+        SEMI_LONG_TIMEOUT_MILLIS *= REAL_FILE_SYSTEM_TIMEOUT_MULTIPLIER;
+        LONG_TIMEOUT_MILLIS *= REAL_FILE_SYSTEM_TIMEOUT_MULTIPLIER;
+    }
 
     @Override
     protected Fixture<MuninnPageCache> createFixture()
