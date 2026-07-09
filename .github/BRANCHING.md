@@ -72,10 +72,11 @@ Do **not** restrict the environment to tags-only if you want `workflow_dispatch`
 
 Also in the GitHub UI:
 
-- Environment **`release`** → **Required reviewers** (at least one maintainer).
 - Confirm repository visibility remains **Public** (free standard runners on all branches).
 - Settings → Actions → General: allow GitHub-hosted runners; leave larger runners disabled / budget **$0**.
 - Organization → Billing → Budgets: set an Actions spend alert/budget so accidental larger-runner use cannot surprise-bill.
+
+**Nightly cron:** GitHub only schedules workflows from the repository **default** branch (currently `1.0`). `nightly.yml` is therefore also committed on `1.0`; the job always checks out `1.1-dev` for the build. `workflow_dispatch` works from any branch that contains the file.
 
 ## Tag discipline
 
