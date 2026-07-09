@@ -1,0 +1,62 @@
+# Free full-reactor CI for public 1.1-dev.
+# Uploads ci-snapshot-* artifacts for debugging — never creates a GitHub Release.
+#
+# Note: GitHub only schedules workflows from the repository *default* branch.
+# Keep this file on the default branch (or rely on workflow_dispatch) so cron fires;
+# the job always checks out ref 1.1-dev for the build.
+
+name: Nightly full reactor
+
+on:
+  schedule:
+    # 06:00 UTC daily (requires this workflow on the repo default branch)
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: nightly-${{ github.repository }}-1.1-dev
+  cancel-in-progress: false
+
+env:
+  MAVEN_OPTS: -Xmx4g
+  JAVA_TOOL_OPTIONS: -Dfile.encoding=UTF-8
+
+jobs:
+  full-reactor:
+    if: github.repository == 'graphfoundation/ongdb'
+    runs-on: ubuntu-latest
+    timeout-minutes: 480
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 1.1-dev
+      - name: Raise open file limit
+        run: ulimit -n 40000 && ulimit -n
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: temurin
+          cache: maven
+      - name: Full reactor clean install
+        run: mvn -B -Drevapi.skip=true clean install
+      - name: Upload CI snapshot distributions
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-snapshot-ongdb-1.1-dev-${{ github.run_id }}
+          path: |
+            packaging/standalone/target/ongdb-community-*-unix.tar.gz
+            packaging/standalone/target/ongdb-enterprise-*-unix.tar.gz
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-test-reports-${{ github.run_id }}
+          path: |
+            **/target/surefire-reports/**
+            **/target/failsafe-reports/**
+          if-no-files-found: ignore
+          retention-days: 14
