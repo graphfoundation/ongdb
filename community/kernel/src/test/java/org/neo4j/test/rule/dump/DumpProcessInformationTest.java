@@ -61,6 +61,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeThat;
 import static org.junit.Assume.assumeTrue;
 import static org.neo4j.helpers.collection.Iterators.asSet;
@@ -113,12 +114,19 @@ public class DumpProcessInformationTest
         assumeThat( pids.size(), greaterThan( 0 ) );
 
         Pair<Long, String> pid = Iterables.single( pids );
-        File threaddumpFile = dumper.doThreadDump( pid );
-        process.destroy();
+        try
+        {
+            assumeJstackAttachAllowed( process, pid );
+            File threaddumpFile = dumper.doThreadDump( pid );
 
-        // THEN
-        // the produced thread dump should contain that expected method at least
-        assertTrue( fileContains( threaddumpFile, "traceableMethod", DumpableProcess.class.getName() ) );
+            // THEN
+            // the produced thread dump should contain that expected method at least
+            assertTrue( fileContains( threaddumpFile, "traceableMethod", DumpableProcess.class.getName() ) );
+        }
+        finally
+        {
+            process.destroy();
+        }
     }
 
     private static boolean fileContains( File file, String... expectedStrings ) throws IOException
@@ -142,5 +150,32 @@ public class DumpProcessInformationTest
             }
             // We got signal, great
         }
+    }
+
+    private static void assumeJstackAttachAllowed( Process targetProcess, Pair<Long, String> pid ) throws Exception
+    {
+        Process process = new ProcessBuilder( "jstack", String.valueOf( pid.first() ) )
+                .redirectErrorStream( true )
+                .start();
+        StringBuilder output = new StringBuilder();
+        try ( BufferedReader reader = new BufferedReader( new InputStreamReader( process.getInputStream() ) ) )
+        {
+            String line;
+            while ( (line = reader.readLine()) != null )
+            {
+                output.append( line ).append( '\n' );
+            }
+        }
+        int exitCode = process.waitFor();
+        assumeFalse( "jstack attach denied by sandbox policy (Operation not permitted)",
+                exitCode != 0 && targetProcess.isAlive() && isJstackAttachDenied( output.toString() ) );
+    }
+
+    private static boolean isJstackAttachDenied( String processOutput )
+    {
+        String lowerCaseOutput = processOutput.toLowerCase();
+        return lowerCaseOutput.contains( "operation not permitted" ) ||
+               lowerCaseOutput.contains( "permission denied" ) ||
+               lowerCaseOutput.contains( "unable to open socket file" );
     }
 }

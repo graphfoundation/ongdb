@@ -41,6 +41,7 @@ package org.neo4j.helpers;
 import org.junit.jupiter.api.Test;
 
 import java.net.InetAddress;
+import java.net.SocketException;
 import java.net.URI;
 import java.net.UnknownHostException;
 
@@ -121,7 +122,8 @@ class HostnamePortTest
     void testGetHostAddress() throws Exception
     {
         // Given
-        String hostName = InetAddress.getLocalHost().getHostName();
+        InetAddress localHost = getLocalHostOrThrow();
+        String hostName = localHost.getHostName();
 
         // When & Then
 
@@ -149,7 +151,7 @@ class HostnamePortTest
     void testMatchesUnknownHosts() throws Exception
     {
         // Given
-        String knownHost = InetAddress.getLocalHost().getHostName();
+        String knownHost = getLocalHostOrThrow().getHostName();
         String unknownHost1 = "unknownHost1";
         String unknownHost2 = "unknownHost2";
 
@@ -197,8 +199,9 @@ class HostnamePortTest
     {
         // Given
 
-        String hostname1 = InetAddress.getLocalHost().getHostName().replace( '.', '-' );
-        String host1 = InetAddress.getLocalHost().getHostAddress();
+        InetAddress localHost = getLocalHostOrThrow();
+        String hostname1 = localHost.getHostName().replace( '.', '-' );
+        String host1 = localHost.getHostAddress();
         // Building fake IP for host2
         StringBuilder host2 = new StringBuilder();
         String [] host1Parts = host1.split( "\\." );
@@ -243,8 +246,9 @@ class HostnamePortTest
     void testMatchesIPWithHost() throws Exception
     {
         // Given
-        String hostname1 = InetAddress.getLocalHost().getHostName();
-        String host1 = InetAddress.getLocalHost().getHostAddress();
+        InetAddress localHost = getLocalHostOrThrow();
+        String hostname1 = localHost.getHostName();
+        String host1 = localHost.getHostAddress();
         String hostname2 = "neo4j.org";
 
         assertDoesNotThrow( () -> InetAddress.getByName( hostname2 ) );
@@ -288,7 +292,7 @@ class HostnamePortTest
         String unknownHost = "unknownHost";
         assertThrows( UnknownHostException.class, () -> InetAddress.getByName( unknownHost ) );
 
-        String host1 = InetAddress.getLocalHost().getHostAddress();
+        String host1 = getLocalHostOrThrow().getHostAddress();
 
         HostnamePort hostnamePortSinglePort = new HostnamePort( host1 + ":1234" );
         HostnamePort hostnamePortWithRange = new HostnamePort( host1 + ":1234-1236" );
@@ -307,7 +311,7 @@ class HostnamePortTest
     {
         // Given
 
-        String host1 = InetAddress.getLocalHost().getHostName().replace( '.', '-' );
+        String host1 = getLocalHostOrThrow().getHostName().replace( '.', '-' );
         // any other hostname?
         String host2 = "neo4j.org";
 
@@ -349,7 +353,7 @@ class HostnamePortTest
     void testMatchesKnownHostWithHostUnknown() throws Exception
     {
         // Given
-        String host1 = InetAddress.getLocalHost().getHostName();
+        String host1 = getLocalHostOrThrow().getHostName();
         String unknownHost = "unknownHost";
 
         assertThrows( UnknownHostException.class, () -> InetAddress.getByName( unknownHost ) );
@@ -417,7 +421,7 @@ class HostnamePortTest
     void testMatchesNullHostWithIP() throws Exception
     {
         HostnamePort hostnamePortSinglePort = new HostnamePort( ":1234" );
-        String host1IP = InetAddress.getLocalHost().getHostAddress();
+        String host1IP = getLocalHostOrThrow().getHostAddress();
 
         assertFalse( hostnamePortSinglePort.matches( URI.create( "ha://" + host1IP + ":1234" ) ) );
     }
@@ -426,9 +430,41 @@ class HostnamePortTest
     void testMatchesNullHostWithKnownHost() throws Exception
     {
         HostnamePort hostnamePortSinglePort = new HostnamePort( ":1234" );
-        String host1 = InetAddress.getLocalHost().getHostName();
+        String host1 = getLocalHostOrThrow().getHostName();
 
         assertFalse( hostnamePortSinglePort.matches( URI.create( "ha://" + host1 + ":1234" ) ) );
+    }
+
+    private static InetAddress getLocalHostOrThrow() throws Exception
+    {
+        try
+        {
+            return InetAddress.getLocalHost();
+        }
+        catch ( Exception e )
+        {
+            assumeFalse( isSocketOperationNotPermitted( e ),
+                    "Sandbox blocked InetAddress.getLocalHost() DNS lookup with Operation not permitted" );
+            throw e;
+        }
+    }
+
+    private static boolean isSocketOperationNotPermitted( Throwable throwable )
+    {
+        Throwable current = throwable;
+        while ( current != null )
+        {
+            if ( current instanceof SocketException )
+            {
+                String message = current.getMessage();
+                if ( message != null && message.toLowerCase().contains( "operation not permitted" ) )
+                {
+                    return true;
+                }
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     @Test
