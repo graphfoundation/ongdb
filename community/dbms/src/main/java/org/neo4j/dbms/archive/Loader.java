@@ -39,7 +39,6 @@
 package org.neo4j.dbms.archive;
 
 import org.apache.commons.compress.archivers.ArchiveEntry;
-import org.apache.commons.compress.archivers.ArchiveInputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 
@@ -67,7 +66,7 @@ public class Loader
         createDestination( databaseDestination );
         createDestination( transactionLogsDirectory );
 
-        try ( ArchiveInputStream stream = openArchiveIn( archive ) )
+        try ( TarArchiveInputStream stream = openArchiveIn( archive ) )
         {
             ArchiveEntry entry;
             while ( (entry = nextEntry( stream, archive )) != null )
@@ -103,7 +102,7 @@ public class Loader
                                                                                            : databaseDestination;
     }
 
-    private ArchiveEntry nextEntry( ArchiveInputStream stream, Path archive ) throws IncorrectFormat
+    private ArchiveEntry nextEntry( TarArchiveInputStream stream, Path archive ) throws IncorrectFormat
     {
         try
         {
@@ -115,7 +114,7 @@ public class Loader
         }
     }
 
-    private void loadEntry( Path destination, ArchiveInputStream stream, ArchiveEntry entry ) throws IOException
+    private void loadEntry( Path destination, TarArchiveInputStream stream, ArchiveEntry entry ) throws IOException
     {
         Path file = destination.resolve( entry.getName() );
         if ( !file.normalize().startsWith( destination ) )
@@ -136,7 +135,7 @@ public class Loader
         }
     }
 
-    private static ArchiveInputStream openArchiveIn( Path archive ) throws IOException, IncorrectFormat
+    private static TarArchiveInputStream openArchiveIn( Path archive ) throws IOException, IncorrectFormat
     {
         InputStream input = Files.newInputStream( archive );
         GzipCompressorInputStream compressor;

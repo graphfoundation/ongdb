@@ -38,8 +38,7 @@
  */
 package org.neo4j.dbms.archive;
 
-import org.apache.commons.compress.archivers.ArchiveEntry;
-import org.apache.commons.compress.archivers.ArchiveOutputStream;
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 
@@ -69,7 +68,7 @@ public class Dumper
             throws IOException
     {
         checkWritableDirectory( archive.getParent() );
-        try ( ArchiveOutputStream stream = openArchiveOut( archive ) )
+        try ( TarArchiveOutputStream stream = openArchiveOut( archive ) )
         {
             visitPath( dbPath, exclude, stream );
             if ( !Util.isSameOrChildPath( dbPath, transactionalLogsPath ) )
@@ -79,7 +78,7 @@ public class Dumper
         }
     }
 
-    private void visitPath( Path transactionalLogsPath, Predicate<Path> exclude, ArchiveOutputStream stream )
+    private void visitPath( Path transactionalLogsPath, Predicate<Path> exclude, TarArchiveOutputStream stream )
             throws IOException
     {
         Files.walkFileTree( transactionalLogsPath,
@@ -90,7 +89,7 @@ public class Dumper
                                                 justContinue() ) ) ) ) );
     }
 
-    private static ArchiveOutputStream openArchiveOut( Path archive ) throws IOException
+    private static TarArchiveOutputStream openArchiveOut( Path archive ) throws IOException
     {
         // StandardOpenOption.CREATE_NEW is important here because it atomically asserts that the file doesn't
         // exist as it is opened, avoiding a TOCTOU race condition which results in a security vulnerability. I
@@ -104,31 +103,31 @@ public class Dumper
         return tarball;
     }
 
-    private void dumpFile( Path root, ArchiveOutputStream stream, Path file ) throws IOException
+    private void dumpFile( Path root, TarArchiveOutputStream stream, Path file ) throws IOException
     {
         withEntry( () -> writeFile( file, stream ), root, stream, file );
     }
 
-    private void dumpDirectory( Path root, ArchiveOutputStream stream, Path dir ) throws IOException
+    private void dumpDirectory( Path root, TarArchiveOutputStream stream, Path dir ) throws IOException
     {
         withEntry( noop(), root, stream, dir );
     }
 
-    private void withEntry( ThrowingAction<IOException> operation, Path root, ArchiveOutputStream stream, Path file )
+    private void withEntry( ThrowingAction<IOException> operation, Path root, TarArchiveOutputStream stream, Path file )
             throws IOException
     {
-        ArchiveEntry entry = createEntry( file, root, stream );
+        TarArchiveEntry entry = createEntry( file, root, stream );
         stream.putArchiveEntry( entry );
         operation.apply();
         stream.closeArchiveEntry();
     }
 
-    private ArchiveEntry createEntry( Path file, Path root, ArchiveOutputStream archive ) throws IOException
+    private TarArchiveEntry createEntry( Path file, Path root, TarArchiveOutputStream archive ) throws IOException
     {
         return archive.createArchiveEntry( file.toFile(), "./" + root.relativize( file ).toString() );
     }
 
-    private void writeFile( Path file, ArchiveOutputStream archiveStream ) throws IOException
+    private void writeFile( Path file, TarArchiveOutputStream archiveStream ) throws IOException
     {
         try ( InputStream in = Files.newInputStream( file ) )
         {
