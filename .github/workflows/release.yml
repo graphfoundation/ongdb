@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing tag to build (must be on origin/1.1), e.g. 1.1.0
+        description: Existing tag to build (must be on origin/1.1), e.g. 1.1.0.rc01
         required: true
         type: string
 
