@@ -52,6 +52,7 @@ import org.neo4j.cluster.member.paxos.MemberIsAvailable;
 import org.neo4j.cluster.protocol.atomicbroadcast.AtomicBroadcastSerializer;
 import org.neo4j.cluster.protocol.atomicbroadcast.ObjectStreamFactory;
 import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.factory.TestHighlyAvailableGraphDatabaseFactory;
 import org.neo4j.kernel.configuration.Settings;
@@ -165,10 +166,11 @@ public class HardKillIT
 
     private long getNamedNode( HighlyAvailableGraphDatabase db, String name )
     {
-        try ( Transaction transaction = db.beginTx() )
+        try ( Transaction transaction = db.beginTx(); ResourceIterator<Node> nodes = db.getAllNodes().iterator() )
         {
-            for ( Node node : db.getAllNodes() )
+            while ( nodes.hasNext() )
             {
+                Node node = nodes.next();
                 if ( name.equals( node.getProperty( "name", null ) ) )
                 {
                     return node.getId();
