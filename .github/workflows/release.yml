@@ -1,6 +1,8 @@
 # Audited release build for public graphfoundation/ongdb.
 # Requires: tag 1.1.* whose commit is on origin/1.1, plus Environment "release" approval.
-# See .github/BRANCHING.md
+# Secrets (Environment release): OSSRH_USERNAME, OSSRH_PASSWORD, GPG_PRIVATE_KEY,
+#   GPG_PASSPHRASE, GPG_KEYNAME
+# See .github/BRANCHING.md and ongdb-dev/ongdb-11/RELEASE.md
 
 name: Release artifacts
 
@@ -31,7 +33,7 @@ jobs:
     outputs:
       version: ${{ steps.meta.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
@@ -68,20 +70,77 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
       - name: Raise open file limit
         run: ulimit -n 40000 && ulimit -n
+
+      - name: Import GPG signing key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
       - name: Set up JDK 8
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '8'
           distribution: temurin
           cache: maven
-      - name: Full reactor clean install
-        run: mvn -B -Drevapi.skip=true clean install
+
+      - name: Write Maven settings for Sonatype
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.m2"
+          cat > "$HOME/.m2/settings.xml" <<EOF
+          <settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0 https://maven.apache.org/xsd/settings-1.2.0.xsd">
+            <servers>
+              <server>
+                <id>graphfoundation-releases</id>
+                <username>${{ secrets.OSSRH_USERNAME }}</username>
+                <password>${{ secrets.OSSRH_PASSWORD }}</password>
+              </server>
+              <server>
+                <id>graphfoundation-snapshots</id>
+                <username>${{ secrets.OSSRH_USERNAME }}</username>
+                <password>${{ secrets.OSSRH_PASSWORD }}</password>
+              </server>
+            </servers>
+          </settings>
+          EOF
+
+      - name: Verify POM version matches tag (non-SNAPSHOT)
+        env:
+          EXPECTED_VERSION: ${{ needs.verify-release-ref.outputs.version }}
+        run: |
+          set -euo pipefail
+          POM_VERSION="$(mvn -B -q -DforceStdout help:evaluate -Dexpression=project.version -Dtycho.mode=maven)"
+          echo "POM version=${POM_VERSION} tag=${EXPECTED_VERSION}"
+          if [[ "$POM_VERSION" == *-SNAPSHOT ]]; then
+            echo "Refuse to release a SNAPSHOT POM. Run versions:set before tagging." >&2
+            exit 1
+          fi
+          if [[ "$POM_VERSION" != "$EXPECTED_VERSION" ]]; then
+            echo "POM version ($POM_VERSION) does not match tag ($EXPECTED_VERSION)." >&2
+            exit 1
+          fi
+
+      - name: Maven deploy (release-public, skip revapi)
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GPG_KEYNAME: ${{ secrets.GPG_KEYNAME }}
+        run: |
+          set -euo pipefail
+          mvn -B -Prelease-public -Drevapi.skip=true \
+            -Dgpg.keyname="${GPG_KEYNAME}" \
+            -Dgpg.passphrase="${GPG_PASSPHRASE}" \
+            clean deploy
+
       - name: Locate distribution tarballs
         id: dist
         run: |
@@ -91,12 +150,14 @@ jobs:
           echo "community=$COMMUNITY" >> "$GITHUB_OUTPUT"
           echo "enterprise=$ENTERPRISE" >> "$GITHUB_OUTPUT"
           ls -lh packaging/standalone/target/ongdb-*-unix.tar.gz
+
       - name: Tarball smoke (enterprise)
         run: |
           chmod +x .github/scripts/tarball-smoke.sh
           .github/scripts/tarball-smoke.sh "${{ steps.dist.outputs.enterprise }}"
+
       - name: Upload release artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ongdb-${{ needs.verify-release-ref.outputs.version }}
           path: |
@@ -106,6 +167,7 @@ jobs:
             packaging/standalone/target/ongdb-enterprise-*-windows.zip
           if-no-files-found: error
           retention-days: 90
+
       - name: Create GitHub Release and attach assets
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
@@ -120,9 +182,16 @@ jobs:
             packaging/standalone/target/ongdb-enterprise-*-windows.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Reminder — close Sonatype staging
+        run: |
+          echo "Deploy used skipStagingRepositoryClose=true."
+          echo "Close and Release the staging repository in OSSRH/Central UI for org.graphfoundation.ongdb."
+          echo "Then CDN publish + docker-ongdb-publish (see ongdb-dev/ongdb-11/RELEASE.md)."
+
       - name: Upload test reports on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: release-test-reports-${{ needs.verify-release-ref.outputs.version }}
           path: |
