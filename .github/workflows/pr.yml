@@ -33,7 +33,8 @@ jobs:
           distribution: temurin
           cache: maven
       - name: Compile and unit tests
-        run: mvn -B -Drevapi.skip=true -DskipCypher clean test
+        # install (not test) so reactor modules publish test-jars needed by later modules
+        run: mvn -B -Drevapi.skip=true clean install
       - name: Upload test reports on failure
         if: failure()
         uses: actions/upload-artifact@v4

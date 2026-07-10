@@ -40,6 +40,7 @@ package org.neo4j.bolt.testing;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import org.neo4j.bolt.runtime.BoltResponseHandler;
 import org.neo4j.bolt.runtime.BoltResult;
@@ -128,8 +129,13 @@ public class BoltResponseRecorder implements BoltResponseHandler
 
     public RecordedBoltResponse nextResponse() throws InterruptedException
     {
-        RecordedBoltResponse response = responses.poll( 3, SECONDS );
-        assertNotNull( "No message arrived after 3s", response );
+        return nextResponse( 3, SECONDS );
+    }
+
+    public RecordedBoltResponse nextResponse( long timeout, TimeUnit unit ) throws InterruptedException
+    {
+        RecordedBoltResponse response = responses.poll( timeout, unit );
+        assertNotNull( "No message arrived after " + timeout + " " + unit.toString().toLowerCase(), response );
         return response;
     }
 

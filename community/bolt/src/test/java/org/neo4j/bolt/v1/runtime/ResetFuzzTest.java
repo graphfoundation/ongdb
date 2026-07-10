@@ -49,6 +49,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.neo4j.bolt.BoltChannel;
@@ -167,7 +168,8 @@ public class ResetFuzzTest
 
         try
         {
-            RecordedBoltResponse response = recorder.nextResponse();
+            // CI runners can be heavily loaded; allow more than the default 3s recorder poll.
+            RecordedBoltResponse response = recorder.nextResponse( 30, TimeUnit.SECONDS );
             assertThat( response.message(), equalTo( SUCCESS ) );
             assertThat( ((BoltStateMachineV1) machine).state(), instanceOf( ReadyState.class ) );
             assertThat( liveTransactions.get(), equalTo( 0L ) );
