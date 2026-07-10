@@ -1,4 +1,4 @@
-= ONgDB: Graphs for the People! =
+= ONgDB: Context Graphs for AI =
 
 == What is ONgDB?  ==
 
