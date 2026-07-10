@@ -65,7 +65,7 @@ jobs:
           echo "ref=${ref}" >> "$GITHUB_OUTPUT"
           echo "Selected ref: ${ref}"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ steps.target.outputs.ref }}
@@ -87,7 +87,7 @@ jobs:
           echo "Using Java ${java_version}"
 
       - name: Set up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: ${{ steps.java.outputs.version }}
           distribution: temurin
@@ -100,7 +100,7 @@ jobs:
 
       - name: Upload full-reactor artifacts and logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: full-reactor-${{ steps.target.outputs.ref }}-${{ github.run_id }}
           path: |
