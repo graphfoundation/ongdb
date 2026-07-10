@@ -294,7 +294,9 @@ public class InProcessBuilderTestIT
         {
             Throwable cause = rte.getCause();
             assertTrue( cause instanceof IOException );
-            assertTrue( cause.getMessage().contains( "exists but is not a directory" ) );
+            // commons-io < 2.15: "exists but is not a directory"
+            // commons-io >= 2.15: "Parameter 'srcDir' is not a directory: ..."
+            assertTrue( cause.getMessage().contains( "is not a directory" ) );
         }
 
     }
