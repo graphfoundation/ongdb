@@ -1,24 +1,23 @@
 #!/usr/bin/env bash
-# Apply branch protection and release environment for graphfoundation/ongdb.
-# Requires: gh auth with admin on the repo (gh auth refresh -h github.com).
+# Apply branch protection for release vs dev lines on graphfoundation/ongdb.
+# Requires: gh auth with admin on the repo.
 set -euo pipefail
 
 REPO="${REPO:-graphfoundation/ongdb}"
-BRANCH="${RELEASE_BRANCH:-1.1}"
+REVIEWER_LOGIN="${RELEASE_REVIEWER:-$(gh api user --jq .login)}"
+REVIEWER_ID="$(gh api "users/${REVIEWER_LOGIN}" --jq .id)"
 
-echo "Applying settings to ${REPO} (release branch ${BRANCH})"
+echo "Applying settings to ${REPO}"
 gh api user --jq .login >/dev/null
 
-gh api -X PUT "repos/${REPO}/branches/${BRANCH}/protection" --input - <<EOF
+protect_release() {
+  local branch="$1"
+  echo "Release protection: ${branch} (require full-reactor)"
+  gh api -X PUT "repos/${REPO}/branches/${branch}/protection" --input - <<EOF
 {
   "required_status_checks": {
     "strict": true,
-    "contexts": [
-      "compile-unit",
-      "community-gate",
-      "enterprise-security",
-      "enterprise-backup"
-    ]
+    "contexts": ["full-reactor"]
   },
   "enforce_admins": true,
   "required_pull_request_reviews": {
@@ -32,10 +31,33 @@ gh api -X PUT "repos/${REPO}/branches/${BRANCH}/protection" --input - <<EOF
   "required_conversation_resolution": true
 }
 EOF
-echo "Branch protection applied on ${BRANCH}"
+}
 
-REVIEWER_LOGIN="${RELEASE_REVIEWER:-$(gh api user --jq .login)}"
-REVIEWER_ID="$(gh api "users/${REVIEWER_LOGIN}" --jq .id)"
+protect_dev() {
+  local branch="$1"
+  echo "Dev protection: ${branch} (require dev-quality-gate)"
+  gh api -X PUT "repos/${REPO}/branches/${branch}/protection" --input - <<EOF
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["dev-quality-gate"]
+  },
+  "enforce_admins": false,
+  "required_pull_request_reviews": null,
+  "restrictions": null,
+  "allow_force_pushes": false,
+  "allow_deletions": false
+}
+EOF
+}
+
+for b in 1.0 1.1 2.0; do
+  protect_release "$b" || echo "WARN: could not protect ${b} (branch missing?)"
+done
+
+for b in 1.0-dev 1.1-dev 2.0-dev; do
+  protect_dev "$b" || echo "WARN: could not protect ${b} (branch missing?)"
+done
 
 gh api -X PUT "repos/${REPO}/environments/release" --input - <<EOF
 {
@@ -47,10 +69,7 @@ gh api -X PUT "repos/${REPO}/environments/release" --input - <<EOF
   "deployment_branch_policy": null
 }
 EOF
-echo "Environment 'release' created/updated with required reviewer @${REVIEWER_LOGIN}."
+echo "Environment 'release' ensured with reviewer @${REVIEWER_LOGIN}."
 echo
-echo "Manual steps remaining in GitHub UI:"
-echo "  1. Org Billing → Budgets → Actions spend alert (larger runners \$0)"
-echo "  2. Confirm ${REPO} is Public"
-echo "  3. Ensure nightly.yml exists on the repository default branch (for cron),"
-echo "     or use workflow_dispatch; job checks out 1.1-dev either way."
+echo "Manual: Org Billing → Actions spend budget (larger runners \$0)."
+echo "Ensure nightly.yml + full-reactor-public.yml exist on each release line (or default branch)."

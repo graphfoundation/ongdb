@@ -1,5 +1,6 @@
-# Public full-reactor CI for release/dev release lines.
-# Requires no custom secrets (uses only default GITHUB_TOKEN read access).
+# Full-reactor CI — required on release lines (1.0, 1.1, 2.0).
+# Also runs on pushes to those branches. Dev lines use pr-dev.yml instead.
+# See ongdb-dev/ongdb-11/CI-BRANCH-STRATEGY.md
 
 name: Public full reactor
 
@@ -7,27 +8,13 @@ on:
   push:
     branches:
       - '1.0'
-      - '1.0-dev'
       - '1.1'
-      - '1.1-dev'
       - '2.0'
-      - '2.0-dev'
-      - '1.*'
-      - '1.*-dev'
-      - '2.*'
-      - '2.*-dev'
   pull_request:
     branches:
       - '1.0'
-      - '1.0-dev'
       - '1.1'
-      - '1.1-dev'
       - '2.0'
-      - '2.0-dev'
-      - '1.*'
-      - '1.*-dev'
-      - '2.*'
-      - '2.*-dev'
   workflow_dispatch:
     inputs:
       branch:

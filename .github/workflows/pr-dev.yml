@@ -1,0 +1,100 @@
+# Dev-branch PR / push gate: module-aware verify (changed + upstream + downstream).
+# Required check name: dev-quality-gate
+# Release lines use full-reactor-public.yml instead — see CI-BRANCH-STRATEGY.md
+
+name: Dev quality gate
+
+on:
+  push:
+    branches: ['1.0-dev', '1.1-dev', '2.0-dev', '*-dev']
+  pull_request:
+    branches: ['1.0-dev', '1.1-dev', '2.0-dev', '*-dev']
+
+concurrency:
+  group: pr-dev-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MAVEN_OPTS: -Xmx4g
+  JAVA_TOOL_OPTIONS: -Dfile.encoding=UTF-8
+
+jobs:
+  select:
+    if: github.repository == 'graphfoundation/ongdb'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      mode: ${{ steps.mods.outputs.mode }}
+      modules: ${{ steps.mods.outputs.modules }}
+      java: ${{ steps.java.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Resolve Java version
+        id: java
+        run: |
+          set -euo pipefail
+          ref="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
+          case "$ref" in
+            2.*|2.*-dev) echo "version=11" >> "$GITHUB_OUTPUT" ;;
+            *) echo "version=8" >> "$GITHUB_OUTPUT" ;;
+          esac
+      - name: Detect affected Maven modules
+        id: mods
+        run: |
+          set -euo pipefail
+          chmod +x .github/scripts/changed-maven-modules.sh
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE="origin/${{ github.base_ref }}"
+            git fetch origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}" || true
+          else
+            BASE="${{ github.event.before }}"
+            if [[ -z "$BASE" || "$BASE" =~ ^0+$ ]]; then
+              BASE="HEAD~1"
+            fi
+          fi
+          .github/scripts/changed-maven-modules.sh "$BASE"
+
+  dev-quality-gate:
+    if: github.repository == 'graphfoundation/ongdb'
+    needs: select
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Raise open file limit
+        run: ulimit -n 40000 && ulimit -n
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ needs.select.outputs.java }}
+          distribution: temurin
+          cache: maven
+      - name: Docs-only — skip Maven
+        if: needs.select.outputs.mode == 'skip'
+        run: echo "No build-impacting paths changed; skipping Maven."
+      - name: Affected modules verify (-pl -am -amd)
+        if: needs.select.outputs.mode == 'affected'
+        run: |
+          set -euo pipefail
+          echo "Affected modules: ${{ needs.select.outputs.modules }}"
+          mvn -B -Drevapi.skip=true \
+            -pl "${{ needs.select.outputs.modules }}" \
+            -am -amd \
+            verify
+      - name: Full reactor (root/CI change or large blast radius)
+        if: needs.select.outputs.mode == 'full'
+        run: mvn -B -Drevapi.skip=true clean install
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: dev-quality-gate-reports-${{ github.run_id }}
+          path: |
+            **/target/surefire-reports/**
+            **/target/failsafe-reports/**
+          if-no-files-found: ignore
+          retention-days: 7
