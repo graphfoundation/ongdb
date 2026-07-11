@@ -39,7 +39,9 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -48,9 +50,14 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;
+import io.netty.util.concurrent.DefaultPromise;
 import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GlobalEventExecutor;
+import io.netty.util.concurrent.Promise;
 
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLException;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.Matchers.equalTo;
@@ -59,19 +66,32 @@ import static org.neo4j.test.assertion.Assert.assertEventually;
 public class SecureClient
 {
     private Bootstrap bootstrap;
-    private ClientInitializer clientInitializer;
+    private ContextClientInitializer contextClientInitializer;
     private NioEventLoopGroup eventLoopGroup;
     private Channel channel;
     private Bucket bucket = new Bucket();
 
+    private String protocol;
+    private String ciphers;
+    private Promise<Channel> policyHandshakePromise;
+
     public SecureClient( SslContext sslContext )
     {
         eventLoopGroup = new NioEventLoopGroup();
-        clientInitializer = new ClientInitializer( sslContext, bucket );
+        contextClientInitializer = new ContextClientInitializer( sslContext, bucket );
         bootstrap = new Bootstrap()
                 .group( eventLoopGroup )
                 .channel( NioSocketChannel.class )
-                .handler( clientInitializer );
+                .handler( contextClientInitializer );
+    }
+
+    public SecureClient( SslPolicy sslPolicy ) throws SSLException
+    {
+        eventLoopGroup = new NioEventLoopGroup();
+        policyHandshakePromise = new DefaultPromise<>( GlobalEventExecutor.INSTANCE );
+        bootstrap = new Bootstrap().group( eventLoopGroup )
+                .channel( NioSocketChannel.class )
+                .handler( new PolicyClientInitializer( sslPolicy, bucket ) );
     }
 
     public void connect( int port )
@@ -107,17 +127,37 @@ public class SecureClient
 
     public Future<Channel> sslHandshakeFuture()
     {
-        return clientInitializer.handshakeFuture;
+        if ( policyHandshakePromise != null )
+        {
+            return policyHandshakePromise;
+        }
+        return contextClientInitializer.handshakeFuture;
     }
 
     public String ciphers()
     {
-        return clientInitializer.sslEngine.getSession().getCipherSuite();
+        if ( policyHandshakePromise != null )
+        {
+            if ( ciphers == null )
+            {
+                throw new IllegalStateException( "Handshake must have been completed" );
+            }
+            return ciphers;
+        }
+        return contextClientInitializer.sslEngine.getSession().getCipherSuite();
     }
 
     public String protocol()
     {
-        return clientInitializer.sslEngine.getSession().getProtocol();
+        if ( policyHandshakePromise != null )
+        {
+            if ( protocol == null )
+            {
+                throw new IllegalStateException( "Handshake must have been completed" );
+            }
+            return protocol;
+        }
+        return contextClientInitializer.sslEngine.getSession().getProtocol();
     }
 
     static class Bucket extends SimpleChannelInboundHandler<ByteBuf>
@@ -141,14 +181,14 @@ public class SecureClient
         }
     }
 
-    public static class ClientInitializer extends ChannelInitializer<SocketChannel>
+    public static class ContextClientInitializer extends ChannelInitializer<SocketChannel>
     {
         private SslContext sslContext;
         private final Bucket bucket;
         private Future<Channel> handshakeFuture;
         private SSLEngine sslEngine;
 
-        ClientInitializer( SslContext sslContext, Bucket bucket )
+        ContextClientInitializer( SslContext sslContext, Bucket bucket )
         {
             this.sslContext = sslContext;
             this.bucket = bucket;
@@ -166,6 +206,54 @@ public class SecureClient
             handshakeFuture = sslHandler.handshakeFuture();
 
             pipeline.addLast( sslHandler );
+            pipeline.addLast( bucket );
+        }
+    }
+
+    public class PolicyClientInitializer extends ChannelInitializer<SocketChannel>
+    {
+        private final SslContext sslContext;
+        private final Bucket bucket;
+        private final SslPolicy sslPolicy;
+
+        PolicyClientInitializer( SslPolicy sslPolicy, Bucket bucket ) throws SSLException
+        {
+            this.sslContext = sslPolicy.nettyClientContext();
+            this.bucket = bucket;
+            this.sslPolicy = sslPolicy;
+        }
+
+        @Override
+        protected void initChannel( SocketChannel channel )
+        {
+            ChannelPipeline pipeline = channel.pipeline();
+
+            ChannelHandler clientOnConnectSslHandler = sslPolicy.nettyClientHandler( channel, sslContext );
+
+            pipeline.addLast( clientOnConnectSslHandler );
+            pipeline.addLast( new ChannelInboundHandlerAdapter()
+            {
+                @Override
+                public void userEventTriggered( ChannelHandlerContext ctx, Object evt )
+                {
+                    if ( evt instanceof SslHandlerDetailsRegisteredEvent )
+                    {
+                        SslHandlerDetailsRegisteredEvent details = (SslHandlerDetailsRegisteredEvent) evt;
+                        protocol = details.protocol;
+                        ciphers = details.cipherSuite;
+                        policyHandshakePromise.trySuccess( ctx.channel() );
+                        return;
+                    }
+                    if ( evt instanceof SslHandshakeCompletionEvent )
+                    {
+                        SslHandshakeCompletionEvent handshakeEvent = (SslHandshakeCompletionEvent) evt;
+                        if ( handshakeEvent.cause() != null )
+                        {
+                            policyHandshakePromise.tryFailure( handshakeEvent.cause() );
+                        }
+                    }
+                }
+            } );
             pipeline.addLast( bucket );
         }
     }

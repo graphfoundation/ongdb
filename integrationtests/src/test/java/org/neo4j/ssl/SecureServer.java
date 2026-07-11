@@ -50,6 +50,7 @@ import io.netty.handler.ssl.SslHandler;
 
 import java.net.InetSocketAddress;
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLException;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -64,6 +65,11 @@ public class SecureServer
     public SecureServer( SslContext sslContext )
     {
         this.sslContext = sslContext;
+    }
+
+    public SecureServer( SslPolicy sslPolicy ) throws SSLException
+    {
+        this.sslContext = sslPolicy.nettyServerContext();
     }
 
     public void start()
