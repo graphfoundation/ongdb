@@ -27,9 +27,12 @@ Details: ongdb-dev [CI-BRANCH-STRATEGY.md](https://github.com/graphfoundation/on
 
 That script sets:
 
-- Release branches `1.0`, `1.1`, `2.0` → require `full-reactor`
-- Dev branches `1.0-dev`, `1.1-dev`, `2.0-dev` → require `dev-quality-gate`
-- Environment `release` with required reviewer
+- Release / dev branches → required status checks + **1 approving review** for contributors
+- **You** (`bypass_pull_request_allowances`) may merge your own PRs without a second reviewer; others cannot
+- Status checks still apply to you (`enforce_admins: true`)
+- Environment `release` → you can self-approve **deployments** (not the same as PR self-approve)
+
+GitHub has **no** “approve your own PR” option; review bypass is the supported mechanism.
 
 **Nightly cron:** loaded from the repo **default** branch; builds matrix `1.0`, `1.1`, `2.0`.
 
