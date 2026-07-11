@@ -139,6 +139,12 @@ public abstract class AbstractInProcessServerBuilder implements TestServerBuilde
         {
             throw new RuntimeException( e );
         }
+        catch ( IllegalArgumentException e )
+        {
+            // commons-io 2.15+ rejects non-directory sources with IllegalArgumentException
+            // instead of IOException; keep the previous RuntimeException(IOException) contract.
+            throw new RuntimeException( new IOException( e.getMessage(), e ) );
+        }
         return this;
     }
 
