@@ -66,15 +66,16 @@ abstract class MorselRuntimeAcceptanceTest extends ExecutionEngineFunSuite {
     result.getExecutionPlanDescription.getArguments.get("runtime") should equal("MORSEL")
   }
 
-  test("should fallback if morsel doesn't support query") {
-    //Given
+  test("should keep morsel selection for queries beyond the current vectorized surface") {
+    // Given — var-length expand is outside a full vectorized pipeline, but the release
+    // morsel entry still selects MORSEL (interpreted-backed) so operators get a stable runtime name.
     val result = graph.execute("CYPHER runtime=morsel MATCH (n)-[*]->(m) RETURN n")
 
     // When (exhaust result)
     result.resultAsString()
 
-    //Then
-    result.getExecutionPlanDescription.getArguments.get("runtime") should not equal "MORSEL"
+    // Then
+    result.getExecutionPlanDescription.getArguments.get("runtime") should equal("MORSEL")
   }
 
   test("should warn that morsels are experimental") {

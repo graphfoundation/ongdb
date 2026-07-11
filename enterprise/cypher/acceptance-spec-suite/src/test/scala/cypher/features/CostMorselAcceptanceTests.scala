@@ -34,28 +34,23 @@
  */
 package cypher.features
 
-import cypher.features.ScenarioTestHelper.printComputedBlacklist
+import java.util
+
+import cypher.features.ScenarioTestHelper.{createTests, printComputedBlacklist}
 import org.junit.jupiter.api.Assertions.fail
-import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.{Disabled, DynamicTest, TestFactory}
 import org.neo4j.test.TestEnterpriseGraphDatabaseFactory
 
 class CostMorselAcceptanceTests extends EnterpriseBaseAcceptanceTest {
 
   // If you want to only run a specific feature or scenario, go to the BaseAcceptanceTest
 
-  //  @TestFactory
-  //  def runCostMorselSingleThreaded(): util.Collection[DynamicTest] = {
-  //    createTests(scenarios, CostMorselTestConfigSingleThreaded)
-  //  }
-  //
-  //  @TestFactory
-  //  def runCostMorsel(): util.Collection[DynamicTest] = {
-  //    createTests(scenarios, CostMorselTestConfig)
-  //  }
-  // If you want to only run a specific feature or scenario, go to the BaseTCKTests
-  // Note: CostMorselTestConfig was removed from TestConfig.scala in 3.5.2  See: community/cypher/spec-suite-tools/src/test/scala/cypher/features/TestConfig.scala
   case object CostMorselTestConfig extends TestConfig(Some("cost-morsel.txt"), "CYPHER planner=cost runtime=morsel")
 
+  @TestFactory
+  def runCostMorsel(): util.Collection[DynamicTest] = {
+    createTests(scenarios, CostMorselTestConfig, new TestEnterpriseGraphDatabaseFactory())
+  }
 
   @Disabled
   def generateBlacklistTCKTestCostMorsel(): Unit = {

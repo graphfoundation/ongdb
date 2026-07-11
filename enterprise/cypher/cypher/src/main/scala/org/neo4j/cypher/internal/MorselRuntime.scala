@@ -21,14 +21,25 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.compiled.EnterpriseR
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.MorselRuntimeName
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.DelegatingExecutionPlan
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.ExecutionPlan
+import org.neo4j.cypher.internal.compiler.v3_5.ExperimentalFeatureNotification
 import org.neo4j.cypher.internal.compiler.v3_5.phases.LogicalPlanState
+import org.neo4j.cypher.internal.v3_5.util.InternalNotification
 
+/**
+ * Morsel runtime selection entry. Until vectorized pipeline execution is wired on this line,
+ * plans compile through the interpreted path while advertising MORSEL and the experimental warning.
+ */
 object MorselRuntime extends CypherRuntime[EnterpriseRuntimeContext] {
+
+  private val experimentalNotification: Set[InternalNotification] = Set(
+    ExperimentalFeatureNotification(
+      "use the morsel runtime at your own peril, not recommended to be run on production systems"))
 
   override def compileToExecutable(logicalPlan: LogicalPlanState, context: EnterpriseRuntimeContext): ExecutionPlan = {
     val interpretedPlan = InterpretedRuntime.compileToExecutable(logicalPlan, context)
     new DelegatingExecutionPlan(interpretedPlan) {
       override def runtimeName = MorselRuntimeName
+      override def notifications: Set[InternalNotification] = experimentalNotification
     }
   }
 }
