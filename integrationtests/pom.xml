@@ -106,6 +106,13 @@
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-bolt</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>ongdb-enterprise-kernel</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>

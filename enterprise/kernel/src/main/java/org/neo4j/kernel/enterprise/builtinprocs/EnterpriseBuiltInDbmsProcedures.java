@@ -56,10 +56,10 @@ import org.neo4j.internal.kernel.api.security.SecurityContext;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.KernelTransactionHandle;
 import org.neo4j.kernel.api.Statement;
-import org.neo4j.kernel.api.bolt.BoltConnectionTracker;
-import org.neo4j.kernel.api.bolt.ManagedBoltStateMachine;
 import org.neo4j.kernel.api.exceptions.InvalidArgumentsException;
 import org.neo4j.kernel.api.exceptions.Status;
+import org.neo4j.kernel.api.net.NetworkConnectionTracker;
+import org.neo4j.kernel.api.net.TrackedNetworkConnection;
 import org.neo4j.kernel.api.query.ExecutingQuery;
 import org.neo4j.kernel.api.query.QuerySnapshot;
 import org.neo4j.kernel.configuration.Config;
@@ -74,6 +74,7 @@ import org.neo4j.procedure.Name;
 import org.neo4j.procedure.Procedure;
 
 import static java.lang.String.format;
+import static java.util.Collections.singletonList;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
@@ -139,44 +140,58 @@ public class EnterpriseBuiltInDbmsProcedures
                 .getKernelTransactionBoundToThisThread( true );
     }
 
-    /*
-    This surface is hidden in 3.1, to possibly be completely removed or reworked later
-    ==================================================================================
-     */
-    //@Procedure( name = "dbms.terminateTransactionsForUser", mode = DBMS )
-    public Stream<TransactionTerminationResult> terminateTransactionsForUser( @Name( "username" ) String username )
+    @Description( "List all accepted network connections at this instance that are visible to the user." )
+    @Procedure( name = "dbms.listConnections", mode = DBMS )
+    public Stream<ListConnectionResult> listConnections()
     {
-        assertAdminOrSelf( username );
+        securityContext.assertCredentialsNotExpired();
 
-        return terminateTransactionsForValidUser( graph.getDependencyResolver(), username, getCurrentTx() );
-    }
+        NetworkConnectionTracker connectionTracker = getConnectionTracker();
+        ZoneId timeZone = getConfiguredTimeZone();
 
-    //@Procedure( name = "dbms.listConnections", mode = DBMS )
-    public Stream<ConnectionResult> listConnections()
-    {
-        assertAdmin();
-
-        BoltConnectionTracker boltConnectionTracker = getBoltConnectionTracker( graph.getDependencyResolver() );
-        return countConnectionsByUsername(
-            boltConnectionTracker
-                .getActiveConnections()
+        return connectionTracker.activeConnections()
                 .stream()
-                .filter( session -> !session.willTerminate() )
-                .map( ManagedBoltStateMachine::owner )
-        );
+                .filter( connection -> isAdminOrSelf( connection.username() ) )
+                .map( connection -> new ListConnectionResult( connection, timeZone ) );
     }
 
-    //@Procedure( name = "dbms.terminateConnectionsForUser", mode = DBMS )
-    public Stream<ConnectionResult> terminateConnectionsForUser( @Name( "username" ) String username )
+    @Description( "Kill network connection with the given connection id." )
+    @Procedure( name = "dbms.killConnection", mode = DBMS )
+    public Stream<ConnectionTerminationResult> killConnection( @Name( "id" ) String id )
     {
-        assertAdminOrSelf( username );
-
-        return terminateConnectionsForValidUser( graph.getDependencyResolver(), username );
+        return killConnections( singletonList( id ) );
     }
 
-    /*
-    ==================================================================================
-     */
+    @Description( "Kill all network connections with the given connection ids." )
+    @Procedure( name = "dbms.killConnections", mode = DBMS )
+    public Stream<ConnectionTerminationResult> killConnections( @Name( "ids" ) List<String> ids )
+    {
+        securityContext.assertCredentialsNotExpired();
+
+        NetworkConnectionTracker connectionTracker = getConnectionTracker();
+
+        return ids.stream().map( id -> killConnection( id, connectionTracker ) );
+    }
+
+    private NetworkConnectionTracker getConnectionTracker()
+    {
+        return graph.getDependencyResolver().resolveDependency( NetworkConnectionTracker.class );
+    }
+
+    private ConnectionTerminationResult killConnection( String id, NetworkConnectionTracker connectionTracker )
+    {
+        TrackedNetworkConnection connection = connectionTracker.get( id );
+        if ( connection != null )
+        {
+            if ( isAdminOrSelf( connection.username() ) )
+            {
+                connection.close();
+                return new ConnectionTerminationResult( id, connection.username() );
+            }
+            throw new AuthorizationViolationException( PERMISSION_DENIED );
+        }
+        return new ConnectionTerminationFailedResult( id );
+    }
 
     @Description( "List all user functions in the DBMS." )
     @Procedure( name = "dbms.functions", mode = DBMS )
@@ -498,28 +513,9 @@ public class EnterpriseBuiltInDbmsProcedures
         return Stream.of( new TransactionTerminationResult( username, terminatedCount ) );
     }
 
-    public static Stream<ConnectionResult> terminateConnectionsForValidUser(
-            DependencyResolver dependencyResolver, String username )
-    {
-        Long killCount = getBoltConnectionTracker( dependencyResolver )
-            .getActiveConnections( username )
-            .stream().map( conn ->
-                {
-                    conn.terminate();
-                    return true;
-                } )
-            .count();
-        return Stream.of( new ConnectionResult( username, killCount ) );
-    }
-
     public static Set<KernelTransactionHandle> getActiveTransactions( DependencyResolver dependencyResolver )
     {
         return dependencyResolver.resolveDependency( KernelTransactions.class ).activeTransactions();
-    }
-
-    public static BoltConnectionTracker getBoltConnectionTracker( DependencyResolver dependencyResolver )
-    {
-        return dependencyResolver.resolveDependency( BoltConnectionTracker.class );
     }
 
     public static Stream<TransactionResult> countTransactionByUsername( Stream<String> usernames )
@@ -530,15 +526,6 @@ public class EnterpriseBuiltInDbmsProcedures
             .stream()
             .map( entry -> new TransactionResult( entry.getKey(), entry.getValue() )
         );
-    }
-
-    public static Stream<ConnectionResult> countConnectionsByUsername( Stream<String> usernames )
-    {
-        return usernames
-            .collect( Collectors.groupingBy( identity(), Collectors.counting() ) )
-            .entrySet()
-            .stream()
-            .map( entry -> new ConnectionResult( entry.getKey(), entry.getValue() ) );
     }
 
     private ZoneId getConfiguredTimeZone()
@@ -563,14 +550,6 @@ public class EnterpriseBuiltInDbmsProcedures
     private boolean isAdminOrSelf( String username )
     {
         return isAdmin() || securityContext.subject().hasUsername( username );
-    }
-
-    private void assertAdminOrSelf( String username )
-    {
-        if ( !isAdminOrSelf( username ) )
-        {
-            throw new AuthorizationViolationException( PERMISSION_DENIED );
-        }
     }
 
     public static class QueryTerminationResult
@@ -616,18 +595,6 @@ public class EnterpriseBuiltInDbmsProcedures
         {
             this.username = username;
             this.transactionsTerminated = transactionsTerminated;
-        }
-    }
-
-    public static class ConnectionResult
-    {
-        public final String username;
-        public final Long connectionCount;
-
-        ConnectionResult( String username, Long connectionCount )
-        {
-            this.username = username;
-            this.connectionCount = connectionCount;
         }
     }
 
