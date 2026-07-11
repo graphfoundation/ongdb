@@ -299,6 +299,9 @@ public class StoreCopyClient
                 .newEmbeddedDatabaseBuilder( tempStore.getAbsoluteFile() )
                 .setConfig( GraphDatabaseSettings.active_database, tempStore.getName() )
                 .setConfig( "dbms.backup.enabled", Settings.FALSE )
+                // Temp recovery DB must not load metrics: entity-count metrics need StoreEntityCounters
+                // that are not available until NeoStoreDataSource starts (after GlobalKernelExtensions).
+                .setConfig( "metrics.enabled", Settings.FALSE )
                 .setConfig( GraphDatabaseSettings.pagecache_warmup_enabled, Settings.FALSE )
                 .setConfig( GraphDatabaseSettings.logs_directory, tempStore.getAbsolutePath() )
                 .setConfig( GraphDatabaseSettings.keep_logical_logs, Settings.TRUE )

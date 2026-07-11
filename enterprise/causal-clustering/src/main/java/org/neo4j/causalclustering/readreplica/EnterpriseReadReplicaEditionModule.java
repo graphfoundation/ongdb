@@ -103,6 +103,7 @@ import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.graphdb.factory.module.PlatformModule;
 import org.neo4j.graphdb.factory.module.edition.DefaultEditionModule;
 import org.neo4j.graphdb.factory.module.id.IdContextFactoryBuilder;
+import org.neo4j.graphdb.factory.module.id.DatabaseIdContext;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
@@ -132,6 +133,7 @@ import org.neo4j.kernel.impl.index.IndexConfigStore;
 import org.neo4j.kernel.impl.pagecache.PageCacheWarmer;
 import org.neo4j.kernel.impl.proc.Procedures;
 import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
+import org.neo4j.kernel.impl.store.stats.IdBasedStoreEntityCounters;
 import org.neo4j.kernel.impl.transaction.TransactionHeaderInformationFactory;
 import org.neo4j.kernel.impl.transaction.log.TransactionAppender;
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
@@ -190,6 +192,8 @@ public class EnterpriseReadReplicaEditionModule extends DefaultEditionModule
         idContextFactory = IdContextFactoryBuilder.of( new EnterpriseIdTypeConfigurationProvider( config ), platformModule.jobScheduler )
                                                   .withFileSystem( fileSystem )
                                                   .build();
+        DatabaseIdContext idContext = idContextFactory.createIdContext( config.get( GraphDatabaseSettings.active_database ) );
+        dependencies.satisfyDependency( new IdBasedStoreEntityCounters( idContext.getIdGeneratorFactory() ) );
 
         tokenHoldersProvider = databaseName -> new TokenHolders(
                 new DelegatingTokenHolder( new ReadOnlyTokenCreator(), TokenHolder.TYPE_PROPERTY_KEY ),

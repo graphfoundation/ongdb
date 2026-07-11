@@ -43,6 +43,7 @@ import org.neo4j.graphdb.factory.module.edition.AbstractEditionModule;
 import org.neo4j.graphdb.factory.module.edition.CommunityEditionModule;
 import org.neo4j.graphdb.factory.module.id.IdContextFactory;
 import org.neo4j.graphdb.factory.module.id.IdContextFactoryBuilder;
+import org.neo4j.graphdb.factory.module.id.DatabaseIdContext;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.api.bolt.BoltConnectionTracker;
@@ -81,7 +82,8 @@ public class EnterpriseEditionModule extends CommunityEditionModule
     public EnterpriseEditionModule( PlatformModule platformModule )
     {
         super( platformModule );
-        platformModule.dependencies.satisfyDependency( IdBasedStoreEntityCounters.class );
+        DatabaseIdContext idContext = idContextFactory.createIdContext( platformModule.config.get( GraphDatabaseSettings.active_database ) );
+        platformModule.dependencies.satisfyDependency( new IdBasedStoreEntityCounters( idContext.getIdGeneratorFactory() ) );
         ioLimiter = new ConfigurableIOLimiter( platformModule.config );
         platformModule.dependencies.satisfyDependency( createConnectionTracker() );
         platformModule.dependencies.satisfyDependency( createBoltConnectionTracker() );

@@ -680,12 +680,17 @@ public class RecordStorageEngine implements StorageEngine, Lifecycle
             @Override
             public void init()
             {
+                // Tokens and schema cache must be loaded before indexes open (fulltext accessors resolve
+                // property-key names). Recovery calls this after reverse recovery returns the store to a
+                // readable state; see Recovery.init().
+                reloadTokensAndSchemaFromStore();
                 indexingService.init();
             }
 
             @Override
             public void start()
             {
+                // Forward recovery / store replacement may have written additional tokens; refresh holders.
                 reloadTokensAndSchemaFromStore();
             }
         };

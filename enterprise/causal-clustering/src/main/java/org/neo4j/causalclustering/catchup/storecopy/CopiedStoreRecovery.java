@@ -121,6 +121,9 @@ public class CopiedStoreRecovery extends LifecycleAdapter
                 .setUserLogProvider( NullLogProvider.getInstance() )
                 .newEmbeddedDatabaseBuilder( tempStore )
                 .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
+                // Temp recovery DB must not load metrics: entity-count metrics need StoreEntityCounters
+                // that are not available until NeoStoreDataSource starts (after GlobalKernelExtensions).
+                .setConfig( "metrics.enabled", Settings.FALSE )
                 .setConfig( GraphDatabaseSettings.pagecache_warmup_enabled, Settings.FALSE )
                 .setConfig( GraphDatabaseSettings.keep_logical_logs, Settings.FALSE )
                 .setConfig( GraphDatabaseSettings.allow_upgrade,
