@@ -34,7 +34,10 @@
  */
 package org.neo4j.causalclustering.core.consensus;
 
+import java.io.IOException;
+
 import org.neo4j.causalclustering.core.replication.ReplicatedContent;
+import org.neo4j.causalclustering.messaging.marshalling.ReplicatedContentHandler;
 
 /**
  * When a new leader is elected, it replicates one entry of this type to mark the start of its reign.
@@ -58,5 +61,11 @@ public class NewLeaderBarrier implements ReplicatedContent
     public boolean equals( Object obj )
     {
         return obj instanceof NewLeaderBarrier;
+    }
+
+    @Override
+    public void handle( ReplicatedContentHandler contentHandler ) throws IOException
+    {
+        contentHandler.handle( this );
     }
 }

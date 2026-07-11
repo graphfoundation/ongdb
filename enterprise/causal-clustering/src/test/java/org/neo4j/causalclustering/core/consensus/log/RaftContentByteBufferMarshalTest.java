@@ -45,7 +45,8 @@ import java.util.UUID;
 
 import org.neo4j.causalclustering.messaging.NetworkFlushableByteBuf;
 import org.neo4j.causalclustering.core.consensus.membership.MemberIdSet;
-import org.neo4j.causalclustering.messaging.CoreReplicatedContentMarshal;
+import org.neo4j.causalclustering.messaging.marshalling.ChannelMarshal;
+import org.neo4j.causalclustering.messaging.marshalling.CoreReplicatedContentMarshal;
 import org.neo4j.causalclustering.messaging.NetworkReadableClosableChannelNetty4;
 import org.neo4j.causalclustering.core.replication.ReplicatedContent;
 import org.neo4j.causalclustering.core.state.machines.id.ReplicatedIdAllocationRequest;
@@ -72,7 +73,7 @@ public class RaftContentByteBufferMarshalTest
     public void shouldSerializeMemberSet() throws Exception
     {
         // given
-        CoreReplicatedContentMarshal serializer = new CoreReplicatedContentMarshal();
+        ChannelMarshal<ReplicatedContent> serializer = CoreReplicatedContentMarshal.marshaller();
         MemberIdSet in = new MemberIdSet( asSet(
                 new MemberId( UUID.randomUUID() ),
                 new MemberId( UUID.randomUUID() )
@@ -87,7 +88,7 @@ public class RaftContentByteBufferMarshalTest
     public void shouldSerializeTransactionRepresentation() throws Exception
     {
         // given
-        CoreReplicatedContentMarshal serializer = new CoreReplicatedContentMarshal();
+        ChannelMarshal<ReplicatedContent> serializer = CoreReplicatedContentMarshal.marshaller();
         Collection<StorageCommand> commands = new ArrayList<>();
 
         IndexCommand.AddNodeCommand addNodeCommand = new IndexCommand.AddNodeCommand();
@@ -143,7 +144,7 @@ public class RaftContentByteBufferMarshalTest
     public void shouldSerializeIdRangeRequest() throws Exception
     {
         // given
-        CoreReplicatedContentMarshal serializer = new CoreReplicatedContentMarshal();
+        ChannelMarshal<ReplicatedContent> serializer = CoreReplicatedContentMarshal.marshaller();
         ReplicatedContent in = new ReplicatedIdAllocationRequest( memberId, IdType.NODE, 100, 200 );
 
         // when
@@ -151,7 +152,7 @@ public class RaftContentByteBufferMarshalTest
         assertMarshalingEquality( serializer, buf, in );
     }
 
-    private void assertMarshalingEquality( CoreReplicatedContentMarshal marshal,
+    private void assertMarshalingEquality( ChannelMarshal<ReplicatedContent> marshal,
                                            ByteBuf buffer,
                                            ReplicatedContent replicatedTx ) throws IOException, EndOfStreamException
     {

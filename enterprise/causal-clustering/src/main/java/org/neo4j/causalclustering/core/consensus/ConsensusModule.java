@@ -55,14 +55,16 @@ import org.neo4j.causalclustering.core.consensus.shipping.RaftLogShippingManager
 import org.neo4j.causalclustering.core.consensus.term.MonitoredTermStateStorage;
 import org.neo4j.causalclustering.core.consensus.term.TermState;
 import org.neo4j.causalclustering.core.consensus.vote.VoteState;
+import org.neo4j.causalclustering.core.replication.ReplicatedContent;
 import org.neo4j.causalclustering.core.replication.SendToMyself;
 import org.neo4j.causalclustering.core.state.storage.DurableStateStorage;
+import org.neo4j.causalclustering.core.state.storage.SafeChannelMarshal;
 import org.neo4j.causalclustering.core.state.storage.StateStorage;
 import org.neo4j.causalclustering.discovery.CoreTopologyService;
 import org.neo4j.causalclustering.discovery.RaftCoreTopologyConnector;
 import org.neo4j.causalclustering.identity.MemberId;
-import org.neo4j.causalclustering.messaging.CoreReplicatedContentMarshal;
 import org.neo4j.causalclustering.messaging.Outbound;
+import org.neo4j.causalclustering.messaging.marshalling.CoreReplicatedContentMarshal;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.graphdb.factory.module.PlatformModule;
@@ -102,7 +104,7 @@ public class ConsensusModule
 
         LogProvider logProvider = logging.getInternalLogProvider();
 
-        final CoreReplicatedContentMarshal marshal = new CoreReplicatedContentMarshal();
+        final SafeChannelMarshal<ReplicatedContent> marshal = CoreReplicatedContentMarshal.marshaller();
 
         RaftLog underlyingLog = createRaftLog( config, life, fileSystem, clusterStateDirectory, marshal, logProvider,
                 platformModule.jobScheduler );
@@ -172,7 +174,7 @@ public class ConsensusModule
     }
 
     private RaftLog createRaftLog( Config config, LifeSupport life, FileSystemAbstraction fileSystem,
-            File clusterStateDirectory, CoreReplicatedContentMarshal marshal, LogProvider logProvider,
+            File clusterStateDirectory, SafeChannelMarshal<ReplicatedContent> marshal, LogProvider logProvider,
             JobScheduler scheduler )
     {
         EnterpriseCoreEditionModule.RaftLogImplementation raftLogImplementation =

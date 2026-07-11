@@ -35,6 +35,7 @@
 package org.neo4j.causalclustering.core.consensus;
 
 import org.neo4j.causalclustering.core.replication.ReplicatedContent;
+import org.neo4j.causalclustering.messaging.marshalling.ReplicatedContentHandler;
 
 import static java.lang.String.format;
 
@@ -88,5 +89,11 @@ public class ReplicatedString implements ReplicatedContent
     public String value()
     {
         return value;
+    }
+
+    @Override
+    public void handle( ReplicatedContentHandler contentHandler )
+    {
+        throw new UnsupportedOperationException( "No handler for this " + this.getClass() );
     }
 }

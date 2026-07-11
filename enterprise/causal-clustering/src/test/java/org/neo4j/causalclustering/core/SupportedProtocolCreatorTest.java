@@ -94,7 +94,7 @@ public class SupportedProtocolCreatorTest
         ApplicationSupportedProtocols supportedRaftProtocol = new SupportedProtocolCreator( config, log ).createSupportedRaftProtocol();
 
         // then
-        assertThat( supportedRaftProtocol.versions(), contains( 1 ) );
+        assertThat( supportedRaftProtocol.versions(), contains( 1, 2 ) );
 
     }
 

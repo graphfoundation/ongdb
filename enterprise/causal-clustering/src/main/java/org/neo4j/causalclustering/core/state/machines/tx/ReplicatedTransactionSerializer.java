@@ -78,4 +78,16 @@ public class ReplicatedTransactionSerializer
 
         return new ReplicatedTransaction( txBytes );
     }
+
+    /**
+     * Decode chunked replicated-transaction content where the payload is the remaining buffer bytes
+     * (no length prefix). Used by Raft protocol v2 chunk reassembly.
+     */
+    public static ReplicatedTransaction decode( ByteBuf byteBuf )
+    {
+        int length = byteBuf.readableBytes();
+        byte[] bytes = new byte[length];
+        byteBuf.readBytes( bytes );
+        return new ReplicatedTransaction( bytes );
+    }
 }

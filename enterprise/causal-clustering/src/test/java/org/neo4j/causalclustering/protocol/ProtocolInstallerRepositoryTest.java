@@ -39,8 +39,10 @@ import org.junit.Test;
 import java.util.Collection;
 import java.util.List;
 
-import org.neo4j.causalclustering.core.consensus.RaftProtocolClientInstaller;
-import org.neo4j.causalclustering.core.consensus.RaftProtocolServerInstaller;
+import org.neo4j.causalclustering.core.consensus.protocol.v1.RaftProtocolClientInstallerV1;
+import org.neo4j.causalclustering.core.consensus.protocol.v2.RaftProtocolClientInstallerV2;
+import org.neo4j.causalclustering.core.consensus.protocol.v1.RaftProtocolServerInstallerV1;
+import org.neo4j.causalclustering.core.consensus.protocol.v2.RaftProtocolServerInstallerV2;
 import org.neo4j.causalclustering.handlers.VoidPipelineWrapperFactory;
 import org.neo4j.causalclustering.protocol.Protocol.ApplicationProtocols;
 import org.neo4j.causalclustering.protocol.Protocol.ModifierProtocols;
@@ -76,21 +78,25 @@ public class ProtocolInstallerRepositoryTest
 
     private final NettyPipelineBuilderFactory pipelineBuilderFactory =
             new NettyPipelineBuilderFactory( VoidPipelineWrapperFactory.VOID_WRAPPER );
-    private final RaftProtocolClientInstaller.Factory raftProtocolClientInstaller =
-            new RaftProtocolClientInstaller.Factory( pipelineBuilderFactory, NullLogProvider.getInstance() );
-    private final RaftProtocolServerInstaller.Factory raftProtocolServerInstaller =
-            new RaftProtocolServerInstaller.Factory( null, pipelineBuilderFactory, NullLogProvider.getInstance() );
+    private final RaftProtocolClientInstallerV1.Factory raftProtocolClientInstallerV1 =
+            new RaftProtocolClientInstallerV1.Factory( pipelineBuilderFactory, NullLogProvider.getInstance() );
+    private final RaftProtocolClientInstallerV2.Factory raftProtocolClientInstallerV2 =
+            new RaftProtocolClientInstallerV2.Factory( pipelineBuilderFactory, NullLogProvider.getInstance() );
+    private final RaftProtocolServerInstallerV1.Factory raftProtocolServerInstallerV1 =
+            new RaftProtocolServerInstallerV1.Factory( null, pipelineBuilderFactory, NullLogProvider.getInstance() );
+    private final RaftProtocolServerInstallerV2.Factory raftProtocolServerInstallerV2 =
+            new RaftProtocolServerInstallerV2.Factory( null, pipelineBuilderFactory, NullLogProvider.getInstance() );
 
     private final ProtocolInstallerRepository<Orientation.Client> clientRepository =
-            new ProtocolInstallerRepository<>( asList( raftProtocolClientInstaller ), clientModifiers );
+            new ProtocolInstallerRepository<>( asList( raftProtocolClientInstallerV1, raftProtocolClientInstallerV2 ), clientModifiers );
     private final ProtocolInstallerRepository<Orientation.Server> serverRepository =
-            new ProtocolInstallerRepository<>( asList( raftProtocolServerInstaller ), serverModifiers );
+            new ProtocolInstallerRepository<>( asList( raftProtocolServerInstallerV1, raftProtocolServerInstallerV2 ), serverModifiers );
 
     @Test
     public void shouldReturnRaftServerInstaller()
     {
         assertEquals(
-                raftProtocolServerInstaller.applicationProtocol(),
+                raftProtocolServerInstallerV1.applicationProtocol(),
                 serverRepository.installerFor( new ProtocolStack( ApplicationProtocols.RAFT_1, emptyList() ) ).applicationProtocol() );
     }
 
@@ -98,8 +104,24 @@ public class ProtocolInstallerRepositoryTest
     public void shouldReturnRaftClientInstaller()
     {
         assertEquals(
-                raftProtocolClientInstaller.applicationProtocol(),
+                raftProtocolClientInstallerV1.applicationProtocol(),
                 clientRepository.installerFor( new ProtocolStack( ApplicationProtocols.RAFT_1, emptyList() ) ).applicationProtocol() );
+    }
+
+    @Test
+    public void shouldReturnRaftServerInstallerV2()
+    {
+        assertEquals(
+                raftProtocolServerInstallerV2.applicationProtocol(),
+                serverRepository.installerFor( new ProtocolStack( ApplicationProtocols.RAFT_2, emptyList() ) ).applicationProtocol() );
+    }
+
+    @Test
+    public void shouldReturnRaftClientInstallerV2()
+    {
+        assertEquals(
+                raftProtocolClientInstallerV2.applicationProtocol(),
+                clientRepository.installerFor( new ProtocolStack( ApplicationProtocols.RAFT_2, emptyList() ) ).applicationProtocol() );
     }
 
     @Test
@@ -194,13 +216,13 @@ public class ProtocolInstallerRepositoryTest
     @Test( expected = IllegalArgumentException.class )
     public void shouldNotInitialiseIfMultipleInstallersForSameProtocolForServer()
     {
-        new ProtocolInstallerRepository<>( asList( raftProtocolServerInstaller, raftProtocolServerInstaller ), emptyList() );
+        new ProtocolInstallerRepository<>( asList( raftProtocolServerInstallerV1, raftProtocolServerInstallerV1 ), emptyList() );
     }
 
     @Test( expected = IllegalArgumentException.class )
     public void shouldNotInitialiseIfMultipleInstallersForSameProtocolForClient()
     {
-        new ProtocolInstallerRepository<>( asList( raftProtocolClientInstaller, raftProtocolClientInstaller ), emptyList() );
+        new ProtocolInstallerRepository<>( asList( raftProtocolClientInstallerV1, raftProtocolClientInstallerV1 ), emptyList() );
     }
 
     @Test( expected = IllegalStateException.class )

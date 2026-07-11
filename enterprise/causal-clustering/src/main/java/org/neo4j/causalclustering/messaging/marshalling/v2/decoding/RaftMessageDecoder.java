@@ -32,7 +32,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.causalclustering.messaging.marshalling;
+package org.neo4j.causalclustering.messaging.marshalling.v2.decoding;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
@@ -41,14 +41,19 @@ import io.netty.handler.codec.ByteToMessageDecoder;
 import java.io.IOException;
 import java.time.Clock;
 import java.util.List;
+import java.util.Optional;
+import java.util.Queue;
 
+import org.neo4j.causalclustering.catchup.Protocol;
 import org.neo4j.causalclustering.core.consensus.RaftMessages;
+import org.neo4j.causalclustering.core.consensus.RaftMessages.ReceivedInstantClusterIdAwareMessage;
 import org.neo4j.causalclustering.core.consensus.log.RaftLogEntry;
 import org.neo4j.causalclustering.core.replication.ReplicatedContent;
 import org.neo4j.causalclustering.identity.ClusterId;
 import org.neo4j.causalclustering.identity.MemberId;
 import org.neo4j.causalclustering.messaging.EndOfStreamException;
 import org.neo4j.causalclustering.messaging.NetworkReadableClosableChannelNetty4;
+import org.neo4j.causalclustering.messaging.marshalling.v2.ContentType;
 import org.neo4j.storageengine.api.ReadableChannel;
 
 import static org.neo4j.causalclustering.core.consensus.RaftMessages.Type.APPEND_ENTRIES_REQUEST;
@@ -64,19 +69,17 @@ import static org.neo4j.causalclustering.core.consensus.RaftMessages.Type.VOTE_R
 
 public class RaftMessageDecoder extends ByteToMessageDecoder
 {
-    private final ChannelMarshal<ReplicatedContent> marshal;
-    private final Clock clock;
+    private final Protocol<ContentType> protocol;
 
-    public RaftMessageDecoder( ChannelMarshal<ReplicatedContent> marshal, Clock clock )
+    RaftMessageDecoder( Protocol<ContentType> protocol )
     {
-        this.marshal = marshal;
-        this.clock = clock;
+        this.protocol = protocol;
     }
 
     @Override
-    protected void decode( ChannelHandlerContext ctx, ByteBuf buffer, List<Object> list ) throws Exception
+    public void decode( ChannelHandlerContext ctx, ByteBuf in, List<Object> out ) throws Exception
     {
-        ReadableChannel channel = new NetworkReadableClosableChannelNetty4( buffer );
+        ReadableChannel channel = new NetworkReadableClosableChannelNetty4( in );
         ClusterId clusterId = ClusterId.Marshal.INSTANCE.unmarshal( channel );
 
         int messageTypeWire = channel.getInt();
@@ -84,7 +87,7 @@ public class RaftMessageDecoder extends ByteToMessageDecoder
         RaftMessages.Type messageType = values[messageTypeWire];
 
         MemberId from = retrieveMember( channel );
-        RaftMessages.RaftMessage result;
+        LazyComposer composer;
 
         if ( messageType.equals( VOTE_REQUEST ) )
         {
@@ -94,14 +97,14 @@ public class RaftMessageDecoder extends ByteToMessageDecoder
             long lastLogIndex = channel.getLong();
             long lastLogTerm = channel.getLong();
 
-            result = new RaftMessages.Vote.Request( from, term, candidate, lastLogIndex, lastLogTerm );
+            composer = new SimpleMessageComposer( new RaftMessages.Vote.Request( from, term, candidate, lastLogIndex, lastLogTerm ) );
         }
         else if ( messageType.equals( VOTE_RESPONSE ) )
         {
             long term = channel.getLong();
             boolean voteGranted = channel.get() == 1;
 
-            result = new RaftMessages.Vote.Response( from, term, voteGranted );
+            composer = new SimpleMessageComposer( new RaftMessages.Vote.Response( from, term, voteGranted ) );
         }
         else if ( messageType.equals( PRE_VOTE_REQUEST ) )
         {
@@ -111,14 +114,14 @@ public class RaftMessageDecoder extends ByteToMessageDecoder
             long lastLogIndex = channel.getLong();
             long lastLogTerm = channel.getLong();
 
-            result = new RaftMessages.PreVote.Request( from, term, candidate, lastLogIndex, lastLogTerm );
+            composer = new SimpleMessageComposer( new RaftMessages.PreVote.Request( from, term, candidate, lastLogIndex, lastLogTerm ) );
         }
         else if ( messageType.equals( PRE_VOTE_RESPONSE ) )
         {
             long term = channel.getLong();
             boolean voteGranted = channel.get() == 1;
 
-            result = new RaftMessages.PreVote.Response( from, term, voteGranted );
+            composer = new SimpleMessageComposer( new RaftMessages.PreVote.Response( from, term, voteGranted ) );
         }
         else if ( messageType.equals( APPEND_ENTRIES_REQUEST ) )
         {
@@ -126,20 +129,10 @@ public class RaftMessageDecoder extends ByteToMessageDecoder
             long term = channel.getLong();
             long prevLogIndex = channel.getLong();
             long prevLogTerm = channel.getLong();
-
             long leaderCommit = channel.getLong();
-            long count = channel.getLong();
+            int entryCount = channel.getInt();
 
-            RaftLogEntry[] entries = new RaftLogEntry[(int) count];
-            for ( int i = 0; i < count; i++ )
-            {
-                long entryTerm = channel.getLong();
-                final ReplicatedContent content = marshal.unmarshal( channel );
-                entries[i] = new RaftLogEntry( entryTerm, content );
-            }
-
-            result = new RaftMessages.AppendEntries.Request( from, term, prevLogIndex, prevLogTerm, entries,
-                    leaderCommit );
+            composer = new AppendEntriesComposer( entryCount, from, term, prevLogIndex, prevLogTerm, leaderCommit );
         }
         else if ( messageType.equals( APPEND_ENTRIES_RESPONSE ) )
         {
@@ -148,13 +141,11 @@ public class RaftMessageDecoder extends ByteToMessageDecoder
             long matchIndex = channel.getLong();
             long appendIndex = channel.getLong();
 
-            result = new RaftMessages.AppendEntries.Response( from, term, success, matchIndex, appendIndex );
+            composer = new SimpleMessageComposer( new RaftMessages.AppendEntries.Response( from, term, success, matchIndex, appendIndex ) );
         }
         else if ( messageType.equals( NEW_ENTRY_REQUEST ) )
         {
-            ReplicatedContent content = marshal.unmarshal( channel );
-
-            result = new RaftMessages.NewEntry.Request( from, content );
+            composer = new NewEntryRequestComposer( from );
         }
         else if ( messageType.equals( HEARTBEAT ) )
         {
@@ -162,30 +153,137 @@ public class RaftMessageDecoder extends ByteToMessageDecoder
             long commitIndexTerm = channel.getLong();
             long commitIndex = channel.getLong();
 
-            result = new RaftMessages.Heartbeat( from, leaderTerm, commitIndex, commitIndexTerm );
+            composer = new SimpleMessageComposer( new RaftMessages.Heartbeat( from, leaderTerm, commitIndex, commitIndexTerm ) );
         }
         else if ( messageType.equals( HEARTBEAT_RESPONSE ) )
         {
-            result = new RaftMessages.HeartbeatResponse( from );
+            composer = new SimpleMessageComposer( new RaftMessages.HeartbeatResponse( from ) );
         }
         else if ( messageType.equals( LOG_COMPACTION_INFO ) )
         {
             long leaderTerm = channel.getLong();
             long prevIndex = channel.getLong();
 
-            result = new RaftMessages.LogCompactionInfo( from, leaderTerm, prevIndex );
+            composer = new SimpleMessageComposer( new RaftMessages.LogCompactionInfo( from, leaderTerm, prevIndex ) );
         }
         else
         {
             throw new IllegalArgumentException( "Unknown message type" );
         }
 
-        list.add( RaftMessages.ReceivedInstantClusterIdAwareMessage.of( clock.instant(), clusterId, result ) );
+        out.add( new ClusterIdAwareMessageComposer( composer, clusterId ) );
+        protocol.expect( ContentType.ContentType );
+    }
+
+    static class ClusterIdAwareMessageComposer
+    {
+        private final LazyComposer composer;
+        private final ClusterId clusterId;
+
+        ClusterIdAwareMessageComposer( LazyComposer composer, ClusterId clusterId )
+        {
+            this.composer = composer;
+            this.clusterId = clusterId;
+        }
+
+        Optional<RaftMessages.ClusterIdAwareMessage> maybeCompose( Clock clock, Queue<Long> terms, Queue<ReplicatedContent> contents )
+        {
+            return composer.maybeComplete( terms, contents )
+                    .map( m -> ReceivedInstantClusterIdAwareMessage.of( clock.instant(), clusterId, m ) );
+        }
     }
 
     private MemberId retrieveMember( ReadableChannel buffer ) throws IOException, EndOfStreamException
     {
         MemberId.Marshal memberIdMarshal = new MemberId.Marshal();
         return memberIdMarshal.unmarshal( buffer );
+    }
+
+    interface LazyComposer
+    {
+        /**
+         * Builds the complete raft message if provided collections contain enough data for building the complete message.
+         */
+        Optional<RaftMessages.RaftMessage> maybeComplete( Queue<Long> terms, Queue<ReplicatedContent> contents );
+    }
+
+    /**
+     * A plain message without any more internal content.
+     */
+    private static class SimpleMessageComposer implements LazyComposer
+    {
+        private final RaftMessages.RaftMessage message;
+
+        private SimpleMessageComposer( RaftMessages.RaftMessage message )
+        {
+            this.message = message;
+        }
+
+        @Override
+        public Optional<RaftMessages.RaftMessage> maybeComplete( Queue<Long> terms, Queue<ReplicatedContent> contents )
+        {
+            return Optional.of( message );
+        }
+    }
+
+    private static class AppendEntriesComposer implements LazyComposer
+    {
+        private final int entryCount;
+        private final MemberId from;
+        private final long term;
+        private final long prevLogIndex;
+        private final long prevLogTerm;
+        private final long leaderCommit;
+
+        AppendEntriesComposer( int entryCount, MemberId from, long term, long prevLogIndex, long prevLogTerm, long leaderCommit )
+        {
+            this.entryCount = entryCount;
+            this.from = from;
+            this.term = term;
+            this.prevLogIndex = prevLogIndex;
+            this.prevLogTerm = prevLogTerm;
+            this.leaderCommit = leaderCommit;
+        }
+
+        @Override
+        public Optional<RaftMessages.RaftMessage> maybeComplete( Queue<Long> terms, Queue<ReplicatedContent> contents )
+        {
+            if ( terms.size() < entryCount || contents.size() < entryCount )
+            {
+                return Optional.empty();
+            }
+
+            RaftLogEntry[] entries = new RaftLogEntry[entryCount];
+            for ( int i = 0; i < entryCount; i++ )
+            {
+                long term = terms.remove();
+                ReplicatedContent content = contents.remove();
+                entries[i] = new RaftLogEntry( term, content );
+            }
+            return Optional.of( new RaftMessages.AppendEntries.Request( from, term, prevLogIndex, prevLogTerm, entries, leaderCommit ) );
+        }
+    }
+
+    private static class NewEntryRequestComposer implements LazyComposer
+    {
+        private final MemberId from;
+
+        NewEntryRequestComposer( MemberId from )
+        {
+            this.from = from;
+        }
+
+        @Override
+        public Optional<RaftMessages.RaftMessage> maybeComplete( Queue<Long> terms, Queue<ReplicatedContent> contents )
+        {
+            if ( contents.isEmpty() )
+            {
+                return Optional.empty();
+            }
+            else
+            {
+                return Optional.of( new RaftMessages.NewEntry.Request( from, contents.remove() ) );
+            }
+        }
     }
 }

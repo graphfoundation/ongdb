@@ -45,7 +45,7 @@ import java.util.UUID;
 
 import org.neo4j.causalclustering.messaging.NetworkFlushableByteBuf;
 import org.neo4j.causalclustering.core.consensus.membership.MemberIdSet;
-import org.neo4j.causalclustering.messaging.CoreReplicatedContentMarshal;
+import org.neo4j.causalclustering.messaging.marshalling.CoreReplicatedContentMarshal;
 import org.neo4j.causalclustering.messaging.NetworkReadableClosableChannelNetty4;
 import org.neo4j.causalclustering.core.state.machines.id.ReplicatedIdAllocationRequest;
 import org.neo4j.causalclustering.core.state.machines.token.ReplicatedTokenRequest;
@@ -67,7 +67,7 @@ import static org.neo4j.helpers.collection.Iterators.asSet;
 
 public class CoreReplicatedContentMarshalTest
 {
-    private final ChannelMarshal<ReplicatedContent> marshal = new CoreReplicatedContentMarshal();
+    private final ChannelMarshal<ReplicatedContent> marshal = CoreReplicatedContentMarshal.marshaller();
 
     @Test
     public void shouldMarshalTransactionReference() throws Exception

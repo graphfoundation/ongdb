@@ -100,7 +100,7 @@ public class InstalledProtocolsProcedureIT
         ProtocolInfo[] expectedProtocolInfos = cluster.coreMembers()
                 .stream()
                 .filter( member -> !member.equals( leader ) )
-                .map( member -> new ProtocolInfo( OUTBOUND, localhost( member.raftListenAddress() ), RAFT.canonicalName(), 1, modifiers ) )
+                .map( member -> new ProtocolInfo( OUTBOUND, localhost( member.raftListenAddress() ), RAFT.canonicalName(), 2, modifiers ) )
                 .toArray( ProtocolInfo[]::new );
 
         assertEventually( "should see outbound installed protocols on core " + leader.serverId(),

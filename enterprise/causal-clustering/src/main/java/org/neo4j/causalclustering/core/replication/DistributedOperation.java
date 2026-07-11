@@ -35,20 +35,22 @@
 package org.neo4j.causalclustering.core.replication;
 
 import java.io.IOException;
+import java.util.Objects;
 import java.util.UUID;
 
-import org.neo4j.causalclustering.messaging.CoreReplicatedContentMarshal;
 import org.neo4j.causalclustering.core.replication.session.GlobalSession;
 import org.neo4j.causalclustering.core.replication.session.LocalOperationId;
-import org.neo4j.causalclustering.messaging.EndOfStreamException;
 import org.neo4j.causalclustering.identity.MemberId;
+import org.neo4j.causalclustering.messaging.EndOfStreamException;
+import org.neo4j.causalclustering.messaging.marshalling.ContentBuilder;
+import org.neo4j.causalclustering.messaging.marshalling.ReplicatedContentHandler;
 import org.neo4j.storageengine.api.ReadableChannel;
 import org.neo4j.storageengine.api.WritableChannel;
 
 /**
  * A uniquely identifiable operation.
  */
-public class  DistributedOperation implements ReplicatedContent
+public class DistributedOperation implements ReplicatedContent
 {
     private final ReplicatedContent content;
     private final GlobalSession globalSession;
@@ -88,7 +90,17 @@ public class  DistributedOperation implements ReplicatedContent
         return content.size();
     }
 
-    public void serialize( WritableChannel channel ) throws IOException
+    @Override
+    public void handle( ReplicatedContentHandler contentHandler ) throws IOException
+    {
+        contentHandler.handle( this );
+        content().handle( contentHandler );
+    }
+
+    /**
+     * Marshals session metadata only; nested content is handled by its own serializer.
+     */
+    public void marshalMetaData( WritableChannel channel ) throws IOException
     {
         channel.putLong( globalSession().sessionId().getMostSignificantBits() );
         channel.putLong( globalSession().sessionId().getLeastSignificantBits() );
@@ -96,11 +108,9 @@ public class  DistributedOperation implements ReplicatedContent
 
         channel.putLong( operationId.localSessionId() );
         channel.putLong( operationId.sequenceNumber() );
-
-        new CoreReplicatedContentMarshal().marshal( content, channel );
     }
 
-    public static DistributedOperation deserialize( ReadableChannel channel ) throws IOException, EndOfStreamException
+    public static ContentBuilder<ReplicatedContent> deserialize( ReadableChannel channel ) throws IOException, EndOfStreamException
     {
         long mostSigBits = channel.getLong();
         long leastSigBits = channel.getLong();
@@ -111,8 +121,7 @@ public class  DistributedOperation implements ReplicatedContent
         long sequenceNumber = channel.getLong();
         LocalOperationId localOperationId = new LocalOperationId( localSessionId, sequenceNumber );
 
-        ReplicatedContent content = new CoreReplicatedContentMarshal().unmarshal( channel );
-        return new DistributedOperation( content, globalSession, localOperationId );
+        return ContentBuilder.unfinished( subContent -> new DistributedOperation( subContent, globalSession, localOperationId ) );
     }
 
     @Override
@@ -123,5 +132,27 @@ public class  DistributedOperation implements ReplicatedContent
                ", globalSession=" + globalSession +
                ", operationId=" + operationId +
                '}';
+    }
+
+    @Override
+    public boolean equals( Object o )
+    {
+        if ( this == o )
+        {
+            return true;
+        }
+        if ( o == null || getClass() != o.getClass() )
+        {
+            return false;
+        }
+        DistributedOperation that = (DistributedOperation) o;
+        return Objects.equals( content, that.content ) && Objects.equals( globalSession, that.globalSession ) &&
+                Objects.equals( operationId, that.operationId );
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash( content, globalSession, operationId );
     }
 }

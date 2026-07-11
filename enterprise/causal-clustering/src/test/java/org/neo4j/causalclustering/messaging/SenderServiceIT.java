@@ -47,8 +47,10 @@ import java.util.UUID;
 import java.util.concurrent.Semaphore;
 
 import org.neo4j.causalclustering.core.consensus.RaftMessages;
-import org.neo4j.causalclustering.core.consensus.RaftProtocolClientInstaller;
-import org.neo4j.causalclustering.core.consensus.RaftProtocolServerInstaller;
+import org.neo4j.causalclustering.core.consensus.protocol.v1.RaftProtocolClientInstallerV1;
+import org.neo4j.causalclustering.core.consensus.protocol.v2.RaftProtocolClientInstallerV2;
+import org.neo4j.causalclustering.core.consensus.protocol.v1.RaftProtocolServerInstallerV1;
+import org.neo4j.causalclustering.core.consensus.protocol.v2.RaftProtocolServerInstallerV2;
 import org.neo4j.causalclustering.core.consensus.membership.MemberIdSet;
 import org.neo4j.causalclustering.identity.ClusterId;
 import org.neo4j.causalclustering.identity.MemberId;
@@ -145,7 +147,8 @@ public class SenderServiceIT
     {
         NettyPipelineBuilderFactory pipelineFactory = new NettyPipelineBuilderFactory( VOID_WRAPPER );
 
-        RaftProtocolServerInstaller.Factory raftProtocolServerInstaller = new RaftProtocolServerInstaller.Factory( nettyHandler, pipelineFactory, logProvider );
+        RaftProtocolServerInstallerV1.Factory raftProtocolServerInstaller =
+                new RaftProtocolServerInstallerV1.Factory( nettyHandler, pipelineFactory, logProvider );
         ProtocolInstallerRepository<ProtocolInstaller.Orientation.Server> installer =
                 new ProtocolInstallerRepository<>( singletonList( raftProtocolServerInstaller ), ModifierProtocolInstaller.allServerInstallers );
 
@@ -160,7 +163,7 @@ public class SenderServiceIT
     {
         NettyPipelineBuilderFactory pipelineFactory = new NettyPipelineBuilderFactory( VOID_WRAPPER );
 
-        RaftProtocolClientInstaller.Factory raftProtocolClientInstaller = new RaftProtocolClientInstaller.Factory( pipelineFactory, logProvider );
+        RaftProtocolClientInstallerV1.Factory raftProtocolClientInstaller = new RaftProtocolClientInstallerV1.Factory( pipelineFactory, logProvider );
         ProtocolInstallerRepository<ProtocolInstaller.Orientation.Client> protocolInstaller =
                 new ProtocolInstallerRepository<>( singletonList( raftProtocolClientInstaller ), ModifierProtocolInstaller.allClientInstallers );
 

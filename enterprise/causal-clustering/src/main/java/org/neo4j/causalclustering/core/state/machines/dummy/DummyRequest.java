@@ -34,14 +34,19 @@
  */
 package org.neo4j.causalclustering.core.state.machines.dummy;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.handler.stream.ChunkedInput;
+
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.function.Consumer;
 
 import org.neo4j.causalclustering.core.state.CommandDispatcher;
 import org.neo4j.causalclustering.core.state.Result;
 import org.neo4j.causalclustering.core.state.machines.tx.CoreReplicatedContent;
 import org.neo4j.causalclustering.core.state.storage.SafeChannelMarshal;
-import org.neo4j.causalclustering.messaging.EndOfStreamException;
+import org.neo4j.causalclustering.messaging.marshalling.ByteArrayChunkedEncoder;
+import org.neo4j.causalclustering.messaging.marshalling.ReplicatedContentHandler;
 import org.neo4j.storageengine.api.ReadableChannel;
 import org.neo4j.storageengine.api.WritableChannel;
 
@@ -75,6 +80,30 @@ public class DummyRequest implements CoreReplicatedContent
     public void dispatch( CommandDispatcher commandDispatcher, long commandIndex, Consumer<Result> callback )
     {
         commandDispatcher.dispatch( this, commandIndex, callback );
+    }
+
+    @Override
+    public void handle( ReplicatedContentHandler contentHandler ) throws IOException
+    {
+        contentHandler.handle( this );
+    }
+
+    public ChunkedInput<ByteBuf> encoder()
+    {
+        byte[] array = data;
+        if ( array == null )
+        {
+            array = new byte[0];
+        }
+        return new ByteArrayChunkedEncoder( array );
+    }
+
+    public static DummyRequest decode( ByteBuf byteBuf )
+    {
+        int length = byteBuf.readableBytes();
+        byte[] array = new byte[length];
+        byteBuf.readBytes( array );
+        return new DummyRequest( array );
     }
 
     public static class Marshal extends SafeChannelMarshal<DummyRequest>
@@ -111,5 +140,26 @@ public class DummyRequest implements CoreReplicatedContent
             }
             return new DummyRequest( data );
         }
+    }
+
+    @Override
+    public boolean equals( Object o )
+    {
+        if ( this == o )
+        {
+            return true;
+        }
+        if ( o == null || getClass() != o.getClass() )
+        {
+            return false;
+        }
+        DummyRequest that = (DummyRequest) o;
+        return Arrays.equals( data, that.data );
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Arrays.hashCode( data );
     }
 }

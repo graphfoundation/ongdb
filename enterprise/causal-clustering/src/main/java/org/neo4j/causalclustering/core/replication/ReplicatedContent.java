@@ -34,8 +34,12 @@
  */
 package org.neo4j.causalclustering.core.replication;
 
+import java.io.IOException;
+
+import org.neo4j.causalclustering.messaging.marshalling.ReplicatedContentHandler;
+
 /**
- * Marker interface for types that are
+ * Marker interface for types that can be replicated around.
  */
 public interface ReplicatedContent
 {
@@ -48,4 +52,6 @@ public interface ReplicatedContent
     {
         throw new UnsupportedOperationException();
     }
+
+    void handle( ReplicatedContentHandler contentHandler ) throws IOException;
 }
