@@ -64,12 +64,9 @@ public class HazelcastClientConnector implements HazelcastConnector
 
         ClientNetworkConfig networkConfig = clientConfig.getNetworkConfig();
 
-        for ( AdvertisedSocketAddress address : config.get( CausalClusteringSettings.initial_discovery_members ) )
+        for ( AdvertisedSocketAddress advertisedSocketAddress : DiscoveryMemberAddressResolver.resolve( config, hostnameResolver ) )
         {
-            for ( AdvertisedSocketAddress advertisedSocketAddress : hostnameResolver.resolve( address ) )
-            {
-                networkConfig.addAddress( advertisedSocketAddress.toString() );
-            }
+            networkConfig.addAddress( advertisedSocketAddress.toString() );
         }
 
         int connectionTimeoutMillis = (int) config.get( CausalClusteringSettings.leader_election_timeout ).toMillis();

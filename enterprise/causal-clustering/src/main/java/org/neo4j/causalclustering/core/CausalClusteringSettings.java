@@ -35,15 +35,19 @@
 package org.neo4j.causalclustering.core;
 
 import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
-import java.util.function.BiFunction;
 import java.util.logging.Level;
 
 import org.neo4j.causalclustering.core.consensus.log.cache.InFlightCacheFactory;
 import org.neo4j.causalclustering.discovery.DnsHostnameResolver;
 import org.neo4j.causalclustering.discovery.DomainNameResolverImpl;
 import org.neo4j.causalclustering.discovery.HostnameResolver;
+import org.neo4j.causalclustering.discovery.KubernetesResolver;
 import org.neo4j.causalclustering.discovery.NoOpHostnameResolver;
 import org.neo4j.causalclustering.discovery.SrvHostnameResolver;
 import org.neo4j.causalclustering.discovery.SrvRecordResolverImpl;
@@ -54,6 +58,7 @@ import org.neo4j.configuration.ReplacedBy;
 import org.neo4j.graphdb.config.Setting;
 import org.neo4j.helpers.AdvertisedSocketAddress;
 import org.neo4j.helpers.ListenSocketAddress;
+import org.neo4j.kernel.configuration.Config;
 import org.neo4j.logging.LogProvider;
 
 import static org.neo4j.causalclustering.protocol.Protocol.ModifierProtocols.Implementations.GZIP;
@@ -189,6 +194,52 @@ public class CausalClusteringSettings implements LoadableConfig
             setting( "causal_clustering.initial_discovery_members", list( ",", ADVERTISED_SOCKET_ADDRESS ),
                     NO_DEFAULT );
 
+    @Description( "Address for Kubernetes API" )
+    public static final Setting<AdvertisedSocketAddress> kubernetes_address =
+            setting( "causal_clustering.kubernetes.address", ADVERTISED_SOCKET_ADDRESS, "kubernetes.default.svc:443" );
+
+    @Description( "File location of token for Kubernetes API" )
+    public static final Setting<File> kubernetes_token =
+            pathUnixAbsolute( "causal_clustering.kubernetes.token", "/var/run/secrets/kubernetes.io/serviceaccount/token" );
+
+    @Description( "File location of namespace for Kubernetes API" )
+    public static final Setting<File> kubernetes_namespace =
+            pathUnixAbsolute( "causal_clustering.kubernetes.namespace", "/var/run/secrets/kubernetes.io/serviceaccount/namespace" );
+
+    @Description( "File location of CA certificate for Kubernetes API" )
+    public static final Setting<File> kubernetes_ca_crt =
+            pathUnixAbsolute( "causal_clustering.kubernetes.ca_crt", "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt" );
+
+    /**
+     * Creates absolute path on the first filesystem root. This will be `/` on Unix but arbitrary on Windows.
+     * If filesystem roots cannot be listed then `//` will be used - this will be resolved to `/` on Unix and `\\` (a UNC network path) on Windows.
+     * An absolute path is always needed for validation, even though we only care about a path on Linux.
+     */
+    private static Setting<File> pathUnixAbsolute( String name, String path )
+    {
+        File[] roots = File.listRoots();
+        Path root = roots.length > 0 ? roots[0].toPath() : Paths.get( "//" );
+        return setting( name, PATH, root.resolve( path ).toString() );
+    }
+
+    @Description( "LabelSelector for Kubernetes API" )
+    public static final Setting<String> kubernetes_label_selector =
+            setting( "causal_clustering.kubernetes.label_selector", STRING, NO_DEFAULT );
+
+    @Description( "Service port name for discovery for Kubernetes API" )
+    public static final Setting<String> kubernetes_service_port_name =
+            setting( "causal_clustering.kubernetes.service_port_name", STRING, NO_DEFAULT );
+
+    @Internal
+    @Description( "The polling interval when attempting to resolve initial discovery members from DNS, SRV, or Kubernetes." )
+    public static final Setting<Duration> discovery_resolution_retry_interval =
+            setting( "causal_clustering.discovery_resolution_retry_interval", DURATION, "5s" );
+
+    @Internal
+    @Description( "Configures the time after which we give up trying to resolve discovery members." )
+    public static final Setting<Duration> discovery_resolution_timeout =
+            setting( "causal_clustering.discovery_resolution_timeout", DURATION, "5m" );
+
     @Description( "Type of in-flight cache." )
     public static final Setting<InFlightCacheFactory.Type> in_flight_cache_type =
             setting( "causal_clustering.in_flight_cache.type", optionsIgnoreCase( InFlightCacheFactory.Type.class ),
@@ -202,24 +253,44 @@ public class CausalClusteringSettings implements LoadableConfig
     public static final Setting<Long> in_flight_cache_max_bytes =
             setting( "causal_clustering.in_flight_cache.max_bytes", BYTES, "2G" );
 
+    @FunctionalInterface
+    interface DiscoveryResolverFactory
+    {
+        HostnameResolver create( LogProvider logProvider, LogProvider userLogProvider, Config config );
+    }
+
     public enum DiscoveryType
     {
-        DNS( ( logProvider, userLogProvider ) -> new DnsHostnameResolver( logProvider, userLogProvider, new DomainNameResolverImpl() ) ),
+        DNS( ( logProvider, userLogProvider, config ) ->
+                new DnsHostnameResolver( logProvider, userLogProvider, new DomainNameResolverImpl() ),
+                initial_discovery_members ),
 
-        LIST( ( logProvider, userLogProvider ) -> new NoOpHostnameResolver() ),
+        LIST( ( logProvider, userLogProvider, config ) -> new NoOpHostnameResolver(),
+                initial_discovery_members ),
 
-        SRV( ( logProvider, userLogProvider ) -> new SrvHostnameResolver( logProvider, userLogProvider, new SrvRecordResolverImpl() ) );
+        SRV( ( logProvider, userLogProvider, config ) ->
+                new SrvHostnameResolver( logProvider, userLogProvider, new SrvRecordResolverImpl() ),
+                initial_discovery_members ),
 
-        private final BiFunction<LogProvider,LogProvider,HostnameResolver> resolverSupplier;
+        K8S( KubernetesResolver::create, kubernetes_label_selector, kubernetes_service_port_name );
 
-        DiscoveryType( BiFunction<LogProvider,LogProvider,HostnameResolver> resolverSupplier )
+        private final DiscoveryResolverFactory resolverSupplier;
+        private final Collection<Setting<?>> requiredSettings;
+
+        DiscoveryType( DiscoveryResolverFactory resolverSupplier, Setting<?>... requiredSettings )
         {
             this.resolverSupplier = resolverSupplier;
+            this.requiredSettings = Arrays.asList( requiredSettings );
         }
 
-        public HostnameResolver getHostnameResolver( LogProvider logProvider, LogProvider userLogProvider )
+        public HostnameResolver getHostnameResolver( LogProvider logProvider, LogProvider userLogProvider, Config config )
         {
-            return this.resolverSupplier.apply( logProvider, userLogProvider );
+            return this.resolverSupplier.create( logProvider, userLogProvider, config );
+        }
+
+        public Collection<Setting<?>> requiredSettings()
+        {
+            return requiredSettings;
         }
     }
 

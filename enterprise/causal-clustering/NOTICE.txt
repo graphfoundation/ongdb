@@ -56,6 +56,13 @@ Apache Software License, Version 2.0
   error-prone annotations
   hazelcast-all
   IPAddress
+  Jackson-annotations
+  Jackson-core
+  jackson-databind
+  Jetty :: Asynchronous HTTP Client
+  Jetty :: Http Utility
+  Jetty :: IO Utility
+  Jetty :: Utilities
   jPowerShell
   jProcesses
   Lucene codecs

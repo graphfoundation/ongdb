@@ -46,7 +46,6 @@ import org.neo4j.kernel.impl.enterprise.configuration.EnterpriseEditionSettings;
 import org.neo4j.kernel.impl.enterprise.configuration.EnterpriseEditionSettings.Mode;
 import org.neo4j.logging.Log;
 
-import static org.neo4j.causalclustering.core.CausalClusteringSettings.initial_discovery_members;
 import static org.neo4j.causalclustering.core.CausalClusteringSettings.minimum_core_cluster_size_at_runtime;
 import static org.neo4j.causalclustering.core.CausalClusteringSettings.minimum_core_cluster_size_at_formation;
 
@@ -59,7 +58,7 @@ public class CausalClusterConfigurationValidator implements ConfigurationValidat
         Mode mode = config.get( EnterpriseEditionSettings.mode );
         if ( mode.equals( Mode.CORE ) || mode.equals( Mode.READ_REPLICA ) )
         {
-            validateInitialDiscoveryMembers( config );
+            validateDiscoverySettings( config );
             validateBoltConnector( config );
             validateLoadBalancing( config, log );
             validateDeclaredClusterSizes( config );
@@ -93,12 +92,17 @@ public class CausalClusterConfigurationValidator implements ConfigurationValidat
         }
     }
 
-    private void validateInitialDiscoveryMembers( Config config )
+    private void validateDiscoverySettings( Config config )
     {
-        if ( !config.isConfigured( initial_discovery_members ) )
+        CausalClusteringSettings.DiscoveryType discoveryType = config.get( CausalClusteringSettings.discovery_type );
+        discoveryType.requiredSettings().forEach( setting ->
         {
-            throw new InvalidSettingException(
-                    String.format( "Missing mandatory non-empty value for '%s'", initial_discovery_members.name() ) );
-        }
+            if ( !config.isConfigured( setting ) )
+            {
+                throw new InvalidSettingException( String.format(
+                        "Missing value for '%s', which is mandatory with '%s=%s'",
+                        setting.name(), CausalClusteringSettings.discovery_type.name(), discoveryType ) );
+            }
+        } );
     }
 }

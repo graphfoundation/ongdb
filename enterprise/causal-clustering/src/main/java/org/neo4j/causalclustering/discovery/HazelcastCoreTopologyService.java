@@ -46,6 +46,7 @@ import com.hazelcast.core.MemberAttributeEvent;
 import com.hazelcast.core.MembershipEvent;
 import com.hazelcast.core.MembershipListener;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -78,7 +79,6 @@ import static com.hazelcast.spi.properties.GroupProperty.PREFER_IPv4_STACK;
 import static com.hazelcast.spi.properties.GroupProperty.WAIT_SECONDS_BEFORE_JOIN;
 import static org.neo4j.causalclustering.core.CausalClusteringSettings.disable_middleware_logging;
 import static org.neo4j.causalclustering.core.CausalClusteringSettings.discovery_listen_address;
-import static org.neo4j.causalclustering.core.CausalClusteringSettings.initial_discovery_members;
 import static org.neo4j.causalclustering.discovery.HazelcastClusterTopology.extractCatchupAddressesMap;
 import static org.neo4j.causalclustering.discovery.HazelcastClusterTopology.getCoreTopology;
 import static org.neo4j.causalclustering.discovery.HazelcastClusterTopology.getReadReplicaTopology;
@@ -278,13 +278,10 @@ public class HazelcastCoreTopologyService extends AbstractTopologyService implem
         TcpIpConfig tcpIpConfig = joinConfig.getTcpIpConfig();
         tcpIpConfig.setEnabled( true );
 
-        List<AdvertisedSocketAddress> initialMembers = config.get( initial_discovery_members );
-        for ( AdvertisedSocketAddress address : initialMembers )
+        Collection<AdvertisedSocketAddress> initialMembers = DiscoveryMemberAddressResolver.resolve( config, hostnameResolver );
+        for ( AdvertisedSocketAddress advertisedSocketAddress : initialMembers )
         {
-            for ( AdvertisedSocketAddress advertisedSocketAddress : hostnameResolver.resolve( address ) )
-            {
-                tcpIpConfig.addMember( advertisedSocketAddress.toString() );
-            }
+            tcpIpConfig.addMember( advertisedSocketAddress.toString() );
         }
 
         ListenSocketAddress hazelcastAddress = config.get( discovery_listen_address );
@@ -362,7 +359,7 @@ public class HazelcastCoreTopologyService extends AbstractTopologyService implem
         return hazelcastInstance;
     }
 
-    private void logConnectionInfo( List<AdvertisedSocketAddress> initialMembers )
+    private void logConnectionInfo( Collection<AdvertisedSocketAddress> initialMembers )
     {
         userLog.info( "My connection info: " + "[\n\tDiscovery:   listen=%s, advertised=%s," +
                       "\n\tTransaction: listen=%s, advertised=%s, " + "\n\tRaft:        listen=%s, advertised=%s, " +

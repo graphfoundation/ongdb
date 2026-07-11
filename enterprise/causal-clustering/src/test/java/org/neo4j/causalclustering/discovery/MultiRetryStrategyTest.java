@@ -36,11 +36,13 @@ package org.neo4j.causalclustering.discovery;
 
 import org.junit.Test;
 
+import java.util.Collection;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.LongConsumer;
 import java.util.function.Predicate;
 
+import org.neo4j.helpers.AdvertisedSocketAddress;
 import org.neo4j.logging.NullLogProvider;
 
 import static org.junit.Assert.assertEquals;
@@ -124,5 +126,12 @@ public class MultiRetryStrategyTest
         {
             return counter;
         }
+    }
+
+    public static MultiRetryStrategy<AdvertisedSocketAddress,Collection<AdvertisedSocketAddress>> testRetryStrategy( int numRetries )
+    {
+        return new MultiRetryStrategy<>( 0, numRetries, NullLogProvider.getInstance(), timeout ->
+        {
+        } );
     }
 }
