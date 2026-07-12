@@ -1,9 +1,9 @@
-# Free full-reactor CI for public 1.1-dev.
+# Nightly full-reactor verification for release branches.
 # Uploads ci-snapshot-* artifacts for debugging — never creates a GitHub Release.
 #
 # Note: GitHub only schedules workflows from the repository *default* branch.
 # Keep this file on the default branch (or rely on workflow_dispatch) so cron fires;
-# the job always checks out ref 1.1-dev for the build.
+# each matrix job checks out the release branch under test.
 
 name: Nightly full reactor
 
@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: nightly-${{ github.repository }}-1.1-dev
+  group: nightly-${{ github.repository }}-${{ github.event_name }}
   cancel-in-progress: false
 
 env:
@@ -24,12 +24,16 @@ env:
 jobs:
   full-reactor:
     if: github.repository == 'graphfoundation/ongdb'
+    strategy:
+      fail-fast: false
+      matrix:
+        ref: [1.0, 1.1, 2.0]
     runs-on: ubuntu-latest
     timeout-minutes: 480
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: 1.1-dev
+          ref: ${{ matrix.ref }}
       - name: Raise open file limit
         run: ulimit -n 40000 && ulimit -n
       - name: Set up JDK 8
@@ -39,12 +43,12 @@ jobs:
           distribution: temurin
           cache: maven
       - name: Full reactor clean install
-        run: mvn -B -Drevapi.skip=true clean install
+        run: mvn -B clean install -DfullBuild -Drevapi.skip=true -DcreateChecksum=true
       - name: Upload CI snapshot distributions
         if: success()
         uses: actions/upload-artifact@v6
         with:
-          name: ci-snapshot-ongdb-1.1-dev-${{ github.run_id }}
+          name: ci-snapshot-ongdb-${{ matrix.ref }}-${{ github.run_id }}
           path: |
             packaging/standalone/target/ongdb-community-*-unix.tar.gz
             packaging/standalone/target/ongdb-enterprise-*-unix.tar.gz
@@ -54,7 +58,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v6
         with:
-          name: nightly-test-reports-${{ github.run_id }}
+          name: nightly-test-reports-${{ matrix.ref }}-${{ github.run_id }}
           path: |
             **/target/surefire-reports/**
             **/target/failsafe-reports/**
