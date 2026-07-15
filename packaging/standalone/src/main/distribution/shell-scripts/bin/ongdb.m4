@@ -45,6 +45,10 @@
 
 include(src/main/distribution/shell-scripts/bin/ongdb-shared.m4)
 
+use_default_main_class() {
+  MAIN_CLASS="#{ongdb.mainClass}"
+}
+
 setup_arbiter_options() {
   is_arbiter() {
     compgen -G "${ONGDB_LIB}/ongdb-server-enterprise-*.jar" >/dev/null && \
@@ -63,7 +67,7 @@ setup_arbiter_options() {
   else
     SHUTDOWN_TIMEOUT="${ONGDB_SHUTDOWN_TIMEOUT:-120}"
     MIN_ALLOWED_OPEN_FILES=40000
-    MAIN_CLASS="#{ongdb.mainClass}"
+    use_default_main_class
 
     print_start_message() {
       # Global default
@@ -266,6 +270,8 @@ do_status() {
 }
 
 do_version() {
+  check_java
+  use_default_main_class
   build_classpath
 
   assemble_command_line
@@ -316,7 +322,6 @@ main() {
       ;;
 
     --version|version)
-      setup_java
       do_version
       ;;
 

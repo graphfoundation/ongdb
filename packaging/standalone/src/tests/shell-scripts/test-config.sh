@@ -45,6 +45,12 @@ test_expect_success "https: should display default https if http disabled and no
   test_expect_stdout_matching 'It is available at https://localhost:7473/' run_daemon
 "
 
+test_expect_success "https: should tolerate Windows CRLF line endings in ongdb.conf" "
+  clear_config &&
+  printf 'dbms.connector.http.enabled=false\r\n' >'$(ongdb_home)/conf/ongdb.conf' &&
+  test_expect_stdout_matching 'It is available at https://localhost:7473/' run_daemon
+"
+
 test_expect_success "https: should read port and address from config" "
   clear_config &&
   set_config 'dbms.connector.http.enabled' 'false' ongdb.conf &&

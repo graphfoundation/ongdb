@@ -127,7 +127,7 @@ check_java() {
   _find_java_cmd
   setup_memory_opts
 
-  version_command=("${JAVA_CMD}" "-version" ${JAVA_MEMORY_OPTS_XMS-} ${JAVA_MEMORY_OPTS_XMX-})
+  version_command=("${JAVA_CMD}" "-version")
 
   JAVA_VERSION=$("${version_command[@]}" 2>&1 | awk -F '"' '/version/ {print $2}')
   if [[ $JAVA_VERSION = "1."* ]]; then
@@ -237,7 +237,7 @@ _read_config() {
   # - keys have '.' chars changed to '_'
   # - keys of the form KEY.# (where # is a number) are concatenated into a single environment variable named KEY
   parse_line() {
-    line="$1"
+    line="${1//[$'\r\n']}"
     if [[ "${line}" =~ ^([^#\s][^=]+)=(.+)$ ]]; then
       key="${BASH_REMATCH[1]//./_}"
       value="${BASH_REMATCH[2]}"

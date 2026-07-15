@@ -17,6 +17,15 @@ test_expect_java_arg() {
   done
 }
 
+test_expect_java_arg_absent() {
+  arg="$1"
+  java_args="${SHARNESS_TRASH_DIRECTORY}/java-args"
+  if [[ -f "${java_args}" ]] && grep --fixed-strings --regexp "${arg}" "${java_args}" >/dev/null ; then
+    echo >&2 "test_expect_java_arg_absent: did not expect argument '$arg' but got '$(cat "${java_args}")'"
+    return 1
+  fi
+}
+
 test_expect_stdout_matching() {
   expected_pattern=$1
   shift
