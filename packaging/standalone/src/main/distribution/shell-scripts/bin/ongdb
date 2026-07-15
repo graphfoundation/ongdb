@@ -43,9 +43,24 @@
 #  * ONGDB_CONF
 #  * ONGDB_START_WAIT
 
-#############################################################
-#      File content is generated based on .m4 template      #
-#############################################################
+# Copyright (c) 2018-2020 "Graph Foundation,"
+# Graph Foundation, Inc. [https://graphfoundation.org]
+#
+# This file is part of ONgDB.
+#
+# ONgDB is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 
 set -o errexit -o nounset -o pipefail
 [[ "${TRACE:-}" ]] && set -o xtrace
@@ -138,7 +153,9 @@ check_java() {
   _find_java_cmd
   setup_memory_opts
 
-  version_command=("${JAVA_CMD}" "-version" ${JAVA_MEMORY_OPTS_XMS-} ${JAVA_MEMORY_OPTS_XMX-})
+  # Probe without heap opts so `ongdb version` (and java -version checks)
+  # can run in memory-constrained environments.
+  version_command=("${JAVA_CMD}" "-version")
 
   JAVA_VERSION=$("${version_command[@]}" 2>&1 | awk -F '"' '/version/ {print $2}')
   if [[ $JAVA_VERSION = "1."* ]]; then
@@ -320,6 +337,7 @@ print_active_database() {
   echo "Active database: ${dbms_active_database:-graph.db}"
 }
 
+
 use_default_main_class() {
   MAIN_CLASS="#{ongdb.mainClass}"
 }
@@ -372,7 +390,7 @@ setup_arbiter_options() {
         ONGDB_SERVER_ADDRESS="http://${ONGDB_SERVER_ADDRESS}"
       fi
 
-      echo "Starting ongdb (pid ${ONGDB_PID}). It is available at ${ONGDB_SERVER_ADDRESS}/"
+      echo "Started ongdb (pid ${ONGDB_PID}). It is available at ${ONGDB_SERVER_ADDRESS}/"
 
       if [[ "$(echo "${dbms_mode:-}" | tr [:lower:] [:upper:])" == "HA" ]]; then
         echo "This HA instance will be operational once it has joined the cluster."
