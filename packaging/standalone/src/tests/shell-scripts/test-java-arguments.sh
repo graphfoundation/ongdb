@@ -10,8 +10,10 @@ test_expect_success "should not set heap size constraints when checking version 
   set_config 'dbms.memory.heap.initial_size' '512m' ongdb-wrapper.conf &&
   set_config 'dbms.memory.heap.max_size' '1024m' ongdb-wrapper.conf &&
   ongdb-home/bin/ongdb version || true &&
-  ! test_expect_java_arg '-Xms512m' &&
-  ! test_expect_java_arg '-Xmx1024m'
+  test_expect_java_arg_absent '-Xms512m' &&
+  test_expect_java_arg_absent '-Xmx1024m' &&
+  test_expect_java_arg_absent '-Xms' &&
+  test_expect_java_arg_absent '-Xmx'
 "
 
 test_expect_success "should not set heap size constraints when checking version" "
@@ -19,8 +21,10 @@ test_expect_success "should not set heap size constraints when checking version"
   set_config 'dbms.memory.heap.initial_size' '512m' ongdb.conf &&
   set_config 'dbms.memory.heap.max_size' '1024m' ongdb.conf &&
   ongdb-home/bin/ongdb version || true &&
-  ! test_expect_java_arg '-Xms512m' &&
-  ! test_expect_java_arg '-Xmx1024m'
+  test_expect_java_arg_absent '-Xms512m' &&
+  test_expect_java_arg_absent '-Xmx1024m' &&
+  test_expect_java_arg_absent '-Xms' &&
+  test_expect_java_arg_absent '-Xmx'
 "
 
 for run_command in run_console run_daemon; do
