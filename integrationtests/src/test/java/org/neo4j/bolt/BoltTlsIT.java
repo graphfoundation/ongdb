@@ -55,6 +55,7 @@ import org.neo4j.ssl.SslContextFactory;
 import org.neo4j.ssl.SslResource;
 import org.neo4j.test.TestGraphDatabaseFactory;
 import org.neo4j.test.rule.TestDirectory;
+import org.neo4j.ssl.SupportsTls;
 
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.junit.Assert.assertNotNull;
@@ -119,9 +120,9 @@ public class BoltTlsIT
                 new TestSetup( "TLSv1", "TLSv1.1", false ),
                 new TestSetup( "TLSv1.1", "TLSv1.2", false ),
 
-                new TestSetup( "TLSv1", "TLSv1", false ),
-                new TestSetup( "TLSv1.1", "TLSv1.1", false ),
-                new TestSetup( "TLSv1.2", "TLSv1.2", true ),
+                new TestSetup( "TLSv1", "TLSv1", SupportsTls.supportsTls_1_0() ),
+                new TestSetup( "TLSv1.1", "TLSv1.1", SupportsTls.supportsTls_1_1() ),
+                new TestSetup( "TLSv1.2", "TLSv1.2", SupportsTls.supportsTls_1_2() ),
 
                 new TestSetup( "SSLv3,TLSv1", "TLSv1.1,TLSv1.2", false ),
                 new TestSetup( "TLSv1.1,TLSv1.2", "TLSv1.1,TLSv1.2", true ),
