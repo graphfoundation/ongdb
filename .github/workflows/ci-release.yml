@@ -1,23 +1,21 @@
-# Nightly full-reactor verification for release branches.
-# Uploads ci-snapshot-* artifacts for debugging — never creates a GitHub Release.
+# Full-reactor gate for release branches (1.0 / 1.1 / 2.0) and PRs into them.
+# Separate from ci-dev.yml so only this job appears on release PR checks.
 #
-# Note: GitHub only schedules workflows from the repository *default* branch.
-# Keep this file on the default branch (or rely on workflow_dispatch) so cron fires;
-# each matrix job checks out the release branch under test.
-#
-# Matrix refs must be quoted: bare 1.0 / 2.0 are YAML floats and become 1 / 2.
+# Required check name on release branch protection: full-reactor
 
-name: Nightly full reactor
+name: Java CI (release)
 
 on:
-  schedule:
-    # 06:00 UTC daily (requires this workflow on the repo default branch)
-    - cron: '0 6 * * *'
-  workflow_dispatch:
-
-concurrency:
-  group: nightly-${{ github.repository }}-${{ github.event_name }}
-  cancel-in-progress: false
+  push:
+    branches:
+      - '1.0'
+      - '1.1'
+      - '2.0'
+  pull_request:
+    branches:
+      - '1.0'
+      - '1.1'
+      - '2.0'
 
 env:
   MAVEN_OPTS: -Xmx4g
@@ -25,17 +23,10 @@ env:
 
 jobs:
   full-reactor:
-    if: github.repository == 'graphfoundation/ongdb'
-    strategy:
-      fail-fast: false
-      matrix:
-        ref: ['1.0', '1.1', '2.0']
     runs-on: ubuntu-latest
     timeout-minutes: 480
     steps:
       - uses: actions/checkout@v5
-        with:
-          ref: ${{ matrix.ref }}
       - name: Raise open file limit
         run: ulimit -n 40000 && ulimit -n
       - name: Set up JDK 8
@@ -50,7 +41,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v6
         with:
-          name: ci-snapshot-ongdb-${{ matrix.ref }}-${{ github.run_id }}
+          name: ci-snapshot-ongdb-${{ github.run_id }}
           path: |
             packaging/standalone/target/ongdb-community-*-unix.tar.gz
             packaging/standalone/target/ongdb-enterprise-*-unix.tar.gz
@@ -60,7 +51,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v6
         with:
-          name: nightly-test-reports-${{ matrix.ref }}-${{ github.run_id }}
+          name: full-reactor-test-reports-${{ github.run_id }}
           path: |
             **/target/surefire-reports/**
             **/target/failsafe-reports/**
