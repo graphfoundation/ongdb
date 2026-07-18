@@ -1,6 +1,6 @@
-# CI for integration branches and PRs that are not targeting a release branch
-# (e.g. work on 1.0-dev). Separate from ci-release.yml so GitHub does not
-# surface a skipped sibling job on the same workflow run.
+# CI for integration (*-dev) branches and PRs into them.
+# Separate from ci-release.yml so release PRs do not also pick up a build
+# check from the head-branch push.
 #
 # Required check name on *-dev branch protection (if enabled): build
 
@@ -8,15 +8,15 @@ name: Java CI (dev)
 
 on:
   push:
-    branches-ignore:
-      - '1.0'
-      - '1.1'
-      - '2.0'
+    branches:
+      - '1.0-dev'
+      - '1.1-dev'
+      - '2.0-dev'
   pull_request:
-    branches-ignore:
-      - '1.0'
-      - '1.1'
-      - '2.0'
+    branches:
+      - '1.0-dev'
+      - '1.1-dev'
+      - '2.0-dev'
 
 env:
   MAVEN_OPTS: -Xmx4g
