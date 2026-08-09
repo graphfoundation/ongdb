@@ -13,6 +13,7 @@ fake_install() {
 
 clear_config() {
   rm -f ongdb-home/conf/*
+  rm -f "${SHARNESS_TRASH_DIRECTORY}/java-args"
 }
 
 set_config() {

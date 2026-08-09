@@ -43,9 +43,24 @@
 #  * ONGDB_CONF
 #  * ONGDB_START_WAIT
 
-#############################################################
-#      File content is generated based on .m4 template      #
-#############################################################
+# Copyright (c) 2018-2020 "Graph Foundation,"
+# Graph Foundation, Inc. [https://graphfoundation.org]
+#
+# This file is part of ONgDB.
+#
+# ONgDB is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 
 set -o errexit -o nounset -o pipefail
 [[ "${TRACE:-}" ]] && set -o xtrace
@@ -138,7 +153,9 @@ check_java() {
   _find_java_cmd
   setup_memory_opts
 
-  version_command=("${JAVA_CMD}" "-version" ${JAVA_MEMORY_OPTS_XMS-} ${JAVA_MEMORY_OPTS_XMX-})
+  # Probe without heap opts so `ongdb version` (and java -version checks)
+  # can run in memory-constrained environments.
+  version_command=("${JAVA_CMD}" "-version")
 
   JAVA_VERSION=$("${version_command[@]}" 2>&1 | awk -F '"' '/version/ {print $2}')
   if [[ $JAVA_VERSION = "1."* ]]; then
@@ -248,7 +265,7 @@ _read_config() {
   # - keys have '.' chars changed to '_'
   # - keys of the form KEY.# (where # is a number) are concatenated into a single environment variable named KEY
   parse_line() {
-    line="$1"
+    line="${1//[$'\r\n']}"
     if [[ "${line}" =~ ^([^#\s][^=]+)=(.+)$ ]]; then
       key="${BASH_REMATCH[1]//./_}"
       value="${BASH_REMATCH[2]}"
@@ -321,6 +338,10 @@ print_active_database() {
 }
 
 
+use_default_main_class() {
+  MAIN_CLASS="#{ongdb.mainClass}"
+}
+
 setup_arbiter_options() {
   is_arbiter() {
     compgen -G "${ONGDB_LIB}/ongdb-server-enterprise-*.jar" >/dev/null && \
@@ -339,7 +360,7 @@ setup_arbiter_options() {
   else
     SHUTDOWN_TIMEOUT="${ONGDB_SHUTDOWN_TIMEOUT:-120}"
     MIN_ALLOWED_OPEN_FILES=40000
-    MAIN_CLASS="#{ongdb.mainClass}"
+    use_default_main_class
 
     print_start_message() {
       # Global default
@@ -369,7 +390,7 @@ setup_arbiter_options() {
         ONGDB_SERVER_ADDRESS="http://${ONGDB_SERVER_ADDRESS}"
       fi
 
-      echo "Starting ongdb (pid ${ONGDB_PID}). It is available at ${ONGDB_SERVER_ADDRESS}/"
+      echo "Started ongdb (pid ${ONGDB_PID}). It is available at ${ONGDB_SERVER_ADDRESS}/"
 
       if [[ "$(echo "${dbms_mode:-}" | tr [:lower:] [:upper:])" == "HA" ]]; then
         echo "This HA instance will be operational once it has joined the cluster."
@@ -542,6 +563,8 @@ do_status() {
 }
 
 do_version() {
+  check_java
+  use_default_main_class
   build_classpath
 
   assemble_command_line
@@ -592,7 +615,6 @@ main() {
       ;;
 
     --version|version)
-      setup_java
       do_version
       ;;
 
