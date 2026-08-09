@@ -226,7 +226,7 @@ class Follower implements RaftMessageHandler
     {
         public Outcome handle( RaftMessages.Timeout.Election election, Outcome outcome, ReadableRaftState ctx, Log log ) throws IOException
         {
-            log.info( "Election timeout triggered" );
+            log.info( "Election timeout triggered (with supporters)" );
             if ( Election.startPreElection( ctx, outcome, log ) )
             {
                 outcome.setPreElection( true );
@@ -242,7 +242,7 @@ class Follower implements RaftMessageHandler
         @Override
         public Outcome handle( RaftMessages.Timeout.Election election, Outcome outcome, ReadableRaftState ctx, Log log ) throws IOException
         {
-            log.info( "Election timeout triggered" );
+            log.info( "Election timeout triggered (without supporters)" );
             if ( Election.startRealElection( ctx, outcome, log ) )
             {
                 outcome.setNextRole( CANDIDATE );
