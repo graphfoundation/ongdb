@@ -146,12 +146,31 @@ class ReaderPool
 
     synchronized void close() throws IOException
     {
+        IOException first = null;
         for ( Reader reader : pool )
         {
-            reader.close();
+            try
+            {
+                reader.close();
+            }
+            catch ( IOException e )
+            {
+                if ( first == null )
+                {
+                    first = e;
+                }
+                else
+                {
+                    first.addSuppressed( e );
+                }
+            }
         }
         pool.clear();
         pool = null;
+        if ( first != null )
+        {
+            throw first;
+        }
     }
 
     public synchronized void prune( long version )
